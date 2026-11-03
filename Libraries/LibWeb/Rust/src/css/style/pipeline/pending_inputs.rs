@@ -8,41 +8,37 @@
 //! them where nothing it reads can move: a geometry read reuses the committed layout where no
 //! pending input may move geometry, and a hover reuses the read-only frame where no element can
 //! match a compound testing `:hover`.
+//!
+//! The hover's question is asked of every frame and the host waits for its answer, so no element is read to answer it.
+//! The compounds testing `:hover` are compiled once for the rules into the keys of the elements that may match them, and
+//! a transaction notes the elements whose keys among those it moved.
 
 use super::super::*;
-use super::invalidation::{InvalidationMap, Trigger};
+use super::invalidation::{HoverCompounds, InvalidationMap, Trigger};
 use super::live::Live;
 use super::projection::{ElementChange, ProjectionGeneration};
 use crate::fast_hash::FastSet;
 
-/// The last answer of whether a hover needs the style engine, with what it read to answer: the
-/// projection's generation, the tree's version, the invalidation map and the hover's root. An
-/// answer read over the same holds again, so a rendering update over a document nothing changed
-/// in asks nothing of its elements.
-#[derive(Clone, Default)]
+/// What the hover seal keeps between frames.
+#[derive(Default)]
 pub(in crate::css::style) struct HoverSealMemo {
-    last: Option<HoverSealAnswer>,
-    candidates: Option<HoverSealCandidates>,
+    carriers: Option<HoverCarriers>,
     cursor_facts: Option<HoverCursorFactsAnswer>,
 }
 
-/// The elements whose rows may make a hover need the style engine, with the generation of the rows they were read
-/// from and the invalidation map they were matched against: a seal over other rows reads again only the rows written
-/// since.
-#[derive(Clone)]
-struct HoverSealCandidates {
-    projection: ProjectionGeneration,
-    invalidation: Option<Arc<InvalidationMap>>,
-    hover_keyed: HoverKeyedElements,
+// NB: A fork of the engine seals no frame, and has no use for what the host's seal kept.
+impl Clone for HoverSealMemo {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
 }
 
-/// The elements that may match a compound testing `:hover`, by their keys.
-#[derive(Clone)]
-enum HoverKeyedElements {
-    /// Every element may: there is no map describing the rules, or a query tests `:hover`.
-    Every,
-    /// Those carrying the keys of a compound testing `:hover`.
-    Carrying(FastSet<StyleNodeID>),
+/// The elements that may match a compound testing `:hover`, which the transactions keep up as they move the keys of the
+/// compounds of `map`.
+struct HoverCarriers {
+    map: Arc<InvalidationMap>,
+    compounds: HoverCompounds,
+    elements: FastSet<StyleNodeID>,
 }
 
 /// The cursor facts published last, with the generations of what they read: the projection's, the tree's paint facts,
@@ -56,39 +52,7 @@ struct HoverCursorFactsAnswer {
     editable: Arc<FastSet<StyleNodeID>>,
 }
 
-#[derive(Clone)]
-struct HoverSealAnswer {
-    projection: ProjectionGeneration,
-    dom_order_version: u64,
-    invalidation: Option<Arc<InvalidationMap>>,
-    root: StyleNodeID,
-    needs_style_state: bool,
-}
-
-/// Whether `a` and `b` are the same invalidation map, or both none.
-fn same_map(a: Option<&Arc<InvalidationMap>>, b: Option<&Arc<InvalidationMap>>) -> bool {
-    match (a, b) {
-        (Some(a), Some(b)) => Arc::ptr_eq(a, b),
-        (None, None) => true,
-        _ => false,
-    }
-}
-
 impl StyleEngine {
-    fn hover_seal_invalidation(&self) -> Option<&Arc<InvalidationMap>> {
-        self.retained.live_style.as_deref()?.current_invalidation_shared()
-    }
-
-    /// The answer the hover seal gave last for `root`, where nothing it read moved since.
-    pub(in super::super) fn memoized_hover_seal(&self, root: StyleNodeID) -> Option<bool> {
-        let last = self.host.hover_seal.last.as_ref()?;
-        (last.root == root
-            && same_map(last.invalidation.as_ref(), self.hover_seal_invalidation())
-            && last.dom_order_version == self.tree().dom_order_version()
-            && self.retained.projection.is_at_generation(&last.projection))
-        .then_some(last.needs_style_state)
-    }
-
     /// The cursor facts built last, where nothing they read moved since.
     pub(in super::super) fn memoized_hover_cursor_facts(
         &self,
@@ -122,17 +86,6 @@ impl StyleEngine {
             installed_column_version: self.computed_group_sets.installed_column_version(),
             editable: facts.editable(),
             facts,
-        });
-    }
-
-    /// Keep `needs_style_state`, the hover seal's answer for `root`, with what it read.
-    pub(in super::super) fn memoize_hover_seal(&mut self, root: StyleNodeID, needs_style_state: bool) {
-        self.host.hover_seal.last = Some(HoverSealAnswer {
-            projection: self.retained.projection.generation(),
-            dom_order_version: self.tree().dom_order_version(),
-            invalidation: self.hover_seal_invalidation().cloned(),
-            root,
-            needs_style_state,
         });
     }
 
@@ -219,98 +172,98 @@ impl StyleEngine {
     }
 
     /// Whether a hover under `root` needs the style engine: whether an element in its shadow-including subtree is a
-    /// disabled control, or may come to match, or stop matching, a compound testing `:hover`. Reads again only the
-    /// rows written since the last answer, where the rules are the same.
+    /// disabled control, or may come to match, or stop matching, a compound testing `:hover`. Reads only the elements
+    /// a transaction moved the keys of those compounds of.
     pub(in super::super) fn hover_seal_needs_style_state(&mut self, root: StyleNodeID) -> bool {
-        self.update_hover_seal_candidates();
-        let candidates = self
-            .host
-            .hover_seal
-            .candidates
-            .as_ref()
-            .expect("the hover seal's candidates were just read");
         let projection = &self.retained.projection;
         let tree = self.tree();
         let under_root =
             |node: &StyleNodeID| tree.is_live(*node) && projection.is_in_shadow_including_subtree_of(*node, root);
-        projection.written_disabled().iter().any(under_root)
-            || match &candidates.hover_keyed {
-                HoverKeyedElements::Every => true,
-                HoverKeyedElements::Carrying(elements) => elements.iter().any(under_root),
-            }
+        if projection.written_disabled().iter().any(under_root) || !self.update_hover_carriers() {
+            return true;
+        }
+        let projection = &self.retained.projection;
+        let tree = self.tree();
+        let under_root =
+            |node: &StyleNodeID| tree.is_live(*node) && projection.is_in_shadow_including_subtree_of(*node, root);
+        self.host
+            .hover_seal
+            .carriers
+            .as_ref()
+            .expect("the hover seal's carriers were just brought up")
+            .elements
+            .iter()
+            .any(under_root)
     }
 
-    /// Bring the hover seal's candidates up to the rows as they stand: read the rows written since they were read
-    /// last, or every row where there are none yet, or the rules moved.
-    fn update_hover_seal_candidates(&mut self) {
-        if self.host.hover_seal.candidates.as_ref().is_some_and(|candidates| {
-            self.retained.projection.is_at_generation(&candidates.projection)
-                && same_map(candidates.invalidation.as_ref(), self.hover_seal_invalidation())
-        }) {
-            return;
-        }
-        let generation = self.retained.projection.generation();
-        let invalidation = self.hover_seal_invalidation().cloned();
-        let (mut candidates, first_read) = match self.host.hover_seal.candidates.take() {
-            Some(candidates) => (candidates, false),
-            None => (
-                HoverSealCandidates {
-                    projection: generation.clone(),
-                    invalidation: None,
-                    hover_keyed: HoverKeyedElements::Every,
-                },
-                true,
-            ),
+    /// Bring the elements that may match a compound testing `:hover` up to the rows and the rules as they stand,
+    /// answering whether they say which elements may. They do not where no map describes the rules, or where any element
+    /// may.
+    fn update_hover_carriers(&mut self) -> bool {
+        let Some(live) = self.retained.live_style.as_deref() else {
+            return false;
         };
-        let projection = &self.retained.projection;
-        let every_slot: Vec<_> = std::iter::once(0..projection.element_slot_count()).collect();
-        let element_at = |slot: usize| StyleNodeID::element(u32::try_from(slot).expect("element slot exceeds u32"));
-        let hover = Trigger::State(StateFact::Hover);
-        candidates.hover_keyed = match self.current_invalidation() {
-            Some((live, map)) if map.queries_testing(&hover).next().is_none() => {
-                let rules_moved = first_read || !same_map(candidates.invalidation.as_ref(), invalidation.as_ref());
-                let (mut elements, keyed_slots) =
-                    match std::mem::replace(&mut candidates.hover_keyed, HoverKeyedElements::Every) {
-                        HoverKeyedElements::Carrying(elements) if !rules_moved => (
-                            elements,
-                            generation.committed_slots_changed_since(&candidates.projection),
-                        ),
-                        _ => (FastSet::default(), every_slot),
-                    };
-                if map.has_effects(&hover) {
-                    for node in keyed_slots
-                        .into_iter()
-                        .flatten()
-                        .filter(|&slot| slot != 0)
-                        .map(element_at)
-                    {
-                        let carries_keys = projection.row_of(node).is_some_and(|row| {
-                            map.effects(&hover)
-                                .any(|effect| map.may_match_by_keys(&live.index, effect, row))
-                        });
-                        if carries_keys {
-                            elements.insert(node);
-                        } else {
-                            elements.remove(&node);
-                        }
+        let Some(map) = live.current_invalidation_shared() else {
+            return false;
+        };
+        let projection = &mut self.retained.projection;
+        let known = self
+            .host
+            .hover_seal
+            .carriers
+            .take()
+            .filter(|carriers| projection.watches_keys(carriers.compounds.keys()));
+        let mut carriers = match known {
+            Some(carriers) if Arc::ptr_eq(&carriers.map, map) => carriers,
+            known => {
+                let compounds = map.hover_compounds(&live.index);
+                let elements = match known {
+                    // NB: The rules moved around the same compounds: no key moved, and no element is read again.
+                    Some(carriers) if carriers.compounds.are_the_same_as(&compounds) => carriers.elements,
+                    _ => {
+                        let writes = projection.take_watched_key_writes();
+                        projection.reuse_watched_key_writes(writes);
+                        projection
+                            .committed_carriers_of(compounds.keys())
+                            .filter(|&node| {
+                                projection
+                                    .row_of(node)
+                                    .is_some_and(|row| compounds.may_match(map, &live.index, row))
+                            })
+                            .collect()
                     }
-                } else {
-                    elements.clear();
+                };
+                projection.watch_keys(compounds.keys().clone());
+                HoverCarriers {
+                    map: map.clone(),
+                    compounds,
+                    elements,
                 }
-                HoverKeyedElements::Carrying(elements)
             }
-            _ => HoverKeyedElements::Every,
         };
-        candidates.projection = generation;
-        candidates.invalidation = invalidation;
-        self.host.hover_seal.candidates = Some(candidates);
+        let writes = projection.take_watched_key_writes();
+        for &node in &writes {
+            let carries = projection
+                .row_of(node)
+                .is_some_and(|row| carriers.compounds.may_match(&carriers.map, &live.index, row));
+            if carries {
+                carriers.elements.insert(node);
+            } else {
+                carriers.elements.remove(&node);
+            }
+        }
+        projection.reuse_watched_key_writes(writes);
+        let says = !carriers.compounds.every_element();
+        self.host.hover_seal.carriers = Some(carriers);
+        says
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::test_support::{
-        add_class, add_rules, add_sheet, linear_document, remove_class, set_tag, start_live,
+        add_class, add_rules, add_sheet, linear_document, relations, remove_class, run_style_update, set_tag,
+        start_live,
     };
     use super::*;
 
@@ -403,5 +356,117 @@ mod tests {
         start_live(&mut engine, nodes[0]);
         assert!(engine.hover_needs_style_state(nodes[3]));
         assert!(engine.hover_needs_style_state(nodes[0]));
+    }
+
+    #[test]
+    fn hover_compounds_select_what_reading_every_compound_selects() {
+        for selector in [
+            "A:hover",
+            ".a.b:hover",
+            ".a.c:hover",
+            "#i:hover",
+            "span.a:hover",
+            "div.c:hover",
+            ":is(.a, span):hover",
+            ":is(.c, em):hover",
+            ":where(:is(.b)):hover",
+            ":is(.c):is(.a):hover",
+        ] {
+            let (mut engine, nodes) = document_with_rules(&format!("{selector} {{ color: red; }}"));
+            add_class(&mut engine, nodes[1], "a");
+            add_class(&mut engine, nodes[1], "b");
+            set_tag(&mut engine, nodes[2], "span");
+            add_class(&mut engine, nodes[3], "a");
+            start_live(&mut engine, nodes[0]);
+            let (live, map) = engine.current_invalidation().expect("the map describes the rules");
+            let compounds = map.hover_compounds(&live.index);
+            assert!(!compounds.every_element(), "{selector}");
+            let hover = Trigger::State(StateFact::Hover);
+            for &node in &nodes {
+                let row = engine.retained.projection.row_of(node).expect("the element has facts");
+                assert_eq!(
+                    compounds.may_match(map, &live.index, row),
+                    map.effects(&hover)
+                        .any(|effect| map.may_match_by_keys(&live.index, effect, row)),
+                    "{selector}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn hover_compounds_with_no_key_answer_for_every_element() {
+        for selector in ["*:hover", ":hover", ":not(:hover)", "[data-x]:hover", ":not(.a):hover"] {
+            let (engine, _) = document_with_rules(&format!("{selector} {{ color: red; }}"));
+            let (live, map) = engine.current_invalidation().expect("the map describes the rules");
+            assert!(map.hover_compounds(&live.index).every_element(), "{selector}");
+        }
+    }
+
+    #[test]
+    fn a_hover_seal_follows_each_key_of_a_compound_as_transactions_move_them() {
+        let (mut engine, nodes) = document_with_rules(".a.b:hover { color: red; }");
+        assert!(!engine.hover_needs_style_state(nodes[0]));
+        add_class(&mut engine, nodes[2], "a");
+        run_style_update(&mut engine, nodes[0]);
+        assert!(!engine.hover_needs_style_state(nodes[0]));
+        add_class(&mut engine, nodes[2], "b");
+        run_style_update(&mut engine, nodes[0]);
+        assert!(engine.hover_needs_style_state(nodes[0]));
+        remove_class(&mut engine, nodes[2], "a");
+        run_style_update(&mut engine, nodes[0]);
+        assert!(!engine.hover_needs_style_state(nodes[0]));
+    }
+
+    #[test]
+    fn a_hover_seal_hears_of_no_element_but_those_whose_watched_keys_moved() {
+        let (mut engine, nodes) = document_with_rules(".menu:hover { color: red; }");
+        assert!(!engine.hover_needs_style_state(nodes[0]));
+        add_class(&mut engine, nodes[1], "other");
+        run_style_update(&mut engine, nodes[0]);
+        assert!(engine.retained.projection.take_watched_key_writes().is_empty());
+        add_class(&mut engine, nodes[1], "menu");
+        add_class(&mut engine, nodes[2], "other");
+        run_style_update(&mut engine, nodes[0]);
+        assert_eq!(engine.retained.projection.take_watched_key_writes(), [nodes[1]]);
+        add_class(&mut engine, nodes[1], "another");
+        run_style_update(&mut engine, nodes[0]);
+        assert_eq!(engine.retained.projection.take_watched_key_writes(), [nodes[1]]);
+    }
+
+    #[test]
+    fn a_hover_seal_reads_no_element_for_rules_that_leave_its_compounds_alone() {
+        let (mut engine, nodes) = document_with_rules(".menu:hover { color: red; }");
+        assert!(!engine.hover_needs_style_state(nodes[0]));
+        // NB: Nothing carries the key of the compound: an element read again would be found not to carry it.
+        let carriers = engine.host.hover_seal.carriers.as_mut().expect("the seal answered");
+        carriers.elements.insert(nodes[3]);
+        let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
+        add_rules(&mut engine, sheet, ".other { color: green; }");
+        run_style_update(&mut engine, nodes[0]);
+        assert!(engine.hover_needs_style_state(nodes[0]));
+    }
+
+    #[test]
+    fn a_hover_seal_finds_the_elements_a_rule_added_later_may_match() {
+        let (mut engine, nodes) = document_with_rules(".other { color: green; }");
+        add_class(&mut engine, nodes[2], "menu");
+        run_style_update(&mut engine, nodes[0]);
+        assert!(!engine.hover_needs_style_state(nodes[0]));
+        let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
+        add_rules(&mut engine, sheet, ".menu:hover { color: red; }");
+        run_style_update(&mut engine, nodes[0]);
+        assert!(engine.hover_needs_style_state(nodes[0]));
+    }
+
+    #[test]
+    fn a_hover_seal_lets_go_of_an_element_that_leaves() {
+        let (mut engine, nodes) = document_with_rules(".menu:hover { color: red; }");
+        add_class(&mut engine, nodes[3], "menu");
+        run_style_update(&mut engine, nodes[0]);
+        assert!(engine.hover_needs_style_state(nodes[0]));
+        engine.record_tree_delta(nodes[3], Some(relations(Some(nodes[0]), None, Some(nodes[2]))), None);
+        run_style_update(&mut engine, nodes[0]);
+        assert!(!engine.hover_needs_style_state(nodes[0]));
     }
 }

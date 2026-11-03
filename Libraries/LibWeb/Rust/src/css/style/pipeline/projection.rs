@@ -156,6 +156,70 @@ impl PendingChangeScan {
     }
 }
 
+/// A key of an element, which a compound can require of the elements it matches: a name its row holds, or the
+/// element-backed pseudo-element of its shadow host it stands for.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(in crate::css::style) enum CarriedKey {
+    Tag(StyleAtomID),
+    Class(StyleAtomID),
+    Id(StyleAtomID),
+    BackedPseudoElement(u8),
+}
+
+/// The keys a [`Projection`] notes the elements of: those that carried one, or carry one, and whose keys moved.
+#[derive(Default)]
+pub(in crate::css::style) struct WatchedKeys {
+    keys: HashSet<CarriedKey>,
+    /// A Bloom summary of the names among the keys, which rules out most elements without a lookup.
+    names_bloom: u64,
+    watches_pseudo_elements: bool,
+}
+
+impl WatchedKeys {
+    pub(in crate::css::style) fn new(keys: impl IntoIterator<Item = CarriedKey>) -> Self {
+        let keys: HashSet<CarriedKey> = keys.into_iter().collect();
+        let mut watched = Self {
+            names_bloom: 0,
+            watches_pseudo_elements: false,
+            keys: HashSet::default(),
+        };
+        for &key in &keys {
+            match key {
+                CarriedKey::Tag(tag) => watched.names_bloom |= dispatch_bloom_bit(DispatchKey::TagName(tag)),
+                CarriedKey::Class(class) => watched.names_bloom |= dispatch_bloom_bit(DispatchKey::Class(class)),
+                CarriedKey::Id(id) => watched.names_bloom |= dispatch_bloom_bit(DispatchKey::Id(id)),
+                CarriedKey::BackedPseudoElement(_) => watched.watches_pseudo_elements = true,
+            }
+        }
+        watched.keys = keys;
+        watched
+    }
+
+    /// Whether an element with `facts` carries a key, without reading more of it than its names where its Bloom
+    /// summary says it may.
+    fn carried_by(&self, facts: &ElementFacts, host_fact_sets: &HostFactSets) -> bool {
+        (facts.dispatch_bloom & self.names_bloom != 0 && facts.named_keys().any(|key| self.keys.contains(&key)))
+            || (self.watches_pseudo_elements
+                && backed_pseudo_element_key(facts, host_fact_sets).is_some_and(|key| self.keys.contains(&key)))
+    }
+}
+
+fn backed_pseudo_element_key(facts: &ElementFacts, host_fact_sets: &HostFactSets) -> Option<CarriedKey> {
+    host_fact_sets
+        .get(facts.host_facts)
+        .associated_pseudo_kind()
+        .map(CarriedKey::BackedPseudoElement)
+}
+
+/// Whether the two say the same of the keys their elements carry.
+fn carry_the_same_keys(was: &ElementFacts, is: &ElementFacts, host_fact_sets: &HostFactSets) -> bool {
+    was.tag == is.tag
+        && was.folded_tag() == is.folded_tag()
+        && was.id() == is.id()
+        && was.classes() == is.classes()
+        && backed_pseudo_element_key(was, host_fact_sets) == backed_pseudo_element_key(is, host_fact_sets)
+}
+
 /// A list of atoms or pairs a row holds, shared by every copy of the row. An empty one holds no
 /// allocation.
 #[derive(Clone, PartialEq)]
@@ -352,6 +416,19 @@ impl ElementFacts {
     #[must_use]
     pub(in crate::css::style) fn custom_states(&self) -> &[StyleAtomID] {
         self.lists.custom_states()
+    }
+
+    /// The keys of the element that name something of its own.
+    fn named_keys(&self) -> impl Iterator<Item = CarriedKey> + '_ {
+        let (folded_tag, id) = (self.folded_tag(), self.id());
+        [
+            Some(CarriedKey::Tag(self.tag)),
+            (!folded_tag.is_none()).then_some(CarriedKey::Tag(folded_tag)),
+            (!id.is_none()).then_some(CarriedKey::Id(id)),
+        ]
+        .into_iter()
+        .flatten()
+        .chain(self.classes().iter().copied().map(CarriedKey::Class))
     }
 
     /// The Bloom summary of the dispatch keys the element carries.
@@ -606,11 +683,6 @@ impl ProjectionGeneration {
             .and_then(|shadow| shadow.host);
         Some(host.unwrap_or(parent))
     }
-
-    /// The element slots whose committed rows may differ between `older` and this generation.
-    pub(in crate::css::style) fn committed_slots_changed_since(&self, older: &Self) -> Vec<std::ops::Range<usize>> {
-        self.committed.changed_rows_since(&older.committed)
-    }
 }
 
 /// What the selectors matched against an element read of its children's places among their siblings, and of itself
@@ -707,6 +779,10 @@ pub(in crate::css::style) struct Projection {
     changes: Vec<(StyleNodeID, ElementChange)>,
     /// The elements the render owner's hover places in the hover state, beside the rows.
     hover: HoverOverlay,
+    /// The keys the transactions note the elements of, as the hover seal last said.
+    watched_keys: Option<Arc<WatchedKeys>>,
+    /// The elements the transactions since the hover seal last asked moved the watched keys of.
+    watched_key_writes: WrittenRows,
     /// The elements whose links were written since the last transaction was released: those the
     /// tree has to settle at the next barrier, and those it settled at the barrier of the
     /// transaction being taken.
@@ -814,6 +890,9 @@ impl Projection {
         }
         bytes += sizer.arc_shallow(&self.text_assigned_slots) + map_bytes(&self.text_assigned_slots);
         bytes += sizer.arc_shallow(&self.disabled) + crate::heap_size::set_bytes(&self.disabled);
+        if let Some(watched_keys) = &self.watched_keys {
+            bytes += sizer.arc_shallow(watched_keys) + crate::heap_size::set_bytes(&watched_keys.keys);
+        }
         if sizer.arc_shallow(&self.structural_flags) != 0 {
             bytes += crate::heap_size::ARC_HEADER_BYTES
                 + size_of::<StructuralFlagsColumn>()
@@ -824,6 +903,7 @@ impl Projection {
             &self.written_since_seal,
             &self.links_written,
             &self.relations_written,
+            &self.watched_key_writes,
         ]
         .iter()
         .map(|rows| rows.heap_size())
@@ -913,6 +993,7 @@ impl Projection {
                 note_changes(pass, node, (before, after), hovered, &mut self.changes);
             }
         }
+        self.note_watched_key_writes(&written);
         self.written.reuse(written);
         if self.flushing_seal {
             for index in 0..self.written_since_seal.nodes.len() {
@@ -923,6 +1004,66 @@ impl Projection {
         } else {
             self.forget_written_since_seal();
         }
+    }
+
+    /// Note those of the elements `written`, in the transaction being taken, that carried a watched key or carry one,
+    /// and whose keys moved.
+    fn note_watched_key_writes(&mut self, written: &[StyleNodeID]) {
+        let Some(watched) = self.watched_keys.as_ref().filter(|watched| !watched.keys.is_empty()) else {
+            return;
+        };
+        let sets = &*self.host_fact_sets;
+        let carries = |row: Option<&Row>| row.is_some_and(|row| watched.carried_by(&row.facts, sets));
+        let empty = ElementFacts::default();
+        for &node in written {
+            let slot = node.element_slot();
+            let (before, after) = (self.before.get(slot), self.committed.get(slot));
+            if (carries(before) || carries(after))
+                && !carry_the_same_keys(
+                    before.map_or(&empty, |row| &row.facts),
+                    after.map_or(&empty, |row| &row.facts),
+                    sets,
+                )
+            {
+                self.watched_key_writes.insert(node, slot);
+            }
+        }
+    }
+
+    /// Have the transactions from here on note the elements of `keys`, in place of those they noted till now.
+    pub(in crate::css::style) fn watch_keys(&mut self, keys: Arc<WatchedKeys>) {
+        self.watched_keys = Some(keys);
+    }
+
+    /// Whether the transactions noted the elements of `keys` all along since the hover seal said to.
+    #[must_use]
+    pub(in crate::css::style) fn watches_keys(&self, keys: &Arc<WatchedKeys>) -> bool {
+        self.watched_keys
+            .as_ref()
+            .is_some_and(|watched| Arc::ptr_eq(watched, keys))
+    }
+
+    /// The elements noted since this was last asked, each once.
+    pub(in crate::css::style) fn take_watched_key_writes(&mut self) -> Vec<StyleNodeID> {
+        self.watched_key_writes.take()
+    }
+
+    /// Hand back the list [`Self::take_watched_key_writes`] answered, as the next one's allocation.
+    pub(in crate::css::style) fn reuse_watched_key_writes(&mut self, writes: Vec<StyleNodeID>) {
+        self.watched_key_writes.reuse(writes);
+    }
+
+    /// The elements that carry one of `keys` as the last transaction committed them.
+    pub(in crate::css::style) fn committed_carriers_of<'a>(
+        &'a self,
+        keys: &'a WatchedKeys,
+    ) -> impl Iterator<Item = StyleNodeID> + 'a {
+        let sets = &*self.host_fact_sets;
+        (1..self.slot_count).filter_map(move |slot| {
+            let row = self.committed.get(slot)?;
+            keys.carried_by(&row.facts, sets)
+                .then(|| StyleNodeID::element(u32::try_from(slot).expect("element slot exceeds u32")))
+        })
     }
 
     fn forget_written_since_seal(&mut self) {
@@ -2120,6 +2261,13 @@ impl<'a> ProjectionRow<'a> {
     #[must_use]
     pub(in crate::css::style) fn backing_pseudo_kind(self) -> Option<u8> {
         self.projection.backing_pseudo_kind(self.facts)
+    }
+
+    /// The keys of the element, which a compound can require of it.
+    pub(in crate::css::style) fn carried_keys(self) -> impl Iterator<Item = CarriedKey> + 'a {
+        self.facts
+            .named_keys()
+            .chain(backed_pseudo_element_key(self.facts, &self.projection.host_fact_sets))
     }
 
     #[must_use]

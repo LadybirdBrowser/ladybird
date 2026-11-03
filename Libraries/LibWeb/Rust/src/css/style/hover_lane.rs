@@ -106,12 +106,7 @@ impl StyleEngine {
 
     /// Whether a hover needs the style engine to restyle an element or reject a disabled control.
     pub(crate) fn hover_needs_style_state(&mut self, root: StyleNodeID) -> bool {
-        if let Some(needs_style_state) = self.memoized_hover_seal(root) {
-            return needs_style_state;
-        }
-        let needs_style_state = self.hover_seal_needs_style_state(root);
-        self.memoize_hover_seal(root, needs_style_state);
-        needs_style_state
+        self.hover_seal_needs_style_state(root)
     }
 
     /// The element a mouse move aimed at `node`, an element, is dispatched to, as the host dispatches it: none where

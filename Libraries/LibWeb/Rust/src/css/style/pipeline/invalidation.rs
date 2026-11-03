@@ -24,7 +24,7 @@ use super::super::selector_analysis::dispatch_selectivity;
 use super::super::selector_evaluation::ElementFeatures;
 use super::super::*;
 use super::extent_map::SharedExtentMap;
-use super::projection::ProjectionRow;
+use super::projection::{CarriedKey, ProjectionRow, WatchedKeys};
 use super::rules::{RuleIndex, SheetSegment, is_probed, proves_the_whole_selector};
 use super::shared_prefix::SharedPrefixVec;
 use crate::css::selector::{
@@ -361,6 +361,142 @@ fn compound_carried(selector: Selector<'_>, facts: ProjectionRow<'_>) -> bool {
         .simple_selectors
         .iter()
         .all(|simple| simple_carried(&simple, facts))
+}
+
+/// Keys of which every element [`compound_carried`] holds for carries at least one, or none where any element may be
+/// such: the keys of one test of the compound, the most selective one, or of the alternatives of its `:is()`, `:where()`
+/// or `&`, each in every form an element carries it. A change to one of the two is a change to the other.
+fn carried_keys(selector: Selector<'_>) -> Option<SmallVec<[CarriedKey; 4]>> {
+    fn of_any<'a>(selectors: impl Iterator<Item = Selector<'a>>) -> Option<SmallVec<[CarriedKey; 4]>> {
+        let mut keys = SmallVec::new();
+        for selector in selectors {
+            keys.extend(carried_keys(selector)?);
+        }
+        Some(keys)
+    }
+    fn in_every_form(make: fn(StyleAtomID) -> CarriedKey, name: StyleAtomID) -> SmallVec<[CarriedKey; 4]> {
+        let folded = process_atoms().ascii_lowercase(name);
+        match folded == name {
+            true => smallvec::smallvec![make(name)],
+            false => smallvec::smallvec![make(name), make(folded)],
+        }
+    }
+    fn of_simple(simple: &SimpleSelector<'_>) -> Option<SmallVec<[CarriedKey; 4]>> {
+        match simple {
+            SimpleSelector::Class(name) => Some(in_every_form(CarriedKey::Class, name.name)),
+            SimpleSelector::Id(name) => Some(in_every_form(CarriedKey::Id, name.name)),
+            SimpleSelector::TagName(name) => Some(in_every_form(CarriedKey::Tag, name.name)),
+            SimpleSelector::PseudoClass(pseudo_class)
+                if matches!(pseudo_class.pseudo_class, PseudoClassType::Is | PseudoClassType::Where) =>
+            {
+                of_any(pseudo_class.argument_selector_list.iter())
+            }
+            SimpleSelector::Nesting(Nesting::Rule(parent)) => of_any(parent.iter()),
+            _ => None,
+        }
+    }
+    let selectivity = |keys: &SmallVec<[CarriedKey; 4]>| {
+        let tags = keys.iter().any(|key| matches!(key, CarriedKey::Tag(_)));
+        (tags, keys.len())
+    };
+    let compound = selector.first_compound();
+    if let Some(SimpleSelector::PseudoElement(pseudo_element)) = compound.simple_selectors.first() {
+        let kind = pseudo_element.pseudo_element as u16;
+        let backed_kinds = u16::from(super::super::bridge::FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND)
+            ..=u16::from(super::super::bridge::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND);
+        if backed_kinds.contains(&kind) {
+            return Some(smallvec::smallvec![CarriedKey::BackedPseudoElement(
+                u8::try_from(kind).expect("a backed pseudo-element kind fits a u8")
+            )]);
+        }
+        if is_transparent(&compound) {
+            return match selector.left() {
+                Some((Combinator::PseudoElement, left)) => carried_keys(left),
+                _ => None,
+            };
+        }
+    }
+    compound
+        .simple_selectors
+        .iter()
+        .filter_map(|simple| of_simple(&simple))
+        .min_by_key(selectivity)
+}
+
+/// The compounds of a map testing `:hover`, by the keys of the elements that may match them, compiled once for the map
+/// so that an element is tested by looking up its own keys rather than by reading every compound.
+pub(super) struct HoverCompounds {
+    /// Whether any element may match a compound no key selects, or an element's hover flips a query.
+    every_element: bool,
+    by_key: HashMap<CarriedKey, SmallVec<[Dependency; 2]>>,
+    keys: Arc<WatchedKeys>,
+    /// What tells the compounds from others, which a map testing the same ones says too.
+    identities: Vec<(crate::css::selector_arena::SelectorArenaSerial, ComponentOffset)>,
+}
+
+impl HoverCompounds {
+    #[must_use]
+    pub(super) fn every_element(&self) -> bool {
+        self.every_element
+    }
+
+    #[must_use]
+    pub(super) fn keys(&self) -> &Arc<WatchedKeys> {
+        &self.keys
+    }
+
+    /// Whether the two hold the same compounds, whichever maps they were compiled from.
+    #[must_use]
+    pub(super) fn are_the_same_as(&self, other: &Self) -> bool {
+        self.every_element == other.every_element && self.identities == other.identities
+    }
+
+    /// Whether the element `facts` are of may match one of the compounds, by the same test as
+    /// [`InvalidationMap::may_match_by_keys`] for each, of the map and index they were compiled from.
+    #[must_use]
+    pub(super) fn may_match(&self, map: &InvalidationMap, index: &RuleIndex, facts: ProjectionRow<'_>) -> bool {
+        facts.carried_keys().any(|key| {
+            self.by_key.get(&key).is_some_and(|compounds| {
+                compounds
+                    .iter()
+                    .any(|&compound| map.may_match_by_keys(index, compound, facts))
+            })
+        })
+    }
+}
+
+impl InvalidationMap {
+    /// The compounds of the map testing `:hover`, compiled.
+    pub(super) fn hover_compounds(&self, index: &RuleIndex) -> HoverCompounds {
+        let hover = Trigger::State(StateFact::Hover);
+        let mut every_element = self.queries_testing(&hover).next().is_some();
+        let mut by_key: HashMap<CarriedKey, SmallVec<[Dependency; 2]>> = HashMap::default();
+        let mut identities = Vec::new();
+        for compound in self.effects(&hover) {
+            let selector = self.resolve(compound, index).1;
+            identities.push(selector.identity());
+            match carried_keys(selector) {
+                Some(keys) => {
+                    for key in keys {
+                        by_key.entry(key).or_default().push(compound);
+                    }
+                }
+                None => every_element = true,
+            }
+        }
+        identities.sort_unstable();
+        identities.dedup();
+        if every_element {
+            by_key.clear();
+        }
+        let keys = Arc::new(WatchedKeys::new(by_key.keys().copied()));
+        HoverCompounds {
+            every_element,
+            by_key,
+            keys,
+            identities,
+        }
+    }
 }
 
 /// Whether `compound` evaluates a `:has()`, or a compound left of it does.

@@ -1036,6 +1036,12 @@ impl<'a> Selector<'a> {
             .map(|facts| (self.arena.serial, facts.shape))
     }
 
+    /// What tells the selector from any other of the process, for as long as the process lives.
+    #[must_use]
+    pub(crate) fn identity(self) -> (SelectorArenaSerial, ComponentOffset) {
+        (self.arena.serial, self.at)
+    }
+
     /// The ids, as `false`, and the classes, as `true`, the first compound tests, read from its components.
     pub(crate) fn ids_and_classes(self) -> impl Iterator<Item = IdOrClass> + 'a {
         let (end, _) = self.first_compound_end();

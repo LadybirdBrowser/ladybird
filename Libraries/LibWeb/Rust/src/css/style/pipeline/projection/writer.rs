@@ -535,8 +535,9 @@ impl ProjectionWriter {
         self.host_fact_sets.get(id)
     }
 
-    /// Change the host facts of the element with `edit`, without noting its row written for a transaction: the host
-    /// facts are none of its selectors' facts. Answers the facts as they were.
+    /// Change the host facts of the element with `edit`, without noting its row written for a transaction, but where
+    /// the element-backed pseudo-element it stands for moves, which is a key of the element: the host facts change
+    /// nothing a transaction reads. Answers the facts as they were.
     pub(in crate::css::style) fn edit_host_facts(
         &mut self,
         node: StyleNodeID,
@@ -562,6 +563,9 @@ impl ProjectionWriter {
             .facts
             .host_facts = id;
         self.host_facts_written = true;
+        if previous.associated_pseudo_kind() != set.associated_pseudo_kind() {
+            self.note_written(node, slot);
+        }
         previous
     }
 
