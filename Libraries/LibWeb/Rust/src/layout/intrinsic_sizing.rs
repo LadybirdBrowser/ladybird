@@ -464,8 +464,9 @@ pub(super) fn content_sizes_of_grid_container(
         constraints,
         block_size,
         content_size_named_by_maximum_inline_size(&callbacks, node),
-        |run, root_cells, input| {
-            grid_formatting_context::GridFormattingContext::new(run, root_cells, None).content_inline_size(input)
+        |run, root_cells, input, maximum_inline_size_resolved_by_caller| {
+            grid_formatting_context::GridFormattingContext::new(run, root_cells, None)
+                .content_inline_size(input, maximum_inline_size_resolved_by_caller)
         },
     )
 }
@@ -516,14 +517,19 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
     constraints: ContainingBlockConstraints,
     block_size: Option<CssPixels>,
     content_size_named_by_maximum_inline_size: Option<ContentSizeNamedByMaximum>,
-    content_inline_size: impl Fn(&FormattingContextRun<'_>, used_values::RootInputCells, LayoutInput) -> CssPixels,
+    content_inline_size: impl Fn(
+        &FormattingContextRun<'_>,
+        used_values::RootInputCells,
+        LayoutInput,
+        Option<CssPixels>,
+    ) -> CssPixels,
 ) -> sizing_context::ContentInlineSizes {
     let content_inline_size_under =
         |available_inline_size: AvailableSize, content_size_named_by_maximum: Option<CssPixels>| {
             let scope = ContentSizingScope::new(&callbacks, node, constraints, block_size);
             scope.enter(callbacks, |run| {
                 let sizing = run.sizing();
-                let mut input = LayoutInput::new(
+                let input = LayoutInput::new(
                     AvailableSpace {
                         inline_size: available_inline_size,
                         block_size: scope.available_block_size(),
@@ -531,18 +537,17 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
                     constraints,
                     ParticipationInParentFormattingContext::Root,
                 );
-                input.sizing.maximum_inline_size_resolved_by_caller =
-                    geometry::PackedOptionalCssPixels::from(content_size_named_by_maximum.map(|content_size| {
-                        sizing.apply_transferred_limits_to_intrinsic_inline_size(
-                            sizing_context::SizedBox::of_own_metrics(node, &scope.root_cells(), run.callbacks.frame),
-                            clamp_to_max_dimension_value(content_size),
-                            available_inline_size_under_content_size_named_by_maximum(
-                                content_size_named_by_maximum_inline_size,
-                            ),
-                            constraints,
-                        )
-                    }));
-                let size = content_inline_size(run, scope.root_cells(), input);
+                let maximum_inline_size_resolved_by_caller = content_size_named_by_maximum.map(|content_size| {
+                    sizing.apply_transferred_limits_to_intrinsic_inline_size(
+                        sizing_context::SizedBox::of_own_metrics(node, &scope.root_cells(), run.callbacks.frame),
+                        clamp_to_max_dimension_value(content_size),
+                        available_inline_size_under_content_size_named_by_maximum(
+                            content_size_named_by_maximum_inline_size,
+                        ),
+                        constraints,
+                    )
+                });
+                let size = content_inline_size(run, scope.root_cells(), input, maximum_inline_size_resolved_by_caller);
                 let dependencies = IntrinsicMeasurementDependencies {
                     percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),
                     percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(node),
