@@ -101,6 +101,7 @@ fn workers_for_threads(threads: u32) -> usize {
 fn start_threads(workers: usize) -> rayon::ThreadPool {
     rayon::ThreadPoolBuilder::new()
         .num_threads(workers)
+        .stack_size(crate::stage_thread::STAGE_THREAD_STACK_SIZE)
         .thread_name(|index| format!("StyleLayout {index}"))
         .build()
         .expect("the style and layout thread pool starts")

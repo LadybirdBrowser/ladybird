@@ -383,6 +383,7 @@ pub(super) struct FlexFormattingContext<'pass> {
     item_percentage_bases: ContainingBlockConstraints,
     item_runs_offered_to_block_size_measurements: Option<ItemRunsOfferedToBlockSizeMeasurements>,
     flex_item_index_by_node: OnceCell<HashMap<Node, usize>>,
+    items_to_fork: OnceCell<Vec<usize>>,
     in_flow_items_margin_box_block_extent: Option<CssPixels>,
     /// The cells in which this context sizes the flex container, in the frame its items are laid out in. The context
     /// takes them again after the run sizes the container's own box.
@@ -433,6 +434,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             item_percentage_bases: ContainingBlockConstraints::default(),
             item_runs_offered_to_block_size_measurements: None,
             flex_item_index_by_node: OnceCell::new(),
+            items_to_fork: OnceCell::new(),
             in_flow_items_margin_box_block_extent: None,
             container_cells: Cell::new(container_cells),
         }
@@ -1149,6 +1151,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     let order = inputs.style.order();
                     items_have_different_orders |= *order_of_first_item.get_or_insert(order) != order;
                     self.flex_items.push(FlexItem::new(child, alignment_facts, &inputs));
+                    self.items_to_fork.take();
                     self.flex_item_details.push(FlexItemDetails::new(inputs, cells));
                     self.populate_specified_margins(self.flex_items.len() - 1);
                 }
@@ -2224,6 +2227,16 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn set_hypothetical_cross_size(&mut self, index: usize, size: CssPixels, min: CssPixels, max: CssPixels) {
         self.flex_items[index].hypothetical_cross_size_before_clamp = size;
         self.flex_items[index].hypothetical_cross_size = css_clamp(size, min, max);
+    }
+
+    fn fork_candidates(&self) -> Vec<usize> {
+        self.items_to_fork
+            .get_or_init(|| {
+                parallel_layout::fork_candidates(&self.run.callbacks, 0..self.flex_items.len(), |index| {
+                    self.flex_items[index].box_
+                })
+            })
+            .clone()
     }
 
     // https://drafts.csswg.org/css-flexbox/#hypothetical-cross-size
@@ -3353,13 +3366,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         )
     }
 
-    /// Lays out the contents of the item at `index`, and returns the fragments and what placing the item takes.
-    fn layout_inside_item(
-        &mut self,
-        run: &FormattingContextRun<'pass>,
-        index: usize,
-    ) -> (Option<fragment_tree::RunRootFragment>, formatting_context::PlacedChild) {
-        let node = self.flex_items[index].box_;
+    fn item_run_request(&self, index: usize) -> (used_values::RootInputCells, LayoutInput) {
         let mut cells = self.flex_item_details[index].cells;
         // A button centers its content within its final main size even when that size can't resolve percentages.
         if self.flex_items[index].alignment_facts.uses_button_layout
@@ -3370,20 +3377,23 @@ impl<'pass> FlexFormattingContext<'pass> {
             cells.has_definite_block_size_only_for_button_content_alignment = true;
         }
         let input = self.item_layout_input(index, &cells, self.available_space_for_items.unwrap().space);
+        (cells, input)
+    }
+
+    /// Takes in the layout of the contents of the item at `index`, and returns the fragments and what placing the item
+    /// takes.
+    fn take_in_item_layout(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        index: usize,
+        laid_out: formatting_context::ChildLayout,
+    ) -> (Option<fragment_tree::RunRootFragment>, formatting_context::PlacedChild) {
+        let node = self.flex_items[index].box_;
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
             laid_out_box,
-        } = formatting_context::layout_inside_child_with_input_cells(
-            run,
-            None,
-            None,
-            node,
-            input,
-            cells,
-            false,
-            run.percentage_block_insets_of_root_children_have_definite_basis(&self.container_cells),
-        );
+        } = laid_out;
         self.flex_item_details[index].cells = laid_out_box.cells;
         self.flex_item_details[index].orthogonal_flow_baselines = laid_out_box.orthogonal_flow_baselines;
         outcome.report_percentage_block_size_dependency_of(run, node);
@@ -4301,10 +4311,82 @@ impl<'pass> FlexFormattingContext<'pass> {
         let main_axis_is_horizontal = self.main_axis_is_horizontal();
         let container_content_inline_size = self.container_cells.content_inline_size();
         let mut items_awaiting_baseline_alignment = Vec::new();
+        let percentage_block_insets_have_definite_basis =
+            run.percentage_block_insets_of_root_children_have_definite_basis(&self.container_cells);
+        let candidates = self.fork_candidates();
+        let mut next_candidate = 0;
+        let mut laid_out_ahead = formatting_context::ChildRunsLaidOutAhead::default();
+        let mut handed_over_to_runs_laid_out_ahead = false;
+        let mut items_prepared = 0;
         for index in 0..self.flex_items.len() {
-            self.treat_used_cross_size_of_item_as_definite(index, container_cross_size_is_auto);
-            self.copy_dimensions_from_flex_item_to_box(index, main_axis_is_horizontal, container_content_inline_size);
-            let (fragment_arrival, placed_item) = self.layout_inside_item(run, index);
+            if index >= items_prepared {
+                self.treat_used_cross_size_of_item_as_definite(index, container_cross_size_is_auto);
+                self.copy_dimensions_from_flex_item_to_box(
+                    index,
+                    main_axis_is_horizontal,
+                    container_content_inline_size,
+                );
+                items_prepared = index + 1;
+            }
+            let is_candidate = candidates.get(next_candidate) == Some(&index);
+            next_candidate += usize::from(is_candidate);
+            let node = self.flex_items[index].box_;
+            let laid_out = if let Some(laid_out) = laid_out_ahead.take(run, index) {
+                laid_out
+            } else {
+                let (cells, input) = self.item_run_request(index);
+                let planned = if is_candidate && !handed_over_to_runs_laid_out_ahead {
+                    formatting_context::plan_child_run(
+                        run,
+                        node,
+                        input,
+                        cells,
+                        percentage_block_insets_have_definite_basis,
+                    )
+                } else {
+                    formatting_context::PlannedChildRun::Unplanned(cells, input)
+                };
+                match planned {
+                    formatting_context::PlannedChildRun::Job(job) if job.reuses_stored_run() => {
+                        formatting_context::lay_out_child_run_job(run.callbacks, job)
+                    }
+                    formatting_context::PlannedChildRun::Job(job) => {
+                        for later in index + 1..self.flex_items.len() {
+                            self.treat_used_cross_size_of_item_as_definite(later, container_cross_size_is_auto);
+                            self.copy_dimensions_from_flex_item_to_box(
+                                later,
+                                main_axis_is_horizontal,
+                                container_content_inline_size,
+                            );
+                        }
+                        items_prepared = self.flex_items.len();
+                        handed_over_to_runs_laid_out_ahead = true;
+                        laid_out_ahead = formatting_context::ChildRunsLaidOutAhead::lay_out_from_first_miss(
+                            run,
+                            (index, job),
+                            candidates[next_candidate..].iter().map(|&later| {
+                                let (cells, input) = self.item_run_request(later);
+                                (later, self.flex_items[later].box_, cells, input)
+                            }),
+                            percentage_block_insets_have_definite_basis,
+                        );
+                        laid_out_ahead.take(run, index).expect("the item was laid out ahead")
+                    }
+                    formatting_context::PlannedChildRun::Unplanned(cells, input) => {
+                        formatting_context::layout_inside_child_with_input_cells(
+                            run,
+                            None,
+                            None,
+                            node,
+                            input,
+                            cells,
+                            false,
+                            percentage_block_insets_have_definite_basis,
+                        )
+                    }
+                }
+            };
+            let (fragment_arrival, placed_item) = self.take_in_item_layout(run, index, laid_out);
             if self.item_participates_in_baseline_alignment(index) {
                 items_awaiting_baseline_alignment.push((index, fragment_arrival, placed_item));
                 continue;

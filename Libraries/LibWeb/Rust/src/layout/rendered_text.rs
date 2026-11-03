@@ -217,7 +217,6 @@ impl TextContent {
 /// What layout keeps beside the rendered text of the text rows it lays out: the chunks the last run that chunked a row
 /// made, and the row's grapheme segmenter. Each keeps the rendered text it was made for, which tells whether the row's
 /// text is still that text. They are indexed by the row's text state in the arena, so boxes without text take no room.
-#[derive(Default)]
 pub(crate) struct TextMemos {
     /// Written in place, while a fork of the arena reads them as they were when it was made.
     chunks: super::pass_column::ForkSharedRows<Option<ChunksOfText>>,
@@ -238,12 +237,21 @@ struct GraphemeSegmenterOfText {
     rendered: Arc<RenderedText>,
 }
 
+impl Default for TextMemos {
+    fn default() -> Self {
+        Self {
+            chunks: super::pass_column::ForkSharedRows::with_rows_of_no_slot(),
+            grapheme_segmenters: super::pass_column::PassColumn::with_rows_of_no_slot(),
+        }
+    }
+}
+
 impl TextMemos {
     /// The memos of a fork of the arena, which keeps the chunks and makes grapheme segmenters anew.
     pub(crate) fn fork(&self) -> Self {
         Self {
             chunks: self.chunks.fork(),
-            grapheme_segmenters: Default::default(),
+            grapheme_segmenters: super::pass_column::PassColumn::with_rows_of_no_slot(),
         }
     }
 

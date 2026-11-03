@@ -52,6 +52,7 @@ impl<T> Drop for OwnedChunk<T> {
 
 pub(crate) struct PassColumn<T> {
     chunks: Vec<OwnedChunk<T>>,
+    rows_are_slots: bool,
 }
 
 // SAFETY: A pass writes a row only from the run that lays out the row's box. The runs laid out at once on several
@@ -74,7 +75,26 @@ impl<T> ExclusiveRow<T> {
 
 impl<T> Default for PassColumn<T> {
     fn default() -> Self {
-        Self { chunks: Vec::new() }
+        Self {
+            chunks: Vec::new(),
+            rows_are_slots: true,
+        }
+    }
+}
+
+impl<T> PassColumn<T> {
+    pub(crate) fn with_rows_of_no_slot() -> Self {
+        Self {
+            rows_are_slots: false,
+            ..Self::default()
+        }
+    }
+
+    fn empty_like<OtherRow>(&self) -> PassColumn<OtherRow> {
+        PassColumn {
+            rows_are_slots: self.rows_are_slots,
+            ..PassColumn::default()
+        }
     }
 }
 
@@ -98,7 +118,10 @@ impl<T: Default> PassColumn<T> {
 
     #[inline]
     fn table(&self) -> ChunkTable<'_, T> {
-        ChunkTable { chunks: &self.chunks }
+        ChunkTable {
+            chunks: &self.chunks,
+            rows_are_slots: self.rows_are_slots,
+        }
     }
 
     pub(crate) fn row_mut(&mut self, index: usize) -> Option<&mut T> {
@@ -118,6 +141,7 @@ impl<T: Default> PassColumn<T> {
 
 struct ChunkTable<'column, T> {
     chunks: &'column [OwnedChunk<T>],
+    rows_are_slots: bool,
 }
 
 impl<T> Clone for ChunkTable<'_, T> {
@@ -131,6 +155,9 @@ impl<T> Copy for ChunkTable<'_, T> {}
 impl<'column, T: Default> ChunkTable<'column, T> {
     #[inline]
     fn with_row<R>(self, index: usize, read: impl FnOnce(Option<&T>) -> R) -> R {
+        if self.rows_are_slots {
+            super::parallel_layout::check_row_reached_by_forked_task(index, false);
+        }
         let Some(chunk) = self.chunk_for_reading(index / ROWS_PER_CHUNK) else {
             return read(None);
         };
@@ -142,6 +169,9 @@ impl<'column, T: Default> ChunkTable<'column, T> {
 
     #[inline]
     fn with_row_mut<R>(self, index: usize, write: impl FnOnce(&mut T) -> R) -> R {
+        if self.rows_are_slots {
+            super::parallel_layout::check_row_reached_by_forked_task(index, true);
+        }
         let chunk = self.chunk_for_writing(index / ROWS_PER_CHUNK);
         let _borrow = RowBorrow::exclusive(chunk, index % ROWS_PER_CHUNK);
         // SAFETY: Only the run laying out the row's box reaches the row while it writes it (`RowBorrow` checks that in
@@ -260,6 +290,7 @@ pub(crate) struct ForkSharedRows<T> {
 struct ChunkTableOfTheHost<T> {
     chunks: std::ptr::NonNull<OwnedChunk<T>>,
     chunk_count: usize,
+    rows_are_slots: bool,
 }
 
 // SAFETY: It points into the chunk table of the host's column, which is Send and Sync as `HostRows` is.
@@ -272,6 +303,7 @@ impl<T> ChunkTableOfTheHost<T> {
         Self {
             chunks: std::ptr::NonNull::new(column.chunks.as_ptr().cast_mut()).expect("a Vec's pointer is never null"),
             chunk_count: column.chunks.len(),
+            rows_are_slots: column.rows_are_slots,
         }
     }
 
@@ -279,6 +311,7 @@ impl<T> ChunkTableOfTheHost<T> {
         Self {
             chunks: std::ptr::NonNull::dangling(),
             chunk_count: 0,
+            rows_are_slots: false,
         }
     }
 }
@@ -318,6 +351,10 @@ impl<T> Default for ForkSharedRows<T> {
 }
 
 impl<T> ForkSharedRows<T> {
+    pub(crate) fn with_rows_of_no_slot() -> Self {
+        Self::with_host_rows(PassColumn::with_rows_of_no_slot(), PassColumn::with_rows_of_no_slot())
+    }
+
     fn with_host_rows(rows: PassColumn<T>, fork_generation_each_row_was_saved_for: PassColumn<u32>) -> Self {
         Self {
             chunk_table_of_the_host: ChunkTableOfTheHost::of(&rows),
@@ -351,6 +388,7 @@ impl<T: Clone + Default> ForkSharedRows<T> {
                     self.chunk_table_of_the_host.chunk_count,
                 )
             },
+            rows_are_slots: self.chunk_table_of_the_host.rows_are_slots,
         }
     }
 
@@ -372,7 +410,7 @@ impl<T: Clone + Default> ForkSharedRows<T> {
             *handed_out += 1;
             *handed_out
         };
-        let mut rows = PassColumn::default();
+        let mut rows = self.host_rows().empty_like();
         rows.cover_slots(rows_the_host_held_at_fork);
         let rows_saved_by_host = std::sync::Arc::new(RowsSavedForFork {
             generation,
@@ -388,7 +426,7 @@ impl<T: Clone + Default> ForkSharedRows<T> {
             chunk_table_of_the_host: ChunkTableOfTheHost::of_a_fork(),
             fork_side: Some(ForkSide {
                 rows_saved_by_host,
-                own_rows: PassColumn::default(),
+                own_rows: self.host_rows().empty_like(),
                 reads_host_rows: true,
             }),
         }

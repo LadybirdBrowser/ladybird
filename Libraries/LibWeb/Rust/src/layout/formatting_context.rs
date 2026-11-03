@@ -2031,16 +2031,47 @@ pub(super) fn run_formatting_context(
             false,
         );
     }
-    let cache_probe = fc_run_cache::FcRunCacheProbe::new(fc_type, &input, root_cells);
-    let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
+    let attempt = fc_run_cache::FcRunCacheAttempt::probe(
         box_,
         subgrid_parent.is_some(),
         builds_fragments,
         should_collect_devtools_layout_data,
         false,
         &callbacks,
-        &cache_probe,
-    ) {
+        &fc_run_cache::FcRunCacheProbe::new(fc_type, &input, root_cells),
+    );
+    run_formatting_context_after_probe(
+        parent_collects_fragments,
+        root_cells,
+        box_,
+        root_containing_block,
+        subgrid_parent,
+        fc_type,
+        should_collect_devtools_layout_data,
+        callbacks,
+        input,
+        table_inline_layout,
+        attempt,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_formatting_context_after_probe(
+    parent_collects_fragments: bool,
+    root_cells: used_values::RootInputCells,
+    box_: Node,
+    root_containing_block: Node,
+    subgrid_parent: Option<&grid_formatting_context::SubgridParent>,
+    fc_type: FormattingContextType,
+    should_collect_devtools_layout_data: bool,
+    callbacks: LayoutPass<'_>,
+    input: LayoutInput,
+    table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
+    attempt: Result<fc_run_cache::FcRunCacheAttempt, fc_run_cache::FcRunCacheHit>,
+) -> ChildLayout {
+    let builds_fragments = run_builds_fragments(&input, parent_collects_fragments);
+    let cache_probe = fc_run_cache::FcRunCacheProbe::new(fc_type, &input, root_cells);
+    let cache_attempt = match attempt {
         Ok(attempt) => attempt,
         Err(hit) => {
             let _trace = callbacks.layout_trace().run(box_, fc_type, || {
@@ -3007,15 +3038,14 @@ pub(crate) fn layout_inside_child_with_input_cells(
         depends_on_percentage_block_size: run.sizing().skipped_child_depends_on_percentage_block_size(child),
         out_of_flow_root_used_insets,
     };
-    if !force_independent_context_run
-        && !facts.node_has_size_containment()
-        && matches!(
-            input.participation,
-            ParticipationInParentFormattingContext::AtomicInline
-        )
-        && created_fc_type == Some(FormattingContextType::Block)
-        && run.callbacks.first_child(child).is_invalid()
-    {
+    if is_empty_atomic_block_sized_in_parent_run(
+        run,
+        child,
+        facts,
+        created_fc_type,
+        &input,
+        force_independent_context_run,
+    ) {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
         // parent run, which will also construct its fragment when placing the box.
         let cells_of_this_layout = Cell::new(child_input_cells);
@@ -3027,11 +3057,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         );
         return ChildLayout::of_child_sized_in_parent_run(skipped(None), cells_of_this_layout.get());
     }
-    let creates_replaced_context = matches!(
-        created_fc_type,
-        Some(FormattingContextType::InternalReplaced | FormattingContextType::ReplacedWithChildren)
-    );
-    if !facts.can_have_children() && !creates_replaced_context {
+    if is_childless_box_sized_in_parent_run(facts, created_fc_type) {
         let cells_of_this_layout = Cell::new(child_input_cells);
         let out_of_flow_root_used_insets =
             size_skipped_independent_root(run, parent_block, child, &cells_of_this_layout, &input);
@@ -3069,6 +3095,211 @@ pub(crate) fn layout_inside_child_with_input_cells(
         parent_block
             .and_then(|block| block.take_table_inline_layout_of(child))
             .or_else(|| parent_grid.and_then(|grid| grid.take_table_inline_layout_of(child))),
+    )
+}
+
+fn is_empty_atomic_block_sized_in_parent_run(
+    run: &FormattingContextRun,
+    child: Node,
+    facts: NodeFacts<'_>,
+    created_fc_type: Option<FormattingContextType>,
+    input: &LayoutInput,
+    force_independent_context_run: bool,
+) -> bool {
+    !force_independent_context_run
+        && !facts.node_has_size_containment()
+        && matches!(
+            input.participation,
+            ParticipationInParentFormattingContext::AtomicInline
+        )
+        && created_fc_type == Some(FormattingContextType::Block)
+        && run.callbacks.first_child(child).is_invalid()
+}
+
+fn is_childless_box_sized_in_parent_run(facts: NodeFacts<'_>, created_fc_type: Option<FormattingContextType>) -> bool {
+    let creates_replaced_context = matches!(
+        created_fc_type,
+        Some(FormattingContextType::InternalReplaced | FormattingContextType::ReplacedWithChildren)
+    );
+    !facts.can_have_children() && !creates_replaced_context
+}
+
+pub(crate) struct ChildRunJob {
+    child: Node,
+    fc_type: FormattingContextType,
+    root_containing_block: Node,
+    input: LayoutInput,
+    root_cells: used_values::RootInputCells,
+    parent_collects_fragments: bool,
+    should_collect_devtools_layout_data: bool,
+    attempt: Result<fc_run_cache::FcRunCacheAttempt, fc_run_cache::FcRunCacheHit>,
+}
+
+impl ChildRunJob {
+    pub(crate) fn child(&self) -> Node {
+        self.child
+    }
+
+    pub(crate) fn reuses_stored_run(&self) -> bool {
+        self.attempt.is_err()
+    }
+}
+
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<ChildRunJob>();
+    assert_send::<ChildLayout>();
+    assert_send::<ChildRunShape>();
+    assert_send::<table_formatting_context::TableInlineLayout>();
+};
+
+pub(crate) enum PlannedChildRun {
+    Job(ChildRunJob),
+    Unplanned(used_values::RootInputCells, LayoutInput),
+}
+
+pub(crate) fn plan_child_run(
+    run: &FormattingContextRun,
+    child: Node,
+    input: LayoutInput,
+    child_input_cells: used_values::RootInputCells,
+    percentage_block_insets_of_containing_block_have_definite_basis: bool,
+) -> PlannedChildRun {
+    let facts = NodeFacts::new(&run.callbacks, child);
+    let created_fc_type = formatting_context_type_created_by_box(facts);
+    if is_empty_atomic_block_sized_in_parent_run(run, child, facts, created_fc_type, &input, false)
+        || is_childless_box_sized_in_parent_run(facts, created_fc_type)
+    {
+        return PlannedChildRun::Unplanned(child_input_cells, input);
+    }
+    let ChildRunPlan {
+        fc_type,
+        root_containing_block,
+        input,
+    } = child_run_plan(
+        run,
+        child,
+        created_fc_type,
+        input,
+        false,
+        percentage_block_insets_of_containing_block_have_definite_basis,
+    );
+    let parent_collects_fragments = run.fragments.is_some();
+    let attempt = fc_run_cache::FcRunCacheAttempt::probe(
+        child,
+        false,
+        run_builds_fragments(&input, parent_collects_fragments),
+        run.should_collect_devtools_layout_data,
+        false,
+        &run.callbacks,
+        &fc_run_cache::FcRunCacheProbe::new(fc_type, &input, child_input_cells),
+    );
+    PlannedChildRun::Job(ChildRunJob {
+        child,
+        fc_type,
+        root_containing_block,
+        input,
+        root_cells: child_input_cells,
+        parent_collects_fragments,
+        should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
+        attempt,
+    })
+}
+
+fn lay_out_child_run_job_noting_its_host_findings(callbacks: LayoutPass<'_>, job: ChildRunJob) -> LaidOutChildRun {
+    let host_findings = run_state::HostFindingsSink::default();
+    let layout = lay_out_child_run_job(callbacks.noting_host_findings_in(&host_findings), job);
+    LaidOutChildRun {
+        layout,
+        host_findings: host_findings.take(),
+    }
+}
+
+pub(crate) struct LaidOutChildRun {
+    pub(crate) layout: ChildLayout,
+    pub(crate) host_findings: run_state::HostFindings,
+}
+
+#[derive(Default)]
+pub(crate) struct ChildRunsLaidOutAhead(Vec<Option<LaidOutChildRun>>);
+
+impl ChildRunsLaidOutAhead {
+    pub(crate) fn lay_out_from_first_miss(
+        run: &FormattingContextRun,
+        first_miss: (usize, ChildRunJob),
+        later: impl IntoIterator<Item = (usize, Node, used_values::RootInputCells, LayoutInput)>,
+        percentage_block_insets_have_definite_basis: bool,
+    ) -> Self {
+        let mut laid_out = Self(Vec::new());
+        let mut jobs = vec![first_miss];
+        for (index, child, cells, input) in later {
+            match plan_child_run(run, child, input, cells, percentage_block_insets_have_definite_basis) {
+                PlannedChildRun::Job(job) if job.reuses_stored_run() => {
+                    laid_out.keep(
+                        index,
+                        lay_out_child_run_job_noting_its_host_findings(run.callbacks, job),
+                    );
+                }
+                PlannedChildRun::Job(job) => jobs.push((index, job)),
+                PlannedChildRun::Unplanned(..) => {}
+            }
+        }
+        match parallel_layout::lay_out_in_parallel(
+            &run.callbacks,
+            jobs,
+            |(_, job)| job.child(),
+            |callbacks, (index, job)| (index, lay_out_child_run_job(callbacks, job)),
+        ) {
+            Ok(tasks) => {
+                for parallel_layout::ForkedTask {
+                    result: (index, layout),
+                    host_findings,
+                } in tasks
+                {
+                    laid_out.keep(index, LaidOutChildRun { layout, host_findings });
+                }
+            }
+            Err(jobs) => {
+                for (index, job) in jobs {
+                    laid_out.keep(
+                        index,
+                        lay_out_child_run_job_noting_its_host_findings(run.callbacks, job),
+                    );
+                }
+            }
+        }
+        laid_out
+    }
+
+    fn keep(&mut self, index: usize, laid_out: LaidOutChildRun) {
+        if self.0.len() <= index {
+            self.0.resize_with(index + 1, || None);
+        }
+        self.0[index] = Some(laid_out);
+    }
+
+    pub(crate) fn take(&mut self, run: &FormattingContextRun, index: usize) -> Option<ChildLayout> {
+        let LaidOutChildRun { layout, host_findings } = self.0.get_mut(index)?.take()?;
+        if !host_findings.is_empty() {
+            run.callbacks.note_host_findings(|into| into.receive(host_findings));
+        }
+        Some(layout)
+    }
+}
+
+pub(crate) fn lay_out_child_run_job(callbacks: LayoutPass<'_>, job: ChildRunJob) -> ChildLayout {
+    run_formatting_context_after_probe(
+        job.parent_collects_fragments,
+        job.root_cells,
+        job.child,
+        job.root_containing_block,
+        None,
+        job.fc_type,
+        job.should_collect_devtools_layout_data,
+        callbacks,
+        job.input,
+        None,
+        job.attempt,
     )
 }
 
@@ -3666,7 +3897,10 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         stage,
     } = input;
     let host_findings_outside_runs = super::run_state::HostFindingsSink::default();
-    let callbacks = LayoutPass::new(arena, scratch, &host_findings_outside_runs, stage);
+    let mut callbacks = LayoutPass::new(arena, scratch, &host_findings_outside_runs, stage);
+    if !should_collect_devtools_layout_data {
+        callbacks = callbacks.forking_runs();
+    }
     let viewport_inline_size = stage.viewport_inline_size;
     let viewport_block_size = stage.viewport_block_size;
 
@@ -3821,7 +4055,7 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
         stage,
     } = input;
     let host_findings_outside_runs = super::run_state::HostFindingsSink::default();
-    let callbacks = LayoutPass::new(arena, scratch, &host_findings_outside_runs, stage);
+    let callbacks = LayoutPass::new(arena, scratch, &host_findings_outside_runs, stage).forking_runs();
 
     // NB: Either way, the boundary root's own geometry lies in the frame of its containing block.
     let callbacks = if containing_block.is_invalid() {

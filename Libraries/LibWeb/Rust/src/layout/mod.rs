@@ -41,6 +41,7 @@ pub(crate) mod math_formatting_context;
 mod memo_invalidations;
 pub mod node_data;
 pub(crate) mod node_facts;
+mod parallel_layout;
 mod pass_column;
 pub(crate) mod tree_shape;
 pub use libcompositing_rust::node_slot_id;
