@@ -274,7 +274,6 @@ fn layout_inputs_match_ignoring_unobserved(
             sizing,
             &b.sizing,
             unobserved.available_block_size_definiteness(),
-            unobserved.inline_space_around_root,
             unobserved.content_block_size_adopted_after_run,
         )
 }
@@ -283,7 +282,6 @@ fn sizing_directives_match_ignoring_unobserved(
     a: &RootSizingDirectives,
     b: &RootSizingDirectives,
     block_size_definiteness_unobserved: bool,
-    float_avoidance_inline_size_unobserved: bool,
     content_block_size_adopted_after_run_unobserved: bool,
 ) -> bool {
     let RootSizingDirectives {
@@ -297,7 +295,6 @@ fn sizing_directives_match_ignoring_unobserved(
         finds_automatic_line_clamp_lines,
         content_block_size_after_inside_layout,
         flex_self_block_size_resolution_space,
-        float_avoidance_inline_size,
         outer_float_intrusion_before_list_item_children,
         treat_block_axis_percentage_insets_as_auto_beyond_root,
         math_stretch_size_constraint,
@@ -315,7 +312,6 @@ fn sizing_directives_match_ignoring_unobserved(
             && content_block_size_after_inside_layout == b.content_block_size_after_inside_layout)
             || content_block_size_adopted_after_run_unobserved)
         && finds_automatic_line_clamp_lines == b.finds_automatic_line_clamp_lines
-        && (float_avoidance_inline_size == b.float_avoidance_inline_size || float_avoidance_inline_size_unobserved)
         && outer_float_intrusion_before_list_item_children == b.outer_float_intrusion_before_list_item_children
         && treat_block_axis_percentage_insets_as_auto_beyond_root
             == b.treat_block_axis_percentage_insets_as_auto_beyond_root

@@ -373,7 +373,6 @@ pub(crate) struct RootSizingDirectives {
     // takes this block size, which the automatic minimum size grew to fit the content.
     pub(crate) content_block_size_after_inside_layout: PackedOptionalCssPixels,
     pub(crate) flex_self_block_size_resolution_space: Option<AvailableSpace>,
-    pub(crate) float_avoidance_inline_size: PackedOptionalCssPixels,
     pub(crate) outer_float_intrusion_before_list_item_children: inline_formatting_context::SpaceUsedByFloats,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     pub(crate) maximum_inline_size_resolved_by_caller: PackedOptionalCssPixels,

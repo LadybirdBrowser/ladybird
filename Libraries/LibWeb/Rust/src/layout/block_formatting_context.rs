@@ -2034,8 +2034,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 y: containing_block_rect_in_root.y + content_block_offset,
             };
             // Deliberately re-run inline sizing after every band descent,
-            // without committing: the winning candidate is what the run
-            // prelude reproduces from the float-avoidance directive.
+            // without committing: only the winning candidate is committed.
             probe.opportunity = self.float_reduced_inline_opportunity(sized_child, available_space, position);
             probe.content_inline_size = self.resolve_root_inline_metrics_and_content_size(
                 sized_child,
@@ -2810,7 +2809,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             containing_block_rect_in_root_now,
             &mut probe,
         );
-        let float_avoidance_inline_size = probe.opportunity;
         if !has_independent_formatting_context && let Some(content_inline_size) = probe.content_inline_size {
             self.cells_laid_out_here(sized_child)
                 .set_content_inline_size(content_inline_size);
@@ -2961,7 +2959,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                     table_box_content_block_offset_in_wrapper: geometry::PackedOptionalCssPixels::from(
                         is_table_formatting_context.then_some(content_block_offset),
                     ),
-                    float_avoidance_inline_size: geometry::PackedOptionalCssPixels::from(float_avoidance_inline_size),
                     outer_float_intrusion_before_list_item_children: inline_space_used_before_children_formatted,
                     ..RootSizingDirectives::default()
                 },
