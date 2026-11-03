@@ -7,6 +7,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Hex.h>
 #include <AK/StringBuilder.h>
+#include <LibCore/BrowserVersion.h>
 #include <LibCore/CrashReportData.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>

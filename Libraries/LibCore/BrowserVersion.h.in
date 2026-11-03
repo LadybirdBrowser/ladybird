@@ -1,0 +1,9 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#define BROWSER_VERSION "@LADYBIRD_BROWSER_VERSION@"

@@ -6,6 +6,7 @@
 
 #include <AK/JsonObject.h>
 #include <AK/String.h>
+#include <LibCore/BrowserVersion.h>
 #include <LibCore/Version.h>
 #include <LibDevTools/Actors/DeviceActor.h>
 #include <LibWebCommon/Loader/UserAgent.h>

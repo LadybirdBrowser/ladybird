@@ -7,6 +7,7 @@
 #include <AK/Math.h>
 #include <AK/StringBuilder.h>
 #include <AK/WeakPtr.h>
+#include <LibCore/BrowserVersion.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCore/Promise.h>
 #include <LibWebCommon/Loader/UserAgent.h>

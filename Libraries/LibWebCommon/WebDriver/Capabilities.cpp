@@ -9,6 +9,7 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
+#include <LibCore/BrowserVersion.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Proxy.h>
