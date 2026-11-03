@@ -179,6 +179,8 @@ pub fn rects_overlap_in_block_axis(a: CssPixelRect, b: CssPixelRect, writing_mod
 #[derive(Default)]
 pub struct HitTestList {
     pub generation: u64,
+    /// The structural epoch of the visual context tree the items were recorded against, whose nodes they name.
+    pub recorded_structural_epoch: u64,
     pub items: Arc<Vec<HitTestItem>>,
     pub item_capacity_hint_from_previous_list: usize,
     /// Point queries read only the spatial indexes, and caret navigation reads only the caret lines,
