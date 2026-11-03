@@ -1,0 +1,3 @@
+Slotted: 1 animations, opacity 0.5
+The change ran beside: in-flight
+Moved to a hidden slot: 0 animations, opacity 1

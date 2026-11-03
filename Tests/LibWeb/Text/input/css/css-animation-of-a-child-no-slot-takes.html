@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes half {
+        from, to { opacity: 0.5; }
+    }
+    .animated {
+        animation: half 1000s;
+    }
+</style>
+<body>
+<script>
+    function report(label, target) {
+        document.body.offsetWidth;
+        println(`${label}: ${target.getAnimations().length} animations, opacity ${getComputedStyle(target).opacity}`);
+    }
+
+    function build(shadowHTML, slotName) {
+        const host = document.createElement("div");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = shadowHTML;
+        const target = document.createElement("div");
+        target.className = "animated";
+        if (slotName)
+            target.slot = slotName;
+        const child = document.createElement("div");
+        child.className = "animated";
+        target.append(child);
+        host.append(target);
+        document.body.append(host);
+        return { host, root, target, child };
+    }
+
+    test(() => {
+        let { host, root, target, child } = build("");
+        report("no slot in the shadow tree", target);
+        report("its child", child);
+        root.innerHTML = "<slot></slot>";
+        report("a slot takes it", target);
+        report("its child", child);
+        root.innerHTML = "";
+        report("the slot leaves", target);
+        report("its child", child);
+
+        ({ target, child } = build("<slot></slot>", "other"));
+        report("no slot of its name", target);
+        target.slot = "";
+        report("renamed for the slot", target);
+        target.slot = "other";
+        report("renamed away", target);
+
+        host = document.createElement("div");
+        target = document.createElement("div");
+        target.className = "animated";
+        host.append(target);
+        document.body.append(host);
+        report("a child of a plain element", target);
+        const newRoot = host.attachShadow({ mode: "open" });
+        report("the parent becomes a host", target);
+        newRoot.innerHTML = "<slot></slot>";
+        report("a slot takes it", target);
+
+        ({ root, target } = build("<style>@keyframes half { from, to { opacity: 0.5; } } .animated { animation: half 1000s; }</style><div class=animated id=inside></div>", "other"));
+        report("an element of the shadow tree", root.getElementById("inside"));
+    });
+</script>

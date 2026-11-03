@@ -574,7 +574,12 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     timing_counters.style_engine_published_reactions += applied.published_reactions;
     timing_counters.style_update_pass_guard_hits += applied.pass_guard_hits;
     timing_counters.style_update_apply_microseconds += applied.apply_microseconds;
-    document.settle_elements_whose_assigned_slot_changed();
+    constexpr auto assigned_slot_changes = drains_flown_transaction ? DOM::Document::AssignedSlotChanges::FlewPast : DOM::Document::AssignedSlotChanges::Recorded;
+    document.settle_elements_whose_assigned_slot_changed(assigned_slot_changes, read, [](DOM::Element& element) {
+        // The animations a slot change terminated compose no more over the record.
+        if (element.installed_style().view().animated_overlay || element.custom_property_data_is_animation_overlay({}))
+            sample_animations_for_installed_record(DOM::AbstractElement { element });
+    });
     if (!applied.had_reactions)
         return;
 
@@ -623,6 +628,7 @@ static Optional<StyleUpdateInputs> let_style_update_fly(Layout::BegunRead const&
     prepare_for_style_engine_transaction(read, document);
     if (!style_computer.style_engine().let_style_update_fly(*inputs, root->style_node_id(), blocker))
         return {};
+    document.note_style_update_flew_past_assigned_slot_changes();
     return inputs;
 }
 

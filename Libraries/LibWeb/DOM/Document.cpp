@@ -1102,6 +1102,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_top_layer_elements);
     visitor.visit(m_elements_whose_assigned_slot_changed);
+    visitor.visit(m_elements_whose_assigned_slot_change_flew_past);
     visitor.visit(m_picture_in_picture_element);
     visitor.visit(m_top_layer_pending_removals);
     visitor.visit(m_elements_with_pending_top_layer_membership_change);
@@ -10439,14 +10440,27 @@ void Document::note_element_assigned_slot_changed(Element& element)
 
 void Document::forget_assigned_slot_change_note(Element& element)
 {
-    m_elements_whose_assigned_slot_changed.remove_all_matching([&](auto const& noted) { return noted.ptr() == &element; });
+    auto is_element = [&](auto const& noted) { return noted.ptr() == &element; };
+    m_elements_whose_assigned_slot_changed.remove_all_matching(is_element);
+    m_elements_whose_assigned_slot_change_flew_past.remove_all_matching(is_element);
 }
 
-void Document::settle_elements_whose_assigned_slot_changed()
+void Document::note_style_update_flew_past_assigned_slot_changes()
 {
-    GC::RootVector<GC::Ref<Element>> elements { move(m_elements_whose_assigned_slot_changed) };
-    for (auto& element : elements)
-        element->play_or_cancel_animations_of_flat_tree_subtree();
+    m_elements_whose_assigned_slot_change_flew_past.extend(move(m_elements_whose_assigned_slot_changed));
+    m_elements_whose_assigned_slot_changed.clear();
+}
+
+void Document::settle_elements_whose_assigned_slot_changed(AssignedSlotChanges changes, Layout::BegunRead const& read, Function<void(Element&)> const& compose_element)
+{
+    auto& noted = changes == AssignedSlotChanges::FlewPast ? m_elements_whose_assigned_slot_change_flew_past : m_elements_whose_assigned_slot_changed;
+    GC::RootVector<GC::Ref<Element>> elements { move(noted) };
+    noted.clear();
+    for (auto& element : elements) {
+        // NB: Leaving took the animations of what left along.
+        if (element->is_connected())
+            element->settle_animations_of_flat_tree_subtree(read, compose_element);
+    }
 }
 
 void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& shadow_root)

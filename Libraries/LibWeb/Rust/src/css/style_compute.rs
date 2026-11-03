@@ -6801,6 +6801,7 @@ fn in_display_none_subtree_for_animations(
     // The element's own display is answered above, so an element's walk starts at the slot it is
     // assigned to or its parent; a pseudo-element's starts at its originating element.
     let start = match pseudo_kind == crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
+        true if style_engine.is_child_of_shadow_host_no_slot_takes(node) => return true,
         true => style_engine
             .assigned_slot_of(node)
             .or_else(|| style_engine.parent_or_shadow_host(node)),
