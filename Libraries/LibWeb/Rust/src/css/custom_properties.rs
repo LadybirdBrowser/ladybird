@@ -995,6 +995,12 @@ impl CustomPropertyStore {
             .or_else(|| self.parent.as_ref()?.get(name_raw))
     }
 
+    /// The names of the values the store, or a store it is built over, holds. A name can come more than once.
+    pub(crate) fn held_names(&self) -> impl Iterator<Item = &Utf16FlyString> {
+        std::iter::successors(Some(self), |store| store.parent.as_deref())
+            .flat_map(|store| store.own_values.values().map(|entry| &entry.name))
+    }
+
     /// Whether the store, or a store it is built over, holds a value of `name`.
     pub(crate) fn holds(&self, name: &Utf16FlyString) -> bool {
         self.get_by_name_with_owner(name).is_some()

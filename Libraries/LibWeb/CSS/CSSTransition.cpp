@@ -24,7 +24,7 @@ GC_DEFINE_ALLOCATOR(CSSTransition);
 
 GC::Ref<CSSTransition> CSSTransition::start_a_provisional_transition(
     DOM::AbstractElement abstract_element,
-    PropertyID property_id,
+    PropertyNameAndID property,
     size_t transition_generation,
     double delay,
     double start_time,
@@ -36,12 +36,12 @@ GC::Ref<CSSTransition> CSSTransition::start_a_provisional_transition(
     EasingFunction timing_function)
 {
     auto& environment = abstract_element.document().relevant_settings_object();
-    return GC::Heap::the().allocate<CSSTransition>(environment, abstract_element, property_id, transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor, move(timing_function));
+    return GC::Heap::the().allocate<CSSTransition>(environment, abstract_element, move(property), transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor, move(timing_function));
 }
 
 Utf16FlyString const& CSSTransition::transition_property() const
 {
-    return string_from_property_id(m_transition_property);
+    return m_transition_property.name();
 }
 
 Animations::AnimationClass CSSTransition::animation_class() const
@@ -94,7 +94,7 @@ int CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation>
 CSSTransition::CSSTransition(
     HTML::EnvironmentSettingsObject& environment,
     DOM::AbstractElement abstract_element,
-    PropertyID property_id,
+    PropertyNameAndID property,
     size_t transition_generation,
     double delay,
     double start_time,
@@ -105,7 +105,7 @@ CSSTransition::CSSTransition(
     double reversing_shortening_factor,
     EasingFunction timing_function)
     : Animations::Animation(environment)
-    , m_transition_property(property_id)
+    , m_transition_property(move(property))
     , m_transition_generation(transition_generation)
     , m_start_time(start_time + delay)
     , m_end_time(end_time + delay)
@@ -139,10 +139,10 @@ CSSTransition::CSSTransition(
 
     auto key_frame_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
     Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame initial_keyframe;
-    initial_keyframe.properties.set(PropertyNameAndID::from_id(property_id), RustStyleValueHandle::retained(m_start_value->rust_style_value_data()));
+    initial_keyframe.properties.set(m_transition_property, RustStyleValueHandle::retained(m_start_value->rust_style_value_data()));
 
     Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame final_keyframe;
-    final_keyframe.properties.set(PropertyNameAndID::from_id(property_id), RustStyleValueHandle::retained(m_end_value->rust_style_value_data()));
+    final_keyframe.properties.set(m_transition_property, RustStyleValueHandle::retained(m_end_value->rust_style_value_data()));
 
     key_frame_set->keyframes_by_key.insert(0, initial_keyframe);
     key_frame_set->keyframes_by_key.insert(100 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor, final_keyframe);
@@ -199,9 +199,9 @@ void CSSTransition::adopt_lane_transitions(DOM::Document& document)
         if (!element || !element->is_connected())
             return;
         // A transition the lane started that the host took in already runs from when the lane started it.
-        auto runs_as_lane_does = [&](CSSTransition const& transition, PropertyID property_id) {
+        auto runs_as_lane_does = [&](CSSTransition const& transition, PropertyNameAndID const& property) {
             return any_of(lane_transitions, [&](auto const& lane_transition) {
-                if (lane_transition.property_id != to_underlying(property_id))
+                if (lane_transition.property_id != to_underlying(property.id()))
                     return false;
                 if (lane_transition.host_identity != 0)
                     return lane_transition.host_identity == effect_identity(transition);
@@ -213,10 +213,10 @@ void CSSTransition::adopt_lane_transitions(DOM::Document& document)
         // with its events. One the host started since the lane forked is its own: the lane decided nothing over it, and
         // the host decides what becomes of it, and of its property, in its turn. So does one script finished meanwhile.
         GC::RootVector<GC::Ref<CSSTransition>> ended;
-        Vector<PropertyID> host_decides;
+        Vector<PropertyNameAndID> host_decides;
         if (auto const* existing = element->existing_transitions({})) {
-            for (auto const& [property_id, transition] : *existing) {
-                if (transition->is_idle() || transition->is_finished() || runs_as_lane_does(transition, property_id))
+            for (auto const& [property, transition] : *existing) {
+                if (transition->is_idle() || transition->is_finished() || runs_as_lane_does(transition, property))
                     continue;
                 auto identity = effect_identity(transition);
                 if (cancelled.contains_slow(identity)) {
@@ -226,7 +226,7 @@ void CSSTransition::adopt_lane_transitions(DOM::Document& document)
                 } else if (transition->m_adopted_from_lane) {
                     ended.append(transition);
                 } else {
-                    host_decides.append(property_id);
+                    host_decides.append(property);
                 }
             }
         }
@@ -238,7 +238,7 @@ void CSSTransition::adopt_lane_transitions(DOM::Document& document)
         for (auto const& lane_transition : lane_transitions) {
             if (lane_transition.host_identity == 0)
                 continue;
-            auto transition = element->property_transition({}, static_cast<PropertyID>(lane_transition.property_id));
+            auto transition = element->property_transition({}, PropertyNameAndID::from_id(static_cast<PropertyID>(lane_transition.property_id)));
             if (transition && effect_identity(*transition) == lane_transition.host_identity && !transition->start_time().has_value()
                 && transition->pending() && transition->play_state() != Bindings::AnimationPlayState::Paused)
                 (void)transition->set_start_time_for_bindings(Animations::NullableCSSNumberish { lane_transition.start_time });
@@ -246,19 +246,19 @@ void CSSTransition::adopt_lane_transitions(DOM::Document& document)
         for (auto const& lane_transition : lane_transitions) {
             if (lane_transition.host_identity != 0)
                 continue;
-            auto property_id = static_cast<PropertyID>(lane_transition.property_id);
-            if (host_decides.contains_slow(property_id))
+            auto property = PropertyNameAndID::from_id(static_cast<PropertyID>(lane_transition.property_id));
+            if (host_decides.contains_slow(property))
                 continue;
-            if (auto current = element->property_transition({}, property_id)) {
-                if (runs_as_lane_does(*current, property_id))
+            if (auto current = element->property_transition({}, property)) {
+                if (runs_as_lane_does(*current, property))
                     continue;
                 // A completed transition of the property gives way to the one the lane started. One the lane saw end,
                 // which the host's timeline has yet to reach, ends now.
                 if (!current->is_idle() && !current->is_finished())
                     (void)current->finish();
-                element->remove_transition({}, property_id);
+                element->remove_transition({}, property);
             }
-            auto transition = start_a_provisional_transition(*element, property_id, document.transition_generation(),
+            auto transition = start_a_provisional_transition(*element, property, document.transition_generation(),
                 lane_transition.delay, lane_transition.start_time, lane_transition.start_time + lane_transition.duration,
                 adopt_value(lane_transition.start_value), adopt_value(lane_transition.end_value), adopt_value(lane_transition.reversing_adjusted_start_value),
                 lane_transition.reversing_shortening_factor, EasingFunction::from_style_value(adopt_value(lane_transition.timing_function)));

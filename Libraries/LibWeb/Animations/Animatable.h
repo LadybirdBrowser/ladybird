@@ -14,6 +14,7 @@
 #include <LibGC/RootVector.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Bindings/Animatable.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {
@@ -67,12 +68,12 @@ public:
 
     // Whether the installed style gives any longhand a matching transition-property entry, answered without listing them.
     bool has_matching_transition_property_entry(Optional<CSS::PseudoElement>) const;
-    void set_transition(Optional<CSS::PseudoElement>, CSS::PropertyID, GC::Ref<CSS::CSSTransition>);
-    void remove_transition(Optional<CSS::PseudoElement>, CSS::PropertyID);
+    void set_transition(Optional<CSS::PseudoElement>, CSS::PropertyNameAndID const&, GC::Ref<CSS::CSSTransition>);
+    void remove_transition(Optional<CSS::PseudoElement>, CSS::PropertyNameAndID const&);
     bool has_existing_transitions(Optional<CSS::PseudoElement>) const;
     // The running or completed transition for each property, if the element holds any.
-    HashMap<CSS::PropertyID, GC::Ref<CSS::CSSTransition>> const* existing_transitions(Optional<CSS::PseudoElement>) const;
-    GC::Ptr<CSS::CSSTransition> property_transition(Optional<CSS::PseudoElement>, CSS::PropertyID) const;
+    HashMap<CSS::PropertyNameAndID, GC::Ref<CSS::CSSTransition>> const* existing_transitions(Optional<CSS::PseudoElement>) const;
+    GC::Ptr<CSS::CSSTransition> property_transition(Optional<CSS::PseudoElement>, CSS::PropertyNameAndID const&) const;
 
 protected:
     void visit_edges(JS::Cell::Visitor&);

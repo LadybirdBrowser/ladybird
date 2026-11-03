@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+    @property --color { syntax: "<color>"; inherits: true; initial-value: black; }
+    @property --ident { syntax: "<custom-ident>"; inherits: false; initial-value: a; }
+    .box { width: var(--length); }
+    .all-properties { --length: 0px; transition: all 100s linear; }
+    .all-properties.on { --length: 100px; }
+    .length { --length: 0px; transition: --length 100s linear; }
+    .length.on { --length: 100px; }
+    .color { --color: rgb(0, 0, 0); transition: --color 100s linear; }
+    .color.on { --color: rgb(200, 0, 0); }
+    .unregistered { --plain: 0px; transition: --plain 100s linear; }
+    .unregistered.on { --plain: 100px; }
+    .discrete { --plain: 0px; transition: --plain 100s linear allow-discrete; }
+    .discrete.on { --plain: 100px; }
+    .ident { --ident: a; transition: --ident 100s linear; }
+    .ident.on { --ident: b; }
+    .zero { --length: 0px; transition: --length 0s; }
+    .zero.on { --length: 100px; }
+    .parent-on { --color: rgb(200, 0, 0); }
+</style>
+<body>
+<script>
+    function build(className) {
+        const box = document.createElement("div");
+        box.className = "box " + className;
+        document.body.append(box);
+        getComputedStyle(box).width;
+        return box;
+    }
+
+    function atQuarter(box) {
+        const [transition] = box.getAnimations();
+        if (!transition)
+            return null;
+        transition.pause();
+        transition.currentTime = 25000;
+        return transition;
+    }
+
+    function report(label, box, property) {
+        const style = getComputedStyle(box);
+        const names = box.getAnimations().map(animation => animation.transitionProperty).join(",");
+        println(`${label}: [${names}] ${property} = ${style.getPropertyValue(property)}, width = ${style.width}`);
+    }
+
+    test(() => {
+        let box = build("length");
+        box.classList.add("on");
+        report("started", box, "--length");
+        atQuarter(box);
+        report("a quarter in", box, "--length");
+        box.style.setProperty("--length", "50px");
+        report("retargeted", box, "--length");
+
+        box = build("length");
+        box.classList.add("on");
+        atQuarter(box);
+        box.style.transitionProperty = "none";
+        report("no longer named", box, "--length");
+
+        box = build("all-properties");
+        box.classList.remove("box");
+        getComputedStyle(box).width;
+        box.classList.add("on");
+        atQuarter(box);
+        report("transition: all", box, "--length");
+
+        box = build("length");
+        box.classList.add("on");
+        box.getAnimations()[0].finish();
+        report("finished", box, "--length");
+        box.classList.remove("on");
+        report("started back", box, "--length");
+
+        box = build("color");
+        box.classList.add("on");
+        atQuarter(box);
+        report("color", box, "--color");
+
+        box = build("unregistered");
+        box.classList.add("on");
+        report("unregistered", box, "--plain");
+
+        box = build("discrete");
+        box.classList.add("on");
+        report("unregistered, allow-discrete", box, "--plain");
+
+        box = build("ident");
+        box.classList.add("on");
+        report("custom-ident", box, "--ident");
+
+        box = build("zero");
+        box.classList.add("on");
+        report("no duration", box, "--length");
+
+        const parent = build("");
+        const child = document.createElement("div");
+        child.className = "color";
+        parent.append(child);
+        getComputedStyle(child).width;
+        child.className = "color on";
+        atQuarter(child);
+        const grandchild = document.createElement("div");
+        child.append(grandchild);
+        report("inherited by a child", grandchild, "--color");
+    });
+</script>

@@ -591,9 +591,7 @@ impl Record {
     }
 
     /// The custom properties the element holds, which its inherited set holds beside its groups.
-    pub(in super::super) fn custom_properties(
-        &self,
-    ) -> Option<&Arc<crate::css::custom_properties::CustomPropertyStore>> {
+    pub(crate) fn custom_properties(&self) -> Option<&Arc<crate::css::custom_properties::CustomPropertyStore>> {
         self.payloads.custom_properties()
     }
 

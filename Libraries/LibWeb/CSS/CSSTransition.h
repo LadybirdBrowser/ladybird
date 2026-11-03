@@ -9,6 +9,7 @@
 
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/CSS/EasingFunction.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -21,7 +22,7 @@ public:
     // A transition is started provisionally, and associated with its target only once committed.
     static GC::Ref<CSSTransition> start_a_provisional_transition(
         DOM::AbstractElement,
-        PropertyID,
+        PropertyNameAndID,
         size_t transition_generation,
         double delay,
         double start_time,
@@ -47,6 +48,7 @@ public:
     double style_change_event_time() const;
     double transition_start_time() const { return m_start_time; }
     double transition_end_time() const { return m_end_time; }
+    NonnullRefPtr<StyleValue const> transition_start_value() const { return m_start_value; }
     NonnullRefPtr<StyleValue const> transition_end_value() const { return m_end_value; }
     NonnullRefPtr<StyleValue const> reversing_adjusted_start_value() const { return m_reversing_adjusted_start_value; }
     double reversing_shortening_factor() const { return m_reversing_shortening_factor; }
@@ -68,7 +70,7 @@ private:
     CSSTransition(
         HTML::EnvironmentSettingsObject&,
         DOM::AbstractElement,
-        PropertyID,
+        PropertyNameAndID,
         size_t transition_generation,
         double delay,
         double start_time,
@@ -83,7 +85,7 @@ private:
 
     virtual bool is_css_transition() const override { return true; }
 
-    PropertyID m_transition_property;
+    PropertyNameAndID m_transition_property;
 
     // https://drafts.csswg.org/css-transitions-2/#transition-generation
     size_t m_transition_generation;

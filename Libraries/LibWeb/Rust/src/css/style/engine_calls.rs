@@ -1605,11 +1605,15 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
     let element_box = crate::layout::node_data::NodeSlotId {
         index: input.element_box_slot,
     };
-    let actions = with_engine_and_arena(read, host, |engine, arena| {
+    let (mut actions, custom_properties) = with_engine_and_arena(read, host, |engine, arena| {
         let reference_box =
             crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box);
-        decision.decide(engine, reference_box, existing)
+        (
+            decision.decide(engine, reference_box, existing),
+            decision.decide_custom_properties(engine, existing),
+        )
     });
+    actions.extend_from_slice(&custom_properties.actions);
     hand_over(&actions);
 }
 
