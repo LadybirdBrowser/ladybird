@@ -201,14 +201,11 @@ fn scan_custom_property_references<'a>(
     all_references_visible
 }
 
-pub(crate) fn custom_property_references(value: &StyleValueData) -> Option<(Vec<&[u16]>, bool)> {
+pub(crate) fn custom_property_references(value: &StyleValueData) -> Option<(impl Iterator<Item = &[u16]>, bool)> {
     let StyleValueData::Unresolved(unresolved_payload) = value else {
         return None;
     };
-    Some((
-        unresolved_payload.references().collect(),
-        unresolved_payload.references_visible(),
-    ))
+    Some((unresolved_payload.references(), unresolved_payload.references_visible()))
 }
 
 /// Visits the Typed OM reification of an unresolved style value. Event 0 appends a text segment,
@@ -299,7 +296,7 @@ mod unresolved_component_tests {
     fn reference_names(value: &StyleValueData) -> (Vec<String>, bool) {
         let (names, all_visible) = custom_property_references(value).unwrap();
         (
-            names.iter().map(|name| String::from_utf16(name).unwrap()).collect(),
+            names.map(|name| String::from_utf16(name).unwrap()).collect(),
             all_visible,
         )
     }
