@@ -115,6 +115,11 @@ endif()
 ladybird_lib(LibCore core EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibCore PRIVATE Threads::Threads LibUnicode LibTextCodec mimalloc)
 
+# Development builds are in no stage of development, and leave it out of their product name.
+if (NOT LADYBIRD_VERSION STREQUAL "")
+    set(browser_release_stage "${LADYBIRD_RELEASE_STAGE}")
+endif()
+string(JOIN " " browser_product_name "Ladybird" ${browser_release_stage})
 configure_file(BrowserVersion.h.in BrowserVersion.h @ONLY)
 if (ENABLE_INSTALL_HEADERS)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/BrowserVersion.h" COMPONENT Lagom_Development

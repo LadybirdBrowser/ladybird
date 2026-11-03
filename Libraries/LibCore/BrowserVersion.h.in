@@ -7,3 +7,5 @@
 #pragma once
 
 #define BROWSER_VERSION "@LADYBIRD_BROWSER_VERSION@"
+#define BROWSER_RELEASE_STAGE "@browser_release_stage@"
+#define BROWSER_PRODUCT_NAME "@browser_product_name@"

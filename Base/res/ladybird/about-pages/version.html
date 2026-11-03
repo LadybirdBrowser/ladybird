@@ -140,7 +140,7 @@
         </svg>
         <div class="name">
             <h1 id="browser-name">Ladybird</h1>
-            <span class="badge">Pre-Alpha</span>
+            <span class="badge" id="release-stage" hidden></span>
         </div>
         <p class="tagline">A truly independent web browser.</p>
         <div class="details">
@@ -171,15 +171,17 @@
             let detailsText = "";
 
             function renderVersionInfo(versionInfo) {
-                document.title = `About ${versionInfo.browserName}`;
+                document.title = `About ${versionInfo.productName}`;
                 document.querySelector("#browser-name").innerText = versionInfo.browserName;
+                document.querySelector("#release-stage").innerText = versionInfo.releaseStage || "Development";
+                document.querySelector("#release-stage").hidden = false;
                 document.querySelector("#browser-version").innerText = versionInfo.browserVersion;
                 document.querySelector("#browser-commit").innerText = `from ${versionInfo.browserCommit.slice(0, 10)}`;
                 document.querySelector("#platform").innerText = `${versionInfo.platformName}, ${versionInfo.arch}`;
 
                 // What is copied includes the details a bug report needs beyond what the page shows.
                 detailsText = [
-                    `${versionInfo.browserName} ${versionInfo.browserVersion} (${versionInfo.browserCommit})`,
+                    `${versionInfo.productName} ${versionInfo.browserVersion} (${versionInfo.browserCommit})`,
                     `Platform: ${versionInfo.platformName}, ${versionInfo.arch}`,
                     `User agent: ${navigator.userAgent}`,
                     `Command line: ${versionInfo.commandLine}`,

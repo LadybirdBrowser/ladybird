@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/BrowserVersion.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
@@ -125,7 +126,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             app->offer_to_restore_unexpectedly_closed_tabs(*restored_window);
         } else {
             auto& window = app->new_window(browser_options.urls, configuration);
-            window.setWindowTitle("Ladybird");
+            window.setWindowTitle(BROWSER_PRODUCT_NAME);
             app->offer_to_restore_unexpectedly_closed_tabs(window);
         }
 
