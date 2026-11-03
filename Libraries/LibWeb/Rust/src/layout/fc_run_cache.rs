@@ -880,6 +880,39 @@ impl FcRunCacheAttempt {
         })
     }
 
+    pub(super) fn would_reuse_stored_run(
+        box_: Node,
+        builds_fragments: bool,
+        should_collect_devtools_layout_data: bool,
+        measurement_root_keeps_its_result: bool,
+        callbacks: &LayoutPass<'_>,
+        probe: &FcRunCacheProbe<'_>,
+    ) -> bool {
+        if !can_describe_run(
+            box_,
+            false,
+            should_collect_devtools_layout_data,
+            measurement_root_keeps_its_result,
+            callbacks,
+            probe,
+        ) {
+            return false;
+        }
+        let validity = run_root_validity(callbacks, box_);
+        callbacks
+            .fc_run_cache_store()
+            .first_entry_where_summary_allows(
+                box_.slot_index(),
+                |summary| summary.may_answer_probe(validity, builds_fragments),
+                |entry| {
+                    entry.validity == validity
+                        && (!builds_fragments || entry.outputs.root.is_some())
+                        && entry.answers_probe_for(probe)
+                },
+            )
+            .is_some()
+    }
+
     pub(super) fn previous_line_data(&self) -> Option<std::sync::Arc<inline_content::InlineContent>> {
         let Self::Store {
             structurally_damaged_entry: Some(entry),

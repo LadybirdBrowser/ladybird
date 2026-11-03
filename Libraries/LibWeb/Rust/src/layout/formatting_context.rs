@@ -3303,6 +3303,17 @@ pub(crate) fn lay_out_child_run_job(callbacks: LayoutPass<'_>, job: ChildRunJob)
     )
 }
 
+pub(crate) fn shape_would_reuse_stored_run(callbacks: &LayoutPass<'_>, shape: &ChildRunShape) -> bool {
+    fc_run_cache::FcRunCacheAttempt::would_reuse_stored_run(
+        shape.node,
+        run_builds_fragments(&shape.input, false),
+        false,
+        true,
+        callbacks,
+        &fc_run_cache::FcRunCacheProbe::new(shape.fc_type, &shape.input, shape.root_cells),
+    )
+}
+
 /// Hands what the layout of a child handed its placement to the run's fragment builder, where the child is laid out
 /// but not placed.
 pub(crate) fn leave_child_unplaced(

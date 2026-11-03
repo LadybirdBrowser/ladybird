@@ -93,6 +93,17 @@ pub(crate) fn fork_candidates<T: Copy>(
     candidates
 }
 
+pub(crate) fn lay_out_shapes_ahead(pass: &LayoutPass<'_>, shapes: Vec<formatting_context::ChildRunShape>) {
+    let _ = lay_out_in_parallel(
+        pass,
+        shapes,
+        |shape| shape.node,
+        |callbacks, shape| {
+            formatting_context::lay_out_shape_for_its_result(callbacks, shape);
+        },
+    );
+}
+
 pub(crate) struct ForkedTask<R> {
     pub(crate) result: R,
     pub(crate) host_findings: run_state::HostFindings,
