@@ -4798,7 +4798,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         }
 
-        let root_input = input.clone();
+        let outer_float_intrusion_before_list_item_children =
+            input.sizing.outer_float_intrusion_before_list_item_children;
+        let root_input = input;
         let root_facts = self.facts(self.run.box_);
         if root_facts.is_fieldset_box() && !root_facts.rendered_legend().is_invalid() {
             let baselines = self
@@ -4866,7 +4868,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.place_outside_marker(
                 outside_marker,
                 self.root_block_container(),
-                input.sizing.outer_float_intrusion_before_list_item_children,
+                outer_float_intrusion_before_list_item_children,
                 self.derived_baselines_of_root_box().first,
             );
         }
