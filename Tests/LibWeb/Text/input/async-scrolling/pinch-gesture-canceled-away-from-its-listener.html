@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+    #listener {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="listener"></div>
+<script>
+    // A gesture the page canceled stays canceled, even once the pinch moves away from the listener that canceled it.
+    // The next gesture starts over, and zooms where no listener can cancel it.
+    promiseTest(async () => {
+        const compositorScale = () => internals.compositorScrollState().visualViewportScale;
+        const canceled = new Promise(resolve => {
+            listener.addEventListener(
+                "wheel",
+                event => {
+                    event.preventDefault();
+                    resolve();
+                },
+                { passive: false }
+            );
+        });
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+
+        internals.pinchThroughUIProcess(50, 50, 0.5);
+        await canceled;
+
+        internals.pinchThroughUIProcess(400, 300, 0.5, true);
+        internals.pinchThroughUIProcess(400, 300, 0.5);
+
+        // NB: Input stays in order, so the last step zooming means the step before it has had its turn. This only gives
+        //     up on a zoom that never comes, so the time limit can't fail a slow machine's run of a fixed engine.
+        const giveUpAt = performance.now() + 5000;
+        while (compositorScale() === 1 && performance.now() < giveUpAt) await animationFrame();
+        while (visualViewport.scale !== compositorScale() && performance.now() < giveUpAt) await animationFrame();
+
+        println(`compositor scale: ${compositorScale()}`);
+        println(`main thread scale: ${visualViewport.scale}`);
+    });
+</script>
