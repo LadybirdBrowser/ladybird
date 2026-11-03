@@ -1,0 +1,3 @@
+html: horizontal-tb
+head: vertical-rl
+span: vertical-rl
