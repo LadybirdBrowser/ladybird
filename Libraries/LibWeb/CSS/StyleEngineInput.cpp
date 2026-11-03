@@ -1145,12 +1145,7 @@ static bool element_has_presentational_hints_to_publish(DOM::Element const& elem
             && (navigable->container()->has_attribute(HTML::AttributeNames::marginwidth) || navigable->container()->has_attribute(HTML::AttributeNames::marginheight)))
             return true;
     }
-    bool has_presentational_hint = false;
-    element.for_each_attribute([&](Utf16FlyString const& name, Utf16View) {
-        if (!has_presentational_hint && element.is_presentational_hint(name))
-            has_presentational_hint = true;
-    });
-    return has_presentational_hint;
+    return any_of(element.attribute_list(), [&](auto const& attribute) { return element.is_presentational_hint(attribute.name.as_string()); });
 }
 
 // The element facts the style computation's box-type transformation and element style adjustments
