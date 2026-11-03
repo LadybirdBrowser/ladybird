@@ -1514,6 +1514,37 @@ fn map_grid_track_entries(
         .collect()
 }
 
+/// Whether `changes` answers yes of any value in a grid track entry list, recursing through repeat() entries, or none
+/// where it declines before that.
+fn grid_track_entries_change(
+    entries: &[crate::css::style_value::RetainedGridTrackEntry],
+    changes: &mut impl FnMut(&RetainedStyleValueData) -> Option<bool>,
+) -> Option<bool> {
+    for entry in entries {
+        if changes(&entry.size_value)?
+            || changes(&entry.min_value)?
+            || changes(&entry.max_value)?
+            || changes(&entry.repeat_count)?
+            || grid_track_entries_change(entry.repeat_entries(), changes)?
+        {
+            return Some(true);
+        }
+    }
+    Some(false)
+}
+
+/// Whether `changes` answers yes of any value [`map_grid_values`] maps, or none where it declines before that.
+fn grid_values_change(
+    value: &StyleValueData,
+    changes: &mut impl FnMut(&RetainedStyleValueData) -> Option<bool>,
+) -> Option<bool> {
+    match value {
+        StyleValueData::GridTrackPlacement(placement) => changes(&placement.value),
+        StyleValueData::GridTrackSizeList(list) => grid_track_entries_change(list.entries.as_slice(), changes),
+        _ => unreachable!(),
+    }
+}
+
 fn map_grid_values(
     value: &StyleValueData,
     map: &mut impl FnMut(&RetainedStyleValueData) -> Option<RetainedStyleValueData>,
@@ -2240,6 +2271,15 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             )
         }
         StyleValueData::GridTrackPlacement { .. } | StyleValueData::GridTrackSizeList { .. } => {
+            // NB: Tracks and lines are mostly absolute already, which a walk answers without building a list.
+            if !grid_values_change(value, &mut |child| {
+                let Some(data) = child.optional_data() else {
+                    return Some(false);
+                };
+                Some(matches!(absolutize(data, context)?, Absolutized::Changed(_)))
+            })? {
+                return Some(Absolutized::Unchanged);
+            }
             let mut changed = false;
             let mapped = map_grid_values(value, &mut |child| absolutize_child(child, context, &mut changed))?;
             rebuild!(changed, mapped)
