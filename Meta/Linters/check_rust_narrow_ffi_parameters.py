@@ -50,7 +50,6 @@ ALLOWED = {
     "Libraries/LibWeb/Rust/src/css/parser/descriptor_parser.rs": 1,
     "Libraries/LibWeb/Rust/src/css/parser/value_parser.rs": 2,
     "Libraries/LibWeb/Rust/src/css/property_metadata.rs": 4,
-    "Libraries/LibWeb/Rust/src/css/selector_operations.rs": 1,
     "Libraries/LibWeb/Rust/src/css/serialize.rs": 1,
     "Libraries/LibWeb/Rust/src/css/style/engine_calls.rs": 3,
     "Libraries/LibWeb/Rust/src/css/style_compute.rs": 8,

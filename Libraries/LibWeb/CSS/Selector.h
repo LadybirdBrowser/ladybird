@@ -75,8 +75,6 @@ public:
     static NonnullRefPtr<Selector> create(SelectorFFI::RustSelector*);
     ~Selector();
 
-    bool contains_the_nesting_selector() const;
-    bool contains_pseudo_class(PseudoClass) const;
     bool contains_named_namespace() const;
     u32 specificity() const;
     Utf16String serialize() const;

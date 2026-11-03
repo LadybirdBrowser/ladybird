@@ -50,16 +50,6 @@ Selector::~Selector()
     SelectorFFI::rust_selector_destroy(m_rust_selector);
 }
 
-bool Selector::contains_the_nesting_selector() const
-{
-    return SelectorFFI::rust_selector_contains_nesting(m_rust_selector);
-}
-
-bool Selector::contains_pseudo_class(PseudoClass pseudo_class) const
-{
-    return SelectorFFI::rust_selector_contains_pseudo_class(m_rust_selector, to_underlying(pseudo_class));
-}
-
 bool Selector::contains_named_namespace() const
 {
     return SelectorFFI::rust_selector_contains_named_namespace(m_rust_selector);
