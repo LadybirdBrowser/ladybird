@@ -133,7 +133,8 @@ impl<'arena> LayoutPass<'arena> {
     /// before it and keeps none, so that it computes everything afresh and leaves nothing for the runs after it. It
     /// measures intrinsic sizes into caches of its own, which start empty and are dropped when it returns.
     pub(crate) fn lay_out_discarded_run<R>(self, run: impl for<'discarded> FnOnce(LayoutPass<'discarded>) -> R) -> R {
-        let intrinsic_size_caches = super::layout_node_arena::IntrinsicSizeCaches::default();
+        let mut intrinsic_size_caches = super::layout_node_arena::IntrinsicSizeCaches::default();
+        intrinsic_size_caches.cover_slots(self.arena.slot_capacity());
         let pass: LayoutPass<'_> = self;
         run(LayoutPass {
             intrinsic_size_caches: &intrinsic_size_caches,
@@ -194,7 +195,7 @@ impl<'arena> LayoutPass<'arena> {
         self.scratch.fc_run_cache_store()
     }
 
-    pub(crate) fn fragment_builder_scratch(&self) -> &'arena RefCell<super::fragment_tree::FragmentBuilderScratch> {
+    pub(crate) fn fragment_builder_scratch(&self) -> &'arena super::fragment_tree::FragmentBuilderScratch {
         self.scratch.fragment_builder_scratch()
     }
 

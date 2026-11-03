@@ -222,7 +222,7 @@ impl TextContent {
 pub(crate) struct TextMemos {
     /// In chunks a fork of the arena shares until either side writes one, so forking does not copy every row's memo.
     chunks: RefCell<crate::cow_column::CowVec<Option<ChunksOfText>, CHUNK_MEMOS_PER_CHUNK>>,
-    grapheme_segmenters: RefCell<Vec<Option<GraphemeSegmenterOfText>>>,
+    grapheme_segmenters: super::pass_column::PassColumn<Option<GraphemeSegmenterOfText>>,
 }
 
 /// How many rows' chunk memos a chunk of [`TextMemos::chunks`] holds: a write after a fork copies this many.
@@ -246,7 +246,7 @@ impl TextMemos {
     pub(crate) fn fork(&self) -> Self {
         Self {
             chunks: self.chunks.clone(),
-            grapheme_segmenters: RefCell::default(),
+            grapheme_segmenters: Default::default(),
         }
     }
 
@@ -292,19 +292,20 @@ impl TextMemos {
         rendered: &Arc<RenderedText>,
         read: impl FnOnce(&super::text_chunker::GraphemeSegmenter) -> R,
     ) -> R {
-        let index = node.slot_index() as usize;
-        let mut segmenters = self.grapheme_segmenters.borrow_mut();
-        if segmenters.len() <= index {
-            segmenters.resize_with(index + 1, || None);
-        }
-        let memo = &mut segmenters[index];
-        if !memo.as_ref().is_some_and(|memo| Arc::ptr_eq(&memo.rendered, rendered)) {
-            *memo = Some(GraphemeSegmenterOfText {
-                segmenter: super::text_chunker::GraphemeSegmenter::new(&rendered.text),
-                rendered: rendered.clone(),
-            });
-        }
-        read(&memo.as_ref().expect("the memo was just made").segmenter)
+        self.grapheme_segmenters
+            .with_row_mut(node.slot_index() as usize, |memo| {
+                if !memo.as_ref().is_some_and(|memo| Arc::ptr_eq(&memo.rendered, rendered)) {
+                    *memo = Some(GraphemeSegmenterOfText {
+                        segmenter: super::text_chunker::GraphemeSegmenter::new(&rendered.text),
+                        rendered: rendered.clone(),
+                    });
+                }
+                read(&memo.as_ref().expect("the memo was just made").segmenter)
+            })
+    }
+
+    pub(super) fn cover_slots(&mut self, slot_count: usize) {
+        self.grapheme_segmenters.cover_slots(slot_count);
     }
 
     /// Lets go of what the memos keep for the row in `slot`, which the arena freed.
@@ -313,7 +314,7 @@ impl TextMemos {
         if chunks.get(slot as usize).is_some_and(Option::is_some) {
             chunks[slot as usize] = None;
         }
-        if let Some(segmenter) = self.grapheme_segmenters.get_mut().get_mut(slot as usize) {
+        if let Some(segmenter) = self.grapheme_segmenters.row_mut(slot as usize) {
             *segmenter = None;
         }
     }
