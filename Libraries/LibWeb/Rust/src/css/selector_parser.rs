@@ -1110,7 +1110,11 @@ impl<'a> SelectorParser<'a> {
     fn parse_compound_simple_selectors(&mut self, stream: &mut Stream<'_>) -> Result<Vec<SimpleSelector>, ()> {
         let mut simple_selectors = Vec::new();
         while let Some(simple_selector) = self.parse_simple_selector(stream)? {
-            if matches!(simple_selector, SimpleSelector::TagName(_)) && !simple_selectors.is_empty() {
+            if matches!(
+                simple_selector,
+                SimpleSelector::TagName(_) | SimpleSelector::Universal(_)
+            ) && !simple_selectors.is_empty()
+            {
                 return Err(());
             }
             if let SimpleSelector::PseudoElement(pseudo_element) = &simple_selector {
