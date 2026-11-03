@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    // Beside a task, Up at the top of the page goes nowhere and the compositor scrolls for the Downs after it. The main
+    // thread hears of Up only once the task ends, by which time the user has moved on.
+    promiseTest(async () => {
+        const compositorOffset = () => internals.compositorScrollState().scrollOffset.y;
+        const keys = [];
+        document.addEventListener("keyup", event => keys.push(event.key));
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+
+        for (const key of ["Up", "Down", "Down"]) internals.sendKeyThroughUIProcess(key);
+
+        // NB: These only give up on what never comes, so the time limits can't fail a slow machine's run of a fixed engine.
+        let giveUpAt = performance.now() + 5000;
+        while (compositorOffset() <= 100 && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`beside the task, the compositor scrolled past the first Down: ${compositorOffset() > 100}`);
+
+        giveUpAt = performance.now() + 5000;
+        while (keys.length < 3 && performance.now() < giveUpAt) await animationFrame();
+        println(`keys the page heard of: ${keys.join(", ")}`);
+
+        // NB: The scroll eases to its end, so an offset only counts as settled once it stays put for a while.
+        let framesAtRest = 0;
+        let lastOffset = compositorOffset();
+        giveUpAt = performance.now() + 5000;
+        while (framesAtRest < 20 && performance.now() < giveUpAt) {
+            await new Promise(resolve => setTimeout(resolve, 16));
+            const offset = compositorOffset();
+            framesAtRest = offset === lastOffset ? framesAtRest + 1 : 0;
+            lastOffset = offset;
+        }
+        println(`compositor offset once settled: ${lastOffset}`);
+        println(`main thread offset: ${window.scrollY}`);
+    });
+</script>

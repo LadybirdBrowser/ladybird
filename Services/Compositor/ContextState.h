@@ -88,6 +88,8 @@ public:
         bool accepted { false };
         Optional<PendingFrame> frame_to_present {};
         bool should_request_rendering_update { false };
+        // Whether a key event found nothing to scroll by the compositor's scroll range, which may lag behind the page's.
+        bool key_found_nothing_to_scroll { false };
         Optional<Web::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
         // Why a wheel or mouse event was taken or turned away, and the scroller it was routed to.
         Optional<Web::InputRoutingDecision> routing_decision {};
@@ -247,6 +249,7 @@ public:
     // Whether this context's page may cancel the ctrl+wheel event of a pinch at the position, or has yet to tell.
     bool page_may_cancel_pinch_at(Gfx::FloatPoint position);
     bool pinch_gesture_was_let_through() const { return m_pinch_gesture_was_let_through; }
+    u64 user_input_scroll_count() const;
     void set_pinch_gesture_was_let_through(bool was_let_through) { m_pinch_gesture_was_let_through = was_let_through; }
 
     bool may_hand_first_wheel_steps_to_nested_contexts() const;
@@ -367,7 +370,8 @@ private:
     void end_keyboard_scroll_gesture();
     struct KeyScroll {
         KeyboardScrollController::KeyStep step;
-        Compositing::SpatialNodeIndex target_scroll_node_index;
+        // Empty if every box the key could scroll is at the end of its scroll range.
+        Optional<Compositing::SpatialNodeIndex> target_scroll_node_index;
     };
     Optional<KeyScroll> key_scroll_for(Web::KeyEvent const&) const;
     Optional<Web::MouseEvent> interrupt_reported_scroll_momentum();

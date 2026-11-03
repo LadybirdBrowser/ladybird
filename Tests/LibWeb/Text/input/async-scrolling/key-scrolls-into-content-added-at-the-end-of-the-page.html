@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    // The compositor finds nothing to scroll for a key at the end of the scroll range it knows, which is older than the
+    // content this task adds. That key must still scroll into the new content, once the main thread gets to it.
+    promiseTest(async () => {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+        const start = window.scrollY;
+
+        document.body.style.height = "10000px";
+        internals.sendKeyThroughUIProcess("Down");
+        const waitUntil = performance.now() + 100;
+        while (performance.now() < waitUntil) {
+            // Stay in this task, so that the compositor handles the key before it hears of the new content.
+        }
+
+        // NB: This only gives up on what never comes, so the time limit can't fail a slow machine's run of a fixed engine.
+        const giveUpAt = performance.now() + 2000;
+        while (window.scrollY === start && performance.now() < giveUpAt) await animationFrame();
+        println(`the key scrolled into the new content: ${window.scrollY > start}`);
+    });
+</script>

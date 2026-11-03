@@ -222,7 +222,7 @@ public:
     EventResult handle_drag_and_drop_event(DragEvent::Type, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
     EventResult handle_pinch_event(DevicePixelPoint point, unsigned modifiers, double scale);
 
-    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false, ReadonlySpan<TextEditingCommand> editing_commands = {}, bool native_editing_binding_resolved = false);
+    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false, ReadonlySpan<TextEditingCommand> editing_commands = {}, bool native_editing_binding_resolved = false, Optional<u64> user_input_scroll_count_with_nothing_to_scroll = {});
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
     void handle_gamepad_connected(Gamepad::GamepadDescription const&);

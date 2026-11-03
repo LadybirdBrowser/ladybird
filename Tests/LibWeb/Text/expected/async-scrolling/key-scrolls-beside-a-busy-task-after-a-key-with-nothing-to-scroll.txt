@@ -1,3 +1,3 @@
-beside the task: compositor offset=0
+beside the task: compositor offset=100
 keys the page heard of: ArrowUp, ArrowDown
-main thread offset: 0
+main thread offset: 100

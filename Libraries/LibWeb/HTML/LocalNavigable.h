@@ -254,6 +254,7 @@ public:
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
     // Every change of a scroll offset here, other than one the compositor made, goes to the compositor as a request.
     void did_change_scroll_offset(Web::AsyncScrollNodeStableID);
+    u64 compositor_user_input_scroll_count() const;
     // Changes a scrolling box's offset for user input on this thread, which the compositor is asked for as the user's.
     bool set_scroll_offset_for_user_input(Layout::Node& scrolling_box, Web::AsyncScrollNodeStableID, CSSPixelPoint);
     void adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness = Compositing::AsyncScrollUpdateFreshness::Pushed);

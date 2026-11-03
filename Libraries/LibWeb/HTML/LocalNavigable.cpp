@@ -7363,6 +7363,14 @@ bool LocalNavigable::set_scroll_offset_for_user_input(Layout::Node& scrolling_bo
     return did_scroll;
 }
 
+u64 LocalNavigable::compositor_user_input_scroll_count() const
+{
+    u64 count = 0;
+    for (auto const& entry : m_compositor_user_input_scroll_counts)
+        count += entry.value;
+    return count;
+}
+
 void LocalNavigable::did_change_scroll_offset(Web::AsyncScrollNodeStableID stable_node_id)
 {
     note_scroll_sequence_moved(stable_node_id);
