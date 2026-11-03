@@ -1,0 +1,3 @@
+height on screen beside the task: 60
+box matches :hover after the task: true
+height after the task: 80

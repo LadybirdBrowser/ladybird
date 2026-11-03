@@ -9,6 +9,7 @@ mod pseudo;
 
 use super::pipeline::compute::RootFontInputs;
 use super::*;
+use crate::css::cascaded_properties::NO_PSEUDO_ELEMENT;
 use crate::css::computed_longhand_table::IN_DISPLAY_NONE_SUBTREE;
 use crate::css::computed_value_views::QuoteTransfer;
 use animations::DeclarationScope;
@@ -118,26 +119,51 @@ impl RetainedState {
     }
 
     /// Whether the host owes an element the engine settled the animation plan its record decides,
-    /// once it installs the record: the record moved the declarations, or the element runs CSS
-    /// animations, whose `@keyframes` may have moved without the declarations.
-    pub(super) fn row_owes_an_animation_plan(&self, node: StyleNodeID, old: u64, new: u64) -> bool {
-        self.row_owes_an_animation_plan_declaring(node, old, new, || self.record_declares_animations(new))
-    }
-
-    /// [`Self::row_owes_an_animation_plan`], for a `new` record of which `new_declares_animations`
-    /// answers whether it declares animations.
-    pub(super) fn row_owes_an_animation_plan_declaring(
+    /// once it installs the record `new`: the record moved the declarations, or the element runs
+    /// CSS animations the plan would change, as where their `@keyframes` moved without the
+    /// declarations.
+    pub(super) fn row_owes_an_animation_plan(
         &self,
         node: StyleNodeID,
         old: u64,
         new: u64,
-        new_declares_animations: impl Fn() -> bool,
+        new_record: &std::sync::Arc<super::pipeline::Record>,
     ) -> bool {
         // An element the host holds no record for, its style cleared under display:none and its
         // animations with it, starts the animations its record names as a first record does.
         let old = if self.held_style_records.contains(node) { old } else { 0 };
-        self.record_owes_an_animation_plan(old, new, new_declares_animations)
-            || self.css_defined_animations.node_runs_a_css_animation(node)
+        self.record_owes_an_animation_plan(old, new, || self.record_declares_animations(new))
+            || (self.css_defined_animations.node_runs_a_css_animation(node)
+                && self
+                    .animation_plan_of_record(node, NO_PSEUDO_ELEMENT, new_record)
+                    .is_some())
+    }
+
+    /// The animation plan `record` decides for an element, or for its pseudo-element `pseudo_kind`,
+    /// where applying it would change the animations they run: none where it would not, or where
+    /// the record installs no `animation-name`. The definitions borrow the record's values.
+    pub(crate) fn animation_plan_of_record(
+        &self,
+        node: StyleNodeID,
+        pseudo_kind: u8,
+        record: &std::sync::Arc<super::pipeline::Record>,
+    ) -> Option<smallvec::SmallVec<[crate::css::style_compute::FfiComputedAnimation; 1]>> {
+        let longhands = StyleRecordView::of_host_record(record).longhands();
+        let declaration_scope = self.animation_name_declaration_scope_of(node, pseudo_kind, record)?;
+        let existing_animations =
+            self.element_css_defined_animations(node, crate::css::style_compute::animation_slot(pseudo_kind));
+        let element_tree_scope = self.element_tree_scope(node);
+        let mut definitions = smallvec::SmallVec::new();
+        crate::css::style_compute::build_computed_animation_list(
+            longhands,
+            existing_animations,
+            |name| {
+                self.animation_keyframes()
+                    .resolve(declaration_scope, element_tree_scope, name)
+            },
+            &mut definitions,
+        );
+        (!animations::plan_changes_nothing(&definitions, existing_animations)).then_some(definitions)
     }
 
     /// Whether installing the `new` record the engine derived for an element, in place of the

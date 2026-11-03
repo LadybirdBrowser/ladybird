@@ -759,7 +759,8 @@ struct RunningTransitionAt {
 const FULL_KEY: f64 = 100.0 * 1000.0;
 
 /// The transitions the host runs on the element `node` names, as they stand at `at`, the time a step decides at, in
-/// the document timeline's milliseconds: every animation of the element must be one the engine describes as such.
+/// the document timeline's milliseconds. The CSS animations the host runs on it are not among them: the ticks sample
+/// those as they are.
 fn host_transitions_at(
     engine: &crate::css::style::StyleEngine,
     node: crate::css::style::tree::StyleNodeID,
@@ -775,7 +776,7 @@ fn host_transitions_at(
         .iter()
         .filter_map(|effect| {
             if !effect.is_transition {
-                return Some(Err("an element with animations"));
+                return None;
             }
             let Some(timing) = effect.timing.clone() else {
                 return Some(Err("a transition the host has not sampled"));
@@ -1507,6 +1508,15 @@ impl HoverTransitions {
         let decided_over_running = !decision.running.is_empty();
         if effects.is_empty() && !decided_over_running {
             return Ok(None);
+        }
+        // The ticks sample the transitions a hover started on an element in place of its CSS animations, which they
+        // sample as they are otherwise: an element that runs transitions beside CSS animations is the host's.
+        if engine
+            .element_animation_effects(node, 0)
+            .iter()
+            .any(|effect| !effect.is_transition)
+        {
+            return Err("transitions beside animations");
         }
         let duration = runs
             .iter()

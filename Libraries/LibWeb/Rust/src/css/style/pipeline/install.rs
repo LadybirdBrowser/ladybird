@@ -339,8 +339,8 @@ impl RetainedState {
             };
             let plan_owed = plans_owed.binary_search(&node).is_ok();
             let composition_owed = compositions_owed.binary_search(&node).is_ok();
-            let owes_an_animation_plan =
-                (plan_owed && self.record_declares_animations(new)) || self.row_owes_an_animation_plan(node, old, new);
+            let owes_an_animation_plan = (plan_owed && self.record_declares_animations(new))
+                || self.row_owes_an_animation_plan(node, old, new, record);
             let owes_a_transition_step = self.row_owes_a_transition_step(node, old_record, new_record);
             // The host composes the record where the element has animations, or the row owes their plan
             // or the transition step, before it settles the element's pseudo-elements. It composes it too
