@@ -16,6 +16,7 @@ set(SOURCES
     JsonObject.cpp
     JsonParser.cpp
     JsonValue.cpp
+    MathFunctions.cpp
     MemoryStream.cpp
     NumberFormat.cpp
     OptionParser.cpp
@@ -59,6 +60,8 @@ endif()
 ladybird_lib(AK ak)
 
 configure_file(Debug.h.in Debug.h @ONLY)
+
+target_include_directories(AK SYSTEM PRIVATE "${LLVM_LIBC_INCLUDE_DIR}/llvm-libc")
 
 
 if(cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
