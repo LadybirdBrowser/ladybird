@@ -1,0 +1,15 @@
+as written:
+  sibling-index(): no
+  sibling-index() on a pseudo-element: no
+  sibling-count(): no
+  sibling-index() in a custom function: no
+siblings removed:
+  sibling-index(): no
+  sibling-index() on a pseudo-element: no
+  sibling-count(): no
+  sibling-index() in a custom function: no
+siblings added:
+  sibling-index(): no
+  sibling-index() on a pseudo-element: no
+  sibling-count(): no
+  sibling-index() in a custom function: no

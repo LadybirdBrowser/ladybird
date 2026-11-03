@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --length { syntax: "<length>"; initial-value: 0px; inherits: false; }
+    #index, #count, #in-function { --length: 100px; container-name: counted; }
+    .reader { --match: no; }
+    .reader::before { content: "x"; --match: no; }
+    @container counted style(--length: calc(100px * sibling-index())) {
+        #index .reader, #index .reader::before { --match: yes; }
+    }
+    @container counted style(--length: calc(100px * sibling-count())) {
+        #count .reader { --match: yes; }
+    }
+    @function --answer() returns <custom-ident> {
+        result: no;
+        @container counted style(--length: calc(100px * sibling-index())) {
+            result: yes;
+        }
+    }
+    #in-function .reader { --match: --answer(); }
+</style>
+<div>
+    <div id="before-function"></div>
+    <div id="in-function"><span class="reader" id="function-reader"></span></div>
+</div>
+<div>
+    <div id="before-index"></div>
+    <div id="index"><span class="reader" id="reader"></span></div>
+</div>
+<div>
+    <div id="count"><span class="reader" id="count-reader"></span></div>
+    <div id="after-count"></div>
+    <div id="after-count-too"></div>
+</div>
+<script>
+    test(() => {
+        const match = (element, pseudoElement) => getComputedStyle(element, pseudoElement).getPropertyValue("--match");
+        const show = title => {
+            println(`${title}:`);
+            println(`  sibling-index(): ${match(reader)}`);
+            println(`  sibling-index() on a pseudo-element: ${match(reader, "::before")}`);
+            println(`  sibling-count(): ${match(document.getElementById("count-reader"))}`);
+            println(`  sibling-index() in a custom function: ${match(document.getElementById("function-reader"))}`);
+        };
+        show("as written");
+        document.getElementById("before-function").remove();
+        document.getElementById("before-index").remove();
+        document.getElementById("after-count").remove();
+        document.getElementById("after-count-too").remove();
+        show("siblings removed");
+        document.getElementById("in-function").before(document.createElement("div"));
+        document.getElementById("index").before(document.createElement("div"));
+        document.getElementById("count").after(document.createElement("div"));
+        show("siblings added");
+    });
+</script>
