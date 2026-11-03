@@ -906,7 +906,7 @@ pub unsafe extern "C" fn style_engine_adopt_lane_transitions(
         transition_count: usize,
     ),
 ) {
-    for transitions in host.take_lane_transitions() {
+    host.adopt_lane_transitions(|transitions| {
         let lane_transitions: Vec<_> = transitions.lane_transitions().collect();
         let host_seen = &transitions.host_seen;
         // SAFETY: Guaranteed by the caller; the element's transitions keep the values alive across the call.
@@ -922,5 +922,5 @@ pub unsafe extern "C" fn style_engine_adopt_lane_transitions(
                 lane_transitions.len(),
             );
         }
-    }
+    });
 }

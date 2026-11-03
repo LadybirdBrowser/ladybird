@@ -221,7 +221,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     void process_input_events() const;
-    Vector<GC::Root<DOM::Document>> take_clock_lanes_and_input_events_in(u64 update_serial);
+    Vector<GC::Root<DOM::Document>> take_clock_lanes_and_input_events_in(Optional<u64> update_serial);
     void update_the_rendering();
     // How the steps after style and layout take the layout of the docs: up to date, or as the update's layout that flew
     // left it, whatever was written since.

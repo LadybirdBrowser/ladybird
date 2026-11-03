@@ -121,6 +121,8 @@ pub struct DocumentHost {
     /// The steps the hover of the lanes decided that the last rendering update took in, which the host runs as the lanes
     /// do from then.
     lane_transitions: RefCell<Vec<Arc<HoverTransitions>>>,
+    /// Whether the host is taking over transitions the hover of the lane started, as it changes the animations it runs.
+    adopts_lane_transitions: Cell<bool>,
     /// Whether the frame in flight waits for a test to release it.
     frame_held_for_testing: Cell<bool>,
     /// The root and the sealed document computation inputs of the last style update the host took or let fly,
@@ -220,6 +222,7 @@ impl DocumentHost {
             lent_relational_arrival_keys: RefCell::default(),
             ticks: ClockTicks::new(document),
             lane_transitions: RefCell::default(),
+            adopts_lane_transitions: Cell::default(),
             frame_held_for_testing: Cell::default(),
             style_inputs: RefCell::default(),
             hover_target: Cell::default(),
@@ -519,10 +522,24 @@ impl DocumentHost {
         }
     }
 
-    /// Takes the transitions the hover of the lane leaves elements running that the host has yet to run as the lane does,
-    /// which it runs from now on.
-    pub(crate) fn take_lane_transitions(&self) -> Vec<Arc<HoverTransitions>> {
-        std::mem::take(&mut *self.lane_transitions.borrow_mut())
+    /// Hands `adopt` each of the transitions the hover of the lane leaves elements running that the host has yet to run
+    /// as the lane does, which it runs from now on. What that changes of the host's animations is what the lane samples
+    /// already, so the animations of its plan stand.
+    pub(crate) fn adopt_lane_transitions(&self, mut adopt: impl FnMut(&HoverTransitions)) {
+        self.adopts_lane_transitions.set(true);
+        let lane_transitions = std::mem::take(&mut *self.lane_transitions.borrow_mut());
+        for transitions in lane_transitions {
+            adopt(&transitions);
+        }
+        self.adopts_lane_transitions.set(false);
+    }
+
+    /// Notes that script changed an animation of the document: the animations of the plans sealed before no longer
+    /// stand.
+    pub(super) fn note_animation_change(&self) {
+        if !self.adopts_lane_transitions.get() {
+            self.ticks.note_animation_change();
+        }
     }
 
     /// Keeps the root and the sealed inputs of a style update the host takes or lets fly, for the hover of a lane
@@ -869,6 +886,25 @@ impl DocumentHost {
             }
             None => Some(on_render_side(0, move || super::clock::take_lanes_in(&ticks, update))),
         };
+        self.keep_what_lanes_did(report, outer_input_event)
+    }
+
+    /// Takes in what the lanes did, as a task between two rendering updates handles a press, and answers whether a tick
+    /// of a lane presented a frame since the host last took in what they did. The host hovers as
+    /// [`Self::take_clock_lanes_in`] has it, but no frame of the host's follows yet, so the lanes tick on from their
+    /// fork beside the task and the tasks after it.
+    pub(super) fn take_in_what_clock_lanes_did(&self, outer_input_event: u64) -> bool {
+        // NB: Lanes an update took in did nothing since, and wait for its plan.
+        let report = (!self.lanes_wait_for_the_update()).then(|| {
+            let ticks = Arc::clone(&self.ticks);
+            on_render_side(0, move || super::clock::take_lane_report(&ticks))
+        });
+        self.keep_what_lanes_did(report, outer_input_event)
+    }
+
+    /// Keeps `report` of what the lanes did, if any, and has the host hover where the compositor said the pointer went
+    /// last. Answers whether a tick of a lane presented a frame the report tells of.
+    fn keep_what_lanes_did(&self, report: Option<super::clock::LaneReport>, outer_input_event: u64) -> bool {
         // A same-process iframe's lanes hear of the pointer from the lanes of the document around it, which handed them
         // nothing of a newer move the compositor told that document of: the pointer may have gone elsewhere, and the
         // host hovers nothing of the older move, nor does the next lane. It hovers where the pointer went as it handles
@@ -885,7 +921,7 @@ impl DocumentHost {
         }
         if super::clock::hover::logs_hover() {
             eprintln!(
-                "{} hover lane: update takes the lanes in: moved {}, presented {presented}, {} steps to adopt, newest pointer {:?}",
+                "{} hover lane: host takes in what the lanes did: moved {}, presented {presented}, {} steps to adopt, newest pointer {:?}",
                 super::clock::hover::log_time(),
                 self.lane_move.get().is_some(),
                 self.lane_transitions.borrow().len(),
@@ -940,6 +976,8 @@ impl DocumentHost {
             return true;
         }
         self.newest_pointer_input_event.set(input_event_id);
+        // NB: Lanes may tick beside a task that handles a press, and no tick hovers a move older than this event.
+        self.ticks.note_input_handled(input_event_id);
         false
     }
 
