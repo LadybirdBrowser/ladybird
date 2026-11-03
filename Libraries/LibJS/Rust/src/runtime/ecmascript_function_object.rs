@@ -1140,9 +1140,12 @@ impl EcmascriptFunctionObject {
         });
 
         // NB: https://tc39.es/ecma262/#sec-forbidden-extensions keeps own "caller" properties from exposing strict
-        //     functions. The accessor on %Function.prototype% holds to the same rule.
+        //     functions. The accessor on %Function.prototype% holds to the same rule, and also hides generator and
+        //     async functions.
         match caller {
-            Some(caller) if caller.supports_legacy_caller_or_arguments() => Value::from_object(caller),
+            Some(caller) if caller.kind() == FunctionKind::Normal && !caller.is_strict_mode() => {
+                Value::from_object(caller)
+            }
             _ => Value::NULL,
         }
     }
