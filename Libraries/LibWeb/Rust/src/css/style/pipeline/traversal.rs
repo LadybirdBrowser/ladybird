@@ -693,10 +693,18 @@ impl<'a> Scratch<'a> {
 
     /// Make the filter hold exactly the keys of `parent` and its ancestors.
     fn enter_parent(&mut self, context: &PassContext<'_>, parent: Option<StyleNodeID>) {
-        if self.ancestors.last().map(|(node, _)| *node) == parent {
+        let held = self.ancestors.last().map(|(node, _)| *node);
+        if held == parent {
             return;
         }
         let tree = &context.state.projection;
+        // A walk down a tree holds everything above the new parent already.
+        if let Some(node) = parent
+            && tree.parent(node) == held
+        {
+            self.hold_ancestor(context, node);
+            return;
+        }
         let mut chain: SmallVec<[StyleNodeID; 32]> = SmallVec::new();
         let mut ancestor = parent;
         while let Some(node) = ancestor {
@@ -716,16 +724,22 @@ impl<'a> Scratch<'a> {
                 self.filter.remove(key);
             }
         }
-        let projection = &context.state.projection;
         for &node in &chain[common..] {
-            let keys = projection
-                .row_of(node)
-                .map_or_else(SmallVec::new, super::ancestor_keys_of);
-            for &key in &keys {
-                self.filter.insert(key);
-            }
-            self.ancestors.push((node, keys));
+            self.hold_ancestor(context, node);
         }
+    }
+
+    /// Put the keys of `node`, a child of the last ancestor held, into the filter.
+    fn hold_ancestor(&mut self, context: &PassContext<'_>, node: StyleNodeID) {
+        let keys = context
+            .state
+            .projection
+            .row_of(node)
+            .map_or_else(SmallVec::new, super::ancestor_keys_of);
+        for &key in &keys {
+            self.filter.insert(key);
+        }
+        self.ancestors.push((node, keys));
     }
 
     /// Test `node` against the entries of `reasons` alone, into `reason_answers`, and note in
