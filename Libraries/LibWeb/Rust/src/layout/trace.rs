@@ -170,6 +170,10 @@ impl LayoutTrace {
         Some(Scope { trace: self, line })
     }
 
+    pub(super) fn is_recording(&self) -> bool {
+        self.0.borrow().is_some()
+    }
+
     /// Takes over the trace the document kept in `record`, for a pass to go on with it.
     pub(super) fn take_over_from(&self, record: &mut TraceRecord) {
         *self.0.borrow_mut() = record.0.take();
