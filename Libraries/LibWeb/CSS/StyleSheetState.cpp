@@ -550,10 +550,10 @@ void StyleSheetState::for_each_owning_style_scope(Function<void(StyleScope&)> co
 
 StyleRuleCache const& StyleSheetState::rule_cache()
 {
-    VERIFY(constructed());
     if (!m_rule_cache) {
         m_rule_cache = make<StyleRuleCache>();
-        m_rule_cache->add_rules_from_sheet(*this, CascadeOrigin::Author);
+        // NB: Only a constructed sheet and a user-agent sheet are asked for this.
+        m_rule_cache->add_rules_from_sheet(*this, constructed() ? CascadeOrigin::Author : CascadeOrigin::UserAgent);
     }
     return *m_rule_cache;
 }
