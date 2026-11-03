@@ -10,6 +10,7 @@
     @keyframes shift-by-its-size { from, to { transform: translate(100%, 50%); } }
     @keyframes turn { from, to { transform: rotate(90deg); } }
     @keyframes grow { from, to { transform: scale(2); } }
+    @keyframes half { from, to { opacity: 0.5; } }
 </style>
 <svg viewBox="0 0 24 24">
     <rect class="box" style="animation: squash 1s linear infinite" x="2" y="2" width="4" height="4"></rect>
@@ -18,6 +19,16 @@
     <rect class="box" style="animation: turn 1s linear infinite" x="2" y="11" width="4" height="2"></rect>
     <rect style="animation: grow 1s linear infinite" x="5" y="9" width="2" height="2"></rect>
     <g transform="translate(2 2)"><rect class="box" style="animation: squash 1s linear infinite" x="16" y="10" width="4" height="4"></rect></g>
+</svg>
+<svg viewBox="0 0 24 24">
+    <defs><rect id="square" width="4" height="4"></rect></defs>
+    <use style="animation: shift 1s linear infinite" href="#square" x="2" y="2"></use>
+    <use style="animation: grow 1s linear infinite" href="#square" x="8" y="1"></use>
+    <svg style="animation: shift 1s linear infinite" x="2" y="12" width="6" height="6"><rect width="4" height="4"></rect></svg>
+    <clipPath id="clip"><rect x="18" y="12" width="6" height="2"></rect></clipPath>
+    <g clip-path="url(#clip)"><rect class="box" style="animation: squash 1s linear infinite" x="18" y="12" width="4" height="4"></rect></g>
+    <rect style="animation: half 1s linear infinite" x="10" y="12" width="2" height="2"></rect>
+    <g style="animation: half 1s linear infinite"><rect x="13" y="12" width="2" height="2"></rect><rect x="14" y="13" width="2" height="2"></rect></g>
 </svg>
 <script>
     // These animations stay on one value, so whichever side samples them draws what a box at that value draws. The
