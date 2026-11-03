@@ -425,6 +425,7 @@ impl Cascade {
 
     /// Cascade the blocks gathered in any order, keeping the best declaration of each longhand and
     /// custom property name.
+    #[inline(never)]
     fn cascade_unordered(&mut self, state: &RetainedState, index: &RuleIndex, node: StyleNodeID) {
         self.offered.clear();
         self.custom_candidates.clear();
