@@ -753,8 +753,9 @@ static bool is_renderable(DOM::Document const& document)
 }
 
 // Takes in what the render clock's lanes did, then the queued input events. The lanes wait for the plan of the rendering
-// update with the serial number `update_serial`. Answers the documents whose lanes were taken in.
-Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(u64 update_serial)
+// update with the serial number `update_serial`, or tick on beside the task that handles a press where no update comes
+// with it. Answers the documents whose lanes were taken in.
+Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(Optional<u64> update_serial)
 {
     // AD-HOC: The render clock's lanes present frames of a document's animations and hover beside the tasks since the
     //         last update, at display ticks later than the opportunity this update renders for, which reached the event
@@ -788,7 +789,10 @@ Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(
             if (auto* root_arena = root_document ? root_document->layout_node_arena_if_created() : nullptr)
                 outer_input_event = Layout::RustFFI::document_host_newest_pointer_input_event(root_arena->host());
         }
-        if (Layout::RustFFI::document_host_take_clock_lanes_in(arena->host(), update_serial, outer_input_event)) {
+        auto const lane_presented = update_serial.has_value()
+            ? Layout::RustFFI::document_host_take_clock_lanes_in(arena->host(), *update_serial, outer_input_event)
+            : Layout::RustFFI::document_host_take_in_what_clock_lanes_did(arena->host(), outer_input_event);
+        if (lane_presented) {
             tick_presented = true;
             navigable->set_needs_to_record_display_list();
             navigable->set_needs_repaint();
@@ -855,8 +859,9 @@ Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(
         if (!style_computer)
             continue;
         auto* arena = document->layout_node_arena_if_created();
-        bool const lanes_taken_in = any_of(documents_with_lanes, [&](auto const& taken_in) { return taken_in.ptr() == document.ptr(); });
-        if (lanes_taken_in || !arena || !Layout::RustFFI::document_host_may_have_lanes(arena->host()))
+        // NB: Lanes that tick on beside a task may still name them, and report that later.
+        bool const lanes_stopped = update_serial.has_value() && any_of(documents_with_lanes, [&](auto const& taken_in) { return taken_in.ptr() == document.ptr(); });
+        if (lanes_stopped || !arena || !Layout::RustFFI::document_host_may_have_lanes(arena->host()))
             style_computer->forget_style_nodes_retired_beside_lanes();
     }
     return documents_with_lanes;
@@ -874,7 +879,9 @@ void EventLoop::queue_task_to_process_input_events()
         m_input_events_task_queued = false;
         if (m_running_rendering_task || m_rendering_update_in_flight)
             return;
-        take_clock_lanes_and_input_events_in(m_rendering_update_serial + 1);
+        // NB: No rendering update comes with this task, and script may run for long before the next one: the lanes
+        //     tick on.
+        take_clock_lanes_and_input_events_in({});
     }));
 }
 

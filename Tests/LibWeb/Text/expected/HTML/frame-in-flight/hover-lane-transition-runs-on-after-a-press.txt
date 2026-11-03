@@ -1,3 +1,3 @@
 the transition moved before the press: true
-a tick after the press moved the transition on: false
+a tick after the press moved the transition on: true
 transitions the host runs: 1

@@ -66,7 +66,7 @@ pub(crate) mod hover;
 mod lane;
 pub(crate) use hover::PendingPointer;
 pub(crate) use lane::LaneDelivery;
-pub(super) use lane::{LaneSlot, note_host_write, retire_slot, seal_plan, take_lanes_in};
+pub(super) use lane::{LaneSlot, note_host_write, retire_slot, seal_plan, take_lane_report, take_lanes_in};
 
 /// What the ticks of a lane sample, sealed at the end of the lane's frame's rendering update.
 pub(crate) struct ClockPlan {
@@ -1822,7 +1822,7 @@ pub extern "C" fn document_host_drop_clock_plan(host: &DocumentHost, update: u64
 /// stand, and the lanes' hover goes on.
 #[unsafe(no_mangle)]
 pub extern "C" fn document_host_note_animation_change(host: &DocumentHost) {
-    host.clock_ticks().note_animation_change();
+    host.note_animation_change();
 }
 
 /// Takes in what the lanes of `host`'s document did, as a rendering update begins, and answers whether a tick of a lane
@@ -1835,6 +1835,14 @@ pub extern "C" fn document_host_note_animation_change(host: &DocumentHost) {
 #[unsafe(no_mangle)]
 pub extern "C" fn document_host_take_clock_lanes_in(host: &DocumentHost, update: u64, outer_input_event: u64) -> bool {
     host.take_clock_lanes_in(update, outer_input_event)
+}
+
+/// Takes in what the lanes of `host`'s document did, as a task between two rendering updates handles a press, and
+/// answers as [`document_host_take_clock_lanes_in`] does. No frame of the host's follows yet, so the lanes tick on.
+/// `outer_input_event` is as there.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_take_in_what_clock_lanes_did(host: &DocumentHost, outer_input_event: u64) -> bool {
+    host.take_in_what_clock_lanes_did(outer_input_event)
 }
 
 /// Whether the lanes of `host`'s document may hover or run transitions beside the tasks: the last plan the host sealed for

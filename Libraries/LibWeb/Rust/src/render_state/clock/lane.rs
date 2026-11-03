@@ -284,6 +284,13 @@ pub(in crate::render_state) fn take_lanes_in(ticks: &Arc<ClockTicks>, update: u6
     .unwrap_or_default()
 }
 
+/// On the render owner: answers what the hover of the lanes of the document `ticks` belong to did so far, and leaves
+/// them ticking, for the host to take in between two rendering updates.
+#[must_use]
+pub(in crate::render_state) fn take_lane_report(ticks: &Arc<ClockTicks>) -> LaneReport {
+    with_slot(ticks.document, LaneSlot::take_report).unwrap_or_default()
+}
+
 /// On the render owner: runs the tick queued for the lanes `ticks` belong to.
 pub(super) fn tick(ticks: &Arc<ClockTicks>) {
     ticks.queued.swap(false, Ordering::AcqRel);
