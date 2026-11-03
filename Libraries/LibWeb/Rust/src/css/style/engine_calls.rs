@@ -1257,11 +1257,20 @@ pub extern "C" fn style_engine_for_each_element_custom_property_environment(
     // The engine keeps each environment alive while an element holds it, and nothing moves one on before the
     // callbacks have run.
     let held: Vec<(u32, *const c_void)> = with_engine(read, host, |engine| {
-        engine
-            .retained
-            .element_custom_property_data
+        let retained = &engine.retained;
+        let lying_over = &retained.element_custom_property_data;
+        let mut named = super::fast_hash::FastSet::default();
+        lying_over
             .iter()
             .map(|(node, held)| (node.raw(), held.data.data()))
+            .chain(
+                retained
+                    .computed_group_sets
+                    .installed_custom_property_environments()
+                    .filter(|&(node, environment)| environment != 0 && !lying_over.contains_key(&node))
+                    .filter(|&(_, environment)| named.insert(environment))
+                    .map(|(node, environment)| (node.raw(), std::ptr::with_exposed_provenance(environment as usize))),
+            )
             .collect()
     });
     for (node, data) in held {

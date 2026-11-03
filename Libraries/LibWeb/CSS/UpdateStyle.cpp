@@ -371,7 +371,7 @@ void StyleEngineFFI::web_css_install_styles(StyleReactionApplication* applicatio
         InstalledStyle const old_style { element_effects.old_record };
         swap_in_styles_until(element_effects.swaps_end);
 
-        if (!element || !element->has_style() || main_effects == CSS::MainEffects::None)
+        if (!element || !element->has_style())
             continue;
         element->note_subtree_style_moved();
         auto invalidation = decode_style_invalidation(element_effects.damage);

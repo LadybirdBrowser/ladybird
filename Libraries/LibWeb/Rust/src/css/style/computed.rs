@@ -1626,6 +1626,15 @@ impl ComputedGroupSets {
         Some(self.installed.get(installed)?.custom_property_environment())
     }
 
+    /// Each element holding an installed record, with the custom-property environment that names.
+    pub(super) fn installed_custom_property_environments(&self) -> impl Iterator<Item = (StyleNodeID, u64)> + '_ {
+        (0..self.installed_column.len()).filter_map(|index| {
+            let installed = self.installed_column.get(index)?.as_ref()?;
+            let node = StyleNodeID::element(u32::try_from(index).ok()?);
+            Some((node, installed.record.custom_property_environment()))
+        })
+    }
+
     /// Every raw custom-property environment identity a live record was installed with.
     pub fn live_custom_property_environments(&self) -> impl Iterator<Item = u64> + '_ {
         self.installed.iter().map(InstalledRecord::custom_property_environment)
