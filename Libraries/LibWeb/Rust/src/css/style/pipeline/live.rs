@@ -662,7 +662,8 @@ impl Live {
     ///
     /// The pass styled nothing of an element in `waiting`, nor anything below it: the next one
     /// restyles the element, and its descendants where this one restyled every element or the
-    /// descendants of the element or of an ancestor. Elsewhere the hints of the elements below it
+    /// descendants of the element or of an ancestor, as `waiting_restyling_descendants` holds where the pass's
+    /// walk asked that of the element, such as below an element displayed again. Elsewhere the hints of the elements below it
     /// stay for the next pass, and its children are restyled where its style moves.
     ///
     /// The next pass computes an element in `waiting_with_kept_matches`, which the pass matched to
@@ -677,11 +678,13 @@ impl Live {
         waiting: &[StyleNodeID],
         waiting_with_kept_matches: &[StyleNodeID],
         waiting_pseudo_elements: &[StyleNodeID],
+        waiting_restyling_descendants: &HashSet<StyleNodeID>,
     ) -> Vec<(StyleNodeID, HintBits)> {
         let kept_matches: HashSet<StyleNodeID> = waiting_with_kept_matches.iter().copied().collect();
         let element = waiting.iter().map(|&node| {
             let tree = &state.projection;
             let restyles_descendants = !hinted
+                || waiting_restyling_descendants.contains(&node)
                 || std::iter::successors(Some(node), |&ancestor| tree.inheritance_parent(ancestor))
                     .any(|ancestor| self.hints.get(ancestor) & RESTYLE_DESCENDANTS != 0);
             let bits = match restyles_descendants {
@@ -2156,6 +2159,7 @@ impl Live {
         let (mut root_font, mut root_font_moved) = (None, None);
         let mut statistics = traversal::Statistics::default();
         let mut suspended = None;
+        let mut waiting_restyling_descendants = HashSet::default();
         for round in 1..=MAX_SUSPENDING_ROUNDS {
             let state: &RetainedState = retained;
             let reasons = self.hints.reasons();
@@ -2188,7 +2192,8 @@ impl Live {
                 break;
             }
             if round == MAX_SUSPENDING_ROUNDS {
-                traversal::settle_suspended(&context, std::mem::take(&mut statistics.suspended));
+                waiting_restyling_descendants =
+                    traversal::settle_suspended(&context, std::mem::take(&mut statistics.suspended));
                 break;
             }
             let (next, fonts, random_bases) = statistics.take_suspended();
@@ -2306,6 +2311,7 @@ impl Live {
             &statistics.waiting,
             &statistics.waiting_with_kept_matches,
             &statistics.waiting_pseudo_elements,
+            &waiting_restyling_descendants,
         );
         self.keep_deferred_hints(&state.projection, &statistics.deferred, &waiting);
         let styled = Instant::now();
