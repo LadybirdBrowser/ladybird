@@ -6129,6 +6129,18 @@ bool Element::has_auto_directionality() const
 // https://html.spec.whatwg.org/multipage/dom.html#the-directionality
 Element::Directionality Element::directionality() const
 {
+    if (auto directionality = directionality_unless_from_parent(); directionality.has_value())
+        return *directionality;
+
+    // Otherwise:
+    // Return the parent directionality of element.
+    return parent_directionality();
+}
+
+// NB: Every case of the directionality of an element but the last, which reads the parent's. A caller that has the
+//     parent's at hand spares the walk up.
+Optional<Element::Directionality> Element::directionality_unless_from_parent() const
+{
     // The directionality of an element (any element, not just an HTML element) is either 'ltr' or 'rtl'.
     // To compute the directionality given an element element, switch on element's dir attribute state:
     auto maybe_dir = this->dir();
@@ -6178,9 +6190,7 @@ Element::Directionality Element::directionality() const
         return Directionality::Ltr;
     }
 
-    // Otherwise:
-    // Return the parent directionality of element.
-    return parent_directionality();
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#auto-directionality-form-associated-elements

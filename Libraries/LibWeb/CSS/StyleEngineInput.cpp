@@ -8,6 +8,7 @@
 #include <AK/QuickSort.h>
 #include <AK/SetUnion.h>
 #include <AK/TemporaryChange.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/RootHashTable.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CSSAnimation.h>
@@ -65,7 +66,32 @@
 namespace Web::CSS {
 
 static void record_element_heading_level(DOM::Element&);
-static void record_element_initial_features(DOM::Element&);
+
+// The directionalities of the elements on the way from the root to the one published last, as far as they were published
+// in this batch. A batch comes mostly in tree order, so most elements find their parent's here and don't walk to the root.
+class PublishedDirectionalities {
+public:
+    DOM::Element::Directionality publish(DOM::Element const& element)
+    {
+        auto const* parent = element.parent_or_shadow_host_element();
+        while (!m_elements_to_parent.is_empty() && m_elements_to_parent.last().element.ptr() != parent)
+            m_elements_to_parent.take_last();
+        auto directionality = element.directionality_unless_from_parent().value_or_lazy_evaluated([&] {
+            return m_elements_to_parent.is_empty() ? element.directionality() : m_elements_to_parent.last().directionality;
+        });
+        m_elements_to_parent.append({ element, directionality });
+        return directionality;
+    }
+
+private:
+    struct Row {
+        GC::Ptr<DOM::Element const> element;
+        DOM::Element::Directionality directionality;
+    };
+    GC::ConservativeVector<Row, 32> m_elements_to_parent;
+};
+
+static void record_element_initial_features(DOM::Element&, PublishedDirectionalities&);
 static void record_element_inline_style_properties(DOM::Element&);
 static void record_heading_levels_in_subtree(DOM::Element&);
 static void republish_assigned_slots_of(ReadonlySpan<GC::Ref<DOM::Node>>);
@@ -326,6 +352,7 @@ void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& 
     // rule it queued since its last job leaves it not knowing.
     if (!nodes.is_empty())
         StyleEngineFFI::document_host_learn_selector_requirements(style_engine.host(), &read);
+    PublishedDirectionalities directionalities;
     for (auto node : nodes) {
         auto element = style_computer.element_for_style_node(node);
         // NB: An element that left the tree gave up its mark. Its identity may have gone to an element since, which is
@@ -341,7 +368,13 @@ void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& 
             continue;
         }
         element->set_initial_style_features_pending(false);
-        record_element_initial_features(*element);
+        record_element_initial_features(*element, directionalities);
+    }
+    // NB: A tag read now may not be final, as an XML parser sets attributes after insertion, so none is left cached. They
+    //     stay for the length of this loop, as the batch itself changes no tag and each element reads its parent's.
+    for (auto node : nodes) {
+        if (auto element = style_computer.element_for_style_node(node))
+            element->invalidate_lang_value();
     }
 }
 
@@ -1011,7 +1044,7 @@ static u8 associated_pseudo_kind_plus_one(DOM::Element const& element)
 // An element arrives with facts already true of it, and the engine has heard none of them. They are
 // published as ordinary deltas from absent, so the projection learns them by exactly the same path
 // later mutations take rather than by a second one.
-static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element)
+static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element, PublishedDirectionalities& directionalities)
 {
     auto node = element.style_node_id();
     // Everything the element's selectors test arrives as one row, which the engine writes in one go.
@@ -1065,15 +1098,13 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
             state_bits |= static_cast<u64>(1) << to_underlying(*fact);
     });
 
-    // The tag is computed afresh and not left cached. One cached where the element used to be says nothing about where
-    // it arrives, as a subtree that moves while detached is never reached by the walk a `lang` change runs, and one
-    // read now may not be final, as an XML parser sets attributes after insertion.
+    // The tag is computed afresh. One cached where the element used to be says nothing about where it arrives, as a
+    // subtree that moves while detached is never reached by the walk a `lang` change runs.
     element.invalidate_lang_value();
     auto const language = element.lang_view();
     auto language_atom = language.has_value() ? style_engine.intern_language_atom(*language) : StyleAtomID {};
-    auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"_utf16_fly_string : "ltr"_utf16_fly_string;
+    auto const directionality = directionalities.publish(element) == DOM::Element::Directionality::Rtl ? "rtl"_utf16_fly_string : "ltr"_utf16_fly_string;
     auto directionality_atom = style_engine.intern_atom(directionality);
-    element.invalidate_lang_value();
 
     GC::Ptr<HTML::HTMLHeadingElement const> heading = as_if<HTML::HTMLHeadingElement>(element);
     auto heading_level = static_cast<u8>(min(heading ? heading->heading_level() : 0, 255u));
@@ -1632,13 +1663,13 @@ static StyleAtomID intern_id_or_class_atom(StyleEngine& style_engine, DOM::Eleme
     return style_engine.intern_atom(name);
 }
 
-static void record_element_initial_features(DOM::Element& element)
+static void record_element_initial_features(DOM::Element& element, PublishedDirectionalities& directionalities)
 {
     auto* style_engine = style_engine_for_identified(element);
     if (!style_engine)
         return;
 
-    publish_element_selector_features(*style_engine, element);
+    publish_element_selector_features(*style_engine, element, directionalities);
 
     if (auto const& id = element.id(); id.has_value())
         StyleEngineFFI::style_engine_set_element_id_name(style_engine->host(), element.style_node_id(), style_engine->intern_atom(*id));
