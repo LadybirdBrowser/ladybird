@@ -1291,6 +1291,11 @@ pub(crate) fn element_record_damage_of_views(facts: ElementDamageFacts, record_m
             || display.is_table_column_group()
             || display.is_table_caption()
     };
+    // An absolutely positioned box takes its static position from where its display before box type transformation
+    // would have placed it, so it can keep the same blockified display and still belong elsewhere among its siblings.
+    let is_inline_level_absolutely_positioned = |values: ComputedValuesView<'_>| {
+        values.is_absolutely_positioned() && values.display_before_box_type_transformation().is_inline_outside()
+    };
     let font_lists_equal = old_values
         .font()
         .font_cascade_list
@@ -1298,6 +1303,8 @@ pub(crate) fn element_record_damage_of_views(facts: ElementDamageFacts, record_m
     let color_changed = old_values.inherited_text().color != new_values.inherited_text().color;
     let stroke_uses_current_color = stroke_uses_current_color(old_values) || stroke_uses_current_color(new_values);
     let table_fixup_child_changed = is_table_fixup_child(old_values) != is_table_fixup_child(new_values);
+    let inline_level_absolutely_positioned_changed =
+        is_inline_level_absolutely_positioned(old_values) != is_inline_level_absolutely_positioned(new_values);
     let overflow_changed =
         old_values.overflow_x() != new_values.overflow_x() || old_values.overflow_y() != new_values.overflow_y();
     let packed = compare_record_views(
@@ -1321,7 +1328,7 @@ pub(crate) fn element_record_damage_of_views(facts: ElementDamageFacts, record_m
     }
     // Generated pseudo-element boxes are anonymous, so table fixup uses their adjusted display
     // instead.
-    if !facts.is_pseudo_element && table_fixup_child_changed {
+    if !facts.is_pseudo_element && (table_fixup_child_changed || inline_level_absolutely_positioned_changed) {
         damage.any_computed_value_changed = true;
         damage.merge(StyleInvalidation::full());
     }
