@@ -1065,6 +1065,13 @@ public:
     void set_counter_style_scopes_need_update(bool value) { m_counter_style_scopes_need_update = value; }
     void note_counter_style_scope_to_settle(ShadowRoot&);
     void settle_counter_style_scopes(Layout::BegunRead const&);
+
+    // Where a slottable's slot leaves or takes it out of a `display: none` subtree, its animations terminate or resume.
+    // That is decided at the next style update, as an assignment can go through no slot on its way to another.
+    void note_element_assigned_slot_changed(Element&);
+    void forget_assigned_slot_change_note(Element&);
+    bool has_assigned_slot_change_notes() const { return !m_elements_whose_assigned_slot_changed.is_empty(); }
+    void settle_elements_whose_assigned_slot_changed();
     void set_has_completed_style_update() { m_has_completed_style_update = true; }
     void mark_style_attribute_dirty(Element&);
     void synchronize_dirty_style_attributes();
@@ -2384,6 +2391,7 @@ private:
     ShadowRoot::DocumentShadowRootList m_shadow_roots;
     // The shadow roots whose counter style registry may resolve or publish differently since the last style update.
     ShadowRoot::DocumentCounterStyleSettleList m_shadow_roots_with_counter_styles_to_settle;
+    Vector<GC::Ref<Element>> m_elements_whose_assigned_slot_changed;
     u64 m_style_sheet_set_generation { 0 };
     // The `@keyframes` rows the style engine still holds for shadow roots that left this document.
     Vector<CSS::StyleScope::DepartedAnimationKeyframes> m_departed_animation_keyframes;

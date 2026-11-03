@@ -1,0 +1,3 @@
+before: tone
+adopted: tone, 1 animation
+settled: tone, 1 animation

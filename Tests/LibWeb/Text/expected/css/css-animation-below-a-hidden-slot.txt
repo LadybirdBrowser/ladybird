@@ -1,0 +1,23 @@
+plain parent, hidden, animation set: 0 animations, opacity 1
+plain parent, then shown: 1 animations, opacity 0.5
+plain parent, then hidden again: 0 animations, opacity 1
+plain parent, then shown again: 1 animations, opacity 0.5
+plain parent, hidden, animation there from the start: 0 animations, opacity 1
+plain parent, shown, animation set: 1 animations, opacity 0.5
+plain parent, then hidden: 0 animations, opacity 1
+slot, hidden, animation set: 0 animations, opacity 1
+slot, then shown: 1 animations, opacity 0.5
+slot, then hidden again: 0 animations, opacity 1
+slot, then shown again: 1 animations, opacity 0.5
+slot, hidden, animation there from the start: 0 animations, opacity 1
+slot, shown, animation set: 1 animations, opacity 0.5
+slot, then hidden: 0 animations, opacity 1
+shown ancestor of a slot: 1 animations, opacity 0.5
+its slottable's child: 1 animations, opacity 0.5
+hidden ancestor of a slot: 0 animations, opacity 1
+its slottable's child: 0 animations, opacity 1
+shown again: 1 animations, opacity 0.5
+its slottable's child: 1 animations, opacity 0.5
+in a shown slot: 1 animations, opacity 0.5
+moved to a hidden slot: 0 animations, opacity 1
+moved back: 1 animations, opacity 0.5

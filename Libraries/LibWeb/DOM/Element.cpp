@@ -2111,27 +2111,52 @@ Optional<Element::DisplayNoneState> Element::display_none_state() const
     return DisplayNoneState::of(*computed_values, installed_style());
 }
 
+// Visits `root` and the elements below it in the flat tree, where `display: none` reaches: a host's slottables are below
+// the slots they are assigned to, and not reached from the host.
+template<typename Callback>
+static void for_each_inclusive_descendant_element_in_flat_tree(Element& root, Callback callback)
+{
+    root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
+        auto* element = as_if<Element>(node);
+        if (!element)
+            return TraversalDecision::Continue;
+        if (element != &root && element->assigned_slot_internal())
+            return TraversalDecision::SkipChildrenAndContinue;
+        auto decision = callback(*element);
+        if (decision != TraversalDecision::Continue)
+            return decision;
+        if (auto* slot = as_if<HTML::HTMLSlotElement>(*element)) {
+            for (auto const& assigned_node : slot->assigned_nodes_internal()) {
+                if (auto const* assigned_element = assigned_node.get_pointer<GC::Ref<Element>>())
+                    for_each_inclusive_descendant_element_in_flat_tree(**assigned_element, callback);
+            }
+        }
+        return TraversalDecision::Continue;
+    });
+}
+
 void Element::apply_display_none_change(DisplayNoneState before)
 {
     auto after = display_none_state();
     VERIFY(after.has_value());
-    if (before.display_ignoring_animations_is_none != after->display_ignoring_animations_is_none) {
-        for_each_shadow_including_inclusive_descendant([&](auto& node) {
-            if (!node.is_element())
-                return TraversalDecision::Continue;
-            auto& element = static_cast<Element&>(node);
-            element.play_or_cancel_animations_after_display_property_change();
-            return TraversalDecision::Continue;
-        });
-    }
+    if (before.display_ignoring_animations_is_none != after->display_ignoring_animations_is_none)
+        play_or_cancel_animations_of_flat_tree_subtree();
+}
+
+void Element::play_or_cancel_animations_of_flat_tree_subtree()
+{
+    for_each_inclusive_descendant_element_in_flat_tree(*this, [](Element& element) {
+        element.play_or_cancel_animations_after_display_property_change();
+        return TraversalDecision::Continue;
+    });
 }
 
 void Element::clear_computed_styles_from_display_none_descendants(Layout::BegunRead const& read)
 {
-    for_each_shadow_including_descendant([&read](auto& node) {
-        auto* element = as_if<Element>(node);
-        if (!element)
+    for_each_inclusive_descendant_element_in_flat_tree(*this, [this, &read](Element& descendant) {
+        if (&descendant == this)
             return TraversalDecision::Continue;
+        auto* element = &descendant;
         if (!element->has_style())
             return TraversalDecision::SkipChildrenAndContinue;
 

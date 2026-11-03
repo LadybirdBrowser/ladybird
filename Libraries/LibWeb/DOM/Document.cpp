@@ -1101,6 +1101,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
         visitor.visit(view_transition);
 
     visitor.visit(m_top_layer_elements);
+    visitor.visit(m_elements_whose_assigned_slot_changed);
     visitor.visit(m_picture_in_picture_element);
     visitor.visit(m_top_layer_pending_removals);
     visitor.visit(m_elements_with_pending_top_layer_membership_change);
@@ -10427,6 +10428,25 @@ void Document::settle_counter_style_scopes(Layout::BegunRead const& read)
         (void)shadow_root->style_scope().counter_style_environment_identity(read);
     }
     m_counter_style_scopes_need_update = false;
+}
+
+void Document::note_element_assigned_slot_changed(Element& element)
+{
+    // NB: What is not connected has no animations to settle: it starts them as it connects, with its slot as it is then.
+    if (element.is_connected())
+        m_elements_whose_assigned_slot_changed.append(element);
+}
+
+void Document::forget_assigned_slot_change_note(Element& element)
+{
+    m_elements_whose_assigned_slot_changed.remove_all_matching([&](auto const& noted) { return noted.ptr() == &element; });
+}
+
+void Document::settle_elements_whose_assigned_slot_changed()
+{
+    GC::RootVector<GC::Ref<Element>> elements { move(m_elements_whose_assigned_slot_changed) };
+    for (auto& element : elements)
+        element->play_or_cancel_animations_of_flat_tree_subtree();
 }
 
 void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& shadow_root)
