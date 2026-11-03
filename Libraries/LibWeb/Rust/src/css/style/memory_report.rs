@@ -123,7 +123,7 @@ impl super::StyleEngine {
         mut report: MemoryReport,
         arena: &crate::layout::LayoutNodeArena,
     ) -> MemoryReport {
-        use crate::heap_size::{map_bytes, set_bytes, vec_bytes};
+        use crate::heap_size::{map_bytes, set_bytes, small_vec_bytes, vec_bytes};
         let state = &self.retained;
         let bytes = state.rules.heap_size(&mut report.sizer);
         report.add(MemoryOwner::RuleStore, bytes);
@@ -168,7 +168,11 @@ impl super::StyleEngine {
             MemoryOwner::HeldRecordMaps,
             held_style_records
                 + map_bytes(&state.held_pseudo_style_records)
-                + state.held_pseudo_style_records.values().map(vec_bytes).sum::<usize>(),
+                + state
+                    .held_pseudo_style_records
+                    .values()
+                    .map(small_vec_bytes)
+                    .sum::<usize>(),
         );
         report.add(MemoryOwner::LayoutStyleColumns, arena.style_column_heap_size());
         if let Some(font_resolution) = &state.font_resolution {
