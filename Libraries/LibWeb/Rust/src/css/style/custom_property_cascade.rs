@@ -418,14 +418,14 @@ pub(super) fn append_named_custom_property_reads(value: &StyleValueData, names: 
     let Some(reads) = named_custom_property_reads(value) else {
         return false;
     };
-    names.extend(reads.into_iter().map(Arc::from));
+    names.extend(reads.map(Arc::from));
     true
 }
 
 /// The custom properties a written value reads by name, or `None` when it may read others: an
 /// `if()` condition, a custom function or an attribute's value can read any, and `inherit()` reads
 /// what the parent holds, which holds more than it hands down.
-fn named_custom_property_reads(value: &StyleValueData) -> Option<Vec<&[u16]>> {
+fn named_custom_property_reads(value: &StyleValueData) -> Option<impl Iterator<Item = &[u16]>> {
     let value = substituted_tokens(value);
     if let StyleValueData::Unresolved(unresolved) = value
         && (unresolved.presence().attr
@@ -436,9 +436,9 @@ fn named_custom_property_reads(value: &StyleValueData) -> Option<Vec<&[u16]>> {
         return None;
     }
     let Some((references, all_references_visible)) = custom_property_references(value) else {
-        return Some(Vec::new());
+        return Some(None.into_iter().flatten());
     };
-    all_references_visible.then_some(references)
+    all_references_visible.then(|| Some(references).into_iter().flatten())
 }
 
 /// Whether a written value holds a function that substitutes anything.
@@ -505,7 +505,7 @@ fn nodes_on_a_cycle(edges: &[Vec<usize>]) -> Vec<bool> {
 
 /// Whether a written value may read one of the custom properties `moved` holds.
 pub(super) fn value_reads_any_custom_property_of(value: &StyleValueData, moved: impl Fn(&[u16]) -> bool) -> bool {
-    named_custom_property_reads(value).is_none_or(|names| names.into_iter().any(moved))
+    named_custom_property_reads(value).is_none_or(|mut names| names.any(moved))
 }
 
 pub(super) fn sorted_custom_property_names(mut names: Vec<Arc<[u16]>>) -> CustomPropertyNames {
@@ -1002,7 +1002,12 @@ impl RetainedState {
             .filter(|(declared, _)| declared.operator() == CascadeOperator::Declared)
             .filter_map(|(declared, value)| {
                 let name = self.declared_custom_property_name(declared.name)?;
-                Some((name, declared, value, named_custom_property_reads(value.data())))
+                Some((
+                    name,
+                    declared,
+                    value,
+                    named_custom_property_reads(value.data()).map(Iterator::collect),
+                ))
             })
             .filter(|(name, _, _, _)| !moved.contains(name.to_utf16().as_ref()))
             .collect();
