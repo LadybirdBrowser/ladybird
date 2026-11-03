@@ -5586,7 +5586,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 .then(|| self.abspos_containing_block_info(child));
                 formatting_context::register_contained_abspos_child(
                     &self.run.callbacks,
-                    self.run.fragments.as_deref(),
+                    self.run.fragments,
                     self.run.box_,
                     child,
                     rect,
@@ -5594,7 +5594,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 );
             }
         }
-        if let Some(fragments) = self.run.fragments.as_deref() {
+        if let Some(fragments) = self.run.fragments {
             for child in fragments.pending_abspos_children_awaiting_containing_block_info(self.run.box_) {
                 // Deeper descendants inside grid items still get the grid area
                 // as their containing block, but their static position comes

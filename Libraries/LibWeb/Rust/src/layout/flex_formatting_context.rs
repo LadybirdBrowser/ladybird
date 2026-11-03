@@ -4473,7 +4473,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             if facts.is_box() && facts.is_absolutely_positioned() {
                 formatting_context::register_contained_abspos_child(
                     &self.run.callbacks,
-                    self.run.fragments.as_deref(),
+                    self.run.fragments,
                     self.run.box_,
                     child,
                     self.calculate_static_position_rect(child),

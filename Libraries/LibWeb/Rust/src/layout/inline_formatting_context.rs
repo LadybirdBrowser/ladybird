@@ -492,7 +492,6 @@ pub(crate) fn compute(
     let collect_inline_containing_block_rects = context
         .run
         .fragments
-        .as_deref()
         .is_some_and(fragment_tree::RunFragmentBuilder::any_pending_abspos_has_inline_containing_block);
     let container_inline_axis_is_reverse =
         collect_inline_containing_block_rects && context.facts(context.containing_block).inline_axis_is_reverse();
@@ -652,7 +651,6 @@ pub(crate) fn compute(
             && context
                 .run
                 .fragments
-                .as_deref()
                 .is_some_and(|fragments| fragments.any_pending_abspos_names_inline_containing_block(node));
         let mut corners = FirstAndLastContentLineCorners::default();
 
@@ -814,7 +812,6 @@ pub(crate) fn compute(
             && context
                 .run
                 .fragments
-                .as_deref()
                 .is_some_and(|fragments| fragments.any_pending_abspos_names_inline_containing_block(node))
         {
             inline_containing_block_rect_candidates.push(InlineContainingBlockRectCandidate {
@@ -1116,7 +1113,7 @@ impl<'context> InlineFormattingContext<'context> {
 
     fn discard_unplaced_atomic_inline(&self, node: Node) {
         let fragment_arrival = self.take_atomic_inline_fragment_arrival(node);
-        if let Some(fragments) = self.run.fragments.as_deref() {
+        if let Some(fragments) = self.run.fragments {
             fragments.discard_unplaced_subtree(node, fragment_arrival);
         }
     }
@@ -2678,7 +2675,7 @@ impl<'context> InlineFormattingContext<'context> {
             }
             formatting_context::register_contained_abspos_child(
                 &self.callbacks,
-                self.run.fragments.as_deref(),
+                self.run.fragments,
                 self.containing_block,
                 box_,
                 static_position,
@@ -2778,7 +2775,7 @@ impl<'context> InlineFormattingContext<'context> {
             let mut rect = candidate.rect;
             rect.x += relative_inset_chain.offset_x;
             rect.y += relative_inset_chain.offset_y;
-            if let Some(fragments) = self.run.fragments.as_deref() {
+            if let Some(fragments) = self.run.fragments {
                 fragments.register_inline_containing_block_rect(
                     candidate.inline_containing_block,
                     rect,
@@ -2789,7 +2786,7 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     fn register_inline_anchor_candidates(&self) {
-        let Some(fragments) = self.run.fragments.as_deref() else {
+        let Some(fragments) = self.run.fragments else {
             return;
         };
         // An inline anchor's border box is the union of its line fragments, including relative positioning.

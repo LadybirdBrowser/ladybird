@@ -440,7 +440,7 @@ pub(crate) fn place_child(
         content_offset_in_containing_block: offset,
         containing_block,
     };
-    let Some(fragments) = run.fragments.as_deref() else {
+    let Some(fragments) = run.fragments else {
         debug_assert!(
             fragment_arrival.is_none(),
             "a run that builds no fragments is handed none"
@@ -1266,7 +1266,7 @@ pub(crate) struct FormattingContextRun<'pass> {
     pub(crate) callbacks: LayoutPass<'pass>,
     pub(crate) should_collect_devtools_layout_data: bool,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
-    pub(crate) fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
+    pub(crate) fragments: Option<&'pass fragment_tree::RunFragmentBuilder>,
     pub(crate) fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
 }
 
@@ -1288,7 +1288,7 @@ impl<'pass> FormattingContextRun<'pass> {
             should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
             treat_block_axis_percentage_insets_as_auto_beyond_root: self
                 .treat_block_axis_percentage_insets_as_auto_beyond_root,
-            fragments: self.fragments.clone(),
+            fragments: self.fragments,
             fragmentainer: self.fragmentainer.clone(),
         }
     }
@@ -1319,7 +1319,7 @@ impl<'pass> FormattingContextRun<'pass> {
         node: Node,
         update: impl FnOnce(&mut fragment_tree::FragmentPayloads),
     ) {
-        if let Some(fragments) = self.fragments.as_deref() {
+        if let Some(fragments) = self.fragments {
             fragments.update_fragment_payloads_of(node, update);
         }
     }
@@ -1487,7 +1487,7 @@ fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
             if facts.is_absolutely_positioned() {
                 register_contained_abspos_child(
                     &run.callbacks,
-                    run.fragments.as_deref(),
+                    run.fragments,
                     run.box_,
                     child,
                     abspos_inputs::StaticPositionRect {
@@ -2137,19 +2137,24 @@ fn execute_formatting_context_run(
         }
         _ => None,
     };
-    let (outputs, root_cells_left_by_run) = RunState::with_root(
+    let fragments = builds_fragments.then(|| {
+        fragment_tree::RunFragmentBuilder::new(
+            box_,
+            (!root_containing_block.is_invalid()).then_some(root_containing_block),
+        )
+    });
+    let (outputs, root_cells_left_by_run) = RunState::with_root_building_fragments(
         callbacks,
         box_,
         root_containing_block,
         root_anchor_resolved_values,
+        fragments,
         |state, callbacks| {
             lay_out_run_root_and_contents(
                 state,
                 callbacks,
-                builds_fragments,
                 root_cells,
                 box_,
-                root_containing_block,
                 parent_grid,
                 fc_type,
                 should_collect_devtools_layout_data,
@@ -2201,10 +2206,8 @@ fn sizes_and_box_sides(cells: used_values::RootInputCells) -> used_values::RootI
 fn lay_out_run_root_and_contents<'pass>(
     state: &'pass RunState,
     callbacks: LayoutPass<'pass>,
-    builds_fragments: bool,
     root_cells: used_values::RootInputCells,
     box_: Node,
-    root_containing_block: Node,
     parent_grid: Option<&grid_formatting_context::GridFormattingContext<'pass>>,
     fc_type: FormattingContextType,
     should_collect_devtools_layout_data: bool,
@@ -2223,12 +2226,7 @@ fn lay_out_run_root_and_contents<'pass>(
         treat_block_axis_percentage_insets_as_auto_beyond_root: input
             .sizing
             .treat_block_axis_percentage_insets_as_auto_beyond_root,
-        fragments: builds_fragments.then(|| {
-            std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new(
-                box_,
-                (!root_containing_block.is_invalid()).then_some(root_containing_block),
-            ))
-        }),
+        fragments: state.fragments(),
         fragmentainer,
     };
     let run = &run;
@@ -2495,7 +2493,7 @@ fn lay_out_run_root_and_contents<'pass>(
         },
     };
     if content_alignment_offset.y != CssPixels::default() {
-        if let Some(fragments) = run.fragments.as_deref() {
+        if let Some(fragments) = run.fragments {
             fragments.translate_root_contents(content_alignment_offset);
         }
         let shift = |baseline: Option<CssPixels>| baseline.map(|baseline| baseline + content_alignment_offset.y);
@@ -2684,7 +2682,7 @@ fn lay_out_abspos_contained_by_run_root(
     root_in_own_frame: used_values::RootInputCells,
     own_frame: geometry::Frame,
 ) -> bool {
-    let Some(fragments) = body_run.fragments.as_deref() else {
+    let Some(fragments) = body_run.fragments else {
         return false;
     };
     let mut batch = fragments.take_abspos_contained_by_root(&body_run.callbacks);
@@ -3020,7 +3018,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         percentage_block_insets_of_containing_block_have_definite_basis,
     );
     run_formatting_context(
-        run.fragments.as_deref(),
+        run.fragments,
         child_input_cells,
         child,
         root_containing_block,
@@ -3044,7 +3042,6 @@ pub(crate) fn leave_child_unplaced(
 ) {
     if let Some(arrival) = fragment_arrival {
         run.fragments
-            .as_deref()
             .expect("only a run that builds fragments is handed a child's fragments")
             .leave_child_unplaced(arrival, unplaced_child);
     }
@@ -3626,78 +3623,88 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         percentage_basis_block_size: Some(viewport_block_size),
         ..ContainingBlockConstraints::default()
     };
-    RunState::with_root(callbacks, root, Node::INVALID, None, |entry_run_state, callbacks| {
-        let _trace = scratch.layout_trace.pass(None);
-        let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
-        let entry_run = FormattingContextRun {
-            state: entry_run_state,
-            box_: root,
-            callbacks,
-            should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-            fragments: Some(entry_fragments.clone()),
-            fragmentainer: None,
-        };
+    RunState::with_root_building_fragments(
+        callbacks,
+        root,
+        Node::INVALID,
+        None,
+        Some(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root)),
+        |entry_run_state, callbacks| {
+            let _trace = scratch.layout_trace.pass(None);
+            let entry_fragments = entry_run_state
+                .fragments()
+                .expect("an entry pass accumulates fragments");
+            let entry_run = FormattingContextRun {
+                state: entry_run_state,
+                box_: root,
+                callbacks,
+                should_collect_devtools_layout_data,
+                treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+                fragments: Some(entry_fragments),
+                fragmentainer: None,
+            };
 
-        let first_child = callbacks.first_child(root);
-        let root_for_layout = if !first_child.is_invalid() && NodeFacts::new(&callbacks, first_child).is_svg_svg_box() {
-            let mut viewport_cells = used_values::cells_before_sizing(&callbacks, root, root_constraints);
-            viewport_cells.set_content_inline_size(viewport_inline_size);
-            viewport_cells.set_content_block_size(viewport_block_size);
-            place_child(
-                &entry_run,
-                root,
-                PlacedChild::new(fragment_tree::FragmentGeometry {
-                    cells: viewport_cells,
-                    line_data: None,
-                }),
-                FfiCssPixelPoint::default(),
+            let first_child = callbacks.first_child(root);
+            let root_for_layout =
+                if !first_child.is_invalid() && NodeFacts::new(&callbacks, first_child).is_svg_svg_box() {
+                    let mut viewport_cells = used_values::cells_before_sizing(&callbacks, root, root_constraints);
+                    viewport_cells.set_content_inline_size(viewport_inline_size);
+                    viewport_cells.set_content_block_size(viewport_block_size);
+                    place_child(
+                        &entry_run,
+                        root,
+                        PlacedChild::new(fragment_tree::FragmentGeometry {
+                            cells: viewport_cells,
+                            line_data: None,
+                        }),
+                        FfiCssPixelPoint::default(),
+                        None,
+                        None,
+                    );
+                    first_child
+                } else {
+                    root
+                };
+            let root_cells = used_values::cells_before_sizing(&callbacks, root_for_layout, root_constraints);
+            let input = LayoutInput::new(
+                AvailableSpace {
+                    inline_size: AvailableSize::definite(viewport_inline_size),
+                    block_size: AvailableSize::definite(viewport_block_size),
+                },
+                ContainingBlockConstraints::default(),
+                ParticipationInParentFormattingContext::Root,
+            )
+            .with_forced_sizes(viewport_inline_size, viewport_block_size);
+            let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
+            let root_outcome = run_formatting_context(
+                Some(entry_fragments),
+                root_cells,
+                root_for_layout,
+                callbacks.in_flow_containing_block(root_for_layout),
                 None,
+                fc_type,
+                should_collect_devtools_layout_data,
+                callbacks,
+                input,
                 None,
             );
-            first_child
-        } else {
-            root
-        };
-        let root_cells = used_values::cells_before_sizing(&callbacks, root_for_layout, root_constraints);
-        let input = LayoutInput::new(
-            AvailableSpace {
-                inline_size: AvailableSize::definite(viewport_inline_size),
-                block_size: AvailableSize::definite(viewport_block_size),
-            },
-            ContainingBlockConstraints::default(),
-            ParticipationInParentFormattingContext::Root,
-        )
-        .with_forced_sizes(viewport_inline_size, viewport_block_size);
-        let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
-        let root_outcome = run_formatting_context(
-            Some(&entry_fragments),
-            root_cells,
-            root_for_layout,
-            callbacks.in_flow_containing_block(root_for_layout),
-            None,
-            fc_type,
-            should_collect_devtools_layout_data,
-            callbacks,
-            input,
-            None,
-        );
-        place_child(
-            &entry_run,
-            root_for_layout,
-            root_outcome.placed_child(),
-            FfiCssPixelPoint::default(),
-            None,
-            root_outcome.fragment_arrival,
-        );
-        finish_entry_pass(
-            entry_run_state,
-            &entry_fragments,
-            &callbacks,
-            scratch,
-            should_collect_devtools_layout_data,
-        )
-    })
+            place_child(
+                &entry_run,
+                root_for_layout,
+                root_outcome.placed_child(),
+                FfiCssPixelPoint::default(),
+                None,
+                root_outcome.fragment_arrival,
+            );
+            finish_entry_pass(
+                entry_run_state,
+                entry_fragments,
+                &callbacks,
+                scratch,
+                should_collect_devtools_layout_data,
+            )
+        },
+    )
 }
 
 /// Brings the arena up to date for a stage before the stage borrows it: a root stage covers whatever kept pending
@@ -3714,7 +3721,7 @@ fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind) {
 
 fn finish_entry_pass(
     entry_run_state: &RunState,
-    entry_fragments: &std::rc::Rc<fragment_tree::RunFragmentBuilder>,
+    entry_fragments: &fragment_tree::RunFragmentBuilder,
     callbacks: &LayoutPass<'_>,
     scratch: &super::run_state::LayoutScratch,
     should_collect_devtools_layout_data: bool,
@@ -3766,22 +3773,24 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
     } else {
         (root, containing_block)
     };
-    RunState::with_root(
+    RunState::with_root_building_fragments(
         callbacks,
         entry_root,
         entry_root_containing_block,
         None,
+        Some(fragment_tree::RunFragmentBuilder::new_entry_accumulator(entry_root)),
         |entry_run_state, callbacks| {
             let _trace = scratch.layout_trace.pass(Some(root));
-            let entry_fragments =
-                std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(entry_root));
+            let entry_fragments = entry_run_state
+                .fragments()
+                .expect("an entry pass accumulates fragments");
             let entry_run = FormattingContextRun {
                 state: entry_run_state,
                 box_: entry_root,
                 callbacks,
                 should_collect_devtools_layout_data: false,
                 treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-                fragments: Some(entry_fragments.clone()),
+                fragments: Some(entry_fragments),
                 fragmentainer: None,
             };
             if root_is_absolutely_positioned {
@@ -3789,7 +3798,7 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
             } else {
                 layout_subtree_with_frozen_root_geometry(&entry_run);
             }
-            finish_entry_pass(entry_run_state, &entry_fragments, &callbacks, scratch, false)
+            finish_entry_pass(entry_run_state, entry_fragments, &callbacks, scratch, false)
         },
     )
 }
@@ -3800,7 +3809,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let committed_root = used_values::committed_box_from_fragment_link(callbacks, root)
         .expect("partial relayout root must have committed geometry");
     let root_cells = committed_root.cells;
-    let fragments = run.fragments.as_deref().expect("partial relayout must build fragments");
+    let fragments = run.fragments.expect("partial relayout must build fragments");
     let mut input = LayoutInput::new(
         AvailableSpace {
             inline_size: AvailableSize::definite(root_cells.content_inline_size),

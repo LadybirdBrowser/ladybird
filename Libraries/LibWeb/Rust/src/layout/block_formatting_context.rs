@@ -969,7 +969,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
         formatting_context::register_contained_abspos_child(
             &self.run.callbacks,
-            self.run.fragments.as_deref(),
+            self.run.fragments,
             coordinate_space_box,
             node,
             static_position,
@@ -3452,7 +3452,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn abspos_containing_block_info_contributions_received(&self) -> u64 {
-        self.run.fragments.as_deref().map_or(0, |fragments| {
+        self.run.fragments.map_or(0, |fragments| {
             fragments.abspos_containing_block_info_contributions_received()
         })
     }
@@ -4192,7 +4192,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     incoming.take(),
                     column_index,
                 );
-                if let (Some(fragments), Some(contents)) = (self.run.fragments.as_deref(), contents) {
+                if let (Some(fragments), Some(contents)) = (self.run.fragments, contents) {
                     fragments.adopt_fragmentainer_contents(contents, origin, root_line_count);
                 }
                 let filled_column = outcome

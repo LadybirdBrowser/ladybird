@@ -177,6 +177,7 @@ pub(crate) struct RunState {
     root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
     /// What the run found out for the host so far, which the pass the run is handed notes into.
     host_findings: RefCell<HostFindings>,
+    fragments: Option<fragment_tree::RunFragmentBuilder>,
 }
 
 /// Where a box is placed: the offset of its content box in the containing block it is placed in.
@@ -301,6 +302,26 @@ impl RunState {
             root_containing_block,
             root_anchor_resolved_values,
             ContentSizing::Layout,
+            None,
+            run,
+        )
+    }
+
+    pub(crate) fn with_root_building_fragments<R>(
+        callbacks: LayoutPass<'_>,
+        root: Node,
+        root_containing_block: Node,
+        root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
+        fragments: Option<fragment_tree::RunFragmentBuilder>,
+        run: impl for<'run> FnOnce(&'run Self, LayoutPass<'run>) -> R,
+    ) -> R {
+        Self::enter(
+            callbacks,
+            root,
+            root_containing_block,
+            root_anchor_resolved_values,
+            ContentSizing::Layout,
+            fragments,
             run,
         )
     }
@@ -317,6 +338,7 @@ impl RunState {
             root_containing_block,
             None,
             ContentSizing::RootContributions,
+            None,
             run,
         )
     }
@@ -333,6 +355,7 @@ impl RunState {
             root_containing_block,
             None,
             ContentSizing::RootContentInlineSizes,
+            None,
             run,
         )
     }
@@ -343,6 +366,7 @@ impl RunState {
         root_containing_block: Node,
         root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
         content_sizing: ContentSizing,
+        fragments: Option<fragment_tree::RunFragmentBuilder>,
         run: impl for<'run> FnOnce(&'run Self, LayoutPass<'run>) -> R,
     ) -> R {
         let state = Self {
@@ -354,11 +378,16 @@ impl RunState {
             )]),
             root_anchor_resolved_values,
             host_findings: RefCell::new(HostFindings::default()),
+            fragments,
         };
         run(
             &state,
             callbacks.for_run(root, root_containing_block, &state.host_findings),
         )
+    }
+
+    pub(crate) fn fragments(&self) -> Option<&fragment_tree::RunFragmentBuilder> {
+        self.fragments.as_ref()
     }
 
     /// What this run found out for the host, which its outputs carry to the run that uses its result.
