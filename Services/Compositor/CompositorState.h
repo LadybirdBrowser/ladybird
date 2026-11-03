@@ -50,7 +50,7 @@ public:
     // No context could take the event; the UI sends it to WebContent itself.
     virtual void did_not_dispatch_input_event(Web::CompositorContextId, u64 event_id) = 0;
     // The compositor forwarded the key event to WebContent, after performing its default action by scrolling if it says so.
-    virtual void did_dispatch_input_event(Web::CompositorContextId, u64 event_id, bool async_scroll_performed_default_action) = 0;
+    virtual void did_dispatch_input_event(Web::CompositorContextId, u64 event_id, bool performed_default_action) = 0;
 };
 
 class CompositorStateWebContentClient {

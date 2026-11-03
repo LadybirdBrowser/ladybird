@@ -549,16 +549,16 @@ void WebContentPage::did_not_dispatch_input_event_through_compositor(u64 event_i
     }
 }
 
-void WebContentPage::did_dispatch_input_event_through_compositor(u64 event_id, bool async_scroll_performed_default_action)
+void WebContentPage::did_dispatch_input_event_through_compositor(u64 event_id, bool performed_default_action)
 {
     if (displays_tab()) {
-        view().did_dispatch_input_event_through_compositor({}, event_id, async_scroll_performed_default_action);
+        view().did_dispatch_input_event_through_compositor({}, event_id, performed_default_action);
         return;
     }
 
     if (auto display_page = traversable().display_page(); display_page) {
         if (display_page->is_open() && display_page.ptr() != this)
-            display_page->did_dispatch_input_event_through_compositor(event_id, async_scroll_performed_default_action);
+            display_page->did_dispatch_input_event_through_compositor(event_id, performed_default_action);
     }
 }
 

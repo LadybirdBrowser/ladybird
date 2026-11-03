@@ -1195,6 +1195,7 @@ void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId c
     // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.
     publish_pending_async_scroll_updates(context_id, *context);
     context->dispatch_pinch_event_to_web_content(event);
+    presentation->did_dispatch_input_event(context_id, event.id, event.async_zoom_performed_default_action);
 }
 
 Compositing::WheelEventAnswer CompositorState::wheel_event_answer_for(AppliedWheelStep const& applied_step, Optional<Web::WheelGestureMark> wheel_gesture_mark)
