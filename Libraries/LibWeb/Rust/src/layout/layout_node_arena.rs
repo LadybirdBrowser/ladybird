@@ -1668,6 +1668,24 @@ impl LayoutNodeArena {
                 Arc::make_mut(styles).remove(&id);
             }
         }
+        if self
+            .paint_state
+            .custom_highlight_pseudo_styles
+            .values()
+            .any(|styles| styles.contains_key(&id))
+        {
+            let table = Arc::make_mut(&mut self.paint_state.custom_highlight_pseudo_styles);
+            for styles in table.values_mut() {
+                if styles.contains_key(&id) {
+                    Arc::make_mut(styles).remove(&id);
+                }
+            }
+            table.retain(|_, styles| !styles.is_empty());
+        }
+        if self.paint_state.custom_highlights.covers_row(id) {
+            Arc::make_mut(&mut self.paint_state.custom_highlights).forget_row(id);
+            self.paint_state.bump_custom_highlight_row_generation();
+        }
         let data = self.data_mut(index);
         debug_assert!(
             data.parent.get().is_invalid()

@@ -1225,17 +1225,23 @@ impl<'a> Scratch<'a> {
                 }
             }
         }
-        if kinds == 0 {
+        let custom_highlights = context.state.highlight_observers.custom_highlights_of(node);
+        if kinds == 0 && custom_highlights.is_empty() {
             return Some((pseudo_element_records, element_dependent));
         }
         let inherited = PseudoElementInheritance::of(context, node, &element);
         // The conditions of a pseudo-element's rules ask about its element's record first.
         self.apply_container_gates(context, node, true);
-        for kind in super::PSEUDO_ELEMENT_KINDS {
-            if kinds & (1 << kind) == 0 {
-                continue;
-            }
-            let target = super::PseudoElementTarget::of_kind(kind);
+        let targets = super::PSEUDO_ELEMENT_KINDS
+            .into_iter()
+            .filter(|&kind| kinds & (1 << kind) != 0)
+            .map(super::PseudoElementTarget::of_kind)
+            .chain(
+                custom_highlights
+                    .iter()
+                    .map(|&name| super::PseudoElementTarget::custom_highlight(name)),
+            );
+        for target in targets {
             match self.compute_pseudo_element(
                 context,
                 node,
@@ -1285,7 +1291,7 @@ impl<'a> Scratch<'a> {
         let highlight = super::super::publication::pseudo_kind::is_highlight(kind);
         // A pass styles the highlight pseudo-elements of the elements the host shows a highlight
         // of their kind in, and a read of their styles those of any other.
-        if generating && highlight && !state.highlight_observers.observes(node, kind) {
+        if generating && highlight && !state.highlight_observers.observes_target(node, target) {
             return PseudoElementOutcome::Unstyled;
         }
         // https://drafts.csswg.org/css-position-4/#backdrop

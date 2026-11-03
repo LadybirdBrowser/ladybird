@@ -4118,6 +4118,11 @@ impl<'a> TreeBuilderHost<'a> {
     fn create_element_box(&mut self, element: StyleNodeID, kind: NodeKind, record: u64) -> NodeSlotId {
         let slot = self.stamp_dom_box(kind, Some(element));
         self.arena_mut().stamp_published_style(slot, record);
+        if kind == NodeKind::ImageBox {
+            self.arena_mut()
+                .paint_state_mut()
+                .bump_custom_highlight_row_generation();
+        }
         match kind {
             // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
             // If the computed outer display type is inline, the fieldset is expected to behave as inline-block.
@@ -4169,6 +4174,9 @@ impl<'a> TreeBuilderHost<'a> {
     fn create_text_box(&mut self, style_node: StyleNodeID) -> NodeSlotId {
         let slot = self.stamp_dom_box(NodeKind::TextNode, Some(style_node));
         self.stamp_text_row_facts(slot, style_node);
+        self.arena_mut()
+            .paint_state_mut()
+            .bump_custom_highlight_row_generation();
         slot
     }
 
@@ -4233,6 +4241,7 @@ impl<'a> TreeBuilderHost<'a> {
                         .pseudo_published_style_record(element, highlight.pseudo_kind())
                         .is_some()
                 })
+                || !engine.pseudo_published_custom_highlight_records(element).is_empty()
         })
     }
 

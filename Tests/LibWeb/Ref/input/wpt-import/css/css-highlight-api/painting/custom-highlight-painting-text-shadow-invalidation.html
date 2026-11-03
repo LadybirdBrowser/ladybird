@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <meta charset="UTF-8">
+  <title>CSS Highlight API Test: text-decoration</title>
+  <link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-text-shadow-ref.html">
+  <meta name="assert" value="A change to text shadow size in a highlight is correctly rendered">
+  <meta name="fuzzy" content="0-64;0-2">
+<script src="resources/run-after-layout-and-paint.js"></script>
+  <style>
+    ::root {
+      --shadow-offset-x: 15px;
+      --shadow_offset-y: 20px;
+    }
+    ::highlight(example-highlight) {
+      background-color: yellow;
+      color: blue;
+      text-shadow: var(--shadow-offset-x, 5px) var(--shadow-offset-y, 10px) rgba(0, 255, 0, 0.5);
+    }
+  </style>
+  <body>
+    <span>One </span><span>two </span><span>three…</span>
+    <script>
+      let r = new Range();
+      r.setStart(document.body, 1);
+      r.setEnd(document.body, 3);
+      CSS.highlights.set("example-highlight", new Highlight(r));
+
+      runAfterLayoutAndPaint(()=>{
+        document.documentElement.style.setProperty("--shadow-offset-x", "5px");
+        document.documentElement.style.setProperty("--shadow-offset-y", "10px");
+        runAfterLayoutAndPaint(()=>{
+          document.documentElement.removeAttribute("class");
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight painting: soft hyphens</title>
+<link rel="stylesheet" href="support/highlights.css">
+<style>
+    main {
+        width: 13em;
+        color: transparent;
+    }
+    main > span {
+        color: green;
+    }
+</style>
+<p>Pass if only the letter T is visible below, not the hyphens.
+<main class="highlight_reftest"><span>T</span>he&#xAD;Quick&#xAD;Brown&#xAD;Fox&#xAD;Jumps&#xAD;Over&#xAD;The&#xAD;Lazy&#xAD;Dog&#xAD;The&#xAD;Quick&#xAD;Brown&#xAD;Fox&#xAD;Jumps&#xAD;Over&#xAD;The&#xAD;Lazy&#xAD;Dog&#xAD;The&#xAD;Quick&#xAD;Brown&#xAD;Fox&#xAD;Jumps&#xAD;Over&#xAD;The&#xAD;Lazy&#xAD;Dog</main>

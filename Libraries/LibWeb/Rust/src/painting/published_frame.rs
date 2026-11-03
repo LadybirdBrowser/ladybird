@@ -22,13 +22,13 @@ use crate::layout::fragment_tree::FragmentLink;
 use crate::layout::node_data::{NodeSlotId, PaintNode};
 use crate::layout::tree_shape::PUBLISHED_ROWS_PER_CHUNK;
 use crate::painting::layer_image_paint_facts::LayerImagePaintFactsTable;
-use crate::painting::paint_state::{PaintState, SelectionPseudoStyles};
+use crate::painting::paint_state::{CustomHighlightPseudoStyles, PaintState, SelectionPseudoStyles};
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::paintable_rows::{CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK};
 use crate::painting::record::damage::FrameDamage;
 use crate::painting::replaced_paint_facts::ReplacedPaintFactsTable;
 use crate::painting::selection::{
-    HighlightPseudoElement, SearchTextHighlights, SelectionRange, SpellingErrorHighlights,
+    CustomHighlights, HighlightPseudoElement, SearchTextHighlights, SelectionRange, SpellingErrorHighlights,
 };
 use crate::painting::stacking_context::entries::StackingContextEntries;
 use crate::painting::svg_paint_resources::SvgPaintResourceRows;
@@ -168,6 +168,8 @@ pub(crate) struct PublishedPaintState {
     pub(crate) search_text_current_pseudo_styles: Arc<SelectionPseudoStyles>,
     pub(crate) spelling_errors: Arc<SpellingErrorHighlights>,
     pub(crate) spelling_error_pseudo_styles: Arc<SelectionPseudoStyles>,
+    pub(crate) custom_highlights: Arc<CustomHighlights>,
+    pub(crate) custom_highlight_pseudo_styles: Arc<CustomHighlightPseudoStyles>,
     pub(crate) hit_test_list_generation: u64,
     /// How many items the document's hit-test list held, which the recording's list reserves.
     pub(crate) hit_test_item_capacity_hint: usize,
@@ -198,6 +200,8 @@ impl PublishedPaintState {
             search_text_current_pseudo_styles: paint_state.search_text_current_pseudo_styles.clone(),
             spelling_errors: paint_state.spelling_errors.clone(),
             spelling_error_pseudo_styles: paint_state.spelling_error_pseudo_styles.clone(),
+            custom_highlights: paint_state.custom_highlights.clone(),
+            custom_highlight_pseudo_styles: paint_state.custom_highlight_pseudo_styles.clone(),
             hit_test_list_generation: paint_state.hit_test_list_generation,
             hit_test_item_capacity_hint,
         }

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Highlight API Test: ::highlight text-decoration with currentColor</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-selection-text-decoration-currentcolor-ref.html">
+<meta name="assert" content="This test checks that ::highlight text-decoration-color defaults to currentColor.">
+<style>
+  #target {
+    font-size: 50px;
+  }
+  ::highlight(test-highlight) {
+    color: green;
+    text-decoration: overline;
+  }
+</style>
+<p>The test passes if the text below has a green overline.</p>
+<p id="target">Highlighted text</p>
+<script>
+  let range = new Range();
+  range.setStart(target.firstChild, 0);
+  range.setEnd(target.firstChild, target.firstChild.length);
+  CSS.highlights.set("test-highlight", new Highlight(range));
+</script>

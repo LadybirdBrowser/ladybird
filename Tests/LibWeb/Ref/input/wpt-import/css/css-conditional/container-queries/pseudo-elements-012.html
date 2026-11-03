@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>CSS Container Queries Test: ::highlight pseudo size container change</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#query-container">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-conditional/container-queries/pseudo-elements-010-ref.html">
+<script src="../../../common/reftest-wait.js"></script>
+<style>
+  #container {
+    width: 300px;
+    container-type: inline-size;
+  }
+  #container::highlight(hi) {
+    color: red;
+    background: transparent;
+  }
+  @container (width >= 400px) {
+    #container::highlight(hi) {
+      color: green;
+      background: transparent;
+    }
+  }
+</style>
+<div id="container">Highlight</div>
+<script>
+  let highlight_range = document.createRange();
+  highlight_range.selectNode(container);
+  CSS.highlights.set("hi", new Highlight(highlight_range));
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      container.style.width = "500px";
+      takeScreenshot();
+    });
+  });
+</script>

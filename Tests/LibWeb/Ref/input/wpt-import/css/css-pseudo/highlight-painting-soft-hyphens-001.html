@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight painting: soft hyphens</title>
+<link rel="author" name="Delan Azabani" href="mailto:dazabani@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-painting">
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#painting">
+<link rel="help" href="https://www.w3.org/TR/CSS22/zindex.html#painting-order">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/highlight-painting-soft-hyphens-001-ref.html">
+<meta name="assert" value="::highlight overlay is not painted under soft hyphens in a text node with [0,1) highlighted and no other ranges highlighted">
+<link rel="stylesheet" href="support/highlights.css">
+<style>
+    main {
+        width: 13em;
+        color: transparent;
+    }
+    main::highlight(foo) {
+        color: green;
+    }
+</style>
+<p>Pass if only the letter T is visible below, not the hyphens.
+<main class="highlight_reftest">The&#xAD;Quick&#xAD;Brown&#xAD;Fox&#xAD;Jumps&#xAD;Over&#xAD;The&#xAD;Lazy&#xAD;Dog&#xAD;The&#xAD;Quick&#xAD;Brown&#xAD;Fox&#xAD;Jumps&#xAD;Over&#xAD;The&#xAD;Lazy&#xAD;Dog&#xAD;The&#xAD;Quick&#xAD;Brown&#xAD;Fox&#xAD;Jumps&#xAD;Over&#xAD;The&#xAD;Lazy&#xAD;Dog</main>
+<script>
+    const main = document.querySelector("main");
+    const range = new Range;
+    range.setStart(main.firstChild, 0);
+    range.setEnd(main.firstChild, 1);
+    CSS.highlights.set("foo", new Highlight(range));
+</script>

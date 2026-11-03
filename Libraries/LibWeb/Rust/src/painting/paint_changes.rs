@@ -15,12 +15,16 @@ use super::host::{
 use super::image_map_areas::{AreaCoverage, AreaShape, PublishedImageMapArea};
 use super::layer_image_paint_facts::{LayerImagePaintFacts, LayerImagePaintFactsEntry};
 use super::paint_read::GeometryRead;
-use super::paintable_data::{FfiSearchTextRange, FfiSelectionEntry, FfiSpellingError, PaintableFlag};
+use super::paintable_data::{
+    FfiCustomHighlightReplacedEntry, FfiCustomHighlightTextEntry, FfiSearchTextRange, FfiSelectionEntry,
+    FfiSpellingError, PaintableFlag,
+};
 use super::record::damage::PaintDamage;
 use super::replaced_paint_facts::{ImagePaintFacts, ReplacedPaintFacts, VideoPaintFacts};
 use super::selection::HighlightStyleRecords;
 use super::visual_context::dirty::VisualContextBoxDirtyKind;
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
+use crate::css::style::index::StyleAtomID;
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
@@ -57,12 +61,28 @@ pub(crate) enum PaintChange {
     },
     /// No text is flagged as misspelled.
     ClearSpellingErrors,
+    /// The registered custom highlights and what of the document they cover.
+    ApplyCustomHighlights {
+        viewport: NodeSlotId,
+        layers: Box<[StyleAtomID]>,
+        text_entries: Box<[FfiCustomHighlightTextEntry]>,
+        replaced_entries: Box<[FfiCustomHighlightReplacedEntry]>,
+    },
+    /// No custom highlight covers anything.
+    ClearCustomHighlights,
+    /// Whether a registered custom highlight holds a range.
+    SetHasRegisteredCustomHighlightRanges(bool),
     /// The element's style changed: the rows that paint text under it take what `style_records`, the `::selection`,
     /// `::search-text` and `::spelling-error` records the host holds for it (zero for none), say highlighted text
     /// paints with.
     SyncHighlightPseudoStyles {
         element: StyleNodeID,
         style_records: HighlightStyleRecords,
+    },
+    /// The element's style changed. The rows that paint text under it take its `::highlight()` records by name.
+    SyncCustomHighlightPseudoStyles {
+        element: StyleNodeID,
+        style_records: Box<[(StyleAtomID, u64)]>,
     },
     /// Whether the overlay scrollbar of the row in `direction` has faded out, so that it takes no pointer input.
     SetScrollbarHidden {
@@ -157,8 +177,30 @@ impl PaintChange {
                 }
             }
             Self::ClearSpellingErrors => super::selection::clear_spelling_errors(&mut arena.paintable_rows_mut()),
+            Self::ApplyCustomHighlights {
+                viewport,
+                layers,
+                text_entries,
+                replaced_entries,
+            } => {
+                if arena.paintable_row_is_populated(viewport) {
+                    super::selection::apply_custom_highlights(
+                        &mut arena.paintable_rows_mut(),
+                        &layers,
+                        &text_entries,
+                        &replaced_entries,
+                    );
+                }
+            }
+            Self::ClearCustomHighlights => super::selection::clear_custom_highlights(&mut arena.paintable_rows_mut()),
+            Self::SetHasRegisteredCustomHighlightRanges(has_ranges) => {
+                arena.paint_state_mut().has_registered_custom_highlight_ranges = has_ranges;
+            }
             Self::SyncHighlightPseudoStyles { element, style_records } => {
                 super::selection::sync_highlight_pseudo_styles(arena, element, style_records);
+            }
+            Self::SyncCustomHighlightPseudoStyles { element, style_records } => {
+                super::selection::sync_custom_highlight_pseudo_styles(arena, element, &style_records);
             }
             Self::SetScrollbarHidden {
                 node,
@@ -283,6 +325,73 @@ pub extern "C" fn render_state_clear_spelling_errors(host: &DocumentHost) {
         return;
     }
     queue(host, PaintChange::ClearSpellingErrors);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_apply_custom_highlights(
+    host: &DocumentHost,
+    viewport: NodeSlotId,
+    layers: ak::Span<'_, u32>,
+    text_entries: ak::Span<'_, FfiCustomHighlightTextEntry>,
+    replaced_entries: ak::Span<'_, FfiCustomHighlightReplacedEntry>,
+) {
+    let tables = host.host_tables();
+    tables
+        .shows_custom_highlights
+        .set(!text_entries.as_slice().is_empty() || !replaced_entries.as_slice().is_empty());
+    let change = PaintChange::ApplyCustomHighlights {
+        viewport,
+        layers: layers.as_slice().iter().copied().map(StyleAtomID).collect(),
+        text_entries: text_entries.as_slice().into(),
+        replaced_entries: replaced_entries.as_slice().into(),
+    };
+    queue(host, change);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_clear_custom_highlights(host: &DocumentHost) {
+    // Rows that show no custom highlights have none to clear.
+    if !host.host_tables().shows_custom_highlights.replace(false) {
+        return;
+    }
+    queue(host, PaintChange::ClearCustomHighlights);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_set_has_registered_custom_highlight_ranges(host: &DocumentHost, has_ranges: bool) {
+    queue(host, PaintChange::SetHasRegisteredCustomHighlightRanges(has_ranges));
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_custom_highlight_row_generation(
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+) -> u64 {
+    super::ffi::read_arena(host, read, (), |arena, ()| {
+        arena.paint_state().custom_highlight_row_generation
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_sync_custom_highlight_pseudo_styles(
+    host: &DocumentHost,
+    element: u32,
+    names: ak::Span<'_, u32>,
+    style_records: ak::Span<'_, u64>,
+) {
+    let Some(element) = StyleNodeID::from_raw(element) else {
+        return;
+    };
+    let style_records = names
+        .as_slice()
+        .iter()
+        .zip(style_records.as_slice())
+        .map(|(&name, &record)| (StyleAtomID(name), record))
+        .collect();
+    queue(
+        host,
+        PaintChange::SyncCustomHighlightPseudoStyles { element, style_records },
+    );
 }
 
 #[unsafe(no_mangle)]

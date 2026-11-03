@@ -10,12 +10,13 @@ use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use std::collections::HashSet;
 
-use libjs_rust::api::{Gc, GcRefCell, MarkedVec, Set, Trace, Value, Vm};
+use libjs_rust::api::{EmbedderCell, Gc, GcRefCell, GcWeak, MarkedVec, Set, Trace, Value, Vm};
 
 use super::css_rule::wrap_cpp_cell;
+use super::highlight_registry::HighlightRegistry;
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::interface::{Ref, Wrappable, allocate};
+use crate::bindings::interface::{Ref, Wrappable, Wrapped, allocate};
 use crate::bindings::setlike::context_of_set;
 use crate::bindings::setlike::{Setlike, WorldEntries, WritableSetlike};
 use crate::bindings::{CallContext, WebIdlResult};
@@ -56,6 +57,9 @@ pub(crate) struct Highlight {
     #[gc(untraced)]
     highlight_type: Cell<HighlightType>,
     set_entries: WorldEntries<Set>,
+    /// The registries that the highlight is registered in, once for each name that it is registered under.
+    #[gc(untraced)]
+    registries: RefCell<Vec<GcWeak<EmbedderCell<Wrapped<HighlightRegistry>>>>>,
 }
 
 impl Wrappable for Highlight {}
@@ -75,6 +79,7 @@ impl Highlight {
             priority: Cell::new(0),
             highlight_type: Cell::new(HighlightType::Highlight),
             set_entries: WorldEntries::default(),
+            registries: RefCell::new(Vec::new()),
         });
 
         // 4. For each range of initialRanges, let rangeArg be the result of converting range to an ECMAScript value,
@@ -93,8 +98,10 @@ impl Highlight {
         Ok(self.priority.get())
     }
 
-    pub(crate) fn set_priority(&self, _: &mut CallContext, priority: i32) -> WebIdlResult<()> {
-        self.priority.set(priority);
+    pub(crate) fn set_priority(&self, cx: &mut CallContext, priority: i32) -> WebIdlResult<()> {
+        if self.priority.replace(priority) != priority {
+            self.invalidate_registries(cx.vm());
+        }
         Ok(())
     }
 
@@ -117,6 +124,44 @@ impl Highlight {
         let ranges = MarkedVec::new(vm);
         ranges.extend_from_slice(&self.ranges.borrow());
         ranges
+    }
+
+    pub(crate) fn has_ranges(&self) -> bool {
+        !self.ranges.borrow().is_empty()
+    }
+
+    /// Whether the highlight has the range whose cell C++ passes.
+    pub(crate) fn contains_range(&self, range: *mut c_void) -> bool {
+        self.range_addresses.borrow().contains(&(range as usize))
+    }
+
+    pub(crate) fn did_register(&self, vm: &Vm, registry: Ref<HighlightRegistry>) {
+        let mut registries = self.registries.borrow_mut();
+        registries.retain(|registered| registered.get().is_some());
+        registries.push(GcWeak::new(vm.heap(), registry));
+    }
+
+    pub(crate) fn did_unregister(&self, registry: Ref<HighlightRegistry>) {
+        let mut registries = self.registries.borrow_mut();
+        if let Some(position) = registries
+            .iter()
+            .position(|registered| registered.get().is_some_and(|live| live.as_ptr() == registry.as_ptr()))
+        {
+            registries.remove(position);
+        }
+    }
+
+    /// Tells each registry that the highlight is registered in that what the highlight paints changed.
+    fn invalidate_registries(&self, vm: &Vm) {
+        let live = MarkedVec::new(vm);
+        for registered in self.registries.borrow().iter() {
+            if let Some(registry) = registered.get() {
+                live.push(registry);
+            }
+        }
+        for registry in live.values().iter() {
+            registry.invalidate_custom_highlights();
+        }
     }
 
     fn add_range(&self, cx: &CallContext, range: CppCell) -> bool {
@@ -159,9 +204,7 @@ impl WritableSetlike for Highlight {
         self.set_entries.for_each_live(cx.vm(), |set| {
             set.set_add(cx.vm(), range_wrapper(&context_of_set(cx, set), &range));
         });
-        // FIXME: https://drafts.csswg.org/css-highlight-api-1/#repaint
-        //        The addition or removal of a range in a registered custom highlight must cause the user agent to
-        //        reevaluate the rendering, and to repaint if appropriate. We do not paint custom highlights yet.
+        self.invalidate_registries(cx.vm());
     }
 
     fn set_remove(&self, cx: &CallContext, value: Value) -> bool {
@@ -175,14 +218,19 @@ impl WritableSetlike for Highlight {
         self.set_entries.for_each_live(cx.vm(), |set| {
             set.set_remove(cx.vm(), range_wrapper(&context_of_set(cx, set), &range));
         });
+        self.invalidate_registries(cx.vm());
         true
     }
 
     fn set_clear(&self, cx: &CallContext) {
+        let had_ranges = self.has_ranges();
         self.range_addresses.borrow_mut().clear();
         self.ranges.borrow_mut(cx.vm()).clear();
         self.set_entries.for_each_live(cx.vm(), |set| {
             set.set_clear(cx.vm());
         });
+        if had_ranges {
+            self.invalidate_registries(cx.vm());
+        }
     }
 }

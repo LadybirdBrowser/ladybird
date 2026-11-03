@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: Highlighting a text node inside an anonymous block box</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-anonymous-block-001-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<meta name="assert" value="::highlight background is painted on a text node that sits in an anonymous block box (the text is followed by a block-level sibling).">
+<style>
+  #target {
+    font: 40px/1 Ahem;
+  }
+  ::highlight(example-highlight) {
+    background-color: yellow;
+  }
+</style>
+<body>
+<div id="target">X X X X<div>X</div></div>
+<script>
+  const textNode = document.getElementById("target").firstChild;
+  const range = new Range();
+  range.setStart(textNode, 0);
+  range.setEnd(textNode, textNode.length);
+  CSS.highlights.set("example-highlight", new Highlight(range));
+</script>

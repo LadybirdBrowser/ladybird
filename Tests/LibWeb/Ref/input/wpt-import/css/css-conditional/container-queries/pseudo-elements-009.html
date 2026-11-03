@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS Container Queries Test: Container for highlight pseudo elements</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#query-container">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-conditional/container-queries/pseudo-elements-009-ref.html">
+<style>
+  #container {
+    container-type: inline-size;
+    width: 500px;
+  }
+
+  ::selection { color: red; background: transparent; }
+  ::highlight(hi) { color: red; background: transparent; }
+
+  @container (width >= 400px) {
+    ::selection { color: green }
+    ::highlight(hi) { color: green }
+  }
+</style>
+<div id="container">
+  <span id="sel">Selection</span>
+  <span id="hi">Highlight</span>
+</div>
+<script>
+  getSelection().selectAllChildren(sel);
+  let highlight_range = document.createRange();
+  highlight_range.selectNode(hi);
+  CSS.highlights.set("hi", new Highlight(highlight_range));
+</script>

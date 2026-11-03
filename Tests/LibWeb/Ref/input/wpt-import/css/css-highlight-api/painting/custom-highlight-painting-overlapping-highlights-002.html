@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: Overlapping Highlights</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-overlapping-highlights-002-ref.html">
+<meta name="assert" value="UAs must not define any styles for custom highlight pseudo-elements in the default UA stylesheet.">
+<style>
+  div {
+      font-size: 3em;
+      font-weight: bolder;
+  }
+  #affected1::highlight(highlight1) {
+    color: green;
+    background-color: rgb(0, 255, 0, 0.5);
+  }
+  #affected2::highlight(highlight2) {
+    color: red;
+    background-color: rgba(100, 0, 100, 0.5);
+  }
+</style>
+<body><div><span id="affected1">Green on lime.</span><span id="affected2">Red on maroon.</span></div>
+<script>
+  /*
+    This test is meant to verify that:
+      - UAs must not define any styles for custom highlight pseudo-elements in
+      the default UA stylesheet.
+      - UAs do not paint unstyled custom highlights.
+
+    In this test, highlight1 has higher priority, so it is painted over
+    highlight2. This includes painting for span#affected2, where there is no CSS
+    rule for highlight1. But since unstyled custom highlights are not painted,
+    span#affected2 is still painted with the styles for highlight2.
+
+    See https://drafts.csswg.org/css-highlight-api-1/#default-styles
+  */
+
+  const div = document.querySelector("div");
+
+  let r = new Range();
+  r.setStart(div, 0);
+  r.setEnd(div, 2);
+  let r2 = new Range();
+  r2.setStart(div, 0);
+  r2.setEnd(div, 2);
+
+  let h = new Highlight(r);
+  h.priority = 3;
+  let h2 = new Highlight(r2);
+  h2.priority = 2;
+
+  CSS.highlights.set("highlight1", h);
+  CSS.highlights.set("highlight2", h2);
+</script>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Custom highlight: stacked highlights over a replaced element</title>
+<link rel="author" title="Fernando Fiori" href="mailto:ffiori@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-bounds">
+<link rel="match" href="../../../../expected/wpt-import/css/css-highlight-api/highlight-image-stacked-ref.html">
+<meta name="assert" content="Two custom highlights covering a replaced element stack by priority; the higher-priority opaque background paints on top of the lower one.">
+<style>
+  ::highlight(under) { background-color: blue; }
+  ::highlight(over) { background-color: green; }
+</style>
+<body>
+<div id="d"><img src="../../images/blank-highlight.png"></div>
+<script>
+  const d = document.getElementById('d');
+  const makeHighlight = () => new Highlight(new StaticRange({
+    startContainer: d, startOffset: 0, endContainer: d, endOffset: 1,
+  }));
+  const under = makeHighlight();
+  const over = makeHighlight();
+  under.priority = 0;
+  over.priority = 1;
+  CSS.highlights.set("under", under);
+  CSS.highlights.set("over", over);
+</script>
+</body>

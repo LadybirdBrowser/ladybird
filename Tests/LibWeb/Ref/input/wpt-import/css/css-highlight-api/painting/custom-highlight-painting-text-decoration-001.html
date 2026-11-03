@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Highlight API Test: ::highlight painting text-decoration</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-text-decoration-001-ref.html">
+<meta name="assert" content="This test checks that ::highlight pseudo-element paints text-decorations defined by it.">
+<meta name="fuzzy" content="0-255;0-27">
+<style>
+  div {
+    float: left;
+    margin: 0.5em;
+    /* Setting transparent color is a workaround to avoid hitting the following Chromium bug: https://crbug.com/1179938.
+       This could be removed once that bug is fixed. */
+    color: transparent;
+  }
+</style>
+<p>The test passes if it matches the reference file.</p>
+<script>
+  let textDecorationStyles = [
+    "solid green underline", "double green underline", "dotted green underline", "dashed green underline", "wavy green underline",
+    "solid blue overline", "double blue overline", "dotted blue overline", "dashed blue overline", "wavy blue overline",
+    "solid magenta line-through", "double magenta line-through", "dotted magenta line-through", "dashed magenta line-through", "wavy magenta line-through",
+    "solid brown underline overline line-through", "double brown underline overline line-through", "dotted brown underline overline line-through", "dashed brown underline overline line-through", "wavy brown underline overline line-through",
+  ];
+
+  textDecorationStyles.forEach((textDecorationStyle, index) => {
+    document.styleSheets[0].insertRule(`::highlight(h${index}) { text-decoration: ${textDecorationStyle}; }`);
+    let element = document.createElement("div");
+    element.innerHTML = textDecorationStyle;
+    document.body.appendChild(element);
+    let range = new Range();
+    range.setStart(element, 0);
+    range.setEnd(element, 1);
+    CSS.highlights.set(`h${index}`, new Highlight(range));
+  });
+</script>

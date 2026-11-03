@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Custom highlight pseudo elements over images.</title>
+    <link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/#creating-highlights">
+    <link rel="mismatch" href="../../../../expected/wpt-import/css/css-highlight-api/highlight-image-notref.html">
+    <meta name="assert" content="Highlights should be able to be specified over images.">
+    <style>
+    ::highlight(example-highlight1) {
+        background-color: rgba(200,0,0,.5);
+        color:green;
+    }
+    </style>
+</head>
+<body>
+    <div id="img1"><img src="../../images/blank-highlight.png"></div>
+
+    <script>
+        let imageElement1 = document.getElementById('img1');
+        let highlight1 = new Highlight(new StaticRange({startContainer: imageElement1, startOffset: 0, endContainer: imageElement1, endOffset: 1}));
+
+
+        CSS.highlights.set("example-highlight1", highlight1);
+    </script>
+</body>
+</html>

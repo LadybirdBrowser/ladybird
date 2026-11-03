@@ -43,6 +43,8 @@ pub(crate) struct RecordingScratch {
     pub(super) search_text_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
     pub(super) search_text_current_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
     pub(super) spelling_error_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
+    pub(super) custom_highlight_style_cache:
+        HashMap<(u32, crate::css::style::index::StyleAtomID), Option<Arc<SelectionStyleAnswer>>>,
     pub(super) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
 
@@ -106,6 +108,7 @@ impl RecordingScratch {
         self.search_text_style_cache.clear();
         self.search_text_current_style_cache.clear();
         self.spelling_error_style_cache.clear();
+        self.custom_highlight_style_cache.clear();
         self.wheel_hit_test_target_cache.clear();
     }
 

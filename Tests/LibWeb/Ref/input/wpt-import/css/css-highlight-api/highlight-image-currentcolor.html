@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Custom highlight: currentColor over a replaced element resolves against the previous layer</title>
+<link rel="author" title="Fernando Fiori" href="mailto:ffiori@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-cascade">
+<link rel="match" href="../../../../expected/wpt-import/css/css-highlight-api/highlight-image-currentcolor-ref.html">
+<meta name="assert" content="A higher-priority ::highlight() with background-color: currentColor over a replaced element resolves currentColor against the previous (lower) layer's resolved color, not the host element's color.">
+<style>
+  body { color: blue; }
+  /* Lower layer paints red and sets the resolved current color to green. */
+  ::highlight(low) { background-color: red; color: green; }
+  /* Higher layer's currentColor must resolve to the low layer's green,
+     NOT the host's blue. */
+  ::highlight(high) { background-color: currentColor; }
+</style>
+<body>
+<div id="d"><img src="../../images/blank-highlight.png"></div>
+<script>
+  const d = document.getElementById('d');
+  const makeHighlight = () => new Highlight(new StaticRange({
+    startContainer: d, startOffset: 0, endContainer: d, endOffset: 1,
+  }));
+  const low = makeHighlight();
+  const high = makeHighlight();
+  low.priority = 0;
+  high.priority = 1;
+  CSS.highlights.set("low", low);
+  CSS.highlights.set("high", high);
+</script>
+</body>

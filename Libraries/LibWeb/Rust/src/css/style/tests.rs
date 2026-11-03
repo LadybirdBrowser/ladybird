@@ -1205,7 +1205,7 @@ fn pseudo_element_records_the_host_references_outlive_engine_assignments() {
     };
     let held_record = publish(&mut engine, BEFORE, 1);
     let host_reference = engine.computed_group_sets.host_record(held_record).cloned();
-    engine.set_held_pseudo_style_record(node, BEFORE, held_record);
+    engine.set_held_pseudo_style_record(node, pipeline::PseudoElementTarget::of_kind(BEFORE), held_record);
 
     // The engine can publish a replacement before the host installs it.
     let replacement = publish(&mut engine, BEFORE, 2);
@@ -1213,7 +1213,7 @@ fn pseudo_element_records_the_host_references_outlive_engine_assignments() {
     assert!(engine.computed_group_sets.final_style_record_is_live(held_record));
 
     drop(host_reference);
-    engine.set_held_pseudo_style_record(node, BEFORE, replacement);
+    engine.set_held_pseudo_style_record(node, pipeline::PseudoElementTarget::of_kind(BEFORE), replacement);
     engine.computed_group_sets.reclaim_unreachable();
     assert!(!engine.computed_group_sets.final_style_record_is_live(held_record));
     assert!(engine.computed_group_sets.final_style_record_is_live(replacement));

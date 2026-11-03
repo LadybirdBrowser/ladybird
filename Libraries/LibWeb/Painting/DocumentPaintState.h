@@ -66,6 +66,8 @@ public:
     void reset_search_text_states();
     void recompute_spelling_error_states(Layout::BegunRead const& read, DOM::Document&, Editing::SpellingMarkers&);
     void reset_spelling_error_states();
+    void recompute_custom_highlight_states(Layout::BegunRead const& read, DOM::Document&, CSS::HighlightRegistry&);
+    void reset_custom_highlight_states();
 
     Compositing::ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
 

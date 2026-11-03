@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/custom-highlight-green-text-ref.html">
+<style>
+::highlight(green) {
+    background-color: green;
+}
+iframe {
+    display: none;
+}
+</style>
+<p id="target">text</p>
+<iframe id="frame" srcdoc="frame text"></iframe>
+<script>
+frame.addEventListener("load", () => {
+    const range = new Range();
+    range.selectNodeContents(frame.contentDocument.body);
+    CSS.highlights.set("green", new Highlight(range));
+    requestAnimationFrame(() => {
+        range.selectNodeContents(target);
+        requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait"));
+    });
+});
+</script>
+</html>

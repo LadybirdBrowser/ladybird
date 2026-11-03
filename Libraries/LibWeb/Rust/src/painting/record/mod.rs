@@ -390,8 +390,34 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let answer = Self::highlight_style_answer(committed, || paint::text::SelectionStyleAnswer {
             facts: crate::painting::host::FfiSelectionStyleFacts::default(),
             shadows: Vec::new(),
+            decoration_metrics: None,
         });
         self.scratch.spelling_error_style_cache.insert(key, answer.clone());
+        answer
+    }
+
+    pub(crate) fn custom_highlight_style(
+        &mut self,
+        node: crate::layout::node_data::NodeSlotId,
+        layer: u32,
+    ) -> Option<Arc<paint::text::SelectionStyleAnswer>> {
+        let name = *self.paint_state.custom_highlights.layers.get(layer as usize)?;
+        let key = (node.index, name);
+        if let Some(answer) = self.scratch.custom_highlight_style_cache.get(&key) {
+            return answer.clone();
+        }
+        // https://drafts.csswg.org/css-highlight-api-1/#default-styles
+        // UAs must not define any default UA stylesheet rules or paired default highlight colors for any custom
+        // highlight pseudo-elements.
+        let answer = self
+            .paint_state
+            .custom_highlight_pseudo_styles
+            .get(&name)
+            .and_then(|styles| {
+                let element_row = self.first_non_anonymous_ancestor_row(node)?;
+                self.committed_highlight_pseudo_style_in(styles, node, element_row)
+            });
+        self.scratch.custom_highlight_style_cache.insert(key, answer.clone());
         answer
     }
 
@@ -413,6 +439,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                     ..answer.facts
                 };
                 defaults.shadows = answer.shadows.clone();
+                defaults.decoration_metrics = answer.decoration_metrics;
                 Arc::new(defaults)
             }
         }
@@ -424,7 +451,15 @@ impl<O: Observer> PaintRecorder<'_, O> {
         node: crate::layout::node_data::NodeSlotId,
         element_row: crate::layout::node_data::NodeSlotId,
     ) -> Option<Arc<paint::text::SelectionStyleAnswer>> {
-        let styles = self.paint_state.highlight_pseudo_styles(highlight);
+        self.committed_highlight_pseudo_style_in(self.paint_state.highlight_pseudo_styles(highlight), node, element_row)
+    }
+
+    fn committed_highlight_pseudo_style_in(
+        &self,
+        styles: &crate::painting::paint_state::SelectionPseudoStyles,
+        node: crate::layout::node_data::NodeSlotId,
+        element_row: crate::layout::node_data::NodeSlotId,
+    ) -> Option<Arc<paint::text::SelectionStyleAnswer>> {
         if let Some(answer) = styles.get(&node) {
             return Some(answer.clone());
         }
@@ -469,6 +504,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 ..Default::default()
             },
             shadows: Vec::new(),
+            decoration_metrics: None,
         }
     }
 
@@ -487,6 +523,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                     ..Default::default()
                 },
                 shadows: Vec::new(),
+                decoration_metrics: None,
             };
         }
         let background_color = libgfx_rust::Color::from_rgb(255, 255, 0);
@@ -498,6 +535,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 ..Default::default()
             },
             shadows: Vec::new(),
+            decoration_metrics: None,
         }
     }
 

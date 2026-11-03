@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Highlight API Test: ::highlight text-decoration paints over higher priority when not clashing</title>
+    <link rel="help" href="https://www.w3.org/TR/css-highlight-api-1/#priorities">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-priority-text-decoration-001-ref.html">
+    <style>
+    ::highlight(yellow-highlight) {
+        background-color: yellow;
+    }
+    ::highlight(underline-highlight) {
+        text-decoration: underline;
+        text-decoration-color: red;
+    }
+    </style>
+</head>
+<body>
+    <span id="yellow-highlight">Yellow</span>
+
+    <script>
+        let yellow = document.getElementById("yellow-highlight");
+        let highlightYellow = new Highlight(new StaticRange({
+            startContainer: yellow.childNodes[0],
+            startOffset: 0,
+            endContainer: yellow.childNodes[0],
+            endOffset: 6
+        }));
+        let highlightUnderline = new Highlight(new StaticRange({
+            startContainer: yellow.childNodes[0],
+            startOffset: 0,
+            endContainer: yellow.childNodes[0],
+            endOffset: 6
+        }));
+        CSS.highlights.set("yellow-highlight", highlightYellow);
+        CSS.highlights.set("underline-highlight", highlightUnderline);
+        highlightYellow.priority = 10;
+    </script>
+</body>
+</html>

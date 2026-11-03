@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/HighlightRegistry.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/Range.h>
@@ -178,7 +180,7 @@ static void append_highlight_entry(Layout::BegunRead const& read, Vector<Layout:
 }
 
 template<typename IsExcluded, typename Callback>
-static void for_each_node_in_highlight_range(Layout::BegunRead const& read, DOM::Range& range, IsExcluded is_excluded, Callback callback)
+static void for_each_node_in_highlight_range(Layout::BegunRead const& read, DOM::AbstractRange const& range, IsExcluded is_excluded, Callback callback)
 {
     auto start_container = range.start_container();
     auto end_container = range.end_container();
@@ -283,6 +285,71 @@ void DocumentPaintState::recompute_search_text_states(Layout::BegunRead const& r
     if (active_match)
         append_range(*active_match, true);
     Layout::RustFFI::render_state_apply_search_text(m_layout_node_arena->host(), viewport_row_slot(read, document), ranges.span(), entries.span());
+}
+
+// https://dom.spec.whatwg.org/#contained
+// A node node is contained in a live range range if node’s root is range’s root, and (node, 0) is after range’s
+// start, and (node, node’s length) is before range’s end.
+static bool range_contains_node(DOM::AbstractRange const& range, DOM::Node& node)
+{
+    if (&node.root() != &range.start_container()->root())
+        return false;
+    auto length = static_cast<WebIDL::UnsignedLong>(node.length());
+    return DOM::position_of_boundary_point_relative_to_other_boundary_point({ node, 0 }, range.start()) == DOM::RelativeBoundaryPointPosition::After
+        && DOM::position_of_boundary_point_relative_to_other_boundary_point({ node, length }, range.end()) == DOM::RelativeBoundaryPointPosition::Before;
+}
+
+void DocumentPaintState::reset_custom_highlight_states()
+{
+    Layout::RustFFI::render_state_clear_custom_highlights(m_layout_node_arena->host());
+}
+
+void DocumentPaintState::recompute_custom_highlight_states(Layout::BegunRead const& read, DOM::Document& document, CSS::HighlightRegistry& registry)
+{
+    auto& style_engine = document.style_computer().style_engine();
+    Vector<u32> layers;
+    Vector<Layout::RustFFI::FfiCustomHighlightTextEntry> text_entries;
+    Vector<Layout::RustFFI::FfiCustomHighlightReplacedEntry> replaced_entries;
+    auto is_excluded = [](DOM::Node const&) { return false; };
+    registry.for_each_highlight_in_stacking_order([&](Utf16String const& name, ReadonlySpan<GC::Ref<DOM::AbstractRange>> ranges) {
+        auto layer = static_cast<u32>(layers.size());
+        bool covers_something = false;
+        for (auto const& range : ranges) {
+            if (!CSS::HighlightRegistry::range_is_paintable(document, *range))
+                continue;
+            for_each_node_in_highlight_range(read, *range, is_excluded, [&](DOM::Node& node, SelectionState state) {
+                auto* layout_node = node.unsafe_layout_node(read);
+                if (!layout_node)
+                    return;
+                if (is<DOM::Text>(node)) {
+                    bool starts_in_node = state == SelectionState::Start || state == SelectionState::StartAndEnd;
+                    bool ends_in_node = state == SelectionState::End || state == SelectionState::StartAndEnd;
+                    text_entries.append({
+                        .layer = layer,
+                        .layout_node = Layout::Node::slot_id(layout_node),
+                        .start_offset = starts_in_node ? range->start_offset() : 0,
+                        .end_offset = ends_in_node ? range->end_offset() : NumericLimits<size_t>::max(),
+                    });
+                    covers_something = true;
+                    return;
+                }
+                if (layout_node->kind() == Layout::RustFFI::NodeKind::ImageBox && has_committed_box(*layout_node) && range_contains_node(*range, node)) {
+                    replaced_entries.append({
+                        .layer = layer,
+                        .layout_node = Layout::Node::slot_id(layout_node),
+                    });
+                    covers_something = true;
+                }
+            });
+        }
+        if (covers_something)
+            layers.append(style_engine.intern_atom(Utf16FlyString { name }).value());
+    });
+    if (text_entries.is_empty() && replaced_entries.is_empty()) {
+        reset_custom_highlight_states();
+        return;
+    }
+    Layout::RustFFI::render_state_apply_custom_highlights(m_layout_node_arena->host(), viewport_row_slot(read, document), layers.span(), text_entries.span(), replaced_entries.span());
 }
 
 void DocumentPaintState::reset_spelling_error_states()

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/custom-highlight-registered-after-first-paint-ref.html">
+<style>
+#first::highlight(green), #second::highlight(green), #third::highlight(green), #fourth::highlight(green) {
+    background-color: green;
+}
+</style>
+<p id="shared"><span id="first">one</span> <span id="second">two</span></p>
+<p id="outer"><span id="third">three</span> <span id="fourth">four</span></p>
+<p id="other">other</p>
+<script>
+const other = new Range();
+other.selectNodeContents(document.getElementById("other"));
+CSS.highlights.set("other", new Highlight(other));
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        const first = new Range();
+        first.setStart(shared, 0);
+        first.setEnd(shared, 1);
+        const second = new Range();
+        second.setStart(shared, 2);
+        second.setEnd(shared, 3);
+        const third = new Range();
+        third.setStart(outer, 0);
+        third.setEnd(outer, 1);
+        const fourth = new Range();
+        fourth.selectNodeContents(document.getElementById("fourth"));
+        CSS.highlights.set("green", new Highlight(first, second, third, fourth));
+    });
+});
+</script>
+</html>

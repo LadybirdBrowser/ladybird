@@ -580,6 +580,63 @@ pub unsafe extern "C" fn web_highlight_registry_create(vm: *mut c_void, document
     cell_into_abi(HighlightRegistry::create(vm, document))
 }
 
+/// # Safety
+///
+/// `registry` must be a live HighlightRegistry.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_highlight_registry_has_highlights(registry: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live HighlightRegistry.
+    unsafe { cell_from_abi::<HighlightRegistry>(registry) }.has_highlights()
+}
+
+/// # Safety
+///
+/// `registry` must be a live HighlightRegistry.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_highlight_registry_has_ranges(registry: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live HighlightRegistry.
+    unsafe { cell_from_abi::<HighlightRegistry>(registry) }.has_ranges()
+}
+
+/// # Safety
+///
+/// `registry` must be a live HighlightRegistry, and `range` a live AbstractRange.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_highlight_registry_contains_range(registry: *mut c_void, range: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live HighlightRegistry.
+    unsafe { cell_from_abi::<HighlightRegistry>(registry) }.contains_range(range)
+}
+
+/// Calls back with the name and the ranges of each registered custom highlight, from the bottom of the stacking order
+/// to the top. The callback adopts the name, and the ranges stay alive until it returns.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `registry` a live HighlightRegistry, and `callback` a function that takes `context`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_highlight_registry_for_each_highlight_in_stacking_order(
+    vm: *mut c_void,
+    registry: *mut c_void,
+    context: *mut c_void,
+    callback: unsafe extern "C" fn(context: *mut c_void, name: usize, ranges: *const *mut c_void, range_count: usize),
+) {
+    // SAFETY: The caller passes the live VM and a live HighlightRegistry.
+    let (vm, registry) = unsafe { (vm_from_abi(vm), cell_from_abi::<HighlightRegistry>(registry)) };
+    for entry in registry.highlights_in_stacking_order(vm).values().iter() {
+        let ranges = entry.highlight.ranges(vm);
+        let range_cells: Vec<*mut c_void> = ranges.values().iter().map(CppCell::as_ptr).collect();
+        // SAFETY: The caller passes a callback that takes the context, and the marked list keeps the ranges alive.
+        unsafe {
+            callback(
+                context,
+                entry.name.clone().into_raw(),
+                range_cells.as_ptr(),
+                range_cells.len(),
+            );
+        }
+    }
+}
+
 /// A new StylePropertyMap of the declaration.
 ///
 /// # Safety

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<style>
+  #span-doc {
+    color: green;
+    background-color: greenyellow;
+  }
+</style>
+<body>
+<iframe
+  id="iframe"
+  srcdoc="
+    <style>
+      span {
+        color: blue;
+        background-color: cyan;
+      }
+    </style>
+    <span id='span-iframe'>abc</span>
+  "
+  >
+</iframe>
+<br>
+<span id="span-doc">abc</span>

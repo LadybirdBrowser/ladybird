@@ -1252,6 +1252,58 @@ void Document::update_highlight_states_if_needed(Layout::BegunRead const& read)
         recompute_spelling_error_paint_states(read);
         Node::set_needs_repaint(InvalidateDisplayList::PaintCommands);
     }
+    if (m_has_registered_custom_highlight_ranges && !m_custom_highlight_states_are_stale) {
+        auto row_generation = m_layout_node_arena ? Layout::RustFFI::render_state_custom_highlight_row_generation(m_layout_node_arena->host(), &read) : 0;
+        m_custom_highlight_states_are_stale = dom_tree_version() != m_custom_highlight_states_dom_tree_version
+            || character_data_version() != m_custom_highlight_states_character_data_version
+            || row_generation != m_custom_highlight_states_row_generation;
+    }
+    if (m_custom_highlight_states_are_stale && has_committed_viewport_box()) {
+        m_custom_highlight_states_are_stale = false;
+        recompute_custom_highlight_paint_states(read);
+        Node::set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    }
+}
+
+bool Document::has_custom_highlights() const
+{
+    return m_highlight_registry && m_highlight_registry->has_highlights();
+}
+
+void Document::invalidate_custom_highlights()
+{
+    // https://drafts.csswg.org/css-highlight-api-1/#repaint
+    // The addition or removal of a custom highlight in the highlight registry, or of a range in a registered custom
+    // highlight, must cause the user agent to reevaluate the rendering, and to repaint if appropriate. The user agent
+    // must also repaint highlights as needed in response to changes by the author to the priority, or to the boundary
+    // points of Ranges of a registered custom highlight.
+    m_custom_highlight_states_are_stale = true;
+    set_needs_highlight_style_update(CSS::PseudoElement::Highlight);
+    bool has_ranges = m_highlight_registry && m_highlight_registry->has_ranges();
+    if (has_ranges != m_has_registered_custom_highlight_ranges) {
+        m_has_registered_custom_highlight_ranges = has_ranges;
+        if (m_layout_node_arena)
+            Layout::RustFFI::render_state_set_has_registered_custom_highlight_ranges(m_layout_node_arena->host(), has_ranges);
+    }
+    // This repaint is asynchronous, and the APIs mentioned above must not block while waiting for the repaint to
+    // happen.
+    request_frame_for_pending_repaint();
+}
+
+void Document::recompute_custom_highlight_paint_states(Layout::BegunRead const& read)
+{
+    m_custom_highlight_states_dom_tree_version = dom_tree_version();
+    m_custom_highlight_states_character_data_version = character_data_version();
+    m_custom_highlight_states_row_generation = 0;
+    if (m_layout_node_arena) {
+        Layout::RustFFI::render_state_set_has_registered_custom_highlight_ranges(m_layout_node_arena->host(), m_has_registered_custom_highlight_ranges);
+        m_custom_highlight_states_row_generation = Layout::RustFFI::render_state_custom_highlight_row_generation(m_layout_node_arena->host(), &read);
+    }
+    if (!has_custom_highlights()) {
+        paint_state().reset_custom_highlight_states();
+        return;
+    }
+    paint_state().recompute_custom_highlight_states(read, *this, *m_highlight_registry);
 }
 
 void Document::set_find_in_page_highlighted_matches(GC::RootVector<GC::Ref<Range>> matches)

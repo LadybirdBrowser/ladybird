@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Custom Highlight: a highlight registered as * is styled by the escaped ::highlight(\*)</title>
+<link rel="author" href="mailto:seokho@chromium.org">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/9091">
+<link rel="match" href="../../../../expected/wpt-import/css/css-highlight-api/custom-highlight-universal-painting-001-ref.html">
+<meta name="assert" value="The registry name * pairs with the escaped selector \*; the escaped form is an ordinary name, not the universal selector.">
+<style>
+  ::highlight(\*) {
+    background-color: yellow;
+    color: blue;
+  }
+</style>
+<body><span>One </span><span>two </span><span>three…</span>
+<script>
+  let r = new Range();
+  r.setStart(document.body, 0);
+  r.setEnd(document.body, 2);
+
+  CSS.highlights.set("*", new Highlight(r));
+</script>

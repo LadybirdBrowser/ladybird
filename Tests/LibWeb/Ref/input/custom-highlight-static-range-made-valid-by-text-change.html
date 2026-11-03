@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/custom-highlight-green-text-ref.html">
+<style>
+::highlight(green) {
+    background-color: green;
+}
+</style>
+<p id="target">te</p>
+<script>
+const text = target.firstChild;
+CSS.highlights.set("green", new Highlight(new StaticRange({ startContainer: text, startOffset: 0, endContainer: text, endOffset: 4 })));
+requestAnimationFrame(() => {
+    document.body.offsetWidth;
+    text.appendData("xt");
+});
+</script>

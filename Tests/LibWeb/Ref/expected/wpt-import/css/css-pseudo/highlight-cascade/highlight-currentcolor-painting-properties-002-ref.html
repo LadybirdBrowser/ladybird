@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8" />
+<title>CSS Pseudo-Elements Test: Reference</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="stylesheet" href="../support/highlights.css">
+<style>
+div {
+  color: lime;
+  background: green;
+  margin: 10px;
+}
+div > span {
+  color: yellow;
+  background: maroon;
+}
+#empty > span > span {
+}
+#color-currentcolor > span > span {
+  color: currentcolor;
+}
+#backgroundcolor-currentcolor > span > span {
+  background-color: currentcolor;
+}
+#textdecorationcolor-currentcolor > span > span {
+  text-decoration-line: underline;
+  text-decoration-color: currentcolor;
+}
+#color-currentcolor-backgroundcolor-currentcolor > span > span {
+  color: currentcolor;
+  background-color: currentcolor;
+}
+#color-currentcolor-backgroundcolor-blue > span > span {
+  color: currentcolor;
+  background-color: blue;
+}
+#color-blue-backgroundcolor-currentcolor > span > span {
+  color: blue;
+  background-color: currentcolor;
+}
+</style>
+
+<div id="empty" class="highlight_reftest"><span><span>ex</span>ample</span> - empty</div>
+<div id="color-currentcolor" class="highlight_reftest"><span><span>ex</span>ample</span> - color-currentcolor</div>
+<div id="backgroundcolor-currentcolor" class="highlight_reftest"><span><span>ex</span>ample</span> - backgroundcolor-currentcolor</div>
+<div id="textdecorationcolor-currentcolor" class="highlight_reftest"><span><span>ex</span>ample</span> - textdecorationcolor-currentcolor</div>
+<div id="color-currentcolor-backgroundcolor-currentcolor" class="highlight_reftest"><span><span>ex</span>ample</span> - color-currentcolor-backgroundcolor-currentcolor</div>
+<div id="color-currentcolor-backgroundcolor-blue" class="highlight_reftest"><span><span>ex</span>ample</span> - color-currentcolor-backgroundcolor-blue</div>
+<div id="color-blue-backgroundcolor-currentcolor" class="highlight_reftest"><span><span>ex</span>ample</span> - color-blue-backgroundcolor-currentcolor</div>

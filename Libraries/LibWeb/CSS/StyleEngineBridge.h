@@ -41,6 +41,7 @@ using Layout::RustFFI::DocumentHost;
 // test there checks each declaration against its row. An AK Span crosses by value as the table's FfiSpan.
 extern "C" {
 void style_engine_set_highlight_observing_elements(DocumentHost const*, u8 kind, ReadonlySpan<StyleNodeID> nodes);
+void style_engine_set_custom_highlight_observing_elements(DocumentHost const*, ReadonlySpan<StyleNodeID> nodes, ReadonlySpan<StyleAtomID> names);
 void style_engine_set_fold_id_and_class_name_case(DocumentHost const*, bool fold);
 void style_engine_set_html_element_namespace(DocumentHost const*, StyleAtomID namespace_atom);
 void style_engine_mark_relation_only_style_node(DocumentHost const*, StyleNodeID node);
@@ -91,7 +92,7 @@ void style_engine_evaluate_size_containers_needing_evaluation_after_layout(Docum
 void style_engine_set_element_backing_pseudo_kind(DocumentHost const*, StyleNodeID node, u8 pseudo_kind_plus_one);
 void style_engine_set_counter_style_environment_identity(DocumentHost const*, TreeScopeID tree_scope, u64 identity);
 void style_engine_set_held_style_record(DocumentHost const*, StyleNodeID node, void const* record);
-void style_engine_set_held_pseudo_style_record(DocumentHost const*, StyleNodeID node, u8 pseudo_kind, u64 style_record, void const* released);
+void style_engine_set_held_pseudo_style_record(DocumentHost const*, StyleNodeID node, u8 pseudo_kind, StyleAtomID highlight_name, u64 style_record, void const* released);
 void style_engine_set_element_css_defined_animations(DocumentHost const*, StyleNodeID node, u8 slot, ReadonlySpan<FlatPtr> names, ReadonlySpan<FfiAppliedAnimationDefinition> definitions);
 void style_engine_set_tree_scope_root(DocumentHost const*, TreeScopeID tree_scope, StyleNodeID root);
 void style_engine_set_sheet_conditions_hold(DocumentHost const*, SheetID sheet, bool conditions_hold);
@@ -330,6 +331,8 @@ public:
     // The elements the host shows the highlight pseudo-element of the kind in, which style updates
     // style that pseudo-element of. Those that start or stop showing it are restyled.
     void set_highlight_observing_elements(PseudoElement, ReadonlySpan<StyleNodeID>);
+    // The elements the host shows custom highlights in, with the name of each at the same index in `names`.
+    void set_custom_highlight_observing_elements(ReadonlySpan<StyleNodeID> style_nodes, ReadonlySpan<StyleAtomID> names);
     // What a container query or container-relative length read of the element's containers moved.
     void record_container_query_input_change(StyleNodeID style_node);
     // Records every element whose style a size query or container-relative unit decided against the container.

@@ -311,7 +311,8 @@ impl RetainedState {
             )
             .with(
                 MainEffects::HIGHLIGHTS,
-                self.holds_pseudo_element_records_of(node, &HIGHLIGHT_PSEUDO_ELEMENTS),
+                self.holds_pseudo_element_records_of(node, &HIGHLIGHT_PSEUDO_ELEMENTS)
+                    || self.computed_group_sets.custom_highlight_records(node).next().is_some(),
             )
             .with(
                 MainEffects::ANIMATED,
@@ -440,7 +441,7 @@ mod tests {
         let marker_record = held(state.computed_group_sets.pseudo_style_record(node, MARKER));
         let element_held = state.computed_group_sets.host_record(element_record).cloned();
         state.set_held_style_record(node, element_held);
-        state.set_held_pseudo_style_record(node, MARKER, marker_record);
+        state.set_held_pseudo_style_record(node, super::super::PseudoElementTarget::of_kind(MARKER), marker_record);
         installation
             .effects_of(node)
             .is_some_and(|effects| effects.effects.intersects(MainEffects::REBUILD))

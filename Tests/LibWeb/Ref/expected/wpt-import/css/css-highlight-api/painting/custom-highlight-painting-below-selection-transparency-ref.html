@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<style>
+  #highlighted {
+    background: yellow;
+  }
+</style>
+
+<body><span id="highlighted">This should be yellow, <span id="selected">this should mix with the
+      selection,</span></span> this should have no background.
+  <script>
+    getSelection().setBaseAndExtent(selected, 0, selected, 1);
+  </script>

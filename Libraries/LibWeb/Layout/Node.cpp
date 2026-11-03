@@ -671,7 +671,7 @@ void NodeWithStyle::adopt_style_record_installed_by_render_state()
 
 void NodeWithStyle::did_update_style_record()
 {
-    if (auto const* element = as_if<DOM::Element>(dom_node()); element && (element->has_style(CSS::PseudoElement::Selection) || element->has_style(CSS::PseudoElement::SearchText) || element->has_style(CSS::PseudoElement::SearchTextCurrent) || element->has_style(CSS::PseudoElement::SpellingError)))
+    if (auto const* element = as_if<DOM::Element>(dom_node()); element && (element->has_style(CSS::PseudoElement::Selection) || element->has_style(CSS::PseudoElement::SearchText) || element->has_style(CSS::PseudoElement::SearchTextCurrent) || element->has_style(CSS::PseudoElement::SpellingError) || element->custom_highlight_styles()))
         Painting::push_highlight_pseudo_styles(*element);
 
     if (style_group<CSS::ComputedValues::MiscInteractionValues>().scroll_snap_strictness_value() != CSS::ScrollSnapStrictness::None)

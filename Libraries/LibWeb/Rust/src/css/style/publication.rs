@@ -53,10 +53,7 @@ impl RetainedState {
         node: StyleNodeID,
         target: pipeline::PseudoElementTarget,
     ) -> Option<computed::FinalStyleRecordID> {
-        match target.is_custom_highlight() {
-            true => None,
-            false => self.computed_group_sets.pseudo_style_record(node, target.kind),
-        }
+        self.computed_group_sets.pseudo_style_record_of(node, target)
     }
 
     #[cfg(test)]
@@ -665,8 +662,16 @@ impl RetainedState {
         node: StyleNodeID,
         pseudo_kind: u8,
     ) -> Option<computed::FinalStyleRecordID> {
+        self.remove_computed_pseudo_of(node, pipeline::PseudoElementTarget::of_kind(pseudo_kind))
+    }
+
+    pub(in crate::css::style) fn remove_computed_pseudo_of(
+        &mut self,
+        node: StyleNodeID,
+        target: pipeline::PseudoElementTarget,
+    ) -> Option<computed::FinalStyleRecordID> {
         let live_animation_overlays_before = self.computed_group_sets.live_animation_overlay_records();
-        let removed_style_record = self.computed_group_sets.remove_pseudo(node, pseudo_kind);
+        let removed_style_record = self.computed_group_sets.remove_pseudo_of(node, target);
         let live_animation_overlays_after = self.computed_group_sets.live_animation_overlay_records();
         let removed_style_record = removed_style_record?;
         self.counters.bump(Counter::ComputedPseudoAssignmentsRemoved);

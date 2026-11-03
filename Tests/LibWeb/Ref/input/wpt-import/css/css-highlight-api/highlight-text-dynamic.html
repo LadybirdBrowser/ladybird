@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Highlights Paint after dynamic creation.</title>
+    <link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/#creating-highlights">
+    <link rel="mismatch" href="../../../../expected/wpt-import/css/css-highlight-api/highlight-text-dynamic-notref.html">
+    <meta name="assert" content="Highlight should paint after being created after first paint.">
+    <style>
+        ::highlight(example-highlight) {
+            background-color: yellow;
+            color:green;
+        }
+    </style>
+</head>
+<body>
+    <span id="text1">One two three</span>
+
+    <script>
+        function setHighlight(timestamp) {
+            let textElement = document.getElementById('text1');
+            let highlight1 = new Highlight(new StaticRange({startContainer: textElement.childNodes[0], startOffset: 1, endContainer: textElement.childNodes[0], endOffset: 2}));
+            CSS.highlights.set("example-highlight", highlight1);
+        }
+
+        document.body.offsetLeft;
+        window.requestAnimationFrame(setHighlight);
+    </script>
+</body>
+</html>

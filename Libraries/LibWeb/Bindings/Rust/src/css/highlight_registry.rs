@@ -6,6 +6,7 @@
 
 //! HighlightRegistry, https://drafts.csswg.org/css-highlight-api-1/#highlightregistry
 
+use core::cell::Cell;
 use core::ffi::c_void;
 
 use ak::Utf16String;
@@ -26,6 +27,7 @@ unsafe extern "C" {
     fn web_css_highlight_registry_shadow_root_at_point(document: *mut c_void, x: f32, y: f32) -> *mut c_void;
     fn web_css_highlight_registry_range_is_hit(range: *mut c_void, x: f32, y: f32) -> bool;
     fn web_css_shadow_root_of_wrapper(wrapper: *mut c_void) -> *mut c_void;
+    fn web_css_highlight_registry_invalidate_custom_highlights(document: *mut c_void);
 }
 
 /// The dictionary HighlightsFromPointOptions of CSS/HighlightRegistry.idl.
@@ -43,10 +45,10 @@ pub(crate) struct HighlightHitResult {
 
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
-struct RegisteredHighlight {
+pub(crate) struct RegisteredHighlight {
     #[gc(untraced)]
-    name: Utf16String,
-    highlight: Ref<Highlight>,
+    pub(crate) name: Utf16String,
+    pub(crate) highlight: Ref<Highlight>,
 }
 
 // https://drafts.csswg.org/css-highlight-api-1/#highlightregistry
@@ -54,6 +56,7 @@ struct RegisteredHighlight {
 #[gc(crate = libjs_rust)]
 pub(crate) struct HighlightRegistry {
     document: CppCell,
+    this: Cell<Option<Ref<HighlightRegistry>>>,
     /// The map entries of this maplike object, in registration order.
     highlights: GcRefCell<Vec<RegisteredHighlight>>,
     map_entries: WorldEntries<Map>,
@@ -74,11 +77,59 @@ impl HighlightRegistry {
     }
 
     pub(crate) fn create(vm: &Vm, document: CppCell) -> Ref<Self> {
-        allocate(vm, |_| Self {
+        let registry = allocate(vm, |_| Self {
             document,
+            this: Cell::new(None),
             highlights: GcRefCell::new(Vec::new()),
             map_entries: WorldEntries::default(),
-        })
+        });
+        registry.this.set(Some(registry));
+        registry
+    }
+
+    fn this(&self) -> Ref<Self> {
+        self.this
+            .get()
+            .expect("a HighlightRegistry knows itself once it is created")
+    }
+
+    pub(crate) fn has_highlights(&self) -> bool {
+        !self.highlights.borrow().is_empty()
+    }
+
+    /// Whether a registered custom highlight has a range.
+    pub(crate) fn has_ranges(&self) -> bool {
+        self.highlights
+            .borrow()
+            .iter()
+            .any(|entry| entry.highlight.has_ranges())
+    }
+
+    /// Whether a registered custom highlight has the range whose cell C++ passes.
+    pub(crate) fn contains_range(&self, range: *mut c_void) -> bool {
+        self.highlights
+            .borrow()
+            .iter()
+            .any(|entry| entry.highlight.contains_range(range))
+    }
+
+    /// The registered custom highlights, from the bottom of the stacking order to the top.
+    pub(crate) fn highlights_in_stacking_order<'vm>(&self, vm: &'vm Vm) -> MarkedVec<'vm, RegisteredHighlight> {
+        let highlights = self.registered_highlights(vm);
+        // https://drafts.csswg.org/css-highlight-api-1/#priorities
+        // A higher priority results in being above in the stacking order. [...] When two or more custom highlights
+        // have the same numerical priority, the one most recently registered has the higher effective priority.
+        // NB: The sort is stable, and the map entries are in registration order.
+        highlights
+            .values_mut()
+            .sort_by_key(|entry| entry.highlight.current_priority());
+        highlights
+    }
+
+    /// Tells the document that what the custom highlights paint changed.
+    pub(crate) fn invalidate_custom_highlights(&self) {
+        // SAFETY: The document is live.
+        unsafe { web_css_highlight_registry_invalidate_custom_highlights(self.document.as_ptr()) };
     }
 
     // https://drafts.csswg.org/css-highlight-api-1/#dom-highlightregistry-highlightsfrompoint
@@ -186,23 +237,28 @@ impl Maplike for HighlightRegistry {
 
 impl WritableMaplike for HighlightRegistry {
     fn map_set(&self, cx: &CallContext, key: Utf16String, value: Value) {
-        // FIXME: https://drafts.csswg.org/css-highlight-api-1/#repaint
-        //        The addition or removal of a custom highlight in the highlight registry must cause the user agent to
-        //        reevaluate the rendering, and to repaint if appropriate. We do not paint custom highlights yet.
         let highlight = implementation_of::<Highlight>(value.as_object());
-        {
+        let previous = {
             let mut highlights = self.highlights.borrow_mut(cx.vm());
             match highlights.iter_mut().find(|entry| entry.name == key) {
-                Some(entry) => entry.highlight = highlight,
-                None => highlights.push(RegisteredHighlight {
-                    name: key.clone(),
-                    highlight,
-                }),
+                Some(entry) => Some(core::mem::replace(&mut entry.highlight, highlight)),
+                None => {
+                    highlights.push(RegisteredHighlight {
+                        name: key.clone(),
+                        highlight,
+                    });
+                    None
+                }
             }
+        };
+        if let Some(previous) = previous {
+            previous.did_unregister(self.this());
         }
+        highlight.did_register(cx.vm(), self.this());
         self.map_entries.for_each_live(cx.vm(), |map| {
             set_map_entry(&context_of_map(cx, map), map, &key, highlight);
         });
+        self.invalidate_custom_highlights();
     }
 
     fn map_remove(&self, cx: &CallContext, key: &Utf16String) -> bool {
@@ -210,18 +266,27 @@ impl WritableMaplike for HighlightRegistry {
         let Some(position) = position else {
             return false;
         };
-        self.highlights.borrow_mut(cx.vm()).remove(position);
+        let removed = self.highlights.borrow_mut(cx.vm()).remove(position);
+        removed.highlight.did_unregister(self.this());
         self.map_entries.for_each_live(cx.vm(), |map| {
             let key = key.clone().to_js(cx).expect("a string converts to a JS value");
             map.map_remove(cx.vm(), key);
         });
+        self.invalidate_custom_highlights();
         true
     }
 
     fn map_clear(&self, cx: &CallContext) {
+        let removed = self.registered_highlights(cx.vm());
         self.highlights.borrow_mut(cx.vm()).clear();
+        for entry in removed.values().iter() {
+            entry.highlight.did_unregister(self.this());
+        }
         self.map_entries.for_each_live(cx.vm(), |map| {
             map.map_clear(cx.vm());
         });
+        if !removed.is_empty() {
+            self.invalidate_custom_highlights();
+        }
     }
 }

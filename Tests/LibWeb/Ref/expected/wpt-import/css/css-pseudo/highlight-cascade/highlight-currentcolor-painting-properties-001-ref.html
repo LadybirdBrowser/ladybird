@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8" />
+<title>CSS Pseudo-Elements Test: Reference</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="stylesheet" href="../support/highlights.css">
+<style>
+div {
+  color: lime;
+  background: green;
+  margin: 10px;
+}
+#empty > span {
+}
+#color-currentcolor > span {
+  color: currentcolor;
+}
+#backgroundcolor-currentcolor > span {
+  background-color: currentcolor;
+}
+#textdecorationcolor-currentcolor > span {
+  text-decoration-line: underline;
+  text-decoration-color: currentcolor;
+}
+#color-currentcolor-backgroundcolor-currentcolor > span {
+  color: currentcolor;
+  background-color: currentcolor;
+}
+#color-currentcolor-backgroundcolor-blue > span {
+  color: currentcolor;
+  background-color: blue;
+}
+#color-blue-backgroundcolor-currentcolor > span {
+  color: blue;
+  background-color: currentcolor;
+}
+</style>
+
+<div id="empty" class="highlight_reftest"><span>example</span> - empty</div>
+<div id="color-currentcolor" class="highlight_reftest"><span>example</span> - color-currentcolor</div>
+<div id="backgroundcolor-currentcolor" class="highlight_reftest"><span>example</span> - backgroundcolor-currentcolor</div>
+<div id="textdecorationcolor-currentcolor" class="highlight_reftest"><span>example</span> - textdecorationcolor-currentcolor</div>
+<div id="color-currentcolor-backgroundcolor-currentcolor" class="highlight_reftest"><span>example</span> - color-currentcolor-backgroundcolor-currentcolor</div>
+<div id="color-currentcolor-backgroundcolor-blue" class="highlight_reftest"><span>example</span> - color-currentcolor-backgroundcolor-blue</div>
+<div id="color-blue-backgroundcolor-currentcolor" class="highlight_reftest"><span>example</span> - color-blue-backgroundcolor-currentcolor</div>

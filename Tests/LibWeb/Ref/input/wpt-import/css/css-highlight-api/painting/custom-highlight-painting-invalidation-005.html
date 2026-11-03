@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: </title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-001-ref.html">
+<meta name="assert" value="::highlight overlay is correctly invalidated and repainted after modifying its priority">
+<script src="resources/run-after-layout-and-paint.js"></script>
+<style>
+  ::highlight(example-highlight) {
+    background-color: yellow;
+    color: blue;
+  }
+  ::highlight(another-highlight) {
+    background-color: red;
+    color: orange;
+  }
+</style>
+<body><span>One </span><span>two </span><span>three…</span>
+<script>
+  let r = new Range();
+  r.setStart(document.body, 0);
+  r.setEnd(document.body, 2);
+  let h1 = new Highlight(r);
+  let h2 = new Highlight(r);
+  h1.priority = 1;
+  h2.priority = 2;
+  CSS.highlights.set("example-highlight", h1);
+  CSS.highlights.set("another-highlight", h2);
+
+  // Force frame paint before modifying the Highlight.
+  runAfterLayoutAndPaint(()=>{
+    h1.priority = 3;
+    document.documentElement.removeAttribute("class");
+  });
+</script>
+</html>

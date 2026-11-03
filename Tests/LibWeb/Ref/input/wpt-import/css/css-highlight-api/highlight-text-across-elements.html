@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Custom highlight pseudo elements across elements.</title>
+    <link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/#painting">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-highlight-api/highlight-text-across-elements-ref.html">
+    <meta name="assert" content="Highlights should be able to be specified across elements.">
+    <style>
+        :root {
+            /* This reduces the likelihood that a highlight background-area
+               will overlap with the previous glyph.  That overlap is worth
+               avoiding, because the previous glyph's overlapping part will get
+               clipped in the reference case, but might not in the testcase. */
+            font-family: monospace;
+        }
+        ::highlight(example-highlight1) {
+            background-color: yellow;
+            color:green;
+        }
+        ::highlight(example-highlight2) {
+            background-color: blue;
+            color:red;
+        }
+        ::highlight(example-highlight3) {
+            background-color: purple;
+            color:pink;
+        }
+    </style>
+</head>
+<body>
+    <span id="text1">One two three</span>
+    <span id="text2">four five six</span>
+    <span id="text3">seven eight nine</span>
+    <span id="text4">ten eleven twelve</span>
+    <span id="text5">thirteen fourteen fifteen</span>
+
+    <script>
+        let textElement1 = document.getElementById('text1');
+        let textElement2 = document.getElementById('text2');
+        let textElement3 = document.getElementById('text3');
+        let textElement4 = document.getElementById('text4');
+        let textElement5 = document.getElementById('text5');
+        let highlight1 = new Highlight(new StaticRange({startContainer: textElement1.childNodes[0], startOffset: 4, endContainer: textElement1.childNodes[0], endOffset: 7}));
+
+        let highlight2 = new Highlight(new StaticRange({startContainer: textElement1.childNodes[0], startOffset: 10, endContainer: textElement2.childNodes[0], endOffset: 4}));
+        highlight2.add(new StaticRange({startContainer: textElement2.childNodes[0], startOffset: 10, endContainer: textElement3.childNodes[0], endOffset: 5}));
+
+        let highlight3 = new Highlight(new StaticRange({startContainer: textElement3.childNodes[0], startOffset: 10, endContainer: textElement5.childNodes[0], endOffset: 12}));
+
+        CSS.highlights.set("example-highlight1", highlight1);
+        CSS.highlights.set("example-highlight2", highlight2);
+        CSS.highlights.set("example-highlight3", highlight3);
+    </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: CSS Rule change</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-invalidation-007-ref.html">
+<meta name="assert" value="::highlight overlay is correctly invalidated and repainted after CSS rule is changed">
+<script src="resources/run-after-layout-and-paint.js"></script>
+<style>
+  span::highlight(example-highlight) {
+    background: yellow;
+  }
+
+  .blue::highlight(example-highlight) {
+    background: blue;
+  }
+</style>
+<body>
+  <span>Hello</span>
+<script>
+  const range = new Range();
+  const span = document.querySelector("span");
+  range.setStart(span, 0);
+  range.setEnd(span, 1);
+  CSS.highlights.set("example-highlight", new Highlight(range));
+
+  // Force frame paint before changing style
+  runAfterLayoutAndPaint(() => {
+    span.className = "blue";
+    document.documentElement.removeAttribute("class");
+  });
+</script>
+</body>
+</html>

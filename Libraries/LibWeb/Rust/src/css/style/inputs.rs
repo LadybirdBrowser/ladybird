@@ -604,6 +604,14 @@ impl RetainedState {
             .map(computed::FinalStyleRecordID::raw)
     }
 
+    #[must_use]
+    pub fn pseudo_published_custom_highlight_records(&self, node: StyleNodeID) -> SmallVec<[(StyleAtomID, u64); 2]> {
+        self.computed_group_sets
+            .custom_highlight_records(node)
+            .map(|(name, record)| (name, record.raw()))
+            .collect()
+    }
+
     /// The box facts the element's published style record holds. `None` while the element has no
     /// record.
     #[must_use]
@@ -1266,19 +1274,24 @@ impl RetainedState {
         }
     }
 
-    /// Record the style record the pseudo-element of `pseudo_kind` of an element holds; zero is
+    /// Record the style record the pseudo-element `target` of an element holds; zero is
     /// none. The host's reference to the record keeps its identity naming it, even when the engine
     /// publishes a newer assignment.
-    pub fn set_held_pseudo_style_record(&mut self, node: StyleNodeID, pseudo_kind: u8, style_record: u64) {
+    pub(in crate::css::style) fn set_held_pseudo_style_record(
+        &mut self,
+        node: StyleNodeID,
+        target: pipeline::PseudoElementTarget,
+        style_record: u64,
+    ) {
         let held = self.held_pseudo_style_records.entry(node).or_default();
-        let slot = held.iter().position(|&(kind, _)| kind == pseudo_kind);
+        let slot = held.iter().position(|&(held_target, _)| held_target == target);
         match slot {
             Some(slot) if style_record == 0 => {
                 held.swap_remove(slot);
             }
             Some(slot) => held[slot].1 = style_record,
             None if style_record == 0 => {}
-            None => held.push((pseudo_kind, style_record)),
+            None => held.push((target, style_record)),
         }
         if held.is_empty() {
             self.held_pseudo_style_records.remove(&node);
@@ -1940,6 +1953,23 @@ impl StyleEngine {
         self.retained
             .highlight_observers
             .replace(kind, nodes, |node| moved.push(node));
+        for node in moved {
+            self.record_derived_element_style_input(
+                node,
+                input_types::STYLE_REACTION_PSEUDO_INPUTS_MAY_HAVE_CHANGED,
+                0,
+            );
+        }
+    }
+
+    pub fn set_custom_highlight_observing_elements(&mut self, nodes: &[StyleNodeID], names: &[StyleAtomID]) {
+        let mut moved = Vec::new();
+        self.retained.highlight_observers.replace_custom_highlights(
+            nodes.iter().copied().zip(names.iter().copied()),
+            |node| {
+                moved.push(node);
+            },
+        );
         for node in moved {
             self.record_derived_element_style_input(
                 node,

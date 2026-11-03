@@ -524,6 +524,7 @@ void Node::bump_dom_tree_version()
     document().set_needs_highlight_style_update(CSS::PseudoElement::Selection);
     document().set_needs_highlight_style_update(CSS::PseudoElement::SearchText);
     document().set_needs_highlight_style_update(CSS::PseudoElement::SpellingError);
+    document().set_needs_highlight_style_update(CSS::PseudoElement::Highlight);
     if (auto* holder = tree_version_holder(*this))
         holder->m_dom_tree_version = ++s_last_tree_version;
 }

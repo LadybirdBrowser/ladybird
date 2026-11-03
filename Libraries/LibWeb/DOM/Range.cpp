@@ -10,6 +10,7 @@
 
 #include <AK/AllOf.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/HighlightRegistry.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
@@ -99,6 +100,18 @@ void Range::update_owner_document()
         m_owner_document->detach_range({}, *this);
     m_owner_document = document;
     document.attach_range({}, *this);
+}
+
+void Range::update_associated_highlights(GC::Ptr<Document> previous_owner_document)
+{
+    auto invalidate_if_registered_in = [&](GC::Ptr<Document> document) {
+        auto* registry = document ? document->highlight_registry_if_exists() : nullptr;
+        if (registry && registry->contains_range(*this))
+            document->invalidate_custom_highlights();
+    };
+    invalidate_if_registered_in(previous_owner_document);
+    if (m_owner_document != previous_owner_document)
+        invalidate_if_registered_in(m_owner_document);
 }
 
 void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection> selection)
@@ -297,6 +310,7 @@ WebIDL::ExceptionOr<void> Range::set_start_or_end(GC::Ref<Node> node, u32 offset
         return WebIDL::IndexSizeError::create(Utf16String::formatted("Node does not contain a child at offset {}", offset));
 
     // 3. Let bp be the boundary point (node, offset).
+    GC::Ptr<Document> previous_owner_document = m_owner_document;
 
     if (start_or_end == StartOrEnd::Start) {
         // -> If these steps were invoked as "set the start"
@@ -327,6 +341,7 @@ WebIDL::ExceptionOr<void> Range::set_start_or_end(GC::Ref<Node> node, u32 offset
 
     update_owner_document();
     update_associated_selection();
+    update_associated_highlights(previous_owner_document);
     return {};
 }
 
@@ -499,6 +514,7 @@ WebIDL::ExceptionOr<void> Range::select(GC::Ref<Node> node)
 
     // 3. Let index be node’s index.
     auto index = node->index();
+    GC::Ptr<Document> previous_owner_document = m_owner_document;
 
     // 4. Set range’s start to boundary point (parent, index).
     m_start_container = *parent;
@@ -510,6 +526,7 @@ WebIDL::ExceptionOr<void> Range::select(GC::Ref<Node> node)
 
     update_owner_document();
     update_associated_selection();
+    update_associated_highlights(previous_owner_document);
     return {};
 }
 
@@ -532,6 +549,7 @@ void Range::collapse(bool to_start)
         m_start_offset = m_end_offset;
     }
     update_associated_selection();
+    update_associated_highlights(m_owner_document);
 }
 
 // https://dom.spec.whatwg.org/#dom-range-selectnodecontents
@@ -543,6 +561,7 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(GC::Ref<Node> node)
 
     // 2. Let length be the length of node.
     auto length = node->length();
+    GC::Ptr<Document> previous_owner_document = m_owner_document;
 
     // 3. Set start to the boundary point (node, 0).
     m_start_container = node;
@@ -554,6 +573,7 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(GC::Ref<Node> node)
 
     update_owner_document();
     update_associated_selection();
+    update_associated_highlights(previous_owner_document);
     return {};
 }
 

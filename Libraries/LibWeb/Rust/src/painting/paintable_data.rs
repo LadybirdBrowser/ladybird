@@ -132,6 +132,22 @@ pub struct FfiSpellingError {
     pub end_offset: usize,
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiCustomHighlightTextEntry {
+    pub layer: u32,
+    pub layout_node: NodeSlotId,
+    pub start_offset: usize,
+    pub end_offset: usize,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiCustomHighlightReplacedEntry {
+    pub layer: u32,
+    pub layout_node: NodeSlotId,
+}
+
 pub const SELECTION_STATE_NONE: u8 = 0;
 pub const SELECTION_STATE_START: u8 = 1;
 pub const SELECTION_STATE_END: u8 = 2;

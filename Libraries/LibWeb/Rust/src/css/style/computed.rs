@@ -664,6 +664,7 @@ mod animation_overlay_slots {
 #[derive(Clone, Copy)]
 struct PseudoComputedRow {
     kind: u8,
+    highlight_name: StyleAtomID,
     published: bool,
     /// The installed record the pseudo-element is assigned.
     installed: Option<InstalledRecordID>,
@@ -707,9 +708,10 @@ impl AnimationOverlayColumn {
 }
 
 impl PseudoComputedRow {
-    fn new(kind: u8) -> Self {
+    fn new(target: super::pipeline::PseudoElementTarget) -> Self {
         Self {
-            kind,
+            kind: target.kind,
+            highlight_name: target.highlight_name,
             published: false,
             installed: None,
             installed_overlay_slot: None,
@@ -718,6 +720,13 @@ impl PseudoComputedRow {
 
     fn is_empty(&self) -> bool {
         !self.published && self.installed.is_none()
+    }
+
+    fn target(&self) -> super::pipeline::PseudoElementTarget {
+        super::pipeline::PseudoElementTarget {
+            kind: self.kind,
+            highlight_name: self.highlight_name,
+        }
     }
 }
 #[derive(Clone, Copy)]
@@ -1019,33 +1028,49 @@ impl ComputedGroupSets {
         self.pseudo_rows_by_node.get(&node).map_or(&[], |rows| rows.as_slice())
     }
 
-    fn pseudo_row(&self, node: StyleNodeID, kind: u8) -> Option<&PseudoComputedRow> {
-        self.pseudo_rows(node).iter().find(|row| row.kind == kind)
+    fn pseudo_row(
+        &self,
+        node: StyleNodeID,
+        target: super::pipeline::PseudoElementTarget,
+    ) -> Option<&PseudoComputedRow> {
+        self.pseudo_rows(node).iter().find(|row| row.target() == target)
     }
 
-    fn pseudo_row_mut(&mut self, node: StyleNodeID, kind: u8) -> Option<&mut PseudoComputedRow> {
+    fn pseudo_row_mut(
+        &mut self,
+        node: StyleNodeID,
+        target: super::pipeline::PseudoElementTarget,
+    ) -> Option<&mut PseudoComputedRow> {
         self.pseudo_rows_moved.push(node);
         self.pseudo_rows_by_node
             .get_mut(&node)
-            .and_then(|rows| rows.iter_mut().find(|row| row.kind == kind))
+            .and_then(|rows| rows.iter_mut().find(|row| row.target() == target))
     }
 
-    fn ensure_pseudo_row(&mut self, node: StyleNodeID, kind: u8) -> &mut PseudoComputedRow {
+    fn ensure_pseudo_row(
+        &mut self,
+        node: StyleNodeID,
+        target: super::pipeline::PseudoElementTarget,
+    ) -> &mut PseudoComputedRow {
         self.pseudo_rows_moved.push(node);
         let rows = self.pseudo_rows_by_node.entry(node).or_default();
-        let row_index = rows.iter().position(|row| row.kind == kind).unwrap_or_else(|| {
-            rows.push(PseudoComputedRow::new(kind));
+        let row_index = rows.iter().position(|row| row.target() == target).unwrap_or_else(|| {
+            rows.push(PseudoComputedRow::new(target));
             rows.len() - 1
         });
         &mut rows[row_index]
     }
 
-    fn remove_empty_pseudo_row(&mut self, node: StyleNodeID, kind: u8) {
+    fn remove_empty_pseudo_row(&mut self, node: StyleNodeID, target: super::pipeline::PseudoElementTarget) {
         self.pseudo_rows_moved.push(node);
         let std::collections::hash_map::Entry::Occupied(mut entry) = self.pseudo_rows_by_node.entry(node) else {
             return;
         };
-        let Some(row_index) = entry.get().iter().position(|row| row.kind == kind && row.is_empty()) else {
+        let Some(row_index) = entry
+            .get()
+            .iter()
+            .position(|row| row.target() == target && row.is_empty())
+        else {
             return;
         };
         entry.get_mut().remove(row_index);
@@ -1135,9 +1160,22 @@ impl ComputedGroupSets {
         pseudo_kind: u8,
         record: FinalStyleRecordID,
     ) {
+        self.assign_installed_pseudo_record_of(
+            node,
+            super::pipeline::PseudoElementTarget::of_kind(pseudo_kind),
+            record,
+        );
+    }
+
+    pub(super) fn assign_installed_pseudo_record_of(
+        &mut self,
+        node: StyleNodeID,
+        target: super::pipeline::PseudoElementTarget,
+        record: FinalStyleRecordID,
+    ) {
         let installed = record.installed_record().expect("an installed record");
         self.installed.hold(installed);
-        let row = self.ensure_pseudo_row(node, pseudo_kind);
+        let row = self.ensure_pseudo_row(node, target);
         row.published = true;
         let previous = row.installed.replace(installed);
         let overlay = row.installed_overlay_slot.take();
@@ -1162,6 +1200,7 @@ impl ComputedGroupSets {
             let styles: InstalledPseudoStyles = self
                 .pseudo_rows(node)
                 .iter()
+                .filter(|row| row.highlight_name.is_none())
                 .filter_map(|row| {
                     let id = row.installed?;
                     Some(InstalledPseudoStyle {
@@ -1251,7 +1290,7 @@ impl ComputedGroupSets {
         target: ComputedStyleTarget,
     ) -> Option<(InstalledRecordID, Option<u32>)> {
         if target.is_pseudo() {
-            let row = self.pseudo_row(target.node, target.pseudo_kind)?;
+            let row = self.pseudo_row(target.node, target.pseudo_element())?;
             return Some((row.installed?, row.installed_overlay_slot));
         }
         let index = target.node.element_index()? as usize;
@@ -1309,7 +1348,7 @@ impl ComputedGroupSets {
 
     fn set_animation_overlay_slot_of(&mut self, target: ComputedStyleTarget, slot: Option<u32>) {
         if target.is_pseudo() {
-            let Some(row) = self.pseudo_row_mut(target.node, target.pseudo_kind) else {
+            let Some(row) = self.pseudo_row_mut(target.node, target.pseudo_element()) else {
                 return;
             };
             if row.installed.is_some() {
@@ -1594,8 +1633,31 @@ impl ComputedGroupSets {
     }
 
     pub fn pseudo_style_record(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<FinalStyleRecordID> {
-        let row = self.pseudo_row(node, pseudo_kind)?;
+        self.pseudo_style_record_of(node, super::pipeline::PseudoElementTarget::of_kind(pseudo_kind))
+    }
+
+    pub(super) fn pseudo_style_record_of(
+        &self,
+        node: StyleNodeID,
+        target: super::pipeline::PseudoElementTarget,
+    ) -> Option<FinalStyleRecordID> {
+        let row = self.pseudo_row(node, target)?;
         Some(self.final_style_record(row.installed?, row.installed_overlay_slot))
+    }
+
+    pub(super) fn custom_highlight_records(
+        &self,
+        node: StyleNodeID,
+    ) -> impl Iterator<Item = (StyleAtomID, FinalStyleRecordID)> + '_ {
+        self.pseudo_rows(node).iter().filter_map(move |row| {
+            if row.highlight_name.is_none() {
+                return None;
+            }
+            Some((
+                row.highlight_name,
+                self.final_style_record(row.installed?, row.installed_overlay_slot),
+            ))
+        })
     }
 
     /// Each record a pseudo-element holds, with the node it belongs to.
@@ -1613,7 +1675,7 @@ impl ComputedGroupSets {
     pub fn assigned_pseudo_kinds(&self, node: StyleNodeID) -> impl Iterator<Item = u8> + '_ {
         self.pseudo_rows(node)
             .iter()
-            .filter_map(|row| row.published.then_some(row.kind))
+            .filter_map(|row| (row.published && row.highlight_name.is_none()).then_some(row.kind))
     }
 
     /// The groups whose values read, from `values`, the recorded specified values of the longhands
@@ -1702,8 +1764,12 @@ impl ComputedGroupSets {
         }
     }
 
-    pub fn remove_pseudo(&mut self, node: StyleNodeID, pseudo_kind: u8) -> Option<FinalStyleRecordID> {
-        let row = self.pseudo_row_mut(node, pseudo_kind)?;
+    pub(super) fn remove_pseudo_of(
+        &mut self,
+        node: StyleNodeID,
+        target: super::pipeline::PseudoElementTarget,
+    ) -> Option<FinalStyleRecordID> {
+        let row = self.pseudo_row_mut(node, target)?;
         let installed = row.installed.take()?;
         let overlay = row.installed_overlay_slot.take();
         row.published = false;
@@ -1712,7 +1778,7 @@ impl ComputedGroupSets {
             self.release_animation_overlay_assignment(slot);
         }
         self.installed.release(installed);
-        self.remove_empty_pseudo_row(node, pseudo_kind);
+        self.remove_empty_pseudo_row(node, target);
         Some(final_style_record)
     }
     #[must_use]
@@ -1978,8 +2044,14 @@ mod tests {
         assert_eq!(pseudo_record, first_record);
         assert_eq!(sets.pseudo_style_record(pseudo.node, 2), Some(pseudo_record));
         assert_eq!(sets.assigned_pseudo_kinds(pseudo.node).collect::<Vec<_>>(), [2]);
-        assert_eq!(sets.remove_pseudo(pseudo.node, 2), Some(pseudo_record));
-        assert_eq!(sets.remove_pseudo(pseudo.node, 2), None);
+        assert_eq!(
+            sets.remove_pseudo_of(pseudo.node, super::super::pipeline::PseudoElementTarget::of_kind(2)),
+            Some(pseudo_record)
+        );
+        assert_eq!(
+            sets.remove_pseudo_of(pseudo.node, super::super::pipeline::PseudoElementTarget::of_kind(2)),
+            None
+        );
     }
 
     #[test]

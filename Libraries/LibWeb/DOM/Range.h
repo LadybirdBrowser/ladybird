@@ -145,6 +145,7 @@ private:
     GC::Ref<Node> root() const;
 
     void update_associated_selection();
+    void update_associated_highlights(GC::Ptr<Document> previous_owner_document);
 
     enum class StartOrEnd {
         Start,
