@@ -4399,9 +4399,31 @@ pub(crate) struct GroupValueLayout {
 
 const GROUP_VALUE_LAYOUT: GroupValueLayout = GroupValueLayout::compute();
 
+/// Per group, the longhands whose values it holds, one bit per longhand from the first: all but those
+/// in the inherited bits and the logical aliases, which map elsewhere.
+const GROUP_LONGHANDS: [[u64; crate::css::property_metadata::LONGHAND_WORD_COUNT]; group_index::COUNT] = {
+    let mut groups = [[0; crate::css::property_metadata::LONGHAND_WORD_COUNT]; group_index::COUNT];
+    let mut longhand = 0;
+    while longhand < LONGHAND_COUNT {
+        let property = crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID + longhand as u16;
+        let group = GROUP_VALUE_LAYOUT.places[longhand].group;
+        if !is_logical_alias(property) && group != LonghandPlace::NONE.group && group != LonghandPlace::BITS_GROUP {
+            groups[group as usize][longhand / 64] |= 1 << (longhand % 64);
+        }
+        longhand += 1;
+    }
+    groups
+};
+
 impl GroupValueLayout {
     pub(crate) fn get() -> &'static Self {
         &GROUP_VALUE_LAYOUT
+    }
+
+    /// The longhands whose values each group holds, one bit per longhand from the first.
+    pub(crate) fn group_longhands()
+    -> &'static [[u64; crate::css::property_metadata::LONGHAND_WORD_COUNT]; group_index::COUNT] {
+        &GROUP_LONGHANDS
     }
 
     const fn compute() -> Self {

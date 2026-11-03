@@ -1235,7 +1235,21 @@ fn record_move_damage(
                 && old_direction == new_direction
         });
         let mut effective_changed = [false; NUMBER_OF_LONGHAND_PROPERTIES];
-        for (index, changed) in effective_changed.iter_mut().enumerate() {
+        let to_compare = shared.map_or(
+            [u64::MAX; crate::css::property_metadata::LONGHAND_WORD_COUNT],
+            super::computed::SharedLonghands::longhands_to_compare,
+        );
+        let indices = to_compare.into_iter().enumerate().flat_map(|(word_index, mut word)| {
+            std::iter::from_fn(move || {
+                let bit = word.trailing_zeros() as usize;
+                (word != 0).then(|| {
+                    word &= word - 1;
+                    word_index * 64 + bit
+                })
+            })
+        });
+        for index in indices.take_while(|&index| index < NUMBER_OF_LONGHAND_PROPERTIES) {
+            let changed = &mut effective_changed[index];
             let property = FIRST_LONGHAND_PROPERTY_ID + index as u16;
             let old_physical = if property_metadata::longhand_is_logical_alias(property) {
                 crate::css::style_compute::map_logical_alias_to_physical(property, old_writing_mode, old_direction)
