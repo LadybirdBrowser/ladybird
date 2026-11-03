@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+    #listener {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 300px;
+        height: 250px;
+    }
+</style>
+<div id="listener"></div>
+<script>
+    // A listener may hold back a pinch, but what it lets through zooms along with the steps the compositor zooms for.
+    // Nothing the main thread knows at some moment may replace a zoom the compositor has presented since.
+    promiseTest(async () => {
+        const compositorScale = () => internals.compositorScrollState().visualViewportScale;
+        const wheelEvent = new Promise(resolve => listener.addEventListener("wheel", resolve, { passive: false }));
+        const nextTask = () =>
+            new Promise(resolve => {
+                const channel = new MessageChannel();
+                channel.port1.onmessage = () => {
+                    channel.port1.close();
+                    channel.port2.close();
+                    resolve();
+                };
+                channel.port2.postMessage(null);
+            });
+        const waitBesideTheTask = scale => {
+            // NB: This only gives up on a zoom that never comes, so the time limit can't fail a slow machine's run of a
+            //     fixed engine.
+            const giveUpAt = performance.now() + 5000;
+            while (compositorScale() !== scale && performance.now() < giveUpAt) {
+                // Stay in this task.
+            }
+        };
+        await animationFrame();
+        await animationFrame();
+
+        internals.pinchThroughUIProcess(600, 500, 0.5);
+        waitBesideTheTask(1.5);
+        println(`before the listener's step: compositor scale=${compositorScale()}`);
+
+        internals.pinchThroughUIProcess(50, 50, 0.5);
+        const event = await wheelEvent;
+        println(`listener's step: cancelable=${event.cancelable}`);
+
+        // NB: Leave the task handling that step, without giving the main thread a rendering update to send anything in.
+        await nextTask();
+        internals.pinchThroughUIProcess(600, 500, 0.5);
+        waitBesideTheTask(1.5 ** 3);
+        println(`after the listener's step, beside the task: compositor scale=${compositorScale()}`);
+
+        await animationFrame();
+        await animationFrame();
+        println(`compositor scale after the task: ${compositorScale()}`);
+
+        const giveUpAt = performance.now() + 5000;
+        while (visualViewport.scale !== compositorScale() && performance.now() < giveUpAt)
+            await animationFrame();
+        println(`main thread scale after the task: ${visualViewport.scale}`);
+    });
+</script>
