@@ -1080,8 +1080,6 @@ bool ViewImplementation::may_scroll_for_key_event_in_compositor(size_t index) co
         return false;
     if (key_event.type == Web::KeyEvent::Type::KeyUp)
         return true;
-    if (!m_has_usable_bitmap)
-        return false;
     for (size_t preceding = 0; preceding < index; ++preceding) {
         auto const& event = m_pending_input_events[preceding].event;
         if (auto const* key = event.get_pointer<Web::KeyEvent>()) {
