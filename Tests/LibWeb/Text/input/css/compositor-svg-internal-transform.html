@@ -2,7 +2,9 @@
 <script src="../include.js"></script>
 <style>
     @keyframes pulse { from { transform: scaleY(0.5); } to { transform: scaleY(1); } }
+    @keyframes fade { from { opacity: 0.5; } to { opacity: 1; } }
     .bar { animation: pulse 1s infinite; }
+    .fading { animation: fade 1s infinite; }
     #cases { width: 100px; height: 100px; }
 </style>
 <svg id="cases" viewBox="0 0 24 24"></svg>
@@ -16,24 +18,37 @@
     }
 
     const rect = `<rect class="bar" width="5" height="5"/>`;
+    const fadingRect = `<rect class="fading" width="5" height="5"/>`;
+    const urlFilter = `<filter id="f"><feOffset dx="1"/></filter>`;
     const onTheCompositor = {
         "a rect": rect,
         "a rect in a group": `<g>${rect}</g>`,
         "a rect in a transformed group": `<g transform="translate(1 1)">${rect}</g>`,
         "a group": `<g class="bar"><rect width="5" height="5"/></g>`,
         "a rect in a translucent group": `<g opacity="0.5">${rect}</g>`,
+        "a rect in a group with a filter function": `<g style="filter: blur(1px)">${rect}</g>`,
+        "a rect in a group with a clip path in user space": `<clipPath id="c"><rect width="9" height="9"/></clipPath><g clip-path="url(#c)">${rect}</g>`,
+        "a rect in a group with a mask in user space": `<mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="9" height="9"><rect width="9" height="9" fill="white"/></mask><g mask="url(#m)">${rect}</g>`,
+        "a use element": `<defs><rect id="u" width="5" height="5"/></defs><use class="bar" href="#u"/>`,
+        "a use element with a position": `<defs><rect id="u" width="5" height="5"/></defs><use class="bar" href="#u" x="1" y="2"/>`,
+        "a nested svg": `<svg class="bar" width="5" height="5"><rect width="5" height="5"/></svg>`,
+        "a fading rect": fadingRect,
+        "a fading group": `<g class="fading"><rect width="5" height="5"/></g>`,
+        "a fading use element": `<defs><rect id="u" width="5" height="5"/></defs><use class="fading" href="#u" x="1"/>`,
+        "a fading rect in a group with a filter element": `${urlFilter}<g filter="url(#f)">${fadingRect}</g>`,
     };
-    // The bounding box of a container includes the transforms of the boxes inside it, so what reads that box needs
-    // the current transform. A <use> element's own translation is part of the matrix the animation would replace.
-    // Resources paint on the main thread each time they are used, and a nested viewport has a transform of its own.
+    // The compositor knows no bounding boxes. That of a group includes the transforms of the boxes inside it, so what
+    // reads that box needs the main thread to keep those transforms current. Opacity leaves bounding boxes alone. The
+    // content of a resource is painted by the main thread each time it is used, so has no nodes for the compositor.
     const onTheMainThread = {
-        "a rect in a group with a filter": `<filter id="f"><feOffset dx="1"/></filter><g filter="url(#f)">${rect}</g>`,
-        "a rect in a group with a clip path": `<clipPath id="c"><rect width="9" height="9"/></clipPath><g clip-path="url(#c)">${rect}</g>`,
-        "a rect in a group with a mask": `<mask id="m"><rect width="9" height="9" fill="white"/></mask><g mask="url(#m)">${rect}</g>`,
+        "a rect in a group with a filter element": `${urlFilter}<g filter="url(#f)">${rect}</g>`,
+        "a rect in a group with a clip path in its bounding box": `<clipPath id="c" clipPathUnits="objectBoundingBox"><rect width="1" height="1"/></clipPath><g clip-path="url(#c)">${rect}</g>`,
+        "a rect in a group with a clip path shape": `<g style="clip-path: circle(50%)">${rect}</g>`,
+        "a rect in a group with a mask in its bounding box": `<mask id="m"><rect width="9" height="9" fill="white"/></mask><g mask="url(#m)">${rect}</g>`,
+        "a rect in a group with a mask image": `<g style="mask-image: linear-gradient(black, white)">${rect}</g>`,
         "a rect in a group transformed about its fill box": `<g style="transform: rotate(5deg); transform-box: fill-box">${rect}</g>`,
         "a rect in a mask": `<mask id="n">${rect}</mask><rect mask="url(#n)" width="9" height="9"/>`,
-        "a use element": `<defs><rect id="u" width="5" height="5"/></defs><use class="bar" href="#u" x="1"/>`,
-        "a nested svg": `<svg class="bar" width="5" height="5"><rect width="5" height="5"/></svg>`,
+        "a fading rect in a mask": `<mask id="n">${fadingRect}</mask><rect mask="url(#n)" width="9" height="9"/>`,
     };
 
     asyncTest(async done => {
