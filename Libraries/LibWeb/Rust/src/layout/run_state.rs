@@ -24,7 +24,7 @@ pub(crate) struct LayoutScratch {
     text_memos: super::rendered_text::TextMemos,
     inline_content_preparation_buffers: Cell<super::prepared_inline_content::InlineContentPreparationBuffers>,
     prepared_inline_content_memos: super::prepared_inline_content::PreparedInlineContentMemos,
-    fragment_builder_scratch: RefCell<fragment_tree::FragmentBuilderScratch>,
+    fragment_builder_scratch: fragment_tree::FragmentBuilderScratch,
 }
 
 /// What layout found out that the host hears of once the layout that found it is committed: what the
@@ -161,7 +161,7 @@ impl LayoutScratch {
         &self.fc_run_cache_store
     }
 
-    pub(super) fn fragment_builder_scratch(&self) -> &RefCell<fragment_tree::FragmentBuilderScratch> {
+    pub(super) fn fragment_builder_scratch(&self) -> &fragment_tree::FragmentBuilderScratch {
         &self.fragment_builder_scratch
     }
 
@@ -185,6 +185,10 @@ impl LayoutScratch {
 
     /// Brings the run memos up to date with what the arena's writes since the last call did to their boxes.
     pub(super) fn apply_memo_invalidations(&mut self, arena: &mut LayoutNodeArena) {
+        let slot_count = arena.slot_capacity();
+        self.intrinsic_size_caches.cover_slots(slot_count);
+        self.text_memos.cover_slots(slot_count);
+        self.fragment_builder_scratch.cover_slots(slot_count);
         arena.take_memo_invalidations().apply_to(
             &mut self.fc_run_cache_store,
             &mut self.in_flow_block_cache_store,
