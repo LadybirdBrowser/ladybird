@@ -54,6 +54,7 @@ pub enum PseudoElementValue {
     CompoundSelector(Arc<CompiledSelector>),
     Identifiers(Box<[SelectorString]>),
     TransitionName(Box<TransitionNameAndClassSelector>),
+    Universal,
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#typedef-pt-name-selector

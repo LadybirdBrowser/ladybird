@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Custom Highlight: a registered highlight with no named rule paints with the ::highlight(*) style</title>
+<link rel="author" href="mailto:seokho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#selectordef-highlight-highlight-name-selector">
+<link rel="match" href="../../../../expected/wpt-import/css/css-highlight-api/custom-highlight-universal-painting-001-ref.html">
+<meta name="assert" value="A registered highlight with no ::highlight() rule falls back to the element's ::highlight(*) style when painted.">
+<style>
+  ::highlight(*) {
+    background-color: yellow;
+    color: blue;
+  }
+</style>
+<body><span>One </span><span>two </span><span>three…</span>
+<script>
+  let r = new Range();
+  r.setStart(document.body, 0);
+  r.setEnd(document.body, 2);
+
+  CSS.highlights.set("bar", new Highlight(r));
+</script>

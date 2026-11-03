@@ -39,7 +39,8 @@ pub(super) struct ElementMatch {
 impl ElementMatch {
     pub(super) fn styles(&self, index: &RuleIndex, target: super::PseudoElementTarget) -> bool {
         self.pseudo_kind == target.kind
-            && (!target.is_custom_highlight() || index.highlight_name_of_entry(self.entry) == target.highlight_name)
+            && (target.kind != super::super::publication::pseudo_kind::HIGHLIGHT
+                || index.entry_styles_custom_highlight(self.entry, target.highlight_name))
     }
 
     /// Whether the entry styles a pseudo-element.

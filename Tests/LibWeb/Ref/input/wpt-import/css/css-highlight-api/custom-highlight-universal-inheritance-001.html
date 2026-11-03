@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Custom Highlight: ::highlight(*) on :root reaches a named highlight on a descendant</title>
+<link rel="author" href="mailto:seokho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#selectordef-highlight-highlight-name-selector">
+<link rel="match" href="../../../../expected/wpt-import/css/css-highlight-api/custom-highlight-universal-inheritance-001-ref.html">
+<meta name="assert" value="A named highlight with no rule on its ancestors inherits from the ancestor's ::highlight(*) style.">
+<style>
+  :root::highlight(*) {
+    background-color: pink;
+  }
+  div::highlight(foo) {
+    color: green;
+  }
+</style>
+<body>
+<div>One two three…</div>
+<script>
+  let div = document.querySelector("div");
+  let r = new Range();
+  r.setStart(div.firstChild, 0);
+  r.setEnd(div.firstChild, 8);
+
+  CSS.highlights.set("foo", new Highlight(r));
+</script>

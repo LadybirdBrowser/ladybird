@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Custom Highlight: ::highlight(*) acts as a base for a named highlight</title>
+<link rel="author" href="mailto:seokho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#selectordef-highlight-highlight-name-selector">
+<link rel="match" href="../../../../expected/wpt-import/css/css-highlight-api/custom-highlight-universal-painting-001-ref.html">
+<meta name="assert" value="The ::highlight(*) declarations merge into a named highlight's cascade; the named rule overrides conflicting properties.">
+<style>
+  ::highlight(*) {
+    background-color: yellow;
+    color: red;
+  }
+  ::highlight(foo) {
+    color: blue;
+  }
+</style>
+<body><span>One </span><span>two </span><span>three…</span>
+<script>
+  let r = new Range();
+  r.setStart(document.body, 0);
+  r.setEnd(document.body, 2);
+
+  CSS.highlights.set("foo", new Highlight(r));
+</script>

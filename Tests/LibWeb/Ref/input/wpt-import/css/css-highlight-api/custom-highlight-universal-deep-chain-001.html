@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Custom Highlight: ::highlight(*) on :root reaches a named highlight through rule-less intermediate elements</title>
+<link rel="author" href="mailto:seokho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#selectordef-highlight-highlight-name-selector">
+<link rel="match" href="../../../../expected/wpt-import/css/css-highlight-api/custom-highlight-universal-deep-chain-001-ref.html">
+<meta name="assert" value="The ::highlight(*) base style propagates through rule-less intermediate elements.">
+<style>
+  :root::highlight(*) {
+    background-color: pink;
+  }
+  span::highlight(foo) {
+    color: green;
+  }
+</style>
+<body>
+<div><div><span id="target">One two three…</span></div></div>
+<script>
+  let target = document.getElementById("target");
+  let r = new Range();
+  r.setStart(target.firstChild, 0);
+  r.setEnd(target.firstChild, 8);
+
+  CSS.highlights.set("foo", new Highlight(r));
+</script>
