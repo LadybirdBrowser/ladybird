@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<body>
+<div id="target" style="position: absolute; width: 10px; height: 10px; overflow: hidden"></div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        // A box that would lay out on its own is laid out in the update that also rebuilds the viewport's box.
+        target.style.top = "1px";
+        document.prepend(document.createComment("comment"));
+
+        println(`the root's scroll height is known: ${document.documentElement.scrollHeight > 0}`);
+        println(`the target moved: ${target.getBoundingClientRect().top}`);
+        println(`the tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>
