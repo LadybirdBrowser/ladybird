@@ -1072,6 +1072,8 @@ fn take_flown_layout_in(main_thread: &MainThread, document_host: &DocumentHost, 
     else {
         return false;
     };
+    // Paying the round drains its commits.
+    let resized_size_container = answer.resized_size_containers().next().is_some();
     answer.pay(main_thread, document_host, read);
     if rebuilds_tree && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, &answer.rebuilt_roots) {
         return false;
@@ -1087,7 +1089,7 @@ fn take_flown_layout_in(main_thread: &MainThread, document_host: &DocumentHost, 
     }
     // The style written since the round flew is the next layout update's; only container queries the layout decides
     // restyle what the round laid out.
-    !host.container_query_evaluation_is_pending(main_thread, read)
+    !resized_size_container && !host.container_query_evaluation_is_pending(main_thread, read)
 }
 
 fn update_layout(
