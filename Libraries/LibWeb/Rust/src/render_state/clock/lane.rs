@@ -14,7 +14,8 @@
 //! was sampled, which the state then still shows: as the first tick that needs it runs, or before the host first writes
 //! the state, where the pointer moves over the document or a task runs the plan's animations. Until a lane comes
 //! together, the one before it follows the pointer, whose frames the presenter drops once it presented the newer
-//! frame.
+//! frame. A rendering update that presents no frame of its own leaves the lane of the frame before it to go on from the
+//! state as the update left it: a fork the update's writes passed goes, and the state is forked again.
 
 use super::super::owner::{self, DocumentId};
 use super::{
@@ -341,6 +342,10 @@ impl LaneSlot {
         }
         match (&mut self.lanes, plan) {
             (Lanes::Coming { pieces, .. }, plan) => {
+                // NB: The frame's own update sealed already, so this one presented no frame of its own.
+                if self.taken_in.is_none() && !matches!(pieces.plan, FramePlan::Unsealed) {
+                    pieces.state.rejoin_the_state();
+                }
                 pieces.plan = plan.map_or(FramePlan::None, FramePlan::Sealed);
                 self.come_together();
             }
@@ -348,8 +353,8 @@ impl LaneSlot {
             (Lanes::Newest(lane), Some(plan)) => {
                 // NB: With no replacement frame, the completed update left the host showing this lane's frame.
                 //     Its next tick or the next task's first write can preserve that state then.
-                if self.taken_in.is_none() && matches!(lane.state, LaneState::MovedOn) && lane.samples_nothing() {
-                    lane.state = LaneState::Shown;
+                if self.taken_in.is_none() {
+                    lane.rejoin_the_state();
                 }
                 lane.replan(plan);
             }

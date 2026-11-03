@@ -363,7 +363,11 @@ pub(crate) struct Lane {
 pub(crate) enum LaneState {
     #[default]
     Shown,
-    Forked(super::RenderFork),
+    Forked {
+        fork: super::RenderFork,
+        /// Whether the host wrote the state since the lane forked it.
+        state_moved_on: bool,
+    },
     MovedOn,
 }
 
@@ -371,14 +375,40 @@ impl LaneState {
     /// Forks the render state of `document`, where it still shows the lane's frame.
     pub(super) fn fork(&mut self, document: DocumentId) {
         if matches!(self, Self::Shown) {
-            *self = Self::Forked(super::owner::with_state(document, None, |state| state.fork()));
+            *self = Self::Forked {
+                fork: super::owner::with_state(document, None, |state| state.fork()),
+                state_moved_on: false,
+            };
         }
     }
 
-    /// Notes that the render state no longer shows the lane's frame, where the lane did not fork it.
+    /// Notes that the render state no longer shows the lane's frame.
     pub(super) fn move_on(&mut self) {
-        if matches!(self, Self::Shown) {
-            *self = Self::MovedOn;
+        match self {
+            Self::Shown => *self = Self::MovedOn,
+            Self::Forked { state_moved_on, .. } => *state_moved_on = true,
+            Self::MovedOn => {}
+        }
+    }
+
+    /// Notes that a rendering update ended that presents no frame of its own, which leaves the render state showing the
+    /// lane's frame, with all the host wrote: the screen and the document have no other state than that. A fork from
+    /// before those writes shows what the document no longer is, and goes, for the next tick or the next task's first
+    /// write to fork the state again. Answers whether a fork went.
+    pub(super) fn rejoin_the_state(&mut self) -> bool {
+        match std::mem::take(self) {
+            Self::Forked {
+                fork,
+                state_moved_on: true,
+            } => {
+                super::owner::drop_after_hold(fork);
+                true
+            }
+            forked @ Self::Forked { .. } => {
+                *self = forked;
+                false
+            }
+            Self::Shown | Self::MovedOn => false,
         }
     }
 }
@@ -1271,6 +1301,14 @@ impl Lane {
         self.ticked.is_empty() && self.effects.iter().all(effects::ElementEffects::is_host)
     }
 
+    /// Has the lane go on from the render state as a rendering update that presents no frame of its own left it, where
+    /// no tick showed a sample in a box of its fork. What the hover installed in that fork goes with it.
+    fn rejoin_the_state(&mut self) {
+        if self.samples_nothing() && self.state.rejoin_the_state() {
+            self.hovered.installs.clear();
+        }
+    }
+
     /// Has the lane follow no plan, as a rendering update that sealed none leaves it: it ticks nothing until the plan of
     /// a later update that presents no frame of its own.
     fn unplan(&mut self) {
@@ -1315,15 +1353,15 @@ impl Lane {
         pointer: Option<PendingPointer>,
         samples_animations: bool,
     ) -> Option<Ticked> {
-        let mut fork = match std::mem::take(&mut self.state) {
-            LaneState::Forked(fork) => fork,
+        let (mut fork, state_moved_on) = match std::mem::take(&mut self.state) {
+            LaneState::Forked { fork, state_moved_on } => (fork, state_moved_on),
             state => {
                 self.state = state;
                 return None;
             }
         };
         let ticked = self.tick(&mut fork, frame_time_nanoseconds, pointer, samples_animations);
-        self.state = LaneState::Forked(fork);
+        self.state = LaneState::Forked { fork, state_moved_on };
         Some(ticked)
     }
 
