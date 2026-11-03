@@ -8323,7 +8323,14 @@ fn finish_animation_sample(
                 .cast::<crate::css::custom_properties::CustomPropertyStore>()
                 .as_ref()
         };
-        for name in engine.custom_properties_in_an_animated_cycle(node, cycle_pseudo, inherited) {
+        let names_in_a_cycle = engine.custom_properties_in_an_animated_cycle(
+            node,
+            cycle_pseudo,
+            input.stores.base,
+            input.stores.inheritance,
+            &retained,
+        );
+        for name in names_in_a_cycle {
             let value = registry.invalid_at_computed_value_time(&name, inherited);
             match retained.iter_mut().find(|(animated, _)| *animated == name) {
                 Some((_, animated)) => *animated = value,

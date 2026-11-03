@@ -1,0 +1,15 @@
+a condition reads the other property: --p: 0px, --q: 0px
+a later condition reads it: --p: 0px, --q: 0px
+the branch taken reads it: --p: 0px, --q: 0px
+a branch not taken reads it: --p: 1px, --q: 1px
+a condition after the one that held reads it: --p: 1px, --q: 1px
+an else not taken reads it: --p: 1px, --q: 1px
+a function's branch taken reads it: --p: 0px, --q: 0px
+an attribute's value reads it: --p: 0px, --q: 0px
+an attribute's value reads it as a string: --p: 5px, --q: 5px
+a fallback in place of no attribute reads it: --p: 0px, --q: 0px
+a fallback beside an attribute reads it: --p: 5px, --q: 5px
+a fallback in place of an invalid attribute reads it: --p: 0px, --q: 0px
+a fallback in place of no environment variable reads it: --p: 0px, --q: 0px
+a fallback beside an inherited value reads it: --p: 7px, --q: 7px
+a fallback in place of no inherited value reads it: --p: 0px, --q: 0px

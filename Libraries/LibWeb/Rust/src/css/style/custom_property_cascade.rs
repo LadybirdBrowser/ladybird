@@ -437,6 +437,11 @@ fn named_custom_property_reads(value: &StyleValueData) -> Option<Vec<&[u16]>> {
     all_references_visible.then_some(references)
 }
 
+/// Whether a written value holds a function that substitutes anything.
+fn substitutes(value: &StyleValueData) -> bool {
+    matches!(substituted_tokens(value), StyleValueData::Unresolved(unresolved) if unresolved.presence().has_any())
+}
+
 /// Which nodes of the graph `edges` describes lie on a cycle of it, one with an edge to itself among them. Those are the
 /// nodes of a strongly connected component of more than one node, which Tarjan's algorithm finds in time linear in the
 /// nodes and edges. It walks with a stack of its own, as a chain may be as long as a page likes.
@@ -812,13 +817,21 @@ impl RetainedState {
 
     /// The custom properties in a dependency cycle through what an element's animations declare, as
     /// `--p: var(--q)` in a keyframe beside `--q: var(--p)` on the element. An animated value wins
-    /// the cascade over a declared one, so a name it animates reads as its keyframes do. `inherited`
-    /// is the environment the element inherits.
+    /// the cascade over a declared one, so a name it animates reads as its keyframes do. What a value
+    /// reads is what substituting it looks up, over `base`, the element's environment beneath its
+    /// animations, with their values `animated`, and `inheritance`, the environment it inherits:
+    /// which branch of an `if()` or fallback that takes depends on the values, and what decides that
+    /// is itself read, so that a cycle through it is found whichever way it went.
     pub(crate) fn custom_properties_in_an_animated_cycle(
         &self,
         node: StyleNodeID,
         pseudo: Option<u8>,
-        inherited: Option<&CustomPropertyStore>,
+        base: *const c_void,
+        inheritance: *const c_void,
+        animated: &[(
+            crate::css::retained_fly_string::RetainedUtf16FlyString,
+            RetainedStyleValueData,
+        )],
     ) -> Vec<crate::css::retained_fly_string::RetainedUtf16FlyString> {
         type Name = crate::css::retained_fly_string::RetainedUtf16FlyString;
         let slot = pseudo.map_or(0, |kind| kind + 1);
@@ -834,14 +847,10 @@ impl RetainedState {
                 }
             }
         }
-        if written.iter().all(|(_, value)| {
-            !value_calls_custom_functions(value)
-                && named_custom_property_reads(value).is_none_or(|names| names.is_empty())
-        }) {
+        if !written.iter().any(|(_, value)| substitutes(value)) {
             return Vec::new();
         }
-        let animated_count = written.len();
-        let mut written_names: HashSet<usize> = written.iter().map(|(name, _)| name.raw()).collect();
+        let written_names: HashSet<usize> = written.iter().map(|(name, _)| name.raw()).collect();
         let declarations = self
             .live_style
             .as_ref()
@@ -860,54 +869,78 @@ impl RetainedState {
                 }
             }
         }
-        written_names.extend(written[animated_count..].iter().map(|(name, _)| name.raw()));
         // NB: A container condition the engine cannot decide leaves what a function reads unknown, as a read of no name.
         let functions = written
             .iter()
             .any(|(_, value)| value_calls_custom_functions(value))
             .then(|| self.prepare_custom_functions(&self.document_functions, node, pseudo))
             .flatten();
+        let reads_attributes = functions.as_ref().is_some_and(|functions| functions.reads_attributes)
+            || written.iter().any(|(_, value)| value_reads_attributes(value));
+        let attribute_element = self.substitution_attribute_element(node, pseudo);
+        let attributes = reads_attributes
+            .then(|| SubstitutionAttributes::of(&self.projection, attribute_element, self.html_element_namespace));
+        let reads_conditions = functions.is_some() || written.iter().any(|(_, value)| value_reads_conditions(value));
+        let style_query = reads_conditions
+            .then(|| self.style_query_inputs(computed::ComputedStyleTarget::new(node, pseudo.unwrap_or(u8::MAX))))
+            .flatten();
+        // SAFETY: The base store is live for the sample, and the values are live for the call.
+        let base = unsafe { retained_store(base) };
+        let values = animated
+            .iter()
+            .map(|(name, value)| (name.raw(), false, value.pointer().cast()))
+            .collect();
+        // SAFETY: The values are live for the call.
+        let store = unsafe { CustomPropertyStore::cascaded_child(base, values) };
         let registry = self.document_style_computation_inputs.custom_property_registry();
-        let holds_a_value = |name: &ak::Utf16FlyString| {
-            written_names.contains(&name.raw_identity())
-                || registry.has_initial_value(name)
-                || inherited.is_some_and(|store| store.holds_name(name))
-        };
-        let mut reads: Vec<(&Name, Vec<Arc<[u16]>>)> = Vec::new();
+        let random_function_index = crate::css::parser::value_parser::RandomFunctionIndex::default();
+        let mut parse_context = registry.parse_context(&random_function_index);
+        parse_context.in_quirks_mode = self.document_style_computation_inputs.in_quirks_mode;
+        let media_environment = self.document_media.environment();
+        // SAFETY: The store the element inherits from is live for the sample.
+        let inheritance_store = unsafe { inheritance.cast::<CustomPropertyStore>().as_ref() };
+        let resolution_context = engine_resolution_context(
+            &parse_context,
+            Some(&store),
+            inheritance_store,
+            registry,
+            attributes.as_ref(),
+            &media_environment,
+            style_query.as_ref(),
+            functions.as_ref(),
+        );
+        let mut environment = crate::css::custom_properties::prepare_var_resolution_environment(
+            resolution_context.attributes,
+            resolution_context.custom_functions,
+        );
+        let mut reads: Vec<(&Name, Vec<usize>)> = Vec::new();
         let mut reads_of_name: HashMap<usize, usize> = HashMap::default();
         for (name, value) in &written {
-            let names: Vec<Arc<[u16]>> = match (&functions, substituted_tokens(value)) {
-                (Some(functions), StyleValueData::Unresolved(unresolved)) if value_calls_custom_functions(value) => {
-                    crate::css::custom_properties::custom_property_reads_through_functions(
-                        unresolved.components().as_ref(),
-                        &functions.registry,
-                        &holds_a_value,
-                    )
-                }
-                _ => named_custom_property_reads(value)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(Arc::from)
-                    .collect(),
-            };
             let index = *reads_of_name.entry(name.raw()).or_insert_with(|| {
                 reads.push((name, Vec::new()));
                 reads.len() - 1
             });
-            reads[index].1.extend(names);
+            let StyleValueData::Unresolved(unresolved) = substituted_tokens(value) else {
+                continue;
+            };
+            if !unresolved.presence().has_any() {
+                continue;
+            }
+            let fly_name = ak::Utf16FlyString::from_utf16(name.to_utf16().as_ref());
+            let names = crate::css::custom_properties::custom_properties_a_substitution_reads(
+                &resolution_context.inputs,
+                &fly_name,
+                unresolved,
+                &mut environment,
+            );
+            reads[index].1.extend(names.iter().map(|name| name.raw_identity()));
         }
-        let names: Vec<_> = reads.iter().map(|(name, _)| name.to_utf16()).collect();
-        let index_of_name: HashMap<&[u16], usize> = names
-            .iter()
-            .enumerate()
-            .map(|(index, name)| (name.as_ref(), index))
-            .collect();
         // NB: A name nothing writes reads nothing, so no cycle goes through it.
         let edges: Vec<Vec<usize>> = reads
             .iter()
             .map(|(_, read)| {
                 read.iter()
-                    .filter_map(|read| index_of_name.get(&**read).copied())
+                    .filter_map(|read| reads_of_name.get(read).copied())
                     .collect()
             })
             .collect();

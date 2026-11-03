@@ -477,13 +477,6 @@ impl CustomPropertyRegistry {
     }
 
     /// Whether the custom property `name` names is registered.
-    /// Whether the name is registered with an initial value, which it reads as where nothing declares it.
-    pub(crate) fn has_initial_value(&self, name: &Utf16FlyString) -> bool {
-        self.registrations
-            .get(name)
-            .is_some_and(|registration| registration.initial_source.is_some())
-    }
-
     pub(crate) fn is_registered(&self, name: &Utf16FlyString) -> bool {
         self.registrations.contains_key(name)
     }
@@ -1022,11 +1015,6 @@ impl CustomPropertyStore {
         Some(entry.value.pointer() as usize)
     }
 
-    /// Whether the store, or one it inherits from, holds a value of the name.
-    pub(crate) fn holds_name(&self, name: &Utf16FlyString) -> bool {
-        self.get_by_name_with_owner(name).is_some()
-    }
-
     fn get_by_name_with_owner(&self, name: &Utf16FlyString) -> Option<(&CustomPropertyEntry, &CustomPropertyStore)> {
         self.own_values
             .get(&name.raw_identity())
@@ -1323,6 +1311,8 @@ struct ASFResolutionContext<'a> {
     substitution_limit_hits: u64,
     function_local_scopes: Vec<FunctionLocalScope<'a>>,
     token_cache: Option<&'a mut CustomPropertyTokenCache>,
+    /// Where the custom properties of the element the substitution under way looks up are noted, if anywhere.
+    element_property_reads: Option<&'a mut HashSet<Utf16FlyString>>,
 }
 
 impl ASFResolutionContext<'_> {
@@ -1608,6 +1598,7 @@ fn compute_element_custom_property(
             element_values: context.element_values.as_deref_mut(),
             function_local_scopes: Vec::new(),
             token_cache: context.token_cache.as_deref_mut(),
+            element_property_reads: context.element_property_reads.as_deref_mut(),
             ..*context
         };
 
@@ -1963,6 +1954,12 @@ fn resolve_custom_property_with_lookup(
         }
 
         return result;
+    }
+
+    if lookup == CustomPropertyLookup::Normal
+        && let Some(reads) = context.element_property_reads.as_deref_mut()
+    {
+        reads.insert(name.clone());
     }
 
     // Pop the function local scopes while we resolve the element level custom property.
@@ -2857,151 +2854,6 @@ fn split_function_arguments(tokens: &[ComponentValue]) -> Vec<&[ComponentValue]>
     tokens.split(ComponentValue::is_comma).collect()
 }
 
-/// The custom properties of the element that substituting `tokens` reads, looking through the custom functions it
-/// calls as [`replace_a_dashed_function`] resolves them. A parameter or local of a function on the way shadows the
-/// element's property of that name, and `holds_a_value` says of a name whether its `var()` leaves its fallback unread.
-/// A function's reads are worked out once per number of arguments passed to it, so this takes time in proportion to
-/// the functions and the calls, however many paths lead through them.
-/// What `if()`, `attr()`, `inherit()` and `env()` read is left out: which of their arguments substitute depends on the
-/// values themselves.
-pub(crate) fn custom_property_reads_through_functions(
-    tokens: &[ComponentValue],
-    functions: &CustomFunctionRegistry<'_>,
-    holds_a_value: &dyn Fn(&Utf16FlyString) -> bool,
-) -> Vec<Arc<[u16]>> {
-    let mut read_ahead = FunctionReadAhead {
-        functions,
-        holds_a_value,
-        calling: Vec::new(),
-        reads_of_calls: HashMap::new(),
-        reads: HashSet::new(),
-    };
-    read_ahead.visit(tokens);
-    read_ahead.reads.iter().map(|name| Arc::from(name.to_utf16())).collect()
-}
-
-struct FunctionReadAhead<'a, 'b> {
-    functions: &'a CustomFunctionRegistry<'b>,
-    holds_a_value: &'a dyn Fn(&Utf16FlyString) -> bool,
-    /// The functions whose bodies are being visited, innermost last: their local scopes.
-    calling: Vec<&'a PreparedCustomFunction<'b>>,
-    /// What a call of a definition with so many of its parameters passed reads, past the locals of that definition and
-    /// of what it calls. Which caller's locals shadow those is for each caller to say as it takes them.
-    reads_of_calls: HashMap<(*const PreparedCustomFunction<'b>, usize), Rc<HashSet<Utf16FlyString>>>,
-    /// What the innermost function being visited reads so far.
-    reads: HashSet<Utf16FlyString>,
-}
-
-impl FunctionReadAhead<'_, '_> {
-    fn visit(&mut self, tokens: &[ComponentValue]) {
-        for value in tokens {
-            match &value.kind {
-                ComponentKind::Token(_) => {}
-                ComponentKind::SimpleBlock { values, .. } => self.visit(values.as_ref()),
-                ComponentKind::Function { name, values } => {
-                    if name.eq_ignore_ascii_case("var") {
-                        self.visit_var(values.as_ref());
-                    } else if name.starts_with_ascii("--") {
-                        self.visit_call(name.as_ref(), values.as_ref());
-                    } else if !is_substitution_function(name.as_ref()) {
-                        self.visit(values.as_ref());
-                    }
-                }
-            }
-        }
-    }
-
-    fn visit_var(&mut self, arguments: &[ComponentValue]) {
-        let comma = arguments.iter().position(ComponentValue::is_comma);
-        let first_argument = trim_whitespace(&arguments[..comma.unwrap_or(arguments.len())]);
-        let name = match first_argument {
-            [value] => value.ident_string().filter(|name| name.starts_with_ascii("--")),
-            _ => None,
-        };
-        let Some(name) = name else {
-            self.visit(first_argument);
-            return;
-        };
-        let fly_name = name.fly_string();
-        if self
-            .calling
-            .last()
-            .is_some_and(|function| function.declares_local(&fly_name))
-        {
-            return;
-        }
-        // NB: A fallback counts even where a caller's local shadows the name, which can leave that local no value.
-        let reads_fallback = !(self.holds_a_value)(&fly_name);
-        self.reads.insert(fly_name.into_owned());
-        if let Some(comma) = comma
-            && reads_fallback
-        {
-            self.visit(&arguments[comma + 1..]);
-        }
-    }
-
-    fn visit_call(&mut self, name: &[u16], arguments: &[ComponentValue]) {
-        let caller_scope_identity = self
-            .calling
-            .last()
-            .map_or(self.functions.caller_scope_identity, |function| function.scope_identity);
-        let functions = self.functions;
-        let Some(function) = functions
-            .visible
-            .iter()
-            .filter(|visibility| visibility.caller_scope_identity == caller_scope_identity)
-            .map(|visibility| &functions.definitions[visibility.definition_index])
-            .find(|definition| definition.signature.name.units() == name)
-        else {
-            return;
-        };
-        let arguments = split_function_arguments(arguments);
-        for argument in &arguments {
-            self.visit(argument);
-        }
-        // NB: A function reached again is a cycle of its own, and reads nothing it has not read on the way there.
-        if self.calling.iter().any(|calling| calling.identity == function.identity) {
-            return;
-        }
-        let passed = arguments.len().min(function.parameter_defaults.len());
-        let key = (std::ptr::from_ref(function), passed);
-        let reads_of_call = if let Some(reads_of_call) = self.reads_of_calls.get(&key) {
-            Rc::clone(reads_of_call)
-        } else {
-            let reads_of_caller = std::mem::take(&mut self.reads);
-            self.calling.push(function);
-            for default_value in function.parameter_defaults[passed..].iter().flatten() {
-                self.visit(default_value.as_ref());
-            }
-            // NB: Resolving function styles computes every declaration of the body, whether the result reads it or not.
-            for declaration in &function.declarations {
-                self.visit(declaration.tokens());
-            }
-            self.calling.pop();
-            let reads_of_call = Rc::new(std::mem::replace(&mut self.reads, reads_of_caller));
-            self.reads_of_calls.insert(key, Rc::clone(&reads_of_call));
-            reads_of_call
-        };
-        let caller = self.calling.last().copied();
-        self.reads.extend(
-            reads_of_call
-                .iter()
-                .filter(|name| !caller.is_some_and(|caller| caller.declares_local(name)))
-                .cloned(),
-        );
-    }
-}
-
-impl PreparedCustomFunction<'_> {
-    fn declares_local(&self, name: &Utf16FlyString) -> bool {
-        self.signature
-            .parameters
-            .iter()
-            .any(|parameter| parameter.name == *name)
-            || self.declarations.iter().any(|declaration| declaration.name == *name)
-    }
-}
-
 // https://drafts.csswg.org/css-mixins/#resolve-function-styles
 fn resolve_function_styles<'a, 'names>(
     store: Option<&CustomPropertyStore>,
@@ -3837,6 +3689,49 @@ pub(crate) struct VarResolutionInputs<'a> {
     pub(crate) media_environment: Option<&'a FfiMediaEnvironment<'a>>,
     pub(crate) attribute_names_are_ascii_case_insensitive: bool,
     pub(crate) style_query_inputs: Option<&'a crate::css::cascaded_properties::StyleQueryInputs>,
+}
+
+/// The custom properties of the element that substituting `value`, as the custom property `name`, looks up with the
+/// values `inputs` holds: what its `var()` functions and `if()` conditions name, wherever a function, a branch, a
+/// fallback or an attribute's value takes that, and only where they do.
+pub(crate) fn custom_properties_a_substitution_reads(
+    inputs: &VarResolutionInputs,
+    name: &Utf16FlyString,
+    value: &UnresolvedPayload,
+    environment: &mut VarResolutionEnvironment<'_>,
+) -> HashSet<Utf16FlyString> {
+    let VarResolutionEnvironment {
+        attributes,
+        custom_functions,
+        token_cache,
+    } = environment;
+    let mut reads = HashSet::new();
+    let mut context = ASFResolutionContext {
+        attributes: Some(attributes),
+        inheritance_store: inputs.inheritance_store,
+        attribute_names_are_ascii_case_insensitive: inputs.attribute_names_are_ascii_case_insensitive,
+        custom_functions: Some(custom_functions),
+        parse_context: inputs.parse_context,
+        media_environment: inputs.media_environment,
+        style_query_length_resolution_context: inputs.style_query_inputs.map(|inputs| &inputs.length),
+        style_query_color_resolution_input: inputs.style_query_inputs.map(|inputs| inputs.color_input()),
+        style_query_tree_counting: inputs.style_query_inputs.and_then(|inputs| inputs.tree_counting),
+        token_cache: Some(token_cache),
+        element_property_reads: Some(&mut reads),
+        ..Default::default()
+    };
+    let tokens = value.components();
+    // NB: What the substitution comes to is of no interest here, only what it looked at.
+    let _ = substitute_arbitrary_substitution_functions(
+        inputs.store,
+        inputs.registry,
+        tokens.as_ref(),
+        &mut context,
+        0,
+        Some(SubstitutionContextDependency::Property(name.clone(), None)),
+    );
+    drop(context);
+    reads
 }
 
 pub(crate) fn resolve_vars(
