@@ -54,6 +54,24 @@ pub(crate) struct PassColumn<T> {
     chunks: Vec<OwnedChunk<T>>,
 }
 
+// SAFETY: A pass writes a row only from the run that lays out the row's box. The runs laid out at once on several
+// threads lay out disjoint subtrees, and outside their own subtree they only read the rows of their ancestors, whose
+// runs wait for them. So no row is written while another thread reaches it, and rows several threads read at once are
+// Sync. Debug builds check that no row is written while it is reached otherwise.
+unsafe impl<T: Send + Sync> Sync for PassColumn<T> {}
+
+#[derive(Default)]
+pub(crate) struct ExclusiveRow<T>(T);
+
+// SAFETY: An ExclusiveRow hands out its contents only through a mutable reference, so threads never share them.
+unsafe impl<T: Send> Sync for ExclusiveRow<T> {}
+
+impl<T> ExclusiveRow<T> {
+    pub(crate) fn get_mut(&mut self) -> &mut T {
+        &mut self.0
+    }
+}
+
 impl<T> Default for PassColumn<T> {
     fn default() -> Self {
         Self { chunks: Vec::new() }

@@ -10,7 +10,6 @@ use super::layout_node_arena::IntrinsicSizeCacheKind;
 use super::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::render_state::DocumentHost;
 use crate::stage::MainThread;
-use std::cell::RefCell;
 use std::ffi::c_void;
 use std::fmt::Write;
 
@@ -44,8 +43,8 @@ struct Line {
 pub(crate) struct TraceRecord(Option<Trace>);
 
 /// What a layout pass records its events into: the trace it took over from the document.
-#[derive(Clone, Default)]
-pub(crate) struct LayoutTrace(RefCell<Option<Trace>>);
+#[derive(Default)]
+pub(crate) struct LayoutTrace(std::sync::Mutex<Option<Trace>>);
 
 /// The events traced while a scope lives nest under the line that opened it.
 pub(super) struct Scope<'a> {
@@ -56,7 +55,7 @@ pub(super) struct Scope<'a> {
 impl Scope<'_> {
     /// Adds `text` to the end of the line that opened the scope.
     pub(super) fn append(&self, text: &str) {
-        self.trace.0.borrow_mut().as_mut().unwrap().lines[self.line]
+        self.trace.state().as_mut().unwrap().lines[self.line]
             .text
             .push_str(text);
     }
@@ -64,7 +63,7 @@ impl Scope<'_> {
 
 impl Drop for Scope<'_> {
     fn drop(&mut self) {
-        self.trace.0.borrow_mut().as_mut().unwrap().depth -= 1;
+        self.trace.state().as_mut().unwrap().depth -= 1;
     }
 }
 
@@ -139,15 +138,19 @@ impl TraceRecord {
 }
 
 impl LayoutTrace {
+    fn state(&self) -> std::sync::MutexGuard<'_, Option<Trace>> {
+        self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     #[cfg(test)]
     fn begin(&self) {
-        let begun = begun_trace(self.0.borrow().as_ref());
-        *self.0.borrow_mut() = Some(begun);
+        let begun = begun_trace(self.state().as_ref());
+        *self.state() = Some(begun);
     }
 
     #[cfg(test)]
     fn take(&self) -> String {
-        text_of(self.0.borrow_mut().take())
+        text_of(self.state().take())
     }
 
     fn scope(
@@ -156,7 +159,7 @@ impl LayoutTrace {
         owner: Option<NodeSlotId>,
         text: impl FnOnce() -> String,
     ) -> Option<Scope<'_>> {
-        let mut state = self.0.borrow_mut();
+        let mut state = self.state();
         let trace = state.as_mut()?;
         let line = trace.lines.len();
         trace.lines.push(Line {
@@ -171,17 +174,17 @@ impl LayoutTrace {
     }
 
     pub(super) fn is_recording(&self) -> bool {
-        self.0.borrow().is_some()
+        self.state().is_some()
     }
 
     /// Takes over the trace the document kept in `record`, for a pass to go on with it.
     pub(super) fn take_over_from(&self, record: &mut TraceRecord) {
-        *self.0.borrow_mut() = record.0.take();
+        *self.state() = record.0.take();
     }
 
     /// Hands the trace back to `record` once the pass is over.
     pub(super) fn hand_back_to(&self, record: &mut TraceRecord) {
-        record.0 = self.0.take();
+        record.0 = self.state().take();
     }
 
     pub(super) fn pass(&self, partial_root: Option<NodeSlotId>) -> Option<Scope<'_>> {
