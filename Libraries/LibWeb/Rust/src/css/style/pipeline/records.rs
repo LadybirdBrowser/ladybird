@@ -2300,7 +2300,7 @@ impl ContainerRecords for Records<'_> {
 
 impl Record {
     /// The view of the record, as the computation of the elements inheriting from it reads it.
-    fn view(self: &Arc<Self>) -> computed::StyleRecordView<'_> {
+    pub(in super::super) fn view(self: &Arc<Self>) -> computed::StyleRecordView<'_> {
         computed::StyleRecordView {
             payloads: &self.payloads,
             base_payloads: &self.payloads,

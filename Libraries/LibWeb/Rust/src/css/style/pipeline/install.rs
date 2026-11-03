@@ -231,6 +231,42 @@ impl RetainedState {
         id
     }
 
+    /// What moving each of `elements` from the record assigned it to the one `live` holds for it damages, on the threads
+    /// of the pool where many move. Installing an element reads only its own records, which none of this changes.
+    fn element_move_damages(&self, live: &Live, elements: &[StyleNodeID]) -> Vec<u32> {
+        const ELEMENTS_PER_TASK: usize = 64;
+        let moves = |&(index, new): &(usize, &Arc<Record>)| {
+            let node = elements[index];
+            let old = self.computed_group_sets.assigned_style_record(node);
+            old.map_or(0, |old| self.element_record_damage_to(node, old.raw(), new))
+        };
+        // NB: An element's first style moves from nothing, which is every element of a page arriving.
+        let moving: Vec<(usize, &Arc<Record>)> = elements
+            .iter()
+            .enumerate()
+            .filter(|&(_, &node)| self.computed_group_sets.assigned_style_record(node).is_some())
+            .filter_map(|(index, &node)| Some((index, live.demanded_record(node)?)))
+            .collect();
+        let pool = self.style_pool.as_ref().and_then(|pool| pool.started());
+        let answers: Vec<u32> = match pool.as_deref() {
+            Some(pool) if moving.len() > ELEMENTS_PER_TASK => {
+                use rayon::prelude::*;
+                pool.install(|| {
+                    moving
+                        .par_chunks(ELEMENTS_PER_TASK)
+                        .flat_map_iter(|chunk| chunk.iter().map(moves))
+                        .collect()
+                })
+            }
+            _ => moving.iter().map(moves).collect(),
+        };
+        let mut damages = vec![0; elements.len()];
+        for (&(index, _), answer) in moving.iter().zip(answers) {
+            damages[index] = answer;
+        }
+        damages
+    }
+
     /// The rows installing the records `live` holds for the elements of `changed`, in tree order,
     /// each element's pseudo-elements following it, noting in `installation` what the main thread
     /// does to take them. The elements of `plans_owed`, sorted, owe the host the plans of the
@@ -251,8 +287,9 @@ impl RetainedState {
         scratch.start(&self.projection);
         scratch.order(&self.projection, root, changed);
         let ordered = std::mem::take(&mut scratch.ordered);
+        let element_damages = self.element_move_damages(live, &ordered);
         let mut rows = Vec::with_capacity(ordered.len());
-        for &node in &ordered {
+        for (&node, &element_damage) in ordered.iter().zip(&element_damages) {
             let Some(record) = live.demanded_record(node) else {
                 continue;
             };
@@ -331,10 +368,7 @@ impl RetainedState {
                     .push(StyleSwap::new(self, node, PseudoSlot::ELEMENT, new_record));
             }
             let record_damage = match old != 0 && old != new {
-                true => {
-                    self.element_record_damage(node, false, old, new)
-                        | bridge::FfiStyleInvalidationField::EngineComputed as u32
-                }
+                true => element_damage | bridge::FfiStyleInvalidationField::EngineComputed as u32,
                 false => 0,
             };
             let plan_owed = plans_owed.binary_search(&node).is_ok();
