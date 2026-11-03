@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    // A key at the end of the scroll range has nothing to do, so it holds nothing back while a task keeps the main
+    // thread busy. The key after it still scrolls, and the page still hears of both.
+    promiseTest(async () => {
+        const compositorOffset = () => internals.compositorScrollState().scrollOffset.y;
+        const keys = [];
+        document.addEventListener("keyup", event => keys.push(event.key));
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+
+        internals.sendKeyThroughUIProcess("Up");
+        internals.sendKeyThroughUIProcess("Down");
+
+        // NB: This only gives up on a scroll that never comes, so the time limit can't fail a slow machine's run of a fixed
+        //     engine.
+        const giveUpAt = performance.now() + 5000;
+        while (compositorOffset() !== 100 && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`beside the task: compositor offset=${compositorOffset()}`);
+
+        // NB: These only give up on what never comes as well.
+        let until = performance.now() + 4000;
+        while (keys.length < 2 && performance.now() < until) await animationFrame();
+        println(`keys the page heard of: ${keys.join(", ")}`);
+        until = performance.now() + 4000;
+        while (window.scrollY !== 100 && performance.now() < until) await animationFrame();
+        println(`main thread offset: ${window.scrollY}`);
+    });
+</script>
