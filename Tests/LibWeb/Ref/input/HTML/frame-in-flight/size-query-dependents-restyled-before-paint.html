@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/HTML/frame-in-flight/size-query-dependents-restyled-before-paint-ref.html" />
+<style>
+    #container { container-type: inline-size; width: 100px; }
+    #text { color: red; }
+    @container (width >= 200px) {
+        #text { color: green; }
+    }
+</style>
+<script src="../../../../Text/input/include.js"></script>
+<script src="../../../../Text/input/HTML/frame-in-flight/frame-in-flight.js"></script>
+<div id="container"><span id="text">PASS</span></div>
+<script>
+    const testRendered = new Promise(resolve => document.documentElement.addEventListener("TestRendered", resolve, { once: true }));
+    (async () => {
+        await testRendered;
+        await twoFramesLanded();
+        internals.setManualRenderingOpportunities(true);
+        // The harness asks for its screenshot once the class is gone. The page takes it as it next paints.
+        document.documentElement.classList.remove("reftest-wait");
+        while (!internals.needsRepaint)
+            await nextTask();
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            container.style.width = "300px";
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        internals.injectRenderingOpportunity(performance.now());
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        internals.setManualRenderingOpportunities(false);
+    })();
+</script>
+</html>
