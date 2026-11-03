@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host" contenteditable>one <span id="hidden" style="display: none">two </span><span id="shown">three </span>four</div>
+<div id="out" contenteditable></div>
+<script>
+    promiseTest(async () => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const copyAndPaste = async label => {
+            host.focus();
+            getSelection().selectAllChildren(host);
+            internals.sendKey(host, "C", platformControl);
+            const paste = new Promise(resolve => host.addEventListener("paste", event => {
+                event.preventDefault();
+                const html = event.clipboardData.getData("text/html");
+                const container = document.createElement("div");
+                container.innerHTML = html;
+                println(`${label}: plain ${JSON.stringify(event.clipboardData.getData("text/plain"))}, html text ${JSON.stringify(container.textContent)}`);
+                resolve();
+            }, { once: true }));
+            internals.sendKey(host, "V", platformControl);
+            await paste;
+        };
+        await copyAndPaste("as it starts");
+        // The changes below are in the same task as the copy, with no layout in between.
+        hidden.style.display = "inline";
+        shown.style.display = "none";
+        await copyAndPaste("swapped");
+        hidden.style.display = "none";
+        shown.style.display = "inline";
+        await copyAndPaste("swapped back");
+    });
+</script>

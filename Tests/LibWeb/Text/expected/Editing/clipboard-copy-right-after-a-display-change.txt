@@ -1,0 +1,3 @@
+as it starts: plain "one three four", html text "one three four"
+swapped: plain "one two four", html text "one two four"
+swapped back: plain "one three four", html text "one three four"
