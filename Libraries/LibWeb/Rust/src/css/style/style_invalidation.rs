@@ -554,6 +554,11 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
     {
         return StyleInvalidation::rebuild_layout_tree_from(REBUILD_ROOT_SELF);
     }
+    // An element whose content is a single image generates another box than one that does not, which its parent's fixup
+    // and wrappers have to take in.
+    if property == property_id::CONTENT && old.content_is_single_image() != new.content_is_single_image() {
+        return StyleInvalidation::full();
+    }
     if matches!(
         property,
         property_id::APPEARANCE | property_id::CONTENT | property_id::CONTENT_VISIBILITY | property_id::TEXT_TRANSFORM

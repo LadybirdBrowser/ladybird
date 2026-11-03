@@ -1,0 +1,20 @@
+legend, non to url: matches a full rebuild
+legend, url to non: matches a full rebuild
+legend, nor to url: matches a full rebuild
+legend, url to nor: matches a full rebuild
+cell, non to url: matches a full rebuild
+cell, url to non: matches a full rebuild
+cell, nor to url: matches a full rebuild
+cell, url to nor: matches a full rebuild
+row, non to url: matches a full rebuild
+row, url to non: matches a full rebuild
+row, nor to url: matches a full rebuild
+row, url to nor: matches a full rebuild
+caption, non to url: matches a full rebuild
+caption, url to non: matches a full rebuild
+caption, nor to url: matches a full rebuild
+caption, url to nor: matches a full rebuild
+column group, non to url: matches a full rebuild
+column group, url to non: matches a full rebuild
+column group, nor to url: matches a full rebuild
+column group, url to nor: matches a full rebuild
