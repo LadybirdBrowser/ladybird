@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	inline: empty custom property with "!important"
+Pass	stylesheet: empty custom property with "!important"
+Pass	inline: empty custom property with " !important"
+Pass	stylesheet: empty custom property with " !important"
+Pass	inline: empty custom property with "\t! \n IMPORTANT \t"
+Pass	stylesheet: empty custom property with "\t! \n IMPORTANT \t"
+Pass	inline: empty custom property with "/**/!/**/important/**/"
+Pass	stylesheet: empty custom property with "/**/!/**/important/**/"
+Pass	inline: empty custom property with "!\\69mportant"
+Pass	stylesheet: empty custom property with "!\\69mportant"
+Pass	Empty important value wins and is inherited: .cascade { --empty: red; } .cascade { --empty: !important; }
+Pass	Empty important value wins and is inherited: .cascade { --empty: !important; } .cascade { --empty: red; }
+Pass	Empty important value selects the light background
+Pass	Empty important value selects the dark background
+Pass	No priority for "!"
+Pass	No priority for "important"
+Pass	No priority for "!important extra"
+Pass	No priority for "!!important"
+Pass	Empty ordinary properties remain invalid and nonempty important values are preserved

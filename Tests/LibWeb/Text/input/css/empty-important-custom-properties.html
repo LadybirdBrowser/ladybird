@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Empty important custom properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-syntax-3/#consume-declaration">
+<link rel="help" href="https://drafts.csswg.org/css-variables-1/#defining-variables">
+<script src="../wpt-import/resources/testharness.js"></script>
+<script src="../wpt-import/resources/testharnessreport.js"></script>
+<body>
+<script>
+    const priorities = [
+        "!important",
+        " !important",
+        "\t! \n IMPORTANT \t",
+        "/**/!/**/important/**/",
+        "!\\69mportant",
+    ];
+
+    for (const priority of priorities) {
+        for (const context of ["inline", "stylesheet"]) {
+            test(t => {
+                let declaration;
+                if (context === "inline") {
+                    declaration = document.createElement("div").style;
+                    declaration.cssText = `--empty:${priority};`;
+                } else {
+                    const style = document.createElement("style");
+                    style.textContent = `.target { --empty:${priority}; }`;
+                    document.head.append(style);
+                    t.add_cleanup(() => style.remove());
+                    declaration = style.sheet.cssRules[0].style;
+                }
+                assert_equals(declaration.length, 1);
+                assert_equals(declaration.getPropertyPriority("--empty"), "important");
+                assert_equals(declaration.getPropertyValue("--empty").trim(), "");
+            }, `${context}: empty custom property with ${JSON.stringify(priority)}`);
+        }
+    }
+
+    for (const rules of [
+        ".cascade { --empty: red; } .cascade { --empty: !important; }",
+        ".cascade { --empty: !important; } .cascade { --empty: red; }",
+    ]) {
+        test(t => {
+            const style = document.createElement("style");
+            style.textContent = rules;
+            document.head.append(style);
+            t.add_cleanup(() => style.remove());
+            const parent = document.createElement("div");
+            const child = document.createElement("div");
+            parent.className = "cascade";
+            child.style.cssText = "background-color: var(--empty, red) green;";
+            parent.append(child);
+            document.body.append(parent);
+            t.add_cleanup(() => parent.remove());
+            assert_equals(getComputedStyle(child).backgroundColor, "rgb(0, 128, 0)");
+        }, `Empty important value wins and is inherited: ${rules}`);
+    }
+
+    for (const [theme, expected] of [["light", "rgb(255, 255, 255)"], ["dark", "rgb(41, 41, 41)"]]) {
+        test(t => {
+            const style = document.createElement("style");
+            style.textContent = `
+                .theme { --light: initial; --dark: initial; }
+                .light { --dark: !important; }
+                .dark { --light: !important; }
+                .surface { background-color: var(--light, white) var(--dark, #292929); }
+            `;
+            document.head.append(style);
+            t.add_cleanup(() => style.remove());
+            const parent = document.createElement("div");
+            parent.className = `theme ${theme}`;
+            const child = document.createElement("div");
+            child.className = "surface";
+            parent.append(child);
+            document.body.append(parent);
+            t.add_cleanup(() => parent.remove());
+            assert_equals(getComputedStyle(child).backgroundColor, expected);
+        }, `Empty important value selects the ${theme} background`);
+    }
+
+    for (const invalid of ["!", "important", "!important extra", "!!important"]) {
+        test(() => {
+            const style = document.createElement("div").style;
+            style.cssText = `--empty: ${invalid};`;
+            assert_equals(style.getPropertyPriority("--empty"), "");
+        }, `No priority for ${JSON.stringify(invalid)}`);
+    }
+
+    test(() => {
+        const style = document.createElement("div").style;
+        style.cssText = "color: !important; width: 1px !important; --value: red !important;";
+        assert_equals(style.getPropertyValue("color"), "");
+        assert_equals(style.getPropertyPriority("color"), "");
+        assert_equals(style.getPropertyValue("width"), "1px");
+        assert_equals(style.getPropertyPriority("width"), "important");
+        assert_equals(style.getPropertyValue("--value"), "red");
+        assert_equals(style.getPropertyPriority("--value"), "important");
+    }, "Empty ordinary properties remain invalid and nonempty important values are preserved");
+</script>
