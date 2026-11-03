@@ -2826,14 +2826,24 @@ pub(super) fn resume(
 
 /// Keep the records of the pseudo-elements `suspended` holds back that did not wait, as no round
 /// resumes them: the next pass styles the others.
-pub(super) fn settle_suspended(context: &PassContext<'_>, suspended: Vec<Suspended>) {
+///
+/// Answers the elements whose ancestors asked this pass to restyle what is below them, which only the elements themselves
+/// knew: the next pass restyles those too.
+pub(super) fn settle_suspended(context: &PassContext<'_>, suspended: Vec<Suspended>) -> HashSet<StyleNodeID> {
+    let mut restyling_descendants = HashSet::default();
     for suspended in suspended {
-        if let Suspended::PseudoElements(suspended) = suspended {
-            context
+        match suspended {
+            Suspended::Element(queued) => {
+                if queued.hint & RESTYLE_DESCENDANTS != 0 {
+                    restyling_descendants.insert(queued.node);
+                }
+            }
+            Suspended::PseudoElements(suspended) => context
                 .records
-                .insert_pseudo_element_records(suspended.node, suspended.records);
+                .insert_pseudo_element_records(suspended.node, suspended.records),
         }
     }
+    restyling_descendants
 }
 
 /// Style the pseudo-elements of `pseudo_elements`, and the elements `queued` makes of `elements`
