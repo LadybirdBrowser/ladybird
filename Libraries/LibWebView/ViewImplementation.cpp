@@ -1068,9 +1068,11 @@ void ViewImplementation::send_queued_input_events()
     }
 }
 
-// A key press may scroll in the compositor only while no earlier input the pages have yet to handle can change its
-// target. Key release always reaches the compositor's keyboard scrolling, even if it could no longer accept a new
-// scroll.
+// A key press may scroll in the compositor unless earlier input the pages have yet to handle is likely to change its
+// target: a key press the compositor left to the page or a mouse event other than a move. Key release always reaches
+// the compositor's keyboard scrolling, even if it could no longer accept a new scroll.
+// NB: A handler of a key release or a pointer move may change the target too. We accept that, as waiting for those
+//     would stall scrolling beside a busy page for every move of the pointer.
 bool ViewImplementation::may_scroll_for_key_event_in_compositor(size_t index) const
 {
     auto const& key_event = m_pending_input_events[index].event.get<Web::KeyEvent>();
@@ -1081,9 +1083,16 @@ bool ViewImplementation::may_scroll_for_key_event_in_compositor(size_t index) co
     if (!m_has_usable_bitmap)
         return false;
     for (size_t preceding = 0; preceding < index; ++preceding) {
-        auto const* key = m_pending_input_events[preceding].event.get_pointer<Web::KeyEvent>();
-        if (!key || key->type != Web::KeyEvent::Type::KeyDown || !key->async_scroll_performed_default_action)
+        auto const& event = m_pending_input_events[preceding].event;
+        if (auto const* key = event.get_pointer<Web::KeyEvent>()) {
+            if (key->type == Web::KeyEvent::Type::KeyDown && !key->async_scroll_performed_default_action)
+                return false;
+        } else if (auto const* mouse = event.get_pointer<Web::MouseEvent>()) {
+            if (mouse->buttons != 0 || !first_is_one_of(mouse->type, Web::MouseEvent::Type::MouseMove, Web::MouseEvent::Type::MouseLeave))
+                return false;
+        } else {
             return false;
+        }
     }
     return true;
 }
