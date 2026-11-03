@@ -81,6 +81,15 @@ pub(in crate::css::style) use writer::ProjectionWriter;
 /// copies.
 const ROWS_PER_CHUNK: usize = 64;
 
+/// Empty a list of what one transaction wrote or changed. Keep small lists warm for the next transaction, but do not
+/// retain what a batch of arriving elements grew one to for the lifetime of every document.
+fn clear_transaction_list<T>(list: &mut Vec<T>) {
+    list.clear();
+    if list.capacity() * size_of::<T>() > 4096 {
+        *list = Vec::new();
+    }
+}
+
 /// A set of elements whose rows were written, each listed once, with a bit per element slot saying
 /// which.
 #[derive(Clone, Default)]
@@ -123,7 +132,7 @@ impl WrittenRows {
     /// Empty the set, keeping `nodes`, taken from it, as its allocation.
     fn reuse(&mut self, mut nodes: Vec<StyleNodeID>) {
         debug_assert!(self.nodes.is_empty());
-        nodes.clear();
+        clear_transaction_list(&mut nodes);
         self.nodes = nodes;
     }
 }
@@ -147,7 +156,7 @@ impl Clone for PendingChangeScan {
 
 impl PendingChangeScan {
     fn clear(&mut self) {
-        self.writes.clear();
+        clear_transaction_list(&mut self.writes);
         *self.checked.get_mut() = 0;
     }
 
@@ -1196,7 +1205,7 @@ impl Projection {
     pub(in crate::css::style) fn release(&mut self) {
         self.before = ColumnSnapshot::default();
         self.hover.before = HoveredFacts::default();
-        self.changes.clear();
+        clear_transaction_list(&mut self.changes);
         let links_written = self.links_written.take();
         self.links_written.reuse(links_written);
         let relations_written = self.relations_written.take();
