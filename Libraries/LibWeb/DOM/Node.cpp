@@ -2641,7 +2641,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     if (identity == 0)
         return;
 
-    if (value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore) {
+    if (value) {
         Layout::ForcedReadScope read { document() };
         if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(read, *this); first_letter_owner && first_letter_owner != this)
             first_letter_owner->set_needs_layout_tree_update(true, reason);

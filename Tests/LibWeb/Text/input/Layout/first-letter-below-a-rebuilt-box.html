@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .owner::first-letter { color: red; }
+</style>
+<body>
+<script>
+    function check(label, html, change) {
+        const owner = document.createElement("div");
+        owner.className = "owner";
+        owner.innerHTML = html;
+        document.body.append(owner);
+        document.body.offsetWidth;
+        change(owner.querySelector("#t"));
+        document.body.offsetWidth;
+        const comparison = internals.compareLayoutTreeWithFullRebuild();
+        println(`${label}: ${comparison.matches ? "matches a full rebuild" : "differs from a full rebuild"}`);
+        owner.remove();
+    }
+
+    test(() => {
+        check("sibling out of flow to in flow", "<div>a<div id=t style='position: absolute'>x</div>b</div>", t => { t.style.position = "relative"; });
+        check("sibling block to inline", "<div>a<div id=t>x</div>b</div>", t => { t.style.display = "inline"; });
+        check("sibling inline to block", "<div>a<span id=t>x</span>b</div>", t => { t.style.display = "block"; });
+        check("sibling hidden", "<div>a<div id=t>x</div>b</div>", t => { t.style.display = "none"; });
+        check("sibling shown", "<div>a<div id=t style='display: none'>x</div>b</div>", t => { t.style.display = "block"; });
+        check("own box", "<div id=t>abc</div>", t => { t.style.display = "inline-block"; });
+        check("inside an inline", "<div><span id=t>abc</span></div>", t => { t.style.display = "inline-block"; });
+        check("list marker", "<ul><li id=t>a</li></ul>", t => { t.style.listStylePosition = "inside"; });
+    });
+</script>
