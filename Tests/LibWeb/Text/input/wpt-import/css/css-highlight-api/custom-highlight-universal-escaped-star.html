@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Custom Highlight: ::highlight(*) computed style must not be confused with the escaped name \*</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#selectordef-highlight-highlight-name-selector">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #outer::highlight(\*) { color: red; }
+  #outer::highlight(*) { color: green; background-color: yellow; }
+</style>
+<div id="outer">text</div>
+<script>
+test(() => {
+  const style = getComputedStyle(outer, "::highlight(\\*)");
+  assert_equals(style.color, "rgb(255, 0, 0)");
+  assert_equals(style.backgroundColor, "rgb(255, 255, 0)");
+}, "::highlight(\\*) computed style is the escaped literal name's rule, merged with the universal base");
+</script>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Custom Highlight: ::highlight(*) parsing, serialization, and computed style</title>
+<link rel="author" href="mailto:seokho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#selectordef-highlight-highlight-name-selector">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<style>
+  #outer::highlight(*) { color: red; background-color: yellow; }
+  #outer::highlight(foo) { color: green; }
+</style>
+<div id="outer">text</div>
+<script>
+test_valid_selector("::highlight(*)");
+test_valid_selector("div::highlight(*)");
+test_valid_selector(":root::highlight(*)");
+
+test_invalid_selector("::highlight()");
+test_invalid_selector("::highlight(* foo)");
+test_invalid_selector("::highlight(*.class)");
+test_invalid_selector("::highlight(foo*)");
+test_invalid_selector("::highlight(**)");
+
+test(() => {
+  const style = getComputedStyle(outer, "::highlight(foo)");
+  assert_equals(style.color, "rgb(0, 128, 0)");
+  assert_equals(style.backgroundColor, "rgb(255, 255, 0)");
+}, "named highlight merges with the universal base on the same element");
+
+test(() => {
+  const style = getComputedStyle(outer, "::highlight(bar)");
+  assert_equals(style.color, "rgb(255, 0, 0)");
+  assert_equals(style.backgroundColor, "rgb(255, 255, 0)");
+}, "named highlight without its own rule falls back to the universal style");
+</script>

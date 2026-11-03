@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Custom Highlight: a named highlight overrides ::highlight(*) declared later in source</title>
+<link rel="author" href="mailto:seokho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#selectordef-highlight-highlight-name-selector">
+<link rel="match" href="../../../../expected/wpt-import/css/css-highlight-api/custom-highlight-universal-painting-001-ref.html">
+<meta name="assert" value="::highlight(*) contributes 0 specificity, so a named rule wins conflicting properties even when the universal rule comes later in source order.">
+<style>
+  ::highlight(foo) {
+    color: blue;
+  }
+  ::highlight(*) {
+    background-color: yellow;
+    color: red;
+  }
+</style>
+<body><span>One </span><span>two </span><span>three…</span>
+<script>
+  let r = new Range();
+  r.setStart(document.body, 0);
+  r.setEnd(document.body, 2);
+
+  CSS.highlights.set("foo", new Highlight(r));
+</script>

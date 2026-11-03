@@ -229,6 +229,7 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
                     }
                     sink.push_ascii(")");
                 }
+                PseudoElementValue::Universal => sink.push_ascii("(*)"),
                 PseudoElementValue::TransitionName(argument) => {
                     sink.push_ascii("(");
                     match &argument.name {

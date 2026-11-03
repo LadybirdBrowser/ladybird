@@ -2284,8 +2284,8 @@ impl RuleIndex {
             .resolve(self.entries.view(entry as usize).selector())
     }
 
-    pub(super) fn highlight_name_of_entry(&self, entry: u32) -> StyleAtomID {
-        self.selector_of_entry(entry).target_highlight_name()
+    pub(super) fn entry_styles_custom_highlight(&self, entry: u32, name: StyleAtomID) -> bool {
+        self.selector_of_entry(entry).targets_custom_highlight(name)
     }
 
     /// The arena holding the selector of entry `entry`.

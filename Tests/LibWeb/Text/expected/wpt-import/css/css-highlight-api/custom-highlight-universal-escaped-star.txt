@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	::highlight(\*) computed style is the escaped literal name's rule, merged with the universal base

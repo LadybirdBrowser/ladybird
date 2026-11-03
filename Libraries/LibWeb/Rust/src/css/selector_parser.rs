@@ -1025,17 +1025,22 @@ impl<'a> SelectorParser<'a> {
             }
             // https://drafts.csswg.org/css-pseudo-4/#typedef-highlight-name-selector
             // <highlight-name-selector> = '*' | <custom-ident>
-            // FIXME: Support the '*' argument, which selects every custom highlight.
             PseudoElementParameterType::HighlightNameSelector => {
-                let name = stream.next().and_then(ComponentValue::ident).ok_or(())?;
-                if is_css_wide_keyword(name) || ascii_eq(name, "default") {
-                    return Err(());
-                }
+                let argument = stream.next().ok_or(())?;
+                let value = if argument.is_delim(b'*') {
+                    PseudoElementValue::Universal
+                } else {
+                    let name = argument.ident().ok_or(())?;
+                    if is_css_wide_keyword(name) || ascii_eq(name, "default") {
+                        return Err(());
+                    }
+                    PseudoElementValue::Identifiers(Box::new([name.into()]))
+                };
                 stream.discard_whitespace();
                 if !stream.is_empty() {
                     return Err(());
                 }
-                Ok(PseudoElementValue::Identifiers(Box::new([name.into()])))
+                Ok(value)
             }
             PseudoElementParameterType::IdentList => {
                 let mut identifiers = Vec::new();
