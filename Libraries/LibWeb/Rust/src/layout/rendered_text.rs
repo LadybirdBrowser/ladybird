@@ -8,7 +8,6 @@ use super::LayoutNodeArena;
 use super::node_data::NodeSlotId;
 use super::text_transform::{TextRenderingOptions, may_require_bidi_processing, render_text};
 use crate::css::css_enums::text_transform;
-use std::cell::RefCell;
 use std::sync::Arc;
 
 /// Selects the beginning or end of a transformed span for offsets inside it.
@@ -220,13 +219,10 @@ impl TextContent {
 /// text is still that text.
 #[derive(Default)]
 pub(crate) struct TextMemos {
-    /// In chunks a fork of the arena shares until either side writes one, so forking does not copy every row's memo.
-    chunks: RefCell<crate::cow_column::CowVec<Option<ChunksOfText>, CHUNK_MEMOS_PER_CHUNK>>,
+    /// Written in place, while a fork of the arena reads them as they were when it was made.
+    chunks: super::pass_column::ForkSharedRows<Option<ChunksOfText>>,
     grapheme_segmenters: super::pass_column::PassColumn<Option<GraphemeSegmenterOfText>>,
 }
-
-/// How many rows' chunk memos a chunk of [`TextMemos::chunks`] holds: a write after a fork copies this many.
-const CHUNK_MEMOS_PER_CHUNK: usize = 128;
 
 /// The chunks a run made of a row's rendered text, and that text.
 #[derive(Clone)]
@@ -245,7 +241,7 @@ impl TextMemos {
     /// The memos of a fork of the arena, which keeps the chunks and makes grapheme segmenters anew.
     pub(crate) fn fork(&self) -> Self {
         Self {
-            chunks: self.chunks.clone(),
+            chunks: self.chunks.fork(),
             grapheme_segmenters: Default::default(),
         }
     }
@@ -260,11 +256,14 @@ impl TextMemos {
         compute: impl FnOnce() -> super::text_chunker::ChunkedText,
     ) -> Arc<CachedTextChunks> {
         let index = node.slot_index() as usize;
-        if let Some(Some(memo)) = self.chunks.borrow().get(index)
-            && Arc::ptr_eq(&memo.rendered, rendered)
-            && memo.chunks.key == *key
-        {
-            return memo.chunks.clone();
+        let memoized = self.chunks.with_row(index, |memo| match memo {
+            Some(Some(memo)) if Arc::ptr_eq(&memo.rendered, rendered) && memo.chunks.key == *key => {
+                Some(memo.chunks.clone())
+            }
+            _ => None,
+        });
+        if let Some(memoized) = memoized {
+            return memoized;
         }
 
         // A nested measurement can request a different key while an iterator
@@ -274,13 +273,11 @@ impl TextMemos {
             key: key.clone(),
             chunks: compute(),
         });
-        let mut chunks = self.chunks.borrow_mut();
-        if chunks.len() <= index {
-            chunks.resize_with_default(index + 1);
-        }
-        chunks[index] = Some(ChunksOfText {
-            rendered: rendered.clone(),
-            chunks: entry.clone(),
+        self.chunks.with_row_mut(index, |memo| {
+            *memo = Some(ChunksOfText {
+                rendered: rendered.clone(),
+                chunks: entry.clone(),
+            });
         });
         entry
     }
@@ -305,15 +302,13 @@ impl TextMemos {
     }
 
     pub(super) fn cover_slots(&mut self, slot_count: usize) {
+        self.chunks.cover_slots(slot_count);
         self.grapheme_segmenters.cover_slots(slot_count);
     }
 
     /// Lets go of what the memos keep for the row in `slot`, which the arena freed.
     pub(crate) fn forget(&mut self, slot: u32) {
-        let chunks = self.chunks.get_mut();
-        if chunks.get(slot as usize).is_some_and(Option::is_some) {
-            chunks[slot as usize] = None;
-        }
+        self.chunks.reset_row_where(slot as usize, Option::is_some);
         if let Some(segmenter) = self.grapheme_segmenters.row_mut(slot as usize) {
             *segmenter = None;
         }
@@ -528,7 +523,8 @@ mod tests {
             frozen_font_list_fill_generation: 0,
             splits_at_orientation_changes: false,
         };
-        let memos = TextMemos::default();
+        let mut memos = TextMemos::default();
+        memos.cover_slots(1);
         let node = NodeSlotId::new(0, 1);
         let mut previous = memos.text_chunks(node, content.rendered(), &key, ChunkedText::default);
         for language in [
@@ -698,6 +694,7 @@ mod tests {
         assert!(kept(&scratch, validity).is_none());
         assert!(kept(&fork, validity).is_some_and(|kept| Arc::ptr_eq(&kept, &prepared.upgrade().unwrap())));
         drop(fork);
+        scratch.apply_memo_invalidations(&mut arena);
         assert!(prepared.upgrade().is_none());
 
         let (validity, prepared) = keep(&arena, &scratch);

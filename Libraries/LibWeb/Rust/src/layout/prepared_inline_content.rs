@@ -261,13 +261,13 @@ impl PreparedInlineContent {
 
 #[derive(Default)]
 pub(crate) struct PreparedInlineContentMemos {
-    by_slot: RefCell<Vec<Option<Arc<PreparedInlineContent>>>>,
+    by_slot: super::pass_column::ForkSharedRows<Option<Arc<PreparedInlineContent>>>,
 }
 
 impl PreparedInlineContentMemos {
     pub(crate) fn fork(&self) -> Self {
         Self {
-            by_slot: self.by_slot.clone(),
+            by_slot: self.by_slot.fork(),
         }
     }
 
@@ -276,26 +276,21 @@ impl PreparedInlineContentMemos {
         block_container: Node,
         validity: FcRunCacheValidity,
     ) -> Option<Arc<PreparedInlineContent>> {
-        self.by_slot
-            .borrow()
-            .get(block_container.slot_index() as usize)?
-            .as_ref()
-            .filter(|kept| kept.validity == validity)
-            .cloned()
+        self.by_slot.with_row(block_container.slot_index() as usize, |kept| {
+            kept?.as_ref().filter(|kept| kept.validity == validity).cloned()
+        })
     }
 
     pub(crate) fn keep(&self, block_container: Node, prepared: Arc<PreparedInlineContent>) {
-        let index = block_container.slot_index() as usize;
-        let mut by_slot = self.by_slot.borrow_mut();
-        if by_slot.len() <= index {
-            by_slot.resize_with(index + 1, || None);
-        }
-        by_slot[index] = Some(prepared);
+        self.by_slot
+            .with_row_mut(block_container.slot_index() as usize, |kept| *kept = Some(prepared));
+    }
+
+    pub(super) fn cover_slots(&mut self, slot_count: usize) {
+        self.by_slot.cover_slots(slot_count);
     }
 
     pub(crate) fn forget(&mut self, slot: u32) {
-        if let Some(kept) = self.by_slot.get_mut().get_mut(slot as usize) {
-            *kept = None;
-        }
+        self.by_slot.reset_row_where(slot as usize, Option::is_some);
     }
 }

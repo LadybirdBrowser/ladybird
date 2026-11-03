@@ -149,8 +149,8 @@ impl LayoutScratch {
     /// the rest anew.
     pub(super) fn fork(&self) -> Self {
         Self {
-            fc_run_cache_store: self.fc_run_cache_store.clone(),
-            in_flow_block_cache_store: self.in_flow_block_cache_store.clone(),
+            fc_run_cache_store: self.fc_run_cache_store.fork(),
+            in_flow_block_cache_store: self.in_flow_block_cache_store.fork(),
             text_memos: self.text_memos.fork(),
             prepared_inline_content_memos: self.prepared_inline_content_memos.fork(),
             ..Self::default()
@@ -189,6 +189,9 @@ impl LayoutScratch {
         self.intrinsic_size_caches.cover_slots(slot_count);
         self.text_memos.cover_slots(slot_count);
         self.fragment_builder_scratch.cover_slots(slot_count);
+        self.fc_run_cache_store.cover_slots(slot_count);
+        self.in_flow_block_cache_store.cover_slots(slot_count);
+        self.prepared_inline_content_memos.cover_slots(slot_count);
         arena.take_memo_invalidations().apply_to(
             &mut self.fc_run_cache_store,
             &mut self.in_flow_block_cache_store,
