@@ -283,6 +283,11 @@ pub(super) struct PassContext<'a> {
     pub(super) kept_matched_declarations: Option<&'a MatchedDeclarationsCache>,
     /// The cache of a pass that keeps none for the next.
     pub(super) own_matched_declarations: MatchedDeclarationsCache,
+    /// Whether an element or pseudo-element whose key another's computation waited with waits for
+    /// the next round without one of its own. Elements with the same key can still ask for other
+    /// fonts or random base values, so the last rounds of a pass, which have to answer for all
+    /// that are left, do not.
+    pub(super) waits_once: bool,
     /// Whether the pass reuses what it computed for one element for another: shares records
     /// between elements, finds them in the matched declarations cache, and keeps the caches of its
     /// computations across elements. A reference pass checking the others does none of that.
@@ -323,6 +328,7 @@ impl<'a> PassContext<'a> {
             group_caches: None,
             kept_matched_declarations: None,
             own_matched_declarations: MatchedDeclarationsCache::default(),
+            waits_once: false,
             uses_caches: true,
             cache_audit: super::self_check::Mode::Off,
             held_root_font,
@@ -521,6 +527,11 @@ struct Scratch<'a> {
     substitutions: std::cell::RefCell<super::custom_properties::SubstitutionCache>,
     sharing: SharingCache,
     moved_names: super::custom_property_moves::MovedCustomProperties,
+    /// The hashes of the keys of the elements and pseudo-elements whose computations waited on
+    /// fonts or random base values, where the pass lets another with the same key, which mostly
+    /// asks for the same ones, wait for its next round without computing what the first one threw
+    /// away.
+    waiting_keys: SmallVec<[u64; 8]>,
     /// What decides which of the elements with declarations of their own the cache is worth for.
     own_declaration_lookups: OwnDeclarationLookups,
     /// The longhand table flags of the records the thread made last, most recent first, which the
@@ -567,6 +578,7 @@ impl<'a> Scratch<'a> {
             substitutions: Default::default(),
             sharing: SharingCache::default(),
             moved_names: Default::default(),
+            waiting_keys: SmallVec::new(),
             own_declaration_lookups: OwnDeclarationLookups::default(),
             table_flags: SmallVec::new(),
             rare_facts: SmallVec::new(),
@@ -911,8 +923,14 @@ impl<'a> Scratch<'a> {
         let found = matched_key
             .as_ref()
             .and_then(|key| self.find_matched_declarations(context, node, key));
-        let cascaded = found.is_some() || (matched && self.cascade_element(context, node, backed));
-        let outcome = if !cascaded {
+        let matched_hash = matched_key.as_ref().map(MatchedKey::hash);
+        let waits_as_another =
+            context.waits_once && found.is_none() && matched_hash.is_some_and(|hash| self.waiting_keys.contains(&hash));
+        let cascaded = found.is_some() || waits_as_another || (matched && self.cascade_element(context, node, backed));
+        let outcome = if waits_as_another {
+            self.statistics.waiting.push(node);
+            Outcome::ComputeDeclined
+        } else if !cascaded {
             Outcome::CascadeDeclined
         } else {
             let computed = match found {
@@ -973,7 +991,14 @@ impl<'a> Scratch<'a> {
                         },
                     }
                 }
-                Err(outcome) => outcome,
+                Err(outcome) => {
+                    if let Some(hash) = matched_hash
+                        && self.statistics.waiting.last() == Some(&node)
+                    {
+                        self.waiting_keys.push(hash);
+                    }
+                    outcome
+                }
             }
         };
         let unstyled = matches!(outcome, Outcome::CascadeDeclined | Outcome::ComputeDeclined);
@@ -1262,8 +1287,8 @@ impl<'a> Scratch<'a> {
         if !read.styles(kind, has_rules || highlight_parent.is_some(), element) {
             return PseudoElementOutcome::Unstyled;
         }
-        // A pseudo-element that generates a box, whose element inherits it what one did that left a
-        // record, takes that record without a cascade, as an element does.
+        // A pseudo-element that generates a box and inherits what one that left a record inherited
+        // takes that record without a cascade, as an element does.
         let matched_key = (generating && !highlight)
             .then(|| Self::pseudo_element_matched_key(context, node, matches, inherited, kind))
             .flatten();
@@ -1280,6 +1305,13 @@ impl<'a> Scratch<'a> {
                 record,
                 element_dependent: false,
             };
+        }
+        let matched_hash = matched_key.as_ref().map(MatchedKey::hash);
+        if context.waits_once && matched_hash.is_some_and(|hash| self.waiting_keys.contains(&hash)) {
+            if self.statistics.waiting_pseudo_elements.last() != Some(&node) {
+                self.statistics.waiting_pseudo_elements.push(node);
+            }
+            return PseudoElementOutcome::Waiting;
         }
         self.cascade
             .cascade_pseudo_element(state, context.index, node, matches, kind);
@@ -1407,7 +1439,12 @@ impl<'a> Scratch<'a> {
         });
         let (mut computed, registered) = match driven {
             Ok(driven) => driven,
-            Err(outcome) => return outcome,
+            Err(outcome) => {
+                if let (PseudoElementOutcome::Waiting, Some(hash)) = (&outcome, matched_hash) {
+                    self.waiting_keys.push(hash);
+                }
+                return outcome;
+            }
         };
         let custom_properties = registered.unwrap_or(custom_properties);
         let asked_own_style = subject.asked_pseudo_element_style.get();
