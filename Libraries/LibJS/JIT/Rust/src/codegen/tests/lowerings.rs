@@ -16,6 +16,7 @@ use crate::ir::Comparison;
 use crate::ir::Float64Function;
 use crate::snapshot::KeyedFeedbackSnapshot;
 use crate::snapshot::keyed_feedback_bits;
+use ak::math;
 
 /// What the fake slow paths here produce.
 const MARKER: u64 = (value::UNDEFINED_TAG as u64) << 48 | 0xDEAD_BEEF;
@@ -3676,27 +3677,27 @@ fn math_builtin_calls() {
 }
 
 extern "C" fn fake_exp(number: f64) -> f64 {
-    number.exp()
+    math::exp(number)
 }
 
 extern "C" fn fake_log(number: f64) -> f64 {
-    number.ln()
+    math::log(number)
 }
 
 extern "C" fn fake_sin(number: f64) -> f64 {
-    number.sin()
+    math::sin(number)
 }
 
 extern "C" fn fake_cos(number: f64) -> f64 {
-    number.cos()
+    math::cos(number)
 }
 
 extern "C" fn fake_tan(number: f64) -> f64 {
-    number.tan()
+    math::tan(number)
 }
 
 extern "C" fn fake_pow(base: f64, exponent: f64) -> f64 {
-    base.powf(exponent)
+    math::pow(base, exponent)
 }
 
 fn fake_float64_function(function: Float64Function) -> u64 {
@@ -3715,11 +3716,11 @@ fn fake_float64_function(function: Float64Function) -> u64 {
 fn math_function_calls() {
     type Reference = fn(f64, f64) -> f64;
     let functions: [(u8, Reference); 6] = [
-        (14, |number, _| number.exp()),
-        (15, |number, _| number.ln()),
-        (16, |number, _| number.sin()),
-        (17, |number, _| number.cos()),
-        (18, |number, _| number.tan()),
+        (14, |number, _| math::exp(number)),
+        (15, |number, _| math::log(number)),
+        (16, |number, _| math::sin(number)),
+        (17, |number, _| math::cos(number)),
+        (18, |number, _| math::tan(number)),
         (19, f64::powf),
     ];
     // NB: Where the code exited before, it calls the slow path instead.

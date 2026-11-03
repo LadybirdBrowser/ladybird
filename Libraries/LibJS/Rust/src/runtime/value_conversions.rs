@@ -9,6 +9,7 @@
 
 use core::cmp::Ordering;
 
+use ak::math;
 use num_bigint::{BigInt, BigUint};
 use num_traits::Zero;
 
@@ -590,5 +591,5 @@ pub fn exp_double(base: f64, exponent: f64) -> f64 {
     }
 
     // 13. Return an implementation-approximated Number value representing the result of raising ℝ(base) to the ℝ(exponent) power.
-    base.powf(exponent)
+    math::pow(base, exponent)
 }
