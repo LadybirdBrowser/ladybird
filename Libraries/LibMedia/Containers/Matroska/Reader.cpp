@@ -23,6 +23,7 @@
 #include <LibMediaCodecs/Codecs/AV1.h>
 #include <LibMediaCodecs/Codecs/H264.h>
 #include <LibMediaCodecs/Codecs/H265.h>
+#include <LibMediaCodecs/Limits.h>
 
 #include "Reader.h"
 
@@ -546,7 +547,10 @@ DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::parse_track_entry(Streamer& st
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecID attribute: {}", track_entry->codec_id());
             break;
         case TRACK_CODEC_PRIVATE_ID: {
-            auto codec_private_data = TRY(streamer.read_raw_octets(TRY(streamer.read_variable_size_integer())));
+            auto codec_private_size = TRY(streamer.read_variable_size_integer());
+            if (codec_private_size > MAX_CODEC_CONFIGURATION_SIZE)
+                return DecoderError::corrupted("Track's CodecPrivate element is too large"sv);
+            auto codec_private_data = TRY(streamer.read_raw_octets(codec_private_size));
             track_entry->set_codec_private_data(move(codec_private_data));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecPrivateData element");
             break;

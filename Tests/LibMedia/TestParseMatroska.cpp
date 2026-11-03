@@ -13,6 +13,7 @@
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/ReadonlyBytesCursor.h>
+#include <LibMediaCodecs/Limits.h>
 #include <LibTest/TestCase.h>
 
 #include <LibMedia/Containers/Matroska/Reader.h>
@@ -324,6 +325,27 @@ ByteBuffer make_matroska_without_cues(SegmentSize segment_size, ClusterSize clus
     }
 
     return data;
+}
+
+ByteBuffer make_track_entry_with_element_of_size(u32 id, size_t payload_size)
+{
+    ByteBuffer data;
+    auto track_entry = begin_ebml_master(data, Media::Matroska::TRACK_ENTRY_ID);
+    append_ebml_uint(data, Media::Matroska::TRACK_NUMBER_ID, 1);
+    append_ebml_id(data, id);
+    append_ebml_size(data, payload_size, 4);
+    auto payload_offset = data.size();
+    MUST(data.try_resize(payload_offset + payload_size));
+    data.bytes().slice(payload_offset).fill('a');
+    finish_ebml_master(data, track_entry);
+    return data;
+}
+
+Media::DecoderErrorOr<NonnullRefPtr<Media::Matroska::TrackEntry>> parse_track_entry(ByteBuffer const& data)
+{
+    // Parsing starts after the element ID.
+    auto streamer = streamer_from_bytes(data.bytes().slice(1));
+    return Media::Matroska::Reader::parse_track_entry(streamer);
 }
 
 }
@@ -1170,4 +1192,22 @@ TEST_CASE(unknown_track_type_values_are_invalid)
     // Every value the element can carry maps to a track type without trapping.
     EXPECT_EQ(Media::Matroska::track_type_from_matroska_track_type(Media::Matroska::TrackEntry::TrackType::Metadata), Media::TrackType::Subtitles);
     EXPECT_EQ(Media::Matroska::track_type_from_matroska_track_type(Media::Matroska::TrackEntry::TrackType::Control), Media::TrackType::Unknown);
+}
+
+TEST_CASE(strings_past_the_metadata_string_limit_are_corrupted)
+{
+    auto track_entry = MUST(parse_track_entry(make_track_entry_with_element_of_size(Media::Matroska::TRACK_NAME_ID, Media::MAX_METADATA_STRING_SIZE)));
+    auto name = track_entry->name();
+    EXPECT_EQ(name.bytes().size(), Media::MAX_METADATA_STRING_SIZE);
+
+    auto result = parse_track_entry(make_track_entry_with_element_of_size(Media::Matroska::TRACK_NAME_ID, Media::MAX_METADATA_STRING_SIZE + 1));
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Corrupted);
+}
+
+TEST_CASE(codec_private_data_past_the_codec_configuration_limit_is_corrupted)
+{
+    auto result = parse_track_entry(make_track_entry_with_element_of_size(Media::Matroska::TRACK_CODEC_PRIVATE_ID, Media::MAX_CODEC_CONFIGURATION_SIZE + 1));
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Corrupted);
 }
