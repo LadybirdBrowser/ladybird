@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An SVG script is decoded with the charset of its Content-Type, or else its document's encoding, unless it starts
+    // with a byte order mark, and a malformed byte decodes to U+FFFD.
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        // The body pushes the case's name and a string literal holding the given bytes, given as a binary string.
+        const createScript = (name, contentType, bytes, prefix = "") =>
+            server.createEcho("GET", `/svg-script-decoding-${name.replaceAll(" ", "-")}.js`, {
+                status: 200,
+                headers: { "Content-Type": contentType },
+                body: btoa(`${prefix}results.push([${JSON.stringify(name)}, "${bytes}"]);`),
+                body_encoding: "base64",
+            });
+        const headerCharsetURL = await createScript("header charset", "text/javascript; charset=utf-8", "\xC3\xA9");
+        const documentEncodingURL = await createScript("document encoding", "text/javascript", "\xC3\xA9");
+        const byteOrderMarkURL = await createScript(
+            "byte order mark",
+            "text/javascript; charset=windows-1252",
+            "\xC3\xA9",
+            "\xEF\xBB\xBF"
+        );
+        const malformedByteURL = await createScript("malformed byte", "text/javascript; charset=utf-8", "\xFF");
+
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageURL = await server.createEcho("GET", "/svg-script-decoding.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html; charset=windows-1252" },
+            body: `<!DOCTYPE html>
+                ${scriptStartTag}>globalThis.results = [];${scriptEndTag}
+                <svg xmlns="http://www.w3.org/2000/svg">
+                    ${scriptStartTag} href="${headerCharsetURL}">${scriptEndTag}
+                    ${scriptStartTag} href="${documentEncodingURL}">${scriptEndTag}
+                    ${scriptStartTag} href="${byteOrderMarkURL}">${scriptEndTag}
+                    ${scriptStartTag} href="${malformedByteURL}">${scriptEndTag}
+                </svg>
+                ${scriptStartTag}>
+                    const codePoints = text => [...text].map(code => code.codePointAt(0).toString(16)).join(" ");
+                    parent.postMessage(results.map(([name, text]) => name + ": " + codePoints(text)).join("\\n"), "*");
+                ${scriptEndTag}`,
+        });
+
+        window.addEventListener(
+            "message",
+            event => {
+                println(event.data);
+                done();
+            },
+            { once: true }
+        );
+
+        const frame = document.createElement("iframe");
+        frame.src = pageURL;
+        document.body.appendChild(frame);
+    });
+</script>

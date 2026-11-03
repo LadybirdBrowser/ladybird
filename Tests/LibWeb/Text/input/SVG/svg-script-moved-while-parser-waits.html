@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A parser-inserted SVG script moved to another document while its parser waits for its script runs in neither
+    // document, and its parser goes on.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `svg-script-moved-while-parser-waits-${crypto.randomUUID()}`;
+
+        // The response's first byte arrives at once, and the rest once the token is unblocked.
+        const scriptURL =
+            (await server.createEcho("GET", "/svg-script-moved-while-parser-waits.js", {
+                status: 200,
+                headers: { "Content-Type": "text/javascript", "Cache-Control": "no-store" },
+                body: "self.svgScriptRan = true;",
+            })) + `?chunks=1&chunk_unblock_tokens=${token}`;
+
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageURL = await server.createEcho("GET", "/svg-script-moved-while-parser-waits.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+                <svg xmlns="http://www.w3.org/2000/svg">${scriptStartTag} href="${scriptURL}">${scriptEndTag}</svg>
+                ${scriptStartTag}>parent.postMessage("parser went on", "*");${scriptEndTag}`,
+        });
+
+        const frame = document.createElement("iframe");
+        const parserWentOn = new Promise(resolve => window.addEventListener("message", resolve, { once: true }));
+        frame.src = pageURL;
+        document.body.append(frame);
+        await server.waitForRequest(scriptURL);
+
+        const destination = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        document.body.append(destination);
+        destination.append(frame.contentDocument.querySelector("svg script"));
+        await fetch(`${server.baseURL}/unblock/${token}`);
+
+        println(`parser: ${(await parserWentOn).data}`);
+        println(`ran in the original document: ${frame.contentWindow.svgScriptRan === true}`);
+        println(`ran in the document it moved to: ${window.svgScriptRan === true}`);
+    });
+</script>
