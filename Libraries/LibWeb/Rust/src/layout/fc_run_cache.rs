@@ -135,14 +135,11 @@ impl FcRunCacheKey {
         }
     }
 
-    /// The key with the intrinsic block padding a table hands its cell taken out of the root's block paddings.
-    fn without_table_cell_intrinsic_block_padding(&self) -> Self {
+    /// The key with the root's block paddings left out.
+    fn without_root_block_paddings(&self) -> Self {
         let mut key = self.clone();
-        if let Some((padding_top, padding_bottom)) = key.input.sizing.table_cell_intrinsic_block_padding {
-            key.root_cells.padding_top -= padding_top;
-            key.root_cells.padding_bottom -= padding_bottom;
-            key.input.sizing.table_cell_intrinsic_block_padding = Some((CssPixels::default(), CssPixels::default()));
-        }
+        key.root_cells.padding_top = CssPixels::default();
+        key.root_cells.padding_bottom = CssPixels::default();
         key
     }
 
@@ -293,7 +290,6 @@ fn sizing_directives_match_ignoring_unobserved(
         forced_content_block_size,
         forced_min_border_box_block_size,
         block_parent_resolved_content_inline_size,
-        table_cell_intrinsic_block_padding,
         table_box_content_block_offset_in_wrapper,
         content_block_size_after_run,
         outer_float_intrusion_before_list_item_children,
@@ -304,7 +300,6 @@ fn sizing_directives_match_ignoring_unobserved(
     forced_content_block_size == b.forced_content_block_size
         && forced_min_border_box_block_size == b.forced_min_border_box_block_size
         && block_parent_resolved_content_inline_size == b.block_parent_resolved_content_inline_size
-        && table_cell_intrinsic_block_padding == b.table_cell_intrinsic_block_padding
         && table_box_content_block_offset_in_wrapper == b.table_box_content_block_offset_in_wrapper
         && (content_block_size_after_run == b.content_block_size_after_run
             || content_block_size_adopted_after_run_unobserved)
@@ -331,9 +326,10 @@ pub(super) struct FcRunCacheEntry {
     key: FcRunCacheKey,
     validity: FcRunCacheValidity,
     pub(super) outputs: formatting_context::RunOutputs,
-    /// Whether the run is a table cell's that did not observe the intrinsic block padding its table hands it (see
-    /// run_observes_root_block_padding), so that it stands for runs with any such padding.
-    table_cell_intrinsic_block_padding_unobserved: bool,
+    /// Whether the run is a table cell's that did not observe its block paddings (see run_observes_root_block_padding),
+    /// so that it stands for runs at any of them, such as the intrinsic block padding its table hands it once its rows
+    /// are sized.
+    table_cell_block_paddings_unobserved: bool,
     last_used_at_layout_commit: std::sync::atomic::AtomicU64,
     structural_epoch_bumps_when_stored: u32,
 }
@@ -419,10 +415,10 @@ impl FcRunCacheEntry {
     fn answers_probe_for(&self, probe: &FcRunCacheProbe<'_>) -> bool {
         let unobserved = self.outputs.inputs_never_observed;
         self.key.matches_probe(probe, unobserved)
-            || (self.table_cell_intrinsic_block_padding_unobserved && {
-                let probe_key = probe.key().without_table_cell_intrinsic_block_padding();
+            || (self.table_cell_block_paddings_unobserved && {
+                let probe_key = probe.key().without_root_block_paddings();
                 self.key
-                    .without_table_cell_intrinsic_block_padding()
+                    .without_root_block_paddings()
                     .matches_probe(&probe_key.as_probe(), unobserved)
             })
     }
@@ -903,7 +899,7 @@ impl FcRunCacheAttempt {
                         key: probe.key(),
                         validity,
                         outputs,
-                        table_cell_intrinsic_block_padding_unobserved: false,
+                        table_cell_block_paddings_unobserved: false,
                         last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(
                             callbacks.arena().layout_commit_count(),
                         ),
@@ -922,15 +918,14 @@ impl FcRunCacheAttempt {
         if outputs.root.is_none() {
             return formatting_context::RunOutputsHandle::Owned(outputs);
         }
-        let table_cell_intrinsic_block_padding_unobserved =
-            probe.input.sizing.table_cell_intrinsic_block_padding.is_some()
-                && outputs.root_outcome.parent_owns_root_input_cells()
-                && !run_observes_root_block_padding(callbacks, box_, &outputs);
+        let table_cell_block_paddings_unobserved = NodeFacts::new(callbacks, box_).is_table_cell()
+            && outputs.root_outcome.parent_owns_root_input_cells()
+            && !run_observes_root_block_padding(callbacks, box_, &outputs);
         let entry = FcRunCacheEntry {
             key: probe.key(),
             validity,
             outputs,
-            table_cell_intrinsic_block_padding_unobserved,
+            table_cell_block_paddings_unobserved,
             last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(callbacks.arena().layout_commit_count()),
             structural_epoch_bumps_when_stored: 0,
         };
@@ -1076,7 +1071,7 @@ mod tests {
                 host_findings: None,
                 laid_out_abspos_contained_by_root: false,
             },
-            table_cell_intrinsic_block_padding_unobserved: false,
+            table_cell_block_paddings_unobserved: false,
             last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(layout_commit_count),
             structural_epoch_bumps_when_stored: 0,
         }

@@ -2991,22 +2991,13 @@ pub(crate) fn layout_inside_child_with_input_cells(
     parent_grid: Option<&grid_formatting_context::GridFormattingContext>,
     child: Node,
     input: LayoutInput,
-    mut child_input_cells: used_values::RootInputCells,
+    child_input_cells: used_values::RootInputCells,
     force_independent_context_run: bool,
     percentage_block_insets_of_containing_block_have_definite_basis: bool,
 ) -> ChildLayout {
     let facts = NodeFacts::new(&run.callbacks, child);
     let created_fc_type = formatting_context_type_created_by_box(facts);
     let child_run_builds_fragments = run_builds_fragments(&input, run.fragments.is_some());
-    if let Some((padding_top, padding_bottom)) = input.sizing.table_cell_intrinsic_block_padding {
-        debug_assert!(facts.is_table_cell());
-        debug_assert!(matches!(
-            input.participation,
-            ParticipationInParentFormattingContext::Item
-        ));
-        child_input_cells.padding_top += padding_top;
-        child_input_cells.padding_bottom += padding_bottom;
-    }
     let skipped = |out_of_flow_root_used_insets| ChildLayoutOutcome::Skipped {
         depends_on_percentage_block_size: run.sizing().skipped_child_depends_on_percentage_block_size(child),
         out_of_flow_root_used_insets,
@@ -3096,13 +3087,12 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
     table_box: &impl BoxMetricCells,
     cell: Node,
     cell_input_cells: used_values::RootInputCells,
-    mut input: LayoutInput,
+    input: LayoutInput,
 ) -> ChildRunShape {
     debug_assert!(matches!(
         input.participation,
         ParticipationInParentFormattingContext::Item
     ));
-    input.sizing.table_cell_intrinsic_block_padding = Some((CssPixels::default(), CssPixels::default()));
     // NB: A table cell is a containing block of its own to the percentage block insets of its descendants.
     let plan = child_run_plan(
         run,
@@ -3269,8 +3259,8 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
     if callbacks.reads_no_memoized_layout() {
         return result_with_host_findings(RunOutputsHandle::Owned(lay_out(callbacks, root_cells, &input, None)));
     }
-    let runs_ahead_of_intrinsic_block_padding =
-        builds_fragments && input.sizing.table_cell_intrinsic_block_padding.is_some();
+    // NB: The only shapes of table cells are those laid out ahead of the intrinsic block padding their table hands them.
+    let runs_ahead_of_intrinsic_block_padding = builds_fragments && NodeFacts::new(&callbacks, node).is_table_cell();
     let cache_probe = fc_run_cache::FcRunCacheProbe::new(fc_type, &input, root_cells);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         node,

@@ -2822,7 +2822,6 @@ impl<'pass> TableFormattingContext<'pass> {
         cell_index: usize,
         input: AvailableSpace,
         adopt_automatic_content_block_size: bool,
-        intrinsic_block_padding: Option<(CssPixels, CssPixels)>,
     ) -> (DerivedBaselines, Option<fragment_tree::RunRootFragment>) {
         let layout_input = LayoutInput {
             available_space: input,
@@ -2833,7 +2832,6 @@ impl<'pass> TableFormattingContext<'pass> {
                 } else {
                     geometry::ContentBlockSizeAfterRun::HandedOver
                 },
-                table_cell_intrinsic_block_padding: intrinsic_block_padding,
                 ..RootSizingDirectives::default()
             },
             participation: ParticipationInParentFormattingContext::Item,
@@ -3058,7 +3056,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     content_baselines = Some(measured.baselines);
                 }
             } else {
-                let (baselines, fragment_arrival) = self.layout_inside_cell(run, cell_index, inner, true, None);
+                let (baselines, fragment_arrival) = self.layout_inside_cell(run, cell_index, inner, true);
                 self.keep_fragment_arrival_of_cell(cell_index, fragment_arrival);
                 content_baselines = Some(baselines);
             }
@@ -3454,15 +3452,13 @@ impl<'pass> TableFormattingContext<'pass> {
             // it; restore the pre-layout size so the cell's children resolve percentages against
             // the same basis the measurement saw.
             let pre_layout_content_block_size = self.cell_pre_layout_content_block_sizes[cell_index];
-            self.cell_box_cells[cell_index].set_content_block_size(pre_layout_content_block_size);
+            let cell_box = &mut self.cell_box_cells[cell_index];
+            cell_box.set_content_block_size(pre_layout_content_block_size);
+            cell_box.padding_top += intrinsic_block_padding.0;
+            cell_box.padding_bottom += intrinsic_block_padding.1;
             let inner = self.cell_inside_layout_inputs[cell_index];
-            let (_, fragment_arrival) = self.layout_inside_cell(
-                run,
-                cell_index,
-                inner,
-                adopt_automatic_content_block_size,
-                Some(intrinsic_block_padding),
-            );
+            let (_, fragment_arrival) =
+                self.layout_inside_cell(run, cell_index, inner, adopt_automatic_content_block_size);
             self.keep_fragment_arrival_of_cell(cell_index, fragment_arrival);
             if adopt_automatic_content_block_size {
                 debug_assert_eq!(
