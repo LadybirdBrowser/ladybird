@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
+        await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
+        await internals.wheelThroughUIProcess(50, 50, 0, 40, true, "momentum");
+        await animationFrame();
+        await animationFrame();
+
+        // The script moves the page, as one that keeps its content in place under a flick does, and the rest of the
+        // momentum scrolls on from there.
+        window.scrollTo(0, 500);
+        await animationFrame();
+        await animationFrame();
+        for (let step = 0; step < 3; step++)
+            await internals.wheelThroughUIProcess(50, 50, 0, 40, true, "momentum");
+        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+        for (let frame = 0; frame < 4; frame++)
+            await animationFrame();
+        println(`scrollY after the momentum: ${window.scrollY}`);
+
+        // The next gesture scrolls as usual.
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
+        await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+        for (let frame = 0; frame < 4; frame++)
+            await animationFrame();
+        println(`scrollY after the next gesture: ${window.scrollY}`);
+    });
+</script>
