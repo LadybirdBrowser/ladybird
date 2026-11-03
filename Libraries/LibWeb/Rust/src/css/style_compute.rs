@@ -3080,7 +3080,7 @@ pub(crate) fn initial_value_handle(property_id: u16) -> &'static crate::css::sty
     &initial_value_table().values[longhand_index(property_id)]
 }
 
-fn initial_value_dependencies(property_id: u16) -> ExternalValueDependencies {
+pub(crate) fn initial_value_dependencies(property_id: u16) -> ExternalValueDependencies {
     initial_value_table().dependencies[longhand_index(property_id)]
 }
 
