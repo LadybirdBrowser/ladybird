@@ -1,0 +1,4 @@
+no key: commit
+key: clock
+computed width: 100px
+bare :not(:hover): clock

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    .nested, section {
+        &:hover { width: 200px; }
+    }
+    :is(.alternative, article):hover { width: 300px; }
+    :where(:is(.deep)):hover { width: 400px; }
+</style>
+<div id="target"></div>
+<script>
+    // The keys of a compound are those of each alternative of its &, :is() and :where().
+    asyncTest(async done => {
+        const run = async name => {
+            println(`${name}: ${await hoverSeal(50, 50)}`);
+            await twoFrames();
+            println(`computed width: ${getComputedStyle(target).width}`);
+            internals.queueMouseMove(500, 500);
+            await twoFrames();
+        };
+        await run("none");
+        target.className = "nested";
+        await run("class of &");
+        target.className = "alternative";
+        await run("class of :is()");
+        target.className = "deep";
+        await run("class of :where(:is())");
+        target.className = "";
+        await run("none again");
+        done();
+    });
+</script>

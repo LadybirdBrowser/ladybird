@@ -1,0 +1,3 @@
+no button: commit
+button arrived: clock
+button left: commit

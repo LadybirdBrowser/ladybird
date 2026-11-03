@@ -1,0 +1,2 @@
+hovered: clock
+computed width: 200px

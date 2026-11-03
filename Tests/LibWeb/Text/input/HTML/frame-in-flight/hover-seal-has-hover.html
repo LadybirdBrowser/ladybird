@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #parent, #child { width: 100px; height: 100px; }
+    #parent:has(:hover) #child { width: 200px; }
+</style>
+<div id="parent"><div id="child"></div></div>
+<script>
+    // Any element's hover can flip the :has() of an element above it, whose key no element under the pointer carries.
+    asyncTest(async done => {
+        println(`hovered: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(child).width}`);
+        done();
+    });
+</script>

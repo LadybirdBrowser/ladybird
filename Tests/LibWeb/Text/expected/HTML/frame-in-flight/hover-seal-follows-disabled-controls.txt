@@ -1,0 +1,5 @@
+enabled: commit
+disabled: clock
+enabled again: commit
+another disabled arrived: clock
+it left: commit

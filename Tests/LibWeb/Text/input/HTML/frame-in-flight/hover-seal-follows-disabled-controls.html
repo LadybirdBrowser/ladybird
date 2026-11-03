@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    textarea { display: block; width: 100px; height: 100px; margin: 0; padding: 0; border: 0; }
+</style>
+<div id="target"></div>
+<textarea id="control"></textarea>
+<script>
+    // A disabled control under the pointer takes no mouse event, which only the style engine tells, and has the lane
+    // follow the pointer wherever it goes: the seal follows the state of a control beside the element hovered, as it comes
+    // and goes, and as a control that holds it arrives and leaves.
+    asyncTest(async done => {
+        const run = async name => {
+            println(`${name}: ${await hoverSeal(50, 50)}`);
+            await twoFrames();
+            internals.queueMouseMove(500, 500);
+            await twoFrames();
+        };
+        await run("enabled");
+        control.disabled = true;
+        await run("disabled");
+        control.disabled = false;
+        await run("enabled again");
+        const another = document.createElement("textarea");
+        another.disabled = true;
+        document.body.append(another);
+        await run("another disabled arrived");
+        another.remove();
+        await run("it left");
+        done();
+    });
+</script>

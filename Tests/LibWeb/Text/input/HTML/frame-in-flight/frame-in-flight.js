@@ -126,3 +126,14 @@ async function whileLaneHovers(during, documents = [document], frameTime = undef
         internals.setManualRenderingOpportunities(false);
     }
 }
+
+// Has a lane hover (x, y) beside a task, over the frame of a rendering update it injects, and answers who presents the
+// document's last frame then: the clock, or the commit, where the seal found no hover could restyle anything in the frame.
+async function hoverSeal(x, y) {
+    // NB: The lane an earlier move left would do for whileLaneHovers(), before the frame of what the test just wrote.
+    await twoFramesLanded();
+    return whileLaneHovers(frameTime => {
+        internals.injectHoverPointer(x, y, frameTime + 16);
+        return internals.lastFramePresentedBy(document);
+    });
+}

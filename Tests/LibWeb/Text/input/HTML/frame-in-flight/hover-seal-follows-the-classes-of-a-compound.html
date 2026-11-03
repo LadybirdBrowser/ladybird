@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    .first.second:hover { width: 200px; }
+</style>
+<div id="target" class="first"></div>
+<script>
+    // A compound asks every key it names of one element: the seal follows each class as it comes and goes.
+    asyncTest(async done => {
+        println(`first alone: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        target.classList.add("second");
+        println(`both: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(target).width}`);
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        target.classList.remove("first");
+        println(`second alone: ${await hoverSeal(50, 50)}`);
+        done();
+    });
+</script>
