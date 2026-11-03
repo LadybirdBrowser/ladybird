@@ -2437,32 +2437,6 @@ fn font_group_carries_longhand(property: u16) -> bool {
         )
 }
 
-/// Whether a value resolves against the element itself: a `random()` it draws, or a
-/// container-relative length its query containers measure.
-fn value_resolves_against_the_element(dependencies: &crate::css::style_compute::ExternalValueDependencies) -> bool {
-    dependencies.uses_random_function
-        || dependencies.has_unfixed_random_sharing
-        || dependencies.container_relative_length_unit_mask != 0
-}
-
-/// Whether a written value computes from the record, the parent and the document's computation
-/// inputs alone: no custom-property substitution, and none of the element or sheet facts the C++
-/// computation gathers per drive.
-fn value_computes_without_document_context(value: &StyleValueData) -> bool {
-    // A longhand a shorthand written with a substitution declares holds a pending substitution
-    // until the shorthand resolves.
-    !matches!(
-        value,
-        StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. }
-    ) && crate::css::style_compute::value_is_computationally_independent(value).is_some_and(|_| {
-        let dependencies = crate::css::style_compute::external_value_dependencies(value);
-        !value_resolves_against_the_element(&dependencies)
-            && !dependencies.needs_document_base_url
-            && !dependencies.may_need_style_sheet_resource_context
-            && !dependencies.uses_tree_counting_function
-    })
-}
-
 /// The proof that a record reads no resource context: no value its winners give it resolves a
 /// `url()` against a style sheet's or the document's base URL. The engine keeps only such records
 /// across transactions, so a move of those base URLs, which every `history.pushState()` makes
@@ -2472,9 +2446,8 @@ pub(in crate::css::style) struct ReadsNoResourceContexts(pub(in crate::css::styl
 
 /// Static checks attached to the original declaration spelling at input preparation, in one word:
 /// the external dependencies of the value a longhand computes from, packed the way a winner
-/// memoizes them (bits 0-20 and 31), or zero for a value that waits on substitution; whether the
-/// whole value computes without document context (bit 21); and whether its longhand does (bit 22),
-/// where it does not wait on substitution (bit 23 clear).
+/// memoizes them (bits 0-20 and 31), or zero for a value that waits on substitution (bit 23), and how
+/// the longhand computes from the value (bits 24-27).
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub(in crate::css::style) struct WrittenValueChecks(u32);
@@ -2482,9 +2455,7 @@ pub(in crate::css::style) struct WrittenValueChecks(u32);
 const _: () = assert!(size_of::<WrittenValueChecks>() == 4);
 const _: () = assert!(
     winner_store::DEPENDENCY_BITS
-        & (WrittenValueChecks::WHOLE_CONTEXT_FREE
-            | WrittenValueChecks::LONGHAND_CONTEXT_FREE
-            | WrittenValueChecks::WAITS_ON_SUBSTITUTION
+        & (WrittenValueChecks::WAITS_ON_SUBSTITUTION
             | WrittenValueChecks::IS_SHORTHAND
             | WrittenValueChecks::PLAIN
             | WrittenValueChecks::COMPUTES_TO_ITSELF
@@ -2493,8 +2464,6 @@ const _: () = assert!(
 );
 
 impl WrittenValueChecks {
-    const WHOLE_CONTEXT_FREE: u32 = 1 << 21;
-    const LONGHAND_CONTEXT_FREE: u32 = 1 << 22;
     const WAITS_ON_SUBSTITUTION: u32 = 1 << 23;
     const IS_SHORTHAND: u32 = 1 << 24;
     const PLAIN: u32 = 1 << 25;
@@ -2535,95 +2504,87 @@ impl WrittenValueChecks {
         property: u16,
         value: &crate::css::style_value::RetainedStyleValueData,
     ) -> Self {
-        // NB: Most declared values are scalars, of which nothing need be walked to tell these. This
-        //     runs once for each declaration of a style attribute, on the thread they all go through.
-        if !crate::css::style_compute::value_is_a_plain_scalar(value.data()) {
-            return Self::prepare_by_walking(property, value);
+        use crate::css::style_value::StyleValueData;
+        match value.data() {
+            StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. } => {
+                Self(Self::WAITS_ON_SUBSTITUTION)
+            }
+            // The longhand a shorthand declared whole contributes is what a winner computes from.
+            data @ StyleValueData::Shorthand { .. } => Self(
+                Self::IS_SHORTHAND
+                    | shorthand_longhand_value(property, data)
+                        .map_or(0, |part| Self::of_longhand_value(property, &part)),
+            ),
+            _ => Self(Self::of_longhand_value(property, value)),
         }
-        let mut bits = winner_store::DEPENDENCIES_COMPUTED
-            | Self::WHOLE_CONTEXT_FREE
-            | Self::LONGHAND_CONTEXT_FREE
-            | Self::COMPUTES_TO_ITSELF;
-        if longhand_takes_plain_values(property) {
+    }
+
+    /// The checks of `value` that depend on the value alone: what it computes against, and whether
+    /// it computes to itself. Zero for a value it is not known of.
+    fn of_value(value: &crate::css::style_value::RetainedStyleValueData) -> u32 {
+        use crate::css::style_compute::{
+            try_external_value_dependencies, value_absolutization_is_identity_where_nothing_zooms,
+            value_is_a_plain_scalar,
+        };
+        use crate::css::style_value::StyleValueData;
+        let data = value.data();
+        // NB: Most declared values are scalars, of which nothing need be walked to tell this. It runs for
+        //     each declaration of a style attribute, on the one thread that takes them in.
+        if value_is_a_plain_scalar(data) {
+            return winner_store::pack_dependencies(Default::default()) | Self::COMPUTES_TO_ITSELF;
+        }
+        if matches!(data, StyleValueData::Unresolved { .. }) {
+            return 0;
+        }
+        let Some(dependencies) = try_external_value_dependencies(data) else {
+            return 0;
+        };
+        let to_itself = match value_absolutization_is_identity_where_nothing_zooms(data) {
+            true => Self::COMPUTES_TO_ITSELF,
+            false => 0,
+        };
+        winner_store::pack_dependencies(dependencies) | to_itself
+    }
+
+    /// The checks of `value`, which `property` computes from: those of the value alone, then those
+    /// of this longhand declaring it.
+    fn of_longhand_value(property: u16, value: &crate::css::style_value::RetainedStyleValueData) -> u32 {
+        use crate::css::style_compute::{
+            initial_value_data, initial_value_dependencies, table_row_bits, value_computes_directly,
+        };
+        if !(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+            ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID)
+            .contains(&property)
+        {
+            return Self::of_value(value);
+        }
+        let is_initial_value = value.pointer() == initial_value_data(property);
+        // NB: A shorthand mostly leaves longhands at their initial values, whose dependencies are known.
+        let mut bits = match is_initial_value {
+            true => {
+                let to_itself =
+                    crate::css::style_compute::value_absolutization_is_identity_where_nothing_zooms(value.data());
+                winner_store::pack_dependencies(initial_value_dependencies(property))
+                    | (u32::from(to_itself) * Self::COMPUTES_TO_ITSELF)
+            }
+            false => Self::of_value(value),
+        };
+        if bits & winner_store::DEPENDENCIES_COMPUTED == 0 {
+            return bits;
+        }
+        let dependencies = winner_store::unpack_dependencies(bits & winner_store::DEPENDENCY_BITS);
+        if longhand_takes_plain_values(property) && value_computes_directly(property, value.data(), Some(dependencies))
+        {
             bits |= Self::PLAIN;
         }
-        if value.pointer() == crate::css::style_compute::initial_value_data(property)
+        if is_initial_value
             && !crate::css::property_metadata::property_is_inherited(property)
-            && crate::css::style_compute::table_row_bits(property) == 0
+            && table_row_bits(property) == 0
+            && !dependencies.inheritance_dependent
         {
             bits |= Self::IS_INITIAL;
         }
-        debug_assert!(bits == Self::prepare_by_walking(property, value).0);
-        Self(bits)
-    }
-
-    fn prepare_by_walking(property: u16, value: &crate::css::style_value::RetainedStyleValueData) -> Self {
-        use crate::css::style_value::StyleValueData;
-        let whole_context_free = value_computes_without_document_context(value.data());
-        let longhand_context_free = match value.data() {
-            StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. } => None,
-            StyleValueData::Shorthand { .. } => Some(
-                shorthand_longhand_value(property, value.data())
-                    .is_some_and(|value| value_computes_without_document_context(value.data())),
-            ),
-            _ => Some(whole_context_free),
-        };
-        // The longhand a shorthand declared whole contributes is what a winner computes from.
-        let dependencies = match value.data() {
-            StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. } => 0,
-            StyleValueData::Shorthand { .. } => shorthand_longhand_value(property, value.data())
-                .filter(|value| !matches!(value.data(), StyleValueData::Unresolved { .. }))
-                .and_then(|value| crate::css::style_compute::try_external_value_dependencies(value.data()))
-                .map_or(0, winner_store::pack_dependencies),
-            data => crate::css::style_compute::try_external_value_dependencies(data)
-                .map_or(0, winner_store::pack_dependencies),
-        };
-        debug_assert_eq!(dependencies & !winner_store::DEPENDENCY_BITS, 0);
-        let mut bits = dependencies;
-        if whole_context_free {
-            bits |= Self::WHOLE_CONTEXT_FREE;
-        }
-        match longhand_context_free {
-            None => bits |= Self::WAITS_ON_SUBSTITUTION,
-            Some(true) => bits |= Self::LONGHAND_CONTEXT_FREE,
-            Some(false) => {}
-        }
-        if matches!(value.data(), StyleValueData::Shorthand { .. }) {
-            bits |= Self::IS_SHORTHAND;
-        }
-        let shorthand_part;
-        let longhand_value = match bits & (Self::IS_SHORTHAND | Self::WAITS_ON_SUBSTITUTION) {
-            0 => Some(value),
-            Self::IS_SHORTHAND => {
-                shorthand_part = shorthand_longhand_value(property, value.data());
-                shorthand_part.as_ref()
-            }
-            _ => None,
-        };
-        if let Some(longhand_value) = longhand_value
-            && dependencies & winner_store::DEPENDENCIES_COMPUTED != 0
-        {
-            use crate::css::style_compute::{
-                table_row_bits, value_absolutization_is_identity_where_nothing_zooms, value_computes_directly,
-            };
-            let unpacked = winner_store::unpack_dependencies(dependencies);
-            if longhand_takes_plain_values(property)
-                && value_computes_directly(property, longhand_value.data(), Some(unpacked))
-            {
-                bits |= Self::PLAIN;
-            }
-            if value_absolutization_is_identity_where_nothing_zooms(longhand_value.data()) {
-                bits |= Self::COMPUTES_TO_ITSELF;
-            }
-            if longhand_value.pointer() == crate::css::style_compute::initial_value_data(property)
-                && !crate::css::property_metadata::property_is_inherited(property)
-                && table_row_bits(property) == 0
-                && !unpacked.inheritance_dependent
-            {
-                bits |= Self::IS_INITIAL;
-            }
-        }
-        Self(bits)
+        bits
     }
 }
 
