@@ -1595,6 +1595,7 @@ impl StyleEngine {
 
                 html_element_namespace: StyleAtomID::NONE,
                 sibling_positions: crate::fork::ForkReset::default(),
+                containers_counted_by_style_queries: Default::default(),
                 cold_pass_report: [0; pipeline::ReportField::COUNT],
                 live_style: None,
                 live_style_may_start: crate::fork::ForkReset::original(),
@@ -2492,6 +2493,8 @@ impl RetainedState {
             // Scratch of one traversal.
             // Keyed by the tree's DOM order version.
             sibling_positions: _,
+            // Too many only walk more, and an element's identity is used again.
+            containers_counted_by_style_queries: _,
             // Dropped in `forget_departed_elements` when a relation holds a departed element.
             // Scratch of one transaction.
             // Not keyed by style node.

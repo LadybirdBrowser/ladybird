@@ -203,7 +203,7 @@ pub(super) const PARENT_CHANGED: HintBits = 1 << 5;
 const PARENT_RESTYLED: HintBits = 1 << 6;
 /// An ancestor of the element describes another container than it did, which the elements below
 /// it that read their containers are restyled for.
-const CONTAINERS_MOVED: HintBits = 1 << 7;
+pub(super) const CONTAINERS_MOVED: HintBits = 1 << 7;
 /// The element is restyled for its pseudo-elements, which inherit the composition of its
 /// animations that moved, as under a parent that changed. Where nothing else restyles it, the
 /// host owes it no other composition.

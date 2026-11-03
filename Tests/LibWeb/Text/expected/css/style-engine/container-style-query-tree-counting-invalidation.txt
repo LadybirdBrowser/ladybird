@@ -4,10 +4,10 @@ as written:
   sibling-count(): no
   sibling-index() in a custom function: no
 siblings removed:
-  sibling-index(): no
-  sibling-index() on a pseudo-element: no
-  sibling-count(): no
-  sibling-index() in a custom function: no
+  sibling-index(): yes
+  sibling-index() on a pseudo-element: yes
+  sibling-count(): yes
+  sibling-index() in a custom function: yes
 siblings added:
   sibling-index(): no
   sibling-index() on a pseudo-element: no

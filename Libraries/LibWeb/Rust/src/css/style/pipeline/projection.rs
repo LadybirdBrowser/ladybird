@@ -699,7 +699,8 @@ impl StructuralFlags {
     pub(in crate::css::style) const CHILDREN_READ_POSITIONS: Self = Self(1 << 2);
     /// A selector read whether the element is `:empty`.
     pub(in crate::css::style) const READ_EMPTINESS: Self = Self(1 << 3);
-    /// The record of a child, or of a pseudo-element of it, computes from its place among its siblings.
+    /// The record of a child, or of a pseudo-element of it, or a style query asking the child as a container, computes
+    /// from its place among its siblings.
     pub(in crate::css::style) const CHILD_READS_SIBLING_POSITION: Self = Self(1 << 4);
     /// A selector read where a child stands counted from the end.
     pub(in crate::css::style) const CHILDREN_READ_POSITIONS_FROM_END: Self = Self(1 << 5);
