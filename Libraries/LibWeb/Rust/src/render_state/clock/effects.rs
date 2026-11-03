@@ -198,12 +198,15 @@ impl Lane {
             .map(ElementEffects::node)
             .collect();
         if !unplanned.is_empty()
-            && let super::LaneState::Forked(mut fork) = std::mem::take(&mut self.state)
+            && let super::LaneState::Forked {
+                mut fork,
+                state_moved_on,
+            } = std::mem::take(&mut self.state)
         {
             for &node in &unplanned {
                 self.show_host_styles_of_started(&mut fork, node);
             }
-            self.state = super::LaneState::Forked(fork);
+            self.state = super::LaneState::Forked { fork, state_moved_on };
         }
         self.effects
             .retain(|effects| !unplanned.contains(&effects.node()) || !effects.is_host());

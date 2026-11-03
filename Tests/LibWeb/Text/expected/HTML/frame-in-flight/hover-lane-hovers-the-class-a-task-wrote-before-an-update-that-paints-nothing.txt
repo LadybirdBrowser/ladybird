@@ -1,4 +1,4 @@
 computed width in the task: 100px
-width on screen: 200
+width on screen: 300
 last frame presented by: clock
 computed width: 300px
