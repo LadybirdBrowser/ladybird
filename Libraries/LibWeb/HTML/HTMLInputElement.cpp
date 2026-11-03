@@ -1950,6 +1950,8 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
 
     // 4. Update the element's rendering and behavior to the new state's.
     m_type = new_state;
+    // NB: Which box the element gets depends on its state.
+    set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLInputElementTypeAttribute);
     // Only the Image Button state maps align, border, width, height, hspace and vspace to hints,
     // so entering or leaving it changes the element's hints without any attribute changing.
     if ((old_state == TypeAttributeState::ImageButton) != (new_state == TypeAttributeState::ImageButton))
