@@ -278,9 +278,6 @@ Optional<ContextState::KeyScroll> ContextState::key_scroll_for(Web::KeyEvent con
         || !m_scene.visual_context_tree().has_value()
         || !m_keyboard_scroll_controller.state_matches_visual_context_tree_epoch(m_scene.current_visual_context_tree().structural_epoch()))
         return {};
-    // Keyboard scrolling has not yet been adapted to a separately panned visual viewport.
-    if (m_scene.visual_viewport_scale().value_or(1.0f) != 1.0f)
-        return {};
 
     auto key_step = m_keyboard_scroll_controller.step_for_key(event, m_async_scroll_tree);
     if (!key_step.has_value())
@@ -322,12 +319,36 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
     auto key_scroll = key_scroll_for(event);
     if (!key_scroll.has_value())
         return {};
-    // NB: With nothing to scroll here, the main thread must not hold back the keys after this one. It still gets to
-    //     scroll for this one, as content it added may have extended the scroll range since the compositor last heard.
-    if (!key_scroll->target_scroll_node_index.has_value())
-        return { .accepted = true, .key_found_nothing_to_scroll = true };
     auto const& key_step = key_scroll->step;
     auto delta = key_step.delta;
+
+    // https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
+    // The visual viewport takes as much of the scroll as it can before the layout viewport takes the rest.
+    bool panned_visual_viewport = false;
+    if (!key_scroll->target_scroll_node_index.has_value() || m_async_scroll_tree.scroll_node_is_viewport(*key_scroll->target_scroll_node_index)) {
+        auto magnification = m_scene.visual_viewport_magnification();
+        auto delta_in_screen_pixels = delta.scaled(magnification);
+        auto panned_delta = pan_visual_viewport_by(delta_in_screen_pixels);
+        panned_visual_viewport = !panned_delta.is_zero();
+        delta = (delta_in_screen_pixels - panned_delta).scaled(1.0f / magnification);
+    }
+    auto result_of_pan = [&]() -> ContextUpdateResult {
+        return {
+            .accepted = true,
+            .frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect),
+            .should_request_rendering_update = true,
+        };
+    };
+
+    // NB: With nothing to scroll here, the main thread must not hold back the keys after this one. It still gets to
+    //     scroll for this one, as content it added may have extended the scroll range since the compositor last heard.
+    if (!key_scroll->target_scroll_node_index.has_value()) {
+        if (panned_visual_viewport)
+            return result_of_pan();
+        return { .accepted = true, .key_found_nothing_to_scroll = true };
+    }
+    if (delta.is_zero())
+        return result_of_pan();
     auto scrolls_to_extent = key_step.scrolls_to_extent;
     auto now = MonotonicTime::now();
     auto target_scroll_node_index = *key_scroll->target_scroll_node_index;
@@ -367,8 +388,11 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
     // A plain step continues toward the animation's destination, including any snap on the other axis.
     auto step_start = scroll_in_flight_destination.value_or(*current_offset);
     auto destination = m_async_scroll_tree.clamped_scroll_offset_for_node(target_scroll_node_index, { step_start.x() + delta.x(), step_start.y() + delta.y() });
-    if (destination == step_start)
+    if (destination == step_start) {
+        if (panned_visual_viewport)
+            return result_of_pan();
         return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
+    }
 
     for (auto& animation : m_smooth_scroll_animations) {
         if (animation.stable_node_id != stable_node_id || !animation.is_user_scroll || animation.animation.kind() != Compositing::ScrollAnimationKind::SmoothScroll)
