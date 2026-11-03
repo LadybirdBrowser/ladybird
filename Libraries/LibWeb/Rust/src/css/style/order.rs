@@ -37,6 +37,13 @@ impl OrderMaintenance {
         vec_bytes(&self.labels) + vec_bytes(&self.free_entries) + vec_bytes(&self.order)
     }
 
+    /// Give up the room the order holds beyond its entries.
+    pub(super) fn shrink_to_fit(&mut self) {
+        self.labels.shrink_to_fit();
+        self.free_entries.shrink_to_fit();
+        self.order.shrink_to_fit();
+    }
+
     #[must_use]
     pub fn new() -> Self {
         Self::default()

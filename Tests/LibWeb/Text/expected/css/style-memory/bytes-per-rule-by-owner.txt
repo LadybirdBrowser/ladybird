@@ -22,7 +22,7 @@ descendant:
   invalidation: within 8
   sharedDeclarations: within 40
   styleValues: within 0
-  total: within 460
+  total: within 462
 selector list:
   ruleStore: within 72
   ruleIndex: within 24
@@ -31,4 +31,4 @@ selector list:
   invalidation: within 8
   sharedDeclarations: within 40
   styleValues: within 8
-  total: within 224
+  total: within 225

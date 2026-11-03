@@ -1605,18 +1605,30 @@ impl ProcessRuleIndexes {
         rules: &mut Arc<Vec<RuleID>>,
         rule_order: &mut Arc<crate::css::style::order::OrderMaintenance>,
     ) {
-        fn share<T: PartialEq + Hash>(pool: &std::sync::Mutex<WeakPool<T>>, value: &mut Arc<T>) {
+        // NB: What a document finds here is what another document built, so it holds no room for how this one grew.
+        fn share<T: Clone + PartialEq + Hash>(
+            pool: &std::sync::Mutex<WeakPool<T>>,
+            value: &mut Arc<T>,
+            shrink: impl FnOnce(&mut T),
+        ) {
             let mut hasher = super::super::fast_hash::fast_hasher();
             value.hash(&mut hasher);
             let hash = std::hash::Hasher::finish(&hasher);
             let mut pool = pool.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             match pool.find(hash, |candidate| candidate == &**value) {
                 Some(found) => *value = found,
-                None => pool.insert(hash, value),
+                None => {
+                    shrink(Arc::make_mut(value));
+                    pool.insert(hash, value);
+                }
             }
         }
-        share(&self.sheet_rules, rules);
-        share(&self.sheet_rule_orders, rule_order);
+        share(&self.sheet_rules, rules, |rules| rules.shrink_to_fit());
+        share(
+            &self.sheet_rule_orders,
+            rule_order,
+            crate::css::style::order::OrderMaintenance::shrink_to_fit,
+        );
     }
 
     /// The segment of `selectors`, built where no document of the process binds one, and whether
