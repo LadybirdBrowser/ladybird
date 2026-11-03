@@ -7372,6 +7372,14 @@ bool LocalNavigable::set_scroll_offset_for_user_input(Layout::Node& scrolling_bo
     return did_scroll;
 }
 
+void LocalNavigable::set_scroll_offset_settled_by_layout(Layout::Node& scrolling_box, CSSPixelPoint scroll_offset)
+{
+    // NB: The compositor keeps the box in the same scroll range as it takes in the frame of this layout, from wherever
+    //     the user has scrolled it since. A jump to the offset this thread knows would take that scroll back.
+    TemporaryChange compositor_keeps_the_box_in_range { m_scroll_offset_changes_need_no_request, true };
+    (void)Painting::set_scroll_offset(scrolling_box, scroll_offset);
+}
+
 u64 LocalNavigable::compositor_user_input_scroll_count() const
 {
     u64 count = 0;
