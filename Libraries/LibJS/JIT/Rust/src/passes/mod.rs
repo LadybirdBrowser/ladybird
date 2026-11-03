@@ -150,6 +150,8 @@ fn run_passes(graph: &mut Graph, layout: &FrameLayout, verify: bool, observe: &m
     //     same once the refinements are gone, and nothing moves anymore.
     edit::remove_refinements(graph);
     gvn::run(graph);
+    // NB: Checks that merged took their frame states along, which may have been the last uses of what those refer to.
+    dce::run(graph);
     check(graph, layout, verify, "refinement removal");
     observe(graph, "refinement removal");
     frame_initialization::run(graph, layout);
