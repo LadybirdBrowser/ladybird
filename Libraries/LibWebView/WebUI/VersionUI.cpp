@@ -27,6 +27,8 @@ void VersionUI::load_version_info()
 {
     static NeverDestroyed<String> browser_name = String::from_utf8_without_validation({ BROWSER_NAME, __builtin_strlen(BROWSER_NAME) });
     static NeverDestroyed<String> browser_version = String::from_utf8_without_validation({ BROWSER_VERSION, __builtin_strlen(BROWSER_VERSION) });
+    static NeverDestroyed<String> release_stage = String::from_utf8_without_validation({ BROWSER_RELEASE_STAGE, __builtin_strlen(BROWSER_RELEASE_STAGE) });
+    static NeverDestroyed<String> product_name = String::from_utf8_without_validation({ BROWSER_PRODUCT_NAME, __builtin_strlen(BROWSER_PRODUCT_NAME) });
     static NeverDestroyed<String> browser_commit = String::from_utf8_without_validation(LADYBIRD_COMMIT.bytes());
     static NeverDestroyed<String> arch = String::from_utf8_without_validation({ CPU_STRING, __builtin_strlen(CPU_STRING) });
     static NeverDestroyed<String> platform_name = String::from_utf8_without_validation({ OS_STRING, __builtin_strlen(OS_STRING) });
@@ -36,6 +38,8 @@ void VersionUI::load_version_info()
     JsonObject version_info;
     version_info.set("browserName"_string, *browser_name);
     version_info.set("browserVersion"_string, *browser_version);
+    version_info.set("releaseStage"_string, *release_stage);
+    version_info.set("productName"_string, *product_name);
     version_info.set("browserCommit"_string, *browser_commit);
     version_info.set("arch"_string, *arch);
     version_info.set("platformName"_string, *platform_name);

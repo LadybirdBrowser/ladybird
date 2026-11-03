@@ -12,6 +12,7 @@
 #include <AK/Platform.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TypeCasts.h>
+#include <LibCore/BrowserVersion.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/SessionStore.h>
@@ -1222,8 +1223,8 @@ int BrowserWindow::tab_index(Tab* tab)
 void BrowserWindow::update_window_title(QString const& title)
 {
     char const* format = is_private() == WebView::IsPrivate::Yes
-        ? "%1 - Ladybird (Private)"
-        : "%1 - Ladybird";
+        ? "%1 - " BROWSER_PRODUCT_NAME " (Private)"
+        : "%1 - " BROWSER_PRODUCT_NAME;
     setWindowTitle(QString(format).arg(title));
 }
 
