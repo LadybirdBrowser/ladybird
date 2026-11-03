@@ -21,7 +21,7 @@
         const silencedAt = performance.now();
         println(`stops once the sound has stopped: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
         const silentFor = performance.now() - silencedAt;
-        println(`about three seconds later: ${silentFor >= 2500 && silentFor < 5000}`);
+        println(`at least three seconds later: ${silentFor >= 3000}`);
 
         await context.close();
     });

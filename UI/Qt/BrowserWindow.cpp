@@ -849,7 +849,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     QObject::connect(tab, &Tab::title_changed, this, &BrowserWindow::tab_title_changed);
     QObject::connect(tab, &Tab::favicon_changed, this, &BrowserWindow::tab_favicon_changed);
-    QObject::connect(tab, &Tab::audibility_changed, this, &BrowserWindow::tab_audibility_changed);
+    QObject::connect(tab, &Tab::playing_audio_indicator_changed, this, &BrowserWindow::tab_playing_audio_indicator_changed);
     QObject::connect(tab, &Tab::loading_changed, this, [this] {
         m_tabs_container->tab_bar()->update_loading_ring_animation();
     });
@@ -1409,21 +1409,22 @@ void BrowserWindow::set_always_on_top(bool always_on_top)
         handle->setFlags(flags);
 }
 
-void BrowserWindow::tab_audibility_changed(int index, Audio::Audibility)
+void BrowserWindow::tab_playing_audio_indicator_changed(int index)
 {
     if (index < 0)
         return;
     update_tab_audio_button(*m_tabs_container->tab(index));
 }
 
-// The tab is shown playing audio, muted or not, while the AudioServer recently heard it. A muted tab keeps its button,
-// as that is the only way to unmute it.
+// The tab is shown playing audio, muted or not, while the view shows it playing audio. A muted tab keeps its button, as
+// that is the only way to unmute it.
 void BrowserWindow::update_tab_audio_button(Tab& tab)
 {
     auto index = tab_index(&tab);
     auto* tab_bar = m_tabs_container->tab_bar();
+    auto shows_playing_audio = tab.is_loaded() && tab.view().tab_indicator_visible(WebView::TabIndicator::PlayingAudio);
 
-    if (!tab.is_loaded() || (tab.view().audibility() == Audio::Audibility::Inaudible && tab.view().page_mute_state() == Web::HTML::MuteState::Unmuted)) {
+    if (!tab.is_loaded() || (!shows_playing_audio && tab.view().page_mute_state() == Web::HTML::MuteState::Unmuted)) {
         // The tab bar only hides the button it lets go of.
         if (auto* button = tab_bar->tabButton(index, AUDIO_STATE_BUTTON_POSITION))
             button->deleteLater();

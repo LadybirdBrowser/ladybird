@@ -463,8 +463,11 @@ interface Internals {
     boolean mediaElementIsFetching(HTMLMediaElement element);
     boolean mediaElementIsPlayingAudio(HTMLMediaElement element);
     boolean documentIsPlayingAudio(Document document);
-    // Whether the UI process shows this window's tab as playing audio, which the AudioServer decides by what it hears.
+    // Whether the UI process shows this window's tab as playing audio: while the AudioServer has recently heard the tab,
+    // and for a while after.
     boolean tabIsPlayingAudio();
+    // Whether the AudioServer has recently heard this window's tab, whatever the tab shows.
+    boolean tabIsHeardPlayingAudio();
     // How many times the UI process has changed whether this window's tab is shown as playing audio.
     unsigned long long tabAudibilityChangeCount();
     boolean mediaElementVideoSinkIsTicking(HTMLMediaElement element);

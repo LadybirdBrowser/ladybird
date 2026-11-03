@@ -17,7 +17,8 @@ enum class Audibility : u8 {
     Audible,
 };
 
-// How long a group goes on counting as audible after its sound stops.
-static constexpr AK::Duration AUDIBILITY_LINGER = AK::Duration::from_seconds(3);
+// How long a group goes on counting as audible after its sound stops, so a pause between sounds isn't reported as one
+// sound ending and another starting.
+static constexpr AK::Duration AUDIBILITY_SMOOTHING = AK::Duration::from_milliseconds(500);
 
 }

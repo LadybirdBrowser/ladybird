@@ -50,7 +50,6 @@ ladybird_test_suite(LibWebView)
 
 set(TEST_SOURCES
     TestAccessibilityTreeManager.cpp
-    TestAudibilityHold.cpp
     TestAudioServerAudibility.cpp
     TestAutocompleteMuxer.cpp
     TestAutocompleteRanker.cpp
@@ -66,6 +65,7 @@ set(TEST_SOURCES
     TestHelperProcessEnvironment.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp
+    TestLingeringIndicator.cpp
     TestNavigationLoader.cpp
     TestNotificationAttribution.cpp
     TestNotificationFreedesktopArguments.cpp
@@ -81,6 +81,7 @@ set(TEST_SOURCES
     TestStartupSettings.cpp
     TestStorageAreaRegistry.cpp
     TestStorageJar.cpp
+    TestTabIndicators.cpp
     TestTabPerformanceStats.cpp
     TestWebDriverBiDiNetwork.cpp
     TestWebViewURL.cpp

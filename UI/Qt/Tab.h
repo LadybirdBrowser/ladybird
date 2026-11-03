@@ -13,7 +13,6 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
-#include <LibAudio/Audibility.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
@@ -188,7 +187,7 @@ public slots:
 signals:
     void title_changed(int id, QString const&);
     void favicon_changed(int id, QIcon const&);
-    void audibility_changed(int id, Audio::Audibility);
+    void playing_audio_indicator_changed(int id);
     void loading_changed();
     void performance_stats_changed();
     void loaded();
