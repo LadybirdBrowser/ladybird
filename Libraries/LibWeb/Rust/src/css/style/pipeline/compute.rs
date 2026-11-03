@@ -739,35 +739,33 @@ impl RetainedState {
             Some(_) => crate::css::computed_longhand_table::LonghandTableFlags::of_child_seed(&initial.flags),
             None => crate::css::computed_longhand_table::LonghandTableFlags::of_drive_copy(&initial.flags),
         };
-        let mut writer = match (parent_view.as_ref(), seeded_parent) {
-            (None, None) => GroupValuesWriter::seeded_for_child(
-                seeds[0],
-                seeds[1],
-                std::iter::empty(),
-                flags,
-                initial.dependency_flags,
-            ),
+        let overrides_of_seed = match (parent_view.as_ref(), seeded_parent) {
+            (None, None) => Some(Vec::new()),
             (Some(_), Some(seeded)) if parent_longhands.is_some_and(|longhands| longhands.are_of_record(seeded)) => {
-                GroupValuesWriter::seeded_for_child(
-                    seeds[0],
-                    seeds[1],
-                    inherited_overrides(seeded).into_iter(),
-                    flags,
-                    initial.dependency_flags,
-                )
+                Some(inherited_overrides(seeded))
             }
-            _ => {
+            _ => None,
+        };
+        let mut writer = GroupValuesWriter::seeded(
+            seeds[usize::from(overrides_of_seed.is_none())],
+            seeds[1],
+            flags,
+            initial.dependency_flags,
+        );
+        match overrides_of_seed {
+            Some(overrides) => writer.inherit(seeds[1], overrides.into_iter()),
+            None => {
                 let parent_longhands = parent_longhands.expect("the style engine answers every row");
-                let inherited = crate::css::computed_values::GroupValueLayout::inherited_longhands()
-                    .filter_map(|property| Some((property, parent_longhands.handle(property)?.clone())))
-                    .chain(parent_longhands.inherited_overrides(parent_overlay));
-                let mut writer =
-                    GroupValuesWriter::seeded_for_child(seeds[1], seeds[1], inherited, flags, initial.dependency_flags);
+                writer.inherit(
+                    seeds[1],
+                    crate::css::computed_values::GroupValueLayout::inherited_longhands()
+                        .filter_map(|property| Some((property, parent_longhands.handle(property)?.clone())))
+                        .chain(parent_longhands.inherited_overrides(parent_overlay)),
+                );
                 writer.set_effective_zoom(parent_longhands.effective_zoom());
                 writer.set_effective_color_scheme(parent_longhands.effective_color_scheme());
-                writer
             }
-        };
+        }
 
         // The inputs every drive evaluates move their groups only when their values do.
         let seeded_bits = writer.bits();

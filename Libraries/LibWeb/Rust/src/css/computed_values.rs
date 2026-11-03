@@ -5357,6 +5357,7 @@ impl<'a> GroupValuesWriter<'a> {
     /// the initial recorded specified values.
     ///
     /// The writer starts with the flags `flags` and the dependency flags `dependency_flags`.
+    #[inline]
     pub(crate) fn seeded_for_child(
         parent: GroupSeed<'a>,
         initial: GroupSeed<'a>,
@@ -5364,7 +5365,19 @@ impl<'a> GroupValuesWriter<'a> {
         flags: crate::css::computed_longhand_table::LonghandTableFlags,
         dependency_flags: u8,
     ) -> Self {
-        use crate::css::property_metadata::property_is_inherited;
+        let mut writer = Self::seeded(parent, initial, flags, dependency_flags);
+        writer.inherit(initial, inherited_overrides);
+        writer
+    }
+
+    /// A writer over the groups a child holds of `parent` and `initial`, before what its parent
+    /// hands down, which [`Self::inherit`] writes.
+    pub(crate) fn seeded(
+        parent: GroupSeed<'a>,
+        initial: GroupSeed<'a>,
+        flags: crate::css::computed_longhand_table::LonghandTableFlags,
+        dependency_flags: u8,
+    ) -> Self {
         // NB: A group's longhands all inherit or all do not, so a child borrows its parent's group of
         //     those that do and the initial group of those that do not.
         let mut pointers = initial.groups.pointers();
@@ -5376,7 +5389,7 @@ impl<'a> GroupValuesWriter<'a> {
             holds_references: false,
             styles: std::marker::PhantomData,
         };
-        let mut writer = Self {
+        Self {
             seeded,
             writes: smallvec::SmallVec::new(),
             written_groups: 0,
@@ -5393,12 +5406,22 @@ impl<'a> GroupValuesWriter<'a> {
             effective_color_scheme: parent.facts.effective_color_scheme(),
             flags,
             dependency_flags,
-        };
+        }
+    }
+
+    /// Writes what the parent hands down over the seeded values, with the recorded specified values
+    /// of `initial` as a child holds them.
+    pub(crate) fn inherit(
+        &mut self,
+        initial: GroupSeed<'_>,
+        inherited_overrides: impl Iterator<Item = (u16, RetainedStyleValueData)>,
+    ) {
+        use crate::css::property_metadata::property_is_inherited;
         // NB: What the parent hands down is not the child's computation, so it is not evaluated.
         for (property, value) in inherited_overrides {
-            let held = writer.value(property);
+            let held = self.value(property);
             if held.pointer().is_null() || *held != value {
-                writer.put(property, std::borrow::Cow::Owned(value));
+                self.put(property, std::borrow::Cow::Owned(value));
             }
         }
         // NB: An initial recorded value is that of the initial value. A longhand that inherits another one holds none,
@@ -5411,12 +5434,11 @@ impl<'a> GroupValuesWriter<'a> {
         {
             if property_is_inherited(held.property)
                 && crate::css::style_value::retained_value_depends_on_current_color(&held.value)
-                && *writer.value(held.property) != held.value
+                && *self.value(held.property) != held.value
             {
-                writer.set_inheritance_dependent_value(held.property, None);
+                self.set_inheritance_dependent_value(held.property, None);
             }
         }
-        writer
     }
 
     /// This writer, holding a reference to each group it borrowed, so that it outlives the
@@ -5741,8 +5763,29 @@ impl<'a> GroupValuesWriter<'a> {
     /// reads the recorded currentcolor-dependent specified value of a longhand the computation
     /// did not write in place of its computed value. Also answers the flags and dependency flags
     /// the computation settled beside the values.
+    #[inline]
     pub(crate) fn finish(
         self,
+        seeds: &[GroupSeed<'a>],
+    ) -> (
+        GroupValues<'a>,
+        crate::css::computed_longhand_table::LonghandTableFlags,
+        u8,
+    ) {
+        let mut finished = self.finish_without_current_color(seeds);
+        // NB: What a parent's groups read of `currentcolor` a child holding the same inherited groups
+        //     and recorded values reads too.
+        finished.0.facts.current_color_groups = match seeds.first() {
+            Some(parent) if finished.0.holds_what_the_current_color_groups_of(parent) => {
+                parent.facts.current_color_groups
+            }
+            _ => finished.0.current_color_groups(),
+        };
+        finished
+    }
+
+    fn finish_without_current_color(
+        mut self,
         seeds: &[GroupSeed<'a>],
     ) -> (
         GroupValues<'a>,
@@ -5766,22 +5809,13 @@ impl<'a> GroupValuesWriter<'a> {
                 .fold(0, |bits, held| bits | read_in_place_bit(held.property)),
             (None, None) => 0,
         };
-        let Self {
-            seeded,
-            mut writes,
-            bits,
-            effective_zoom,
-            display_before_box_type_transformation,
-            effective_color_scheme,
-            flags,
-            dependency_flags,
-            ..
-        } = self;
-        let mut seeded = seeded;
         // NB: A value written back over the seed's leaves the seed's.
-        writes.retain(|write| seeded.value(write.place).pointer() != write.value.pointer());
-        writes.sort_unstable_by_key(|write| write.place.order());
-        let written_groups = writes
+        let seeded = &self.seeded;
+        self.writes
+            .retain(|write| seeded.value(write.place).pointer() != write.value.pointer());
+        self.writes.sort_unstable_by_key(|write| write.place.order());
+        let written_groups = self
+            .writes
             .iter()
             .fold(0_u32, |groups, write| groups | (1 << write.place.group()));
         // The first of `seeds` holding the very values the element's group does holds them for it.
@@ -5790,9 +5824,9 @@ impl<'a> GroupValuesWriter<'a> {
         while remaining != 0 {
             let group = remaining.trailing_zeros() as usize;
             remaining &= remaining - 1;
-            let start = writes.partition_point(|write| write.place.group() < group);
-            let end = writes.partition_point(|write| write.place.group() <= group);
-            let group_writes = &writes[start..end];
+            let start = self.writes.partition_point(|write| write.place.group() < group);
+            let end = self.writes.partition_point(|write| write.place.group() <= group);
+            let group_writes = &self.writes[start..end];
             // NB: A write to a payload handle leaves the element's group its own.
             if group_writes.iter().any(|write| write.place.handle_offset().is_some()) {
                 continue;
@@ -5802,44 +5836,43 @@ impl<'a> GroupValuesWriter<'a> {
                 group_writes
                     .iter()
                     .all(|write| value_at(seed_group, write.place).pointer() == write.value.pointer())
-                    && written_values(seeded.values(group), group_writes)
+                    && written_values(self.seeded.values(group), group_writes)
                         .zip(seed_group.group_values())
                         .all(|(value, held)| value.pointer() == held.pointer())
                     && GroupValueLayout::handles_of(group)
-                        .all(|(_, place)| value_at(seed_group, place).pointer() == seeded.value(place).pointer())
+                        .all(|(_, place)| value_at(seed_group, place).pointer() == self.seeded.value(place).pointer())
             });
             if let Some(seed) = shared {
-                seeded.replace(group, seed.group(group));
+                self.seeded.replace(group, seed.group(group));
                 shared_groups |= 1 << group;
             }
         }
         if shared_groups != 0 {
-            writes.retain(|write| shared_groups & (1 << write.place.group()) == 0);
+            self.writes
+                .retain(|write| shared_groups & (1 << write.place.group()) == 0);
         }
         let native_appearance_disabled =
-            dependency_flags & crate::css::computed_longhand_table::NATIVE_APPEARANCE_DISABLED != 0;
-        let mut values = GroupValues {
-            seeds: seeded,
-            writes,
-            written_groups: written_groups & !shared_groups,
-            bits,
-            facts: GroupValueFacts {
-                inheritance_dependent_values,
-                effective_zoom,
-                display_before_box_type_transformation,
-                effective_color_scheme: i8::try_from(effective_color_scheme).expect("a color scheme is a small code"),
-                native_appearance_disabled,
-                read_in_place_bits,
-                current_color_groups: 0,
+            self.dependency_flags & crate::css::computed_longhand_table::NATIVE_APPEARANCE_DISABLED != 0;
+        (
+            GroupValues {
+                seeds: self.seeded,
+                writes: self.writes,
+                written_groups: written_groups & !shared_groups,
+                bits: self.bits,
+                facts: GroupValueFacts {
+                    inheritance_dependent_values,
+                    effective_zoom: self.effective_zoom,
+                    display_before_box_type_transformation: self.display_before_box_type_transformation,
+                    effective_color_scheme: i8::try_from(self.effective_color_scheme)
+                        .expect("a color scheme is a small code"),
+                    native_appearance_disabled,
+                    read_in_place_bits,
+                    current_color_groups: 0,
+                },
             },
-        };
-        // NB: What a parent's groups read of `currentcolor` a child holding the same inherited groups
-        //     and recorded values reads too.
-        values.facts.current_color_groups = match seeds.first() {
-            Some(parent) if values.holds_what_the_current_color_groups_of(parent) => parent.facts.current_color_groups,
-            _ => values.current_color_groups(),
-        };
-        (values, flags, dependency_flags)
+            self.flags,
+            self.dependency_flags,
+        )
     }
 }
 
