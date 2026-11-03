@@ -130,6 +130,8 @@ impl<'a> Host<'a> {
 pub struct Request<'a> {
     ffi: &'a FfiCompositorAnimationRequest,
     keyframes: &'a [FfiCompositorAnimationKeyframe],
+    /// The translation in CSS pixels that the x and y of a <use> element apply after its transform.
+    additional_translation: (f32, f32),
 }
 
 impl<'a> Request<'a> {
@@ -141,14 +143,23 @@ impl<'a> Request<'a> {
             ffi,
             // SAFETY: The caller guarantees the keyframe range is live.
             keyframes: unsafe { ak::slice_from_raw_parts(ffi.keyframes, ffi.keyframe_count) },
+            additional_translation: (0.0, 0.0),
         }
+    }
+
+    pub fn set_additional_translation(&mut self, x: f32, y: f32) {
+        self.additional_translation = (x, y);
     }
 
     /// A request whose keyframe range is `keyframes`, for a unit test.
     #[cfg(test)]
     fn with_keyframes(ffi: &'a FfiCompositorAnimationRequest, keyframes: &'a [FfiCompositorAnimationKeyframe]) -> Self {
         assert!(std::ptr::eq(ffi.keyframes, keyframes.as_ptr()) && ffi.keyframe_count == keyframes.len());
-        Self { ffi, keyframes }
+        Self {
+            ffi,
+            keyframes,
+            additional_translation: (0.0, 0.0),
+        }
     }
 
     pub fn target_kind(&self) -> FfiVisualAnimationTargetKind {
@@ -203,6 +214,8 @@ impl<'a> Request<'a> {
             reference_box_width: self.ffi.reference_box_width,
             reference_box_height: self.ffi.reference_box_height,
             device_pixels_per_css_pixel: self.ffi.device_pixels_per_css_pixel,
+            additional_translation_x: self.additional_translation.0,
+            additional_translation_y: self.additional_translation.1,
         }
     }
 }
@@ -595,6 +608,8 @@ struct KeyframeValueCacheKey {
     reference_box_width: f32,
     reference_box_height: f32,
     device_pixels_per_css_pixel: f32,
+    additional_translation_x: f32,
+    additional_translation_y: f32,
 }
 
 /// The values of one target kind lowered from an effect's keyframes, kept while the keyframes and
@@ -687,6 +702,16 @@ fn lower_transform_keyframe(
             request.reference_box(),
             request.device_pixels_per_css_pixel(),
             identity_shape,
+        )?);
+    }
+    // The compositor interpolates transform lists function by function, so a function that is the same at the end of
+    // every list applies after whatever the others have interpolated to.
+    let (x, y) = request.additional_translation;
+    if x != 0.0 || y != 0.0 {
+        let scale = request.device_pixels_per_css_pixel();
+        operations.push(VisualAnimationTransformOperation::new(
+            FfiVisualAnimationTransformOperationKind::Translate,
+            &[x * scale, y * scale],
         )?);
     }
     Some(Some(VisualAnimationValue::Transform(operations)))

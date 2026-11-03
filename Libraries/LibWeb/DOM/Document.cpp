@@ -8505,10 +8505,6 @@ static bool svg_transform_may_run_on_the_compositor(Element const& target, Layou
     if (layout_node.kind() == Layout::RustFFI::NodeKind::SVGSVGBox && !target.parent_element())
         return false;
 
-    // NB: The compositor replaces the matrix that the x and y of a <use> element are part of.
-    if (is<SVG::SVGUseElement>(target))
-        return false;
-
     // NB: A box's own bounding box leaves out its own transform, but those of the boxes around it include it.
     for (auto const* ancestor = layout_node.parent(); ancestor && ancestor->is_svg_box(); ancestor = ancestor->parent()) {
         if (svg_box_uses_its_bounding_box(*ancestor))

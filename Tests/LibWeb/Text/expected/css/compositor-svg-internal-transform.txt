@@ -7,8 +7,8 @@ runs on the compositor:
   a rect in a group with a filter function: true
   a rect in a group with a clip path in user space: true
   a rect in a group with a mask in user space: true
-  a use element: false
-  a use element with a position: false
+  a use element: true
+  a use element with a position: true
   a nested svg: true
   a fading rect: true
   a fading group: true
