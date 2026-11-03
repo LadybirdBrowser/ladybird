@@ -1,0 +1,4 @@
+first key: compositor offset=100
+key after the release of the first: compositor offset=100
+key after a pointer move: compositor offset=100
+key after a pointer press moved the compositor: false

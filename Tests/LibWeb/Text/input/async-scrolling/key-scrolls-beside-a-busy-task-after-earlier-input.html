@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    // Input a busy main thread has yet to handle only holds back a key's scroll if it could change what the key scrolls.
+    // The release of an earlier key and a move of the pointer can't, while a press of the pointer can.
+    promiseTest(async () => {
+        const compositorOffset = () => internals.compositorScrollState().scrollOffset.y;
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+
+        const waitBesideTheTask = offset => {
+            // NB: This only gives up on a scroll that never comes, so the time limit can't fail a slow machine's run of a
+            //     fixed engine.
+            const giveUpAt = performance.now() + 5000;
+            while (compositorOffset() !== offset && performance.now() < giveUpAt) {
+                // Stay in this task.
+            }
+        };
+
+        internals.sendKeyThroughUIProcess("Down");
+        waitBesideTheTask(100);
+        println(`first key: compositor offset=${compositorOffset()}`);
+
+        internals.sendKeyThroughUIProcess("Down");
+        waitBesideTheTask(200);
+        println(`key after the release of the first: compositor offset=${compositorOffset()}`);
+
+        internals.mouseEventThroughUIProcess("mousemove", 400, 300);
+        internals.sendKeyThroughUIProcess("Down");
+        waitBesideTheTask(300);
+        println(`key after a pointer move: compositor offset=${compositorOffset()}`);
+
+        const scrolledSoFar = compositorOffset();
+        internals.mouseEventThroughUIProcess("mousedown", 400, 300);
+        internals.sendKeyThroughUIProcess("Down");
+
+        // NB: With nothing to move the offset here, the length of this wait can't fail a run of a fixed engine.
+        const waitUntil = performance.now() + 200;
+        while (performance.now() < waitUntil) {
+            // Stay in this task.
+        }
+        println(`key after a pointer press moved the compositor: ${compositorOffset() !== scrolledSoFar}`);
+        internals.mouseEventThroughUIProcess("mouseup", 400, 300);
+    });
+</script>
