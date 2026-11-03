@@ -2420,18 +2420,8 @@ bool WebContentView::event(QEvent* event)
         keyReleaseEvent(static_cast<QKeyEvent*>(event));
         return true;
     }
-    if (event->type() == QEvent::NativeGesture) {
-        auto const& native_gesture_event = *static_cast<QNativeGestureEvent const*>(event);
-        if (native_gesture_event.gestureType() == Qt::ZoomNativeGesture) {
-            Web::PinchEvent pinch_event;
-            auto const local_position = mapFromGlobal(native_gesture_event.globalPosition());
-            pinch_event.position = { local_position.x() * m_device_pixel_ratio, local_position.y() * m_device_pixel_ratio };
-            pinch_event.modifiers = get_modifiers_from_qt_keyboard_modifiers(native_gesture_event.modifiers());
-            pinch_event.scale_delta = native_gesture_event.value();
-            enqueue_input_event(AK::move(pinch_event));
-            return true;
-        }
-    }
+    if (event->type() == QEvent::NativeGesture && handle_native_gesture_event(*static_cast<QNativeGestureEvent const*>(event)))
+        return true;
 
 #if defined(LADYBIRD_QT_USE_IOSURFACE_LAYER) || defined(LADYBIRD_HAS_WAYLAND_GPU_QUERY)
     if (event->type() == QEvent::ParentChange || event->type() == QEvent::Show)
@@ -2472,6 +2462,32 @@ bool WebContentView::event(QEvent* event)
 #endif
 
     return WebContentViewBase::event(event);
+}
+
+bool WebContentView::handle_native_gesture_event(QNativeGestureEvent const& event)
+{
+    switch (event.gestureType()) {
+    case Qt::BeginNativeGesture:
+        m_native_gesture_state = NativeGestureState::Began;
+        return true;
+    case Qt::EndNativeGesture:
+        m_native_gesture_state = NativeGestureState::None;
+        return true;
+    case Qt::ZoomNativeGesture: {
+        Web::PinchEvent pinch_event;
+        auto const local_position = mapFromGlobal(event.globalPosition());
+        pinch_event.position = { local_position.x() * m_device_pixel_ratio, local_position.y() * m_device_pixel_ratio };
+        pinch_event.modifiers = get_modifiers_from_qt_keyboard_modifiers(event.modifiers());
+        pinch_event.scale_delta = event.value();
+        pinch_event.continues_gesture = m_native_gesture_state == NativeGestureState::Zooming;
+        if (m_native_gesture_state == NativeGestureState::Began)
+            m_native_gesture_state = NativeGestureState::Zooming;
+        enqueue_input_event(AK::move(pinch_event));
+        return true;
+    }
+    default:
+        return false;
+    }
 }
 
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
@@ -2528,19 +2544,8 @@ bool WebContentView::handle_vulkan_window_event(QEvent* event)
     case QEvent::Drop:
         dropEvent(static_cast<QDropEvent*>(event));
         return true;
-    case QEvent::NativeGesture: {
-        auto const& native_gesture_event = *static_cast<QNativeGestureEvent const*>(event);
-        if (native_gesture_event.gestureType() == Qt::ZoomNativeGesture) {
-            Web::PinchEvent pinch_event;
-            auto const local_position = mapFromGlobal(native_gesture_event.globalPosition());
-            pinch_event.position = { local_position.x() * m_device_pixel_ratio, local_position.y() * m_device_pixel_ratio };
-            pinch_event.modifiers = get_modifiers_from_qt_keyboard_modifiers(native_gesture_event.modifiers());
-            pinch_event.scale_delta = native_gesture_event.value();
-            enqueue_input_event(AK::move(pinch_event));
-            return true;
-        }
-        return false;
-    }
+    case QEvent::NativeGesture:
+        return handle_native_gesture_event(*static_cast<QNativeGestureEvent const*>(event));
     case QEvent::ShortcutOverride: {
         auto* key_event = static_cast<QKeyEvent*>(event);
         if (is_browser_reserved_shortcut(*key_event)) {

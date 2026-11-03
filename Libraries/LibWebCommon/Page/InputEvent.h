@@ -195,6 +195,8 @@ struct WEBCOMMON_API PinchEvent {
     // The page dispatched the pinch's ctrl+wheel event and did not cancel it, which leaves only the zoom of the page's
     // visual viewport to do.
     bool wheel_event_was_dispatched { false };
+    // The fingers have not left the touchpad since an earlier step of the pinch.
+    bool continues_gesture { false };
     u64 id { 0 };
 };
 

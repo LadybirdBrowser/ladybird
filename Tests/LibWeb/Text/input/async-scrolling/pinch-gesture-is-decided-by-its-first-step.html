@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    // The first step of a pinch gesture decides whether the page gets to hold back the rest of it. A listener added
+    // after the compositor began zooming can't stop the gesture, and sees only events it can't cancel. It gets its say
+    // from the next gesture on, and a gesture it canceled stays canceled.
+    promiseTest(async () => {
+        const compositorScale = () => internals.compositorScrollState().visualViewportScale;
+        await animationFrame();
+        await animationFrame();
+
+        internals.pinchThroughUIProcess(400, 300, 0.5);
+
+        // NB: These only give up on a zoom that never comes, so the time limit can't fail a slow machine's run of a fixed
+        //     engine.
+        let giveUpAt = performance.now() + 5000;
+        while (compositorScale() !== 1.5 && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`first step, beside the task: compositor scale=${compositorScale()}`);
+
+        const events = [];
+        let eventArrived = () => {};
+        window.addEventListener(
+            "wheel",
+            event => {
+                events.push(event);
+                event.preventDefault();
+                eventArrived();
+            },
+            { passive: false }
+        );
+        internals.synchronizeCompositor();
+
+        internals.pinchThroughUIProcess(400, 300, 0.5, true);
+        giveUpAt = performance.now() + 5000;
+        while (compositorScale() !== 2.25 && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`step after the listener appeared, beside the task: compositor scale=${compositorScale()}`);
+
+        const nextEvent = () => {
+            const count = events.length;
+            return new Promise(resolve => {
+                eventArrived = () => {
+                    if (events.length > count)
+                        resolve(events[events.length - 1]);
+                };
+            });
+        };
+        if (events.length === 0) await nextEvent();
+        println(`listener could cancel an event of that gesture: ${events.some(event => event.cancelable)}`);
+
+        while (visualViewport.scale !== compositorScale()) await animationFrame();
+        await animationFrame();
+        await animationFrame();
+
+        let event = nextEvent();
+        internals.pinchThroughUIProcess(400, 300, 0.5);
+        println(`next gesture: cancelable=${(await event).cancelable}`);
+
+        event = nextEvent();
+        internals.pinchThroughUIProcess(400, 300, 0.5, true);
+        println(`rest of the canceled gesture: cancelable=${(await event).cancelable}`);
+
+        await animationFrame();
+        await animationFrame();
+        println(`compositor scale: ${compositorScale()}`);
+        println(`main thread scale: ${visualViewport.scale}`);
+    });
+</script>

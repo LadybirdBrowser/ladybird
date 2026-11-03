@@ -107,7 +107,7 @@ interface Internals {
     object compositorScrollState(optional Element? scroller = null);
     undefined pinch(double x, double y, double scaleDelta, optional unsigned short modifiers = 0);
     // Sends a pinch through the UI process as it sends the user's, so that the compositor zooms for it if it can.
-    undefined pinchThroughUIProcess(double x, double y, double scaleDelta);
+    undefined pinchThroughUIProcess(double x, double y, double scaleDelta, optional boolean continuesGesture = false);
     undefined resetZoom();
 
     DOMString currentCursor();
