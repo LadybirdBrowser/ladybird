@@ -1308,8 +1308,15 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
     auto& pending_input = m_pending_input_events[*index];
     auto pinch_default_action_returned = event_result == Web::EventResult::Accepted
         || (pending_input.forwarded_to_child_frame && event_result != Web::EventResult::Handled && event_result != Web::EventResult::Cancelled);
+    // A gesture the page canceled stays canceled, even once the pinch moves to where nothing cancels it.
+    if (auto const* pinch_event = pending_input.event.get_pointer<Web::PinchEvent>()) {
+        if (!pinch_event->continues_gesture)
+            m_pinch_gesture_was_canceled = false;
+        if (event_result == Web::EventResult::Cancelled)
+            m_pinch_gesture_was_canceled = true;
+    }
     if (auto* pinch_event = pending_input.event.get_pointer<Web::PinchEvent>();
-        pinch_event && pinch_default_action_returned && !pinch_event->wheel_event_was_dispatched && !pinch_event->async_zoom_performed_default_action) {
+        pinch_event && pinch_default_action_returned && !m_pinch_gesture_was_canceled && !pinch_event->wheel_event_was_dispatched && !pinch_event->async_zoom_performed_default_action) {
         pinch_event->wheel_event_was_dispatched = true;
         pending_input.endpoint = page();
         pending_input.sent = false;
