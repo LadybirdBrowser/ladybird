@@ -1,0 +1,181 @@
+<!doctype html>
+<div id="host"></div>
+<template id="template"><div class="in-template" template-attribute></div></template>
+<script src="../include.js"></script>
+<script>
+    function report(label, root, selector) {
+        println(
+            `${label}: ${selector} ${root.querySelector(selector) ? "found" : "absent"}, ${root.querySelectorAll(selector).length}`
+        );
+    }
+
+    test(() => {
+        println("Names no element has:");
+        report("document", document, ".never-a-class");
+        report("document", document, "[never-an-attribute]");
+        report("document", document, "#never-an-id div");
+
+        println("Attributes:");
+        const attributes = document.createElement("div");
+        document.body.append(attributes);
+        report("before", document, "[set-later]");
+        attributes.setAttribute("set-later", "");
+        report("setAttribute", document, "[set-later]");
+        attributes.toggleAttribute("toggled-later");
+        report("toggleAttribute", document, "[toggled-later]");
+        attributes.setAttributeNS(null, "set-with-namespace", "");
+        report("setAttributeNS", document, "[set-with-namespace]");
+        const node = document.createAttribute("set-as-node");
+        attributes.setAttributeNode(node);
+        report("setAttributeNode", document, "[set-as-node]");
+        attributes.removeAttribute("set-later");
+        report("removed", document, "[set-later]");
+        attributes.setAttribute("set-later", "again");
+        report("set again", document, "[set-later='again']");
+        report("before", document, "[style]");
+        attributes.style.color = "red";
+        report("inline style", document, "[style]");
+        attributes.dataset.fromDataset = "1";
+        report("dataset", document, "[data-from-dataset]");
+
+        println("Classes:");
+        const classes = document.createElement("div");
+        document.body.append(classes);
+        report("before", document, ".from-class-name");
+        classes.className = "from-class-name";
+        report("className", document, ".from-class-name");
+        classes.classList.add("from-class-list");
+        report("classList", document, ".from-class-list");
+        classes.setAttribute("class", "from-attribute");
+        report("attribute", document, ".from-attribute");
+        report("replaced", document, ".from-class-name");
+        classes.classList.toggle("from-toggle");
+        report("toggle", document, ".from-toggle");
+
+        println("Ids:");
+        const ids = document.createElement("div");
+        ids.append(document.createElement("span"));
+        document.body.append(ids);
+        report("before", document, "#from-property span");
+        ids.id = "from-property";
+        report("property", document, "#from-property span");
+        ids.setAttribute("id", "from-attribute");
+        report("attribute", document, "#from-attribute span");
+        report("replaced", document, "#from-property span");
+
+        println("Moves:");
+        const built = document.createElement("div");
+        built.innerHTML = `<p class="built-detached" built-attribute id="built-id"><b></b></p>`;
+        report("detached root", built, ".built-detached");
+        report("detached root", built, "[built-attribute]");
+        report("detached root", built, "#built-id b");
+        report("detached root", built, ".absent-from-detached");
+        report("document before", document, ".built-detached");
+        document.body.append(built);
+        report("inserted", document, ".built-detached");
+        report("inserted", document, "[built-attribute]");
+        report("inserted", document, "#built-id b");
+        built.remove();
+        report("removed", document, ".built-detached");
+        report("removed, its root", built, ".built-detached");
+        const parent = document.createElement("section");
+        document.body.append(parent);
+        parent.append(built.firstChild);
+        report("moved", parent, ".built-detached");
+        report("moved", document, "section > .built-detached");
+
+        println("Fragments and templates:");
+        const fragment = document.createDocumentFragment();
+        const inFragment = document.createElement("div");
+        inFragment.className = "in-fragment";
+        fragment.append(inFragment);
+        report("fragment", fragment, ".in-fragment");
+        report("fragment", fragment, ".absent-from-fragment");
+        inFragment.setAttribute("fragment-attribute", "");
+        report("fragment", fragment, "[fragment-attribute]");
+        document.body.append(fragment);
+        report("from fragment", document, ".in-fragment");
+        const templateContent = document.getElementById("template").content;
+        report("template content", templateContent, ".in-template");
+        report("template content", templateContent, "[template-attribute]");
+        report("document", document, ".in-template");
+        document.body.append(document.importNode(templateContent, true));
+        report("imported", document, ".in-template");
+
+        println("Shadow trees:");
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<div class="in-shadow" shadow-attribute id="shadow-id"><i></i></div>`;
+        report("shadow", shadow, ".in-shadow");
+        report("shadow", shadow, "[shadow-attribute]");
+        report("shadow", shadow, "#shadow-id i");
+        report("shadow", shadow, ".absent-from-shadow");
+        report("document", document, ".in-shadow");
+        shadow.firstChild.classList.add("added-in-shadow");
+        report("shadow", shadow, ".added-in-shadow");
+        const movedIn = document.createElement("div");
+        movedIn.className = "moved-into-shadow";
+        document.body.append(movedIn);
+        shadow.append(movedIn);
+        report("moved in", shadow, ".moved-into-shadow");
+        report("moved in", document, ".moved-into-shadow");
+        document.body.append(shadow.firstChild);
+        report("moved out", document, ".in-shadow");
+        report("moved out", shadow, ".in-shadow");
+        const detachedHost = document.createElement("div");
+        const detachedShadow = detachedHost.attachShadow({ mode: "open" });
+        detachedShadow.innerHTML = `<div class="in-detached-shadow"></div>`;
+        report("detached shadow", detachedShadow, ".in-detached-shadow");
+
+        println("Other documents:");
+        const other = document.implementation.createHTMLDocument();
+        other.body.innerHTML = `<div class="from-other" other-attribute id="other-id"><u></u></div>`;
+        report("other document", other, ".from-other");
+        report("this document before", document, ".from-other");
+        report("this document before", document, "[other-attribute]");
+        const adopted = document.adoptNode(other.body.firstChild);
+        report("this document, detached", document, ".from-other");
+        document.body.append(adopted);
+        report("adopted", document, ".from-other");
+        report("adopted", document, "[other-attribute]");
+        report("adopted", document, "#other-id u");
+        const pendingStyle = other.createElement("div");
+        pendingStyle.style.color = "red";
+        pendingStyle.className = "pending-style";
+        document.body.append(pendingStyle);
+        report("adopted with inline style", document, ".pending-style[style]");
+        const parsed = new DOMParser().parseFromString(
+            `<!DOCTYPE html><div class="parsed" parsed-attribute></div>`,
+            "text/html"
+        );
+        report("parsed", parsed, ".parsed");
+        report("parsed", parsed, "[parsed-attribute]");
+        report("this document", document, ".parsed");
+
+        println("Case:");
+        const cased = document.createElement("div");
+        cased.className = "CaseOfClass";
+        cased.id = "CaseOfId";
+        cased.append(document.createElement("span"));
+        cased.setAttribute("CaseOfAttribute", "");
+        document.body.append(cased);
+        report("exact", document, ".CaseOfClass");
+        report("other", document, ".caseofclass");
+        report("exact", document, "#CaseOfId span");
+        report("other", document, "#caseofid span");
+        report("attribute", document, "[caseofattribute]");
+        report("attribute", document, "[CASEOFATTRIBUTE]");
+        const foreign = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        foreign.setAttribute("viewBox", "0 0 1 1");
+        document.body.append(foreign);
+        report("svg attribute", document, "[viewBox]");
+        report("svg attribute", document, "[viewbox]");
+        report("svg attribute", document, "svg[viewBox]");
+        const xml = new DOMParser().parseFromString(
+            `<root><a CamelAttribute="" class="x" /></root>`,
+            "application/xml"
+        );
+        report("xml", xml, "[CamelAttribute]");
+        report("xml", xml, "[camelattribute]");
+    });
+</script>

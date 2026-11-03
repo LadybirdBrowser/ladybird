@@ -1,0 +1,85 @@
+Names no element has:
+document: .never-a-class absent, 0
+document: [never-an-attribute] absent, 0
+document: #never-an-id div absent, 0
+Attributes:
+before: [set-later] absent, 0
+setAttribute: [set-later] found, 1
+toggleAttribute: [toggled-later] found, 1
+setAttributeNS: [set-with-namespace] found, 1
+setAttributeNode: [set-as-node] found, 1
+removed: [set-later] absent, 0
+set again: [set-later='again'] found, 1
+before: [style] absent, 0
+inline style: [style] found, 1
+dataset: [data-from-dataset] found, 1
+Classes:
+before: .from-class-name absent, 0
+className: .from-class-name found, 1
+classList: .from-class-list found, 1
+attribute: .from-attribute found, 1
+replaced: .from-class-name absent, 0
+toggle: .from-toggle found, 1
+Ids:
+before: #from-property span absent, 0
+property: #from-property span found, 1
+attribute: #from-attribute span found, 1
+replaced: #from-property span absent, 0
+Moves:
+detached root: .built-detached found, 1
+detached root: [built-attribute] found, 1
+detached root: #built-id b found, 1
+detached root: .absent-from-detached absent, 0
+document before: .built-detached absent, 0
+inserted: .built-detached found, 1
+inserted: [built-attribute] found, 1
+inserted: #built-id b found, 1
+removed: .built-detached absent, 0
+removed, its root: .built-detached found, 1
+moved: .built-detached found, 1
+moved: section > .built-detached found, 1
+Fragments and templates:
+fragment: .in-fragment found, 1
+fragment: .absent-from-fragment absent, 0
+fragment: [fragment-attribute] found, 1
+from fragment: .in-fragment found, 1
+template content: .in-template found, 1
+template content: [template-attribute] found, 1
+document: .in-template absent, 0
+imported: .in-template found, 1
+Shadow trees:
+shadow: .in-shadow found, 1
+shadow: [shadow-attribute] found, 1
+shadow: #shadow-id i found, 1
+shadow: .absent-from-shadow absent, 0
+document: .in-shadow absent, 0
+shadow: .added-in-shadow found, 1
+moved in: .moved-into-shadow found, 1
+moved in: .moved-into-shadow absent, 0
+moved out: .in-shadow found, 1
+moved out: .in-shadow absent, 0
+detached shadow: .in-detached-shadow found, 1
+Other documents:
+other document: .from-other found, 1
+this document before: .from-other absent, 0
+this document before: [other-attribute] absent, 0
+this document, detached: .from-other absent, 0
+adopted: .from-other found, 1
+adopted: [other-attribute] found, 1
+adopted: #other-id u found, 1
+adopted with inline style: .pending-style[style] found, 1
+parsed: .parsed found, 1
+parsed: [parsed-attribute] found, 1
+this document: .parsed absent, 0
+Case:
+exact: .CaseOfClass found, 1
+other: .caseofclass absent, 0
+exact: #CaseOfId span found, 1
+other: #caseofid span absent, 0
+attribute: [caseofattribute] found, 1
+attribute: [CASEOFATTRIBUTE] found, 1
+svg attribute: [viewBox] found, 1
+svg attribute: [viewbox] absent, 0
+svg attribute: svg[viewBox] found, 1
+xml: [CamelAttribute] found, 1
+xml: [camelattribute] absent, 0

@@ -1,0 +1,90 @@
+<!DOCTYPE quirks>
+<script src="../include.js"></script>
+<script>
+    function report(label, root, selector) {
+        println(
+            `${label}: ${selector} ${root.querySelector(selector) ? "found" : "absent"}, ${root.querySelectorAll(selector).length}`
+        );
+    }
+
+    asyncTest(async done => {
+        println(`Mode: ${document.compatMode}`);
+        const element = document.createElement("div");
+        element.className = "MixedClass";
+        element.id = "MixedId";
+        element.append(document.createElement("span"));
+        element.setAttribute("MixedAttribute", "");
+        document.body.append(element);
+        report("exact", document, ".MixedClass");
+        report("lower", document, ".mixedclass");
+        report("upper", document, ".MIXEDCLASS");
+        report("exact", document, "#MixedId span");
+        report("lower", document, "#mixedid span");
+        report("upper", document, "#MIXEDID span");
+        report("attribute", document, "[mixedattribute]");
+        report("attribute", document, "[MIXEDATTRIBUTE]");
+        report("absent", document, ".NoSuchClass");
+        report("absent", document, "#NoSuchId span");
+
+        println("After a change:");
+        element.classList.add("LaterClass");
+        report("added", document, ".laterclass");
+        element.id = "LaterId";
+        report("set", document, "#laterid span");
+
+        println("Detached and shadow trees:");
+        const detached = document.createElement("div");
+        detached.innerHTML = `<p class="InDetached"></p>`;
+        report("detached", detached, ".indetached");
+        const host = document.createElement("div");
+        document.body.append(host);
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<p class="InShadow"></p>`;
+        report("shadow", shadow, ".inshadow");
+
+        println("Adopted from a document in no-quirks mode:");
+        const other = document.implementation.createHTMLDocument();
+        other.body.innerHTML = `<p class="FromOther"><b></b></p>`;
+        other.body.firstChild.id = "OtherId";
+        println(`Other mode: ${other.compatMode}`);
+        report("other, exact", other, ".FromOther");
+        report("other, lower", other, ".fromother");
+        document.body.append(document.adoptNode(other.body.firstChild));
+        report("adopted, lower", document, ".fromother");
+        report("adopted, lower", document, "#otherid b");
+
+        println("A document whose mode changes:");
+        const frame = document.createElement("iframe");
+        document.body.append(frame);
+        const changing = frame.contentDocument;
+        changing.open();
+        changing.write(`<p class="Early" id="EarlyId"><b></b></p>`);
+        changing.close();
+        println(`Mode: ${changing.compatMode}`);
+        report("before, lower", changing, ".early");
+        const kept = changing.body.firstChild;
+        changing.open();
+        changing.write(`<!DOCTYPE html><p class="Late" id="LateId"><b></b></p>`);
+        changing.close();
+        println(`Mode: ${changing.compatMode}`);
+        report("after, exact", changing, ".Late");
+        report("after, lower", changing, ".late");
+        report("after, exact", changing, "#LateId b");
+        report("after, lower", changing, "#lateid b");
+        changing.body.append(changing.adoptNode(kept));
+        report("old element, exact", changing, ".Early");
+        report("old element, lower", changing, ".early");
+        const script = changing.createElement("p");
+        script.className = "NewInMode";
+        changing.body.append(script);
+        report("new element, exact", changing, ".NewInMode");
+        report("new element, lower", changing, ".newinmode");
+        const backToQuirks = changing;
+        backToQuirks.open();
+        backToQuirks.write(`<p class="Again"><b></b></p>`);
+        backToQuirks.close();
+        println(`Mode: ${backToQuirks.compatMode}`);
+        report("again, lower", backToQuirks, ".again");
+        done();
+    });
+</script>

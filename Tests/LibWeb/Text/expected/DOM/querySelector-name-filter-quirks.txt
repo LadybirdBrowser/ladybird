@@ -1,0 +1,37 @@
+Mode: BackCompat
+exact: .MixedClass found, 1
+lower: .mixedclass found, 1
+upper: .MIXEDCLASS found, 1
+exact: #MixedId span found, 1
+lower: #mixedid span found, 1
+upper: #MIXEDID span found, 1
+attribute: [mixedattribute] found, 1
+attribute: [MIXEDATTRIBUTE] found, 1
+absent: .NoSuchClass absent, 0
+absent: #NoSuchId span absent, 0
+After a change:
+added: .laterclass found, 1
+set: #laterid span found, 1
+Detached and shadow trees:
+detached: .indetached found, 1
+shadow: .inshadow found, 1
+Adopted from a document in no-quirks mode:
+Other mode: CSS1Compat
+other, exact: .FromOther found, 1
+other, lower: .fromother absent, 0
+adopted, lower: .fromother found, 1
+adopted, lower: #otherid b found, 1
+A document whose mode changes:
+Mode: BackCompat
+before, lower: .early found, 1
+Mode: CSS1Compat
+after, exact: .Late found, 1
+after, lower: .late absent, 0
+after, exact: #LateId b found, 1
+after, lower: #lateid b absent, 0
+old element, exact: .Early found, 1
+old element, lower: .early absent, 0
+new element, exact: .NewInMode found, 1
+new element, lower: .newinmode absent, 0
+Mode: BackCompat
+again, lower: .again found, 1
