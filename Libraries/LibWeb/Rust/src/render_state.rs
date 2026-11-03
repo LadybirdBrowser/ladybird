@@ -237,7 +237,7 @@ impl RenderState {
         if !host_work.is_empty() {
             self.owed.push(host_work);
         }
-        answer.note_styled(styled);
+        answer.note_styled(styled, self.arena.arena());
     }
 
     /// The style engine, and the layout arena beside it.
