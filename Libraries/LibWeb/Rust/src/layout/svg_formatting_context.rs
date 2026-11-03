@@ -1952,23 +1952,6 @@ impl<'pass> SvgFormattingContext<'pass> {
         let attributes = self.svg_attributes(self.run.box_);
         self.commit_svg_element_facts(self.run.box_, facts, attributes);
 
-        if facts.is_document_element
-            && !facts.document_is_decoded_svg
-            && !input.sizing.root_keeps_its_committed_geometry
-        {
-            // Overwrite the content width/height with the styled node width/height (from <svg width height ...>)
-            //
-            // NOTE: If a height had not been provided by the svg element, it was set to the height of the container
-            let style = self.style(self.run.box_);
-            if style.width().is_length() {
-                cells.set_content_inline_size(style.width().to_px(CssPixels::default()));
-            }
-            if style.height().is_length() {
-                cells.set_content_block_size(style.height().to_px(CssPixels::default()));
-            }
-            // FIXME: In SVG 2, length can also be a percentage. We'll need to support that.
-        }
-
         // NOTE: We consider all SVG root elements to have definite size in both axes.
         //       I'm not sure if this is good or bad, but our viewport transform logic depends on it.
         cells.update_cells(|cells| {
@@ -2617,6 +2600,30 @@ pub(crate) fn svg_root_natural_size(
         height,
         svg_root_natural_aspect_ratio(width, height, view_box_aspect_ratio),
     )
+}
+
+/// Overwrites the content size of the document element's `<svg>`, which the layout entry sized as the viewport in
+/// `cells`, with its styled width and height (from <svg width height ...>) where they are lengths. A decoded SVG image
+/// keeps the size of the viewport it is drawn into.
+pub(crate) fn size_document_element_svg_from_its_width_and_height(
+    callbacks: &LayoutPass<'_>,
+    svg: Node,
+    cells: &mut used_values::RootInputCells,
+) {
+    if !node_facts::has_flag(callbacks.node_data(svg), NodeFlag::IsDocumentElement)
+        || callbacks.arena().document_is_decoded_svg()
+    {
+        return;
+    }
+    // NOTE: If a height had not been provided by the svg element, it was set to the height of the container
+    let style = StyleValues::for_node(callbacks, svg);
+    if style.width().is_length() {
+        cells.set_content_inline_size(style.width().to_px(CssPixels::default()));
+    }
+    if style.height().is_length() {
+        cells.set_content_block_size(style.height().to_px(CssPixels::default()));
+    }
+    // FIXME: In SVG 2, length can also be a percentage. We'll need to support that.
 }
 
 /// The intrinsic aspect ratio must be calculated using the following algorithm. If the algorithm returns null, then
