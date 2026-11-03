@@ -490,7 +490,7 @@ void HTMLScriptElement::prepare_script()
         // -> "classic"
         if (m_script_type == ScriptType::Classic) {
             // Fetch a classic script given url, settings object, options, classic script CORS setting, encoding, and onComplete.
-            fetch_classic_script(*this, *url, settings_object, move(options), classic_script_cors_setting, encoding.release_value(), on_complete);
+            fetch_classic_script(relevant_realm(*this), *url, settings_object, move(options), classic_script_cors_setting, encoding.release_value(), on_complete);
         }
         // -> "module"
         else if (m_script_type == ScriptType::Module) {

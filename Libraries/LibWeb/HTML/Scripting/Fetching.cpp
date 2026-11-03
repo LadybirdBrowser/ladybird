@@ -641,7 +641,7 @@ Utf16String resolve_a_module_integrity_metadata(URL::URL const& url, Environment
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-classic-script
-void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& url, EnvironmentSettingsObject& settings_object, ScriptFetchOptions options, CORSSettingAttribute cors_setting, Utf16String character_encoding, OnFetchScriptComplete on_complete)
+void fetch_classic_script(JS::Realm& realm, URL::URL const& url, EnvironmentSettingsObject& settings_object, ScriptFetchOptions options, CORSSettingAttribute cors_setting, Utf16String character_encoding, OnFetchScriptComplete on_complete)
 {
     // 1. Let request be the result of creating a potential-CORS request given url, "script", and CORS setting.
     auto request = create_potential_CORS_request(url, Fetch::Infrastructure::Request::Destination::Script, cors_setting);
@@ -818,7 +818,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
             });
     };
 
-    Fetch::Fetching::fetch(HTML::relevant_realm(*element), request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
+    Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-classic-worker-script
