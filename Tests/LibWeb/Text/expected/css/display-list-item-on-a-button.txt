@@ -1,0 +1,6 @@
+input color displays as list-item with a box: true
+input file displays as list-item with a box: true
+input button displays as list-item with a box: true
+input button displays as list-item with a box: true
+button submit displays as flow-root with a box: true
+button submit displays as flow-root with a box: true
