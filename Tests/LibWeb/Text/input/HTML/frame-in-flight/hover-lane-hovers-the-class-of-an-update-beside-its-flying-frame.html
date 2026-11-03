@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    .old:hover { width: 200px; }
+    .new:hover { width: 300px; }
+</style>
+<div id="target" class="old"></div>
+<div id="other"></div>
+<div style="content-visibility: auto"></div>
+<script>
+    // A rendering update that paints nothing runs while the recording of the frame before it flies, and moves a class that
+    // only shows under :hover. Its plan reaches the lane of that frame before the rest of its pieces, and the lane hovers
+    // the document as the update left it, not as the flying frame showed it.
+    asyncTest(async done => {
+        const lane = await whileRecordingInFlight(
+            () => {
+                other.style.width = "50px";
+            },
+            async () => {
+                const coming = internals.clockLaneIsComing(document);
+                // NB: The class write forks the state for the lane of the flying frame.
+                target.className = "new";
+                getComputedStyle(target).width;
+                await new Promise(resolve => {
+                    requestAnimationFrame(resolve);
+                    internals.injectRenderingOpportunity(performance.now());
+                });
+                await nextTask();
+                return { coming, comingAfterUpdate: internals.clockLaneIsComing(document) };
+            }
+        );
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            return { onScreen: internals.presentedBorderBox(target)?.width, presentedBy: internals.lastFramePresentedBy(document) };
+        });
+        println(`lane of the flying frame is coming: ${lane.coming}`);
+        println(`after the update beside it: ${lane.comingAfterUpdate}`);
+        println(`width on screen: ${result.onScreen}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(target).width}`);
+        done();
+    });
+</script>

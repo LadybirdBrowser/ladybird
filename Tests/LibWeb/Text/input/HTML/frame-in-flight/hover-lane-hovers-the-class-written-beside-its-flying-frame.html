@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    .old:hover { width: 200px; }
+    .new:hover { width: 300px; }
+</style>
+<div id="target" class="old"></div>
+<div id="other"></div>
+<div style="content-visibility: auto"></div>
+<script>
+    // A class that only shows under :hover moves while the recording of the frame before it flies. The first write forks
+    // the state for the lane of that frame, whose pieces are still coming. The rendering update after it paints nothing,
+    // so that lane goes on, and it hovers the document as the update left it, not as the flying frame showed it.
+    asyncTest(async done => {
+        const flight = await whileRecordingInFlight(
+            () => {
+                other.style.width = "50px";
+            },
+            () => {
+                const coming = internals.clockLaneIsComing(document);
+                target.className = "new";
+                return { coming, computedWidth: getComputedStyle(target).width };
+            }
+        );
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            return { onScreen: internals.presentedBorderBox(target)?.width, presentedBy: internals.lastFramePresentedBy(document) };
+        });
+        println(`lane of the flying frame is coming: ${flight.coming}`);
+        println(`computed width beside the frame: ${flight.computedWidth}`);
+        println(`width on screen: ${result.onScreen}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(target).width}`);
+        done();
+    });
+</script>
