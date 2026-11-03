@@ -966,14 +966,15 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
     history_entry->set_step(SessionHistoryEntry::Pending::Tag);
 
     // AD-HOC: A navigation this process started after the UI process sent this request supersedes it, and the UI
-    //         process ends this one once it hears of that one. Until then the newer navigation stays parked here, and
-    //         must stay the ongoing navigation: otherwise its unload check would find itself superseded, leaving no
-    //         navigation to go on. The task below finds this navigation superseded, as it does one superseded after
-    //         this point.
+    //         process ends this one once it hears of that one. Until then the newer navigation stays parked here, or
+    //         queued if it is to a javascript: URL, and must stay the ongoing navigation: otherwise its unload check
+    //         would find itself superseded, leaving no navigation to go on. The task below finds this navigation
+    //         superseded, as it does one superseded after this point.
     auto ongoing_navigation = navigable->ongoing_navigation();
     auto const* ongoing_navigation_id = ongoing_navigation.get_pointer<Utf16String>();
-    auto is_superseded_by_parked_navigation = ongoing_navigation_id && *ongoing_navigation_id != request.navigation_id && navigable->has_navigation_parked_for_population(*ongoing_navigation_id);
-    if (!is_superseded_by_parked_navigation)
+    auto is_superseded_by_newer_navigation = ongoing_navigation_id && *ongoing_navigation_id != request.navigation_id
+        && (navigable->has_navigation_parked_for_population(*ongoing_navigation_id) || navigable->m_queued_javascript_url_navigations.contains_slow(*ongoing_navigation_id));
+    if (!is_superseded_by_newer_navigation)
         navigable->set_ongoing_navigation(request.navigation_id);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
@@ -988,7 +989,7 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
     TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
     auto navigation_params_or_error = create_navigation_params_from_descriptor(realm, *navigable, move(result.navigation_params));
     if (navigation_params_or_error.is_error()) {
-        if (!is_superseded_by_parked_navigation) {
+        if (!is_superseded_by_newer_navigation) {
             navigable->set_ongoing_navigation({});
             navigable->set_delaying_load_events(false);
         }
@@ -4091,6 +4092,12 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
         return nullptr;
     }
 
+    // AD-HOC: As navigate_to_a_javascript_url() goes on for a navigation that a later one superseded, that one can be the
+    //         ongoing navigation here, or one the script itself began. It is what the navigable ends on, so the script's
+    //         result makes no document.
+    if (!ongoing_navigation().has<Empty>())
+        return nullptr;
+
     // 11. Let response be a new response with
     //     URL: targetNavigable's active document's URL
     //     header list: «(`Content-Type`, `text/html;charset=utf-8`)»
@@ -4192,7 +4199,10 @@ void LocalNavigable::navigate_to_a_javascript_url(NonnullRefPtr<Fetch::Infrastru
     }
 
     // 3. Set the ongoing navigation for targetNavigable to null.
-    set_ongoing_navigation({});
+    // AD-HOC: As step 2 goes on for a navigation a later one superseded, the ongoing navigation can be that later one.
+    bool const superseded = ongoing_navigation() != navigation_id;
+    if (!superseded)
+        set_ongoing_navigation({});
 
     // 4. If initiatorOrigin is not same origin-domain with targetNavigable's active document's origin, then return.
     if (!initiator_origin.is_same_origin_domain(active_document()->origin())) {
@@ -4220,7 +4230,9 @@ void LocalNavigable::navigate_to_a_javascript_url(NonnullRefPtr<Fetch::Infrastru
         //    about:blank is true:
         // NOTE: container can be null if author code, such as the Trusted Types default policy or
         //       javascript:frameElement.remove(), removed it.
-        if (initial_insertion == InitialInsertion::Yes && container && active_document()->is_initial_about_blank()) {
+        // AD-HOC: A navigation a later one superseded would have returned at step 2, and that one is still to replace the
+        //         document, so nothing has loaded yet.
+        if (!superseded && initial_insertion == InitialInsertion::Yes && container && active_document()->is_initial_about_blank()) {
             // 1. If container is an iframe element, then run the iframe load event steps given container.
             if (auto* iframe = as_if<HTMLIFrameElement>(*container)) {
                 run_iframe_load_event_steps(*iframe);

@@ -1,0 +1,5 @@
+The newer navigation went on past a javascript: URL with no result
+The newer navigation went on past a javascript: URL making a document
+Ran: older URL, newer URL
+The frame ended on: newer
+Loads of an initial insertion superseded: newer navigation
