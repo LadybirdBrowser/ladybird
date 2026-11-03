@@ -4735,17 +4735,19 @@ impl GroupValueFacts {
             self.inheritance_dependent_values.as_deref().unwrap_or_default(),
             other.inheritance_dependent_values.as_deref().unwrap_or_default(),
         );
+        let same_recorded_values = std::ptr::eq(mine, theirs);
         self.effective_zoom.to_bits() == other.effective_zoom.to_bits()
             && self.display_before_box_type_transformation == other.display_before_box_type_transformation
             && self.effective_color_scheme == other.effective_color_scheme
             && self.native_appearance_disabled == other.native_appearance_disabled
-            && mine.len() == theirs.len()
-            && mine.iter().all(|held| {
-                theirs
-                    .iter()
-                    .find(|other| other.property == held.property)
-                    .is_some_and(|other| retained_style_values_equal(&held.value, &other.value))
-            })
+            && (same_recorded_values
+                || (mine.len() == theirs.len()
+                    && mine.iter().all(|held| {
+                        theirs
+                            .iter()
+                            .find(|other| other.property == held.property)
+                            .is_some_and(|other| retained_style_values_equal(&held.value, &other.value))
+                    })))
     }
 
     /// What these and `other` hold differently, if anything.
@@ -5733,11 +5735,8 @@ impl<'a> GroupValuesWriter<'a> {
             ..
         } = self;
         let mut seeded = seeded;
-        // NB: A value written back over the seed's equal value leaves the seed's.
-        writes.retain(|write| {
-            let held = seeded.value(write.place);
-            held.pointer() != write.value.pointer() && *held != write.value
-        });
+        // NB: A value written back over the seed's leaves the seed's.
+        writes.retain(|write| seeded.value(write.place).pointer() != write.value.pointer());
         writes.sort_unstable_by_key(|write| write.place.order());
         let written_groups = writes
             .iter()
