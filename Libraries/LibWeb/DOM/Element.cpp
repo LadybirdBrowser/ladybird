@@ -2337,6 +2337,10 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(ShadowRootMode mode, boo
     // 12. Set shadow’s custom element registry to registry.
     shadow->set_custom_element_registry(registry);
 
+    // NB: A shadow root with no slots yet takes the host's children out of the flat tree, and with them any chain of a
+    //     state that propagates along it.
+    bool const holds_a_propagating_state_source = CSS::Invalidation::descendants_hold_a_propagating_state_source(*this);
+
     // 13. Set element’s shadow root to shadow.
     set_shadow_root(shadow);
 
@@ -2345,6 +2349,8 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(ShadowRootMode mode, boo
         document().note_element_assigned_slot_changed(child);
         return IterationDecision::Continue;
     });
+    if (holds_a_propagating_state_source)
+        CSS::Invalidation::invalidate_style_after_subtree_holding_a_state_source_left(*this, nullptr);
     return {};
 }
 
