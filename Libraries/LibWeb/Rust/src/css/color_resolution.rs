@@ -15,6 +15,7 @@ use crate::css::style_value::{
     CalculatedPayload, ColorFunctionPayload, ColorMixPayload, LightDarkPayload, StyleValueBox,
 };
 use crate::css::style_value_arc::StyleValueArc;
+use ak::math;
 
 use crate::css::calc::{
     ANGLE_UNIT_CANONICAL_RATIOS, ResolveAs, resolve_as_from_fields, resolve_calculated_angle_with_channels,
@@ -249,7 +250,7 @@ impl Rgba {
             if srgb <= 0.04045 {
                 srgb / 12.92
             } else {
-                ((srgb + 0.055) / 1.055).powf(2.4)
+                math::pow((srgb + 0.055) / 1.055, 2.4)
             }
         }
         0.2126 * linearize(self.r) + 0.7152 * linearize(self.g) + 0.0722 * linearize(self.b)
@@ -984,8 +985,8 @@ fn construct_color(color_type: u8, c1: f64, c2: f64, c3: f64, alpha: f64) -> Opt
             let hue_radians = c3.to_radians();
             Rgba::from_lab(
                 l as f32,
-                (c2 * hue_radians.cos()) as f32,
-                (c2 * hue_radians.sin()) as f32,
+                (c2 * math::cos(hue_radians)) as f32,
+                (c2 * math::sin(hue_radians)) as f32,
                 alpha as f32,
             )
         }
@@ -996,8 +997,8 @@ fn construct_color(color_type: u8, c1: f64, c2: f64, c3: f64, alpha: f64) -> Opt
             let hue_radians = c3.to_radians();
             Rgba::from_oklab(
                 l as f32,
-                (chroma * hue_radians.cos()) as f32,
-                (chroma * hue_radians.sin()) as f32,
+                (chroma * math::cos(hue_radians)) as f32,
+                (chroma * math::sin(hue_radians)) as f32,
                 alpha as f32,
             )
         }

@@ -8,6 +8,7 @@
 
 use super::geometry::Segment;
 use crate::geometry::FloatPoint;
+use ak::math;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Point {
@@ -44,7 +45,7 @@ impl Point {
     }
 
     pub fn length(self) -> f64 {
-        self.x.hypot(self.y)
+        math::hypot(self.x, self.y)
     }
 
     pub fn distance_to(self, other: Self) -> f64 {

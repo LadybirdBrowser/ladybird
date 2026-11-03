@@ -21,6 +21,7 @@ use crate::css::style_value::{
     GridTrackSizeListPayload, PositionPayload, RatioPayload, RectPayload, ScrollbarColorPayload, ShadowPayload,
     TransformationPayload,
 };
+use ak::math;
 use std::collections::HashMap;
 use std::ffi::c_void;
 
@@ -1193,26 +1194,26 @@ pub(crate) fn transformation_to_matrix(
         functions::SKEW => {
             if count == 1 {
                 let mut matrix = matrix_identity();
-                matrix[1] = get_value(0).tan();
+                matrix[1] = math::tan(get_value(0));
                 return matrix;
             }
             if count == 2 {
                 let mut matrix = matrix_identity();
-                matrix[1] = get_value(0).tan();
-                matrix[4] = get_value(1).tan();
+                matrix[1] = math::tan(get_value(0));
+                matrix[4] = math::tan(get_value(1));
                 return matrix;
             }
         }
         functions::SKEW_X => {
             if count == 1 {
                 let mut matrix = matrix_identity();
-                matrix[1] = get_value(0).tan();
+                matrix[1] = math::tan(get_value(0));
                 return matrix;
             }
         }
         functions::SKEW_Y if count == 1 => {
             let mut matrix = matrix_identity();
-            matrix[4] = get_value(0).tan();
+            matrix[4] = math::tan(get_value(0));
             return matrix;
         }
         _ => {}

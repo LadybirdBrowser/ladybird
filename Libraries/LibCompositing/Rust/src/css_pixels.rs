@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use ak::math;
+
 // CSSPixels fixed-point arithmetic, bit-exact with the C++ implementation in
 // PixelUnits.h: an i32 with 6 fractional bits. The parity test on the C++
 // side compares every operation against the original.
@@ -196,7 +198,7 @@ impl CssPixels {
         //     the fraction rebuilt from the ratio is used where it is closer to it.
         let scaled = |numerator: f64, denominator: f64| {
             let largest_term = numerator.abs().max(denominator.abs());
-            let scale = (FRACTION_TERM_MAGNITUDE / largest_term).log2().floor().exp2();
+            let scale = math::exp2(math::log2(FRACTION_TERM_MAGNITUDE / largest_term).floor());
             Self::unscaled_fraction_nearest_values_for(numerator * scale, denominator * scale)
         };
         let error = |(numerator, denominator): (CssPixels, CssPixels)| {

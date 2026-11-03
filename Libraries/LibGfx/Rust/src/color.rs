@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use ak::math;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Color(pub u32);
@@ -97,7 +99,7 @@ impl Color {
             if srgb_component <= 0.04045 {
                 srgb_component / 12.92
             } else {
-                ((srgb_component + 0.055) / 1.055).powf(2.4)
+                math::pow((srgb_component + 0.055) / 1.055, 2.4)
             }
         }
         0.2126 * linearized(self.red()) + 0.7152 * linearized(self.green()) + 0.0722 * linearized(self.blue())

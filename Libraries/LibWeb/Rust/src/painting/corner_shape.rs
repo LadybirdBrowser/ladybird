@@ -9,6 +9,7 @@
 //! https://drafts.csswg.org/css-borders-4/#corner-shape-rendering
 
 use crate::css::computed_value_views::ComputedValuesView;
+use ak::math;
 use libgfx_rust::path::Path;
 use libgfx_rust::{CornerRadii, CornerRadius, FloatPoint, FloatRect};
 
@@ -94,7 +95,7 @@ impl Vector {
     }
 
     fn normalized(self) -> Vector {
-        let length = self.x.hypot(self.y);
+        let length = math::hypot(self.x, self.y);
         if length == 0.0 {
             return self;
         }
@@ -131,8 +132,8 @@ fn normalized_superellipse_half_corner(k: f64) -> f64 {
     if k == f64::INFINITY {
         return 1.0;
     }
-    let n = 2f64.powf(k.abs());
-    let convex_half_corner = 0.5f64.powf(1.0 / n);
+    let n = math::pow(2f64, k.abs());
+    let convex_half_corner = math::pow(0.5f64, 1.0 / n);
     if k < 0.0 {
         1.0 - convex_half_corner
     } else {
@@ -371,7 +372,7 @@ fn border_aligned_corner_clip_out_path(inputs: CornerInputs) -> Option<Vec<Point
     // 37. Otherwise, if K is greater than zero or less than or equal to -1:
     else if k > 0.0 || k <= -1.0 {
         // 1. Let n be 2^abs(K).
-        let n = 2f64.powf(k.abs());
+        let n = math::pow(2f64, k.abs());
         // 2. Let curveCenter be adjustedCornerOuter if K is less than zero, adjustedCornerCenter otherwise.
         let curve_center = if k < 0.0 {
             adjusted_corner_outer
@@ -384,8 +385,8 @@ fn border_aligned_corner_clip_out_path(inputs: CornerInputs) -> Option<Vec<Point
         for step in 0..=SEGMENTS_PER_CURVED_CORNER {
             let t = f64::from(step) / f64::from(SEGMENTS_PER_CURVED_CORNER);
             path.push(map_point_to_corner(
-                t.powf(1.0 / n),
-                (1.0 - t).powf(1.0 / n),
+                math::pow(t, 1.0 / n),
+                math::pow(1.0 - t, 1.0 / n),
                 adjusted_corner_start,
                 adjusted_corner_end,
                 curve_center,

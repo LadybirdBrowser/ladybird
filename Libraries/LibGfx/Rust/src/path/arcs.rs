@@ -16,6 +16,7 @@
 
 use super::geometry::PathGeometry;
 use crate::geometry::FloatPoint;
+use ak::math;
 use std::f64::consts::PI;
 
 /// The largest angle of the ellipse that one conic covers.
@@ -43,7 +44,7 @@ pub(super) fn append_elliptical_arc(
         return;
     }
 
-    let (sin_rotation, cos_rotation) = f64::from(x_axis_rotation).sin_cos();
+    let (sin_rotation, cos_rotation) = math::sincos(f64::from(x_axis_rotation));
     let (start_x, start_y) = (f64::from(start.x), f64::from(start.y));
     let (end_x, end_y) = (f64::from(end.x), f64::from(end.y));
 
@@ -86,9 +87,11 @@ pub(super) fn append_elliptical_arc(
         (-start_in_frame_x - center_in_frame_x) / radius_x,
         (-start_in_frame_y - center_in_frame_y) / radius_y,
     );
-    let start_angle = start_on_circle.1.atan2(start_on_circle.0);
-    let mut sweep_angle = (start_on_circle.0 * end_on_circle.1 - start_on_circle.1 * end_on_circle.0)
-        .atan2(start_on_circle.0 * end_on_circle.0 + start_on_circle.1 * end_on_circle.1);
+    let start_angle = math::atan2(start_on_circle.1, start_on_circle.0);
+    let mut sweep_angle = math::atan2(
+        start_on_circle.0 * end_on_circle.1 - start_on_circle.1 * end_on_circle.0,
+        start_on_circle.0 * end_on_circle.0 + start_on_circle.1 * end_on_circle.1,
+    );
     if !sweep && sweep_angle > 0.0 {
         sweep_angle -= 2.0 * PI;
     } else if sweep && sweep_angle < 0.0 {
@@ -112,20 +115,20 @@ pub(super) fn append_elliptical_arc(
         .ceil()
         .max(1.0) as usize;
     let angle_per_conic = sweep_angle / conic_count as f64;
-    let half_angle_cosine = (angle_per_conic / 2.0).cos();
+    let half_angle_cosine = math::cos(angle_per_conic / 2.0);
     let weight = half_angle_cosine as f32;
     for index in 0..conic_count {
         let from_angle = start_angle + angle_per_conic * index as f64;
         let middle_angle = from_angle + angle_per_conic / 2.0;
         let to_angle = from_angle + angle_per_conic;
         let control = to_ellipse(
-            middle_angle.cos() / half_angle_cosine,
-            middle_angle.sin() / half_angle_cosine,
+            math::cos(middle_angle) / half_angle_cosine,
+            math::sin(middle_angle) / half_angle_cosine,
         );
         let conic_end = if index + 1 == conic_count {
             end
         } else {
-            to_ellipse(to_angle.cos(), to_angle.sin())
+            to_ellipse(math::cos(to_angle), math::sin(to_angle))
         };
         geometry.contour_conic_to(control, conic_end, weight);
     }

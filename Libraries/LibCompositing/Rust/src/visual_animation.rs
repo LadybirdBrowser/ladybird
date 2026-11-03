@@ -16,6 +16,7 @@ use crate::host::{
     FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection, FfiVisualAnimationTargetKind,
     FfiVisualAnimationTransformOperationKind,
 };
+use ak::math;
 use libgfx_rust::filter::Filter;
 use libgfx_rust::{Color, ColorFilterType, FloatMatrix4x4, rotation_matrix, scale_matrix, translation_matrix};
 
@@ -145,8 +146,8 @@ impl VisualAnimationTransformOperation {
         let first = self.value(0).unwrap_or(0.0);
         let skew = |x: f32, y: f32| FloatMatrix4x4 {
             elements: [
-                [1.0, x.tan(), 0.0, 0.0],
-                [y.tan(), 1.0, 0.0, 0.0],
+                [1.0, math::tan(x), 0.0, 0.0],
+                [math::tan(y), 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ],

@@ -11,6 +11,7 @@
 //! quadraticCurveTo(), arc() and ellipse() are floats, and those of the rest are doubles that become floats where
 //! they become points.
 
+use ak::math;
 use libgfx_rust::{FloatPoint, FloatSize};
 
 use crate::ak_format::ak_formatted;
@@ -360,7 +361,7 @@ pub(crate) fn ellipse(
     // positions is just whether our angle is on one of the left quadrants.
     // NB: The C++ took the sine and the cosine of the rotation with the x87 instruction, in extended precision. Taken
     //     in double precision, they round to the same floats but in rare cases.
-    let (sin_rotation, cos_rotation) = f64::from(rotation).sin_cos();
+    let (sin_rotation, cos_rotation) = math::sincos(f64::from(rotation));
     #[allow(
         clippy::cast_possible_truncation,
         reason = "the C++ kept the sine and the cosine in floats"
@@ -368,7 +369,7 @@ pub(crate) fn ellipse(
     let (sin_rotation, cos_rotation) = (sin_rotation as f32, cos_rotation as f32);
 
     let resolve_point_with_angle = |angle: f32| {
-        let tan_relative = angle.tan();
+        let tan_relative = math::tan(angle);
         let tan2 = tan_relative * tan_relative;
 
         let ab = radius_x * radius_y;
@@ -382,7 +383,7 @@ pub(crate) fn ellipse(
         // Make sure to set the correct sign
         // -1 if 0 ≤ θ < 90° or 270°< θ ≤ 360°
         //  1 if 90° < θ< 270°
-        let sn = if angle.cos() >= 0.0 { 1.0 } else { -1.0 };
+        let sn = if math::cos(angle) >= 0.0 { 1.0 } else { -1.0 };
         relative_x_position *= sn;
         relative_y_position *= sn;
 
@@ -497,7 +498,7 @@ pub(crate) fn arc_to(
     //    (x1, y1), and that has a different point tangent to the half-infinite line that ends at the point (x1, y1)
     //    and crosses the point (x2, y2). The points at which this circle touches these two lines are called the start
     //    and end tangent points respectively.
-    let adjacent = radius / f64::from((cos_theta.acos() / 2.0).tan());
+    let adjacent = radius / f64::from(math::tan(math::acos(cos_theta) / 2.0));
     let factor1 = adjacent / f64::from(length(v1));
     let x3 = f64::from(p1.x) + factor1 * f64::from(p0.x - p1.x);
     let y3 = f64::from(p1.y) + factor1 * f64::from(p0.y - p1.y);

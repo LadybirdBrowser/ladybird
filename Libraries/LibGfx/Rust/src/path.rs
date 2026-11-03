@@ -339,6 +339,7 @@ impl Eq for Path {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ak::math;
 
     fn point(x: f32, y: f32) -> FloatPoint {
         FloatPoint { x, y }
@@ -491,8 +492,8 @@ mod tests {
         let vertices = circle.vertices();
         assert!(vertices.len() > 40);
         for vertex in &vertices {
-            assert_approximately(vertex.point.x.hypot(vertex.point.y), 10.0, 0.001);
-            assert_approximately(vertex.direction.x.hypot(vertex.direction.y), 1.0, 0.001);
+            assert_approximately(math::hypot(vertex.point.x, vertex.point.y), 10.0, 0.001);
+            assert_approximately(math::hypot(vertex.direction.x, vertex.direction.y), 1.0, 0.001);
             assert_approximately(
                 vertex.direction.x * vertex.point.x + vertex.direction.y * vertex.point.y,
                 0.0,
@@ -504,7 +505,7 @@ mod tests {
                 (pair[0].point.x + pair[1].point.x) / 2.0,
                 (pair[0].point.y + pair[1].point.y) / 2.0,
             );
-            assert!(midpoint.x.hypot(midpoint.y) > 10.0 - 0.5 / 16.0);
+            assert!(math::hypot(midpoint.x, midpoint.y) > 10.0 - 0.5 / 16.0);
         }
         assert_approximately(vertices.first().unwrap().point.x, 10.0, 0.000_000_5);
         assert_approximately(vertices.last().unwrap().point.x, 10.0, 0.000_000_5);
