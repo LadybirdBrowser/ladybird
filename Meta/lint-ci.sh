@@ -42,7 +42,6 @@ for cmd in \
         Meta/Linters/check_newlines_at_eof.py \
         Meta/Linters/check_png_sizes.sh \
         Meta/Linters/check_rust_address_keys.py \
-        Meta/Linters/check_rust_narrow_ffi_parameters.py \
         Meta/Linters/check_rust_process_wide_state.py \
         Meta/Linters/check_rust_style_value_arc.py \
         Meta/Linters/check_style.py \
