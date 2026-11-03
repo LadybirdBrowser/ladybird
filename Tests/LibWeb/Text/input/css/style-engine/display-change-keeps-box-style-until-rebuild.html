@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .grid { display: grid; }
+    .leaf { display: block; width: 20px; height: 10px; }
+</style>
+<div class="grid"><div><span id="styled" class="grid"><span class="leaf"></span><div class="leaf"></div></span></div></div>
+<div class="grid"><div><span id="host"><span class="leaf"></span><div class="leaf"></div></span></div></div>
+<div class="grid"><div><span id="logical" class="grid" style="border-left: 1px solid; border-right: 1px dashed"><span class="leaf"></span></span></div></div>
+<script>
+    function check(name, element, changeDisplay) {
+        element.getBoundingClientRect();
+        internals.updateStyle();
+        // The element's grid box waits for the layout tree update to replace it with an inline box. Neither the
+        // display change nor another change after it may restyle the grid box as inline in the meantime.
+        changeDisplay();
+        internals.updateStyle();
+        element.style.color = "green";
+        internals.updateStyle();
+        println(`${name}: display: ${getComputedStyle(element).display}`);
+        element.getBoundingClientRect();
+    }
+
+    test(() => {
+        const styled = document.getElementById("styled");
+        check("class change", styled, () => styled.classList.remove("grid"));
+
+        // The host is a grid only through its own shadow root's stylesheet, so emptying the sheet makes it inline.
+        const host = document.getElementById("host");
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(":host { display: grid; }");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.adoptedStyleSheets = [sheet];
+        shadow.innerHTML = "<slot></slot>";
+        check("shadow host stylesheet", host, () => sheet.replaceSync(""));
+
+        // A logical property resolves by the element's own direction while its box waits to be rebuilt.
+        const logical = document.getElementById("logical");
+        logical.getBoundingClientRect();
+        internals.updateStyle();
+        logical.classList.remove("grid");
+        logical.style.direction = "rtl";
+        internals.updateStyle();
+        println(`logical property: border-inline-start-style: ${getComputedStyle(logical).getPropertyValue("border-inline-start-style")}`);
+    });
+</script>

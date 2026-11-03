@@ -1,0 +1,3 @@
+class change: display: inline
+shadow host stylesheet: display: inline
+logical property: border-inline-start-style: dashed

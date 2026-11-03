@@ -1342,10 +1342,14 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     };
     auto color_resolution_style = ColorResolutionStyle::for_layout_node(layout_node);
 
+    // A logical property maps by the element's own writing mode and direction, which its box may not show yet: a box
+    // awaiting the layout tree update that replaces it keeps the style it was built for.
     if (property_is_logical_alias(property_id)) {
+        auto style = element.computed_style(pseudo_element);
+        VERIFY(style);
         return style_value_for_computed_property(
             layout_node,
-            map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { layout_node.writing_mode(), layout_node.direction() }));
+            map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { style->writing_mode(), style->direction() }));
     }
 
     // A limited number of properties have special rules for producing their "resolved value".
