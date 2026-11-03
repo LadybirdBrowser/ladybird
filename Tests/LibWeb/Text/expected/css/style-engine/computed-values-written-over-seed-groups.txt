@@ -1,0 +1,167 @@
+relative color: rgb(255, 0, 0)
+relative background-color: color(srgb 1 0 0)
+relative border-top-color: color(srgb 1 0 0)
+relative outline-color: color(srgb 1 0 0)
+relative column-rule-color: color(srgb 1 0 0)
+relative text-decoration-color: color(srgb 1 0 0)
+relative caret-color: color(srgb 1 0 0)
+relative accent-color: rgb(from currentcolor r g b)
+relative scrollbar-color: rgb(from currentcolor r g b) rgb(from currentcolor g r b)
+inheriting color: rgb(0, 128, 0)
+inheriting background-color: color(srgb 0 0.501961 0)
+inheriting border-top-color: color(srgb 0 0.501961 0)
+inheriting outline-color: color(srgb 0 0.501961 0)
+inheriting column-rule-color: color(srgb 0 0.501961 0)
+inheriting text-decoration-color: color(srgb 0 0.501961 0)
+inheriting caret-color: color(srgb 0 0.501961 0)
+inheriting accent-color: rgb(from currentcolor r g b)
+inheriting scrollbar-color: rgb(from currentcolor r g b) rgb(from currentcolor g r b)
+inheriting-with-sibling-write color: rgb(0, 0, 255)
+inheriting-with-sibling-write background-color: color(srgb 0 0 1)
+inheriting-with-sibling-write border-top-color: color(srgb 0 0 1)
+inheriting-with-sibling-write outline-color: color(srgb 0 0 1)
+inheriting-with-sibling-write column-rule-color: rgb(0, 0, 255)
+inheriting-with-sibling-write text-decoration-color: color(srgb 0 0 1)
+inheriting-with-sibling-write caret-color: color(srgb 0 0 1)
+inheriting-with-sibling-write accent-color: rgb(from currentcolor r g b)
+inheriting-with-sibling-write scrollbar-color: rgb(from currentcolor r g b) rgb(from currentcolor g r b)
+keeps-inherited color: rgb(0, 0, 255)
+keeps-inherited background-color: rgba(0, 0, 0, 0)
+keeps-inherited border-top-color: rgb(0, 0, 255)
+keeps-inherited outline-color: rgb(0, 0, 255)
+keeps-inherited column-rule-color: rgb(0, 0, 255)
+keeps-inherited text-decoration-color: rgb(0, 0, 255)
+keeps-inherited caret-color: color(srgb 0 0 1)
+keeps-inherited accent-color: rgb(from currentcolor r g b)
+keeps-inherited scrollbar-color: rgb(from currentcolor r g b) rgb(from currentcolor g r b)
+moves-other-inherited-text color: rgb(255, 0, 0)
+moves-other-inherited-text background-color: rgba(0, 0, 0, 0)
+moves-other-inherited-text border-top-color: rgb(255, 0, 0)
+moves-other-inherited-text outline-color: rgb(255, 0, 0)
+moves-other-inherited-text column-rule-color: rgb(255, 0, 0)
+moves-other-inherited-text text-decoration-color: rgb(255, 0, 0)
+moves-other-inherited-text caret-color: color(srgb 1 0 0)
+moves-other-inherited-text accent-color: rgb(from currentcolor r g b)
+moves-other-inherited-text scrollbar-color: rgb(from currentcolor r g b) rgb(from currentcolor g r b)
+system color: rgb(255, 255, 255)
+system background-color: rgba(0, 0, 0, 0)
+system border-top-color: rgb(255, 255, 255)
+system outline-color: rgb(255, 255, 255)
+system column-rule-color: rgb(255, 255, 255)
+system text-decoration-color: rgb(255, 255, 255)
+system caret-color: rgb(0, 0, 0)
+system accent-color: rgb(0, 0, 0)
+system scrollbar-color: auto
+dark color: rgb(255, 255, 255)
+dark background-color: rgba(0, 0, 0, 0)
+dark border-top-color: rgb(255, 255, 255)
+dark outline-color: rgb(255, 255, 255)
+dark column-rule-color: rgb(255, 255, 255)
+dark text-decoration-color: rgb(255, 255, 255)
+dark caret-color: rgb(0, 0, 0)
+dark accent-color: rgb(0, 0, 0)
+dark scrollbar-color: auto
+dark-auto-accent color: rgb(255, 255, 255)
+dark-auto-accent background-color: rgba(0, 0, 0, 0)
+dark-auto-accent border-top-color: rgb(255, 255, 255)
+dark-auto-accent outline-color: rgb(255, 255, 255)
+dark-auto-accent column-rule-color: rgb(255, 255, 255)
+dark-auto-accent text-decoration-color: rgb(255, 255, 255)
+dark-auto-accent caret-color: rgb(0, 0, 0)
+dark-auto-accent accent-color: auto
+dark-auto-accent scrollbar-color: auto
+transform-base transform: matrix(0.707107, 0.707107, -0.707107, 0.707107, 0, 0)
+transform-base transform-origin: 1px 2px 3px
+transform-base perspective: 10px
+transform-base perspective-origin: 3px 4px
+translate-only translate: 10px 20px
+translate-only rotate: none
+translate-only scale: none
+translate-only transform: none
+translate-only transform-origin: 392px 0px
+rotate-and-transform translate: none
+rotate-and-transform rotate: 30deg
+rotate-and-transform scale: 2
+rotate-and-transform transform: matrix(3, 0, 0, 3, 0, 0)
+offset offset-path: path("M 0 0 L 10 10")
+offset offset-distance: 5px
+offset offset-rotate: 10deg
+offset offset-anchor: auto
+offset offset-position: normal
+backface backface-visibility: hidden
+backface transform-box: fill-box
+backface transform-style: preserve-3d
+backface transform: none
+text-reset-line text-decoration-line: underline line-through
+text-reset-line text-decoration-thickness: auto
+text-reset-line text-decoration-style: solid
+text-reset-thickness text-decoration-line: none
+text-reset-thickness text-decoration-thickness: 3px
+text-reset-from-font text-decoration-thickness: from-font
+text-reset-trim white-space-trim: discard-before discard-inner
+text-reset-trim text-decoration-line: none
+ui-cursor cursor: help
+ui-cursor caret-color: rgb(0, 0, 0)
+ui-cursor color-scheme: normal
+ui-scheme color-scheme: light dark
+ui-scheme cursor: auto
+ui-scheme accent-color: auto
+ui-misc forced-color-adjust: none
+ui-misc interpolate-size: allow-keywords
+ui-misc image-rendering: pixelated
+ui-misc cursor: auto
+misc-appearance appearance: button
+misc-appearance outline-style: none
+misc-appearance-none appearance: none
+misc-outline outline-color: rgb(0, 255, 0)
+misc-outline outline-style: dotted
+misc-outline outline-width: 2px
+misc-outline outline-offset: 3px
+misc-clip overflow-clip-margin-top: content-box 3px
+misc-clip overflow-clip-margin-left: 4px
+misc-clip overflow-clip-margin-right: 0px
+misc-columns column-span: all
+misc-columns column-fill: auto
+misc-columns column-rule-style: dashed
+misc-columns column-rule-width: 3px
+misc-columns column-rule-color: rgb(0, 255, 0)
+misc-columns column-height: 40px
+misc-columns break-before: page
+misc-columns break-after: auto
+misc-object object-fit: contain
+misc-object object-position: 3px 4px
+misc-object shape-margin: 2px
+misc-object shape-outside: circle(10px)
+misc-object shape-image-threshold: 0.5
+misc-object content-visibility: hidden
+interaction-sides scroll-margin-top: 0px
+interaction-sides scroll-margin-left: 3px
+interaction-sides scroll-padding-top: 4px
+interaction-sides scroll-padding-right: auto
+interaction-snap scroll-snap-align: start end
+interaction-snap scroll-snap-type: y mandatory
+interaction-snap scroll-snap-stop: always
+interaction-snap-keyword scroll-snap-align: center
+interaction-snap-keyword scroll-snap-type: x
+interaction-misc scrollbar-gutter: stable
+interaction-misc scrollbar-width: thin
+interaction-misc will-change: transform
+interaction-misc view-transition-name: foo
+interaction-misc user-select: none
+interaction-misc overscroll-behavior-x: contain
+interaction-misc overscroll-behavior-y: auto
+background-clip background-image: linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255)), none
+background-clip background-clip: content-box, padding-box
+background-clip background-origin: padding-box, padding-box
+background-clip-only background-image: none
+background-clip-only background-clip: content-box
+background-image-only background-image: none, linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255))
+background-image-only background-clip: content-box, padding-box
+background-rest background-attachment: fixed
+background-rest background-blend-mode: multiply
+background-rest background-origin: border-box
+background-rest background-position-x: 3px
+background-rest background-position-y: 4px
+background-rest background-repeat: no-repeat
+background-rest background-size: 5px 6px
+background-rest background-color: rgba(0, 0, 0, 0)
