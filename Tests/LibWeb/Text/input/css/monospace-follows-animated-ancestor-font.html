@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<style>
+    @keyframes font {
+        from, to { font-size: 30px; }
+    }
+    #ancestor {
+        font-size: 20px;
+    }
+    #ancestor.animated {
+        animation: font 1000s linear;
+    }
+    #ancestor.transitioning {
+        transition: font-size 1000s linear;
+    }
+    #ancestor.moved {
+        font-size: 40px;
+    }
+    .monospace {
+        font-family: monospace;
+        margin: 0;
+    }
+</style>
+<div id="ancestor">
+    <span id="inheriting"></span>
+    <span class="monospace" id="monospace"></span>
+    <div><span class="monospace" id="below"></span></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    function dump(label) {
+        const size = id => getComputedStyle(document.getElementById(id)).fontSize;
+        println(`${label}: ${size("ancestor")}, inheriting ${size("inheriting")}, monospace ${size("monospace")}, below ${size("below")}`);
+    }
+
+    test(() => {
+        dump("no animation");
+        ancestor.classList.add("animated");
+        dump("running animation");
+        ancestor.getAnimations()[0].cancel();
+        ancestor.classList.remove("animated");
+        dump("canceled animation");
+
+        ancestor.classList.add("transitioning");
+        getComputedStyle(ancestor).fontSize;
+        ancestor.classList.add("moved");
+        dump("transition at its start");
+        const transition = ancestor.getAnimations()[0];
+        transition.pause();
+        transition.currentTime = 500000;
+        dump("transition halfway");
+        transition.finish();
+        dump("transition finished");
+    });
+</script>

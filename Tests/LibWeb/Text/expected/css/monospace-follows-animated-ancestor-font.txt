@@ -1,0 +1,6 @@
+no animation: 20px, inheriting 20px, monospace 20px, below 20px
+running animation: 30px, inheriting 30px, monospace 20px, below 20px
+canceled animation: 20px, inheriting 20px, monospace 20px, below 20px
+transition at its start: 20px, inheriting 20px, monospace 40px, below 20px
+transition halfway: 30px, inheriting 30px, monospace 40px, below 40px
+transition finished: 40px, inheriting 40px, monospace 40px, below 40px
