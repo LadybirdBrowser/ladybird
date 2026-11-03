@@ -63,6 +63,7 @@
 #endif
 
 class QKeyEvent;
+class QNativeGestureEvent;
 class QLabel;
 class QMenu;
 class QPushButton;
@@ -339,6 +340,16 @@ private:
     QPointer<ScreenshotViewer> m_screenshot_viewer;
     Vector<QPointer<QWidget>> m_floating_surfaces;
     PageOverlay* m_web_compat_report_overlay { nullptr };
+
+    bool handle_native_gesture_event(QNativeGestureEvent const&);
+
+    // A pinch only tells where it began and ended apart from its steps.
+    enum class NativeGestureState : u8 {
+        None,
+        Began,
+        Zooming,
+    };
+    NativeGestureState m_native_gesture_state { NativeGestureState::None };
 
 #ifdef AK_OS_MACOS
     NativeTextEditingBindings m_native_text_editing_bindings;
