@@ -14,4 +14,5 @@ endpoint RenderClockClient
     pointer_moved(Web::CompositorContextId context_id, Web::DevicePixelPoint position, u32 buttons, bool scrolled_since_frame, u64 input_event_id) =|
     // The pointer left the context, beside the mouse event with the input event id `input_event_id`.
     pointer_left(Web::CompositorContextId context_id, u64 input_event_id) =|
+    pointer_rests_on_moving_content(Web::CompositorContextId context_id) =|
 }

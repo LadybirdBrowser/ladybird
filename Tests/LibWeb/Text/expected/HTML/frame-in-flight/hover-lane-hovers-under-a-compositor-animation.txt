@@ -1,0 +1,6 @@
+at 1 s, after a move beside the box: cursor Arrow, presented height undefined
+at 5 s, the box under the pointer: cursor Crosshair, presented height 80
+at 9 s, the box away: cursor Arrow, presented height 60
+last frame presented by: clock
+box matches :hover after the task: false
+cursor after the task: Arrow

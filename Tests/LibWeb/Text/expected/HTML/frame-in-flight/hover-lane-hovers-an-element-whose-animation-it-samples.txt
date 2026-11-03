@@ -3,5 +3,5 @@ cursor at a move over the box: Crosshair
 presented height after the move: 80
 presented left at 4 s: 200
 last frame presented by: clock
-box matches :hover after the task: true
-cursor after the task: Crosshair
+box matches :hover after the task: false
+cursor after the task: Arrow

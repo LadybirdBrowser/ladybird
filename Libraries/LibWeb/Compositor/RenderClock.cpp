@@ -55,6 +55,12 @@ private:
             m_clock.did_receive_pointer_move(context_id, {}, 0, false, input_event_id);
     }
 
+    virtual void pointer_rests_on_moving_content(Web::CompositorContextId context_id) override
+    {
+        if (!m_detached)
+            m_clock.did_receive_pointer_rest(context_id);
+    }
+
     RenderClock& m_clock;
     bool m_detached { false };
 };
@@ -81,6 +87,11 @@ PointerAnswer ClockTicksHandle::pointer_moved(Optional<Gfx::FloatPoint> device_p
 {
     auto position = device_position.value_or({});
     return static_cast<PointerAnswer>(Layout::RustFFI::clock_ticks_pointer_moved(m_ticks, device_position.has_value(), position.x(), position.y(), buttons, scrolled_since_frame, input_event_id));
+}
+
+PointerAnswer ClockTicksHandle::pointer_rests_on_moving_content() const
+{
+    return static_cast<PointerAnswer>(Layout::RustFFI::clock_ticks_pointer_rests_on_moving_content(m_ticks));
 }
 
 RenderClock& RenderClock::the()
@@ -251,7 +262,20 @@ void RenderClock::did_receive_pointer_move(Web::CompositorContextId context_id, 
     auto it = m_pointer_lanes.find(context_id);
     if (it == m_pointer_lanes.end())
         return;
-    switch (it->value.ticks->pointer_moved(device_position, buttons, scrolled_since_frame, input_event_id)) {
+    arm_lane_for_pointer_answer(context_id, it->value, it->value.ticks->pointer_moved(device_position, buttons, scrolled_since_frame, input_event_id));
+}
+
+void RenderClock::did_receive_pointer_rest(Web::CompositorContextId context_id)
+{
+    auto it = m_pointer_lanes.find(context_id);
+    if (it == m_pointer_lanes.end())
+        return;
+    arm_lane_for_pointer_answer(context_id, it->value, it->value.ticks->pointer_rests_on_moving_content());
+}
+
+void RenderClock::arm_lane_for_pointer_answer(Web::CompositorContextId context_id, PointerLane const& lane, PointerAnswer answer)
+{
+    switch (answer) {
     case PointerAnswer::Moves:
         return;
     case PointerAnswer::Ticks:
@@ -263,9 +287,8 @@ void RenderClock::did_receive_pointer_move(Web::CompositorContextId context_id, 
     // A context armed for ticks already asked for the next one.
     if (m_armed_contexts.contains(context_id))
         return;
-    auto maximum_frames_per_second = it->value.maximum_frames_per_second;
-    m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, it->value.ticks });
-    request_clock_tick(context_id, maximum_frames_per_second);
+    m_armed_contexts.set(context_id, ArmedContext { lane.maximum_frames_per_second, lane.ticks });
+    request_clock_tick(context_id, lane.maximum_frames_per_second);
 }
 
 void RenderClock::request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second)

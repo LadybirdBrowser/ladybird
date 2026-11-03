@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 150px; }
+    #box { position: absolute; width: 100px; height: 60px; top: 20px; left: -200px; cursor: cell; }
+    #box:hover { height: 80px; }
+    #stage.active #box { animation: walk 10s linear infinite; }
+    @keyframes walk { from { left: -200px; } to { left: 800px; } }
+</style>
+<div id="stage"><div id="box"></div></div>
+<script>
+    // The clock lane moves a box across the pointer at rest with a layout animation it samples. A tick that moved a box
+    // has the next tick hover where the pointer rests again, in the frame it presented: the lane hovers the box as it
+    // covers the pointer, with its cursor, and hovers it no more once it has moved away, with no move of the pointer.
+    asyncTest(async done => {
+        internals.mouseMove(150, 50);
+        await twoFrames();
+        const result = await whileLaneAnimates(() => {
+            stage.classList.add("active");
+            return box.getAnimations()[0];
+        }, (frameTime, animation, startTime) => {
+            const lines = [];
+            // The lane hears of the pointer as the compositor tells it of a move: 1 s in, the box is away from it.
+            internals.injectHoverPointer(150, 50, startTime + 1000);
+            lines.push(`at 1 s, after a move beside the box: cursor ${internals.currentCursor()}, presented height ${internals.presentedBorderBox(box)?.height}`);
+            // 3 s in, the box spans 100..200 by 20..80, under the pointer: the tick after the one that moved it there hovers it.
+            internals.injectClockTick(startTime + 3000);
+            internals.injectClockTick(startTime + 3016);
+            lines.push(`at 3 s, the box under the pointer: cursor ${internals.currentCursor()}, presented height ${internals.presentedBorderBox(box)?.height}`);
+            // 6 s in, the box is away again.
+            internals.injectClockTick(startTime + 6000);
+            internals.injectClockTick(startTime + 6016);
+            lines.push(`at 6 s, the box away: cursor ${internals.currentCursor()}, presented height ${internals.presentedBorderBox(box)?.height}`);
+            lines.push(`last frame presented by: ${internals.lastFramePresentedBy(document)}`);
+            return lines;
+        });
+        for (const line of result)
+            println(line);
+        await nextFrame();
+        println(`box matches :hover after the task: ${box.matches(":hover")}`);
+        println(`cursor after the task: ${internals.currentCursor()}`);
+        done();
+    });
+</script>

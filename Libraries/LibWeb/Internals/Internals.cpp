@@ -2441,6 +2441,13 @@ void Internals::note_animated_content_moved_under_pointer(double frame_time_ms)
         navigable->event_handler().note_animated_content_moved_under_pointer(static_cast<i64>(frame_time * 1'000'000.0));
 }
 
+void Internals::inject_pointer_rests_on_moving_content(double frame_time_ms)
+{
+    auto& document = window().associated_document();
+    auto frame_time = document.relevant_settings_object().time_origin() + frame_time_ms;
+    Layout::RustFFI::document_host_inject_pointer_rest(document.layout_node_arena().host(), static_cast<i64>(frame_time * 1'000'000.0));
+}
+
 u64 Internals::queue_mouse_move(double x, double y, u32 buttons)
 {
     // NB: Above every id a UI process hands out in a test.
