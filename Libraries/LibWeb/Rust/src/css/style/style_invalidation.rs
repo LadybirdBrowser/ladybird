@@ -1049,6 +1049,24 @@ impl RetainedState {
         element_record_damage_of_views(facts, RecordMove { old, new })
     }
 
+    /// What moving `node` from the installed record `old_style_record` to `new`, which the record it comes to install
+    /// holds the values of, damages.
+    pub(super) fn element_record_damage_to(
+        &self,
+        node: StyleNodeID,
+        old_style_record: u64,
+        new: &std::sync::Arc<super::pipeline::Record>,
+    ) -> u32 {
+        let Some(old) = RecordView::installed(&self.computed_group_sets, old_style_record) else {
+            return unreadable_record_damage();
+        };
+        let new = RecordView {
+            values: new.view(),
+            identity: None,
+        };
+        element_record_damage_of_views(self.element_damage_facts(node, false), RecordMove { old, new })
+    }
+
     /// What moving `node`'s pseudo-element of `pseudo_kind` from one installed record to another
     /// damages. Either record can be absent (zero): the pseudo-element's box then appears or goes
     /// away. The originating element holds `originating_style_record`.
