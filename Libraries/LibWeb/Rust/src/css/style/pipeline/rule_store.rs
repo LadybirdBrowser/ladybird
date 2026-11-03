@@ -293,7 +293,7 @@ impl BlockCascadeData {
     }
 
     /// The checks of each longhand's written value.
-    fn checks(&self) -> &[WrittenValueChecks] {
+    pub(in crate::css::style) fn checks(&self) -> &[WrittenValueChecks] {
         // SAFETY: The allocation holds `length` checks after the header.
         unsafe {
             ak::slice_from_raw_parts(
@@ -306,7 +306,7 @@ impl BlockCascadeData {
         }
     }
 
-    fn heap_bytes(&self) -> usize {
+    pub(in crate::css::style) fn heap_bytes(&self) -> usize {
         Self::layout(self.length as usize).size()
     }
 

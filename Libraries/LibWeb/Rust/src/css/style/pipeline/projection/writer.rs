@@ -24,6 +24,9 @@ use super::super::super::instrumentation::Counter;
 use super::super::super::instrumentation::Counters;
 use super::super::super::tree::StyleNodeID;
 
+use super::super::super::element_declarations::{
+    InlineDeclarationColumn, InlineDeclarationSnapshot, InlineDeclarations,
+};
 use super::super::super::element_host_facts::HostFactSet;
 use super::super::super::element_host_facts::HostFactSets;
 use super::ArrivalFacts;
@@ -44,6 +47,7 @@ use super::list_bloom_of;
 use super::relations_of;
 use crate::cow_column::ColumnSnapshot;
 use crate::cow_column::CowColumn;
+use crate::css::declaration_block::SharedDeclarationBlock;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use smallvec::SmallVec;
 use std::sync::Arc;
@@ -66,6 +70,11 @@ pub(in crate::css::style) struct ProjectionWriter {
     rows: CowColumn<Row, ROWS_PER_CHUNK>,
     /// The elements' shadow relations, made only as far as the last element that held any.
     shadows: ShadowColumn,
+    /// The elements' inline declarations.
+    inline_declarations: InlineDeclarationColumn,
+    /// Whether the inline declarations of an element were written since the last publication, which the rows written do
+    /// not list: what a transaction takes of them the host says beside its rows.
+    inline_declarations_written: bool,
     /// The rows as the host last published them.
     published: ColumnSnapshot<Row, ROWS_PER_CHUNK>,
     /// One past the greatest element slot written.
@@ -100,6 +109,7 @@ pub(in crate::css::style) struct ProjectionWriter {
 pub(in crate::css::style) struct ProjectionPublication {
     pub(super) rows: ColumnSnapshot<Row, ROWS_PER_CHUNK>,
     pub(super) shadows: ShadowSnapshot,
+    pub(in crate::css::style) inline_declarations: InlineDeclarationSnapshot,
     pub(super) slot_count: usize,
     pub(super) catalogs: Catalogs,
     pub(super) host_fact_sets: Arc<HostFactSets>,
@@ -138,6 +148,7 @@ impl ProjectionWriter {
             + self.shadows.heap_size(sizer, |shadow, sizer| {
                 super::shadow_links_heap_size(shadow.as_ref(), sizer)
             })
+            + self.inline_declarations.heap_size(sizer, InlineDeclarations::heap_size)
             + self.published.heap_size(sizer, Row::heap_size);
         if sizer.arc_shallow(&self.host_fact_sets) != 0 {
             bytes += crate::heap_size::ARC_HEADER_BYTES + size_of::<HostFactSets>() + self.host_fact_sets.heap_size();
@@ -170,7 +181,10 @@ impl ProjectionWriter {
     /// Whether anything was written since the last publication.
     #[must_use]
     pub(in crate::css::style) fn has_unpublished_writes(&self) -> bool {
-        !self.written.nodes.is_empty() || self.catalogs_written || self.host_facts_written
+        !self.written.nodes.is_empty()
+            || self.catalogs_written
+            || self.host_facts_written
+            || self.inline_declarations_written
     }
 
     /// Publish the rows as written: the barrier the render owner takes them at. The elements that left the tree are
@@ -192,6 +206,7 @@ impl ProjectionWriter {
         let rows = self.rows.publish();
         self.catalogs_written = false;
         self.host_facts_written = false;
+        self.inline_declarations_written = false;
         let counts = WRITE_COUNTERS
             .into_iter()
             .filter_map(|counter| {
@@ -203,6 +218,7 @@ impl ProjectionWriter {
         let publication = ProjectionPublication {
             rows: rows.clone(),
             shadows: self.shadows.publish(),
+            inline_declarations: self.inline_declarations.publish(),
             slot_count: self.slot_count,
             catalogs: self.catalogs.clone(),
             host_fact_sets: Arc::clone(&self.host_fact_sets),
@@ -397,9 +413,33 @@ impl ProjectionWriter {
         });
     }
 
+    /// Have the inline declarations of `node` be `block`, answering those it held. The render owner reads them from the
+    /// next publication on.
+    pub(in crate::css::style) fn write_inline_declarations(
+        &mut self,
+        node: StyleNodeID,
+        block: Option<SharedDeclarationBlock>,
+    ) -> Option<SharedDeclarationBlock> {
+        let slot = node.element_slot();
+        if block.is_none()
+            && !self
+                .inline_declarations
+                .get(slot)
+                .is_some_and(InlineDeclarations::is_some)
+        {
+            return None;
+        }
+        self.inline_declarations.grow_to(slot + 1);
+        self.inline_declarations_written = true;
+        self.inline_declarations
+            .replace(slot, InlineDeclarations::new(block))
+            .and_then(InlineDeclarations::into_block)
+    }
+
     /// Retire the element identity `node`, dropping its links and every shadow relation that names
     /// it. Its facts stay until [`Self::forget`].
     pub(in crate::css::style) fn retire(&mut self, node: StyleNodeID) {
+        self.write_inline_declarations(node, None);
         let slot = self.edit(node, |row| {
             assert!(row.live(), "retiring an identity that is not live");
             row.links = Links::default();

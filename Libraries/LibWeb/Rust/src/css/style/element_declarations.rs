@@ -12,8 +12,8 @@ use super::index::StyleAtomID;
 use super::input_types::ElementDeclarationKind;
 use super::pipeline::rule_store::CustomDeclaration;
 use super::tree::StyleNodeID;
-use crate::cow_column::CowVec;
-use crate::css::declaration_block::DeclarationEntry;
+use crate::cow_column::{ColumnSnapshot, CowColumn, CowVec};
+use crate::css::declaration_block::{DeclarationEntry, SharedDeclarationBlock, prefetch};
 use crate::css::style_value::RetainedStyleValueData;
 
 type Checks = super::pipeline::compute::WrittenValueChecks;
@@ -177,10 +177,9 @@ unsafe impl Send for ElementDeclarationRow {}
 // SAFETY: As above; nothing mutates a row through a shared reference.
 unsafe impl Sync for ElementDeclarationRow {}
 
-/// An element's inline declaration, taken out of its row while a private demand computes the
+/// The custom properties of an element's inline declaration, taken out of its row while a private demand computes the
 /// element as though it had none.
 pub(super) struct HiddenInlineDeclarations {
-    declarations: Vec<(DeclarationEntry, RetainedStyleValueData, Checks)>,
     custom: Vec<CustomDeclarationWritten>,
 }
 
@@ -409,14 +408,6 @@ impl ElementDeclarationRow {
         Self::build(entries, ends, custom)
     }
 
-    /// The declarations of `kind`, copied out.
-    fn copy_of(&self, kind: ElementDeclarationKind) -> Vec<(DeclarationEntry, RetainedStyleValueData, Checks)> {
-        let own = self.declarations(kind);
-        (0..own.declared.len())
-            .map(|index| (own.declared[index], own.written[index].clone(), own.checks[index]))
-            .collect()
-    }
-
     fn storage_bytes(&self) -> usize {
         row_layout(self.count(), self.custom_count()).size()
     }
@@ -513,12 +504,80 @@ impl ElementDeclarationRow {
     }
 }
 
+/// The block of an element's inline declarations, as the column of them holds it. Two are the same only as the same
+/// block: a block's content is the host's to compare.
+#[derive(Clone, Default)]
+pub(in crate::css::style) struct InlineDeclarations(Option<SharedDeclarationBlock>);
+
+impl PartialEq for InlineDeclarations {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (Some(block), Some(other)) => std::ptr::eq(block.as_ptr(), other.as_ptr()),
+            (None, None) => true,
+            _ => false,
+        }
+    }
+}
+
+impl InlineDeclarations {
+    pub(in crate::css::style) fn new(block: Option<SharedDeclarationBlock>) -> Self {
+        Self(block)
+    }
+
+    pub(in crate::css::style) fn is_some(&self) -> bool {
+        self.0.is_some()
+    }
+
+    pub(in crate::css::style) fn into_block(self) -> Option<SharedDeclarationBlock> {
+        self.0
+    }
+
+    /// The bytes of what the engine derived from the block and of the values it holds that `sizer` reaches for the first
+    /// time. The block itself is its element's.
+    pub(in crate::css::style) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        use crate::heap_size::HeapSize;
+        let Some(block) = &self.0 else {
+            return 0;
+        };
+        if !sizer.first_sight(block.as_ptr()) {
+            return 0;
+        }
+        block.cascade_data().map_or(0, |data| data.heap_bytes())
+            + RetainedStyleValueData::slice_from_shared(block.properties().values()).heap_size(sizer)
+            + RetainedStyleValueData::slice_from_shared(block.custom_properties().values()).heap_size(sizer)
+    }
+}
+
+/// How many elements a chunk of the column of inline declarations holds.
+const INLINE_DECLARATIONS_PER_CHUNK: usize = 64;
+
+/// The inline declarations of a document's elements by slot, which its host writes as it writes their rows, made only as
+/// far as the last element that held any.
+pub(in crate::css::style) type InlineDeclarationColumn = CowColumn<InlineDeclarations, INLINE_DECLARATIONS_PER_CHUNK>;
+
+/// The inline declarations of a document's elements as its host last published them.
+pub(in crate::css::style) type InlineDeclarationSnapshot =
+    ColumnSnapshot<InlineDeclarations, INLINE_DECLARATIONS_PER_CHUNK>;
+
+const _: () = {
+    const fn assert_shared_between_threads<T: Send + Sync>() {}
+    assert_shared_between_threads::<InlineDeclarationSnapshot>();
+};
+
 /// Element-declaration rows addressed directly by dense element identity.
 ///
-/// Each directory slot costs one pointer. A populated slot holds one allocation with the
-/// declarations of every kind.
+/// An element's inline declarations are read from the block the host published in its column. Each directory slot of the
+/// rows costs one pointer, and a populated slot holds one allocation with the presentation attributes' declarations and
+/// the custom properties of the inline declarations.
 #[derive(Clone, Default)]
 pub(super) struct ElementDeclarationStore {
+    /// Each element's inline declarations as the host published them.
+    inline: InlineDeclarationSnapshot,
+    /// The element whose inline declarations read as none while a private demand computes it.
+    hidden_inline: Option<StyleNodeID>,
+    /// What a test wrote of the column in place of a host.
+    #[cfg(test)]
+    inline_written_for_test: InlineDeclarationColumn,
     /// Each element's row, by element index, copied on write in chunks so that a fork shares them.
     rows: CowVec<Option<ElementDeclarationRow>, ELEMENT_DECLARATION_ROWS_PER_CHUNK>,
     /// How many rows hold custom declarations: none means no inline style declares one.
@@ -560,7 +619,8 @@ impl ElementDeclarationStore {
     /// written with counted aside.
     pub(super) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
         use crate::heap_size::HeapSize;
-        let mut bytes = self.rows.heap_size(sizer, |_, _| 0);
+        let mut bytes =
+            self.rows.heap_size(sizer, |_, _| 0) + self.inline.heap_size(sizer, InlineDeclarations::heap_size);
         for row in self.rows.iter().flatten() {
             if !sizer.first_sight(row.0.as_ptr()) {
                 continue;
@@ -574,21 +634,81 @@ impl ElementDeclarationStore {
         bytes
     }
 
+    /// Have the inline declarations of the elements read as the host published them.
+    pub(super) fn adopt_inline(&mut self, inline: InlineDeclarationSnapshot) {
+        self.inline = inline;
+    }
+
+    /// Have the inline declarations of `node` be `declarations`, as a host would publish them.
+    #[cfg(test)]
+    pub(super) fn set_inline_for_test(
+        &mut self,
+        node: StyleNodeID,
+        declarations: Vec<(DeclarationEntry, RetainedStyleValueData)>,
+    ) {
+        let mut builder = crate::css::declaration_block::DeclarationBlockBuilder::default();
+        builder.properties = declarations
+            .into_iter()
+            .map(|(declared, written)| crate::css::declaration_block::DeclaredProperty {
+                property_id: declared.property(),
+                important: declared.important(),
+                value: written.into_arc(),
+            })
+            .collect();
+        let block = builder.finish();
+        let slot = node.element_slot();
+        self.inline_written_for_test.grow_to(slot + 1);
+        self.inline_written_for_test.set(slot, InlineDeclarations(Some(block)));
+        self.inline = self.inline_written_for_test.publish();
+    }
+
+    fn inline_block(&self, node: StyleNodeID) -> Option<&SharedDeclarationBlock> {
+        node.element_index()?;
+        if self.hidden_inline == Some(node) {
+            return None;
+        }
+        self.inline.get(node.element_slot())?.0.as_ref()
+    }
+
+    fn inline_declarations(&self, node: StyleNodeID) -> Option<ElementDeclarations<'_>> {
+        let block = self.inline_block(node)?;
+        let properties = block.properties();
+        // NB: The element's block is immutable, and what is derived from it is made by the first thread to read it, as
+        //     an element nothing styles costs nothing here.
+        block.make_cascade_data(super::pipeline::rule_store::BlockCascadeData::new);
+        Some(ElementDeclarations {
+            declared: properties.entries(),
+            written: RetainedStyleValueData::slice_from_shared(properties.values()),
+            checks: block
+                .cascade_data()
+                .expect("the block's cascade data was just made")
+                .checks(),
+        })
+    }
+
     fn row(&self, node: StyleNodeID) -> Option<&ElementDeclarationRow> {
         let index = node.element_index()? as usize;
         self.rows.get(index)?.as_ref()
     }
 
-    /// Ask the processor to fetch a node's row, which reading the row's address alone does not.
+    /// Ask the processor to fetch a node's row and inline declarations, which reading their addresses alone does not.
     fn prefetch_row(&self, node: StyleNodeID) {
+        if let Some(block) = self.inline_block(node) {
+            prefetch(block.as_ptr());
+        }
         if let Some(row) = self.row(node) {
             prefetch(row.0.as_ptr());
         }
     }
 
     /// Ask the processor to fetch the values a node's declarations were written with, reading the
-    /// row and its declarations.
+    /// row, the block and their declarations.
     fn prefetch_written_values(&self, node: StyleNodeID) {
+        if let Some(inline) = self.inline_declarations(node) {
+            for written in inline.written {
+                prefetch(written.pointer());
+            }
+        }
         let Some(row) = self.row(node) else {
             return;
         };
@@ -597,8 +717,11 @@ impl ElementDeclarationStore {
         }
     }
 
-    /// Ask the processor to fetch the declarations a node's row holds, reading the row.
+    /// Ask the processor to fetch the declarations a node's row and block hold, reading those.
     fn prefetch_declarations(&self, node: StyleNodeID) {
+        if let Some(block) = self.inline_block(node) {
+            block.prefetch_arrays();
+        }
         let Some(row) = self.row(node) else {
             return;
         };
@@ -612,18 +735,22 @@ impl ElementDeclarationStore {
     /// The longhand properties one kind of the node's own declarations covers.
     #[must_use]
     pub(super) fn declared_properties(&self, node: StyleNodeID, kind: ElementDeclarationKind) -> &[DeclarationEntry] {
-        self.row(node).map_or(&[], |row| row.declarations(kind).declared)
+        self.declarations(node, kind)
+            .map_or(&[], |declarations| declarations.declared)
     }
 
     /// One kind of the node's element declarations, with the values they were written with;
-    /// `None` when it has none of any kind.
+    /// `None` when it has none of that kind or of any other its row holds.
     #[must_use]
     pub(super) fn declarations(
         &self,
         node: StyleNodeID,
         kind: ElementDeclarationKind,
     ) -> Option<ElementDeclarations<'_>> {
-        self.row(node).map(|row| row.declarations(kind))
+        match kind {
+            ElementDeclarationKind::InlineStyle => self.inline_declarations(node),
+            _ => self.row(node).map(|row| row.declarations(kind)),
+        }
     }
 
     /// Put `row` in the slot at `index`, or empty the slot where `row` holds nothing.
@@ -648,30 +775,29 @@ impl ElementDeclarationStore {
         declarations: Vec<(DeclarationEntry, RetainedStyleValueData)>,
     ) {
         let index = node.element_index().expect("only elements carry element declarations") as usize;
+        debug_assert!(kind != ElementDeclarationKind::InlineStyle);
         let declarations = declarations.into_iter().map(|(declared, written)| {
             let checks = Checks::prepare(declared.property(), &written);
             (declared, written, checks)
         });
-        self.replace_kind(index, kind, declarations, None);
+        self.replace_kind(index, kind, declarations);
     }
 
-    /// Replace the declarations of `kind` in the row at `index`, and its custom declarations where
-    /// `custom` names them.
+    /// Replace the declarations of `kind` in the row at `index`.
     fn replace_kind(
         &mut self,
         index: usize,
         kind: ElementDeclarationKind,
         declarations: impl ExactSizeIterator<Item = (DeclarationEntry, RetainedStyleValueData, Checks)>,
-        custom: Option<Vec<CustomDeclarationWritten>>,
     ) {
         let (row, had_custom) = match self.rows.get_mut(index).and_then(Option::as_mut) {
             Some(row) => {
                 let had_custom = row.custom().is_some();
-                let custom = custom.unwrap_or_else(|| row.copy_custom());
+                let custom = row.copy_custom();
                 (row.with(kind, declarations, custom), had_custom)
             }
             None => {
-                if declarations.len() == 0 && custom.as_ref().is_none_or(Vec::is_empty) {
+                if declarations.len() == 0 {
                     return;
                 }
                 let mut ends = [0; ElementDeclarationKind::COUNT];
@@ -681,10 +807,7 @@ impl ElementDeclarationStore {
                         ends[other.index()] = count;
                     }
                 }
-                (
-                    ElementDeclarationRow::build(declarations, ends, custom.unwrap_or_default()),
-                    false,
-                )
+                (ElementDeclarationRow::build(declarations, ends, Vec::new()), false)
             }
         };
         self.put(index, Some(row), had_custom);
@@ -746,36 +869,23 @@ impl ElementDeclarationStore {
         }
     }
 
-    /// Take the node's inline declaration out of its row while a private demand computes the node
-    /// as though it had none. The demand puts it back before it returns.
+    /// Have the node's inline declaration read as none while a private demand computes the node as though it had none.
+    /// The demand puts it back before it returns.
     pub(super) fn hide_inline_for_demand(&mut self, node: StyleNodeID) -> Option<HiddenInlineDeclarations> {
-        let index = node.element_index()? as usize;
-        let row = self.rows.get_mut(index)?.as_mut()?;
-        let kind = ElementDeclarationKind::InlineStyle;
-        let hidden = HiddenInlineDeclarations {
-            declarations: row.copy_of(kind),
-            custom: row.copy_custom(),
-        };
-        // NB: The row stays, even where it is empty, for the demand to put the declaration back in.
-        *row = row.with(kind, std::iter::empty(), Vec::new());
-        if !hidden.custom.is_empty() {
-            self.rows_with_custom_declarations -= 1;
+        node.element_index()?;
+        let custom = self.row(node).map_or_else(Vec::new, ElementDeclarationRow::copy_custom);
+        if !custom.is_empty() {
+            self.set_custom(node, Vec::new());
         }
-        Some(hidden)
+        self.hidden_inline = Some(node);
+        Some(HiddenInlineDeclarations { custom })
     }
 
     pub(super) fn restore_inline_after_demand(&mut self, node: StyleNodeID, hidden: HiddenInlineDeclarations) {
-        let index = node.element_index().expect("only an element has an inline declaration") as usize;
-        assert!(
-            self.rows.get(index).is_some_and(Option::is_some),
-            "a private demand keeps the element's declaration row"
-        );
-        self.replace_kind(
-            index,
-            ElementDeclarationKind::InlineStyle,
-            hidden.declarations.into_iter(),
-            Some(hidden.custom),
-        );
+        self.hidden_inline = None;
+        if !hidden.custom.is_empty() {
+            self.set_custom(node, hidden.custom);
+        }
     }
 
     /// Ask the processor to fetch the own declarations of the next elements a traversal styles,
@@ -807,18 +917,6 @@ impl ElementDeclarationStore {
         }
         visited
     }
-}
-
-/// Ask the processor to fetch the cache line at `address` without waiting for it.
-#[inline]
-fn prefetch<T>(address: *const T) {
-    #[cfg(target_arch = "x86_64")]
-    // SAFETY: A prefetch reads nothing and cannot fault, whatever the address.
-    unsafe {
-        std::arch::x86_64::_mm_prefetch::<{ std::arch::x86_64::_MM_HINT_T0 }>(address.cast());
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    let _ = address;
 }
 
 #[cfg(test)]
@@ -886,14 +984,14 @@ mod tests {
 
         store.set(node, hints, unwritten_declarations(&[declared(3)]));
         store.set_custom(node, written(&[custom(7), custom(8)]));
-        store.set(node, inline, unwritten_declarations(&[declared(1), declared(2)]));
+        store.set_inline_for_test(node, unwritten_declarations(&[declared(1), declared(2)]));
         assert!(store.any_declares_custom_properties());
         assert_eq!(store.custom_declarations(node), &[custom(7), custom(8)][..]);
         assert_eq!(store.custom(node).map(|custom| custom.written_values().len()), Some(2));
         assert_eq!(store.declared_properties(node, inline), &[declared(1), declared(2)][..]);
         assert_eq!(store.declared_properties(node, hints), &[declared(3)][..]);
         let row = store.row(node).expect("the element declares");
-        assert_eq!(row.storage_bytes(), 16 + 8 + 2 * 16 + 3 * 14);
+        assert_eq!(row.storage_bytes(), 16 + 8 + 2 * 16 + 14);
 
         // A private demand takes the inline declarations, custom ones too, out and puts them back.
         let hidden = store.hide_inline_for_demand(node).expect("the element declares");
@@ -922,14 +1020,9 @@ mod tests {
             DeclarationEntry::new(property, important, super::super::cascade::CascadeOperator::Declared)
         };
 
-        store.set(
-            first,
-            inline,
-            unwritten_declarations(&[declared(1, false), declared(2, true)]),
-        );
+        store.set_inline_for_test(first, unwritten_declarations(&[declared(1, false), declared(2, true)]));
         store.set(first, hints, unwritten_declarations(&[declared(3, false)]));
         store.set(later, svg, unwritten_declarations(&[declared(4, false)]));
-        store.set(later, inline, Vec::new());
         assert_eq!(
             store.declared_properties(first, inline),
             &[declared(1, false), declared(2, true)][..]
@@ -938,8 +1031,6 @@ mod tests {
         assert_eq!(store.declared_properties(later, svg), &[declared(4, false)][..]);
         assert!(store.declared_properties(later, inline).is_empty());
         assert_eq!(store.rows.len(), 65);
-        store.set(first, inline, Vec::new());
-        assert!(store.declared_properties(first, inline).is_empty());
         assert_eq!(store.declared_properties(first, hints), &[declared(3, false)][..]);
 
         // Retirement has to clear a row before the dense identity is reused.

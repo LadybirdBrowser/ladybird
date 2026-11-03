@@ -28,7 +28,6 @@
     // Bytes per element each owner may add, which a change that grows an owner past has to raise. Only the owners a
     // hint can move are listed: bytes-per-element-by-owner bounds the rest.
     const hintOwners = [
-        "specifiedValues",
         "elementDeclarations",
         "styleValues",
         "records",
@@ -38,7 +37,6 @@
     // NB: The engine holds elements with equal hints on one row. What each holds of its own is the C++ list of the hints
     //     it published, which only tells a republication that nothing moved.
     const repeatedBudgets = {
-        specifiedValues: 4,
         elementDeclarations: 12,
         styleValues: 4,
         records: 4,
@@ -50,7 +48,6 @@
         cppHintProperties: 32,
     };
     const uniqueBudgets = {
-        specifiedValues: 32,
         elementDeclarations: 40,
         styleValues: 92,
         records: 160,

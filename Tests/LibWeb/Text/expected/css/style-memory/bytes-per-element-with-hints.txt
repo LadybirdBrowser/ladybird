@@ -1,19 +1,16 @@
 repeated:
-  specifiedValues: within 4
   elementDeclarations: within 12
   styleValues: within 4
   records: within 4
   payloads: within 4
   cppHintProperties: within 16
 repeated two:
-  specifiedValues: within 4
   elementDeclarations: within 12
   styleValues: within 4
   records: within 4
   payloads: within 4
   cppHintProperties: within 32
 unique:
-  specifiedValues: within 32
   elementDeclarations: within 40
   styleValues: within 92
   records: within 160

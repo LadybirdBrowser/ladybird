@@ -1434,13 +1434,20 @@ pub(super) fn register_element_declared_properties<'a>(
     node: StyleNodeID,
     kind: FfiElementDeclarationKind,
     declarations: impl ExactSizeIterator<Item = crate::css::declaration_block::DeclarationRef<'a>>,
-    custom_properties: crate::css::declaration_block::CustomProperties<'_>,
 ) {
     let declarations = super::specified_value::element_declared_properties(declarations);
-    let custom_declarations = collect_native_custom_declarations(engine, custom_properties);
-    let declaration_kind = decode_element_declaration_kind(kind);
-    engine.set_element_declared_properties(node, declaration_kind, declarations, custom_declarations);
+    engine.set_element_declared_properties(node, decode_element_declaration_kind(kind), declarations);
     // The engine holds the declarations as they were published.
+}
+
+/// Records the custom properties an element's inline declaration block declares.
+pub(super) fn register_element_custom_properties(
+    engine: &mut StyleEngine,
+    node: StyleNodeID,
+    custom_properties: crate::css::declaration_block::CustomProperties<'_>,
+) {
+    let custom_declarations = collect_native_custom_declarations(engine, custom_properties);
+    engine.element_declarations.set_custom(node, custom_declarations);
 }
 
 /// Whether `declarations` can define transitions.
@@ -1465,11 +1472,25 @@ pub extern "C" fn style_engine_set_element_inline_style_properties(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return false;
     };
-    let data = block.map(DeclarationBlock::data);
-    let has_transitions = data
-        .as_ref()
-        .is_some_and(|data| declares_transitions(data.properties()));
-    super::engine_calls::queue(host, super::engine_calls::EngineWrite::InlineStyle { node, data });
+    let data = block.map(DeclarationBlock::data).filter(|data| !data.is_empty());
+    let has_transitions = data.as_ref().is_some_and(|data| data.declares_transitions());
+    if let Some(data) = &data
+        && data.reads_attributes()
+    {
+        super::host_atoms::note_attr_names_read_by_block(host, data);
+    }
+    let declares_custom = data.as_ref().is_some_and(|data| !data.custom_properties().is_empty());
+    let previous = host
+        .engine_memo()
+        .projection
+        .borrow_mut()
+        .write_inline_declarations(node, data.clone());
+    if declares_custom || previous.is_some_and(|previous| !previous.custom_properties().is_empty()) {
+        super::engine_calls::queue(
+            host,
+            super::engine_calls::EngineWrite::InlineCustomProperties { node, data },
+        );
+    }
     has_transitions
 }
 

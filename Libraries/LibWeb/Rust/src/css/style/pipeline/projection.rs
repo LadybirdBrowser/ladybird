@@ -1292,6 +1292,7 @@ impl Projection {
         let ProjectionPublication {
             rows,
             shadows,
+            inline_declarations: _,
             slot_count,
             catalogs,
             host_fact_sets,

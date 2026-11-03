@@ -46,7 +46,6 @@ memory_owners! {
     SheetSegments => "sheetSegments",
     SharedDeclarations => "sharedDeclarations",
     Invalidation => "invalidation",
-    SpecifiedValues => "specifiedValues",
     Records => "records",
     Payloads => "payloads",
     GroupValueFacts => "groupValueFacts",
@@ -147,8 +146,6 @@ impl super::StyleEngine {
             live.report_memory(&mut report);
         }
         state.computed_group_sets.report_memory(&mut report);
-        let bytes = state.canonical_values.heap_size(&mut report.sizer);
-        report.add(MemoryOwner::SpecifiedValues, bytes);
         let bytes = state.custom_property_environments.heap_size(&mut report.sizer);
         report.add(MemoryOwner::CustomProperties, bytes);
         report.add(

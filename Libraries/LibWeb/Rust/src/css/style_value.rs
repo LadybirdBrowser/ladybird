@@ -577,16 +577,6 @@ impl RetainedStyleValueData {
         unsafe { ak::slice_from_raw_parts(values.as_ptr().cast(), values.len()) }
     }
 
-    /// Whether this is the only reference to the value, which a handle without one is not.
-    pub(crate) fn is_unique(&self) -> bool {
-        if self.optional_data().is_none() {
-            return false;
-        }
-        // SAFETY: The handle holds a reference to the value, which the borrowed one never drops.
-        let value = std::mem::ManuallyDrop::new(unsafe { StyleValueArc::from_raw(self.pointer()) });
-        StyleValueArc::is_unique(&value)
-    }
-
     /// Converts the retained reference into an Arc, transferring the strong reference.
     pub(crate) fn into_arc(self) -> StyleValueArc {
         let pointer = self.pointer();

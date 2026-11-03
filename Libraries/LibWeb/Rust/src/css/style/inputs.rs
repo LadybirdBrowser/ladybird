@@ -1503,7 +1503,8 @@ impl RetainedState {
     ///
     /// Said as the rule is compiled rather than as an input: which layer a rule is in is part of what
     /// the rule is, and a rule that moves between layers is recompiled.
-    /// Record which longhand properties one of an element's own declarations covers.
+    /// Record which longhand properties an element's presentation attributes cover, each with the value it was written
+    /// with.
     ///
     /// An element-attached declaration is a cascade component above layers: a style attribute beats
     /// every layered and unlayered rule in its context, whatever layer they are in.
@@ -1512,54 +1513,15 @@ impl RetainedState {
         node: StyleNodeID,
         kind: ElementDeclarationKind,
         declarations: Vec<(DeclarationEntry, RetainedStyleValueData)>,
-        custom_declarations: Vec<(CustomDeclaration, RetainedStyleValueData)>,
     ) {
-        debug_assert!(custom_declarations.is_empty() || kind == ElementDeclarationKind::InlineStyle);
         let current = self.element_declarations.declarations(node, kind).unwrap_or_default();
-        let current_custom = match kind {
-            ElementDeclarationKind::InlineStyle => self.element_declarations.custom(node),
-            _ => None,
-        };
-        let current_custom_declarations = current_custom.map_or(&[][..], |custom| custom.declared());
-        let current_custom_values = current_custom.map_or(&[][..], |custom| custom.written_values());
         if current
             .iter()
             .eq(declarations.iter().map(|(declared, written)| (declared, written)))
-            && current_custom_declarations
-                .iter()
-                .zip(current_custom_values)
-                .eq(custom_declarations
-                    .iter()
-                    .map(|(declared, written)| (declared, written)))
         {
             return;
         }
-        // An element's declarations are its own allocations, but every value equal to one also has
-        // a canonical one, which elements declaring the same text then share, and the caches over
-        // computed values see as the same value. A value taking part in a substitution keeps its
-        // own: the longhands a shorthand awaiting substitution expands to name it by identity.
-        let declarations = declarations
-            .into_iter()
-            .map(|(declared, written)| {
-                use crate::css::style_value::StyleValueData;
-                let takes_part_in_substitution = matches!(
-                    written.optional_data(),
-                    Some(
-                        StyleValueData::Unresolved { .. }
-                            | StyleValueData::PendingSubstitution { .. }
-                            | StyleValueData::Shorthand { .. }
-                    )
-                );
-                if takes_part_in_substitution || written.optional_data().is_none() {
-                    return (declared, written);
-                }
-                (declared, self.canonical_value(&written.into_arc()))
-            })
-            .collect();
         self.element_declarations.set(node, kind, declarations);
-        if kind == ElementDeclarationKind::InlineStyle {
-            self.element_declarations.set_custom(node, custom_declarations);
-        }
     }
 }
 
@@ -1604,7 +1566,6 @@ impl StyleEngine {
                     ),
                 ),
                 font_resolution: None,
-                canonical_values: crate::fork::ForkShared::new(CanonicalValues::default()),
                 computed_group_sets: Default::default(),
                 style_record_view_epoch_depth: 0,
                 custom_property_environments: Default::default(),
@@ -1934,6 +1895,9 @@ impl StyleEngine {
         declarations: &[super::bridge::FfiElementDeclarationDelta],
     ) {
         let moves_links = projection.moves_links();
+        self.retained
+            .element_declarations
+            .adopt_inline(projection.inline_declarations.clone());
         for (counter, count) in self.retained.projection.adopt(projection) {
             self.retained.counters.add(counter, count);
         }
@@ -2492,7 +2456,6 @@ impl RetainedState {
             custom_property_registry: _,
             font_resolution: _,
             monospace_font_family: _,
-            canonical_values: _,
             computed_group_sets,
             style_record_view_epoch_depth: _,
             custom_property_environments: _,

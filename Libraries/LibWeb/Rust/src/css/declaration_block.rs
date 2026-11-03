@@ -21,7 +21,7 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicPtr, AtomicU64, AtomicUsize, Ordering, fence};
+use std::sync::atomic::{AtomicPtr, AtomicU32, AtomicU64, Ordering, fence};
 
 #[derive(Clone)]
 pub(crate) struct DeclaredProperty {
@@ -253,7 +253,11 @@ impl<'a> CustomProperties<'a> {
 /// need no padding: 16 + 10 bytes per property and 18 per custom property. C++ holds a block by a
 /// pointer at this header, as an opaque type.
 pub struct DeclarationBlockHeader {
-    references: AtomicUsize,
+    references: AtomicU32,
+    /// Whether any declaration of the block can define a transition.
+    declares_transitions: bool,
+    /// Whether any value of the block reads an attribute.
+    reads_attributes: bool,
     property_count: u32,
     custom_property_count: u32,
     /// What the style engine derives from the block, made by the first engine that publishes it,
@@ -358,6 +362,15 @@ impl DeclarationBlockHeader {
         }
     }
 
+    /// Ask the processor to fetch the block's arrays, reading its header.
+    pub(crate) fn prefetch_arrays(&self) {
+        let layout = self.layout();
+        let base = std::ptr::from_ref(self).cast::<u8>();
+        prefetch(base.wrapping_add(layout.values));
+        prefetch(base.wrapping_add(layout.entries));
+        prefetch(self.cascade.load(Ordering::Relaxed).cast_const());
+    }
+
     /// The bytes of the block's allocation and of the names of its custom properties.
     pub(crate) fn heap_bytes(&self) -> usize {
         let mut size = self.layout().layout.size();
@@ -404,7 +417,19 @@ const _: () = {
 };
 
 /// The most references a block may have, beyond which counting aborts.
-const MAXIMUM_BLOCK_REFERENCES: usize = isize::MAX as usize;
+const MAXIMUM_BLOCK_REFERENCES: u32 = i32::MAX as u32;
+
+/// Ask the processor to fetch the cache line at `address` without waiting for it.
+#[inline]
+pub(crate) fn prefetch<T>(address: *const T) {
+    #[cfg(target_arch = "x86_64")]
+    // SAFETY: A prefetch reads nothing and cannot fault, whatever the address.
+    unsafe {
+        std::arch::x86_64::_mm_prefetch::<{ std::arch::x86_64::_MM_HINT_T0 }>(address.cast());
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    let _ = address;
+}
 
 impl SharedDeclarationBlock {
     pub(crate) fn as_ptr(&self) -> *const DeclarationBlockHeader {
@@ -464,7 +489,17 @@ impl SharedDeclarationBlock {
 
     #[cfg(test)]
     pub(crate) fn reference_count(&self) -> usize {
-        self.references.load(Ordering::Relaxed)
+        self.references.load(Ordering::Relaxed) as usize
+    }
+
+    /// Whether any declaration of the block can define a transition.
+    pub(crate) fn declares_transitions(&self) -> bool {
+        self.declares_transitions
+    }
+
+    /// Whether any value of the block reads an attribute.
+    pub(crate) fn reads_attributes(&self) -> bool {
+        self.reads_attributes
     }
 }
 
@@ -557,8 +592,24 @@ impl DeclarationBlockBuilder {
             if base.is_null() {
                 handle_alloc_error(layout.layout);
             }
+            let declares_transitions = self
+                .properties
+                .iter()
+                .any(|property| crate::css::property_metadata::property_defines_a_css_transition(property.property_id));
+            let reads_attributes = self
+                .properties
+                .iter()
+                .map(|property| &property.value)
+                .chain(
+                    self.custom_properties
+                        .iter()
+                        .map(|property| &property.declaration.value),
+                )
+                .any(|value| crate::css::style::value_reads_attributes(value));
             base.cast::<DeclarationBlockHeader>().write(DeclarationBlockHeader {
-                references: AtomicUsize::new(1),
+                references: AtomicU32::new(1),
+                declares_transitions,
+                reads_attributes,
                 property_count,
                 custom_property_count,
                 cascade: AtomicPtr::new(std::ptr::null_mut()),

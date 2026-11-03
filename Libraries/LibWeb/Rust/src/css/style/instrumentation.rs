@@ -74,7 +74,6 @@ define_counters! {
     StyleRulesCompiled => "styleRulesCompiled",
 
     // Computation and publication.
-    SpecifiedValuesReused => "specifiedValuesReused",
     // The user agent declaration blocks the document's rules declare: those the process interned
     // for this document, which no document of the process interned before, and those it shared.
     // The declaration blocks of the document's own sheets its rules declare, which the process

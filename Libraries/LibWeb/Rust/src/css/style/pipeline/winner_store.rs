@@ -463,9 +463,8 @@ mod tests {
             owned.seed_retained_property(property, value.clone_retained(), true, false);
         }
         let observer = written[0].clone_retained().into_arc();
-        engine.element_declarations.set(
+        engine.element_declarations.set_inline_for_test(
             node,
-            kind,
             properties
                 .iter()
                 .map(|&property| DeclarationEntry::new(property, true, CascadeOperator::Declared))

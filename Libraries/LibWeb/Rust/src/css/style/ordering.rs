@@ -273,16 +273,5 @@ impl StyleEngine {
     pub(super) fn release_transaction_and_sweep_atoms(&mut self, transaction: StyleUpdate) {
         self.release_transaction(transaction);
         self.sweep_style_atoms();
-        self.sweep_specified_values();
-    }
-
-    /// Drop the canonical values no element declares any more, once the set doubled since the
-    /// last sweep: a script rewriting an inline style enters a value for each write, which nothing
-    /// else would let go of.
-    pub(super) fn sweep_specified_values(&mut self) {
-        if !self.retained.canonical_values.should_sweep() || self.host.defers_atom_sweep {
-            return;
-        }
-        self.retained.canonical_values.sweep();
     }
 }

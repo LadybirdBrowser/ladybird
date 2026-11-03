@@ -392,19 +392,6 @@ TEST_CASE(style_engine_expands_presentation_hint_shorthands_in_rust)
     Vector<StyleProperty> hints { StyleProperty { Important::No, PropertyID::Border, inherited.properties()[0].value } };
     engine.set_element_presentational_hint_properties(node, StyleEngineFFI::FfiElementDeclarationKind::PresentationalHint, hints);
     EXPECT(!engine.css_transitions_may_observe_style_changes());
-    // Border expands through intermediate shorthands such as border-width. Each resulting
-    // longhand after the first must reuse the same immutable keyword value. The 17 longhands
-    // comprise four widths, four styles, four colors, and five border-image properties.
-    Layout::ForcedReadScope read { engine.render_document() };
-    for (size_t index = 0;; ++index) {
-        StringView name;
-        u64 value = 0;
-        VERIFY(engine.counter(read, index, name, value));
-        if (name == "specifiedValuesReused"sv) {
-            EXPECT_EQ(value, 16ull);
-            break;
-        }
-    }
     auto transitions = parse_native_declaration_block(u"transition-duration: 1s"sv);
     engine.set_element_presentational_hint_properties(node, StyleEngineFFI::FfiElementDeclarationKind::PresentationalHint, transitions.properties());
     EXPECT(engine.css_transitions_may_observe_style_changes());
