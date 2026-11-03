@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+    span {
+        font-size: 1.0371em;
+    }
+    :nth-child(2n+1) ~ .ancestor #target {
+        color: rgb(255, 0, 0);
+    }
+</style>
+<script src="../include.js"></script>
+<div><div id="sibling"></div><div id="ancestor" class="ancestor"></div></div>
+<script>
+    // An element below one shown again is matched anew, however many rounds the styles above it wait on fonts.
+    asyncTest(async done => {
+        let parent = ancestor;
+        for (let i = 0; i < 16; ++i)
+            parent = parent.appendChild(document.createElement("span"));
+        parent.id = "target";
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        await nextFrame();
+        await nextFrame();
+        println(`before: ${getComputedStyle(target).color}`);
+        sibling.remove();
+        document.documentElement.style.display = "none";
+        await nextFrame();
+        await nextFrame();
+        document.documentElement.style.display = "";
+        document.documentElement.style.fontSize = "11px";
+        await nextFrame();
+        await nextFrame();
+        println(`after: ${getComputedStyle(target).color}`);
+        done();
+    });
+</script>
