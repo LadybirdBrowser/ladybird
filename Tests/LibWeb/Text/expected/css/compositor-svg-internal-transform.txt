@@ -14,6 +14,10 @@ runs on the compositor:
   a fading group: true
   a fading use element: true
   a fading rect in a group with a filter element: true
+  a dimming rect: false
+  a dimming group: false
+  a dimming use element: false
+  a dimming rect in a group with a filter element: false
 runs on the compositor, though it must not:
   a rect in a group with a filter element: false
   a rect in a group with a clip path in its bounding box: false
@@ -27,6 +31,8 @@ runs on the compositor, though it must not:
   a group around a non-scaling stroke: false
   a rect in a mask: false
   a fading rect in a mask: false
+  a dimming rect in a mask: false
+  a rect animating a filter element: false
 the main thread leaves the animated style alone: true
 the main thread asks for no frames: true
 the main thread runs no rendering updates: true
