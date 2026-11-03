@@ -1,4 +1,4 @@
-scroller.scrollTop after the cancelled tick: 0
-scroller.scrollTop after the tick following the cancelled one: 100
-window.scrollY after the last tick: 0
+scroller.scrollTop after the cancelled step: 0
+scroller.scrollTop after the step following the cancelled one: 100
+window.scrollY after the last step: 0
 cancelable: true,true,false
