@@ -26,6 +26,7 @@ GOOD_LADYBIRD_COPYRIGHT_PATTERN = re.compile("^ \\* Copyright \\(c\\) [0-9]{4}-p
 LICENSE_HEADER_CHECK_EXCLUDES = {
     "AK/Checked.h",
     "AK/Function.h",
+    "AK/Rust/src/math/fdlibm.rs",
     "Libraries/LibCore/SocketpairWindows.cpp",
     "Libraries/LibMedia/Audio/WSOLAAlgorithm.cpp",
     "Libraries/LibMedia/Audio/WSOLAAlgorithm.h",
