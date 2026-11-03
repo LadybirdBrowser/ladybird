@@ -4374,6 +4374,14 @@ impl StyleEngine {
     fn live_pass_rounds(&mut self, root: StyleNodeID, everything: bool) {
         let threads = self.retained.live_style.as_ref().map_or(0, |live| live.threads);
         let pool = self.style_pool(threads);
+        // NB: A thread that first asks for a font resolves it there and then, under a lock, rather than leave it for a
+        //     round between all the threads of the pass, each a barrier.
+        self.retained.pass_fonts = self
+            .host
+            .font_resolver
+            .as_ref()
+            .zip(self.retained.font_resolution.as_ref())
+            .map(|(resolver, cache)| Arc::new(super::super::font_resolution::PassFonts::new(resolver, cache)));
         let mut scope = match everything {
             true => RestyleScope::Everything,
             false => RestyleScope::Pending,
@@ -4401,6 +4409,14 @@ impl StyleEngine {
             // A pass after the first restyles what waited on a font or a random base value, now
             // that it resolved, as the last pass left it hinted.
             scope = RestyleScope::Pending;
+        }
+        if let Some(pass_fonts) = self.retained.pass_fonts.take().and_then(Arc::into_inner)
+            && let Some(cache) = self.retained.font_resolution.as_mut()
+        {
+            let resolved = cache.take_in_pass_fonts(pass_fonts);
+            self.retained
+                .counters
+                .add(Counter::FontResolutionRequests, resolved as u64);
         }
         if let Some(live) = self.retained.live_style.as_mut() {
             self.retained.live_counters.take_pass(&mut live.counts);

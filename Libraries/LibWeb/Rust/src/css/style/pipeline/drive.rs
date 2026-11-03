@@ -244,11 +244,7 @@ impl RetainedState {
                 font_feature_values_scope: TreeScopeID::DOCUMENT.0,
                 font_environment_generation: inputs.font_environment_generation,
             };
-            let Some(resolved) = self
-                .font_resolution
-                .as_ref()
-                .and_then(|resolutions| resolutions.lookup(request))
-            else {
+            let Some(resolved) = self.resolved_font(request) else {
                 return Some(MonospaceRecascade::AwaitsFont(request));
             };
             // NB: The ancestor's own font is the one being recascaded; its line height is the one it
@@ -758,11 +754,7 @@ impl RetainedState {
             || self.font_feature_values_scope(target.node()),
         );
         let font_size = request.font_size();
-        let Some(resolved) = self
-            .font_resolution
-            .as_ref()
-            .and_then(|resolutions| resolutions.lookup(request))
-        else {
+        let Some(resolved) = self.resolved_font(request) else {
             let progress = DriveProgress {
                 root_font_complete: false,
                 color_scheme_complete: false,

@@ -840,7 +840,7 @@ mod tests {
     }
 
     #[test]
-    fn elements_with_one_key_wait_on_a_font_once() {
+    fn elements_with_one_key_resolve_a_font_once() {
         let (mut engine, nodes) = document_with_children(12);
         let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
         add_rules(&mut engine, sheet, ".item { font-size: 13px; }");

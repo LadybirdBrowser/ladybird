@@ -398,6 +398,26 @@ impl FontResolutionCache {
         })
     }
 
+    /// Takes in what the threads of a pass resolved. Nothing waits on the requests carried from the generations before
+    /// any more: a pass resolves what it asks for. Answers how many fonts they resolved.
+    pub(super) fn take_in_pass_fonts(&mut self, pass_fonts: PassFonts) -> usize {
+        let mut resolved = pass_fonts.into_resolved();
+        let Some(generation) = resolved.generation else {
+            return 0;
+        };
+        self.prepare(generation);
+        self.carried.clear();
+        if let (Some(held), Some(resolved_held)) = (&mut self.held_cascades, resolved.held_cascades) {
+            held.extend(resolved_held);
+        }
+        let resolutions = resolved.resolutions.take().resolutions;
+        let count = resolutions.len();
+        for resolution in resolutions {
+            self.insert(resolution.request, resolution.ffi, None);
+        }
+        count
+    }
+
     fn insert(&mut self, request: FontRequest, ffi: FfiResolvedFont, font_cascade_list: Option<HeldFontCascadeList>) {
         // The host resolves every request, to the fallback font where nothing else matches, so the
         // resolution always names a list.
@@ -452,8 +472,8 @@ struct FontCascadeMemoObject {
 
 // SAFETY: The memo counts its references atomically, so a shared reference to it may be taken and
 // given up on any thread. Resolving through it reads the document's font face state, which the
-// memo's lock does not cover, so only `FontResolverHost::refill` resolves, and only the document
-// thread reaches the host.
+// memo's lock does not cover, so only `FontResolverHost::refill` resolves, on one thread at a time:
+// the one running the rounds of a pass, or a thread of a pass holding the lock of `PassFonts`.
 unsafe impl Sync for FontCascadeMemoObject {}
 
 /// One reference to a host object, given up on drop. It may cross threads exactly when the object
@@ -534,8 +554,8 @@ impl PublishedFontFaces {
     }
 }
 
-/// The host's synchronous font resolver and the table it resolves against. This is host state, and
-/// only a round between evaluation passes may call it.
+/// The host's synchronous font resolver and the table it resolves against. This is host state, which
+/// one thread at a time may call.
 #[derive(Clone)]
 pub(super) struct FontResolverHost {
     resolve: ResolveFontCallback,
@@ -566,7 +586,7 @@ impl FontResolverHost {
         self.font_faces = font_faces;
     }
 
-    /// Service a synchronous request between evaluation passes, on the document thread: a memo miss
+    /// Service a synchronous request: a memo miss
     /// builds and freezes a cascade from the document's font face state. Pending web faces remain
     /// in the returned cascade and retain the host's rendering-triggered loading behavior.
     pub fn refill(&self, cache: &mut FontResolutionCache, request: FontRequest) {
@@ -590,6 +610,48 @@ impl FontResolverHost {
             })
         });
         cache.insert(request, ffi, font_cascade_list);
+    }
+}
+
+/// The fonts the threads of a style pass resolve as they first ask for them, one thread at a time under the lock, the
+/// others going on with what they have. What they resolve joins the cache as the pass ends.
+pub(super) struct PassFonts {
+    resolver: FontResolverHost,
+    resolved: std::sync::RwLock<FontResolutionCache>,
+}
+
+impl PassFonts {
+    /// What a pass reading `cache` resolves through `resolver`.
+    pub(super) fn new(resolver: &FontResolverHost, cache: &FontResolutionCache) -> Self {
+        Self {
+            resolver: resolver.clone(),
+            resolved: std::sync::RwLock::new(FontResolutionCache {
+                matches_by_content: cache.matches_by_content,
+                held_cascades: cache.held_cascades.as_ref().map(|_| Vec::new()),
+                ..Default::default()
+            }),
+        }
+    }
+
+    /// The resolution of `request`, resolved now where no thread of the pass did yet.
+    pub(super) fn resolve(&self, request: FfiFontResolutionRequest) -> FfiResolvedFont {
+        let lock_failed = "no thread panicked while resolving a font";
+        if let Some(resolved) = self.resolved.read().expect(lock_failed).lookup(request) {
+            return resolved;
+        }
+        let mut resolved = self.resolved.write().expect(lock_failed);
+        if let Some(resolution) = resolved.lookup(request) {
+            return resolution;
+        }
+        self.resolver.refill(&mut resolved, FontRequest::new(request));
+        resolved.lookup(request).expect("a resolved request has its resolution")
+    }
+
+    /// What the pass resolved.
+    fn into_resolved(self) -> FontResolutionCache {
+        self.resolved
+            .into_inner()
+            .expect("no thread panicked while resolving a font")
     }
 }
 
