@@ -3390,7 +3390,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.flex_item_details[index].orthogonal_flow_baselines = laid_out_box.orthogonal_flow_baselines;
         outcome.report_percentage_block_size_dependency_of(run, node);
         self.flex_item_details[index].content_baselines = laid_out_box.baselines;
-        let placed_item = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box);
+        let placed_item = formatting_context::PlacedChild::of_taken_laid_out_box(laid_out_box);
 
         let container = &self.container_cells;
         let insets = abspos_engine::compute_inset_native(

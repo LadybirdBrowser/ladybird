@@ -4910,7 +4910,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 orthogonal_flow_baselines: laid_out_box.orthogonal_flow_baselines,
                 content_offset: None,
             }));
-            let placed_item = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box);
+            let placed_item = formatting_context::PlacedChild::of_taken_laid_out_box(laid_out_box);
             let offset = FfiCssPixelPoint {
                 x: area.offset.inline_offset + self.item_margin_box_start(item, Axis::Column),
                 y: area.offset.block_offset + self.item_margin_box_start(item, Axis::Row),
