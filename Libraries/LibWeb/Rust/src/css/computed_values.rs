@@ -2032,17 +2032,22 @@ pub(crate) struct BorrowedGroups(u32);
 impl BorrowedGroups {
     pub(crate) const NONE: Self = Self(0);
 
-    /// Every group of a set that `takes_as_it_is` answers true for.
-    pub(crate) fn of_groups_where(takes_as_it_is: impl Fn(usize) -> bool) -> Self {
-        let set_groups = INHERITED_SET_GROUPS
-            .iter()
-            .chain(&RARE_SET_GROUPS)
-            .chain(&VISUAL_SET_GROUPS);
-        Self(
-            set_groups
-                .filter(|&&group| takes_as_it_is(group))
-                .fold(0_u32, |mask, group| mask | 1 << group),
-        )
+    /// Adds `group` where it is a group of a set, answering whether it is.
+    pub(crate) fn note_if_of_a_set(&mut self, group: usize) -> bool {
+        const SET_GROUPS: u32 = {
+            let mut groups = (1_u32 << group_index::COUNT) - 1;
+            let mut slot = 0;
+            while slot < ROOT_GROUPS.len() {
+                groups &= !(1 << ROOT_GROUPS[slot]);
+                slot += 1;
+            }
+            groups
+        };
+        let is_of_a_set = SET_GROUPS & (1 << group) != 0;
+        if is_of_a_set {
+            self.0 |= 1 << group;
+        }
+        is_of_a_set
     }
 
     pub(crate) fn contains(self, group: usize) -> bool {
@@ -2269,7 +2274,20 @@ impl StyleGroups {
 
     /// The groups, in group order.
     pub(crate) fn pointers(&self) -> [*const c_void; group_index::COUNT] {
-        std::array::from_fn(|group| self[group].as_ptr())
+        let mut pointers = [std::ptr::null(); group_index::COUNT];
+        for (&group, pointer) in ROOT_GROUPS.iter().zip(&self.root) {
+            pointers[group] = pointer.as_ptr();
+        }
+        for (&group, pointer) in INHERITED_SET_GROUPS.iter().zip(&self.inherited.get().groups) {
+            pointers[group] = pointer.as_ptr();
+        }
+        for (&group, pointer) in RARE_SET_GROUPS.iter().zip(&self.rare.get().groups) {
+            pointers[group] = pointer.as_ptr();
+        }
+        for (&group, pointer) in VISUAL_SET_GROUPS.iter().zip(&self.visual.get().groups) {
+            pointers[group] = pointer.as_ptr();
+        }
+        pointers
     }
 
     /// The custom properties the element holds.
@@ -4983,6 +5001,7 @@ pub(crate) struct GroupValues<'a> {
 impl GroupValues<'_> {
     /// Whether the values of `group` are those of `payload` itself, a seed the element holds as it
     /// is, which taking the values into it leaves.
+    #[inline]
     pub(crate) fn hold_the_seed(&self, group: usize, payload: *const c_void) -> bool {
         self.written_groups & (1 << group) == 0 && self.seeds.pointers[group] == payload
     }
@@ -5303,14 +5322,12 @@ impl<'a> GroupValuesWriter<'a> {
         use crate::css::property_metadata::property_is_inherited;
         // NB: A group's longhands all inherit or all do not, so a child borrows its parent's group of
         //     those that do and the initial group of those that do not.
+        let mut pointers = initial.groups.pointers();
+        for (&group, pointer) in INHERITED_SET_GROUPS.iter().zip(&parent.groups.inherited.get().groups) {
+            pointers[group] = pointer.as_ptr();
+        }
         let seeded = SeedGroups {
-            pointers: std::array::from_fn(|group| {
-                match INHERITED_SET_GROUPS.contains(&group) {
-                    true => parent.group(group),
-                    false => initial.group(group),
-                }
-                .as_ptr()
-            }),
+            pointers,
             holds_references: false,
             styles: std::marker::PhantomData,
         };
@@ -7551,7 +7568,10 @@ mod tests {
             unsafe { clone_group_payload(group, defaults.groups()[group].as_ptr()) }.cast_const()
         });
         let before = references(&held);
-        let borrowed = BorrowedGroups::of_groups_where(|group| INHERITED_SET_GROUPS.contains(&group));
+        let mut borrowed = BorrowedGroups::default();
+        for &group in &INHERITED_SET_GROUPS {
+            borrowed.note_if_of_a_set(group);
+        }
 
         // A computation thrown away releases the references it took, and none of the groups it
         // borrowed.
