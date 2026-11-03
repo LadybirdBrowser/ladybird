@@ -1224,6 +1224,35 @@ fn pseudo_element_records_the_host_references_outlive_engine_assignments() {
 }
 
 #[test]
+fn a_hover_frame_lease_keeps_only_the_records_let_go_of_since_it_was_taken() {
+    let mut engine = StyleEngine::new();
+    let mut raw_node = [0];
+    engine.allocate_style_nodes(&mut raw_node);
+    let target = computed::ComputedStyleTarget::new(StyleNodeID::from_raw(raw_node[0]).unwrap(), u8::MAX);
+    let first = engine.install_test_record(target, None, None, 0).raw();
+    let named_by_the_frame = engine.install_test_record(target, None, None, 1).raw();
+
+    let lease = engine.lease_hover_frame_style_records(Default::default());
+    let last = engine.install_test_record(target, None, None, 2).raw();
+    engine.computed_group_sets.reclaim_unreachable();
+    assert!(!engine.computed_group_sets.final_style_record_is_live(first));
+    assert!(
+        engine
+            .computed_group_sets
+            .final_style_record_is_live(named_by_the_frame)
+    );
+
+    drop(lease);
+    engine.computed_group_sets.reclaim_unreachable();
+    assert!(
+        !engine
+            .computed_group_sets
+            .final_style_record_is_live(named_by_the_frame)
+    );
+    assert!(engine.computed_group_sets.final_style_record_is_live(last));
+}
+
+#[test]
 fn records_left_unreachable_under_a_lease_are_reclaimed_once_it_drops() {
     let mut engine = StyleEngine::new();
     let mut raw_node = [0];

@@ -125,7 +125,8 @@ pub(crate) mod pipeline;
 mod transition_baselines;
 pub(crate) use atoms::{AtomLease, AtomLeases, ProcessAtoms, process_atoms};
 pub(crate) use computed::{
-    ENGINE_INHERITED_GROUP_COUNT, ReleasedAnimationOverlayRecords, StyleRecordLease, StyleRecordView, ViewLonghands,
+    ENGINE_INHERITED_GROUP_COUNT, HoverFrameLease, ReleasedAnimationOverlayRecords, StyleRecordLease, StyleRecordView,
+    ViewLonghands, names_an_uninstalled_record,
 };
 pub(crate) use process_style::ProcessStyle;
 pub(crate) use publication::RecordDemand;

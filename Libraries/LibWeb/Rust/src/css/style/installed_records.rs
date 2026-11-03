@@ -76,6 +76,8 @@ pub(super) struct InstalledRecord {
     record: Arc<Record>,
     /// The assignments and pins holding the record.
     holders: u32,
+    /// The epoch of the sweeps' leases the record's last holder let go in.
+    released_in: u32,
 }
 
 impl InstalledRecord {
@@ -109,6 +111,8 @@ pub(super) struct InstalledRecords {
     by_content: hashbrown::HashTable<InstalledRecordSlot>,
     /// The records whose last holder let go, which the next sweep frees unless one took them again.
     released: Vec<InstalledRecordID>,
+    /// How many leases on the records held as they are taken were taken.
+    lease_epoch: u32,
 }
 
 impl InstalledRecords {
@@ -180,7 +184,11 @@ impl InstalledRecords {
                 copy
             }
         };
-        self.slots[id.slot.index()] = Some(InstalledRecord { record, holders: 0 });
+        self.slots[id.slot.index()] = Some(InstalledRecord {
+            record,
+            holders: 0,
+            released_in: self.lease_epoch,
+        });
         let slots = &self.slots;
         self.by_content.insert_unique(content_key, id.slot, |slot| {
             slots[slot.index()]
@@ -262,17 +270,30 @@ impl InstalledRecords {
             .checked_sub(1)
             .expect("installed style record holder underflow");
         if entry.holders == 0 {
+            entry.released_in = self.lease_epoch;
             self.released.push(id);
         }
+    }
+
+    /// Whether anything holds the record.
+    pub(super) fn is_held(&self, id: InstalledRecordID) -> bool {
+        self.get(id).is_some_and(|entry| entry.holders != 0)
+    }
+
+    /// Begin the epoch of a lease on the records held now, which keeps those released from here on.
+    pub(super) fn begin_lease_epoch(&mut self) -> u32 {
+        // NB: One that saturates keeps what it released for as long as any lease of the epoch stands.
+        self.lease_epoch = self.lease_epoch.saturating_add(1);
+        self.lease_epoch
     }
 
     pub(super) fn released_count(&self) -> usize {
         self.released.len()
     }
 
-    /// Free the records no holder took again since they were released, but for those of `kept`,
-    /// and answer how many it freed.
-    pub(super) fn sweep(&mut self, kept: &HashSet<InstalledRecordID>) -> usize {
+    /// Free the records no holder took again since they were released, but for those of `kept`
+    /// and those released in or after the epoch `oldest_lease`, and answer how many it freed.
+    pub(super) fn sweep(&mut self, kept: &HashSet<InstalledRecordID>, oldest_lease: Option<u32>) -> usize {
         let mut freed = 0;
         // NB: The list keeps its room for the records released after the sweep.
         let mut released = std::mem::take(&mut self.released);
@@ -286,9 +307,10 @@ impl InstalledRecords {
             // NB: A record the host or a reader still holds a reference to keeps its slot, so that
             //     its identity keeps naming it until the last reference beside the slot's goes.
             if kept.contains(&id)
-                || self.slots[index]
-                    .as_ref()
-                    .is_some_and(|entry| Arc::strong_count(entry.record()) > 1)
+                || self.slots[index].as_ref().is_some_and(|entry| {
+                    Arc::strong_count(entry.record()) > 1
+                        || oldest_lease.is_some_and(|epoch| entry.released_in >= epoch)
+                })
             {
                 return true;
             }

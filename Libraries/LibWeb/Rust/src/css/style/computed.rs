@@ -450,6 +450,27 @@ impl FinalStyleRecordID {
     }
 }
 
+/// Whether the raw identity `raw` names a style record other than one the engine installed.
+#[must_use]
+pub(crate) fn names_an_uninstalled_record(raw: u64) -> bool {
+    FinalStyleRecordID::from_raw(raw).is_some_and(|record| record.installed_record().is_none())
+}
+
+/// An immutable hover frame's hold on the style records its rows name, all of which something holds as it is taken: the
+/// engine frees no record whose last holder lets go while the lease stands, until so many did that it reads the rows to
+/// tell which of them they name.
+pub(crate) struct HoverFrameLease {
+    epoch: u32,
+    nodes: crate::cow_column::ColumnSnapshot<
+        crate::layout::node_data::PaintNode,
+        { crate::layout::tree_shape::PUBLISHED_ROWS_PER_CHUNK },
+    >,
+}
+
+/// How many records a task that sees no frame may let go of under a hover frame's lease before it reads the frame's rows:
+/// as many as they are, so that reading them costs a task less than what it made them for, but at least this many.
+const MIN_RECORDS_RELEASED_BEFORE_READING_LEASES: usize = 1024;
+
 /// A reader's hold on the payloads of every style record published so far: while one is held, the
 /// engine frees no record's payloads, which a reader on another thread may be reading.
 pub(crate) struct StyleRecordLease {
@@ -807,7 +828,9 @@ pub struct ComputedGroupSets {
     pseudo_rows_moved: Vec<StyleNodeID>,
     /// Long-lived immutable readers pin only the records they actually read. Expired readers leave weak entries
     /// that the next lease removes, so they neither block reclamation nor need to call back into the owner.
-    selected_style_record_leases: std::sync::Arc<std::sync::Mutex<Vec<std::sync::Weak<[u64]>>>>,
+    hover_frame_leases: std::sync::Arc<std::sync::Mutex<Vec<std::sync::Weak<HoverFrameLease>>>>,
+    /// How many released records have the next sweep read the rows of the hover frames' leases.
+    released_records_reading_leases: usize,
     // Recyclable animation overlays are deliberately separate from the installed records above.
     // Dense element assignments and sparse pseudo assignments pin at most one slot each.
     animation_overlay_column: AnimationOverlayColumn,
@@ -835,7 +858,8 @@ impl Default for ComputedGroupSets {
             installed_column: Default::default(),
             installed_pseudo_column: Default::default(),
             pseudo_rows_moved: Vec::new(),
-            selected_style_record_leases: std::sync::Arc::default(),
+            hover_frame_leases: std::sync::Arc::default(),
+            released_records_reading_leases: MIN_RECORDS_RELEASED_BEFORE_READING_LEASES,
             animation_overlay_column: AnimationOverlayColumn::default(),
             animation_overlay_slots: animation_overlay_slots::AnimationOverlaySlots::default(),
             animation_overlay_slots_by_record: HashMap::default(),
@@ -891,23 +915,30 @@ impl ComputedGroupSets {
         self.installed_column.version()
     }
 
-    /// Leases `records` to an immutable hover frame, or answers none where one of them is an animation overlay record,
+    /// Leases the records the rows of an immutable hover frame name, none of which may be an animation overlay record,
     /// whose payloads such a lease does not keep.
-    pub(crate) fn lease_selected_style_records(&self, records: Vec<u64>) -> Option<std::sync::Arc<[u64]>> {
-        for &raw_record in &records {
-            // NB: A row can name an overlay record no element is assigned anymore, such as the row of a removed
-            //     element, which pins its record until the rebuild of its parent frees it.
-            let installed = FinalStyleRecordID(raw_record).installed_record()?;
-            assert!(self.installed.get(installed).is_some());
-        }
-        let records: std::sync::Arc<[u64]> = records.into();
-        let mut leases = self
-            .selected_style_record_leases
-            .lock()
-            .expect("selected style-record leases");
+    pub(crate) fn lease_hover_frame_style_records(
+        &mut self,
+        nodes: crate::cow_column::ColumnSnapshot<
+            crate::layout::node_data::PaintNode,
+            { crate::layout::tree_shape::PUBLISHED_ROWS_PER_CHUNK },
+        >,
+    ) -> std::sync::Arc<HoverFrameLease> {
+        let lease = std::sync::Arc::new(HoverFrameLease {
+            epoch: self.installed.begin_lease_epoch(),
+            nodes,
+        });
+        let mut leases = self.hover_frame_leases.lock().expect("hover frame leases");
         leases.retain(|lease| lease.strong_count() != 0);
-        leases.push(std::sync::Arc::downgrade(&records));
-        Some(records)
+        leases.push(std::sync::Arc::downgrade(&lease));
+        lease
+    }
+
+    /// Whether something holds the record `raw` names, where it names an installed one.
+    pub(crate) fn style_record_is_held(&self, raw: u64) -> bool {
+        FinalStyleRecordID(raw)
+            .installed_record()
+            .is_some_and(|installed| self.installed.is_held(installed))
     }
 
     fn style_records_are_leased(&self) -> bool {
@@ -1651,29 +1682,48 @@ impl ComputedGroupSets {
         self.live_animation_overlay_assignments
     }
 
-    /// Free the installed records nothing holds, but for those an immutable hover frame reads.
+    /// Free the installed records nothing holds, but for those an immutable hover frame may read.
     fn sweep_installed_records(&mut self) {
         if self.installed.released_count() == 0 {
             return;
         }
-        let leases = self
-            .selected_style_record_leases
+        let leases: Vec<_> = self
+            .hover_frame_leases
             .lock()
-            .expect("selected style-record leases");
-        // NB: An animation overlay keeps the installed record it composes over.
-        let kept: super::fast_hash::FastSet<InstalledRecordID> = leases
+            .expect("hover frame leases")
             .iter()
             .filter_map(std::sync::Weak::upgrade)
-            .flat_map(|records| {
-                records
-                    .iter()
-                    .filter_map(|&record| FinalStyleRecordID(record).installed_record())
-                    .collect::<Vec<_>>()
-            })
-            .chain(self.animation_overlay_slots.iter().map(|overlay| overlay.base))
             .collect();
-        drop(leases);
-        let freed = self.installed.sweep(&kept);
+        // NB: An animation overlay keeps the installed record it composes over.
+        let mut kept: super::fast_hash::FastSet<InstalledRecordID> = self
+            .animation_overlay_slots
+            .iter()
+            .map(|overlay| overlay.base)
+            .collect();
+        // NB: A record let go of before a lease was taken is no record its frame names, which tells most of them with no
+        //     row read, but a task that sees no next frame would keep all it lets go of.
+        let reads_leases = self.installed.released_count() >= self.released_records_reading_leases;
+        let oldest_lease = match reads_leases {
+            true => None,
+            false => leases.iter().map(|lease| lease.epoch).min(),
+        };
+        let mut rows_read = 0;
+        for lease in leases.iter().filter(|_| reads_leases) {
+            rows_read += lease.nodes.slot_capacity();
+            let mut last = 0;
+            for slot in 0..lease.nodes.slot_capacity() {
+                let record = lease.nodes.get(slot).map_or(0, |node| node.style_record);
+                if record != last {
+                    last = record;
+                    kept.extend(FinalStyleRecordID(record).installed_record());
+                }
+            }
+        }
+        let freed = self.installed.sweep(&kept, oldest_lease);
+        if reads_leases {
+            self.released_records_reading_leases =
+                self.installed.released_count() + rows_read.max(MIN_RECORDS_RELEASED_BEFORE_READING_LEASES);
+        }
         self.records_freed_since_reclamation = self.records_freed_since_reclamation.saturating_add(freed);
     }
 
@@ -2047,21 +2097,20 @@ mod tests {
         sets.remove(node);
         assert_eq!(sets.live_animation_overlay_records(), 0);
         assert_eq!(sets.retired_animation_overlay_records(), 0);
-        assert!(
-            sets.lease_selected_style_records(vec![base.raw(), overlay.raw()])
-                .is_none()
-        );
-        assert!(sets.lease_selected_style_records(vec![base.raw()]).is_some());
+        assert!(names_an_uninstalled_record(overlay.raw()));
+        assert!(!names_an_uninstalled_record(base.raw()));
         sets.unpin_style_record(overlay.raw());
         sets.unpin_style_record(base.raw());
     }
 
     #[test]
-    fn a_selected_record_lease_allows_other_records_to_be_reclaimed() {
+    fn a_hover_frame_lease_allows_records_let_go_of_before_it_to_be_reclaimed() {
         let mut sets = ComputedGroupSets::default();
         let kept = install(&mut sets, 1, 0);
         let discarded = install(&mut sets, 2, 0);
-        let lease = sets.lease_selected_style_records(vec![kept.raw()]).unwrap();
+        sets.pin_style_record(kept.raw());
+        let lease = sets.lease_hover_frame_style_records(Default::default());
+        sets.unpin_style_record(kept.raw());
         sets.reclaim_unreachable();
         assert!(sets.final_style_record_is_live(kept.raw()));
         assert!(!sets.final_style_record_is_live(discarded.raw()));
@@ -2073,6 +2122,35 @@ mod tests {
         drop(fork);
         sets.reclaim_unreachable();
         assert!(!sets.final_style_record_is_live(kept.raw()));
+    }
+
+    #[test]
+    fn a_hover_frame_lease_keeps_only_what_its_rows_name_once_many_records_are_let_go_of() {
+        let mut sets = ComputedGroupSets::default();
+        let named = install(&mut sets, 1, 0);
+        sets.pin_style_record(named.raw());
+        let mut rows = crate::cow_column::CowColumn::default();
+        rows.grow_to(1);
+        rows.set(
+            0,
+            crate::layout::node_data::PaintNode {
+                style_record: named.raw(),
+                ..Default::default()
+            },
+        );
+        let lease = sets.lease_hover_frame_style_records(rows.publish());
+        sets.unpin_style_record(named.raw());
+        let unnamed: Vec<_> = (2..=MIN_RECORDS_RELEASED_BEFORE_READING_LEASES + 2)
+            .map(|id| install(&mut sets, id as u64, 0))
+            .collect();
+        sets.reclaim_unreachable();
+        assert!(sets.final_style_record_is_live(named.raw()));
+        assert!(
+            unnamed
+                .iter()
+                .all(|record| !sets.final_style_record_is_live(record.raw()))
+        );
+        drop(lease);
     }
 
     #[test]

@@ -123,7 +123,7 @@ struct ReadOnlyHoverFrame {
     cursors: Arc<crate::css::style::hover_lane::HoverCursorFacts>,
     image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
     visual_context: crate::painting::visual_context::VisualContextState,
-    _style_records: Arc<[u64]>,
+    _style_records: Arc<crate::css::style::HoverFrameLease>,
 }
 
 /// What a lane's ticks hit test and restyle with, sealed with the clock plan at the end of a rendering update.
@@ -209,12 +209,26 @@ impl HoverPlan {
         if visual_context.tree.is_none() {
             return;
         }
-        let records = state.arena.arena().hover_frame_style_records();
-        let Some(style_records) = state.engine_ref().lease_selected_style_records(records) else {
+        if state.arena.arena().names_uninstalled_style_records() {
             return;
-        };
+        }
+        // NB: A sweep frees what no holder holds, which no row of the arena can read after it, so what its rows name
+        //     is held. The lease has only to keep what is let go of from here on.
+        debug_assert!(
+            state
+                .arena
+                .arena()
+                .style_records()
+                .iter()
+                .all(|&record| record == 0 || state.engine_ref().style_record_is_held(record)),
+            "a row of a hover frame names a record nothing holds"
+        );
+        let rows = state.arena.arena_mut().publish_rows();
+        let style_records = state
+            .engine_mut()
+            .lease_hover_frame_style_records(rows.paint_nodes().clone());
         self.read_only_frame = Some(ReadOnlyHoverFrame {
-            rows: state.arena.arena_mut().publish_rows(),
+            rows,
             bound_rows: state.arena.arena_mut().bound_rows_mut().publish(),
             cursors: state.engine_mut().hover_cursor_facts(),
             image_map_areas: state.arena.arena().image_map_areas().clone(),
