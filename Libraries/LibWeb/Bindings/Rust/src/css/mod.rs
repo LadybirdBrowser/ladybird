@@ -6,6 +6,7 @@
 
 //! The CSS Object Model, https://drafts.csswg.org/cssom/
 
+pub(crate) mod animation_event;
 pub(crate) mod css_image_value;
 pub(crate) mod css_keyword_value;
 pub(crate) mod css_math_clamp;
@@ -34,4 +35,6 @@ pub(crate) mod css_unparsed_value;
 pub(crate) mod css_variable_reference_value;
 pub(crate) mod exports;
 pub(crate) mod media_list;
+pub(crate) mod media_query_list_event;
+pub(crate) mod transition_event;
 pub(crate) mod typed_om;

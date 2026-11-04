@@ -327,7 +327,6 @@ class LengthPercentageOrAuto;
 class LengthStyleValue;
 class MediaList;
 class MediaQueryList;
-class MediaQueryListEvent;
 class Number;
 class NumberStyleValue;
 class NumericType;

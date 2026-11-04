@@ -1,0 +1,5 @@
+AnimationEvent default: null
+AnimationEvent init: true
+TransitionEvent default: null
+TransitionEvent init: true
+AnimationEvent with a CSSTransition: TypeError

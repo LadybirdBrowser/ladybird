@@ -5,19 +5,47 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/NamedTimelines.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Animations/ViewTimeline.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/Event.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 
 namespace Web::CSS {
+
+extern "C" {
+
+// Declared in Bindings/Rust/src/css/animation_event.rs.
+void* web_css_animation_of_wrapper(void* wrapper);
+
+// Defined in Bindings/Rust/src/css/exports.rs.
+void* web_animation_event_create(JSVM*, void* realm, FlatPtr event_name, FlatPtr name, double elapsed_time, FlatPtr pseudo_element, void* animation);
+}
+
+void* web_css_animation_of_wrapper(void* wrapper)
+{
+    auto* animation = Bindings::impl_from<Animations::Animation>(static_cast<JS::Object*>(wrapper));
+    VERIFY(animation);
+    return static_cast<GC::Cell*>(animation);
+}
+
+GC::Ref<DOM::Event> CSSAnimation::create_event(DOM::Document const& document, Utf16FlyString const& type, double elapsed_time, Utf16String pseudo_element)
+{
+    auto& realm = HTML::relevant_realm(document);
+    auto wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref<CSSAnimation> { *this });
+    auto* event = web_animation_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.to_utf16_string().into_raw(), animation_name().to_utf16_string().into_raw(), elapsed_time, move(pseudo_element).into_raw(), JS::HostABI::object_to_abi(wrapper.ptr()));
+    return GC::Ref { *static_cast<DOM::Event*>(static_cast<GC::Cell*>(event)) };
+}
 
 GC_DEFINE_ALLOCATOR(CSSAnimation);
 

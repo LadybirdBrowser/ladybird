@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+    @keyframes move {
+        from { margin-left: 0; }
+        to { margin-left: 10px; }
+    }
+    #animated {
+        animation: move 100s;
+    }
+    #transitioned {
+        transition: margin-left 100s;
+    }
+</style>
+<div id="animated"></div>
+<div id="transitioned"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cssAnimation = animated.getAnimations()[0];
+        println(`AnimationEvent default: ${new AnimationEvent("a").animation}`);
+        println(`AnimationEvent init: ${new AnimationEvent("a", { animation: cssAnimation }).animation === cssAnimation}`);
+
+        getComputedStyle(transitioned).marginLeft;
+        transitioned.style.marginLeft = "10px";
+        const cssTransition = transitioned.getAnimations()[0];
+        println(`TransitionEvent default: ${new TransitionEvent("t").animation}`);
+        println(`TransitionEvent init: ${new TransitionEvent("t", { animation: cssTransition }).animation === cssTransition}`);
+
+        try {
+            new AnimationEvent("a", { animation: cssTransition });
+        } catch (error) {
+            println(`AnimationEvent with a CSSTransition: ${error.name}`);
+        }
+    });
+</script>

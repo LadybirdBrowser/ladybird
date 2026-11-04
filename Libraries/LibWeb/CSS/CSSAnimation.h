@@ -22,6 +22,9 @@ class CSSAnimation : public Animations::Animation {
 public:
     static GC::Ref<CSSAnimation> create(HTML::EnvironmentSettingsObject&);
 
+    // A new AnimationEvent for this animation that bubbles, which is implemented in Rust.
+    GC::Ref<DOM::Event> create_event(DOM::Document const&, Utf16FlyString const& type, double elapsed_time, Utf16String pseudo_element);
+
     Utf16FlyString const& animation_name() const { return m_animation_name; }
     void set_animation_name(Utf16FlyString const& animation_name) { m_animation_name = animation_name; }
 

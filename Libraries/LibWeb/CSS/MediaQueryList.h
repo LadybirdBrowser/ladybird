@@ -27,6 +27,9 @@ public:
     bool matches() const;
     bool evaluate();
 
+    // A new MediaQueryListEvent named `change` for this list, which is implemented in Rust.
+    GC::Ref<DOM::Event> create_change_event(bool matches) const;
+
     void add_listener(GC::Ptr<DOM::IDLEventListener>);
     void remove_listener(GC::Ptr<DOM::IDLEventListener>);
 
