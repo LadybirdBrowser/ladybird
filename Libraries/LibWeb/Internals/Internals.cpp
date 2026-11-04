@@ -1897,6 +1897,178 @@ String Internals::accessibility_character_offsets(GC::Ref<DOM::Node> node)
     return builder.to_string_without_validation();
 }
 
+// Dumps the node data in a form that stays the same from run to run: Node IDs become labels in tree order (n0 is the
+// dumped node), a reference to a node outside the dumped subtree prints as "outside", and only the fields that differ
+// from their defaults print. So a test can compare the data the UI process receives before and after a change.
+String Internals::dump_accessibility_node_data(GC::Ref<DOM::Node> node)
+{
+    auto& document = node->document();
+    document.update_layout(DOM::UpdateLayoutReason::InspectAccessibilityTree);
+    auto nodes = document.build_accessibility_node_data();
+
+    HashMap<i64, size_t> index_by_id;
+    for (size_t i = 0; i < nodes.size(); ++i)
+        index_by_id.set(nodes[i].id, i);
+    auto root_index = index_by_id.get(static_cast<i64>(node->unique_id().value()));
+    if (!root_index.has_value())
+        return "(not in the accessibility tree)"_string;
+
+    // Label the subtree's nodes in tree order.
+    HashMap<i64, size_t> label_by_id;
+    Vector<size_t> order;
+    Vector<size_t> depths;
+    auto label = [&](this auto const& self, size_t index, size_t depth) -> void {
+        if (label_by_id.contains(nodes[index].id))
+            return;
+        label_by_id.set(nodes[index].id, label_by_id.size());
+        order.append(index);
+        depths.append(depth);
+        for (auto child_id : nodes[index].child_ids) {
+            if (auto child_index = index_by_id.get(child_id); child_index.has_value())
+                self(*child_index, depth + 1);
+        }
+    };
+    label(*root_index, 0);
+
+    auto reference = [&](i64 id) -> String {
+        if (id == -1)
+            return "none"_string;
+        if (auto found = label_by_id.get(id); found.has_value())
+            return MUST(String::formatted("n{}", *found));
+        return "outside"_string;
+    };
+    auto references = [&](Vector<i64> const& ids) {
+        StringBuilder builder;
+        for (auto id : ids) {
+            if (!builder.is_empty())
+                builder.append(' ');
+            builder.append(reference(id));
+        }
+        return builder.to_string_without_validation();
+    };
+    auto quoted = [](String const& string) {
+        StringBuilder builder;
+        builder.append('"');
+        for (auto code_point : string.code_points()) {
+            if (code_point == '"' || code_point == '\\')
+                builder.append('\\');
+            if (code_point == '\n')
+                builder.append("\\n"sv);
+            else
+                builder.append_code_point(code_point);
+        }
+        builder.append('"');
+        return builder.to_string_without_validation();
+    };
+
+    StringBuilder builder;
+    for (size_t i = 0; i < order.size(); ++i) {
+        auto const& data = nodes[order[i]];
+        builder.append_repeated("  "sv, depths[i]);
+        builder.appendff("n{} {}", i, data.role.is_empty() ? "(no role)"sv : data.role.bytes_as_string_view());
+        auto field = [&](StringView name, auto const& value) { builder.appendff(" {}={}", name, value); };
+        if (!data.name.is_empty())
+            field("name"sv, quoted(data.name));
+        if (!data.description.is_empty())
+            field("description"sv, quoted(data.description));
+        if (!data.value.is_empty())
+            field("value"sv, quoted(data.value));
+        if (!data.url.is_empty())
+            field("url"sv, quoted(data.url));
+        if (!data.language.is_empty())
+            field("language"sv, data.language);
+        builder.appendff(" bounds={},{} {}x{}", data.bounds.x(), data.bounds.y(), data.bounds.width(), data.bounds.height());
+        if (data.is_focused)
+            builder.append(" focused"sv);
+        if (data.is_disabled)
+            builder.append(" disabled"sv);
+        if (data.heading_level != 0)
+            field("heading_level"sv, data.heading_level);
+        if (data.hierarchical_level != 0)
+            field("hierarchical_level"sv, data.hierarchical_level);
+        if (!data.live.is_empty())
+            field("live"sv, data.live);
+        if (data.column_span != 1 || data.row_span != 1)
+            builder.appendff(" span={}x{}", data.column_span, data.row_span);
+        if (data.cell_column_index != -1)
+            field("column_index"sv, data.cell_column_index);
+        if (data.table_row_count != -1 || data.table_column_count != -1)
+            builder.appendff(" table={}x{}", data.table_row_count, data.table_column_count);
+        if (data.table_caption_id != -1)
+            field("caption"sv, reference(data.table_caption_id));
+        if (!data.table_summary.is_empty())
+            field("summary"sv, quoted(data.table_summary));
+        if (!data.column_header_ids.is_empty())
+            builder.appendff(" column_headers=[{}]", references(data.column_header_ids));
+        if (!data.row_header_ids.is_empty())
+            builder.appendff(" row_headers=[{}]", references(data.row_header_ids));
+        if (!data.keybinding.is_empty())
+            field("keybinding"sv, quoted(data.keybinding));
+        if (data.value_numeric.has_value())
+            field("value_now"sv, *data.value_numeric);
+        if (data.value_minimum.has_value())
+            field("value_min"sv, *data.value_minimum);
+        if (data.value_maximum.has_value())
+            field("value_max"sv, *data.value_maximum);
+        if (data.value_step.has_value())
+            field("value_step"sv, *data.value_step);
+        if (data.is_selected)
+            builder.append(" selected"sv);
+        using CheckedState = WebView::AccessibilityNodeData::CheckedState;
+        using ExpandedState = WebView::AccessibilityNodeData::ExpandedState;
+        using PressedState = WebView::AccessibilityNodeData::PressedState;
+        auto tristate = [](bool is_true, bool is_mixed) {
+            if (is_mixed)
+                return "mixed"sv;
+            return is_true ? "true"sv : "false"sv;
+        };
+        if (data.checked_state != CheckedState::NotApplicable)
+            field("checked"sv, tristate(data.checked_state == CheckedState::Checked, data.checked_state == CheckedState::Mixed));
+        if (data.expanded_state != ExpandedState::NotApplicable)
+            field("expanded"sv, tristate(data.expanded_state == ExpandedState::Expanded, false));
+        if (data.pressed_state != PressedState::NotApplicable)
+            field("pressed"sv, tristate(data.pressed_state == PressedState::Pressed, data.pressed_state == PressedState::Mixed));
+        auto flag = [&](bool value, StringView name) {
+            if (value)
+                builder.appendff(" {}", name);
+        };
+        flag(data.is_editable, "editable"sv);
+        flag(data.is_multi_line, "multi_line"sv);
+        flag(data.is_password, "password"sv);
+        flag(data.is_read_only, "read_only"sv);
+        flag(data.is_required, "required"sv);
+        flag(data.is_invalid, "invalid"sv);
+        flag(data.is_multi_selectable, "multi_selectable"sv);
+        flag(data.is_visited, "visited"sv);
+        if (data.caret_offset != -1)
+            field("caret"sv, data.caret_offset);
+        if (data.selection_start != -1 || data.selection_end != -1)
+            builder.appendff(" selection={}..{}", data.selection_start, data.selection_end);
+        if (!data.font_family.is_empty())
+            builder.appendff(" font={} {} {} {}", quoted(data.font_family), data.font_size, data.font_weight, data.font_style);
+        if (!data.color.is_empty())
+            field("color"sv, data.color);
+        if (!data.background_color.is_empty())
+            field("background"sv, data.background_color);
+        if (!data.text_decoration.is_empty() && data.text_decoration != "none"sv)
+            field("decoration"sv, data.text_decoration);
+        if (!data.character_offsets.is_empty()) {
+            builder.append(" characters="sv);
+            for (size_t j = 0; j < data.character_offsets.size(); ++j)
+                builder.appendff("{}{},{}", j ? " "sv : ""sv, data.character_offsets[j].x(), data.character_offsets[j].y());
+        }
+        if (!data.line_break_character_offsets.is_empty()) {
+            builder.append(" lines="sv);
+            for (size_t j = 0; j < data.line_break_character_offsets.size(); ++j) {
+                auto height = j < data.line_heights.size() ? data.line_heights[j] : -1;
+                builder.appendff("{}{}@{}", j ? " "sv : ""sv, data.line_break_character_offsets[j], height);
+            }
+        }
+        builder.append('\n');
+    }
+    return builder.to_string_without_validation();
+}
+
 Utf16String Internals::dump_layout_tree(GC::Ref<DOM::Node> node)
 {
     // The test API's read of the render state of the node's document.

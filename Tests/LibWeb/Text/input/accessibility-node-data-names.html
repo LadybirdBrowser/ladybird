@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px/20px SerenitySans;
+    }
+    .with-before::before {
+        content: "Before ";
+    }
+</style>
+<!-- After each change to what a name or description is computed from, the accessibility node data reflects it: text in
+     the element itself, in an element it points to with aria-labelledby or aria-describedby (even a hidden one), in a
+     label, and in generated content. -->
+<div id="root">
+    <table>
+        <tr><td id="cell">cell text</td></tr>
+    </table>
+    <span id="hidden-label" hidden>hidden label</span>
+    <button id="labelled" aria-labelledby="hidden-label">button text</button>
+    <button id="from-content"><span id="inner">inner text</span></button>
+    <label for="field" id="field-label">field label</label>
+    <input id="field">
+    <p id="described" aria-describedby="description">described</p>
+    <span id="description">first description</span>
+    <button id="pending" aria-labelledby="not-yet">pending</button>
+    <button id="generated">generated</button>
+</div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const step = (label, change) => {
+            change();
+            println(`== ${label}`);
+            println(internals.dumpAccessibilityNodeData(root));
+        };
+        step("initial", () => {});
+        step("cell textContent", () => document.getElementById("cell").textContent = "new cell text");
+        step("cell Text.data", () => document.getElementById("cell").firstChild.data = "edited cell text");
+        step("hidden aria-labelledby target", () => document.getElementById("hidden-label").textContent = "new hidden label");
+        step("name from content", () => document.getElementById("inner").textContent = "new inner text");
+        step("label text", () => document.getElementById("field-label").textContent = "new field label");
+        step("aria-label", () => document.getElementById("field").setAttribute("aria-label", "explicit label"));
+        step("aria-describedby target", () => document.getElementById("description").textContent = "second description");
+        step("id appears for a pending reference", () => document.getElementById("description").id = "not-yet");
+        step("referenced id removed", () => document.getElementById("not-yet").remove());
+        step("generated content", () => document.getElementById("generated").classList.add("with-before"));
+    });
+</script>
