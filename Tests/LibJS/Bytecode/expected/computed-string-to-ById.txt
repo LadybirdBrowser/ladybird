@@ -21,17 +21,16 @@ block0:
   [ 128] End value:reg6
 
 
-get_string_prop$d6b42da3 computed-string-to-ById.js:5:5
-  Registers: 7
+get_string_prop$d3f03c93 computed-string-to-ById.js:5:5
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = String("hello")
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:arg0
-  [  18] GetById value_feedback:0, dst:reg6, base:reg5, `hello` (o.hello)
-  [  30] Return value:reg6
+  [   8] GetById value_feedback:0, dst:reg5, base:arg0, `hello` (o.hello)
+  [  20] Return value:reg5
 
 
 set_string_prop$592a21c7 computed-string-to-ById.js:8:16
@@ -49,27 +48,25 @@ block0:
   [  38] End value:Undefined
 
 
-get_index_prop$977a3ffe computed-string-to-ById.js:11:5
-  Registers: 7
+get_index_prop$a54df54e computed-string-to-ById.js:11:5
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = String("0")
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:arg0
-  [  18] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:reg5, property:String("0") (o[String("0")])
-  [  38] Return value:reg6
+  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:String("0") (o[String("0")])
+  [  28] Return value:reg5
 
 
-get_length_prop$02a00d79 computed-string-to-ById.js:14:5
-  Registers: 7
+get_length_prop$0563fe89 computed-string-to-ById.js:14:5
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = String("length")
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:arg0
-  [  18] GetLength value_feedback:0, keyed_feedback:0, dst:reg6, base:reg5 (o.length)
-  [  30] Return value:reg6
+  [   8] GetLength value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0 (o.length)
+  [  20] Return value:reg5

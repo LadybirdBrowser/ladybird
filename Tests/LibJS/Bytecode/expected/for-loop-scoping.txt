@@ -63,7 +63,7 @@ block3:
   [ 270] Return value:reg5
 
 
-map$2c743f86 BuiltinFile:275:28
+map$10ccd4e6 BuiltinFile:275:28
   Registers: 7
   Blocks:    9
   Locals:    kValue~0, mappedValue~1, k~2, object~3, length~4, array~5
@@ -75,42 +75,40 @@ map$2c743f86 BuiltinFile:275:28
 block0:
   [   0] Enter
   [   8] ToObject dst:object~3, value:this
-  [  18] Mov dst:reg5, src:object~3
-  [  28] GetLength value_feedback:0, keyed_feedback:0, dst:reg6, base:reg5 (object.length)
-  [  40] ToLength dst:length~4, value:reg6
-  [  50] IsCallable dst:reg5, value:arg0
-  [  60] Not dst:reg6, src:reg5
-  [  70] JumpFalse condition:reg6, target:block2
+  [  18] GetLength value_feedback:0, keyed_feedback:0, dst:reg5, base:object~3 (object.length)
+  [  30] ToLength dst:length~4, value:reg5
+  [  40] IsCallable dst:reg6, value:arg0
+  [  50] Not dst:reg5, src:reg6
+  [  60] JumpFalse condition:reg5, target:block2
 
 block1:
-  [  80] ThrowNotAFunction src:arg0
+  [  70] ThrowNotAFunction src:arg0
 
 block2:
-  [  88] Call value_feedback:1, call_feedback:0, dst:array~5, callee:Value([object RawNativeFunction]), this_value:Undefined, ArraySpeciesCreate, arguments:[object~3, length~4]
-  [  b0] Mov dst:k~2, src:Int32(0)
-  [  c0] Jump target:block5
+  [  78] Call value_feedback:1, call_feedback:0, dst:array~5, callee:Value([object RawNativeFunction]), this_value:Undefined, ArraySpeciesCreate, arguments:[object~3, length~4]
+  [  a0] Mov dst:k~2, src:Int32(0)
+  [  b0] Jump target:block5
 
 block3:
-  [  c8] In dst:reg6, lhs:k~2, rhs:object~3
-  [  d8] JumpIf condition:reg6, true_target:block7, false_target:block8
+  [  b8] In dst:reg5, lhs:k~2, rhs:object~3
+  [  c8] JumpIf condition:reg5, true_target:block7, false_target:block8
 
 block4:
-  [  e8] Increment arith_feedback:1, dst:k~2
+  [  d8] Increment arith_feedback:1, dst:k~2
 
 block5:
-  [  f0] JumpLessThanLoop arith_feedback:0, lhs:k~2, rhs:length~4, true_target:block3, false_target:block6
+  [  e0] JumpLessThanLoop arith_feedback:0, lhs:k~2, rhs:length~4, true_target:block3, false_target:block6
 
 block6:
-  [ 108] Return value:array~5
+  [  f8] Return value:array~5
 
 block7:
-  [ 110] Mov dst:reg5, src:object~3
-  [ 120] GetByValue value_feedback:2, keyed_feedback:1, dst:kValue~0, base:reg5, property:k~2 (object[k~2])
-  [ 140] Call value_feedback:3, call_feedback:1, dst:mappedValue~1, callee:arg0, this_value:arg1, callback, arguments:[kValue~0, k~2, object~3]
-  [ 170] CreateDataPropertyOrThrow object:array~5, property:k~2, value:mappedValue~1
+  [ 100] GetByValue value_feedback:2, keyed_feedback:1, dst:kValue~0, base:object~3, property:k~2 (object[k~2])
+  [ 120] Call value_feedback:3, call_feedback:1, dst:mappedValue~1, callee:arg0, this_value:arg1, callback, arguments:[kValue~0, k~2, object~3]
+  [ 150] CreateDataPropertyOrThrow object:array~5, property:k~2, value:mappedValue~1
 
 block8:
-  [ 180] JumpLoop target:block4
+  [ 160] JumpLoop target:block4
 
 
 $dd56fdd7 for-loop-scoping.js:6:20

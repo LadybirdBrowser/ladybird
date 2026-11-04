@@ -42,29 +42,27 @@ Exception handlers:
   [  d8 ..  138] => handler block4
 
 
-chained_computed_call$7b82f37a chained-member-call.js:5:5
+chained_computed_call$78bf026a chained-member-call.js:5:5
   Registers: 8
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg6, src:arg0
-  [  18] GetByValue value_feedback:0, keyed_feedback:0, dst:reg7, base:reg6, property:arg1 (a[arg1])
-  [  38] GetByValue value_feedback:1, keyed_feedback:1, dst:reg6, base:reg7, property:arg2 (a[j][arg2])
-  [  58] GetById value_feedback:2, dst:reg7, base:reg6, `foo` (a[j][k].foo)
-  [  70] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, a[j][k].foo
-  [  90] Return value:reg5
-
-
-chained_dot_call$51b3fa50 chained-member-call.js:9:5
-  Registers: 8
-  Blocks:    1
-
-block0:
-  [   0] Enter
-  [   8] Mov dst:reg6, src:arg0
-  [  18] GetById value_feedback:0, dst:reg7, base:reg6, `b` (a.b)
-  [  30] GetById value_feedback:1, dst:reg6, base:reg7, `c` (a.b.c)
-  [  48] GetById value_feedback:2, dst:reg7, base:reg6, `bar` (a.b.c.bar)
-  [  60] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, a.b.c.bar
+  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:arg0, property:arg1 (a[arg1])
+  [  28] GetByValue value_feedback:1, keyed_feedback:1, dst:reg7, base:reg6, property:arg2 (a[j][arg2])
+  [  48] GetById value_feedback:2, dst:reg6, base:reg7, `foo` (a[j][k].foo)
+  [  60] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg6, this_value:reg7, a[j][k].foo
   [  80] Return value:reg5
+
+
+chained_dot_call$5f87afa0 chained-member-call.js:9:5
+  Registers: 8
+  Blocks:    1
+
+block0:
+  [   0] Enter
+  [   8] GetById value_feedback:0, dst:reg6, base:arg0, `b` (a.b)
+  [  20] GetById value_feedback:1, dst:reg7, base:reg6, `c` (a.b.c)
+  [  38] GetById value_feedback:2, dst:reg6, base:reg7, `bar` (a.b.c.bar)
+  [  50] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg6, this_value:reg7, a.b.c.bar
+  [  70] Return value:reg5
