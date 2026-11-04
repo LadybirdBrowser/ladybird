@@ -10388,6 +10388,7 @@ fn try_constant_fold_binary(
                 (ConstantValue::Boolean(a), ConstantValue::Boolean(b)) => a == b,
                 (ConstantValue::Null, ConstantValue::Null) => true,
                 (ConstantValue::Undefined, ConstantValue::Undefined) => true,
+                (ConstantValue::WellKnownSymbol(a), ConstantValue::WellKnownSymbol(b)) => a == b,
                 // Different types are never strictly equal.
                 _ => false,
             };
@@ -10569,6 +10570,21 @@ mod tests {
         let block = generator.make_block();
         generator.switch_to_basic_block(block);
         generator
+    }
+
+    #[test]
+    fn constant_fold_compares_well_known_symbols_by_identity() {
+        let mut generator = Generator::new();
+        let lhs = generator.add_constant_well_known_symbol(WellKnownSymbolKind::SymbolIterator);
+        let rhs = generator.add_constant_well_known_symbol(WellKnownSymbolKind::SymbolIterator);
+
+        let result = try_constant_fold_binary(&mut generator, BinaryOp::StrictlyEquals, &lhs, &rhs)
+            .expect("well-known symbol equality should fold");
+
+        assert!(matches!(
+            generator.get_constant(&result),
+            Some(ConstantValue::Boolean(true))
+        ));
     }
 
     #[test]

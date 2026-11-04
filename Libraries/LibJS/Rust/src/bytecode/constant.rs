@@ -9,7 +9,7 @@
 
 /// Well-known symbol IDs that the runtime resolves when materializing an Executable.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WellKnownSymbolKind {
     SymbolIterator = 0,
     SymbolAsyncIterator = 1,
