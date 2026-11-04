@@ -613,6 +613,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     GC::Ptr<DOM::Node> node;
     Optional<int> start_index;
     bool hit_text_fragment = false;
+    bool page_cancelled_move = false;
 
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         target = move(*result);
@@ -679,8 +680,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             auto movement = compute_mouse_event_movement(screen_position);
             m_mousemove_previous_screen_position = screen_position;
 
-            if (dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerMove, *node, chrome_widget, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers).result != PointerEventDispatchResult::RunDefaultActions)
-                return EventResult::Cancelled;
+            page_cancelled_move = dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerMove, *node, chrome_widget, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers).result != PointerEventDispatchResult::RunDefaultActions;
         }
     } else if (m_mousedown_target) {
         // NOTE: In some implementation environments, such as a browser, mousemove events can continue to fire if the
@@ -690,26 +690,29 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         auto movement = compute_mouse_event_movement(screen_position);
         m_mousemove_previous_screen_position = screen_position;
 
-        if (dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerMove, document->html_element(), nullptr, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers).result != PointerEventDispatchResult::RunDefaultActions)
-            return EventResult::Cancelled;
+        page_cancelled_move = dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerMove, document->html_element(), nullptr, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers).result != PointerEventDispatchResult::RunDefaultActions;
     }
+
+    auto result_of_move = [&](EventResult result) { return page_cancelled_move ? EventResult::Cancelled : result; };
 
     // NB: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)
-        return EventResult::Accepted;
+        return result_of_move(EventResult::Accepted);
 
     if (!m_middle_button_scroll_handler && !is_handling_mouse_selection())
-        return EventResult::Handled;
+        return result_of_move(EventResult::Handled);
 
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
     if (!has_committed_root_box())
-        return EventResult::Accepted;
+        return result_of_move(EventResult::Accepted);
 
     if (m_middle_button_scroll_handler)
         m_middle_button_scroll_handler->update_mouse_position(visual_viewport_position);
 
+    // https://w3c.github.io/uievents/#event-type-mousemove
+    // NB: The event has no default action, so a page that cancels it leaves a drag going.
     update_mouse_selection(read, visual_viewport_position);
-    return EventResult::Handled;
+    return result_of_move(EventResult::Handled);
 }
 
 static GC::Ptr<DOM::Node> target_for_click_event(DOM::Node* mouse_down_target, DOM::Node& mouse_up_target)
