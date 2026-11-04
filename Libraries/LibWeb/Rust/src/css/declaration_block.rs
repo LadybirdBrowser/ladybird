@@ -881,6 +881,14 @@ impl DeclarationBlock {
         }
     }
 
+    /// Asks for the memory [`Self::is_empty`] reads past the block.
+    fn prefetch_header(&self) {
+        match &*self.state.borrow() {
+            DeclarationBlockState::Immutable(data) => prefetch(data.as_ptr()),
+            DeclarationBlockState::Mutable(owner) => prefetch(owner.borrow().data.as_ptr()),
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn is_immutable(&self) -> bool {
         matches!(&*self.state.borrow(), DeclarationBlockState::Immutable(_))
@@ -958,6 +966,11 @@ pub(crate) fn visit_declaration_images(data: &DeclarationBlockHeader, visit: &mu
     for value in data.properties().values() {
         visit_images(value, visit);
     }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_declaration_block_prefetch_header(block: &DeclarationBlock) {
+    block.prefetch_header();
 }
 
 #[unsafe(no_mangle)]
