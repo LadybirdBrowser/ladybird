@@ -75,6 +75,19 @@ TEST_CASE(append_quoted_escaped_for_json)
     widened_builder.append_quoted_escaped_for_json("ascii"sv);
     EXPECT_EQ(widened_builder.view(), u"\u263A\"ascii\""sv);
 
+    Utf16StringBuilder utf8_builder;
+    utf8_builder.append_quoted_escaped_for_json("caf\xc3\xa9 \xe2\x98\xba"sv);
+    EXPECT_EQ(utf8_builder.view(), u"\"caf\u00e9 \u263A\""sv);
+
+    // A lone surrogate in WTF-8 is decoded as a single replacement character.
+    Utf16StringBuilder wtf8_surrogate_builder;
+    wtf8_surrogate_builder.append_quoted_escaped_for_json("\xed\xa0\x80"sv);
+    EXPECT_EQ(wtf8_surrogate_builder.view(), u"\"\ufffd\""sv);
+
+    Utf16StringBuilder unquoted_utf8_builder;
+    unquoted_utf8_builder.append_escaped_for_json("caf\xc3\xa9\n"sv);
+    EXPECT_EQ(unquoted_utf8_builder.view(), u"caf\u00e9\\n"sv);
+
     char16_t lone_surrogate = 0xd800;
     Utf16StringBuilder surrogate_builder;
     surrogate_builder.append_quoted_escaped_for_json(Utf16View { &lone_surrogate, 1 });

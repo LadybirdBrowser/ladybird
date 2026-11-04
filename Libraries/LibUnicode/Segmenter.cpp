@@ -838,7 +838,7 @@ extern "C" void* unicode_layout_line_segmenter_create(u16 const* text, size_t le
             ascii_storage.unchecked_append(static_cast<char>(text[index]));
         auto ascii_view = ascii_storage.is_empty()
             ? Utf16View {}
-            : Utf16View { StringView { ascii_storage.data(), ascii_storage.size() } };
+            : Utf16View::from_ascii(StringView { ascii_storage.data(), ascii_storage.size() });
         if (auto segmenter = Unicode::Segmenter::try_create_for_ascii_line(ascii_view)) {
             return new UnicodeLayoutSegmenterHandle {
                 .segmenter = segmenter.release_nonnull(),

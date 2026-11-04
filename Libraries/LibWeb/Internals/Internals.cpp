@@ -1595,7 +1595,7 @@ static void define_scroller_properties(HTML::Window& window, JS::Object& object,
     object.define_direct_property("scroller"_utf16_fly_string, wrapped_node_with_unique_id(window, scroller.map([](auto const& id) { return id.node_id; })), JS::default_attributes);
     if (scroller.has_value() && scroller->kind == AsyncScrollNodeKind::PseudoElement) {
         auto pseudo_element = CSS::pseudo_element_name(static_cast<CSS::PseudoElement>(scroller->pseudo_element_type));
-        object.define_direct_property("scrollerPseudoElement"_utf16_fly_string, JS::PrimitiveString::create(vm, pseudo_element), JS::default_attributes);
+        object.define_direct_property("scrollerPseudoElement"_utf16_fly_string, JS::PrimitiveString::create(vm, Utf16View::from_ascii(pseudo_element)), JS::default_attributes);
     }
 }
 
@@ -1608,8 +1608,8 @@ GC::Ref<JS::Object> Internals::take_input_trace()
         auto const& record = records[i];
         auto object = JS::Object::create(realm, nullptr);
         object->define_direct_property("id"_utf16_fly_string, JS::Value(static_cast<double>(record.input_event_id)), JS::default_attributes);
-        object->define_direct_property("stage"_utf16_fly_string, JS::PrimitiveString::create(vm(), input_trace_stage_name(record.stage)), JS::default_attributes);
-        object->define_direct_property("decision"_utf16_fly_string, JS::PrimitiveString::create(vm(), input_routing_decision_name(record.decision)), JS::default_attributes);
+        object->define_direct_property("stage"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16View::from_ascii(input_trace_stage_name(record.stage))), JS::default_attributes);
+        object->define_direct_property("decision"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16View::from_ascii(input_routing_decision_name(record.decision))), JS::default_attributes);
         define_scroller_properties(window(), *object, record.scroller);
         object->define_direct_property("target"_utf16_fly_string, wrapped_node_with_unique_id(window(), record.dom_target), JS::default_attributes);
         MUST(array->create_data_property_or_throw(i, object));
@@ -1621,7 +1621,7 @@ GC::Ref<JS::Object> Internals::first_wheel_step_route_to_object(Compositing::Fir
 {
     auto& realm = HTML::relevant_realm(window());
     auto object = JS::Object::create(realm, nullptr);
-    object->define_direct_property("decision"_utf16_fly_string, JS::PrimitiveString::create(vm(), input_routing_decision_name(result.route.decision)), JS::default_attributes);
+    object->define_direct_property("decision"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16View::from_ascii(input_routing_decision_name(result.route.decision))), JS::default_attributes);
     define_scroller_properties(window(), *object, result.route.scroller);
     object->define_direct_property("document"_utf16_fly_string, wrapped_node_with_unique_id(window(), result.document_id), JS::default_attributes);
     return object;

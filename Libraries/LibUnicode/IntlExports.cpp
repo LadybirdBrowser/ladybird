@@ -115,7 +115,7 @@ extern "C" bool unicode_parse_unicode_locale_id(UnicodeIntlText locale, void* co
             },
             [&](Unicode::OtherExtension const& other_extension) {
                 char key[] = { other_extension.key };
-                append_locale_id_part(context, append_part, UnicodeLocaleIDPart::OtherExtensionKey, Utf16View { StringView { key, 1 } });
+                append_locale_id_part(context, append_part, UnicodeLocaleIDPart::OtherExtensionKey, Utf16View::from_ascii(StringView { key, 1 }));
                 append_locale_id_part(context, append_part, UnicodeLocaleIDPart::OtherExtensionValue, other_extension.value.utf16_view());
             });
     }

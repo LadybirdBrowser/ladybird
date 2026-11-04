@@ -2255,7 +2255,7 @@ Utf16String HTMLParser::serialize_html_fragment(DOM::Node const& node, Serializa
                 builder.append_ascii("<template shadowrootmode=\""sv);
 
                 // 2. If shadow's mode is "open", then append "open". Otherwise, append "closed".
-                builder.append(shadow->mode() == Web::DOM::ShadowRootMode::Open ? "open"sv : "closed"sv);
+                builder.append_ascii(shadow->mode() == Web::DOM::ShadowRootMode::Open ? "open"sv : "closed"sv);
 
                 // 3. Append """.
                 builder.append_ascii('"');

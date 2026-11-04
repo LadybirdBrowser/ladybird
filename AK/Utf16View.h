@@ -165,11 +165,21 @@ public:
         m_length_in_code_units |= 1uz << Detail::UTF16_FLAG;
     }
 
-    constexpr Utf16View(StringView string)
+    // A view of ASCII text known at compile time, such as a string literal. Use from_ascii() for text known only at run
+    // time.
+    consteval Utf16View(StringView string)
         : m_string { .latin1 = string.characters_without_null_termination() }
         , m_length_in_code_units(string.length())
     {
         VERIFY(all_of(string, AK::is_ascii));
+    }
+
+    // A view of text that holds nothing but ASCII, one code unit per byte. Text that may hold anything else has to be
+    // converted to UTF-16 instead.
+    static constexpr Utf16View from_ascii(StringView string)
+    {
+        VERIFY(all_of(string, AK::is_ascii));
+        return { string.characters_without_null_termination(), string.length(), true };
     }
 
     // A view of Latin-1 bytes, one per code unit. Unless is_ascii is set, they may include code units above U+007F.
@@ -278,7 +288,7 @@ public:
             return StringView { ascii_span().data(), length_in_code_units() } == other;
 
         if (other.is_ascii())
-            return *this == Utf16View { other };
+            return *this == Utf16View { other.characters_without_null_termination(), other.length(), true };
 
         Utf8View other_utf8 { other };
 

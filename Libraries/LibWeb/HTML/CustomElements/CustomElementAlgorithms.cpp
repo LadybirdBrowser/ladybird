@@ -186,7 +186,7 @@ JS::ThrowCompletionOr<void> upgrade_custom_element(DOM::Element& element, GC::Re
 
         // 4. If SameValue(constructResult, element) is false, then throw a TypeError.
         if (!JS::same_value(construct_result, element_wrapper.ptr()))
-            return vm.throw_completion<JS::TypeError>("Constructing the custom element returned a different element from the custom element"sv);
+            return vm.throw_completion<JS::TypeError>(u"Constructing the custom element returned a different element from the custom element"sv);
 
         return {};
     };

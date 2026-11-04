@@ -906,7 +906,7 @@ TEST_CASE(find_code_unit_offset_nul_at_any_alignment)
     ascii_buffer.fill('A');
 
     for (size_t start_offset = 0; start_offset < 64; ++start_offset) {
-        Utf16View view { StringView { ascii_buffer.data() + start_offset, 6 } };
+        auto view = Utf16View::from_ascii(StringView { ascii_buffer.data() + start_offset, 6 });
         EXPECT(!view.find_code_unit_offset(u'\0').has_value());
         EXPECT(!view.contains(u'\0'));
     }
