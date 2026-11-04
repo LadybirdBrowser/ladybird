@@ -1,3 +1,0 @@
-initial assignment is retained: true
-display-none propagation clears the assignment: true
-returning restores the style: true

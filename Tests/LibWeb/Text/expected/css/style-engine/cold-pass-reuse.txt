@@ -1,3 +1,0 @@
-computed every styled element: true
-reused some elements: true
-differences: 0

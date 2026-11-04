@@ -322,9 +322,6 @@ public:
     u64 style_record_identity(DOM::Element&);
     u64 custom_property_environment_identity(DOM::Element&);
     u64 layout_style_record_identity(DOM::Element&);
-    u64 before_style_record_identity(DOM::Element&);
-    u64 before_layout_style_record_identity(DOM::Element&);
-    u64 paint_style_record_identity(DOM::Element&);
     u64 layout_node_identity(DOM::Node&);
     u64 layout_arena_live_slot_count();
     void panic_render_state_for_testing();

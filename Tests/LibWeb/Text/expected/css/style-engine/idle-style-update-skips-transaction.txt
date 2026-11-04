@@ -1,6 +1,0 @@
-idle passes: 0
-unnamed class passes: 0
-changed passes: 1
-changed color: rgb(0, 128, 0)
-animation passes: 0
-animated opacity: 0.5

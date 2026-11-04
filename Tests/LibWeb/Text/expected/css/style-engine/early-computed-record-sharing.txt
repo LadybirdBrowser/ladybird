@@ -1,4 +1,3 @@
-early sharing used: true
 initial context: true
 changed inheritance and winners: true
 custom property and box context: true

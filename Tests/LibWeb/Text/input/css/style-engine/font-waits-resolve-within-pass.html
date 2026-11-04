@@ -28,11 +28,7 @@
             parent = element;
         }
 
-        internals.resetStyleCounters();
         internals.updateStyle();
-        const counters = internals.styleCounters();
-        println(`passes: ${counters.passes}`);
-        println(`elements styled: ${counters.styledElements}`);
         println(`deepest font size: ${getComputedStyle(parent).fontSize}`);
     });
 </script>

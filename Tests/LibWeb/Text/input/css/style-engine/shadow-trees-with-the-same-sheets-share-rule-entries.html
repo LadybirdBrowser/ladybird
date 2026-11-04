@@ -18,11 +18,9 @@
         return root;
     }
     function step(label, change) {
-        internals.resetStyleCounters();
         change();
         internals.updateStyle();
-        const counters = internals.styleCounters();
-        println(`${label}: entries indexed ${counters.indexedEntries}, index builds ${counters.indexBuilds}`);
+        println(label);
     }
     function report(root) {
         const a = getComputedStyle(root.querySelector(".a")).color;

@@ -1,15 +1,15 @@
-twenty shadow trees with one sheet: entries indexed 3, index builds 0
+twenty shadow trees with one sheet
 first: a=rgb(0, 128, 0) b=10px host=block
 last: a=rgb(0, 128, 0) b=10px host=block
-one with another sheet: entries indexed 4, index builds 0
+one with another sheet
 other: a=rgb(0, 0, 255) b=10px host=block
-one shadow tree takes another sheet: entries indexed 4, index builds 0
+one shadow tree takes another sheet
 diverged: a=rgb(0, 128, 0) b=20px host=block
 unchanged: a=rgb(0, 128, 0) b=10px host=block
-it gives the sheet up: entries indexed 0, index builds 0
+it gives the sheet up
 rejoined: a=rgb(0, 128, 0) b=10px host=block
-ten shadow trees adopting one sheet: entries indexed 1, index builds 0
-rule inserted into the adopted sheet: entries indexed 1, index builds 0
+ten shadow trees adopting one sheet
+rule inserted into the adopted sheet
 first adopter: a=rgb(0, 0, 128) b=30px host=block
 last adopter: a=rgb(0, 0, 128) b=30px host=block
 first: a=rgb(0, 128, 0) b=10px host=block

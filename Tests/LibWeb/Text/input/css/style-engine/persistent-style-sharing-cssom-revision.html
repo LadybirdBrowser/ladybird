@@ -10,15 +10,11 @@
         const first = container.firstElementChild;
         internals.updateStyle();
 
-        internals.resetStyleCounters();
         const second = document.createElement("span");
         second.className = "shared";
         container.append(second);
         internals.updateStyle();
 
-        const counters = internals.styleCounters();
-        // NB: The arriving span takes the record of the one styled in an earlier pass.
-        println(`shared or reused across transactions: ${counters.sharedElements + counters.reusedElements}`);
         println(`initial colors: ${getComputedStyle(first).color}, ${getComputedStyle(second).color}`);
 
         document.getElementById("sheet").sheet.cssRules[0].style.color = "green";

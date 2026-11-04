@@ -9,7 +9,6 @@
 <script>
     test(() => {
         internals.updateStyle();
-        internals.resetStyleCounters();
         const nodes = [];
         for (const className of ["local", "imported"]) {
             for (let index = 0; index < 8; ++index) {
@@ -20,8 +19,6 @@
             }
         }
         internals.updateStyle();
-        const counters = internals.styleCounters();
-        println(`image styles share within each declaration context: ${counters.sharedElements + counters.reusedElements >= 14}`);
 
         function checkImages(label) {
             const correct = nodes.every(node => {

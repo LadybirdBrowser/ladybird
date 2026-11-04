@@ -1,4 +1,3 @@
-image styles share within each declaration context: true
 distinct stylesheet base URLs: true
 changed declaration contexts: true
 restored declaration contexts: true

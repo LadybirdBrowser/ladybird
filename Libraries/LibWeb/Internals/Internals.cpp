@@ -2806,29 +2806,6 @@ u64 Internals::layout_style_record_identity(DOM::Element& element)
     return layout_node ? layout_node->style_record_identity().value() : 0;
 }
 
-u64 Internals::before_style_record_identity(DOM::Element& element)
-{
-    return element.style_record_identity(CSS::PseudoElement::Before).value();
-}
-
-u64 Internals::before_layout_style_record_identity(DOM::Element& element)
-{
-    Layout::ForcedReadScope read { element.document() };
-    element.document().update_layout(DOM::UpdateLayoutReason::Debugging);
-    auto const* layout_node = element.pseudo_element_layout_node(read, CSS::PseudoElement::Before);
-    return layout_node ? layout_node->style_record_identity().value() : 0;
-}
-
-u64 Internals::paint_style_record_identity(DOM::Element& element)
-{
-    Layout::ForcedReadScope read { element.document() };
-    element.document().update_layout(DOM::UpdateLayoutReason::Debugging);
-    auto const* layout_node = element.layout_node(read);
-    if (!layout_node || !Painting::has_committed_box(*layout_node))
-        return 0;
-    return Painting::style_record_identity(*layout_node).value();
-}
-
 u64 Internals::layout_node_identity(DOM::Node& node)
 {
     Layout::ForcedReadScope read { node.document() };
