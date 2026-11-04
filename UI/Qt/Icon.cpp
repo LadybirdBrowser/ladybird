@@ -675,6 +675,14 @@ QIcon create_site_settings_icon(QPalette const& palette, qreal knob_travel)
     return create_chrome_icon(ChromeIcon::SiteSettings, path, palette, ChromeStyle::WindowActivity::Active, CHROME_ICON_CANVAS_SIZE);
 }
 
+#if !defined(AK_OS_MACOS)
+// NB: Pages are only translated on macOS, where the system draws the icon; see TranslateIconMac.mm.
+QIcon create_translate_icon(QPalette const& palette, bool)
+{
+    return create_chrome_icon(ChromeIcon::Globe, palette);
+}
+#endif
+
 QIcon create_chrome_icon(ChromeIcon icon, QColor const& color)
 {
     return QIcon(new ChromeIconEngine(icon, chrome_icon_painter_path(icon), { color, color, color, color }, CHROME_ICON_CANVAS_SIZE));

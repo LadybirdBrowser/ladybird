@@ -32,6 +32,9 @@
 #    include <UI/Qt/MacWindow.h>
 #    include <UI/Qt/SpellCheckerMac.h>
 #endif
+#if defined(LADYBIRD_HAS_TRANSLATOR)
+#    include <UI/Qt/TranslatorMac.h>
+#endif
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
@@ -61,6 +64,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Ladybird::ChromeStyle::install_application_style();
 #if defined(AK_OS_MACOS)
     app->set_spell_checker(Ladybird::create_platform_spell_checker());
+#endif
+#if defined(LADYBIRD_HAS_TRANSLATOR)
+    app->set_translator(Ladybird::create_platform_translator());
 #endif
     if (app->should_exit_after_profile_coordination()) {
         outln("Opening in existing process");

@@ -235,6 +235,20 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
     m_trailing_action_button->setCursor(Qt::ArrowCursor);
     m_trailing_action_button->hide();
 
+    m_translate_button = new QToolButton(this);
+    m_translate_button->setObjectName("LadybirdLocationTranslate");
+    m_translate_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    m_translate_button->setIconSize({ 16, 16 });
+    m_translate_button->setFixedSize(LOCATION_TRAILING_ACTION_WIDTH, LOCATION_TRAILING_ACTION_HEIGHT);
+    m_translate_button->setAutoRaise(true);
+    m_translate_button->setFocusPolicy(Qt::NoFocus);
+    m_translate_button->setCursor(Qt::ArrowCursor);
+    m_translate_button->hide();
+    connect(m_translate_button, &QToolButton::clicked, this, [this] {
+        if (on_translate_requested)
+            on_translate_requested();
+    });
+
     // While the text is inline completed to a page, the page's title stands where the bookmark star does.
     m_completion_title = new QLabel(this);
     m_completion_title->setObjectName("LadybirdLocationCompletionTitle");
@@ -297,7 +311,7 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
         update_trailing_item_positions();
     });
 
-    for (auto* button : { m_leading_icon_button, m_trailing_action_button, m_zoom_indicator_button, m_location_in_use_button })
+    for (auto* button : { m_leading_icon_button, m_trailing_action_button, m_translate_button, m_zoom_indicator_button, m_location_in_use_button })
         button->installEventFilter(this);
 
     update_text_margins();
@@ -453,6 +467,7 @@ void LocationEdit::slide_site_settings_knobs(qreal travel)
 void LocationEdit::update_trailing_action_visibility()
 {
     m_trailing_action_button->setVisible(m_trailing_action_button->defaultAction() && !m_is_editing_location && !m_url_is_hidden);
+    update_translate_button();
     update_text_margins();
     update_trailing_item_positions();
 }
@@ -475,6 +490,38 @@ void LocationEdit::update_completion_title()
 QAction* LocationEdit::trailing_action() const
 {
     return m_trailing_action_button->defaultAction();
+}
+
+void LocationEdit::set_translate_action(QAction* action)
+{
+    if (m_translate_action == action)
+        return;
+    if (m_translate_action)
+        QObject::disconnect(m_translate_action, nullptr, this, nullptr);
+    m_translate_action = action;
+    if (m_translate_action)
+        connect(m_translate_action, &QAction::changed, this, &LocationEdit::update_translate_button);
+    update_translate_button();
+}
+
+QWidget& LocationEdit::translate_button() const
+{
+    return *m_translate_button;
+}
+
+// Like the bookmark star, the translate button is about the page, so it stands aside while the text is being edited.
+void LocationEdit::update_translate_button()
+{
+    auto visible = m_translate_action && m_translate_action->isVisible() && !m_is_editing_location && !m_url_is_hidden;
+    if (m_translate_action) {
+        m_translate_button->setIcon(m_translate_action->icon());
+        m_translate_button->setToolTip(m_translate_action->toolTip());
+    }
+    if (m_translate_button->isHidden() != visible)
+        return;
+    m_translate_button->setVisible(visible);
+    update_text_margins();
+    update_trailing_item_positions();
 }
 
 void LocationEdit::set_zoom_action(QAction* action)
@@ -884,6 +931,12 @@ void LocationEdit::update_trailing_item_positions()
     // NB: The items before the star are placed from the star's place, whether it shows or not.
     auto items_x = trailing_x;
 
+    auto translate_button_size = m_translate_button->size();
+    m_translate_button->move(items_x - translate_button_size.width(), (height() - translate_button_size.height()) / 2);
+    m_translate_button->raise();
+    if (!m_translate_button->isHidden())
+        items_x -= translate_button_size.width();
+
     auto completion_title_size = m_completion_title->size();
     m_completion_title->move(width() - LOCATION_TRAILING_EDGE_MARGIN - LOCATION_TEXT_PADDING - completion_title_size.width(), (height() - completion_title_size.height()) / 2);
 
@@ -918,6 +971,8 @@ int LocationEdit::trailing_text_margin() const
     if (m_completion_title && !m_completion_title->isHidden())
         margin = max(margin, LOCATION_TRAILING_EDGE_MARGIN + m_completion_title->width() + LOCATION_TRAILING_ITEM_GAP);
 
+    if (m_translate_button && !m_translate_button->isHidden())
+        margin += m_translate_button->width();
     if (m_zoom_indicator_button && !m_zoom_indicator_button->isHidden())
         margin += m_zoom_indicator_button->width() + LOCATION_ZOOM_CHIP_GAP;
     if (m_location_in_use_button && !m_location_in_use_button->isHidden())
