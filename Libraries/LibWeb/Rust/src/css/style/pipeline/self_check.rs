@@ -605,6 +605,7 @@ impl StyleEngine {
             }));
         }
         failures.extend(installed_differences(&self.retained, root, &live.records, &describe));
+        failures.extend(live.kept_hidden_differences(&self.retained, &describe));
         failures
     }
 
