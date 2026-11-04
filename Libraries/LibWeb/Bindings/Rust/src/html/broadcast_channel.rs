@@ -17,6 +17,7 @@ use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcWeak, Ma
 use liburl_rust::FfiOrigin;
 use liburl_rust::origin::Origin;
 
+use crate::bindings::environment_settings_object::relevant_settings_object;
 use crate::bindings::event_target::{CppEvent, CppEventTarget, EventListenerListChanged, GetTheParent};
 use crate::bindings::global_object::{
     relevant_global_object, window_from_global_object, worker_global_scope_from_global_object,
@@ -172,7 +173,9 @@ impl BroadcastChannel {
             // 2. Set this's closed flag to false.
             closed_flag: Cell::new(false),
             origin: relevant_settings_object_origin(realm),
-            storage_key: obtain_a_storage_key_for_non_storage_purposes(realm),
+            storage_key: obtain_a_storage_key_for_non_storage_purposes(&relevant_settings_object(
+                realm.global_object(),
+            )),
         });
         channel.event_target.set_owner(channel);
         channel.event_target.set_event_listener_list_changed_steps::<Self>();

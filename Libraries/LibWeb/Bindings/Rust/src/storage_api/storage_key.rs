@@ -9,18 +9,19 @@
 
 use core::ffi::c_void;
 
-use libjs_rust::api::{Gc, Realm};
 use liburl_rust::FfiOrigin;
 use liburl_rust::origin::Origin;
 
+use crate::bindings::environment_settings_object::CppEnvironmentSettingsObject;
+
 unsafe extern "C" {
     fn web_storage_api_obtain_a_storage_key(
-        realm: *mut c_void,
+        environment: *mut c_void,
         ctx: *mut c_void,
         on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
     ) -> bool;
     fn web_storage_api_obtain_a_storage_key_for_non_storage_purposes(
-        realm: *mut c_void,
+        environment: *mut c_void,
         ctx: *mut c_void,
         on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
     );
@@ -49,20 +50,20 @@ unsafe extern "C" fn on_origin(ctx: *mut c_void, ffi_origin: *const FfiOrigin) {
 }
 
 /// https://storage.spec.whatwg.org/#obtain-a-storage-key
-pub(crate) fn obtain_a_storage_key(realm: Gc<Realm>) -> Option<StorageKey> {
+pub(crate) fn obtain_a_storage_key(environment: &CppEnvironmentSettingsObject) -> Option<StorageKey> {
     let mut origin: Option<Origin> = None;
-    // SAFETY: The realm is live, and the origin outlives the call.
-    unsafe { web_storage_api_obtain_a_storage_key(realm.as_ptr().cast(), (&raw mut origin).cast(), on_origin) };
+    // SAFETY: The environment settings object is live, and the origin outlives the call.
+    unsafe { web_storage_api_obtain_a_storage_key(environment.as_ptr(), (&raw mut origin).cast(), on_origin) };
     origin.map(|origin| StorageKey { origin })
 }
 
 /// https://storage.spec.whatwg.org/#obtain-a-storage-key-for-non-storage-purposes
-pub(crate) fn obtain_a_storage_key_for_non_storage_purposes(realm: Gc<Realm>) -> StorageKey {
+pub(crate) fn obtain_a_storage_key_for_non_storage_purposes(environment: &CppEnvironmentSettingsObject) -> StorageKey {
     let mut origin: Option<Origin> = None;
-    // SAFETY: The realm is live, and the origin outlives the call.
+    // SAFETY: The environment settings object is live, and the origin outlives the call.
     unsafe {
         web_storage_api_obtain_a_storage_key_for_non_storage_purposes(
-            realm.as_ptr().cast(),
+            environment.as_ptr(),
             (&raw mut origin).cast(),
             on_origin,
         );
