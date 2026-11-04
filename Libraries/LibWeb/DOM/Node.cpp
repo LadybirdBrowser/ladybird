@@ -2464,6 +2464,11 @@ void Node::recompute_editable_subtree_flags_and_repaint()
 // https://w3c.github.io/editing/docs/execCommand/#editable
 bool Node::is_editable() const
 {
+    // OPTIMIZATION: Nothing below an unedited parent is editable, which answers for nearly every node without asking
+    //               what kind of node it is.
+    if (!parent() || !parent()->m_in_editable_subtree)
+        return false;
+
     // Something is editable if it is a node; it is not an editing host;
     if (is_editing_host())
         return false;
@@ -2474,8 +2479,7 @@ bool Node::is_editable() const
         return false;
 
     // its parent is an editing host or editable;
-    if (!parent() || !parent()->m_in_editable_subtree)
-        return false;
+    // NB: Checked first, above.
 
     // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
     // When a node is inert:
@@ -2503,25 +2507,23 @@ bool Node::is_editing_host() const
     if (!html_element)
         return false;
 
-    // INTEROP: See recompute_editable_subtree_flag(). Select, optgroup and option elements are not editing hosts
-    //          either.
-    if (is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this))
-        return false;
-
     // An editing host is either an HTML element with its contenteditable attribute in the true state or
     // plaintext-only state,
     // AD-HOC: Only return true here if this node is not the child of another editable node or an editing host,
     //         effectively merging this potential editing host with its editing host ancestor. This causes a call to
     //         `::editing_host()` to automatically traverse to the top-most editing host.
     auto state = html_element->content_editable_state();
-    if ((state == HTML::ContentEditableState::True || state == HTML::ContentEditableState::PlaintextOnly)
-        && (!parent() || !parent()->m_in_editable_subtree)) {
-        return true;
-    }
+    bool const hosts_by_attribute = (state == HTML::ContentEditableState::True || state == HTML::ContentEditableState::PlaintextOnly)
+        && (!parent() || !parent()->m_in_editable_subtree);
 
     // or a child HTML element of a Document whose design mode enabled is true.
     auto* doc = as_if<Document>(parent());
-    return doc && doc->design_mode_enabled_state();
+    if (!hosts_by_attribute && !(doc && doc->design_mode_enabled_state()))
+        return false;
+
+    // INTEROP: See recompute_editable_subtree_flag(). Select, optgroup and option elements are not editing hosts
+    //          either.
+    return !is<HTML::HTMLSelectElement>(*this) && !is<HTML::HTMLOptGroupElement>(*this) && !is<HTML::HTMLOptionElement>(*this);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editing-host-of
