@@ -1,0 +1,6 @@
+empty flow-root child, with whitespace: FOO top=140
+empty flow-root child, without whitespace: FOO top=140
+empty table child: FOO top=140
+empty flex child: FOO top=140
+empty block child, which collapses through: FOO top=140
+whitespace only, which collapses through: FOO top=140

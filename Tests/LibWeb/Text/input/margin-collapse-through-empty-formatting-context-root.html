@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .root { display: flow-root; width: 300px; }
+    .gap { margin-top: 140px; }
+</style>
+<!-- A box's margins collapse through it only if it has no in-flow children, and an empty box that establishes a
+     formatting context doesn't let them collapse through it either. Either way, the 140px gap stays before FOO. -->
+<div class="root" data-case="empty flow-root child, with whitespace"><div class="gap">
+  <div style="display: flow-root"></div>
+</div><span class="probe">FOO</span></div>
+<div class="root" data-case="empty flow-root child, without whitespace"><div class="gap"><div style="display: flow-root"></div></div><span class="probe">FOO</span></div>
+<div class="root" data-case="empty table child"><div class="gap">
+  <div style="display: table"></div>
+</div><span class="probe">FOO</span></div>
+<div class="root" data-case="empty flex child"><div class="gap">
+  <div style="display: flex"></div>
+</div><span class="probe">FOO</span></div>
+<div class="root" data-case="empty block child, which collapses through"><div class="gap">
+  <div></div>
+</div><span class="probe">FOO</span></div>
+<div class="root" data-case="whitespace only, which collapses through"><div class="gap">
+  </div><span class="probe">FOO</span></div>
+<script>
+    test(() => {
+        for (const root of document.querySelectorAll(".root")) {
+            const top = root.querySelector(".probe").getBoundingClientRect().top - root.getBoundingClientRect().top;
+            println(`${root.dataset.case}: FOO top=${top}`);
+        }
+    });
+</script>
