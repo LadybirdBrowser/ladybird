@@ -19,6 +19,38 @@ describe("bytecode generator operand lifetime regressions", () => {
         expect(callMethod()).toBe("old");
     });
 
+    test("tagged templates preserve the tag, receiver, and earlier substitutions", () => {
+        function localTag() {
+            let tag = () => "old";
+            return tag`${(tag = () => "new")}`;
+        }
+
+        function memberTag() {
+            let base = {
+                name: "old",
+                tag() {
+                    return this.name;
+                },
+            };
+            const newer = {
+                name: "new",
+                tag() {
+                    return this.name;
+                },
+            };
+            return base.tag`${(base = newer)}`;
+        }
+
+        function substitutionTag() {
+            let value = 1;
+            return ((strings, first, second) => [first, second])`${value}${(value = 2)}`;
+        }
+
+        expect(localTag()).toBe("old");
+        expect(memberTag()).toBe("old");
+        expect(substitutionTag()).toEqual([1, 2]);
+    });
+
     test("computed delete keeps the original base", () => {
         function deleteProperty() {
             let base = { x: 1 };
