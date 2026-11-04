@@ -102,66 +102,6 @@ def is_animatable_property(properties: dict, property_name: str) -> bool:
     return False
 
 
-def generate_bounds_checking_function(
-    out: TextIO, properties: dict, css_type_name: str, type_name: str, value_getter: str = ""
-) -> None:
-    out.write(f"""
-bool property_accepts_{css_type_name}(PropertyID property_id, [[maybe_unused]] {type_name} const& value)
-{{
-    switch (property_id) {{
-""")
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        valid_types = value.get("valid-types")
-        if not valid_types:
-            continue
-        for valid_type in valid_types:
-            type_and_range = valid_type.split(" ")
-            if type_and_range[0] != css_type_name:
-                continue
-
-            out.write(f"""
-    case PropertyID::{title_casify(name)}:
-        return """)
-
-            if len(type_and_range) > 1:
-                range_str = type_and_range[1]
-                if not (range_str.startswith("[") and range_str.endswith("]") and "," in range_str):
-                    raise ValueError(f"Bad range: {range_str}")
-                comma_index = range_str.index(",")
-                min_value_string = range_str[1:comma_index]
-                max_value_string = range_str[comma_index + 1 : -1]
-
-                if min_value_string == "-∞":
-                    min_value_string = ""
-                if max_value_string == "∞":
-                    max_value_string = ""
-
-                if not min_value_string and not max_value_string:
-                    out.write("true;\n")
-                    break
-
-                parts = []
-                if min_value_string:
-                    parts.append(f"{value_getter} >= {min_value_string}")
-                if max_value_string:
-                    parts.append(f"{value_getter} <= {max_value_string}")
-                out.write(" && ".join(parts))
-                out.write(";\n")
-            else:
-                out.write("true;\n")
-            break
-
-    out.write("""
-    default:
-        return false;
-    }
-}
-""")
-
-
 def format_numeric_range(type_name: str, min_val: str, max_val: str) -> tuple[str, str]:
     if type_name == "integer":
         min_str = "AK::NumericLimits<i32>::min()" if min_val == "-∞" else min_val
@@ -295,7 +235,6 @@ enum class PropertyID : {property_id_underlying_type} {{
         {title_casify(name)},
 """)
 
-    # FIXME: property_accepts_{number,percentage}() and property_accepted_ranges_by_value_type provide the same data, we should consolidate them.
     out.write(f"""
 }};
 
@@ -316,17 +255,6 @@ bool property_is_list_valued(PropertyID);
 bool property_accepts_type(PropertyID, ValueType);
 WEB_API NumericRangesByValueType property_accepted_ranges_by_value_type(PropertyID);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
-
-// These perform range-checking, but are also safe to call with properties that don't accept that type. (They'll just return false.)
-bool property_accepts_angle(PropertyID, Angle const&);
-bool property_accepts_flex(PropertyID, Flex const&);
-bool property_accepts_frequency(PropertyID, Frequency const&);
-bool property_accepts_integer(PropertyID, i64 const&);
-bool property_accepts_length(PropertyID, Length const&);
-bool property_accepts_number(PropertyID, double const&);
-bool property_accepts_percentage(PropertyID, Percentage const&);
-bool property_accepts_resolution(PropertyID, Resolution const&);
-bool property_accepts_time(PropertyID, Time const&);
 
 WEB_API bool property_is_shorthand(PropertyID);
 WEB_API bool property_is_legacy_shorthand(PropertyID);
@@ -389,13 +317,10 @@ def write_implementation_file(out: TextIO, properties: dict, logical_property_gr
 #include <AK/CharacterTypes.h>
 #include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyName.h>
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
-#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWebCommon/Infra/Strings.h>
@@ -742,16 +667,6 @@ Optional<ValueType> property_resolves_percentages_relative_to(PropertyID propert
     }
 }
 """)
-
-    generate_bounds_checking_function(out, properties, "angle", "Angle", "value.raw_value()")
-    generate_bounds_checking_function(out, properties, "flex", "Flex", "value.raw_value()")
-    generate_bounds_checking_function(out, properties, "frequency", "Frequency", "value.raw_value()")
-    generate_bounds_checking_function(out, properties, "integer", "i64", "value")
-    generate_bounds_checking_function(out, properties, "length", "Length", "value.raw_value()")
-    generate_bounds_checking_function(out, properties, "number", "double", "value")
-    generate_bounds_checking_function(out, properties, "percentage", "Percentage", "value.value()")
-    generate_bounds_checking_function(out, properties, "resolution", "Resolution", "value.raw_value()")
-    generate_bounds_checking_function(out, properties, "time", "Time", "value.raw_value()")
 
     out.write("""
 bool property_is_shorthand(PropertyID property_id)
