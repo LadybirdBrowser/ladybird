@@ -49,20 +49,17 @@
             for (let step = 0; step < 3; step++)
                 await internals.wheelThroughUIProcess(250, 50, 0, 50, true, "ongoing");
         };
-        const momentumFor = async milliseconds => {
-            const end = performance.now() + milliseconds;
-            while (performance.now() < end) {
-                await internals.wheelThroughUIProcess(250, 50, 0, 2, true, "momentum");
-                await animationFrame();
-            }
-        };
+        // A pause of 500 milliseconds in a stream of momentum ends the gesture, and a slow runner can take that long
+        // between two events. Fingers on the touchpad hold a gesture for as long as they rest, so only one event is
+        // momentum.
+        const momentum = () => internals.wheelThroughUIProcess(250, 50, 0, 2, true, "momentum");
 
         // The flung box comes to rest while the thumb of the other is held, and its scroll ends then.
         await internals.mouseEventThroughUIProcess("mousemove", 147, 5);
         await internals.mouseEventThroughUIProcess("mousedown", 147, 5);
         await internals.mouseEventThroughUIProcess("mousemove", 147, 40, { buttons: 1 });
         await flick();
-        await momentumFor(100);
+        await momentum();
         await internals.wheelThroughUIProcess(250, 50, 0, 0, true, "ended");
         await settle();
         report("flung box at rest while the thumb is held");
@@ -70,15 +67,16 @@
         await settle();
         report("thumb released");
 
-        // The thumb of the other box is let go of while the flung box is still under momentum, and its scroll ends
-        // then.
+        // The thumb of the other box is let go of while the fingers still hold the flung box, and its scroll ends then.
         await flick();
         await internals.mouseEventThroughUIProcess("mousemove", 147, 40);
         await internals.mouseEventThroughUIProcess("mousedown", 147, 40);
         await internals.mouseEventThroughUIProcess("mousemove", 147, 70, { buttons: 1 });
+        const draggedBoxScrollEnded = scrollendEvent(dragged);
         await internals.mouseEventThroughUIProcess("mouseup", 147, 70);
-        await momentumFor(100);
-        report("thumb released while the other box is under momentum");
+        await draggedBoxScrollEnded;
+        report("thumb released while the other box is being flung");
+        await momentum();
         await internals.wheelThroughUIProcess(250, 50, 0, 0, true, "ended");
         await settle();
         report("momentum ended");
