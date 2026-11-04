@@ -143,8 +143,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     TRY(RequestServer::initialize_libcurl());
 
-    if (!disable_sandbox)
-        TRY(RequestServer::apply_sandbox(mach_server_name, certificates, cache_path));
+    if (!disable_sandbox) {
+        Optional<StringView> disk_cache_directory;
+        if (disk_cache.has_value())
+            disk_cache_directory = disk_cache->cache_directory().string();
+        TRY(RequestServer::apply_sandbox(mach_server_name, certificates, disk_cache_directory));
+    }
 
     // Connections are stored on the stack to ensure they are destroyed before static destruction begins. This prevents
     // crashes from notifiers trying to unregister from already-destroyed thread data during process exit.
