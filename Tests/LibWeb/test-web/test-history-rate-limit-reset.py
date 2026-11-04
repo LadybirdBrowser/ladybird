@@ -34,11 +34,14 @@ def main():
             shutil.copyfile(source / "Tests/LibWeb" / file, root / file)
         (root / "Text/input/wpt-import").mkdir()
         shutil.copyfile(source / "Tests/LibWeb/Text/input/include.js", root / "Text/input/include.js")
-        # More history updates than a navigable may make in one rate-limit window.
+        # More history updates than a navigable may make in one rate-limit window. The UI process applies the accepted
+        # ones one at a time, after the page's script has finished, so wait for that before ending the test: Otherwise
+        # the next test's load waits behind them, and on a slow runner can time out before they're done.
         (root / "Text/input/flood.html").write_text(
-            '<!doctype html><script src="include.js"></script><script>asyncTest(done => {'
+            '<!doctype html><script src="include.js"></script><script>asyncTest(async done => {'
             'console.log("HISTORY_RESET_FLOOD");'
             'for (let i = 0; i < 250; ++i) history.pushState(null, "", "#" + i);'
+            "await internals.flushSessionHistoryTraversalQueue();"
             'println("flooded"); done();'
             "});</script>"
         )
