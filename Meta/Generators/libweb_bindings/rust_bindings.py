@@ -834,13 +834,13 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
     use ak::Utf16String;
     use libjs_rust::api::{
         ArrayBuffer, DataView, EmbedderClass, ErrorKind, ErrorType, FunctionObject, Gc, JSHostClass, MarkedVec,
-        Object, PropertyKey, RawNativeFunctionResult, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm,
+        Object, PropertyKey, RawNativeFunctionResult, ShouldThrowExceptions, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm,
         is_host_instance_of, raw_native,
     };
 
     use crate::bindings::conversions::{
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
-        implements_cpp_interface, iterator_method, record_from_js, record_to_js, rooted_sequence_to_js,
+        frozen_array_to_js, implements_cpp_interface, iterator_method, record_from_js, record_to_js, rooted_sequence_to_js,
         sequence_from_js, sequence_to_js, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
         to_cpp_interface_in_union, to_dom_string,
         to_dom_string_treating_null_as_empty, to_double, to_float, to_long, to_long_enforcing_range, to_long_long,
@@ -1007,6 +1007,8 @@ def write_rust_interface(
         )
         if attribute.setter_method is not None:
             write_rust_attribute_setter(out, context, interface, attribute)
+        elif attribute.put_forwards is not None:
+            write_rust_put_forwards_setter(out, attribute)
 
     for operation_set in members.operation_sets:
         if len(operation_set.overloads) == 1 and operation_set.overloads[0].is_default_to_json:
@@ -1067,7 +1069,8 @@ def write_rust_interface(
             out.write(f'        define_cached_attribute(vm, realm, prototype, "{name}", {getter});\n')
             defined_property_names.append(name)
             continue
-        setter = "None" if attribute.attribute.readonly else f"raw_native!({attribute.setter_function})"
+        has_setter = not attribute.attribute.readonly or attribute.put_forwards is not None
+        setter = f"raw_native!({attribute.setter_function})" if has_setter else "None"
         out.write(f'        define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});\n')
         defined_property_names.append(name)
     for operation_set in members.operation_sets:
@@ -1804,6 +1807,30 @@ def write_rust_attribute_setter(
     )
 
 
+def write_rust_put_forwards_setter(out: TextIO, attribute: RustAttribute) -> None:
+    """The native function of the setter of a [PutForwards] attribute, which sets the attribute that it names on the
+    value of the attribute: https://webidl.spec.whatwg.org/#dfn-attribute-setter"""
+    out.write(
+        f"""
+    fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
+        let value = vm.argument(0);
+        let (object, _) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME)?;
+        let receiver = object.get(vm, &PropertyKey::from_utf8("{attribute.attribute.name}"))?;
+        if !receiver.is_object() {{
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&"{attribute.attribute.name}"]);
+        }}
+        receiver.as_object().set(
+            vm,
+            &PropertyKey::from_utf8("{attribute.put_forwards}"),
+            value,
+            ShouldThrowExceptions::No,
+        )?;
+        Ok(Value::UNDEFINED)
+    }}
+"""
+    )
+
+
 def write_rust_operation(
     out: TextIO, context: GenerationContext, interface: Interface, name: str, function: str, overload: RustOperation
 ) -> None:
@@ -1937,7 +1964,7 @@ pub(crate) mod definitions {
     use crate::bindings::conversions::{
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
         buffer_source_if, dictionary_member, dictionary_object, enumeration_value_to_js, implements_cpp_interface,
-        iterator_method, record_from_js, record_to_js, rooted_sequence_to_js, sequence_from_iterable, sequence_from_js,
+        frozen_array_to_js, iterator_method, record_from_js, record_to_js, rooted_sequence_to_js, sequence_from_iterable, sequence_from_js,
         sequence_to_js, throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source,
         to_cpp_interface,
         to_dom_string, to_dom_string_treating_null_as_empty, to_double, to_enumeration_value, to_float, to_long,

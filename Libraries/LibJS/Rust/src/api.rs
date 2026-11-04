@@ -73,7 +73,7 @@ pub use crate::runtime::module_environment::ModuleEnvironment;
 pub use crate::runtime::module_request::ModuleRequest;
 pub use crate::runtime::native_function::{NativeFunction, RawNativeFunction};
 pub use crate::runtime::number_object::NumberObject;
-pub use crate::runtime::object::{IntegrityLevel, Object, PropertyKind};
+pub use crate::runtime::object::{IntegrityLevel, Object, PropertyKind, ShouldThrowExceptions};
 pub use crate::runtime::primitive_string::PrimitiveString;
 pub use crate::runtime::promise::{Promise, PromiseState, RejectionOperation};
 pub use crate::runtime::promise_capability::{PromiseCapability, new_promise_capability};

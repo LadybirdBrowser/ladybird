@@ -40,6 +40,7 @@ SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {
     "ImplementedAs",
     "NeedsCallerRealm",
     "NewObject",
+    "PutForwards",
     "SameObject",
 }
 SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {
@@ -76,6 +77,12 @@ class RustAttribute:
     # The event type of an event handler IDL attribute, whose getter and setter work on the C++ EventTarget that the
     # object owns: https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-idl-attributes
     event_type: Optional[str] = None
+
+    @property
+    def put_forwards(self) -> Optional[str]:
+        """The attribute of the attribute's value that the setter of a read only attribute forwards to: [PutForwards],
+        https://webidl.spec.whatwg.org/#PutForwards"""
+        return self.attribute.extended_attributes.get("PutForwards")
 
     @property
     def is_cached(self) -> bool:
@@ -421,6 +428,8 @@ def rust_members(interface: Interface) -> RustMembers:
             continue
         if "CachedAccessor" in attribute.extended_attributes and not attribute.readonly:
             fail(f"its attribute {attribute.name} is [CachedAccessor] and not read only")
+        if "PutForwards" in attribute.extended_attributes and not attribute.readonly:
+            fail(f"its attribute {attribute.name} is [PutForwards] and not read only")
         if attribute.type.name in ("EventHandler", "EventHandlerNonNull"):
             rust_attribute = event_handler_attribute(attribute)
         else:

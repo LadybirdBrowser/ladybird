@@ -404,7 +404,7 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
         return f"Option<{rust_type(idl_type.without_nullable(), context, what, is_result)}>"
     name = idl_type.name
     if isinstance(idl_type, IDLParameterizedType):
-        if name == "sequence":
+        if name in ("sequence", "FrozenArray"):
             element_type = idl_type.parameters[0]
             element = rust_type(element_type, context, what, is_result)
             # NB: A Vec would hide cells that the implementation returns from the collector until they are converted.
@@ -485,7 +485,7 @@ def holds_cells(
             return True
         return any_holds_cells(idl_type.flattened_member_types())
     if isinstance(idl_type, IDLParameterizedType):
-        if idl_type.name in ("sequence", "record"):
+        if idl_type.name in ("sequence", "FrozenArray", "record"):
             return any_holds_cells(idl_type.parameters)
         return True
     if idl_type.name in PLAIN_DATA_TYPES or context.enumeration(idl_type) is not None:

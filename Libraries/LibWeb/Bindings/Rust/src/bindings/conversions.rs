@@ -14,8 +14,8 @@ use std::borrow::Cow;
 use ak::{Utf16String, Utf16StringUnits, convert_valid_utf16_to_utf8, utf8_length_from_valid_utf16};
 use libjs_rust::api::{
     Array, ArrayBuffer, ArrayBufferOrder, ArrayBufferShared, DataView, ErrorKind, ErrorType, FunctionObject, Gc,
-    MarkedVec, Must, Object, PrimitiveString, PropertyKey, ThrowCompletionOr, Trace, TypedArrayBase, TypedArrayKind,
-    Value, Vm, create_typed_array_on_buffer, get_iterator_from_method_impl, get_view_byte_length,
+    IntegrityLevel, MarkedVec, Must, Object, PrimitiveString, PropertyKey, ThrowCompletionOr, Trace, TypedArrayBase,
+    TypedArrayKind, Value, Vm, create_typed_array_on_buffer, get_iterator_from_method_impl, get_view_byte_length,
     is_typed_array_out_of_bounds, is_view_out_of_bounds, iterator_step_value,
     make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record, to_well_formed,
     typed_array_byte_length,
@@ -1243,6 +1243,21 @@ pub(crate) fn sequence_to_js<T>(
 
     // 5. Return A.
     Ok(Value::from_object(array))
+}
+
+/// https://webidl.spec.whatwg.org/#js-frozen-array
+pub(crate) fn frozen_array_to_js(cx: &CallContext, array: ThrowCompletionOr<Value>) -> ThrowCompletionOr<Value> {
+    // 1. Let array be the result of converting the sequence of type T to a JavaScript value.
+    let array = array?;
+
+    // 2. Perform ! SetIntegrityLevel(array, "frozen").
+    array
+        .as_object()
+        .set_integrity_level(cx.vm(), IntegrityLevel::Frozen)
+        .must();
+
+    // 3. Return array.
+    Ok(array)
 }
 
 /// sequence_to_js() for a sequence of cells, which stay rooted while converting an element allocates.
