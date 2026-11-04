@@ -103,6 +103,11 @@ void StyleEngine::defer_element_initial_features(DOM::Element& element)
 {
     element.set_initial_style_features_pending(true);
     m_nodes_with_pending_initial_features.append(element.style_node_id());
+    note_element_awaiting_first_style_computation(element);
+}
+
+void StyleEngine::note_element_awaiting_first_style_computation(DOM::Element& element)
+{
     if (element.needs_preparation_for_style_computation())
         m_nodes_awaiting_first_style_computation.set(element.style_node_id());
 }
@@ -368,13 +373,13 @@ void StyleEngine::record_element_arrivals(ReadonlySpan<StyleEngineFFI::FfiArrivi
     StyleEngineFFI::style_engine_stage_element_arrivals(host(), elements);
 }
 
-void StyleEngine::record_element_arrival(StyleEngineFFI::FfiElementArrival const& arrival, ReadonlySpan<StyleAtomID> custom_states, ReadonlySpan<StyleAtomID> classes, ReadonlySpan<StyleAtomID> attributes)
+void StyleEngine::record_element_arrival_rows(ReadonlySpan<StyleEngineFFI::FfiElementArrivalRow> rows, ReadonlySpan<u32> atoms)
 {
-    VERIFY(custom_states.size() == arrival.custom_state_count && classes.size() == arrival.class_count && attributes.size() == 2 * static_cast<size_t>(arrival.attribute_count));
+    if (rows.is_empty())
+        return;
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    static_assert(sizeof(StyleAtomID) == sizeof(u32));
-    StyleEngineFFI::style_engine_stage_element_arrival(host(), &arrival, reinterpret_cast<u32 const*>(custom_states.data()), reinterpret_cast<u32 const*>(classes.data()), reinterpret_cast<u32 const*>(attributes.data()));
+    StyleEngineFFI::style_engine_stage_element_arrival_rows(host(), rows, atoms);
 }
 
 void StyleEngine::record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const& delta)
@@ -466,7 +471,7 @@ void StyleEngine::submit_recorded_input()
         m_style_computer->document().assign_slottables_if_needed();
     Layout::ForcedReadScope read { render_document() };
     if (m_style_computer) {
-        take_in_pending_style_arrivals(m_style_computer->document(), HiddenChildArrivals::MayWait);
+        take_in_and_publish_pending_style_arrivals(m_style_computer->document(), HiddenChildArrivals::MayWait, read);
         publish_pending_element_features(*this, *m_style_computer, read);
         publish_withheld_element_features(*this, *m_style_computer, read);
     }

@@ -97,6 +97,12 @@ impl ProjectionWrites<'_> {
 
     /// Stage one structural delta and the neighbor rows it derives.
     fn stage_tree_delta(&mut self, node: StyleNodeID, old: Option<TreeRelations>, new: Option<TreeRelations>) {
+        self.stage_tree_neighbors(node, old, new);
+        self.stage_tree_row(node, old, new);
+    }
+
+    /// Stage the neighbor rows a structural delta derives.
+    fn stage_tree_neighbors(&mut self, node: StyleNodeID, old: Option<TreeRelations>, new: Option<TreeRelations>) {
         if let Some(old) = old {
             if let Some(previous) = old.previous_element_sibling {
                 self.stage_connected_tree_row(previous, |relations| {
@@ -125,7 +131,6 @@ impl ProjectionWrites<'_> {
                 });
             }
         }
-        self.stage_tree_row(node, old, new);
     }
 
     #[inline]
@@ -193,12 +198,18 @@ impl ProjectionWrites<'_> {
 
     // -- Facts ---------------------------------------------------------------------------------
 
-    /// Write every fact an element arrives with in one edit of its row.
+    /// Write every fact an element arrives with in one edit of its row, with how it stands in the tree where that
+    /// arrives with them.
     pub(in crate::css::style) fn record_element_arrival(
         &mut self,
         node: StyleNodeID,
         arrival: &ElementArrivalFacts<'_>,
+        relations: Option<TreeRelations>,
     ) {
+        if relations.is_some() {
+            self.stage_tree_neighbors(node, None, relations);
+            self.count(InputKey::TreeRelations(node));
+        }
         let (custom_states, rest) = arrival.atoms.split_at(arrival.custom_state_count);
         let (classes, attributes) = rest.split_at(arrival.class_count);
         let custom_states = StyleAtomID::slice_of_raw(custom_states);
@@ -219,6 +230,7 @@ impl ProjectionWrites<'_> {
         self.projection.write_arrival_facts(
             node,
             &ArrivalFacts {
+                relations,
                 tag: arrival.tag,
                 folded_tag: arrival.folded_tag,
                 namespace: arrival.namespace,

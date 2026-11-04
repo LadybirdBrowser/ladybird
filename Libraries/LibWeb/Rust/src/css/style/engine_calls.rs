@@ -546,39 +546,66 @@ pub extern "C" fn style_engine_stage_tree_delta(host: &DocumentHost, delta: &Ffi
         .record_ffi_tree_delta(delta);
 }
 
-/// Writes the arrival of an element, with every fact its selectors test, into its projection row in one go, and keeps
-/// what it arrives with beside its row for the host's next barrier.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, `custom_states` and `classes` must point at
-/// `arrival.custom_state_count` and `arrival.class_count` readable atoms, and `attributes` at
-/// `2 * arrival.attribute_count` readable atoms, a name and a value per attribute.
+/// An element's facts arriving, with how it stands in the tree where it arrives there with them. Elements that took
+/// their place in the tree earlier arrive with `has_relations` false.
+#[repr(C)]
+pub struct FfiElementArrivalRow {
+    pub arrival: FfiElementArrival,
+    pub unique_node_id: u64,
+    pub relations: FfiTreeRelations,
+    pub has_relations: bool,
+}
+
+/// Writes the arrival of each element of `rows`, with every fact its selectors test, into its projection row in one go,
+/// and keeps what it arrives with beside its row for the host's next barrier. `atoms` holds each row's custom states,
+/// classes and attributes in turn.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_stage_element_arrival(
+pub extern "C" fn style_engine_stage_element_arrival_rows(
     host: &DocumentHost,
-    arrival: &FfiElementArrival,
-    custom_states: *const u32,
-    classes: *const u32,
-    attributes: *const u32,
+    rows: ak::Span<'_, FfiElementArrivalRow>,
+    atoms: ak::Span<'_, u32>,
 ) {
-    let Some(node) = StyleNodeID::from_raw(arrival.node) else {
-        debug_assert!(false, "an element arrival named an invalid style node");
-        return;
-    };
-    let mut atoms: smallvec::SmallVec<[u32; 32]> = smallvec::SmallVec::new();
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        atoms.extend_from_slice(borrow(custom_states, arrival.custom_state_count as usize));
-        atoms.extend_from_slice(borrow(classes, arrival.class_count as usize));
-        atoms.extend_from_slice(borrow(attributes, 2 * arrival.attribute_count as usize));
-    }
+    let rows = rows.as_slice();
+    let mut atoms = atoms.as_slice();
     let memo = host.engine_memo();
-    memo.projection
-        .borrow_mut()
-        .writes()
-        .record_element_arrival(node, &super::bridge::element_arrival_facts(arrival, &atoms));
-    if arrival.associated_pseudo_kind_plus_one != 0 {
-        memo.unpublished.borrow_mut().backing_elements.push(node);
+    {
+        let mut projection = memo.projection.borrow_mut();
+        let mut writes = projection.writes();
+        let mut unpublished = memo.unpublished.borrow_mut();
+        for row in rows {
+            let arrival = &row.arrival;
+            let count = arrival.custom_state_count as usize
+                + arrival.class_count as usize
+                + 2 * arrival.attribute_count as usize;
+            let (row_atoms, rest) = atoms.split_at(count);
+            atoms = rest;
+            let Some(node) = StyleNodeID::from_raw(arrival.node) else {
+                debug_assert!(false, "an element arrival named an invalid style node");
+                continue;
+            };
+            let relations = row.has_relations.then(|| row.relations.decode());
+            writes.record_element_arrival(
+                node,
+                &super::bridge::element_arrival_facts(arrival, row_atoms),
+                relations,
+            );
+            if arrival.associated_pseudo_kind_plus_one != 0 {
+                unpublished.backing_elements.push(node);
+            }
+        }
+    }
+    let ids: Box<[(StyleNodeID, i64)]> = rows
+        .iter()
+        .filter(|row| row.has_relations)
+        .filter_map(|row| {
+            Some((
+                StyleNodeID::from_raw(row.arrival.node)?,
+                row.unique_node_id.cast_signed(),
+            ))
+        })
+        .collect();
+    if !ids.is_empty() {
+        host.queue_change(ArenaChange::Engine(EngineWrite::ElementUniqueNodeIds(ids)));
     }
 }
 

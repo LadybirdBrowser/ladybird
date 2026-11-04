@@ -549,7 +549,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     // since the last update under the identities they take here.
     // NB: What connected beside the transaction that flew is the next transaction's.
     if constexpr (!drains_flown_transaction) {
-        take_in_pending_style_arrivals(document, HiddenChildArrivals::MayWait);
+        take_in_and_publish_pending_style_arrivals(document, HiddenChildArrivals::MayWait, read);
         document.update_highlight_style_observability();
     }
     StyleUpdateScope style_update_scope { document.style_computer() };
@@ -795,7 +795,7 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
     auto const& read_element = abstract_element.element();
     auto read_may_need_waiting_children = document.descendant_style_arrival_pending()
         && read_element.has_inclusive_ancestor_with_display_none_ignoring_animations();
-    take_in_pending_style_arrivals(document, read_may_need_waiting_children ? HiddenChildArrivals::TakeIn : HiddenChildArrivals::MayWait);
+    take_in_and_publish_pending_style_arrivals(document, read_may_need_waiting_children ? HiddenChildArrivals::TakeIn : HiddenChildArrivals::MayWait, read);
     document.update_highlight_style_observability();
     StyleUpdateScope style_update_scope { document.style_computer() };
     // Refresh computed properties for an abstract element. An ordinary read first consumes the complete exact

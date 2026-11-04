@@ -544,7 +544,7 @@ pub struct FfiTreeRelations {
 }
 
 impl FfiTreeRelations {
-    fn decode(self) -> TreeRelations {
+    pub(super) fn decode(self) -> TreeRelations {
         TreeRelations {
             parent: StyleNodeID::from_raw(self.parent),
             previous_element_sibling: StyleNodeID::from_raw(self.previous_element_sibling),
@@ -1040,7 +1040,7 @@ impl super::projection_writes::ProjectionWrites<'_> {
             return;
         };
         *atoms = rest;
-        self.record_element_arrival(node, &element_arrival_facts(arrival, arrival_atoms));
+        self.record_element_arrival(node, &element_arrival_facts(arrival, arrival_atoms), None);
     }
 
     /// Write the local fact the host published as `delta`.
