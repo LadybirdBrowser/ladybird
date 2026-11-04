@@ -655,6 +655,10 @@ public:
         setAttribute(Qt::WA_ShowWithoutActivating);
         setAttribute(Qt::WA_TransparentForMouseEvents);
 
+        // NB: KDE's widget styles have the window system cast a shadow around any tooltip window. The card casts its own
+        //     within this window, so that would be a second shadow around the room left for the first.
+        setProperty("_KDE_NET_WM_SKIP_SHADOW", true);
+
         auto* outer_layout = new QVBoxLayout(this);
         outer_layout->setContentsMargins(TAB_PREVIEW_SHADOW_MARGINS);
         outer_layout->setSpacing(0);
