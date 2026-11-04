@@ -52,7 +52,6 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
@@ -69,7 +68,6 @@
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/MediaQueryList.h>
-#include <LibWeb/CSS/MediaQueryListEvent.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -88,7 +86,6 @@
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
-#include <LibWeb/CSS/TransitionEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/HTMLIntegration.h>
@@ -4693,17 +4690,18 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
 
         auto timeline = transition->timeline();
 
+        auto owning_element = transition->owning_element().value();
+        auto& global = HTML::relevant_global_object(owning_element.element().document());
+        auto pseudo_element = owning_element.pseudo_element().map([](auto it) {
+                                                                 return Utf16String::formatted("::{}", CSS::pseudo_element_name(it));
+                                                             })
+                                  .value_or({});
+        auto event = transition->create_event(owning_element.element().document(), type, elapsed_time_output, move(pseudo_element));
+        event->set_time_stamp(HighResolutionTime::current_high_resolution_time(global));
+        event->set_is_trusted(true);
+
         append_pending_animation_event({
-            .event = CSS::TransitionEvent::create(
-                type,
-                String { transition->transition_property().view().to_utf8_but_should_be_ported_to_utf16() },
-                elapsed_time_output,
-                transition->owning_element()->pseudo_element().map([](auto it) {
-                                                                  return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
-                                                              })
-                    .value_or({}),
-                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(transition->owning_element()->element().document())),
-                transition),
+            .event = event,
             .animation = transition,
             .target = transition->owning_element()->element(),
             .scheduled_event_time = timeline && timeline->can_convert_a_timeline_time_to_an_origin_relative_time()
@@ -4804,22 +4802,13 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
 
         auto timeline = animation->timeline();
 
-        Bindings::AnimationEventInit event_init {};
-        event_init.bubbles = true;
-        event_init.animation_name = css_animation.animation_name().to_utf16_string();
-        event_init.elapsed_time = elapsed_time_output;
-        if (auto pseudo_element = owning_element->pseudo_element().map([](auto it) {
-                return Utf16String::formatted("::{}", CSS::pseudo_element_name(it));
-            });
-            pseudo_element.has_value()) {
-            event_init.pseudo_element = pseudo_element.release_value();
-        }
-        event_init.animation = css_animation;
-
-        auto event = CSS::AnimationEvent::create(
-            name,
-            event_init,
-            HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(owning_element->element())));
+        auto pseudo_element = owning_element->pseudo_element().map([](auto it) {
+                                                                  return Utf16String::formatted("::{}", CSS::pseudo_element_name(it));
+                                                              })
+                                  .value_or({});
+        auto& global = HTML::relevant_global_object(owning_element->element());
+        auto event = css_animation.create_event(owning_element->element().document(), name, elapsed_time_output, move(pseudo_element));
+        event->set_time_stamp(HighResolutionTime::current_high_resolution_time(global));
         event->set_is_trusted(true);
 
         append_pending_animation_event({
@@ -5846,11 +5835,8 @@ void Document::evaluate_media_queries_and_report_changes()
             auto did_change_internally = media_query_list->has_changed_state();
             media_query_list->set_has_changed_state(false);
             if (did_change_internally == true || did_match != now_matches) {
-                auto event = CSS::MediaQueryListEvent::create(
-                    HTML::EventNames::change,
-                    media_query_list->media(),
-                    now_matches,
-                    HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
+                auto event = media_query_list->create_change_event(now_matches);
+                event->set_time_stamp(HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
                 event->set_is_trusted(true);
                 media_query_list->dispatch_event(*event);
             }

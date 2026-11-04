@@ -6,6 +6,8 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
@@ -16,6 +18,12 @@
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
+
+extern "C" {
+
+// Defined in Bindings/Rust/src/css/exports.rs.
+void* web_media_query_list_event_create(JSVM*, void* realm, FlatPtr media, bool matches);
+}
 
 GC_DEFINE_ALLOCATOR(MediaQueryList);
 
@@ -66,6 +74,12 @@ bool MediaQueryList::matches() const
         m_has_changed_state = true;
 
     return now_matches;
+}
+
+GC::Ref<DOM::Event> MediaQueryList::create_change_event(bool matches) const
+{
+    auto* event = web_media_query_list_event_create(JS::HostABI::vm_to_abi(JS::VM::the()), &HTML::relevant_realm(*m_document), media().into_raw(), matches);
+    return GC::Ref { *static_cast<DOM::Event*>(static_cast<GC::Cell*>(event)) };
 }
 
 bool MediaQueryList::evaluate()

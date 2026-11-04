@@ -6,19 +6,37 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/Event.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/StyleEngineRustFFI.h>
 #include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
+
+extern "C" {
+
+// Defined in Bindings/Rust/src/css/exports.rs.
+void* web_transition_event_create(JSVM*, void* realm, FlatPtr event_name, FlatPtr name, double elapsed_time, FlatPtr pseudo_element, void* animation);
+}
+
+GC::Ref<DOM::Event> CSSTransition::create_event(DOM::Document const& document, Utf16FlyString const& type, double elapsed_time, Utf16String pseudo_element)
+{
+    auto& realm = HTML::relevant_realm(document);
+    auto wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref<CSSTransition> { *this });
+    auto* event = web_transition_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.to_utf16_string().into_raw(), transition_property().to_utf16_string().into_raw(), elapsed_time, move(pseudo_element).into_raw(), JS::HostABI::object_to_abi(wrapper.ptr()));
+    return GC::Ref { *static_cast<DOM::Event*>(static_cast<GC::Cell*>(event)) };
+}
 
 GC_DEFINE_ALLOCATOR(CSSTransition);
 

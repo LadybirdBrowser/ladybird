@@ -1,11 +1,11 @@
 // https://drafts.csswg.org/css-transitions-2/#interface-transitionevent-idl
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface TransitionEvent : Event {
-    constructor([FlyString] CSSOMString type, optional TransitionEventInit transitionEventInitDict = {});
+    constructor(CSSOMString type, optional TransitionEventInit transitionEventInitDict = {});
     readonly attribute CSSOMString propertyName;
     readonly attribute double elapsedTime;
     readonly attribute CSSOMString pseudoElement;
-    [DirectGetter] readonly attribute CSSTransition? animation;
+    readonly attribute CSSTransition? animation;
 };
 
 // https://drafts.csswg.org/css-transitions-2/#interface-transitionevent-idl

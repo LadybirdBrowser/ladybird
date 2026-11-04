@@ -70,7 +70,6 @@ set(SOURCES
     Crypto/CryptoKey.cpp
     Crypto/SubtleCrypto.cpp
     CSS/Angle.cpp
-    CSS/AnimationEvent.cpp
     CSS/ComputedStyleWorkingSet.cpp
     CSS/ComputedValues.cpp
     CSS/RustDeclarationBlock.cpp
@@ -148,7 +147,6 @@ set(SOURCES
     CSS/LengthBox.cpp
     CSS/MediaList.cpp
     CSS/MediaQueryList.cpp
-    CSS/MediaQueryListEvent.cpp
     CSS/Number.cpp
     CSS/NumericType.cpp
     CSS/Parser/ErrorReporter.cpp
@@ -217,7 +215,6 @@ set(SOURCES
     CSS/Supports.cpp
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp
     CSS/Time.cpp
-    CSS/TransitionEvent.cpp
     CSS/TypedOM.cpp
     CSS/URL.cpp
     CSS/UpdateStyle.cpp

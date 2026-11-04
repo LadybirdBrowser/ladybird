@@ -19,6 +19,9 @@ class CSSTransition : public Animations::Animation {
     GC_DECLARE_ALLOCATOR(CSSTransition);
 
 public:
+    // A new TransitionEvent for this transition that bubbles, which is implemented in Rust.
+    GC::Ref<DOM::Event> create_event(DOM::Document const&, Utf16FlyString const& type, double elapsed_time, Utf16String pseudo_element);
+
     // A transition is started provisionally, and associated with its target only once committed.
     static GC::Ref<CSSTransition> start_a_provisional_transition(
         DOM::AbstractElement,

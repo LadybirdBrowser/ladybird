@@ -8,13 +8,15 @@
 //! Libraries/LibWeb/CSS/TypedOM.cpp.
 
 use core::ffi::c_void;
+use core::ptr::NonNull;
 use std::sync::Arc;
 
 use ak::Utf16String;
-use libjs_rust::api::{MarkedVec, Vm};
+use libjs_rust::api::{Gc, MarkedVec, Vm};
 use libweb_rust::NativeMediaList;
 use libweb_rust::typed_om::{FfiNumericType, RetainedStyleValue};
 
+use super::animation_event::{AnimationEvent, AnimationEventInit};
 use super::css_image_value::CSSImageValue;
 use super::css_keyword_value::CSSKeywordValue;
 use super::css_math_clamp::CSSMathClamp;
@@ -30,10 +32,14 @@ use super::css_transform_value::CSSTransformValue;
 use super::css_unit_value::CSSUnitValue;
 use super::css_unparsed_value::CSSUnparsedValue;
 use super::media_list::MediaList;
+use super::media_query_list_event::{MediaQueryListEvent, MediaQueryListEventInit};
+use super::transition_event::{TransitionEvent, TransitionEventInit};
 use super::typed_om;
 use crate::bindings::Exception;
+use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_if_abi, cell_into_abi};
+use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_if_abi, cell_into_abi, realm_arguments};
+use crate::dom::event::EventInit;
 
 /// # Safety
 ///
@@ -423,4 +429,131 @@ pub unsafe extern "C" fn web_css_keyword_value_value(value: *mut c_void) -> usiz
     // SAFETY: The caller passes a live cell of a CSSKeywordValue.
     let value: Ref<CSSKeywordValue> = unsafe { cell_from_abi(value) };
     value.raw_value().into_raw()
+}
+
+/// A new MediaQueryListEvent named `change`, as the Event that C++ dispatches, given a raw string that C++ hands over.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `realm` a live realm, and `media` a raw string that C++ hands over.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_media_query_list_event_create(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    media: usize,
+    matches: bool,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    // SAFETY: The caller hands over the string.
+    let media = unsafe { Utf16String::from_raw_owned(media) };
+    let event_init = MediaQueryListEventInit {
+        parent: EventInit {
+            bubbles: false,
+            cancelable: false,
+            composed: false,
+        },
+        matches,
+        media,
+    };
+    MediaQueryListEvent::create(vm, realm, &Utf16String::from_ascii(b"change"), event_init)
+        .event()
+        .as_ptr()
+}
+
+/// The object of a wrapper that C++ passes, if it passes one.
+///
+/// # Safety
+///
+/// `wrapper` must be null or a live wrapper of an object of an interface that LibWeb implements in C++.
+unsafe fn cpp_interface_from_abi(wrapper: *mut c_void) -> Option<CppInterface> {
+    let wrapper = NonNull::new(wrapper.cast())?;
+    // SAFETY: The caller passes a live wrapper.
+    Some(unsafe { CppInterface::from_wrapper(Gc::from_non_null(wrapper)) })
+}
+
+/// A new AnimationEvent that bubbles, as the Event that C++ dispatches.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `realm` a live realm, `event_name`, `animation_name` and `pseudo_element` raw strings that
+/// C++ hands over, and `animation` a live wrapper of a CSSAnimation.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_animation_event_create(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    event_name: usize,
+    animation_name: usize,
+    elapsed_time: f64,
+    pseudo_element: usize,
+    animation: *mut c_void,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    // SAFETY: The caller hands over the strings and passes a live wrapper.
+    let (event_name, animation_name, pseudo_element, animation) = unsafe {
+        (
+            Utf16String::from_raw_owned(event_name),
+            Utf16String::from_raw_owned(animation_name),
+            Utf16String::from_raw_owned(pseudo_element),
+            cpp_interface_from_abi(animation),
+        )
+    };
+    let event_init = AnimationEventInit {
+        parent: bubbling_event_init(),
+        animation,
+        animation_name,
+        elapsed_time,
+        pseudo_element,
+    };
+    AnimationEvent::create(vm, realm, &event_name, event_init)
+        .event()
+        .as_ptr()
+}
+
+/// A new TransitionEvent that bubbles, as the Event that C++ dispatches.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `realm` a live realm, `event_name`, `property_name` and `pseudo_element` raw strings that
+/// C++ hands over, and `animation` a live wrapper of a CSSTransition.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_transition_event_create(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    event_name: usize,
+    property_name: usize,
+    elapsed_time: f64,
+    pseudo_element: usize,
+    animation: *mut c_void,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    // SAFETY: The caller hands over the strings and passes a live wrapper.
+    let (event_name, property_name, pseudo_element, animation) = unsafe {
+        (
+            Utf16String::from_raw_owned(event_name),
+            Utf16String::from_raw_owned(property_name),
+            Utf16String::from_raw_owned(pseudo_element),
+            cpp_interface_from_abi(animation),
+        )
+    };
+    let event_init = TransitionEventInit {
+        parent: bubbling_event_init(),
+        animation,
+        elapsed_time,
+        property_name,
+        pseudo_element,
+    };
+    TransitionEvent::create(vm, realm, &event_name, event_init)
+        .event()
+        .as_ptr()
+}
+
+fn bubbling_event_init() -> EventInit {
+    EventInit {
+        bubbles: true,
+        cancelable: false,
+        composed: false,
+    }
 }
