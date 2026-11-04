@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Optional.h>
@@ -110,7 +111,8 @@ private:
     void retire_idle_instances();
 
     ByteString sites_directory() const;
-    static ByteString cache_path_for_site(ByteString const& sites_directory, Utf16String const& site);
+    ByteString cache_path_for_site(Utf16String const& site) const;
+    ByteBuffer load_or_create_site_cache_key() const;
     bool is_live_cache_path(ByteString const&) const;
     Vector<ByteString> dormant_site_cache_paths();
 
@@ -128,6 +130,9 @@ private:
 
     Vector<NonnullRefPtr<RequestServerInstance>> m_instances;
     size_t m_maximum_site_instances { 0 };
+
+    // Only the UI process has this. It names the cache directories of sites, see cache_path_for_site().
+    ByteBuffer m_site_cache_key;
 
     Optional<HashMap<ByteString, DormantSiteCache>> m_dormant_site_caches;
     // Time out evictions if a RequestServer disappears before answering.

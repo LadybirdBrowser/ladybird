@@ -39,3 +39,39 @@ TEST_CASE(only_sites_of_normal_sessions_have_disk_caches)
     WebView::RequestServerManager new_manager;
     EXPECT(!FileSystem::exists(shared_cache));
 }
+
+// A RequestServer can ask whether any path exists, so it must not be able to work out where other sites' caches are.
+TEST_CASE(site_cache_directories_cannot_be_named_without_the_key)
+{
+    Test::HeadlessTestEnvironment environment { "TestRequestServerDiskCaches"sv };
+    auto app = TRY_OR_FAIL(environment.create_application());
+
+    auto& manager = WebView::Application::request_server_manager();
+    auto& normal_session = WebView::Application::default_session();
+    auto private_session = WebView::Application::session_for_new_view(WebView::IsPrivate::Yes);
+    auto site = "https://normal.example"_utf16;
+
+    auto site_server = TRY_OR_FAIL(manager.instance_for_site(normal_session, site));
+    auto cache_path = LexicalPath { site_server->cache_path() };
+    EXPECT(!cache_path.basename().contains("normal"sv));
+
+    auto other_site_server = TRY_OR_FAIL(manager.instance_for_site(normal_session, "https://other.example"_utf16));
+    EXPECT_NE(other_site_server->cache_path(), cache_path.string());
+
+    // A site finds its cache again after a restart. A private session's RequestServer keeps this one from opening it.
+    {
+        WebView::RequestServerManager restarted_manager;
+        auto restarted_server = TRY_OR_FAIL(restarted_manager.instance_for_site(*private_session, site));
+        EXPECT_EQ(restarted_server->cache_path(), cache_path.string());
+    }
+
+    // Directories named by older versions leak the site, and nothing can find them again once the key is gone.
+    auto sites_directory = cache_path.parent();
+    auto readable_cache = sites_directory.append("https___normal.example-12345678"sv).string();
+    TRY_OR_FAIL(Core::Directory::create(readable_cache, Core::Directory::CreateDirectories::Yes));
+    TRY_OR_FAIL(FileSystem::remove(sites_directory.parent().append("SiteCacheKey"sv).string(), FileSystem::RecursionMode::Disallowed));
+
+    WebView::RequestServerManager new_manager;
+    EXPECT(!FileSystem::exists(readable_cache));
+    EXPECT(FileSystem::exists(sites_directory.parent().append("SiteCacheKey"sv).string()));
+}
