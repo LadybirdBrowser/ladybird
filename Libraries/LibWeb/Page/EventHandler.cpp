@@ -1402,7 +1402,7 @@ void EventHandler::update_hover_at_last_known_mouse_position(Optional<i64> visua
     if (m_mousedown_target)
         return;
 
-    update_hover_after_scroll(*m_last_known_mouse_visual_viewport_position, m_last_known_mouse_screen_position, UIEvents::MouseButton::None, m_last_known_mouse_buttons, m_last_known_mouse_modifiers, {}, visual_animation_sample_time_nanoseconds);
+    update_hover_after_scroll(HoverUpdateCause::PointerRests, *m_last_known_mouse_visual_viewport_position, m_last_known_mouse_screen_position, UIEvents::MouseButton::None, m_last_known_mouse_buttons, m_last_known_mouse_modifiers, {}, visual_animation_sample_time_nanoseconds);
 }
 
 // AD-HOC: `hover_target`, where given, is the element the render clock's lane hovered at the position, which the screen
@@ -1422,7 +1422,7 @@ void EventHandler::update_hover_at(CSSPixelPoint visual_viewport_position, GC::P
     Optional<i64> visual_animation_sample_time_nanoseconds;
     if (!hover_target)
         visual_animation_sample_time_nanoseconds = m_visual_animation_sample_time_nanoseconds;
-    update_hover_after_scroll(visual_viewport_position, screen_position, UIEvents::MouseButton::None, m_last_known_mouse_buttons, m_last_known_mouse_modifiers, hover_target, visual_animation_sample_time_nanoseconds);
+    update_hover_after_scroll(HoverUpdateCause::PointerMoved, visual_viewport_position, screen_position, UIEvents::MouseButton::None, m_last_known_mouse_buttons, m_last_known_mouse_modifiers, hover_target, visual_animation_sample_time_nanoseconds);
 }
 
 // AD-HOC: The hover and the cursor follow what is under the pointer while it rests. A frame may move what is there,
@@ -1508,12 +1508,18 @@ bool EventHandler::update_hover_where_the_pointer_rests(HTML::HoverUpdatePoint h
     return false;
 }
 
-void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, GC::Ptr<DOM::Node> hover_target, Optional<i64> visual_animation_sample_time_nanoseconds)
+void EventHandler::update_hover_after_scroll(HoverUpdateCause cause, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, GC::Ptr<DOM::Node> hover_target, Optional<i64> visual_animation_sample_time_nanoseconds)
 {
     if (m_effective_legacy_mouse_pointer_type != PointerType::Mouse)
         return;
     if (should_ignore_device_input_event())
         return;
+    // NB: A pointer at rest waits for a scroll of the user's to stop moving, here or in the frame the update reached.
+    //     The update then starts from this position, of which a nested navigable hears nothing else.
+    if (cause == HoverUpdateCause::PointerRests && m_navigable->leave_hover_update_to_end_of_user_scroll()) {
+        record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
+        return;
+    }
 
     auto document = m_navigable->active_document();
     if (!document || !document->is_fully_active())
@@ -1590,7 +1596,7 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
     if (!hover_target) {
         auto nested_navigable = local_nested_navigable_at(*target_layout_node, node);
         auto dispatch_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, nullptr, [&](EventHandler& event_handler, CSSPixelPoint position) {
-            event_handler.update_hover_after_scroll(position, screen_position, button, buttons, modifiers);
+            event_handler.update_hover_after_scroll(cause, position, screen_position, button, buttons, modifiers);
             return EventResult::Handled;
         });
         if (dispatch_result.has_value()) {

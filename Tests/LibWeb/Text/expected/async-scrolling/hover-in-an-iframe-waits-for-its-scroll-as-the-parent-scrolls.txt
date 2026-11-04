@@ -1,0 +1,4 @@
+before the scroll, #first matches :hover: true
+after the long frame, #first matches :hover: true
+after the long frame, mouseout count: 0
+after the scroll, #rest matches :hover: true

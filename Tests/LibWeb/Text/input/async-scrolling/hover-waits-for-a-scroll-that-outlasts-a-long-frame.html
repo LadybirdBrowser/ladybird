@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #first {
+        height: 2px;
+    }
+
+    #rest {
+        height: 3000px;
+    }
+</style>
+<div id="first"></div>
+<div id="rest"></div>
+<script>
+    // A frame that takes longer than the hover waits for the next scroll offset is not the end of the scroll. A wheel
+    // step of 120px animates for 200ms, past the long frame of 120ms, and the check comes in the first task after it.
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        let mouseOuts = 0;
+        document.addEventListener("mouseout", () => ++mouseOuts);
+        internals.mouseMove(1, 1);
+        println(`before the scroll, #first matches :hover: ${first.matches(":hover")}`);
+
+        const afterLongFrame = Promise.withResolvers();
+        let frameWasLong = false;
+        document.addEventListener("scroll", () => {
+            if (frameWasLong || window.scrollY < 1)
+                return;
+            frameWasLong = true;
+            const end = performance.now() + 120;
+            while (performance.now() < end);
+            setTimeout(() => {
+                println(`after the long frame, #first matches :hover: ${first.matches(":hover")}`);
+                println(`after the long frame, mouseout count: ${mouseOuts}`);
+                afterLongFrame.resolve();
+            }, 0);
+        });
+
+        await internals.wheel(1, 1, 0, 120);
+        await afterLongFrame.promise;
+
+        while (!rest.matches(":hover"))
+            await animationFrame();
+        println(`after the scroll, #rest matches :hover: ${rest.matches(":hover")}`);
+    });
+</script>

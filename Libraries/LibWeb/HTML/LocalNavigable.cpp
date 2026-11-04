@@ -6053,6 +6053,14 @@ void LocalNavigable::schedule_hover_update_after_async_scroll()
     m_async_scroll_hover_update_timer->restart(AK::Duration::from_milliseconds(hover_update_after_async_scroll_delay_ms));
 }
 
+bool LocalNavigable::leave_hover_update_to_end_of_user_scroll()
+{
+    if (!any_of(m_pending_async_scroll_operations, [](auto const& pending) { return pending.trigger == ScrollTrigger::UserInput; }))
+        return false;
+    schedule_hover_update_after_async_scroll();
+    return true;
+}
+
 void LocalNavigable::update_hover_after_async_scroll_stops()
 {
     if (has_been_destroyed())

@@ -267,6 +267,8 @@ public:
     void expect_wait_for_async_scroll_operation(Compositing::AsyncScrollOperationID);
     void forget_expected_wait_for_async_scroll_operation(Compositing::AsyncScrollOperationID);
     void wait_for_wheel_scrolls(Vector<GC::Ref<WebIDL::Promise>>&);
+    // Answers whether a scroll of the user's is still moving, which updates the hover once it stops.
+    bool leave_hover_update_to_end_of_user_scroll();
     void clamp_viewport_scroll_offset();
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity

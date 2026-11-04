@@ -292,7 +292,11 @@ private:
     void clear_mousedown_tracking();
     void stop_updating_selection();
 
-    void update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, GC::Ptr<DOM::Node> hover_target = {}, Optional<i64> visual_animation_sample_time_nanoseconds = {});
+    enum class HoverUpdateCause : u8 {
+        PointerMoved,
+        PointerRests,
+    };
+    void update_hover_after_scroll(HoverUpdateCause, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, GC::Ptr<DOM::Node> hover_target = {}, Optional<i64> visual_animation_sample_time_nanoseconds = {});
     EventResult dispatch_wheel_event(Layout::BegunRead const& read, Layout::Node&, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, double wheel_tick_120ths_x, double wheel_tick_120ths_y, bool is_cancelable);
     // Both drop the latch when what it refers to is gone from the document, so that the event is targeted afresh.
     Layout::Node* validated_latched_wheel_event_target_layout_node(Layout::BegunRead const& read, DOM::Document&);
