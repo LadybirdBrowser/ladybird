@@ -22,6 +22,23 @@ NSString* string_to_ns_string(StringView string)
     return [[NSString alloc] initWithData:string_to_ns_data(string) encoding:NSUTF8StringEncoding];
 }
 
+Utf16String ns_string_to_utf16_string(NSString* string)
+{
+    Vector<char16_t> code_units;
+    code_units.resize(string.length);
+    [string getCharacters:reinterpret_cast<unichar*>(code_units.data()) range:NSMakeRange(0, string.length)];
+    return Utf16String::from_utf16(Utf16View { code_units.data(), code_units.size() });
+}
+
+NSString* utf16_string_to_ns_string(Utf16View const& string)
+{
+    Vector<unichar> code_units;
+    code_units.ensure_capacity(string.length_in_code_units());
+    for (size_t index = 0; index < string.length_in_code_units(); ++index)
+        code_units.unchecked_append(string.code_unit_at(index));
+    return [NSString stringWithCharacters:code_units.data() length:code_units.size()];
+}
+
 NSData* string_to_ns_data(StringView string)
 {
     return [NSData dataWithBytes:string.characters_without_null_termination() length:string.length()];
