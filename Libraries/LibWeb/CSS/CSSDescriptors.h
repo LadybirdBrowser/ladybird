@@ -14,11 +14,15 @@
 
 namespace Web::CSS {
 
-// A non-spec base class for descriptor-list classes
-class CSSDescriptors : public CSSStyleDeclaration {
+// The descriptors of an at-rule, which an object of an interface implemented in Rust owns
+// (Libraries/LibWeb/Bindings/Rust/src/css/css_descriptors.rs).
+class CSSDescriptors final : public CSSStyleDeclaration {
     WEB_NON_IDL_WRAPPABLE(CSSDescriptors, CSSStyleDeclaration);
+    GC_DECLARE_ALLOCATOR(CSSDescriptors);
 
 public:
+    [[nodiscard]] static GC::Ref<CSSDescriptors> create(AtRuleID, RustDescriptorBlock);
+
     virtual ~CSSDescriptors() override;
 
     virtual size_t length() const override;
@@ -34,10 +38,9 @@ public:
 
     virtual WebIDL::ExceptionOr<void> set_css_text(Utf16View) override;
 
-protected:
+private:
     CSSDescriptors(AtRuleID, RustDescriptorBlock);
 
-private:
     virtual size_t external_memory_size() const override;
     bool set_a_css_declaration(DescriptorNameAndID const&, NonnullRefPtr<StyleValue const>, Important);
     void invalidate_owners();

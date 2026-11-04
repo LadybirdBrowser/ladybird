@@ -54,7 +54,7 @@ macro_rules! descriptors_interface {
         ///
         /// # Safety
         ///
-        /// `vm` must be the live VM, and `descriptors` the live cell of a Web::CSS::RustCSSDescriptors.
+        /// `vm` must be the live VM, and `descriptors` the live cell of a Web::CSS::CSSDescriptors.
         #[unsafe(no_mangle)]
         pub unsafe extern "C" fn $create(vm: *mut core::ffi::c_void, descriptors: *mut core::ffi::c_void) {
             assert!(!vm.is_null(), "C++ passes the VM");
