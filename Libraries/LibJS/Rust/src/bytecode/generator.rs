@@ -2550,44 +2550,30 @@ fn mark_loop_back_edge(block_index: usize, instructions: &mut [(Instruction, Sou
 }
 
 fn remove_redundant_movs(instructions: &mut Vec<(Instruction, SourceMapEntry, bool)>) {
-    let mut index = 0;
-    while index < instructions.len() {
-        let Instruction::Mov { dst, src } = instructions[index].0 else {
-            index += 1;
-            continue;
-        };
-        if index + 1 < instructions.len()
-            && matches!(
-                instructions[index + 1].0,
-                Instruction::Mov {
-                    dst: next_dst,
-                    src: next_src,
-                } if next_dst == dst && next_src == src
-            )
-        {
-            instructions.remove(index + 1);
-            continue;
+    let mut write_index = 0;
+    for read_index in 0..instructions.len() {
+        if let Instruction::Mov { dst, src } = instructions[read_index].0 {
+            let same_move = |index: usize| {
+                matches!(
+                    instructions[index].0,
+                    Instruction::Mov { dst: d, src: s } if d == dst && s == src
+                )
+            };
+            let redundant = (write_index > 0 && same_move(write_index - 1))
+                || (write_index > 1
+                    && same_move(write_index - 2)
+                    && matches!(
+                        instructions[write_index - 1].0,
+                        Instruction::Mov { dst: middle_dst, .. } if middle_dst != dst && middle_dst != src
+                    ));
+            if redundant {
+                continue;
+            }
         }
-        if index + 2 < instructions.len()
-            && matches!(
-                instructions[index + 1].0,
-                Instruction::Mov {
-                    dst: middle_dst,
-                    ..
-                } if middle_dst != dst && middle_dst != src
-            )
-            && matches!(
-                instructions[index + 2].0,
-                Instruction::Mov {
-                    dst: next_dst,
-                    src: next_src,
-                } if next_dst == dst && next_src == src
-            )
-        {
-            instructions.remove(index + 2);
-        }
-        index += 1;
+        instructions.swap(write_index, read_index);
+        write_index += 1;
     }
+    instructions.truncate(write_index);
 }
 
 #[cfg(test)]
@@ -2693,6 +2679,24 @@ mod tests {
         let other_dst = register(Register::RESERVED_COUNT + 2);
         let other_src = register(Register::RESERVED_COUNT + 3);
         let mut instructions = vec![mov(dst, src), mov(other_dst, other_src), mov(dst, src)];
+
+        remove_redundant_movs(&mut instructions);
+
+        assert_eq!(instructions.len(), 2);
+    }
+
+    #[test]
+    fn removes_a_repeated_mov_exposed_by_an_earlier_removal() {
+        let dst = register(Register::RESERVED_COUNT);
+        let src = register(Register::RESERVED_COUNT + 1);
+        let other_dst = register(Register::RESERVED_COUNT + 2);
+        let other_src = register(Register::RESERVED_COUNT + 3);
+        let mut instructions = vec![
+            mov(dst, src),
+            mov(other_dst, other_src),
+            mov(other_dst, other_src),
+            mov(dst, src),
+        ];
 
         remove_redundant_movs(&mut instructions);
 
