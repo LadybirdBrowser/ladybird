@@ -1249,6 +1249,19 @@ public:
     Utf16String dump_accessibility_tree_as_json();
     Vector<WebView::AccessibilityNodeData> build_accessibility_node_data();
 
+    // The accessible name and description that the accessibility tree reports for an element, kept from one build of
+    // the tree to the next while an assistive technology consumes it, and dropped whenever a change could alter them.
+    struct CachedAccessibleText {
+        String name;
+        String description;
+    };
+    CachedAccessibleText const* cached_accessible_text(Element const&) const;
+    void cache_accessible_text(Element const&, CachedAccessibleText) const;
+    void invalidate_cached_accessible_text(Node const&, Optional<Utf16FlyString> const& attribute_name = {}, ReadonlySpan<GC::Ref<Node>> added_nodes = {}, ReadonlySpan<GC::Ref<Node>> removed_nodes = {});
+    size_t cached_accessible_text_count() const { return m_cached_accessible_text.size(); }
+    // For tests: each cached name or description that differs from what computing it again gives.
+    Vector<String> cached_accessible_text_mismatches();
+
     void make_active();
 
     // https://html.spec.whatwg.org/multipage/interaction.html#set-the-initial-visibility-state
@@ -2029,6 +2042,13 @@ private:
     GC::Ptr<Element> m_active_element;
     GC::Ptr<Element> m_target_element;
     GC::Ptr<Element> m_accessibility_focus_target;
+    mutable HashMap<UniqueNodeID, CachedAccessibleText> m_cached_accessible_text;
+    // The elements whose cached text can depend on nodes other than their inclusive ancestors and descendants: on
+    // label elements, on the elements whose IDs m_ids_referenced_by_cached_accessible_text holds, or on any node.
+    mutable HashTable<UniqueNodeID> m_cached_accessible_text_depending_on_labels;
+    mutable HashTable<UniqueNodeID> m_cached_accessible_text_depending_on_referenced_ids;
+    mutable HashTable<UniqueNodeID> m_cached_accessible_text_depending_on_any_node;
+    mutable HashTable<Utf16FlyString> m_ids_referenced_by_cached_accessible_text;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#autofocus-candidates
     Vector<GC::Ref<Element>> m_autofocus_candidates;

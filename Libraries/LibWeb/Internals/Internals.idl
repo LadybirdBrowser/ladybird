@@ -231,6 +231,9 @@ interface Internals {
     DOMString accessibilityCharacterOffsets(Node node);
     // The accessibility node data the UI process receives for a node and its exposed descendants, one line per node.
     DOMString dumpAccessibilityNodeData(Node node);
+    // Each accessible name or description kept between builds of the accessibility tree that differs from what
+    // computing it again gives, one per line. Empty when every one is current.
+    DOMString accessibilityCachedTextMismatches();
     DOMString dumpLayoutTree(Node node);
     DOMString dumpStackingContextTree();
     DOMString stackingContextStructureVerificationReport();

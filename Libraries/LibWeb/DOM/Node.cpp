@@ -4122,8 +4122,10 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
     // AD-HOC: A DOM mutation can change the accessibility tree, so ask the client to schedule a rebuild whenever an
     // assistive technology is consuming it. This is independent of DevTools' mutation listener and of whether any
     // MutationObserver is registered, so it runs before the observer-only bails below.
-    if (page.accessibility_interested())
+    if (page.accessibility_interested()) {
+        document.invalidate_cached_accessible_text(*this, attribute_name, added_nodes, removed_nodes);
         page.client().page_did_change_accessibility_tree();
+    }
 
     // OPTIMIZATION: Without an observer of this type in the document, interestedObservers stays empty.
     if (!document.has_mutation_observers_of_type(type) && !page.listen_for_dom_mutations())

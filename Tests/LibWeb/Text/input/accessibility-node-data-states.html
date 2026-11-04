@@ -18,11 +18,15 @@
 </div>
 <script>
     test(() => {
+        internals.setAccessibilityInterested();
         const root = document.getElementById("root");
         const step = (label, change) => {
             change();
             println(`== ${label}`);
             println(internals.dumpAccessibilityNodeData(root));
+            const stale = internals.accessibilityCachedTextMismatches();
+            if (stale)
+                println(`stale cached text:\n${stale}`);
         };
         step("initial", () => {});
         step("value property", () => document.getElementById("text-field").value = "typed value");

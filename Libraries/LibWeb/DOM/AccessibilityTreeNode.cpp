@@ -42,6 +42,7 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Selection/Selection.h>
@@ -201,6 +202,39 @@ static Optional<CSSPixelRect> text_bounding_client_rect(Document const& document
     return united;
 }
 
+// The name and description that the accessibility tree reports for an element.
+Document::CachedAccessibleText AccessibilityTreeNode::compute_accessible_text(Element const& element, Document const& document)
+{
+    Document::CachedAccessibleText text;
+    // aria-label and aria-labelledby win over an option's own label/text — and accessible_name() resolves them
+    // even though the option has no layout node. For an option with neither, accessible_name() is unreliable
+    // (the option renders only in a popup) — so fall back to its label attribute or text.
+    if (auto const* option = as_if<HTML::HTMLOptionElement>(element)) {
+        auto has_aria_name = element.get_attribute(ARIA::AttributeNames::aria_label).has_value()
+            || element.get_attribute(ARIA::AttributeNames::aria_labelled_by).has_value();
+        if (has_aria_name)
+            text.name = MUST(element.accessible_name(document)).to_utf8();
+        else if (auto label = option->label(); !label.is_empty())
+            text.name = label.to_utf8();
+        else
+            text.name = option->text().to_utf8();
+    } else if (auto const* group = as_if<HTML::HTMLOptGroupElement>(element)) {
+        // Like an option, an optgroup only renders inside the popup, so accessible_name() comes back empty.
+        if (auto label = group->attribute(HTML::AttributeNames::label); label.has_value())
+            text.name = label->to_utf8();
+    } else {
+        text.name = MUST(element.accessible_name(document)).to_utf8();
+    }
+    if (auto trimmed = text.name.bytes_as_string_view().trim_whitespace(); trimmed != text.name.bytes_as_string_view())
+        text.name = MUST(String::from_utf8(trimmed));
+    text.description = MUST(element.accessible_description(document)).to_utf8();
+    if (text.description.is_empty()) {
+        if (auto desc = element.get_attribute(ARIA::AttributeNames::aria_description); desc.has_value())
+            text.description = desc.release_value().to_utf8();
+    }
+    return text;
+}
+
 void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const& document, Layout::BegunRead const& read, i64 parent_id) const
 {
     WebView::AccessibilityNodeData node_data;
@@ -221,32 +255,19 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
         else if (is_frame_element(element))
             node_data.role = "iframe"_string;
 
-        // aria-label and aria-labelledby win over an option's own label/text — and accessible_name() resolves them even
-        // though the option has no layout node. For an option with neither, accessible_name() is unreliable (the option
-        // renders only in a popup) — so fall back to its label attribute or text.
-        if (auto const* option = as_if<HTML::HTMLOptionElement>(element)) {
-            auto has_aria_name = element.get_attribute(ARIA::AttributeNames::aria_label).has_value()
-                || element.get_attribute(ARIA::AttributeNames::aria_labelled_by).has_value();
-            if (has_aria_name)
-                node_data.name = MUST(element.accessible_name(document)).to_utf8();
-            else if (auto label = option->label(); !label.is_empty())
-                node_data.name = label.to_utf8();
-            else
-                node_data.name = option->text().to_utf8();
-        } else if (auto const* group = as_if<HTML::HTMLOptGroupElement>(element)) {
-            // Like an option, an optgroup only renders inside the popup, so accessible_name() comes back empty.
-            if (auto label = group->attribute(HTML::AttributeNames::label); label.has_value())
-                node_data.name = label->to_utf8();
+        // While an assistive technology consumes the tree, it's rebuilt after every change to the page, so keep each
+        // element's name and description from one build to the next until a change could alter them.
+        Document::CachedAccessibleText text;
+        if (!document.page().accessibility_interested()) {
+            text = compute_accessible_text(element, document);
+        } else if (auto const* cached = document.cached_accessible_text(element)) {
+            text = *cached;
         } else {
-            node_data.name = MUST(element.accessible_name(document)).to_utf8();
+            text = compute_accessible_text(element, document);
+            document.cache_accessible_text(element, text);
         }
-        if (auto trimmed = node_data.name.bytes_as_string_view().trim_whitespace(); trimmed != node_data.name.bytes_as_string_view())
-            node_data.name = MUST(String::from_utf8(trimmed));
-        node_data.description = MUST(element.accessible_description(document)).to_utf8();
-        if (node_data.description.is_empty()) {
-            if (auto desc = element.get_attribute(ARIA::AttributeNames::aria_description); desc.has_value())
-                node_data.description = desc.release_value().to_utf8();
-        }
+        node_data.name = move(text.name);
+        node_data.description = move(text.description);
         node_data.bounds = accessibility_bounds(read, element);
 
         // aria-level is a heading's level only on a heading. On a treeitem, row or listitem it's the item's depth,

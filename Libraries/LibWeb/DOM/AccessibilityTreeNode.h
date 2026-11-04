@@ -11,6 +11,7 @@
 #include <AK/Vector.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/Forward.h>
 
@@ -30,6 +31,7 @@ public:
     void append_child(AccessibilityTreeNode* child) { m_children.append(child); }
 
     void serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& object, Document const&) const;
+    static Document::CachedAccessibleText compute_accessible_text(Element const&, Document const&);
     void serialize_tree_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const&, Layout::BegunRead const&, i64 parent_id = -1) const;
 
 protected:

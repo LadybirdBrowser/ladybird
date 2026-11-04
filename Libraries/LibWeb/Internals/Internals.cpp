@@ -2069,6 +2069,14 @@ String Internals::dump_accessibility_node_data(GC::Ref<DOM::Node> node)
     return builder.to_string_without_validation();
 }
 
+String Internals::accessibility_cached_text_mismatches()
+{
+    StringBuilder builder;
+    for (auto const& mismatch : window().associated_document().cached_accessible_text_mismatches())
+        builder.appendff("{}\n", mismatch);
+    return builder.to_string_without_validation();
+}
+
 Utf16String Internals::dump_layout_tree(GC::Ref<DOM::Node> node)
 {
     // The test API's read of the render state of the node's document.
