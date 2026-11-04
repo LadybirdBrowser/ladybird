@@ -41,6 +41,7 @@
 use std::collections::HashSet;
 
 use num_bigint::BigInt;
+use num_traits::FromPrimitive;
 use num_traits::One;
 use num_traits::Signed;
 use num_traits::ToPrimitive;
@@ -10157,16 +10158,7 @@ fn try_constant_loosely_equals(lhs: &ConstantValue, rhs: &ConstantValue) -> Opti
                 return Some(false);
             }
             let bi = parse_bigint(b)?;
-            // Compare: the number must be a safe integer that equals the BigInt.
-            // Only fold if the f64 value fits in i64 range for lossless conversion.
-            if *n > i64::MAX as f64 || *n < i64::MIN as f64 {
-                return None;
-            }
-            let n_i64 = *n as i64;
-            if n_i64 as f64 != *n {
-                return None;
-            }
-            Some(BigInt::from(n_i64) == bi)
+            Some(BigInt::from_f64(*n)? == bi)
         }
         // BigInt == String or String == BigInt: parse string as BigInt per StringToBigInt.
         // If the string cannot be parsed, the result is false (not equal).
@@ -10314,16 +10306,11 @@ fn compare_bigint_and_number(bigint_str: &str, number: f64) -> Option<Option<std
         return Some(Some(Ordering::Greater)); // Any BigInt > -Infinity
     }
     let bigint = parse_bigint(bigint_str)?;
-    // Only fold if the f64 value is a safe integer for lossless comparison.
     if number.fract() != 0.0 {
         // The number has a fractional part, so we can still compare:
         // floor(number) < bigint means bigint > number, etc.
         let floored = number.floor();
-        if floored > i64::MAX as f64 || floored < i64::MIN as f64 {
-            return None;
-        }
-        let floored_i64 = floored as i64;
-        let floored_bigint = BigInt::from(floored_i64);
+        let floored_bigint = BigInt::from_f64(floored)?;
         if bigint <= floored_bigint {
             // bigint <= floor(number) means bigint < number
             return Some(Some(Ordering::Less));
@@ -10332,14 +10319,7 @@ fn compare_bigint_and_number(bigint_str: &str, number: f64) -> Option<Option<std
             return Some(Some(Ordering::Greater));
         }
     }
-    if number > i64::MAX as f64 || number < i64::MIN as f64 {
-        return None;
-    }
-    let number_i64 = number as i64;
-    if number_i64 as f64 != number {
-        return None;
-    }
-    let number_bigint = BigInt::from(number_i64);
+    let number_bigint = BigInt::from_f64(number)?;
     Some(Some(bigint.cmp(&number_bigint)))
 }
 
