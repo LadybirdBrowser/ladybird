@@ -45,7 +45,7 @@ may link only to libraries. CMake is dropping the item.
 …followed by 14-line stack trace, the top of which is this:
 
 ```
-Build/vcpkg/scripts/buildsystems/vcpkg.cmake:859 (_find_package)
+Build/vcpkg-release/scripts/buildsystems/vcpkg.cmake:859 (_find_package)
 ```
 
 …and all of it shown in bright yellow, making you think it must be important and something must need to be fixed. But that’s not the case. Instead, despite that, you’ll be able to build successfully with the Qt UI.

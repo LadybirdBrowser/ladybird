@@ -14,6 +14,19 @@ if (DEFINED LADYBIRD_VCPKG_TYPE)
     endif()
 
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
+
+    # The vcpkg toolchain caches the root it finds next to itself, and never looks again while that's cached. So a build
+    # tree configured when the root was somewhere else (e.g. the Build/vcpkg checkout every preset used to share) would
+    # keep reading that checkout's version database, and running its vcpkg. Drop a cached root that isn't this one, so
+    # the toolchain finds the root again.
+    if (DEFINED CACHE{Z_VCPKG_ROOT_DIR})
+        file(REAL_PATH "$CACHE{Z_VCPKG_ROOT_DIR}" cached_vcpkg_root)
+        file(REAL_PATH "$ENV{VCPKG_ROOT}" vcpkg_root)
+        if (NOT cached_vcpkg_root STREQUAL vcpkg_root)
+            message(STATUS "Using the vcpkg root ${vcpkg_root}, rather than the cached ${cached_vcpkg_root}")
+            unset(Z_VCPKG_ROOT_DIR CACHE)
+        endif()
+    endif()
     set(VCPKG_INSTALL_OPTIONS "--no-print-usage" CACHE STRING "" FORCE)
     if (CMAKE_HOST_APPLE)
         # Installed files are hard links to their copies in packages/, and macOS can resolve @loader_path through either
