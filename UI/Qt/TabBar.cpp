@@ -645,8 +645,11 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     explicit TabPreviewPopup(QWidget* parent)
-        // NB: The preview only shows, and the room around it for its shadow lies over the tabs, so it lets the mouse through.
-        : QWidget(parent, Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint | Qt::WindowTransparentForInput)
+        // NB: The preview only shows, and the room around it for its shadow lies over the tabs, so it lets the mouse
+        //     through. On X11, Qt adds the stays-on-top hint to a tooltip itself, takes that for a change of flags, and
+        //     recreates the window as it is first shown, and the new window takes the mouse again. Asking for the hint
+        //     here keeps the window from being recreated.
+        : QWidget(parent, Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint | Qt::WindowTransparentForInput | Qt::WindowStaysOnTopHint)
     {
         setAttribute(Qt::WA_TranslucentBackground);
         setAttribute(Qt::WA_ShowWithoutActivating);
