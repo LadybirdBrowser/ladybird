@@ -1,0 +1,14 @@
+Ladybird’s Unicode VM searches skip surrogate interiors, even when the
+pattern can match empty input. LibJS’s general lastIndex path also maps
+an interior position to the pair’s start, without retrying on failure.
+
+V8 and SpiderMonkey advance Unicode searches by whole code points in
+RegExpMacroAssembler::UnanchoredAdvance(), which matches Ladybird’s
+search behavior. V8’s Compiler::Assemble() also normalizes the starting
+position before matching, without an unadjusted-position fallback.
+
+SpiderMonkey’s Compiler::OptionallyStepBackToLeadSurrogate() retains a
+second alternative at the unadjusted index. WebKit’s InputStream::next()
+advances its interpreter’s search by one code unit. Ladybird differs
+from those paths to follow RegExpBuiltinExec: Unicode matching operates
+on code points, so a surrogate interior is never an input character.
