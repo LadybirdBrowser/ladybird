@@ -808,8 +808,11 @@ impl RetainedState {
         if pseudo.is_some() {
             return None;
         }
-        let held = self.element_custom_property_data.get(&node)?;
-        let previous = held.sampled_over.unwrap_or(held.identity);
+        // NB: An element holds an environment of its own only where one lies over its record's.
+        let previous = match self.element_custom_property_data.get(&node) {
+            Some(held) => held.sampled_over.unwrap_or(held.identity),
+            None => self.computed_group_sets.custom_property_environment_identity(node)?,
+        };
         if !self.custom_property_environments.is_engine_made(previous)
             || self.custom_property_environments.inheritable(previous) != previous
         {
