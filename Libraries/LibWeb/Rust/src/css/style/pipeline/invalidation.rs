@@ -1441,7 +1441,7 @@ impl RelativeEntry {
         in_shadow_tree: bool,
         names: &mut AcquiredNames,
     ) -> Self {
-        use super::super::relative_selector::RelativeAxis;
+        use super::super::selector::RelativeAxis;
         let axis = match argument.is_relative_anchor() {
             true => RelativeAxis::Descendant,
             false => relative_axis(argument).0,

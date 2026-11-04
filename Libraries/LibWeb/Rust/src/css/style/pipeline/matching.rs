@@ -8,8 +8,8 @@
 //! reject those whose required ancestor keys the filter lacks, and evaluate the rest.
 
 use super::super::component_matching::EntrySelector;
+use super::super::input_types::TransactionFactSide;
 use super::super::selector_evaluation::StructuralRead;
-use super::super::transaction_view::TransactionFactSide;
 use super::super::*;
 use super::bloom::{AncestorFilter, SiblingFilter};
 use super::projection::{ElementFacts, Projection, ProjectionEvaluator};

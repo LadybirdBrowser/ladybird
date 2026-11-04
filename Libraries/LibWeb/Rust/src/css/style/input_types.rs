@@ -21,6 +21,13 @@ use super::pipeline::rule_store::DeclarationBlockID;
 use super::tree::StyleNodeID;
 use super::tree::TreeScopeID;
 
+/// The sides of a transaction that its readers compare.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum TransactionFactSide {
+    Before,
+    After,
+}
+
 // -- Typed semantic inputs -------------------------------------------------------------------
 
 // An element or document state fact.

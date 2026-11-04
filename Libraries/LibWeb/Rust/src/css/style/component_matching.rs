@@ -780,7 +780,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         let mut matched = Ok(false);
         // The anchor stands outside the tree a `:host:has()` reads, whose root it walks from.
         let axis = match (within == anchor, axis) {
-            (false, _) => super::relative_selector::RelativeAxis::Descendant,
+            (false, _) => super::selector::RelativeAxis::Descendant,
             (true, axis) => axis,
         };
         super::selector_evaluation::walk_relative_axis(tree, axis, below_the_axis, within, |candidate| {
@@ -1452,8 +1452,8 @@ fn required_dispatch_bloom(compound: Selector<'_>, context: MatchContext<'_>) ->
 
 /// The axis from the anchor the subject of the relative selector `selector` is found on, and whether the subject
 /// stands strictly below the elements the axis reaches.
-pub(crate) fn relative_axis(selector: Selector<'_>) -> (super::relative_selector::RelativeAxis, bool) {
-    use super::relative_selector::RelativeAxis;
+pub(crate) fn relative_axis(selector: Selector<'_>) -> (super::selector::RelativeAxis, bool) {
+    use super::selector::RelativeAxis;
     let descends = |combinator: Combinator| matches!(combinator, Combinator::Descendant | Combinator::ImmediateChild);
     // NB: Read from the subject leftwards, each compound's combinator relates it to the compound left of it: the
     //     leftmost one's is the leading combinator, and the one read right before it is the first written after it.

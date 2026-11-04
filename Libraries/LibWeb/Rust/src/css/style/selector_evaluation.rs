@@ -18,8 +18,8 @@ use smallvec::SmallVec;
 
 use super::index::StyleAtomID;
 use super::input_types::StateFact;
-use super::relative_selector::RelativeAxis;
 use super::selector::NthPosition;
+use super::selector::RelativeAxis;
 use super::tree::StyleNodeID;
 use crate::css::css_tokenizer::TokenizerInput;
 

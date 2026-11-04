@@ -6,12 +6,14 @@
 
 use super::*;
 
-// The engine may move to whichever thread runs a style stage. Every host object it keeps a
-// reference to says by its type whether it may be shared between threads, so one that cannot be
-// fails this rather than passing as an opaque pointer.
+// The engine may move to whichever thread runs a style stage, and many workers read its retained
+// state at once. Every host object it keeps a reference to says by its type whether it may be
+// shared between threads, so one that cannot be fails this rather than passing as an opaque pointer.
 const _: () = {
     const fn assert_send<T: Send>() {}
+    const fn assert_sync<T: Sync + ?Sized>() {}
     assert_send::<StyleEngine>();
+    assert_sync::<RetainedState>();
 };
 
 impl StyleEngine {

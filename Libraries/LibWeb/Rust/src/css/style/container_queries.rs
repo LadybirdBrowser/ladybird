@@ -8,8 +8,8 @@
 //! container query inputs, the previous layout's boxes and the containers' style records.
 
 use super::bridge::FfiContainerEffectKind;
+use super::input_types::TransactionFactSide;
 use super::selector_evaluation::StructuralRead;
-use super::transaction_view::TransactionFactSide;
 use super::tree::StyleNodeID;
 use super::*;
 use crate::css::computed_longhand_table::FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS;
