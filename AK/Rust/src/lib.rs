@@ -6,11 +6,13 @@
 
 //! Rust views of shared AK data structures.
 
+mod generic_lexer;
 pub mod math;
 pub mod perf_map;
 mod scope_guard;
 mod slice;
 
+pub use generic_lexer::GenericLexer;
 pub use scope_guard::ScopeGuard;
 pub use slice::{Span, SpanMut, slice_from_raw_parts, slice_from_raw_parts_mut};
 
