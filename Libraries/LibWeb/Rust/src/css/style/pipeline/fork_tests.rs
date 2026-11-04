@@ -118,7 +118,7 @@ fn fork_bytes(engine: &StyleEngine) -> i64 {
 
 /// What a fork of the smaller document allocates, and how much more per element a fork of one
 /// twice as large does, at most.
-const FORK_BYTES: i64 = 5_100;
+const FORK_BYTES: i64 = 5_150;
 const FORK_BYTES_PER_ELEMENT: f64 = 1.5;
 
 #[test]

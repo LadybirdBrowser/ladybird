@@ -15,7 +15,9 @@ use super::super::container_queries::ContainerVerdict;
 use super::super::publication::{DemandedEngineRecord, RecordDemand, RecordDemandAnswer};
 use super::super::*;
 use super::live::Live;
-use super::records::{PseudoElementRecords, Record, RecordCells, Records, RetainedRecords};
+use super::records::{ChildImpact, MatchList, PseudoElementRecords, Record, RecordCells, Records, RetainedRecords};
+use super::rule_changes::RuleIndexChanges;
+use super::rules::RuleIndex;
 use super::traversal::{self, DemandedPseudoElement, PassContext, PseudoElementRead};
 use crate::css::style::input_types::StyleEnvironment;
 use std::sync::Arc;
@@ -30,16 +32,29 @@ pub(super) struct DemandOverlay {
     computed: HashSet<StyleNodeID>,
 }
 
+/// What an element kept styled below one that is not displayed was computed from.
+struct KeptComputation {
+    /// The parts of the environment it read.
+    environment_reads: StyleEnvironment,
+    /// The entries of the rule index it matched.
+    matches: Option<MatchList>,
+    /// What it computed, which what inherits through it computed from.
+    record: Arc<Record>,
+}
+
 /// Which records of the elements that keep their style below an element that is not displayed
 /// still stand. No pass styles these elements or notes what they read, so an installation computes
 /// them on demand, and nothing but what is noted here can move how they compute.
 #[derive(Default)]
 pub(in super::super) struct KeptHiddenRecords {
-    /// The elements computed for an installation, with the parts of the environment they read.
-    computed: HashMap<StyleNodeID, StyleEnvironment>,
+    /// The elements computed for an installation.
+    computed: HashMap<StyleNodeID, KeptComputation>,
     /// The elements an input or a hint reached since the last installation, or whose children a
-    /// pass found to compute from something else: what inherits through one computes anew.
+    /// pass found to compute from something else: what inherits through one computes anew, unless
+    /// it comes out as it was.
     moved: HashSet<StyleNodeID>,
+    /// Those of `moved` where a hint reached the elements below too, however it comes out.
+    descendants_moved: HashSet<StyleNodeID>,
 }
 
 impl KeptHiddenRecords {
@@ -50,12 +65,55 @@ impl KeptHiddenRecords {
 
     pub(super) fn note_environment_moved(&mut self, environment: StyleEnvironment) {
         if !environment.is_empty() {
-            self.computed.retain(|_, reads| !reads.intersects(environment));
+            self.moved.extend(
+                self.computed
+                    .iter()
+                    .filter(|(_, computation)| computation.environment_reads.intersects(environment))
+                    .map(|(&node, _)| node),
+            );
         }
     }
 
+    /// Only the elements that matched an entry that left, or that match one that arrived, compute
+    /// anew where nothing but the conditions of rules moved, as the same width flips the rules of
+    /// a media query.
+    pub(super) fn note_rule_index_update(
+        &mut self,
+        state: &RetainedState,
+        index: &RuleIndex,
+        records: &RetainedRecords,
+        changes: &RuleIndexChanges,
+    ) {
+        if !changes.conditions_moved_alone {
+            self.forget();
+            return;
+        }
+        if self.computed.is_empty() {
+            return;
+        }
+        let numbering = changes.numbering(index);
+        let mut moves_element = changes.moves_element(state, index, records);
+        self.computed.retain(|&node, computation| {
+            computation.matches.as_ref().is_some_and(|matches| {
+                // NB: An element is computed anew rather than taking a list numbered anew.
+                !moves_element(node, matches)
+                    && matches
+                        .iter()
+                        .all(|&entry| numbering.get(entry as usize).copied().flatten() == Some(entry))
+            })
+        });
+    }
+
     pub(super) fn note_moved(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>) {
-        self.moved.extend(nodes);
+        // NB: An element below no computation has nothing to compute anew.
+        if !self.computed.is_empty() {
+            self.moved.extend(nodes);
+        }
+    }
+
+    pub(super) fn note_descendants_moved(&mut self, node: StyleNodeID) {
+        self.moved.insert(node);
+        self.descendants_moved.insert(node);
     }
 
     /// Elements that left the tree compute nothing anymore.
@@ -68,6 +126,10 @@ impl KeptHiddenRecords {
     /// Whether `node` is one this holds a computation of.
     pub(super) fn computed(&self, node: StyleNodeID) -> bool {
         self.computed.contains_key(&node)
+    }
+
+    pub(super) fn holds_computations(&self) -> bool {
+        !self.computed.is_empty()
     }
 
     /// Whether what `node` computes from stands, as `standing` remembers of the elements it
@@ -232,6 +294,9 @@ impl Live {
         let records = Records::new(state, &cells, Some(&base));
         let context = PassContext {
             cache_audit: self.cache_audit,
+            // NB: What an element kept below one that is not displayed matched tells whether a change
+            //     to the rules reaches it.
+            keeps_matches: true,
             ..PassContext::new(
                 state,
                 &self.index,
@@ -419,7 +484,7 @@ impl StyleEngine {
         kept.sort_unstable();
         kept.dedup();
         live.note_hints_moved_kept_hidden_records();
-        let mut installed = Vec::new();
+        let mut installed = self.settle_moved_kept_hidden();
         let mut standing = HashMap::default();
         for node in kept {
             if !self.retained.projection.is_live(node) || !self.retained.keeps_style_in_display_none_subtree(node) {
@@ -430,32 +495,99 @@ impl StyleEngine {
             let stands = live
                 .kept_hidden_records
                 .stands(&self.retained, &live.records, node, &mut standing);
-            let demanded = (!stands).then(|| live.demand_chain(&self.retained, node));
             self.retained.live_style = Some(live);
-            let Some((chain, Some(first_stale))) = demanded else {
-                continue;
-            };
-            self.demand_element(node, false);
-            let live = self.retained.live_style.as_mut().expect("the engine owns the document");
-            for &element in &chain[first_stale..] {
-                let environment_reads = live.demanded_record(element).and_then(|record| {
-                    // NB: The sizes of containers move with no input.
-                    let reads_container = live.demand_records().container_reads(element).is_some();
-                    (!reads_container).then(|| record.rare().reads.environment_reads)
-                });
-                match environment_reads {
-                    Some(reads) => live.kept_hidden_records.computed.insert(element, reads),
-                    None => live.kept_hidden_records.computed.remove(&element),
-                };
+            if !stands {
+                installed.extend(self.demand_kept_chain(node));
             }
-            installed.extend_from_slice(&chain[first_stale..]);
         }
         if let Some(live) = self.retained.live_style.as_mut() {
             live.kept_hidden_records.moved.clear();
+            live.kept_hidden_records.descendants_moved.clear();
         }
         installed.sort_unstable();
         installed.dedup();
         installed
+    }
+
+    /// Compute the elements an input reached anew, and let those whose children compute from what
+    /// they did stand for what inherits through them, as a viewport change reaches an element that
+    /// reads the viewport for a property its children do not inherit. Answers the elements to
+    /// install.
+    fn settle_moved_kept_hidden(&mut self) -> Vec<StyleNodeID> {
+        let live = self.retained.live_style.as_ref().expect("the engine owns the document");
+        let kept = &live.kept_hidden_records;
+        // NB: The chain of one element can compute another of them, so what each held is taken first.
+        let mut reached: Vec<(StyleNodeID, Arc<Record>)> = kept
+            .moved
+            .iter()
+            .filter(|node| !kept.descendants_moved.contains(node) && self.retained.projection.is_live(**node))
+            .filter_map(|&node| Some((node, kept.computed.get(&node)?.record.clone())))
+            .collect();
+        reached.sort_unstable_by_key(|&(node, _)| node);
+        let mut installed = Vec::new();
+        for (node, held) in reached {
+            let mut demanded = self.demand_kept_chain(node);
+            let state = &self.retained;
+            let live = state.live_style.as_ref().expect("the engine owns the document");
+            let kept = &live.kept_hidden_records;
+            // NB: An element a pass styles now holds its record, not one computed on demand.
+            let current = live.demanded_record(node).filter(|_| kept.computed(node)).cloned();
+            let holds_the_same = current.as_ref().is_some_and(|record| record.holds_the_same_as(&held));
+            let children_stand = current.as_ref().is_some_and(|record| {
+                record.pseudo_element_styles() == held.pseudo_element_styles()
+                    && match ChildImpact::of_records(record, &held, &held.payloads) {
+                        ChildImpact::None => true,
+                        ChildImpact::ResetReaders => state.projection.style_children(node).all(|child| {
+                            let record = kept.computed.get(&child).map(|computation| &computation.record);
+                            record
+                                .or_else(|| live.records.get(child))
+                                .is_none_or(|record| !state.reads_parent_reset_values(child, record))
+                        }),
+                        _ => false,
+                    }
+            });
+            let live = self.retained.live_style.as_mut().expect("the engine owns the document");
+            if let (Some(record), Some(computation)) = (current, live.kept_hidden_records.computed.get_mut(&node)) {
+                computation.record = record;
+            }
+            if children_stand {
+                live.kept_hidden_records.moved.remove(&node);
+            }
+            if holds_the_same {
+                demanded.retain(|&element| element != node);
+            }
+            installed.append(&mut demanded);
+        }
+        installed
+    }
+
+    /// Compute the elements of the chain of `node` that hold no current record, and note what they
+    /// computed from. Answers them.
+    fn demand_kept_chain(&mut self, node: StyleNodeID) -> Vec<StyleNodeID> {
+        let live = self.retained.live_style.as_ref().expect("the engine owns the document");
+        let (chain, first_stale) = live.demand_chain(&self.retained, node);
+        let Some(first_stale) = first_stale else {
+            return Vec::new();
+        };
+        self.demand_element(node, false);
+        let live = self.retained.live_style.as_mut().expect("the engine owns the document");
+        for &element in &chain[first_stale..] {
+            let computation = live.demanded_record(element).and_then(|record| {
+                // NB: The sizes of containers and the places of elements among their siblings move with no
+                //     input an element holding no record is told of.
+                let reads_container = live.demand_records().container_reads(element).is_some();
+                (!reads_container && !record.rare().reads.reads_sibling_position).then(|| KeptComputation {
+                    environment_reads: record.rare().reads.environment_reads,
+                    matches: live.demand_records().matches_of(element).cloned(),
+                    record: record.clone(),
+                })
+            });
+            match computation {
+                Some(computation) => live.kept_hidden_records.computed.insert(element, computation),
+                None => live.kept_hidden_records.computed.remove(&element),
+            };
+        }
+        chain[first_stale..].to_vec()
     }
 
     /// The installation of the current record of `node`, computed on demand where it holds none, for a read of its

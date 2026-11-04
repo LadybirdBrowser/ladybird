@@ -556,7 +556,7 @@ impl Live {
             self.scratch.matched_declarations.forget();
         }
         let changes = state.projection.changes();
-        if transaction.restyles_everything || !transaction.rule_changes.is_empty() {
+        if transaction.restyles_everything {
             self.kept_hidden_records.forget();
         } else {
             self.kept_hidden_records.note_environment_moved(transaction.environment);
@@ -600,8 +600,13 @@ impl Live {
     /// not displayed, or what restyling descendants reaches.
     pub(super) fn note_hints_moved_kept_hidden_records(&mut self) {
         let (hints, records, kept) = (&self.hints, &self.records, &mut *self.kept_hidden_records);
+        if !kept.holds_computations() {
+            return;
+        }
         for &node in &hints.marked {
-            if records.get(node).is_none() || kept.computed(node) || hints.get(node) & RESTYLE_DESCENDANTS != 0 {
+            if hints.get(node) & RESTYLE_DESCENDANTS != 0 {
+                kept.note_descendants_moved(node);
+            } else if records.get(node).is_none() || kept.computed(node) {
                 kept.note_moved([node]);
             }
         }
@@ -925,6 +930,10 @@ impl Live {
         }
         let program = &state.rules;
         let kind_of = |rule| program.rule_version(rule).kind;
+        // NB: Only what a style rule declares reaches an element through what it matches.
+        if changes.rules.iter().any(|&rule| kind_of(rule) != RuleKind::Style) {
+            self.kept_hidden_records.forget();
+        }
         let rules_of = |sheet| program.rules_in_sheet(sheet).into_iter().map(kind_of);
         // The `@keyframes` rules that moved, and those that may decide another rule of their name
         // where their scope was reordered.
@@ -2036,6 +2045,7 @@ impl Live {
     fn rebuild_index(&mut self, state: &RetainedState) {
         let index = RuleIndex::build(&state.rules, state.process_rule_indexes());
         self.counts.note_index_build(&index);
+        self.kept_hidden_records.forget();
         let renumbering = index.renumbering_from(&self.index);
         self.records.renumber_matches(&renumbering);
         self.hints.renumber_reasons(&renumbering);
@@ -2081,9 +2091,7 @@ impl Live {
         let reordered_scopes = std::mem::take(&mut self.reordered_scopes);
         let layered_scopes = std::mem::take(&mut self.layered_scopes);
         let matched_declarations_inputs = MatchedDeclarationsInputs::of(&state.document_style_computation_inputs);
-        if rebuilds_index
-            || updates_index
-            || keyframes_moved.is_some()
+        if keyframes_moved.is_some()
             || self
                 .scratch
                 .matched_declarations_inputs
@@ -2117,6 +2125,8 @@ impl Live {
                 },
             );
             self.counts.note_index_update(&self.index, changes.arrived_entries);
+            self.kept_hidden_records
+                .note_rule_index_update(state, &self.index, &self.records, &changes);
             if hinted && !changes.is_empty() {
                 let roots = rule_change_roots(state, root, &changes.scopes);
                 let hints = &mut self.hints;

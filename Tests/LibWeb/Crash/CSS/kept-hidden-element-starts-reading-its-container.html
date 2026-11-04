@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    #container { container-type: inline-size; }
+    @container (min-width: 1px) {
+        .reads-container { color: green; }
+    }
+</style>
+<div id="container">
+    <div id="root" style="display: none">
+        <svg id="older"><linearGradient><stop /></linearGradient></svg>
+    </div>
+</div>
+<script>
+    const nextFrames = async () => {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+    };
+    (async () => {
+        // NB: The element made here is newer than the one moved below it, whose chain computes it first.
+        const newer = document.createElement("div");
+        const older = document.getElementById("older");
+        document.getElementById("root").appendChild(newer);
+        newer.appendChild(older);
+        await nextFrames();
+        older.classList.add("moved");
+        newer.classList.add("reads-container");
+        await nextFrames();
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
+</html>
