@@ -754,6 +754,38 @@ impl PartialEq for Utf16String {
 
 impl Eq for Utf16String {}
 
+impl std::fmt::Debug for Utf16String {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match self.as_units() {
+            Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => {
+                units.iter().map(|&unit| char::from(unit)).collect::<String>()
+            }
+            Utf16StringUnits::Utf16(units) => String::from_utf16_lossy(units),
+        };
+        std::fmt::Debug::fmt(&string, formatter)
+    }
+}
+
+impl std::hash::Hash for Utf16String {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Equal strings can be kept in different storage, so the code units are hashed as UTF-16 whichever it is.
+        match self.as_units() {
+            Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => {
+                state.write_usize(units.len());
+                for &unit in units {
+                    state.write_u16(u16::from(unit));
+                }
+            }
+            Utf16StringUnits::Utf16(units) => {
+                state.write_usize(units.len());
+                for &unit in units {
+                    state.write_u16(unit);
+                }
+            }
+        }
+    }
+}
+
 impl PartialEq for Utf16FlyString {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
