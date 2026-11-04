@@ -264,6 +264,7 @@ if (NOT WIN32)
         TestRendererOriginClaims.cpp
         TestRendererViolationReports.cpp
         TestRequestServerClientSessions.cpp
+        TestRequestServerDiskCaches.cpp
         TestShadowTreeTooltipsAndLinks.cpp
         TestTabPerformanceMonitor.cpp
         TestUserActivation.cpp

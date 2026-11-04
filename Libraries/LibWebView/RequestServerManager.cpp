@@ -11,6 +11,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
@@ -46,6 +47,9 @@ RequestServerManager& RequestServerManager::the()
 RequestServerManager::RequestServerManager()
     : m_maximum_site_instances(Application::request_server_options().maximum_site_request_servers)
 {
+    // Older versions kept the responses of every site in the cache of the RequestServer with no site.
+    if (uses_site_request_servers())
+        HTTP::DiskCache::remove(HTTP::DiskCache::Mode::Normal, LexicalPath { Application::request_server_options().cache_path });
 }
 
 RequestServerManager::~RequestServerManager() = default;
@@ -119,8 +123,10 @@ ErrorOr<NonnullRefPtr<RequestServerInstance>> RequestServerManager::launch(Nonnu
 ErrorOr<void> RequestServerManager::launch_process(RequestServerInstance& instance)
 {
     // Private sessions keep nothing on disk. Every RequestServer of a session would open the same cache otherwise.
-    auto disk_cache_mode = instance.session().is_private() == IsPrivate::Yes ? HTTPDiskCacheMode::Disabled : Application::request_server_options().http_disk_cache_mode;
-    auto control_client = TRY(launch_request_server_process(instance.cache_path(), instance.site(), uses_site_request_servers(), disk_cache_mode));
+    // A site's responses only pass through the RequestServer with no site on their way to the site's own.
+    auto keeps_disk_cache = instance.session().is_private() == IsPrivate::No && (instance.site().has_value() || !uses_site_request_servers());
+    auto disk_cache_mode = keeps_disk_cache ? Application::request_server_options().http_disk_cache_mode : HTTPDiskCacheMode::Disabled;
+    auto control_client = TRY(launch_request_server_process(instance.cache_path(), instance.site(), disk_cache_mode));
 
     auto weak_instance = instance.make_weak_ptr();
     control_client->on_client_disconnected = [weak_instance](int client_id) {
