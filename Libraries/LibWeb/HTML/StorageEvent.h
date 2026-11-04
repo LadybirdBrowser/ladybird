@@ -1,64 +1,19 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <AK/Utf16FlyString.h>
-#include <AK/Utf16String.h>
-#include <AK/Utf16View.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/StorageEvent.h>
-#include <LibWeb/DOM/Event.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-class Storage;
-
-using StorageEventInit = Bindings::StorageEventInit;
-
-// https://html.spec.whatwg.org/multipage/webstorage.html#storageevent
-class StorageEvent : public DOM::Event {
-    WEB_WRAPPABLE(StorageEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(StorageEvent);
-
-public:
-    [[nodiscard]] static GC::Ref<StorageEvent> create(Utf16FlyString const& event_name, StorageEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual ~StorageEvent() override;
-
-    Optional<Utf16String> const& key() const { return m_key; }
-    Optional<Utf16String> const& old_value() const { return m_old_value; }
-    Optional<Utf16String> const& new_value() const { return m_new_value; }
-    Utf16String const& url() const { return m_url; }
-    GC::Ptr<Storage const> storage_area() const { return m_storage_area; }
-    static constexpr size_t storage_area_offset() { return offsetof(StorageEvent, m_storage_area); }
-
-    void init_storage_event(Utf16FlyString const& type,
-        bool bubbles = false,
-        bool cancelable = false,
-        Optional<Utf16String> const& key = {},
-        Optional<Utf16String> const& old_value = {},
-        Optional<Utf16String> const& new_value = {},
-        Utf16View url = {},
-        GC::Ptr<Storage> storage_area = {});
-
-protected:
-    virtual void visit_edges(Visitor& visitor) override;
-
-private:
-    StorageEvent(Utf16FlyString const& event_name, StorageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-
-    Optional<Utf16String> m_key;
-    Optional<Utf16String> m_old_value;
-    Optional<Utf16String> m_new_value;
-    Utf16String m_url;
-    GC::Ptr<Storage> m_storage_area;
-};
+// The Event of a new StorageEvent in the realm whose type is the empty string, for createEvent().
+GC::Ref<DOM::Event> create_storage_event(JS::Realm&);
 
 }

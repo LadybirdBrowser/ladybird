@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/webstorage.html#storage-2
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface Storage {
 
     readonly attribute unsigned long length;

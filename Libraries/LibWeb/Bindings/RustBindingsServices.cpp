@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
@@ -114,7 +115,11 @@ void web_bindings_pop_element_queue_and_invoke_reactions();
 bool web_bindings_realm_is_window(void* realm);
 bool web_bindings_realm_is_secure_context(void* realm);
 HTML::Window* web_bindings_window_from_global_object(JSObject* global_object);
+void web_bindings_for_each_active_window(void* ctx, void (*on_window)(void*, HTML::Window*));
 DOM::Document* web_bindings_window_associated_document(HTML::Window*);
+u64 web_bindings_window_page_id(HTML::Window*);
+DOM::EventTarget* web_bindings_window_as_event_target(HTML::Window*);
+bool web_bindings_document_has_navigable(DOM::Document*);
 bool web_bindings_document_is_fully_active(DOM::Document*);
 URL::FFI::RustUrl web_bindings_document_url(DOM::Document*);
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object);
@@ -205,9 +210,32 @@ HTML::Window* web_bindings_window_from_global_object(JSObject* global_object)
     return HTML::window_from_global_object(*JS::HostABI::object_from_abi(global_object));
 }
 
+void web_bindings_for_each_active_window(void* ctx, void (*on_window)(void*, HTML::Window*))
+{
+    HTML::Window::for_each_active([&](HTML::Window& window) {
+        on_window(ctx, &window);
+        return IterationDecision::Continue;
+    });
+}
+
 DOM::Document* web_bindings_window_associated_document(HTML::Window* window)
 {
     return &window->associated_document();
+}
+
+u64 web_bindings_window_page_id(HTML::Window* window)
+{
+    return window->page().client().id().value();
+}
+
+DOM::EventTarget* web_bindings_window_as_event_target(HTML::Window* window)
+{
+    return window;
+}
+
+bool web_bindings_document_has_navigable(DOM::Document* document)
+{
+    return document->navigable() != nullptr;
 }
 
 bool web_bindings_document_is_fully_active(DOM::Document* document)

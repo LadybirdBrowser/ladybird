@@ -9,15 +9,20 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{Gc, Object, Trace};
+use libjs_rust::api::{Gc, MarkedVec, Object, Trace, Vm};
 use liburl_rust::Url;
 
 use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::event_target::CppEventTarget;
 use crate::bindings::interface::Wrappable;
 
 unsafe extern "C" {
     fn web_bindings_window_from_global_object(global_object: *mut c_void) -> *mut c_void;
+    fn web_bindings_for_each_active_window(ctx: *mut c_void, on_window: unsafe extern "C" fn(*mut c_void, *mut c_void));
     fn web_bindings_window_associated_document(window: *mut c_void) -> *mut c_void;
+    fn web_bindings_window_page_id(window: *mut c_void) -> u64;
+    fn web_bindings_window_as_event_target(window: *mut c_void) -> *mut c_void;
+    fn web_bindings_document_has_navigable(document: *mut c_void) -> bool;
     fn web_bindings_document_is_fully_active(document: *mut c_void) -> bool;
     fn web_bindings_document_url(document: *mut c_void) -> liburl_rust::RustUrl;
     fn web_bindings_worker_global_scope_from_global_object(global_object: *mut c_void) -> *mut c_void;
@@ -74,7 +79,36 @@ pub(crate) fn worker_global_scope_from_global_object(global_object: Gc<Object>) 
     .map(CppWorkerGlobalScope)
 }
 
+unsafe extern "C" fn on_active_window(windows: *mut c_void, window: *mut c_void) {
+    // SAFETY: windows is the list of the caller, and LibWeb passes a live Window.
+    unsafe { &*windows.cast::<MarkedVec<'_, CppWindow>>() }.push(CppWindow(unsafe { CppCell::from_raw(window) }));
+}
+
+/// Every Window of this process whose associated Document is fully active.
+pub(crate) fn active_windows(vm: &Vm) -> MarkedVec<'_, CppWindow> {
+    let windows = MarkedVec::new(vm);
+    // SAFETY: The list outlives the call.
+    unsafe { web_bindings_for_each_active_window((&raw const windows).cast_mut().cast(), on_active_window) };
+    windows
+}
+
 impl CppWindow {
+    pub(crate) fn as_ptr(&self) -> *mut c_void {
+        self.0.as_ptr()
+    }
+
+    /// The Window as an EventTarget.
+    pub(crate) fn as_event_target(&self) -> CppEventTarget {
+        // SAFETY: The Window is live, and LibWeb returns it as an EventTarget.
+        unsafe { CppEventTarget::from_raw(web_bindings_window_as_event_target(self.0.as_ptr())) }
+    }
+
+    /// The id of the page whose traversable navigable the Window's navigable belongs to.
+    pub(crate) fn page_id(&self) -> u64 {
+        // SAFETY: The Window is live.
+        unsafe { web_bindings_window_page_id(self.0.as_ptr()) }
+    }
+
     /// https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-document-window
     pub(crate) fn associated_document(&self) -> CppDocument {
         // SAFETY: The Window is live, and LibWeb returns its live associated Document.
@@ -87,6 +121,12 @@ impl CppDocument {
     pub(crate) fn is_fully_active(&self) -> bool {
         // SAFETY: The Document is live.
         unsafe { web_bindings_document_is_fully_active(self.0.as_ptr()) }
+    }
+
+    /// Whether the Document's node navigable is not null, https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable
+    pub(crate) fn has_navigable(&self) -> bool {
+        // SAFETY: The Document is live.
+        unsafe { web_bindings_document_has_navigable(self.0.as_ptr()) }
     }
 
     /// https://dom.spec.whatwg.org/#concept-document-url

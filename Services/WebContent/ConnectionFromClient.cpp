@@ -1387,19 +1387,15 @@ void ConnectionFromClient::inspect_storage(Web::PageId page_id, Web::StorageAPI:
         return;
     }
 
-    auto storage = storage_or_error.release_value();
+    auto& map = storage_or_error.value()->map();
     JsonArray storage_items;
-    for (auto i = 0uz; i < storage->length(); ++i) {
-        auto name = storage->key(i);
-        if (!name.has_value())
-            continue;
-
-        auto value = storage->get_item(*name);
+    for (auto const& name : map.keys()) {
+        auto value = map.get(name);
         if (!value.has_value())
             continue;
 
         JsonObject item;
-        item.set("name"sv, name.release_value().to_utf8());
+        item.set("name"sv, name.to_utf8());
         item.set("value"sv, value.release_value().to_utf8());
         storage_items.must_append(move(item));
     }

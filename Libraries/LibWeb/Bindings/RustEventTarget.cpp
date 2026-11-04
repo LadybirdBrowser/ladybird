@@ -125,6 +125,8 @@ void web_bindings_event_set_is_trusted(DOM::Event*, bool is_trusted);
 bool web_bindings_dispatch_event(DOM::EventTarget*, DOM::Event*);
 bool web_bindings_dispatch_event_with_legacy_output_did_listeners_throw_flag(DOM::EventTarget*, DOM::Event*);
 bool web_bindings_event_canceled(DOM::Event*);
+bool web_bindings_event_dispatched(DOM::Event*);
+void web_bindings_initialize_event(RustEvent*, FlatPtr type, bool bubbles, bool cancelable);
 }
 
 RustEventTarget* web_bindings_create_event_target()
@@ -253,4 +255,15 @@ bool web_bindings_dispatch_event_with_legacy_output_did_listeners_throw_flag(DOM
 bool web_bindings_event_canceled(DOM::Event* event)
 {
     return event->cancelled();
+}
+
+bool web_bindings_event_dispatched(DOM::Event* event)
+{
+    return event->dispatched();
+}
+
+void web_bindings_initialize_event(RustEvent* event, FlatPtr type, bool bubbles, bool cancelable)
+{
+    auto type_string = Utf16String::from_raw(type);
+    event->initialize_event(Utf16FlyString::from_utf16(type_string.utf16_view()), bubbles, cancelable);
 }
