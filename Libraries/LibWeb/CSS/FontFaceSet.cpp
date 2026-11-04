@@ -10,9 +10,11 @@
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
 #include <LibGC/Root.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Set.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/FontFace.h>
 #include <LibWeb/Bindings/FontFaceSet.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -21,23 +23,28 @@
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
-#include <LibWeb/CSS/FontFaceSetLoadEvent.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::CSS {
+
+extern "C" {
+
+// Defined in Bindings/Rust/src/css/exports.rs.
+void* web_font_face_set_load_event_create(JSVM*, void* realm, FlatPtr name, void* const* font_faces, size_t count);
+}
 
 GC_DEFINE_ALLOCATOR(FontFaceSet);
 
@@ -467,7 +474,16 @@ void FontFaceSet::fire_a_font_load_event(Utf16FlyString name, Vector<NonnullRefP
     // 1. The fontfaces attribute is initialized to the result of filtering font faces to only contain FontFace
     //    objects contained in target.
     font_faces.remove_all_matching([&](auto const& font_face) { return !m_font_faces.contains_slow(font_face); });
-    dispatch_event(FontFaceSetLoadEvent::create_for_fonts(name, move(font_faces), HighResolutionTime::current_high_resolution_time(relevant_settings_object().global_object())));
+    GC::RootVector<GC::Ref<FontFace>> objects;
+    objects.ensure_capacity(font_faces.size());
+    for (auto const& font_face : font_faces)
+        objects.unchecked_append(font_face->cssom_font_face());
+    Vector<void*> cells;
+    cells.ensure_capacity(objects.size());
+    for (auto font_face : objects)
+        cells.unchecked_append(static_cast<GC::Cell*>(font_face.ptr()));
+    auto* event = web_font_face_set_load_event_create(JS::HostABI::vm_to_abi(JS::VM::the()), &relevant_settings_object().realm(), name.to_utf16_string().into_raw(), cells.data(), cells.size());
+    dispatch_event(*static_cast<DOM::Event*>(static_cast<GC::Cell*>(event)));
 }
 
 // https://drafts.csswg.org/css-font-loading/#ref-for-fontfaceset-pending-on-the-environment%E2%91%A1
