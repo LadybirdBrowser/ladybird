@@ -1,0 +1,11 @@
+A clearing break moves whatever follows past the clearance, and leaves
+the text of the line it ends in place, in every writing mode. Ladybird
+extends that line to the clearance, but mirrors a vertical-lr line’s
+content within the content’s own extent, so the text stays put. WebKit
+records the clearance as the clear gap after the last line, in
+InlineFormattingContext::updateLayoutStateWithLineLayoutResult(). Blink
+adds the line’s LayoutResult::ClearanceAfterLine() to the block offset
+of what follows, in BlockLayoutAlgorithm::ComputeInflowPosition(). And
+Gecko’s nsBlockFrame::PlaceLine() moves BlockReflowState::mBCoord with
+ClearFloats() for a line whose FloatClearTypeAfter() is set. None of
+them changes the line’s size, so the text in it stays in place.
