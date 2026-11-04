@@ -37,17 +37,29 @@ RemoteRecordStream::~RemoteRecordStream()
 
 void RemoteRecordStream::deliver(ReadonlySpan<float> interleaved_samples)
 {
+    MutexLocker locker(m_delivery_mutex);
+    if (m_delivery_stopped)
+        return;
     m_callback(ReadonlyBytes { reinterpret_cast<u8 const*>(interleaved_samples.data()), interleaved_samples.size() * sizeof(float) }, m_sample_specification);
+}
+
+void RemoteRecordStream::stop_delivery()
+{
+    // Waits out a delivery in progress, so the owner hears nothing after it is told the stream has ended.
+    MutexLocker locker(m_delivery_mutex);
+    m_delivery_stopped = true;
 }
 
 void RemoteRecordStream::connection_lost()
 {
+    stop_delivery();
     if (on_capture_lost)
         on_capture_lost();
 }
 
 void RemoteRecordStream::capture_revoked()
 {
+    stop_delivery();
     if (on_capture_revoked)
         on_capture_revoked();
 }

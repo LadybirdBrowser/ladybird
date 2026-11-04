@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Span.h>
 #include <LibAudio/Export.h>
@@ -35,11 +36,15 @@ public:
     void capture_revoked();
 
 private:
+    void stop_delivery();
+
     // Only ever referenced and released on the control thread; see the destructor.
     NonnullRefPtr<ClientConnection> m_connection;
     Core::EventLoop& m_control_loop;
     u64 const m_stream_id { 0 };
     SampleSpecification const m_sample_specification;
+    Mutex m_delivery_mutex;
+    bool m_delivery_stopped { false };
     RecordCallback m_callback;
 };
 
