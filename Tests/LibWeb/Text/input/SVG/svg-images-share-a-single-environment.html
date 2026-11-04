@@ -39,9 +39,12 @@
             frame.remove();
             frame = null;
         });
-        // A stale pointer on the stack can keep a cell alive through one conservative collection.
+        // A stale pointer on the stack can keep a cell alive through one conservative collection, and the document
+        // stays referenced until the UI process completes the history operation that activated it. Attempts pause for
+        // longer and longer so that a busy machine has seconds for that.
         let collected;
-        for (let attempt = 0; attempt < 10; ++attempt) {
+        for (let attempt = 0; attempt < 150; ++attempt) {
+            await new Promise(resolve => setTimeout(resolve, attempt));
             await internals.gcAsync();
             collected = countCells();
             if (collected.environments === initial.environments && collected.images === initial.images)

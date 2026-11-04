@@ -61,10 +61,12 @@ async function waitForCondition(condition, attempts = 600, interval = 25) {
 }
 
 // Each round runs in a task of its own, so that pending tasks can drop their references and the objects that WeakRefs
-// kept alive for an earlier job are released.
-async function collectGarbageUntilCleared(weakRefs, rounds = 100) {
+// kept alive for an earlier job are released. What holds an object can be waiting for another process: a document stays
+// referenced until the UI process completes the history operation that activated it. Rounds pause for longer and longer
+// so that a busy machine has seconds for that, however quick each collection is.
+async function collectGarbageUntilCleared(weakRefs, rounds = 150) {
     for (let round = 0; round < rounds; ++round) {
-        await timeout(0);
+        await timeout(round);
         await internals.gcAsync();
         if (weakRefs.every(weakRef => weakRef.deref() === undefined)) return;
     }
