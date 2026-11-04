@@ -10,6 +10,7 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use libjs_rust::api::{Gc, Object, Trace};
+use liburl_rust::Url;
 
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::Wrappable;
@@ -18,6 +19,7 @@ unsafe extern "C" {
     fn web_bindings_window_from_global_object(global_object: *mut c_void) -> *mut c_void;
     fn web_bindings_window_associated_document(window: *mut c_void) -> *mut c_void;
     fn web_bindings_document_is_fully_active(document: *mut c_void) -> bool;
+    fn web_bindings_document_url(document: *mut c_void) -> liburl_rust::RustUrl;
     fn web_bindings_worker_global_scope_from_global_object(global_object: *mut c_void) -> *mut c_void;
     fn web_bindings_worker_global_scope_is_closing(worker_global_scope: *mut c_void) -> bool;
 }
@@ -85,6 +87,12 @@ impl CppDocument {
     pub(crate) fn is_fully_active(&self) -> bool {
         // SAFETY: The Document is live.
         unsafe { web_bindings_document_is_fully_active(self.0.as_ptr()) }
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-document-url
+    pub(crate) fn url(&self) -> Url {
+        // SAFETY: The Document is live, and LibWeb lends its URL, which this copies before the Document can change it.
+        unsafe { web_bindings_document_url(self.0.as_ptr()).to_url() }
     }
 }
 

@@ -20,6 +20,7 @@ mod textcodec;
 pub mod url;
 
 pub use ffi::origin::FfiOrigin;
+pub use ffi::url::RustUrl;
 pub use url::BasicParseOptions;
 pub use url::State;
 pub use url::Url;

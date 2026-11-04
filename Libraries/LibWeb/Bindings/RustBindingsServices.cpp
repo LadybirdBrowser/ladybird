@@ -116,6 +116,7 @@ bool web_bindings_realm_is_secure_context(void* realm);
 HTML::Window* web_bindings_window_from_global_object(JSObject* global_object);
 DOM::Document* web_bindings_window_associated_document(HTML::Window*);
 bool web_bindings_document_is_fully_active(DOM::Document*);
+URL::FFI::RustUrl web_bindings_document_url(DOM::Document*);
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object);
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*));
@@ -212,6 +213,11 @@ DOM::Document* web_bindings_window_associated_document(HTML::Window* window)
 bool web_bindings_document_is_fully_active(DOM::Document* document)
 {
     return document->is_fully_active();
+}
+
+URL::FFI::RustUrl web_bindings_document_url(DOM::Document* document)
+{
+    return document->url().to_rust();
 }
 
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object)

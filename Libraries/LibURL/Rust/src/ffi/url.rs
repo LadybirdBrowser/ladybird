@@ -93,6 +93,12 @@ impl RustUrl {
             components: self.components,
         }
     }
+
+    /// # Safety
+    /// The serialization must be valid UTF-8 for the duration of this call, and the components must describe it.
+    pub unsafe fn to_url(&self) -> Url {
+        Url::from(unsafe { self.borrow() })
+    }
 }
 
 #[repr(C)]
