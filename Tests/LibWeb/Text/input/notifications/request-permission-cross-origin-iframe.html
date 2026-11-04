@@ -19,8 +19,8 @@
         internals.setNextPermissionPromptOutcome("notifications", "allow");
         const iframe = document.createElement("iframe");
         iframe.src = frameURL.href;
+        // Wait for the frame's answer itself rather than for a fixed time, since its process can take a while to start.
         const result = await new Promise(resolve => {
-            setTimeout(() => resolve("no answer"), 2000);
             addEventListener("message", event => {
                 // The frame lives in its own process, so the click has to travel through the UI process to reach it.
                 if (event.data === "ready")
