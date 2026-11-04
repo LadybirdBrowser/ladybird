@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/style-engine/gradient-stop-inherits-animated-color-below-display-none-ref.html">
+<style>
+    .hidden { color: red; display: none; }
+    stop { stop-color: currentColor; }
+    svg.swatch { display: inline-block; width: 40px; height: 40px; }
+</style>
+<div id="running" class="hidden">
+    <svg><linearGradient id="running-gradient"><stop /></linearGradient></svg>
+</div>
+<div id="paused" class="hidden">
+    <svg><linearGradient id="paused-gradient"><stop /></linearGradient></svg>
+</div>
+<svg class="swatch"><rect width="40" height="40" fill="url(#running-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#paused-gradient)" /></svg>
+<script>
+    const nextFrames = async () => {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+    };
+    (async () => {
+        await nextFrames();
+        const keyframes = { color: ["green", "green"] };
+        const options = { duration: 1000000 };
+        document.getElementById("running").animate(keyframes, options);
+        document.getElementById("paused").animate(keyframes, options).pause();
+        await nextFrames();
+        await nextFrames();
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>

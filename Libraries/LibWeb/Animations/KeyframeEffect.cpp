@@ -1310,8 +1310,11 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
     // the update being skipped is the one that applies or removes that override, so it must always run.
     // NB: A descendant's retained style can still describe a display-none subtree while ancestor visibility
     //     reactions are propagating, so inspect the current target and ancestor styles before skipping its update.
+    // NB: Only a pseudo-element can skip it. What an element animates reaches the SVG paint servers below it, which
+    //     keep their style under display: none.
     DOM::AbstractElement abstract_element { *target, pseudo_element_type() };
-    if (!target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Display))
+    if (abstract_element.pseudo_element().has_value()
+        && !target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Display))
         && is_in_display_none_subtree_ignoring_animations(abstract_element))
         return;
 
