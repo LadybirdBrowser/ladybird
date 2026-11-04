@@ -57,7 +57,7 @@ use super::css_transform_value::CSSTransformValue;
 use super::css_unit_value::CSSUnitValue;
 use super::css_unparsed_value::CSSUnparsedValue;
 use super::media_list::MediaList;
-use super::media_query_list_event::{MediaQueryListEvent, MediaQueryListEventInit};
+use super::media_query_list::MediaQueryList;
 use super::style_sheet_list::StyleSheetList;
 use super::transition_event::{TransitionEvent, TransitionEventInit};
 use super::typed_om;
@@ -457,34 +457,43 @@ pub unsafe extern "C" fn web_css_keyword_value_value(value: *mut c_void) -> usiz
     value.raw_value().into_raw()
 }
 
-/// A new MediaQueryListEvent named `change`, as the Event that C++ dispatches, given a raw string that C++ hands over.
+/// A new MediaQueryList of the document, whose media query list shares the queries of the one that C++ passes.
 ///
 /// # Safety
 ///
-/// `vm` must be the live VM, `realm` a live realm, and `media` a raw string that C++ hands over.
+/// `vm` must be the live VM, `realm` a live realm, and `document` a live document.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_media_query_list_event_create(
+pub unsafe extern "C" fn web_media_query_list_create(
     vm: *mut c_void,
     realm: *mut c_void,
-    media: usize,
-    matches: bool,
+    document: *mut c_void,
+    media: &NativeMediaList,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    // SAFETY: The caller hands over the string.
-    let media = unsafe { Utf16String::from_raw_owned(media) };
-    let event_init = MediaQueryListEventInit {
-        parent: EventInit {
-            bubbles: false,
-            cancelable: false,
-            composed: false,
-        },
-        matches,
-        media,
+    // SAFETY: The caller passes the live VM, a live realm and a live document.
+    let (vm, realm, document) = unsafe {
+        let (vm, realm) = realm_arguments(vm, realm);
+        (vm, realm, CppCell::from_raw(document))
     };
-    MediaQueryListEvent::create(vm, realm, &Utf16String::from_ascii(b"change"), event_init)
-        .event()
-        .as_ptr()
+    cell_into_abi(MediaQueryList::create(vm, realm, document, media.share()))
+}
+
+/// # Safety
+///
+/// `list` must be a live MediaQueryList.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_media_query_list_has_change_listener(list: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live MediaQueryList.
+    unsafe { cell_from_abi::<MediaQueryList>(list) }.has_change_listener()
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, and `list` a live MediaQueryList.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_media_query_list_evaluate_and_report_change(vm: *mut c_void, list: *mut c_void) {
+    // SAFETY: The caller passes the live VM and a live MediaQueryList.
+    let (vm, list) = unsafe { (vm_from_abi(vm), cell_from_abi::<MediaQueryList>(list)) };
+    list.evaluate_and_report_change(vm);
 }
 
 /// The object of a wrapper that C++ passes, if it passes one.

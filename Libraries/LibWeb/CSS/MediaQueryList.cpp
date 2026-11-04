@@ -5,120 +5,59 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOM/EventDispatcher.h>
-#include <LibWeb/DOM/IDLEventListener.h>
-#include <LibWeb/HTML/EventHandler.h>
-#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
 
 extern "C" {
 
 // Defined in Bindings/Rust/src/css/exports.rs.
-void* web_media_query_list_event_create(JSVM*, void* realm, FlatPtr media, bool matches);
+void* web_media_query_list_create(JSVM*, void* realm, void* document, Parser::ValueParserFFI::MediaList const*);
+bool web_media_query_list_has_change_listener(void* list);
+void web_media_query_list_evaluate_and_report_change(JSVM*, void* list);
+
+// Declared in Bindings/Rust/src/css/media_query_list.rs.
+bool web_css_media_query_list_evaluate(void* document, Parser::ValueParserFFI::MediaList const*);
+bool web_css_media_query_list_update_container_layout(void* document);
 }
 
-GC_DEFINE_ALLOCATOR(MediaQueryList);
-
-GC::Ref<MediaQueryList> MediaQueryList::create(DOM::Document& document, RustMediaList media)
+static DOM::Document& document_from_abi(void* document)
 {
-    return GC::Heap::the().allocate<MediaQueryList>(document, move(media));
+    return *static_cast<DOM::Document*>(static_cast<GC::Cell*>(document));
 }
 
-MediaQueryList::MediaQueryList(DOM::Document& document, RustMediaList media)
-    : DOM::EventTarget()
-    , m_document(document)
-    , m_media(move(media))
+bool web_css_media_query_list_evaluate(void* document, Parser::ValueParserFFI::MediaList const* media)
 {
-    evaluate();
+    return RustMediaList { media, RustMediaList::Ownership::Borrow }.evaluate(document_from_abi(document));
 }
 
-GC::Ptr<Bindings::Wrappable> MediaQueryList::relevant_global_impl() const
+bool web_css_media_query_list_update_container_layout(void* document)
 {
-    return m_document->window();
+    auto container_document = document_from_abi(document).container_document();
+    if (!container_document)
+        return false;
+    container_document->update_layout(DOM::UpdateLayoutReason::MediaQueryListMatches);
+    return true;
 }
 
-void MediaQueryList::visit_edges(Cell::Visitor& visitor)
+GC::Ref<MediaQueryList> MediaQueryList::create(DOM::Document& document, RustMediaList const& media)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_document);
+    auto* list = web_media_query_list_create(JS::HostABI::vm_to_abi(JS::VM::the()), &HTML::relevant_realm(document), static_cast<GC::Cell*>(&document), media.handle());
+    return GC::Ref { *static_cast<MediaQueryList*>(list) };
 }
 
-// https://drafts.csswg.org/cssom-view/#dom-mediaquerylist-media
-Utf16String MediaQueryList::media() const
+bool MediaQueryList::has_change_listener() const
 {
-    return m_media.media_text();
+    return web_media_query_list_has_change_listener(const_cast<MediaQueryList*>(this));
 }
 
-// https://drafts.csswg.org/cssom-view/#dom-mediaquerylist-matches
-bool MediaQueryList::matches() const
+void MediaQueryList::evaluate_and_report_change()
 {
-    bool did_match = m_media.matches();
-
-    // NOTE: If our document is inside a frame, we need to update layout
-    //       since that may cause our frame (and thus viewport) to resize.
-    if (auto container_document = m_document->container_document()) {
-        container_document->update_layout(DOM::UpdateLayoutReason::MediaQueryListMatches);
-        m_media.evaluate(m_document);
-    }
-
-    bool now_matches = m_media.matches();
-    if (did_match != now_matches)
-        m_has_changed_state = true;
-
-    return now_matches;
-}
-
-GC::Ref<DOM::Event> MediaQueryList::create_change_event(bool matches) const
-{
-    auto* event = web_media_query_list_event_create(JS::HostABI::vm_to_abi(JS::VM::the()), &HTML::relevant_realm(*m_document), media().into_raw(), matches);
-    return GC::Ref { *static_cast<DOM::Event*>(static_cast<GC::Cell*>(event)) };
-}
-
-bool MediaQueryList::evaluate()
-{
-    return m_media.evaluate(m_document);
-}
-
-// https://www.w3.org/TR/cssom-view/#dom-mediaquerylist-addlistener
-void MediaQueryList::add_listener(GC::Ptr<DOM::IDLEventListener> listener)
-{
-    // 1. If listener is null, terminate these steps.
-    if (!listener)
-        return;
-
-    // 2. Append an event listener to the associated list of event listeners with type set to change,
-    //    callback set to listener, and capture set to false, unless there already is an event listener
-    //    in that list with the same type, callback, and capture.
-    //    (NOTE: capture is set to false by default)
-    add_event_listener_without_options(HTML::EventNames::change, *listener);
-}
-
-// https://www.w3.org/TR/cssom-view/#dom-mediaquerylist-removelistener
-void MediaQueryList::remove_listener(GC::Ptr<DOM::IDLEventListener> listener)
-{
-    // 1. Remove an event listener from the associated list of event listeners, whose type is change, callback is listener, and capture is false.
-    // NOTE: While the spec doesn't technically use remove_event_listener and instead manipulates the list directly, every major engine uses remove_event_listener.
-    //       This means if an event listener removes another event listener that comes after it, the removed event listener will not be invoked.
-    if (listener)
-        remove_event_listener_without_options(HTML::EventNames::change, *listener);
-}
-
-void MediaQueryList::set_onchange(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::change, event_handler);
-}
-
-WebIDL::CallbackType* MediaQueryList::onchange()
-{
-    return event_handler_attribute(HTML::EventNames::change);
+    web_media_query_list_evaluate_and_report_change(JS::HostABI::vm_to_abi(JS::VM::the()), this);
 }
 
 }

@@ -113,6 +113,8 @@ bool web_bindings_has_event_listener(DOM::EventTarget*, ReadonlyBytes type);
 JSValue web_bindings_event_handler_attribute(RustEventTarget*, ReadonlyBytes name);
 void web_bindings_set_event_handler_attribute(RustEventTarget*, ReadonlyBytes name, JSValue);
 void web_bindings_add_event_listener(void* realm, DOM::EventTarget*, ReadonlyBytes type, JSObject* callback);
+void web_bindings_add_event_listener_without_options(DOM::EventTarget*, ReadonlyBytes type, WebIDL::CallbackType*);
+void web_bindings_remove_event_listener_without_options(DOM::EventTarget*, ReadonlyBytes type, WebIDL::CallbackType*);
 DOM::Event* web_bindings_create_event(void* realm, ReadonlyBytes type, bool bubbles, bool cancelable, bool composed);
 RustEvent* web_bindings_create_rust_event(void* realm, FlatPtr type, bool bubbles, bool cancelable, bool composed);
 DOM::Event* web_bindings_create_message_event(void* realm, ReadonlyBytes type, JSValue data, JSObject* const* ports, size_t count);
@@ -171,6 +173,16 @@ void web_bindings_add_event_listener(void* realm, DOM::EventTarget* target, Read
     auto& js_realm = *static_cast<JS::Realm*>(realm);
     auto callback_type = GC::Heap::the().allocate<WebIDL::CallbackType>(*JS::HostABI::object_from_abi(callback), js_realm);
     target->add_event_listener_without_options(Utf16FlyString::from_utf8_without_validation(type), DOM::IDLEventListener::create(callback_type));
+}
+
+void web_bindings_add_event_listener_without_options(DOM::EventTarget* target, ReadonlyBytes type, WebIDL::CallbackType* callback)
+{
+    target->add_event_listener_without_options(Utf16FlyString::from_utf8_without_validation(type), DOM::IDLEventListener::create(*callback));
+}
+
+void web_bindings_remove_event_listener_without_options(DOM::EventTarget* target, ReadonlyBytes type, WebIDL::CallbackType* callback)
+{
+    target->remove_event_listener_without_options(Utf16FlyString::from_utf8_without_validation(type), DOM::IDLEventListener::create(*callback));
 }
 
 DOM::Event* web_bindings_create_event(void* realm, ReadonlyBytes type, bool bubbles, bool cancelable, bool composed)

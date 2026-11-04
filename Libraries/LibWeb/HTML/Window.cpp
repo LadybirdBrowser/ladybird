@@ -1842,7 +1842,7 @@ WebIDL::ExceptionOr<GC::Ref<CSS::MediaQueryList>> Window::match_media(Utf16View 
     auto parsed_media_query_list = CSS::RustMediaList::parse(query);
 
     // 2. Return a new MediaQueryList object, with this's associated Document as the document, with parsed media query list as its associated media query list.
-    auto media_query_list = CSS::MediaQueryList::create(associated_document(), move(parsed_media_query_list));
+    auto media_query_list = CSS::MediaQueryList::create(associated_document(), parsed_media_query_list);
     associated_document().add_media_query_list(media_query_list);
     return media_query_list;
 }
