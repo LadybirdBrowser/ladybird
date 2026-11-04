@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-ending-at-the-end-of-an-ancestor-of-its-start-ref.html">
+<style>
+    ::selection { color: black; background: lime; }
+</style>
+<p id="selected">selected text</p>
+<p>outside of the selection</p>
+<script>
+    getSelection().setBaseAndExtent(selected.firstChild, 3, selected, 1);
+</script>

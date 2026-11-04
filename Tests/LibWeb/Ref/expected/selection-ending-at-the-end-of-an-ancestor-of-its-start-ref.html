@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<style>
+    ::selection { color: black; background: lime; }
+</style>
+<p id="selected">selected text</p>
+<p>outside of the selection</p>
+<script>
+    getSelection().setBaseAndExtent(selected.firstChild, 3, selected.firstChild, 13);
+</script>
