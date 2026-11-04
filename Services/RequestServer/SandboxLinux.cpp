@@ -6,7 +6,6 @@
 
 #include <AK/CharacterTypes.h>
 #include <AK/String.h>
-#include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
 #include <LibCore/File.h>
 #include <LibSandbox/Sandbox.h>
@@ -88,7 +87,7 @@ static void preload_nss_host_modules()
     }
 }
 
-ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, StringView cache_path)
+ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, Optional<StringView> disk_cache_directory)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());
@@ -96,7 +95,6 @@ ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, 
     preload_nss_host_modules();
 
     Vector<Sandbox::LandlockPath> paths;
-    TRY(Core::Directory::create(cache_path, Core::Directory::CreateDirectories::Yes));
 
     TRY(add_certificate_store_paths(paths));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/host.conf"sv, Sandbox::LandlockPath::Access::ReadOnly));
@@ -117,7 +115,8 @@ ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, 
         }));
     }
 
-    TRY(Sandbox::add_landlock_path_if_exists(paths, cache_path, Sandbox::LandlockPath::Access::ReadWrite));
+    if (disk_cache_directory.has_value())
+        TRY(Sandbox::add_landlock_path_if_exists(paths, *disk_cache_directory, Sandbox::LandlockPath::Access::ReadWrite));
 
     TRY(Sandbox::restrict_filesystem_with_landlock(paths.span()));
 
