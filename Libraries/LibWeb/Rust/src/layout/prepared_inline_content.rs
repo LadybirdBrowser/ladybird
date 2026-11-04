@@ -31,6 +31,8 @@ pub(super) struct PreparedItem {
     offset_in_node: u32,
     length_in_node: u32,
     bits: u16,
+    /// For a text item, which of [`PreparedInlineContent::fonts`] its text is set in.
+    font_index: u16,
 }
 
 const _: () = assert!(size_of::<PreparedItem>() == 24);
@@ -63,7 +65,6 @@ impl PreparedItem {
     pub(super) const TAKES_TRAILING_EDGES: u16 = 1 << 10;
     pub(super) const UPRIGHT: u16 = 1 << 11;
     pub(super) const TAB_STOP: u16 = 1 << 12;
-    pub(super) const TAKES_NEXT_FONT: u16 = 1 << 13;
 
     pub(super) fn new(type_: ItemType, node: Node, flags: u16) -> Self {
         Self {
@@ -72,6 +73,7 @@ impl PreparedItem {
             offset_in_node: 0,
             length_in_node: 0,
             bits: type_ as u16 | flags,
+            font_index: 0,
         }
     }
 
@@ -80,6 +82,7 @@ impl PreparedItem {
         text_range: std::ops::Range<usize>,
         shape: SharedShape,
         text_type: u8,
+        font_index: u16,
         flags: u16,
     ) -> Self {
         debug_assert!(u16::from(text_type) <= Self::TEXT_TYPE_MASK);
@@ -89,6 +92,7 @@ impl PreparedItem {
             offset_in_node: u32::try_from(text_range.start).expect("text offsets fit in 32 bits"),
             length_in_node: u32::try_from(text_range.len()).expect("text lengths fit in 32 bits"),
             bits: ItemType::Text as u16 | u16::from(text_type) << Self::TEXT_TYPE_SHIFT | flags,
+            font_index,
         }
     }
 
@@ -178,6 +182,18 @@ pub(crate) struct InlineContentPreparationBuffers {
 }
 
 impl InlineContentPreparationBuffers {
+    /// Where `font` is among the fonts of the content, adding it the first time.
+    pub(super) fn index_of_font(&mut self, font: &FontHandle) -> u16 {
+        let index = match self.fonts.iter().rposition(|kept| kept == font) {
+            Some(index) => index,
+            None => {
+                self.fonts.push(font.clone());
+                self.fonts.len() - 1
+            }
+        };
+        u16::try_from(index).expect("inline content is set in fewer than 65536 fonts")
+    }
+
     pub(super) fn take_prepared_inline_content(&mut self, validity: FcRunCacheValidity) -> PreparedInlineContent {
         self.box_stack.clear();
         PreparedInlineContent {
@@ -191,6 +207,11 @@ impl InlineContentPreparationBuffers {
 }
 
 impl PreparedInlineContent {
+    /// The font the text of `item`, one of this content's text items, is set in.
+    pub(super) fn font_of(&self, item: &PreparedItem) -> &FontHandle {
+        &self.fonts[usize::from(item.font_index)]
+    }
+
     pub(crate) fn for_block_container(pass: LayoutPass<'_>, block_container: Node) -> Arc<Self> {
         if pass.reads_no_memoized_layout() || pass.lays_out_with_position_option() {
             return Arc::new(Self::prepare(pass, block_container));

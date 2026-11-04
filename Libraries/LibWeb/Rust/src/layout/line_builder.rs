@@ -483,8 +483,13 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(block_size);
     }
 
-    pub(crate) fn append_text_item(&mut self, item: &mut inline_level_iterator::Item, style: StyleValues) {
-        let glyphs = item.glyphs.take().unwrap();
+    pub(crate) fn append_text_item(
+        &mut self,
+        item: &mut inline_level_iterator::Item,
+        prepared: &prepared_inline_content::PreparedInlineContent,
+        style: StyleValues,
+    ) {
+        let glyphs = item.take_glyph_data(prepared);
         let content_block_size = TextLayoutBounds::new(style, Some(&glyphs.font)).block_size();
         self.append_text_chunk(
             item.node,

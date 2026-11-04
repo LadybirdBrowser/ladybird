@@ -27,6 +27,14 @@ pub(crate) struct GlyphData {
     pub(crate) is_upright: bool,
 }
 
+/// The glyphs of a text item.
+pub(crate) struct ItemGlyphRun<'run> {
+    pub(crate) glyphs: std::borrow::Cow<'run, [libgfx_rust::text_layout::DrawGlyph]>,
+    pub(crate) text_type: u8,
+    pub(crate) width: f32,
+    pub(crate) is_upright: bool,
+}
+
 // The advance of a run's trailing whitespace, recorded at shaping time so that trimming it subtracts exactly what
 // shaping added.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
