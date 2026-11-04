@@ -1,5 +1,5 @@
 // https://storage.spec.whatwg.org/#storagemanager
-[SecureContext, Exposed=(Window,Worker)]
+[SecureContext, Exposed=(Window,Worker), ImplementedIn=Rust]
 interface StorageManager {
     [FIXME] Promise<boolean> persisted();
     [FIXME, Exposed=Window] Promise<boolean> persist();

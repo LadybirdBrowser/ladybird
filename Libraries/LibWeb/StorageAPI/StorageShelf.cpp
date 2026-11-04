@@ -69,4 +69,27 @@ GC::Ptr<StorageShelf> obtain_a_local_storage_shelf(HTML::EnvironmentSettingsObje
     return StorageShelf::create(window.page(), settings.id, *key, StorageType::Local);
 }
 
+// Declared on the Rust side in Libraries/LibWeb/Bindings/Rust/src/storage_api/storage_shelf.rs.
+extern "C" {
+
+StorageShelf* web_storage_api_obtain_a_local_storage_shelf(HTML::EnvironmentSettingsObject*);
+u64 web_storage_api_storage_shelf_storage_usage(StorageShelf*);
+u64 web_storage_api_storage_shelf_storage_quota(StorageShelf*);
+}
+
+StorageShelf* web_storage_api_obtain_a_local_storage_shelf(HTML::EnvironmentSettingsObject* environment)
+{
+    return obtain_a_local_storage_shelf(*environment).ptr();
+}
+
+u64 web_storage_api_storage_shelf_storage_usage(StorageShelf* shelf)
+{
+    return shelf->storage_usage();
+}
+
+u64 web_storage_api_storage_shelf_storage_quota(StorageShelf* shelf)
+{
+    return shelf->storage_quota();
+}
+
 }

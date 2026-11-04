@@ -123,6 +123,7 @@ bool web_bindings_document_has_navigable(DOM::Document*);
 bool web_bindings_document_is_fully_active(DOM::Document*);
 URL::FFI::RustUrl web_bindings_document_url(DOM::Document*);
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object);
+HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject* global_object);
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*));
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
@@ -246,6 +247,11 @@ bool web_bindings_document_is_fully_active(DOM::Document* document)
 URL::FFI::RustUrl web_bindings_document_url(DOM::Document* document)
 {
     return document->url().to_rust();
+}
+
+HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject* global_object)
+{
+    return &HTML::relevant_settings_object(*JS::HostABI::object_from_abi(global_object));
 }
 
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object)
@@ -472,6 +478,7 @@ void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, 
 static_assert(to_underlying(HTML::Task::Source::Unspecified) == 0);
 static_assert(to_underlying(HTML::Task::Source::Networking) == 3);
 static_assert(to_underlying(HTML::Task::Source::FileReading) == 13);
+static_assert(to_underlying(HTML::Task::Source::Storage) == 29);
 
 void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*))
 {

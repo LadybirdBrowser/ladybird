@@ -774,7 +774,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 GC::Ref<StorageAPI::StorageManager> EnvironmentSettingsObject::storage_manager()
 {
     if (!m_storage_manager)
-        m_storage_manager = StorageAPI::StorageManager::create(*this);
+        m_storage_manager = StorageAPI::StorageManager::create(realm());
     return *m_storage_manager;
 }
 

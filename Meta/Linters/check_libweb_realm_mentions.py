@@ -79,7 +79,12 @@ ALLOWED_REALM_MENTIONS = {
         41,
         "service worker jobs, caches, and container promises still materialize results in selected realms",
     ),
-    "StorageAPI": (1, 3, "the C++ glue of the Rust storage keys reads the settings object of a realm's global"),
+    "StorageAPI": (
+        3,
+        6,
+        "the C++ glue of the Rust storage keys reads the settings object of a realm's global, and the C++ glue of the "
+        "Rust StorageManager creates one in a realm",
+    ),
     "Streams": (7, 17, "the C++ facade of the Rust streams creates streams and promises in caller-selected realms"),
     "TrustedTypes": (2, 9, "Trusted Types policy factory operations still use selected realms"),
     "WebAssembly": (
