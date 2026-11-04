@@ -127,6 +127,8 @@ pub(crate) struct CommittedSvgFacts {
     pub(crate) mask_area_facts: Option<svg_formatting_context::SvgMaskAreaFacts>,
     pub(crate) viewport_percentage_basis: CssPixels,
     pub(crate) resource_content_units_are_object_bounding_box: bool,
+    /// The `pathLength` of a geometry element, where its element has one.
+    pub(crate) author_path_length: Option<f32>,
 }
 
 /// The sizes, size constraints and box sides of a box.

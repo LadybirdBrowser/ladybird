@@ -220,6 +220,10 @@ pub struct FfiSvgAttributeFacts {
     pub line_y1: FfiSvgNumberPercentage,
     pub line_x2: FfiSvgNumberPercentage,
     pub line_y2: FfiSvgNumberPercentage,
+    /// The `pathLength` a geometry element parses, where it parses one: the length its stroke's dashes measure the
+    /// path in.
+    pub has_path_length: bool,
+    pub path_length: f32,
     /// The text positioning attributes of a `<text>` or `<tspan>`.
     /// FIXME: These only carry a single value each, not a list.
     pub text_x: FfiSvgLengthValue,
@@ -1213,12 +1217,21 @@ pub unsafe extern "C" fn svg_geometry_element_stroke_contains(
                 cap_style: stroke.cap_style,
                 join_style: stroke.join_style,
                 miter_limit: stroke.miter_limit,
-                dash_array: stroke
-                    .dash_array
-                    .iter()
-                    .map(|dash| dash * dash_scale * stroke_scale)
-                    .collect(),
-                dash_offset: stroke.dash_offset * dash_scale * stroke_scale,
+                // An infinite dash scale makes every dash infinitely long, so the stroke draws solid.
+                dash_array: if dash_scale.is_finite() {
+                    stroke
+                        .dash_array
+                        .iter()
+                        .map(|dash| dash * dash_scale * stroke_scale)
+                        .collect()
+                } else {
+                    Vec::new()
+                },
+                dash_offset: if dash_scale.is_finite() {
+                    stroke.dash_offset * dash_scale * stroke_scale
+                } else {
+                    0.0
+                },
             };
             if stroke_style.thickness <= 0.0 {
                 return false;
@@ -1863,6 +1876,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             svg.viewport_percentage_basis = facts.viewport_percentage_basis;
             svg.resource_content_units_are_object_bounding_box =
                 attributes.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX;
+            svg.author_path_length = attributes.has_path_length.then_some(attributes.path_length);
         });
     }
 

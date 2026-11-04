@@ -129,7 +129,33 @@ pub(crate) fn svg_stroke_style(
     style: &ComputedValuesView<'_>,
 ) -> SvgStrokeStyle {
     let basis = crate::painting::paintable_geometry::committed_svg_viewport_percentage_basis(layout_arena, paintable);
-    svg_stroke_style_for_percentage_basis(style, basis)
+    let mut stroke = svg_stroke_style_for_percentage_basis(style, basis);
+    if !stroke.dash_array.is_empty()
+        && let Some(path_length) =
+            crate::painting::paintable_geometry::committed_svg_author_path_length(layout_arena, paintable)
+    {
+        // https://svgwg.org/svg2-draft/paths.html#PathLengthAttribute
+        // The user agent will scale all distance-along-a-path computations by the ratio of 'pathLength' to the user
+        // agent's own computed value for total path length.
+        // AD-HOC: The spec says "'pathLength' has no effect on percentage distance-along-a-path calculations", but a
+        //         percentage in the dash array or offset is resolved first and then scaled like any other length, for
+        //         web compatibility.
+        if path_length == 0.0 {
+            // A value of zero is valid and must be treated as a scaling factor of infinity. A value of zero scaled
+            // infinitely must remain zero, while any non-percentage value greater than zero must become +Infinity.
+            // AD-HOC: The stroke draws solid, for web compatibility, rather than keeping each zero-length dash or
+            //         gap at zero; that's the same stroke for any dash array without a zero in it.
+            stroke.dash_array.clear();
+            stroke.dash_offset = 0.0;
+        } else if path_length > 0.0
+            && let Some(path) = crate::painting::paintable_geometry::committed_svg_path(layout_arena, paintable)
+        {
+            let scale = path.length() / path_length;
+            stroke.dash_array.iter_mut().for_each(|dash| *dash *= scale);
+            stroke.dash_offset *= scale;
+        }
+    }
+    stroke
 }
 
 /// The stroke properties of an SVG shape, with percentages resolved against the given basis.

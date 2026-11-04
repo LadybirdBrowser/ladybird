@@ -211,6 +211,12 @@ RustFFI::FfiSvgAttributeFacts svg_geometry_facts(DOM::Element const& element)
         facts.line_x2 = to_ffi_number_percentage(line_element->x2_value());
         facts.line_y2 = to_ffi_number_percentage(line_element->y2_value());
     }
+    if (auto const* geometry_element = as_if<SVG::SVGGeometryElement>(element)) {
+        if (auto path_length = geometry_element->author_path_length(); path_length.has_value()) {
+            facts.has_path_length = true;
+            facts.path_length = *path_length;
+        }
+    }
     return facts;
 }
 
@@ -333,6 +339,8 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
         .line_y1 = geometry.line_y1,
         .line_x2 = geometry.line_x2,
         .line_y2 = geometry.line_y2,
+        .has_path_length = geometry.has_path_length,
+        .path_length = geometry.path_length,
         .text_x = to_ffi_svg_length_value(text_positioning.x),
         .text_y = to_ffi_svg_length_value(text_positioning.y),
         .text_dx = to_ffi_svg_length_value(text_positioning.dx),

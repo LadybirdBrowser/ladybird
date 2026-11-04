@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/path-length-scales-stroke-dashes-ref.html" />
+<style>
+    svg * { fill: none; stroke: black; stroke-width: 4; }
+</style>
+<svg width="240" height="140">
+    <path d="M 10 10 H 110" pathLength="10" stroke-dasharray="2 3" />
+    <line x1="10" y1="30" x2="110" y2="30" pathLength="50" stroke-dasharray="10" stroke-dashoffset="5" />
+    <rect x="10" y="50" width="100" height="20" pathLength="24" stroke-dasharray="5 7" />
+    <polyline points="130 10 230 10 230 70" pathLength="40" stroke-dasharray="3 1" />
+    <path d="M 10 100 H 110" pathLength="-5" stroke-dasharray="20 30" />
+    <path id="dynamic" d="M 10 120 H 110" stroke-dasharray="2 3" />
+</svg>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            dynamic.setAttribute("pathLength", "10");
+        });
+    });
+</script>
