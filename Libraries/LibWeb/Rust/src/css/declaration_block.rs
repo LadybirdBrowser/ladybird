@@ -7,14 +7,14 @@
 use crate::css::css_string::CssString;
 use crate::css::ffi_support::{FfiUtf16View, OwnedBox};
 use crate::css::property_metadata::{
-    property_is_logical_alias_including_shorthands, property_is_shorthand, property_logical_group,
-    shorthand_has_leaf_longhand,
+    longhands_for_shorthand, property_is_logical_alias_including_shorthands, property_is_shorthand,
+    property_logical_group, shorthand_has_leaf_longhand,
 };
 use crate::css::style::cascade::CascadeOperator;
 use crate::css::style::pipeline::rule_store::BlockCascadeData;
 use crate::css::style_compute::expand_shorthands_with;
 use crate::css::style_value::ContentPayload;
-use crate::css::style_value::StyleValueData;
+use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use crate::css::style_value_arc::StyleValueArc;
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 use std::cell::RefCell;
@@ -1133,32 +1133,92 @@ pub extern "C" fn rust_declaration_block_visit(
     rust_declaration_data_visit(&block.data(), context, visit);
 }
 
+/// The declarations that the declaration stands for: itself for a longhand, and otherwise its longhands.
+unsafe fn declarations_expanding_shorthands(property: &FfiDeclaredProperty) -> Vec<DeclaredProperty> {
+    let important = property.important;
+    let value = RetainedStyleValueData::from_arc(unsafe { retain_value(property.value) });
+    let mut declarations = Vec::new();
+    expand_shorthands_with(property.property_id, &value, false, &mut |property_id, value, _| {
+        declarations.push(DeclaredProperty {
+            property_id,
+            important,
+            value: value.clone().into_arc(),
+        });
+    });
+    declarations
+}
+
+/// https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_declaration_block_set(
+pub unsafe extern "C" fn rust_declaration_block_set_expanding_shorthands(
     block: &mut DeclarationBlock,
     property: &FfiDeclaredProperty,
 ) -> bool {
-    let declaration = unsafe { declaration_from_view(property) };
-    let property_id = declaration.property_id;
+    let declarations = unsafe { declarations_expanding_shorthands(property) };
     block.mutate(|data| {
-        let updated = data.set_declaration(declaration);
-        if updated {
-            data.drop_shorthands_no_longer_pending_in(property_id);
+        // 7. Let updated be false.
+        let mut updated = false;
+
+        // 8. If property is a shorthand property, then for each longhand property longhand that property maps to, in
+        //    canonical order, follow these substeps:
+        // 9. Otherwise, let updated be the result of set the CSS declaration property with value component value list,
+        //    with the important flag set if priority is not the empty string, and unset otherwise, and with the list
+        //    of declarations being the declarations.
+        for declaration in declarations {
+            let property_id = declaration.property_id;
+            // 1. Let longhand result be the result of set the CSS declaration longhand with the appropriate value(s)
+            //    from component value list, with the important flag set if priority is not the empty string, and unset
+            //    otherwise, and with the list of declarations being the declarations.
+            // 2. If longhand result is true, let updated be true.
+            if data.set_declaration(declaration) {
+                data.drop_shorthands_no_longer_pending_in(property_id);
+                updated = true;
+            }
         }
         updated
     })
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_declaration_block_append(block: &mut DeclarationBlock, property: &FfiDeclaredProperty) {
-    let declaration = unsafe { declaration_from_view(property) };
+pub unsafe extern "C" fn rust_declaration_block_append_expanding_shorthands(
+    block: &mut DeclarationBlock,
+    property: &FfiDeclaredProperty,
+) {
+    let declarations = unsafe { declarations_expanding_shorthands(property) };
     block.mutate(|data| {
-        let property_id = declaration.property_id;
-        data.properties.retain(|existing| existing.property_id != property_id);
-        data.properties.push(declaration);
-        data.drop_shorthands_no_longer_pending_in(property_id);
+        for declaration in declarations {
+            let property_id = declaration.property_id;
+            data.properties.retain(|existing| existing.property_id != property_id);
+            data.properties.push(declaration);
+            data.drop_shorthands_no_longer_pending_in(property_id);
+        }
         true
     });
+}
+
+/// https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_declaration_block_remove_expanding_shorthands(
+    block: &mut DeclarationBlock,
+    property_id: u16,
+) -> bool {
+    // 4. Let removed be false.
+    let mut removed = false;
+
+    // 5. If property is a shorthand property, for each longhand property longhand that property maps to:
+    if property_is_shorthand(property_id) {
+        for &longhand in longhands_for_shorthand(property_id) {
+            // 1. If longhand is not a property name of a CSS declaration in the declarations, continue.
+            // 2. Remove that CSS declaration and let removed be true.
+            removed |= rust_declaration_block_remove_expanding_shorthands(block, longhand);
+        }
+    }
+    // 6. Otherwise, if property is a case-sensitive match for a property name of a CSS declaration in the declarations,
+    //    remove that CSS declaration and let removed be true.
+    else {
+        removed = block.remove(property_id);
+    }
+    removed
 }
 
 #[unsafe(no_mangle)]
@@ -1172,11 +1232,6 @@ pub unsafe extern "C" fn rust_declaration_block_set_custom(
         data.set_custom_property(name, declaration);
         true
     });
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_declaration_block_remove(block: &mut DeclarationBlock, property_id: u16) -> bool {
-    block.remove(property_id)
 }
 
 #[unsafe(no_mangle)]
@@ -1234,7 +1289,7 @@ mod tests {
             let current = block.data();
             let mut view = current.properties().get(0).unwrap().view(FfiUtf16View::default());
             view.important = true;
-            assert!(unsafe { rust_declaration_block_set(&mut block, &view) });
+            assert!(unsafe { rust_declaration_block_set_expanding_shorthands(&mut block, &view) });
             let name = block.data().custom_properties().get(0).unwrap().name.clone();
             assert!(rust_declaration_block_remove_custom(
                 &mut block,
@@ -1269,14 +1324,20 @@ mod tests {
         assert_eq!(rust_declaration_block_revision(block), 0);
         assert!(rust_declaration_block_external_memory_size(block) > 0);
         let mut fork = unsafe { Box::from_raw(rust_declaration_block_share(block)) };
-        assert!(!rust_declaration_block_remove(&mut fork, property_id::HEIGHT));
+        assert!(!rust_declaration_block_remove_expanding_shorthands(
+            &mut fork,
+            property_id::HEIGHT
+        ));
         assert!(matches!(*block.state.borrow(), DeclarationBlockState::Immutable(_)));
         assert!(matches!(*fork.state.borrow(), DeclarationBlockState::Immutable(_)));
         assert!(SharedDeclarationBlock::ptr_eq(&snapshot, &fork.data()));
 
         let mut retained = unsafe { Box::from_raw(rust_declaration_block_retain(block)) };
         assert!(Rc::ptr_eq(&block.owner(), &retained.owner()));
-        assert!(rust_declaration_block_remove(&mut retained, property_id::WIDTH));
+        assert!(rust_declaration_block_remove_expanding_shorthands(
+            &mut retained,
+            property_id::WIDTH
+        ));
         assert!(block.data().properties().is_empty());
         assert_eq!(rust_declaration_block_revision(block), 1);
         // A different handle's mutation cannot invalidate a pinned snapshot.
@@ -1291,7 +1352,10 @@ mod tests {
         assert_eq!(rust_declaration_block_revision(block), 2);
         assert!(matches!(*fork.state.borrow(), DeclarationBlockState::Immutable(_)));
         drop((nested, rule, rules));
-        assert!(rust_declaration_block_remove(&mut fork, property_id::WIDTH));
+        assert!(rust_declaration_block_remove_expanding_shorthands(
+            &mut fork,
+            property_id::WIDTH
+        ));
         assert!(matches!(*fork.state.borrow(), DeclarationBlockState::Mutable(_)));
         assert!(fork.data().properties().is_empty());
         assert_eq!(retained.data().properties().len(), 1);

@@ -279,42 +279,22 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyName
 
     prepare_to_update_style_attribute();
 
-    // 7. Let updated be false.
+    // NB: Steps 7 to 9 are implemented in RustDeclarationBlock::set_expanding_shorthands().
+    auto important = !priority.is_empty() ? Important::Yes : Important::No;
     bool updated = false;
-
-    // 8. If property is a shorthand property,
-    if (property_is_shorthand(property.id())) {
-        // then for each longhand property longhand that property maps to, in canonical order, follow these substeps:
-        StyleComputer::for_each_property_expanding_shorthands(property.id(), *component_value_list, [this, &updated, priority](PropertyID longhand_property_id, StyleValue const& longhand_value) {
-            // 1. Let longhand result be the result of set the CSS declaration longhand with the appropriate value(s) from component value list,
-            //    with the important flag set if priority is not the empty string, and unset otherwise, and with the list of declarations being the declarations.
-            // 2. If longhand result is true, let updated be true.
-            updated |= set_a_css_declaration(longhand_property_id, longhand_value, !priority.is_empty() ? Important::Yes : Important::No);
-        });
-    }
-    // 9. Otherwise,
-    else {
-        if (property.is_custom_property()) {
-            auto important = !priority.is_empty() ? Important::Yes : Important::No;
-            StyleProperty style_property {
-                .important = important,
-                .property_id = property.id(),
-                .value = component_value_list.release_nonnull(),
-            };
-            if (auto existing_property = custom_property(property.name()); existing_property.has_value()
-                && existing_property->important == important
-                && *existing_property->value == *style_property.value) {
-                updated = false;
-            } else {
-                m_declarations.set_custom(property.name(), style_property);
-                updated = true;
-            }
-        } else {
-            // let updated be the result of set the CSS declaration property with value component value list,
-            // with the important flag set if priority is not the empty string, and unset otherwise,
-            // and with the list of declarations being the declarations.
-            updated = set_a_css_declaration(property.id(), *component_value_list, !priority.is_empty() ? Important::Yes : Important::No);
+    if (property.is_custom_property()) {
+        StyleProperty style_property {
+            .important = important,
+            .property_id = property.id(),
+            .value = component_value_list.release_nonnull(),
+        };
+        auto existing_property = custom_property(property.name());
+        if (!existing_property.has_value() || existing_property->important != important || *existing_property->value != *style_property.value) {
+            m_declarations.set_custom(property.name(), style_property);
+            updated = true;
         }
+    } else {
+        updated = m_declarations.set_expanding_shorthands(property.id(), *component_value_list, important);
     }
 
     // 10. If updated is true, update style attribute for the CSS declaration block.
@@ -428,9 +408,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
 
     prepare_to_update_style_attribute();
 
-    StyleComputer::for_each_property_expanding_shorthands(property.id(), style_value, [this](PropertyID longhand_id, StyleValue const& longhand_value) {
-        m_declarations.append(longhand_id, longhand_value, Important::No);
-    });
+    m_declarations.append_expanding_shorthands(property.id(), style_value, Important::No);
 
     update_style_attribute();
     invalidate_owners();
@@ -1040,31 +1018,12 @@ WebIDL::ExceptionOr<Utf16String> CSSStyleProperties::remove_property_internal(Op
         // FIXME: Add an overload that takes PropertyNameAndID?
         value = get_property_value(property->name());
 
-        Function<bool(PropertyNameAndID const&)> remove_declaration = [&](PropertyNameAndID const& property_to_remove) {
-            // 4. Let removed be false.
-            bool removed = false;
-
-            // 5. If property is a shorthand property, for each longhand property longhand that property maps to:
-            if (property_is_shorthand(property_to_remove.id())) {
-                for (auto longhand_property_id : longhands_for_shorthand(property_to_remove.id())) {
-                    // 1. If longhand is not a property name of a CSS declaration in the declarations, continue.
-                    // 2. Remove that CSS declaration and let removed be true.
-                    removed |= remove_declaration(PropertyNameAndID::from_id(longhand_property_id));
-                }
-            } else {
-                // 6. Otherwise, if property is a case-sensitive match for a property name of a CSS declaration in the declarations, remove that CSS declaration and let removed be true.
-                if (property_to_remove.is_custom_property()) {
-                    removed = m_declarations.remove_custom(property_to_remove.name());
-                } else {
-                    removed = m_declarations.remove(property_to_remove.id());
-                }
-            }
-
-            return removed;
-        };
-
         prepare_to_update_style_attribute();
-        auto removed = remove_declaration(property.value());
+
+        // NB: Steps 4 to 6 are implemented in RustDeclarationBlock::remove_expanding_shorthands().
+        auto removed = property->is_custom_property()
+            ? m_declarations.remove_custom(property->name())
+            : m_declarations.remove_expanding_shorthands(property->id());
 
         // 7. If removed is true, Update style attribute for the CSS declaration block.
         if (removed) {
@@ -1131,14 +1090,6 @@ void CSSStyleProperties::invalidate_owners()
                 sheet->synchronize_fonts_after_rule_change();
         }
     }
-}
-
-// https://drafts.csswg.org/cssom/#set-a-css-declaration
-bool CSSStyleProperties::set_a_css_declaration(PropertyID property_id, NonnullRefPtr<StyleValue const> value, Important important)
-{
-    VERIFY(!is_computed());
-
-    return m_declarations.set(property_id, *value, important);
 }
 
 void CSSStyleProperties::set_declarations_from_text(Utf16View css_text)

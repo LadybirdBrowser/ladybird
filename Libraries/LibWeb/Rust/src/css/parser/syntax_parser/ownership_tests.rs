@@ -1074,7 +1074,7 @@ fn declaration_image_traversal_skips_non_resource_values() {
 #[test]
 fn declaration_mutation_does_not_change_cached_or_nested_shared_blocks() {
     use crate::css::declaration_block::{
-        DeclarationBlock, rust_declaration_block_remove, rust_declaration_block_remove_custom,
+        DeclarationBlock, rust_declaration_block_remove_custom, rust_declaration_block_remove_expanding_shorthands,
     };
     use crate::css::property_metadata::property_id;
     let source = utf16("a { margin: 13px; --色: green }");
@@ -1089,7 +1089,10 @@ fn declaration_mutation_does_not_change_cached_or_nested_shared_blocks() {
     let mut changed = DeclarationBlock::new(original.clone());
     let independent = DeclarationBlock::new(original.clone());
     assert_eq!(changed.data().properties().len(), 4);
-    assert!(rust_declaration_block_remove(&mut changed, property_id::MARGIN_TOP));
+    assert!(rust_declaration_block_remove_expanding_shorthands(
+        &mut changed,
+        property_id::MARGIN_TOP
+    ));
     assert!(rust_declaration_block_remove_custom(&mut changed, view(&utf16("--色"))));
     assert_eq!(independent.data().properties().len(), 4);
     assert_eq!(independent.data().custom_properties().len(), 1);
@@ -1119,7 +1122,10 @@ fn declaration_mutation_does_not_change_cached_or_nested_shared_blocks() {
     let shared = DeclarationBlock::new(original);
     assert_eq!(changed.data().properties().len(), 5);
     assert_eq!(changed.data().custom_properties().len(), 1);
-    assert!(rust_declaration_block_remove(&mut changed, property_id::MARGIN_LEFT));
+    assert!(rust_declaration_block_remove_expanding_shorthands(
+        &mut changed,
+        property_id::MARGIN_LEFT
+    ));
     assert_eq!(shared.data().properties().len(), 5);
 }
 

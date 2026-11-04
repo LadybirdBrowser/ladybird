@@ -43,8 +43,6 @@ class WEB_API StyleComputer final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(StyleComputer);
 
 public:
-    static void for_each_property_expanding_shorthands(PropertyID, StyleValue const&, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property);
-
     static Optional<Utf16String> user_agent_style_sheet_source(Utf16View name);
 
     static Vector<StyleProperty> collect_presentational_hint_properties(DOM::AbstractElement);

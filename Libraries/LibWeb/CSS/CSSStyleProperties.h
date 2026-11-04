@@ -84,7 +84,6 @@ private:
     Optional<StyleProperty> get_direct_property(PropertyNameAndID const&) const;
     WebIDL::ExceptionOr<void> set_property_internal(PropertyNameAndID const&, Utf16View css_text, Utf16View priority);
     WebIDL::ExceptionOr<Utf16String> remove_property_internal(Optional<PropertyNameAndID> const&);
-    bool set_a_css_declaration(PropertyID, NonnullRefPtr<StyleValue const>, Important);
 
     void invalidate_owners();
 

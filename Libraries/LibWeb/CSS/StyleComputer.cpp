@@ -487,26 +487,6 @@ struct ResolvedScope {
     size_t proximity { NumericLimits<size_t>::max() };
 };
 
-void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, StyleValue const& value, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property)
-{
-    // The expansion recursion and pending-substitution values live in the Rust style value graph.
-    // This wrapper creates C++ facades only for the returned longhand roots.
-    auto expansion = ComputedValuesFFI::rust_expand_property_shorthands(
-        to_underlying(property_id), value.rust_style_value_data());
-    ScopeGuard destroy_expansion = [&] {
-        ComputedValuesFFI::rust_shorthand_expansion_destroy(expansion.storage);
-    };
-    HashMap<void const*, NonnullRefPtr<StyleValue const>> wrapper_cache;
-    for (size_t i = 0; i < expansion.count; ++i) {
-        auto const& property = expansion.properties[i];
-        auto& expanded_value = wrapper_cache.ensure(property.data, [&] {
-            return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                static_cast<StyleValueFFI::StyleValueData const*>(property.data)));
-        });
-        set_longhand_property(static_cast<PropertyID>(property.property_id), *expanded_value);
-    }
-}
-
 static RefPtr<CustomPropertyData const> inheritable_custom_property_data(Layout::BegunRead const& read, DOM::AbstractElement abstract_element)
 {
     auto data = abstract_element.custom_property_data();
