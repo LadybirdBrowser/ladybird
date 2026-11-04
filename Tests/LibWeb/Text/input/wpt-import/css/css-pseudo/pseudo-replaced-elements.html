@@ -1,0 +1,77 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="help" href="https://issues.chromium.org/issues/365052666">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1911253">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#generated-content">
+<!--
+  https://drafts.csswg.org/css-pseudo/#generated-content:
+     Also as with regular child elements, the ::before and ::after pseudo-elements
+     are suppressed when their parent, the originating element, is replaced.
+-->
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<title>Replaced elements don't generate before / after CSS pseudo-elements</title>
+<style>
+  input::before,
+  video::before,
+  progress::before {
+    content: "X";
+    display: block;
+    /* Not resolvable if box is not generated */
+    width: 10%;
+  }
+  span {
+    display: block;
+    /* Not resolvable if box is not generated */
+    width: 10%;
+  }
+</style>
+<input type=text>
+<input type=date>
+<input type=time>
+<input type=datetime-local>
+<input type=checkbox>
+<input type=radio>
+<input type=file>
+<input type=range>
+<input type=color>
+<input type=hidden>
+<input type=search>
+<video controls></video>
+<video></video>
+<progress></progress>
+<!-- These are special since they are no longer replaced with appearance: none -->
+<input style="appearance: none" type=checkbox>
+<input style="appearance: none" type=radio>
+<!-- These are not special -->
+<input style="appearance: none" type=text>
+<input style="appearance: none" type=date>
+<input style="appearance: none" type=time>
+<input style="appearance: none" type=datetime-local>
+<input style="appearance: none" type=file>
+<input style="appearance: none" type=range>
+<input style="appearance: none" type=color>
+<input style="appearance: none" type=hidden>
+<input style="appearance: none" type=search>
+<progress></progress>
+<script>
+for (let element of document.querySelectorAll("input, video")) {
+  test(function() {
+    const child = element.appendChild(document.createElement("span"));
+    const childWidth = getComputedStyle(child).width;
+    const hasChildBox = childWidth.endsWith("px");
+
+    const pseudoWidth = getComputedStyle(element, "::before").width;
+    const hasPseudoBox = pseudoWidth.endsWith("px");
+
+    assert_equals(hasChildBox, hasPseudoBox, "Should only generate a box for pseudo-elements if it generates a box for child elements");
+    if (hasChildBox || hasPseudoBox) {
+      assert_equals(childWidth, pseudoWidth, "Child and pseudo sizes should match");
+    }
+    const expectedBox = element.style.appearance == "none" && (element.type == "checkbox" || element.type == "radio");
+    assert_equals(hasPseudoBox, expectedBox, "Should only generate a box for appearance: none checkboxes/radio buttons");
+  }, `${element.tagName} ${element.style.cssText} ${element.type || element.controls || ""}`);
+}
+</script>

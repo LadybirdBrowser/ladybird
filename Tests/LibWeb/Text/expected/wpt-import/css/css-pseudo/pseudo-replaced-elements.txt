@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 24 tests
+
+17 Pass
+7 Fail
+Pass	INPUT  text
+Pass	INPUT  date
+Pass	INPUT  time
+Pass	INPUT  datetime-local
+Pass	INPUT  checkbox
+Pass	INPUT  radio
+Pass	INPUT  file
+Pass	INPUT  range
+Pass	INPUT  color
+Pass	INPUT  hidden
+Pass	INPUT  search
+Fail	VIDEO  true
+Pass	VIDEO  
+Pass	INPUT appearance: none; checkbox
+Pass	INPUT appearance: none; radio
+Fail	INPUT appearance: none; text
+Fail	INPUT appearance: none; date
+Fail	INPUT appearance: none; time
+Fail	INPUT appearance: none; datetime-local
+Pass	INPUT appearance: none; file
+Fail	INPUT appearance: none; range
+Pass	INPUT appearance: none; color
+Pass	INPUT appearance: none; hidden
+Fail	INPUT appearance: none; search
