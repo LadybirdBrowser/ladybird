@@ -1133,6 +1133,25 @@ pub extern "C" fn rust_declaration_block_visit(
     rust_declaration_data_visit(&block.data(), context, visit);
 }
 
+/// The value of the shorthand whose longhands, in canonical order, have the values, or null if it serializes to the
+/// empty string.
+///
+/// # Safety
+/// `values` must point to `count` live style values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_shorthand_value_of_longhands(
+    shorthand: u16,
+    values: *const *const c_void,
+    count: usize,
+) -> *const c_void {
+    let values = unsafe { ak::slice_from_raw_parts(values, count) }
+        .iter()
+        .map(|&value| RetainedStyleValueData::from_arc(unsafe { retain_value(value) }))
+        .collect();
+    crate::css::serialize::shorthand_value_of_longhands(shorthand, values)
+        .map_or(std::ptr::null(), |value| StyleValueArc::into_raw(value).cast())
+}
+
 /// The declarations that the declaration stands for: itself for a longhand, and otherwise its longhands.
 unsafe fn declarations_expanding_shorthands(property: &FfiDeclaredProperty) -> Vec<DeclaredProperty> {
     let important = property.important;

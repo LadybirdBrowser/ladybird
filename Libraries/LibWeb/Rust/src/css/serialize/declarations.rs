@@ -71,9 +71,74 @@ fn serialize_a_css_declaration(list: &mut Vec<TextSink>, property: &StringUnits,
     list.push(s);
 }
 
+fn shorthand_value(shorthand: u16, longhand_values: Vec<RetainedStyleValueData>) -> StyleValueArc {
+    StyleValueArc::new(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
+        shorthand_property: shorthand,
+        sub_properties: RetainedPropertyIdList::from_property_ids(longhands_for_shorthand(shorthand).to_vec()),
+        values: RetainedStyleValueDataList::from_retained_values(longhand_values),
+    })))
+}
+
+/// Whether the value of a longhand still waits for an arbitrary substitution function.
+fn awaits_substitution(value: &StyleValueData) -> bool {
+    matches!(
+        value,
+        StyleValueData::PendingSubstitution { .. } | StyleValueData::Unresolved(_)
+    )
+}
+
+/// The shorthand and the value that the shorthand was written with, which a longhand that pends it holds. A longhand of
+/// a shorthand nested in the one written pends the nested shorthand, which pends the written one in turn.
+fn written_shorthand(value: &RetainedStyleValueData) -> Option<(u16, &RetainedStyleValueData)> {
+    let StyleValueData::PendingSubstitution {
+        original_shorthand,
+        original_shorthand_value,
+    } = value.data()
+    else {
+        return None;
+    };
+    written_shorthand(original_shorthand_value).or(Some((*original_shorthand, original_shorthand_value)))
+}
+
+/// The value of the shorthand whose longhands, in canonical order, have the values, or None if it serializes to the
+/// empty string.
+pub(crate) fn shorthand_value_of_longhands(
+    shorthand: u16,
+    longhand_values: Vec<RetainedStyleValueData>,
+) -> Option<StyleValueArc> {
+    // https://drafts.csswg.org/css-values-5/#pending-substitution-value
+    // If all of the component longhand properties for a given shorthand are pending-substitution values from the same
+    // original shorthand value, the shorthand property must serialize to that original (arbitrary substitution
+    // function-containing) value.
+    // NB: Writing an equal value again leaves longhands holding equal values, not the same one, so what they have in
+    //     common is the shorthand written and its value as written.
+    let first = longhand_values.first()?;
+    if let StyleValueData::PendingSubstitution {
+        original_shorthand_value,
+        ..
+    } = first.data()
+    {
+        let first_written_shorthand = written_shorthand(first);
+        if longhand_values
+            .iter()
+            .all(|value| written_shorthand(value).is_some() && written_shorthand(value) == first_written_shorthand)
+        {
+            return Some(original_shorthand_value.clone().into_arc());
+        }
+    }
+
+    // Otherwise, if any of the component longhand properties for a given shorthand are pending-substitution values, or
+    // contain arbitrary substitution functions of their own that have not yet been substituted, the shorthand property
+    // must serialize to the empty string.
+    if longhand_values.iter().any(|value| awaits_substitution(value.data())) {
+        return None;
+    }
+
+    Some(shorthand_value(shorthand, longhand_values))
+}
+
 fn make_shorthand_value(shorthand: u16, list: &[DeclarationRef]) -> StyleValueArc {
-    let longhand_ids = longhands_for_shorthand(shorthand);
-    let longhand_values = longhand_ids
+    let longhand_values = longhands_for_shorthand(shorthand)
         .iter()
         .map(|&longhand_id| {
             RetainedStyleValueData::from_arc(if property_is_shorthand(longhand_id) {
@@ -87,11 +152,7 @@ fn make_shorthand_value(shorthand: u16, list: &[DeclarationRef]) -> StyleValueAr
             })
         })
         .collect();
-    StyleValueArc::new(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
-        shorthand_property: shorthand,
-        sub_properties: RetainedPropertyIdList::from_property_ids(longhand_ids.to_vec()),
-        values: RetainedStyleValueDataList::from_retained_values(longhand_values),
-    })))
+    shorthand_value(shorthand, longhand_values)
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-value
@@ -129,12 +190,7 @@ fn serialize_a_css_value_of_list(list: &[DeclarationRef]) -> TextSink {
     // If any of the component longhand properties for a given shorthand are pending-substitution
     // values, or contain arbitrary substitution functions of their own that have not yet been substituted, the
     // shorthand property must serialize to the empty string.
-    if list.iter().any(|declaration| {
-        matches!(
-            &**declaration.value,
-            StyleValueData::PendingSubstitution { .. } | StyleValueData::Unresolved(_)
-        )
-    }) {
+    if list.iter().any(|declaration| awaits_substitution(declaration.value)) {
         return value;
     }
 

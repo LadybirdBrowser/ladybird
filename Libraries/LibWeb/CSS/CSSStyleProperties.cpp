@@ -21,19 +21,10 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetState.h>
-#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
-#include <LibWeb/CSS/StyleValues/StyleValueList.h>
-#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/CSS/Zoom.h>
 #include <LibWeb/DOM/Document.h>
@@ -432,11 +423,11 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
         if (property_is_shorthand(property.id())) {
             // 1. Let list be a new empty array.
             Vector<ValueComparingNonnullRefPtr<StyleValue const>> list;
+            Vector<void const*> longhand_values;
             Optional<Important> last_important_flag;
 
             // 2. For each longhand property longhand that property maps to, in canonical order, follow these substeps:
-            Vector<PropertyID> longhand_ids = longhands_for_shorthand(property.id());
-            for (auto longhand_property_id : longhand_ids) {
+            for (auto longhand_property_id : longhands_for_shorthand(property.id())) {
                 // 1. If longhand is a case-sensitive match for a property name of a CSS declaration in the declarations,
                 //    let declaration be that CSS declaration, or null otherwise.
                 auto declaration = get_property_internal(PropertyNameAndID::from_id(longhand_property_id));
@@ -446,6 +437,7 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
                     return {};
 
                 // 3. Append the declaration to list.
+                longhand_values.append(declaration->value->rust_style_value_data());
                 list.append(declaration->value);
 
                 if (last_important_flag.has_value() && declaration->important != *last_important_flag)
@@ -453,48 +445,14 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
                 last_important_flag = declaration->important;
             }
 
-            // https://drafts.csswg.org/css-values-5/#pending-substitution-value
-            // If all of the component longhand properties for a given shorthand are pending-substitution values from
-            // the same original shorthand value, the shorthand property must serialize to that original
-            // (arbitrary substitution function-containing) value.
-            // Otherwise, if any of the component longhand properties for a given shorthand are pending-substitution
-            // values, or contain arbitrary substitution functions of their own that have not yet been substituted, the
-            // shorthand property must serialize to the empty string.
-            if (list.first()->is_pending_substitution()) {
-                auto original_shorthand_value = list.first()->as_pending_substitution().original_shorthand_value();
-                // NB: A longhand of a shorthand nested in the one written pends the nested shorthand, which pends the
-                //     written one in turn. Writing an equal value again leaves longhands holding equal values, not
-                //     the same one, so what they have in common is the shorthand written and its value as written.
-                auto written_shorthand = [](ValueComparingNonnullRefPtr<StyleValue const> value) {
-                    while (value->as_pending_substitution().original_shorthand_value()->is_pending_substitution())
-                        value = value->as_pending_substitution().original_shorthand_value();
-                    return value;
-                };
-                auto const first_written_shorthand = written_shorthand(list.first());
-                auto all_from_same_original = all_of(list, [&](auto const& value) {
-                    if (!value->is_pending_substitution())
-                        return false;
-                    auto const this_written_shorthand = written_shorthand(value);
-                    return this_written_shorthand->as_pending_substitution().original_shorthand() == first_written_shorthand->as_pending_substitution().original_shorthand()
-                        && this_written_shorthand->as_pending_substitution().original_shorthand_value() == first_written_shorthand->as_pending_substitution().original_shorthand_value();
-                });
-                if (all_from_same_original) {
-                    return StyleProperty {
-                        .important = last_important_flag.value(),
-                        .property_id = property.id(),
-                        .value = original_shorthand_value,
-                    };
-                }
-            }
-            if (any_of(list, [](auto const& value) { return value->is_pending_substitution() || value->is_unresolved(); }))
-                return {};
-
             // 3. If important flags of all declarations in list are same, then return the serialization of list.
-            // NOTE: Currently we implement property-specific shorthand serialization in ShorthandStyleValue::to_string().
+            auto const* shorthand_value = Parser::ValueParserFFI::rust_shorthand_value_of_longhands(to_underlying(property.id()), longhand_values.data(), longhand_values.size());
+            if (!shorthand_value)
+                return {};
             return StyleProperty {
                 .important = last_important_flag.value(),
                 .property_id = property.id(),
-                .value = ShorthandStyleValue::create(property.id(), longhand_ids, list),
+                .value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(shorthand_value)),
             };
 
             // 4. Return the empty string.
