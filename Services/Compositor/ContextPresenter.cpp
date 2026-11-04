@@ -424,12 +424,10 @@ Gfx::IntRect ContextPresenter::frame_damage_for(PendingFrame const& pending_fram
     auto forced_damage_rect = pending_frame.forced_damage_rect.intersected(viewport_rect);
     if (forced_damage_rect.contains(viewport_rect))
         return viewport_rect;
-    auto damage_rect = damage_since_last_raster(viewport_rect.size(), frame_content);
-    damage_rect.unite(forced_damage_rect);
-    return damage_rect;
+    return damage_since_last_raster(viewport_rect.size(), frame_content, forced_damage_rect);
 }
 
-Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_size, FrameContent const& frame_content)
+Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_size, FrameContent const& frame_content, Gfx::IntRect forced_damage_rect)
 {
     auto const& presented_scroll_state_snapshot = frame_content.presented_scroll_state_snapshot;
     Gfx::IntRect viewport_rect { {}, viewport_size };
@@ -461,6 +459,13 @@ Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_si
             return viewport_rect;
         video_sinks_with_new_frames.append(video_sink_id);
     }
+    for (auto const& scrollbar : frame_content.scrollbar_controller.scrollbars()) {
+        if (!scrollbar.is_painted_by_compositor)
+            continue;
+        if (last_frame.scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index) == presented_scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index))
+            continue;
+        forced_damage_rect.unite(scrollbar.gutter_rect.united(scrollbar.expanded_gutter_rect));
+    }
     auto display_list_damage = Compositing::compute_display_list_damage(
         *last_frame.display_list,
         last_frame.visual_context_tree,
@@ -469,20 +474,10 @@ Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_si
         m_scene.visual_context_tree_for_compositing(),
         presented_scroll_state_snapshot,
         viewport_rect,
-        { .canvases = canvases_with_new_content, .video_sinks = video_sinks_with_new_frames });
+        { .canvases = canvases_with_new_content, .video_sinks = video_sinks_with_new_frames, .forced_damage_rect = forced_damage_rect });
     if (!display_list_damage.has_value())
         return viewport_rect;
-
-    auto damage_rect = *display_list_damage;
-    for (auto const& scrollbar : frame_content.scrollbar_controller.scrollbars()) {
-        if (!scrollbar.is_painted_by_compositor)
-            continue;
-        if (last_frame.scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index) == presented_scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index))
-            continue;
-        damage_rect.unite(scrollbar.gutter_rect.united(scrollbar.expanded_gutter_rect));
-    }
-    damage_rect.intersect(viewport_rect);
-    return damage_rect;
+    return display_list_damage->intersected(viewport_rect);
 }
 
 void ContextPresenter::remember_rasterized_frame(Gfx::IntSize viewport_size, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot)

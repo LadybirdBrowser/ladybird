@@ -24,6 +24,8 @@ class ScrollStateSnapshot;
 struct LiveContentChanges {
     ReadonlySpan<CanvasId> canvases;
     ReadonlySpan<VideoSinkResourceId> video_sinks;
+    // What the compositor repaints whatever the lists hold, such as a blinking caret.
+    Gfx::IntRect forced_damage_rect;
 };
 
 COMPOSITING_API Optional<Gfx::IntRect> compute_display_list_damage(

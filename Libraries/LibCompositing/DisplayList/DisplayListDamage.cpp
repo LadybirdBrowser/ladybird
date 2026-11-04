@@ -31,6 +31,7 @@ Optional<Gfx::IntRect> compute_display_list_damage(
         viewport_rect,
         live_content_changes.canvases.data(), live_content_changes.canvases.size(),
         live_content_changes.video_sinks.data(), live_content_changes.video_sinks.size(),
+        live_content_changes.forced_damage_rect,
         &damage_rect);
     if (!damage_is_bounded)
         return {};

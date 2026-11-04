@@ -61,6 +61,7 @@ pub unsafe extern "C" fn display_list_compute_damage(
     canvases_with_new_content_len: usize,
     video_sinks_with_new_frames: *const crate::display_list::commands::VideoSinkResourceId,
     video_sinks_with_new_frames_len: usize,
+    forced_damage_rect: libgfx_rust::IntRect,
     out_damage_rect: *mut libgfx_rust::IntRect,
 ) -> bool {
     // SAFETY: The caller guarantees live handles and valid slices for the duration of the call.
@@ -79,6 +80,7 @@ pub unsafe extern "C" fn display_list_compute_damage(
         crate::display_list::damage::LiveContentChanges {
             canvases: ak::slice_from_raw_parts(canvases_with_new_content, canvases_with_new_content_len),
             video_sinks: ak::slice_from_raw_parts(video_sinks_with_new_frames, video_sinks_with_new_frames_len),
+            forced_damage_rect,
         }
     };
     let damage = crate::display_list::damage::compute_display_list_damage(
