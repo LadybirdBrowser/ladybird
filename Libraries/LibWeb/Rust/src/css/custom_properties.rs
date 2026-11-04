@@ -1051,6 +1051,19 @@ impl CustomPropertyStore {
         }))
     }
 
+    /// Whether `other` declares the custom properties the store does, in the same order. Both hold
+    /// their entries by name, so this takes no sorting, which a store of a design system's thousands
+    /// of custom properties would pay for each element compared against it.
+    fn declares_the_same_names_as(&self, other: &Self) -> bool {
+        fn declared(store: &CustomPropertyStore) -> impl Iterator<Item = (usize, std::num::NonZeroU32)> + '_ {
+            store
+                .own_values
+                .iter()
+                .filter_map(|(name_raw, entry)| Some((name_raw, entry.declared?)))
+        }
+        declared(self).eq(declared(other))
+    }
+
     /// Whether the store holds the same values as `other`, built over the same store and chained to
     /// the same parent.
     pub(crate) fn holds_same_values_as(&self, other: &Self) -> bool {
@@ -1059,7 +1072,7 @@ impl CustomPropertyStore {
             (Some(first), Some(second)) => Arc::ptr_eq(first, second) || first.holds_same_values_as(second),
             _ => false,
         };
-        if !same_inheritance || self.declared_names() != other.declared_names() {
+        if !same_inheritance || !self.declares_the_same_names_as(other) {
             return false;
         }
         // NB: What a store took in from the chain above it, and which stores stand there, depends on how it was built:
