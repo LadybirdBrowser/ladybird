@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::pipeline::projection::NoteChanges;
 use super::*;
 
 /// One clock shared by every phase; rounded cumulative endpoints make the intervals additive.
@@ -89,7 +90,13 @@ impl StyleEngine {
         self.host.deferred_element_style_inputs_are_pending = false;
 
         let mut transaction = self.drain_transaction();
-        self.apply_staged_transaction(&mut transaction);
+        // NB: Only the live style reads what a transaction changed. The first transaction of a document brings all of
+        //     its elements, and a cold pass styles them whatever they changed.
+        let note_changes = match self.retained.live_style.is_some() {
+            true => NoteChanges::Yes,
+            false => NoteChanges::No,
+        };
+        self.apply_staged_transaction(&mut transaction, note_changes);
         if let Some(mut live) = self.retained.live_style.take() {
             live.note_transaction(&self.retained, &transaction);
             self.retained.live_style = Some(live);
