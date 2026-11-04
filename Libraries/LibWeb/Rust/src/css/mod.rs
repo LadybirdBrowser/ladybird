@@ -49,6 +49,7 @@ pub(crate) mod namespace_rule;
 pub(crate) mod parser;
 pub mod property_metadata;
 pub(crate) mod property_rule;
+pub(crate) mod resolved_value;
 pub(crate) mod retained_fly_string;
 pub(crate) mod rule;
 pub(crate) mod scope_selectors;
