@@ -32,6 +32,7 @@
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/NotificationManager.h>
+#include <LibWebView/PageTranslation.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/RecordingNotificationBackend.h>
@@ -2434,6 +2435,16 @@ void WebContentPage::did_request_writing_suggestion(u64 request_id, Utf16String 
     view().did_request_writing_suggestion({}, *this, request_id, move(text), caret_offset);
 }
 
+void WebContentPage::did_get_translation_language_sample(u64 request_id, Web::TranslationLanguageSample sample)
+{
+    view().page_translation().did_get_language_sample({}, request_id, move(sample));
+}
+
+void WebContentPage::did_request_translation(Web::TranslationUnit unit)
+{
+    view().page_translation().did_request_translation({}, *this, move(unit));
+}
+
 void WebContentPage::did_request_set_system_focus(bool has_system_focus)
 {
     if (!may_change_window(*this, "did_request_set_system_focus"sv))
@@ -2950,6 +2961,16 @@ void WebContentPage::did_request_spelling_menu_action_for_testing(Web::SpellingM
         return;
     }
     view().activate_spelling_menu_action_for_testing({}, *this, action, guess_index);
+}
+
+void WebContentPage::did_request_page_translation_for_testing(String target_language)
+{
+    // NB: This translates the tab as its menu would, so only automation may ask for it.
+    if (!WebContentClient::renderers_may_synthesize_input()) {
+        client().did_misbehave("did_request_page_translation_for_testing"sv, "not driven by WebDriver or a test"sv);
+        return;
+    }
+    view().page_translation().translate_for_testing({}, move(target_language));
 }
 
 void WebContentPage::did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned, Optional<u64> text_fragment_generation_id)

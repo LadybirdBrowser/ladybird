@@ -370,6 +370,10 @@ public:
     Editing::SpellingMarkers& spelling_markers();
     Editing::SpellCheckController& spell_check_controller();
     Editing::SpellCheckController* spell_check_controller_if_exists() { return m_spell_check_controller.ptr(); }
+
+    Translation::DocumentTranslator& document_translator();
+    Translation::DocumentTranslator* document_translator_if_exists() { return m_document_translator.ptr(); }
+    void forget_document_translator();
     Editing::WritingSuggestionController& writing_suggestion_controller();
     Editing::WritingSuggestionController* writing_suggestion_controller_if_exists() { return m_writing_suggestion_controller.ptr(); }
     Editing::WritingSuggestionController const* writing_suggestion_controller_if_exists() const { return m_writing_suggestion_controller.ptr(); }
@@ -2253,6 +2257,7 @@ private:
     Vector<GC::Ref<Range>> m_find_in_page_highlighted_matches;
     OwnPtr<Editing::SpellingMarkers> m_spelling_markers;
     OwnPtr<Editing::SpellCheckController> m_spell_check_controller;
+    OwnPtr<Translation::DocumentTranslator> m_document_translator;
     OwnPtr<Editing::WritingSuggestionController> m_writing_suggestion_controller;
     Vector<Utf16String> m_find_in_page_highlighted_match_texts;
     u64 m_find_in_page_highlighted_matches_dom_tree_version { 0 };

@@ -550,6 +550,12 @@ using SlotAssignmentMode = Bindings::SlotAssignmentMode;
 
 }
 
+namespace Web::Translation {
+
+class DocumentTranslator;
+
+}
+
 namespace Web::Editing {
 
 class EditCommand;

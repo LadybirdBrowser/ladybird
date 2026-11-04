@@ -50,6 +50,7 @@ set(SOURCES
     NotificationAttribution.cpp
     NotificationFreedesktopArguments.cpp
     NotificationManager.cpp
+    PageTranslation.cpp
     PictureInPictureManager.cpp
     PictureInPictureWindow.cpp
     PermissionManager.cpp
@@ -74,6 +75,8 @@ set(SOURCES
     StorageAreaRegistry.cpp
     StorageJar.cpp
     TestSpellChecker.cpp
+    TestTranslator.cpp
+    Translator.cpp
     URL.cpp
     UserAgent.cpp
     Utilities.cpp

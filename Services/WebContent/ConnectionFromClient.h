@@ -300,6 +300,10 @@ private:
     virtual void retrieved_clipboard_entries(Web::PageId page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem>) override;
     virtual void did_check_spelling(Web::PageId page_id, u64 request_id, Vector<Web::SpellingError> errors) override;
     virtual void did_get_writing_suggestion(Web::PageId page_id, u64 request_id, Optional<Web::WritingSuggestion> suggestion) override;
+    virtual void request_translation_language_sample(Web::PageId page_id, u64 request_id) override;
+    virtual void start_translation(Web::PageId page_id, String source_language, String target_language) override;
+    virtual void stop_translation(Web::PageId page_id) override;
+    virtual void did_translate(Web::PageId page_id, Web::TranslatedUnit unit) override;
     virtual void replace_context_menu_misspelling(Web::PageId page_id, Utf16String replacement) override;
     virtual void accept_spelling_word(Web::PageId page_id, Utf16String word) override;
     virtual void forget_accepted_spelling_words(Web::PageId page_id) override;

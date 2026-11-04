@@ -262,6 +262,7 @@
 #include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/Translation/DocumentTranslator.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/UIEvents/CompositionEvent.h>
@@ -1075,6 +1076,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
         m_spelling_markers->visit_edges(visitor);
     if (m_spell_check_controller)
         m_spell_check_controller->visit_edges(visitor);
+    if (m_document_translator)
+        m_document_translator->visit_edges(visitor);
     if (m_writing_suggestion_controller)
         m_writing_suggestion_controller->visit_edges(visitor);
 
@@ -1316,6 +1319,18 @@ Editing::SpellCheckController& Document::spell_check_controller()
     if (!m_spell_check_controller)
         m_spell_check_controller = make<Editing::SpellCheckController>(*this);
     return *m_spell_check_controller;
+}
+
+Translation::DocumentTranslator& Document::document_translator()
+{
+    if (!m_document_translator)
+        m_document_translator = make<Translation::DocumentTranslator>(*this);
+    return *m_document_translator;
+}
+
+void Document::forget_document_translator()
+{
+    m_document_translator = nullptr;
 }
 
 Editing::WritingSuggestionController& Document::writing_suggestion_controller()
@@ -5415,6 +5430,7 @@ void Document::completely_finish_loading()
     //     document, reached through the UI process, which mirrors that the document is completely loaded.
     if (container)
         container->content_navigable_completely_finished_loading();
+    navigable->page().did_completely_load_document(*this);
     navigable->page().client().page_did_completely_finish_loading(navigable->id(), *this);
 }
 

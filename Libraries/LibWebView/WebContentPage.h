@@ -306,6 +306,7 @@ private:
     virtual void did_change_focused_navigable(Web::HTML::CrossProcessId navigable_id) override;
     virtual void did_request_key_event_for_testing(Web::KeyEvent event) override;
     virtual void did_request_spelling_menu_action_for_testing(Web::SpellingMenuActionForTesting action, u32 guess_index) override;
+    virtual void did_request_page_translation_for_testing(String target_language) override;
     virtual void request_history_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters) override;
     virtual void revoke_history_operation(Web::HTML::CrossProcessId operation_id) override;
     virtual void beforeunload_check_result(Web::HTML::CrossProcessId operation_id, Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) override;
@@ -334,6 +335,8 @@ private:
     virtual void did_request_clipboard_entries(u64 request_id) override;
     virtual void did_request_spell_check(u64 request_id, Utf16String text) override;
     virtual void did_request_writing_suggestion(u64 request_id, Utf16String text, u32 caret_offset) override;
+    virtual void did_get_translation_language_sample(u64 request_id, Web::TranslationLanguageSample sample) override;
+    virtual void did_request_translation(Web::TranslationUnit unit) override;
     virtual void did_request_set_system_focus(bool has_system_focus) override;
     virtual void did_request_set_system_visibility_state(Web::HTML::VisibilityState visibility_state) override;
     virtual void did_request_navigation_start(Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request) override;

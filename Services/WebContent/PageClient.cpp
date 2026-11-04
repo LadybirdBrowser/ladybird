@@ -2111,6 +2111,16 @@ void PageClient::page_did_request_spell_check(u64 request_id, Utf16String const&
     client().async_did_request_spell_check(m_id, request_id, text);
 }
 
+void PageClient::page_did_request_translation(Web::TranslationUnit const& unit)
+{
+    client().async_did_request_translation(m_id, unit);
+}
+
+void PageClient::page_did_request_page_translation_for_testing(String const& target_language)
+{
+    client().async_did_request_page_translation_for_testing(m_id, target_language);
+}
+
 void PageClient::page_did_request_writing_suggestion(u64 request_id, Utf16String const& text, u32 caret_offset)
 {
     client().async_did_request_writing_suggestion(m_id, request_id, text, caret_offset);

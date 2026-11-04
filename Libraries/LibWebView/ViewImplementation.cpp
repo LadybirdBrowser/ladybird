@@ -38,6 +38,7 @@
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/PageTranslation.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/TabPerformanceMonitor.h>
@@ -94,6 +95,7 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
     all_views().set(m_view_id, this);
 
     initialize_context_menus();
+    m_page_translation = make<PageTranslation>(*this);
 
     m_repeated_crash_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1000), [this] {
         // Reset the "crashing a lot" counter after 1 second in case we just
@@ -351,6 +353,7 @@ void ViewImplementation::did_change_ongoing_navigation(Badge<CanonicalNavigable>
 
 void ViewImplementation::did_change_active_document(Badge<CanonicalTraversable>)
 {
+    m_page_translation->did_change_active_document();
     // A prompt the document that asked has left behind goes unanswered: the user ignored it.
     ignore_pending_permission_prompts();
     report_permission_presence();
@@ -1624,6 +1627,7 @@ void ViewImplementation::send_preferences_to_page(WebContentPage& page)
     auto* spell_checker = Application::the().spell_checker();
     page.async_set_spell_checking_available(spell_checker != nullptr);
     page.async_set_writing_suggestions_available(spell_checker && spell_checker->can_suggest());
+    m_page_translation->did_create_page(page);
     send_geolocation_emulated_position(page);
     page.async_set_has_picture_in_picture_support(Application::the().supports_picture_in_picture());
 }
@@ -3361,6 +3365,7 @@ void ViewImplementation::did_cancel_loading(Badge<CanonicalNavigable>, bool canc
 void ViewImplementation::did_finish_navigation()
 {
     set_loading_state(false);
+    m_page_translation->did_finish_loading();
 
     if (!m_webdriver_navigation_observation.has_value())
         return;

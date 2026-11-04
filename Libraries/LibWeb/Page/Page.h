@@ -96,6 +96,7 @@
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/TextEditingCommand.h>
+#include <LibWebCommon/Page/Translation.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/Permissions/Permissions.h>
@@ -334,6 +335,23 @@ public:
     // For tests: Calls the callback once no document of the page has spellchecking queued or in flight.
     void when_spell_checking_settled(GC::Ref<GC::Function<void()>>);
     void notify_spell_check_progress();
+
+    // Translating the page's documents: The UI process decides the languages, and translates each unit of text the
+    // documents send it.
+    TranslationLanguageSample translation_language_sample();
+    void start_translation(String source_language, String target_language);
+    void stop_translation();
+    bool is_translating() const { return m_translation_target_language.has_value(); }
+    void did_translate(TranslatedUnit);
+    void did_completely_load_document(DOM::Document&);
+    u64 allocate_translation_unit_id() { return m_next_translation_unit_id++; }
+    // Sends the most urgent units of the page's documents, as many as may be in flight at once.
+    void notify_translation_progress();
+
+    // For tests: Translates the page as its translation menu would, and calls the callback once no document of the
+    // page has text waiting to be translated or in flight.
+    void request_translation_for_testing(String const& target_language);
+    void when_translation_settled(GC::Ref<GC::Function<void()>>);
 
     using WritingSuggestionRequest = GC::Ref<GC::Function<void(Optional<WritingSuggestion>)>>;
     bool writing_suggestions_available() const { return m_writing_suggestions_available; }
@@ -597,6 +615,12 @@ private:
     HashMap<u64, SpellCheckRequest> m_pending_spell_check_requests;
     u64 m_next_spell_check_request_id { 0 };
     Vector<GC::Ref<GC::Function<void()>>> m_spell_checking_settled_callbacks;
+
+    Optional<String> m_translation_source_language;
+    Optional<String> m_translation_target_language;
+    u64 m_next_translation_unit_id { 1 };
+    HashMap<u64, GC::Weak<DOM::Document>> m_translation_units_in_flight;
+    Vector<GC::Ref<GC::Function<void()>>> m_translation_settled_callbacks;
 
     bool m_writing_suggestions_available { false };
     HashMap<u64, WritingSuggestionRequest> m_pending_writing_suggestion_requests;
@@ -945,6 +969,8 @@ public:
     virtual void page_did_insert_clipboard_item(Clipboard::SystemClipboardItem const&, [[maybe_unused]] StringView presentation_style) { }
     virtual void page_did_request_clipboard_entries([[maybe_unused]] u64 request_id) { }
     virtual void page_did_request_spell_check([[maybe_unused]] u64 request_id, [[maybe_unused]] Utf16String const& text) { }
+    virtual void page_did_request_translation([[maybe_unused]] TranslationUnit const&) { }
+    virtual void page_did_request_page_translation_for_testing([[maybe_unused]] String const& target_language) { }
     virtual void page_did_request_writing_suggestion([[maybe_unused]] u64 request_id, [[maybe_unused]] Utf16String const& text, [[maybe_unused]] u32 caret_offset) { }
     virtual void page_did_request_primary_paste() { }
     virtual void page_did_complete_paste_action() { }

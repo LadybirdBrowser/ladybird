@@ -48,6 +48,7 @@
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/PendingDialog.h>
 #include <LibWebCommon/Page/SpellingError.h>
+#include <LibWebCommon/Page/Translation.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
@@ -306,6 +307,10 @@ endpoint WebContentServer routed by Web::PageId page_id
     retrieved_clipboard_entries(Web::PageId page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem> items) =|
     did_check_spelling(Web::PageId page_id, u64 request_id, Vector<Web::SpellingError> errors) =|
     did_get_writing_suggestion(Web::PageId page_id, u64 request_id, Optional<Web::WritingSuggestion> suggestion) =|
+    request_translation_language_sample(Web::PageId page_id, u64 request_id) =|
+    start_translation(Web::PageId page_id, String source_language, String target_language) =|
+    stop_translation(Web::PageId page_id) =|
+    did_translate(Web::PageId page_id, Web::TranslatedUnit unit) =|
     replace_context_menu_misspelling(Web::PageId page_id, Utf16String replacement) =|
     accept_spelling_word(Web::PageId page_id, Utf16String word) =|
     forget_accepted_spelling_words(Web::PageId page_id) =|

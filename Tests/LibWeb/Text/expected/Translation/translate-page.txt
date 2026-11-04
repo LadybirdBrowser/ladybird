@@ -1,0 +1,23 @@
+inline: ENTIER.<a id="link" href="#x">LE MONDE</a>BONJOUR
+same link: true
+kept: ICI<span translate="no">ACME</span>GARDER
+image: ICIVOIR <img id="cat" alt="UN CHAT" src="data:,">
+title attribute: UNE NOTE
+hidden: LE MENU
+shadow host: BONJOURLUMIEREICI / OMBRE
+iframe paragraph: AVANTAPRES, same window: true
+form paragraph: NOMREQUIS, input focused: true
+custom element: AVANTINTERNEAPRES, connections: 1
+code: let x = 1;
+other language: Hallo Welt
+notranslate: Ne pas traduire
+editable: Le texte
+button: ENVOYER
+named submit: Valider
+placeholder: CHERCHER
+options: LUNDI=Lundi, MARDI=2
+document.title: LES NOUVELLES
+html lang: en
+iframe: DANS LE CADRE
+added: BONSOIR
+changed: UN AUTRE TITRE

@@ -944,6 +944,7 @@ set(SOURCES
     SVG/SVGViewElement.cpp
     SVG/TagNames.cpp
     SVG/TimeEvent.cpp
+    Translation/DocumentTranslator.cpp
     TrustedTypes/InjectionSink.cpp
     TrustedTypes/RequireTrustedTypesForDirective.cpp
     TrustedTypes/TrustedHTML.cpp

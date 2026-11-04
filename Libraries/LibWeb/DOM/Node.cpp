@@ -107,6 +107,7 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
+#include <LibWeb/Translation/DocumentTranslator.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/VisualLines.h>
@@ -4124,6 +4125,11 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
     // MutationObserver is registered, so it runs before the observer-only bails below.
     if (page.accessibility_interested())
         page.client().page_did_change_accessibility_tree();
+
+    // A translated document translates the text the page adds or changes, which it learns of here, whether or not any
+    // MutationObserver is registered.
+    if (auto* translator = document.document_translator_if_exists())
+        translator->did_mutate(*this, type, attribute_name, old_value);
 
     // OPTIMIZATION: Without an observer of this type in the document, interestedObservers stays empty.
     if (!document.has_mutation_observers_of_type(type) && !page.listen_for_dom_mutations())

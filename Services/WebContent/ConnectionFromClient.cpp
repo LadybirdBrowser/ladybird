@@ -3633,6 +3633,30 @@ void ConnectionFromClient::did_get_writing_suggestion(Web::PageId page_id, u64 r
         page->page().did_get_writing_suggestion(request_id, move(suggestion));
 }
 
+void ConnectionFromClient::request_translation_language_sample(Web::PageId page_id, u64 request_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        async_did_get_translation_language_sample(page_id, request_id, page->page().translation_language_sample());
+}
+
+void ConnectionFromClient::start_translation(Web::PageId page_id, String source_language, String target_language)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().start_translation(move(source_language), move(target_language));
+}
+
+void ConnectionFromClient::stop_translation(Web::PageId page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().stop_translation();
+}
+
+void ConnectionFromClient::did_translate(Web::PageId page_id, Web::TranslatedUnit unit)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().did_translate(move(unit));
+}
+
 void ConnectionFromClient::replace_context_menu_misspelling(Web::PageId page_id, Utf16String replacement)
 {
     if (auto page = this->page(page_id); page.has_value())

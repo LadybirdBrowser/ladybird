@@ -7,6 +7,7 @@
  */
 
 #include <AK/SourceLocation.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
 #include <LibGfx/Bitmap.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Editing/WritingSuggestionController.h>
@@ -40,6 +42,7 @@
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -53,6 +56,7 @@
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/Translation/DocumentTranslator.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
@@ -153,6 +157,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pending_clipboard_requests);
     visitor.visit(m_pending_spell_check_requests);
     visitor.visit(m_spell_checking_settled_callbacks);
+    visitor.visit(m_translation_settled_callbacks);
     visitor.visit(m_pending_writing_suggestion_requests);
     visitor.visit(m_writing_suggestions_settled_callbacks);
     visitor.visit(m_writing_suggestion_requested_callbacks);
@@ -2625,6 +2630,151 @@ NonnullOwnPtr<MediaClient::RemotePlaybackManager> PageClient::create_media_playb
 void PageClient::rebind_media_playback_manager(MediaClient::RemotePlaybackManager&)
 {
     VERIFY_NOT_REACHED();
+}
+
+// The UI process asks for the language of the tab's document, which a page hosting it answers.
+TranslationLanguageSample Page::translation_language_sample()
+{
+    // Enough text to tell its language by, but no more.
+    static constexpr size_t MAXIMUM_SAMPLE_LENGTH = 4096;
+
+    TranslationLanguageSample sample;
+    for (auto const& navigable : hosted_navigables()) {
+        if (!navigable->is_top_level_traversable())
+            continue;
+        auto document = navigable->active_document();
+        if (!document)
+            break;
+        if (auto* document_element = document->document_element()) {
+            if (auto language = document_element->lang(); language.has_value() && !language->is_empty())
+                sample.declared_language = language->to_utf8_but_should_be_ported_to_utf16();
+        }
+        // NB: The sample is the text in the tree, rather than the rendered text, so taking it never lays the page out: It's
+        //     taken from every page that loads, and a layout would change when the page itself sees its layout happen.
+        if (auto* body = document->body()) {
+            Utf16StringBuilder builder;
+            body->for_each_in_subtree([&](DOM::Node const& node) {
+                if (builder.length_in_code_units() >= MAXIMUM_SAMPLE_LENGTH)
+                    return TraversalDecision::Break;
+                if (auto const* element = as_if<DOM::Element>(node)) {
+                    if (first_is_one_of(element->local_name(), HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::template_, HTML::TagNames::noscript))
+                        return TraversalDecision::SkipChildrenAndContinue;
+                    return TraversalDecision::Continue;
+                }
+                if (auto const* text = as_if<DOM::Text>(node)) {
+                    builder.append(text->data());
+                    builder.append_code_point(' ');
+                }
+                return TraversalDecision::Continue;
+            });
+            auto text = builder.to_string();
+            if (text.length_in_code_units() > MAXIMUM_SAMPLE_LENGTH)
+                text = Utf16String::from_utf16(text.substring_view(0, MAXIMUM_SAMPLE_LENGTH));
+            sample.text = move(text);
+        }
+        break;
+    }
+    return sample;
+}
+
+void Page::start_translation(String source_language, String target_language)
+{
+    if (is_translating())
+        return;
+    m_translation_source_language = move(source_language);
+    m_translation_target_language = move(target_language);
+    // NB: A document still loading starts too: The text its parser adds later is translated as the page adds it.
+    for (auto const& navigable : hosted_navigables()) {
+        if (auto document = navigable->active_document())
+            document->document_translator().start(*m_translation_source_language, *m_translation_target_language);
+    }
+    notify_translation_progress();
+}
+
+// The UI process stops the translation as the tab's document changes, and as the user shows the original. So the page
+// forgets it, and the next document isn't translated unless the UI process asks again.
+void Page::stop_translation()
+{
+    m_translation_source_language.clear();
+    m_translation_target_language.clear();
+    m_translation_units_in_flight.clear();
+    for (auto const& navigable : hosted_navigables()) {
+        if (auto document = navigable->active_document())
+            document->forget_document_translator();
+    }
+}
+
+// A document that finishes loading in a translated page is translated too, e.g. an iframe's. The tab's own document is
+// translated only as the UI process asks, since the translation applies to the document it was asked for.
+void Page::did_completely_load_document(DOM::Document& document)
+{
+    auto navigable = document.navigable();
+    if (is_translating() && navigable && !navigable->is_top_level_traversable())
+        document.document_translator().start(*m_translation_source_language, *m_translation_target_language);
+}
+
+void Page::did_translate(TranslatedUnit unit)
+{
+    if (auto document = m_translation_units_in_flight.take(unit.id); document.has_value()) {
+        if (auto strong_document = document->ptr()) {
+            if (auto* translator = strong_document->document_translator_if_exists())
+                translator->did_translate(unit);
+        }
+    }
+    notify_translation_progress();
+}
+
+void Page::notify_translation_progress()
+{
+    // The translator takes one unit at a time, so only a few are sent ahead: The next one to send is picked when one
+    // comes back, which is when the page may have scrolled, or changed.
+    static constexpr size_t MAXIMUM_UNITS_IN_FLIGHT = 2;
+
+    while (is_translating() && m_translation_units_in_flight.size() < MAXIMUM_UNITS_IN_FLIGHT) {
+        GC::Ptr<DOM::Document> best_document;
+        Optional<Translation::DocumentTranslator::Candidate> best_candidate;
+        for (auto const& navigable : hosted_navigables()) {
+            auto document = navigable->active_document();
+            if (!document)
+                continue;
+            auto* translator = document->document_translator_if_exists();
+            if (!translator || !translator->is_started())
+                continue;
+            auto candidate = translator->next_candidate();
+            if (candidate.has_value() && (!best_candidate.has_value() || candidate->priority < best_candidate->priority)) {
+                best_candidate = candidate;
+                best_document = document;
+            }
+        }
+        if (!best_candidate.has_value())
+            break;
+        auto unit = best_document->document_translator().take_unit_for_translation(best_candidate->unit_id);
+        m_translation_units_in_flight.set(unit.id, *best_document);
+        client().page_did_request_translation(unit);
+    }
+
+    if (m_translation_settled_callbacks.is_empty() || !is_translating() || !m_translation_units_in_flight.is_empty())
+        return;
+    for (auto const& navigable : hosted_navigables()) {
+        if (auto document = navigable->active_document()) {
+            if (auto* translator = document->document_translator_if_exists(); translator && !translator->is_settled())
+                return;
+        }
+    }
+    GC::RootVector callbacks { exchange(m_translation_settled_callbacks, {}) };
+    for (auto& callback : callbacks)
+        callback->function()();
+}
+
+void Page::request_translation_for_testing(String const& target_language)
+{
+    client().page_did_request_page_translation_for_testing(target_language);
+}
+
+void Page::when_translation_settled(GC::Ref<GC::Function<void()>> callback)
+{
+    m_translation_settled_callbacks.append(callback);
+    notify_translation_progress();
 }
 
 }

@@ -3493,6 +3493,22 @@ GC::Ref<WebIDL::Promise> Internals::spell_check_settled()
     return promise;
 }
 
+void Internals::translate_page(Utf16String const& target_language)
+{
+    page().request_translation_for_testing(target_language.to_utf8_but_should_be_ported_to_utf16());
+}
+
+GC::Ref<WebIDL::Promise> Internals::translation_settled()
+{
+    auto& realm = window().principal_realm();
+    auto promise = WebIDL::create_promise_for(window());
+    page().when_translation_settled(GC::create_function(heap(), [&realm, promise] {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        WebIDL::resolve_promise(promise);
+    }));
+    return promise;
+}
+
 GC::Ref<WebIDL::Promise> Internals::request_writing_suggestion_for_testing(Utf16String const& text, WebIDL::UnsignedLong caret_offset)
 {
     auto& realm = window().principal_realm();

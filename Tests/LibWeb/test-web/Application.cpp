@@ -17,6 +17,7 @@
 #include <LibWebView/NotificationManager.h>
 #include <LibWebView/RecordingNotificationBackend.h>
 #include <LibWebView/TestSpellChecker.h>
+#include <LibWebView/TestTranslator.h>
 #include <LibWebView/WebContentPage.h>
 #include <errno.h>
 
@@ -38,6 +39,7 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
         quiet = true;
 
     set_spell_checker(make<WebView::TestSpellChecker>());
+    set_translator(make<WebView::TestTranslator>());
 }
 
 Application::~Application()

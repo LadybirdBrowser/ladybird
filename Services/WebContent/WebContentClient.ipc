@@ -62,6 +62,7 @@
 #include <LibWebCommon/Page/PendingDialog.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebCommon/Page/SpellingError.h>
+#include <LibWebCommon/Page/Translation.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/StorageAPI/StorageAreaId.h>
@@ -262,6 +263,8 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_request_clipboard_entries(Web::PageId page_id, u64 request_id) =|
     did_request_spell_check(Web::PageId page_id, u64 request_id, Utf16String text) =|
     did_request_writing_suggestion(Web::PageId page_id, u64 request_id, Utf16String text, u32 caret_offset) =|
+    did_get_translation_language_sample(Web::PageId page_id, u64 request_id, Web::TranslationLanguageSample sample) =|
+    did_request_translation(Web::PageId page_id, Web::TranslationUnit unit) =|
     did_request_primary_paste(Web::PageId page_id) =|
     did_update_primary_selection(Web::PageId page_id, String text) =|
 
@@ -273,6 +276,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_change_focused_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     did_request_key_event_for_testing(Web::PageId page_id, Web::KeyEvent event) =|
     did_request_spelling_menu_action_for_testing(Web::PageId page_id, Web::SpellingMenuActionForTesting action, u32 guess_index) =|
+    did_request_page_translation_for_testing(Web::PageId page_id, String target_language) =|
     did_request_webdriver_mouse_event(Web::PageId page_id, u64 request_id, Web::HTML::CrossProcessId local_root_id, Web::MouseEvent event) =|
     did_request_pinch_event_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Web::PinchEvent event) =|
     did_request_set_system_visibility_state(Web::PageId page_id, Web::HTML::VisibilityState visibility_state) =|
