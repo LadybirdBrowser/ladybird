@@ -676,7 +676,11 @@ void PlaybackManager::seek_clock_and_video_sinks(AK::Duration timestamp)
 void PlaybackManager::resume_clock_and_notify_video_sinks()
 {
     m_clock->resume();
+    notify_video_sinks_of_clock_resumption();
+}
 
+void PlaybackManager::notify_video_sinks_of_clock_resumption()
+{
     for (auto& track_data : m_video_track_datas) {
         if (track_data.video_sink == nullptr)
             continue;
@@ -789,8 +793,11 @@ void PlaybackManager::set_volume(double volume)
 
 void PlaybackManager::set_playback_rate(float rate)
 {
+    auto clock_was_stopped_by_the_rate = m_playback_rate == 0.0f;
     m_playback_rate = rate;
     m_clock->set_playback_rate(rate);
+    if (clock_was_stopped_by_the_rate && rate != 0.0f && m_handler->is_playing())
+        notify_video_sinks_of_clock_resumption();
     update_pipeline_state();
 }
 
