@@ -285,7 +285,6 @@ impl LayoutNodeArena {
         paint_order::for_each_in_paint_subtree(&self.paintable_rows(), viewport, |slot| {
             slots_in_paint_order.push(slot);
         });
-        let mut roots_in_visit_order: Vec<NodeSlotId> = Vec::new();
         for slot in slots_in_paint_order {
             let Some(record) = self.paintable_visual_context_record(slot) else {
                 continue;
@@ -293,7 +292,7 @@ impl LayoutNodeArena {
             let facts = record.stacking_context;
             if facts.establishes_stacking_context {
                 self.ensure_stacking_context_entries_for_root(slot);
-                roots_in_visit_order.push(slot);
+                self.flag_stacking_context_entries_for_resort(slot);
             }
             if self.paintable_row_is_populated(facts.enclosing_stacking_context)
                 && let Some(mut table) = table_mut(
@@ -317,14 +316,7 @@ impl LayoutNodeArena {
             }
             self.set_paintable_record_stacking_context_contribution_registered(slot);
         }
-        let tables = &mut self.paintable_rows.stacking_context_entries;
-        for root in roots_in_visit_order {
-            if let Some(mut table) = table_mut(tables, root) {
-                table
-                    .child_contexts_with_nonzero_z_index
-                    .sort_by_key(|entry| entry.z_index);
-            }
-        }
+        self.resort_stacking_context_entries_flagged_for_resort();
     }
 
     pub(crate) fn withdraw_stacking_context_state_of_reset_row(
