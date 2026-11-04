@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px/20px SerenitySans;
+    }
+</style>
+<!-- After each change to a node's state, the accessibility node data reflects it, including the changes that come from
+     a property rather than an attribute: a text field's value, a checkbox's checkedness and indeterminacy, an option's
+     selectedness, an ancestor fieldset's disabling, focus, the selection, and ARIA states. -->
+<div id="root">
+    <input id="text-field" value="initial value">
+    <input id="checkbox" type="checkbox">
+    <select id="select"><option>first</option><option id="second-option">second</option></select>
+    <fieldset id="fieldset"><button id="in-fieldset">in fieldset</button></fieldset>
+    <p id="paragraph">selectable paragraph</p>
+    <button id="toggle" aria-expanded="false" aria-pressed="false">toggle</button>
+</div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const step = (label, change) => {
+            change();
+            println(`== ${label}`);
+            println(internals.dumpAccessibilityNodeData(root));
+        };
+        step("initial", () => {});
+        step("value property", () => document.getElementById("text-field").value = "typed value");
+        step("checked property", () => document.getElementById("checkbox").checked = true);
+        step("indeterminate property", () => document.getElementById("checkbox").indeterminate = true);
+        step("option selected", () => document.getElementById("second-option").selected = true);
+        step("fieldset disabled", () => document.getElementById("fieldset").disabled = true);
+        step("focus", () => document.getElementById("text-field").focus());
+        step("focus moved", () => document.getElementById("toggle").focus());
+        step("selection", () => {
+            const text = document.getElementById("paragraph").firstChild;
+            getSelection().setBaseAndExtent(text, 2, text, 6);
+        });
+        step("selection collapsed", () => getSelection().collapseToEnd());
+        step("aria-expanded and aria-pressed", () => {
+            const toggle = document.getElementById("toggle");
+            toggle.setAttribute("aria-expanded", "true");
+            toggle.setAttribute("aria-pressed", "true");
+        });
+    });
+</script>

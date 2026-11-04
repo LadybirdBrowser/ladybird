@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px/20px SerenitySans;
+    }
+    #scroller {
+        height: 40px;
+        overflow: auto;
+    }
+</style>
+<!-- After each change to a table's structure, or to layout alone, the accessibility node data reflects it: rows added,
+     cells spanning more columns, header text changed; and text that wraps differently, grows, or scrolls — with no
+     change to the DOM itself for the last three. -->
+<div id="root">
+    <table id="table">
+        <tr><th id="header">header</th><th>other header</th></tr>
+        <tr><td id="spanning">a</td><td>b</td></tr>
+    </table>
+    <p id="wrapping" style="width: 300px">text that wraps once the paragraph gets narrower</p>
+    <div id="scroller"><p>first</p><p>second</p><p>third</p><p>fourth</p></div>
+</div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const step = (label, change) => {
+            change();
+            println(`== ${label}`);
+            println(internals.dumpAccessibilityNodeData(root));
+        };
+        step("initial", () => {});
+        step("row added", () => {
+            const row = document.getElementById("table").insertRow();
+            row.insertCell().textContent = "c";
+            row.insertCell().textContent = "d";
+        });
+        step("colspan", () => document.getElementById("spanning").colSpan = 2);
+        step("header text", () => document.getElementById("header").textContent = "new header");
+        step("narrower, so the text wraps", () => document.getElementById("wrapping").style.width = "120px");
+        step("bigger font", () => document.getElementById("wrapping").style.fontSize = "20px");
+        step("scrolled", () => document.getElementById("scroller").scrollTop = 30);
+    });
+</script>

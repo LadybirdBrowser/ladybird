@@ -1,0 +1,249 @@
+== initial
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 72x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 68x22
+      n3 row name="cell text" bounds=10,10 68x22
+        n4 cell name="cell text" bounds=10,10 68x22 column_index=0
+          n5 text leaf name="cell text" bounds=11,13 66x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 21,0 26,0 34,0 40,0 49,0 59,0 lines=0@16
+  n6 button name="hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="inner text" bounds=111,34 85x20
+    n9 generic bounds=120,37 67x14
+      n10 text leaf name="inner text" bounds=120,37 67x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 3,0 11,0 19,0 27,0 34,0 41,0 46,0 54,0 62,0 lines=0@14
+  n11 text leaf name="field label" bounds=205,36 75x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 23,0 31,0 39,0 44,0 53,0 62,0 71,0 lines=0@16
+  n12 textbox name="field label" bounds=289,34 169x20 editable
+  n13 paragraph description="first description" bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 generic bounds=8,108 133x16
+    n16 text leaf name="first description" bounds=8,108 133x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 51,0 60,0 69,0 78,0 87,0 92,0 101,0 108,0 113,0 123,0 lines=0@16
+  n17 button name="pending" bounds=149,106 65x20
+    n18 text leaf name="pending" bounds=158,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n19 button name="generated" bounds=222,106 81x20
+    n20 text leaf name="generated" bounds=231,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+
+== cell textContent
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 109x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 105x22
+      n3 row name="new cell text" bounds=10,10 105x22
+        n4 cell name="new cell text" bounds=10,10 105x22 column_index=0
+          n5 text leaf name="new cell text" bounds=11,13 103x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 46,0 55,0 59,0 63,0 71,0 78,0 87,0 96,0 lines=0@16
+  n6 button name="hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="inner text" bounds=111,34 85x20
+    n9 generic bounds=120,37 67x14
+      n10 text leaf name="inner text" bounds=120,37 67x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 3,0 11,0 19,0 27,0 34,0 41,0 46,0 54,0 62,0 lines=0@14
+  n11 text leaf name="field label" bounds=205,36 75x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 23,0 31,0 39,0 44,0 53,0 62,0 71,0 lines=0@16
+  n12 textbox name="field label" bounds=289,34 169x20 editable
+  n13 paragraph description="first description" bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 generic bounds=8,108 133x16
+    n16 text leaf name="first description" bounds=8,108 133x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 51,0 60,0 69,0 78,0 87,0 92,0 101,0 108,0 113,0 123,0 lines=0@16
+  n17 button name="pending" bounds=149,106 65x20
+    n18 text leaf name="pending" bounds=158,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n19 button name="generated" bounds=222,106 81x20
+    n20 text leaf name="generated" bounds=231,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+
+== cell Text.data
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 120x22
+      n3 row name="edited cell text" bounds=10,10 120x22
+        n4 cell name="edited cell text" bounds=10,10 120x22 column_index=0
+          n5 text leaf name="edited cell text" bounds=11,13 118x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 16,0 21,0 28,0 36,0 44,0 52,0 61,0 70,0 74,0 78,0 86,0 93,0 102,0 111,0 lines=0@16
+  n6 button name="hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="inner text" bounds=111,34 85x20
+    n9 generic bounds=120,37 67x14
+      n10 text leaf name="inner text" bounds=120,37 67x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 3,0 11,0 19,0 27,0 34,0 41,0 46,0 54,0 62,0 lines=0@14
+  n11 text leaf name="field label" bounds=205,36 75x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 23,0 31,0 39,0 44,0 53,0 62,0 71,0 lines=0@16
+  n12 textbox name="field label" bounds=289,34 169x20 editable
+  n13 paragraph description="first description" bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 generic bounds=8,108 133x16
+    n16 text leaf name="first description" bounds=8,108 133x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 51,0 60,0 69,0 78,0 87,0 92,0 101,0 108,0 113,0 123,0 lines=0@16
+  n17 button name="pending" bounds=149,106 65x20
+    n18 text leaf name="pending" bounds=158,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n19 button name="generated" bounds=222,106 81x20
+    n20 text leaf name="generated" bounds=231,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+
+== hidden aria-labelledby target
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 120x22
+      n3 row name="edited cell text" bounds=10,10 120x22
+        n4 cell name="edited cell text" bounds=10,10 120x22 column_index=0
+          n5 text leaf name="edited cell text" bounds=11,13 118x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 16,0 21,0 28,0 36,0 44,0 52,0 61,0 70,0 74,0 78,0 86,0 93,0 102,0 111,0 lines=0@16
+  n6 button name="new hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="inner text" bounds=111,34 85x20
+    n9 generic bounds=120,37 67x14
+      n10 text leaf name="inner text" bounds=120,37 67x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 3,0 11,0 19,0 27,0 34,0 41,0 46,0 54,0 62,0 lines=0@14
+  n11 text leaf name="field label" bounds=205,36 75x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 23,0 31,0 39,0 44,0 53,0 62,0 71,0 lines=0@16
+  n12 textbox name="field label" bounds=289,34 169x20 editable
+  n13 paragraph description="first description" bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 generic bounds=8,108 133x16
+    n16 text leaf name="first description" bounds=8,108 133x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 51,0 60,0 69,0 78,0 87,0 92,0 101,0 108,0 113,0 123,0 lines=0@16
+  n17 button name="pending" bounds=149,106 65x20
+    n18 text leaf name="pending" bounds=158,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n19 button name="generated" bounds=222,106 81x20
+    n20 text leaf name="generated" bounds=231,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+
+== name from content
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 120x22
+      n3 row name="edited cell text" bounds=10,10 120x22
+        n4 cell name="edited cell text" bounds=10,10 120x22 column_index=0
+          n5 text leaf name="edited cell text" bounds=11,13 118x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 16,0 21,0 28,0 36,0 44,0 52,0 61,0 70,0 74,0 78,0 86,0 93,0 102,0 111,0 lines=0@16
+  n6 button name="new hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="new inner text" bounds=111,34 117x20
+    n9 generic bounds=120,37 99x14
+      n10 text leaf name="new inner text" bounds=120,37 99x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 8,0 15,0 24,0 31,0 35,0 43,0 51,0 58,0 65,0 72,0 78,0 85,0 93,0 lines=0@14
+  n11 text leaf name="field label" bounds=236,36 75x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 23,0 31,0 39,0 44,0 53,0 62,0 71,0 lines=0@16
+  n12 textbox name="field label" bounds=320,34 169x20 editable
+  n13 paragraph description="first description" bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 generic bounds=8,108 133x16
+    n16 text leaf name="first description" bounds=8,108 133x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 51,0 60,0 69,0 78,0 87,0 92,0 101,0 108,0 113,0 123,0 lines=0@16
+  n17 button name="pending" bounds=149,106 65x20
+    n18 text leaf name="pending" bounds=158,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n19 button name="generated" bounds=222,106 81x20
+    n20 text leaf name="generated" bounds=231,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+
+== label text
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 120x22
+      n3 row name="edited cell text" bounds=10,10 120x22
+        n4 cell name="edited cell text" bounds=10,10 120x22 column_index=0
+          n5 text leaf name="edited cell text" bounds=11,13 118x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 16,0 21,0 28,0 36,0 44,0 52,0 61,0 70,0 74,0 78,0 86,0 93,0 102,0 111,0 lines=0@16
+  n6 button name="new hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="new inner text" bounds=111,34 117x20
+    n9 generic bounds=120,37 99x14
+      n10 text leaf name="new inner text" bounds=120,37 99x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 8,0 15,0 24,0 31,0 35,0 43,0 51,0 58,0 65,0 72,0 78,0 85,0 93,0 lines=0@14
+  n11 text leaf name="new field label" bounds=236,36 113x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 43,0 48,0 57,0 61,0 69,0 77,0 81,0 90,0 100,0 109,0 lines=0@16
+  n12 textbox name="new field label" bounds=358,34 169x20 editable
+  n13 paragraph description="first description" bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 generic bounds=8,108 133x16
+    n16 text leaf name="first description" bounds=8,108 133x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 51,0 60,0 69,0 78,0 87,0 92,0 101,0 108,0 113,0 123,0 lines=0@16
+  n17 button name="pending" bounds=149,106 65x20
+    n18 text leaf name="pending" bounds=158,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n19 button name="generated" bounds=222,106 81x20
+    n20 text leaf name="generated" bounds=231,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+
+== aria-label
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 120x22
+      n3 row name="edited cell text" bounds=10,10 120x22
+        n4 cell name="edited cell text" bounds=10,10 120x22 column_index=0
+          n5 text leaf name="edited cell text" bounds=11,13 118x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 16,0 21,0 28,0 36,0 44,0 52,0 61,0 70,0 74,0 78,0 86,0 93,0 102,0 111,0 lines=0@16
+  n6 button name="new hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="new inner text" bounds=111,34 117x20
+    n9 generic bounds=120,37 99x14
+      n10 text leaf name="new inner text" bounds=120,37 99x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 8,0 15,0 24,0 31,0 35,0 43,0 51,0 58,0 65,0 72,0 78,0 85,0 93,0 lines=0@14
+  n11 text leaf name="new field label" bounds=236,36 113x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 43,0 48,0 57,0 61,0 69,0 77,0 81,0 90,0 100,0 109,0 lines=0@16
+  n12 textbox name="explicit label" bounds=358,34 169x20 editable
+  n13 paragraph description="first description" bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 generic bounds=8,108 133x16
+    n16 text leaf name="first description" bounds=8,108 133x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 51,0 60,0 69,0 78,0 87,0 92,0 101,0 108,0 113,0 123,0 lines=0@16
+  n17 button name="pending" bounds=149,106 65x20
+    n18 text leaf name="pending" bounds=158,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n19 button name="generated" bounds=222,106 81x20
+    n20 text leaf name="generated" bounds=231,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+
+== aria-describedby target
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 120x22
+      n3 row name="edited cell text" bounds=10,10 120x22
+        n4 cell name="edited cell text" bounds=10,10 120x22 column_index=0
+          n5 text leaf name="edited cell text" bounds=11,13 118x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 16,0 21,0 28,0 36,0 44,0 52,0 61,0 70,0 74,0 78,0 86,0 93,0 102,0 111,0 lines=0@16
+  n6 button name="new hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="new inner text" bounds=111,34 117x20
+    n9 generic bounds=120,37 99x14
+      n10 text leaf name="new inner text" bounds=120,37 99x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 8,0 15,0 24,0 31,0 35,0 43,0 51,0 58,0 65,0 72,0 78,0 85,0 93,0 lines=0@14
+  n11 text leaf name="new field label" bounds=236,36 113x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 43,0 48,0 57,0 61,0 69,0 77,0 81,0 90,0 100,0 109,0 lines=0@16
+  n12 textbox name="explicit label" bounds=358,34 169x20 editable
+  n13 paragraph description="second description" bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 generic bounds=8,108 151x16
+    n16 text leaf name="second description" bounds=8,108 151x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 37,0 46,0 54,0 62,0 70,0 79,0 88,0 97,0 106,0 110,0 120,0 127,0 131,0 142,0 lines=0@16
+  n17 button name="pending" bounds=167,106 65x20
+    n18 text leaf name="pending" bounds=176,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n19 button name="generated" bounds=241,106 81x20
+    n20 text leaf name="generated" bounds=250,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+
+== id appears for a pending reference
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 120x22
+      n3 row name="edited cell text" bounds=10,10 120x22
+        n4 cell name="edited cell text" bounds=10,10 120x22 column_index=0
+          n5 text leaf name="edited cell text" bounds=11,13 118x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 16,0 21,0 28,0 36,0 44,0 52,0 61,0 70,0 74,0 78,0 86,0 93,0 102,0 111,0 lines=0@16
+  n6 button name="new hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="new inner text" bounds=111,34 117x20
+    n9 generic bounds=120,37 99x14
+      n10 text leaf name="new inner text" bounds=120,37 99x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 8,0 15,0 24,0 31,0 35,0 43,0 51,0 58,0 65,0 72,0 78,0 85,0 93,0 lines=0@14
+  n11 text leaf name="new field label" bounds=236,36 113x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 43,0 48,0 57,0 61,0 69,0 77,0 81,0 90,0 100,0 109,0 lines=0@16
+  n12 textbox name="explicit label" bounds=358,34 169x20 editable
+  n13 paragraph bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 generic bounds=8,108 151x16
+    n16 text leaf name="second description" bounds=8,108 151x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 37,0 46,0 54,0 62,0 70,0 79,0 88,0 97,0 106,0 110,0 120,0 127,0 131,0 142,0 lines=0@16
+  n17 button name="second description" bounds=167,106 65x20
+    n18 text leaf name="pending" bounds=176,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n19 button name="generated" bounds=241,106 81x20
+    n20 text leaf name="generated" bounds=250,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+
+== referenced id removed
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 120x22
+      n3 row name="edited cell text" bounds=10,10 120x22
+        n4 cell name="edited cell text" bounds=10,10 120x22 column_index=0
+          n5 text leaf name="edited cell text" bounds=11,13 118x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 16,0 21,0 28,0 36,0 44,0 52,0 61,0 70,0 74,0 78,0 86,0 93,0 102,0 111,0 lines=0@16
+  n6 button name="new hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="new inner text" bounds=111,34 117x20
+    n9 generic bounds=120,37 99x14
+      n10 text leaf name="new inner text" bounds=120,37 99x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 8,0 15,0 24,0 31,0 35,0 43,0 51,0 58,0 65,0 72,0 78,0 85,0 93,0 lines=0@14
+  n11 text leaf name="new field label" bounds=236,36 113x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 43,0 48,0 57,0 61,0 69,0 77,0 81,0 90,0 100,0 109,0 lines=0@16
+  n12 textbox name="explicit label" bounds=358,34 169x20 editable
+  n13 paragraph bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 button name="pending" bounds=8,106 65x20
+    n16 text leaf name="pending" bounds=17,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n17 button name="generated" bounds=81,106 81x20
+    n18 text leaf name="generated" bounds=90,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+
+== generated content
+n0 generic bounds=8,8 784x118
+  n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
+    n2 rowgroup bounds=10,10 120x22
+      n3 row name="edited cell text" bounds=10,10 120x22
+        n4 cell name="edited cell text" bounds=10,10 120x22 column_index=0
+          n5 text leaf name="edited cell text" bounds=11,13 118x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 16,0 21,0 28,0 36,0 44,0 52,0 61,0 70,0 74,0 78,0 86,0 93,0 102,0 111,0 lines=0@16
+  n6 button name="new hidden label" bounds=8,34 95x20
+    n7 text leaf name="button text" bounds=17,37 77x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 16,0 21,0 27,0 36,0 44,0 50,0 56,0 63,0 71,0 lines=0@14
+  n8 button name="new inner text" bounds=111,34 117x20
+    n9 generic bounds=120,37 99x14
+      n10 text leaf name="new inner text" bounds=120,37 99x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 8,0 15,0 24,0 31,0 35,0 43,0 51,0 58,0 65,0 72,0 78,0 85,0 93,0 lines=0@14
+  n11 text leaf name="new field label" bounds=236,36 113x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 43,0 48,0 57,0 61,0 69,0 77,0 81,0 90,0 100,0 109,0 lines=0@16
+  n12 textbox name="explicit label" bounds=358,34 169x20 editable
+  n13 paragraph bounds=8,70 784x20
+    n14 text leaf name="described" bounds=8,72 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 7,0 16,0 25,0 34,0 43,0 48,0 57,0 66,0 lines=0@16
+  n15 button name="pending" bounds=8,106 65x20
+    n16 text leaf name="pending" bounds=17,109 47x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 23,0 29,0 33,0 41,0 lines=0@14
+  n17 button name="Before generated" bounds=81,106 131x20
+    n18 text leaf name="generated" bounds=141,109 63x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 6,0 13,0 21,0 28,0 36,0 43,0 49,0 56,0 lines=0@14
+

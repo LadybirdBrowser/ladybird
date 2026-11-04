@@ -1,0 +1,242 @@
+== initial
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="one" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 10,0 19,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="two" bounds=48,38 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+  n6 generic bounds=8,72 784x20
+    n7 paragraph bounds=8,72 784x20
+      n8 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n9 generic bounds=8,108 784x0
+  n10 generic bounds=8,108 784x20
+    n11 text leaf name="toggled text" bounds=8,110 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 17,0 24,0 32,0 36,0 45,0 53,0 61,0 68,0 76,0 86,0 lines=0@16
+  n12 generic bounds=8,128 784x20
+    n13 button name="wrapped button" bounds=8,128 122x20
+      n14 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n15 generic bounds=8,148 784x20
+    n16 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== insert a list item
+n0 generic bounds=8,16 784x172
+  n1 list bounds=8,16 784x60
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="one" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 10,0 19,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="two" bounds=48,38 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n6 listitem bounds=48,56 744x20
+      n7 text leaf name="three" bounds=48,58 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n8 generic bounds=8,92 784x20
+    n9 paragraph bounds=8,92 784x20
+      n10 text leaf name="moving paragraph" bounds=8,94 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n11 generic bounds=8,128 784x0
+  n12 generic bounds=8,128 784x20
+    n13 text leaf name="toggled text" bounds=8,130 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 17,0 24,0 32,0 36,0 45,0 53,0 61,0 68,0 76,0 86,0 lines=0@16
+  n14 generic bounds=8,148 784x20
+    n15 button name="wrapped button" bounds=8,148 122x20
+      n16 text leaf name="wrapped button" bounds=17,151 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n17 generic bounds=8,168 784x20
+    n18 text leaf name="role changing" bounds=8,170 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== remove a list item
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x20
+    n7 paragraph bounds=8,72 784x20
+      n8 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n9 generic bounds=8,108 784x0
+  n10 generic bounds=8,108 784x20
+    n11 text leaf name="toggled text" bounds=8,110 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 17,0 24,0 32,0 36,0 45,0 53,0 61,0 68,0 76,0 86,0 lines=0@16
+  n12 generic bounds=8,128 784x20
+    n13 button name="wrapped button" bounds=8,128 122x20
+      n14 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n15 generic bounds=8,148 784x20
+    n16 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== move a paragraph
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x0
+  n7 generic bounds=8,72 784x20
+    n8 paragraph bounds=8,72 784x20
+      n9 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n10 generic bounds=8,108 784x20
+    n11 text leaf name="toggled text" bounds=8,110 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 17,0 24,0 32,0 36,0 45,0 53,0 61,0 68,0 76,0 86,0 lines=0@16
+  n12 generic bounds=8,128 784x20
+    n13 button name="wrapped button" bounds=8,128 122x20
+      n14 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n15 generic bounds=8,148 784x20
+    n16 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== display: none
+n0 generic bounds=8,16 784x132
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x0
+  n7 generic bounds=8,72 784x20
+    n8 paragraph bounds=8,72 784x20
+      n9 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n10 generic bounds=8,108 784x20
+    n11 button name="wrapped button" bounds=8,108 122x20
+      n12 text leaf name="wrapped button" bounds=17,111 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n13 generic bounds=8,128 784x20
+    n14 text leaf name="role changing" bounds=8,130 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== display back
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x0
+  n7 generic bounds=8,72 784x20
+    n8 paragraph bounds=8,72 784x20
+      n9 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n10 generic bounds=8,108 784x20
+    n11 text leaf name="toggled text" bounds=8,110 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 17,0 24,0 32,0 36,0 45,0 53,0 61,0 68,0 76,0 86,0 lines=0@16
+  n12 generic bounds=8,128 784x20
+    n13 button name="wrapped button" bounds=8,128 122x20
+      n14 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n15 generic bounds=8,148 784x20
+    n16 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== visibility: hidden
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x0
+  n7 generic bounds=8,72 784x20
+    n8 paragraph bounds=8,72 784x20
+      n9 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n10 generic bounds=8,128 784x20
+    n11 button name="wrapped button" bounds=8,128 122x20
+      n12 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n13 generic bounds=8,148 784x20
+    n14 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== visibility back
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x0
+  n7 generic bounds=8,72 784x20
+    n8 paragraph bounds=8,72 784x20
+      n9 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n10 generic bounds=8,108 784x20
+    n11 text leaf name="toggled text" bounds=8,110 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 17,0 24,0 32,0 36,0 45,0 53,0 61,0 68,0 76,0 86,0 lines=0@16
+  n12 generic bounds=8,128 784x20
+    n13 button name="wrapped button" bounds=8,128 122x20
+      n14 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n15 generic bounds=8,148 784x20
+    n16 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== aria-hidden
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x0
+  n7 generic bounds=8,72 784x20
+    n8 paragraph bounds=8,72 784x20
+      n9 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n10 generic bounds=8,128 784x20
+    n11 button name="wrapped button" bounds=8,128 122x20
+      n12 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n13 generic bounds=8,148 784x20
+    n14 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== aria-hidden removed
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x0
+  n7 generic bounds=8,72 784x20
+    n8 paragraph bounds=8,72 784x20
+      n9 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n10 generic bounds=8,108 784x20
+    n11 text leaf name="toggled text" bounds=8,110 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 17,0 24,0 32,0 36,0 45,0 53,0 61,0 68,0 76,0 86,0 lines=0@16
+  n12 generic bounds=8,128 784x20
+    n13 button name="wrapped button" bounds=8,128 122x20
+      n14 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n15 generic bounds=8,148 784x20
+    n16 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== role added
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x0
+  n7 generic bounds=8,72 784x20
+    n8 paragraph bounds=8,72 784x20
+      n9 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n10 generic bounds=8,108 784x20
+    n11 text leaf name="toggled text" bounds=8,110 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 17,0 24,0 32,0 36,0 45,0 53,0 61,0 68,0 76,0 86,0 lines=0@16
+  n12 generic bounds=8,128 784x20
+    n13 button name="wrapped button" bounds=8,128 122x20
+      n14 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n15 button name="role changing" bounds=8,148 784x20
+    n16 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== wrapper becomes a region
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x0
+  n7 generic bounds=8,72 784x20
+    n8 paragraph bounds=8,72 784x20
+      n9 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n10 generic bounds=8,108 784x20
+    n11 text leaf name="toggled text" bounds=8,110 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 17,0 24,0 32,0 36,0 45,0 53,0 61,0 68,0 76,0 86,0 lines=0@16
+  n12 region name="the region" bounds=8,128 784x20
+    n13 button name="wrapped button" bounds=8,128 122x20
+      n14 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n15 button name="role changing" bounds=8,148 784x20
+    n16 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+
+== wrapper unwrapped
+n0 generic bounds=8,16 784x152
+  n1 list bounds=8,16 784x40
+    n2 listitem bounds=48,16 744x20
+      n3 text leaf name="two" bounds=48,18 28x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 18,0 lines=0@16
+    n4 listitem bounds=48,36 744x20
+      n5 text leaf name="three" bounds=48,38 42x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 16,0 24,0 33,0 lines=0@16
+  n6 generic bounds=8,72 784x0
+  n7 generic bounds=8,72 784x20
+    n8 paragraph bounds=8,72 784x20
+      n9 text leaf name="moving paragraph" bounds=8,74 141x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 22,0 30,0 35,0 44,0 52,0 60,0 69,0 79,0 88,0 97,0 105,0 113,0 123,0 132,0 lines=0@16
+  n10 generic bounds=8,108 784x20
+    n11 text leaf name="toggled text" bounds=8,110 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 17,0 24,0 32,0 36,0 45,0 53,0 61,0 68,0 76,0 86,0 lines=0@16
+  n12 button name="wrapped button" bounds=8,128 122x20
+    n13 text leaf name="wrapped button" bounds=17,131 104x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 9,0 16,0 24,0 32,0 40,0 47,0 53,0 60,0 68,0 76,0 82,0 88,0 96,0 lines=0@14
+  n14 button name="role changing" bounds=8,148 784x20
+    n15 text leaf name="role changing" bounds=8,150 106x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 19,0 23,0 32,0 40,0 49,0 58,0 67,0 77,0 84,0 89,0 99,0 lines=0@16
+

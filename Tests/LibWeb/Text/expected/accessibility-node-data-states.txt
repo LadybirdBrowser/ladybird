@@ -1,0 +1,165 @@
+== initial
+n0 generic bounds=8,8 784x136
+  n1 textbox value="initial value" bounds=8,13 169x20 editable
+  n2 checkbox bounds=189,11 13x13 checked=false
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20 selected
+    n5 option name="second" bounds=213,13 83x20
+  n6 group bounds=10,33 780x39
+    n7 button name="in fieldset" bounds=24,40 83x20
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 expanded=false pressed=false
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+
+== value property
+n0 generic bounds=8,8 784x136
+  n1 textbox value="typed value" bounds=8,13 169x20 editable
+  n2 checkbox bounds=189,11 13x13 checked=false
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20 selected
+    n5 option name="second" bounds=213,13 83x20
+  n6 group bounds=10,33 780x39
+    n7 button name="in fieldset" bounds=24,40 83x20
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 expanded=false pressed=false
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+
+== checked property
+n0 generic bounds=8,8 784x136
+  n1 textbox value="typed value" bounds=8,13 169x20 editable
+  n2 checkbox bounds=189,11 13x13 checked=true
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20 selected
+    n5 option name="second" bounds=213,13 83x20
+  n6 group bounds=10,33 780x39
+    n7 button name="in fieldset" bounds=24,40 83x20
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 expanded=false pressed=false
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+
+== indeterminate property
+n0 generic bounds=8,8 784x136
+  n1 textbox value="typed value" bounds=8,13 169x20 editable
+  n2 checkbox bounds=189,11 13x13 checked=mixed
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20 selected
+    n5 option name="second" bounds=213,13 83x20
+  n6 group bounds=10,33 780x39
+    n7 button name="in fieldset" bounds=24,40 83x20
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 expanded=false pressed=false
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+
+== option selected
+n0 generic bounds=8,8 784x136
+  n1 textbox value="typed value" bounds=8,13 169x20 editable
+  n2 checkbox bounds=189,11 13x13 checked=mixed
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20
+    n5 option name="second" bounds=213,13 83x20 selected
+  n6 group bounds=10,33 780x39
+    n7 button name="in fieldset" bounds=24,40 83x20
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 expanded=false pressed=false
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+
+== fieldset disabled
+n0 generic bounds=8,8 784x136
+  n1 textbox value="typed value" bounds=8,13 169x20 editable
+  n2 checkbox bounds=189,11 13x13 checked=mixed
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20
+    n5 option name="second" bounds=213,13 83x20 selected
+  n6 group bounds=10,33 780x39 disabled
+    n7 button name="in fieldset" bounds=24,40 83x20 disabled
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#808080 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 expanded=false pressed=false
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+
+== focus
+n0 generic bounds=8,8 784x136
+  n1 textbox value="typed value" bounds=8,13 169x20 focused editable
+  n2 checkbox bounds=189,11 13x13 checked=mixed
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20
+    n5 option name="second" bounds=213,13 83x20 selected
+  n6 group bounds=10,33 780x39 disabled
+    n7 button name="in fieldset" bounds=24,40 83x20 disabled
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#808080 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 expanded=false pressed=false
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+
+== focus moved
+n0 generic bounds=8,8 784x136
+  n1 textbox value="typed value" bounds=8,13 169x20 editable
+  n2 checkbox bounds=189,11 13x13 checked=mixed
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20
+    n5 option name="second" bounds=213,13 83x20 selected
+  n6 group bounds=10,33 780x39 disabled
+    n7 button name="in fieldset" bounds=24,40 83x20 disabled
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#808080 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 focused expanded=false pressed=false
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+
+== selection
+n0 generic bounds=8,8 784x136
+  n1 textbox value="typed value" bounds=8,13 169x20 editable
+  n2 checkbox bounds=189,11 13x13 checked=mixed
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20
+    n5 option name="second" bounds=213,13 83x20 selected
+  n6 group bounds=10,33 780x39 disabled
+    n7 button name="in fieldset" bounds=24,40 83x20 disabled
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#808080 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 caret=6 selection=2..6 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 focused expanded=false pressed=false
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+
+== selection collapsed
+n0 generic bounds=8,8 784x136
+  n1 textbox value="typed value" bounds=8,13 169x20 editable
+  n2 checkbox bounds=189,11 13x13 checked=mixed
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20
+    n5 option name="second" bounds=213,13 83x20 selected
+  n6 group bounds=10,33 780x39 disabled
+    n7 button name="in fieldset" bounds=24,40 83x20 disabled
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#808080 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 caret=6 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 focused expanded=false pressed=false
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+
+== aria-expanded and aria-pressed
+n0 generic bounds=8,8 784x136
+  n1 textbox value="typed value" bounds=8,13 169x20 editable
+  n2 checkbox bounds=189,11 13x13 checked=mixed
+  n3 combobox bounds=213,13 83x20
+    n4 option name="first" bounds=213,13 83x20
+    n5 option name="second" bounds=213,13 83x20 selected
+  n6 group bounds=10,33 780x39 disabled
+    n7 button name="in fieldset" bounds=24,40 83x20 disabled
+      n8 text leaf name="in fieldset" bounds=33,43 65x14 font="SerenitySans" 13.328125 400 normal color=#808080 background=#efefef characters=0,0 3,0 11,0 18,0 23,0 27,0 34,0 38,0 44,0 52,0 60,0 lines=0@14
+  n9 paragraph bounds=8,88 784x20
+    n10 text leaf name="selectable paragraph" bounds=8,90 167x16 caret=6 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 22,0 31,0 39,0 46,0 56,0 65,0 69,0 78,0 86,0 95,0 105,0 114,0 123,0 131,0 139,0 149,0 158,0 lines=0@16
+  n11 button name="toggle" bounds=8,124 55x20 focused expanded=true pressed=true
+    n12 text leaf name="toggle" bounds=17,127 37x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 5,0 14,0 20,0 26,0 30,0 lines=0@14
+

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px/20px SerenitySans;
+    }
+</style>
+<!-- After each change to which nodes the accessibility tree exposes, or where, the accessibility node data reflects it:
+     nodes inserted, removed and moved; subtrees hidden and shown with display, visibility and aria-hidden; roles that
+     change; and a wrapper the tree flattens away, whose children belong to the wrapper's parent. -->
+<div id="root">
+    <ul id="list"><li>one</li><li>two</li></ul>
+    <section id="first"><p id="moving">moving paragraph</p></section>
+    <section id="second"></section>
+    <div id="toggled">toggled text</div>
+    <div id="wrapper"><button>wrapped button</button></div>
+    <div id="role-changing">role changing</div>
+</div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const list = document.getElementById("list");
+        const toggled = document.getElementById("toggled");
+        const step = (label, change) => {
+            change();
+            println(`== ${label}`);
+            println(internals.dumpAccessibilityNodeData(root));
+        };
+        step("initial", () => {});
+        step("insert a list item", () => {
+            const item = document.createElement("li");
+            item.textContent = "three";
+            list.append(item);
+        });
+        step("remove a list item", () => list.firstElementChild.remove());
+        step("move a paragraph", () => document.getElementById("second").append(document.getElementById("moving")));
+        step("display: none", () => toggled.style.display = "none");
+        step("display back", () => toggled.style.display = "");
+        step("visibility: hidden", () => toggled.style.visibility = "hidden");
+        step("visibility back", () => toggled.style.visibility = "");
+        step("aria-hidden", () => toggled.setAttribute("aria-hidden", "true"));
+        step("aria-hidden removed", () => toggled.removeAttribute("aria-hidden"));
+        step("role added", () => document.getElementById("role-changing").setAttribute("role", "button"));
+        step("wrapper becomes a region", () => {
+            const wrapper = document.getElementById("wrapper");
+            wrapper.setAttribute("role", "region");
+            wrapper.setAttribute("aria-label", "the region");
+        });
+        step("wrapper unwrapped", () => document.getElementById("wrapper").replaceWith(...document.getElementById("wrapper").childNodes));
+    });
+</script>
