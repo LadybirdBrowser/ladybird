@@ -968,6 +968,12 @@ pub(crate) fn visit_declaration_images(data: &DeclarationBlockHeader, visit: &mu
     }
 }
 
+/// The block serialized, as a raw AK::Utf16String the caller adopts.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_declaration_block_serialize(block: &DeclarationBlock) -> usize {
+    crate::css::serialize::sink_into_raw(crate::css::serialize::serialize_a_css_declaration_block(&block.data()))
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_declaration_block_prefetch_header(block: &DeclarationBlock) {
     block.prefetch_header();

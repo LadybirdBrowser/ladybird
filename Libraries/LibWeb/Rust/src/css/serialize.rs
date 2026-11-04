@@ -22,11 +22,14 @@ use crate::css::style_value::{
 };
 use std::fmt::Write;
 
+mod declarations;
 mod shorthand;
 
 use crate::css::css_enums::keyword;
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::parser::component_value::{ComponentSerializationMode, serialize_component_values_into};
+pub(crate) use declarations::serialize_a_css_declaration_block;
+
 use crate::css::style_value::{
     BasicShapeData, COUNTER_FUNCTION_COUNTERS, RetainedColorStopList, RetainedString, StyleValueData,
 };
