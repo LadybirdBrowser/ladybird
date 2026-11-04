@@ -27,10 +27,7 @@
             parents.push(parent);
             container.append(parent);
         }
-        internals.resetStyleCounters();
         internals.updateStyle();
-        const counters = internals.styleCounters();
-        println(`early sharing used: ${counters.sharedElements + counters.reusedElements > 0}`);
 
         function checkStyles(label, color, background) {
             let correct = true;

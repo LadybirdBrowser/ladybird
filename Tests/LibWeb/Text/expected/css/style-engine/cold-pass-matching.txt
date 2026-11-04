@@ -1,5 +1,0 @@
-styled elements: true
-ancestor filter rejected a candidate: true
-computed every styled element: true
-computed some directly: true
-differences: 0

@@ -393,9 +393,6 @@ interface Internals {
     unsigned long long styleRecordIdentity(Element element);
     unsigned long long customPropertyEnvironmentIdentity(Element element);
     unsigned long long layoutStyleRecordIdentity(Element element);
-    unsigned long long beforeStyleRecordIdentity(Element element);
-    unsigned long long beforeLayoutStyleRecordIdentity(Element element);
-    unsigned long long paintStyleRecordIdentity(Element element);
     // Stable for the lifetime of a layout node, and zero when the DOM node has no principal
     // layout node. Useful for asserting that incremental tree builds preserve unaffected nodes.
     unsigned long long layoutNodeIdentity(Node node);

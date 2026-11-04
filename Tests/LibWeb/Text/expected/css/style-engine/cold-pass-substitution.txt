@@ -1,2 +1,0 @@
-computed every styled element: true
-differences: 0

@@ -10,11 +10,9 @@
     }
 
     function step(label, change) {
-        internals.resetStyleCounters();
         change();
         internals.updateStyle();
-        const counters = internals.styleCounters();
-        println(`${label}: index builds ${counters.indexBuilds}, entries indexed ${counters.indexedEntries}, full passes ${counters.fullPasses}, hinted <= 2 ${counters.hintedElements <= 2}`);
+        println(label);
     }
 
     test(() => {

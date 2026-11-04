@@ -1,3 +1,0 @@
-computed every styled element: true
-pseudo-elements: 7
-differences: 0
