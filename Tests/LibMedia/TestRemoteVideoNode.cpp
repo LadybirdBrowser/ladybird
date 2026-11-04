@@ -21,10 +21,12 @@
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/MediaTime.h>
+#include <LibMedia/MonotonicMediaClock.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMedia/Producers/RemoteVideoProducer.h>
 #include <LibMedia/Sinks/AudioOutputFactory.h>
+#include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoPresentation/VideoPresentationClientConnection.h>
@@ -646,6 +648,32 @@ TEST_CASE(consumer_releases_queued_frames_on_suspension)
     auto output = consumer->peek();
     EXPECT(output.frame == nullptr);
     EXPECT_EQ(output.status, PipelineStatus::Suspended);
+}
+
+// The clock resuming reaches a sink as a wake from its consumer. If the consumer suspended while the clock stood still,
+// that wake is the sink's only chance to resume it, or no frame is shown again.
+TEST_CASE(sink_resumes_a_suspended_consumer_when_the_clock_resumes)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto pool = MUST(VideoFramePool::create());
+    size_t upstream_seeks = 0;
+    auto consumer = RemoteVideoProducer::create(make_consumer_delegates(upstream_seeks));
+    auto clock = MUST(MonotonicMediaClock::try_create());
+    auto sink = MUST(DisplayingVideoSink::try_create(clock->time_reader()));
+    MUST(sink->connect_input(consumer));
+    EXPECT_EQ(upstream_seeks, 1u);
+
+    consumer->receive_frame(1, 1, create_received_frame(*pool, AK::Duration::zero()));
+    EXPECT(sink->current_frame() != nullptr);
+
+    consumer->receive_status(PipelineStatus::Suspended, 1);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(upstream_seeks, 1u);
+
+    clock->resume();
+    consumer->notify_clock_resumed();
+    EXPECT_EQ(upstream_seeks, 2u);
+    sink->disconnect_input(consumer);
 }
 
 // Frames lent under a seek the consumer has moved past are released as they arrive, and so are frames past the
