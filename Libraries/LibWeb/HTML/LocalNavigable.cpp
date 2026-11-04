@@ -5919,6 +5919,7 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
         if (async_scroll_offset.user_input_scroll_count > user_input_scroll_count)
             extend_user_scroll_gesture_of(async_scroll_offset.stable_node_id);
         user_input_scroll_count = max(user_input_scroll_count, async_scroll_offset.user_input_scroll_count);
+        m_compositor_context_user_input_scroll_count = max(m_compositor_context_user_input_scroll_count, async_scroll_offset.context_user_input_scroll_count);
 
         // What the compositor reported of a box before it applied the last scroll this navigable asked of it describes
         // what that scroll replaced. Once it applied it, the compositor has the box's offset.
@@ -6765,6 +6766,7 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
     // A new compositor process has applied none of the scrolls this navigable asked the old one for.
     m_scroll_request_states.clear();
     m_compositor_user_input_scroll_counts.clear();
+    m_compositor_context_user_input_scroll_count = 0;
 
     if (has_compositor_context()) {
         if (auto parent = this->parent()) {
@@ -7413,14 +7415,6 @@ void LocalNavigable::set_scroll_offset_settled_by_layout(Layout::Node& scrolling
     //     the user has scrolled it since. A jump to the offset this thread knows would take that scroll back.
     TemporaryChange compositor_keeps_the_box_in_range { m_scroll_offset_changes_need_no_request, true };
     (void)Painting::set_scroll_offset(scrolling_box, scroll_offset);
-}
-
-u64 LocalNavigable::compositor_user_input_scroll_count() const
-{
-    u64 count = 0;
-    for (auto const& entry : m_compositor_user_input_scroll_counts)
-        count += entry.value;
-    return count;
 }
 
 void LocalNavigable::did_change_scroll_offset(Web::AsyncScrollNodeStableID stable_node_id)

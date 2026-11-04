@@ -254,7 +254,7 @@ public:
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
     // Every change of a scroll offset here, other than one the compositor made, goes to the compositor as a request.
     void did_change_scroll_offset(Web::AsyncScrollNodeStableID);
-    u64 compositor_user_input_scroll_count() const;
+    u64 compositor_user_input_scroll_count() const { return m_compositor_context_user_input_scroll_count; }
     void set_scroll_offset_settled_by_layout(Layout::Node& scrolling_box, CSSPixelPoint scroll_offset);
     // Changes a scrolling box's offset for user input on this thread, which the compositor is asked for as the user's.
     bool set_scroll_offset_for_user_input(Layout::Node& scrolling_box, Web::AsyncScrollNodeStableID, CSSPixelPoint);
@@ -724,6 +724,7 @@ private:
     Compositing::AsyncScrollOperationID m_last_requested_operation_id { Compositing::first_operation_id_the_main_thread_requests };
     // How many times the compositor reported having scrolled each box for its own user input.
     HashMap<Web::AsyncScrollNodeStableID, u64> m_compositor_user_input_scroll_counts;
+    u64 m_compositor_context_user_input_scroll_count { 0 };
     // Set while this navigable changes an offset it asks for in a request of its own making, or takes the compositor's,
     // which it asks for nothing about.
     bool m_scroll_offset_changes_need_no_request { false };

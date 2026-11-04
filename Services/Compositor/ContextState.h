@@ -249,7 +249,7 @@ public:
     // Whether this context's page may cancel the ctrl+wheel event of a pinch at the position, or has yet to tell.
     bool page_may_cancel_pinch_at(Gfx::FloatPoint position);
     bool pinch_gesture_was_let_through() const { return m_pinch_gesture_was_let_through; }
-    u64 user_input_scroll_count() const;
+    u64 user_input_scroll_count() const { return m_context_user_input_scroll_count; }
     void set_pinch_gesture_was_let_through(bool was_let_through) { m_pinch_gesture_was_let_through = was_let_through; }
 
     bool may_hand_first_wheel_steps_to_nested_contexts() const;
@@ -490,6 +490,7 @@ private:
     HashMap<Web::AsyncScrollNodeStableID, u64> m_applied_scroll_request_ids;
     // How many times this context scrolled each box for user input of its own, which the reports are marked with too.
     HashMap<Web::AsyncScrollNodeStableID, u64> m_user_input_scroll_counts;
+    u64 m_context_user_input_scroll_count { 0 };
     // The boxes the last frame brought, whose offsets came from that frame's snapshot.
     HashTable<Web::AsyncScrollNodeStableID> m_scroll_nodes_seeded_by_last_frame;
     // Whether this context has scrolled boxes to offsets that WebContent's last frame does not have them at.

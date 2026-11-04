@@ -43,6 +43,7 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::AsyncScrollOffset const& off
     TRY(encoder.encode(offset.visual_viewport_scale));
     TRY(encoder.encode(offset.applied_scroll_request_id));
     TRY(encoder.encode(offset.user_input_scroll_count));
+    TRY(encoder.encode(offset.context_user_input_scroll_count));
     return {};
 }
 
@@ -57,6 +58,7 @@ ErrorOr<Compositing::AsyncScrollOffset> decode(Decoder& decoder)
         .visual_viewport_scale = TRY(decoder.decode<Optional<float>>()),
         .applied_scroll_request_id = TRY(decoder.decode<u64>()),
         .user_input_scroll_count = TRY(decoder.decode<u64>()),
+        .context_user_input_scroll_count = TRY(decoder.decode<u64>()),
     };
 }
 

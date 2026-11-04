@@ -764,6 +764,7 @@ ContextState::ContextUpdateResult ContextState::handle_pinch_event(Web::PinchEve
             .visual_viewport_scale = transform.matrix[0, 0],
             .applied_scroll_request_id = 0,
             .user_input_scroll_count = 0,
+            .context_user_input_scroll_count = 0,
         };
         store_pending_async_scroll_offsets({ &scroll_offset, 1 });
     }
@@ -1002,14 +1003,7 @@ ContextState::NodeScrollByWheelDelta ContextState::scroll_node_by_wheel_delta(Co
 void ContextState::note_user_input_scrolled(Web::AsyncScrollNodeStableID stable_node_id)
 {
     m_user_input_scroll_counts.ensure(stable_node_id)++;
-}
-
-u64 ContextState::user_input_scroll_count() const
-{
-    u64 count = 0;
-    for (auto const& entry : m_user_input_scroll_counts)
-        count += entry.value;
-    return count;
+    m_context_user_input_scroll_count++;
 }
 
 Optional<Gfx::Orientation> ContextState::axis_held_by_scrollbar_of(Compositing::SpatialNodeIndex scroll_node_index) const
@@ -1063,6 +1057,7 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
                 .visual_viewport_scale = {},
                 .applied_scroll_request_id = 0,
                 .user_input_scroll_count = 0,
+                .context_user_input_scroll_count = 0,
             });
         };
 
@@ -1243,6 +1238,7 @@ void ContextState::scroll_visual_viewport_position_in_page(Compositing::SpatialN
         .visual_viewport_scale = scale,
         .applied_scroll_request_id = 0,
         .user_input_scroll_count = 0,
+        .context_user_input_scroll_count = 0,
     });
 }
 
@@ -1277,6 +1273,7 @@ bool ContextState::apply_visual_viewport_scroll_request(Compositing::ScrollReque
         .visual_viewport_scale = transform.matrix[0, 0],
         .applied_scroll_request_id = 0,
         .user_input_scroll_count = 0,
+        .context_user_input_scroll_count = 0,
     });
     return new_scroll_offset != old_scroll_offset;
 }
@@ -1403,6 +1400,7 @@ Optional<Gfx::IntRect> ContextState::advance_smooth_scroll_animations(MonotonicT
                 .visual_viewport_scale = {},
                 .applied_scroll_request_id = 0,
                 .user_input_scroll_count = 0,
+                .context_user_input_scroll_count = 0,
             });
             changed_scroll_offset = true;
             if (m_async_scroll_tree.scroll_node_is_viewport(*scroll_node_index))
@@ -2210,6 +2208,7 @@ Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_vie
             .visual_viewport_scale = scale,
             .applied_scroll_request_id = 0,
             .user_input_scroll_count = 0,
+            .context_user_input_scroll_count = 0,
         },
         .consumed_delta = consumed_delta,
     };
@@ -2266,6 +2265,7 @@ Optional<Gfx::FloatPoint> ContextState::keep_scroll_offsets_of_known_nodes(HashM
                 .visual_viewport_scale = {},
                 .applied_scroll_request_id = 0,
                 .user_input_scroll_count = 0,
+                .context_user_input_scroll_count = 0,
             });
         }
     }
@@ -2287,6 +2287,7 @@ void ContextState::store_pending_async_scroll_offsets(
     for (auto scroll_offset : scroll_offsets) {
         scroll_offset.applied_scroll_request_id = m_applied_scroll_request_ids.get(scroll_offset.stable_node_id).value_or(0);
         scroll_offset.user_input_scroll_count = m_user_input_scroll_counts.get(scroll_offset.stable_node_id).value_or(0);
+        scroll_offset.context_user_input_scroll_count = m_context_user_input_scroll_count;
         stamped_scroll_offsets.unchecked_append(scroll_offset);
     }
     m_async_scroll_update_outbox.record_scroll_offsets(stamped_scroll_offsets);
@@ -2562,6 +2563,7 @@ Optional<PendingFrame> ContextState::apply_scrollbar_drag(ScrollbarController::D
         .visual_viewport_scale = {},
         .applied_scroll_request_id = 0,
         .user_input_scroll_count = 0,
+        .context_user_input_scroll_count = 0,
     });
     store_pending_async_scroll_offsets(scroll_offsets);
 
