@@ -10292,7 +10292,7 @@ fn constant_to_string(val: &ConstantValue) -> Option<Utf16String> {
         ConstantValue::Undefined => Some(Utf16String(utf16!("undefined").to_vec())),
         ConstantValue::BigInt(s) => {
             // BigInt.prototype.toString() returns the decimal string representation.
-            Some(Utf16String(s.encode_utf16().collect()))
+            Some(Utf16String(parse_bigint(s)?.to_string().encode_utf16().collect()))
         }
         _ => None,
     }
