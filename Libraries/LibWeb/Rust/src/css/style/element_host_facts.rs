@@ -24,8 +24,8 @@ pub(in crate::css::style) struct HostFactSet {
     /// The element facts a layout row built for the element records; see
     /// `bridge::element_construction_fact`.
     pub(in crate::css::style) construction_facts: u32,
-    /// The principal box the element asks for, as its raw byte.
-    box_kind: u8,
+    /// The principal box the element asks for.
+    pub(in crate::css::style) box_kind: ElementBoxKind,
     /// One plus the kind of the element-backed pseudo-element of its shadow host the element stands for, or zero
     /// where it stands for none.
     pub(in crate::css::style) associated_pseudo_kind_plus_one: u8,
@@ -33,17 +33,8 @@ pub(in crate::css::style) struct HostFactSet {
 
 impl HostFactSet {
     #[must_use]
-    pub(in crate::css::style) fn box_kind(&self) -> ElementBoxKind {
-        ElementBoxKind::from_raw(self.box_kind)
-    }
-
-    #[must_use]
     pub(in crate::css::style) fn associated_pseudo_kind(&self) -> Option<u8> {
         self.associated_pseudo_kind_plus_one.checked_sub(1)
-    }
-
-    pub(in crate::css::style) fn set_box_kind(&mut self, box_kind: ElementBoxKind) {
-        self.box_kind = box_kind as u8;
     }
 }
 

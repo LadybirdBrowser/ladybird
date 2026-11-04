@@ -237,7 +237,7 @@ impl ProjectionWrites<'_> {
         self.projection.edit_host_facts(node, |set| {
             set.adjustment_facts = arrival.adjustment_facts;
             set.construction_facts = arrival.construction_facts;
-            set.set_box_kind(arrival.box_kind);
+            set.box_kind = arrival.box_kind;
             set.associated_pseudo_kind_plus_one = arrival.backing_pseudo_kind_plus_one;
         });
     }
@@ -259,8 +259,8 @@ impl ProjectionWrites<'_> {
     /// Record which principal box the element asks for, answering whether that moved.
     pub(in crate::css::style) fn set_element_box_kind(&mut self, node: StyleNodeID, box_kind: ElementBoxKind) -> bool {
         self.projection
-            .edit_host_facts(node, |set| set.set_box_kind(box_kind))
-            .box_kind()
+            .edit_host_facts(node, |set| set.box_kind = box_kind)
+            .box_kind
             != box_kind
     }
 

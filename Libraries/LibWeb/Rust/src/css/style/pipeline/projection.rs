@@ -1413,7 +1413,7 @@ impl Projection {
     /// Which principal box the element asks for.
     #[must_use]
     pub(in crate::css::style) fn box_kind(&self, node: StyleNodeID) -> super::super::bridge::ElementBoxKind {
-        self.host_facts(node).box_kind()
+        self.host_facts(node).box_kind
     }
 
     /// The element-backed pseudo-element kind of its shadow host the element stands for, as published.
