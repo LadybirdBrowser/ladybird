@@ -17,9 +17,11 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/CustomElements/CustomElementReactions.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
@@ -107,6 +109,8 @@ u64 web_bindings_currently_running_task(void* realm);
 void* web_bindings_create_callback_function(JSObject* callable, bool returns_promise);
 JSCompletion web_bindings_invoke_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
 void* web_bindings_invoke_promise_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
+void web_bindings_push_element_queue();
+void web_bindings_pop_element_queue_and_invoke_reactions();
 bool web_bindings_realm_is_window(void* realm);
 bool web_bindings_realm_is_secure_context(void* realm);
 HTML::Window* web_bindings_window_from_global_object(JSObject* global_object);
@@ -177,6 +181,17 @@ void* web_css_realm_document(void* realm)
 bool web_bindings_realm_is_secure_context(void* realm)
 {
     return HTML::is_secure_context(principal_host_defined_environment_settings_object(*static_cast<JS::Realm*>(realm)));
+}
+
+void web_bindings_push_element_queue()
+{
+    main_thread_similar_origin_window_agent().custom_element_reactions_stack.element_queue_stack.append({});
+}
+
+void web_bindings_pop_element_queue_and_invoke_reactions()
+{
+    auto queue = main_thread_similar_origin_window_agent().custom_element_reactions_stack.element_queue_stack.take_last();
+    HTML::invoke_custom_element_reactions(queue);
 }
 
 bool web_bindings_realm_is_window(void* realm)

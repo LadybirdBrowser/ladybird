@@ -38,6 +38,13 @@ pub use css::media_list::{MediaList as NativeMediaList, MediaListDeleteResult};
 pub use css::rule::cssom;
 pub use css::rule::{NativeRule, NativeRuleList, NativeRuleType, RuleInsertionResult, RuleRemovalResult};
 pub use css::style_sheet::NativeStyleSheetFlag;
+
+/// The names of the CSS properties and of their legacy aliases, which have an accessor on CSSStyleProperties.
+pub fn css_property_names() -> impl Iterator<Item = &'static str> {
+    css::property_metadata::PROPERTY_NAME_LOOKUP
+        .iter()
+        .map(|(name, _)| *name)
+}
 pub use css::typed_om;
 pub use svg::gfx_path_from_path_data;
 

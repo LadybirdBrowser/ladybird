@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/CSS/CSSPositionTryDescriptors.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 
@@ -20,6 +21,13 @@ GC::Ref<CSSPositionTryDescriptors> CSSPositionTryDescriptors::create(RustDeclara
 CSSPositionTryDescriptors::CSSPositionTryDescriptors(RustDeclarationBlock declarations)
     : CSSStyleProperties(Computed::No, Readonly::No, move(declarations), OptionalNone {})
 {
+}
+
+extern "C" void web_css_position_try_descriptors_create(void* vm, void* declaration);
+
+void CSSPositionTryDescriptors::create_owner()
+{
+    web_css_position_try_descriptors_create(JS::HostABI::vm_to_abi(JS::VM::the()), static_cast<GC::Cell*>(this));
 }
 
 // https://drafts.csswg.org/css-anchor-position-1/#accepted-position-try-properties
@@ -45,17 +53,5 @@ WebIDL::ExceptionOr<void> CSSPositionTryDescriptors::set_property(Utf16FlyString
         return {};
     return Base::set_property(property_name, css_text, priority);
 }
-
-#define __ENUMERATE(name, property_name, property_id)                                   \
-    WebIDL::ExceptionOr<void> CSSPositionTryDescriptors::set_##name(Utf16View css_text) \
-    {                                                                                   \
-        return set_property(property_name##_utf16_fly_string, css_text, u""sv);         \
-    }                                                                                   \
-    Utf16String CSSPositionTryDescriptors::name() const                                 \
-    {                                                                                   \
-        return get_property_value(property_name##_utf16_fly_string);                    \
-    }
-ENUMERATE_CSS_POSITION_TRY_DESCRIPTORS(__ENUMERATE)
-#undef __ENUMERATE
 
 }

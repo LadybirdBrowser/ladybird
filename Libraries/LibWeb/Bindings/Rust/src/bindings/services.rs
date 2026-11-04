@@ -32,6 +32,12 @@ unsafe extern "C" {
     /// Makes `wrapper` the wrapper that the world of its realm, which is not a main world, holds for the cell.
     pub(crate) fn web_bindings_set_rust_wrapper(realm: *mut c_void, cell: *mut c_void, wrapper: *mut c_void);
 
+    /// Pushes a new element queue onto the custom element reactions stack of the agent of the main thread.
+    pub(crate) fn web_bindings_push_element_queue();
+
+    /// Pops the element queue from that stack and invokes the custom element reactions in it.
+    pub(crate) fn web_bindings_pop_element_queue_and_invoke_reactions();
+
     /// Whether the global object of the realm is a Window.
     pub(crate) fn web_bindings_realm_is_window(realm: *mut c_void) -> bool;
     pub(crate) fn web_bindings_realm_is_secure_context(realm: *mut c_void) -> bool;

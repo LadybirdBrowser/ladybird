@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/css-anchor-position-1/#om-position-try
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSPositionTryDescriptors : CSSStyleDeclaration {
     attribute CSSOMString margin;
     [AttributeCallbackName=margin_top_regular, ImplementedAs=margin_top] attribute CSSOMString marginTop;

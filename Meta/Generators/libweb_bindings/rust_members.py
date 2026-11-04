@@ -37,6 +37,7 @@ RUST_METHOD_NAME = re.compile(r"[a-z][a-z0-9_]*")
 SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {
     "AttributeCallbackName",
     "CachedAccessor",
+    "CEReactions",
     "FIXME",
     "ImplementedAs",
     "LegacyNullToEmptyString",
@@ -47,6 +48,7 @@ SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {
     "SecureContext",
 }
 SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {
+    "CEReactions",
     "Default",
     "Exposed",
     "FIXME",

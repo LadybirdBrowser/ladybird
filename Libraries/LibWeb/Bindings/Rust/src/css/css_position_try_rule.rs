@@ -6,10 +6,10 @@
 
 //! CSSPositionTryRule, https://drafts.csswg.org/css-anchor-position-1/#the-csspositiontryrule-interface
 
+use super::css_position_try_descriptors::CSSPositionTryDescriptors;
 use super::css_rule::CSSRule;
 use super::css_rule::RuleText;
 use super::css_rule::impl_rule_wrappable;
-use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Inherits, Ref, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use ak::Utf16String;
@@ -55,7 +55,7 @@ impl CSSPositionTryRule {
     }
 
     // https://drafts.csswg.org/css-anchor-position-1/#dom-csspositiontryrule-style
-    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSPositionTryDescriptors>> {
         // On getting, it must return a CSSPositionTryDescriptors object for the @position-try at-rule, with the
         // following properties:
         //   computed flag: Unset
@@ -63,7 +63,7 @@ impl CSSPositionTryRule {
         //   declarations: The declared descriptors in the rule, in specified order.
         //   parent CSS rule: The context object
         //   owner node: Null
-        Ok(self.rule.style_attribute(cx))
+        Ok(self.rule.declarations_object(cx))
     }
 
     pub(crate) fn serialized(&self, vm: &Vm) -> Utf16String {

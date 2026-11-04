@@ -20,20 +20,12 @@ class RustCSSDescriptors final : public CSSDescriptors {
 public:
     [[nodiscard]] static GC::Ref<RustCSSDescriptors> create(AtRuleID, RustDescriptorBlock);
 
-    void set_owner(Bindings::InterfaceName, Bindings::RustInterfaceCell&);
-
     virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property, Utf16View value, Utf16View priority) override;
 
 private:
     RustCSSDescriptors(AtRuleID, RustDescriptorBlock);
 
-    virtual bool is_owned_by_rust_interface_object() const override { return true; }
-    virtual GC::Ref<JS::HostObject> create_wrapper(JS::Realm&) override;
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
     AtRuleID m_at_rule;
-    Bindings::InterfaceName m_owner_interface_name { Bindings::InterfaceName::Unknown };
-    GC::Ptr<Bindings::RustInterfaceCell> m_owner;
 };
 
 }

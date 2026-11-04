@@ -8,7 +8,7 @@
 
 use super::css_rule::CSSRule;
 use super::css_rule::impl_rule_wrappable;
-use crate::bindings::conversions::CppInterface;
+use super::css_style_properties::CSSStyleProperties;
 use crate::bindings::interface::{Inherits, Ref, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use ak::Utf16String;
@@ -42,8 +42,8 @@ impl CSSNestedDeclarations {
     }
 
     // https://drafts.csswg.org/css-nesting-1/#dom-cssnesteddeclarations-style
-    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
-        Ok(self.rule.style_attribute(cx))
+    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSStyleProperties>> {
+        Ok(self.rule.declarations_object(cx))
     }
 
     pub(crate) fn serialized(&self, vm: &Vm) -> Utf16String {

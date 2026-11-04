@@ -215,8 +215,6 @@ def write_implementation(
         includes.add("LibJS/Runtime/Realm.h")
         includes.add("LibWeb/Bindings/Wrappable.h")
         includes.add("LibWeb/Bindings/WrapperWorld.h")
-    if interface.name == "CSSStyleProperties":
-        includes.add("LibWeb/CSS/GeneratedCSSStyleProperties.h")
     if interface.parent_name:
         parent_interface = context.interface(IDLType(interface.parent_name))
         includes.add_binding(parent_interface.implemented_name if parent_interface else interface.parent_name)
@@ -348,8 +346,6 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> {interface.constructor_class}::constr
         global_mixins.write_global_mixin_implementation(out, context, includes, interface)
         return
     attributes.define_the_regular_attributes(out, includes, interface)
-    if interface.name == "CSSStyleProperties":
-        out.write("    GeneratedCSSStyleProperties::initialize(realm, object);\n")
     operations.define_the_regular_operations(out, includes, interface)
     operations.define_the_stringifier(out, includes, interface)
     named_and_indexed_properties.define_the_indexed_property_getter(out, includes, interface)

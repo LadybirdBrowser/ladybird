@@ -52,7 +52,7 @@ namespace Web::CSS {
     X(position_area, "position-area", PositionArea)
 // https://drafts.csswg.org/css-anchor-position-1/#om-position-try
 class CSSPositionTryDescriptors final : public CSSStyleProperties {
-    WEB_WRAPPABLE(CSSPositionTryDescriptors, CSSStyleProperties);
+    WEB_NON_IDL_WRAPPABLE(CSSPositionTryDescriptors, CSSStyleProperties);
     GC_DECLARE_ALLOCATOR(CSSPositionTryDescriptors);
 
 public:
@@ -62,14 +62,10 @@ public:
 
     virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property_name, Utf16View css_text, Utf16View priority) override;
 
-#define __ENUMERATE(name, property_name, property_id)         \
-    WebIDL::ExceptionOr<void> set_##name(Utf16View css_text); \
-    Utf16String name() const;
-    ENUMERATE_CSS_POSITION_TRY_DESCRIPTORS(__ENUMERATE)
-#undef __ENUMERATE
-
 private:
     explicit CSSPositionTryDescriptors(RustDeclarationBlock);
+
+    virtual void create_owner() override;
 };
 
 }

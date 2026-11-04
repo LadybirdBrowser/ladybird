@@ -1075,8 +1075,6 @@ set(GENERATED_SOURCES
     CSS/Enums.cpp
     CSS/GeneratedCSSNumericFactoryMethods.cpp
     CSS/GeneratedCSSNumericFactoryMethods.idl
-    CSS/GeneratedCSSStyleProperties.cpp
-    CSS/GeneratedCSSStyleProperties.idl
     CSS/Keyword.cpp
     CSS/MediaFeatureID.h
     CSS/PropertyID.cpp
