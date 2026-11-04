@@ -1,0 +1,5 @@
+Ladybird skips empty inner iterators in Iterator.prototype.flatMap()
+without recursive native calls, retaining the active inner iterator
+across yields. V8 does the same in IteratorFlatMapHelperNext(). Gecko
+uses nested loops in IteratorFlatMapGenerator(), and WebKit does so in
+the generator inside flatMap() in JSIteratorPrototype.js.
