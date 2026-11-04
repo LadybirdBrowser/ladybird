@@ -9,10 +9,8 @@
 //! Mirrors the C++ `StyleValue::absolutized(ComputationContext const&)` dispatch: structural
 //! values recurse into their children and rebuild only when a child changed, dimensions convert
 //! to their canonical units, and lengths resolve through the shared length-resolution context.
-//! Types whose absolutization has not been ported (or that need C++-only state not captured in the
-//! computation environment) decline, and the caller routes the whole value through the C++ fallback. Preserving
-//! identity for unchanged values is a real contract: the store batch reuses wrappers and shared
-//! allocations based on pointer equality.
+//! Preserving identity for unchanged values is a real contract: the store batch reuses wrappers
+//! and shared allocations based on pointer equality.
 
 // Style value data allocations are thread-confined, like style_value.rs.
 
@@ -1578,7 +1576,7 @@ fn canonicalized_dimension(value: f64, unit: u8, ratios: &[f64]) -> Option<(f64,
     Some((value * ratios[unit as usize], canonical))
 }
 
-/// Absolutizes a style value. None means the C++ fallback must handle the whole value.
+/// Absolutizes a style value. None means the value has no absolutized form in this context.
 pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext) -> Option<Absolutized> {
     use crate::css::calc::{
         ANGLE_UNIT_CANONICAL_RATIOS, FREQUENCY_UNIT_CANONICAL_RATIOS, RESOLUTION_UNIT_CANONICAL_RATIOS,

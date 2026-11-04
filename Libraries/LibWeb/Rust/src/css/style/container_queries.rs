@@ -137,8 +137,8 @@ impl ContainerRecords for RetainedState {
         self.container_query_inputs(node)
     }
 
-    /// One holding no record yet is one the host styles in this update, which decides it. One
-    /// this batch settled is read as the host will leave it, as a query container is.
+    /// One holding no record yet is one this update styles, which decides it. One this batch
+    /// settled is read as the install will leave it, as a query container is.
     fn any_element_row(&self, node: StyleNodeID) -> Option<tree::ContainerQueryInputs<'_>> {
         self.container_query_input_row(node, self.container_style_record(node)?, true)
     }

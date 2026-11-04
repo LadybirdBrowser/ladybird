@@ -8,22 +8,14 @@
 //! memory-bounded incremental computation.
 //!
 //! DOM structure, element state, stylesheets, CSSOM mutations, cascade topology, and environment
-//! values are versioned inputs. Selectors, cascade decisions, and computed values form a shared
-//! logical dependency program. A style flush discovers and propagates exact changes through that
-//! program and stops as soon as a semantic value is unchanged.
-//!
-//! The cache-free exact matcher is part of the architecture rather than a fallback bolted on:
-//! optional incremental state may accelerate matching but is never required to answer a style read
-//! correctly. Derived state lives as long as the node or rule it describes.
+//! values are versioned inputs. A style flush propagates exact changes through selectors, cascade
+//! decisions, and computed values, and stops as soon as a semantic value is unchanged. Derived state
+//! lives as long as the node or rule it describes.
 //!
 //! Everything between a style input and a computed value is authoritative here, on the Rust side.
 //! C++ remains authoritative for DOM and CSSOM object identity, mutation semantics, document
 //! lifecycle, loading order, style-observation barriers, layout, and paint - and holds no second
 //! copy of the state this engine owns.
-//!
-//! A few modules exist that the original module sketch did not name, because the concepts they hold
-//! did not belong in any of the modules it did name: [`tree`] for style node identity and the
-//! relation columns, and [`order`] for cascade order maintenance.
 
 macro_rules! define_id {
     ($(#[$attribute:meta])* $visibility:vis struct $name:ident();) => {
@@ -328,9 +320,9 @@ pub struct RetainedState {
     /// The elements a style() container query asked as containers with a value counting their place among their
     /// siblings. A fork shares them, as too many only walk more. An element's identity used again stays here too.
     containers_counted_by_style_queries: Arc<Mutex<HashSet<StyleNodeID>>>,
-    /// What the last the engine cold pass measured.
+    /// What the last cold pass measured.
     cold_pass_report: pipeline::Report,
-    /// The engine kept live beside this engine, when asked for, which a fork goes on keeping.
+    /// What the engine keeps of the document it owns, which a fork goes on keeping.
     live_style: Option<Box<pipeline::Live>>,
     /// Whether this is the state the host writes, on which alone the engine starts.
     live_style_may_start: crate::fork::ForkReset<crate::fork::IsOriginal>,
@@ -409,8 +401,8 @@ pub struct HostState {
     /// Whether the deferred element style inputs are owed to the next transaction, as opposed to
     /// held back by a flush without a document root.
     deferred_element_style_inputs_are_pending: bool,
-    /// The custom properties that changed between pairs of environments during this transaction.
-    /// Program-family before/after rows retained until the transaction is released.
+    /// The rule edits this transaction staged, with their before and after values, until it is
+    /// released.
     program_staging: ProgramStaging,
     sheet_occurrences: HashMap<TreeScopeID, pipeline::rule_store::ScopeSheetOccurrences>,
     /// The old dense rule sequence while one sheet is synchronously reparsed.

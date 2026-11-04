@@ -10,12 +10,11 @@
 //! native pointer in every index and handle that mentions it.
 //!
 //! The parent, first-element-child, and next-element-sibling columns are dense, required, and
-//! Rust-owned. That is not an acceleration choice. A transpose program starting from a changed
-//! input has to traverse inverse selector relations to reach possible subjects - "descendants that
-//! can satisfy `B`" is not in a tree delta - and `StyleNodeID` is deliberately not a tree-order
-//! label, so proving that a posting candidate lies inside a subtree costs relation steps per
-//! candidate. If those steps left the evaluator, the hot path would degenerate into per-element FFI
-//! or reverse cold requests. Keeping the columns resident is what makes the selective plan viable.
+//! Rust-owned. That is not an acceleration choice. Invalidation starting from a changed input has
+//! to walk selector relations to reach possible subjects - "descendants that can satisfy `B`" is
+//! not in a tree delta - and `StyleNodeID` is deliberately not a tree-order label, so proving that
+//! a candidate lies inside a subtree costs relation steps per candidate. If those steps left the
+//! engine, the hot path would degenerate into per-element FFI.
 //!
 //! The columns are **not** semantically authoritative. They are a derived projection that must agree
 //! with the live tree at every epoch boundary, maintained from the same tree delta that reports the

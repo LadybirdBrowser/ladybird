@@ -99,7 +99,7 @@ impl ElementDeclarationKind {
 
 /// The tree relations of one style node, as of one side of a mutation.
 ///
-/// This is the minimum old-side information the applicable transpose rules need. It is not a
+/// This is the minimum old-side information invalidation needs. It is not a
 /// traversable old DOM and does not copy unchanged descendant fields: old-side facts exist to
 /// establish a complete impact region, not to reconstruct history.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
