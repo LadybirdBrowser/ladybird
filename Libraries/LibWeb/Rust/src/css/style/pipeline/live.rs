@@ -166,9 +166,9 @@ struct LiveScratch {
     /// The cells passes write their records to.
     cells: RecordCells,
     /// What a changed element matches, by thread, for the threads that followed a change.
-    memos: super::pool::PerThread<FollowScratch>,
+    memos: super::per_thread::PerThread<FollowScratch>,
     /// The group caches the passes keep for the next, by thread, for the threads that styled.
-    groups: super::pool::PerThread<super::compute::GroupCache>,
+    groups: super::per_thread::PerThread<super::compute::GroupCache>,
     /// The matched declarations cache the passes keep for the next.
     matched_declarations: super::matched_declarations::MatchedDeclarationsCache,
     /// The inputs of the document the entries of the matched declarations cache read, as they
@@ -1748,7 +1748,7 @@ impl Live {
         }
         let by_element = &*by_element;
         const CHANGES_PER_TASK: usize = 8;
-        let pool = state.style_pool.as_ref().and_then(|pool| pool.started());
+        let pool = state.style_layout_pool.as_ref().and_then(|pool| pool.started());
         let follow_all = |chunk: &[std::ops::Range<usize>]| {
             let thread = pool.as_ref().and_then(|pool| pool.current_thread_index());
             let memo = self
@@ -4150,7 +4150,7 @@ impl StyleEngine {
         {
             return;
         }
-        self.start_live_style(root, super::pool::threads_from_environment(), true);
+        self.start_live_style(root, crate::style_layout_pool::threads_from_environment(), true);
     }
 
     /// Have the engine own the document under `root` from a cold pass of it, with what the cold
@@ -4183,7 +4183,7 @@ impl StyleEngine {
         // NB: How many threads the machine has is asked once, as the engine starts: the answer reads the
         //     process's CPU affinity and quota from the kernel, which takes longer than a small pass does.
         let threads = match threads {
-            0 => traversal::thread_count() as u32,
+            0 => crate::style_layout_pool::default_thread_count() as u32,
             threads => threads,
         };
         let index = RuleIndex::build(&self.retained.rules, self.retained.process_rule_indexes());
@@ -4463,7 +4463,7 @@ impl StyleEngine {
 
     fn live_pass_rounds(&mut self, root: StyleNodeID, everything: bool) {
         let threads = self.retained.live_style.as_ref().map_or(0, |live| live.threads);
-        let pool = self.style_pool(threads);
+        let pool = self.style_layout_pool(threads);
         // NB: A thread that first asks for a font resolves it there and then, under a lock, rather than leave it for a
         //     round between all the threads of the pass, each a barrier.
         self.retained.pass_fonts = self

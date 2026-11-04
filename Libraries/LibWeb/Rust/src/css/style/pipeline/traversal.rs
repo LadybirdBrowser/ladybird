@@ -48,24 +48,6 @@ mod cache_audit;
 pub(super) use cache_audit::CacheAudit;
 pub(super) use cache_audit::mode_from_environment as cache_audit_mode_from_environment;
 
-/// The most threads the traversal runs on, however many are asked for.
-pub(super) const MAX_THREAD_COUNT: usize = 16;
-
-/// The most threads the traversal runs on where none are asked for. Beyond this many, passes over
-/// a thousand elements take no less time, while each thread more faults in pages of its own and
-/// keeps a stack and an allocator heap.
-const DEFAULT_MAX_THREAD_COUNT: usize = 8;
-
-/// How many threads the traversal runs on where none are asked for: three of every four logical
-/// processors, leaving the others to the main thread and the rest of the process, and at least one.
-pub(super) fn thread_count() -> usize {
-    // NB: Each pass asks, and the answer takes system calls and reading files of the control groups.
-    static THREAD_COUNT: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
-    *THREAD_COUNT.get_or_init(|| {
-        std::thread::available_parallelism().map_or(1, |count| (count.get() * 3 / 4).clamp(1, DEFAULT_MAX_THREAD_COUNT))
-    })
-}
-
 /// How many elements a task hands to another at once.
 const WORK_UNIT: usize = 16;
 
@@ -282,7 +264,7 @@ pub(super) struct PassContext<'a> {
     /// The group caches of the threads, by thread, which a pass keeps for the next where it
     /// keeps its caches: an element restyled in a later pass finds the groups the elements styled
     /// before it built.
-    pub(super) group_caches: Option<&'a super::pool::PerThread<super::compute::GroupCache>>,
+    pub(super) group_caches: Option<&'a super::per_thread::PerThread<super::compute::GroupCache>>,
     /// The matched declarations cache a pass keeps for the next, where it keeps its caches.
     pub(super) kept_matched_declarations: Option<&'a MatchedDeclarationsCache>,
     /// The cache of a pass that keeps none for the next.

@@ -4,14 +4,32 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The threads style passes run on besides the calling thread. The owner of every document's
-//! render state holds one pool for the process and hands it to each document's style engine, so
-//! the documents of a process share their style threads, and the heaps those threads warm.
+//! The threads style and layout passes run on besides the calling thread. The owner of every document's render state
+//! holds one pool for the process and hands it to each document's style engine, so the documents of a process share
+//! these threads, and the heaps those threads warm.
 
 use std::sync::{Arc, Mutex, PoisonError};
 
-/// The pool of threads style passes run on besides the calling thread.
-pub(crate) enum StylePool {
+/// The most threads a pass runs on, however many are asked for.
+pub(crate) const MAX_THREAD_COUNT: usize = 16;
+
+/// The most threads a pass runs on where none are asked for. Beyond this many, passes over
+/// a thousand elements take no less time, while each thread more faults in pages of its own and
+/// keeps a stack and an allocator heap.
+const DEFAULT_MAX_THREAD_COUNT: usize = 8;
+
+/// How many threads a pass runs on where none are asked for: three of every four logical
+/// processors, leaving the others to the main thread and the rest of the process, and at least one.
+pub(crate) fn default_thread_count() -> usize {
+    // NB: Each pass asks, and the answer takes system calls and reading files of the control groups.
+    static THREAD_COUNT: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *THREAD_COUNT.get_or_init(|| {
+        std::thread::available_parallelism().map_or(1, |count| (count.get() * 3 / 4).clamp(1, DEFAULT_MAX_THREAD_COUNT))
+    })
+}
+
+/// The pool of threads style and layout passes run on besides the calling thread.
+pub(crate) enum StyleLayoutPool {
     /// The threads of the process, started with the owner of its render states, before any page can run script. How
     /// many there are never changes after that. There are none where a pass runs on the calling thread alone.
     OfProcess(Option<Arc<rayon::ThreadPool>>),
@@ -19,7 +37,7 @@ pub(crate) enum StylePool {
     OfEngine(Mutex<Option<Arc<rayon::ThreadPool>>>),
 }
 
-impl StylePool {
+impl StyleLayoutPool {
     /// The threads of the process, which this starts: as many as `LIBWEB_STYLE_THREADS` asks for, or the default number
     /// for the machine where it names no number of them.
     pub(crate) fn of_process() -> Self {
@@ -63,7 +81,7 @@ impl StylePool {
 }
 
 /// How many threads `LIBWEB_STYLE_THREADS` asks passes to run on, or 0 where it names no number of them.
-pub(super) fn threads_from_environment() -> u32 {
+pub(crate) fn threads_from_environment() -> u32 {
     std::env::var("LIBWEB_STYLE_THREADS")
         .ok()
         .and_then(|threads| threads.parse().ok())
@@ -74,8 +92,8 @@ pub(super) fn threads_from_environment() -> u32 {
 /// number for the machine for none.
 fn workers_for_threads(threads: u32) -> usize {
     let threads = match threads {
-        0 => super::traversal::thread_count(),
-        threads => (threads as usize).min(super::traversal::MAX_THREAD_COUNT),
+        0 => default_thread_count(),
+        threads => (threads as usize).min(MAX_THREAD_COUNT),
     };
     threads.max(1) - 1
 }
@@ -83,34 +101,7 @@ fn workers_for_threads(threads: u32) -> usize {
 fn start_threads(workers: usize) -> rayon::ThreadPool {
     rayon::ThreadPoolBuilder::new()
         .num_threads(workers)
-        .thread_name(|index| format!("StyleWorker {index}"))
+        .thread_name(|index| format!("StyleLayout {index}"))
         .build()
-        .expect("the engine thread pool starts")
-}
-
-/// What each thread a pass runs on keeps between passes, by thread, the calling thread's last: a slot is made the first
-/// time its thread asks for it, so a document, or a fork of its render state, holds only what its threads used.
-pub(super) struct PerThread<T>([std::sync::OnceLock<Box<Mutex<T>>>; super::traversal::MAX_THREAD_COUNT + 1]);
-
-impl<T> Default for PerThread<T> {
-    fn default() -> Self {
-        Self(std::array::from_fn(|_| std::sync::OnceLock::new()))
-    }
-}
-
-impl<T: Default> PerThread<T> {
-    /// What thread `index` keeps, made where it is not yet, or none past the last thread.
-    pub(super) fn get(&self, index: usize) -> Option<&Mutex<T>> {
-        self.0.get(index).map(|slot| &**slot.get_or_init(Box::default))
-    }
-
-    /// What the threads that asked keep.
-    pub(super) fn made(&self) -> impl Iterator<Item = &Mutex<T>> {
-        self.0.iter().filter_map(|slot| slot.get().map(|made| &**made))
-    }
-
-    /// How many threads may keep anything.
-    pub(super) fn len(&self) -> usize {
-        self.0.len()
-    }
+        .expect("the style and layout thread pool starts")
 }

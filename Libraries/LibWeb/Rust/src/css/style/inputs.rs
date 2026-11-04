@@ -1606,7 +1606,7 @@ impl StyleEngine {
                 live_style_may_start: crate::fork::ForkReset::original(),
                 cold_passes: std::sync::Arc::default(),
                 live_counters: Default::default(),
-                style_pool: None,
+                style_layout_pool: None,
                 substituted_font_values: std::sync::Arc::default(),
                 element_declarations: Default::default(),
                 projection: Default::default(),
@@ -2510,7 +2510,7 @@ impl RetainedState {
             cold_passes: _,
             // The last pass's elements, which a reader leaves out where they departed.
             live_counters: _,
-            style_pool: _,
+            style_layout_pool: _,
             substituted_font_values: _,
             // Forgotten for departed elements in `forget_departed_elements`.
             element_declarations: _,

@@ -65,7 +65,7 @@ impl SelfCheckSettings {
 
 /// How many threads the self-check's cold passes on several threads run on.
 fn reference_thread_count() -> u32 {
-    traversal::thread_count().max(4) as u32
+    crate::style_layout_pool::default_thread_count().max(4) as u32
 }
 
 /// The names of the groups, by `group_index`.
@@ -509,7 +509,7 @@ pub(super) fn reference_pass(
 ) -> Option<ReferencePass> {
     let initial = engine.computed_initial(root)?;
     // NB: A pass on one thread leaves the engine's pool as it is.
-    let pool = (threads > 1).then(|| engine.style_pool(threads)).flatten();
+    let pool = (threads > 1).then(|| engine.style_layout_pool(threads)).flatten();
     let started = Instant::now();
     let index = RuleIndex::build(&engine.retained.rules, engine.retained.process_rule_indexes());
     let index_nanoseconds = started.elapsed().as_nanos() as u64;
