@@ -2054,6 +2054,13 @@ void Element::apply_style_main_effects(Layout::BegunRead const& read, CSS::MainE
     if (has_flag(effects, CSS::MainEffects::ContainerEffects))
         record_engine_container_query_effects(read, *this);
 
+    // A style change that needs a relayout can change which nodes render and what generated content they have, and so
+    // the accessible names that come from them. Of the changes that need just a repaint, only one of visibility can:
+    // Content that isn't visible is left out of a name that comes from content.
+    auto visibility_changed = old_values && old_values->visibility() != new_computed_values->visibility();
+    if ((invalidation.needs_relayout() || visibility_changed) && document().page().accessibility_interested())
+        document().invalidate_cached_accessible_text(*this);
+
     // The environment the record was published with: what the element inherits, or what the engine resolved its own
     // custom declarations to over that, and those of the pseudo-elements over the element's.
     if (has_flag(effects, CSS::MainEffects::CustomProperties)) {

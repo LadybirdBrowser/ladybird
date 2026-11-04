@@ -40,6 +40,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
 #include <LibUnicode/Segmenter.h>
+#include <LibWeb/ARIA/AttributeNames.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
@@ -162,6 +163,7 @@
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
+#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLFrameSetElement.h>
@@ -171,6 +173,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLInsertion.h>
+#include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
@@ -7282,6 +7285,140 @@ Vector<WebView::AccessibilityNodeData> Document::build_accessibility_node_data()
     }
 
     return nodes;
+}
+
+Document::CachedAccessibleText const* Document::cached_accessible_text(Element const& element) const
+{
+    return m_cached_accessible_text.get(element.unique_id()).map([](auto& text) { return &text; }).value_or(nullptr);
+}
+
+void Document::cache_accessible_text(Element const& element, CachedAccessibleText text) const
+{
+    auto id = element.unique_id();
+    m_cached_accessible_text.set(id, move(text));
+
+    // An element's name and description can come from nodes other than its inclusive ancestors and descendants. A
+    // labelable element's come from its label elements.
+    if (auto const* html_element = as_if<HTML::HTMLElement>(element); html_element && html_element->is_labelable())
+        m_cached_accessible_text_depending_on_labels.set(id);
+
+    // An element's come from the elements it references by ID with aria-labelledby or aria-describedby.
+    auto referenced_any_id = false;
+    for (auto const& attribute : { ARIA::AttributeNames::aria_labelled_by, ARIA::AttributeNames::aria_described_by }) {
+        auto value = element.get_attribute(attribute);
+        if (!value.has_value())
+            continue;
+        // The attribute is a list of IDs separated by ASCII whitespace.
+        auto view = value->utf16_view();
+        size_t token_start = 0;
+        for (size_t i = 0; i <= view.length_in_code_units(); ++i) {
+            if (i < view.length_in_code_units() && !is_ascii_space(view.code_unit_at(i)))
+                continue;
+            if (i > token_start) {
+                m_ids_referenced_by_cached_accessible_text.set(Utf16FlyString::from_utf16(view.substring_view(token_start, i - token_start)));
+                referenced_any_id = true;
+            }
+            token_start = i + 1;
+        }
+    }
+    if (referenced_any_id)
+        m_cached_accessible_text_depending_on_referenced_ids.set(id);
+
+    // And the elements set through element reflection or ElementInternals can be anywhere, so they're dropped on any
+    // change at all.
+    if (element.aria_labelled_by_elements().has_value() || element.aria_described_by_elements().has_value() || element.is_custom())
+        m_cached_accessible_text_depending_on_any_node.set(id);
+}
+
+void Document::invalidate_cached_accessible_text(Node const& node, Optional<Utf16FlyString> const& attribute_name, ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes)
+{
+    if (m_cached_accessible_text.is_empty())
+        return;
+
+    auto touches_labels = false;
+    auto touches_referenced_ids = false;
+    auto note_element = [&](Element const& element) {
+        if (is<HTML::HTMLLabelElement>(element))
+            touches_labels = true;
+        if (auto const* html_element = as_if<HTML::HTMLElement>(element); html_element && html_element->is_labelable())
+            touches_labels = true;
+        if (auto const& id = element.id(); id.has_value() && m_ids_referenced_by_cached_accessible_text.contains(*id))
+            touches_referenced_ids = true;
+    };
+
+    // An element's name can come from its content, so a change to a node can change the name of every element that
+    // contains it, across shadow roots too. And so can the names that come from the label elements and the elements
+    // referenced by ID that contain it.
+    for (auto const* ancestor = &node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        m_cached_accessible_text.remove(ancestor->unique_id());
+        if (auto const* element = as_if<Element>(*ancestor)) {
+            if (is<HTML::HTMLLabelElement>(*element))
+                touches_labels = true;
+            if (auto const& id = element->id(); id.has_value() && m_ids_referenced_by_cached_accessible_text.contains(*id))
+                touches_referenced_ids = true;
+        }
+    }
+
+    // Changing an ID or a label's for attribute can change which element a label or a reference goes to.
+    if (attribute_name.has_value() && (*attribute_name == HTML::AttributeNames::id || *attribute_name == HTML::AttributeNames::for_)) {
+        touches_labels = true;
+        touches_referenced_ids = true;
+    }
+
+    // And so can inserting or removing a label, a labelable element, or an element with a referenced ID.
+    for (auto const& added : added_nodes) {
+        added->for_each_shadow_including_inclusive_descendant([&](Node const& descendant) {
+            if (auto const* element = as_if<Element>(descendant))
+                note_element(*element);
+            return TraversalDecision::Continue;
+        });
+    }
+    for (auto const& removed : removed_nodes) {
+        // The text of a removed node is never asked for again (until it's inserted somewhere, as if new), so drop it.
+        removed->for_each_shadow_including_inclusive_descendant([&](Node const& descendant) {
+            m_cached_accessible_text.remove(descendant.unique_id());
+            m_cached_accessible_text_depending_on_labels.remove(descendant.unique_id());
+            m_cached_accessible_text_depending_on_referenced_ids.remove(descendant.unique_id());
+            m_cached_accessible_text_depending_on_any_node.remove(descendant.unique_id());
+            if (auto const* element = as_if<Element>(descendant))
+                note_element(*element);
+            return TraversalDecision::Continue;
+        });
+    }
+
+    auto drop = [&](HashTable<UniqueNodeID>& ids) {
+        for (auto id : ids)
+            m_cached_accessible_text.remove(id);
+        ids.clear();
+    };
+    if (touches_labels)
+        drop(m_cached_accessible_text_depending_on_labels);
+    if (touches_referenced_ids) {
+        drop(m_cached_accessible_text_depending_on_referenced_ids);
+        m_ids_referenced_by_cached_accessible_text.clear();
+    }
+    drop(m_cached_accessible_text_depending_on_any_node);
+}
+
+Vector<String> Document::cached_accessible_text_mismatches()
+{
+    update_layout(UpdateLayoutReason::InspectAccessibilityTree);
+    Vector<String> mismatches;
+    for (auto const& [id, cached] : m_cached_accessible_text) {
+        auto* element = as_if<Element>(Node::from_unique_id(id));
+        if (!element) {
+            mismatches.append(MUST(String::formatted("node {} is gone, but its text is still cached", id.value())));
+            continue;
+        }
+        auto computed = AccessibilityTreeNode::compute_accessible_text(*element, *this);
+        if (computed.name != cached.name || computed.description != cached.description) {
+            mismatches.append(MUST(String::formatted("<{}{}>: cached \"{}\" / \"{}\", but computed \"{}\" / \"{}\"",
+                element->local_name(), element->id().has_value() ? MUST(String::formatted(" id={}", *element->id())) : String {},
+                cached.name, cached.description, computed.name, computed.description)));
+        }
+    }
+    quick_sort(mismatches);
+    return mismatches;
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createattribute
