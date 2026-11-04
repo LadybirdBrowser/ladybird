@@ -72,6 +72,7 @@
 #include <LibWebView/SpellChecker.h>
 #include <LibWebView/StorageAreaRegistry.h>
 #include <LibWebView/TabPerformanceMonitor.h>
+#include <LibWebView/Translator.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
@@ -3308,6 +3309,11 @@ void Application::toggle_bookmark_for_view(ViewImplementation& view)
 void Application::set_spell_checker(OwnPtr<SpellChecker> spell_checker)
 {
     m_spell_checker = move(spell_checker);
+}
+
+void Application::set_translator(OwnPtr<Translator> translator)
+{
+    m_translator = move(translator);
 }
 
 MicrophoneAuthorizer& Application::microphone_authorizer()

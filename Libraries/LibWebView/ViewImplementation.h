@@ -712,6 +712,8 @@ public:
     Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
     Action& reset_zoom_action() { return *m_reset_zoom_action; }
 
+    PageTranslation& page_translation() { return *m_page_translation; }
+
     WebContentPage& page() const;
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
@@ -937,6 +939,7 @@ protected:
     RefPtr<Action> m_navigate_forward_action;
 
     RefPtr<Action> m_toggle_bookmark_action;
+    OwnPtr<PageTranslation> m_page_translation;
 
     RefPtr<Action> m_reset_zoom_action;
 

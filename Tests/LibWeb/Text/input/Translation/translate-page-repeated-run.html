@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<title>Titre</title>
+<script src="../include.js"></script>
+</head>
+<body>
+<p id="paragraph">Un <b class="word">deux</b></p>
+<script>
+    promiseTest(async () => {
+        document.getElementById("out").setAttribute("translate", "no");
+        const word = document.querySelector("b");
+
+        // The test translator's "x-repeat" target gives the first run of each translation a second time, at its end.
+        // The element that run's text came from is needed twice, so its second use is a shallow clone.
+        internals.translatePage("en-x-repeat");
+        await internals.translationSettled();
+        const paragraph = document.getElementById("paragraph");
+        println(paragraph.innerHTML);
+        println(`first is the original: ${paragraph.querySelector("b") === word}`);
+    });
+</script>
+</body>
+</html>

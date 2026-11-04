@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<title>Les nouvelles</title>
+<script src="../include.js"></script>
+</head>
+<body>
+<p id="inline">Bonjour <a id="link" href="#x">le monde</a> entier.</p>
+<p id="kept">Garder <span translate="no">ACME</span> ici</p>
+<p id="image">Voir <img id="cat" alt="un chat" src="data:,"> ici</p>
+<p id="title-attribute" title="Une note">Le titre</p>
+<div id="hidden" hidden><p>Le menu</p></div>
+<p><span id="shadow-outer">Bonjour <span id="shadow-host">Lumiere</span> ici</span></p>
+<p id="iframe-paragraph">Avant <iframe id="inline-frame" srcdoc="<p>42</p>"></iframe> apres</p>
+<p id="form-paragraph">Nom <input id="name-input"> requis</p>
+<p id="custom-paragraph">Avant <x-light id="light">Interne</x-light> apres</p>
+<pre id="code-block"><code>let x = 1;</code></pre>
+<p id="other-language" lang="de">Hallo Welt</p>
+<p id="not-translated" class="notranslate">Ne pas traduire</p>
+<div id="editable" contenteditable>Le texte</div>
+<form>
+<input id="button" type="button" value="Envoyer">
+<input id="named-submit" type="submit" name="action" value="Valider">
+<input id="search" placeholder="Chercher">
+<select id="select"><option>Lundi</option><option value="2">Mardi</option></select>
+</form>
+<iframe id="frame" srcdoc="<html lang=fr><p>Dans le cadre</p></html>"></iframe>
+<script>
+    promiseTest(async () => {
+        document.getElementById("out").setAttribute("translate", "no");
+        const frame = document.getElementById("frame");
+        if (!frame.contentDocument?.querySelector("p"))
+            await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        const inlineFrame = document.getElementById("inline-frame");
+        if (!inlineFrame.contentDocument?.querySelector("p"))
+            await new Promise(resolve => inlineFrame.addEventListener("load", resolve, { once: true }));
+        const inlineFrameWindow = inlineFrame.contentWindow;
+        customElements.define("x-light", class extends HTMLElement {
+            connectedCallback() { this.connections = (this.connections ?? 0) + 1; }
+        });
+        const nameInput = document.getElementById("name-input");
+        nameInput.focus();
+        const link = document.getElementById("link");
+        const shadowHost = document.getElementById("shadow-host");
+        shadowHost.attachShadow({ mode: "open" }).innerHTML = "<b>Ombre</b> <slot></slot>";
+
+        internals.translatePage("en");
+        await internals.translationSettled();
+
+        // The test translator reverses each unit's runs and uppercases them, so the link's text comes back in the
+        // middle, inside the same link element.
+        println(`inline: ${document.getElementById("inline").innerHTML}`);
+        println(`same link: ${document.getElementById("link") === link}`);
+        println(`kept: ${document.getElementById("kept").innerHTML}`);
+        println(`image: ${document.getElementById("image").innerHTML}`);
+        println(`title attribute: ${document.getElementById("title-attribute").title}`);
+        println(`hidden: ${document.getElementById("hidden").textContent}`);
+        // An inline element with a shadow tree has paragraphs of its own, so its light tree and its shadow tree are
+        // translated apart from the text around it.
+        println(`shadow host: ${document.getElementById("shadow-outer").textContent} / ${shadowHost.shadowRoot.textContent}`);
+        // An iframe ends a paragraph, so translating the text around it doesn't take it out of the document, which would
+        // load it again.
+        println(`iframe paragraph: ${document.getElementById("iframe-paragraph").textContent}, same window: ${inlineFrame.contentWindow === inlineFrameWindow}`);
+        // A form control and a custom element stay where they are, so the input keeps its focus, and the custom element
+        // isn't connected again.
+        println(`form paragraph: ${document.getElementById("form-paragraph").textContent}, input focused: ${document.activeElement === nameInput}`);
+        println(`custom element: ${document.getElementById("custom-paragraph").textContent}, connections: ${document.getElementById("light").connections}`);
+        println(`code: ${document.getElementById("code-block").textContent}`);
+        println(`other language: ${document.getElementById("other-language").textContent}`);
+        println(`notranslate: ${document.getElementById("not-translated").textContent}`);
+        println(`editable: ${document.getElementById("editable").textContent}`);
+        println(`button: ${document.getElementById("button").value}`);
+        println(`named submit: ${document.getElementById("named-submit").value}`);
+        println(`placeholder: ${document.getElementById("search").placeholder}`);
+        const options = document.getElementById("select").options;
+        println(`options: ${options[0].text}=${options[0].value}, ${options[1].text}=${options[1].value}`);
+        println(`document.title: ${document.title}`);
+        println(`html lang: ${document.documentElement.lang}`);
+        println(`iframe: ${frame.contentDocument.body.textContent}`);
+
+        // Text the page adds or changes after the page is translated is translated too.
+        const added = document.createElement("p");
+        added.textContent = "Bonsoir";
+        document.body.insertBefore(added, document.getElementById("out"));
+        document.getElementById("title-attribute").textContent = "Un autre titre";
+        await internals.translationSettled();
+        println(`added: ${added.textContent}`);
+        println(`changed: ${document.getElementById("title-attribute").textContent}`);
+    });
+</script>
+</body>
+</html>

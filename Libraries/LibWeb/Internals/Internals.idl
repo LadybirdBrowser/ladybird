@@ -54,6 +54,10 @@ interface Internals {
     Promise<DOMString> checkSpellingForTesting(DOMString text);
     Promise<undefined> spellCheckSettled();
 
+    // Translation
+    undefined translatePage(DOMString targetLanguage);
+    Promise<undefined> translationSettled();
+
     // Writing suggestions
     Promise<DOMString> requestWritingSuggestionForTesting(DOMString text, unsigned long caretOffset);
     DOMString writingSuggestion();

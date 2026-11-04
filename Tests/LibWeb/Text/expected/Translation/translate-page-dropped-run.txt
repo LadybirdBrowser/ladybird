@@ -1,0 +1,2 @@
+<a id="link" href="#x">Lien</a>TEXTE
+same link: true

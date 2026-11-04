@@ -93,6 +93,9 @@ public:
     GC::Ref<WebIDL::Promise> check_spelling_for_testing(Utf16String const& text);
     GC::Ref<WebIDL::Promise> spell_check_settled();
 
+    void translate_page(Utf16String const& target_language);
+    GC::Ref<WebIDL::Promise> translation_settled();
+
     GC::Ref<WebIDL::Promise> request_writing_suggestion_for_testing(Utf16String const& text, WebIDL::UnsignedLong caret_offset);
     Utf16String writing_suggestion();
     GC::Ref<WebIDL::Promise> writing_suggestion_settled();

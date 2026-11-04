@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<title>Titre</title>
+<script src="../include.js"></script>
+</head>
+<body>
+<p id="paragraph"><a id="link" href="#x">Lien</a> texte</p>
+<script>
+    promiseTest(async () => {
+        document.getElementById("out").setAttribute("translate", "no");
+        const link = document.getElementById("link");
+
+        // The test translator's "x-drop" target loses the last run of each translation. The link's text is that run,
+        // so the link stays as it was, next to the text it was next to.
+        internals.translatePage("en-x-drop");
+        await internals.translationSettled();
+        const paragraph = document.getElementById("paragraph");
+        println(paragraph.innerHTML);
+        println(`same link: ${paragraph.querySelector("a") === link}`);
+    });
+</script>
+</body>
+</html>
