@@ -126,6 +126,10 @@ if (LINUX AND NOT ANDROID)
         )
         target_include_directories(ladybird PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
         target_compile_definitions(ladybird PRIVATE LADYBIRD_HAS_WAYLAND_GPU_QUERY)
+    else()
+        message(WARNING "Building without the Wayland page surface. Pages on Wayland will use a fallback that can fall "
+            "behind the window as it resizes. The page surface needs the wayland-client and wayland-scanner pkg-config "
+            "modules (libwayland-dev on Debian and Ubuntu), Vulkan and glslangValidator.")
     endif()
 endif()
 
