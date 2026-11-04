@@ -57,6 +57,7 @@ use super::css_transform_value::CSSTransformValue;
 use super::css_unit_value::CSSUnitValue;
 use super::css_unparsed_value::CSSUnparsedValue;
 use super::font_face_set_load_event::{FontFaceSetLoadEvent, FontFaceSetLoadEventInit};
+use super::highlight_registry::HighlightRegistry;
 use super::media_list::MediaList;
 use super::media_query_list::MediaQueryList;
 use super::screen::Screen;
@@ -535,6 +536,18 @@ pub unsafe extern "C" fn web_font_face_set_load_event_create(
     FontFaceSetLoadEvent::create(vm, realm, &name, event_init)
         .event()
         .as_ptr()
+}
+
+/// A new HighlightRegistry of the document.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `document` a live Document.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_highlight_registry_create(vm: *mut c_void, document: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live Document.
+    let (vm, document) = unsafe { (vm_from_abi(vm), CppCell::from_raw(document)) };
+    cell_into_abi(HighlightRegistry::create(vm, document))
 }
 
 /// A new StylePropertyMap of the declaration.

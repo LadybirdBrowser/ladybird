@@ -672,6 +672,14 @@ def implementation_method_signatures(
             f"impl PairIterable with Key = {key_type} and Value = {value_type}: "
             "fn value_pairs_to_iterate_over(target: &Self::Target) -> impl Deref<Target = [(Self::Key, Self::Value)]> + '_"
         )
+    if members.setlike is not None:
+        signatures.append("impl Setlike: fn set_entries(&self, cx: &CallContext) -> Gc<Set>")
+        if members.setlike.writable_operations:
+            signatures.append("impl WritableSetlike: fn set_add, fn set_remove, fn set_clear")
+    if members.maplike is not None:
+        signatures.append("impl Maplike: fn map_entries(&self, cx: &CallContext) -> Gc<Map>")
+        if members.maplike.writable_operations:
+            signatures.append("impl WritableMaplike: fn map_set, fn map_remove, fn map_clear")
     if members.async_iterator is not None:
         what = f"the asynchronously iterable declaration of {interface.name}"
         parameters = parameter_list(what, members.async_iterator.parameters)
@@ -719,6 +727,88 @@ def pair_iterator_types(
         rust_type(pair_iterator.key_type, context, what, is_result=True),
         rust_type(pair_iterator.value_type, context, what, is_result=True),
     )
+
+
+def write_rust_collection_declaration(
+    out: TextIO, context: GenerationContext, interface: Interface, members: RustMembers
+) -> None:
+    """The value check of the operations that the bindings define for a setlike or maplike declaration."""
+    what = f"the value type of the declaration of {interface.name}"
+    if members.setlike is not None:
+        conversion = rust_to_idl_value(members.setlike.value_type, {}, "value", "value", context, what)
+        out.write(
+            f"""
+    impl crate::bindings::setlike::SetlikeDeclaration for Implementation {{
+        fn check_value(vm: &Vm, value: Value) -> ThrowCompletionOr<()> {{
+            {conversion}?;
+            Ok(())
+        }}
+    }}
+"""
+        )
+    if members.maplike is not None and "set" in members.maplike.writable_operations:
+        conversion = rust_to_idl_value(members.maplike.value_type, {}, "value", "value", context, what)
+        out.write(
+            f"""
+    impl crate::bindings::maplike::MaplikeDeclaration for Implementation {{
+        fn check_value(vm: &Vm, value: Value) -> ThrowCompletionOr<()> {{
+            {conversion}?;
+            Ok(())
+        }}
+    }}
+"""
+        )
+
+
+def write_rust_collection_properties(out: TextIO, members: RustMembers, defined_property_names: list[str]) -> None:
+    """Defines the properties of a setlike or maplike declaration on the interface prototype object."""
+
+    def define_writable_operations(module: str, prefix: str, operations: list[str], lengths: dict[str, int]) -> None:
+        for name in operations:
+            out.write(
+                f'        define_operation(vm, realm, prototype, "{name}", '
+                f"raw_native!(crate::bindings::{module}::{prefix}_{name}::<Implementation>), {lengths[name]});\n"
+            )
+        defined_property_names.extend(operations)
+
+    if members.setlike is not None:
+        out.write(
+            """        crate::bindings::setlike::define_setlike_properties(
+            vm,
+            realm,
+            prototype,
+            raw_native!(crate::bindings::setlike::set_size::<Implementation>),
+            raw_native!(crate::bindings::setlike::set_iterator_entries::<Implementation>),
+            raw_native!(crate::bindings::setlike::set_for_each::<Implementation>),
+            raw_native!(crate::bindings::setlike::set_has::<Implementation>),
+            raw_native!(crate::bindings::setlike::set_iterator_values::<Implementation>),
+        );
+"""
+        )
+        defined_property_names.extend(members.setlike.function_names)
+        define_writable_operations(
+            "setlike", "set", members.setlike.writable_operations, {"add": 1, "delete": 1, "clear": 0}
+        )
+    if members.maplike is not None:
+        out.write(
+            """        crate::bindings::maplike::define_maplike_properties(
+            vm,
+            realm,
+            prototype,
+            raw_native!(crate::bindings::maplike::map_size::<Implementation>),
+            raw_native!(crate::bindings::maplike::map_iterator_entries::<Implementation>),
+            raw_native!(crate::bindings::maplike::map_iterator_keys::<Implementation>),
+            raw_native!(crate::bindings::maplike::map_iterator_values::<Implementation>),
+            raw_native!(crate::bindings::maplike::map_for_each::<Implementation>),
+            raw_native!(crate::bindings::maplike::map_get::<Implementation>),
+            raw_native!(crate::bindings::maplike::map_has::<Implementation>),
+        );
+"""
+        )
+        defined_property_names.extend(members.maplike.function_names)
+        define_writable_operations(
+            "maplike", "map", members.maplike.writable_operations, {"set": 2, "delete": 1, "clear": 0}
+        )
 
 
 def write_rust_pair_iterator(out: TextIO, interface: Interface) -> None:
@@ -1053,6 +1143,8 @@ def write_rust_interface(
     if members.pair_iterator is not None:
         write_rust_pair_iterator(out, interface)
 
+    write_rust_collection_declaration(out, context, interface, members)
+
     if members.async_iterator is not None:
         write_rust_async_iterator(out, context, interface)
 
@@ -1138,6 +1230,7 @@ def write_rust_interface(
 """
         )
         defined_property_names.extend(members.pair_iterator.function_names)
+    write_rust_collection_properties(out, members, defined_property_names)
     if members.async_iterator is not None:
         out.write(
             f"""        define_async_iterator_properties(

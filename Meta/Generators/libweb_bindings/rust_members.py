@@ -216,6 +216,29 @@ class RustPairIterator:
 
 
 @dataclass
+class RustSetlike:
+    """The setlike declaration of an interface, https://webidl.spec.whatwg.org/#idl-setlike. The names say which
+    operations of a read-write declaration the bindings define, as the interface can declare them itself."""
+
+    value_type: IDLType
+    writable_operations: list[str]
+
+    function_names = ["size", "entries", "values", "keys", "forEach", "has"]
+
+
+@dataclass
+class RustMaplike:
+    """The maplike declaration of an interface, whose keys are strings, https://webidl.spec.whatwg.org/#idl-maplike.
+    The names say which operations of a read-write declaration the bindings define, as the interface can declare them
+    itself."""
+
+    value_type: IDLType
+    writable_operations: list[str]
+
+    function_names = ["size", "entries", "keys", "values", "forEach", "get", "has"]
+
+
+@dataclass
 class RustAsyncIterator:
     """The value asynchronously iterable declaration of an interface, https://webidl.spec.whatwg.org/#idl-async-iterable,
     whose asynchronous iterator initialization steps the implementation runs through its method
@@ -266,6 +289,8 @@ class RustMembers:
     indexed_property_getter: Optional[RustIndexedPropertyGetter] = None
     indexed_property_setter: Optional[RustIndexedPropertySetter] = None
     pair_iterator: Optional[RustPairIterator] = None
+    setlike: Optional[RustSetlike] = None
+    maplike: Optional[RustMaplike] = None
     async_iterator: Optional[RustAsyncIterator] = None
     constructors: List[RustConstructor] = field(default_factory=list)
     constants: List[RustConstant] = field(default_factory=list)
@@ -292,6 +317,10 @@ class RustMembers:
             names.append(self.indexed_property_getter.operation.operation.name)
         if self.pair_iterator is not None:
             names.extend(self.pair_iterator.function_names)
+        if self.setlike is not None:
+            names.extend(self.setlike.function_names + self.setlike.writable_operations)
+        if self.maplike is not None:
+            names.extend(self.maplike.function_names + self.maplike.writable_operations)
         if self.async_iterator is not None:
             names.append("values")
         names.extend(constant.name for constant in self.constants)
@@ -344,8 +373,6 @@ def rust_members(interface: Interface) -> RustMembers:
     ]
     if any(special_operations):
         fail("it has special operations other than an indexed property getter and setter")
-    if interface.maplike or interface.setlike:
-        fail("it is a maplike or setlike")
     if interface.async_iterable is not None and interface.async_iterable.key_type is not None:
         fail("it has a pair asynchronously iterable declaration")
     has_value_iterator = interface.iterable is not None and interface.iterable.key_type is None
@@ -359,6 +386,24 @@ def rust_members(interface: Interface) -> RustMembers:
         )
     if interface.iterable is not None and interface.iterable.key_type is not None:
         members.pair_iterator = RustPairIterator(interface.iterable.key_type, interface.iterable.value_type)
+
+    def writable_operations(declaration, names: list[str]) -> list[str]:
+        """The operations of a read-write declaration that the interface does not declare itself."""
+        if declaration.readonly:
+            return []
+        declared = set(operation_overload_sets(interface))
+        return [name for name in names if name not in declared]
+
+    if interface.setlike is not None:
+        members.setlike = RustSetlike(
+            interface.setlike.value_type, writable_operations(interface.setlike, ["add", "delete", "clear"])
+        )
+    if interface.maplike is not None:
+        if interface.maplike.key_type.name not in ("DOMString", "CSSOMString"):
+            fail("its maplike declaration has keys that are not strings")
+        members.maplike = RustMaplike(
+            interface.maplike.value_type, writable_operations(interface.maplike, ["set", "delete", "clear"])
+        )
 
     getter = interface.indexed_property_getter
     if has_value_iterator and getter is None:

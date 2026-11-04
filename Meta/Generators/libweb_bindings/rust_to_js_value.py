@@ -14,6 +14,7 @@ from Generators.libweb_bindings.rust_names import rust_identifier
 from Generators.libweb_bindings.rust_names import rust_local_name
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import holds_cells
+from Generators.libweb_bindings.rust_types import is_sequence_of_cells
 from Generators.libweb_bindings.rust_types import member_other_than_undefined
 from Generators.libweb_bindings.rust_types import rust_dictionary_path
 from Generators.libweb_bindings.rust_types import rust_enumeration_path
@@ -136,18 +137,28 @@ def write_dictionary_to_js(out: TextIO, context: GenerationContext, dictionary: 
     fields = []
     keys = []
     conversions = []
+    marked_sequences = []
     for member in dictionary.members:
         what = f"{dictionary.name}.{member.name}"
         member_type = rust_type(member.type, context, what)
-        if has_sequence_of_cells(member.type, context):
-            # NB: A sequence is kept alive from where its conversion starts, which is after the object of the
-            #     dictionary is created and the members before this one are converted.
-            raise UnsupportedByRustBindings(
-                f"{what} has the type {member.type}, with a sequence of values that are or can hold cells, which the "
-                "Rust bindings do not convert from a member of a dictionary yet"
-            )
         field = rust_identifier(member.name)
         local = rust_local_name(member.name)
+        if has_sequence_of_cells(member.type, context):
+            if not is_sequence_of_cells(member.type, context):
+                raise UnsupportedByRustBindings(
+                    f"{what} has the type {member.type}, with a nested sequence of values that are or can hold cells, "
+                    "which the Rust bindings do not convert from a member of a dictionary yet"
+                )
+            # NB: The struct holds the sequence in a Vec, which hides it from the collector. It moves to a MarkedVec
+            #     before the object of the dictionary is created, which is the first allocation of the conversion.
+            if member.required or member.default_value is not None:
+                marked_sequences.append(
+                    f"            let {local} = crate::bindings::conversions::mark_sequence(cx, &{local});\n"
+                )
+            else:
+                marked_sequences.append(
+                    f"            let {local} = {local}.map(|value| crate::bindings::conversions::mark_sequence(cx, &value));\n"
+                )
         key = f"{rust_identifier(member.name).removeprefix('r#').rstrip('_').upper()}_KEY"
         keys.append(
             f'            static {key}: LazyLock<PropertyKey> = LazyLock::new(|| PropertyKey::from_utf8("{member.name}"));\n'
@@ -175,7 +186,7 @@ def write_dictionary_to_js(out: TextIO, context: GenerationContext, dictionary: 
 {"".join(fields)}    impl ToJs for {path} {{
         fn to_js(self, cx: &CallContext) -> ThrowCompletionOr<Value> {{
 {"".join(keys)}            let {path} {{ {bindings} }} = self;
-            let object = create_dictionary_object(cx);
+{"".join(marked_sequences)}            let object = create_dictionary_object(cx);
 {"".join(conversions)}            Ok(Value::from_object(object))
         }}
     }}
