@@ -4,9 +4,6 @@ interface WorkerNavigator {
     // https://w3c.github.io/media-capabilities/#dom-workernavigator-mediacapabilities
     [SameObject] readonly attribute MediaCapabilities mediaCapabilities;
 
-    // https://wicg.github.io/serial/#extensions-to-the-workernavigator-interface
-    [SameObject] readonly attribute Serial serial;
-
     // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
     [SecureContext, SameObject] readonly attribute ServiceWorkerContainer serviceWorker;
 

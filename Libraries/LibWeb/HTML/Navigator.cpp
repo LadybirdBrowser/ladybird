@@ -84,7 +84,6 @@ void Navigator::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_plugin_array);
     visitor.visit(m_clipboard);
     visitor.visit(m_geolocation);
-    visitor.visit(m_serial);
     visitor.visit(m_user_activation);
     visitor.visit(m_service_worker_container);
     visitor.visit(m_media_capabilities);
@@ -120,13 +119,6 @@ GC::Ref<Geolocation::Geolocation> Navigator::geolocation()
     if (!m_geolocation)
         m_geolocation = Geolocation::Geolocation::create(*m_window);
     return *m_geolocation;
-}
-
-GC::Ref<Serial::Serial> Navigator::serial()
-{
-    if (!m_serial)
-        m_serial = Serial::Serial::create();
-    return *m_serial;
 }
 
 GC::Ref<UserActivation> Navigator::user_activation()

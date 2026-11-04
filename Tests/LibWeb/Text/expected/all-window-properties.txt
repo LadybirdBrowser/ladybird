@@ -538,8 +538,6 @@ ScriptProcessorNode
 ScrollTimeline
 SecurityPolicyViolationEvent
 Selection
-Serial
-SerialPort
 ServiceWorker
 ServiceWorkerContainer
 ServiceWorkerRegistration

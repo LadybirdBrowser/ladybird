@@ -53,7 +53,6 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(cut)                         \
     __ENUMERATE_HTML_EVENT(datachannel)                 \
     __ENUMERATE_HTML_EVENT(devicechange)                \
-    __ENUMERATE_HTML_EVENT(disconnect)                  \
     __ENUMERATE_HTML_EVENT(dispose)                     \
     __ENUMERATE_HTML_EVENT(DOMContentLoaded)            \
     __ENUMERATE_HTML_EVENT(drag)                        \
