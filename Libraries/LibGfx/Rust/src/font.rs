@@ -64,6 +64,9 @@ pub struct FontFacts {
     pub point_size: f32,
 }
 
+// NB: Layout threads read every entry while they count references to it. The alignment puts the reference counts in
+//     front of the entry on a cache line of their own, so counting does not evict what the readers read.
+#[repr(align(128))]
 struct FontEntry {
     id: FontId,
     raw: NonNull<c_void>,
@@ -581,6 +584,8 @@ impl FirstFontAsciiCodePointsMemo {
 /// resolve, nothing to ask the document. Everything a render pass needs to pick a font for a code
 /// point is here, and everything it decides that the document must act on is a number it leaves
 /// behind in [`take_wanted_pending_faces`].
+// NB: Aligned as FontEntry is, which keeps the reference counts off the line of the entry pointers every lookup reads.
+#[repr(align(128))]
 pub struct FrozenFontList {
     entries: Box<[FrozenEntry]>,
     fallback_entries: Box<[FrozenEntry]>,
