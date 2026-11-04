@@ -8,6 +8,7 @@
 #include <AK/AnyOf.h>
 #include <AK/Atomic.h>
 #include <AK/Mutex.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Time.h>
 #include <AK/WeakPtr.h>
 #include <AudioServer/CaptureDevices.h>
@@ -72,6 +73,14 @@ struct Source {
     }
 };
 
+// The event loop of every test here. A sink's and a null stream's threads run on past the test that started them, and
+// they hand their work to the loop they were made on, so that loop has to last as long as a process's main loop does.
+static Core::EventLoop& shared_event_loop()
+{
+    static NeverDestroyed<Core::EventLoop> loop;
+    return *loop;
+}
+
 // A mixer on a fake device, a server connection serving it, and a client connection on the other end of a paired
 // transport, all on one event loop.
 struct RemoteFixture {
@@ -80,7 +89,7 @@ struct RemoteFixture {
     // What the client keeps in its ring: the budget less the device's share.
     static constexpr u32 RING_LATENCY_MS = TARGET_LATENCY_MS - DEVICE_LATENCY_MS;
 
-    Core::EventLoop loop;
+    Core::EventLoop& loop { shared_event_loop() };
     RefPtr<FakeDeviceStream> device;
     RefPtr<Audio::PlaybackStreamMixer> mixer;
     RefPtr<Audio::ServerConnection> server;
@@ -582,7 +591,7 @@ TEST_CASE(destroying_a_stream_removes_it_from_the_mixer)
 // A mixer on a fake device whose server connections are handed out through the process-wide transport factory, the
 // way a sink in MediaServer reaches the AudioServer. Each request gets a fresh server end on the same mixer.
 struct RemoteSinkFixture {
-    Core::EventLoop loop;
+    Core::EventLoop& loop { shared_event_loop() };
     RefPtr<FakeDeviceStream> device;
     RefPtr<Audio::PlaybackStreamMixer> mixer;
     Vector<NonnullRefPtr<Audio::ServerConnection>> servers;
