@@ -851,20 +851,26 @@ impl<'pass> InlineContentPreparer<'pass> {
             && text_context.should_respect_linebreaks
             && chunks.last().is_some_and(|last| last.has_breaking_newline)
             && text_context.is_text_control_text;
-        let chunk = if let Some(chunk) = chunk {
-            std::borrow::Cow::Borrowed(chunk)
+        let (chunk, font) = if let Some(chunk) = chunk {
+            (*chunk, chunks.font_of(chunk))
         } else if synthesize_zero_length_chunk || synthesize_chunk_after_trailing_newline {
             text_context.next_chunk_index = chunks.len() + 1;
-            std::borrow::Cow::Owned(text_chunker::TextChunk {
+            let chunk = text_chunker::TextChunk {
                 start: text_context.text.len(),
                 length: 0,
-                font: text_context.style.first_available_font(),
+                font_index: text_chunker::TextChunk::FONT_INDEX_OUTSIDE_ANY_CHUNKED_TEXT,
                 has_breaking_newline: false,
                 has_breaking_tab: false,
                 is_all_whitespace: true,
                 can_break_after: false,
                 text_type: line_box_fragment::GLYPH_TEXT_TYPE_COMMON,
-            })
+            };
+            let first_available_font = text_context
+                .style
+                .font()
+                .first_available_font()
+                .expect("layout read a font group that never received a frozen font list");
+            (chunk, first_available_font)
         } else {
             if !text_context.text.is_empty() {
                 let regional_indicators = text_chunker::trailing_regional_indicator_count(text_context.text);
@@ -911,7 +917,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         if chunk.has_breaking_tab {
             let style = text_context.style;
             let tab_inline_size = if style.tab_size_is_number() {
-                let space = chunk.font.glyph_width(b' ' as u32);
+                let space = font.glyph_width(b' ' as u32);
                 CssPixels::nearest_value_for(
                     style.tab_size_number() * (space + text_context.word_spacing + text_context.letter_spacing) as f64,
                 )
@@ -927,13 +933,13 @@ impl<'pass> InlineContentPreparer<'pass> {
             tab_stop = Some(PreparedTabStop {
                 tab_count: u32::try_from(tab_count).expect("tab counts fit in 32 bits"),
                 tab_inline_size,
-                zero_advance: chunk.font.glyph_width(b'0' as u32),
+                zero_advance: font.glyph_width(b'0' as u32),
                 upright_advance: None,
             });
         }
         let shaped_text = &full_text[shaped_start..shaped_start + shaped_length];
         let mut shape = libgfx_rust::text_layout::shape_text_shared(
-            &chunk.font,
+            font,
             shaped_text,
             libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
             text_context.letter_spacing,
@@ -948,7 +954,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             )
         {
             // NB: The font's own size takes any font-size-adjust into account.
-            let advance = chunk.font.facts().pixel_size + text_context.letter_spacing;
+            let advance = font.facts().pixel_size + text_context.letter_spacing;
             match &mut tab_stop {
                 Some(tab_stop) => tab_stop.upright_advance = Some(advance),
                 None => shape = shape_set_upright(&shape, advance),
@@ -1011,7 +1017,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             flags |= PreparedItem::TAB_STOP;
             self.buffers.tab_stops.push(tab_stop);
         }
-        if self.switch_to_font(&chunk.font) {
+        if self.switch_to_font(font) {
             flags |= PreparedItem::TAKES_NEXT_FONT;
         }
         let item = PreparedItem::text(

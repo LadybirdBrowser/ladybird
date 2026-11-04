@@ -297,11 +297,12 @@ mod unicode_test_stubs {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct TextChunk {
     pub start: usize,
     pub length: usize,
-    pub font: FontHandle,
+    /// Which of the fonts of its [`ChunkedText`] the chunk is set in.
+    pub font_index: u16,
     pub has_breaking_newline: bool,
     pub has_breaking_tab: bool,
     pub is_all_whitespace: bool,
@@ -325,13 +326,42 @@ pub(crate) struct TextChunkInputs<'text> {
     pub splits_at_orientation_changes: bool,
 }
 
-pub(crate) fn chunk_text(inputs: TextChunkInputs<'_>) -> Vec<TextChunk> {
+impl TextChunk {
+    /// The font index of a chunk made outside any chunked text, whose font its maker keeps beside it.
+    pub(crate) const FONT_INDEX_OUTSIDE_ANY_CHUNKED_TEXT: u16 = u16::MAX;
+}
+
+/// The chunks of a text, and the fonts they are set in, each once.
+#[derive(Default)]
+pub(crate) struct ChunkedText {
+    pub(crate) chunks: Vec<TextChunk>,
+    pub(crate) fonts: Box<[FontHandle]>,
+}
+
+impl ChunkedText {
+    pub(crate) fn font_of(&self, chunk: &TextChunk) -> &FontHandle {
+        &self.fonts[usize::from(chunk.font_index)]
+    }
+}
+
+impl std::ops::Deref for ChunkedText {
+    type Target = [TextChunk];
+
+    fn deref(&self) -> &Self::Target {
+        &self.chunks
+    }
+}
+
+pub(crate) fn chunk_text(inputs: TextChunkInputs<'_>) -> ChunkedText {
     let mut chunker = TextChunker::new(inputs);
     let mut chunks = Vec::new();
     while let Some(chunk) = chunker.next_chunk() {
         chunks.push(chunk);
     }
-    chunks
+    ChunkedText {
+        chunks,
+        fonts: chunker.fonts.into_boxed_slice(),
+    }
 }
 
 pub(super) fn word_boundaries(text: &[u16], offset: usize) -> std::ops::Range<usize> {
@@ -713,10 +743,10 @@ fn ascii_line_break_at_whitespace_or_text_edge(text: &[u16], index: usize) -> Op
 
 // A chunk while it is still being accumulated: where it starts, plus the properties shared by
 // every chunk that can be committed from it.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 struct PendingChunk {
     start: usize,
-    font: FontHandle,
+    font_index: u16,
     text_type: u8,
     is_upright: bool,
     broken_on_tab: bool,
@@ -902,7 +932,9 @@ struct TextChunker<'text> {
     unidirectional_ltr: bool,
     splits_at_orientation_changes: bool,
     current_index: usize,
-    last_non_whitespace_font: Option<FontHandle>,
+    /// The fonts of the chunks, each once, which the chunks name by index.
+    fonts: Vec<FontHandle>,
+    last_non_whitespace_font: Option<u16>,
     first_font_and_ascii_code_points_it_resolves: Option<(&'text FontHandle, u128)>,
     font_for_every_space: Option<&'text FontHandle>,
 }
@@ -945,6 +977,7 @@ impl<'text> TextChunker<'text> {
             unidirectional_ltr: inputs.unidirectional_ltr,
             splits_at_orientation_changes: inputs.splits_at_orientation_changes,
             current_index: 0,
+            fonts: Vec::new(),
             last_non_whitespace_font: None,
             first_font_and_ascii_code_points_it_resolves,
             font_for_every_space,
@@ -1041,19 +1074,19 @@ impl<'text> TextChunker<'text> {
             .font_for_code_point_borrowed(code_point, self.emoji_presentation_at(code_unit_offset, code_point))
     }
 
-    fn font_for_space(&self, at_index: usize, space_code_point: u32) -> Cow<'_, FontHandle> {
+    fn font_for_space(&self, at_index: usize, space_code_point: u32) -> ChunkFont<'text> {
         if let Some(font) = self.font_for_every_space {
-            return Cow::Borrowed(font);
+            return ChunkFont::FromCascade(Cow::Borrowed(font));
         }
 
         let has_glyph = |font: &FontHandle| font.contains_glyph(space_code_point);
 
         // 1. Prefer the last non-whitespace font in this node/run.
-        if let Some(last_font) = &self.last_non_whitespace_font
-            && !last_font.is_emoji_font()
-            && has_glyph(last_font)
-        {
-            return Cow::Borrowed(last_font);
+        if let Some(last_font_index) = self.last_non_whitespace_font {
+            let last_font = &self.fonts[usize::from(last_font_index)];
+            if !last_font.is_emoji_font() && has_glyph(last_font) {
+                return ChunkFont::InTable(last_font_index);
+            }
         }
 
         // 2. Look ahead to the next non-space to infer the base font of this run.
@@ -1063,7 +1096,7 @@ impl<'text> TextChunker<'text> {
             if !is_interword_space(code_point) && code_point != '\t' as u32 && code_point != '\n' as u32 {
                 let font = self.font_for_code_point_at(i, code_point);
                 if !font.is_emoji_font() && has_glyph(&font) {
-                    return font;
+                    return ChunkFont::FromCascade(font);
                 }
                 // Text is coming from an emoji face; we'll fall back to (3).
                 break;
@@ -1075,21 +1108,43 @@ impl<'text> TextChunker<'text> {
         }
 
         // 3. No text around (leading/trailing/all spaces) — pick a font with the glyph from the cascade.
-        self.frozen_font_list.font_for_code_point_borrowed(
+        ChunkFont::FromCascade(self.frozen_font_list.font_for_code_point_borrowed(
             space_code_point,
             EmojiPresentation {
                 is_emoji: false,
                 forced: false,
             },
-        )
+        ))
     }
 
-    fn expected_font_for(&self, code_point: u32) -> Cow<'_, FontHandle> {
+    fn expected_font_for(&self, code_point: u32) -> ChunkFont<'text> {
         if is_interword_space(code_point) {
             self.font_for_space(self.current_index, code_point)
         } else {
-            self.font_for_code_point_at(self.current_index, code_point)
+            ChunkFont::FromCascade(self.font_for_code_point_at(self.current_index, code_point))
         }
+    }
+
+    fn is_font_at_index(&self, font: &ChunkFont<'_>, font_index: u16) -> bool {
+        match font {
+            ChunkFont::InTable(index) => *index == font_index,
+            ChunkFont::FromCascade(font) => **font == self.fonts[usize::from(font_index)],
+        }
+    }
+
+    fn index_of_font(&mut self, font: ChunkFont<'text>) -> u16 {
+        let font = match font {
+            ChunkFont::InTable(index) => return index,
+            ChunkFont::FromCascade(font) => font,
+        };
+        let index = match self.fonts.iter().rposition(|kept| *kept == *font) {
+            Some(index) => index,
+            None => {
+                self.fonts.push(font.into_owned());
+                self.fonts.len() - 1
+            }
+        };
+        u16::try_from(index).expect("a text is set in fewer than 65536 fonts")
     }
 
     fn try_commit_chunk(
@@ -1097,7 +1152,7 @@ impl<'text> TextChunker<'text> {
         start: usize,
         end: usize,
         break_flags: ChunkBreakFlags,
-        font: FontHandle,
+        font_index: u16,
         text_type: u8,
     ) -> Option<TextChunk> {
         let length_in_code_units = end - start;
@@ -1107,13 +1162,13 @@ impl<'text> TextChunker<'text> {
         let is_all_whitespace = self.text[start..end]
             .iter()
             .all(|unit| *unit <= 0x7f && code_point_is_ascii_space(u32::from(*unit)));
-        if !is_all_whitespace && self.last_non_whitespace_font.as_ref() != Some(&font) {
-            self.last_non_whitespace_font = Some(font.clone());
+        if !is_all_whitespace {
+            self.last_non_whitespace_font = Some(font_index);
         }
         Some(TextChunk {
             start,
             length: length_in_code_units,
-            font,
+            font_index,
             has_breaking_newline: break_flags.has_breaking_newline,
             has_breaking_tab: break_flags.has_breaking_tab,
             is_all_whitespace,
@@ -1130,9 +1185,10 @@ impl<'text> TextChunker<'text> {
 
             let mut code_point = self.current_code_point();
             let mut can_break_at_current_position = self.is_at_line_break_opportunity();
+            let expected_font = self.expected_font_for(code_point);
             let mut pending = PendingChunk {
                 start: self.current_index,
-                font: self.expected_font_for(code_point).into_owned(),
+                font_index: self.index_of_font(expected_font),
                 text_type: self.current_text_type(),
                 is_upright: self.current_code_point_is_upright(),
                 broken_on_tab: false,
@@ -1151,7 +1207,7 @@ impl<'text> TextChunker<'text> {
                     can_break_at_current_position = self.is_at_line_break_opportunity();
                 }
 
-                let font_changes = *self.expected_font_for(code_point) != pending.font;
+                let font_changes = !self.is_font_at_index(&self.expected_font_for(code_point), pending.font_index);
 
                 if font_changes
                     && let Some(chunk) = self.try_commit_chunk_at_cursor(&pending, can_break_at_current_position)
@@ -1177,7 +1233,7 @@ impl<'text> TextChunker<'text> {
                             has_breaking_tab: pending.broken_on_tab,
                             can_break_after: false,
                         },
-                        pending.font,
+                        pending.font_index,
                         pending.text_type,
                     );
                     return Some(chunk.expect("newline chunk must be non-empty"));
@@ -1232,7 +1288,8 @@ impl<'text> TextChunker<'text> {
                         // Otherwise, commit the whitespace!
                         self.current_index = self.next_grapheme_boundary();
                         can_break_at_current_position = self.is_at_line_break_opportunity();
-                        let space_font = self.font_for_space(self.current_index, code_point).into_owned();
+                        let space_font = self.font_for_space(self.current_index, code_point);
+                        let space_font_index = self.index_of_font(space_font);
                         if let Some(chunk) = self.try_commit_chunk(
                             pending.start,
                             self.current_index,
@@ -1241,7 +1298,7 @@ impl<'text> TextChunker<'text> {
                                 has_breaking_tab: pending.broken_on_tab,
                                 can_break_after: false,
                             },
-                            space_font,
+                            space_font_index,
                             pending.text_type,
                         ) {
                             return Some(chunk);
@@ -1270,7 +1327,7 @@ impl<'text> TextChunker<'text> {
                         has_breaking_tab: pending.broken_on_tab,
                         can_break_after: false,
                     },
-                    pending.font,
+                    pending.font_index,
                     pending.text_type,
                 ) {
                     return Some(chunk);
@@ -1294,10 +1351,16 @@ impl<'text> TextChunker<'text> {
                 has_breaking_tab: pending.broken_on_tab,
                 can_break_after,
             },
-            pending.font.clone(),
+            pending.font_index,
             pending.text_type,
         )
     }
+}
+
+/// A font the chunker picked: one of the fonts of its chunks, or one the cascade answered with.
+enum ChunkFont<'text> {
+    InTable(u16),
+    FromCascade(Cow<'text, FontHandle>),
 }
 
 pub(crate) fn text_chunks(

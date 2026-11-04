@@ -187,7 +187,13 @@ impl PartialEq for TextChunkCacheKey {
 
 pub(crate) struct CachedTextChunks {
     key: TextChunkCacheKey,
-    chunks: Vec<super::text_chunker::TextChunk>,
+    chunks: super::text_chunker::ChunkedText,
+}
+
+impl CachedTextChunks {
+    pub(crate) fn font_of(&self, chunk: &super::text_chunker::TextChunk) -> &libgfx_rust::font::FontHandle {
+        self.chunks.font_of(chunk)
+    }
 }
 
 impl std::ops::Deref for CachedTextChunks {
@@ -267,7 +273,7 @@ impl TextMemos {
         node: NodeSlotId,
         rendered: &Arc<RenderedText>,
         key: &TextChunkCacheKey,
-        compute: impl FnOnce() -> Vec<super::text_chunker::TextChunk>,
+        compute: impl FnOnce() -> super::text_chunker::ChunkedText,
     ) -> Arc<CachedTextChunks> {
         let index = node.slot_index() as usize;
         if let Some(Some(memo)) = self.chunks.borrow().get(index)
@@ -520,7 +526,7 @@ mod tests {
 
     #[test]
     fn text_chunk_cache_tracks_line_break_language_changes() {
-        use crate::layout::text_chunker::LineBreakLanguage;
+        use crate::layout::text_chunker::{ChunkedText, LineBreakLanguage};
         let content = content("文・", 0, 2, Vec::new());
         let mut key = TextChunkCacheKey {
             should_wrap_lines: true,
@@ -537,14 +543,14 @@ mod tests {
         };
         let memos = TextMemos::default();
         let node = NodeSlotId::new(0, 1);
-        let mut previous = memos.text_chunks(node, content.rendered(), &key, Vec::new);
+        let mut previous = memos.text_chunks(node, content.rendered(), &key, ChunkedText::default);
         for language in [
             LineBreakLanguage::Other,
             LineBreakLanguage::Chinese,
             LineBreakLanguage::Japanese,
         ] {
             key.line_break_language = language;
-            let chunks = memos.text_chunks(node, content.rendered(), &key, Vec::new);
+            let chunks = memos.text_chunks(node, content.rendered(), &key, ChunkedText::default);
             assert!(!std::sync::Arc::ptr_eq(&previous, &chunks));
             let hit = memos.text_chunks(node, content.rendered(), &key, || {
                 panic!("unchanged language should reuse chunks")
@@ -557,7 +563,7 @@ mod tests {
     #[test]
     fn text_chunk_users_survive_cache_and_snapshot_replacement() {
         use super::TextChunkCacheKey;
-        use crate::layout::text_chunker::TextChunk;
+        use crate::layout::text_chunker::{ChunkedText, TextChunk};
         use std::sync::Arc;
 
         let mut arena = LayoutNodeArena::new();
@@ -568,7 +574,7 @@ mod tests {
         let text_chunks = |scratch: &crate::layout::run_state::LayoutScratch,
                            arena: &LayoutNodeArena,
                            key: &TextChunkCacheKey,
-                           compute: &dyn Fn() -> Vec<TextChunk>| {
+                           compute: &dyn Fn() -> ChunkedText| {
             scratch
                 .text_memos()
                 .text_chunks(node, arena.text_content(node).unwrap().rendered(), key, compute)
@@ -589,14 +595,19 @@ mod tests {
         let chunk = TextChunk {
             start: 0,
             length: 5,
-            font: unsafe { libgfx_rust::font::FontHandle::intern(std::ptr::dangling()) },
+            font_index: 0,
             has_breaking_newline: false,
             has_breaking_tab: false,
             is_all_whitespace: false,
             can_break_after: true,
             text_type: 0,
         };
-        let original = text_chunks(&scratch, &arena, &key, &|| vec![chunk.clone()]);
+        let font = unsafe { libgfx_rust::font::FontHandle::intern(std::ptr::dangling()) };
+        let chunked_hello = || ChunkedText {
+            chunks: vec![chunk],
+            fonts: Box::new([font.clone()]),
+        };
+        let original = text_chunks(&scratch, &arena, &key, &chunked_hello);
         let hit = text_chunks(&scratch, &arena, &key, &|| panic!("matching chunks should be cached"));
         assert!(Arc::ptr_eq(&original, &hit));
         drop(hit);
@@ -608,7 +619,7 @@ mod tests {
                 should_wrap_lines: false,
                 ..key.clone()
             },
-            &Vec::new,
+            &ChunkedText::default,
         );
         assert!(replacement.is_empty());
         assert_eq!(&**original, std::slice::from_ref(&chunk));
@@ -647,7 +658,7 @@ mod tests {
             published_text(&arena.publish_paint_facts().text).text,
             "goodbye".encode_utf16().collect::<Vec<_>>()
         );
-        let new_chunks = text_chunks(&scratch, &arena, &key, &|| vec![chunk.clone()]);
+        let new_chunks = text_chunks(&scratch, &arena, &key, &chunked_hello);
         assert_eq!(&**new_chunks, std::slice::from_ref(&chunk));
         drop(replacement);
         assert!(replacement_weak.upgrade().is_none());

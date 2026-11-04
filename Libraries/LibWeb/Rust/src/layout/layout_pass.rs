@@ -247,7 +247,7 @@ impl<'arena> LayoutPass<'arena> {
         &self,
         node: Node,
         key: &super::rendered_text::TextChunkCacheKey,
-        compute: impl FnOnce() -> Vec<super::text_chunker::TextChunk>,
+        compute: impl FnOnce() -> super::text_chunker::ChunkedText,
     ) -> std::sync::Arc<super::rendered_text::CachedTextChunks> {
         self.scratch
             .text_memos()
