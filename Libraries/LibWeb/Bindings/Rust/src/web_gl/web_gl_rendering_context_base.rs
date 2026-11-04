@@ -41,7 +41,6 @@ use super::web_gl_texture::WebGLTexture;
 use super::web_gl_uniform_location::WebGLUniformLocation;
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::Ref;
-use crate::bindings::promise::WebIdlPromise;
 use crate::bindings::{CallContext, WebIdlResult};
 
 /// https://www.khronos.org/registry/webgl/specs/latest/1.0/#WEBGLCONTEXTATTRIBUTES
@@ -56,8 +55,6 @@ pub(crate) struct WebGLContextAttributes {
     pub(crate) power_preference: WebGLPowerPreference,
     pub(crate) fail_if_major_performance_caveat: bool,
     pub(crate) desynchronized: bool,
-    /// https://immersive-web.github.io/webxr/#dom-webglcontextattributes-xrcompatible
-    pub(crate) xr_compatible: bool,
 }
 
 const ACTIVE_INFO_NAME_BUFFER_SIZE: usize = 256;
@@ -855,11 +852,6 @@ impl<V: Version> RenderingContext<V> {
             return Ok(-1);
         };
         Ok(self.proxy.get_attrib_location(program_handle, &utf8_bytes(&name)))
-    }
-
-    pub(crate) fn make_xr_compatible(&self, _: &mut CallContext) -> WebIdlResult<WebIdlPromise> {
-        // SAFETY: The cell is that of this context.
-        Ok(unsafe { super::canvas::make_xr_compatible(self.context_ref().cell()) })
     }
 
     pub(crate) fn get_error(&self, _: &mut CallContext) -> WebIdlResult<u32> {

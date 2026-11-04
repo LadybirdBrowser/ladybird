@@ -67,7 +67,7 @@ ALLOWED_REALM_MENTIONS = {
         "the C++ glue of the Rust IndexedDB creates the factory in a global's realm and wraps values in a given realm",
     ),
     "Infra": (2, 13, "JSON parse/serialization helpers still expose JS values in selected realms"),
-    "Internals": (3, 3, "test-only internals still expose JS-facing helper objects and promises"),
+    "Internals": (1, 1, "test-only internals still expose JS-facing helper objects and promises"),
     "SVG": (2, 8, "SVG length objects still store/use realms for detached/reflected JS/CSS materialization"),
     "ServiceWorker": (
         6,
@@ -89,7 +89,7 @@ ALLOWED_REALM_MENTIONS = {
         "WebAudio buffers, AudioParamMap, and AudioWorklet APIs still materialize JS buffers and callback/promise values in selected realms",
     ),
     "WebDriver": (2, 7, "WebDriver execute/JSON conversion still materializes JS values for automation"),
-    "WebGL": (4, 9, "WebGL contexts are created in the realm of their canvas, and their events and promises in it"),
+    "WebGL": (4, 8, "WebGL contexts are created in the realm of their canvas, and their events in it"),
     "WebLocks": (6, 7, "Web Locks queue/callback algorithms still use callback and promise realms"),
     "WebRTC": (
         13,

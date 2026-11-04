@@ -1,3 +1,0 @@
-// https://immersive-web.github.io/webxr/#xrlayer-interface
-[Experimental, SecureContext, Exposed=Window]
-interface XRLayer : EventTarget {};

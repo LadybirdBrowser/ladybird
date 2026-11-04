@@ -71,7 +71,6 @@ public:
     [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
     GC::Ref<WebIDL::Promise> get_battery();
     void start_get_battery_steps(GC::Ref<WebIDL::Promise>);
-    [[nodiscard]] GC::Ref<WebXR::XRSystem> xr();
     [[nodiscard]] GC::Ref<PermissionsAPI::Permissions> permissions();
     void request_media_key_system_access(Utf16String key_system, Vector<EncryptedMediaExtensions::MediaKeySystemConfiguration> supported_configurations, GC::Ref<WebIDL::Promise>);
 
@@ -128,9 +127,6 @@ private:
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     GC::Ptr<CredentialManagement::CredentialsContainer> m_credentials;
-
-    // https://immersive-web.github.io/webxr/#dom-navigator-xr
-    GC::Ptr<WebXR::XRSystem> m_xr;
 
     // https://w3c.github.io/permissions/#navigator-and-workernavigator-extension
     GC::Ptr<PermissionsAPI::Permissions> m_permissions;

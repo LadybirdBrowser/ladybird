@@ -42,7 +42,6 @@ pub struct ContextAttributes {
     power_preference: u8,
     fail_if_major_performance_caveat: bool,
     desynchronized: bool,
-    xr_compatible: bool,
 }
 
 impl From<ContextAttributes> for WebGLContextAttributes {
@@ -62,7 +61,6 @@ impl From<ContextAttributes> for WebGLContextAttributes {
             },
             fail_if_major_performance_caveat: attributes.fail_if_major_performance_caveat,
             desynchronized: attributes.desynchronized,
-            xr_compatible: attributes.xr_compatible,
         }
     }
 }
@@ -83,7 +81,6 @@ impl From<WebGLContextAttributes> for ContextAttributes {
             },
             fail_if_major_performance_caveat: attributes.fail_if_major_performance_caveat,
             desynchronized: attributes.desynchronized,
-            xr_compatible: attributes.xr_compatible,
         }
     }
 }
@@ -179,11 +176,6 @@ pub unsafe extern "C" fn web_webgl_context_create(
 #[unsafe(no_mangle)]
 pub extern "C" fn web_webgl_context_canvas_host(context: &ContextCell) -> *mut c_void {
     with_context(context, |context| context.canvas().host.as_ptr())
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_realm(context: &ContextCell) -> *mut c_void {
-    with_context(context, |context| context.realm().as_ptr().cast())
 }
 
 #[unsafe(no_mangle)]
@@ -286,14 +278,4 @@ pub unsafe extern "C" fn web_webgl_context_restore(
     with_context(context, |context| {
         context.restore(transport, supported_opengl_extensions);
     });
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_xr_compatible(context: &ContextCell) -> bool {
-    with_context(context, ContextState::xr_compatible)
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_set_xr_compatible(context: &ContextCell, xr_compatible: bool) {
-    with_context(context, |context| context.set_xr_compatible(xr_compatible));
 }

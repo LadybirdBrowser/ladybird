@@ -25,11 +25,9 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
@@ -37,7 +35,6 @@
 #include <LibWeb/WebGL/WebGLContextEvent.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
-#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebGL {
 
@@ -55,7 +52,6 @@ struct RustContextAttributes {
     u8 power_preference { 0 };
     bool fail_if_major_performance_caveat { false };
     bool desynchronized { false };
-    bool xr_compatible { false };
 };
 
 // `ContextCreationArguments` of Bindings/Rust/src/web_gl/exports.rs.
@@ -103,7 +99,6 @@ extern "C" {
 // Defined in Bindings/Rust/src/web_gl/exports.rs. A context is the cell of a context of either kind.
 void* web_webgl_context_create(JSVM*, ContextCreationArguments const*);
 void* web_webgl_context_canvas_host(void* context);
-void* web_webgl_context_realm(void* context);
 bool web_webgl_context_is_webgl2(void* context);
 bool web_webgl_context_is_lost(void* context);
 bool web_webgl_context_canvas_id(void* context, u64* out_canvas_id);
@@ -116,8 +111,6 @@ void web_webgl_context_set_restore_requested(void* context, bool requested);
 bool web_webgl_context_wants_restoring(void* context);
 void web_webgl_context_actual_context_parameters(void* context, RustContextAttributes* out_context_attributes);
 void web_webgl_context_restore(void* context, void* transport, ReadonlySpan<ReadonlyBytes> supported_extensions);
-bool web_webgl_context_xr_compatible(void* context);
-void web_webgl_context_set_xr_compatible(void* context, bool xr_compatible);
 
 // What the Rust implementation asks of LibWeb, declared in Bindings/Rust/src/web_gl/canvas.rs.
 void web_webgl_canvas_did_change_content(void* canvas_host);
@@ -130,7 +123,6 @@ bool web_webgl_required_2d_texture_data_size(i32 width, i32 height, u32 format, 
 TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexImageSourceKind, u32 format, u32 type, void** out_frame);
 TexImageSourceResult web_webgl_read_tex_image_frame(Gfx::DecodedImageFrame const* image_frame, u32 format, u32 type, void** out_frame);
 TexImageSourceResult web_webgl_read_tex_image_pixels(u8 const* pixels, u32 width, u32 height, u32 format, u32 type, void** out_frame);
-void* web_webgl_make_xr_compatible(void* context);
 }
 
 static void* cell_of(WebGLRenderingContextBase const& context)
@@ -162,7 +154,6 @@ static RustContextAttributes to_rust_context_attributes(WebGLContextAttributes c
         .power_preference = power_preference,
         .fail_if_major_performance_caveat = context_attributes.fail_if_major_performance_caveat,
         .desynchronized = context_attributes.desynchronized,
-        .xr_compatible = context_attributes.xr_compatible,
     };
 }
 
@@ -351,89 +342,6 @@ void WebGLRenderingContextBase::restore_context_after_compositor_reconnect()
     }));
 }
 
-bool WebGLRenderingContextBase::xr_compatible() const
-{
-    return web_webgl_context_xr_compatible(cell_of(*this));
-}
-
-void WebGLRenderingContextBase::set_xr_compatible(bool xr_compatible)
-{
-    web_webgl_context_set_xr_compatible(this, xr_compatible);
-}
-
-// https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
-GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
-{
-    // 1. If the requesting document’s origin is not allowed to use the "xr-spatial-tracking" permissions policy,
-    //    resolve promise and return it.
-    // FIXME: Implement this.
-
-    // 2. Let promise be a new Promise created in the Realm of this WebGLRenderingContextBase.
-    auto& realm = *static_cast<JS::Realm*>(web_webgl_context_realm(this));
-    auto promise = WebIDL::create_promise_for(canvas_host().canvas_relevant_global_object());
-
-    // 3. Let context be this.
-    auto context = this;
-
-    // 4. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, context, promise]() {
-        // 1. Let device be the result of ensuring an immersive XR device is selected.
-        // FIXME: Implement https://immersive-web.github.io/webxr/#ensure-an-immersive-xr-device-is-selected
-
-        // 2. Set context’s XR compatible boolean as follows:
-
-        // -> If context’s WebGL context lost flag is set:
-        if (context->is_context_lost()) {
-            // Queue a task to set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
-                context->set_xr_compatible(false);
-                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-                WebIDL::reject_promise(promise, WebIDL::InvalidStateError::create("The WebGL context has been lost."_utf16));
-            }));
-        }
-        // -> If device is null:
-        else if (false) {
-            // Queue a task to set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
-                context->set_xr_compatible(false);
-                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-                WebIDL::reject_promise(promise, WebIDL::InvalidStateError::create("Could not select an immersive XR device."_utf16));
-            }));
-        }
-        // -> If context’s XR compatible boolean is true:
-        else if (context->xr_compatible()) {
-            // Queue a task to resolve promise.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise]() {
-                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-                WebIDL::resolve_promise(promise);
-            }));
-        }
-        // -> If context was created on a compatible graphics adapter for device:
-        // FIXME: For now we just pretend that this happened, so that we can resolve the promise and proceed running basic WPT tests for this.
-        else if (true) {
-            // Queue a task to set context’s XR compatible boolean to true and resolve promise.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
-                context->set_xr_compatible(true);
-                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-                WebIDL::resolve_promise(promise);
-            }));
-        }
-        // -> Otherwise:
-        else {
-            // Queue a task on the WebGL task source to perform the following steps:
-            HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(realm.heap(), []() {
-                // 1. Force context to be lost.
-
-                // 2. Handle the context loss as described by the WebGL specification:
-                // FIXME: Implement https://registry.khronos.org/webgl/specs/latest/1.0/#CONTEXT_LOST
-            }));
-        }
-    }));
-
-    // 5. Return promise.
-    return promise;
-}
-
 void web_webgl_canvas_did_change_content(void* canvas_host)
 {
     static_cast<HTML::CanvasHost*>(canvas_host)->did_change_canvas_content();
@@ -545,11 +453,6 @@ TexImageSourceResult web_webgl_read_tex_image_pixels(u8 const* pixels, u32 width
         memcpy(bitmap.value()->scanline_u8(static_cast<int>(y)), pixels + y * row_size, row_size);
     NonnullRefPtr<Gfx::Bitmap const> pixels_bitmap = bitmap.release_value();
     return tex_image_source_frame(Compositing::WebGL::ImageSourceFrame { Gfx::DecodedImageFrame { move(pixels_bitmap) } }, format, type, out_frame);
-}
-
-void* web_webgl_make_xr_compatible(void* context)
-{
-    return static_cast<WebGLRenderingContextBase*>(context)->make_xr_compatible().ptr();
 }
 
 }
