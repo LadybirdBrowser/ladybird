@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSDescriptors.h>
+#include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -15,6 +16,13 @@
 #include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::CSS {
+
+GC_DEFINE_ALLOCATOR(CSSDescriptors);
+
+GC::Ref<CSSDescriptors> CSSDescriptors::create(AtRuleID at_rule_id, RustDescriptorBlock descriptors)
+{
+    return GC::Heap::the().allocate<CSSDescriptors>(at_rule_id, move(descriptors));
+}
 
 CSSDescriptors::CSSDescriptors(AtRuleID at_rule_id, RustDescriptorBlock descriptors)
     : CSSStyleDeclaration(Computed::No, Readonly::No)
@@ -57,7 +65,14 @@ bool CSSDescriptors::set_a_css_declaration(DescriptorNameAndID const& descriptor
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
 WebIDL::ExceptionOr<void> CSSDescriptors::set_property(Utf16FlyString const& property, Utf16View value, Utf16View priority)
 {
-    return set_property_internal(property, value, priority);
+    TRY(set_property_internal(property, value, priority));
+
+    if (m_at_rule_id == AtRuleID::FontFace) {
+        if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
+            font_face_rule->handle_descriptor_change(property);
+    }
+
+    return {};
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty

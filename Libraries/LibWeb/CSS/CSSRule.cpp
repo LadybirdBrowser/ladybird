@@ -8,9 +8,9 @@
 
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/RustCSSDescriptors.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSPositionTryDescriptors.h>
 #include <LibWeb/CSS/CSSRule.h>
@@ -104,7 +104,7 @@ GC::Ref<CSSStyleDeclaration> CSSRule::declarations() const
 
 static GC::Ref<CSSStyleDeclaration> create_rust_descriptors(AtRuleID at_rule, Parser::ValueParserFFI::FfiDescriptorBlock const* block, void (*create_owner)(void* vm, void* descriptors))
 {
-    auto descriptors = RustCSSDescriptors::create(at_rule, RustDescriptorBlock { Parser::ValueParserFFI::rust_descriptor_block_retain(block) });
+    auto descriptors = CSSDescriptors::create(at_rule, RustDescriptorBlock { Parser::ValueParserFFI::rust_descriptor_block_retain(block) });
     create_owner(JS::HostABI::vm_to_abi(JS::VM::the()), static_cast<GC::Cell*>(descriptors.ptr()));
     return descriptors;
 }
