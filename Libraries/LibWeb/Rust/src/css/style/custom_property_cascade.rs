@@ -779,11 +779,6 @@ impl RetainedState {
         noted.filter(|noted| noted.raw() != 0)
     }
 
-    /// The environment the element's declarations resolved to last, beneath any animation overlay, where they resolve to
-    /// its values again in `resolved`: an environment resolved anew, as one holding a registered value is, would move
-    /// what the element's descendants inherit without moving any value they see. What an environment hands down was
-    /// decided under the registrations it was resolved under, so only one handing down every value, then and now, is
-    /// kept.
     /// The store of the environment the element's declarations resolved to last, where `resolved` holds the same values
     /// over the same stores, as [`Self::environment_resolving_to_the_same_values`] keeps it: a store computed again
     /// gives way to it, so that the element's record holds the store its environment is named by.
@@ -798,11 +793,16 @@ impl RetainedState {
         self.custom_property_environments.store(previous).cloned()
     }
 
+    /// The environment the element's declarations resolved to last, beneath any animation overlay, where they resolve to
+    /// its values again in `resolved`: an environment resolved anew, as one holding a registered value is, would move
+    /// what the element's descendants inherit without moving any value they see. What an environment hands down was
+    /// decided under the registrations it was resolved under, so only one handing down every value, then and now, is
+    /// kept.
     pub(super) fn environment_resolving_to_the_same_values(
         &self,
         node: StyleNodeID,
         pseudo: Option<u8>,
-        resolved: &CustomPropertyStore,
+        resolved: &Arc<CustomPropertyStore>,
         registry: &crate::css::custom_properties::CustomPropertyRegistry,
     ) -> Option<u64> {
         if pseudo.is_some() {
@@ -819,7 +819,9 @@ impl RetainedState {
             return None;
         }
         let previous_store = self.custom_property_environments.store(previous)?;
-        (resolved.hands_down_every_value(registry) && resolved.holds_same_values_as(previous_store)).then_some(previous)
+        (resolved.hands_down_every_value(registry)
+            && CustomPropertyStore::hold_the_same_values(resolved, previous_store))
+        .then_some(previous)
     }
 
     /// The custom properties in a dependency cycle through what an element's animations declare, as
