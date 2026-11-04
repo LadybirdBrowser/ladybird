@@ -5,14 +5,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOM/EventDispatcher.h>
-#include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -20,256 +19,158 @@
 
 namespace Web::CSS {
 
-GC_DEFINE_ALLOCATOR(VisualViewport);
+namespace {
+
+struct FFIPixelPoint {
+    i32 x;
+    i32 y;
+};
+
+struct FFIPixelRect {
+    i32 x;
+    i32 y;
+    i32 width;
+    i32 height;
+};
+
+}
+
+static FFIPixelPoint to_ffi(CSSPixelPoint point)
+{
+    return { point.x().raw_value(), point.y().raw_value() };
+}
+
+static CSSPixelPoint from_ffi(FFIPixelPoint point)
+{
+    return { CSSPixels::from_raw(point.x), CSSPixels::from_raw(point.y) };
+}
+
+extern "C" {
+
+// Defined in Bindings/Rust/src/css/exports.rs.
+void* web_visual_viewport_create(JSVM*, void* realm, void* document);
+void* web_visual_viewport_event_target(void* viewport);
+FFIPixelPoint web_visual_viewport_offset(void* viewport);
+double web_visual_viewport_offset_left(void* viewport);
+double web_visual_viewport_offset_top(void* viewport);
+double web_visual_viewport_page_left(void* viewport);
+double web_visual_viewport_page_top(void* viewport);
+double web_visual_viewport_width(void* viewport);
+double web_visual_viewport_height(void* viewport);
+double web_visual_viewport_scale(void* viewport);
+void web_visual_viewport_scroll_by(void* viewport, FFIPixelPoint delta);
+void web_visual_viewport_zoom(void* viewport, FFIPixelPoint position, double scale_delta);
+void web_visual_viewport_set_scale_zoomed_by_compositor(void* viewport, double scale);
+bool web_visual_viewport_take_scale_for_compositor(void* viewport, double* scale);
+FFIPixelPoint web_visual_viewport_map_to_layout_viewport(void* viewport, FFIPixelPoint position);
+FFIPixelPoint web_visual_viewport_map_point_from_layout_viewport(void* viewport, FFIPixelPoint position);
+FFIPixelRect web_visual_viewport_map_rect_from_layout_viewport(void* viewport, FFIPixelRect rect);
+void web_visual_viewport_reset(void* viewport);
+
+// Declared in Bindings/Rust/src/css/visual_viewport.rs.
+bool web_css_visual_viewport_document_is_fully_active(void* document);
+FFIPixelRect web_css_visual_viewport_document_viewport_rect(void* document);
+void web_css_visual_viewport_append_pending_scroll_event(void* document, void* event_target, ReadonlyBytes type);
+void web_css_visual_viewport_did_change_offset_or_scale(void* document);
+}
+
+static void* to_abi(VisualViewport const* viewport)
+{
+    return const_cast<VisualViewport*>(viewport);
+}
+
+static DOM::Document& document_from_abi(void* document)
+{
+    return *static_cast<DOM::Document*>(static_cast<GC::Cell*>(document));
+}
+
+bool web_css_visual_viewport_document_is_fully_active(void* document)
+{
+    return document_from_abi(document).is_fully_active();
+}
+
+FFIPixelRect web_css_visual_viewport_document_viewport_rect(void* document)
+{
+    auto rect = document_from_abi(document).viewport_rect();
+    return { rect.x().raw_value(), rect.y().raw_value(), rect.width().raw_value(), rect.height().raw_value() };
+}
+
+void web_css_visual_viewport_append_pending_scroll_event(void* document, void* event_target, ReadonlyBytes type)
+{
+    auto& target = *static_cast<DOM::EventTarget*>(static_cast<GC::Cell*>(event_target));
+    document_from_abi(document).append_pending_scroll_event({ target, Utf16FlyString::from_utf8_without_validation(type) });
+}
+
+void web_css_visual_viewport_did_change_offset_or_scale(void* document)
+{
+    VisualViewport::did_change_offset_or_scale(document_from_abi(document));
+}
+
+static void update_accumulated_visual_context(DOM::Document& document)
+{
+    Layout::ForcedReadScope read { document };
+    if (document.has_committed_viewport_box() && document.paint_state().has_visual_context_tree(read)) {
+        document.paint_state().update_visual_viewport_accumulated_visual_context(read, document);
+        return;
+    }
+
+    document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
+}
+
+void VisualViewport::did_change_offset_or_scale(DOM::Document& document)
+{
+    update_accumulated_visual_context(document);
+    document.set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
+    if (auto navigable = document.navigable())
+        navigable->did_change_scroll_offset({ .node_id = document.unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport });
+}
 
 GC::Ref<VisualViewport> VisualViewport::create(DOM::Document& document)
 {
-    return GC::Heap::the().allocate<VisualViewport>(document);
+    auto* viewport = web_visual_viewport_create(JS::HostABI::vm_to_abi(JS::VM::the()), &HTML::relevant_realm(document), static_cast<GC::Cell*>(&document));
+    return GC::Ref { *static_cast<VisualViewport*>(viewport) };
 }
 
-VisualViewport::VisualViewport(DOM::Document& document)
-    : DOM::EventTarget()
-    , m_document(document)
+GC::Ref<DOM::EventTarget> VisualViewport::event_target() const
 {
+    return *static_cast<DOM::EventTarget*>(static_cast<GC::Cell*>(web_visual_viewport_event_target(to_abi(this))));
 }
 
-GC::Ptr<Bindings::Wrappable> VisualViewport::relevant_global_impl() const
-{
-    return m_document->window();
-}
-
-void VisualViewport::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_document);
-}
-
-// https://drafts.csswg.org/cssom-view/#dom-visualviewport-offsetleft
-double VisualViewport::offset_left() const
-{
-    // 1. If the visual viewport’s associated document is not fully active, return 0.
-    if (!m_document->is_fully_active())
-        return 0;
-
-    // 2. Otherwise, return the offset of the left edge of the visual viewport from the left edge of the layout viewport.
-    return m_offset.x().to_double();
-}
-
-// https://drafts.csswg.org/cssom-view/#dom-visualviewport-offsettop
-double VisualViewport::offset_top() const
-{
-    // 1. If the visual viewport’s associated document is not fully active, return 0.
-    if (!m_document->is_fully_active())
-        return 0;
-
-    // 2. Otherwise, return the offset of the top edge of the visual viewport from the top edge of the layout viewport.
-    return m_offset.y().to_double();
-}
-
-// https://drafts.csswg.org/cssom-view/#dom-visualviewport-pageleft
-double VisualViewport::page_left() const
-{
-    // 1. If the visual viewport’s associated document is not fully active, return 0.
-    if (!m_document->is_fully_active())
-        return 0;
-
-    // 2. Otherwise, return the offset of the left edge of the visual viewport from the
-    //    left edge of the initial containing block of the layout viewport’s document.
-    return m_document->viewport_rect().x().to_double() + offset_left();
-}
-
-// https://drafts.csswg.org/cssom-view/#dom-visualviewport-pagetop
-double VisualViewport::page_top() const
-{
-    // 1. If the visual viewport’s associated document is not fully active, return 0.
-    if (!m_document->is_fully_active())
-        return 0;
-
-    // 2. Otherwise, return the offset of the top edge of the visual viewport from the
-    //    top edge of the initial containing block of the layout viewport’s document.
-    return m_document->viewport_rect().y().to_double() + offset_top();
-}
-
-// https://drafts.csswg.org/cssom-view/#dom-visualviewport-width
-double VisualViewport::width() const
-{
-    // 1. If the visual viewport’s associated document is not fully active, return 0.
-    if (!m_document->is_fully_active())
-        return 0;
-
-    // 2. Otherwise, return the width of the visual viewport
-    //    FIXME: excluding the width of any rendered vertical classic scrollbar that is fixed to the visual viewport.
-    return m_document->viewport_rect().size().width() / m_scale;
-}
-
-// https://drafts.csswg.org/cssom-view/#dom-visualviewport-height
-double VisualViewport::height() const
-{
-    // 1. If the visual viewport’s associated document is not fully active, return 0.
-    if (!m_document->is_fully_active())
-        return 0;
-
-    // 2. Otherwise, return the height of the visual viewport
-    //    FIXME: excluding the height of any rendered vertical classic scrollbar that is fixed to the visual viewport.
-    return m_document->viewport_rect().size().height() / m_scale;
-}
-
-// https://drafts.csswg.org/cssom-view/#dom-visualviewport-scale
-double VisualViewport::scale() const
-{
-    return m_scale;
-}
-
-void VisualViewport::set_onresize(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::resize, event_handler);
-}
-
-WebIDL::CallbackType* VisualViewport::onresize()
-{
-    return event_handler_attribute(HTML::EventNames::resize);
-}
-
-void VisualViewport::set_onscroll(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::scroll, event_handler);
-}
-
-WebIDL::CallbackType* VisualViewport::onscroll()
-{
-    return event_handler_attribute(HTML::EventNames::scroll);
-}
-
-void VisualViewport::set_onscrollend(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::scrollend, event_handler);
-}
-
-WebIDL::CallbackType* VisualViewport::onscrollend()
-{
-    return event_handler_attribute(HTML::EventNames::scrollend);
-}
-
-void VisualViewport::scroll_by(CSSPixelPoint delta)
-{
-    if (delta.is_zero())
-        return;
-    m_offset += delta;
-    did_scroll();
-    did_change_offset_or_scale();
-}
-
-// The compositor zooms and pans the visual viewport too, and hears of every change made to it here.
-void VisualViewport::did_change_offset_or_scale()
-{
-    update_accumulated_visual_context();
-    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
-    if (auto navigable = m_document->navigable())
-        navigable->did_change_scroll_offset({ .node_id = m_document->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport });
-}
-
-// https://drafts.csswg.org/cssom-view-1/#scrolling-events
-void VisualViewport::did_scroll()
-{
-    // Whenever a visual viewport gets scrolled (whether in response to user interaction or by an API), the user agent
-    // must run these steps:
-
-    // 1. Let vv be the VisualViewport object that was scrolled.
-    // 2. Let doc be vv's associated document.
-    // 3. If (vv, "scroll") is already in doc's pending scroll events, abort these steps.
-    // 4. Append (vv, "scroll") to doc's pending scroll events.
-    m_document->append_pending_scroll_event({ *this, HTML::EventNames::scroll });
-}
-
-Gfx::AffineTransform VisualViewport::transform() const
-{
-    Gfx::AffineTransform transform;
-    auto offset = m_offset.to_type<double>() * m_scale;
-    transform.translate(-offset.x(), -offset.y());
-    transform.scale({ m_scale, m_scale });
-    return transform;
-}
-
-void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
-{
-    static constexpr double MIN_ALLOWED_SCALE = 1.0;
-    static constexpr double MAX_ALLOWED_SCALE = 5.0;
-    double new_scale = clamp(m_scale * (1 + scale_delta), MIN_ALLOWED_SCALE, MAX_ALLOWED_SCALE);
-    double applied_delta = new_scale / m_scale;
-
-    // For pinch zoom we want focal_point to stay put on screen:
-    // scale_new * (focal_point - offset_new) = scale_old * (focal_point - offset_old)
-    auto new_offset = m_offset.to_type<double>() * m_scale * applied_delta;
-    new_offset += position.to_type<double>() * (applied_delta - 1.0f);
-
-    auto viewport_float_size = m_document->navigable()->viewport_rect().size().to_type<double>();
-    auto max_x_offset = max(0.0, viewport_float_size.width() * (new_scale - 1.0f));
-    auto max_y_offset = max(0.0, viewport_float_size.height() * (new_scale - 1.0f));
-    new_offset = { clamp(new_offset.x(), 0.0f, max_x_offset), clamp(new_offset.y(), 0.0f, max_y_offset) };
-
-    m_scale = new_scale;
-    m_scale_is_new_to_compositor = true;
-    auto old_offset = m_offset;
-    m_offset = (new_offset / m_scale).to_type<CSSPixels>();
-    if (m_offset != old_offset)
-        did_scroll();
-    did_change_offset_or_scale();
-}
-
-void VisualViewport::set_scale_zoomed_by_compositor(double scale)
-{
-    if (scale == m_scale)
-        return;
-    m_scale = scale;
-    did_change_offset_or_scale();
-}
+CSSPixelPoint VisualViewport::offset() const { return from_ffi(web_visual_viewport_offset(to_abi(this))); }
+double VisualViewport::offset_left() const { return web_visual_viewport_offset_left(to_abi(this)); }
+double VisualViewport::offset_top() const { return web_visual_viewport_offset_top(to_abi(this)); }
+double VisualViewport::page_left() const { return web_visual_viewport_page_left(to_abi(this)); }
+double VisualViewport::page_top() const { return web_visual_viewport_page_top(to_abi(this)); }
+double VisualViewport::width() const { return web_visual_viewport_width(to_abi(this)); }
+double VisualViewport::height() const { return web_visual_viewport_height(to_abi(this)); }
+double VisualViewport::scale() const { return web_visual_viewport_scale(to_abi(this)); }
+void VisualViewport::scroll_by(CSSPixelPoint delta) { web_visual_viewport_scroll_by(this, to_ffi(delta)); }
+void VisualViewport::zoom(CSSPixelPoint position, double scale_delta) { web_visual_viewport_zoom(this, to_ffi(position), scale_delta); }
+void VisualViewport::set_scale_zoomed_by_compositor(double scale) { web_visual_viewport_set_scale_zoomed_by_compositor(this, scale); }
+void VisualViewport::reset() { web_visual_viewport_reset(this); }
 
 Optional<double> VisualViewport::take_scale_for_compositor()
 {
-    if (!exchange(m_scale_is_new_to_compositor, false))
+    double scale = 0;
+    if (!web_visual_viewport_take_scale_for_compositor(this, &scale))
         return {};
-    return m_scale;
+    return scale;
 }
 
 CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) const
 {
-    auto inverse = transform().inverse().value_or({});
-    return inverse.map(position.to_type<int>()).to_type<CSSPixels>();
+    return from_ffi(web_visual_viewport_map_to_layout_viewport(to_abi(this), to_ffi(position)));
 }
 
 CSSPixelPoint VisualViewport::map_from_layout_viewport(CSSPixelPoint position) const
 {
-    return transform().map(position.to_type<float>()).to_type<CSSPixels>();
+    return from_ffi(web_visual_viewport_map_point_from_layout_viewport(to_abi(this), to_ffi(position)));
 }
 
 CSSPixelRect VisualViewport::map_from_layout_viewport(CSSPixelRect const& rect) const
 {
-    return transform().map(rect.to_type<float>()).to_type<CSSPixels>();
-}
-
-void VisualViewport::reset()
-{
-    m_scale = 1.0;
-    m_scale_is_new_to_compositor = true;
-    auto old_offset = m_offset;
-    m_offset = { 0, 0 };
-    if (m_offset != old_offset) {
-        did_scroll();
-        // Resetting performs an instant scroll, so its scrollend event is queued immediately.
-        m_document->append_pending_scroll_event({ *this, HTML::EventNames::scrollend });
-    }
-    did_change_offset_or_scale();
-}
-
-void VisualViewport::update_accumulated_visual_context()
-{
-    Layout::ForcedReadScope read { *m_document };
-    if (m_document->has_committed_viewport_box() && m_document->paint_state().has_visual_context_tree(read)) {
-        m_document->paint_state().update_visual_viewport_accumulated_visual_context(read, *m_document);
-        return;
-    }
-
-    m_document->schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
+    auto mapped = web_visual_viewport_map_rect_from_layout_viewport(to_abi(this), { rect.x().raw_value(), rect.y().raw_value(), rect.width().raw_value(), rect.height().raw_value() });
+    return { CSSPixels::from_raw(mapped.x), CSSPixels::from_raw(mapped.y), CSSPixels::from_raw(mapped.width), CSSPixels::from_raw(mapped.height) };
 }
 
 }

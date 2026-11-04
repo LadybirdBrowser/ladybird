@@ -5225,7 +5225,7 @@ static GC::Ptr<DOM::EventTarget> scroll_event_target_for_async_scroll_node(DOM::
     if (stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
         if (stable_node_id.node_id != document.unique_id())
             return {};
-        return document.visual_viewport();
+        return document.visual_viewport()->event_target();
     }
     return element_for_async_scroll_node_stable_id(document, stable_node_id);
 }
@@ -5703,7 +5703,7 @@ void LocalNavigable::end_completed_scroll_sequences()
         if (auto* element = as_if<DOM::Element>(*target))
             target_is_in_document = &element->document() == document.ptr() && element->is_connected();
         else
-            target_is_in_document = target.ptr() == document.ptr() || target.ptr() == document->visual_viewport().ptr();
+            target_is_in_document = target.ptr() == document.ptr() || target.ptr() == document->visual_viewport()->event_target().ptr();
         if (!target_is_in_document) {
             m_scroll_sequences.remove(index);
             continue;

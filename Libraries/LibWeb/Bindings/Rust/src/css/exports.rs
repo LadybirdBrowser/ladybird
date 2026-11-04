@@ -13,6 +13,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use ak::Utf16String;
+use libcompositing_rust::css_pixels::{CssPixelRect, FfiCssPixelPoint, FfiCssPixelRect};
 use libjs_rust::api::{Gc, MarkedVec, Vm};
 use libweb_rust::typed_om::{FfiNumericType, RetainedStyleValue};
 use libweb_rust::{NativeMediaList, NativeRule, NativeRuleList};
@@ -66,6 +67,7 @@ use super::style_property_map_read_only::StylePropertyMapReadOnly;
 use super::style_sheet_list::StyleSheetList;
 use super::transition_event::{TransitionEvent, TransitionEventInit};
 use super::typed_om;
+use super::visual_viewport::VisualViewport;
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_if_abi, cell_into_abi, realm_arguments};
@@ -1010,4 +1012,204 @@ pub unsafe extern "C" fn web_css_style_sheet_list_create(
     // SAFETY: The caller passes the live VM and a live cell.
     let (vm, node) = unsafe { (vm_from_abi(vm), CppCell::from_raw(node)) };
     cell_into_abi(allocate(vm, |_| StyleSheetList::new(scope, node)))
+}
+
+/// A new VisualViewport of the document.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `realm` a live realm, and `document` a live document.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_create(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    document: *mut c_void,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM, a live realm and a live document.
+    let (vm, realm, document) = unsafe {
+        let (vm, realm) = realm_arguments(vm, realm);
+        (vm, realm, CppCell::from_raw(document))
+    };
+    cell_into_abi(VisualViewport::create(vm, realm, document))
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_event_target(viewport: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }
+        .event_target()
+        .as_ptr()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_offset(viewport: *mut c_void) -> FfiCssPixelPoint {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.offset().into()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_offset_left(viewport: *mut c_void) -> f64 {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.offset_left_value()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_offset_top(viewport: *mut c_void) -> f64 {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.offset_top_value()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_page_left(viewport: *mut c_void) -> f64 {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.page_left_value()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_page_top(viewport: *mut c_void) -> f64 {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.page_top_value()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_width(viewport: *mut c_void) -> f64 {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.width_value()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_height(viewport: *mut c_void) -> f64 {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.height_value()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_scale(viewport: *mut c_void) -> f64 {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.scale_value()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_scroll_by(viewport: *mut c_void, delta: FfiCssPixelPoint) {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.scroll_by(delta.into());
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_zoom(viewport: *mut c_void, position: FfiCssPixelPoint, scale_delta: f64) {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.zoom(position.into(), scale_delta);
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_set_scale_zoomed_by_compositor(viewport: *mut c_void, scale: f64) {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.set_scale_zoomed_by_compositor(scale);
+}
+
+/// Whether the scale changed since the compositor last heard of it, in which case `scale` receives it.
+///
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_take_scale_for_compositor(viewport: *mut c_void, scale: &mut f64) -> bool {
+    // SAFETY: The caller passes a live VisualViewport.
+    let taken = unsafe { cell_from_abi::<VisualViewport>(viewport) }.take_scale_for_compositor();
+    if let Some(taken) = taken {
+        *scale = taken;
+    }
+    taken.is_some()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_map_to_layout_viewport(
+    viewport: *mut c_void,
+    position: FfiCssPixelPoint,
+) -> FfiCssPixelPoint {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }
+        .map_to_layout_viewport(position.into())
+        .into()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_map_point_from_layout_viewport(
+    viewport: *mut c_void,
+    position: FfiCssPixelPoint,
+) -> FfiCssPixelPoint {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }
+        .map_point_from_layout_viewport(position.into())
+        .into()
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_map_rect_from_layout_viewport(
+    viewport: *mut c_void,
+    rect: FfiCssPixelRect,
+) -> FfiCssPixelRect {
+    // SAFETY: The caller passes a live VisualViewport.
+    let viewport = unsafe { cell_from_abi::<VisualViewport>(viewport) };
+    let mapped = viewport.map_rect_from_layout_viewport(CssPixelRect::new(rect.x, rect.y, rect.width, rect.height));
+    FfiCssPixelRect {
+        x: mapped.x,
+        y: mapped.y,
+        width: mapped.width,
+        height: mapped.height,
+    }
+}
+
+/// # Safety
+///
+/// `viewport` must be a live VisualViewport.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_visual_viewport_reset(viewport: *mut c_void) {
+    // SAFETY: The caller passes a live VisualViewport.
+    unsafe { cell_from_abi::<VisualViewport>(viewport) }.reset();
 }
