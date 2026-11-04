@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const buffer = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true }).buffer;
+        new Uint8Array(buffer).set([0x68, 0x69]);
+        const stream = new TextDecoderStream();
+        const writer = stream.writable.getWriter();
+        writer.write(buffer);
+        writer.close();
+        const reader = stream.readable.getReader();
+        const { value } = await reader.read();
+        println(`SharedArrayBuffer chunk: ${value.length} code units, starting with "${value.slice(0, 2)}"`);
+        done();
+    });
+</script>
