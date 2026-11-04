@@ -908,13 +908,7 @@ impl Record {
 
     /// Whether `other` holds what this record does, its longhand table aside.
     fn holds_the_same_besides_its_table_as(&self, other: &Record) -> bool {
-        let same_store =
-            |a: Option<&Arc<crate::css::custom_properties::CustomPropertyStore>>,
-             b: Option<&Arc<crate::css::custom_properties::CustomPropertyStore>>| match (a, b) {
-                (None, None) => true,
-                (Some(a), Some(b)) => Arc::ptr_eq(a, b) || a.holds_same_values_as(b),
-                _ => false,
-            };
+        let same_store = crate::css::custom_properties::CustomPropertyStore::absent_or_holding_the_same_values;
         self.payloads.current_color() == other.payloads.current_color()
             && self.rare().custom_property_reads == other.rare().custom_property_reads
             && self.rare().reads == other.rare().reads
@@ -1871,13 +1865,7 @@ impl<'a> Records<'a> {
         {
             return true;
         }
-        let same_store =
-            |a: Option<&Arc<crate::css::custom_properties::CustomPropertyStore>>,
-             b: Option<&Arc<crate::css::custom_properties::CustomPropertyStore>>| match (a, b) {
-                (None, None) => true,
-                (Some(a), Some(b)) => Arc::ptr_eq(a, b) || a.holds_same_values_as(b),
-                _ => false,
-            };
+        let same_store = crate::css::custom_properties::CustomPropertyStore::absent_or_holding_the_same_values;
         sets.held_record(node).is_some_and(|held| {
             same_store(held.custom_properties(), record.custom_properties())
                 && same_store(
