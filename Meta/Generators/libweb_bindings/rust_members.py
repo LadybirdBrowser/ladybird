@@ -28,6 +28,7 @@ from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Operation
 from Utils.webidl_parser import OperationParameter
+from Utils.webidl_parser import SpecialOperation
 
 RUST_METHOD_NAME = re.compile(r"[a-z][a-z0-9_]*")
 
@@ -206,6 +207,22 @@ class RustIndexedPropertySetter:
 
 
 @dataclass
+class RustNamedProperties:
+    """The named property getter of an interface and its named property setter and deleter, if it has them, each of
+    which has an identifier: the operation of that identifier, whose method the legacy platform object algorithms call
+    as well, https://webidl.spec.whatwg.org/#idl-named-properties. The implementation gives its supported property names
+    through its method supported_property_names."""
+
+    getter: RustOperation
+    setter: Optional[RustOperation]
+    deleter: Optional[RustOperation]
+
+    @property
+    def operations(self) -> List[RustOperation]:
+        return [operation for operation in (self.getter, self.setter, self.deleter) if operation is not None]
+
+
+@dataclass
 class RustPairIterator:
     """The pair iterator of an interface, https://webidl.spec.whatwg.org/#dfn-pair-iterator, whose value pairs to
     iterate over the implementation gives through its implementation of PairIterable."""
@@ -290,6 +307,7 @@ class RustMembers:
     stringifier: Optional[RustStringifier] = None
     indexed_property_getter: Optional[RustIndexedPropertyGetter] = None
     indexed_property_setter: Optional[RustIndexedPropertySetter] = None
+    named_properties: Optional[RustNamedProperties] = None
     pair_iterator: Optional[RustPairIterator] = None
     setlike: Optional[RustSetlike] = None
     maplike: Optional[RustMaplike] = None
@@ -368,13 +386,6 @@ def rust_members(interface: Interface) -> RustMembers:
         event_type = attribute.name.removeprefix("on")
         return RustAttribute(attribute, rust_identifier(attribute.name), setter_method, event_type)
 
-    special_operations = [
-        interface.named_property_getter,
-        interface.named_property_setter,
-        interface.named_property_deleter,
-    ]
-    if any(special_operations):
-        fail("it has special operations other than an indexed property getter and setter")
     if interface.async_iterable is not None and interface.async_iterable.key_type is not None:
         fail("it has a pair asynchronously iterable declaration")
     has_value_iterator = interface.iterable is not None and interface.iterable.key_type is None
@@ -432,6 +443,39 @@ def rust_members(interface: Interface) -> RustMembers:
         if setter.name:
             fail("its indexed property setter has an identifier, which the Rust bindings do not handle yet")
         members.indexed_property_setter = RustIndexedPropertySetter(setter.parameters[1])
+
+    def named_property_operation(special_operation: Optional[SpecialOperation], kind: str) -> Optional[RustOperation]:
+        if special_operation is None:
+            return None
+        if not special_operation.name:
+            fail(f"its named property {kind} has no identifier, which the Rust bindings do not handle yet")
+        check_extended_attributes(special_operation.name, special_operation.extended_attributes, {"ImplementedAs"})
+        operation = Operation(
+            special_operation.name,
+            special_operation.return_type,
+            special_operation.parameters,
+            special_operation.extended_attributes,
+        )
+        return RustOperation(operation, method_of(special_operation.name, special_operation.extended_attributes))
+
+    named_getter = named_property_operation(interface.named_property_getter, "getter")
+    named_setter = named_property_operation(interface.named_property_setter, "setter")
+    named_deleter = named_property_operation(interface.named_property_deleter, "deleter")
+    if named_getter is None and (named_setter is not None or named_deleter is not None):
+        fail("it has a named property setter or deleter and no named property getter")
+    if named_getter is not None:
+        if getter is not None:
+            fail("it supports both indexed and named properties, which the Rust bindings do not handle yet")
+        if interface.parent_name:
+            fail("it supports named properties and inherits from another interface")
+        if not named_getter.operation.return_type.nullable:
+            fail(
+                "its named property getter does not return a nullable type, by which the Rust bindings tell the "
+                "names that are not supported property names"
+            )
+        if named_deleter is not None and named_deleter.operation.return_type.name != "undefined":
+            fail("its named property deleter returns a value, which the Rust bindings do not handle yet")
+        members.named_properties = RustNamedProperties(named_getter, named_setter, named_deleter)
 
     def check_exposure(member_name: str, extended_attributes: dict) -> None:
         exposure = extended_attributes.get("Exposed")
@@ -540,6 +584,10 @@ def rust_members(interface: Interface) -> RustMembers:
         return sets
 
     members.operation_sets = operation_sets(static=False)
+    if members.named_properties is not None:
+        members.operation_sets.extend(
+            RustOperationSet(operation.operation.name, [operation]) for operation in members.named_properties.operations
+        )
     members.static_operation_sets = operation_sets(static=True)
 
     for constant in interface.constants:

@@ -122,6 +122,8 @@ static Vector<Utf16FlyString> supported_property_names(JS::HostObject const& wra
 {
     if (auto const* wrappable = wrappable_of(wrapper))
         return wrappable->supported_property_names();
+    if (auto supported_property_names = legacy_platform_object_info_of(wrapper)->supported_property_names)
+        return supported_property_names(wrapper);
     return {};
 }
 
