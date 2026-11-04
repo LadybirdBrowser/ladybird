@@ -14,14 +14,19 @@
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/Forward.h>
 
-namespace Web::CSS {
+namespace Web::CSS::StyleValueFFI {
 
-using UnitMap = HashMap<Utf16FlyString, i32>;
-UnitMap product_of_two_unit_maps(UnitMap const&, UnitMap const&);
+struct FfiNumericType;
+
+}
+
+namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-type
 class WEB_API NumericType {
 public:
+    static Optional<NumericType> from_ffi(StyleValueFFI::FfiNumericType const&);
+
     enum class BaseType {
         Length,
         Angle,
@@ -34,17 +39,11 @@ public:
     };
 
     static Optional<BaseType> base_type_from_value_type(ValueType);
-    static Optional<NumericType> create_from_unit(Utf16FlyString const& unit);
-    static Optional<NumericType> create_from_unit_map(UnitMap const&);
     NumericType() = default;
     NumericType(BaseType type, i32 power)
     {
         set_exponent(type, power);
     }
-
-    Optional<NumericType> added_to(NumericType const& other) const;
-    Optional<NumericType> multiplied_by(NumericType const& other) const;
-    NumericType inverted() const;
 
     bool matches_angle(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Angle, percentages_resolve_as); }
     bool matches_flex(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Flex, percentages_resolve_as); }

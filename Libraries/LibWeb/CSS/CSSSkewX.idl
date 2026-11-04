@@ -1,6 +1,6 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#cssskewx
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSSkewX : CSSTransformComponent {
     constructor(CSSNumericValue ax);
-    [DirectGetter] attribute CSSNumericValue ax;
+    attribute CSSNumericValue ax;
 };

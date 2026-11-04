@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const huge = CSS.px(1e308).mul(10);
+        const nan = huge.sub(huge);
+        println(`min, NaN first: ${nan.min(CSS.px(1)).value}`);
+        println(`min, NaN last: ${CSS.px(1).min(nan).value}`);
+        println(`max, NaN first: ${nan.max(CSS.px(1)).value}`);
+        println(`max, NaN last: ${CSS.px(1).max(nan).value}`);
+    });
+</script>

@@ -7,6 +7,7 @@
 //! https://drafts.fxtf.org/geometry/#dommatrixreadonly
 
 use core::cell::Cell;
+use core::ops::Deref;
 
 use ak::Utf16String;
 use ak::math;
@@ -44,6 +45,25 @@ unsafe extern "C" {
 pub(crate) enum DOMStringOrUnrestrictedDoubleSequence {
     DOMString(Utf16String),
     Sequence(Vec<f64>),
+}
+
+/// An object of DOMMatrixReadOnly or of DOMMatrix, which inherits from it.
+#[derive(Clone, Copy, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) enum AnyDOMMatrixReadOnly {
+    DOMMatrixReadOnly(Ref<DOMMatrixReadOnly>),
+    DOMMatrix(Ref<DOMMatrix>),
+}
+
+impl Deref for AnyDOMMatrixReadOnly {
+    type Target = DOMMatrixReadOnly;
+
+    fn deref(&self) -> &DOMMatrixReadOnly {
+        match self {
+            Self::DOMMatrixReadOnly(matrix) => matrix,
+            Self::DOMMatrix(matrix) => matrix.parent(),
+        }
+    }
 }
 
 #[derive(Trace)]

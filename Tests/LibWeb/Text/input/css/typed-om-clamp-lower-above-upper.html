@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const clamp = (lower, value, upper) => new CSSMathClamp(CSS.px(lower), CSS.px(value), CSS.px(upper)).to("px").value;
+        println(`value between the bounds: ${clamp(0, 5, 10)}`);
+        println(`value below lower: ${clamp(5, 0, 10)}`);
+        println(`value above upper: ${clamp(0, 10, 5)}`);
+        println(`lower above upper: ${clamp(10, 5, 0)}`);
+    });
+</script>

@@ -28,7 +28,7 @@ use crate::css::serialize::{
 
 pub(crate) use crate::css::css_string::{CssString, CssStringList};
 
-enum ReifiedUnresolvedSegment {
+pub enum ReifiedUnresolvedSegment {
     Text(Vec<u16>),
     Variable {
         name: Vec<u16>,
@@ -138,31 +138,6 @@ fn reify_unresolved_segments(values: &[ComponentValue]) -> Vec<ReifiedUnresolved
     output
 }
 
-fn visit_reified_unresolved_segments(
-    segments: &[ReifiedUnresolvedSegment],
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, u8, *const u16, usize, bool),
-) {
-    for segment in segments {
-        match segment {
-            ReifiedUnresolvedSegment::Text(text) => unsafe {
-                visit(context, 0, text.as_ptr(), text.len(), false);
-            },
-            ReifiedUnresolvedSegment::Variable { name, fallback } => {
-                unsafe {
-                    visit(context, 1, name.as_ptr(), name.len(), fallback.is_some());
-                }
-                if let Some(fallback) = fallback {
-                    visit_reified_unresolved_segments(fallback, context, visit);
-                }
-                unsafe {
-                    visit(context, 2, std::ptr::null(), 0, false);
-                }
-            }
-        }
-    }
-}
-
 // Appends the name of every custom property a `var()` or `inherit()` in `values` refers to, and returns whether every
 // reference names its property with a plain identifier.
 fn scan_custom_property_references<'a>(
@@ -208,23 +183,12 @@ pub(crate) fn custom_property_references(value: &StyleValueData) -> Option<(impl
     Some((unresolved_payload.references(), unresolved_payload.references_visible()))
 }
 
-/// Visits the Typed OM reification of an unresolved style value. Event 0 appends a text segment,
-/// event 1 begins a variable reference, and event 2 ends its optional fallback.
-///
-/// # Safety
-/// `value` must point at live unresolved style value data, and `visit` must remain callable for
-/// the duration of this function.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_unresolved_style_value_visit_reification(
-    value: *const c_void,
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, u8, *const u16, usize, bool),
-) {
-    let StyleValueData::Unresolved(unresolved_payload) = (unsafe { &*value.cast::<StyleValueData>() }) else {
+/// The text and the variable references of an unresolved value, for a CSSUnparsedValue.
+pub(crate) fn reified_unresolved_segments(value: &StyleValueData) -> Vec<ReifiedUnresolvedSegment> {
+    let StyleValueData::Unresolved(unresolved_payload) = value else {
         unreachable!("reification requires an unresolved style value");
     };
-    let segments = reify_unresolved_segments(&unresolved_payload.components());
-    visit_reified_unresolved_segments(&segments, context, visit);
+    reify_unresolved_segments(&unresolved_payload.components())
 }
 
 #[cfg(test)]

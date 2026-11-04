@@ -25,7 +25,7 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, CSS::Comp
             return { Type::Milliseconds, unit_value->value() };
 
         if (unit_value->type().matches_time({}))
-            return { Type::Milliseconds, MUST(unit_value->to("ms"_utf16_fly_string))->value() };
+            return { Type::Milliseconds, CSS::Time { unit_value->value(), CSS::string_to_time_unit(unit_value->unit()).release_value() }.to_milliseconds() };
 
         if (unit_value->type().matches_percentage())
             return { Type::Percentage, unit_value->value() };
@@ -33,7 +33,7 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, CSS::Comp
         VERIFY_NOT_REACHED();
     }
 
-    auto calculation_node = MUST(numeric_value->create_calculation_node({}));
+    auto calculation_node = numeric_value->create_calculation_node().release_value();
 
     auto numeric_type = calculation_node.determine_type({});
     VERIFY(numeric_type.has_value());

@@ -1,0 +1,4 @@
+value between the bounds: 5
+value below lower: 5
+value above upper: 5
+lower above upper: 10

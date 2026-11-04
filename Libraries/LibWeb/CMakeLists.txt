@@ -93,55 +93,29 @@ set(SOURCES
     CSS/CSSFunctionDescriptors.cpp
     CSS/CSSFunctionRule.cpp
     CSS/CSSGroupingRule.cpp
-    CSS/CSSImageValue.cpp
     CSS/CSSImportRule.cpp
     CSS/CSSKeyframeRule.cpp
     CSS/CSSKeyframesRule.cpp
-    CSS/CSSKeywordValue.cpp
     CSS/CSSLayerBlockRule.cpp
     CSS/CSSLayerStatementRule.cpp
     CSS/CSSMarginRule.cpp
-    CSS/CSSMathClamp.cpp
-    CSS/CSSMathInvert.cpp
-    CSS/CSSMathMax.cpp
-    CSS/CSSMathMin.cpp
-    CSS/CSSMathNegate.cpp
-    CSS/CSSMathProduct.cpp
-    CSS/CSSMathSum.cpp
-    CSS/CSSMathValue.cpp
-    CSS/CSSMatrixComponent.cpp
     CSS/CSSMediaRule.cpp
     CSS/CSSNamespaceRule.cpp
     CSS/CSSNestedDeclarations.cpp
-    CSS/CSSNumericArray.cpp
-    CSS/CSSNumericValue.cpp
     CSS/CSSPageRule.cpp
     CSS/CSSPageDescriptors.cpp
-    CSS/CSSPerspective.cpp
     CSS/CSSPositionTryDescriptors.cpp
     CSS/CSSPositionTryRule.cpp
     CSS/CSSPropertyRule.cpp
-    CSS/CSSRotate.cpp
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp
-    CSS/CSSScale.cpp
     CSS/CSSScopeRule.cpp
-    CSS/CSSSkew.cpp
-    CSS/CSSSkewX.cpp
-    CSS/CSSSkewY.cpp
     CSS/CSSStyleDeclaration.cpp
     CSS/CSSStyleProperties.cpp
     CSS/CSSStyleRule.cpp
     CSS/CSSStyleSheet.cpp
-    CSS/CSSStyleValue.cpp
     CSS/CSSSupportsRule.cpp
-    CSS/CSSTransformComponent.cpp
-    CSS/CSSTransformValue.cpp
     CSS/CSSTransition.cpp
-    CSS/CSSTranslate.cpp
-    CSS/CSSUnitValue.cpp
-    CSS/CSSUnparsedValue.cpp
-    CSS/CSSVariableReferenceValue.cpp
     CSS/ColorFunctionDescriptor.cpp
     CSS/CustomPropertyData.cpp
     CSS/Descriptor.cpp
@@ -244,6 +218,7 @@ set(SOURCES
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp
     CSS/Time.cpp
     CSS/TransitionEvent.cpp
+    CSS/TypedOM.cpp
     CSS/URL.cpp
     CSS/UpdateStyle.cpp
     CSS/ValueType.cpp

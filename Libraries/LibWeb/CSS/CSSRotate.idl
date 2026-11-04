@@ -1,10 +1,10 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#cssrotate
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSRotate : CSSTransformComponent {
-    constructor(CSSNumericValue angle);
-    constructor(CSSNumberish x, CSSNumberish y, CSSNumberish z, CSSNumericValue angle);
+    [ImplementedAs=construct_from_angle] constructor(CSSNumericValue angle);
+    [ImplementedAs=construct_from_axis] constructor(CSSNumberish x, CSSNumberish y, CSSNumberish z, CSSNumericValue angle);
     attribute CSSNumberish x;
     attribute CSSNumberish y;
     attribute CSSNumberish z;
-    [DirectGetter] attribute CSSNumericValue angle;
+    attribute CSSNumericValue angle;
 };

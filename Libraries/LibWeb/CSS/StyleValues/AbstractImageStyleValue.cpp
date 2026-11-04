@@ -5,20 +5,12 @@
  */
 
 #include "AbstractImageStyleValue.h"
-#include <LibWeb/CSS/CSSImageValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
-
-// https://drafts.css-houdini.org/css-typed-om-1/#reify-stylevalue
-GC::Ref<CSSStyleValue> AbstractImageStyleValue::reify(Utf16FlyString const&) const
-{
-    // AD-HOC: There's no spec description of how to reify as a CSSImageValue.
-    return CSSImageValue::create(*this);
-}
 
 void AbstractImageStyleValue::load_any_resources(Layout::NodeWithStyle const& layout_node)
 {

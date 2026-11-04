@@ -32,8 +32,6 @@ public:
     bool contains_attr_tainted_values() const { return m_value->unresolved._0.pointer->contains_attr_tainted_values; }
     RefPtr<StyleValue const> parsed_value() const { return wrap_rust_child_or_null(m_value->unresolved._0.pointer->parsed_value); }
 
-    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
-
 private:
     friend class StyleValue;
 

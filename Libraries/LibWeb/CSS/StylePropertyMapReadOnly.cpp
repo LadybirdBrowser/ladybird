@@ -76,8 +76,8 @@ static GC::Ref<CSSStyleValue> reify_property_value(StyleValue const& value, Prop
     // INTEROP: Computed border-image values represent all four sides or both axes, even when their serialization
     //          collapses to a single numeric value or keyword.
     if (is_computed && first_is_one_of(property.id(), PropertyID::BorderImageWidth, PropertyID::BorderImageOutset, PropertyID::BorderImageSlice, PropertyID::BorderImageRepeat))
-        return value.default_reify(property.name());
-    return value.reify(property.name());
+        return CSSStyleValue::create(property.name(), value);
+    return CSSStyleValue::reify(value, property.name());
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-get

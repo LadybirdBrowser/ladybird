@@ -22,7 +22,7 @@ dictionary CSSNumericType {
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSNumericValue : CSSStyleValue {
     CSSNumericValue add(CSSNumberish... values);
     CSSNumericValue sub(CSSNumberish... values);

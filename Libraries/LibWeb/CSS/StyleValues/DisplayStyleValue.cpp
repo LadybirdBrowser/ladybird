@@ -5,22 +5,12 @@
  */
 
 #include "DisplayStyleValue.h"
-#include <LibWeb/CSS/CSSKeywordValue.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 
 namespace Web::CSS {
 
 ValueComparingNonnullRefPtr<DisplayStyleValue const> DisplayStyleValue::create(Display const& display)
 {
     return adopt_ref(*new (nothrow) DisplayStyleValue(display));
-}
-
-GC::Ref<CSSStyleValue> DisplayStyleValue::reify(Utf16FlyString const& associated_property) const
-{
-    if (auto keyword = display().to_keyword(); keyword.has_value())
-        return CSSKeywordValue::create(utf16_fly_string_from_keyword(keyword.value()));
-
-    return CSSStyleValue::create(associated_property, *this);
 }
 
 }

@@ -37,7 +37,6 @@ public:
 
     static bool is_color(Keyword);
     bool has_color() const;
-    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
 private:
     friend class StyleValue;

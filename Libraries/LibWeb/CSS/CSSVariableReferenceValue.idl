@@ -1,7 +1,7 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#cssvariablereferencevalue
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSVariableReferenceValue {
     constructor(USVString variable, optional CSSUnparsedValue? fallback = null);
     attribute USVString variable;
-    [DirectGetter] readonly attribute CSSUnparsedValue? fallback;
+    readonly attribute CSSUnparsedValue? fallback;
 };
