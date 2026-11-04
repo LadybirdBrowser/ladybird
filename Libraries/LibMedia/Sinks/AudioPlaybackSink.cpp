@@ -272,9 +272,12 @@ void AudioPlaybackSink::start()
 AudioPlaybackSink::~AudioPlaybackSink()
 {
     RefPtr<AudioProducer> input;
+    // The stream's data callback keeps the output thread data alive, so the two would keep each other going.
+    RefPtr<Audio::PlaybackStream> playback_stream;
     {
         MutexLocker locker { m_output_thread_data->m_output_mutex };
         input = move(m_output_thread_data->m_input);
+        playback_stream = move(m_output_thread_data->m_playback_stream);
         m_output_thread_data->m_audio_processor_should_exit = true;
         m_output_thread_data->m_output_condition.broadcast();
     }
