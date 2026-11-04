@@ -1106,6 +1106,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     // Shorthand expansion tables for the cascade. The "all" shorthand expands to every
     // longhand except direction and unicode-bidi, mirroring the C++ generator.
     let mut shorthand_rows = Vec::new();
+    let mut immediate_longhands = Vec::new();
     for name in &shorthands {
         let longhand_names: Vec<String> = if name == "all" {
             properties
@@ -1130,6 +1131,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         };
         let ids_row: Vec<u16> = longhand_names.iter().map(|longhand| ids[longhand]).collect();
         shorthand_rows.push(format!("    &{ids_row:?},"));
+        immediate_longhands.push(longhand_names);
     }
     output.push_str(&format!(
         "pub(crate) static SHORTHAND_EXPANSIONS: [&[u16]; {}] = [\n{}\n];\n\n",
@@ -1486,6 +1488,68 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         .map(|name| logical_group_by_property.get(name).copied().unwrap_or(0))
         .collect();
     let expanded_longhand_counts: Vec<usize> = expanded_shorthand_longhands.iter().map(Vec::len).collect();
+    let expanded_longhand_rows: Vec<String> = expanded_shorthand_longhands
+        .iter()
+        .map(|longhands| {
+            let row: Vec<u16> = longhands.iter().map(|longhand| ids[longhand]).collect();
+            format!("    &{row:?},")
+        })
+        .collect();
+
+    // Each property's shorthands, in preferred order: the most longhands first, then those not starting with "-",
+    // then those starting with "-webkit-", then lexicographically.
+    // https://drafts.csswg.org/cssom/#concept-shorthands-preferred-order
+    let is_legacy_shorthand = |name: &str| {
+        properties[name]
+            .get("legacy-shorthand")
+            .and_then(|value| value.as_bool())
+    };
+    let mut immediate_shorthands = std::collections::HashMap::<&str, Vec<&str>>::new();
+    for (name, longhands) in shorthands.iter().zip(&immediate_longhands) {
+        if is_legacy_shorthand(name) == Some(true) {
+            continue;
+        }
+        for longhand in longhands {
+            immediate_shorthands.entry(longhand).or_default().push(name);
+        }
+    }
+    fn shorthands_of<'a>(
+        property: &str,
+        immediate_shorthands: &std::collections::HashMap<&str, Vec<&'a str>>,
+        result: &mut Vec<&'a str>,
+    ) {
+        for shorthand in immediate_shorthands.get(property).into_iter().flatten() {
+            result.push(shorthand);
+            shorthands_of(shorthand, immediate_shorthands, result);
+        }
+    }
+    let expanded_longhand_count = |shorthand: &str| {
+        let index = shorthands.iter().position(|name| name == shorthand).unwrap();
+        expanded_longhand_counts[index]
+    };
+    let shorthands_for_longhand_rows: Vec<String> = property_names
+        .iter()
+        .map(|name| {
+            let mut result = Vec::new();
+            shorthands_of(name, &immediate_shorthands, &mut result);
+            result.sort_by_key(|shorthand| {
+                (
+                    std::cmp::Reverse(expanded_longhand_count(shorthand)),
+                    shorthand.starts_with('-'),
+                    !shorthand.starts_with("-webkit-"),
+                    *shorthand,
+                )
+            });
+            let row: Vec<u16> = result.iter().map(|shorthand| ids[*shorthand]).collect();
+            format!("    &{row:?},")
+        })
+        .collect();
+    let mut legacy_shorthands: Vec<u16> = shorthands
+        .iter()
+        .filter(|name| is_legacy_shorthand(name) == Some(true))
+        .map(|name| ids[name])
+        .collect();
+    legacy_shorthands.sort_unstable();
 
     // Accepted property keywords are a property's valid identifiers and the
     // keywords of the enums in its valid types.
@@ -1645,6 +1709,19 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "pub(crate) static PHYSICAL_TO_LOGICAL_ALIAS: [u16; {}] = {:?};\n\n",
         physical_to_logical_alias.len(),
         physical_to_logical_alias
+    ));
+    output.push_str(&format!(
+        "pub(crate) static EXPANDED_LONGHANDS_FOR_SHORTHAND: [&[u16]; {}] = [\n{}\n];\n\n",
+        expanded_longhand_rows.len(),
+        expanded_longhand_rows.join("\n")
+    ));
+    output.push_str(&format!(
+        "pub(crate) static SHORTHANDS_FOR_LONGHAND: [&[u16]; {}] = [\n{}\n];\n\n",
+        shorthands_for_longhand_rows.len(),
+        shorthands_for_longhand_rows.join("\n")
+    ));
+    output.push_str(&format!(
+        "pub(crate) static LEGACY_SHORTHANDS: &[u16] = &{legacy_shorthands:?};\n\n"
     ));
     output.push_str(&format!(
         "pub(crate) static SHORTHAND_EXPANDED_LONGHAND_COUNTS: [usize; {}] = {:?};\n\n",

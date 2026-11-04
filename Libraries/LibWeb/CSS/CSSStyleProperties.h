@@ -68,8 +68,6 @@ public:
     WebIDL::ExceptionOr<void> set_css_float(Utf16View);
 
     virtual Utf16String serialized() const final override;
-    Utf16String serialize_a_css_value_to_utf16(StyleProperty const&) const;
-    Utf16String serialize_a_css_value_to_utf16(Vector<StyleProperty>) const;
     virtual WebIDL::ExceptionOr<void> set_css_text(Utf16View) override;
 
     void set_declarations_from_text(Utf16View);

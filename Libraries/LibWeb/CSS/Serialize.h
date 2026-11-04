@@ -34,7 +34,4 @@ Utf16String serialize_an_identifier_to_utf16(Utf16View ident);
 String serialize_a_string(Utf16View string);
 String serialize_a_url(Utf16View url);
 
-Utf16String serialize_a_css_declaration_to_utf16(StringView property, Utf16View value, Important = Important::No);
-Utf16String serialize_a_css_declaration_to_utf16(Utf16View property, Utf16View value, Important = Important::No);
-
 }
