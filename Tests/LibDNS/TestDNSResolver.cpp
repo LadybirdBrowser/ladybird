@@ -791,37 +791,57 @@ TEST_CASE(test_truncated_udp_response_is_retried_over_tcp)
 {
     TestLoop loop;
 
-    // The server answers on one port over both UDP and TCP. A port the system picks for TCP may be one it won't let
-    // UDP bind to, so take the port it picks for UDP, and listen for TCP on that one — trying again with a fresh port
-    // if TCP can't have it. A UDP server whose port TCP turns down stays open for the rest of the test: Closing it
-    // would free the port for the next bind, so a port the system reserves against TCP could keep coming back.
+    // The server answers on one port over both UDP and TCP. The system may reserve ranges of ports for one protocol but
+    // not the other, and hands out ports in order, so a port it picks for one protocol can sit in a block the other is
+    // refused for. So each attempt tries both ways: TCP on the port the system picks for UDP, then UDP on the port it
+    // picks for TCP. A server whose port the other protocol turns down stays open for the rest of the test, so that the
+    // system moves on to a fresh port rather than handing out the same one again.
     RefPtr<Core::TCPServer> tcp_server;
     RefPtr<Core::UDPServer> udp_server;
     Vector<NonnullRefPtr<Core::UDPServer>> rejected_udp_servers;
-    Vector<u16> tried_ports;
-    u16 server_port = 0;
+    Vector<NonnullRefPtr<Core::TCPServer>> rejected_tcp_servers;
+    Vector<u16> udp_ports_tcp_refused;
+    Vector<u16> tcp_ports_udp_refused;
     Optional<Error> listen_error;
     for (size_t attempt = 0; attempt < 10 && !tcp_server; ++attempt) {
-        if (udp_server)
-            rejected_udp_servers.append(udp_server.release_nonnull());
-        udp_server = Core::UDPServer::construct();
-        if (!udp_server->bind(IPv4Address { 127, 0, 0, 1 }, 0)) {
+        auto udp_candidate = Core::UDPServer::construct();
+        if (!udp_candidate->bind(IPv4Address { 127, 0, 0, 1 }, 0)) {
             FAIL("Couldn't bind UDP to a port the system picks");
             return;
         }
-        server_port = udp_server->local_port().value();
-        tried_ports.append(server_port);
+        auto udp_port = udp_candidate->local_port().value();
+        auto tcp_candidate = MUST(Core::TCPServer::try_create());
+        auto listened = tcp_candidate->listen(IPv4Address { 127, 0, 0, 1 }, udp_port);
+        if (!listened.is_error()) {
+            udp_server = move(udp_candidate);
+            tcp_server = move(tcp_candidate);
+            break;
+        }
+        listen_error = listened.release_error();
+        udp_ports_tcp_refused.append(udp_port);
+        rejected_udp_servers.append(move(udp_candidate));
 
-        auto candidate = MUST(Core::TCPServer::try_create());
-        if (auto result = candidate->listen(IPv4Address { 127, 0, 0, 1 }, server_port); result.is_error())
-            listen_error = result.release_error();
-        else
-            tcp_server = move(candidate);
+        auto tcp_first = MUST(Core::TCPServer::try_create());
+        if (auto result = tcp_first->listen(IPv4Address { 127, 0, 0, 1 }, 0); result.is_error()) {
+            FAIL(ByteString::formatted("Couldn't listen for TCP on a port the system picks: {}", result.error()));
+            return;
+        }
+        auto tcp_port = tcp_first->local_port().value();
+        auto udp_second = Core::UDPServer::construct();
+        if (udp_second->bind(IPv4Address { 127, 0, 0, 1 }, tcp_port)) {
+            udp_server = move(udp_second);
+            tcp_server = move(tcp_first);
+            break;
+        }
+        tcp_ports_udp_refused.append(tcp_port);
+        rejected_tcp_servers.append(move(tcp_first));
     }
     if (!tcp_server) {
-        FAIL(ByteString::formatted("Couldn't listen for TCP on the port of a UDP server (tried {}): {}", ByteString::join(", "sv, tried_ports), listen_error.value()));
+        FAIL(ByteString::formatted("Couldn't serve UDP and TCP on one port: TCP refused UDP's ports {} ({}), and UDP refused TCP's ports {}",
+            ByteString::join(", "sv, udp_ports_tcp_refused), listen_error.value(), ByteString::join(", "sv, tcp_ports_udp_refused)));
         return;
     }
+    auto server_port = udp_server->local_port().value();
 
     size_t udp_queries = 0;
     udp_server->on_ready_to_receive = [&] {
