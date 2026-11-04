@@ -1,0 +1,13 @@
+Ladybird accepts a navigation download from the process preparing
+its response or populating its destination document. The navigation
+ends without replacing the active document, and the downloader
+adopts the response body from the original request.
+
+Blink’s NavigationRequest::OnWillProcessResponseChecksComplete()
+hands download responses to DownloadManagerImpl::InterceptNavigation
+and cancels navigation. WebKit’s WebPageProxy::receivedPolicyDecision
+response overload creates a DownloadProxy for PolicyAction::Download
+and preserves the redirect chain. Gecko’s nsDocumentOpenInfo::
+DispatchContent() retargets attachment responses to the external
+helper service. Ladybird matches their behavior: The response becomes
+a download without committing a replacement document.
