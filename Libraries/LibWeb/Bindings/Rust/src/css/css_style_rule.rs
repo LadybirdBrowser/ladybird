@@ -9,8 +9,8 @@
 use super::css_grouping_rule::CSSGroupingRule;
 use super::css_rule::impl_rule_wrappable;
 use super::css_rule::{CSSRule, RuleText, native_rules_of_sheet, selector_list_text};
+use super::css_style_properties::CSSStyleProperties;
 use super::style_property_map::StylePropertyMap;
-use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Inherits, Ref, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use ak::Utf16String;
@@ -94,8 +94,8 @@ impl CSSStyleRule {
     }
 
     // https://drafts.csswg.org/cssom-1/#dom-cssstylerule-style
-    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
-        Ok(self.rule().style_attribute(cx))
+    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSStyleProperties>> {
+        Ok(self.rule().declarations_object(cx))
     }
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylerule-stylemap

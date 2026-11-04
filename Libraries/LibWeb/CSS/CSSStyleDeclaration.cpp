@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -14,7 +15,7 @@
 namespace Web::CSS {
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(CSSStyleDeclaration) == 40);
+static_assert(sizeof(CSSStyleDeclaration) == 48);
 #endif
 
 GC_DEFINE_ALLOCATOR(CSSStyleDeclaration);
@@ -23,6 +24,29 @@ CSSStyleDeclaration::CSSStyleDeclaration(Computed computed, Readonly readonly)
     : m_computed(computed == Computed::Yes)
     , m_readonly(readonly == Readonly::Yes)
 {
+}
+
+void CSSStyleDeclaration::set_owner(Bindings::InterfaceName interface_name, Bindings::RustInterfaceCell& owner)
+{
+    VERIFY(!m_rust_owner);
+    m_rust_owner_interface_name = interface_name;
+    m_rust_owner = owner;
+}
+
+Bindings::RustInterfaceCell& CSSStyleDeclaration::ensure_owner()
+{
+    if (!m_rust_owner)
+        create_owner();
+    return *m_rust_owner;
+}
+
+extern "C" JSObject* web_rust_bindings_wrap(JSVM*, void* realm, u16 interface_name, void* cell);
+
+GC::Ref<JS::HostObject> CSSStyleDeclaration::create_wrapper(JS::Realm& realm)
+{
+    auto& owner = ensure_owner();
+    auto* wrapper = web_rust_bindings_wrap(JS::HostABI::vm_to_abi(realm.vm()), &realm, to_underlying(m_rust_owner_interface_name), &owner);
+    return as<JS::HostObject>(*JS::HostABI::object_from_abi(wrapper));
 }
 
 void CSSStyleDeclaration::prepare_to_update_style_attribute()
@@ -86,6 +110,7 @@ void CSSStyleDeclaration::visit_edges(GC::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_parent_rule);
     visitor.visit(m_owner_element);
+    visitor.visit(m_rust_owner);
 }
 
 void CSSStyleDeclaration::set_owner_node(Optional<DOM::AbstractElement> owner_node)
@@ -97,6 +122,51 @@ void CSSStyleDeclaration::set_owner_node(Optional<DOM::AbstractElement> owner_no
     }
     m_owner_element = owner_node->element();
     m_owner_pseudo_element = owner_node->pseudo_element();
+}
+
+// Declared on the Rust side in Libraries/LibWeb/Bindings/Rust/src/css/css_descriptors.rs.
+extern "C" {
+void web_css_descriptors_set_owner(void* declaration, u16 interface_name, void* owner);
+void* web_css_declaration_owner(void* declaration);
+FlatPtr web_css_descriptors_get(void* declaration, u8 const* name, size_t name_length);
+bool web_css_descriptors_set(void* declaration, u8 const* name, size_t name_length, FlatPtr value, FlatPtr* error_message);
+}
+
+static CSSStyleDeclaration& declaration_from_cell(void* cell)
+{
+    return *static_cast<CSSStyleDeclaration*>(static_cast<GC::Cell*>(cell));
+}
+
+static Utf16FlyString property_name(u8 const* name, size_t name_length)
+{
+    return Utf16FlyString::from_utf8_without_validation(StringView { name, name_length });
+}
+
+void web_css_descriptors_set_owner(void* declaration, u16 interface_name, void* owner)
+{
+    declaration_from_cell(declaration).set_owner(static_cast<Bindings::InterfaceName>(interface_name), *static_cast<Bindings::RustInterfaceCell*>(owner));
+}
+
+void* web_css_declaration_owner(void* declaration)
+{
+    return &declaration_from_cell(declaration).ensure_owner();
+}
+
+FlatPtr web_css_descriptors_get(void* declaration, u8 const* name, size_t name_length)
+{
+    return declaration_from_cell(declaration).get_property_value(property_name(name, name_length)).into_raw();
+}
+
+bool web_css_descriptors_set(void* declaration, u8 const* name, size_t name_length, FlatPtr value, FlatPtr* error_message)
+{
+    auto text = Utf16String::from_raw(value);
+    auto result = declaration_from_cell(declaration).set_property(property_name(name, name_length), text.utf16_view(), u""sv);
+    if (!result.is_error())
+        return true;
+    auto exception = result.release_error();
+    auto message = exception.get<GC::Ref<WebIDL::DOMException>>()->message();
+    *error_message = Utf16String(message).into_raw();
+    return false;
 }
 
 }

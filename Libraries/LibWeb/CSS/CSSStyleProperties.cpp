@@ -7,6 +7,7 @@
 
 #include <AK/QuickSort.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -102,6 +103,13 @@ CSSStyleProperties::CSSStyleProperties(Computed computed, Readonly readonly, Rus
 }
 
 CSSStyleProperties::~CSSStyleProperties() = default;
+
+extern "C" void web_css_style_properties_create(void* vm, void* declaration);
+
+void CSSStyleProperties::create_owner()
+{
+    web_css_style_properties_create(JS::HostABI::vm_to_abi(JS::VM::the()), static_cast<GC::Cell*>(this));
+}
 
 size_t CSSStyleProperties::external_memory_size() const
 {
@@ -1077,19 +1085,6 @@ WebIDL::ExceptionOr<Utf16String> CSSStyleProperties::remove_property(PropertyID 
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyleproperties-cssfloat
-Utf16String CSSStyleProperties::css_float() const
-{
-    // The cssFloat attribute, on getting, must return the result of invoking getPropertyValue() with float as argument.
-    return get_property_value("float"_utf16_fly_string);
-}
-
-WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_float(Utf16View value)
-{
-    // On setting, the attribute must invoke setProperty() with float as first argument, as second argument the given value,
-    // and no third argument. Any exceptions thrown must be re-thrown.
-    return set_property(PropertyID::Float, value, u""sv);
-}
-
 // https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
 Utf16String CSSStyleProperties::serialized() const
 {

@@ -979,7 +979,7 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
     use crate::bindings::event_target::{event_handler_attribute, set_event_handler_attribute};
     use crate::bindings::promise::WebIdlPromise;
     use crate::bindings::structured_data;
-    use crate::bindings::{CallContext, WebIdlResult};
+    use crate::bindings::{CallContext, WebIdlResult, with_custom_element_reactions};
 """
 
 
@@ -1121,6 +1121,9 @@ def write_rust_interface(
         elif attribute.put_forwards is not None:
             write_rust_put_forwards_setter(out, attribute)
 
+    if interface.name == "CSSStyleProperties":
+        write_css_property_accessors(out)
+
     for operation_set in members.operation_sets:
         if len(operation_set.overloads) == 1 and operation_set.overloads[0].is_default_to_json:
             write_default_to_json(out, context, interface, operation_set.function)
@@ -1189,6 +1192,10 @@ def write_rust_interface(
         definition = f'define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});'
         out.write(secure_context_only_definition(definition, is_secure_context_only))
         defined_property_names.append(name)
+    if interface.name == "CSSStyleProperties":
+        out.write(
+            "        Implementation::define_property_accessors(vm, realm, prototype, property_getter, property_setter);\n"
+        )
     for operation_set in members.operation_sets:
         name = operation_set.name
         function = operation_set.function
@@ -1905,6 +1912,39 @@ def inherited_attribute_getter_call(context: GenerationContext, interface: Inter
     )
 
 
+def write_css_property_accessors(out: TextIO) -> None:
+    """The getter and the setter of the accessors of CSSStyleProperties, one for each CSS property, which behave as a
+    [CEReactions, LegacyNullToEmptyString] attribute of type CSSOMString does:
+    https://drafts.csswg.org/cssom/#dom-cssstyleproperties-camel_cased_attribute"""
+    out.write(
+        """
+    fn property_getter(vm: &Vm, property: &crate::css::css_style_properties::CSSPropertyAccessor) -> ThrowCompletionOr<Value> {
+        let (implementation, mut cx) = this_implementation(vm)?;
+        let result = Implementation::property_value(&implementation, &mut cx, property)
+            .map_err(|exception| exception.throw(&cx))?;
+        result.to_js(&cx)
+    }
+
+    fn property_setter(vm: &Vm, property: &crate::css::css_style_properties::CSSPropertyAccessor) -> ThrowCompletionOr<Value> {
+        let value = vm.argument(0);
+        let (implementation, mut cx) = this_implementation(vm)?;
+        let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());
+        let idl_value = to_dom_string_treating_null_as_empty(vm, value)?;
+        drop(type_error_realm_scope);
+        with_custom_element_reactions(|| Implementation::set_property_value(&implementation, &mut cx, property, idl_value))
+            .map_err(|exception| exception.throw(&cx))?;
+        Ok(Value::UNDEFINED)
+    }
+"""
+    )
+
+
+def with_ce_reactions(call: str) -> str:
+    """The call of the steps of a [CEReactions] construct, whose exception the caller rethrows after the reactions ran:
+    https://html.spec.whatwg.org/multipage/custom-elements.html#cereactions"""
+    return f"with_custom_element_reactions(|| {call})"
+
+
 def write_rust_attribute_setter(
     out: TextIO, context: GenerationContext, interface: Interface, attribute: RustAttribute
 ) -> None:
@@ -1929,6 +1969,9 @@ def write_rust_attribute_setter(
     if "NeedsCallerRealm" in attribute.attribute.extended_attributes:
         receiver = "(implementation, _)"
         caller_realm_context = CALLER_REALM_CONTEXT
+    call = f"Implementation::{attribute.setter_method}(&implementation, &mut cx, idl_value)"
+    if "CEReactions" in attribute.attribute.extended_attributes:
+        call = with_ce_reactions(call)
     out.write(
         f"""
     fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
@@ -1937,7 +1980,7 @@ def write_rust_attribute_setter(
 {caller_realm_context}        let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());
         {conversion}
         drop(type_error_realm_scope);
-        Implementation::{attribute.setter_method}(&implementation, &mut cx, idl_value)
+        {call}
             .map_err(|exception| exception.throw(&cx))?;
         Ok(Value::UNDEFINED)
     }}
@@ -1989,6 +2032,10 @@ def write_rust_operation(
     arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in operation.parameters)
     returns_promise = is_promise_type(operation.return_type) and not operation.return_type.nullable
     call = f"Implementation::{overload.method}(&implementation, &mut cx{arguments})"
+    if "CEReactions" in operation.extended_attributes:
+        if returns_promise:
+            raise UnsupportedByRustBindings(f"{what} returns a promise and is [CEReactions]")
+        call = with_ce_reactions(call)
     if operation.return_type.name == "undefined" and not operation.return_type.nullable:
         # NB: An operation that returns nothing has no result to name, and the conversion of nothing is undefined.
         steps.write(

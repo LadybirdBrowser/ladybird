@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What the interfaces of the descriptors of an at-rule share. Each is a CSSStyleDeclaration, which LibWeb implements
-//! in C++, with an attribute for each descriptor.
+//! What the interfaces that inherit from CSSStyleDeclaration, which LibWeb implements in C++, share: each owns a
+//! C++ declaration block and has an attribute for each of its properties or descriptors.
 
 use core::ffi::c_void;
 use core::ptr::NonNull;
@@ -20,7 +20,13 @@ use crate::bindings::{Exception, WebIdlResult};
 unsafe extern "C" {
     fn web_css_descriptors_set_owner(descriptors: *mut c_void, interface_name: u16, owner: *mut c_void);
     fn web_css_descriptors_get(descriptors: *mut c_void, name: *const u8, name_length: usize) -> usize;
-    fn web_css_descriptors_set(descriptors: *mut c_void, name: *const u8, name_length: usize, value: usize) -> bool;
+    fn web_css_descriptors_set(
+        descriptors: *mut c_void,
+        name: *const u8,
+        name_length: usize,
+        value: usize,
+        error_message: *mut usize,
+    ) -> bool;
 }
 
 /// The Web::CSS::RustCSSDescriptors that an object of a descriptors interface owns.
@@ -48,14 +54,22 @@ impl CppDescriptors {
     }
 
     pub(crate) fn set(&self, name: &str, value: Utf16String) -> WebIdlResult<()> {
+        let mut error_message = 0;
         // SAFETY: The cell is live, the name is lent for the call, and the value is handed over.
-        if unsafe { web_css_descriptors_set(self.0.as_ptr(), name.as_ptr(), name.len(), value.into_raw()) } {
+        if unsafe {
+            web_css_descriptors_set(
+                self.0.as_ptr(),
+                name.as_ptr(),
+                name.len(),
+                value.into_raw(),
+                &raw mut error_message,
+            )
+        } {
             return Ok(());
         }
-        Err(Exception::Dom(
-            "NoModificationAllowedError",
-            Utf16String::from_utf8("Cannot modify properties of readonly CSSStyleDeclaration"),
-        ))
+        // SAFETY: LibWeb hands over the message of the exception.
+        let message = unsafe { Utf16String::from_raw_owned(error_message) };
+        Err(Exception::Dom("NoModificationAllowedError", message))
     }
 }
 

@@ -1,8 +1,6 @@
 // https://drafts.csswg.org/cssom/#cssstyleproperties
-// Generated property accessors live on the shared prototype.
-[Exposed=Window]
+// The bindings define an accessor on the prototype for each CSS property.
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSStyleProperties : CSSStyleDeclaration {
     [CEReactions, LegacyNullToEmptyString] attribute CSSOMString cssFloat;
 };
-
-CSSStyleProperties includes GeneratedCSSStyleProperties;

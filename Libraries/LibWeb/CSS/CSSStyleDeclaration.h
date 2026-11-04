@@ -11,6 +11,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -69,6 +70,10 @@ public:
     virtual RefPtr<StyleValue const> get_property_style_value(PropertyNameAndID const&) const { VERIFY_NOT_REACHED(); }
     virtual WebIDL::ExceptionOr<void> set_property_style_value(PropertyNameAndID const&, NonnullRefPtr<StyleValue const>) { VERIFY_NOT_REACHED(); }
 
+    // The object of an interface implemented in Rust that owns this declaration block, whose wrappers are this block's.
+    void set_owner(Bindings::InterfaceName, Bindings::RustInterfaceCell&);
+    Bindings::RustInterfaceCell& ensure_owner();
+
 protected:
     enum class Computed : u8 {
         No,
@@ -82,10 +87,16 @@ protected:
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
+    // Creates the object that owns this block, for a block whose owner is created on first use.
+    virtual void create_owner() { VERIFY_NOT_REACHED(); }
+
     void prepare_to_update_style_attribute();
     void update_style_attribute();
 
 private:
+    virtual bool is_owned_by_rust_interface_object() const override { return true; }
+    virtual GC::Ref<JS::HostObject> create_wrapper(JS::Realm&) override;
+
     // NB: The flags come first, so that they fill the padding at the end of the wrappable's fields.
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-computed-flag
@@ -105,6 +116,9 @@ private:
     //     element compressed.
     GC::Member<DOM::Element> m_owner_element;
     Optional<PseudoElement> m_owner_pseudo_element;
+
+    Bindings::InterfaceName m_rust_owner_interface_name { Bindings::InterfaceName::Unknown };
+    GC::Member<Bindings::RustInterfaceCell> m_rust_owner;
 };
 
 }

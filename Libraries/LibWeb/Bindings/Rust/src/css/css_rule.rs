@@ -42,13 +42,14 @@ use super::css_style_sheet::CSSStyleSheet;
 use super::css_supports_rule::CSSSupportsRule;
 use crate::bindings::conversions::{CppInterface, ToJs};
 use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::interface::{Ref, Wrappable, cell_from_abi, cell_into_abi, wrap};
+use crate::bindings::interface::{Interface, Ref, Wrappable, cell_from_abi, cell_into_abi, wrap};
 use crate::bindings::{CallContext, WebIdlResult};
 
 unsafe extern "C" {
     fn web_css_wrap_object(realm: *mut c_void, cell: *mut c_void) -> *mut c_void;
     fn web_css_rule_create_declarations(rule: *mut c_void) -> *mut c_void;
     fn web_css_declarations_serialized(declarations: *mut c_void) -> usize;
+    fn web_css_declaration_owner(declaration: *mut c_void) -> *mut c_void;
     fn web_css_style_sheet_native_rules(sheet: *mut c_void) -> *const c_void;
     fn web_css_selector_list_text(selectors: *const c_void, sheet: *mut c_void) -> usize;
 }
@@ -172,6 +173,14 @@ impl CSSRule {
         let text = unsafe { web_css_declarations_serialized(declarations.as_ptr()) };
         // SAFETY: LibWeb hands over the string.
         unsafe { Utf16String::from_raw_owned(text) }
+    }
+
+    /// The object of an interface implemented in Rust that owns the CSSStyleDeclaration of the rule, which the `style`
+    /// attribute of the rule returns.
+    pub(crate) fn declarations_object<T: Interface>(&self, cx: &CallContext) -> Ref<T> {
+        let declarations = self.declarations(cx.vm());
+        // SAFETY: The cell is that of a live CSSStyleDeclaration, whose owner is an object of the interface of the rule.
+        unsafe { cell_from_abi(web_css_declaration_owner(declarations.as_ptr())) }
     }
 
     /// The object that the `style` attribute of the rule returns.

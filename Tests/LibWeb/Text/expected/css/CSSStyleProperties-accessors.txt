@@ -1,0 +1,13 @@
+Reaction ran before the setter returned: true, color: red;
+cssFloat: left, color: red; float: left;
+dashed: blue, color: red; float: left; background-color: blue;
+webkit: green, green
+legacy alias: center, center
+null clears: "", float: left; background-color: blue; -webkit-text-fill-color: green; align-content: center;
+enumerable: false, configurable: true
+getter: get color, 0; setter: set color, 1
+own keys on the object: 0,1,2,3
+wrong this: TypeError
+NoModificationAllowedError: Cannot modify properties in result of getComputedStyle()
+same object: true
+expando survives: 1

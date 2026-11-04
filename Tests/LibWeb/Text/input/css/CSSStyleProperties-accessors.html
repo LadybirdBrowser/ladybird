@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const log = [];
+        class Observed extends HTMLElement {
+            static observedAttributes = ["style"];
+            attributeChangedCallback(name, oldValue, newValue) {
+                log.push(newValue);
+            }
+        }
+        customElements.define("x-observed", Observed);
+
+        const element = document.createElement("x-observed");
+        element.style.color = "red";
+        println(`Reaction ran before the setter returned: ${log.length === 1}, ${log[0]}`);
+        element.style.cssFloat = "left";
+        println(`cssFloat: ${element.style.cssFloat}, ${log.at(-1)}`);
+        element.style["background-color"] = "blue";
+        println(`dashed: ${element.style.backgroundColor}, ${log.at(-1)}`);
+        element.style.webkitTextFillColor = "green";
+        println(`webkit: ${element.style.WebkitTextFillColor}, ${element.style["-webkit-text-fill-color"]}`);
+        element.style.webkitAlignContent = "center";
+        println(`legacy alias: ${element.style.alignContent}, ${element.style["-webkit-align-content"]}`);
+        element.style.color = null;
+        println(`null clears: "${element.style.color}", ${log.at(-1)}`);
+
+        const descriptor = Object.getOwnPropertyDescriptor(CSSStyleProperties.prototype, "color");
+        println(`enumerable: ${descriptor.enumerable}, configurable: ${descriptor.configurable}`);
+        println(`getter: ${descriptor.get.name}, ${descriptor.get.length}; setter: ${descriptor.set.name}, ${descriptor.set.length}`);
+        println(`own keys on the object: ${Object.keys(element.style).join()}`);
+
+        try {
+            descriptor.get.call({});
+        } catch (error) {
+            println(`wrong this: ${error.name}`);
+        }
+
+        document.body.append(element);
+        try {
+            getComputedStyle(element).color = "red";
+        } catch (error) {
+            println(`${error.name}: ${error.message}`);
+        }
+        println(`same object: ${element.style === element.style}`);
+        element.style.expando = 1;
+        println(`expando survives: ${element.style.expando}`);
+    });
+</script>

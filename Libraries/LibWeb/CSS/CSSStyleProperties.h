@@ -12,7 +12,6 @@
 #include <AK/Utf16View.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
-#include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/Export.h>
 
@@ -21,7 +20,7 @@ namespace Web::CSS {
 // https://drafts.csswg.org/cssom/#cssstyleproperties
 class WEB_API CSSStyleProperties
     : public CSSStyleDeclaration {
-    WEB_WRAPPABLE(CSSStyleProperties, CSSStyleDeclaration);
+    WEB_NON_IDL_WRAPPABLE(CSSStyleProperties, CSSStyleDeclaration);
     GC_DECLARE_ALLOCATOR(CSSStyleProperties);
 
 public:
@@ -64,9 +63,6 @@ public:
     RefPtr<StyleValue const> get_property_style_value(PropertyID) const;
     virtual WebIDL::ExceptionOr<void> set_property_style_value(PropertyNameAndID const&, NonnullRefPtr<StyleValue const>) override;
 
-    Utf16String css_float() const;
-    WebIDL::ExceptionOr<void> set_css_float(Utf16View);
-
     virtual Utf16String serialized() const final override;
     virtual WebIDL::ExceptionOr<void> set_css_text(Utf16View) override;
 
@@ -76,6 +72,8 @@ public:
 
 protected:
     CSSStyleProperties(Computed, Readonly, RustDeclarationBlock, Optional<DOM::AbstractElement>);
+
+    virtual void create_owner() override;
 
 private:
     virtual size_t external_memory_size() const override;
@@ -98,7 +96,5 @@ private:
     mutable RefPtr<CustomPropertyData const> m_cached_computed_custom_property_data;
     mutable u64 m_cached_custom_property_registration_generation { 0 };
 };
-
-#undef ENUMERATE_GENERATED_CSS_STYLE_PROPERTIES
 
 }
