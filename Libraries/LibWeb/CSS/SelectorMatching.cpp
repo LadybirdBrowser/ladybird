@@ -11,6 +11,8 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/AttributeNames.h>
+#include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLDetailsElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -19,10 +21,12 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLMeterElement.h>
+#include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLProgressElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/SVG/SVGAElement.h>
 
 namespace Web::SelectorMatching {
 
@@ -138,8 +142,8 @@ static bool element_is_modal(DOM::Element const& element)
 static bool element_popover_is_open(DOM::Element const& element)
 {
     auto const* html_element = as_if<HTML::HTMLElement>(element);
-    return html_element && html_element->has_attribute(HTML::AttributeNames::popover)
-        && html_element->popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Showing;
+    return html_element && html_element->popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Showing
+        && html_element->has_attribute(HTML::AttributeNames::popover);
 }
 
 // The states that are one question each, asked of the element itself, a media element, or a meter.
@@ -147,22 +151,23 @@ static bool element_popover_is_open(DOM::Element const& element)
 // cannot disagree; the states that share a question are written out once in each.
 #define ENUMERATE_ELEMENT_STATES(X)                                          \
     X(Active, element.is_being_activated())                                  \
-    X(Checked, element.matches_checked_pseudo_class())                       \
     X(Defined, element.is_defined())                                         \
-    X(Disabled, element.matches_disabled_pseudo_class())                     \
-    X(Enabled, element.matches_enabled_pseudo_class())                       \
     X(Focus, element.is_focused())                                           \
     X(FocusVisible, element.is_focused() && element.should_indicate_focus()) \
-    X(FocusWithin, element.matches_focus_within_pseudo_class())              \
     X(Fullscreen, element.is_fullscreen_element())                           \
-    X(Hover, matches_hover_pseudo_class(element))                            \
-    X(Indeterminate, matches_indeterminate_pseudo_class(element))            \
-    X(Modal, element_is_modal(element))                                      \
-    X(Open, matches_open_state_pseudo_class(element))                        \
     X(PictureInPicture, element.is_picture_in_picture_element())             \
-    X(PlaceholderShown, element.matches_placeholder_shown_pseudo_class())    \
     X(PopoverOpen, element_popover_is_open(element))                         \
-    X(Target, element.is_target())                                           \
+    X(Target, element.is_target())
+
+// The states only the kinds of element element_state_questions() calls controls can be in.
+#define ENUMERATE_CONTROL_STATES(X)                                       \
+    X(Checked, element.matches_checked_pseudo_class())                    \
+    X(Disabled, element.matches_disabled_pseudo_class())                  \
+    X(Enabled, element.matches_enabled_pseudo_class())                    \
+    X(Indeterminate, matches_indeterminate_pseudo_class(element))         \
+    X(Modal, element_is_modal(element))                                   \
+    X(Open, matches_open_state_pseudo_class(element))                     \
+    X(PlaceholderShown, element.matches_placeholder_shown_pseudo_class()) \
     X(Unchecked, element.matches_unchecked_pseudo_class())
 
 // :playing tracks the paused attribute alone: it flips synchronously on play() and load(), and
@@ -187,7 +192,35 @@ bool element_can_have_validity(DOM::Element const& element)
     return as_form_associated_element(element) || is<HTML::HTMLFormElement>(element) || is<HTML::HTMLFieldSetElement>(element);
 }
 
-CSS::PseudoClassBitmap element_states(DOM::Element const& element, AskLocalLink ask_local_link, AskValidity ask_validity)
+ElementStateQuestions element_state_questions(DOM::Element const& element)
+{
+    auto questions = ElementStateQuestions::None;
+    if (as_form_associated_element(element) || is<HTML::HTMLOptionElement>(element) || is<HTML::HTMLOptGroupElement>(element)
+        || is<HTML::HTMLFormElement>(element) || is<HTML::HTMLProgressElement>(element) || is<HTML::HTMLDetailsElement>(element)
+        || is<HTML::HTMLDialogElement>(element)) {
+        questions |= ElementStateQuestions::Control;
+    }
+    if (is<HTML::HTMLAnchorElement>(element) || is<HTML::HTMLAreaElement>(element) || is<SVG::SVGAElement>(element))
+        questions |= ElementStateQuestions::Link;
+    if (is<HTML::HTMLMediaElement>(element))
+        questions |= ElementStateQuestions::Media;
+    if (is<HTML::HTMLMeterElement>(element))
+        questions |= ElementStateQuestions::Meter;
+    return questions;
+}
+
+FocusWithinChain::FocusWithinChain(DOM::Document const& document)
+    : m_document(document)
+{
+    DOM::Element::set_marks_on_focus_within_chain(*m_document, true);
+}
+
+FocusWithinChain::~FocusWithinChain()
+{
+    DOM::Element::set_marks_on_focus_within_chain(*m_document, false);
+}
+
+CSS::PseudoClassBitmap element_states(DOM::Element const& element, ElementStateQuestions questions, FocusWithinChain const& focus_within_chain, AskLocalLink ask_local_link, AskValidity ask_validity)
 {
     CSS::PseudoClassBitmap states;
     auto set = [&](CSS::PseudoClass pseudo_class, bool holds) {
@@ -197,50 +230,62 @@ CSS::PseudoClassBitmap element_states(DOM::Element const& element, AskLocalLink 
 #define __SET_STATE(name, holds) set(CSS::PseudoClass::name, holds);
 
     ENUMERATE_ELEMENT_STATES(__SET_STATE)
+    set(CSS::PseudoClass::FocusWithin, focus_within_chain.contains(element));
+
+    // A custom element's definition says whether it's form-associated, and elements of one name can differ in that.
+    if (element.has_custom_element_definition())
+        questions |= ElementStateQuestions::Control;
+    bool is_control = has_flag(questions, ElementStateQuestions::Control);
 
     // Read-write is what the editing hosts answer, so it is asked of everything too.
-    auto read_write = matches_read_write_pseudo_class(element);
+    auto read_write = (is_control || element.may_be_editable_or_editing_host()) && matches_read_write_pseudo_class(element);
     set(CSS::PseudoClass::ReadWrite, read_write);
     set(CSS::PseudoClass::ReadOnly, !read_write);
 
-    // Link state is three answers to one question.
-    auto is_link = element.matches_link_pseudo_class();
-    auto is_visited = element.matches_visited_pseudo_class();
-    set(CSS::PseudoClass::Link, is_link);
-    set(CSS::PseudoClass::Visited, is_visited);
-    set(CSS::PseudoClass::AnyLink, is_link || is_visited);
-    if ((is_link || is_visited) && ask_local_link == AskLocalLink::Yes)
-        set(CSS::PseudoClass::LocalLink, element.matches_local_link_pseudo_class());
+    if (has_flag(questions, ElementStateQuestions::Link)) {
+        // Link state is three answers to one question.
+        auto is_link = element.matches_link_pseudo_class();
+        auto is_visited = element.matches_visited_pseudo_class();
+        set(CSS::PseudoClass::Link, is_link);
+        set(CSS::PseudoClass::Visited, is_visited);
+        set(CSS::PseudoClass::AnyLink, is_link || is_visited);
+        if ((is_link || is_visited) && ask_local_link == AskLocalLink::Yes)
+            set(CSS::PseudoClass::LocalLink, element.matches_local_link_pseudo_class());
+    }
 
-    // The rest belong to kinds of element, and asking a `<div>` about them costs one type check
-    // rather than one call each.
-    auto const* form_associated_element = as_form_associated_element(element);
-    if (form_associated_element || is<HTML::HTMLOptionElement>(element))
-        set(CSS::PseudoClass::Default, element_is_default(element));
+    if (is_control) {
+        ENUMERATE_CONTROL_STATES(__SET_STATE)
 
-    if (form_associated_element) {
-        auto required = element_required_state(element);
-        set(CSS::PseudoClass::Required, required == RequiredState::Required);
-        set(CSS::PseudoClass::Optional, required == RequiredState::Optional);
+        auto const* form_associated_element = as_form_associated_element(element);
+        if (form_associated_element || is<HTML::HTMLOptionElement>(element))
+            set(CSS::PseudoClass::Default, element_is_default(element));
 
-        if (ask_validity == AskValidity::Yes) {
-            auto user_validity = element_user_validity_state(element);
-            set(CSS::PseudoClass::UserValid, user_validity == ValidityState::Valid);
-            set(CSS::PseudoClass::UserInvalid, user_validity == ValidityState::Invalid);
+        if (form_associated_element) {
+            auto required = element_required_state(element);
+            set(CSS::PseudoClass::Required, required == RequiredState::Required);
+            set(CSS::PseudoClass::Optional, required == RequiredState::Optional);
+
+            if (ask_validity == AskValidity::Yes) {
+                auto user_validity = element_user_validity_state(element);
+                set(CSS::PseudoClass::UserValid, user_validity == ValidityState::Valid);
+                set(CSS::PseudoClass::UserInvalid, user_validity == ValidityState::Invalid);
+            }
+        }
+
+        if (ask_validity == AskValidity::Yes && element_can_have_validity(element)) {
+            auto validity = element_validity_state(element);
+            set(CSS::PseudoClass::Valid, validity == ValidityState::Valid);
+            set(CSS::PseudoClass::Invalid, validity == ValidityState::Invalid);
         }
     }
 
-    if (ask_validity == AskValidity::Yes && element_can_have_validity(element)) {
-        auto validity = element_validity_state(element);
-        set(CSS::PseudoClass::Valid, validity == ValidityState::Valid);
-        set(CSS::PseudoClass::Invalid, validity == ValidityState::Invalid);
-    }
-
-    if (auto const* media = as_if<HTML::HTMLMediaElement>(element)) {
+    if (has_flag(questions, ElementStateQuestions::Media)) {
+        auto const* media = as_if<HTML::HTMLMediaElement>(element);
         ENUMERATE_MEDIA_ELEMENT_STATES(__SET_STATE)
     }
 
-    if (auto const* meter = as_if<HTML::HTMLMeterElement>(element)) {
+    if (has_flag(questions, ElementStateQuestions::Meter)) {
+        auto const* meter = as_if<HTML::HTMLMeterElement>(element);
         ENUMERATE_METER_STATES(__SET_STATE)
     }
 #undef __SET_STATE
@@ -255,6 +300,7 @@ bool element_matches_state(DOM::Element const& element, CSS::PseudoClass pseudo_
     case CSS::PseudoClass::name:          \
         return holds;
         ENUMERATE_ELEMENT_STATES(__ELEMENT_STATE_CASE)
+        ENUMERATE_CONTROL_STATES(__ELEMENT_STATE_CASE)
 #undef __ELEMENT_STATE_CASE
 
 #define __MEDIA_ELEMENT_STATE_CASE(name, holds)                     \
@@ -277,6 +323,10 @@ bool element_matches_state(DOM::Element const& element, CSS::PseudoClass pseudo_
         return element.matches_link_pseudo_class() || element.matches_visited_pseudo_class();
     case CSS::PseudoClass::Default:
         return element_is_default(element);
+    case CSS::PseudoClass::FocusWithin:
+        return element.matches_focus_within_pseudo_class();
+    case CSS::PseudoClass::Hover:
+        return matches_hover_pseudo_class(element);
     case CSS::PseudoClass::Invalid:
         return element_validity_state(element) == ValidityState::Invalid;
     case CSS::PseudoClass::Link:

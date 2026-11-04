@@ -3361,22 +3361,37 @@ bool Element::matches_local_link_pseudo_class() const
     return document_url.equals(*target_url, URL::ExcludeFragment::Yes);
 }
 
-bool Element::matches_focus_within_pseudo_class() const
+template<typename Callback>
+static void for_each_node_focus_within_holds_on(Document const& document, Callback callback)
 {
-    auto focused_area = document().focused_area();
-    if (!focused_area)
-        return false;
-
     // https://drafts.csswg.org/selectors-4/#useraction-pseudos
     // Specifically, if these match on a given element, they also match on the element's flat tree ancestors, up to and
     // including the first top layer element or the root element, whichever is encountered first.
-    for (auto const* node = focused_area.ptr(); node; node = node->flat_tree_parent()) {
-        if (node == this)
-            return true;
+    for (auto const* node = document.focused_area().ptr(); node; node = node->flat_tree_parent()) {
+        if (callback(*node) == IterationDecision::Break)
+            return;
         if (auto const* element = as_if<Element>(*node); element && element->rendered_in_top_layer())
-            break;
+            return;
     }
-    return false;
+}
+
+bool Element::matches_focus_within_pseudo_class() const
+{
+    bool matches = false;
+    for_each_node_focus_within_holds_on(document(), [&](Node const& node) {
+        matches = &node == this;
+        return matches ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return matches;
+}
+
+void Element::set_marks_on_focus_within_chain(Document const& document, bool marked)
+{
+    for_each_node_focus_within_holds_on(document, [&](Node const& node) {
+        if (auto const* element = as_if<Element>(node))
+            const_cast<Element*>(element)->m_is_marked_on_focus_within_chain = marked;
+        return IterationDecision::Continue;
+    });
 }
 
 bool Element::has_synthetic_pseudo_elements(Layout::BegunRead const& read) const
@@ -6815,6 +6830,12 @@ Optional<Utf16View> Element::lang_view() const
 void Element::invalidate_lang_value()
 {
     m_lang_value.clear();
+}
+
+void Element::invalidate_lang_value_of_inclusive_ancestors()
+{
+    for (auto* element = this; element && element->m_lang_value.has_value(); element = element->parent_or_shadow_host_element())
+        element->invalidate_lang_value();
 }
 
 // https://drafts.csswg.org/css-images-4/#element-not-rendered

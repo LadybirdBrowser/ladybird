@@ -193,6 +193,7 @@ public:
     virtual Node& slottable_as_node() override { return *this; }
 
     Utf16FlyString const& qualified_name() const { return m_qualified_name.as_string(); }
+    QualifiedName::Impl const* qualified_name_identity() const { return m_qualified_name.identity(); }
     Utf16FlyString const& html_uppercased_qualified_name() const;
 
     virtual Utf16FlyString node_name() const final { return html_uppercased_qualified_name(); }
@@ -240,6 +241,7 @@ public:
     Optional<Utf16String> lang() const;
     Optional<Utf16View> lang_view() const;
     void invalidate_lang_value();
+    void invalidate_lang_value_of_inclusive_ancestors();
 
     void set_attribute(FlyString qualified_name, Utf16String const& verified_value);
     void set_attribute_ns(QualifiedName const&, Utf16String const& verified_value);
@@ -777,6 +779,7 @@ public:
     GC::Ptr<HTML::CustomStateSet const> custom_state_set() const;
     HTML::CustomStateSet& ensure_custom_state_set();
 
+    bool has_custom_element_definition() const { return !!custom_element_definition(); }
     bool can_upgrade_custom_element() const { return m_custom_element_state == CustomElementState::Undefined || m_custom_element_state == CustomElementState::Uncustomized; }
     void try_to_upgrade();
 
@@ -874,6 +877,8 @@ public:
     bool matches_visited_pseudo_class() const;
     bool matches_local_link_pseudo_class() const;
     bool matches_focus_within_pseudo_class() const;
+    static void set_marks_on_focus_within_chain(Document const&, bool);
+    bool is_marked_on_focus_within_chain() const { return m_is_marked_on_focus_within_chain; }
 
     void schedule_list_item_renumber_for_list_owner();
     bool list_item_renumber_affects_rendered_content() const;
@@ -1094,6 +1099,7 @@ private:
 
     bool m_initial_style_features_pending : 1 { false };
     bool m_is_being_activated : 1 { false };
+    bool m_is_marked_on_focus_within_chain : 1 { false };
     bool m_in_top_layer : 1 { false };
     bool m_rendered_in_top_layer : 1 { false };
     // Authoritative dependency marks left by this element's latest style computation.

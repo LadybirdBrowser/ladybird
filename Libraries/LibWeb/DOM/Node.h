@@ -224,6 +224,8 @@ public:
     bool is_editable() const;
     bool is_editing_host() const;
     bool is_editable_or_editing_host() const { return is_editable() || is_editing_host(); }
+    // NB: A false answer settles is_editable_or_editing_host() without asking what kind of node this is.
+    bool may_be_editable_or_editing_host() const;
     GC::Ptr<Node> editing_host();
 
     bool has_spelling_markers() const { return m_has_spelling_markers; }
