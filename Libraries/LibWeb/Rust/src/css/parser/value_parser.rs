@@ -913,6 +913,12 @@ pub(crate) fn parse_ratio_value_with_context(
     values: &[&ComponentValue],
 ) -> Option<StyleValueData> {
     let parse_component = |value: &ComponentValue| {
+        // NB: A query parses its feature values as no property, and resolves a tree-counting function itself.
+        if property == crate::css::property_metadata::property_id::CUSTOM
+            && let Some(tree_counting) = parse_tree_counting_value(context, value, 0)
+        {
+            return Some(tree_counting);
+        }
         if let Some((name, arguments)) = value.function()
             && math_function_from_name(name).is_some()
         {

@@ -239,14 +239,18 @@ impl<'a> FfiMediaEnvironment<'a> {
     }
 }
 
+/// The container's sibling count and index, asked for by a value that reads them.
+pub(crate) type TreeCounting<'a> = &'a dyn Fn() -> Option<(u64, u64)>;
+
 #[derive(Clone, Copy)]
-pub struct ContainerFacts {
+pub struct ContainerFacts<'a> {
     pub container_available: bool,
     pub size_available: bool,
     pub width: f64,
     pub height: f64,
     pub inline_axis_horizontal: bool,
     pub length_resolution_context: *const c_void,
+    pub tree_counting: TreeCounting<'a>,
     // The container's scroll state as of the last post-layout snapshot. The edge sets use the
     // SCROLL_STATE_EDGE_* bits, and the start sides are SCROLL_STATE_SIDE_* values that name the
     // physical side the container's writing mode maps each logical start side to.
@@ -329,8 +333,13 @@ impl QueryFeatureValue {
 
     /// What the value parses to as `kind`, which it is parsed to the first time it is asked for.
     fn parsed_as(&self, kind: FeatureValueParse) -> Option<&StyleValueData> {
+        self.parsed_in(kind, FeatureValueQuery::Media)
+    }
+
+    /// What the value of a feature of `query` parses to as `kind`, as `parsed_as` says.
+    fn parsed_in(&self, kind: FeatureValueParse, query: FeatureValueQuery) -> Option<&StyleValueData> {
         self.parsed.get_or_init(Box::default).0[kind as usize]
-            .get_or_init(|| parse_feature_value_as(&self.components(), kind))
+            .get_or_init(|| parse_feature_value_as(&self.components(), kind, query))
             .as_ref()
     }
 }
@@ -344,6 +353,15 @@ impl std::fmt::Debug for ParsedFeatureValues {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str("ParsedFeatureValues")
     }
+}
+
+/// The kind of query a feature value belongs to, which it keeps for its whole life.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FeatureValueQuery {
+    Media,
+    /// https://drafts.csswg.org/css-values-5/#tree-counting
+    /// A container's size feature may count the container's siblings, where a media feature has no element to count.
+    ContainerSize,
 }
 
 #[derive(Clone, Copy)]
@@ -2007,7 +2025,39 @@ fn parse_one_value_from_stream(
     (!stream.has_next_token()).then_some(value)
 }
 
-fn resolve_number(value: &StyleValueData, length_context: Option<&FfiLengthResolutionContext>) -> Option<f64> {
+/// `value` with the tree-counting functions in it resolved, where it holds any. None where it holds one that the query
+/// has no count for.
+fn with_tree_counting_resolved<'a>(
+    value: &'a StyleValueData,
+    length_context: Option<&FfiLengthResolutionContext>,
+    tree_counting: Option<TreeCounting<'_>>,
+) -> Option<std::borrow::Cow<'a, StyleValueData>> {
+    use std::borrow::Cow;
+    match value {
+        StyleValueData::TreeCountingFunction { function, .. } => {
+            let (sibling_count, sibling_index) = tree_counting?()?;
+            let value = if *function == 0 { sibling_count } else { sibling_index };
+            Some(Cow::Owned(StyleValueData::Number { value: value as f64 }))
+        }
+        StyleValueData::Calculated { .. }
+            if crate::css::style_compute::collect_external_value_dependencies(value).uses_tree_counting_function =>
+        {
+            match crate::css::calc::absolutize_calculation_value(value, length_context?, tree_counting?(), &[])? {
+                crate::css::calc::AbsolutizedCalculation::Value(resolved) => Some(Cow::Owned(resolved)),
+                _ => None,
+            }
+        }
+        _ => Some(Cow::Borrowed(value)),
+    }
+}
+
+fn resolve_number(
+    value: &StyleValueData,
+    length_context: Option<&FfiLengthResolutionContext>,
+    tree_counting: Option<TreeCounting<'_>>,
+) -> Option<f64> {
+    let value = with_tree_counting_resolved(value, length_context, tree_counting)?;
+    let value = value.as_ref();
     match value {
         StyleValueData::Number { value } => Some(*value),
         StyleValueData::Calculated { .. } => length_context
@@ -2020,7 +2070,10 @@ fn resolve_number(value: &StyleValueData, length_context: Option<&FfiLengthResol
 fn resolve_parsed_media_feature_value(
     value: &StyleValueData,
     length_context: Option<&FfiLengthResolutionContext>,
+    tree_counting: Option<TreeCounting<'_>>,
 ) -> Option<ResolvedFeatureValue> {
+    let value = with_tree_counting_resolved(value, length_context, tree_counting)?;
+    let value = value.as_ref();
     match value {
         StyleValueData::Integer { value } => Some(ResolvedFeatureValue::Integer(*value)),
         StyleValueData::Length { value, unit } => {
@@ -2037,8 +2090,8 @@ fn resolve_parsed_media_feature_value(
         StyleValueData::Ratio(ratio_payload) => {
             let RatioPayload { numerator, denominator } = &**ratio_payload;
             Some(ResolvedFeatureValue::Ratio {
-                numerator: resolve_number(numerator.data(), length_context)?,
-                denominator: resolve_number(denominator.data(), length_context)?,
+                numerator: resolve_number(numerator.data(), length_context, tree_counting)?,
+                denominator: resolve_number(denominator.data(), length_context, tree_counting)?,
             })
         }
         StyleValueData::Resolution { value, unit } => {
@@ -2072,7 +2125,11 @@ fn resolve_parsed_media_feature_value(
     }
 }
 
-fn parse_feature_value_as(components: &[ComponentValue], kind: FeatureValueParse) -> Option<StyleValueData> {
+fn parse_feature_value_as(
+    components: &[ComponentValue],
+    kind: FeatureValueParse,
+    query: FeatureValueQuery,
+) -> Option<StyleValueData> {
     let components = trim_whitespace(components);
     let value_context = FfiValueParsingContext {
         kind: FfiValueParsingContextKind::Special,
@@ -2080,7 +2137,10 @@ fn parse_feature_value_as(components: &[ComponentValue], kind: FeatureValueParse
         secondary_value: 0,
         name: FfiUtf16View::default(),
     };
-    let context = media_value_parse_context(&value_context);
+    let mut context = media_value_parse_context(&value_context);
+    if query == FeatureValueQuery::ContainerSize {
+        context.value_contexts = ak::Span::default();
+    }
     let property = crate::css::property_metadata::property_id::CUSTOM;
     match kind {
         FeatureValueParse::Integer => parse_one_value_from_stream(components, |stream| {
@@ -2112,16 +2172,19 @@ fn resolve_feature_value_parsed_as(
     length_context: Option<&FfiLengthResolutionContext>,
 ) -> Option<ResolvedFeatureValue> {
     let parsed = value.parsed_as(kind)?;
-    Some(resolve_parsed_media_feature_value(parsed, length_context).unwrap_or(ResolvedFeatureValue::Unknown))
+    Some(resolve_parsed_media_feature_value(parsed, length_context, None).unwrap_or(ResolvedFeatureValue::Unknown))
 }
 
-/// Whether `value` parses as a calculated number that resolves to zero, which a length feature takes as `0px`.
+/// Whether `number`, what a value parses to as a number, is calculated and resolves to zero, which a length feature takes
+/// as `0px`.
 fn feature_value_is_calculated_zero(
-    value: &QueryFeatureValue,
+    number: Option<&StyleValueData>,
     length_context: Option<&FfiLengthResolutionContext>,
+    tree_counting: Option<TreeCounting<'_>>,
 ) -> bool {
-    value.parsed_as(FeatureValueParse::Number).is_some_and(|number| {
-        matches!(number, StyleValueData::Calculated { .. }) && resolve_number(number, length_context) == Some(0.0)
+    number.is_some_and(|number| {
+        matches!(number, StyleValueData::Calculated { .. })
+            && resolve_number(number, length_context, tree_counting) == Some(0.0)
     })
 }
 
@@ -2145,7 +2208,8 @@ fn parse_media_feature_value(
         && (matches!(integer, StyleValueData::Calculated { .. })
             || matches!(integer, StyleValueData::Integer { value: 0 | 1 }))
     {
-        return resolve_parsed_media_feature_value(integer, length_context).unwrap_or(ResolvedFeatureValue::Unknown);
+        return resolve_parsed_media_feature_value(integer, length_context, None)
+            .unwrap_or(ResolvedFeatureValue::Unknown);
     }
     if types & MEDIA_FEATURE_VALUE_INTEGER != 0
         && let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Integer, length_context)
@@ -2156,7 +2220,7 @@ fn parse_media_feature_value(
         if let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Length, length_context) {
             return resolved;
         }
-        if feature_value_is_calculated_zero(value, length_context) {
+        if feature_value_is_calculated_zero(value.parsed_as(FeatureValueParse::Number), length_context, None) {
             return ResolvedFeatureValue::Length(0.0);
         }
     }
@@ -2177,7 +2241,14 @@ fn parse_size_feature_value(
     id: u8,
     value: &QueryFeatureValue,
     length_context: Option<&FfiLengthResolutionContext>,
+    tree_counting: TreeCounting<'_>,
 ) -> ResolvedFeatureValue {
+    let parsed = |kind| value.parsed_in(kind, FeatureValueQuery::ContainerSize);
+    let tree_counting = Some(tree_counting);
+    let resolved = |value| {
+        resolve_parsed_media_feature_value(value, length_context, tree_counting)
+            .unwrap_or(ResolvedFeatureValue::Unknown)
+    };
     if id == 4
         && let Some(keyword) = value.keyword
         && matches!(
@@ -2189,17 +2260,17 @@ fn parse_size_feature_value(
     }
 
     if matches!(id, 1 | 2 | 3 | 5) {
-        if let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Length, length_context) {
-            return resolved;
+        if let Some(value) = parsed(FeatureValueParse::Length).map(resolved) {
+            return value;
         }
-        if feature_value_is_calculated_zero(value, length_context) {
+        if feature_value_is_calculated_zero(parsed(FeatureValueParse::Number), length_context, tree_counting) {
             return ResolvedFeatureValue::Length(0.0);
         }
     }
     if id == 0
-        && let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Ratio, length_context)
+        && let Some(value) = parsed(FeatureValueParse::Ratio).map(resolved)
     {
-        return resolved;
+        return value;
     }
     ResolvedFeatureValue::Unknown
 }
@@ -2557,7 +2628,7 @@ fn evaluate_container_size_feature(
             _ => MatchResult::False,
         },
         QueryFeature::Plain { name_type, value, .. } => {
-            let value = parse_size_feature_value(id, value, length_context);
+            let value = parse_size_feature_value(id, value, length_context, facts.tree_counting);
             match name_type {
                 FeatureNameType::Normal => compare_feature_values(&value, FeatureComparison::Equal, &queried_value),
                 FeatureNameType::Min => {
@@ -2570,14 +2641,14 @@ fn evaluate_container_size_feature(
         }
         QueryFeature::Range { left, right, .. } => {
             if let Some((value, comparison)) = left.as_deref() {
-                let value = parse_size_feature_value(id, value, length_context);
+                let value = parse_size_feature_value(id, value, length_context, facts.tree_counting);
                 let result = compare_feature_values(&value, *comparison, &queried_value);
                 if result != MatchResult::True {
                     return result;
                 }
             }
             if let Some((comparison, value)) = right.as_deref() {
-                let value = parse_size_feature_value(id, value, length_context);
+                let value = parse_size_feature_value(id, value, length_context, facts.tree_counting);
                 let result = compare_feature_values(&queried_value, *comparison, &value);
                 if result != MatchResult::True {
                     return result;
