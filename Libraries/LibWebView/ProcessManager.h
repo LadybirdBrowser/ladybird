@@ -33,6 +33,7 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     ProcessManager();
+    ~ProcessManager();
 
     // Gives the process its child ID and starts watching for its exit.
     ChildIdentity add_process(Process&&);

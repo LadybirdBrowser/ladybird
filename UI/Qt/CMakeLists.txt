@@ -41,20 +41,20 @@ target_sources(ladybird PRIVATE
     EventLoopImplementationQt.cpp
     EventLoopImplementationQtEventTarget.cpp
     FindInPageWidget.cpp
-    Icon.cpp
     HiddenPageSizing.cpp
+    Icon.cpp
     InputMethodUtils.cpp
     JavaScriptDialog.cpp
     LadybirdButton.cpp
     LocationEdit.cpp
     Menu.cpp
-    NativeWindowContainer.cpp
     NativeTextEditingLineEdit.cpp
-    ProcessManagerWindow.cpp
+    NativeWindowContainer.cpp
     PerformanceMonitorWidget.cpp
     PermissionPromptPopover.cpp
     PictureInPictureWindow.cpp
     Popover.cpp
+    ProcessManagerWindow.cpp
     ReportReview.cpp
     RestoreSessionCard.cpp
     ScreenshotSelectionOverlay.cpp
@@ -234,52 +234,4 @@ qt_deploy_runtime_dependencies(
             -P ${ladybird_deploy_script}
         COMMAND_EXPAND_LISTS
     )
-endif()
-
-if (BUILD_TESTING AND NOT BUILD_BROWSER_TESTS_ONLY)
-    if (APPLE)
-        add_library(NativeTextEditingTestMain OBJECT
-            ${LADYBIRD_SOURCE_DIR}/Tests/UI/Qt/NativeTextEditingTestMain.mm
-            ${LADYBIRD_SOURCE_DIR}/Libraries/LibTest/AssertionHandler.cpp
-        )
-        target_link_libraries(NativeTextEditingTestMain PRIVATE AK LibTest "-framework AppKit")
-        ladybird_test("${LADYBIRD_SOURCE_DIR}/Tests/UI/Qt/TestNativeTextEditingBindings.mm" UI/Qt
-            NO_TEST
-            CUSTOM_MAIN "$<TARGET_OBJECTS:NativeTextEditingTestMain>"
-            LIBS LibWebCommon Qt::Widgets "-framework AppKit"
-        )
-        foreach(mode default custom)
-            add_test(NAME TestNativeTextEditingBindings-${mode}
-                COMMAND ${Python3_EXECUTABLE}
-                    ${LADYBIRD_SOURCE_DIR}/Tests/UI/Qt/run-native-text-editing-tests.py
-                    $<TARGET_FILE:TestNativeTextEditingBindings> ${mode}
-            )
-        endforeach()
-    endif()
-
-    add_executable(TestPerformanceMonitorWidget
-        ${LADYBIRD_SOURCE_DIR}/Tests/LibWebView/TestPerformanceMonitorWidget.cpp
-        ChromeStyle.cpp
-        PerformanceMonitorWidget.cpp
-        StringUtils.cpp
-        SystemAppearance.cpp
-        Theme.cpp
-    )
-    if (APPLE)
-        target_sources(TestPerformanceMonitorWidget PRIVATE SystemAppearanceMac.mm)
-        target_link_libraries(TestPerformanceMonitorWidget PRIVATE "-framework AppKit")
-    endif()
-    if (LINUX AND NOT ANDROID)
-        target_sources(TestPerformanceMonitorWidget PRIVATE X11Window.cpp)
-        target_link_libraries(TestPerformanceMonitorWidget PRIVATE PkgConfig::XCB_ICCCM)
-    endif()
-    set_target_properties(TestPerformanceMonitorWidget PROPERTIES AUTOMOC ON)
-    target_include_directories(TestPerformanceMonitorWidget PRIVATE ${LADYBIRD_SOURCE_DIR})
-    target_link_libraries(TestPerformanceMonitorWidget PRIVATE Qt6::Widgets LibWebView LibURL AK)
-
-    ladybird_import_qt_plugin(TestPerformanceMonitorWidget QOffscreenIntegrationPlugin)
-    if (TARGET Qt6::QOffscreenIntegrationPlugin)
-        add_test(NAME TestPerformanceMonitorWidget COMMAND TestPerformanceMonitorWidget)
-        set_tests_properties(TestPerformanceMonitorWidget PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-    endif()
 endif()

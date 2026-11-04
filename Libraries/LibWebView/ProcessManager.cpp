@@ -90,6 +90,8 @@ ProcessManager::ProcessManager()
 #endif
 }
 
+ProcessManager::~ProcessManager() = default;
+
 Optional<Process&> ProcessManager::find_process(pid_t pid)
 {
     verify_event_loop();
