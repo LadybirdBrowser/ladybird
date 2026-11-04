@@ -129,7 +129,6 @@ pub struct FfiValueParsingContext<'a> {
 pub struct RandomFunctionIndex(std::cell::Cell<usize>);
 
 impl RandomFunctionIndex {
-    #[cfg(test)]
     pub(crate) fn new(index: usize) -> Self {
         Self(std::cell::Cell::new(index))
     }
@@ -336,7 +335,7 @@ fn clamp_to_single_precision_range(value: f64) -> f64 {
     value.clamp(f32::MIN as f64, f32::MAX as f64)
 }
 
-fn round_to_nearest_integer(value: f64) -> i32 {
+pub(crate) fn round_to_nearest_integer(value: f64) -> i32 {
     if value.is_nan() {
         return 0;
     }
