@@ -672,8 +672,9 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
     }
     let will_change_covers_property =
         will_change_covers_property(property, old) && will_change_covers_property(property, new);
+    // 'order' and 'z-index' can change stacking order without changing which boxes establish stacking contexts.
     if property_metadata::property_affects_stacking_context(property)
-        && (property == property_id::Z_INDEX
+        && (matches!(property, property_id::ORDER | property_id::Z_INDEX)
             || (!will_change_covers_property
                 && value_creates_stacking_context(property, old) != value_creates_stacking_context(property, new)))
     {

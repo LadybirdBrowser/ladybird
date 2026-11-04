@@ -4,9 +4,53 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::node_painting;
 use crate::painting::paint_read::PaintRead;
+use crate::painting::style_queries;
+use std::cmp::Ordering;
+
+pub(crate) fn order_for_painting(arena: &impl PaintRead, slot: NodeSlotId) -> i32 {
+    // Absolutely positioned children of flex/grid containers have order: 0 for painting.
+    // https://drafts.csswg.org/css-display-3/#order-modified-document-order
+    if style_queries::is_flex_or_grid_item(arena, slot) {
+        arena.node_style_if_live(slot).map_or(0, |style| style.order())
+    } else {
+        0
+    }
+}
+
+impl LayoutNodeArena {
+    pub(crate) fn compare_order_modified_document_order(
+        &self,
+        mut left: NodeSlotId,
+        mut right: NodeSlotId,
+    ) -> Ordering {
+        let document_order = self.node_pre_order_label(left).cmp(&self.node_pre_order_label(right));
+        // Hoisted positioned descendants follow the order of the items containing them.
+        // Walk up the parent with the later pre-order label to find the siblings whose
+        // subtrees contain the boxes. An ancestor stays before its descendants.
+        while left != right {
+            let left_parent = self.data(left).parent.get();
+            let right_parent = self.data(right).parent.get();
+            if left_parent == right_parent {
+                return order_for_painting(self, left)
+                    .cmp(&order_for_painting(self, right))
+                    .then(document_order);
+            }
+            if left_parent.is_invalid() || right_parent.is_invalid() {
+                break;
+            }
+            if self.node_pre_order_label(left_parent) > self.node_pre_order_label(right_parent) {
+                left = left_parent;
+            } else {
+                right = right_parent;
+            }
+        }
+        document_order
+    }
+}
 
 pub(crate) fn paint_parent(layout_arena: &impl PaintRead, slot: NodeSlotId) -> Option<NodeSlotId> {
     if !layout_arena.paintable_row_is_populated(slot)

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Flexboxes should perform hit testing in reverse paint order for overlapping elements: flex order case (crbug.com/844505)
+1 Pass
+Pass	Flexboxes should perform hit testing in reverse paint order for overlapping elements: flex order case (crbug.com/844505)

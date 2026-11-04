@@ -1,0 +1,58 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #grid {
+        display: grid;
+        position: relative;
+        isolation: isolate;
+        width: 100px;
+        height: 100px;
+    }
+    #grid > div {
+        grid-area: 1 / 1;
+        width: 100px;
+        height: 100px;
+    }
+    .positioned {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+    }
+</style>
+<div id="grid">
+    <div id="first"></div>
+    <div id="second"></div>
+</div>
+<script>
+    test(() => {
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+
+        for (const zIndex of ["auto", "0"]) {
+            first.style.zIndex = second.style.zIndex = zIndex;
+            for (const order of ["1", "-1"]) {
+                first.style.order = order;
+                println(document.elementFromPoint(50, 50).id);
+            }
+        }
+
+        first.style.zIndex = second.style.zIndex = "auto";
+        first.innerHTML = '<div><div><div id="first-child" class="positioned"></div></div></div>';
+        second.innerHTML = '<div><div><div id="second-child" class="positioned"></div></div></div>';
+        first.style.order = "1";
+        println(document.elementFromPoint(50, 50).id);
+        first.style.order = "-1";
+        println(document.elementFromPoint(50, 50).id);
+
+        first.replaceChildren();
+        second.replaceChildren();
+        first.style.zIndex = "0";
+        first.style.order = "1";
+        second.style.position = "absolute";
+        second.style.order = "100";
+        println(document.elementFromPoint(50, 50).id);
+    });
+</script>

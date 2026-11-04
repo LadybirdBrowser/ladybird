@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>CSS Test: flex order affects painting order of absolutely positioned boxes inside flex</title>
+<link rel="author" title="Dennis Schubert" href="mailto:dschubert@mozilla.com">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-order">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=606208">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-flexbox/order/../../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="This test check that absolutely positioned boxes inside flex items have their painting orders affected by 'order'.">
+<style>
+  #test {
+    display: flex;
+    position: relative;
+    height: 100px;
+    width: 100px;
+  }
+
+  #order-1 {
+    order: 1;
+  }
+
+  #order-2 {
+    order: 2;
+  }
+
+  .inner {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: 0;
+  }
+
+  #order-1 .inner {
+    background-color: red;
+  }
+
+  #order-2 .inner {
+    background-color: green;
+  }
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div id="test">
+  <div id="order-2">
+    <div class="inner"></div>
+  </div>
+  <div id="order-1">
+    <div class="inner"></div>
+  </div>
+</div>

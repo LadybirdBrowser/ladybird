@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<!-- This testcase checks flex items are painted atomically. In particular,
+     if one item has content that overflows into the region of another item,
+     then one item is painted "behind" the other; there shouldn't normally
+     any interleaving of backgrounds and content between the two items.
+
+     This testcase also tests some special cases that will change the paint
+     ordering - specifically, the properties "position", "z-index", and
+     "order" on flex items.
+ -->
+<!-- This was resolved by the CSSWG in April 2013:
+     http://krijnhoetmer.nl/irc-logs/css/20130403#l-455 -->
+<html>
+<head>
+  <title>CSS Test: Testing that flex items paint as pseudo-stacking contexts (like inline-blocks): atomically, in the absence of 'z-index' on descendants</title>
+  <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+  <link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#painting">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/flexbox-items-as-stacking-contexts-002-ref.html">
+  <style>
+    body { font: 10px sans-serif }
+    .flexContainer {
+      background: orange;
+      display: flex;
+      justify-content: space-between;
+      width: 70px;
+      padding: 2px;
+      margin-bottom: 2px;
+    }
+    .item1 {
+      background: lightblue;
+      width: 30px;
+      min-width: 0; /* disable default min-width:auto behavior */
+    }
+    .item2 {
+      background: yellow;
+      width: 30px;
+      min-width: 0; /* disable default min-width:auto behavior */
+    }
+  </style>
+</head>
+<body>
+  <!-- This container has two flex items, the first of which has content
+       sticking out & overlapping the second.  If they're painting atomically
+       (and in the right order), the second item's background should cover the
+       first item's overflowing content. -->
+  <div class="flexContainer"
+    ><div class="item1">ThisIsALongUnbrokenString</div
+    ><div class="item2">HereIsSomeMoreLongText</div
+  ></div>
+
+  <!-- Now, the first item is relatively positioned, which should make it paint
+       on top of everything. -->
+  <div class="flexContainer"
+    ><div class="item1" style="position:relative">ThisIsALongUnbrokenString</div
+    ><div class="item2">HereIsSomeMoreLongText</div
+  ></div>
+
+  <!-- Now, the first item is has "z-index" set, which should make it paint on
+       top of everything. -->
+  <div class="flexContainer"
+    ><div class="item1" style="z-index: 1">ThisIsALongUnbrokenString</div
+    ><div class="item2">HereIsSomeMoreLongText</div
+  ></div>
+
+  <!-- Now, the first item has "order" set to a higher value than default,
+       which should make it paint on top (and at the far right) -->
+  <div class="flexContainer"
+    ><div class="item1" style="order: 1">ThisIsALongUnbrokenString</div
+    ><div class="item2">HereIsSomeMoreLongText</div
+  ></div>
+
+  <!-- And for thoroughness, let's set "order" to a lower value than default,
+       on the second item. (Should render the same as previous example.)  -->
+  <div class="flexContainer"
+    ><div class="item1">ThisIsALongUnbrokenString</div
+    ><div class="item2" style="order: -1">HereIsSomeMoreLongText</div
+  ></div>
+
+  <!-- ...but if we relatively position that second item, it should paint
+       on top again, despite its low "order" value. -->
+  <div class="flexContainer"
+    ><div class="item1">ThisIsALongUnbrokenString</div
+    ><div class="item2" style="order: -1; position: relative">HereIsSomeMoreLongText</div
+  ></div>
+</body>
+</html>

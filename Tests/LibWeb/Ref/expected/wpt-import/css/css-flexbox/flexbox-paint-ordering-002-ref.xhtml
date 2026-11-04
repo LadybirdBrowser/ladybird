@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<!-- Reference case for flex items containing overlapping content.
+     This reference uses inline-block in place of inline-flex, with floated
+     children in place of flex items, and with hardcoded DOM-reordering in
+     place of "order" reordering. -->
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>CSS Reftest Reference</title>
+    <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com"/>
+    <style>
+      body {
+        line-height: 0;
+      }
+
+      .flexbox {
+        display: inline-block;
+        width: 20px;
+        height: 10px;
+        border: 2px solid gray;
+        margin-bottom: 10px;
+        margin-right: 10px;
+      }
+      .a {
+        width: 10px;
+        height: 10px;
+        background: lightblue;
+        float: left; /* to stack horizontally, like a flex item */
+      }
+      .b {
+        width: 10px;
+        height: 10px;
+        background: pink;
+        float: left; /* to stack horizontally, like a flex item */
+      }
+      .aKid {
+         margin-left: 3px;
+         margin-top:  3px;
+         width: 10px;
+         height: 10px;
+         background: steelblue;
+         border: 1px solid blue;
+      }
+      .bKid {
+         margin-left: 3px;
+         margin-top:  6px;
+         width: 10px;
+         height: 10px;
+         background: violet;
+         border: 1px solid purple;
+      }
+
+      /* Need to set 'position' for z-index to take effect. */
+      .zn2 { z-index: -2; position: relative; }
+      .zn1 { z-index: -1; position: relative; }
+      .z0  { z-index:  0; position: relative; }
+      .z1  { z-index:  1; position: relative; }
+
+    </style>
+  </head>
+  <body>
+    <!-- order not set: -->
+    <div class="flexbox">
+      <div class="a"><div class="aKid"/></div>
+      <div class="b"><div class="bKid"/></div>
+    </div>
+
+    <br/>
+
+    <!-- order set, but it matches content order, so it shouldn't matter: -->
+    <div class="flexbox">
+      <div class="a"><div class="aKid"/></div>
+      <div class="b"><div class="bKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="a"><div class="aKid"/></div>
+      <div class="b"><div class="bKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="a"><div class="aKid"/></div>
+      <div class="b"><div class="bKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="a"><div class="aKid"/></div>
+      <div class="b"><div class="bKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="a"><div class="aKid"/></div>
+      <div class="b"><div class="bKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="a"><div class="aKid"/></div>
+      <div class="b"><div class="bKid"/></div>
+    </div>
+
+    <br/>
+
+    <!-- order set to reverse of content-order: -->
+    <div class="flexbox">
+      <div class="b"><div class="bKid"/></div>
+      <div class="a"><div class="aKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="b"><div class="bKid"/></div>
+      <div class="a"><div class="aKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="b"><div class="bKid"/></div>
+      <div class="a"><div class="aKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="b"><div class="bKid"/></div>
+      <div class="a"><div class="aKid"/></div>
+    </div>
+
+    <br/>
+
+    <!-- order set to reverse of content-order, AND with z-index set on
+         one or both items, but not such that it changes the paint order -->
+    <div class="flexbox">
+      <div class="b"><div class="bKid"/></div>
+      <div class="a"><div class="aKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="b"><div class="bKid"/></div>
+      <div class="a"><div class="aKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="b"><div class="bKid"/></div>
+      <div class="a"><div class="aKid"/></div>
+    </div
+    ><div class="flexbox">
+      <div class="b"><div class="bKid"/></div>
+      <div class="a"><div class="aKid"/></div>
+    </div>
+
+    <br/>
+
+    <!-- order set to reverse of content-order, AND with z-index set on
+         one or both items, in such a way that it affects paint order -->
+    <div class="flexbox">
+      <!-- 'a' is behind the container's border -->
+      <div class="b"><div class="bKid"/></div>
+      <div class="a zn1"><div class="aKid"/></div>
+    </div
+    ><div class="flexbox">
+      <!-- 'a' and 'b' are both behind the container's border -->
+      <div class="b zn1"><div class="bKid"/></div>
+      <div class="a zn1"><div class="aKid"/></div>
+    </div
+    ><div class="flexbox">
+      <!-- 'a' and 'b' are both behind the container's border,
+           and 'a' is behind 'b' despite coming after it in the 'order'
+           ordering-->
+      <div class="b zn1"><div class="bKid"/></div>
+      <div class="a zn2"><div class="aKid"/></div>
+    </div
+    ><div class="flexbox">
+      <!-- 'a' and 'b' are both in front of the container's border,
+           and 'a' is behind 'b' despite coming after it in the 'order'
+           ordering-->
+      <div class="b z1"><div class="bKid"/></div>
+      <div class="a z0"><div class="aKid"/></div>
+    </div>
+
+  </body>
+</html>
