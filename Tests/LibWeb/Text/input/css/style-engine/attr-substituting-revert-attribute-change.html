@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #parent { color: rgb(0, 128, 0); }
+    .plain { color: attr(data-x type(*)); }
+    .reset { width: attr(data-x type(*)); }
+    @layer low { .layered { color: rgb(0, 0, 128); } }
+    @layer high { .layered { color: attr(data-x type(*)); } }
+</style>
+<div id="parent">
+    <div id="plain" class="plain" data-x="revert"></div>
+    <div id="reset" class="reset" data-x="revert"></div>
+    <div id="layered" class="layered" data-x="revert-layer"></div>
+    <div id="twin-reverting" class="plain" data-x="revert"></div>
+    <div id="twin-declaring" class="plain" data-x="rgb(1, 2, 3)"></div>
+</div>
+<script>
+    // An attr() that substitutes to revert or revert-layer rolls its property back, and the value
+    // still depends on the attribute it read: changing the attribute has to compute the style again.
+    test(() => {
+        const color = id => getComputedStyle(document.getElementById(id)).color;
+        const width = id => getComputedStyle(document.getElementById(id)).width;
+        const set = (id, value) => document.getElementById(id).setAttribute("data-x", value);
+
+        println(`plain revert: ${color("plain")}`);
+        set("plain", "rgb(0, 0, 255)");
+        println(`plain declared: ${color("plain")}`);
+        set("plain", "revert");
+        println(`plain revert again: ${color("plain")}`);
+
+        println(`reset revert: ${width("reset")}`);
+        set("reset", "10px");
+        println(`reset declared: ${width("reset")}`);
+
+        println(`layered revert-layer: ${color("layered")}`);
+        set("layered", "rgb(0, 0, 255)");
+        println(`layered declared: ${color("layered")}`);
+        set("layered", "revert-layer");
+        println(`layered revert-layer again: ${color("layered")}`);
+
+        println(`twins: ${color("twin-reverting")} ${color("twin-declaring")}`);
+        set("twin-reverting", "rgb(4, 5, 6)");
+        println(`twins after: ${color("twin-reverting")} ${color("twin-declaring")}`);
+    });
+</script>

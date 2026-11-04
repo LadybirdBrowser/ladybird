@@ -1,0 +1,10 @@
+plain revert: rgb(0, 128, 0)
+plain declared: rgb(0, 128, 0)
+plain revert again: rgb(0, 128, 0)
+reset revert: 784px
+reset declared: 784px
+layered revert-layer: rgb(0, 0, 128)
+layered declared: rgb(0, 0, 128)
+layered revert-layer again: rgb(0, 0, 128)
+twins: rgb(0, 128, 0) rgb(1, 2, 3)
+twins after: rgb(0, 128, 0) rgb(1, 2, 3)
