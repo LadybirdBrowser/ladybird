@@ -661,7 +661,6 @@ pub unsafe extern "C" fn layout_script_find_matching_text(
 /// A min or max sizing property, whose anchor-size() functions the abspos engine resolves.
 #[repr(u8)]
 #[derive(Clone, Copy)]
-#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiAnchorSizedProperty {
     MinWidth,
     MinHeight,
