@@ -91,7 +91,11 @@ def run_test(default):
         )
         server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         threading.Thread(target=server.serve_forever, daemon=True).start()
-        process, port = helpers["launch_webdriver"](sys.argv[1], "--headless", "--profile-path", directory)
+        # The pixels are colors the display list carries, which take no GPU to draw. The GPU of a CI machine can refuse
+        # every submission of the Compositor, which would leave the screenshots showing earlier colors.
+        process, port = helpers["launch_webdriver"](
+            sys.argv[1], "--headless", "--force-cpu-painting", "--profile-path", directory
+        )
         session = None
         try:
             session = helpers["create_session"](port)
@@ -120,20 +124,11 @@ def run_test(default):
                 raise AssertionError(f"Expected {url}, got {state}")
 
             def assert_force_dark(description, expected, check_initial=True):
-                # A frame that fails to draw (when the GPU drops a command buffer, e.g.) leaves a screenshot showing
-                # the page's previous colors. So take screenshots until the page and its iframe both paint as expected,
-                # for up to 10 seconds, the way the other waits here poll.
-                deadline = time.monotonic() + 10
-                while True:
-                    status, payload, raw = command("GET", "screenshot")
-                    assert status == 200, raw
-                    screenshot = base64.b64decode(payload["value"])
-                    color = png_pixel(screenshot, 10, 10)
-                    iframe_color = png_pixel(screenshot, 110, 110)
-                    painted = (max(color) < 128) == expected and (max(iframe_color) < 128) == expected
-                    if painted or time.monotonic() >= deadline:
-                        break
-                    time.sleep(0.05)
+                status, payload, raw = command("GET", "screenshot")
+                assert status == 200, raw
+                screenshot = base64.b64decode(payload["value"])
+                color = png_pixel(screenshot, 10, 10)
+                iframe_color = png_pixel(screenshot, 110, 110)
                 assert (max(color) < 128) == expected, f"{description} expected dark={expected}, got {color}"
                 assert (max(iframe_color) < 128) == expected, f"{description} iframe painted {iframe_color}"
                 status, payload, raw = command(
