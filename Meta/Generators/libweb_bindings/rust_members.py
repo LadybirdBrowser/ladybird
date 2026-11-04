@@ -35,9 +35,11 @@ RUST_METHOD_NAME = re.compile(r"[a-z][a-z0-9_]*")
 # NB: The context of an attribute or an operation that is [NeedsCallerRealm] has the current realm, not the realm of
 #     the object.
 SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {
+    "AttributeCallbackName",
     "CachedAccessor",
     "FIXME",
     "ImplementedAs",
+    "LegacyNullToEmptyString",
     "NeedsCallerRealm",
     "NewObject",
     "PutForwards",
@@ -91,14 +93,21 @@ class RustAttribute:
         return "CachedAccessor" in self.attribute.extended_attributes
 
     @property
+    def function_stem(self) -> str:
+        """What the generated native functions are named after. [AttributeCallbackName] tells apart the attributes that
+        name the same methods."""
+        callback_name = self.attribute.extended_attributes.get("AttributeCallbackName")
+        return callback_name or generated_function_stem(self.getter_method)
+
+    @property
     def getter_function(self) -> str:
         """The generated native function of the getter."""
-        return f"{generated_function_stem(self.getter_method)}_getter"
+        return f"{self.function_stem}_getter"
 
     @property
     def setter_function(self) -> str:
         """The generated native function of the setter."""
-        return f"{generated_function_stem(self.getter_method)}_setter"
+        return f"{self.function_stem}_setter"
 
 
 @dataclass
@@ -492,8 +501,12 @@ def rust_members(interface: Interface) -> RustMembers:
         else:
             members.constants.append(RustConstant(constant.name, value))
 
-    methods = [attribute.getter_method for attribute in members.attributes if attribute.event_type is None]
-    methods.extend(attribute.setter_method for attribute in members.attributes if attribute.setter_method is not None)
+    # NB: The spellings of a CSS descriptor or property are attributes with the same steps, which name the same methods.
+    attribute_methods = {attribute.getter_method for attribute in members.attributes if attribute.event_type is None}
+    attribute_methods.update(
+        attribute.setter_method for attribute in members.attributes if attribute.setter_method is not None
+    )
+    methods = sorted(attribute_methods)
     methods.extend(
         overload.method
         for operation_set in members.operation_sets + members.static_operation_sets

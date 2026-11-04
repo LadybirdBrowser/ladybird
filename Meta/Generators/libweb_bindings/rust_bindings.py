@@ -20,6 +20,7 @@ from io import StringIO
 from typing import Callable
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import TextIO
 from typing import Tuple
 
@@ -298,8 +299,10 @@ void {initialize_constructor}(JSVM*, void* realm, JSObject* constructor);
                 f"{interface.path}: {interface.name} supports indexed properties and inherits from an interface "
                 "implemented in C++, which the Rust bindings do not handle yet"
             )
-        out.write(
-            f"""
+        indexed_ancestor = cpp_ancestor_with_indexed_properties(interface, context)
+        if indexed_ancestor is None:
+            out.write(
+                f"""
 }}
 
 // The wrappers hold the cell of their object as host data and, for an interface that inherits from one implemented in
@@ -307,7 +310,25 @@ void {initialize_constructor}(JSVM*, void* realm, JSObject* constructor);
 constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv,
     &{parent_host_class}, &platform_object_hooks, nullptr, platform_object_host_class_flags);
 """
-        )
+            )
+        else:
+            legacy_info = f"{wrapper_name(interface)}_legacy_platform_object_info"
+            out.write(
+                f"""
+}}
+
+static constexpr LegacyPlatformObjectInfo {legacy_info} {{
+    .supports_indexed_properties = true,
+    .item_value = {wrapper_name(indexed_ancestor)}_item_value,
+}};
+
+// The wrappers hold the cell of their object as host data and the C++ object it owns as their wrappable, whose indexed
+// properties the C++ bindings of the ancestor read.
+constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv,
+    &{parent_host_class}, &indexed_legacy_platform_object_hooks, &{legacy_info},
+    platform_object_host_class_flags | JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE);
+"""
+            )
     elif not supports_indexed_properties:
         out.write(
             f"""
@@ -1350,6 +1371,16 @@ def write_default_to_json(out: TextIO, context: GenerationContext, interface: In
     }}
 """
     )
+
+
+def cpp_ancestor_with_indexed_properties(interface: Interface, context: GenerationContext) -> Optional[Interface]:
+    """The nearest ancestor implemented in C++ that declares an indexed property getter."""
+    ancestor = cpp_ancestor(interface, context)
+    while ancestor is not None:
+        if ancestor.indexed_property_getter is not None:
+            return ancestor
+        ancestor = context.interfaces.get(ancestor.parent_name)
+    return None
 
 
 def item_value_entry_point(interface: Interface) -> str:
