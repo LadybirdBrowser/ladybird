@@ -377,12 +377,12 @@ def write_dictionary_from_js(out: TextIO, context: GenerationContext, dictionary
     path = rust_dictionary_path(dictionary, context)
     holds_sequence_of_cells = dictionary_holds_sequence_of_cells(dictionary, context)
     ancestors = context.dictionary_inheritance_stack(dictionary)[1:]
-    if ancestors and any(dictionary_holds_sequence_of_cells(other, context) for other in [dictionary] + ancestors):
+    if any(dictionary_holds_sequence_of_cells(ancestor, context) for ancestor in ancestors):
         # NB: The struct of such a dictionary has the lifetime of the reference to the VM, which the struct of a
-        #     dictionary that inherits from it or that it inherits from would have to have as well.
+        #     dictionary that inherits from it would have to pass on.
         raise UnsupportedByRustBindings(
-            f"the dictionary {dictionary.name} inherits from another dictionary, and one of them holds a sequence of "
-            "values that are or can hold cells, which the Rust bindings do not convert to yet"
+            f"the dictionary {dictionary.name} inherits from a dictionary that holds a sequence of values that are or "
+            "can hold cells, which the Rust bindings do not convert to yet"
         )
     keys = []
     conversions = []
@@ -456,7 +456,7 @@ def write_dictionary_from_js(out: TextIO, context: GenerationContext, dictionary
     impl<'vm> {path}<'vm> {{
         pub(crate) fn from_js(vm: &'vm Vm, value: Value) -> ThrowCompletionOr<Self> {{
 {"".join(keys)}            let object = dictionary_object(vm, value, "{dictionary.name}")?;
-{"".join(conversions)}            Ok(Self {{ {fields} }})
+{parent_conversion}{"".join(conversions)}            Ok(Self {{ {fields} }})
         }}
 {empty}    }}
 """
