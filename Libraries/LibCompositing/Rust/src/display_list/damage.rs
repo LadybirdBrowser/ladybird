@@ -1468,6 +1468,8 @@ pub struct DisplayListFrame<'a> {
 pub struct LiveContentChanges<'a> {
     pub canvases: &'a [CanvasId],
     pub video_sinks: &'a [VideoSinkResourceId],
+    /// What the compositor repaints whatever the lists hold, such as a blinking caret.
+    pub forced_damage_rect: IntRect,
 }
 
 impl LiveContentChanges<'_> {
@@ -1647,6 +1649,14 @@ pub fn compute_display_list_damage(
         }
     }
 
+    // NB: A backdrop filter reads more than the part of its region that is repainted, so forced damage goes through it too.
+    let forced_damage_rect = live_content_changes.forced_damage_rect;
+    if !forced_damage_rect.is_empty() {
+        damage.damage_rect = Some(match damage.damage_rect {
+            Some(damage_rect) => damage_rect.united(forced_damage_rect),
+            None => forced_damage_rect,
+        });
+    }
     damage.add_backdrop_filter_damage(chains.new_side(), new_command_runs);
 
     if damage.changed_unbounded_command {
@@ -3130,6 +3140,36 @@ mod tests {
         assert_eq!(
             damage(&scene(out_of_reach, RED), &tree, &scene(out_of_reach, BLUE), &tree),
             Some(IntRect::new(0, 9, 11, 22))
+        );
+    }
+
+    #[test]
+    fn forced_damage_at_a_backdrop_filter_repaints_its_whole_region() {
+        let region = IntRect::new(25, 0, 50, 50);
+        let mut tree = identity_tree();
+        let backdrop_context = context_in(
+            VISUAL_VIEWPORT_NODE_INDEX,
+            effect_context(&mut tree, backdrop_effects(blur_filter(4.0), region)),
+        );
+        let bytes = command_bytes(&BackdropFilterRegion { rect: region }, Some(region), backdrop_context);
+        let forced_damage = |forced_damage_rect| {
+            damage_for_live_content_changes(
+                &bytes,
+                &tree,
+                LiveContentChanges {
+                    forced_damage_rect,
+                    ..LiveContentChanges::default()
+                },
+            )
+        };
+        assert_eq!(forced_damage(IntRect::default()), Some(IntRect::default()));
+        assert_eq!(
+            forced_damage(IntRect::new(40, 10, 3, 20)),
+            Some(IntRect::new(24, 0, 52, 51))
+        );
+        assert_eq!(
+            forced_damage(IntRect::new(0, 10, 3, 20)),
+            Some(IntRect::new(0, 9, 4, 22))
         );
     }
 
