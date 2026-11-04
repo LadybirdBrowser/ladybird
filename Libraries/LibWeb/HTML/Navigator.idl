@@ -12,9 +12,6 @@ interface Navigator {
     // https://w3c.github.io/pointerevents/#extensions-to-the-navigator-interface
     readonly attribute long maxTouchPoints;
 
-    // https://wicg.github.io/serial/#extensions-to-the-navigator-interface
-    [SameObject] readonly attribute Serial serial;
-
     // https://html.spec.whatwg.org/multipage/interaction.html#useractivation
     [SameObject] readonly attribute UserActivation userActivation;
 

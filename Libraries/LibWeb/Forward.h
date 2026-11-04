@@ -1070,13 +1070,6 @@ class Selection;
 
 }
 
-namespace Web::Serial {
-
-class Serial;
-class SerialPort;
-
-}
-
 namespace Web::ServiceWorker {
 
 class Cache;
