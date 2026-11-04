@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #spacer {
+        height: 3000px;
+    }
+
+    iframe {
+        display: block;
+        width: 300px;
+        height: 200px;
+        border: 0;
+    }
+</style>
+<iframe srcdoc="<!DOCTYPE html><style>body { margin: 0 } #first { height: 2px } #rest { height: 3000px }</style><div id=first></div><div id=rest></div>"></iframe>
+<div id="spacer"></div>
+<script>
+    // The parent's hover update after its own scroll follows the pointer into the iframe, whose scroll goes on: a wheel
+    // step of 120px animates for 200ms, past the long frame of 120ms that lets the parent's update come due.
+    promiseTest(async () => {
+        const iframe = document.querySelector("iframe");
+        if (iframe.contentDocument?.readyState !== "complete" || iframe.contentDocument.URL !== "about:srcdoc")
+            await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        await animationFrame();
+        await animationFrame();
+
+        const inner = iframe.contentDocument;
+        const first = inner.getElementById("first");
+        const rest = inner.getElementById("rest");
+        let mouseOuts = 0;
+        inner.addEventListener("mouseout", () => ++mouseOuts);
+        internals.mouseMove(1, 1);
+        println(`before the scroll, #first matches :hover: ${first.matches(":hover")}`);
+
+        const afterLongFrame = Promise.withResolvers();
+        let parentScrolled = false;
+        inner.addEventListener("scroll", async () => {
+            if (parentScrolled || iframe.contentWindow.scrollY < 1)
+                return;
+            parentScrolled = true;
+            window.scrollTo(0, 1);
+            while (window.scrollY < 1)
+                await animationFrame();
+            const end = performance.now() + 120;
+            while (performance.now() < end);
+            setTimeout(() => {
+                println(`after the long frame, #first matches :hover: ${first.matches(":hover")}`);
+                println(`after the long frame, mouseout count: ${mouseOuts}`);
+                afterLongFrame.resolve();
+            }, 0);
+        });
+
+        await internals.wheel(1, 1, 0, 120);
+        await afterLongFrame.promise;
+
+        while (!rest.matches(":hover"))
+            await animationFrame();
+        println(`after the scroll, #rest matches :hover: ${rest.matches(":hover")}`);
+    });
+</script>
