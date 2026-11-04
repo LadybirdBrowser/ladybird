@@ -1,0 +1,12 @@
+Ladybird preserves important custom properties when later normal
+declarations name the same property in a parsed block. The last value
+wins among declarations with the same priority. CSSOM setProperty()
+continues to replace the value and priority unconditionally.
+
+Blink’s FilterProperties() places important declarations last, then
+visits declarations in reverse order and keeps each custom-property
+name only once. WebKit’s filterProperties() also visits declarations in
+reverse order, with a pass for important declarations before normal
+ones. Gecko’s PropertyDeclarationBlock::push() keeps an important value
+when a normal declaration names the same property. These approaches
+all preserve the last declaration at the highest priority.
