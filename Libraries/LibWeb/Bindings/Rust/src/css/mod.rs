@@ -82,3 +82,4 @@ pub(crate) mod style_sheet;
 pub(crate) mod style_sheet_list;
 pub(crate) mod transition_event;
 pub(crate) mod typed_om;
+pub(crate) mod visual_viewport;

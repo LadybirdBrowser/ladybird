@@ -5732,7 +5732,7 @@ void Document::run_the_resize_steps()
                 UIEvents::EventNames::resize,
                 HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
             visual_viewport_resize_event->set_is_trusted(true);
-            visual_viewport.dispatch_event(visual_viewport_resize_event);
+            visual_viewport.event_target()->dispatch_event(visual_viewport_resize_event);
         }
     }
 }

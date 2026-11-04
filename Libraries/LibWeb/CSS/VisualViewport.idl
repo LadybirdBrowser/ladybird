@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/cssom-view/#the-visualviewport-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface VisualViewport : EventTarget {
 
     readonly attribute double offsetLeft;

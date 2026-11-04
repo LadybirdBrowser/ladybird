@@ -7,27 +7,28 @@
 
 #pragma once
 
-#include <LibGfx/AffineTransform.h>
-#include <LibWeb/DOM/EventTarget.h>
+#include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Bindings/VisualViewport.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWebCommon/PixelUnits.h>
 
 namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom-view/#visualviewport
-class WEB_API VisualViewport final : public DOM::EventTarget {
-    WEB_WRAPPABLE(VisualViewport, DOM::EventTarget);
-    GC_DECLARE_ALLOCATOR(VisualViewport);
+class WEB_API VisualViewport final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(VisualViewport, visual_viewport)
 
 public:
     [[nodiscard]] static GC::Ref<VisualViewport> create(DOM::Document&);
 
-    virtual ~VisualViewport() override = default;
+    // The compositor zooms and pans the visual viewport too, and hears of every change made to it here.
+    static void did_change_offset_or_scale(DOM::Document&);
 
-    DOM::Document& document() { return m_document; }
-    DOM::Document const& document() const { return m_document; }
+    [[nodiscard]] GC::Ref<DOM::EventTarget> event_target() const;
 
-    CSSPixelPoint offset() const { return m_offset; }
+    CSSPixelPoint offset() const;
 
     [[nodiscard]] double offset_left() const;
     [[nodiscard]] double offset_top() const;
@@ -40,16 +41,8 @@ public:
 
     [[nodiscard]] double scale() const;
 
-    void set_onresize(WebIDL::CallbackType*);
-    WebIDL::CallbackType* onresize();
-    void set_onscroll(WebIDL::CallbackType*);
-    WebIDL::CallbackType* onscroll();
-    void set_onscrollend(WebIDL::CallbackType*);
-    WebIDL::CallbackType* onscrollend();
-
     void scroll_by(CSSPixelPoint delta);
 
-    [[nodiscard]] Gfx::AffineTransform transform() const;
     void zoom(CSSPixelPoint position, double scale_delta);
     void set_scale_zoomed_by_compositor(double scale);
     // The scale, if this thread changed it since the compositor last heard of it.
@@ -58,20 +51,6 @@ public:
     CSSPixelPoint map_from_layout_viewport(CSSPixelPoint) const;
     CSSPixelRect map_from_layout_viewport(CSSPixelRect const&) const;
     void reset();
-
-private:
-    explicit VisualViewport(DOM::Document&);
-    virtual void visit_edges(Cell::Visitor&) override;
-    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
-
-    void did_scroll();
-    void did_change_offset_or_scale();
-    void update_accumulated_visual_context();
-
-    GC::Ref<DOM::Document> m_document;
-    CSSPixelPoint m_offset;
-    double m_scale { 1.0 };
-    bool m_scale_is_new_to_compositor { false };
 };
 
 }
