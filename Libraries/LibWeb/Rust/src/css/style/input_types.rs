@@ -21,10 +21,6 @@ use super::pipeline::rule_store::DeclarationBlockID;
 use super::tree::StyleNodeID;
 use super::tree::TreeScopeID;
 
-/// Monotonic identity of one normalized style update published by a document.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct StyleUpdateVersion(pub u64);
-
 // -- Typed semantic inputs -------------------------------------------------------------------
 
 // An element or document state fact.

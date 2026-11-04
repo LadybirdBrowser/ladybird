@@ -607,9 +607,9 @@ fn a_departed_node_routes_from_retained_facts_without_being_published() {
     engine.record_tree_delta(nodes[3], Some(relations(Some(nodes[2].raw()), None, None)), None);
 
     let mut published = Vec::new();
-    assert!(engine.run_style_update(nodes[0], |_, reactions| {
+    engine.run_style_update(nodes[0], |reactions| {
         published.extend(reactions.iter().map(|reaction| reaction.style_node));
-    }));
+    });
     assert!(!published.contains(&nodes[3].raw()));
 }
 
@@ -641,9 +641,9 @@ fn a_shadow_root_routes_without_being_published_as_a_style_output() {
     );
 
     let mut published = Vec::new();
-    assert!(engine.run_style_update(host, |_, reactions| {
+    engine.run_style_update(host, |reactions| {
         published.extend(reactions.iter().map(|reaction| reaction.style_node));
-    }));
+    });
     assert!(!published.contains(&shadow_root.raw()));
 }
 

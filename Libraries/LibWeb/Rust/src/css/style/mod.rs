@@ -187,7 +187,6 @@ use input_types::InputValue;
 use input_types::PendingElementInputs;
 use input_types::StateFact;
 use input_types::StyleUpdate;
-use input_types::StyleUpdateVersion;
 use input_types::TreeRelations;
 use pipeline::rule_store::CascadeLayerID;
 use pipeline::rule_store::CustomDeclaration;
@@ -228,8 +227,6 @@ pub struct RetainedState {
     process_style: Arc<process_style::ProcessStyle>,
     /// The last declaration block version minted, by the engine or by its document's host, which mints without it.
     declaration_block_version: Arc<std::sync::atomic::AtomicU32>,
-    /// Monotonic identity assigned to each non-empty normalized style update.
-    next_style_update_version: StyleUpdateVersion,
     /// Latest document-wide scalar computation facts, copied at the transaction boundary. The host
     /// publishes them with every transaction, before it asks for any row.
     document_style_computation_inputs: bridge::FfiDocumentStyleComputationInputs,
