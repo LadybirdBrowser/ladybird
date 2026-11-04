@@ -33,6 +33,7 @@ pub(crate) mod style_layout_pool;
 pub(crate) mod svg;
 
 // What libweb_bindings_rust, whose interfaces are implemented in Rust, uses of this crate.
+pub use css::media_list::{MediaList as NativeMediaList, MediaListDeleteResult};
 pub use svg::gfx_path_from_path_data;
 
 /// The red, green, blue and alpha of a CSS <color> in ASCII that needs nothing to be resolved against, or None for any

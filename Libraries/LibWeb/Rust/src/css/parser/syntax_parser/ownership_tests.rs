@@ -1148,25 +1148,25 @@ fn media_mutation_preserves_live_owners_and_shared_snapshots() {
         assert!(rust_media_list_matches(&retained));
         assert!(!rust_media_list_matches(&shared));
         assert!(matches!(
-            rust_media_list_delete(&media, view(&utf16("all"))),
+            media.delete_medium(ak::Utf16StringUnits::Utf16(&utf16("all"))),
             MediaListDeleteResult::Removed
         ));
         assert!(!rust_media_list_matches(&media));
         assert_eq!(text(&retained), utf16("print"));
         assert_eq!(text(&shared), utf16("all, print"));
-        assert!(!rust_media_list_append(&media, view(&utf16("PRINT"))));
-        assert!(!rust_media_list_append(&media, view(&utf16("screen, print"))));
+        assert!(!media.append_medium(ak::Utf16StringUnits::Utf16(&utf16("PRINT"))));
+        assert!(!media.append_medium(ak::Utf16StringUnits::Utf16(&utf16("screen, print"))));
         assert!(matches!(
-            rust_media_list_delete(&media, view(&utf16("screen, print"))),
+            media.delete_medium(ak::Utf16StringUnits::Utf16(&utf16("screen, print"))),
             MediaListDeleteResult::Invalid
         ));
         assert!(matches!(
-            rust_media_list_delete(&media, view(&utf16("screen"))),
+            media.delete_medium(ak::Utf16StringUnits::Utf16(&utf16("screen"))),
             MediaListDeleteResult::NotFound
         ));
         rust_media_list_set_text(&media, view(&utf16("écran, écran")));
         assert!(matches!(
-            rust_media_list_delete(&media, view(&utf16("écran"))),
+            media.delete_medium(ak::Utf16StringUnits::Utf16(&utf16("écran"))),
             MediaListDeleteResult::Removed
         ));
         assert_eq!(rust_media_list_length(&retained), 0);
@@ -1178,7 +1178,7 @@ fn media_mutation_preserves_live_owners_and_shared_snapshots() {
             (&raw mut item).cast(),
             collect_text
         ));
-        assert!(rust_media_list_append(&media, view(&utf16(""))));
+        assert!(media.append_medium(ak::Utf16StringUnits::Utf16(&utf16(""))));
         assert!(rust_media_list_item(&retained, 0, (&raw mut item).cast(), collect_text));
         assert_eq!(item, utf16("not all"));
         drop(media);

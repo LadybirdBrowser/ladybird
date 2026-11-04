@@ -90,8 +90,6 @@ public:
         return Parser::ValueParserFFI::rust_media_list_evaluate(m_list, environment.ffi_environment());
     }
     void set_text(Utf16View text) const { Parser::ValueParserFFI::rust_media_list_set_text(m_list, view(text)); }
-    bool append(Utf16View text) const { return Parser::ValueParserFFI::rust_media_list_append(m_list, view(text)); }
-    Parser::ValueParserFFI::MediaListDeleteResult remove(Utf16View text) const { return Parser::ValueParserFFI::rust_media_list_delete(m_list, view(text)); }
     Utf16String media_text() const
     {
         Utf16String result;

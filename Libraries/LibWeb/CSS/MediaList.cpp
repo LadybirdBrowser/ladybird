@@ -5,7 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
@@ -15,61 +17,56 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/WebIDL/DOMException.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
-GC_DEFINE_ALLOCATOR(MediaList);
+extern "C" {
 
-GC::Ref<MediaList> MediaList::create(RustMediaList media)
-{
-    return GC::Heap::the().allocate<MediaList>(move(media));
+// Defined in Bindings/Rust/src/css/exports.rs.
+void* web_media_list_create(JSVM*, Parser::ValueParserFFI::MediaList const*);
+void web_media_list_set_associated_style_sheet(JSVM*, void* list, void* sheet);
+void web_media_list_set_associated_rule(JSVM*, void* list, void* rule);
+Parser::ValueParserFFI::MediaList* web_media_list_share_native_list(void* list);
+
+// Declared in Bindings/Rust/src/css/media_list.rs.
+void web_css_media_list_changed(void* style_sheet, void* rule);
 }
 
-MediaList::MediaList(RustMediaList media)
-    : m_media(move(media))
+GC::Ref<MediaList> MediaList::create(RustMediaList const& media)
 {
+    return GC::Ref { *static_cast<MediaList*>(web_media_list_create(JS::HostABI::vm_to_abi(JS::VM::the()), media.handle())) };
 }
 
-void MediaList::visit_edges(GC::Cell::Visitor& visitor)
+RustMediaList MediaList::share_native_list() const
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_associated_style_sheet);
-    visitor.visit(m_associated_cssom_sheet);
-    visitor.visit(m_associated_rule);
+    return RustMediaList { web_media_list_share_native_list(const_cast<MediaList*>(this)) };
 }
-
-// https://www.w3.org/TR/cssom-1/#dom-medialist-mediatext
-Utf16String MediaList::media_text() const
-{
-    return m_media.media_text();
-}
-
-MediaList::~MediaList() = default;
 
 void MediaList::set_associated_style_sheet(NonnullRefPtr<StyleSheetState> sheet)
 {
-    m_associated_cssom_sheet = &sheet->cssom_sheet();
-    m_associated_style_sheet = move(sheet);
+    web_media_list_set_associated_style_sheet(JS::HostABI::vm_to_abi(JS::VM::the()), this, static_cast<GC::Cell*>(&sheet->cssom_sheet()));
 }
 
-// Both owners reach the same place: the sheet whose rules the gate belongs to.
-RefPtr<StyleSheetState> MediaList::owning_style_sheet()
+void MediaList::set_associated_rule(GC::Ref<CSSRule> rule)
 {
-    if (m_associated_style_sheet)
-        return m_associated_style_sheet;
-    if (m_associated_rule)
-        return m_associated_rule->parent_style_sheet();
-    return {};
+    web_media_list_set_associated_rule(JS::HostABI::vm_to_abi(JS::VM::the()), this, static_cast<GC::Cell*>(rule.ptr()));
 }
 
-void MediaList::invalidate_owners_for_media_change()
+void web_css_media_list_changed(void* style_sheet_cell, void* rule_cell)
 {
-    auto sheet = owning_style_sheet();
+    auto* style_sheet = static_cast<CSSStyleSheet*>(static_cast<GC::Cell*>(style_sheet_cell));
+    auto* rule = static_cast<CSSRule*>(static_cast<GC::Cell*>(rule_cell));
+
+    // Both owners reach the same place: the sheet whose rules the gate belongs to.
+    RefPtr<StyleSheetState> sheet;
+    if (style_sheet)
+        sheet = style_sheet->state();
+    else if (rule)
+        sheet = rule->parent_style_sheet();
     if (!sheet)
         return;
-    if (m_associated_rule)
+
+    if (rule)
         stop_sharing_compiled_style_sheet(*sheet);
     invalidate_style_sheet_for_media_change(*sheet);
 }
@@ -85,39 +82,6 @@ void invalidate_style_sheet_for_media_change(StyleSheetState& sheet)
     // no change at all. Saying the state outright leaves it to the engine to reject what did not
     // move, which it does.
     record_stylesheet_rule_conditions(sheet);
-}
-
-void MediaList::set_media_text(Utf16View text)
-{
-    m_media.set_text(text);
-    invalidate_owners_for_media_change();
-}
-
-// https://www.w3.org/TR/cssom-1/#dom-medialist-item
-Optional<Utf16String> MediaList::item(u32 index) const
-{
-    return m_media.item(index);
-}
-
-// https://www.w3.org/TR/cssom-1/#dom-medialist-appendmedium
-void MediaList::append_medium(Utf16View medium)
-{
-    if (m_media.append(medium))
-        invalidate_owners_for_media_change();
-}
-
-// https://www.w3.org/TR/cssom-1/#dom-medialist-deletemedium
-WebIDL::ExceptionOr<void> MediaList::delete_medium(Utf16View medium)
-{
-    auto result = m_media.remove(medium);
-    if (result == Parser::ValueParserFFI::MediaListDeleteResult::Invalid)
-        return {};
-    if (result == Parser::ValueParserFFI::MediaListDeleteResult::NotFound)
-        return WebIDL::NotFoundError::create("Media query not found in list"_utf16);
-
-    invalidate_owners_for_media_change();
-
-    return {};
 }
 
 MediaEnvironmentSnapshot::MediaEnvironmentSnapshot(DOM::Document const& document)

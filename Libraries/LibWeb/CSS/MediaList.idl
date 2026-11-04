@@ -1,7 +1,7 @@
 // https://drafts.csswg.org/cssom-1/#the-medialist-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface MediaList {
-    [LegacyNullToEmptyString] stringifier attribute CSSOMString mediaText;
+    stringifier attribute [LegacyNullToEmptyString] CSSOMString mediaText;
     readonly attribute unsigned long length;
     getter CSSOMString? item(unsigned long index);
     undefined appendMedium(CSSOMString medium);

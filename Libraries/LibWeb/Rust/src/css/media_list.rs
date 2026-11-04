@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use ak::Utf16StringUnits;
+
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::ffi_support::{FfiUtf16View, OwnedBox};
 use crate::css::parser::query_parser::{
@@ -40,6 +42,12 @@ struct MediaListState {
     matches: Vec<bool>,
 }
 
+pub enum MediaListDeleteResult {
+    Invalid,
+    Removed,
+    NotFound,
+}
+
 #[derive(Clone)]
 pub struct MediaList {
     owner: Rc<RefCell<MediaListState>>,
@@ -50,8 +58,88 @@ impl MediaList {
         self.owner.borrow().data.clone()
     }
 
-    pub(crate) fn share(&self) -> Self {
+    /// A list of its own with the media queries of this one, as they are now.
+    pub fn share(&self) -> Self {
         Self::new(self.owner.borrow().data.clone())
+    }
+
+    /// The number of media queries in the collection of media queries.
+    pub fn length(&self) -> usize {
+        self.owner.borrow().data.queries.len()
+    }
+
+    /// The serialization of the collection of media queries.
+    pub fn media_text(&self) -> Vec<u16> {
+        let state = self.owner.borrow();
+        let mut text = Vec::new();
+        for (index, query) in state.data.queries.iter().enumerate() {
+            if index != 0 {
+                text.extend([u16::from(b','), u16::from(b' ')]);
+            }
+            text.extend(query.media_text());
+        }
+        text
+    }
+
+    /// The serialization of the media query at the index of the collection of media queries, if it has one there.
+    pub fn item(&self, index: usize) -> Option<Vec<u16>> {
+        self.owner
+            .borrow()
+            .data
+            .queries
+            .get(index)
+            .map(|query| query.media_text())
+    }
+
+    /// Replaces the collection of media queries with the result of parsing the text.
+    pub fn set_media_text(&self, text: Utf16StringUnits<'_>) {
+        self.set_text(text.into());
+    }
+
+    /// Whether the medium was added.
+    pub fn append_medium(&self, medium: Utf16StringUnits<'_>) -> bool {
+        // https://drafts.csswg.org/cssom/#dom-medialist-appendmedium
+        // 1. Let m be the result of parsing the given value.
+        // 2. If m is null, then return.
+        let Some(query) = parse_medium(medium.into()) else {
+            return false;
+        };
+        // 3. If comparing m with any of the media queries in the collection of media queries returns true, then return.
+        let text = query.media_text();
+        let mut state = self.owner.borrow_mut();
+        if state.data.queries.iter().any(|existing| existing.media_text() == text) {
+            return false;
+        }
+        // 4. Append m to the collection of media queries.
+        Arc::make_mut(&mut state.data).queries.push(query);
+        state.matches.push(false);
+        true
+    }
+
+    pub fn delete_medium(&self, medium: Utf16StringUnits<'_>) -> MediaListDeleteResult {
+        // https://drafts.csswg.org/cssom/#dom-medialist-deletemedium
+        // 1. Let m be the result of parsing the given value.
+        // 2. If m is null, then return.
+        let Some(query) = parse_medium(medium.into()) else {
+            return MediaListDeleteResult::Invalid;
+        };
+        // 3. Remove any media query from the collection of media queries for which comparing the media query with m
+        //    returns true. If nothing was removed, then throw a NotFoundError exception.
+        let text = query.media_text();
+        let mut state = self.owner.borrow_mut();
+        let mut removed = false;
+        for index in (0..state.data.queries.len()).rev() {
+            if state.data.queries[index].media_text() == text {
+                Arc::make_mut(&mut state.data).queries.remove(index);
+                state.matches.remove(index);
+                removed = true;
+            }
+        }
+        if removed {
+            MediaListDeleteResult::Removed
+        } else {
+            MediaListDeleteResult::NotFound
+        }
     }
 
     pub(crate) fn set_text(&self, source: TokenizerInput<'_>) {
@@ -126,7 +214,7 @@ pub extern "C" fn rust_media_list_free(list: OwnedBox<MediaList>) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_media_list_length(list: &MediaList) -> usize {
-    list.owner.borrow().data.queries.len()
+    list.length()
 }
 
 #[unsafe(no_mangle)]
@@ -135,73 +223,12 @@ pub extern "C" fn rust_media_list_set_text(list: &MediaList, source: FfiUtf16Vie
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_media_list_append(list: &MediaList, source: FfiUtf16View) -> bool {
-    // https://drafts.csswg.org/cssom/#dom-medialist-appendmedium
-    // 1. Let m be the result of parsing the given value.
-    // 2. If m is null, then return.
-    let Some(query) = parse_medium(source.units().unwrap()) else {
-        return false;
-    };
-    // 3. If comparing m with any of the media queries in the collection of media queries returns true, then return.
-    let text = query.media_text();
-    let mut state = list.owner.borrow_mut();
-    if state.data.queries.iter().any(|existing| existing.media_text() == text) {
-        return false;
-    }
-    // 4. Append m to the collection of media queries.
-    Arc::make_mut(&mut state.data).queries.push(query);
-    state.matches.push(false);
-    true
-}
-
-#[repr(u8)]
-pub enum MediaListDeleteResult {
-    Invalid,
-    Removed,
-    NotFound,
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_media_list_delete(list: &MediaList, source: FfiUtf16View) -> MediaListDeleteResult {
-    // https://drafts.csswg.org/cssom/#dom-medialist-deletemedium
-    // 1. Let m be the result of parsing the given value.
-    // 2. If m is null, then return.
-    let Some(query) = parse_medium(source.units().unwrap()) else {
-        return MediaListDeleteResult::Invalid;
-    };
-    // 3. Remove any media query from the collection of media queries for which comparing the media query with m
-    //    returns true. If nothing was removed, then throw a NotFoundError exception.
-    let text = query.media_text();
-    let mut state = list.owner.borrow_mut();
-    let mut removed = false;
-    for index in (0..state.data.queries.len()).rev() {
-        if state.data.queries[index].media_text() == text {
-            Arc::make_mut(&mut state.data).queries.remove(index);
-            state.matches.remove(index);
-            removed = true;
-        }
-    }
-    if removed {
-        MediaListDeleteResult::Removed
-    } else {
-        MediaListDeleteResult::NotFound
-    }
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_media_list_serialize(
     list: &MediaList,
     context: *mut c_void,
     visit: VisitQuerySerialization,
 ) {
-    let state = list.owner.borrow();
-    let mut text = Vec::new();
-    for (index, query) in state.data.queries.iter().enumerate() {
-        if index != 0 {
-            text.extend([u16::from(b','), u16::from(b' ')]);
-        }
-        text.extend(query.media_text());
-    }
+    let text = list.media_text();
     unsafe { visit(context, text.as_ptr(), text.len()) };
 }
 
@@ -212,11 +239,9 @@ pub unsafe extern "C" fn rust_media_list_item(
     context: *mut c_void,
     visit: VisitQuerySerialization,
 ) -> bool {
-    let state = list.owner.borrow();
-    let Some(query) = state.data.queries.get(index) else {
+    let Some(text) = list.item(index) else {
         return false;
     };
-    let text = query.media_text();
     unsafe { visit(context, text.as_ptr(), text.len()) };
     true
 }

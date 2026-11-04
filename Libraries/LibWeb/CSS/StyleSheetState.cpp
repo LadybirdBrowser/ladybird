@@ -45,7 +45,7 @@ NonnullRefPtr<StyleSheetState> StyleSheetState::create(RustRuleList rules, GC::P
 WebIDL::ExceptionOr<NonnullRefPtr<StyleSheetState>> StyleSheetState::create_constructed(DOM::Document const& associated_document, CSSStyleSheetOptions const& options)
 {
     // 1. Construct a new CSSStyleSheet object sheet.
-    auto media = options.media.has<GC::Ref<MediaList>>() ? options.media.get<GC::Ref<MediaList>>()->native_list().share() : RustMediaList {};
+    auto media = options.media.has<GC::Ref<MediaList>>() ? options.media.get<GC::Ref<MediaList>>()->share_native_list() : RustMediaList {};
     auto sheet = create(RustRuleList {}, const_cast<DOM::Document*>(&associated_document), move(media), {});
 
     // 2. Set sheet’s location to the base URL of the associated Document for the current principal global object.
@@ -935,7 +935,7 @@ GC::Ref<MediaList> StyleSheetState::media() const
     if (auto* import = owner_import())
         return import->media();
     if (!m_media) {
-        m_media = MediaList::create(native_media_list().retain());
+        m_media = MediaList::create(native_media_list());
         m_media->set_associated_style_sheet(const_cast<StyleSheetState&>(*this));
     }
     return *m_media;
