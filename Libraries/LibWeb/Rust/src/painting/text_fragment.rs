@@ -240,25 +240,45 @@ pub(crate) fn selection_offsets_for_dom_range(
     })
 }
 
+/// Calls `callback` with each cluster of a fragment's glyph run, in glyph order: the code units it covers
+/// (`cluster_start..cluster_end`) and its advance. Each glyph that covers code units starts a cluster, even one with no
+/// advance (e.g. a soft hyphen's), and a glyph that covers none (another glyph of the same cluster) adds its advance to
+/// the cluster before it. Stops early when `callback` returns false.
 fn for_each_cluster_in_glyph_run(
     glyphs: &[libgfx_rust::text_layout::DrawGlyph],
     fragment_length_in_code_units: usize,
     mut callback: impl FnMut(usize, usize, f32) -> bool,
 ) {
     let mut cursor = 0usize;
+    // The cluster whose glyphs are still being added up, and the advance of glyphs that came before any code unit.
+    let mut pending: Option<(usize, usize, f32)> = None;
+    let mut leading_advance = 0.0f32;
     for glyph in glyphs {
-        if glyph.advance == 0.0 {
+        if glyph.length_in_code_units() == 0 {
+            match &mut pending {
+                Some((_, _, width)) => *width += glyph.advance,
+                None => leading_advance += glyph.advance,
+            }
             continue;
         }
         let cluster_start = cursor;
         let cluster_end = (cursor + glyph.length_in_code_units()).min(fragment_length_in_code_units);
         cursor = cluster_end;
-        if cluster_end <= cluster_start {
-            continue;
-        }
-        if !callback(cluster_start, cluster_end, glyph.advance) {
+        if let Some((start, end, width)) = pending.take()
+            && !callback(start, end, width)
+        {
             return;
         }
+        if cluster_end > cluster_start {
+            pending = Some((
+                cluster_start,
+                cluster_end,
+                glyph.advance + std::mem::take(&mut leading_advance),
+            ));
+        }
+    }
+    if let Some((start, end, width)) = pending {
+        callback(start, end, width);
     }
 }
 

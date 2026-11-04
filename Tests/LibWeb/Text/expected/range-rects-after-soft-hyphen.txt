@@ -1,0 +1,2 @@
+c starts where b ends: true
+d starts where c ends: true
