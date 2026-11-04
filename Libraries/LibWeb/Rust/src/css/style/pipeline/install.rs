@@ -832,9 +832,39 @@ impl RetainedState {
 #[cfg(test)]
 mod tests {
     use super::super::super::TreeScopeID;
+    use super::super::super::computed;
     use super::super::super::custom_property_environments::environment_identity;
     use super::super::test_support::*;
     use std::collections::HashMap;
+
+    #[test]
+    fn a_store_holding_what_the_record_of_an_element_holds_resolves_to_its_environment() {
+        let (mut engine, nodes) = nested_document();
+        let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
+        add_rules(&mut engine, sheet, ".theme { --theme: 1px; }");
+        add_class(&mut engine, nodes[0], "theme");
+        start_live(&mut engine, nodes[0]);
+
+        let record = live_record(&engine, nodes[0]);
+        let store = record.custom_properties().unwrap().clone();
+        let state = &mut engine.retained;
+        let registry = state.document_style_computation_inputs.custom_property_registry();
+        let environment =
+            state
+                .custom_property_environments
+                .adopt_engine_environment(store.clone(), None, 0, None, registry);
+        let installed = state.computed_group_sets.install_derived_record(&record, || {
+            computed::record_dependency_flags(&record.facts(), &record.payloads)
+        });
+        state.computed_group_sets.assign_installed_record(nodes[0], installed);
+
+        // NB: The element holds no environment of its own, as nothing lies over its record.
+        assert!(!state.element_custom_property_data.contains_key(&nodes[0]));
+        assert_eq!(
+            state.environment_resolving_to_the_same_values(nodes[0], None, &store, registry),
+            Some(environment)
+        );
+    }
 
     #[test]
     fn a_pseudo_element_inheriting_a_store_leaves_the_environment_of_its_holder() {
