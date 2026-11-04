@@ -4070,6 +4070,9 @@ void Node::mark_box(Layout::RustFFI::FfiBoxMarks marks)
 // published answer for a node that gains one.
 void Node::publish_dom_paint_facts()
 {
+    // NB: A node the style mirror has not named has nowhere to publish them, and publishes them as it arrives.
+    if (!NodeIdentity::of(*this))
+        return;
     auto& document = this->document();
     auto facts = Layout::Node::dom_paint_facts_of(this);
     // A document where nothing is ever inert, editable or inside a wheel handler publishes nothing, which keeps a
