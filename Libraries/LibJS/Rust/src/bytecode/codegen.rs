@@ -3742,7 +3742,11 @@ fn try_generate_builtin_abstract_operation(
     }
     let arena = generator.arena.clone();
     let name = match &data.callee.inner {
-        ExpressionKind::Identifier(ident) => arena.name_slice(*ident),
+        ExpressionKind::Identifier(ident)
+            if arena.identifiers[*ident].is_global && arena.identifiers[*ident].declaration_kind.is_none() =>
+        {
+            arena.name_slice(*ident)
+        }
         _ => return None,
     };
     if data.arguments.iter().any(|a| a.is_spread) {
@@ -10506,6 +10510,55 @@ fn nanboxed_null() -> u64 {
 
 fn nanboxed_empty() -> u64 {
     nan_box::EMPTY_VALUE
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_builtin_expression(source: &str, statement_index: usize) -> (crate::compile::ParsedProgram, Expression) {
+        let source: Vec<u16> = source.encode_utf16().collect();
+        let parsed = crate::compile::parse_builtin_file(&source);
+        let scope = match &parsed.program.inner {
+            StatementKind::Program(data) => data.scope,
+            _ => unreachable!(),
+        };
+        let statement = &parsed.arena.scopes[scope].children[statement_index];
+        let StatementKind::Expression(expression) = &statement.inner else {
+            panic!("expected expression statement at index {statement_index}");
+        };
+        let expression = *expression.clone();
+        (parsed, expression)
+    }
+
+    fn builtin_generator(arena: std::sync::Arc<AstArena>) -> Generator {
+        let mut generator = Generator::new();
+        generator.arena = arena;
+        generator.builtin_abstract_operations_enabled = true;
+        let block = generator.make_block();
+        generator.switch_to_basic_block(block);
+        generator
+    }
+
+    #[test]
+    fn builtin_intrinsic_lowering_respects_declared_global_shadows() {
+        let (parsed, expression) = parse_builtin_expression("let ToBoolean; ToBoolean(0);", 1);
+        let mut generator = builtin_generator(parsed.arena.clone());
+
+        generate_expression(&expression, &mut generator, None).expect("call expression should produce a value");
+
+        let instructions = &generator.basic_blocks[0].instructions;
+        assert!(
+            instructions
+                .iter()
+                .any(|(instruction, _, _)| matches!(instruction, Instruction::Call { .. }))
+        );
+        assert!(
+            !instructions
+                .iter()
+                .any(|(instruction, _, _)| matches!(instruction, Instruction::ToBoolean { .. }))
+        );
+    }
 }
 
 // =============================================================================
