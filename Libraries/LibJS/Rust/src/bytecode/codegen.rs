@@ -661,7 +661,8 @@ fn might_contain_assignment_expression(expression: &Expression) -> bool {
         | ExpressionKind::StringLiteral(_)
         | ExpressionKind::BooleanLiteral(_)
         | ExpressionKind::NullLiteral
-        | ExpressionKind::Identifier(_) => false,
+        | ExpressionKind::Identifier(_)
+        | ExpressionKind::PrivateIdentifier(_) => false,
         ExpressionKind::Unary { op: _, operand } => might_contain_assignment_expression(operand),
         ExpressionKind::Binary(data) => {
             might_contain_assignment_expression(&data.lhs) || might_contain_assignment_expression(&data.rhs)
@@ -978,7 +979,7 @@ fn generate_member_expression(
         return Some(dst);
     }
     let obj = generate_expression(object, generator, None)?;
-    let obj = generator.copy_if_needed_to_preserve_evaluation_order(&obj);
+    let obj = copy_if_reassignable_by(generator, obj, [property]);
     let base_id = intern_base_identifier(generator, object);
     if computed {
         let property = generate_expression(property, generator, None)?;
@@ -4068,6 +4069,7 @@ fn generate_call_expression(
             }
             ExpressionKind::Member(data) => {
                 let obj = generate_expression_or_undefined(&data.object, generator, None);
+                let obj = copy_if_reassignable_by(generator, obj, [&*data.property]);
                 let base_id = intern_base_identifier(generator, &data.object);
                 let method = generator.allocate_register();
                 if data.computed {
@@ -5349,6 +5351,7 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
                 return generator.add_constant_undefined();
             }
             let base = generate_expression_or_undefined(&data.object, generator, None);
+            let base = copy_if_reassignable_by(generator, base, [&*data.property]);
             let dst = generator.allocate_register();
             if data.computed {
                 let key = generate_expression_or_undefined(&data.property, generator, None);
@@ -5460,6 +5463,7 @@ fn emit_evaluate_member_reference(generator: &mut Generator, target: &Expression
             }
         } else {
             let base = generate_expression_or_undefined(&member_data.object, generator, None);
+            let base = generator.copy_if_needed_to_preserve_evaluation_order(&base);
             if member_data.computed {
                 let property = generate_expression_or_undefined(&member_data.property, generator, None);
                 // If the computed property is a constant string (e.g. obj["key"]),
@@ -5583,6 +5587,7 @@ fn emit_store_to_reference(generator: &mut Generator, target: &Expression, value
                 );
             } else {
                 let base = generate_expression_or_undefined(&data.object, generator, None);
+                let base = copy_if_reassignable_by(generator, base, [&*data.property]);
                 emit_put_to_member(generator, &base, &data.property, data.computed, value, None);
             }
         }
@@ -6607,7 +6612,7 @@ fn generate_optional_chain_inner(
                 );
                 generator.emit_mov(current_base, &this_value);
             } else if member_data.computed {
-                let obj = generator.copy_if_needed_to_preserve_evaluation_order(&obj);
+                let obj = copy_if_reassignable_by(generator, obj, [&*member_data.property]);
                 let property = generate_expression(&member_data.property, generator, None)?;
                 emit_get_by_value(generator, &val, &obj, &property, None);
                 generator.emit_mov(current_base, &obj);
@@ -6755,7 +6760,7 @@ fn generate_optional_chain_start(
                 );
                 generator.emit_mov(current_base, &this_value);
             } else if member_data.computed {
-                let obj = generator.copy_if_needed_to_preserve_evaluation_order(&obj);
+                let obj = copy_if_reassignable_by(generator, obj, [&*member_data.property]);
                 let property = generate_expression(&member_data.property, generator, None)?;
                 emit_get_by_value(generator, &val, &obj, &property, None);
                 generator.emit_mov(current_base, &obj);
