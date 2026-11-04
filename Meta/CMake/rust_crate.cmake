@@ -429,6 +429,9 @@ function(_rust_crate_common_setup)
     if (APPLE AND CMAKE_OSX_SYSROOT)
         list(APPEND cargo_env "SDKROOT=${CMAKE_OSX_SYSROOT}")
     endif()
+    if (APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET)
+        list(APPEND cargo_env "MACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+    endif()
 
     set(cargo_common_flags
         "--target=${RUST_TARGET_TRIPLE}"
