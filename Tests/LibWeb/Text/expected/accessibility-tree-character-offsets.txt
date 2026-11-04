@@ -1,0 +1,15 @@
+wrapping: 30 offsets for 30 characters
+  rendered characters at layout's x: 26 of 26
+  unrendered characters at the next rendered character's x: 2 of 2
+  x decreases along a line: 0 times
+  distinct line tops: 3
+soft-hyphen: 5 offsets for 5 characters
+  rendered characters at layout's x: 4 of 4
+  unrendered characters at the next rendered character's x: 1 of 1
+  x decreases along a line: 0 times
+  distinct line tops: 1
+uppercased: 27 offsets for 27 characters
+  rendered characters at layout's x: 24 of 24
+  unrendered characters at the next rendered character's x: 0 of 0
+  x decreases along a line: 0 times
+  distinct line tops: 4

@@ -131,6 +131,7 @@
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/WebDriver/Response.h>
+#include <LibWebCommon/WebView/AccessibilityNodeData.h>
 
 namespace Web::Internals {
 
@@ -1875,6 +1876,25 @@ Utf16String Internals::dump_display_list()
 Utf16String Internals::dump_accessibility_tree()
 {
     return window().associated_document().dump_accessibility_tree_as_json();
+}
+
+String Internals::accessibility_character_offsets(GC::Ref<DOM::Node> node)
+{
+    auto& document = node->document();
+    document.update_layout(DOM::UpdateLayoutReason::InspectAccessibilityTree);
+    auto node_id = static_cast<i64>(node->unique_id().value());
+    StringBuilder builder;
+    for (auto const& node_data : document.build_accessibility_node_data()) {
+        if (node_data.id != node_id)
+            continue;
+        for (auto const& offset : node_data.character_offsets) {
+            if (!builder.is_empty())
+                builder.append(' ');
+            builder.appendff("{},{}", offset.x(), offset.y());
+        }
+        break;
+    }
+    return builder.to_string_without_validation();
 }
 
 Utf16String Internals::dump_layout_tree(GC::Ref<DOM::Node> node)

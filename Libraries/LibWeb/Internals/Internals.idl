@@ -227,6 +227,8 @@ interface Internals {
 
     DOMString dumpDisplayList();
     DOMString dumpAccessibilityTree();
+    // The per-character offsets that the accessibility tree reports for a text node, as space-separated "x,y" pairs.
+    DOMString accessibilityCharacterOffsets(Node node);
     DOMString dumpLayoutTree(Node node);
     DOMString dumpStackingContextTree();
     DOMString stackingContextStructureVerificationReport();

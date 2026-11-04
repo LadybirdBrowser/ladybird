@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf8View.h>
 #include <LibGC/Heap.h>
@@ -663,6 +664,31 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
                         text_origin.set_y(min(text_origin.y(), rendered.rect.y()));
                     }
                     auto text_utf16 = text_node.data().utf16_view();
+
+                    // The document-absolute x where each DOM offset's character starts, and where each fragment's text
+                    // ends, from the glyph runs layout shaped the text into.
+                    struct CharacterXPositions {
+                        Vector<Optional<float>> start_x;
+                        Vector<Optional<float>> fragment_end_x;
+                    };
+                    CharacterXPositions x_positions;
+                    x_positions.start_x.resize(text_utf16.length_in_code_units() + 1);
+                    x_positions.fragment_end_x.resize(text_utf16.length_in_code_units() + 1);
+                    Layout::RustFFI::layout_script_text_character_x_positions(
+                        layout->document_host(), Layout::Node::slot_id(layout), &x_positions,
+                        [](void* context, size_t offset, float x, bool is_fragment_end) {
+                            auto& positions = *static_cast<CharacterXPositions*>(context);
+                            auto& list = is_fragment_end ? positions.fragment_end_x : positions.start_x;
+                            if (offset < list.size())
+                                list[offset] = x;
+                        });
+                    auto origin_x = text_origin.x().to_float();
+                    auto known_x = [&](Vector<Optional<float>> const& list, size_t offset) -> Optional<float> {
+                        if (offset >= list.size() || !list[offset].has_value())
+                            return {};
+                        return *list[offset] - origin_x;
+                    };
+
                     // Where the rendered text last reached: the position of the characters no line renders.
                     Optional<Gfx::IntPoint> rendered_end;
                     for (auto const& [line, line_rect] : rendered_lines) {
@@ -682,16 +708,49 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
                             node_data.character_offsets.append(gap_position);
                         node_data.line_break_character_offsets.append(node_data.line_break_character_offsets.is_empty() ? 0 : static_cast<i32>(line_character_start));
                         node_data.line_heights.append(line_height);
-                        // Walk each character in the line, accumulating x within the line.
-                        float cumulative_x = static_cast<float>(line_left_x);
+                        // Each character's x is where layout's glyph run puts it. A character layout gives no position
+                        // to (whitespace that collapsed away) takes no width: It sits where the next positioned character
+                        // on the line starts, or where the line ends. Only a line layout positions nothing on (e.g. vertical
+                        // text) falls back to advancing each character by its own width, shaped on its own.
                         auto utf8_start = view.byte_offset_of(line_character_start);
                         auto utf8_end = view.byte_offset_of(line_character_end);
                         Utf8View line_view { utf8.substring_view(utf8_start, utf8_end - utf8_start) };
+                        Vector<u32> line_code_points;
+                        Vector<Optional<float>> line_x;
+                        size_t code_unit_offset = line.start_offset;
                         for (u32 code_point : line_view) {
-                            node_data.character_offsets.append(Gfx::IntPoint { static_cast<i32>(cumulative_x), line_top_y });
-                            cumulative_x += font ? glyph_advance(*font, code_point) : 0.0f;
+                            line_code_points.append(code_point);
+                            line_x.append(known_x(x_positions.start_x, code_unit_offset));
+                            code_unit_offset += code_point > 0xFFFF ? 2 : 1;
                         }
-                        rendered_end = Gfx::IntPoint { static_cast<i32>(cumulative_x), line_top_y };
+                        auto line_end_x = known_x(x_positions.fragment_end_x, line.end_offset);
+                        bool layout_positions_line = line_end_x.has_value() || any_of(line_x, [](auto const& x) { return x.has_value(); });
+
+                        float end_x = static_cast<float>(line_left_x);
+                        if (layout_positions_line) {
+                            Optional<float> next_x = line_end_x;
+                            for (size_t i = line_x.size(); i-- > 0;) {
+                                if (line_x[i].has_value())
+                                    next_x = line_x[i];
+                                else
+                                    line_x[i] = next_x;
+                            }
+                            Optional<float> previous_x;
+                            for (auto& x : line_x) {
+                                if (!x.has_value())
+                                    x = previous_x.value_or(static_cast<float>(line_left_x));
+                                previous_x = x;
+                            }
+                            end_x = line_end_x.value_or(previous_x.value_or(static_cast<float>(line_left_x)));
+                        } else {
+                            for (size_t i = 0; i < line_x.size(); ++i) {
+                                line_x[i] = end_x;
+                                end_x += font ? glyph_advance(*font, line_code_points[i]) : 0.0f;
+                            }
+                        }
+                        for (auto const& x : line_x)
+                            node_data.character_offsets.append(Gfx::IntPoint { static_cast<i32>(*x), line_top_y });
+                        rendered_end = Gfx::IntPoint { static_cast<i32>(end_x), line_top_y };
                     }
                     // A trailing run that renders on no line, likewise.
                     while (rendered_end.has_value() && node_data.character_offsets.size() < view.length())

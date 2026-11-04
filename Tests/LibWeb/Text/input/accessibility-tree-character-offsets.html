@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    div {
+        width: 120px;
+        font: 16px SerenitySans;
+    }
+</style>
+<!-- The accessibility tree reports each character of a text node at the position where layout renders it, relative to
+     the top-left of the text: The x of each rendered character is where a range around just that character starts. A
+     character that renders nothing (whitespace that collapsed away) takes no width: It's at the x of the next
+     rendered character on its line. -->
+<div id="wrapping">AVA Wave   to the wrapped line</div>
+<div id="soft-hyphen">ab&shy;cd</div>
+<div id="uppercased" style="text-transform: uppercase">straße straße straße straße</div>
+<script>
+    function check(id) {
+        const text = document.getElementById(id).firstChild;
+        const offsets = internals.accessibilityCharacterOffsets(text).split(" ").map(pair => pair.split(",").map(Number));
+        println(`${id}: ${offsets.length} offsets for ${text.data.length} characters`);
+
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        const textRect = range.getBoundingClientRect();
+        const rendered = [];
+        for (let i = 0; i < text.data.length; i++) {
+            range.setStart(text, i);
+            range.setEnd(text, i + 1);
+            const rects = range.getClientRects();
+            rendered.push(rects.length > 0 && rects[0].width > 0 ? rects[0].x - textRect.x : null);
+        }
+
+        let renderedCount = 0;
+        let matching = 0;
+        let unrenderedCount = 0;
+        let unrenderedMatching = 0;
+        let decreases = 0;
+        for (let i = 0; i < text.data.length; i++) {
+            if (i > 0 && offsets[i][1] === offsets[i - 1][1] && offsets[i][0] < offsets[i - 1][0])
+                decreases++;
+            if (rendered[i] !== null) {
+                renderedCount++;
+                if (Math.abs(offsets[i][0] - rendered[i]) <= 1)
+                    matching++;
+                else
+                    println(`  character ${i} (${JSON.stringify(text.data[i])}): x ${offsets[i][0]}, layout ${rendered[i].toFixed(2)}`);
+                continue;
+            }
+            // The next rendered character on the same line, if there is one.
+            const next = offsets.findIndex((offset, j) => j > i && rendered[j] !== null);
+            if (next === -1 || offsets[next][1] !== offsets[i][1])
+                continue;
+            unrenderedCount++;
+            if (offsets[i][0] === offsets[next][0])
+                unrenderedMatching++;
+            else
+                println(`  unrendered character ${i}: x ${offsets[i][0]}, next rendered character's x ${offsets[next][0]}`);
+        }
+        println(`  rendered characters at layout's x: ${matching} of ${renderedCount}`);
+        println(`  unrendered characters at the next rendered character's x: ${unrenderedMatching} of ${unrenderedCount}`);
+        println(`  x decreases along a line: ${decreases} times`);
+        println(`  distinct line tops: ${new Set(offsets.map(offset => offset[1])).size}`);
+    }
+
+    test(() => {
+        check("wrapping");
+        check("soft-hyphen");
+        check("uppercased");
+    });
+</script>

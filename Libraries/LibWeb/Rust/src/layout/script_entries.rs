@@ -223,6 +223,34 @@ pub extern "C" fn layout_script_text_caret_rect_in_dom_range(
     });
 }
 
+/// Calls `push_position` with each DOM offset (in UTF-16 code units) of the text node `primary` that one of its
+/// horizontal fragments renders, along with the document-absolute x coordinate where that offset's character starts,
+/// read from the fragment's shaped glyph run. `is_fragment_end` marks the offset one past a fragment's last character,
+/// whose x is where that fragment's text ends.
+///
+/// # Safety
+///
+/// The callback must be sound to call with `context`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_script_text_character_x_positions(
+    host: &DocumentHost,
+    primary: NodeSlotId,
+    context: *mut c_void,
+    push_position: unsafe extern "C" fn(*mut c_void, usize, f32, bool),
+) {
+    read_rows(host, |arena| {
+        let fragments = arena.text_fragments(primary);
+        crate::painting::text_fragment::for_each_fragment_of_nodes(arena, fragments.as_slice(), |_, _, fragment| {
+            let end = fragment.dom_end_offset_in_node;
+            crate::painting::text_fragment::for_each_dom_offset_x(arena, fragment, |dom_offset, x| {
+                // SAFETY: The consumer copies the plain-data position synchronously.
+                unsafe { push_position(context, dom_offset, x, dom_offset == end) };
+            });
+            true
+        });
+    });
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_script_text_caret_rect_for_position(
     host: &DocumentHost,
