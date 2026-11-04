@@ -7,9 +7,9 @@
 
 import re
 
+from collections.abc import Iterable
 from pathlib import Path
 from typing import FrozenSet
-from typing import Iterable
 from typing import List
 from typing import Optional
 
@@ -532,6 +532,11 @@ def rust_dictionary_type(dictionary: Dictionary, context: GenerationContext) -> 
 
 def rust_parameter_type(parameter: OperationParameter, context: GenerationContext, what: str) -> str:
     """The Rust type the implementation receives for the parameter."""
+    if parameter.variadic:
+        element_type = rust_type(parameter.type, context, what)
+        if holds_cells(parameter.type, context):
+            return f"MarkedVec<'_, {element_type}>"
+        return f"Vec<{element_type}>"
     if is_sequence_of_cells(parameter.type, context):
         assert isinstance(parameter.type, IDLParameterizedType)
         value_type = f"MarkedVec<'_, {rust_type(parameter.type.parameters[0], context, what)}>"
