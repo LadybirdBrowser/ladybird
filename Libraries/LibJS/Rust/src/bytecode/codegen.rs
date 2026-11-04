@@ -5851,6 +5851,7 @@ fn generate_tagged_template_literal(
         ExpressionKind::Member(member_data) => {
             let arena = generator.arena.clone();
             let obj = generate_expression_or_undefined(&member_data.object, generator, None);
+            let obj = copy_if_reassignable_by(generator, obj, [&*member_data.property]);
             let method = generator.allocate_register();
             if member_data.computed {
                 let property = generate_expression_or_undefined(&member_data.property, generator, None);
@@ -5896,6 +5897,10 @@ fn generate_tagged_template_literal(
         unreachable!("TaggedTemplateLiteral template must be TemplateLiteral");
     };
 
+    // Substitutions are evaluated after the tag, so snapshot whatever a later substitution might reassign.
+    let tag_reg = copy_if_reassignable_by(generator, tag_reg, &data.expressions);
+    let this_value = this_value.map(|value| copy_if_reassignable_by(generator, value, &data.expressions));
+
     // Collect cooked strings (even indices). NullLiteral means invalid escape → undefined.
     let mut string_regs = Vec::new();
     for i in (0..data.expressions.len()).step_by(2) {
@@ -5928,7 +5933,7 @@ fn generate_tagged_template_literal(
     let mut argument_regs = vec![strings_array];
     for i in (1..data.expressions.len()).step_by(2) {
         let val = generate_expression_or_undefined(&data.expressions[i], generator, None);
-        argument_regs.push(val);
+        argument_regs.push(copy_if_reassignable_by(generator, val, &data.expressions[i + 1..]));
     }
 
     let dst = choose_dst(generator, preferred_dst);
