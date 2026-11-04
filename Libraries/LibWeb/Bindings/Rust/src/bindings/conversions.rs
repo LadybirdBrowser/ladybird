@@ -1275,6 +1275,16 @@ pub(crate) fn rooted_sequence_to_js<T: Trace + Clone + 'static>(
     Ok(Value::from_object(array))
 }
 
+/// The elements of a sequence of a dictionary in a MarkedVec, which keeps them alive while the dictionary is converted.
+pub(crate) fn mark_sequence<'vm, T: Trace + Clone + 'static>(
+    cx: &CallContext<'vm>,
+    sequence: &[T],
+) -> MarkedVec<'vm, T> {
+    let marked = MarkedVec::with_capacity(cx.vm(), sequence.len());
+    marked.extend_from_slice(sequence);
+    marked
+}
+
 /// An IDL record converted to a JS value, https://webidl.spec.whatwg.org/#js-record, with the conversion of its
 /// values. The entries of the record are in the order of the Vec.
 pub(crate) fn record_to_js<K: Into<Utf16String>, V>(

@@ -296,7 +296,6 @@ class Frequency;
 class FrequencyPercentage;
 class FrequencyStyleValue;
 class FunctionStyleValue;
-class Highlight;
 class HighlightRegistry;
 class HueRotateFilterStyleValue;
 class ImageSetStyleValue;

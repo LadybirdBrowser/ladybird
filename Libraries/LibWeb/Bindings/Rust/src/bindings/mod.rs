@@ -28,9 +28,11 @@ pub(crate) mod generated;
 pub(crate) mod global_object;
 pub(crate) mod interface;
 pub(crate) mod iterable;
+pub(crate) mod maplike;
 pub(crate) mod promise;
 pub(crate) mod realm_data;
 pub(crate) mod services;
+pub(crate) mod setlike;
 pub(crate) mod structured_data;
 pub(crate) mod transport;
 

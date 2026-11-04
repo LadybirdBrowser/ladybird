@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/css-highlight-api-1/#highlightregistry
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface HighlightRegistry {
     maplike<DOMString, Highlight>;
 };

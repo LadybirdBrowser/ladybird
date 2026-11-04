@@ -109,7 +109,6 @@ set(SOURCES
     CSS/FontResolution.cpp
     CSS/FontFaceSet.cpp
     CSS/Frequency.cpp
-    CSS/Highlight.cpp
     CSS/HighlightRegistry.cpp
     CSS/HypotheticalElement.cpp
     CSS/Invalidation/AdoptedStyleSheetInvalidator.cpp

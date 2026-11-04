@@ -6,7 +6,7 @@ enum HighlightType {
 };
 
 // https://drafts.csswg.org/css-highlight-api-1/#highlight
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface Highlight {
     constructor(AbstractRange... initialRanges);
     setlike<AbstractRange>;
