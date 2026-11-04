@@ -1493,7 +1493,10 @@ impl RetainedRecords {
         // elements do, one per record and set of pseudo-elements, which elements sharing a style
         // share.
         let mut with_pseudo_element_styles: HashMap<(usize, PseudoElementStyles), Arc<Record>> = HashMap::default();
-        for node in styled {
+        for (index, node) in styled.iter().enumerate() {
+            if let Some(ahead) = styled.get(index + RECORDS_AHEAD) {
+                cells.prefetch_record(*ahead);
+            }
             let slot = node.element_slot();
             let Some(page) = cells.pages[slot / CELL_PAGE_SIZE].get_mut() else {
                 continue;
@@ -1685,6 +1688,21 @@ pub(super) struct RecordCells {
 
 /// How many elements a page of record cells holds.
 const CELL_PAGE_SIZE: usize = 64;
+
+/// How many elements ahead a thread going through the records a pass made on other threads asks for their memory.
+pub(super) const RECORDS_AHEAD: usize = 8;
+
+impl RecordCells {
+    /// Asks for the memory of the record the pass made for `node`.
+    fn prefetch_record(&self, node: StyleNodeID) {
+        let slot = node.element_slot();
+        if let Some(page) = self.pages[slot / CELL_PAGE_SIZE].get()
+            && let Some(held) = page.held[slot % CELL_PAGE_SIZE].get()
+        {
+            held.record.prefetch();
+        }
+    }
+}
 
 /// The record cells of `CELL_PAGE_SIZE` elements.
 struct CellPage {
@@ -2299,6 +2317,12 @@ impl ContainerRecords for Records<'_> {
 }
 
 impl Record {
+    /// Asks for the memory of the fields a thread first reads of a record another thread made.
+    pub(super) fn prefetch(&self) {
+        crate::css::declaration_block::prefetch(std::ptr::from_ref(&self.payloads));
+        crate::css::declaration_block::prefetch(std::ptr::from_ref(&self.header));
+    }
+
     /// The view of the record, as the computation of the elements inheriting from it reads it.
     pub(in super::super) fn view(self: &Arc<Self>) -> computed::StyleRecordView<'_> {
         computed::StyleRecordView {
