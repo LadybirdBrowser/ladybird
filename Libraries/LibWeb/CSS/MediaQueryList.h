@@ -6,48 +6,23 @@
 
 #pragma once
 
-#include <AK/Forward.h>
+#include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/MediaQueryList.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/CSS/RustMediaList.h>
-#include <LibWeb/DOM/EventTarget.h>
-#include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
 // 4.2. The MediaQueryList Interface, https://drafts.csswg.org/cssom-view/#the-mediaquerylist-interface
-class MediaQueryList final : public DOM::EventTarget {
-    WEB_WRAPPABLE(MediaQueryList, DOM::EventTarget);
-    GC_DECLARE_ALLOCATOR(MediaQueryList);
+class MediaQueryList final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(MediaQueryList, media_query_list)
 
 public:
-    [[nodiscard]] static GC::Ref<MediaQueryList> create(DOM::Document&, RustMediaList);
+    [[nodiscard]] static GC::Ref<MediaQueryList> create(DOM::Document&, RustMediaList const&);
 
-    virtual ~MediaQueryList() override = default;
-
-    Utf16String media() const;
-    bool matches() const;
-    bool evaluate();
-
-    // A new MediaQueryListEvent named `change` for this list, which is implemented in Rust.
-    GC::Ref<DOM::Event> create_change_event(bool matches) const;
-
-    void add_listener(GC::Ptr<DOM::IDLEventListener>);
-    void remove_listener(GC::Ptr<DOM::IDLEventListener>);
-
-    void set_onchange(WebIDL::CallbackType*);
-    WebIDL::CallbackType* onchange();
-
-    [[nodiscard]] Optional<bool> const& has_changed_state() const { return m_has_changed_state; }
-    void set_has_changed_state(bool has_changed_state) { m_has_changed_state = has_changed_state; }
-
-private:
-    MediaQueryList(DOM::Document&, RustMediaList);
-    virtual void visit_edges(Cell::Visitor&) override;
-    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
-
-    GC::Ref<DOM::Document> m_document;
-    RustMediaList m_media;
-
-    mutable Optional<bool> m_has_changed_state { false };
+    bool has_change_listener() const;
+    void evaluate_and_report_change();
 };
 
 }

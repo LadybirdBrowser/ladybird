@@ -1039,7 +1039,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
         visitor.visit(pending_scroll_event.event_target);
     // A MediaQueryList with change listeners must outlive its last script reference to receive change events.
     for (auto const& media_query_list : m_media_query_lists) {
-        if (media_query_list && media_query_list->has_event_listener(HTML::EventNames::change))
+        if (media_query_list && media_query_list->has_change_listener())
             visitor.visit(media_query_list.ptr());
     }
     m_scroll_state_query_containers.visit_edges(visitor);
@@ -5821,25 +5821,8 @@ void Document::evaluate_media_queries_and_report_changes()
         // 1. For each MediaQueryList object target that has doc as its document,
         //    in the order they were created, oldest first, run these substeps:
         for (auto& media_query_list_ptr : m_media_query_lists) {
-            // 1. If target’s matches state has changed since the last time these steps
-            //    were run, fire an event at target using the MediaQueryListEvent constructor,
-            //    with its type attribute initialized to change, its isTrusted attribute
-            //    initialized to true, its media attribute initialized to target’s media,
-            //    and its matches attribute initialized to target’s matches state.
-            if (!media_query_list_ptr)
-                continue;
-            GC::Ptr<CSS::MediaQueryList> media_query_list = media_query_list_ptr.ptr();
-            bool did_match = media_query_list->matches();
-            bool now_matches = media_query_list->evaluate();
-
-            auto did_change_internally = media_query_list->has_changed_state();
-            media_query_list->set_has_changed_state(false);
-            if (did_change_internally == true || did_match != now_matches) {
-                auto event = media_query_list->create_change_event(now_matches);
-                event->set_time_stamp(HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
-                event->set_is_trusted(true);
-                media_query_list->dispatch_event(*event);
-            }
+            if (GC::Ptr<CSS::MediaQueryList> media_query_list = media_query_list_ptr.ptr())
+                media_query_list->evaluate_and_report_change();
         }
     }
 

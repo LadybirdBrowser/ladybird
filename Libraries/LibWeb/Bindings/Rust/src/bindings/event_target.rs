@@ -18,6 +18,7 @@ use liburl_rust::FfiOrigin;
 use liburl_rust::origin::Origin;
 
 use crate::bindings::CallContext;
+use crate::bindings::callback::CallbackInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Interface, Ref, Wrappable, cell_from_abi, cell_into_abi};
 
@@ -38,6 +39,16 @@ unsafe extern "C" {
     fn web_bindings_set_event_handler_attribute(event_target: *mut c_void, name: ak::Span<'_, u8>, value: u64);
     fn web_bindings_add_event_listener(
         realm: *mut c_void,
+        event_target: *mut c_void,
+        r#type: ak::Span<'_, u8>,
+        callback: *mut c_void,
+    );
+    fn web_bindings_add_event_listener_without_options(
+        event_target: *mut c_void,
+        r#type: ak::Span<'_, u8>,
+        callback: *mut c_void,
+    );
+    fn web_bindings_remove_event_listener_without_options(
         event_target: *mut c_void,
         r#type: ak::Span<'_, u8>,
         callback: *mut c_void,
@@ -161,6 +172,32 @@ impl CppEventTarget {
                 self.as_ptr(),
                 ak::Span::new(event_type.as_bytes()),
                 callback.as_ptr().cast(),
+            );
+        }
+    }
+
+    /// Adds an event listener for the event type whose callback is the EventListener, with no options,
+    /// https://dom.spec.whatwg.org/#add-an-event-listener
+    pub(crate) fn add_event_listener_without_options(&self, event_type: &str, callback: &CallbackInterface) {
+        // SAFETY: The EventTarget and the callback are live, and the type is lent for the call.
+        unsafe {
+            web_bindings_add_event_listener_without_options(
+                self.as_ptr(),
+                ak::Span::new(event_type.as_bytes()),
+                callback.as_ptr(),
+            );
+        }
+    }
+
+    /// Removes the event listener for the event type whose callback is the EventListener and whose capture is false,
+    /// https://dom.spec.whatwg.org/#remove-an-event-listener
+    pub(crate) fn remove_event_listener_without_options(&self, event_type: &str, callback: &CallbackInterface) {
+        // SAFETY: The EventTarget and the callback are live, and the type is lent for the call.
+        unsafe {
+            web_bindings_remove_event_listener_without_options(
+                self.as_ptr(),
+                ak::Span::new(event_type.as_bytes()),
+                callback.as_ptr(),
             );
         }
     }

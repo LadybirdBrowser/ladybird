@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/cssom-view/#the-mediaquerylist-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface MediaQueryList : EventTarget {
     readonly attribute CSSOMString media;
     readonly attribute boolean matches;
