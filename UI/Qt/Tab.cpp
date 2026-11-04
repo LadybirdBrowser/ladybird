@@ -15,6 +15,7 @@
 #include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
+#include <LibWebView/PageTranslation.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
@@ -261,6 +262,9 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     QObject::connect(bookmark_action, &QAction::triggered, this, [this] { show_bookmark_popover(); });
     m_location_edit->set_trailing_action(bookmark_action);
     m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
+    // The translate button shows the page's translation menu, rather than translating the page at once.
+    m_translate_action = create_application_action(*m_location_edit, view().page_translation().translate_action());
+    m_location_edit->set_translate_action(m_translate_action);
 
     view().on_performance_stats = [this](WebView::TabPerformanceStats const& stats) {
         m_performance_stats = stats;
@@ -275,6 +279,9 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     };
     m_location_edit->on_zoom_requested = [this] {
         show_zoom_popover();
+    };
+    m_location_edit->on_translate_requested = [this] {
+        show_translation_menu();
     };
 
     QObject::connect(m_view, &WebContentView::crash_overlay_changed, this, [this] {
@@ -1408,6 +1415,16 @@ void Tab::recreate_location_edit_icons()
         auto engaged = view().toggle_bookmark_action().engaged();
         action->setIcon(create_chrome_icon(engaged ? ChromeIcon::StarFilled : ChromeIcon::Star, Theme::chrome_palette(*this), ChromeStyle::window_activity(*this)));
     }
+    if (m_translate_action)
+        m_translate_action->setIcon(create_translate_icon(Theme::chrome_palette(*this), view().page_translation().is_translated()));
+}
+
+void Tab::show_translation_menu()
+{
+    if (!m_translation_menu)
+        m_translation_menu = create_application_menu(*this, view().page_translation().translation_menu());
+    auto& button = m_location_edit->translate_button();
+    m_translation_menu->popup(button.mapToGlobal(QPoint { 0, button.height() }));
 }
 
 void Tab::show_zoom_popover()

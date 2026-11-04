@@ -55,6 +55,9 @@ public:
     // The knobs of the site settings icon slide past each other while the given popover is open.
     void follow_site_settings_popover(QWidget&);
     void set_zoom_action(QAction*);
+    // The translate button stands in the field, before the bookmark star, while the page can be translated.
+    void set_translate_action(QAction*);
+    QWidget& translate_button() const;
     // Shows, while the page uses the user's location, a chip that says so.
     void set_location_in_use(bool);
 
@@ -73,6 +76,8 @@ public:
     Function<void()> on_site_settings_requested;
     // Asks for the page's zoom controls, shown when the zoom level in the field is clicked.
     Function<void()> on_zoom_requested;
+    // Asks for the page's translation menu, shown when the translate button is clicked.
+    Function<void()> on_translate_requested;
     QWidget& trailing_action_button() const;
     QWidget& site_settings_button() const;
     Function<void(String, Optional<URL::URL>, WebView::OmniboxDestinationKind)> on_navigation;
@@ -102,6 +107,7 @@ private:
     void update_chrome_style();
     void update_location_icon();
     void update_zoom_indicator();
+    void update_translate_button();
     void update_location_in_use_chip();
     void update_focus_ring(qreal opacity);
     void set_field_hovered(bool);
@@ -126,6 +132,8 @@ private:
     QVariantAnimation* m_site_settings_knob_animation { nullptr };
     qreal m_site_settings_knob_travel { 0 };
     QToolButton* m_trailing_action_button { nullptr };
+    QToolButton* m_translate_button { nullptr };
+    QAction* m_translate_action { nullptr };
     QToolButton* m_zoom_indicator_button { nullptr };
     QGraphicsOpacityEffect* m_zoom_indicator_opacity { nullptr };
     QVariantAnimation* m_zoom_indicator_fade { nullptr };

@@ -95,6 +95,11 @@ public:
             }
             break;
 
+        case WebView::ActionID::TranslatePage:
+            if (auto* parent = as_if<QWidget>(m_action->parent()))
+                m_action->setIcon(create_translate_icon(parent->palette(), action.engaged()));
+            break;
+
         default:
             break;
         }
@@ -235,6 +240,10 @@ static WebView::Action::Observer& initialize_native_control(WebView::Action& act
         break;
     case WebView::ActionID::ToggleBookmarksBar:
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
+        break;
+    case WebView::ActionID::TranslatePage:
+        if (include_action_icon == IncludeActionIcon::Yes)
+            qaction.setIcon(create_translate_icon(palette, action.engaged()));
         break;
     case WebView::ActionID::ToggleVerticalTabsExpanded:
 #if defined(AK_OS_MACOS)

@@ -177,6 +177,7 @@ public:
     void show_site_settings_popover();
     void refresh_site_settings_popover();
     void show_zoom_popover();
+    void show_translation_menu();
     void show_bookmark_popover();
     void close_popovers();
 
@@ -228,6 +229,8 @@ private:
     Optional<URL::Origin> m_site_settings_popover_origin;
     QTimer* m_content_blocking_update_timer { nullptr };
     QPointer<Popover> m_zoom_popover;
+    QPointer<QAction> m_translate_action;
+    QPointer<QMenu> m_translation_menu;
     QPointer<BookmarkPopover> m_bookmark_popover;
     QPointer<Tab> m_tab_to_activate_on_close;
     QPointer<LocationEdit> m_location_edit;

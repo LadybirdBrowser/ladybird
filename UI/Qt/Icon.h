@@ -79,6 +79,8 @@ QIcon favicon_with_rounded_corners(QIcon const&, int logical_size);
 QIcon create_chrome_icon(ChromeIcon, QPalette const&, ChromeStyle::WindowActivity = ChromeStyle::WindowActivity::Active, int logical_size = CHROME_ICON_CANVAS_SIZE);
 // The site settings icon with its two knobs moved toward each other's place, by a travel from 0 to 1.
 QIcon create_site_settings_icon(QPalette const&, qreal knob_travel);
+// The translate button's icon, in the accent color once the page is translated.
+QIcon create_translate_icon(QPalette const&, bool page_is_translated);
 // The icon in one color, whatever its state.
 QIcon create_chrome_icon(ChromeIcon, QColor const&);
 QPixmap create_chrome_icon_pixmap(ChromeIcon, QColor, qreal device_pixel_ratio);

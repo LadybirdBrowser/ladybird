@@ -10,6 +10,7 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NotificationBackend.h>
+#include <LibWebView/PageTranslation.h>
 #if defined(AK_OS_MACOS)
 #    include <LibWebView/MicrophoneAuthorizerMacOS.h>
 #    include <LibWebView/NotificationBackendMacOS.h>
@@ -1934,6 +1935,17 @@ QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_
         zoom_menu->addAction(zoom_in_action());
         zoom_menu->addAction(zoom_out_action());
         zoom_menu->addAction(reset_zoom_action());
+
+        // The translation menu is the active tab's, so it's filled in as it opens.
+        if (WebView::Application::the().translator()) {
+            auto* translation_menu = view_menu->addMenu("&Translation");
+            QObject::connect(translation_menu, &QMenu::aboutToShow, translation_menu, [translation_menu] {
+                if (auto* tab = Application::the().active_tab())
+                    repopulate_application_menu(*translation_menu, tab->view().page_translation().translation_menu());
+                else
+                    translation_menu->clear();
+            });
+        }
         view_menu->addSeparator();
     }
     view_menu->addMenu(create_application_menu(*view_menu, application.color_scheme_menu()));
