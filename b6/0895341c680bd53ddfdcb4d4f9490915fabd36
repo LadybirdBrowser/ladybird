@@ -1,0 +1,11 @@
+In a right-to-left containing block, Ladybird places a box that avoids
+floats from its right edge, at the larger of the right floats’ intrusion
+and its right margin, and Blink, WebKit and Gecko all place it there
+too. Blink’s BlockLayoutAlgorithm::LayoutNewFormattingContext() narrows
+the layout opportunity by the box’s margins with max() and min(), and in
+RTL places the box from the opportunity’s right edge. And WebKit’s
+RenderBlockFlow::determineLogicalLeftPositionForChild() takes the max()
+of the start margin and the float-avoiding position, then mirrors that
+for RTL. Gecko’s BlockReflowState::ComputeFloatAvoidingOffsets() offsets
+each side by the max() of the float intrusion and the margin, less the
+margin itself, in the space it gives the box.
