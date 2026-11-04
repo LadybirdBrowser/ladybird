@@ -10,6 +10,8 @@ use crate::fast_hash::HashMap;
 use crate::fast_hash::HashSet;
 
 use crate::ast::*;
+use crate::bytecode::generator::parse_bigint;
+use crate::host::js_number_to_utf16;
 use crate::lexer::ch;
 use crate::parser::Associativity;
 use crate::parser::DeclarationKind;
@@ -23,6 +25,7 @@ use crate::parser::Parser;
 use crate::parser::Position;
 use crate::parser::ProgramType;
 use crate::parser::PropertyKey;
+use crate::parser::expressions::parse_numeric_value;
 use crate::token::TokenType;
 
 fn expression_into_identifier(expression: Expression) -> IdentifierId {
@@ -1562,39 +1565,30 @@ impl Parser<'_> {
                     {
                         let entry_start = self.position();
 
-                        if self.match_token(TokenType::StringLiteral) || self.match_token(TokenType::NumericLiteral) {
-                            needs_alias = true;
-                        }
+                        needs_alias = !self.match_identifier_name();
 
                         entry_is_keyword =
                             self.current_token.token_type.is_identifier_name() && !self.match_identifier();
 
                         // Property keys are name tokens, not identifier references,
                         // so don't run the eval/arguments check on them.
-                        if self.match_token(TokenType::StringLiteral) {
+                        if needs_alias {
+                            // https://tc39.es/ecma262/#sec-static-semantics-propname
                             let token = self.consume_property_key_token();
-                            let (value, _has_octal) = self.parse_string_value(&token);
-                            let id = self.make_identifier_from_slice(entry_start, value.as_slice());
-                            let Self {
-                                scope_collector, arena, ..
-                            } = self;
-                            scope_collector.register_identifier(
-                                id,
-                                None,
-                                &mut arena.identifiers,
-                                &arena.strings,
-                                &mut arena.scopes,
-                            );
-                            entry_name = Some(BindingEntryName::Identifier(id));
-                        } else if self.match_token(TokenType::BigIntLiteral) {
-                            let token = self.consume_property_key_token();
-                            let value = self.token_value(&token);
-                            let name_value: Vec<u16> = if value.last() == Some(&ch(b'n')) {
-                                value[..value.len() - 1].to_vec()
-                            } else {
-                                value.to_vec()
+                            let value = match token.token_type {
+                                TokenType::StringLiteral => self.parse_string_value(&token).0,
+                                TokenType::NumericLiteral => {
+                                    js_number_to_utf16(parse_numeric_value(self.token_value(&token)))
+                                }
+                                TokenType::BigIntLiteral => {
+                                    let literal = String::from_utf16_lossy(self.token_value(&token));
+                                    let value = parse_bigint(literal.trim_end_matches('n'))
+                                        .expect("the lexer only produces valid BigInt literals");
+                                    Utf16String(value.to_string().encode_utf16().collect())
+                                }
+                                _ => unreachable!(),
                             };
-                            let id = self.make_identifier_from_slice(entry_start, &name_value);
+                            let id = self.make_identifier_from_slice(entry_start, value.as_slice());
                             let Self {
                                 scope_collector, arena, ..
                             } = self;
