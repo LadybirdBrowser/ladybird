@@ -9,13 +9,11 @@
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Function.h>
 #include <AK/Utf16String.h>
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Bindings/Storage.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/StorageAPI/StorageBottle.h>
 
 namespace Web::HTML {
 
@@ -32,19 +30,17 @@ public:
         Session,
     };
 
-    [[nodiscard]] static GC::Ref<Storage> create(Window&, Type, GC::Ref<StorageAPI::StorageBottle>);
-
-    StorageAPI::StorageBottle& map();
-
-    void dump();
+    // A new Storage object of the type for the window, whose map is a new storage proxy map over the bottle for the
+    // window's relevant settings object, or null when obtaining the bottle map fails.
+    [[nodiscard]] static GC::Ptr<Storage> create(Window&, Type);
 
     // A window listening for storage events has its storage connected so that changes made in other processes reach
     // it; a map is otherwise only loaded on first access.
-    void connect() { map().connect(); }
+    void connect();
 
-    // Fires the storage events that a change another process made calls for on every Storage object in this process
-    // that shares the changed map.
-    static void dispatch_storage_events_for_remote_change(Type, StorageAPI::StorageKey const&, Optional<PageId> session_page, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, String const& url);
+    void for_each_item(Function<void(Utf16String const& key, Utf16String const& value)> const&);
+
+    void dump();
 };
 
 }

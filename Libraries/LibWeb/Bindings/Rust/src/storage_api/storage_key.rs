@@ -7,13 +7,17 @@
 
 //! Storage keys, https://storage.spec.whatwg.org/#storage-keys
 
+#[cfg(not(test))]
 use core::ffi::c_void;
 
+#[cfg(not(test))]
 use liburl_rust::FfiOrigin;
 use liburl_rust::origin::Origin;
 
+#[cfg(not(test))]
 use crate::bindings::environment_settings_object::CppEnvironmentSettingsObject;
 
+#[cfg(not(test))]
 unsafe extern "C" {
     fn web_storage_api_obtain_a_storage_key(
         environment: *mut c_void,
@@ -44,12 +48,14 @@ impl PartialEq for StorageKey {
     }
 }
 
+#[cfg(not(test))]
 unsafe extern "C" fn on_origin(ctx: *mut c_void, ffi_origin: *const FfiOrigin) {
     // SAFETY: ctx is the origin of the caller, and LibWeb lends the origin for the call.
     unsafe { *ctx.cast::<Option<Origin>>() = Some((*ffi_origin).to_origin()) };
 }
 
 /// https://storage.spec.whatwg.org/#obtain-a-storage-key
+#[cfg(not(test))]
 pub(crate) fn obtain_a_storage_key(environment: &CppEnvironmentSettingsObject) -> Option<StorageKey> {
     let mut origin: Option<Origin> = None;
     // SAFETY: The environment settings object is live, and the origin outlives the call.
@@ -58,6 +64,7 @@ pub(crate) fn obtain_a_storage_key(environment: &CppEnvironmentSettingsObject) -
 }
 
 /// https://storage.spec.whatwg.org/#obtain-a-storage-key-for-non-storage-purposes
+#[cfg(not(test))]
 pub(crate) fn obtain_a_storage_key_for_non_storage_purposes(environment: &CppEnvironmentSettingsObject) -> StorageKey {
     let mut origin: Option<Origin> = None;
     // SAFETY: The environment settings object is live, and the origin outlives the call.

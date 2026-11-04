@@ -27,6 +27,8 @@ mod rust_demangle;
 mod rust_panic;
 
 pub(crate) mod ak_format;
+#[cfg(test)]
+mod ffi_test_stubs;
 
 #[cfg(not(test))]
 #[allow(
@@ -131,7 +133,6 @@ pub(crate) mod notifications_api;
     allow(dead_code, reason = "only the generated bindings use the interfaces")
 )]
 pub(crate) mod speech;
-#[cfg(not(test))]
 #[cfg_attr(
     not(web_idl_bindings),
     allow(dead_code, reason = "only the generated bindings use the interfaces")
