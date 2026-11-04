@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-resource-in-display-none-settles-moved-elements-ref.html">
+<style>
+    svg.swatch { display: inline-block; height: 40px; width: 40px; }
+    .current-color { stop-color: currentColor; }
+    .position-reader { stop-color: green; stop-opacity: calc(2 - sibling-index()); }
+</style>
+<div style="display: none">
+    <svg>
+        <linearGradient id="position"><stop id="first-stop" stop-color="red" /><stop class="position-reader" /></linearGradient>
+    </svg>
+</div>
+<div id="shown-later" style="display: none">
+    <div>
+        <div id="hidden-again" style="color: red; display: none">
+            <svg><linearGradient id="shown-gradient"><stop class="current-color" /></linearGradient></svg>
+        </div>
+    </div>
+</div>
+<div id="order-root" style="display: none">
+    <svg id="older"><linearGradient><stop /></linearGradient></svg>
+</div>
+<svg class="swatch"><rect width="40" height="40" fill="url(#position)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#shown-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#order-gradient)" /></svg>
+<script>
+    const nextFrames = async () => {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+    };
+    (async () => {
+        // NB: The element made here is newer than the one moved below it.
+        const newer = document.createElement("div");
+        newer.style.color = "red";
+        newer.innerHTML = '<svg><linearGradient id="order-gradient"><stop class="current-color" /></linearGradient></svg>';
+        const older = document.getElementById("older");
+        document.getElementById("order-root").appendChild(newer);
+        newer.appendChild(older);
+        await nextFrames();
+
+        document.getElementById("first-stop").remove();
+        await nextFrames();
+
+        document.getElementById("shown-later").style.display = "block";
+        await nextFrames();
+        document.getElementById("hidden-again").style.color = "green";
+        await nextFrames();
+
+        older.classList.add("moved");
+        newer.style.color = "green";
+        await nextFrames();
+
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>

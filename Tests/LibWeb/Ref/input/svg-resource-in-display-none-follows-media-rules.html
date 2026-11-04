@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-resource-in-display-none-follows-media-rules-ref.html">
+<style>
+    iframe { border: 0; display: block; height: 80px; width: 100px; }
+</style>
+<iframe srcdoc='<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    svg.swatch { display: block; float: left; height: 40px; width: 40px; }
+    .arrives { stop-color: red; }
+    .leaves { stop-color: green; }
+    .inherits { stop-color: currentColor; }
+    #hidden-parent { color: red; }
+    @property --opacity { syntax: "<number>"; inherits: true; initial-value: 1; }
+    #reads-viewport { height: 10vw; }
+    #hands-down-viewport { --size: 1vw; --opacity: calc(100vw / 160px); }
+    .sized { fill: green; width: calc(var(--size) * 25); height: 40px; }
+    .opaque { stop-color: green; stop-opacity: var(--opacity); }
+    #reset-value { width: 25vw; }
+    .inherits-reset-value { height: 40px; width: inherit; }
+    @media (min-width: 150px) {
+        .arrives { stop-color: green; }
+        #hidden-parent { color: green; }
+    }
+    @media (max-width: 149px) {
+        .leaves { stop-color: red; }
+    }
+</style>
+<div style="display: none">
+    <svg>
+        <linearGradient id="arrives"><stop class="arrives" /></linearGradient>
+        <linearGradient id="leaves"><stop class="leaves" /></linearGradient>
+    </svg>
+    <div id="hidden-parent">
+        <svg><linearGradient id="inherits"><stop class="inherits" /></linearGradient></svg>
+    </div>
+    <div id="reads-viewport">
+        <svg><linearGradient id="below-reader"><stop class="leaves" /></linearGradient></svg>
+    </div>
+    <svg><clipPath id="reset-value"><rect class="inherits-reset-value" /></clipPath></svg>
+    <div id="hands-down-viewport">
+        <svg>
+            <linearGradient id="custom-property"><stop class="opaque" /></linearGradient>
+            <clipPath id="clip"><rect class="sized" /></clipPath>
+        </svg>
+    </div>
+</div>
+<svg class="swatch"><rect width="40" height="40" fill="url(#arrives)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#leaves)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#inherits)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#below-reader)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#custom-property)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="green" clip-path="url(#clip)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="green" clip-path="url(#reset-value)" /></svg>
+'></iframe>
+<script>
+    const nextFrames = async (target) => {
+        await new Promise(resolve => target.requestAnimationFrame(resolve));
+        await new Promise(resolve => target.requestAnimationFrame(resolve));
+    };
+    window.onload = async () => {
+        const iframe = document.querySelector("iframe");
+        await nextFrames(iframe.contentWindow);
+        // NB: The first width flips a rule that reaches no kept element, so their computations stand as the second
+        //     flips the rules that do reach them.
+        iframe.contentDocument.styleSheets[0].insertRule("@media (min-width: 120px) { body { margin: 0; } }");
+        await nextFrames(iframe.contentWindow);
+        iframe.style.width = "130px";
+        await nextFrames(iframe.contentWindow);
+        iframe.style.width = "160px";
+        await nextFrames(iframe.contentWindow);
+        document.documentElement.classList.remove("reftest-wait");
+    };
+</script>
+</html>

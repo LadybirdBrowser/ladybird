@@ -545,6 +545,63 @@ const _: () = assert!(
 );
 
 impl ChildImpact {
+    /// Which children of an element computing `new` where it computed `old` compute anew, where
+    /// they inherited `inherited`.
+    pub(super) fn of_records(new: &Record, old: &Record, inherited: &crate::css::computed_values::StyleGroups) -> Self {
+        // An inherited longhand no group holds reaches the children through the table alone.
+        let ungrouped_inherited_moved = || {
+            crate::css::computed_values::StyleGroupMasks::get()
+                .ungrouped_inherited()
+                .iter()
+                .any(|&property| {
+                    match (
+                        computed::ViewLonghands::of_record(new).handle(property),
+                        computed::ViewLonghands::of_record(old).handle(property),
+                    ) {
+                        (Some(new), Some(old)) => !crate::css::style_value::retained_style_values_equal(new, old),
+                        (new, old) => new.is_some() != old.is_some(),
+                    }
+                })
+        };
+        if new.payloads.current_color() != old.payloads.current_color()
+            || new.payloads.inherited_values() != old.payloads.inherited_values()
+            // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-prop
+            // A child whose `color-scheme` is the one it inherits uses the scheme its parent uses.
+            || new.effective_color_scheme() != old.effective_color_scheme()
+            || new.facts().publication_dependency_flags() != old.facts().publication_dependency_flags()
+            || new.facts().display != old.facts().display
+            || ungrouped_inherited_moved()
+            // https://drafts.csswg.org/css-color-4/#resolving-other-colors
+            // A child inheriting a value that reads `currentcolor` resolves it against its own
+            // color, so the specified values the record retains reach the children where the
+            // colors they resolve to here did not move.
+            || crate::css::computed_longhand_table::inherited_inheritance_dependent_value_moved(
+                old.inheritance_dependent_values(),
+                new.inheritance_dependent_values(),
+            )
+        {
+            return ChildImpact::All;
+        }
+        let impact = match ChildImpact::of_groups(&new.payloads, inherited) {
+            ChildImpact::None
+                if crate::css::computed_longhand_table::non_inherited_inheritance_changes(
+                    old.inheritance_dependent_values(),
+                    new.inheritance_dependent_values(),
+                ) != 0 =>
+            {
+                Self::ResetReaders
+            }
+            impact => impact,
+        };
+        let stores_moved = !same_arc(new.custom_properties(), old.custom_properties())
+            || !same_arc(new.inheritable_custom_properties(), old.inheritable_custom_properties());
+        match (impact, stores_moved) {
+            (ChildImpact::None, true) => ChildImpact::CustomProperties,
+            (ChildImpact::ResetReaders, true) => ChildImpact::ResetReadersAndCustomProperties,
+            (impact, _) => impact,
+        }
+    }
+
     /// Which children of an element moving from the groups `old` to `new` restyle: all of them
     /// where an inherited group moved, and the ones reading their parent's values of properties
     /// that do not inherit where another did.
@@ -1879,59 +1936,7 @@ impl<'a> Records<'a> {
         if self.sampled_custom_properties(node).is_some() {
             return ChildImpact::All;
         }
-        // An inherited longhand no group holds reaches the children through the table alone.
-        let ungrouped_inherited_moved = || {
-            crate::css::computed_values::StyleGroupMasks::get()
-                .ungrouped_inherited()
-                .iter()
-                .any(|&property| {
-                    match (
-                        computed::ViewLonghands::of_record(new).handle(property),
-                        computed::ViewLonghands::of_record(old).handle(property),
-                    ) {
-                        (Some(new), Some(old)) => !crate::css::style_value::retained_style_values_equal(new, old),
-                        (new, old) => new.is_some() != old.is_some(),
-                    }
-                })
-        };
-        if new.payloads.current_color() != old.payloads.current_color()
-            || new.payloads.inherited_values() != old.payloads.inherited_values()
-            // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-prop
-            // A child whose `color-scheme` is the one it inherits uses the scheme its parent uses.
-            || new.effective_color_scheme() != old.effective_color_scheme()
-            || new.facts().publication_dependency_flags() != old.facts().publication_dependency_flags()
-            || new.facts().display != old.facts().display
-            || ungrouped_inherited_moved()
-            // https://drafts.csswg.org/css-color-4/#resolving-other-colors
-            // A child inheriting a value that reads `currentcolor` resolves it against its own
-            // color, so the specified values the record retains reach the children where the
-            // colors they resolve to here did not move.
-            || crate::css::computed_longhand_table::inherited_inheritance_dependent_value_moved(
-                old.inheritance_dependent_values(),
-                new.inheritance_dependent_values(),
-            )
-        {
-            return ChildImpact::All;
-        }
-        let inherited = composition.map_or(&old.payloads, |view| view.payloads);
-        let impact = match ChildImpact::of_groups(&new.payloads, inherited) {
-            ChildImpact::None
-                if crate::css::computed_longhand_table::non_inherited_inheritance_changes(
-                    old.inheritance_dependent_values(),
-                    new.inheritance_dependent_values(),
-                ) != 0 =>
-            {
-                ChildImpact::ResetReaders
-            }
-            impact => impact,
-        };
-        let stores_moved = !same_arc(new.custom_properties(), old.custom_properties())
-            || !same_arc(new.inheritable_custom_properties(), old.inheritable_custom_properties());
-        match (impact, stores_moved) {
-            (ChildImpact::None, true) => ChildImpact::CustomProperties,
-            (ChildImpact::ResetReaders, true) => ChildImpact::ResetReadersAndCustomProperties,
-            (impact, _) => impact,
-        }
+        ChildImpact::of_records(new, old, composition.map_or(&old.payloads, |view| view.payloads))
     }
 
     /// Whether the records this pass computed for the highlight pseudo-elements of `node` hold

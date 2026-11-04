@@ -49,7 +49,7 @@ pub(super) struct RuleIndexChanges {
     regrouped: Vec<Regrouped>,
     /// Whether the entries that died declared what their rules declare now, and those that stayed
     /// stand as they stood, which lets what they decide be told from their rules.
-    conditions_moved_alone: bool,
+    pub(super) conditions_moved_alone: bool,
     /// The segments the update let go of, which alone still tell what their entries were.
     pub(super) let_go: Vec<BoundSegment>,
 }
@@ -120,6 +120,24 @@ impl<'a> RestyleWalk<'a> {
             .iter()
             .filter_map(|&node| Some((node, self.restyle_of(node)?)))
             .collect()
+    }
+
+    /// Whether the element `node`, which matched the entries `matched`, matched an entry that left
+    /// or matches one that arrived.
+    fn moves_element(&mut self, node: StyleNodeID, matched: &[u32]) -> bool {
+        let changes = self.changes;
+        let Some(facts) = self.state.projection.facts(node) else {
+            return true;
+        };
+        if changes.left_any && matched.iter().any(|&entry| changes.before[entry as usize]) {
+            return true;
+        }
+        if changes.arrived_entries == 0 || facts.dispatch_bloom(true) & self.reaching_bits == 0 {
+            return false;
+        }
+        self.matches.clear();
+        let matching = self.matcher.match_element(node, facts, &self.filter, &mut self.matches);
+        matching.is_err() || !self.matches.is_empty()
     }
 
     fn restyle_of(&mut self, node: StyleNodeID) -> Option<Restyled> {
@@ -328,6 +346,17 @@ impl RuleIndexChanges {
     /// Whether no entry changed.
     pub(super) fn is_empty(&self) -> bool {
         self.scopes.is_empty()
+    }
+
+    /// What tells whether the changes reach an element no walk of the records finds, by what it matched.
+    pub(super) fn moves_element<'a>(
+        &'a self,
+        state: &'a RetainedState,
+        index: &'a RuleIndex,
+        records: &'a RetainedRecords,
+    ) -> impl FnMut(StyleNodeID, &[u32]) -> bool + 'a {
+        let mut walk = RestyleWalk::new(self, state, index, records);
+        move |node, matched| walk.moves_element(node, matched)
     }
 
     /// Visit each element under `roots` in the flat tree that the changes restyle, or that takes new
