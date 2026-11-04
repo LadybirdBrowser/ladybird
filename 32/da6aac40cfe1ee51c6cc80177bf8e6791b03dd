@@ -1,0 +1,10 @@
+When a vertical-align length or percentage shifts an inline-level box,
+Ladybird now sizes the line box from both edges of the shifted box,
+with an atomic inline’s margins, and resolves a percentage against the
+box’s own line-height. Blink does the same: InlineLayoutStateStack::
+ApplyBaselineShift() moves the box’s FontHeight metrics by the shift,
+and EndBoxState() unites them into the parent’s. So does WebKit, whose
+LineBoxVerticalAligner::computeLineBoxLogicalHeight() takes each box’s
+top and bottom from its shifted position. And so does Gecko, whose
+nsLineLayout::VerticalAlignFrames() takes each frame’s contribution
+from its shifted mBounds.
