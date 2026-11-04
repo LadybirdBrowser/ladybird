@@ -474,6 +474,9 @@ impl StoredEntrySummary {
 
 type EarlierEntriesOfBox = smallvec::SmallVec<[std::sync::Arc<FcRunCacheEntry>; EARLIER_ENTRIES_PER_BOX]>;
 
+// NB: Each slot takes one cache line of its own, so storing a box's entries never dirties the line of a neighbouring
+//     box's slot, which another thread may be reading.
+#[repr(align(64))]
 #[derive(Clone, Default)]
 struct FcRunCacheSlot {
     latest: Option<std::sync::Arc<FcRunCacheEntry>>,
@@ -482,6 +485,8 @@ struct FcRunCacheSlot {
     latest_summary: StoredEntrySummary,
     earlier: EarlierEntriesOfBox,
 }
+
+const _: () = assert!(size_of::<FcRunCacheSlot>() == 64);
 
 impl FcRunCacheSlot {
     fn refresh_summaries(&mut self) {
