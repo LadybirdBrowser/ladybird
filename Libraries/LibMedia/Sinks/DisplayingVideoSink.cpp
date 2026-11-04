@@ -52,6 +52,11 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
     input->set_wake_handler([this] {
         if (m_input->peek().status == PipelineStatus::Suspended) {
             m_next_frame = nullptr;
+            // A ticking sink's update resumes the input if the time is moving, and reports the suspension otherwise.
+            if (m_is_ticking) {
+                update(MonotonicTime::now());
+                return;
+            }
             dispatch_state_if_changed(PipelineStatus::Suspended);
             return;
         }
