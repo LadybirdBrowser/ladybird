@@ -17,9 +17,9 @@
 
 namespace Web::CSS {
 
-GC::Ref<CSSFontFaceDescriptors> CSSFontFaceRule::descriptors() const
+GC::Ref<CSSDescriptors> CSSFontFaceRule::descriptors() const
 {
-    return static_cast<CSSFontFaceDescriptors&>(*declarations());
+    return static_cast<CSSDescriptors&>(*declarations());
 }
 
 bool CSSFontFaceRule::is_valid() const

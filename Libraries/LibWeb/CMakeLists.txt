@@ -29,6 +29,7 @@ set(SOURCES
     Bindings/OptionConstructor.cpp
     Bindings/PlatformObject.cpp
     Bindings/RustBindingsServices.cpp
+    Bindings/RustCSSDescriptors.cpp
     Bindings/RustEventTarget.cpp
     Bindings/StylePropertyMapReadOnlyIterator.cpp
     Bindings/PrincipalHostDefined.cpp
@@ -81,16 +82,13 @@ set(SOURCES
     CSS/CSS.cpp
     CSS/CSSAnimation.cpp
     CSS/CSSDescriptors.cpp
-    CSS/CSSFontFaceDescriptors.cpp
     CSS/CSSFontFaceRule.cpp
     CSS/CSSFontFeatureValuesMap.cpp
     CSS/CSSFontFeatureValuesRule.cpp
-    CSS/CSSFunctionDescriptors.cpp
     CSS/CSSGroupingRule.cpp
     CSS/CSSImportRule.cpp
     CSS/CSSKeyframesRule.cpp
     CSS/CSSNestedDeclarations.cpp
-    CSS/CSSPageDescriptors.cpp
     CSS/CSSPositionTryDescriptors.cpp
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp

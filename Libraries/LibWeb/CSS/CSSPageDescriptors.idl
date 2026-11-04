@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/cssom/#csspagedescriptors
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSPageDescriptors : CSSStyleDeclaration {
     [LegacyNullToEmptyString] attribute CSSOMString margin;
     [LegacyNullToEmptyString, AttributeCallbackName=margin_top_regular, ImplementedAs=margin_top] attribute CSSOMString marginTop;

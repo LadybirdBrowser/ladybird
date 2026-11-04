@@ -8,7 +8,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/CSSFontFaceRule.h>
-#include <LibWeb/CSS/CSSFontFaceDescriptors.h>
+#include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/CSSRule.h>
 
 namespace Web::CSS {
@@ -20,7 +20,7 @@ class CSSFontFaceRule final : public CSSRule {
 
 public:
     bool is_valid() const;
-    GC::Ref<CSSFontFaceDescriptors> descriptors() const;
+    GC::Ref<CSSDescriptors> descriptors() const;
 
     RefPtr<FontFaceState> css_connected_font_face() const;
     void handle_descriptor_change(Utf16FlyString const& property);

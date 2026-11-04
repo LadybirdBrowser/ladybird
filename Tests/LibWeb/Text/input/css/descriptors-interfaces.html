@@ -1,0 +1,27 @@
+<!doctype html>
+<style>
+    @font-face { font-family: "Test"; src: url(test.woff); font-display: swap; }
+    @page { margin-top: 1px; }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rules = document.styleSheets[0].cssRules;
+        const fontFace = rules[0].style;
+        println(`font face: ${fontFace instanceof CSSFontFaceDescriptors} ${fontFace instanceof CSSStyleDeclaration}`);
+        println(`same object: ${fontFace === rules[0].style}`);
+        println(`length: ${fontFace.length}`);
+        println(`indexed: ${fontFace[0]} ${fontFace[1]} ${fontFace[2]} ${fontFace[3]}`);
+        println(`in: ${0 in fontFace} ${3 in fontFace}`);
+        println(`spellings: ${fontFace.fontDisplay} ${fontFace["font-display"]}`);
+
+        fontFace["font-display"] = "block";
+        println(`after dashed set: ${fontFace.fontDisplay}`);
+        fontFace.fontDisplay = null;
+        println(`after null: "${fontFace.fontDisplay}" ${fontFace.length}`);
+
+        const page = rules[1].style;
+        println(`page: ${page instanceof CSSPageDescriptors} ${page.marginTop} ${page["margin-top"]}`);
+        println(`parent rule: ${page.parentRule === rules[1]}`);
+    });
+</script>
