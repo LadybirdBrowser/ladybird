@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-starting-past-the-end-of-a-node-ref.html">
+<style>
+    ::selection { color: black; background: lime; }
+    span { display: inline-block; }
+</style>
+<p id="start"><span>outside of the selection</span></p>
+<p id="end">selected text</p>
+<script>
+    getSelection().setBaseAndExtent(start, 1, end.firstChild, 8);
+</script>

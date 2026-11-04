@@ -208,13 +208,11 @@ static void for_each_node_in_highlight_range(Layout::BegunRead const& read, DOM:
 
     // 4. Mark the nodes between the start and end of the selection as Full.
     auto* start_at = start_container->child_at_index(range.start_offset());
-    // If the start container has no child at that index, we need to start on the node right after the start container.
+    // If the start container has no child at that index, nothing of what it holds is in the range, and we need to start
+    // on the node right after it.
     if (!start_at) {
-        if (auto* last_child = start_container->last_child()) {
-            start_at = last_child->next_in_pre_order();
-        } else {
-            start_at = start_container->next_in_pre_order();
-        }
+        for (auto* node = start_container.ptr(); node && !start_at; node = node->parent())
+            start_at = node->next_sibling();
     }
 
     DOM::Node* stop_at = end_container->child_at_index(range.end_offset());
