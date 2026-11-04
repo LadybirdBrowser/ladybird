@@ -34,6 +34,7 @@ struct CalculationContext {
     NumericRangesByValueType accepted_ranges_by_type {};
 
     static CalculationContext for_property(PropertyNameAndID const&);
+    static CalculationContext for_property(PropertyID);
 };
 
 class CalculatedStyleValue : public StyleValue {
@@ -63,8 +64,6 @@ public:
     Optional<i32> resolve_integer(CalculationResolutionContext const&) const;
 
     bool contains_percentage() const;
-
-    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
 private:
     friend class StyleValue;

@@ -6,43 +6,20 @@
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
+#include <LibWeb/Bindings/CSSUnitValue.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunitvalue
-class CSSUnitValue final : public CSSNumericValue {
-    WEB_WRAPPABLE(CSSUnitValue, CSSNumericValue);
-    GC_DECLARE_ALLOCATOR(CSSUnitValue);
+class WEB_API CSSUnitValue final : public CSSNumericValue {
+    WEB_RUST_INTERFACE(CSSUnitValue, css_unit_value)
 
 public:
-    [[nodiscard]] static GC::Ref<CSSUnitValue> create(double value, Utf16FlyString unit);
-    static GC::Ptr<CSSUnitValue> create_from_sum_value_item(SumValueItem const&);
-    static WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> construct_impl(double value, Utf16String unit);
+    static GC::Ref<CSSUnitValue> create(double value, Utf16FlyString const& unit);
 
-    virtual ~CSSUnitValue() override = default;
-
-    double value() const { return m_value; }
-    void set_value(double value);
-
-    Utf16FlyString const& unit() const { return m_unit; }
-
-    void serialize_unit_value(Utf16StringBuilder&, Optional<double> minimum, Optional<double> maximum) const;
-
-    GC::Ptr<CSSUnitValue> converted_to_unit(Utf16FlyString const& unit) const;
-
-    virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
-    virtual Optional<SumValue> create_a_sum_value() const override;
-
-    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
-    virtual WebIDL::ExceptionOr<CalcNodeRef> create_calculation_node(CalculationContext const&) const override;
-
-private:
-    explicit CSSUnitValue(double value, Utf16FlyString unit, NumericType type);
-
-    double m_value;
-    Utf16FlyString m_unit;
+    double value() const;
+    Utf16FlyString unit() const;
 };
 
 }

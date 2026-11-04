@@ -35,8 +35,6 @@ public:
         return result;
     }
 
-    GC::Ptr<CSSTransformComponent> reify_a_transform_function() const;
-
 private:
     friend class StyleValue;
 

@@ -9,8 +9,6 @@
 
 #include "StyleValueList.h"
 #include <LibGC/RootVector.h>
-#include <LibWeb/CSS/CSSTransformComponent.h>
-#include <LibWeb/CSS/CSSTransformValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 
@@ -20,42 +18,6 @@ void StyleValueList::set_style_sheet(StyleSheetState* style_sheet)
 {
     for (auto& value : values())
         const_cast<StyleValue&>(*value).set_style_sheet(style_sheet);
-}
-
-// https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-list
-static GC::Ptr<CSSStyleValue> reify_a_transform_list(ReadonlySpan<ValueComparingNonnullRefPtr<StyleValue const>> values)
-{
-    GC::RootVector<GC::Ref<CSSTransformComponent>> transform_components;
-    for (auto const& transform : values) {
-        auto reified_transform = transform->as_transformation().reify_a_transform_function();
-
-        if (!reified_transform)
-            return nullptr;
-
-        // NB: Not all transform functions are reifiable, in which case we give up reifying as a transform list.
-        transform_components.append(reified_transform.as_nonnull());
-    }
-    return CSSTransformValue::create(move(transform_components));
-}
-
-GC::Ref<CSSStyleValue> StyleValueList::reify(Utf16FlyString const& associated_property) const
-{
-    auto values = this->values();
-
-    // NB: <transform-list> is a StyleValueList that contains TransformStyleValues. If that's what we are, follow the
-    //     steps for reifying that.
-    if (all_of(values, [](auto const& it) { return it->is_transformation(); })) {
-        if (auto transform_list = reify_a_transform_list(values))
-            return transform_list.as_nonnull();
-    }
-
-    // NB: A list with a single item, such as `text-decoration-line: underline`, is that item on its own. Reify the
-    //     item, so that a single keyword reifies as a CSSKeywordValue.
-    if (values.size() == 1)
-        return values.first()->reify(associated_property);
-
-    // NB: Otherwise, there isn't an equivalent CSSStyleValue for StyleValueList, so just use the default.
-    return default_reify(associated_property);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#subdivide-into-iterations

@@ -83,7 +83,7 @@ WebIDL::ExceptionOr<GC::Ref<ViewTimeline>> ViewTimeline::create_for_constructor(
             for (auto const& value : values) {
                 auto edge = TRY(value.visit(
                     [&](GC::Ref<CSS::CSSNumericValue> const& numeric) -> WebIDL::ExceptionOr<InsetEdge> {
-                        return TRY(parse_inset(numeric->to_string({}))).start;
+                        return TRY(parse_inset(numeric->to_string())).start;
                     },
                     [&](GC::Ref<CSS::CSSKeywordValue> const& keyword) { return parse_auto(keyword->value()); },
                     // INTEROP: Blink takes "auto" as a string in the sequence too.

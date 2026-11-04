@@ -1,5 +1,5 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunparsedvalue
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSUnparsedValue : CSSStyleValue {
     constructor(sequence<CSSUnparsedSegment> members);
     iterable<CSSUnparsedSegment>;

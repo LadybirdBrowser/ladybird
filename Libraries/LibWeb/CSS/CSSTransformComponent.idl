@@ -1,5 +1,5 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#csstransformcomponent
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSTransformComponent {
     stringifier;
     [ImplementedAs=is_2d] attribute boolean is2D;

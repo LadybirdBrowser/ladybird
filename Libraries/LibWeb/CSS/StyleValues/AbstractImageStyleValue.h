@@ -31,8 +31,6 @@ public:
     virtual Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const;
 
     ImageStyleValue const* selected_image_style_value() const;
-
-    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 };
 
 }

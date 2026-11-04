@@ -1,5 +1,5 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathmin
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSMathMin : CSSMathValue {
     constructor(CSSNumberish... args);
     readonly attribute CSSNumericArray values;

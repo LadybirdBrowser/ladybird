@@ -42,7 +42,7 @@ pub(crate) enum SerializationMode {
 }
 
 impl SerializationMode {
-    fn from_ffi(mode: u8) -> Self {
+    pub(crate) fn from_ffi(mode: u8) -> Self {
         match mode {
             0 => Self::Normal,
             1 => Self::ResolvedValue,

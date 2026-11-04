@@ -19,7 +19,6 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSKeywordValue.h>
-#include <LibWeb/CSS/CSSMathSum.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
@@ -439,14 +438,14 @@ WebIDL::ExceptionOr<TimelineRangeEdge> parse_timeline_range_edge(DOM::Document& 
                 builder.append(**offset.range_name);
             if (offset.offset) {
                 builder.append_ascii(' ');
-                builder.append(offset.offset->to_string({}));
+                builder.append(offset.offset->to_string());
             }
             // NB: A TimelineRangeOffset that gives neither a range name nor an offset is the default edge.
             if (builder.is_empty())
                 return parse("normal"_utf16);
             return parse(builder.to_string());
         },
-        [&](GC::Ref<CSS::CSSNumericValue> const& offset) { return parse(offset->to_string({})); },
+        [&](GC::Ref<CSS::CSSNumericValue> const& offset) { return parse(offset->to_string()); },
         // Passing a CSSKeywordValue with a value other than "normal" as the rangeStart or rangeEnd value to any API
         // defined to accept KeyframeAnimationOptions throws a TypeError.
         [&](GC::Ref<CSS::CSSKeywordValue> const& keyword) -> WebIDL::ExceptionOr<TimelineRangeEdge> {
@@ -467,10 +466,10 @@ static TimelineRangeBindingValue timeline_range_edge_to_bindings(TimelineRangeEd
     auto percentage = CSS::CSSUnitValue::create(edge.offset_percentage, "percent"_utf16_fly_string);
     GC::Ref<CSS::CSSNumericValue> offset = edge.offset_px == 0 ? GC::Ref<CSS::CSSNumericValue> { percentage } : GC::Ref<CSS::CSSNumericValue> { px };
     if (edge.offset_px != 0 && edge.offset_percentage != 0)
-        offset = MUST(CSS::CSSMathSum::create_for_constructor(Vector<CSS::CSSNumberish> { GC::Ref<CSS::CSSNumericValue> { px }, GC::Ref<CSS::CSSNumericValue> { percentage } }));
+        offset = CSS::CSSNumericValue::create_sum(px, percentage);
     if (edge.calculated_offset) {
         auto calculated = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(edge.calculated_offset.data()));
-        offset = as<CSS::CSSNumericValue>(*calculated->as_calculated().reify({}));
+        offset = as<CSS::CSSNumericValue>(*CSS::CSSStyleValue::reify(*calculated, {}));
     }
 
     Bindings::TimelineRangeOffset range_offset {};

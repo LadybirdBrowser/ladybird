@@ -68,6 +68,7 @@ pub(crate) mod style_value_arc;
 pub mod table_group_builder;
 pub(crate) mod thin_slice;
 pub mod transition;
+pub mod typed_om;
 pub(crate) mod value_codes;
 
 pub(crate) mod dimension_units {

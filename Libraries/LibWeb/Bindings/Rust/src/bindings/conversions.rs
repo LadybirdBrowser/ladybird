@@ -112,6 +112,10 @@ impl UsvString {
         Self(to_well_formed(string))
     }
 
+    pub(crate) fn to_utf16(&self) -> std::borrow::Cow<'_, [u16]> {
+        self.0.to_utf16()
+    }
+
     pub(crate) fn from_utf8(string: &str) -> Self {
         Self(Utf16String::from_utf8(string))
     }

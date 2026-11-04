@@ -9,7 +9,6 @@
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
 #include <AK/StdLibExtras.h>
-#include <AK/Vector.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/NumericType.h>
@@ -26,8 +25,6 @@ class CalcNodeRef {
     AK_MAKE_NONCOPYABLE(CalcNodeRef);
 
 public:
-    using NumericValue = CalculatedStyleValue::NumericValue;
-
     CalcNodeRef(CalcNodeRef&& other)
         : m_node(exchange(other.m_node, nullptr))
     {
@@ -55,18 +52,6 @@ public:
     // Adopts a transferred handle, for example one returned by the Rust
     // simplification entry points.
     static CalcNodeRef adopt(StyleValueFFI::CalcNode const* node) { return CalcNodeRef { node }; }
-
-    static CalcNodeRef numeric(NumericValue const&);
-
-    static CalcNodeRef sum(Vector<CalcNodeRef>);
-    static CalcNodeRef product(Vector<CalcNodeRef>);
-    static CalcNodeRef min(Vector<CalcNodeRef>);
-    static CalcNodeRef max(Vector<CalcNodeRef>);
-
-    static CalcNodeRef negate(CalcNodeRef);
-    static CalcNodeRef invert(CalcNodeRef);
-
-    static CalcNodeRef clamp(CalcNodeRef minimum, CalcNodeRef center, CalcNodeRef maximum);
 
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // The type of the calculation this node roots, determined by the Rust

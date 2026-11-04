@@ -11,8 +11,6 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
-#include <LibWeb/CSS/CSSKeywordValue.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
@@ -465,85 +463,6 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(Computatio
 bool StyleValue::has_auto() const
 {
     return is_keyword() && as_keyword().keyword() == Keyword::Auto;
-}
-
-// https://drafts.css-houdini.org/css-typed-om-1/#reify-as-a-cssstylevalue
-GC::Ref<CSSStyleValue> StyleValue::reify(Utf16FlyString const& associated_property) const
-{
-    switch (type()) {
-    case Type::ConicGradient:
-    case Type::Image:
-    case Type::ImageSet:
-    case Type::LinearGradient:
-    case Type::RadialGradient:
-        return as_abstract_image().reify(associated_property);
-    case Type::Angle:
-    case Type::Flex:
-    case Type::Frequency:
-    case Type::Length:
-    case Type::Percentage:
-    case Type::Resolution:
-    case Type::Time:
-        return as_dimension().reify(associated_property);
-    case Type::BackgroundSize:
-        // NB: A background size whose height is `auto` serializes as just its width, so reify it as that width. For
-        //     example, the `auto` keyword is parsed as a size of `auto auto`.
-        if (as_background_size().size_y()->has_auto())
-            return as_background_size().size_x()->reify(associated_property);
-        break;
-    case Type::Calculated:
-        return as_calculated().reify(associated_property);
-    case Type::CustomIdent:
-        return as_custom_ident().reify(associated_property);
-    case Type::Display:
-        return as_display().reify(associated_property);
-    case Type::Easing:
-        // NB: Preserve authored step keywords until computation canonicalizes them to steps().
-        if (m_value->easing._0->is_keyword)
-            return CSSKeywordValue::create(m_value->easing._0->step_position == to_underlying(StepPosition::Start) ? "step-start"_utf16_fly_string : "step-end"_utf16_fly_string);
-        break;
-    case Type::Integer:
-        return as_integer().reify(associated_property);
-    case Type::Keyword:
-        return as_keyword().reify(associated_property);
-    case Type::Number:
-        return as_number().reify(associated_property);
-    case Type::OpacityValue:
-        return as_opacity_value().reify(associated_property);
-    case Type::GridTrackSizeList:
-        // NB: A track list that is just one track size, as for `grid-auto-columns: 10px`, is that track size.
-        if (auto const* track_size = StyleValueFFI::rust_style_value_grid_track_size_list_single_size(rust_style_value_data()))
-            return adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(track_size))->reify(associated_property);
-        break;
-    case Type::TextIndent:
-        // NB: A text-indent without the `hanging` or `each-line` keywords is just its length-percentage.
-        if (!m_value->text_indent.hanging && !m_value->text_indent.each_line)
-            return wrap_rust_child(m_value->text_indent.length_percentage)->reify(associated_property);
-        break;
-    case Type::Unresolved:
-        return as_unresolved().reify(associated_property);
-    case Type::ValueList:
-        return as_value_list().reify(associated_property);
-    default:
-        break;
-    }
-
-    // AD-HOC: Some values that are just a single keyword are represented by a more specific type, for example
-    //         `font-style: italic`, `grid-auto-flow: row` or `font-variant-numeric: ordinal`. Reify those as the
-    //         keyword. Colors and shorthands are left alone, as they are not keywords on their own.
-    if (type() != Type::Color && type() != Type::Shorthand) {
-        auto serialized_value = to_utf16_string(SerializationMode::Normal);
-        if (keyword_from_string(serialized_value).has_value())
-            return CSSKeywordValue::create(Utf16FlyString { serialized_value });
-    }
-
-    return default_reify(associated_property);
-}
-
-GC::Ref<CSSStyleValue> StyleValue::default_reify(Utf16FlyString const& associated_property) const
-{
-    // 1. Return a new CSSStyleValue object representing value whose [[associatedProperty]] internal slot is set to property.
-    return CSSStyleValue::create(associated_property, *this);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#subdivide-into-iterations

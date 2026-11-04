@@ -34,8 +34,6 @@ public:
 
     i32 integer() const { return m_value->integer.value; }
 
-    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
-
 private:
     friend class StyleValue;
 

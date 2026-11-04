@@ -1,4 +1,4 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#cssimagevalue
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSImageValue : CSSStyleValue {
 };

@@ -121,11 +121,6 @@ impl<T> OwnedArc<T> {
         // SAFETY: A non-null pointer comes from `Arc::into_raw()`, and its reference is this handle's own.
         (!pointer.is_null()).then(|| unsafe { std::sync::Arc::from_raw(pointer) })
     }
-
-    /// The reference, which must not be null.
-    pub(crate) fn into_arc(mut self) -> std::sync::Arc<T> {
-        self.take().expect("C++ hands over a live object")
-    }
 }
 
 impl<T> Drop for OwnedArc<T> {

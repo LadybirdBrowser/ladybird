@@ -6,81 +6,29 @@
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
-#include <AK/Utf16StringBuilder.h>
-#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWebCommon/WebIDL/Types.h>
-
-namespace Web::Bindings {
-
-struct CSSNumericType;
-
-}
 
 namespace Web::CSS {
 
-// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-sum-value
-struct SumValueItem {
-    double value;
-    UnitMap unit_map;
-};
-using SumValue = Vector<SumValueItem>;
-
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
-class CSSNumericValue : public CSSStyleValue {
-    WEB_WRAPPABLE(CSSNumericValue, CSSStyleValue);
-    GC_DECLARE_ALLOCATOR(CSSNumericValue);
+class WEB_API CSSNumericValue : public CSSStyleValue {
+    WEB_RUST_INTERFACE(CSSNumericValue, css_numeric_value)
 
 public:
-    struct SerializationParams {
-        Optional<double> minimum {};
-        Optional<double> maximum {};
-        bool nested { false };
-        bool parenless { false };
-    };
-    virtual ~CSSNumericValue() override = default;
+    // A new CSSMathSum of the values, whose types can be added.
+    static GC::Ref<CSSNumericValue> create_sum(GC::Ref<CSSNumericValue>, GC::Ref<CSSNumericValue>);
 
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> add(ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> sub(ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> mul(ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> div(ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> min(ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> max(ReadonlySpan<CSSNumberish>);
+    // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-type
+    NumericType type() const;
 
-    bool equals_for_bindings(ReadonlySpan<CSSNumberish>) const;
-    virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
+    // https://drafts.css-houdini.org/css-typed-om-1/#numeric-value-serialization
+    Utf16String to_string() const;
 
-    WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(Utf16String const& unit) const;
-    WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(Utf16FlyString const& unit) const;
-
-    CSSNumberish negate();
-    WebIDL::ExceptionOr<CSSNumberish> invert();
-
-    virtual Optional<SumValue> create_a_sum_value() const = 0;
-
-    Bindings::CSSNumericType type_for_bindings() const;
-    NumericType const& type() const { return m_type; }
-
-    virtual WebIDL::ExceptionOr<Utf16String> to_string() const final override { return to_string({}); }
-    void serialize(Utf16StringBuilder&, SerializationParams const&) const;
-    Utf16String to_string(SerializationParams const&) const;
-
-    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, Utf16View css_text);
-
-    virtual WebIDL::ExceptionOr<CalcNodeRef> create_calculation_node(CalculationContext const&) const = 0;
-
-protected:
-    explicit CSSNumericValue(NumericType);
-
-    NumericType m_type;
+    Optional<CalcNodeRef> create_calculation_node() const;
 };
-
-GC::Ref<CSSNumericValue> rectify_a_numberish_value(CSSNumberish const&, Optional<Utf16FlyString> unit = {});
 
 }

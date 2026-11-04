@@ -1,5 +1,5 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathinvert
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSMathInvert : CSSMathValue {
     constructor(CSSNumberish arg);
     readonly attribute CSSNumericValue value;

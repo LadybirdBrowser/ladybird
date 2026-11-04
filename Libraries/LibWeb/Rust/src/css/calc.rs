@@ -13,7 +13,7 @@
 //! Nothing constructs these yet; the FFI construction surface follows with
 //! the C++ staging.
 
-use crate::css::ffi_support::{OwnedArc, OwnedBox};
+use crate::css::ffi_support::OwnedArc;
 use crate::css::style_value::{
     AnchorPayload, AnchorSizePayload, CalculatedPayload, RandomValueSharingPayload, StyleValueBox,
 };
@@ -145,7 +145,7 @@ impl CalcNumericType {
     }
 
     /// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-add-two-types
-    pub(crate) fn added_to(&self, other: &CalcNumericType) -> Option<CalcNumericType> {
+    pub fn added_to(&self, other: &CalcNumericType) -> Option<CalcNumericType> {
         // To add two types type1 and type2, perform the following steps:
 
         // 1. Replace type1 with a fresh copy of type1, and type2 with a fresh copy of type2.
@@ -227,7 +227,7 @@ impl CalcNumericType {
     }
 
     /// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-multiply-two-types
-    pub(crate) fn multiplied_by(&self, other: &CalcNumericType) -> Option<CalcNumericType> {
+    pub fn multiplied_by(&self, other: &CalcNumericType) -> Option<CalcNumericType> {
         // To multiply two types type1 and type2, perform the following steps:
 
         // 1. Replace type1 with a fresh copy of type1, and type2 with a fresh copy of type2.
@@ -269,7 +269,7 @@ impl CalcNumericType {
     }
 
     /// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-invert-a-type
-    pub(crate) fn inverted(&self) -> CalcNumericType {
+    pub fn inverted(&self) -> CalcNumericType {
         // To invert a type type, perform the following steps:
 
         // 1. Let result be a new type with an initially empty ordered map and a percent hint matching that of type.
@@ -474,7 +474,7 @@ pub struct FfiNumericType {
 }
 
 impl FfiNumericType {
-    pub(crate) fn from_calc(value: Option<CalcNumericType>) -> Self {
+    pub fn from_calc(value: Option<CalcNumericType>) -> Self {
         let mut result = FfiNumericType {
             has_exponent_bits: 0,
             exponents: [0; BASE_TYPE_COUNT],
@@ -497,7 +497,7 @@ impl FfiNumericType {
         result
     }
 
-    pub(crate) fn to_calc(self) -> CalcNumericType {
+    pub fn to_calc(self) -> CalcNumericType {
         let mut result = CalcNumericType::default();
         for i in 0..BASE_TYPE_COUNT {
             if self.has_exponent_bits & (1 << i) != 0 {
@@ -514,37 +514,11 @@ impl FfiNumericType {
 #[derive(Clone, Copy)]
 #[repr(u8)]
 #[expect(dead_code, reason = "C++ constructs the variants")]
-pub enum FfiNumericTypeOperation {
-    Add,
-    Multiply,
-    Invert,
-}
-
-#[derive(Clone, Copy)]
-#[repr(u8)]
-#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiNumericTypeMatch {
     Dimension,
     Percentage,
     DimensionPercentage,
     Number,
-}
-
-/// Applies one numeric type algebra operation for C++ callers.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_numeric_type_operate(
-    operation: FfiNumericTypeOperation,
-    first: &FfiNumericType,
-    second: Option<&FfiNumericType>,
-) -> FfiNumericType {
-    let first = first.to_calc();
-    let second = || second.expect("the operation has a second operand").to_calc();
-    let result = match operation {
-        FfiNumericTypeOperation::Add => first.added_to(&second()),
-        FfiNumericTypeOperation::Multiply => first.multiplied_by(&second()),
-        FfiNumericTypeOperation::Invert => Some(first.inverted()),
-    };
-    FfiNumericType::from_calc(result)
 }
 
 /// Tests a numeric type against one of the CSS numeric matching categories.
@@ -1270,14 +1244,6 @@ fn shared(node: CalcNode) -> Arc<CalcNode> {
     Arc::new(node)
 }
 
-/// Reconstructs the child Arcs from an array of transferred handles.
-///
-/// # Safety
-/// `children` must point at `count` valid transferred handles.
-unsafe fn children_from_raw(children: *const *const CalcNode, count: usize) -> Vec<Arc<CalcNode>> {
-    (0..count).map(|i| unsafe { Arc::from_raw(*children.add(i)) }).collect()
-}
-
 /// Creates a numeric leaf for a dimension: kind selects the dimension in the
 /// order number, angle, flex, frequency, length, percentage, resolution, time.
 #[unsafe(no_mangle)]
@@ -1297,53 +1263,6 @@ pub extern "C" fn rust_calc_node_create_numeric_dimension(kind: u8, value: f64, 
         _ => unreachable!("invalid numeric dimension kind {kind}"),
     };
     handle(CalcNode::Numeric(numeric))
-}
-
-/// Creates a variadic node: kind selects sum (0), product (1), min (2) or
-/// max (3).
-///
-/// # Safety
-/// `children` must point at `count` valid transferred handles.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_variadic(
-    kind: u8,
-    children: *const *const CalcNode,
-    count: usize,
-) -> *const CalcNode {
-    let children = unsafe { children_from_raw(children, count) };
-    let node = match kind {
-        0 => CalcNode::Sum(children),
-        1 => CalcNode::Product(children),
-        2 => CalcNode::Min(children),
-        3 => CalcNode::Max(children),
-        _ => unreachable!("invalid variadic calc node kind {kind}"),
-    };
-    handle(node)
-}
-
-/// Creates a single-child node: kind selects negate (0) or invert (1).
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_calc_node_create_unary(kind: u8, child: OwnedArc<CalcNode>) -> *const CalcNode {
-    let child = child.into_arc();
-    let node = match kind {
-        0 => CalcNode::Negate(child),
-        1 => CalcNode::Invert(child),
-        _ => unreachable!("invalid unary calc node kind {kind}"),
-    };
-    handle(node)
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_calc_node_create_clamp(
-    min: OwnedArc<CalcNode>,
-    center: OwnedArc<CalcNode>,
-    max: OwnedArc<CalcNode>,
-) -> *const CalcNode {
-    handle(CalcNode::Clamp {
-        min: Some(min.into_arc()),
-        center: center.into_arc(),
-        max: Some(max.into_arc()),
-    })
 }
 
 #[unsafe(no_mangle)]
@@ -1375,7 +1294,7 @@ pub extern "C" fn rust_calc_node_contains_percentage(node: &CalcNode) -> bool {
 
 /// What percentages resolve against in the surrounding context.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ResolveAs {
+pub enum ResolveAs {
     Number,
     /// A base type index, in the numeric type order.
     Base(u8),
@@ -1957,7 +1876,7 @@ impl CalcNumericType {
 
     /// A type matches a dimension if its only non-zero entry is that base type
     /// with value 1, and the percent hint is compatible with the context.
-    pub(crate) fn matches_dimension(&self, base: usize, resolve_as: Option<ResolveAs>) -> bool {
+    pub fn matches_dimension(&self, base: usize, resolve_as: Option<ResolveAs>) -> bool {
         if self.entry_with_value_1_while_all_others_are_0() != Some(base) {
             return false;
         }
@@ -1969,20 +1888,20 @@ impl CalcNumericType {
 
     /// A type matches <percentage> if its only non-zero entry is percent with
     /// value 1, and its percent hint is null or percent.
-    pub(crate) fn matches_percentage(&self) -> bool {
+    pub fn matches_percentage(&self) -> bool {
         if self.percent_hint.is_some() && self.percent_hint != Some(BASE_TYPE_PERCENT as u8) {
             return false;
         }
         self.entry_with_value_1_while_all_others_are_0() == Some(BASE_TYPE_PERCENT)
     }
 
-    pub(crate) fn matches_dimension_percentage(&self, base: usize, resolve_as: Option<ResolveAs>) -> bool {
+    pub fn matches_dimension_percentage(&self, base: usize, resolve_as: Option<ResolveAs>) -> bool {
         self.matches_percentage() || self.matches_dimension(base, resolve_as)
     }
 
     /// A type matches <number> if it has no non-zero entries, with the hint
     /// compatible when percentages resolve against a non-number type.
-    pub(crate) fn matches_number(&self, resolve_as: Option<ResolveAs>) -> bool {
+    pub fn matches_number(&self, resolve_as: Option<ResolveAs>) -> bool {
         for i in 0..BASE_TYPE_COUNT {
             if self.exponents[i].is_some() && self.exponents[i] != Some(0) {
                 return false;
@@ -5051,7 +4970,7 @@ fn node_kind_code(node: &CalcNode) -> u8 {
 }
 
 #[repr(C)]
-pub struct FfiCalcReificationNode {
+pub struct CalcReificationNode {
     pub kind: u8,
     pub numeric_kind: u8,
     pub unit: u8,
@@ -5061,24 +4980,10 @@ pub struct FfiCalcReificationNode {
     pub child_count: usize,
 }
 
-#[repr(C)]
-pub struct FfiCalcReification {
-    pub nodes: *const FfiCalcReificationNode,
-    pub node_count: usize,
-    pub children: *const usize,
-    pub child_count: usize,
-    pub storage: *mut std::ffi::c_void,
-}
-
-pub struct CalcReificationStorage {
-    nodes: Box<[FfiCalcReificationNode]>,
-    children: Box<[usize]>,
-}
-
 fn append_reification_node(
     node: &CalcNode,
     percentage_leaf_type: &CalcNumericType,
-    nodes: &mut Vec<FfiCalcReificationNode>,
+    nodes: &mut Vec<CalcReificationNode>,
     children: &mut Vec<usize>,
 ) -> Option<usize> {
     if !matches!(
@@ -5119,7 +5024,7 @@ fn append_reification_node(
         _ => (0, 0.0, 0),
     };
     let index = nodes.len();
-    nodes.push(FfiCalcReificationNode {
+    nodes.push(CalcReificationNode {
         kind: node_kind_code(node),
         numeric_kind,
         unit,
@@ -5132,14 +5037,13 @@ fn append_reification_node(
 }
 
 /// https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
-/// Describe a calculation tree in postorder so C++ can create its GC-owned Typed OM objects.
-/// Unsupported math functions return an empty description.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_calc_describe_for_typed_om(
+/// Describes a calculation tree in postorder, for the objects of the Typed OM. Unsupported math functions result in
+/// nothing.
+pub(crate) fn reification_nodes(
     calculated: &crate::css::style_value::StyleValueData,
-) -> FfiCalcReification {
+) -> Option<(Vec<CalcReificationNode>, Vec<usize>)> {
     let crate::css::style_value::StyleValueData::Calculated(calculated_payload) = calculated else {
-        unreachable!("rust_calc_describe_for_typed_om requires calculated value data");
+        unreachable!("reification_nodes requires calculated value data");
     };
     let CalculatedPayload {
         rust_calculation,
@@ -5155,41 +5059,11 @@ pub extern "C" fn rust_calc_describe_for_typed_om(
     ));
     let mut nodes = Vec::new();
     let mut children = Vec::new();
-    if append_reification_node(
+    append_reification_node(
         rust_calculation.node(),
         &percentage_leaf_type,
         &mut nodes,
         &mut children,
-    )
-    .is_none()
-    {
-        return FfiCalcReification {
-            nodes: std::ptr::null(),
-            node_count: 0,
-            children: std::ptr::null(),
-            child_count: 0,
-            storage: std::ptr::null_mut(),
-        };
-    }
-    let storage = Box::new(CalcReificationStorage {
-        nodes: nodes.into_boxed_slice(),
-        children: children.into_boxed_slice(),
-    });
-    let result = FfiCalcReification {
-        nodes: storage.nodes.as_ptr(),
-        node_count: storage.nodes.len(),
-        children: storage.children.as_ptr(),
-        child_count: storage.children.len(),
-        storage: std::ptr::null_mut(),
-    };
-    let storage = Box::into_raw(storage);
-    FfiCalcReification {
-        storage: storage.cast(),
-        ..result
-    }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_calc_reification_release(storage: OwnedBox<CalcReificationStorage>) {
-    drop(storage);
+    )?;
+    Some((nodes, children))
 }

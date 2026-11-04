@@ -8,7 +8,6 @@
  */
 
 #include "KeywordStyleValue.h"
-#include <LibWeb/CSS/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 
 namespace Web::CSS {
@@ -70,13 +69,6 @@ bool KeywordStyleValue::is_color(Keyword keyword)
 bool KeywordStyleValue::has_color() const
 {
     return is_color(keyword());
-}
-
-// https://drafts.css-houdini.org/css-typed-om-1/#reify-ident
-GC::Ref<CSSStyleValue> KeywordStyleValue::reify(Utf16FlyString const&) const
-{
-    // 1. Return a new CSSKeywordValue with its value internal slot set to the serialization of ident.
-    return CSSKeywordValue::create(utf16_fly_string_from_keyword(keyword()));
 }
 
 }

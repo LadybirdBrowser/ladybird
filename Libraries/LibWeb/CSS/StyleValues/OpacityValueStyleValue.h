@@ -19,8 +19,6 @@ public:
     }
     virtual ~OpacityValueStyleValue() override = default;
 
-    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
-
 private:
     friend class StyleValue;
 

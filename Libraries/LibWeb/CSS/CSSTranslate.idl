@@ -1,8 +1,8 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#csstranslate
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSTranslate : CSSTransformComponent {
     constructor(CSSNumericValue x, CSSNumericValue y, optional CSSNumericValue z);
-    [DirectGetter] attribute CSSNumericValue x;
-    [DirectGetter] attribute CSSNumericValue y;
-    [DirectGetter] attribute CSSNumericValue z;
+    attribute CSSNumericValue x;
+    attribute CSSNumericValue y;
+    attribute CSSNumericValue z;
 };

@@ -1,5 +1,5 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#cssscale
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSScale : CSSTransformComponent {
     constructor(CSSNumberish x, CSSNumberish y, optional CSSNumberish z);
     attribute CSSNumberish x;

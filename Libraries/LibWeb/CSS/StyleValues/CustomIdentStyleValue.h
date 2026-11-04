@@ -22,7 +22,6 @@ public:
     virtual ~CustomIdentStyleValue() override = default;
 
     Utf16FlyString custom_ident() const { return css_string_from_rust(&m_value->custom_ident.custom_ident); }
-    GC::Ref<CSSStyleValue> reify(Utf16FlyString const&) const;
 
 private:
     friend class StyleValue;

@@ -1,5 +1,5 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathclamp
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface CSSMathClamp : CSSMathValue {
     constructor(CSSNumberish lower, CSSNumberish value, CSSNumberish upper);
     readonly attribute CSSNumericValue lower;

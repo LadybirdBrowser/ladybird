@@ -1,0 +1,4 @@
+min, NaN first: NaN
+min, NaN last: 1
+max, NaN first: NaN
+max, NaN last: 1

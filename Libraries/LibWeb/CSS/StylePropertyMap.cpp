@@ -9,8 +9,6 @@
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
-#include <LibWeb/CSS/CSSUnparsedValue.h>
-#include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -54,7 +52,7 @@ static bool any_have_non_matching_associated_property(Utf16FlyString const& prop
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
-static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(JS::VM& vm, PropertyNameAndID const& property, Variant<GC::Ref<CSSStyleValue>, Utf16String> const& value)
+static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const& property, Variant<GC::Ref<CSSStyleValue>, Utf16String> const& value)
 {
     // To create an internal representation, given a string property and a string or CSSStyleValue value:
     auto internal_representation = TRY(value.visit(
@@ -62,7 +60,7 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
             auto internal_representation = TRY(css_style_value->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes));
             // INTEROP: Custom properties, including registered ones, only accept CSSUnparsedValue objects and
             //          CSS-wide keywords.
-            if (property.is_custom_property() && !is<CSSUnparsedValue>(*css_style_value) && !internal_representation->is_css_wide_keyword())
+            if (property.is_custom_property() && !css_style_value->is_unparsed_value() && !internal_representation->is_css_wide_keyword())
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Custom properties only accept unparsed values and CSS-wide keywords"_utf16 };
             return internal_representation;
         },
@@ -71,9 +69,9 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
             //     Parse a CSSStyleValue with property property, cssText value, and parseMultiple set to false, and
             //     return the result.
             // FIXME: Avoid passing name as a string, as it gets immediately converted back to PropertyNameAndID.
-            auto result = TRY(CSSStyleValue::parse_a_css_style_value(vm, property.name(), css_text, CSSStyleValue::ParseMultiple::No));
+            auto result = TRY(CSSStyleValue::parse_a_css_style_value(property.name(), css_text));
             // AD-HOC: Result is a CSSStyleValue but we want an internal representation, so... convert it again I guess?
-            return result.get<GC::Ref<CSSStyleValue>>()->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes);
+            return result->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes);
         }));
 
     if (auto const* css_style_value = value.get_pointer<GC::Ref<CSSStyleValue>>();
@@ -196,7 +194,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(Utf16FlyString property_name, Re
     // 9. For each value in values, create an internal representation for property and value, and append the result to values to set.
     for (auto const& value : values) {
         // AD-HOC: Step 5 is done here, see above.
-        auto internal_representation = TRY(create_an_internal_representation(vm(), property.value(), value));
+        auto internal_representation = TRY(create_an_internal_representation(property.value(), value));
         internal_representation = TRY(normalize_overflow_clip_margin_internal_representation(
             props, property.value(), move(internal_representation)));
 
@@ -336,7 +334,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::append(Utf16FlyString property_name,
     // 10. For each value in values, create an internal representation with property and value, and append the returned value to temp values.
     for (auto const& value : values) {
         // AD-HOC: Step 5 is done here, see above.
-        auto internal_representation = TRY(create_an_internal_representation(vm(), property.value(), value));
+        auto internal_representation = TRY(create_an_internal_representation(property.value(), value));
 
         if (internal_representation->is_unresolved())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot append a CSSUnparsedValue or CSSVariableReferenceValue"_utf16 };

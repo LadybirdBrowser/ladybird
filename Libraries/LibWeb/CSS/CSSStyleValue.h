@@ -6,62 +6,60 @@
 
 #pragma once
 
+#include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
-#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/CSSStyleValue.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/CSS/SerializationMode.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
+#include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssstylevalue
-class CSSStyleValue : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(CSSStyleValue, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(CSSStyleValue);
+// The C++ side of the CSS Typed OM, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/css): what C++
+// creates and reads.
+class WEB_API CSSStyleValue : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(CSSStyleValue, css_style_value)
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleValue> create(Utf16FlyString associated_property, StyleValue const&, SerializationMode = SerializationMode::Normal);
-
-    virtual ~CSSStyleValue() override;
-
-    Optional<Utf16FlyString> const& associated_property() const { return m_associated_property; }
-    RustStyleValueHandle const& source_value() const { return m_source_value; }
-
-    static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse(JS::VM&, Utf16FlyString const& property, Utf16View css_text);
-    static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> parse_all(JS::VM&, Utf16FlyString const& property, Utf16View css_text);
-
-    enum class ParseMultiple : u8 {
-        No,
-        Yes,
-    };
-    static WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> parse_a_css_style_value(JS::VM&, Utf16FlyString property, Utf16View css_text, ParseMultiple);
-
-    virtual WebIDL::ExceptionOr<Utf16String> to_string() const;
-
-    // FIXME: Temporary hack. Really we want to pass something like a CalculationContext with the valid types and ranges.
     enum class PerformTypeCheck : u8 {
         No,
         Yes,
     };
-    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const;
 
-protected:
-    explicit CSSStyleValue();
-    explicit CSSStyleValue(StyleValue const& source_value);
+    static GC::Ref<CSSStyleValue> create(Utf16FlyString associated_property, StyleValue const&, SerializationMode = SerializationMode::Normal);
 
-    // Wraps the held Rust value in a C++ StyleValue facade on demand.
-    RefPtr<StyleValue const> source_style_value() const;
+    // https://drafts.css-houdini.org/css-typed-om-1/#reify-stylevalue
+    static GC::Ref<CSSStyleValue> reify(StyleValue const&, Utf16FlyString const& associated_property);
+
+    // https://drafts.css-houdini.org/css-typed-om-1/#parse-a-cssstylevalue, with parseMultiple set to false.
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse_a_css_style_value(Utf16FlyString const& property, Utf16View css_text);
+
+    Optional<Utf16FlyString> associated_property() const;
+
+    // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+    WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const;
+
+    bool is_unparsed_value() const;
+
+    template<typename T>
+    bool fast_is() const
+    requires(IsSame<T, CSSNumericValue> || IsSame<T, CSSUnitValue>)
+    {
+        if constexpr (IsSame<T, CSSNumericValue>)
+            return is_numeric_value();
+        else
+            return is_unit_value();
+    }
 
 private:
-    explicit CSSStyleValue(Utf16FlyString associated_property, StyleValue const& source_value, SerializationMode);
-
-    // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-associatedproperty-slot
-    Optional<Utf16FlyString> m_associated_property;
-
-    // Shared handle to the Rust-owned value data this object was reified from.
-    RustStyleValueHandle m_source_value;
-    SerializationMode m_serialization_mode { SerializationMode::Normal };
+    bool is_numeric_value() const;
+    bool is_unit_value() const;
 };
 
 }

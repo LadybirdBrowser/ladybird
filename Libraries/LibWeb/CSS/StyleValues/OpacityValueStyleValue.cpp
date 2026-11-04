@@ -9,9 +9,4 @@
 
 namespace Web::CSS {
 
-GC::Ref<CSSStyleValue> OpacityValueStyleValue::reify(Utf16FlyString const& associated_property) const
-{
-    return value()->reify(associated_property);
-}
-
 }

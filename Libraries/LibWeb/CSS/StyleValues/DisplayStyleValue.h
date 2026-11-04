@@ -19,8 +19,6 @@ public:
 
     Display display() const { return bit_cast<Display>(m_value->display.raw); }
 
-    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
-
 private:
     friend class StyleValue;
 
