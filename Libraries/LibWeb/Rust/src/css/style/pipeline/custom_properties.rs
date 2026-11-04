@@ -274,6 +274,9 @@ impl RetainedState {
             computed.reads.environment_reads |= crate::css::style::input_types::StyleEnvironment::COLOR_SCHEME;
         }
         if reads.viewport {
+            computed
+                .facts
+                .add_dependency_flags(crate::css::computed_longhand_table::DEPENDS_ON_VIEWPORT_METRICS);
             computed.reads.environment_reads |= crate::css::style::input_types::StyleEnvironment::VIEWPORT;
         }
         computed.element_dependent |= reads.sibling_position || reads.container_unit_mask != 0;
