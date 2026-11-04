@@ -12,9 +12,11 @@
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/EventHandler.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Page/Page.h>
@@ -126,6 +128,10 @@ void DedicatedWorkerGlobalScope::schedule_rendering_update()
 {
     if (!m_rendering_update_timer) {
         m_rendering_update_timer = Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(0), GC::create_function(heap(), [this] {
+            if (relevant_settings_object(*this).responsible_event_loop().execution_paused()) {
+                schedule_rendering_update();
+                return;
+            }
             run_rendering_update();
         }));
     }

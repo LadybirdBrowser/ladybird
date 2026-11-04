@@ -1,23 +1,33 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(done => {
-        httpTestServer()
-            .createEcho("GET", "/worker-synchronous-xhr-send", {
-                status: 200,
-                headers: {
-                    "Access-Control-Allow-Origin": "*",
-                    "Content-Type": "text/plain",
-                },
-                body: "hello over http",
-            })
-            .then(url => {
-                const worker = new Worker("worker-synchronous-XHR-send.js");
-                worker.onmessage = event => {
-                    println(event.data);
-                    done();
-                };
-                worker.postMessage(url);
-            });
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const url = await server.createEcho("GET", "/worker-synchronous-xhr-send", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/plain",
+            },
+            body: "hello over http",
+            wait_for_unblock: token,
+        });
+
+        const frameWorkerSource = "onmessage = () => requestAnimationFrame(() => postMessage(null));";
+        const frameWorker = new Worker(URL.createObjectURL(new Blob([frameWorkerSource], { type: "text/javascript" })));
+        const worker = new Worker("worker-synchronous-XHR-send.js");
+        const log = new Promise(resolve => (worker.onmessage = event => resolve(event.data)));
+        worker.postMessage(url);
+
+        // A frame of another worker shows that the animation frame the blocked worker requested is due.
+        await server.waitForRequest(url);
+        await new Promise(resolve => {
+            frameWorker.onmessage = resolve;
+            frameWorker.postMessage(null);
+        });
+        await fetch(`${server.baseURL}/unblock/${token}`);
+
+        println(await log);
     });
 </script>
