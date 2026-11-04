@@ -393,8 +393,6 @@ pub(in crate::css::style) unsafe fn publish_sampled_animation_overlay(
     };
     let old_view = crate::css::style::StyleRecordView::of_host_record(&old_record);
     let rebuilt = engine.build_animation_overlay_payloads(
-        node,
-        pseudo_kind,
         old_view,
         longhands,
         overlay,
