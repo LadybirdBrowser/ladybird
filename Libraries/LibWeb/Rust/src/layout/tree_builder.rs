@@ -2288,6 +2288,7 @@ fn update_principal_node_descendants(
         // Add the ::before pseudo-element before walking normal children.
         if update.kind.is_element()
             && layout_node_can_have_children
+            && box_can_have_generated_children(host, update.mirror_identity, layout_node)
             && !content_visibility_hidden
             && !context.has_svg_root
         {
@@ -2499,7 +2500,10 @@ fn update_principal_node_descendants(
         }
     }
 
-    if update.update_pseudo_elements_in_place && !should_create_layout_node {
+    if update.update_pseudo_elements_in_place
+        && !should_create_layout_node
+        && box_can_have_generated_children(host, update.mirror_identity, layout_node)
+    {
         state.ancestor_stack.push(layout_node);
         let placed = create_pseudo_element(
             host,
@@ -2544,15 +2548,39 @@ fn create_marker_and_after_boxes(
         );
         assert!(placed.is_none());
     }
-    let placed = create_pseudo_element(
-        host,
-        state,
-        element,
-        FfiPseudoElement::After,
-        Some(FfiInsertionMode::Append),
-    );
-    assert!(placed.is_none());
+    if box_can_have_generated_children(host, element, layout_node) {
+        let placed = create_pseudo_element(
+            host,
+            state,
+            element,
+            FfiPseudoElement::After,
+            Some(FfiInsertionMode::Append),
+        );
+        assert!(placed.is_none());
+    }
     assert!(state.ancestor_stack.pop().is_some());
+}
+
+/// Whether the box of `element` can hold the boxes of its ::before and ::after pseudo-elements. A form control whose
+/// content the user agent supplies holds none: a text control, a range input, an input element shown as a button, or a
+/// select.
+fn box_can_have_generated_children(host: &TreeBuilderHost<'_>, element: StyleNodeID, layout_node: LayoutNode) -> bool {
+    use crate::css::style::bridge::element_construction_fact::IS_HTML_SELECT_ELEMENT;
+    let data = host.data(layout_node);
+    if matches!(
+        data.kind.get(),
+        NodeKind::TextInputBox | NodeKind::TextAreaBox | NodeKind::RangeInputBox
+    ) {
+        return false;
+    }
+    if node_facts::has_flag(data, NodeFlag::IsHtmlInputElement)
+        && node_facts::has_flag(data, NodeFlag::UsesButtonLayout)
+    {
+        return false;
+    }
+    !host
+        .arena()
+        .with_style_store(|engine| engine.element_construction_facts(element) & IS_HTML_SELECT_ELEMENT != 0)
 }
 
 /// Empties the child list of a box that keeps its place while its children are placed again: frees the element's
