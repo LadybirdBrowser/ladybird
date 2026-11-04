@@ -34,6 +34,15 @@ TEST_CASE(highlight_html_with_non_ascii_before_linkified_attribute)
     EXPECT(result.contains("<a href=\"https://example.com/base/next.html\"><span class=\"attribute-value\">\"next.html\"</span></a>"sv));
 }
 
+TEST_CASE(highlight_html_with_non_ascii_in_linkified_attribute)
+{
+    auto source = "<a href=\"caf\xC3\xA9.html\">ok</a><a href=\"https://example.com/\xF0\x9F\x98\x80\">ok</a>"_string;
+    auto result = highlight_source(source, Syntax::Language::HTML);
+
+    EXPECT(result.contains("<a href=\"https://example.com/base/caf%C3%A9.html\"><span class=\"attribute-value\">\"caf\xC3\xA9.html\"</span></a>"sv));
+    EXPECT(result.contains("<a href=\"https://example.com/%F0%9F%98%80\"><span class=\"attribute-value\">\"https://example.com/\xF0\x9F\x98\x80\"</span></a>"sv));
+}
+
 TEST_CASE(highlight_css_with_non_ascii_before_token)
 {
     auto source = ".caf\xC3\xA9 { color: red; }"_string;
