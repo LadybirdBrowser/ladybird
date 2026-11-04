@@ -526,6 +526,11 @@ fn contains_only_declaration_value(values: &[ComponentValue]) -> bool {
         && values.iter().all(|value| {
             !matches!(value.kind, ComponentKind::Token(ParserTokenKind::Semicolon)) && !value.is_delim(b'!')
         })
+        && crate::css::parser::arbitrary_substitution::collect_arbitrary_substitution_function_presence(
+            values,
+            &mut Default::default(),
+        )
+        .is_ok()
 }
 
 fn strip_important(values: &[ComponentValue]) -> &[ComponentValue] {
