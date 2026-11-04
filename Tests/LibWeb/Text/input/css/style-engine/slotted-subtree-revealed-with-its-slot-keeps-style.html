@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<x-host id="host"><div id="slotted"><div id="target">x</div></div></x-host>
+<script>
+    test(() => {
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = "<slot></slot>";
+        const slot = root.firstElementChild;
+        void host.offsetHeight;
+
+        // Hiding the slot withdraws the styles of the elements assigned to it, which then get them back as it's shown again.
+        slot.style.display = "none";
+        void host.offsetHeight;
+        slot.style.display = "";
+
+        println(`offsetParent: ${target.offsetParent.localName}`);
+        println(`offsetTop: ${target.offsetTop === slotted.offsetTop}`);
+        println(`slotted display: ${getComputedStyle(slotted).display}`);
+    });
+</script>
