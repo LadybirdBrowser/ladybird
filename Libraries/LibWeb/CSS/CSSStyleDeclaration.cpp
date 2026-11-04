@@ -124,12 +124,21 @@ void CSSStyleDeclaration::set_owner_node(Optional<DOM::AbstractElement> owner_no
     m_owner_pseudo_element = owner_node->pseudo_element();
 }
 
-// Declared on the Rust side in Libraries/LibWeb/Bindings/Rust/src/css/css_descriptors.rs.
+// Declared on the Rust side in Libraries/LibWeb/Bindings/Rust/src/css/css_style_declaration.rs and css_rule.rs.
 extern "C" {
-void web_css_descriptors_set_owner(void* declaration, u16 interface_name, void* owner);
+void web_css_declaration_set_owner(void* declaration, u16 interface_name, void* owner);
 void* web_css_declaration_owner(void* declaration);
-FlatPtr web_css_descriptors_get(void* declaration, u8 const* name, size_t name_length);
-bool web_css_descriptors_set(void* declaration, u8 const* name, size_t name_length, FlatPtr value, FlatPtr* error_message);
+FlatPtr web_css_declaration_get_by_name(void* declaration, u8 const* name, size_t name_length);
+bool web_css_declaration_set_by_name(void* declaration, u8 const* name, size_t name_length, FlatPtr value, FlatPtr* error_message);
+FlatPtr web_css_declaration_css_text(void* declaration);
+bool web_css_declaration_set_css_text(void* declaration, FlatPtr text, FlatPtr* error_message);
+size_t web_css_declaration_length(void* declaration);
+FlatPtr web_css_declaration_item(void* declaration, size_t index);
+FlatPtr web_css_declaration_get_property_value(void* declaration, FlatPtr property);
+FlatPtr web_css_declaration_get_property_priority(void* declaration, FlatPtr property);
+bool web_css_declaration_set_property(void* declaration, FlatPtr property, FlatPtr value, FlatPtr priority, FlatPtr* error_message);
+bool web_css_declaration_remove_property(void* declaration, FlatPtr property, FlatPtr* removed_value, FlatPtr* error_message);
+void* web_css_declaration_parent_rule(void* declaration);
 }
 
 static CSSStyleDeclaration& declaration_from_cell(void* cell)
@@ -137,12 +146,27 @@ static CSSStyleDeclaration& declaration_from_cell(void* cell)
     return *static_cast<CSSStyleDeclaration*>(static_cast<GC::Cell*>(cell));
 }
 
-static Utf16FlyString property_name(u8 const* name, size_t name_length)
+static Utf16FlyString property_name_from_utf8(u8 const* name, size_t name_length)
 {
     return Utf16FlyString::from_utf8_without_validation(StringView { name, name_length });
 }
 
-void web_css_descriptors_set_owner(void* declaration, u16 interface_name, void* owner)
+static Utf16FlyString property_name_from_raw(FlatPtr property)
+{
+    return Utf16FlyString { Utf16String::from_raw(property) };
+}
+
+// NB: Every step that throws throws a NoModificationAllowedError, which the Rust bindings recreate from its message.
+template<typename T>
+static bool succeeded_or_store_message(WebIDL::ExceptionOr<T> const& result, FlatPtr* error_message)
+{
+    if (!result.is_error())
+        return true;
+    *error_message = result.exception().template get<GC::Ref<WebIDL::DOMException>>()->message().to_utf16_string().into_raw();
+    return false;
+}
+
+void web_css_declaration_set_owner(void* declaration, u16 interface_name, void* owner)
 {
     declaration_from_cell(declaration).set_owner(static_cast<Bindings::InterfaceName>(interface_name), *static_cast<Bindings::RustInterfaceCell*>(owner));
 }
@@ -152,21 +176,67 @@ void* web_css_declaration_owner(void* declaration)
     return &declaration_from_cell(declaration).ensure_owner();
 }
 
-FlatPtr web_css_descriptors_get(void* declaration, u8 const* name, size_t name_length)
+FlatPtr web_css_declaration_get_by_name(void* declaration, u8 const* name, size_t name_length)
 {
-    return declaration_from_cell(declaration).get_property_value(property_name(name, name_length)).into_raw();
+    return declaration_from_cell(declaration).get_property_value(property_name_from_utf8(name, name_length)).into_raw();
 }
 
-bool web_css_descriptors_set(void* declaration, u8 const* name, size_t name_length, FlatPtr value, FlatPtr* error_message)
+bool web_css_declaration_set_by_name(void* declaration, u8 const* name, size_t name_length, FlatPtr value, FlatPtr* error_message)
 {
     auto text = Utf16String::from_raw(value);
-    auto result = declaration_from_cell(declaration).set_property(property_name(name, name_length), text.utf16_view(), u""sv);
-    if (!result.is_error())
-        return true;
-    auto exception = result.release_error();
-    auto message = exception.get<GC::Ref<WebIDL::DOMException>>()->message();
-    *error_message = Utf16String(message).into_raw();
-    return false;
+    return succeeded_or_store_message(declaration_from_cell(declaration).set_property(property_name_from_utf8(name, name_length), text.utf16_view(), u""sv), error_message);
+}
+
+FlatPtr web_css_declaration_css_text(void* declaration)
+{
+    return declaration_from_cell(declaration).css_text().into_raw();
+}
+
+bool web_css_declaration_set_css_text(void* declaration, FlatPtr text, FlatPtr* error_message)
+{
+    auto css_text = Utf16String::from_raw(text);
+    return succeeded_or_store_message(declaration_from_cell(declaration).set_css_text(css_text.utf16_view()), error_message);
+}
+
+size_t web_css_declaration_length(void* declaration)
+{
+    return declaration_from_cell(declaration).length();
+}
+
+FlatPtr web_css_declaration_item(void* declaration, size_t index)
+{
+    return declaration_from_cell(declaration).item(index).into_raw();
+}
+
+FlatPtr web_css_declaration_get_property_value(void* declaration, FlatPtr property)
+{
+    return declaration_from_cell(declaration).get_property_value(property_name_from_raw(property)).into_raw();
+}
+
+FlatPtr web_css_declaration_get_property_priority(void* declaration, FlatPtr property)
+{
+    return declaration_from_cell(declaration).get_property_priority(property_name_from_raw(property)).into_raw();
+}
+
+bool web_css_declaration_set_property(void* declaration, FlatPtr property, FlatPtr value, FlatPtr priority, FlatPtr* error_message)
+{
+    auto value_text = Utf16String::from_raw(value);
+    auto priority_text = Utf16String::from_raw(priority);
+    return succeeded_or_store_message(declaration_from_cell(declaration).set_property(property_name_from_raw(property), value_text.utf16_view(), priority_text.utf16_view()), error_message);
+}
+
+bool web_css_declaration_remove_property(void* declaration, FlatPtr property, FlatPtr* removed_value, FlatPtr* error_message)
+{
+    auto result = declaration_from_cell(declaration).remove_property(property_name_from_raw(property));
+    if (!succeeded_or_store_message(result, error_message))
+        return false;
+    *removed_value = result.release_value().into_raw();
+    return true;
+}
+
+void* web_css_declaration_parent_rule(void* declaration)
+{
+    return declaration_from_cell(declaration).parent_rule().ptr();
 }
 
 }

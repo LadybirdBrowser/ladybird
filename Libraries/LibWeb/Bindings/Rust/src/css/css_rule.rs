@@ -183,11 +183,6 @@ impl CSSRule {
         unsafe { cell_from_abi(web_css_declaration_owner(declarations.as_ptr())) }
     }
 
-    /// The object that the `style` attribute of the rule returns.
-    pub(crate) fn style_attribute(&self, cx: &CallContext) -> CppInterface {
-        wrap_cpp_cell(cx, &self.declarations(cx.vm()))
-    }
-
     // https://drafts.csswg.org/cssom/#dom-cssrule-csstext
     pub(crate) fn css_text(&self, cx: &mut CallContext) -> WebIdlResult<Utf16String> {
         // The cssText attribute must return a serialization of the CSS rule.

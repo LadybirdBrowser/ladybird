@@ -127,7 +127,7 @@ def is_implemented_in_rust(interface: Optional[Interface]) -> bool:
 
 # The interfaces implemented in C++ that an interface implemented in Rust can inherit from
 # (Libraries/LibWeb/Bindings/RustEventTarget.h).
-CPP_PARENT_INTERFACES = ("CSSStyleDeclaration", "EventTarget", "Event")
+CPP_PARENT_INTERFACES = ("EventTarget", "Event")
 
 
 def cpp_ancestor(interface: Interface, context: GenerationContext) -> Optional[Interface]:

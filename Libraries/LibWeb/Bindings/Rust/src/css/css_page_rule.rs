@@ -7,9 +7,9 @@
 //! CSSPageRule, https://drafts.csswg.org/cssom/#the-csspagerule-interface
 
 use super::css_grouping_rule::CSSGroupingRule;
+use super::css_page_descriptors::CSSPageDescriptors;
 use super::css_rule::impl_rule_wrappable;
 use super::css_rule::{CSSRule, RuleText, serialized_rules};
-use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Inherits, Ref, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use ak::Utf16String;
@@ -62,8 +62,8 @@ impl CSSPageRule {
     }
 
     // https://drafts.csswg.org/cssom/#dom-csspagerule-style
-    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
-        Ok(self.rule().style_attribute(cx))
+    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSPageDescriptors>> {
+        Ok(self.rule().declarations_object(cx))
     }
 
     // https://drafts.csswg.org/cssom/#ref-for-csspagerule

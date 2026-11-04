@@ -6,9 +6,9 @@
 
 //! CSSFunctionDeclarations, https://drafts.csswg.org/css-mixins-1/#cssfunctiondeclarations
 
+use super::css_function_descriptors::CSSFunctionDescriptors;
 use super::css_rule::CSSRule;
 use super::css_rule::impl_rule_wrappable;
-use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Inherits, Ref, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use ak::Utf16String;
@@ -42,8 +42,8 @@ impl CSSFunctionDeclarations {
     }
 
     // https://drafts.csswg.org/css-mixins-1/#dom-cssfunctiondeclarations-style
-    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
-        Ok(self.rule.style_attribute(cx))
+    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSFunctionDescriptors>> {
+        Ok(self.rule.declarations_object(cx))
     }
 
     pub(crate) fn serialized(&self, vm: &Vm) -> Utf16String {

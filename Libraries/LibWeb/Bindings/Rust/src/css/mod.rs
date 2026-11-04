@@ -55,6 +55,7 @@ pub(crate) mod css_scope_rule;
 pub(crate) mod css_skew;
 pub(crate) mod css_skew_x;
 pub(crate) mod css_skew_y;
+pub(crate) mod css_style_declaration;
 pub(crate) mod css_style_properties;
 pub(crate) mod css_style_rule;
 pub(crate) mod css_style_sheet;

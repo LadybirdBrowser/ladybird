@@ -15,9 +15,9 @@ use libjs_rust::api::{
 };
 use libweb_rust::css_property_names;
 
-use super::css_descriptors::CppDescriptors;
+use super::css_style_declaration::CSSStyleDeclaration;
 use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::interface::{Wrappable, allocate};
+use crate::bindings::interface::{Inherits, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 
 /// What an accessor of a CSS property captures. NB: The name is static, so the collector has nothing to see in it.
@@ -31,12 +31,18 @@ pub(crate) struct CSSPropertyAccessor {
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct CSSStyleProperties {
-    declaration: CppDescriptors,
+    declaration: CSSStyleDeclaration,
 }
 
 impl Wrappable for CSSStyleProperties {
     fn cpp_parent(&self) -> Option<NonNull<c_void>> {
         self.declaration.as_cpp_parent()
+    }
+}
+
+impl Inherits<CSSStyleDeclaration> for CSSStyleProperties {
+    fn parent(&self) -> &CSSStyleDeclaration {
+        &self.declaration
     }
 }
 
@@ -150,7 +156,7 @@ pub unsafe extern "C" fn web_css_style_properties_create(vm: *mut c_void, declar
     // SAFETY: The caller passes the live VM and a live cell.
     let (vm, declaration) = unsafe { (&*vm.cast::<Vm>(), CppCell::from_raw(declaration)) };
     let object = allocate(vm, |_| CSSStyleProperties {
-        declaration: CppDescriptors::new(declaration),
+        declaration: CSSStyleDeclaration::new(declaration),
     });
     object.declaration.set_owner(object);
 }

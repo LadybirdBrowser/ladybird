@@ -6,10 +6,10 @@
 
 //! CSSFontFaceRule, https://drafts.csswg.org/css-fonts/#om-fontface
 
+use super::css_font_face_descriptors::CSSFontFaceDescriptors;
 use super::css_rule::CSSRule;
 use super::css_rule::RuleText;
 use super::css_rule::impl_rule_wrappable;
-use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Inherits, Ref, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use ak::Utf16String;
@@ -46,8 +46,8 @@ impl CSSFontFaceRule {
     }
 
     // https://drafts.csswg.org/css-fonts/#dom-cssfontfacerule-style
-    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
-        Ok(self.rule.style_attribute(cx))
+    pub(crate) fn style(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSFontFaceDescriptors>> {
+        Ok(self.rule.declarations_object(cx))
     }
 
     fn descriptor(&self, name: &str) -> Option<Utf16String> {
