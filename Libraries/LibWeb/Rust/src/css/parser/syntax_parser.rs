@@ -225,7 +225,7 @@ enum ParsedRulePrelude {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct ParsedPageSelector {
+pub(crate) struct ParsedPageSelector {
     name: Option<ParserString>,
     pseudo_classes: Vec<PagePseudoClass>,
 }
@@ -443,7 +443,7 @@ fn parse_page_selectors(values: &[ComponentValue]) -> ParsedRulePrelude {
 }
 
 // https://drafts.csswg.org/cssom/#parse-a-list-of-css-page-selectors
-fn parse_page_selector_list<'a>(source: impl Into<TokenizerInput<'a>>) -> Option<Vec<ParsedPageSelector>> {
+pub(crate) fn parse_page_selector_list<'a>(source: impl Into<TokenizerInput<'a>>) -> Option<Vec<ParsedPageSelector>> {
     // NB: This replaces the C++ path that wrapped the source in `@page <source> {}` and parsed
     //     exactly one rule. Consuming the complete component-value list
     //     preserves rejection of trailing tokens without constructing synthetic CSS.
@@ -455,7 +455,7 @@ fn parse_page_selector_list<'a>(source: impl Into<TokenizerInput<'a>>) -> Option
 }
 
 impl PageSelectorList {
-    fn new(parsed_selectors: Vec<ParsedPageSelector>) -> Self {
+    pub(crate) fn new(parsed_selectors: Vec<ParsedPageSelector>) -> Self {
         Self {
             selectors: parsed_selectors.into_boxed_slice(),
         }
@@ -4381,6 +4381,12 @@ pub unsafe extern "C" fn rust_page_selector_list_serialize(
     context: *mut c_void,
     visit: crate::css::parser::query_parser::VisitQuerySerialization,
 ) {
+    let text = serialized_page_selectors(list);
+    unsafe { visit(context, text.as_ptr(), text.len()) };
+}
+
+/// The text of a list of page selectors.
+pub(crate) fn serialized_page_selectors(list: &PageSelectorList) -> Vec<u16> {
     let mut text = Vec::new();
     for (index, selector) in list.selectors.iter().enumerate() {
         if index != 0 {
@@ -4399,7 +4405,7 @@ pub unsafe extern "C" fn rust_page_selector_list_serialize(
             text.extend(name.bytes().map(u16::from));
         }
     }
-    unsafe { visit(context, text.as_ptr(), text.len()) };
+    text
 }
 
 /// Retains a normalized declaration block from parsed block contents, ignoring rules.

@@ -11,7 +11,6 @@
 #include <LibGC/RootHashTable.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CSSAnimation.h>
-#include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ElementBoxKind.h>

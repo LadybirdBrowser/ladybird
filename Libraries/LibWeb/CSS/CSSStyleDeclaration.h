@@ -51,7 +51,6 @@ public:
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-parent-css-rule
     GC::Ptr<CSSRule> parent_rule() const { return m_parent_rule; }
     void set_parent_rule(GC::Ptr<CSSRule> parent) { m_parent_rule = parent; }
-    static constexpr GC::MemberOffset parent_rule_offset() { return GC_FIELD_OFFSET(CSSStyleDeclaration, m_parent_rule); }
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-owner-node
     Optional<DOM::AbstractElement> owner_node() const

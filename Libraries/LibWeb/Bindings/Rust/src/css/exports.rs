@@ -8,17 +8,30 @@
 //! Libraries/LibWeb/CSS/TypedOM.cpp.
 
 use core::ffi::c_void;
-use core::ptr::NonNull;
+use core::ptr::{NonNull, null_mut};
+use std::rc::Rc;
 use std::sync::Arc;
 
 use ak::Utf16String;
 use libjs_rust::api::{Gc, MarkedVec, Vm};
-use libweb_rust::NativeMediaList;
 use libweb_rust::typed_om::{FfiNumericType, RetainedStyleValue};
+use libweb_rust::{NativeMediaList, NativeRule, NativeRuleList};
 
 use super::animation_event::{AnimationEvent, AnimationEventInit};
+use super::css_container_rule::CSSContainerRule;
+use super::css_counter_style_rule::CSSCounterStyleRule;
+use super::css_font_face_rule::CSSFontFaceRule;
+use super::css_font_feature_values_rule::CSSFontFeatureValuesRule;
+use super::css_function_declarations::CSSFunctionDeclarations;
+use super::css_function_rule::CSSFunctionRule;
 use super::css_image_value::CSSImageValue;
+use super::css_import_rule::CSSImportRule;
+use super::css_keyframe_rule::CSSKeyframeRule;
+use super::css_keyframes_rule::CSSKeyframesRule;
 use super::css_keyword_value::CSSKeywordValue;
+use super::css_layer_block_rule::CSSLayerBlockRule;
+use super::css_layer_statement_rule::CSSLayerStatementRule;
+use super::css_margin_rule::CSSMarginRule;
 use super::css_math_clamp::CSSMathClamp;
 use super::css_math_invert::CSSMathInvert;
 use super::css_math_max::CSSMathMax;
@@ -26,8 +39,19 @@ use super::css_math_min::CSSMathMin;
 use super::css_math_negate::CSSMathNegate;
 use super::css_math_product::CSSMathProduct;
 use super::css_math_sum::CSSMathSum;
+use super::css_media_rule::CSSMediaRule;
+use super::css_namespace_rule::CSSNamespaceRule;
+use super::css_nested_declarations::CSSNestedDeclarations;
 use super::css_numeric_value::AnyCSSNumericValue;
+use super::css_page_rule::CSSPageRule;
+use super::css_position_try_rule::CSSPositionTryRule;
+use super::css_property_rule::CSSPropertyRule;
+use super::css_rule::AnyCSSRule;
+use super::css_rule_list::CSSRuleList;
+use super::css_scope_rule::CSSScopeRule;
+use super::css_style_rule::CSSStyleRule;
 use super::css_style_value::{AnyCSSStyleValue, CSSStyleValue, PerformTypeCheck};
+use super::css_supports_rule::CSSSupportsRule;
 use super::css_transform_value::CSSTransformValue;
 use super::css_unit_value::CSSUnitValue;
 use super::css_unparsed_value::CSSUnparsedValue;
@@ -556,4 +580,290 @@ fn bubbling_event_init() -> EventInit {
         cancelable: false,
         composed: false,
     }
+}
+
+/// The object of the rule whose cell C++ holds, which C++ names by any of the interfaces it is an object of.
+///
+/// # Safety
+///
+/// `cell` must be the live cell of an object of an interface that inherits from CSSRule.
+pub(crate) unsafe fn rule_from_abi(cell: *mut c_void) -> AnyCSSRule {
+    macro_rules! decode {
+        ($($interface:ident),+ $(,)?) => {
+            $(
+                // SAFETY: The caller passes a live cell.
+                if let Some(object) = unsafe { cell_if_abi::<$interface>(cell) } {
+                    return AnyCSSRule::$interface(object);
+                }
+            )+
+        };
+    }
+    decode!(
+        CSSStyleRule,
+        CSSNestedDeclarations,
+        CSSMediaRule,
+        CSSSupportsRule,
+        CSSContainerRule,
+        CSSScopeRule,
+        CSSLayerBlockRule,
+        CSSLayerStatementRule,
+        CSSImportRule,
+        CSSFontFaceRule,
+        CSSKeyframesRule,
+        CSSKeyframeRule,
+        CSSPageRule,
+        CSSMarginRule,
+        CSSNamespaceRule,
+        CSSPropertyRule,
+        CSSCounterStyleRule,
+        CSSFontFeatureValuesRule,
+        CSSFunctionRule,
+        CSSFunctionDeclarations,
+        CSSPositionTryRule,
+    );
+    unreachable!("nothing creates an object of an interface that only others inherit from")
+}
+
+/// The implementation of the CSSRuleList whose cell C++ lends, for as long as C++ keeps the cell alive.
+///
+/// # Safety
+///
+/// `list` must be the live cell of a CSSRuleList, and it must outlive `'a`.
+unsafe fn rule_list_from_abi<'a>(list: *mut c_void) -> &'a CSSRuleList {
+    // SAFETY: The caller passes a live cell of a CSSRuleList.
+    let list: Ref<CSSRuleList> = unsafe { cell_from_abi(list) };
+    // SAFETY: The caller keeps the cell alive for 'a.
+    unsafe { &*list.as_ptr() }
+}
+
+/// The cell that C++ passes, which it passes as null for nothing.
+///
+/// # Safety
+///
+/// `cell` must be a live cell, or null.
+unsafe fn optional_cpp_cell(cell: *mut c_void) -> Option<CppCell> {
+    // SAFETY: The caller passes a live cell.
+    (!cell.is_null()).then(|| unsafe { CppCell::from_raw(cell) })
+}
+
+/// The native rule of the rule, which the rule keeps alive.
+///
+/// # Safety
+///
+/// `rule` must be the live cell of a rule.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_native(rule: *mut c_void) -> *const NativeRule {
+    // SAFETY: The caller passes a live cell.
+    Rc::as_ptr(unsafe { rule_from_abi(rule) }.native_rule())
+}
+
+/// # Safety
+///
+/// `rule` must be the live cell of a rule.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_parent_rule(rule: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes a live cell.
+    let rule = unsafe { rule_from_abi(rule) };
+    rule.parent_rule_object().map_or(null_mut(), AnyCSSRule::cell)
+}
+
+/// The cell of the CSSStyleSheet that the rule is in.
+///
+/// # Safety
+///
+/// `rule` must be the live cell of a rule.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_parent_style_sheet(rule: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes a live cell.
+    let rule = unsafe { rule_from_abi(rule) };
+    rule.parent_sheet().map_or(null_mut(), |sheet| sheet.as_ptr())
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, and `rule` the live cell of a rule.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_serialized(vm: *mut c_void, rule: *mut c_void) -> usize {
+    // SAFETY: The caller passes the live VM and a live cell.
+    let (vm, rule) = unsafe { (vm_from_abi(vm), rule_from_abi(rule)) };
+    rule.serialized(vm).into_raw()
+}
+
+/// The cell of the CSSStyleDeclaration of the declarations of the rule.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `rule` the live cell of a rule with declarations.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_declarations(vm: *mut c_void, rule: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live cell.
+    let (vm, rule) = unsafe { (vm_from_abi(vm), rule_from_abi(rule)) };
+    rule.declarations(vm).as_ptr()
+}
+
+/// The cell of the list of child rules of the rule.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `rule` the live cell of a rule with child rules.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_child_rules(vm: *mut c_void, rule: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live cell.
+    let (vm, rule) = unsafe { (vm_from_abi(vm), rule_from_abi(rule)) };
+    cell_into_abi(rule.child_rules(vm).expect("C++ asks a rule with child rules"))
+}
+
+/// A new CSSRuleList of the native rules, whose @import rules `document` loads, if it is not null.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `rules` a live list, and `document` the live cell of a Document, or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_list_create(
+    vm: *mut c_void,
+    rules: *const NativeRuleList,
+    document: *mut c_void,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM, a live list and a live cell, or null.
+    let (vm, rules, document) = unsafe {
+        (
+            vm_from_abi(vm),
+            NativeRuleList::retained_from_raw(rules),
+            optional_cpp_cell(document),
+        )
+    };
+    cell_into_abi(allocate(vm, |defer_gc| CSSRuleList::new(defer_gc, rules, document)))
+}
+
+/// The native rules of the list, which the list keeps alive.
+///
+/// # Safety
+///
+/// `list` must be the live cell of a CSSRuleList.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_list_native_rules(list: *mut c_void) -> *const NativeRuleList {
+    // SAFETY: The caller passes a live cell, and keeps it alive for the call.
+    Rc::as_ptr(unsafe { rule_list_from_abi(list) }.native_rules())
+}
+
+/// # Safety
+///
+/// `list` must be the live cell of a CSSRuleList.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_list_length(list: *mut c_void) -> usize {
+    // SAFETY: The caller passes a live cell, and keeps it alive for the call.
+    unsafe { rule_list_from_abi(list) }.native_length()
+}
+
+/// The cell of the rule at the index, which has to be in the list.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `list` the live cell of a CSSRuleList.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_list_item(vm: *mut c_void, list: *mut c_void, index: usize) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live cell, and keeps it alive for the call.
+    let (vm, list) = unsafe { (vm_from_abi(vm), rule_list_from_abi(list)) };
+    list.rule_at(vm, index).cell()
+}
+
+/// The cell of the object of the rule with the identity, if the rule has one yet.
+///
+/// # Safety
+///
+/// `list` must be the live cell of a CSSRuleList.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_list_existing_rule(list: *mut c_void, identity: u64) -> *mut c_void {
+    // SAFETY: The caller passes a live cell, and keeps it alive for the call.
+    let list = unsafe { rule_list_from_abi(list) };
+    list.existing_object(identity).map_or(null_mut(), AnyCSSRule::cell)
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, `list` the live cell of a CSSRuleList, and `sheet` that of a CSSStyleSheet, or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_list_set_parent_style_sheet(
+    vm: *mut c_void,
+    list: *mut c_void,
+    sheet: *mut c_void,
+) {
+    // SAFETY: The caller passes the live VM and live cells, and keeps them alive for the call.
+    let (vm, list, sheet) = unsafe { (vm_from_abi(vm), rule_list_from_abi(list), optional_cpp_cell(sheet)) };
+    list.set_parent_style_sheet(vm, sheet);
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, `list` the live cell of a CSSRuleList, `rules` a live list, and `document` the live cell
+/// of a Document, or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_list_set_rules(
+    vm: *mut c_void,
+    list: *mut c_void,
+    rules: &NativeRuleList,
+    document: *mut c_void,
+) {
+    // SAFETY: The caller passes the live VM and live cells, and keeps them alive for the call.
+    let (vm, list, document) = unsafe { (vm_from_abi(vm), rule_list_from_abi(list), optional_cpp_cell(document)) };
+    list.set_rules(vm, rules, document);
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, and `list` the live cell of a CSSRuleList.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_rule_list_remove_rule(vm: *mut c_void, list: *mut c_void, index: usize) {
+    // SAFETY: The caller passes the live VM and a live cell, and keeps it alive for the call.
+    let (vm, list) = unsafe { (vm_from_abi(vm), rule_list_from_abi(list)) };
+    list.remove_a_css_rule_without_validation(vm, index);
+}
+
+/// A new CSSImportRule for the import that `import` holds, in the sheet `sheet`, if it is not null.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `rule` a live rule, `import` the live cell of a StyleSheetImportCell, and `sheet` that of
+/// a CSSStyleSheet, or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_import_rule_create(
+    vm: *mut c_void,
+    rule: *const NativeRule,
+    import: *mut c_void,
+    sheet: *mut c_void,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM, a live rule and live cells, or null for the sheet.
+    let (vm, rule, import, sheet) = unsafe {
+        (
+            vm_from_abi(vm),
+            NativeRule::retained_from_raw(rule),
+            CppCell::from_raw(import),
+            optional_cpp_cell(sheet),
+        )
+    };
+    let object = CSSImportRule::finish(CSSImportRule::create_for_import(vm, rule, import), vm);
+    object.store_parent_style_sheet(vm, sheet);
+    object.cell()
+}
+
+/// The cell of the StyleSheetImportCell of the rule.
+///
+/// # Safety
+///
+/// `rule` must be the live cell of a CSSImportRule.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_import_rule_import(rule: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes a live cell of a CSSImportRule.
+    let rule: Ref<CSSImportRule> = unsafe { cell_from_abi(rule) };
+    rule.import_cell()
+}
+
+/// # Safety
+///
+/// `rule` must be the live cell of a CSSStyleRule, and `text` a string that the caller hands over.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_style_rule_set_selector_text(rule: *mut c_void, text: usize) {
+    // SAFETY: The caller passes a live cell of a CSSStyleRule, and hands over the string.
+    let (rule, text): (Ref<CSSStyleRule>, _) = unsafe { (cell_from_abi(rule), Utf16String::from_raw_owned(text)) };
+    rule.replace_selectors(&text.to_utf16());
 }

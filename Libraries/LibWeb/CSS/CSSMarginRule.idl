@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/cssom/#cssmarginrule
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSMarginRule : CSSRule {
     readonly attribute CSSOMString name;
     // FIXME: This should be CSSMarginDescriptors, but that has no spec. https://github.com/w3c/csswg-drafts/issues/10106

@@ -33,7 +33,10 @@ pub(crate) mod style_layout_pool;
 pub(crate) mod svg;
 
 // What libweb_bindings_rust, whose interfaces are implemented in Rust, uses of this crate.
+pub use css::font_feature_values::FontFeatureValuesRuleKind;
 pub use css::media_list::{MediaList as NativeMediaList, MediaListDeleteResult};
+pub use css::rule::cssom;
+pub use css::rule::{NativeRule, NativeRuleList, NativeRuleType, RuleInsertionResult, RuleRemovalResult};
 pub use css::typed_om;
 pub use svg::gfx_path_from_path_data;
 

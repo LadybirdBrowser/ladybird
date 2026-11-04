@@ -80,40 +80,24 @@ set(SOURCES
     CSS/GeneratedContent.cpp
     CSS/CSS.cpp
     CSS/CSSAnimation.cpp
-    CSS/CSSConditionRule.cpp
-    CSS/CSSContainerRule.cpp
-    CSS/CSSCounterStyleRule.cpp
     CSS/CSSDescriptors.cpp
     CSS/CSSFontFaceDescriptors.cpp
     CSS/CSSFontFaceRule.cpp
     CSS/CSSFontFeatureValuesMap.cpp
     CSS/CSSFontFeatureValuesRule.cpp
-    CSS/CSSFunctionDeclarations.cpp
     CSS/CSSFunctionDescriptors.cpp
-    CSS/CSSFunctionRule.cpp
     CSS/CSSGroupingRule.cpp
     CSS/CSSImportRule.cpp
-    CSS/CSSKeyframeRule.cpp
     CSS/CSSKeyframesRule.cpp
-    CSS/CSSLayerBlockRule.cpp
-    CSS/CSSLayerStatementRule.cpp
-    CSS/CSSMarginRule.cpp
-    CSS/CSSMediaRule.cpp
-    CSS/CSSNamespaceRule.cpp
     CSS/CSSNestedDeclarations.cpp
-    CSS/CSSPageRule.cpp
     CSS/CSSPageDescriptors.cpp
     CSS/CSSPositionTryDescriptors.cpp
-    CSS/CSSPositionTryRule.cpp
-    CSS/CSSPropertyRule.cpp
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp
-    CSS/CSSScopeRule.cpp
     CSS/CSSStyleDeclaration.cpp
     CSS/CSSStyleProperties.cpp
     CSS/CSSStyleRule.cpp
     CSS/CSSStyleSheet.cpp
-    CSS/CSSSupportsRule.cpp
     CSS/CSSTransition.cpp
     CSS/ColorFunctionDescriptor.cpp
     CSS/CustomPropertyData.cpp

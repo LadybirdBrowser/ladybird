@@ -23,8 +23,6 @@ void dump_sheet(StringBuilder&, CSS::StyleSheetState const&, int indent_levels =
 WEB_API void dump_sheet(CSS::StyleSheetState const&);
 void dump_rule(StringBuilder&, CSS::CSSRule const&, int indent_levels = 0);
 void dump_rule(CSS::CSSRule const&);
-void dump_style_properties(StringBuilder&, CSS::CSSStyleProperties const&, int indent_levels = 0);
-void dump_descriptors(StringBuilder&, CSS::CSSDescriptors const&, int indent_levels = 0);
 void dump_selector(StringBuilder&, CSS::Selector const&, int indent_levels = 0);
 void dump_selector(CSS::Selector const&);
 

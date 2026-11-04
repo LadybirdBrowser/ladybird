@@ -136,6 +136,8 @@ void web_bindings_message_port_transport_close_after_sending_all_pending_message
 bool web_bindings_message_port_transport_send(IPC::Transport*, HTML::SerializedTransferRecord const*);
 bool web_bindings_message_port_transport_read_messages(IPC::Transport*, void* records, void (*append)(void*, HTML::SerializedTransferRecord*));
 
+void* web_css_wrap_object(void* realm, void* cell);
+
 void* web_bindings_wrapper_world(void* realm, bool* is_main_world)
 {
     auto& wrapper_world = host_defined_wrapper_world(*static_cast<JS::Realm*>(realm));
@@ -154,6 +156,14 @@ void web_bindings_set_rust_wrapper(void* realm, void* cell, JSObject* wrapper)
 {
     auto& host_object = as<JS::HostObject>(*JS::HostABI::object_from_abi(wrapper));
     host_defined_wrapper_world(*static_cast<JS::Realm*>(realm)).set_rust_wrapper(*static_cast<RustInterfaceCell*>(cell), host_object);
+}
+
+void* web_css_wrap_object(void* realm, void* cell)
+{
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto& wrappable = *static_cast<GCAllocatedWrappable*>(static_cast<GC::Cell*>(cell));
+    auto wrapper = wrap(host_defined_wrapper_world(js_realm), js_realm, GC::Ref<Wrappable> { wrappable });
+    return JS::HostABI::object_to_abi(wrapper.ptr());
 }
 
 bool web_bindings_realm_is_window(void* realm)

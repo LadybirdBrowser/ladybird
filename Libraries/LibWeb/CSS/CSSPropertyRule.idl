@@ -1,5 +1,5 @@
 // https://drafts.css-houdini.org/css-properties-values-api/#the-css-property-rule-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSPropertyRule : CSSRule {
     readonly attribute CSSOMString name;
     readonly attribute CSSOMString syntax;

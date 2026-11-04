@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/css-animations-1/#interface-csskeyframesrule
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSKeyframesRule : CSSRule {
     attribute CSSOMString name;
     readonly attribute CSSRuleList cssRules;

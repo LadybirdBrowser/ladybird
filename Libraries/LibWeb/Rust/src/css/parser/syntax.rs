@@ -518,6 +518,22 @@ pub unsafe extern "C" fn rust_parse_with_syntax(
     crate::css::style_value_arc::StyleValueArc::into_raw(crate::css::style_value_arc::StyleValueArc::new(parsed)).cast()
 }
 
+impl SyntaxNode {
+    pub(crate) fn is_universal(&self) -> bool {
+        rust_syntax_is_universal(self)
+    }
+
+    pub(crate) fn is_single_component(&self) -> bool {
+        rust_syntax_is_single_component(self)
+    }
+
+    pub(crate) fn serialize_to_utf16(&self) -> Vec<u16> {
+        let mut sink = TextSink::new();
+        serialize_syntax(self, &mut sink);
+        sink.into_utf16()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -10,8 +10,12 @@
 
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
+#include <LibGC/Heap.h>
 #include <LibGC/Root.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -26,6 +30,80 @@
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 
 namespace Web::CSS {
+
+using Parser::ValueParserFFI::NativeRule;
+
+// NB: Implemented in Libraries/LibWeb/Bindings/Rust/src/css/exports.rs.
+extern "C" void* web_css_import_rule_create(void* vm, NativeRule const* rule, void* import, void* sheet);
+
+// NB: What the implementation of CSSImportRule in Rust asks of the C++ code of LibWeb.
+extern "C" {
+void* web_css_import_create(NativeRule const* rule, void* document);
+void web_css_import_set_rule(void* import, void* rule);
+void web_css_import_set_parent_style_sheet(void* import, void* sheet);
+FlatPtr web_css_import_href(void* import);
+FlatPtr web_css_import_url_text(void* import);
+void* web_css_import_media(void* import);
+void* web_css_import_style_sheet(void* import);
+}
+
+GC_DEFINE_ALLOCATOR(StyleSheetImportCell);
+
+GC::Ref<StyleSheetImportCell> StyleSheetImportCell::create(NonnullRefPtr<StyleSheetImport> import)
+{
+    return GC::Heap::the().allocate<StyleSheetImportCell>(move(import));
+}
+
+void StyleSheetImportCell::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    m_import->visit_edges(visitor);
+}
+
+static StyleSheetImport& import_from_cell(void* import)
+{
+    return static_cast<StyleSheetImportCell*>(static_cast<GC::Cell*>(import))->import();
+}
+
+void* web_css_import_create(NativeRule const* rule, void* document)
+{
+    auto* document_object = static_cast<DOM::Document*>(static_cast<GC::Cell*>(document));
+    return static_cast<GC::Cell*>(StyleSheetImportCell::create(StyleSheetImport::create(RustRule { rule }, document_object)).ptr());
+}
+
+void web_css_import_set_rule(void* import, void* rule)
+{
+    import_from_cell(import).set_cssom_rule(*static_cast<CSSImportRule*>(rule));
+}
+
+void web_css_import_set_parent_style_sheet(void* import_cell, void* sheet)
+{
+    auto& import = import_from_cell(import_cell);
+    auto* state = sheet ? &static_cast<CSSStyleSheet*>(static_cast<GC::Cell*>(sheet))->state() : nullptr;
+    if (import.parent_style_sheet() != state)
+        import.set_parent_style_sheet(state);
+}
+
+FlatPtr web_css_import_href(void* import)
+{
+    return Utf16String { import_from_cell(import).href() }.into_raw();
+}
+
+FlatPtr web_css_import_url_text(void* import)
+{
+    return import_from_cell(import).url().to_utf16_string().into_raw();
+}
+
+void* web_css_import_media(void* import)
+{
+    return import_from_cell(import).media().ptr();
+}
+
+void* web_css_import_style_sheet(void* import)
+{
+    auto* sheet = import_from_cell(import).loaded_style_sheet();
+    return sheet ? static_cast<GC::Cell*>(&sheet->cssom_sheet()) : nullptr;
+}
 
 NonnullRefPtr<StyleSheetImport> StyleSheetImport::create(RustRule rule, GC::Ptr<DOM::Document> document)
 {
@@ -78,8 +156,12 @@ void StyleSheetImport::visit_edges(GC::Cell::Visitor& visitor)
 
 CSSImportRule& StyleSheetImport::cssom_rule() const
 {
-    if (!m_cssom_rule)
-        m_cssom_rule = CSSImportRule::create(const_cast<StyleSheetImport&>(*this));
+    if (!m_cssom_rule) {
+        auto import = StyleSheetImportCell::create(const_cast<StyleSheetImport&>(*this));
+        auto* sheet = parent_style_sheet();
+        // NB: The new object tells this import that it is its rule.
+        web_css_import_rule_create(JS::HostABI::vm_to_abi(JS::VM::the()), native_rule().handle(), static_cast<GC::Cell*>(import.ptr()), sheet ? static_cast<GC::Cell*>(&sheet->cssom_sheet()) : nullptr);
+    }
     return *m_cssom_rule;
 }
 

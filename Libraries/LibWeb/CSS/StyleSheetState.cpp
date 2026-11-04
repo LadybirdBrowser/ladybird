@@ -11,7 +11,6 @@
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
-#include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -168,7 +167,7 @@ void StyleSheetState::set_rules(RustRuleList rules)
     // brand new FontFace object which is CSS-connected).
     disconnect_font_faces_in_rules(m_native_sheet.rules().handle());
     if (m_rules)
-        m_rules->set_rules({}, move(rules), m_parsing_document);
+        m_rules->set_rules({}, rules, m_parsing_document);
     else
         m_native_sheet.rules().replace(rules);
 }
@@ -186,9 +185,8 @@ CSSRuleList const& StyleSheetState::rules() const
 {
     if (!m_rules) {
         auto& sheet = const_cast<StyleSheetState&>(*this);
-        m_rules = CSSRuleList::create(RustRuleList { Parser::ValueParserFFI::rust_rule_list_retain(m_native_sheet.rules().handle()) }, m_parsing_document);
+        m_rules = CSSRuleList::create(m_native_sheet.rules(), m_parsing_document);
         m_rules->set_parent_style_sheet(&sheet);
-        m_rules->on_change = [&sheet]() { sheet.recalculate_rule_caches(); };
     }
     return *m_rules;
 }
