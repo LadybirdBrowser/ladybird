@@ -23,7 +23,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::css::css_style_value::PerformTypeCheck;
 
 unsafe extern "C" {
-    fn web_css_style_map_property_is_list_valued(property_id: u16) -> bool;
     fn web_css_style_map_parse(declaration: *mut c_void, property_id: u16, css_text: usize) -> *const c_void;
     fn web_css_style_map_declared_value(declaration: *mut c_void, name: usize) -> *const c_void;
     fn web_css_style_map_set_value(
@@ -92,8 +91,7 @@ fn is_custom_property(property: &Property) -> bool {
 }
 
 fn is_list_valued(property: &Property) -> bool {
-    // SAFETY: This only reads the tables of the properties.
-    unsafe { web_css_style_map_property_is_list_valued(property.id) }
+    super::typed_om::property_is_list_valued(property.id)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation

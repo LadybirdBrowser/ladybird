@@ -1674,6 +1674,10 @@ pub struct RetainedNumericRangeByType {
 }
 
 impl RetainedNumericRangeByType {
+    pub(crate) fn new(value_type: u8, min: f64, max: f64) -> Self {
+        Self { value_type, min, max }
+    }
+
     pub(crate) fn value_type(&self) -> u8 {
         self.value_type
     }

@@ -935,7 +935,6 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     let mut affects_hit_testing = vec![false; levels.len()];
     let mut style_group_indices = vec![u8::MAX; levels.len()];
     let mut initial_values = vec![String::new(); levels.len()];
-    let mut numeric_range_rows = vec![String::new(); levels.len()];
     let value_types = [
         "anchor",
         "anchor-size",
@@ -1062,43 +1061,6 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         initial_values[index] = property_field(name, "initial")
             .and_then(|value| value.as_str().map(str::to_string))
             .ok_or_else(|| format!("missing initial value for {name}"))?;
-
-        let mut ranges = Vec::new();
-        if let Some(valid_types) = property_field(name, "valid-types").and_then(|value| value.as_array().cloned()) {
-            for valid_type in valid_types {
-                let valid_type = valid_type.as_str().unwrap();
-                let Some((type_name, range)) = valid_type.split_once(' ') else {
-                    continue;
-                };
-                if !range.starts_with('[') || !range.ends_with(']') || !range.contains(',') {
-                    continue;
-                }
-                if type_name == "custom-ident" {
-                    continue;
-                }
-                let value_type = value_types
-                    .iter()
-                    .position(|candidate| *candidate == type_name)
-                    .ok_or_else(|| format!("unknown ranged value type '{type_name}' for {name}"))?;
-                let (min, max) = range[1..range.len() - 1]
-                    .split_once(',')
-                    .ok_or_else(|| format!("bad numeric range '{range}' for {name}"))?;
-                let format_bound = |bound: &str| match (type_name, bound) {
-                    ("integer", "-∞") => "i32::MIN as f64".to_string(),
-                    ("integer", "∞") => "i32::MAX as f64".to_string(),
-                    (_, "-∞") => "f32::MIN as f64".to_string(),
-                    (_, "∞") => "f32::MAX as f64".to_string(),
-                    _ if bound.contains('.') => bound.to_string(),
-                    _ => format!("{bound}.0"),
-                };
-                ranges.push(format!(
-                    "FfiPropertyNumericRange {{ value_type: {value_type}, min: {}, max: {} }}",
-                    format_bound(min),
-                    format_bound(max)
-                ));
-            }
-        }
-        numeric_range_rows[index] = ranges.join(", ");
     }
 
     let mut output = String::new();
@@ -1561,6 +1523,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     let mut coordinating_list_rows = Vec::new();
     let mut maximum_value_count_rows = Vec::new();
     let mut percentages_resolve_to_rows = Vec::new();
+    let mut numeric_range_rows = Vec::new();
     let mut unitless_length_quirk_rows = Vec::new();
     let mut hashless_hex_color_quirk_rows = Vec::new();
     for name in &property_names {
@@ -1664,6 +1627,42 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             }
             None => "    None,".to_string(),
         });
+        let mut ranges = Vec::new();
+        if let Some(valid_types) = property_field(name, "valid-types").and_then(|value| value.as_array().cloned()) {
+            for valid_type in valid_types {
+                let valid_type = valid_type.as_str().unwrap();
+                let Some((type_name, range)) = valid_type.split_once(' ') else {
+                    continue;
+                };
+                if !range.starts_with('[') || !range.ends_with(']') || !range.contains(',') {
+                    continue;
+                }
+                if type_name == "custom-ident" {
+                    continue;
+                }
+                let value_type = value_types
+                    .iter()
+                    .position(|candidate| *candidate == type_name)
+                    .ok_or_else(|| format!("unknown ranged value type '{type_name}' for {name}"))?;
+                let (min, max) = range[1..range.len() - 1]
+                    .split_once(',')
+                    .ok_or_else(|| format!("bad numeric range '{range}' for {name}"))?;
+                let format_bound = |bound: &str| match (type_name, bound) {
+                    ("integer", "-∞") => "i32::MIN as f64".to_string(),
+                    ("integer", "∞") => "i32::MAX as f64".to_string(),
+                    (_, "-∞") => "f32::MIN as f64".to_string(),
+                    (_, "∞") => "f32::MAX as f64".to_string(),
+                    _ if bound.contains('.') => bound.to_string(),
+                    _ => format!("{bound}.0"),
+                };
+                ranges.push(format!(
+                    "FfiPropertyNumericRange {{ value_type: {value_type}, min: {}, max: {} }}",
+                    format_bound(min),
+                    format_bound(max)
+                ));
+            }
+        }
+        numeric_range_rows.push(ranges.join(", "));
         unitless_length_quirk_rows.push(
             property_field(name, "quirks")
                 .and_then(|value| value.as_array().cloned())

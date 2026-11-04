@@ -31,6 +31,8 @@ pub(crate) const VALUE_TYPE_RECT: u8 = 34;
 pub(crate) const VALUE_TYPE_RESOLUTION: u8 = 35;
 pub(crate) const VALUE_TYPE_STRING: u8 = 37;
 pub(crate) const VALUE_TYPE_TIME: u8 = 38;
+pub(crate) const VALUE_TYPE_TRANSFORM_FUNCTION: u8 = 40;
+pub(crate) const VALUE_TYPE_TRANSFORM_LIST: u8 = 41;
 pub(crate) const VALUE_TYPE_URL: u8 = 42;
 
 // The `CSS::ColorStyleValue::ColorType` discriminants.

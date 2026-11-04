@@ -308,7 +308,7 @@ impl CalcNumericType {
     }
 }
 
-fn base_type_from_value_type(value_type: u8) -> Option<u8> {
+pub(crate) fn base_type_from_value_type(value_type: u8) -> Option<u8> {
     match value_type {
         value_type::ANGLE => Some(1),
         value_type::FLEX => Some(5),

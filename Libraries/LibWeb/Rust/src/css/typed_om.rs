@@ -12,23 +12,40 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 pub use crate::css::calc::{CalcNode, CalcNumericType as NumericType, FfiNumericType};
-use crate::css::calc::{CalcNumericValue, canonical_unit_code};
+use crate::css::calc::{CalcNumericValue, base_type_from_value_type, canonical_unit_code, resolve_as_for_value_type};
 use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive};
+use crate::css::css_string::CssString;
 use crate::css::dimension_units::{
     ANGLE_UNIT_CANONICAL_RATIOS, ANGLE_UNIT_NAMES, FLEX_UNIT_CANONICAL_RATIOS, FLEX_UNIT_NAMES,
     FREQUENCY_UNIT_CANONICAL_RATIOS, FREQUENCY_UNIT_NAMES, RESOLUTION_UNIT_CANONICAL_RATIOS, RESOLUTION_UNIT_NAMES,
     TIME_UNIT_CANONICAL_RATIOS, TIME_UNIT_NAMES,
 };
+use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::arbitrary_substitution::SubstitutionFunctionsPresence;
 use crate::css::parser::arbitrary_substitution::collect_arbitrary_substitution_function_presence;
-use crate::css::parser::value_parser::{component_values_from_source, is_css_wide_keyword};
-use crate::css::property_metadata::is_custom_property_name;
+use crate::css::parser::value_parser::{
+    FfiParseStatus, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, RandomFunctionIndex,
+    component_values_from_source, is_css_wide_keyword, round_to_nearest_integer, rust_parse_css_value,
+    rust_parse_entire_css_primitive_from_source,
+};
 pub use crate::css::property_metadata::property_is_shorthand;
+use crate::css::property_metadata::{
+    is_custom_property_name, property_accepted_value_types, property_id, property_id_from_name, property_name,
+    property_numeric_ranges, property_percentages_resolve_to,
+};
 use crate::css::serialize::{SerializationMode, TextSink, serialize_style_value};
 use crate::css::style_compute::{LENGTH_UNIT_CANONICAL_PX_RATIOS, LENGTH_UNIT_NAMES};
-use crate::css::style_value::StyleValueData;
 use crate::css::style_value::rust_style_value_create_grid_track_size_list;
 pub use crate::css::style_value::{ReifiedUnresolvedSegment, RetainedStyleValueData as RetainedStyleValue};
+use crate::css::style_value::{
+    RetainedNumericRangeByType, StyleValueData, rust_style_value_create_calculated, rust_style_value_create_value_list,
+};
+use crate::css::style_value_arc::StyleValueArc;
+use crate::css::value_codes::{
+    VALUE_TYPE_ANGLE, VALUE_TYPE_FLEX, VALUE_TYPE_FREQUENCY, VALUE_TYPE_IMAGE, VALUE_TYPE_INTEGER, VALUE_TYPE_LENGTH,
+    VALUE_TYPE_LENGTH_PERCENTAGE, VALUE_TYPE_NUMBER, VALUE_TYPE_OPACITY_VALUE, VALUE_TYPE_PERCENTAGE,
+    VALUE_TYPE_RESOLUTION, VALUE_TYPE_TIME, VALUE_TYPE_TRANSFORM_FUNCTION, VALUE_TYPE_TRANSFORM_LIST,
+};
 
 /// The base types of a numeric type, as indices of [`NumericType::exponents`].
 pub const BASE_TYPE_LENGTH: usize = 0;
@@ -698,4 +715,347 @@ pub fn transform_matrix(value: &RetainedStyleValue) -> Option<[f32; 16]> {
         &mut is_2d,
     )
     .then_some(matrix)
+}
+
+/// The value types of a property that the CSS Typed OM asks about by name.
+#[derive(Clone, Copy)]
+pub enum TypedOmValueType {
+    Image,
+    TransformFunction,
+    TransformList,
+}
+
+/// Whether a value that is not a shorthand's can be of the value type. A custom property takes no fixed types.
+fn property_accepts_value_type(property_id: u16, value_type: u8) -> bool {
+    property_id != property_id::CUSTOM && property_accepted_value_types(property_id).contains(&value_type)
+}
+
+pub fn property_accepts_type(property_id: u16, value_type: TypedOmValueType) -> bool {
+    property_accepts_value_type(
+        property_id,
+        match value_type {
+            TypedOmValueType::Image => VALUE_TYPE_IMAGE,
+            TypedOmValueType::TransformFunction => VALUE_TYPE_TRANSFORM_FUNCTION,
+            TypedOmValueType::TransformList => VALUE_TYPE_TRANSFORM_LIST,
+        },
+    )
+}
+
+/// Whether the value is in the range of the value type of the property. A bound that the tables write as the limit of
+/// a float stands for no bound at all.
+fn property_accepts_value_in_range(property_id: u16, value_type: u8, value: f64) -> bool {
+    if !property_accepts_value_type(property_id, value_type) {
+        return false;
+    }
+    property_numeric_ranges(property_id)
+        .iter()
+        .find(|range| range.value_type == value_type)
+        .is_none_or(|range| {
+            (range.min == f32::MIN as f64 || value >= range.min) && (range.max == f32::MAX as f64 || value <= range.max)
+        })
+}
+
+fn percentages_resolve_as(property_id: u16) -> Option<u8> {
+    if property_id == property_id::CUSTOM {
+        return None;
+    }
+    property_percentages_resolve_to(property_id)
+}
+
+/// A calculation with the context of the property, https://drafts.csswg.org/css-values-4/#calc-type-checking
+fn calculated_value(property_id: u16, calculation: Arc<CalcNode>, numeric_type: NumericType) -> RetainedStyleValue {
+    let resolve_as = percentages_resolve_as(property_id);
+    let ranges: Vec<_> = if property_id == property_id::CUSTOM {
+        Vec::new()
+    } else {
+        property_numeric_ranges(property_id)
+            .iter()
+            .map(|range| RetainedNumericRangeByType::new(range.value_type, range.min, range.max))
+            .collect()
+    };
+    let calculation = Arc::into_raw(calculation);
+    // SAFETY: This hands over one strong reference to the calculation, and the ranges are readable for their length.
+    let value = unsafe {
+        rust_style_value_create_calculated(
+            calculation,
+            FfiNumericType::from_calc(Some(numeric_type)),
+            resolve_as.is_some(),
+            resolve_as == Some(VALUE_TYPE_NUMBER),
+            resolve_as.and_then(base_type_from_value_type).unwrap_or(0),
+            resolve_as.unwrap_or(0),
+            property_accepts_value_type(property_id, VALUE_TYPE_INTEGER),
+            ranges.as_ptr(),
+            ranges.len(),
+        )
+    };
+    // SAFETY: The call hands over a strong reference to a new value.
+    unsafe { RetainedStyleValue::from_raw(value.cast()) }
+}
+
+fn opacity_value(value: RetainedStyleValue) -> RetainedStyleValue {
+    RetainedStyleValue::from_arc(StyleValueArc::new(StyleValueData::OpacityValue { value }))
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+pub fn numeric_style_value(
+    property_id: u16,
+    value: RetainedStyleValue,
+    calculation: Arc<CalcNode>,
+    numeric_type: NumericType,
+) -> Option<RetainedStyleValue> {
+    // If any component of property’s CSS grammar has a limited numeric range, and the corresponding part of value is a
+    // CSSUnitValue that is outside of that range, replace that value with the result of wrapping it in a fresh
+    // CSSMathSum whose values internal slot contains only that part of value.
+    let wrap_in_math_sum = || calculated_value(property_id, calculation.clone(), numeric_type);
+    let accepted = |value_type: u8, number: f64| property_accepts_value_in_range(property_id, value_type, number);
+    let in_range_or_wrapped = |value_type: u8, number: f64, value: RetainedStyleValue| {
+        if !property_accepts_value_type(property_id, value_type) {
+            return None;
+        }
+        Some(if accepted(value_type, number) {
+            value
+        } else {
+            wrap_in_math_sum()
+        })
+    };
+
+    match *value.data() {
+        StyleValueData::Number { value: number } => {
+            // NB: Our parser represents an <opacity-value> as an opacity value that holds the number.
+            if property_accepts_value_type(property_id, VALUE_TYPE_OPACITY_VALUE) {
+                return Some(opacity_value(value));
+            }
+
+            // NB: Prefer <number> to <integer> when both are accepted.
+            if property_accepts_value_type(property_id, VALUE_TYPE_NUMBER) {
+                return in_range_or_wrapped(VALUE_TYPE_NUMBER, number, value);
+            }
+
+            if property_accepts_value_type(property_id, VALUE_TYPE_INTEGER) {
+                let integer = round_to_nearest_integer(number);
+                // NB: A number that is not an integer does not match <integer>, so it's wrapped in a CSSMathSum, like a
+                //     value outside of the accepted range. It then gets rounded when computed.
+                if f64::from(integer) != number || !accepted(VALUE_TYPE_INTEGER, f64::from(integer)) {
+                    return Some(wrap_in_math_sum());
+                }
+                return Some(RetainedStyleValue::from_arc(StyleValueArc::new(
+                    StyleValueData::Integer { value: integer },
+                )));
+            }
+            None
+        }
+        StyleValueData::Percentage { value: percentage } => {
+            // NB: Our parser represents an <opacity-value> as an opacity value that holds the percentage.
+            if property_accepts_value_type(property_id, VALUE_TYPE_OPACITY_VALUE) {
+                return Some(opacity_value(value));
+            }
+            in_range_or_wrapped(VALUE_TYPE_PERCENTAGE, percentage, value)
+        }
+        // NB: Out-of-range flex values cannot be deferred in a calculation.
+        StyleValueData::Flex { value: flex, .. } => accepted(VALUE_TYPE_FLEX, flex).then_some(value),
+        StyleValueData::Angle { value: angle, .. } => in_range_or_wrapped(VALUE_TYPE_ANGLE, angle, value),
+        StyleValueData::Frequency { value: frequency, .. } => {
+            in_range_or_wrapped(VALUE_TYPE_FREQUENCY, frequency, value)
+        }
+        StyleValueData::Length { value: length, .. } => in_range_or_wrapped(VALUE_TYPE_LENGTH, length, value),
+        StyleValueData::Resolution { value: resolution, .. } => {
+            in_range_or_wrapped(VALUE_TYPE_RESOLUTION, resolution, value)
+        }
+        StyleValueData::Time { value: time, .. } => in_range_or_wrapped(VALUE_TYPE_TIME, time, value),
+        _ => unreachable!("a numeric value is one of the numeric style values"),
+    }
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+pub fn calculated_style_value(
+    property_id: u16,
+    calculation: Arc<CalcNode>,
+    numeric_type: NumericType,
+    perform_type_check: bool,
+) -> Option<RetainedStyleValue> {
+    let resolve_as = resolve_as_for_value_type(percentages_resolve_as(property_id));
+    let accepts = |value_type: u8| property_accepts_value_type(property_id, value_type);
+
+    let matches = if numeric_type.matches_dimension(BASE_TYPE_ANGLE, resolve_as) {
+        accepts(VALUE_TYPE_ANGLE)
+    } else if numeric_type.matches_dimension(BASE_TYPE_FLEX, resolve_as) {
+        // https://drafts.csswg.org/css-grid-2/#fr-unit
+        // NB: <flex> values "cannot be represented in or combined with other unit types in calc() expressions".
+        false
+    } else if numeric_type.matches_dimension(BASE_TYPE_FREQUENCY, resolve_as) {
+        accepts(VALUE_TYPE_FREQUENCY)
+    } else if numeric_type.matches_dimension(BASE_TYPE_LENGTH, resolve_as) {
+        accepts(VALUE_TYPE_LENGTH)
+    } else if numeric_type.matches_number(resolve_as) {
+        accepts(VALUE_TYPE_NUMBER) || accepts(VALUE_TYPE_INTEGER) || accepts(VALUE_TYPE_OPACITY_VALUE)
+    } else if numeric_type.matches_percentage() {
+        accepts(VALUE_TYPE_PERCENTAGE) || accepts(VALUE_TYPE_OPACITY_VALUE)
+    } else if numeric_type.matches_dimension(BASE_TYPE_RESOLUTION, resolve_as) {
+        accepts(VALUE_TYPE_RESOLUTION)
+    } else if numeric_type.matches_dimension(BASE_TYPE_TIME, resolve_as) {
+        accepts(VALUE_TYPE_TIME)
+    } else {
+        false
+    };
+    if perform_type_check && !matches {
+        return None;
+    }
+
+    let is_number_or_percentage = numeric_type.matches_number(None) || numeric_type.matches_percentage();
+    let calculated = calculated_value(property_id, calculation, numeric_type);
+
+    // NB: Our parser represents an <opacity-value> as an opacity value that holds the calculation.
+    if accepts(VALUE_TYPE_OPACITY_VALUE) && is_number_or_percentage {
+        return Some(opacity_value(calculated));
+    }
+    Some(calculated)
+}
+
+/// The value of the text for the property, with no document to parse it for.
+pub fn parse_value_for_property(property_id: u16, css_text: &ak::Utf16String) -> Option<RetainedStyleValue> {
+    let units = css_text.to_utf16();
+    if units.is_empty() {
+        return None;
+    }
+    let value_context = FfiValueParsingContext {
+        kind: FfiValueParsingContextKind::Property,
+        value: property_id,
+        secondary_value: 0,
+        name: FfiUtf16View::default(),
+    };
+    let random_function_index = RandomFunctionIndex::new(0);
+    let context = ParseContext {
+        value_contexts: ak::Span::new(core::slice::from_ref(&value_context)),
+        random_function_index: Some(&random_function_index),
+        ..Default::default()
+    };
+    let mut status = FfiParseStatus::NotHandled;
+    // SAFETY: The context and the text are live through the call.
+    let value = unsafe {
+        rust_parse_css_value(
+            Some(&context),
+            property_id,
+            FfiUtf16View::from_utf16(units.as_ref()),
+            Some(&mut status),
+        )
+    };
+    // SAFETY: A parsed value comes with a strong reference.
+    (!value.is_null()).then(|| unsafe { RetainedStyleValue::from_raw(value) })
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+pub fn keyword_style_value(
+    property_id: u16,
+    value: &ak::Utf16String,
+    perform_type_check: bool,
+    property_is_list_valued: bool,
+) -> Option<RetainedStyleValue> {
+    let units = value.to_utf16();
+    let keyword = keyword_from_ascii_case_insensitive(units.as_ref());
+    let is_css_wide = keyword.is_some_and(is_css_wide_keyword);
+
+    // https://drafts.css-houdini.org/css-typed-om-1/#cssstylevalue-match-a-grammar
+    // NB: The keywords listed for a property are not all valid on their own, like `hanging` for text-indent, and a
+    //     property may accept identifiers that are not listed, like a <custom-ident> or the axis keywords of
+    //     scroll-snap-type. So we check if the property accepts the value, as an identifier, when parsed.
+    if perform_type_check
+        && !is_css_wide
+        && parse_value_for_property(property_id, &serialize_an_identifier(value)).is_none()
+    {
+        return None;
+    }
+
+    let Some(keyword) = keyword else {
+        return Some(RetainedStyleValue::from_arc(StyleValueArc::new(
+            StyleValueData::CustomIdent {
+                custom_ident: CssString::from_utf16(units.as_ref()),
+            },
+        )));
+    };
+
+    // NB: Style computation expects the same internal representation that the CSS parser produces for the
+    //     property. For example, `display` keywords become a DisplayStyleValue, and keyword combinations like
+    //     `text-decoration-line` or `white-space-trim` become a list even when only one keyword is given. So we
+    //     parse the keyword as a value of the property to get that representation. List-valued properties are
+    //     instead wrapped in a list by StylePropertyMap.
+    if !is_css_wide
+        && property_id != property_id::CUSTOM
+        && !property_is_list_valued
+        && let Some(parsed_value) = parse_value_for_property(property_id, value)
+    {
+        return Some(parsed_value);
+    }
+    Some(RetainedStyleValue::from_arc(StyleValueArc::new(
+        StyleValueData::Keyword { keyword },
+    )))
+}
+
+/// A list of the values, separated by commas or spaces.
+pub fn style_value_list(values: Vec<RetainedStyleValue>, comma: bool) -> RetainedStyleValue {
+    let values: Vec<_> = values.into_iter().map(RetainedStyleValue::into_raw).collect();
+    // NB: These are the C++ enumerators StyleValueList::Separator::Space and Comma.
+    let separator = u8::from(comma);
+    // SAFETY: This hands over one strong reference to each of the values.
+    let list = unsafe { rust_style_value_create_value_list(values.as_ptr().cast(), values.len(), separator, false) };
+    // SAFETY: The call hands over a strong reference to a new value.
+    unsafe { RetainedStyleValue::from_raw(list.cast()) }
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse
+pub fn parse_a_numeric_value(css_text: &ak::Utf16String) -> Option<RetainedStyleValue> {
+    let units = css_text.to_utf16();
+    if units.is_empty() {
+        return None;
+    }
+    let context = ParseContext::default();
+    [
+        VALUE_TYPE_NUMBER,
+        VALUE_TYPE_PERCENTAGE,
+        VALUE_TYPE_LENGTH,
+        VALUE_TYPE_LENGTH_PERCENTAGE,
+        VALUE_TYPE_ANGLE,
+        VALUE_TYPE_TIME,
+        VALUE_TYPE_FREQUENCY,
+        VALUE_TYPE_RESOLUTION,
+        VALUE_TYPE_FLEX,
+    ]
+    .into_iter()
+    .find_map(|value_type| {
+        // SAFETY: The context and the text are live through the call.
+        let value = unsafe {
+            rust_parse_entire_css_primitive_from_source(
+                Some(&context),
+                value_type,
+                FfiUtf16View::from_utf16(units.as_ref()),
+                f32::MIN as f64,
+                f32::MAX as f64,
+            )
+        };
+        // SAFETY: A parsed value comes with a strong reference.
+        (!value.is_null()).then(|| unsafe { RetainedStyleValue::from_raw(value) })
+    })
+}
+
+/// The canonical name and the id of the property with the name, if there is one.
+pub fn property_from_name(name: &ak::Utf16String) -> Option<(ak::Utf16String, u16)> {
+    let units = name.to_utf16();
+    let property_id = property_id_from_name(units.as_ref())?;
+    if property_id == property_id::CUSTOM {
+        return Some((name.clone(), property_id));
+    }
+    Some((ak::Utf16String::from_utf8(property_name(property_id)), property_id))
+}
+
+/// Whether the property expects a 0 to be a <length>.
+pub fn zero_is_a_length(property: &ak::Utf16String, is_integer: bool) -> bool {
+    let units = property.to_utf16();
+    let Some(property_id) = property_id_from_name(units.as_ref()) else {
+        return false;
+    };
+    if !property_accepts_value_type(property_id, VALUE_TYPE_LENGTH) {
+        return false;
+    }
+    is_integer
+        || (!property_accepts_value_type(property_id, VALUE_TYPE_NUMBER)
+            && !property_accepts_value_type(property_id, VALUE_TYPE_INTEGER))
 }

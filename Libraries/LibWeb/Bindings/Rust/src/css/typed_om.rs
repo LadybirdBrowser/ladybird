@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What the interfaces of the CSS Typed OM share: reification, and what they ask of LibWeb's C++ code, where the tables
-//! of the properties and the parser's entry points are.
+//! What the interfaces of the CSS Typed OM share: reification, and how values reach the property tables and the parser.
 //! https://drafts.css-houdini.org/css-typed-om-1/
 
 use core::ffi::c_void;
@@ -14,9 +13,10 @@ use std::sync::Arc;
 use ak::Utf16String;
 use libjs_rust::api::{MarkedVec, Vm};
 use libweb_rust::typed_om::{
-    CalcNode, CalcReificationNode, DimensionType, FfiNumericType, NumericType, NumericValue, Reification,
+    self, CalcNode, CalcReificationNode, DimensionType, NumericType, NumericValue, Reification,
     ReifiedUnresolvedSegment, RetainedStyleValue, calculation_nodes, reification_of,
 };
+pub(crate) use libweb_rust::typed_om::{TypedOmValueType, property_accepts_type};
 
 use super::css_image_value::CSSImageValue;
 use super::css_keyword_value::CSSKeywordValue;
@@ -39,58 +39,31 @@ use crate::bindings::conversions::UsvString;
 use crate::bindings::interface::Ref;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
-/// The value types that the Typed OM asks about, which C++ maps to its enum class ValueType.
-#[derive(Clone, Copy)]
-#[repr(u8)]
-pub(crate) enum TypedOmValueType {
-    Image,
-    TransformFunction,
-    TransformList,
-}
-
-unsafe extern "C" {
-    fn web_css_typed_om_property_accepts_type(property_id: u16, value_type: TypedOmValueType) -> bool;
-    fn web_css_typed_om_numeric_style_value(
-        property_id: u16,
-        value: *const c_void,
-        calculation: *const c_void,
-        numeric_type: FfiNumericType,
-    ) -> *const c_void;
-    fn web_css_typed_om_calculated_style_value(
-        property_id: u16,
-        calculation: *const c_void,
-        numeric_type: FfiNumericType,
-        perform_type_check: bool,
-    ) -> *const c_void;
-    fn web_css_typed_om_keyword_style_value(property_id: u16, value: usize, perform_type_check: bool) -> *const c_void;
-    fn web_css_typed_om_style_value_list(values: *const *const c_void, count: usize, comma: bool) -> *const c_void;
-    fn web_css_typed_om_parse_numeric_value(css_text: usize) -> *const c_void;
-    fn web_css_typed_om_parse_value(
-        property: usize,
-        css_text: usize,
-        values: *mut c_void,
-        append: unsafe extern "C" fn(*mut c_void, *const c_void),
-        out_name_or_error: *mut usize,
-    ) -> bool;
-    fn web_css_typed_om_zero_is_a_length(property: usize, is_integer: bool) -> bool;
-}
-
-fn optional_style_value(pointer: *const c_void) -> Option<RetainedStyleValue> {
-    if pointer.is_null() {
-        return None;
-    }
-    // SAFETY: C++ hands over a strong reference to a style value.
-    Some(unsafe { RetainedStyleValue::from_raw(pointer) })
-}
-
 /// The string as a Rust string, for what is ASCII or only goes into a message.
 pub(crate) fn to_rust_string(string: &Utf16String) -> String {
     String::from_utf16_lossy(&string.to_utf16())
 }
 
-pub(crate) fn property_accepts_type(property_id: u16, value_type: TypedOmValueType) -> bool {
+unsafe extern "C" {
+    fn web_css_style_map_property_is_list_valued(property_id: u16) -> bool;
+}
+
+pub(crate) fn property_is_list_valued(property_id: u16) -> bool {
     // SAFETY: The call has no preconditions.
-    unsafe { web_css_typed_om_property_accepts_type(property_id, value_type) }
+    unsafe { web_css_style_map_property_is_list_valued(property_id) }
+}
+
+/// https://drafts.css-houdini.org/css-typed-om-1/#subdivide-into-iterations
+fn subdivide_into_iterations(value: RetainedStyleValue, property_id: u16) -> Vec<RetainedStyleValue> {
+    // 1. If property is a single-valued property, return a list containing whole value.
+    // 2. Otherwise, divide whole value into individual iterations, as appropriate for property, and return a list
+    //    containing the iterations in order.
+    if property_is_list_valued(property_id)
+        && let Some(iterations) = value.value_list_items()
+    {
+        return iterations;
+    }
+    vec![value]
 }
 
 pub(crate) fn property_accepts_transform_function(property_id: u16) -> bool {
@@ -108,17 +81,8 @@ pub(crate) fn numeric_style_value_for_property(
     value: NumericValue,
     numeric_type: NumericType,
 ) -> Option<RetainedStyleValue> {
-    let style_value = value.style_value().into_raw();
-    let calculation = Arc::into_raw(Arc::new(CalcNode::Sum(vec![value.calculation_node()]))).cast();
-    // SAFETY: This hands over one strong reference to the style value and to the calculation.
-    optional_style_value(unsafe {
-        web_css_typed_om_numeric_style_value(
-            property_id,
-            style_value,
-            calculation,
-            FfiNumericType::from_calc(Some(numeric_type)),
-        )
-    })
+    let calculation = Arc::new(CalcNode::Sum(vec![value.calculation_node()]));
+    typed_om::numeric_style_value(property_id, value.style_value(), calculation, numeric_type)
 }
 
 /// The calculated value of the property for a CSSMathValue, if the property takes values of its type.
@@ -128,15 +92,12 @@ pub(crate) fn calculated_style_value(
     numeric_type: NumericType,
     perform_type_check: PerformTypeCheck,
 ) -> Option<RetainedStyleValue> {
-    // SAFETY: This hands over one strong reference to the calculation.
-    optional_style_value(unsafe {
-        web_css_typed_om_calculated_style_value(
-            property_id,
-            Arc::into_raw(calculation).cast(),
-            FfiNumericType::from_calc(Some(numeric_type)),
-            perform_type_check == PerformTypeCheck::Yes,
-        )
-    })
+    typed_om::calculated_style_value(
+        property_id,
+        calculation,
+        numeric_type,
+        perform_type_check == PerformTypeCheck::Yes,
+    )
 }
 
 /// The value of the property for a CSSKeywordValue, if the keyword matches the grammar of the property.
@@ -145,36 +106,25 @@ pub(crate) fn keyword_style_value_for_property(
     value: &Utf16String,
     perform_type_check: PerformTypeCheck,
 ) -> Option<RetainedStyleValue> {
-    // SAFETY: This hands over a reference to the string.
-    optional_style_value(unsafe {
-        web_css_typed_om_keyword_style_value(
-            property_id,
-            value.clone().into_raw(),
-            perform_type_check == PerformTypeCheck::Yes,
-        )
-    })
-}
-
-/// A list of the values, separated by spaces.
-fn create_style_value_list(values: Vec<RetainedStyleValue>, comma: bool) -> RetainedStyleValue {
-    let values: Vec<_> = values.into_iter().map(RetainedStyleValue::into_raw).collect();
-    // SAFETY: This hands over one strong reference to each of the values.
-    optional_style_value(unsafe { web_css_typed_om_style_value_list(values.as_ptr(), values.len(), comma) })
-        .expect("a list is a style value")
+    typed_om::keyword_style_value(
+        property_id,
+        value,
+        perform_type_check == PerformTypeCheck::Yes,
+        property_is_list_valued(property_id),
+    )
 }
 
 pub(crate) fn style_value_list(values: Vec<RetainedStyleValue>) -> RetainedStyleValue {
-    create_style_value_list(values, false)
+    typed_om::style_value_list(values, false)
 }
 
 pub(crate) fn comma_separated_style_value_list(values: Vec<RetainedStyleValue>) -> RetainedStyleValue {
-    create_style_value_list(values, true)
+    typed_om::style_value_list(values, true)
 }
 
 /// The first of the numeric types that the text parses as, https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse
 pub(crate) fn parse_a_numeric_value(css_text: &Utf16String) -> Option<RetainedStyleValue> {
-    // SAFETY: This hands over a reference to the string.
-    optional_style_value(unsafe { web_css_typed_om_parse_numeric_value(css_text.clone().into_raw()) })
+    typed_om::parse_a_numeric_value(css_text)
 }
 
 pub(crate) unsafe extern "C" fn append_style_value(values: *mut c_void, value: *const c_void) {
@@ -188,29 +138,33 @@ pub(crate) fn parse_values(
     property: Utf16String,
     css_text: Utf16String,
 ) -> WebIdlResult<MarkedVec<'_, AnyCSSStyleValue>> {
-    // NB: Steps 1 to 4 parse with the tables of the properties, and result in the iterations of the value.
-    let mut values: Vec<RetainedStyleValue> = Vec::new();
-    let mut name_or_error = 0;
-    // SAFETY: This hands over references to the strings, and the context lives through the call.
-    let parsed = unsafe {
-        web_css_typed_om_parse_value(
-            property.into_raw(),
-            css_text.into_raw(),
-            (&raw mut values).cast(),
-            append_style_value,
-            &raw mut name_or_error,
-        )
+    // 1. If property is not a custom property name string, set property to property ASCII lowercased.
+    // 2. If property is not a valid CSS property, throw a TypeError.
+    let Some((name, property_id)) = typed_om::property_from_name(&property) else {
+        return Err(Exception::TypeError(Utf16String::from_utf8(&format!(
+            "'{}' is not a valid CSS property",
+            to_rust_string(&property)
+        ))));
     };
-    // SAFETY: C++ hands over a reference to a string.
-    let name_or_error = unsafe { Utf16String::from_raw_owned(name_or_error) };
-    if !parsed {
-        return Err(Exception::TypeError(name_or_error));
-    }
+
+    // 3. Attempt to parse cssText according to property’s grammar.
+    //    If this fails, throw a TypeError.
+    //    Otherwise, let whole value be the parsed result.
+    let Some(whole_value) = typed_om::parse_value_for_property(property_id, &css_text) else {
+        return Err(Exception::TypeError(Utf16String::from_utf8(&format!(
+            "Failed to parse '{}' as a value for '{}' property",
+            to_rust_string(&css_text),
+            to_rust_string(&property)
+        ))));
+    };
+
+    // 4. Subdivide into iterations whole value, according to property, and let values be the result.
+    let values = subdivide_into_iterations(whole_value, property_id);
 
     // 5. For each value in values, replace it with the result of reifying value for property.
     let reified_values = MarkedVec::new(vm);
     for value in &values {
-        reified_values.push(reify(vm, value, &name_or_error));
+        reified_values.push(reify(vm, value, &name));
     }
 
     // 6. If parseMultiple is false, return values[0]. Otherwise, return values.
@@ -261,8 +215,7 @@ pub(crate) fn reify(vm: &Vm, value: &RetainedStyleValue, property: &Utf16String)
         Reification::Number { value, is_integer } => {
             // NB: Determine whether the associated property expects 0 to be a <length>.
             // FIXME: Do this for registered custom properties.
-            // SAFETY: This hands over a reference to the string.
-            if value == 0.0 && unsafe { web_css_typed_om_zero_is_a_length(property.clone().into_raw(), is_integer) } {
+            if value == 0.0 && typed_om::zero_is_a_length(property, is_integer) {
                 return unit_value(vm, 0.0, "px");
             }
             unit_value(vm, value, "number")

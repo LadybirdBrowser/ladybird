@@ -218,7 +218,7 @@ pub struct FfiPropertyNumericRange {
 }
 
 pub fn property_numeric_ranges(property_id: u16) -> &'static [FfiPropertyNumericRange] {
-    PROPERTY_NUMERIC_RANGES[longhand_index(property_id)]
+    PROPERTY_NUMERIC_RANGES[property_index(property_id)]
 }
 
 /// Returns the longhand property identifiers in computation order.
