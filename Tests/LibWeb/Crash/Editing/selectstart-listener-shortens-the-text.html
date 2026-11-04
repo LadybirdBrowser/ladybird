@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<div id="editable" contenteditable style="width: max-content">some long text to press late in</div>
+<script>
+    editable.addEventListener("selectstart", () => {
+        editable.firstChild.data = "x";
+        editable.offsetHeight;
+    });
+    const rect = editable.getBoundingClientRect();
+    internals.mouseDown(rect.right - 5, rect.top + 5);
+    internals.mouseUp(rect.right - 5, rect.top + 5);
+</script>

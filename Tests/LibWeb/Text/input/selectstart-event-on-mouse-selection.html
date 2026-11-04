@@ -51,5 +51,14 @@
             internals.mouseUp(rect.left + 1, rect.top + 15);
             println(`click count ${clickCount}: selected ${describe()}`);
         }
+
+        // A right press on a word selects it through the same event, and cancelling the event leaves it alone.
+        for (const id of ["free", "blocked"]) {
+            const { left, top } = document.getElementById(id).getBoundingClientRect();
+            getSelection().removeAllRanges();
+            internals.mouseDown(left + 1, top + 15, 1, 2);
+            internals.mouseUp(left + 1, top + 15, 2);
+            println(`right press on ${id}: selected ${describe()}`);
+        }
     });
 </script>

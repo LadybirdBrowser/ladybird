@@ -138,6 +138,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(select)                      \
     __ENUMERATE_HTML_EVENT(selectedcandidatepairchange) \
     __ENUMERATE_HTML_EVENT(selectionchange)             \
+    __ENUMERATE_HTML_EVENT(selectstart)                 \
     __ENUMERATE_HTML_EVENT(show)                        \
     __ENUMERATE_HTML_EVENT(signalingstatechange)        \
     __ENUMERATE_HTML_EVENT(slotchange)                  \

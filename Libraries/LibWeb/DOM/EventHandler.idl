@@ -78,6 +78,7 @@ interface mixin GlobalEventHandlers {
     attribute EventHandler onseeking;
     attribute EventHandler onselect;
     attribute EventHandler onselectionchange;
+    attribute EventHandler onselectstart;
     attribute EventHandler onslotchange;
     attribute EventHandler onstalled;
     attribute EventHandler onsubmit;

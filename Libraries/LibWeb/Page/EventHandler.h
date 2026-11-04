@@ -259,6 +259,9 @@ private:
     bool maybe_request_paste_for_middle_click(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position);
 
     Optional<Painting::CaretPosition> prepare_mouse_selection(DOM::Document&, CSSPixelPoint visual_viewport_position);
+    Optional<Painting::CaretPosition> caret_position_for_mouse_selection(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position, GC::Ptr<DOM::Node> editable_hit_node_before_focus, GC::Ptr<DOM::Node> editing_host_before_focus);
+    bool dispatch_selectstart_event(DOM::Document&, DOM::Node& target);
+    bool fire_selectstart_event(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position, Optional<Painting::CaretPosition>&, CSS::UserSelect&);
     bool initiate_character_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect, bool shift_held);
     bool initiate_word_selection(Layout::BegunRead const& read, DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
     bool initiate_paragraph_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);

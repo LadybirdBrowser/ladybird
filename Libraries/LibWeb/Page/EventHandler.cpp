@@ -572,8 +572,16 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
                 return EventResult::Accepted;
 
 #if defined(AK_OS_MACOS)
-            if (should_start_selection_from_preserved_mousedown)
+            if (should_start_selection_from_preserved_mousedown) {
                 start_selection_from_preserved_mousedown(read, *document);
+
+                // NB: Starting a selection fires selectstart, which may have disturbed the world.
+                if (m_navigable->active_document() != document)
+                    return EventResult::Accepted;
+                document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
+                if (!has_committed_root_box())
+                    return EventResult::Accepted;
+            }
 #endif
         }
     }
@@ -3535,6 +3543,9 @@ void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, 
     }
 #endif
 
+    if (!fire_selectstart_event(read, document, visual_viewport_position, caret_position, user_select))
+        return;
+
     auto selection_started = [&] {
         if (click_count == 3)
             return initiate_paragraph_selection(document, *caret_position, user_select);
@@ -3553,6 +3564,49 @@ void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, 
         if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_layout_node))
             m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
     }
+}
+
+// https://w3c.github.io/selection-api/#selectstart-event
+bool EventHandler::dispatch_selectstart_event(DOM::Document& document, DOM::Node& target)
+{
+    // When the user agent is about to associate a new range newRange to the selection in response to a user initiated
+    // action, the user agent must fire an event named selectstart, which bubbles and is cancelable, at the node
+    // associated with the boundary point of newRange's start prior to changing the selection if the selection was
+    // previously empty or the previously associated range was collapsed.
+    // INTEROP: Blink and WebKit fire it for any press that starts a selection, whatever the selection was before, which
+    //          is what lets a page keep the user from selecting its text at all.
+    auto event = DOM::Event::create(HTML::EventNames::selectstart, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(document)));
+    event->set_bubbles(true);
+    event->set_cancelable(true);
+    event->set_is_trusted(true);
+
+    // If the event is canceled, the user agent must not change the selection.
+    if (!target.dispatch_event(event))
+        return false;
+
+    // NB: Dispatching an event may have disturbed the world.
+    return m_navigable->active_document().ptr() == &document;
+}
+
+bool EventHandler::fire_selectstart_event(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position, Optional<Painting::CaretPosition>& caret_position, CSS::UserSelect& user_select)
+{
+    auto target = caret_position->boundary_node();
+    if (!target || !dispatch_selectstart_event(document, *target))
+        return false;
+
+    // NB: A listener may have changed what the caret position points into, even if it left layout up to date.
+    document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+    if (!has_committed_root_box())
+        return false;
+    GC::Ptr<DOM::Node> hit_node;
+    if (auto hit = document.hit_test(read, visual_viewport_position); hit.has_value())
+        hit_node = hit->dom_node();
+    auto editing_host = hit_node ? associated_descendant_editing_host(read, *hit_node) : nullptr;
+    caret_position = caret_position_for_mouse_selection(read, document, visual_viewport_position, hit_node, editing_host);
+    if (!caret_position.has_value())
+        return false;
+    user_select = user_select_used_value_for_caret_position(read, *caret_position);
+    return user_select != CSS::UserSelect::None;
 }
 
 Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Document& document, CSSPixelPoint visual_viewport_position)
@@ -3589,6 +3643,11 @@ Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Doc
     else if (auto focused_area = document.focused_area())
         HTML::run_unfocusing_steps(focused_area);
 
+    return caret_position_for_mouse_selection(read, document, visual_viewport_position, editable_hit_node_before_focus, editing_host_before_focus);
+}
+
+Optional<Painting::CaretPosition> EventHandler::caret_position_for_mouse_selection(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position, GC::Ptr<DOM::Node> editable_hit_node_before_focus, GC::Ptr<DOM::Node> editing_host_before_focus)
+{
     // NB: Focusing may have invalidated layout.
     document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
     if (!has_committed_root_box())
@@ -3716,6 +3775,9 @@ bool EventHandler::select_word_at_position(Layout::BegunRead const& read, DOM::D
     if (user_select == CSS::UserSelect::None)
         return false;
 
+    if (!fire_selectstart_event(read, document, visual_viewport_position, caret_position, user_select))
+        return false;
+
     if (initiate_word_selection(read, document, *caret_position, user_select)) {
         stop_updating_selection();
         return true;
@@ -3736,6 +3798,9 @@ void EventHandler::start_selection_from_preserved_mousedown(Layout::BegunRead co
 
     auto user_select = user_select_used_value_for_caret_position(read, *caret_position);
     if (user_select == CSS::UserSelect::None)
+        return;
+
+    if (!fire_selectstart_event(read, document, *m_mousedown_visual_viewport_position, caret_position, user_select))
         return;
 
     if (!initiate_character_selection(document, *caret_position, user_select, false))
@@ -4326,6 +4391,10 @@ bool EventHandler::select_context_menu_text(Layout::BegunRead const& read, DOM::
         }
     }
     if (all_of(range->to_string(), Unicode::code_point_has_white_space_property) || !range_contains_viewport_position(*range, coordinates.viewport_position))
+        return false;
+
+    // NB: The range follows what a listener changes, unless the listener takes the text away.
+    if (!dispatch_selectstart_event(document, *hit_node) || range->start_container().ptr() != hit_node || range->end_container().ptr() != hit_node)
         return false;
 
     if (auto* target = document.active_input_events_target(hit_node)) {
