@@ -4891,7 +4891,10 @@ impl<'pass> GridFormattingContext<'pass> {
     fn item_run_shape(&self, item: GridItem) -> formatting_context::ChildRunShape {
         let mut cells = self.cells_of(item);
         self.prepare_item_cells(item, &mut cells, ItemRowArea::NotYetSized);
-        let input = self.item_layout_input(item, &cells, ItemRowArea::NotYetSized);
+        let mut input = self.item_layout_input(item, &cells, ItemRowArea::NotYetSized);
+        // NB: The measured item ends its run at its automatic block size, the one a content-sized item is handed, so
+        //     the absolutely positioned boxes it contains are laid out as a committing run at that size lays them out.
+        input.sizing.content_block_size_after_run = geometry::ContentBlockSizeAfterRun::Automatic;
         let plan = formatting_context::child_run_plan(
             &self.run,
             item.box_,

@@ -3398,7 +3398,10 @@ impl<'pass> FlexFormattingContext<'pass> {
             main_size,
             cross_size,
         );
-        let input = self.item_layout_input(index, &cells, space_for_items);
+        let mut input = self.item_layout_input(index, &cells, space_for_items);
+        // NB: The measured item ends its run at its automatic block size, the one a content-sized item is handed, so
+        //     the absolutely positioned boxes it contains are laid out as a committing run at that size lays them out.
+        input.sizing.content_block_size_after_run = geometry::ContentBlockSizeAfterRun::Automatic;
         let plan = formatting_context::child_run_plan(
             &self.run,
             node,
