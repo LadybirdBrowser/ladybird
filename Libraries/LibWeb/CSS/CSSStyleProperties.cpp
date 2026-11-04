@@ -326,11 +326,6 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_i
     return set_property_internal(PropertyNameAndID::from_id(property_id), css_text, priority);
 }
 
-static NonnullRefPtr<StyleValue const> style_value_for_css_pixels(CSSPixels css_pixels)
-{
-    return LengthStyleValue::create(Length::make_px(css_pixels));
-}
-
 static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
 {
     if (length_percentage.is_percentage())
@@ -372,74 +367,21 @@ static NonnullRefPtr<StyleValue const> style_value_for_transform_origin(Transfor
     return StyleValueList::create(move(offsets), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
 }
 
-static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowType shadow_type, ReadonlySpan<ShadowData> shadow_data, Color current_color)
+static NonnullRefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowType shadow_type, ReadonlySpan<ShadowData> shadow_data, Color current_color)
 {
-    if (shadow_data.is_empty())
-        return KeywordStyleValue::create(Keyword::None);
-
-    auto make_shadow_style_value = [shadow_type, current_color](ShadowData const& shadow) {
-        return ShadowStyleValue::create(
-            shadow_type,
-            ColorStyleValue::create_from_color(shadow.resolved_color(current_color), ColorSyntax::Modern),
-            style_value_for_css_pixels(shadow.offset_x),
-            style_value_for_css_pixels(shadow.offset_y),
-            style_value_for_css_pixels(shadow.blur_radius),
-            style_value_for_css_pixels(shadow.spread_distance),
-            shadow.placement);
-    };
-
-    if (shadow_data.size() == 1)
-        return make_shadow_style_value(shadow_data.first());
-
-    StyleValueVector style_values;
-    style_values.ensure_capacity(shadow_data.size());
-    for (auto& shadow : shadow_data)
-        style_values.unchecked_append(make_shadow_style_value(shadow));
-
-    return StyleValueList::create(move(style_values), StyleValueList::Separator::Comma);
+    static_assert(sizeof(ShadowData) == sizeof(ComputedValuesFFI::ComputedShadow));
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_shadow_value(
+        to_underlying(shadow_type), shadow_data.data(), shadow_data.size(), current_color.value()));
 }
 
-// The stored computed filter value keeps currentcolor inside drop-shadow(); the resolved value
-// serializes it against the element's used color, like the color-valued properties.
 static NonnullRefPtr<StyleValue const> resolve_filter_style_value(NonnullRefPtr<StyleValue const> value, Color current_color)
 {
-    if (!value->is_value_list())
-        return value;
-    auto const& list = value->as_value_list();
-    StyleValueVector filters;
-    MUST(filters.try_ensure_capacity(list.size()));
-    bool resolved_any = false;
-    for (auto const& filter_value : list.values()) {
-        if (filter_value->is_filter() && filter_value->as_filter().kind() == FilterStyleValue::Kind::DropShadow) {
-            auto const& drop_shadow = static_cast<DropShadowFilterStyleValue const&>(filter_value->as_filter());
-            auto const& drop_shadow_color = drop_shadow.color();
-            if (!drop_shadow_color || drop_shadow_color->to_keyword() == Keyword::Currentcolor) {
-                filters.unchecked_append(DropShadowFilterStyleValue::create(
-                    drop_shadow.offset_x(),
-                    drop_shadow.offset_y(),
-                    drop_shadow.radius(),
-                    ColorStyleValue::create_from_color(current_color, ColorSyntax::Modern)));
-                resolved_any = true;
-                continue;
-            }
-        }
-        filters.unchecked_append(filter_value);
-    }
-    if (!resolved_any)
-        return value;
-    return StyleValueList::create(move(filters), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_filter_value(value->rust_style_value_data(), current_color.value()));
 }
 
-// Allowing exactly panning and pinch-zoom serializes as `manipulation`, whatever form specified it. The parser
-// orders a list as horizontal, vertical, pinch-zoom, with at most one of each.
 static NonnullRefPtr<StyleValue const> resolve_touch_action_style_value(NonnullRefPtr<StyleValue const> value)
 {
-    if (value->is_value_list()) {
-        auto const& values = value->as_value_list().values();
-        if (values.size() == 3 && values[0]->to_keyword() == Keyword::PanX && values[1]->to_keyword() == Keyword::PanY)
-            return KeywordStyleValue::create(Keyword::Manipulation);
-    }
-    return value;
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_touch_action_value(value->rust_style_value_data()));
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
@@ -704,7 +646,7 @@ static void ensure_pseudo_element_style_for_cssom(Layout::BegunRead const& read,
     install_engine_pseudo_element_style(read, abstract_element);
 }
 
-static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, Optional<ColorResolutionStyle> = {});
+static NonnullRefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, Optional<ColorResolutionStyle> = {});
 static NonnullRefPtr<StyleValue const> resolve_svg_color_style_value(StyleValue const&, ColorResolutionStyle);
 
 static bool is_min_or_max_size_property(PropertyID property_id)
@@ -954,36 +896,36 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                 // the style's own resolved group data since there is no layout node to ask.
                 switch (computed_property_id) {
                 case PropertyID::Color:
-                    return resolve_color_style_value(*computed_value, computed_values->color(), ColorResolutionStyle::for_computed_values(*computed_values)).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->color(), ColorResolutionStyle::for_computed_values(*computed_values));
                 case PropertyID::Fill:
                 case PropertyID::FloodColor:
                 case PropertyID::StopColor:
                 case PropertyID::Stroke:
                     return resolve_svg_color_style_value(*computed_value, ColorResolutionStyle::for_computed_values(*computed_values));
                 case PropertyID::CaretColor:
-                    return resolve_color_style_value(*computed_value, computed_values->caret_color()).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->caret_color());
                 case PropertyID::BackgroundColor:
-                    return resolve_color_style_value(*computed_value, computed_values->background_color()).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->background_color());
                 case PropertyID::BorderBottomColor:
-                    return resolve_color_style_value(*computed_value, computed_values->border_bottom().color).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->border_bottom().color);
                 case PropertyID::BorderLeftColor:
-                    return resolve_color_style_value(*computed_value, computed_values->border_left().color).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->border_left().color);
                 case PropertyID::BorderRightColor:
-                    return resolve_color_style_value(*computed_value, computed_values->border_right().color).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->border_right().color);
                 case PropertyID::BorderTopColor:
-                    return resolve_color_style_value(*computed_value, computed_values->border_top().color).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->border_top().color);
                 case PropertyID::ColumnRuleColor:
-                    return resolve_color_style_value(*computed_value, computed_values->column_rule_color()).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->column_rule_color());
                 case PropertyID::OutlineColor:
-                    return resolve_color_style_value(*computed_value, computed_values->outline_color()).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->outline_color());
                 case PropertyID::TextDecorationColor:
-                    return resolve_color_style_value(*computed_value, computed_values->text_decoration_color()).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->text_decoration_color());
                 case PropertyID::WebkitTextFillColor:
-                    return resolve_color_style_value(*computed_value, computed_values->webkit_text_fill_color()).release_nonnull();
+                    return resolve_color_style_value(*computed_value, computed_values->webkit_text_fill_color());
                 case PropertyID::BoxShadow:
-                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, computed_values->box_shadow(), computed_values->color()).release_nonnull();
+                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, computed_values->box_shadow(), computed_values->color());
                 case PropertyID::TextShadow:
-                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, computed_values->text_shadow(), computed_values->color()).release_nonnull();
+                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, computed_values->text_shadow(), computed_values->color());
                 case PropertyID::BackdropFilter:
                 case PropertyID::Filter:
                     return resolve_filter_style_value(move(computed_value), computed_values->color());
@@ -1133,60 +1075,17 @@ Optional<Utf16String> CSSStyleProperties::serialized_computed_value_from_stored_
     return serialize_style_value_handle(*handle, SerializationMode::ResolvedValue);
 }
 
-static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color, Optional<ColorResolutionStyle> color_resolution_style)
+static NonnullRefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color, Optional<ColorResolutionStyle> color_resolution_style)
 {
-    if (color_resolution_style.has_value() && style_value.is_color_function()) {
-        auto const& color_function = as<ColorFunctionStyleValue>(style_value);
-        if (color_function.origin_color() && color_function.color_type().has_value()) {
-            auto ffi_color_resolution_style = color_resolution_style->to_ffi();
-            auto const* resolved = StyleValueFFI::rust_relative_color_resolved_value(style_value.rust_style_value_data(), &ffi_color_resolution_style);
-            if (!resolved)
-                return style_value;
-            return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(resolved));
-        }
-    }
-
-    // NB: A computed color-mix() is still a mix only where it reads currentcolor, which the used value resolves.
-    if (color_resolution_style.has_value() && style_value.is_color()) {
-        auto ffi_color_resolution_style = color_resolution_style->to_ffi();
-        if (auto const* resolved = StyleValueFFI::rust_color_mix_resolved_value(style_value.rust_style_value_data(), &ffi_color_resolution_style))
-            return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(resolved));
-    }
-
-    if (style_value.is_color_function() && as<ColorFunctionStyleValue>(style_value).serializes_as_color_function())
-        return style_value;
-    // https://drafts.csswg.org/css-color-4/#css-serialization-of-srgb
-    // NB: An sRGB value with missing components serializes them as none, which the used color cannot represent.
-    if (style_value.is_color_function() && StyleValueFFI::rust_color_function_has_missing_component(style_value.rust_style_value_data()))
-        return style_value;
-    if (style_value.is_color()) {
-        auto& color_style_value = static_cast<ColorStyleValue const&>(style_value);
-        if (auto color_type = color_style_value.color_type();
-            color_type.has_value() && first_is_one_of(*color_type, ColorStyleValue::ColorType::Lab, ColorStyleValue::ColorType::OKLab, ColorStyleValue::ColorType::LCH, ColorStyleValue::ColorType::OKLCH))
-            return style_value;
-    }
-
-    return ColorStyleValue::create_from_color(computed_color, ColorSyntax::Modern);
+    auto ffi_style = color_resolution_style.map([](auto const& style) { return style.to_ffi(); });
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_color_value(
+        style_value.rust_style_value_data(), computed_color.value(), ffi_style.has_value() ? &*ffi_style : nullptr));
 }
 
-// https://drafts.csswg.org/css-color-4/#resolving-color-values
-// The resolved value of a <color> is its used value.
 static NonnullRefPtr<StyleValue const> resolve_svg_color_style_value(StyleValue const& style_value, ColorResolutionStyle color_resolution_style)
 {
-    if (!style_value.depends_on_current_color())
-        return style_value;
-
-    if (style_value.is_value_list()) {
-        auto const& list = style_value.as_value_list();
-        auto values = list.values();
-        for (auto& value : values)
-            value = resolve_svg_color_style_value(*value, color_resolution_style);
-        return StyleValueList::create(move(values), list.separator());
-    }
-
-    if (auto color = style_value.to_color(color_resolution_style); color.has_value())
-        return resolve_color_style_value(style_value, *color, color_resolution_style).release_nonnull();
-    return style_value;
+    auto ffi_style = color_resolution_style.to_ffi();
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_svg_color_value(style_value.rust_style_value_data(), &ffi_style));
 }
 
 // https://svgwg.org/svg2-draft/geometry.html#Sizing

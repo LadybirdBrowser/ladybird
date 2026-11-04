@@ -2626,6 +2626,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/calc.rs"),
             manifest_dir.join("src/css/serialize.rs"),
             manifest_dir.join("src/css/color_resolution.rs"),
+            manifest_dir.join("src/css/resolved_value.rs"),
             manifest_dir.join("src/css/absolutize.rs"),
             manifest_dir.join("src/css/ffi_stats.rs"),
         ],
