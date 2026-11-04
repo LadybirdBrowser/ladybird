@@ -595,8 +595,8 @@ pub struct FfiElementArrival {
     /// One plus the element-backed pseudo-element kind the element stands for in its host's
     /// shadow tree, or zero.
     pub associated_pseudo_kind_plus_one: u8,
-    /// The `ElementBoxKind` the element asks for, as its raw byte.
-    pub box_kind: u8,
+    /// The principal box the element asks for.
+    pub box_kind: ElementBoxKind,
     /// The element's `ElementStyleAdjustmentFact` bits: what the box-type transformation and the
     /// element style adjustments read of the DOM. Mirrors the C++ enum.
     pub adjustment_facts: u32,
@@ -624,7 +624,7 @@ pub(in crate::css::style) fn element_arrival_facts<'a>(
         states: super::index::StateSet(arrival.states),
         adjustment_facts: arrival.adjustment_facts,
         construction_facts: arrival.construction_facts,
-        box_kind: ElementBoxKind::from_raw(arrival.box_kind),
+        box_kind: arrival.box_kind,
         atoms,
         custom_state_count: arrival.custom_state_count as usize,
         class_count: arrival.class_count as usize,
@@ -802,9 +802,11 @@ pub mod element_construction_fact {
 
 /// Which principal box an element asks for before its computed style has a say. The element's own
 /// type and state decide this; the tree build resolves it against the computed `display` and
-/// `appearance`. Mirrors the C++ `CSS::ElementBoxKind`; it crosses the boundary as its raw byte.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+/// `appearance`. Mirrors the C++ `CSS::ElementBoxKind`, which lists the same kinds in the same
+/// order and crosses the boundary as its underlying byte.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum ElementBoxKind {
     /// The computed display decides the box on its own.
     #[default]
@@ -846,38 +848,6 @@ impl ElementBoxKind {
             self,
             Self::InputButton | Self::InputCheckBox | Self::InputRadioButton | Self::InputRange | Self::InputText
         )
-    }
-
-    /// The kind C++ sends as `raw`. The two enums list the same kinds in the same order, which
-    /// `ElementBoxKind.h` asserts for the last one.
-    #[must_use]
-    pub(crate) fn from_raw(raw: u8) -> Self {
-        match raw {
-            0 => Self::FromDisplay,
-            1 => Self::NoBox,
-            2 => Self::Break,
-            3 => Self::FieldSet,
-            4 => Self::Legend,
-            5 => Self::Audio,
-            6 => Self::Video,
-            7 => Self::Canvas,
-            8 => Self::NavigableContainerViewport,
-            9 => Self::TextArea,
-            10 => Self::Image,
-            11 => Self::SvgGraphics,
-            12 => Self::SvgSvg,
-            13 => Self::SvgText,
-            14 => Self::SvgTextPath,
-            15 => Self::SvgForeignObject,
-            16 => Self::SvgImage,
-            17 => Self::SvgGeometry,
-            18 => Self::InputButton,
-            19 => Self::InputCheckBox,
-            20 => Self::InputRadioButton,
-            21 => Self::InputRange,
-            22 => Self::InputText,
-            _ => unreachable!("C++ sent an unknown element box kind {raw}"),
-        }
     }
 }
 
@@ -2019,7 +1989,7 @@ mod tests {
             is_slot: false,
             has_text_content: false,
             associated_pseudo_kind_plus_one: 0,
-            box_kind: 0,
+            box_kind: ElementBoxKind::FromDisplay,
         }
     }
 

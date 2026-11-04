@@ -2692,8 +2692,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .push_str("\nnamespace Web::Layout::RustFFI { enum class FfiFlightBlocker : uint8_t; }");
 
     // The host's objects a style reaction is applied through cross as the host's own types, except an element a struct
-    // holds, which crosses opaque.
+    // holds, which crosses opaque. A box kind crosses as the byte of the host's own enum.
     for (name, cpp_name) in [
+        ("ElementBoxKind", "uint8_t"),
         ("HostElement", "Web::DOM::Element"),
         ("HostElementPtr", "void*"),
         ("HostStyleReactionApplication", "Web::CSS::StyleReactionApplication"),

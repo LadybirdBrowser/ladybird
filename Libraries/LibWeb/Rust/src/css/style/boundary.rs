@@ -79,7 +79,7 @@ carried! {
     StyleAtomID: u32 as "StyleAtomID" = |atom| StyleAtomID(atom);
     TreeScopeID: u32 as "TreeScopeID" = |tree_scope| TreeScopeID(tree_scope);
     CascadeLayerID: u32 as "u32" = |layer| CascadeLayerID(layer);
-    ElementBoxKind: u8 as "u8" = |box_kind| ElementBoxKind::from_raw(box_kind);
+    ElementBoxKind: ElementBoxKind as "u8" = |box_kind| box_kind;
     Option<StyleNodeID>: u32 as "StyleNodeID" = |node| StyleNodeID::from_raw(node);
     Option<SheetID>: u32 as "SheetID" = |sheet| sheet.checked_sub(1).map(SheetID);
     [u32; 4]: *const [u32; 4] as "u32 const*" = |values| unsafe { *values };
