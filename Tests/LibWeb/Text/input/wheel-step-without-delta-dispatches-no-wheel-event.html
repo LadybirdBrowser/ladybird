@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #target {
+        width: 200px;
+        height: 200px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    promiseTest(async () => {
+        const deltas = [];
+        target.addEventListener("wheel", event => {
+            deltas.push(`${event.deltaX},${event.deltaY}`);
+            event.preventDefault();
+        }, { passive: false });
+        await animationFrame();
+        await animationFrame();
+
+        // Fingers that come to rest on a touchpad, and lift off it, send steps that move along no axis.
+        await internals.wheel(50, 50, 0, 0, true, "ongoing");
+        await internals.wheel(50, 50, 0, 40, true, "ongoing");
+        await internals.wheel(50, 50, 30, 0, true, "ongoing");
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+
+        println(`wheel events: ${deltas.join(" ")}`);
+        println(`window.scrollY: ${window.scrollY}`);
+    });
+</script>

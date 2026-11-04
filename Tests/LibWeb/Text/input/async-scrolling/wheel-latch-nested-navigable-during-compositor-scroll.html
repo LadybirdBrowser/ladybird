@@ -25,7 +25,7 @@
         await animationFrame();
         await animationFrame();
 
-        // The compositor scrolls the nested navigable, and every event of the gesture reaches it, its end included.
+        // The compositor scrolls the nested navigable, which each event of the gesture that moves on an axis reaches.
         await internals.wheel(50, 50, 0, 100, true, "ongoing");
         await internals.wheel(50, 50, 0, 100, true, "ongoing");
         await internals.wheel(50, 50, 0, 0, true, "ended");

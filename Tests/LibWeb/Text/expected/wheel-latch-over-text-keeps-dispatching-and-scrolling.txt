@@ -1,2 +1,2 @@
-wheel event targets: SPAN,SPAN,SPAN,SPAN
+wheel event targets: SPAN,SPAN,SPAN
 scroller.scrollTop: 30
