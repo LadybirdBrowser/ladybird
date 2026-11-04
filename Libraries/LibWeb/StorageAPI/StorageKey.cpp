@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
 #include <LibURL/RustIntegration.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -39,14 +38,13 @@ StorageKey obtain_a_storage_key_for_non_storage_purposes(HTML::Environment const
 // Declared on the Rust side in Libraries/LibWeb/Bindings/Rust/src/storage_api/storage_key.rs.
 extern "C" {
 
-bool web_storage_api_obtain_a_storage_key(void* realm, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
-void web_storage_api_obtain_a_storage_key_for_non_storage_purposes(void* realm, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
+bool web_storage_api_obtain_a_storage_key(HTML::EnvironmentSettingsObject* environment, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
+void web_storage_api_obtain_a_storage_key_for_non_storage_purposes(HTML::EnvironmentSettingsObject* environment, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 }
 
-bool web_storage_api_obtain_a_storage_key(void* realm, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*))
+bool web_storage_api_obtain_a_storage_key(HTML::EnvironmentSettingsObject* environment, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*))
 {
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto storage_key = StorageAPI::obtain_a_storage_key(HTML::relevant_settings_object(js_realm.global_object()));
+    auto storage_key = StorageAPI::obtain_a_storage_key(*environment);
     if (!storage_key.has_value())
         return false;
     URL::RustIntegration::lend_origin_to_ffi(storage_key->origin, [&](URL::FFI::FfiOrigin const& origin) {
@@ -55,10 +53,9 @@ bool web_storage_api_obtain_a_storage_key(void* realm, void* ctx, void (*on_orig
     return true;
 }
 
-void web_storage_api_obtain_a_storage_key_for_non_storage_purposes(void* realm, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*))
+void web_storage_api_obtain_a_storage_key_for_non_storage_purposes(HTML::EnvironmentSettingsObject* environment, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*))
 {
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(HTML::relevant_settings_object(js_realm.global_object()));
+    auto storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(*environment);
     URL::RustIntegration::lend_origin_to_ffi(storage_key.origin, [&](URL::FFI::FfiOrigin const& origin) {
         on_origin(ctx, &origin);
     });

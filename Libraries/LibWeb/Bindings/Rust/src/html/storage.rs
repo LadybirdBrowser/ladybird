@@ -16,6 +16,7 @@ use libjs_rust::api::{EmbedderClass, EmbedderValue, Gc, MarkedVec, Realm, Throw,
 use liburl_rust::url::ExcludeFragment;
 
 use crate::bindings::conversions::UsvString;
+use crate::bindings::environment_settings_object::{CppEnvironmentSettingsObject, relevant_settings_object};
 use crate::bindings::global_object::{CppWindow, active_windows, relevant_global_object, window_from_global_object};
 use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi};
 use crate::bindings::promise::{TaskSource, queue_a_global_task};
@@ -136,7 +137,7 @@ pub(crate) fn dispatch_storage_events(
         // * relevant settings object's origin is same origin with storage's relevant settings object's origin
         // NB: A storage key is an origin, and two keys are equal when their origins are same origin. Compared as the
         //     keys the bottles are kept under, so the file: documents that share one bottle hear each other.
-        if obtain_a_storage_key(storage.realm).as_ref() != Some(storage_key) {
+        if obtain_a_storage_key(&storage.relevant_settings_object()).as_ref() != Some(storage_key) {
             continue;
         }
 
@@ -213,6 +214,11 @@ impl Storage {
 
     pub(crate) fn map(&self) -> &StorageBottle {
         &self.map
+    }
+
+    /// https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object
+    fn relevant_settings_object(&self) -> CppEnvironmentSettingsObject {
+        relevant_settings_object(relevant_global_object(self))
     }
 
     /// The Window that is the relevant global object.
@@ -375,7 +381,7 @@ impl Storage {
 
         // NB: The key the bottle is kept under, not the bare origin: Every file: document shares one bottle (see "obtain
         //     a storage key"), so each hears the others' changes. A window that has no key has no bottle to have written.
-        let Some(storage_key) = obtain_a_storage_key(this.realm) else {
+        let Some(storage_key) = obtain_a_storage_key(&this.relevant_settings_object()) else {
             return;
         };
         let session_page = (this.storage_type == StorageType::Session).then(|| this.window().page_id());

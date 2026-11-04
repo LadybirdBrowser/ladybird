@@ -12,6 +12,7 @@
 use ak::Utf16String;
 use libjs_rust::api::{Array, Gc, Must, Object, PrimitiveString, PropertyKey, Realm, Trace, Value, Vm};
 
+use crate::bindings::environment_settings_object::relevant_settings_object;
 use crate::bindings::event_target::CppEvent;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::promise::{WebIdlPromise, create_promise, reject_promise, resolve_promise};
@@ -70,7 +71,7 @@ impl IDBFactory {
         // 2. Let environment be this's relevant settings object.
         // 3. Let storageKey be the result of running obtain a storage key given environment.
         //    If failure is returned, then throw a "SecurityError" DOMException and abort these steps.
-        let Some(storage_key) = obtain_a_storage_key(realm) else {
+        let Some(storage_key) = obtain_a_storage_key(&relevant_settings_object(realm.global_object())) else {
             return Err(Exception::Dom(
                 "SecurityError",
                 Utf16String::from_utf8("Failed to obtain a storage key"),
@@ -191,7 +192,7 @@ impl IDBFactory {
         // 1. Let environment be this's relevant settings object.
         // 2. Let storageKey be the result of running obtain a storage key given environment.
         //    If failure is returned, then throw a "SecurityError" DOMException and abort these steps.
-        let Some(storage_key) = obtain_a_storage_key(realm) else {
+        let Some(storage_key) = obtain_a_storage_key(&relevant_settings_object(realm.global_object())) else {
             return Err(Exception::Dom(
                 "SecurityError",
                 Utf16String::from_utf8("Failed to obtain a storage key"),
@@ -261,7 +262,7 @@ impl IDBFactory {
         // 1. Let environment be this's relevant settings object.
         // 2. Let storageKey be the result of running obtain a storage key given environment.
         //    If failure is returned, then return a promise rejected with a "SecurityError" DOMException
-        let Some(storage_key) = obtain_a_storage_key(realm) else {
+        let Some(storage_key) = obtain_a_storage_key(&relevant_settings_object(realm.global_object())) else {
             let cx = CallContext::new(vm, realm);
             let error = Exception::Dom(
                 "SecurityError",
