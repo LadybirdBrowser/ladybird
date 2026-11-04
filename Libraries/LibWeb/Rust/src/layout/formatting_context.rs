@@ -1015,6 +1015,9 @@ pub(crate) enum OwnBlockSizeObservation {
     #[default]
     Observed,
     Unobserved,
+    /// The contents never observed the root's own block size, but the absolutely positioned boxes the root contains
+    /// were laid out against the content block size the run left the root with.
+    ObservedOnlyByAbsposContainedByRoot,
 }
 
 #[derive(Clone)]
@@ -2696,7 +2699,7 @@ fn lay_out_run_root_and_contents<'pass>(
     let laid_out_abspos_contained_by_root = run.fragmentainer.is_none()
         && lay_out_abspos_contained_by_run_root(body_run, root_in_own_frame_left_by_run, own_frame);
     let inputs_never_observed = if laid_out_abspos_contained_by_root {
-        fc_run_cache::RunInputsTheStoredRunNeverObserved::default()
+        inputs_never_observed.once_abspos_contained_by_root_are_laid_out()
     } else {
         inputs_never_observed
     };
@@ -3677,6 +3680,19 @@ pub(super) fn content_block_size_adopted_after_run(
         geometry::ContentBlockSizeAfterRun::Automatic => Some(automatic_content_block_size),
         geometry::ContentBlockSizeAfterRun::GrownFromAspectRatioBlockSize(block_size) => Some(block_size),
     }
+}
+
+/// The content block size a run with `input` leaves its root with, where the parent owns the root's input cells
+/// `root_cells` and the run's automatic content block size is `automatic_content_block_size`.
+pub(super) fn content_block_size_run_leaves_root_whose_cells_its_parent_owns(
+    input: &LayoutInput,
+    root_cells: used_values::RootInputCells,
+    automatic_content_block_size: CssPixels,
+) -> CssPixels {
+    content_block_size_adopted_after_run(input, automatic_content_block_size)
+        .map_or(root_cells.content_block_size, |block_size| {
+            clamp_to_max_dimension_value(block_size.max(CssPixels::default()))
+        })
 }
 
 fn child_layout_from_outputs(

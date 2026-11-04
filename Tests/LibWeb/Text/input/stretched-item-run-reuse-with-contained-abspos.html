@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .grid { display: grid; grid-template: min-content 1fr / minmax(0, 1fr) min-content; width: 600px; }
+    .grid > header { grid-column: 1 / 3; }
+    .flex { display: flex; width: 600px; }
+    .flex > .item { flex: 1; min-width: 0; }
+    .item { position: relative; }
+    .label { position: absolute; top: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .corner { position: absolute; right: 0; bottom: 0; width: 10px; height: 10px; }
+    .end { width: 50px; }
+    .tall { height: 2000px; }
+</style>
+<div class="grid" id="grid"><header>title</header><div class="item" id="grid-item"></div><div class="end">end</div></div>
+<div class="grid" id="taller-row"><header>title</header><div class="item" id="taller-row-item"></div><div class="end tall">end</div></div>
+<div class="flex" id="flex"><div class="item" id="flex-item"></div><div class="end">end</div></div>
+<script>
+    // A stretched grid or flex item is measured for its block size before it is laid out at that size. When the item
+    // is the containing block of absolutely positioned boxes, its measured run still stands for the final one as long
+    // as the item ends up with the block size it was measured at. Stretched past that size, it is laid out again.
+    test(() => {
+        const paragraphs = Array.from({ length: 4 }, (_, index) => `<p>Paragraph ${index} ${"word ".repeat(40)}</p>`).join("");
+        for (const item of document.querySelectorAll(".item"))
+            item.innerHTML = `<span class="label">label</span>${paragraphs}<div class="corner"></div>`;
+        document.body.offsetHeight;
+
+        const geometry = root => {
+            const rootRect = root.getBoundingClientRect();
+            return Array.from(root.querySelectorAll("*")).map(element => {
+                const rect = element.getBoundingClientRect();
+                return `${rect.left - rootRect.left},${rect.top - rootRect.top},${rect.width},${rect.height}`;
+            }).join(" ");
+        };
+        const matchesFreshLayout = root => {
+            const fresh = root.cloneNode(true);
+            fresh.id = "";
+            document.body.appendChild(fresh);
+            const matches = geometry(root) === geometry(fresh);
+            fresh.remove();
+            document.body.offsetHeight;
+            return matches;
+        };
+
+        for (const id of ["grid", "taller-row", "flex"]) {
+            const container = document.getElementById(id);
+            const item = document.getElementById(`${id}-item`);
+            internals.beginLayoutTrace();
+            container.style.width = "500px";
+            document.body.offsetHeight;
+            const runs = internals.takeLayoutTrace().split("\n").filter(line => line.includes(`#${id}-item`) && line.includes(" RUN (")).length;
+            const corner = item.querySelector(".corner").getBoundingClientRect();
+            println(`${id}: item runs after the width change: ${runs}`);
+            println(`${id}: geometry matches a fresh layout: ${matchesFreshLayout(container)}`);
+            println(`${id}: corner sits at the item's bottom: ${corner.bottom === item.getBoundingClientRect().bottom}`);
+        }
+    });
+</script>

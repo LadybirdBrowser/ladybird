@@ -32,6 +32,21 @@ pub(crate) struct RunInputsTheStoredRunNeverObserved {
 }
 
 impl RunInputsTheStoredRunNeverObserved {
+    /// What the run still never observed once it laid out the absolutely positioned boxes its root contains against the
+    /// root's final sizes and box sides. Where the contents never observed the root's own block size, those boxes
+    /// observed only the block size the run left the root with.
+    pub(super) fn once_abspos_contained_by_root_are_laid_out(self) -> Self {
+        if self.own_block_size != formatting_context::OwnBlockSizeObservation::Unobserved {
+            return Self::default();
+        }
+        Self {
+            percentage_block_basis_and_block_size_definiteness: self.percentage_block_basis_and_block_size_definiteness,
+            own_block_size: formatting_context::OwnBlockSizeObservation::ObservedOnlyByAbsposContainedByRoot,
+            content_block_size_adopted_after_run: self.content_block_size_adopted_after_run,
+            ..Self::default()
+        }
+    }
+
     fn accepted_when_reusing_stale_line_data_after_structural_inline_damage(self) -> Self {
         Self {
             definite_available_inline_sizes_at_or_above: None,
@@ -85,7 +100,8 @@ fn root_input_cells_match_ignoring_unobserved(
     let probe = without_unobserved_inline_space(probe);
     match own_block_size {
         formatting_context::OwnBlockSizeObservation::Observed => stored == probe,
-        formatting_context::OwnBlockSizeObservation::Unobserved => {
+        formatting_context::OwnBlockSizeObservation::Unobserved
+        | formatting_context::OwnBlockSizeObservation::ObservedOnlyByAbsposContainedByRoot => {
             let without_own_block_size_and_block_margins = |cells| used_values::RootInputCells {
                 content_block_size: CssPixels::default(),
                 has_definite_block_size: false,
@@ -372,15 +388,38 @@ impl FcRunCacheEntry {
             Some(cells) => (cells.content_inline_size, cells.content_block_size),
             None => (
                 self.key.root_cells.content_inline_size,
-                formatting_context::content_block_size_adopted_after_run(
+                self.content_block_size_run_leaves_root_whose_cells_its_parent_owns(
                     &self.key.input,
-                    self.outputs.result.automatic_content_block_size,
-                )
-                .map_or(self.key.root_cells.content_block_size, |block_size| {
-                    clamp_to_max_dimension_value(block_size.max(CssPixels::default()))
-                }),
+                    self.key.root_cells,
+                ),
             ),
         }
+    }
+
+    /// The content block size a run with `input` and the parent-owned root input cells `root_cells` leaves its root
+    /// with, where its contents are laid out as the stored run's were.
+    fn content_block_size_run_leaves_root_whose_cells_its_parent_owns(
+        &self,
+        input: &LayoutInput,
+        root_cells: used_values::RootInputCells,
+    ) -> CssPixels {
+        formatting_context::content_block_size_run_leaves_root_whose_cells_its_parent_owns(
+            input,
+            root_cells,
+            self.outputs.result.automatic_content_block_size,
+        )
+    }
+
+    /// Whether the absolutely positioned boxes the stored run laid out against its root would be laid out against the
+    /// same root block size by the probed run, where they are all that observed the root's own block size.
+    fn probe_leaves_root_with_block_size_its_abspos_were_laid_out_against(&self, probe: &FcRunCacheProbe<'_>) -> bool {
+        self.outputs.inputs_never_observed.own_block_size
+            != formatting_context::OwnBlockSizeObservation::ObservedOnlyByAbsposContainedByRoot
+            || self.content_block_size_run_leaves_root_whose_cells_its_parent_owns(probe.input, probe.root_cells)
+                == self.content_block_size_run_leaves_root_whose_cells_its_parent_owns(
+                    &self.key.input,
+                    self.key.root_cells,
+                )
     }
 
     fn last_used_at_layout_commit(&self) -> u64 {
@@ -414,13 +453,14 @@ impl FcRunCacheEntry {
 
     fn answers_probe_for(&self, probe: &FcRunCacheProbe<'_>) -> bool {
         let unobserved = self.outputs.inputs_never_observed;
-        self.key.matches_probe(probe, unobserved)
+        (self.key.matches_probe(probe, unobserved)
             || (self.table_cell_block_paddings_unobserved && {
                 let probe_key = probe.key().without_root_block_paddings();
                 self.key
                     .without_root_block_paddings()
                     .matches_probe(&probe_key.as_probe(), unobserved)
-            })
+            }))
+            && self.probe_leaves_root_with_block_size_its_abspos_were_laid_out_against(probe)
     }
 }
 
