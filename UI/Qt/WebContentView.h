@@ -430,7 +430,11 @@ private:
 
 #    ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
     bool create_page_surface();
-    void update_page_surface();
+    enum class PageSurfaceContent {
+        Unchanged,
+        MayHaveChanged,
+    };
+    void update_page_surface(PageSurfaceContent);
     void hide_page_surface();
     bool page_surface_can_show_frames() const;
     void fall_back_from_page_surface();

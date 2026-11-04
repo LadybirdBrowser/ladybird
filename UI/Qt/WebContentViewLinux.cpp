@@ -1215,7 +1215,7 @@ void WebContentView::schedule_vulkan_window_update()
         //     such as a hover card, which comes and goes quickly. Qt reads the frame back from GPU memory then.
         if (isVisible())
             set_presents_from_cpu_memory(is_page_covered_by_overlay());
-        update_page_surface();
+        update_page_surface(PageSurfaceContent::MayHaveChanged);
         return;
     }
 #endif
@@ -1316,7 +1316,7 @@ void WebContentView::hide_page_surface()
     }
 }
 
-void WebContentView::update_page_surface()
+void WebContentView::update_page_surface(PageSurfaceContent content)
 {
     auto paintable = current_paintable();
     auto const* dmabuf = paintable.has_value() ? paintable->shared_image_buffer->linux_dmabuf_handle() : nullptr;
@@ -1366,11 +1366,13 @@ void WebContentView::update_page_surface()
         .source = source,
         .position = view_position + QPoint { qRound(target.x() / m_device_pixel_ratio), qRound(target.y() / m_device_pixel_ratio) },
         .destination = { to_logical(target.width()), to_logical(target.height()) },
+        .has_new_content = content == PageSurfaceContent::MayHaveChanged,
     };
 
-    // NB: The position of the page surface changes when the browser window commits next, so whatever else changes in
-    //     the frame waits for that commit too.
-    if (m_page_surface->is_showing() && frame.position != m_page_surface_position)
+    // NB: The layout of the browser window changes on screen when it commits next, and so does the position of the page
+    //     surface. Whatever else changes in where the frame goes waits for that commit too, such as the crop to a
+    //     shrinking window, which would otherwise show before the window has shrunk.
+    if (m_page_surface->is_showing() && m_page_surface->would_change_placement(frame))
         m_page_surface->set_synchronized(true);
 
     m_page_surface->forget_buffers_except(backing_stores());
@@ -1391,9 +1393,10 @@ void WebContentView::update_page_surface()
         covered_rect = result == WaylandPageSurface::PresentResult::Presented ? frame_rect : m_page_surface_rect;
     if (!covered_rect.contains(m_page_surface_rect))
         update();
-    // NB: Nothing else may make the browser window commit, so have Qt repaint a pixel of it.
+    // NB: Nothing else may make the browser window commit, so have Qt repaint a pixel of it. Qt drops updates to any
+    //     part of the view that the widgets it is in clip away.
     else if (result == WaylandPageSurface::PresentResult::Presented && m_page_surface->needs_parent_commit())
-        update(0, 0, 1, 1);
+        update(QRect { rect_shown_in_window().topLeft(), QSize { 1, 1 } });
     m_page_surface_rect = covered_rect;
     if (result == WaylandPageSurface::PresentResult::Presented)
         m_page_surface_position = frame.position;
