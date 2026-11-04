@@ -29,6 +29,8 @@ from Generators.libweb_bindings.operations import idl_type_is_json_type
 from Generators.libweb_bindings.operations import operation_is_default_to_json
 from Generators.libweb_bindings.rust_members import RustAttribute
 from Generators.libweb_bindings.rust_members import RustConstructor
+from Generators.libweb_bindings.rust_members import RustIndexedPropertyGetter
+from Generators.libweb_bindings.rust_members import RustIndexedPropertySetter
 from Generators.libweb_bindings.rust_members import RustMembers
 from Generators.libweb_bindings.rust_members import RustOperation
 from Generators.libweb_bindings.rust_members import RustOperationSet
@@ -52,6 +54,7 @@ from Generators.libweb_bindings.rust_types import CPP_PARENT_INTERFACES
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import cpp_ancestor
 from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
+from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_promise_type
@@ -263,6 +266,7 @@ void {interface.namespace_class}::initialize(JS::Realm& realm, JS::Object& objec
     initialize_constructor = rust_entry_point_name(interface, "initialize_constructor")
     construct = rust_entry_point_name(interface, "construct")
     supports_indexed_properties = rust_members(interface).indexed_property_getter is not None
+    has_indexed_property_setter = rust_members(interface).indexed_property_setter is not None
     if supports_indexed_properties and inheriting_interfaces(interface, context):
         raise UnsupportedByRustBindings(
             f"{interface.path}: {interface.name} supports indexed properties and others inherit from it, which the "
@@ -280,6 +284,11 @@ void {initialize_constructor}(JSVM*, void* realm, JSObject* constructor);
         out.write(
             f"bool {item_value_entry_point(interface)}(JSVM*, void* realm, JSObject* wrapper, size_t index, "
             "JSValue* out_value);\n"
+        )
+    if has_indexed_property_setter:
+        out.writelines(
+            f"JSCompletion {entry_point}(JSVM*, void* realm, JSObject* wrapper, u32 index, JSValue value);\n"
+            for entry_point in indexed_property_setter_entry_points(interface)
         )
     if interface.constructors:
         out.write(f"JSCompletion {construct}(JSVM*, JSObject* constructor, JSObject* new_target);\n")
@@ -314,6 +323,25 @@ constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_cla
     else:
         includes.add("LibWeb/Bindings/PlatformObject.h")
         legacy_info = f"{wrapper_name(interface)}_legacy_platform_object_info"
+        setter_functions = ""
+        has_setter_info = ""
+        setter_info = ""
+        if has_indexed_property_setter:
+            includes.add("LibWeb/WebIDL/ExceptionOr.h")
+            has_setter_info = "    .has_indexed_property_setter = true,\n"
+            for hook, entry_point in zip(
+                ("set_value_of_new_indexed_property", "set_value_of_existing_indexed_property"),
+                indexed_property_setter_entry_points(interface),
+            ):
+                function = f"{wrapper_name(interface)}_{hook}"
+                setter_functions += f"""static WebIDL::ExceptionOr<void> {function}(JS::HostObject& wrapper, JS::Realm& realm, u32 index, JS::Value value)
+{{
+    TRY(JS::HostABI::completion_from_abi<JS::Value>({entry_point}(JS::HostABI::vm_to_abi(realm.vm()), &realm, JS::HostABI::object_to_abi(&wrapper), index, JS::HostABI::value_to_abi(value))));
+    return {{}};
+}}
+
+"""
+                setter_info += f"    .{hook} = {function},\n"
         out.write(
             f"""
 }}
@@ -326,10 +354,10 @@ static Optional<JS::Value> {wrapper_name(interface)}_item_value(JS::HostObject c
     return JS::HostABI::value_from_abi(value);
 }}
 
-static constexpr LegacyPlatformObjectInfo {legacy_info} {{
+{setter_functions}static constexpr LegacyPlatformObjectInfo {legacy_info} {{
     .supports_indexed_properties = true,
-    .item_value = {wrapper_name(interface)}_item_value,
-}};
+{has_setter_info}    .item_value = {wrapper_name(interface)}_item_value,
+{setter_info}}};
 
 // The wrappers are legacy platform objects, whose indexed properties the Rust bindings read: their implementation is a
 // cell in their host data, not an implementation object in their wrappable slot.
@@ -431,12 +459,12 @@ JSObject* {function}(void* realm, u16 interface_name)
     switch (static_cast<InterfaceName>(interface_name)) {{
 """
         )
-        for interface in interfaces:
-            out.write(
-                f"""    case InterfaceName::{interface.name}:
+        out.writelines(
+            f"""    case InterfaceName::{interface.name}:
         return JS::HostABI::object_to_abi(&{object_of(interface)});
 """
-            )
+            for interface in interfaces
+        )
         out.write(
             """    default:
         VERIFY_NOT_REACHED();
@@ -510,8 +538,6 @@ def write_parameter_conversions(
 ) -> None:
     for index, parameter in enumerate(parameters):
         parameter_what = f"the parameter {parameter.name} of {what}"
-        if parameter.variadic:
-            raise UnsupportedByRustBindings(f"{parameter_what} is variadic")
         unsupported = set(parameter.extended_attributes) - {
             "AllowShared",
             "AllowResizable",
@@ -522,6 +548,23 @@ def write_parameter_conversions(
         if unsupported:
             raise UnsupportedByRustBindings(f"{parameter_what} has the extended attributes {sorted(unsupported)}")
         name = rust_local_name(parameter.name)
+        if parameter.variadic:
+            # NB: A variadic parameter takes every remaining argument, so it is always the last parameter.
+            conversion = rust_to_idl_value(
+                parameter.type, parameter.extended_attributes, "argument", parameter.name, context, parameter_what
+            )
+            keeps_cells_alive = holds_cells(parameter.type, context)
+            storage = "MarkedVec::new(vm)" if keeps_cells_alive else "Vec::new()"
+            mutability = "" if keeps_cells_alive else "mut "
+            out.write(
+                f"""        let {mutability}{name} = {storage};
+        for index in {index}..vm.argument_count() {{
+            let argument = vm.argument(index);
+            {name}.push({conversion}?);
+        }}
+"""
+            )
+            continue
         conversion = rust_to_idl_value(
             parameter.type,
             parameter.extended_attributes,
@@ -628,6 +671,13 @@ def implementation_method_signatures(
             f"fn {getter.method}(&self, cx: &mut CallContext{parameters}) -> "
             f"WebIdlResult<{rust_type(getter.operation.return_type, context, what, is_result=True)}>"
         )
+    if members.indexed_property_setter is not None:
+        what = f"the indexed property setter of {interface.name}"
+        value_type = rust_parameter_type(members.indexed_property_setter.value_parameter, context, what)
+        for method in ("set_value_of_new_indexed_property", "set_value_of_existing_indexed_property"):
+            signatures.append(
+                f"fn {method}(&self, cx: &mut CallContext, index: u32, value: {value_type}) -> WebIdlResult<()>"
+            )
     for operation_set in members.static_operation_sets:
         for overload in operation_set.overloads:
             what = f"{interface.name}.{operation_set.name}()"
@@ -969,9 +1019,13 @@ def write_rust_interface(
 
     if members.indexed_property_getter is not None:
         getter = members.indexed_property_getter.operation
-        getter_set = RustOperationSet(getter.operation.name, [getter])
-        write_rust_operation(out, context, interface, getter_set.name, getter_set.function, getter)
-        write_rust_item_value(out, context, interface, getter)
+        if getter.operation.name:
+            getter_set = RustOperationSet(getter.operation.name, [getter])
+            write_rust_operation(out, context, interface, getter_set.name, getter_set.function, getter)
+        write_rust_item_value(out, context, interface, members.indexed_property_getter)
+
+    if members.indexed_property_setter is not None:
+        write_rust_indexed_property_setter(out, context, interface, members.indexed_property_setter)
 
     if members.pair_iterator is not None:
         write_rust_pair_iterator(out, interface)
@@ -1033,12 +1087,13 @@ def write_rust_interface(
         defined_property_names.append("toString")
     if members.indexed_property_getter is not None:
         getter = members.indexed_property_getter.operation
-        getter_set = RustOperationSet(getter.operation.name, [getter])
-        out.write(
-            f'        define_operation(vm, realm, prototype, "{getter_set.name}", raw_native!({getter_set.function}), '
-            f"{getter_set.length});\n"
-        )
-        defined_property_names.append(getter_set.name)
+        if getter.operation.name:
+            getter_set = RustOperationSet(getter.operation.name, [getter])
+            out.write(
+                f'        define_operation(vm, realm, prototype, "{getter_set.name}", raw_native!({getter_set.function}), '
+                f"{getter_set.length});\n"
+            )
+            defined_property_names.append(getter_set.name)
         out.write("        define_indexed_properties_iterator(vm, realm, prototype);\n")
         if members.indexed_property_getter.has_value_iterator:
             out.write("        define_value_iterator_properties(vm, realm, prototype);\n")
@@ -1298,18 +1353,31 @@ def item_value_entry_point(interface: Interface) -> str:
     return rust_entry_point_name(interface, "item_value")
 
 
-def write_rust_item_value(out: TextIO, context: GenerationContext, interface: Interface, getter: RustOperation) -> None:
+def write_rust_item_value(
+    out: TextIO, context: GenerationContext, interface: Interface, indexed_property_getter: RustIndexedPropertyGetter
+) -> None:
     """The entry point through which the internal methods of a legacy platform object that LibWeb's C++ defines read
     an indexed property of a wrapper of the interface, which has a value if the index is a supported property index,
     https://webidl.spec.whatwg.org/#legacy-platform-object-getownproperty"""
+    getter = indexed_property_getter.operation
     return_type = getter.operation.return_type
-    if not return_type.nullable:
-        raise UnsupportedByRustBindings(
-            f"{interface.path}: the indexed property getter of {interface.name} does not return a nullable type, by "
-            "which the Rust bindings tell the indices that are not supported property indices"
-        )
     what = f"the indexed property getter of {interface.name}"
     conversion = rust_to_js_value(return_type.without_nullable(), "value", "&cx", context, what)
+    if return_type.nullable:
+        value_steps = f"""let Ok(Some(value)) = Implementation::{getter.method}(&implementation, &mut cx, index) else {{
+            return false;
+        }};"""
+    else:
+        # NB: A getter that does not return a nullable type has no value for an index that is not a supported one.
+        value_steps = f"""let Ok(length) = Implementation::{indexed_property_getter.length_method}(&implementation, &mut cx) else {{
+            return false;
+        }};
+        if index >= length {{
+            return false;
+        }}
+        let Ok(value) = Implementation::{getter.method}(&implementation, &mut cx, index) else {{
+            return false;
+        }};"""
     out.write(
         f"""
     /// The value of the indexed property of the wrapper, which LibWeb's C++ asks for, if the index is a supported
@@ -1333,14 +1401,74 @@ def write_rust_item_value(out: TextIO, context: GenerationContext, interface: In
         }};
         let implementation = implementation_of::<Implementation>(wrapper);
         let mut cx = CallContext::new(vm, realm);
-        let Ok(Some(value)) = Implementation::{getter.method}(&implementation, &mut cx, index) else {{
-            return false;
-        }};
+        {value_steps}
         let value = {conversion}.expect("converting an object to a JS value does not throw");
         *out_value = value.to_raw();
         true
     }}
 """
+    )
+
+
+def indexed_property_setter_entry_points(interface: Interface) -> List[str]:
+    return [
+        rust_entry_point_name(interface, "set_value_of_new_indexed_property"),
+        rust_entry_point_name(interface, "set_value_of_existing_indexed_property"),
+    ]
+
+
+def write_rust_indexed_property_setter(
+    out: TextIO, context: GenerationContext, interface: Interface, setter: RustIndexedPropertySetter
+) -> None:
+    """The entry points through which the internal methods of a legacy platform object that LibWeb's C++ defines run the
+    steps of the indexed property setter, https://webidl.spec.whatwg.org/#invoke-indexed-setter"""
+    parameter = setter.value_parameter
+    what = f"the indexed property setter of {interface.name}"
+    conversion = rust_to_idl_value(
+        parameter.type,
+        parameter.extended_attributes,
+        "value",
+        parameter.name,
+        context,
+        what,
+        keeps_cells_alive=True,
+    )
+    out.writelines(
+        f"""
+    /// The steps of the indexed property setter, which LibWeb's C++ runs on the wrapper.
+    ///
+    /// # Safety
+    ///
+    /// The pointers must be the VM, a live realm and a live wrapper of the interface.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn {entry_point}(
+        vm: *mut c_void,
+        realm: *mut c_void,
+        wrapper: *mut c_void,
+        index: u32,
+        value: u64,
+    ) -> RawNativeFunctionResult {{
+        // SAFETY: The caller passes live pointers.
+        let (vm, realm, wrapper) = unsafe {{ entry_point_arguments(vm, realm, wrapper) }};
+        // SAFETY: The caller passes the raw bits of a value.
+        let value = unsafe {{ Value::from_raw(value) }};
+        let steps = || -> ThrowCompletionOr<Value> {{
+            let implementation = implementation_of::<Implementation>(wrapper);
+            let mut cx = CallContext::new(vm, realm);
+            let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());
+            let value = {conversion}?;
+            drop(type_error_realm_scope);
+            Implementation::{method}(&implementation, &mut cx, index, value)
+                .map_err(|exception| exception.throw(&cx))?;
+            Ok(Value::UNDEFINED)
+        }};
+        RawNativeFunctionResult::from_completion(steps())
+    }}
+"""
+        for method, entry_point in zip(
+            ("set_value_of_new_indexed_property", "set_value_of_existing_indexed_property"),
+            indexed_property_setter_entry_points(interface),
+        )
     )
 
 

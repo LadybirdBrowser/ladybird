@@ -165,12 +165,25 @@ class RustStringifier:
 class RustIndexedPropertyGetter:
     """The indexed property getter of an interface, which has an identifier: the operation of that identifier, whose
     method the getter steps of a supported property index call as well, https://webidl.spec.whatwg.org/#idl-indexed-properties
-    An index for which the method returns nothing is not a supported property index."""
+    An index for which a nullable method returns nothing is not a supported property index, nor is an index that is not
+    less than the length attribute of an interface whose method does not return a nullable type. An unnamed getter
+    defines no operation, and the method of the implementation is item() unless the IDL names it."""
 
     operation: RustOperation
+    # The getter of the length attribute of the interface.
+    length_method: str
     # Whether the interface declares a value iterator, which it implements through the indexed properties,
     # https://webidl.spec.whatwg.org/#dfn-value-iterator
     has_value_iterator: bool
+
+
+@dataclass
+class RustIndexedPropertySetter:
+    """The unnamed indexed property setter of an interface, whose steps the implementation defines as the methods
+    set_value_of_new_indexed_property() and set_value_of_existing_indexed_property(),
+    https://webidl.spec.whatwg.org/#legacy-platform-object-set"""
+
+    value_parameter: OperationParameter
 
 
 @dataclass
@@ -234,6 +247,7 @@ class RustMembers:
     static_operation_sets: List[RustOperationSet] = field(default_factory=list)
     stringifier: Optional[RustStringifier] = None
     indexed_property_getter: Optional[RustIndexedPropertyGetter] = None
+    indexed_property_setter: Optional[RustIndexedPropertySetter] = None
     pair_iterator: Optional[RustPairIterator] = None
     async_iterator: Optional[RustAsyncIterator] = None
     constructors: List[RustConstructor] = field(default_factory=list)
@@ -257,7 +271,7 @@ class RustMembers:
         names.extend(operation_set.name for operation_set in self.operation_sets)
         if self.stringifier is not None:
             names.append("toString")
-        if self.indexed_property_getter is not None:
+        if self.indexed_property_getter is not None and self.indexed_property_getter.operation.operation.name:
             names.append(self.indexed_property_getter.operation.operation.name)
         if self.pair_iterator is not None:
             names.extend(self.pair_iterator.function_names)
@@ -309,11 +323,10 @@ def rust_members(interface: Interface) -> RustMembers:
     special_operations = [
         interface.named_property_getter,
         interface.named_property_setter,
-        interface.indexed_property_setter,
         interface.named_property_deleter,
     ]
     if any(special_operations):
-        fail("it has special operations other than an indexed property getter")
+        fail("it has special operations other than an indexed property getter and setter")
     if interface.maplike or interface.setlike:
         fail("it is a maplike or setlike")
     if interface.async_iterable is not None and interface.async_iterable.key_type is not None:
@@ -334,17 +347,27 @@ def rust_members(interface: Interface) -> RustMembers:
     if has_value_iterator and getter is None:
         fail("it declares a value iterator and supports no indexed properties")
     if getter is not None:
-        if not getter.name:
-            fail("its indexed property getter has no identifier, which the Rust bindings do not handle yet")
-        if interface.parent_name:
-            fail("it supports indexed properties and inherits from another interface")
-        if not any(attribute.name == "length" for attribute in interface.regular_attributes):
+        length_attribute = next(
+            (attribute for attribute in interface.regular_attributes if attribute.name == "length"), None
+        )
+        if length_attribute is None:
             fail("it supports indexed properties and has no length attribute")
+        assert length_attribute is not None
         check_extended_attributes(getter.name, getter.extended_attributes, {"ImplementedAs"})
         getter_operation = Operation(getter.name, getter.return_type, getter.parameters, getter.extended_attributes)
         members.indexed_property_getter = RustIndexedPropertyGetter(
-            RustOperation(getter_operation, method_of(getter.name, getter.extended_attributes)), has_value_iterator
+            RustOperation(getter_operation, method_of(getter.name or "item", getter.extended_attributes)),
+            method_of(length_attribute.name, length_attribute.extended_attributes),
+            has_value_iterator,
         )
+
+    setter = interface.indexed_property_setter
+    if setter is not None:
+        if getter is None:
+            fail("it has an indexed property setter and no indexed property getter")
+        if setter.name:
+            fail("its indexed property setter has an identifier, which the Rust bindings do not handle yet")
+        members.indexed_property_setter = RustIndexedPropertySetter(setter.parameters[1])
 
     def check_exposure(member_name: str, extended_attributes: dict) -> None:
         exposure = extended_attributes.get("Exposed")
@@ -472,6 +495,8 @@ def rust_members(interface: Interface) -> RustMembers:
         methods.append(members.stringifier.method)
     if members.indexed_property_getter is not None:
         methods.append(members.indexed_property_getter.operation.method)
+    if members.indexed_property_setter is not None:
+        methods.extend(["set_value_of_new_indexed_property", "set_value_of_existing_indexed_property"])
     methods.extend(constructor.method for constructor in members.constructors)
     repeated_methods = sorted({method for method in methods if methods.count(method) > 1})
     if repeated_methods:

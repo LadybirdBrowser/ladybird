@@ -6,9 +6,9 @@
 # data that the bindings of both languages can convert, so it gets a representation in each language that names it,
 # wherever its IDL defines it.
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Dict
-from typing import Iterable
 from typing import List
 from typing import Set
 
@@ -134,6 +134,8 @@ class DefinitionUsage:
             ]
             if members.indexed_property_getter is not None:
                 operations.append(members.indexed_property_getter.operation.operation)
+            if members.indexed_property_setter is not None:
+                self._name_for_rust(members.indexed_property_setter.value_parameter.type, from_js=True, to_js=False)
             for operation in operations:
                 self._name_for_rust(operation.return_type, from_js=False, to_js=True)
                 for parameter in operation.parameters:
