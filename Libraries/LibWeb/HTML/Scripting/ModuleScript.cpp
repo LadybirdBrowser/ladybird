@@ -179,11 +179,8 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_scr
 
     // 6. Run the steps to synchronously replace the rules of a CSSStyleSheet on sheet given source.
     //    If this throws an exception, catch it, and set script's parse error to that exception, and return script.
-    if (auto result = sheet->replace_sync(source); result.is_error()) {
-        auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, result.exception());
-        script->set_parse_error(throw_completion.value());
-        return script;
-    }
+    // NB: A new constructed sheet has the constructed flag and not the disallow modification flag, so this cannot throw.
+    sheet->replace_rules(source);
 
     // 7. Set script's record to the result of CreateDefaultExportSyntheticModule(sheet).
     script->m_record = CSS::create_css_style_sheet_default_export_module(realm, sheet, filename.view());

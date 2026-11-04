@@ -69,7 +69,7 @@ CSSRule* CSSRuleList::existing_wrapper(u64 identity) const
 
 void CSSRuleList::set_parent_style_sheet(StyleSheetState* sheet)
 {
-    web_css_rule_list_set_parent_style_sheet(vm_abi(), this, sheet ? static_cast<GC::Cell*>(&sheet->cssom_sheet()) : nullptr);
+    web_css_rule_list_set_parent_style_sheet(vm_abi(), this, sheet ? &sheet->cssom_sheet() : nullptr);
 }
 
 CSSRule* CSSRuleList::rule_for_identity(u64 identity) const

@@ -9,39 +9,22 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleSheet.h>
+#include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/CSSStyleSheet.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom-1/#cssstylesheet
-class WEB_API CSSStyleSheet final : public StyleSheet {
-    WEB_WRAPPABLE(CSSStyleSheet, StyleSheet);
-    GC_DECLARE_ALLOCATOR(CSSStyleSheet);
+class WEB_API CSSStyleSheet final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(CSSStyleSheet, css_style_sheet)
 
 public:
-    virtual ~CSSStyleSheet() override;
-
-    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> create_for_constructor(JS::Object&, CSSStyleSheetOptions const& options = {});
-
-    GC::Ptr<CSSRule> owner_rule() { return state().owner_rule(); }
-    WebIDL::ExceptionOr<GC::Ref<CSSRuleList>> css_rules();
-
-    WebIDL::ExceptionOr<unsigned> insert_rule(Utf16View rule, unsigned index) { return state().insert_rule(rule, index); }
-    WebIDL::ExceptionOr<WebIDL::Long> add_rule(Optional<Utf16String> selector, Optional<Utf16String> style, Optional<WebIDL::UnsignedLong> index) { return state().add_rule(move(selector), move(style), index); }
-    WebIDL::ExceptionOr<void> remove_rule(Optional<WebIDL::UnsignedLong> index) { return state().remove_rule(index); }
-    WebIDL::ExceptionOr<void> delete_rule(unsigned index) { return state().delete_rule(index); }
-    GC::Ref<WebIDL::Promise> replace(Utf16String text) { return state().replace(move(text)); }
-    WebIDL::ExceptionOr<void> replace_sync(Utf16View text) { return state().replace_sync(text); }
-
-private:
-    friend class StyleSheetState;
     [[nodiscard]] static GC::Ref<CSSStyleSheet> create(StyleSheetState&);
-    explicit CSSStyleSheet(StyleSheetState&);
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-    void update_owner_chain();
 
-    GC::Ptr<CSSStyleSheet> m_parent_sheet;
-    RefPtr<StyleSheetImport> m_owner_import;
+    StyleSheetState& state() const;
+    void update_owner_chain();
 };
 
 }

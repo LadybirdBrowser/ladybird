@@ -162,11 +162,9 @@ set(SOURCES
     CSS/Zoom.cpp
     CSS/StylePropertyMap.cpp
     CSS/StyleScope.cpp
-    CSS/StyleSheet.cpp
     CSS/StyleSheetIdentifier.cpp
     CSS/StyleSheetImport.cpp
     CSS/StyleSheetInvalidation.cpp
-    CSS/StyleSheetList.cpp
     CSS/StyleSheetState.cpp
     CSS/StyleValues/AbstractImageStyleValue.cpp
     CSS/StyleValues/AngleStyleValue.cpp

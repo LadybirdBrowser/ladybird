@@ -44,7 +44,7 @@ impl Inherits<CSSRule> for CSSGroupingRule {
     }
 }
 
-fn insertion_error(result: RuleInsertionResult) -> WebIdlResult<()> {
+pub(crate) fn insertion_error(result: RuleInsertionResult) -> WebIdlResult<()> {
     match result {
         RuleInsertionResult::Success => Ok(()),
         RuleInsertionResult::IndexSizeError => Err(Exception::index_size_error(Utf16String::from_utf8(

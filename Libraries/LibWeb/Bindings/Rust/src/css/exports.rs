@@ -50,6 +50,7 @@ use super::css_rule::AnyCSSRule;
 use super::css_rule_list::CSSRuleList;
 use super::css_scope_rule::CSSScopeRule;
 use super::css_style_rule::CSSStyleRule;
+use super::css_style_sheet::CSSStyleSheet;
 use super::css_style_value::{AnyCSSStyleValue, CSSStyleValue, PerformTypeCheck};
 use super::css_supports_rule::CSSSupportsRule;
 use super::css_transform_value::CSSTransformValue;
@@ -57,6 +58,7 @@ use super::css_unit_value::CSSUnitValue;
 use super::css_unparsed_value::CSSUnparsedValue;
 use super::media_list::MediaList;
 use super::media_query_list_event::{MediaQueryListEvent, MediaQueryListEventInit};
+use super::style_sheet_list::StyleSheetList;
 use super::transition_event::{TransitionEvent, TransitionEventInit};
 use super::typed_om;
 use crate::bindings::Exception;
@@ -866,4 +868,44 @@ pub unsafe extern "C" fn web_css_style_rule_set_selector_text(rule: *mut c_void,
     // SAFETY: The caller passes a live cell of a CSSStyleRule, and hands over the string.
     let (rule, text): (Ref<CSSStyleRule>, _) = unsafe { (cell_from_abi(rule), Utf16String::from_raw_owned(text)) };
     rule.replace_selectors(&text.to_utf16());
+}
+
+/// A new CSSStyleSheet for the cell that holds the state of the sheet.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `state` a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_style_sheet_create(vm: *mut c_void, state: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live cell.
+    let (vm, state) = unsafe { (vm_from_abi(vm), CppCell::from_raw(state)) };
+    cell_into_abi(CSSStyleSheet::create(vm, state))
+}
+
+/// The cell that holds the state of the sheet.
+///
+/// # Safety
+///
+/// `sheet` must be the live cell of a CSSStyleSheet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_style_sheet_state(sheet: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes a live cell of a CSSStyleSheet.
+    let sheet: Ref<CSSStyleSheet> = unsafe { cell_from_abi(sheet) };
+    sheet.state_cell().as_ptr()
+}
+
+/// A new StyleSheetList of the sheets of `scope`, which belongs to `node`.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `node` the live cell of the Document or ShadowRoot that owns `scope`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_css_style_sheet_list_create(
+    vm: *mut c_void,
+    scope: *mut c_void,
+    node: *mut c_void,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live cell.
+    let (vm, node) = unsafe { (vm_from_abi(vm), CppCell::from_raw(node)) };
+    cell_into_abi(allocate(vm, |_| StyleSheetList::new(scope, node)))
 }

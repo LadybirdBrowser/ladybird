@@ -37,6 +37,7 @@ pub use css::font_feature_values::FontFeatureValuesRuleKind;
 pub use css::media_list::{MediaList as NativeMediaList, MediaListDeleteResult};
 pub use css::rule::cssom;
 pub use css::rule::{NativeRule, NativeRuleList, NativeRuleType, RuleInsertionResult, RuleRemovalResult};
+pub use css::style_sheet::NativeStyleSheetFlag;
 pub use css::typed_om;
 pub use svg::gfx_path_from_path_data;
 

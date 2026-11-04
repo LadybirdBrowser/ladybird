@@ -1140,13 +1140,10 @@ static bool author_style_sheet_sets_white_space(DOM::Element& element)
         return false;
     };
 
-    auto& style_sheets = element.document().style_sheets();
-    for (size_t index = 0; index < style_sheets.length(); ++index) {
-        auto* style_sheet = style_sheets.item(index);
-        if (!style_sheet || style_sheet->disabled())
+    for (auto const& style_sheet : element.document().style_scope().style_sheets()) {
+        if (style_sheet->disabled() || !style_sheet->is_origin_clean())
             continue;
-        auto rules = style_sheet->css_rules();
-        if (!rules.is_error() && rule_list_sets_white_space(rule_list_sets_white_space, *rules.value()))
+        if (rule_list_sets_white_space(rule_list_sets_white_space, style_sheet->rules()))
             return true;
     }
     return false;

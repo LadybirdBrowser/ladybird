@@ -7,7 +7,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
@@ -259,61 +258,39 @@ size_t StyleSheetState::external_memory_size() const
 // https://www.w3.org/TR/cssom/#dom-cssstylesheet-insertrule
 WebIDL::ExceptionOr<unsigned> StyleSheetState::insert_rule(Utf16View rule, unsigned index)
 {
-    // 1. If the origin-clean flag is unset, throw a SecurityError exception.
-    if (!is_origin_clean())
-        return WebIDL::SecurityError::create("Can't call insert_rule() on cross-origin stylesheets."_utf16);
-
-    // If the disallow modification flag is set, throw a NotAllowedError DOMException.
-    if (disallow_modification())
-        return WebIDL::NotAllowedError::create("Can't call insert_rule() on non-modifiable stylesheets."_utf16);
-
-    // 3. Let parsed rule be the return value of invoking parse a rule with rule.
-    auto parsed_rule = parse_css_rule(make_parsing_params(), rule);
-
-    // 4. If parsed rule is a syntax error, return parsed rule.
+    auto parsed_rule = parse_rule(rule);
     if (!parsed_rule.has_value())
         return WebIDL::SyntaxError::create("Unable to parse CSS rule."_utf16);
-
-    // 5. If parsed rule is an @import rule, and the constructed flag is set, throw a SyntaxError DOMException.
-    if (constructed() && parsed_rule->type() == CSSRule::Type::Import)
-        return WebIDL::SyntaxError::create("Can't insert @import rules into a constructed stylesheet."_utf16);
-
-    // 6. Return the result of invoking insert a CSS rule rule in the CSS rules at index.
-    auto result = CSSRuleList::insert_a_css_rule(m_native_sheet.rules(), *parsed_rule, index, CSSRuleList::Nested::No);
-
-    if (!result.is_exception()) {
-        recalculate_rule_caches();
-        record_style_rule_inserted(*parsed_rule, *this);
-
-        // OPTIMIZATION: A style rule or a keyframes rule arriving in a style element's own sheet changes only which
-        //               rules the scope holds, so dropping the rule cache is enough. Anything else can change what
-        //               the sheet as a whole contributes, which is what invalidate_owners() re-reads.
-        auto style_element_sheet = !constructed() && owner_node() && owner_node()->is_html_style_element();
-        auto rule_type = parsed_rule->type();
-        if (style_element_sheet && (rule_type == CSSRule::Type::Keyframes || rule_type == CSSRule::Type::Style))
-            invalidate_rule_cache_for_style_sheet_owners(*this);
-        else
-            invalidate_owners();
-
-        synchronize_fonts_after_rule_change();
-    }
-
+    auto result = TRY(CSSRuleList::insert_a_css_rule(m_native_sheet.rules(), *parsed_rule, index, CSSRuleList::Nested::No));
+    rule_inserted(*parsed_rule);
     return result;
 }
 
-// https://www.w3.org/TR/cssom/#dom-cssstylesheet-deleterule
-WebIDL::ExceptionOr<void> StyleSheetState::delete_rule(unsigned index)
+Optional<RustRule> StyleSheetState::parse_rule(Utf16View rule) const
 {
-    // 1. If the origin-clean flag is unset, throw a SecurityError exception.
-    if (!is_origin_clean())
-        return WebIDL::SecurityError::create("Can't call delete_rule() on cross-origin stylesheets."_utf16);
+    return parse_css_rule(make_parsing_params(), rule);
+}
 
-    // 2. If the disallow modification flag is set, throw a NotAllowedError DOMException.
-    if (disallow_modification())
-        return WebIDL::NotAllowedError::create("Can't call delete_rule() on non-modifiable stylesheets."_utf16);
+void StyleSheetState::rule_inserted(RustRule const& rule)
+{
+    recalculate_rule_caches();
+    record_style_rule_inserted(rule, *this);
 
-    // 3. Remove a CSS rule in the CSS rules at index.
-    TRY(CSSRuleList::validate_rule_removal(native_rules(), index));
+    // OPTIMIZATION: A style rule or a keyframes rule arriving in a style element's own sheet changes only which
+    //               rules the scope holds, so dropping the rule cache is enough. Anything else can change what
+    //               the sheet as a whole contributes, which is what invalidate_owners() re-reads.
+    auto style_element_sheet = !constructed() && owner_node() && owner_node()->is_html_style_element();
+    auto rule_type = rule.type();
+    if (style_element_sheet && (rule_type == CSSRule::Type::Keyframes || rule_type == CSSRule::Type::Style))
+        invalidate_rule_cache_for_style_sheet_owners(*this);
+    else
+        invalidate_owners();
+
+    synchronize_fonts_after_rule_change();
+}
+
+void StyleSheetState::remove_rule(u32 index)
+{
     auto removed_rule = native_rules().at(index);
     RefPtr<StyleSheetState> detached_import;
     if (auto* import = import_for_rule(removed_rule.identity()))
@@ -328,7 +305,6 @@ WebIDL::ExceptionOr<void> StyleSheetState::delete_rule(unsigned index)
     record_style_rule_removed(*this, removed_rule, detached_import.ptr());
     invalidate_owners();
     synchronize_fonts_after_rule_change();
-    return {};
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-replace
@@ -371,15 +347,9 @@ GC::Ref<WebIDL::Promise> StyleSheetState::replace(Utf16String text)
     return promise;
 }
 
-// https://drafts.csswg.org/cssom/#dom-cssstylesheet-replacesync
-WebIDL::ExceptionOr<void> StyleSheetState::replace_sync(Utf16View text)
+// https://drafts.csswg.org/cssom/#synchronously-replace-the-rules-of-a-cssstylesheet
+void StyleSheetState::replace_rules(Utf16View text)
 {
-    // 1. If the constructed flag is not set, or the disallow modification flag is set, throw a NotAllowedError DOMException.
-    if (!constructed())
-        return WebIDL::NotAllowedError::create("Can't call replaceSync() on non-constructed stylesheets"_utf16);
-    if (disallow_modification())
-        return WebIDL::NotAllowedError::create("Can't call replaceSync() on non-modifiable stylesheets"_utf16);
-
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
     auto rules = CSS::Parser::Parser { make_parsing_params() }.parse_as_stylesheet_contents(text);
 
@@ -393,46 +363,6 @@ WebIDL::ExceptionOr<void> StyleSheetState::replace_sync(Utf16View text)
     record_stylesheet_rules_replaced(*this);
     invalidate_owners();
     synchronize_fonts_after_rule_change();
-
-    return {};
-}
-
-// https://drafts.csswg.org/cssom/#dom-cssstylesheet-addrule
-WebIDL::ExceptionOr<WebIDL::Long> StyleSheetState::add_rule(Optional<Utf16String> selector, Optional<Utf16String> style, Optional<WebIDL::UnsignedLong> index)
-{
-    // 1. Let rule be an empty string.
-    Utf16StringBuilder rule;
-
-    // 2. Append selector to rule.
-    if (selector.has_value())
-        rule.append(selector.release_value());
-
-    // 3. Append " { " to rule.
-    rule.append_code_unit(u'{');
-
-    // 4. If block is not empty, append block, followed by a space, to rule.
-    if (style.has_value() && !style->is_empty()) {
-        rule.append(style.release_value());
-        rule.append_code_unit(u' ');
-    }
-
-    // 5. Append "}" to rule.
-    rule.append_code_unit(u'}');
-
-    // 6. Let index be optionalIndex if provided, or the number of CSS rules in the stylesheet otherwise.
-    // 7. Call insertRule(), with rule and index as arguments.
-    auto rule_text = rule.to_string();
-    TRY(insert_rule(rule_text, index.value_or(m_native_sheet.rules().size())));
-
-    // 8. Return -1.
-    return -1;
-}
-
-// https://www.w3.org/TR/cssom/#dom-cssstylesheet-removerule
-WebIDL::ExceptionOr<void> StyleSheetState::remove_rule(Optional<WebIDL::UnsignedLong> index)
-{
-    // The removeRule(index) method must run the same steps as deleteRule().
-    return delete_rule(index.value_or(0));
 }
 
 void StyleSheetState::for_each_effective_rule_data(TraversalOrder order, Function<void(RustRuleView const&, Utf16View)> const& callback) const
@@ -969,16 +899,6 @@ void StyleSheetState::set_parent_css_style_sheet(StyleSheetState* parent)
     m_parent_style_sheet = parent;
     if (m_cssom_sheet)
         m_cssom_sheet->update_owner_chain();
-}
-
-// https://drafts.csswg.org/cssom/#dom-stylesheet-title
-Optional<Utf16String> StyleSheetState::title_for_bindings() const
-{
-    // The title attribute must return the title or null if title is the empty string.
-    if (m_title.is_empty())
-        return {};
-
-    return m_title;
 }
 
 }
