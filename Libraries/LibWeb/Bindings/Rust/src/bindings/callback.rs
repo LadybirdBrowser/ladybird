@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Callback function values, https://webidl.spec.whatwg.org/#idl-callback-function, which LibWeb's C++ code
-//! represents as a WebIDL::CallbackType: the function object and its callback context.
+//! Callback function values, https://webidl.spec.whatwg.org/#idl-callback-function, and callback interface values,
+//! https://webidl.spec.whatwg.org/#idl-callback-interface, which LibWeb's C++ code represents as a WebIDL::CallbackType:
+//! the object and its callback context.
 
 use core::ffi::c_void;
 use core::ptr::NonNull;
@@ -17,7 +18,7 @@ use libjs_rust::api::{
 use crate::bindings::promise::{WebIdlPromise, promise_from_abi};
 
 unsafe extern "C" {
-    /// A new WebIDL::CallbackType of the callable object, whose callback context is the incumbent settings object.
+    /// A new WebIDL::CallbackType of the object, whose callback context is the incumbent settings object.
     fn web_bindings_create_callback_function(callable: *mut c_void, returns_promise: bool) -> *mut c_void;
 
     /// WebIDL::invoke_callback() of the WebIDL::CallbackType with the this value, if `has_this_value`, and the
@@ -49,7 +50,12 @@ pub(crate) struct CallbackFunction(CallbackType);
 #[gc(crate = libjs_rust)]
 pub(crate) struct PromiseCallbackFunction(CallbackType);
 
-/// The WebIDL::CallbackType of a callback function value.
+/// A callback interface value, https://webidl.spec.whatwg.org/#idl-callback-interface
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct CallbackInterface(CallbackType);
+
+/// The WebIDL::CallbackType of a callback function value or a callback interface value.
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 struct CallbackType(ForeignCellSlot);
@@ -111,6 +117,31 @@ impl CallbackFunction {
             )
         }
         .into_completion()
+    }
+}
+
+impl CallbackInterface {
+    // https://webidl.spec.whatwg.org/#js-callback-interface
+    pub(crate) fn from_js(vm: &Vm, value: Value) -> ThrowCompletionOr<Self> {
+        // 1. If V is not an Object, then throw a TypeError.
+        if !value.is_object() {
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+        }
+
+        // 2. Return the IDL callback interface type value that represents a reference to V, with the incumbent realm
+        //    as the callback context.
+        // SAFETY: The value is a live object.
+        Ok(Self(unsafe {
+            CallbackType::from_raw(web_bindings_create_callback_function(
+                value.as_object().as_ptr().cast(),
+                false,
+            ))
+        }))
+    }
+
+    /// The WebIDL::CallbackType, which this keeps alive.
+    pub(crate) fn as_ptr(&self) -> *mut c_void {
+        self.0.0.as_ptr()
     }
 }
 

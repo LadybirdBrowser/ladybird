@@ -171,6 +171,14 @@ def cpp_interface(idl_type: IDLType, context: GenerationContext) -> Optional[Int
     return interface
 
 
+def is_callback_interface(idl_type: IDLType, context: GenerationContext) -> bool:
+    """Whether the type names a callback interface."""
+    if isinstance(idl_type, (IDLParameterizedType, IDLUnionType)):
+        return False
+    interface = context.interfaces.get(idl_type.name)
+    return interface is not None and interface.is_callback_interface
+
+
 def cpp_interface_name_constant(interface: Interface) -> str:
     """The constant of the generated Rust bindings that is the Web::Bindings::InterfaceName of an interface that
     LibWeb implements in C++."""
@@ -436,6 +444,8 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
         if is_result:
             return "Gc<FunctionObject>"
         return "PromiseCallbackFunction" if is_promise_type(callback_function.return_type) else "CallbackFunction"
+    if is_callback_interface(idl_type, context) and not is_result:
+        return "CallbackInterface"
     interface = rust_interface(idl_type, context)
     if interface is not None:
         if inheriting_interfaces(interface, context) and not is_result:

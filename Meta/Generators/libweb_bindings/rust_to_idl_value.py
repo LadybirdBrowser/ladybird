@@ -26,6 +26,7 @@ from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
 from Generators.libweb_bindings.rust_types import dictionary_holds_sequence_of_cells
 from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
+from Generators.libweb_bindings.rust_types import is_callback_interface
 from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import is_promise_type
 from Generators.libweb_bindings.rust_types import is_sequence_of_cells
@@ -158,6 +159,8 @@ def rust_to_idl_value(
         if is_promise_type(callback_function.return_type):
             return f"PromiseCallbackFunction::from_js(vm, {value})"
         return f"CallbackFunction::from_js(vm, {value})"
+    if is_callback_interface(idl_type, context):
+        return f"CallbackInterface::from_js(vm, {value})"
     interface = rust_interface(idl_type, context)
     if interface is not None:
         if inheriting_interfaces(interface, context):
