@@ -2137,6 +2137,14 @@ impl RuleIndex {
         RuleID(view.rule().0)
     }
 
+    /// Whether a live entry of the document's sheets styles the pseudo-element of `kind`.
+    pub(super) fn styles_pseudo_element(&self, kind: u8) -> bool {
+        self.entries.own_numbers().any(|id| {
+            let view = self.entries.view(id);
+            view.pseudo_kind() == kind && view.live()
+        })
+    }
+
     /// Whether an entry that does not revalidate tests for the id `id`.
     pub(super) fn tests_id(&self, id: StyleAtomID) -> bool {
         self.tested_ids.contains(&id)

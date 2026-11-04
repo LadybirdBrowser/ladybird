@@ -1,0 +1,7 @@
+characters of the page: followed
+words of the page: left to the host
+paragraphs of the page: left to the host
+an input element: left to the host
+a textarea: left to the host
+an editing host: left to the host
+a cancelled selectstart: left to the host

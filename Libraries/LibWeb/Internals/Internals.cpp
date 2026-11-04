@@ -62,6 +62,7 @@
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
@@ -2425,12 +2426,12 @@ void Internals::inject_clock_tick_scrolling_element(double frame_time_ms, DOM::E
     inject_clock_tick_at_scroll_offset(window().associated_document(), frame_time_ms, &scroll_offset);
 }
 
-void Internals::inject_hover_pointer(double x, double y, Optional<double> frame_time_ms, Optional<u64> input_event_id)
+void Internals::inject_hover_pointer(double x, double y, Optional<double> frame_time_ms, Optional<u64> input_event_id, u32 buttons)
 {
     auto& document = window().associated_document();
     auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
     auto frame_time = frame_time_ms.has_value() ? document.relevant_settings_object().time_origin() + *frame_time_ms : HighResolutionTime::unsafe_shared_current_time();
-    Layout::RustFFI::document_host_inject_pointer(document.layout_node_arena().host(), static_cast<float>(x * device_pixels_per_css_pixel), static_cast<float>(y * device_pixels_per_css_pixel), static_cast<i64>(frame_time * 1'000'000.0), input_event_id.value_or(0));
+    Layout::RustFFI::document_host_inject_pointer(document.layout_node_arena().host(), static_cast<float>(x * device_pixels_per_css_pixel), static_cast<float>(y * device_pixels_per_css_pixel), buttons, static_cast<i64>(frame_time * 1'000'000.0), input_event_id.value_or(0));
 }
 
 void Internals::note_animated_content_moved_under_pointer(double frame_time_ms)
@@ -2490,6 +2491,59 @@ Utf16String Internals::clock_lane_state(DOM::Document& document)
 bool Internals::clock_lane_is_coming(DOM::Document& document)
 {
     return Layout::RustFFI::document_host_clock_lane_is_coming(document.layout_node_arena().host());
+}
+
+struct SelectionForTesting {
+    GC::Ref<DOM::Document> document;
+    Utf16StringBuilder text {};
+};
+
+static void push_selection_for_testing(void* context, u32 style_node, u8 state, size_t start_offset, size_t end_offset, u32 background_color, u32 text_color)
+{
+    auto& selection = *static_cast<SelectionForTesting*>(context);
+    auto node = selection.document->style_computer().node_for_style_node(CSS::StyleNodeID { style_node });
+    if (!node)
+        return;
+    if (!selection.text.is_empty())
+        selection.text.append_ascii(" | "sv);
+    auto const* text = as_if<DOM::Text>(*node);
+    auto append_selection_colors = [&] {
+        if (background_color != 0 || text_color != 0)
+            selection.text.appendff(" ({} on {})", Color::from_bgra(text_color).serialize_a_srgb_value(), Color::from_bgra(background_color).serialize_a_srgb_value());
+    };
+    if (!text) {
+        selection.text.appendff("<{}>", node->node_name());
+        append_selection_colors();
+        return;
+    }
+    auto data = text->data().utf16_view();
+    auto selection_state = static_cast<Painting::SelectionState>(state);
+    auto start = first_is_one_of(selection_state, Painting::SelectionState::Start, Painting::SelectionState::StartAndEnd) ? min(start_offset, data.length_in_code_units()) : 0;
+    auto end = first_is_one_of(selection_state, Painting::SelectionState::End, Painting::SelectionState::StartAndEnd) ? min(end_offset, data.length_in_code_units()) : data.length_in_code_units();
+    selection.text.append(data.substring_view(start, max(start, end) - start));
+    append_selection_colors();
+}
+
+enum class SelectionShownBy : u8 {
+    Lane,
+    Host,
+};
+
+static Utf16String selection_for_testing(DOM::Document& document, SelectionShownBy shown_by)
+{
+    SelectionForTesting selection { document };
+    Layout::RustFFI::document_host_selection_for_testing(document.layout_node_arena().host(), shown_by == SelectionShownBy::Lane, &selection, push_selection_for_testing);
+    return selection.text.to_string();
+}
+
+Utf16String Internals::presented_selection()
+{
+    return selection_for_testing(window().associated_document(), SelectionShownBy::Lane);
+}
+
+Utf16String Internals::painted_selection()
+{
+    return selection_for_testing(window().associated_document(), SelectionShownBy::Host);
 }
 
 GC::Ptr<Geometry::DOMRect> Internals::presented_border_box(DOM::Element& element)

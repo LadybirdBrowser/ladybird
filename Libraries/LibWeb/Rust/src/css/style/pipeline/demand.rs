@@ -642,6 +642,42 @@ impl StyleEngine {
         }
     }
 
+    /// The record of the `::selection` of `element`, or zero where no rule styles it, for the fork of a clock lane, whose
+    /// drag reaches an element the host shows no selection in. Answers none where what it takes to style it is the
+    /// host's to resolve, as a font is.
+    pub(crate) fn demand_selection_record(&mut self, element: StyleNodeID) -> Option<u64> {
+        let mut live = self.retained.live_style.take()?;
+        let record = self.selection_record_with(&mut live, element);
+        self.retained.live_style = Some(live);
+        record
+    }
+
+    fn selection_record_with(&mut self, live: &mut Live, element: StyleNodeID) -> Option<u64> {
+        let kind = super::super::publication::pseudo_kind::SELECTION;
+        let DemandedElement::Styled(element_record) = live.demand_element(&self.retained, element, false) else {
+            return None;
+        };
+        let record = match live.demand_pseudo_element(&self.retained, element, kind, PseudoElementRead::Styled, None) {
+            DemandedPseudoElement::Styled(record) => record,
+            DemandedPseudoElement::Unstyled => return Some(0),
+            DemandedPseudoElement::Waiting(..) | DemandedPseudoElement::Declined => return None,
+        };
+        let mut minted = HashMap::default();
+        let element_environment = self.demanded_environment(live, element, &element_record, &mut minted);
+        let environment = self.retained.pseudo_element_environment(
+            element,
+            &record,
+            &element_record,
+            element_environment,
+            &mut minted,
+        );
+        let record = self.retained.record_in_environment(&record, environment);
+        let style_record = self.retained.install_record(&record, &mut HashMap::default());
+        self.retained
+            .hold_demand_record(computed::ComputedStyleTarget::new(element, kind), style_record);
+        Some(style_record.raw())
+    }
+
     /// Style the pseudo-element of `kind` of `node` as [`Live::demand_pseudo_element`] does,
     /// resolving the fonts and random base values it asks for first.
     fn demand_pseudo_element(

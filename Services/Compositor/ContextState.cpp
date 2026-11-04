@@ -102,8 +102,9 @@ void ContextState::dispatch_mouse_event_to_web_content(Web::MouseEvent const& ev
 
     // The render clock hears where the pointer went too, without waiting for WebContent's main thread, so that hover
     // can follow the pointer while that thread runs a task. The lanes hit test it in the frames on screen, which a
-    // scroll since, here or in a nested context, has moved.
-    if (event.type == Web::MouseEvent::Type::MouseMove)
+    // scroll since, here or in a nested context, has moved. A button going up ends the drag a lane follows, whether or
+    // not a move comes after it.
+    if (event.type == Web::MouseEvent::Type::MouseMove || event.type == Web::MouseEvent::Type::MouseUp)
         m_web_content_client.pointer_moved(m_context_id, event.position, to_underlying(event.buttons), scrolled_since_last_frame() || nested_context_scrolled_since_last_frame, event.id);
     else if (event.type == Web::MouseEvent::Type::MouseLeave)
         m_web_content_client.pointer_left(m_context_id, event.id);

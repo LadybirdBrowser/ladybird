@@ -34,6 +34,19 @@ void DragAndDropEventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#drag-and-drop-processing-model
+GC::Ptr<HTML::HTMLElement> DragAndDropEventHandler::first_draggable_inclusive_ancestor(DOM::Node& node)
+{
+    GC::Ptr<HTML::HTMLElement> draggable_element;
+    node.for_each_inclusive_ancestor_of_type<HTML::HTMLElement>([&](HTML::HTMLElement& element) {
+        if (!element.draggable())
+            return IterationDecision::Continue;
+
+        draggable_element = element;
+        return IterationDecision::Break;
+    });
+    return draggable_element;
+}
+
 EventResult DragAndDropEventHandler::handle_drag_start(
     JS::Object const& relevant_global_object,
     GC::Ptr<DOM::Node> drag_target,
@@ -59,13 +72,7 @@ EventResult DragAndDropEventHandler::handle_drag_start(
     //    starting at the node that the user tried to drag, that has the IDL attribute draggable set to true. If there is
     //    no such element, then nothing is being dragged; return, the drag-and-drop operation is never started.
     if (drag_target) {
-        drag_target->for_each_inclusive_ancestor_of_type<HTML::HTMLElement>([&](HTML::HTMLElement& node) {
-            if (!node.draggable())
-                return IterationDecision::Continue;
-
-            dragged_node = node;
-            return IterationDecision::Break;
-        });
+        dragged_node = first_draggable_inclusive_ancestor(*drag_target);
 
         if (!dragged_node)
             return EventResult::Cancelled;

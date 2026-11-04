@@ -56,6 +56,7 @@ pub(crate) use container_queries::ContainerUnitBases;
 mod custom_property_cascade;
 mod custom_property_environments;
 mod dom_reads;
+pub(crate) mod drag_selection;
 pub(crate) mod effect_descriptions;
 mod element_declarations;
 mod element_host_facts;
