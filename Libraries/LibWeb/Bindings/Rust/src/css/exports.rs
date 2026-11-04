@@ -46,7 +46,7 @@ use super::css_numeric_value::AnyCSSNumericValue;
 use super::css_page_rule::CSSPageRule;
 use super::css_position_try_rule::CSSPositionTryRule;
 use super::css_property_rule::CSSPropertyRule;
-use super::css_rule::AnyCSSRule;
+use super::css_rule::{AnyCSSRule, wrap_cpp_cell};
 use super::css_rule_list::CSSRuleList;
 use super::css_scope_rule::CSSScopeRule;
 use super::css_style_rule::CSSStyleRule;
@@ -56,16 +56,17 @@ use super::css_supports_rule::CSSSupportsRule;
 use super::css_transform_value::CSSTransformValue;
 use super::css_unit_value::CSSUnitValue;
 use super::css_unparsed_value::CSSUnparsedValue;
+use super::font_face_set_load_event::{FontFaceSetLoadEvent, FontFaceSetLoadEventInit};
 use super::media_list::MediaList;
 use super::media_query_list::MediaQueryList;
 use super::screen::Screen;
 use super::style_sheet_list::StyleSheetList;
 use super::transition_event::{TransitionEvent, TransitionEventInit};
 use super::typed_om;
-use crate::bindings::Exception;
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_if_abi, cell_into_abi, realm_arguments};
+use crate::bindings::{CallContext, Exception};
 use crate::dom::event::EventInit;
 
 /// # Safety
@@ -495,6 +496,43 @@ pub unsafe extern "C" fn web_media_query_list_evaluate_and_report_change(vm: *mu
     // SAFETY: The caller passes the live VM and a live MediaQueryList.
     let (vm, list) = unsafe { (vm_from_abi(vm), cell_from_abi::<MediaQueryList>(list)) };
     list.evaluate_and_report_change(vm);
+}
+
+/// A new FontFaceSetLoadEvent with the name, as the Event that C++ dispatches, whose fontfaces attribute holds the
+/// FontFace objects that C++ passes.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `realm` a live realm, `name` a raw string that C++ hands over, and `font_faces` must point
+/// to `count` live FontFace objects.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_font_face_set_load_event_create(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    name: usize,
+    font_faces: *const *mut c_void,
+    count: usize,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM, a live realm and a raw string that it hands over.
+    let ((vm, realm), name) = unsafe { (realm_arguments(vm, realm), Utf16String::from_raw_owned(name)) };
+    let cx = CallContext::new(vm, realm);
+    let fontfaces = MarkedVec::with_capacity(vm, count);
+    // SAFETY: The caller passes `count` live FontFace objects.
+    for font_face in unsafe { ak::slice_from_raw_parts(font_faces, count) } {
+        // SAFETY: The caller passes live FontFace objects.
+        fontfaces.push(wrap_cpp_cell(&cx, &unsafe { CppCell::from_raw(*font_face) }));
+    }
+    let event_init = FontFaceSetLoadEventInit {
+        parent: EventInit {
+            bubbles: false,
+            cancelable: false,
+            composed: false,
+        },
+        fontfaces,
+    };
+    FontFaceSetLoadEvent::create(vm, realm, &name, event_init)
+        .event()
+        .as_ptr()
 }
 
 /// A new Screen of the window.

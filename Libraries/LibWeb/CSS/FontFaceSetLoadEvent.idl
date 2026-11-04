@@ -5,8 +5,8 @@ dictionary FontFaceSetLoadEventInit : EventInit {
 
 
 // https://drafts.csswg.org/css-font-loading/#fontfacesetloadevent
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface FontFaceSetLoadEvent : Event {
-    constructor([FlyString] CSSOMString type, optional FontFaceSetLoadEventInit eventInitDict = {});
+    constructor(CSSOMString type, optional FontFaceSetLoadEventInit eventInitDict = {});
     [SameObject] readonly attribute FrozenArray<FontFace> fontfaces;
 };

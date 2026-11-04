@@ -64,6 +64,7 @@ pub(crate) mod css_unit_value;
 pub(crate) mod css_unparsed_value;
 pub(crate) mod css_variable_reference_value;
 pub(crate) mod exports;
+pub(crate) mod font_face_set_load_event;
 pub(crate) mod media_list;
 pub(crate) mod media_query_list;
 pub(crate) mod media_query_list_event;

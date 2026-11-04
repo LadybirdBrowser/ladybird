@@ -109,7 +109,6 @@ set(SOURCES
     CSS/FontLoading.cpp
     CSS/FontResolution.cpp
     CSS/FontFaceSet.cpp
-    CSS/FontFaceSetLoadEvent.cpp
     CSS/Frequency.cpp
     CSS/Highlight.cpp
     CSS/HighlightRegistry.cpp
