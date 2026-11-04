@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
@@ -27,9 +28,12 @@
 
 #ifdef USE_VULKAN
 #    include <Compositor/SkiaVulkanMemoryAllocator.h>
+#    include <gpu/MutableTextureState.h>
 #    include <gpu/ganesh/vk/GrVkDirectContext.h>
 #    include <gpu/vk/VulkanBackendContext.h>
 #    include <gpu/vk/VulkanExtensions.h>
+#    include <gpu/vk/VulkanMutableTextureState.h>
+#    include <string.h>
 
 template<>
 constexpr bool AllocatedWithSystemAllocator<skgpu::VulkanExtensions> = true;
@@ -80,10 +84,38 @@ void SkiaBackendContext::check_async_work_completion()
         context->checkAsyncWorkCompletion();
 }
 
+#ifdef USE_VULKAN
+// The external queue family only reaches the same device and driver. Anything else takes the foreign one, which not
+// every device has.
+static u32 queue_family_receiving_shared_images(VulkanContext const& vulkan_context)
+{
+    auto has_foreign_queue_family = any_of(vulkan_context.enabled_device_extensions, [](char const* extension) {
+        return strcmp(extension, VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME) == 0;
+    });
+    return !vulkan_context.is_preferred_device && has_foreign_queue_family ? VK_QUEUE_FAMILY_FOREIGN_EXT : VK_QUEUE_FAMILY_EXTERNAL;
+}
+#endif
+
+static void flush_surface(SkiaBackendContext& backend_context, PaintingSurface& surface, GrFlushInfo const& flush_info)
+{
+    auto& context = *backend_context.sk_context();
+#ifdef USE_VULKAN
+    // NB: A driver can keep an image compressed in memory that only it knows about, even when the image's layout has
+    //     no compression. It only writes the actual pixels out once the image is released to another owner, so without
+    //     this, whoever else reads the shared image's memory sees the compressed data.
+    if (surface.wraps_shared_image()) {
+        auto const handed_over_state = skgpu::MutableTextureStates::MakeVulkan(VK_IMAGE_LAYOUT_GENERAL, queue_family_receiving_shared_images(backend_context.vulkan_context()));
+        context.flush(&surface.sk_surface(), flush_info, &handed_over_state);
+        return;
+    }
+#endif
+    context.flush(&surface.sk_surface(), backend_access_for(surface), flush_info);
+}
+
 void SkiaBackendContext::flush_and_submit(PaintingSurface& surface)
 {
     auto& context = *sk_context();
-    context.flush(&surface.sk_surface(), backend_access_for(surface), {});
+    flush_surface(*this, surface, {});
     context.submit(GrSyncCpu::kYes);
 
     perform_post_flush_cleanup();
@@ -95,7 +127,7 @@ void SkiaBackendContext::flush_and_submit_async(PaintingSurface& surface, Functi
     GrFlushInfo flush_info {};
     flush_info.fFinishedProc = invoke_async_flush_callback;
     flush_info.fFinishedContext = new Function<void()>(move(callback));
-    context.flush(&surface.sk_surface(), backend_access_for(surface), flush_info);
+    flush_surface(*this, surface, flush_info);
     VERIFY(context.submit(GrSyncCpu::kNo));
 
     perform_post_flush_cleanup();

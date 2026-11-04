@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Array.h>
 #include <AK/Debug.h>
 #include <AK/Format.h>
 #include <AK/Vector.h>
 #include <LibGfx/VulkanContext.h>
+#include <string.h>
 
 namespace Gfx {
 
@@ -90,14 +92,33 @@ static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance, Optio
 }
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
-static constexpr Array<char const*, 4> s_enabled_device_extensions = {
+// NB: The last one is optional, and is only enabled on devices that have it.
+static constexpr Array<char const*, 5> s_enabled_device_extensions = {
     VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
     VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
     VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
     VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME,
+    VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME,
 };
+
+static ReadonlySpan<char const*> device_extensions_to_enable(VkPhysicalDevice physical_device)
+{
+    uint32_t extension_count = 0;
+    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, nullptr);
+    Vector<VkExtensionProperties> extensions;
+    extensions.resize(extension_count);
+    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, extensions.data());
+
+    ReadonlySpan<char const*> enabled_extensions = s_enabled_device_extensions;
+    if (any_of(extensions, [](auto const& extension) { return strcmp(extension.extensionName, VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME) == 0; }))
+        return enabled_extensions;
+    return enabled_extensions.trim(enabled_extensions.size() - 1);
+}
 #else
-static constexpr Array<char const*, 0> s_enabled_device_extensions;
+static ReadonlySpan<char const*> device_extensions_to_enable(VkPhysicalDevice)
+{
+    return {};
+}
 #endif
 
 static bool device_can_sample_through_ycbcr_conversion(VkPhysicalDevice physical_device)
@@ -157,8 +178,9 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     create_device_info.pNext = &features;
     create_device_info.pQueueCreateInfos = &queue_create_info;
     create_device_info.queueCreateInfoCount = 1;
-    create_device_info.enabledExtensionCount = s_enabled_device_extensions.size();
-    create_device_info.ppEnabledExtensionNames = s_enabled_device_extensions.data();
+    auto enabled_extensions = device_extensions_to_enable(physical_device);
+    create_device_info.enabledExtensionCount = enabled_extensions.size();
+    create_device_info.ppEnabledExtensionNames = enabled_extensions.data();
 
     if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
         return Error::from_string_literal("Logical device creation failed");
@@ -259,7 +281,7 @@ ErrorOr<VulkanContext> create_vulkan_context(Optional<GpuDeviceIdentity> const& 
         .logical_device = logical_device,
         .graphics_queue = graphics_queue,
         .graphics_queue_family = graphics_queue_family,
-        .enabled_device_extensions = s_enabled_device_extensions,
+        .enabled_device_extensions = device_extensions_to_enable(physical_device),
         .can_sample_through_ycbcr_conversion = can_sample_through_ycbcr_conversion,
 #ifdef USE_VULKAN_DMABUF_IMAGES
         .command_pool = command_pool,
