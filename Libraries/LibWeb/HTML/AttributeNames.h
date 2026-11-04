@@ -246,6 +246,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onseeking, "onseeking")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(onselect, "onselect")                                               \
     __ENUMERATE_HTML_ATTRIBUTE(onselectionchange, "onselectionchange")                             \
+    __ENUMERATE_HTML_ATTRIBUTE(onselectstart, "onselectstart")                                     \
     __ENUMERATE_HTML_ATTRIBUTE(onslotchange, "onslotchange")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(onstalled, "onstalled")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(onstorage, "onstorage")                                             \
