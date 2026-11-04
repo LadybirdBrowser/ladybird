@@ -51,7 +51,6 @@ ALLOWED = {
     "css/style/pipeline/sharing.rs": 1,
     "css/style/pipeline/traversal.rs": 3,
     "css/style_compute/ffi_test_stubs.rs": 1,
-    "layout/layout_node_arena.rs": 1,
 }
 
 

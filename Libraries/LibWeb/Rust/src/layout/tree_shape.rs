@@ -253,11 +253,6 @@ impl Chunk {
         }
     }
 
-    /// Where the chunk's first node is, which never changes.
-    pub(crate) fn slots_address(&self) -> usize {
-        (&raw const self.slots) as usize
-    }
-
     #[inline]
     pub(crate) fn slot(&self, offset: usize) -> &NodeData {
         &self.slots[offset]
