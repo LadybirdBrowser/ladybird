@@ -336,6 +336,9 @@ impl TextChunk {
 pub(crate) struct ChunkedText {
     pub(crate) chunks: Vec<TextChunk>,
     pub(crate) fonts: Box<[FontHandle]>,
+    /// The frozen cascade the chunks were made against, which a memo of the chunks looks up by its address.
+    #[expect(dead_code, reason = "held so that no other cascade takes the address")]
+    pub(crate) frozen_font_list_held_for_memo_key: Option<std::sync::Arc<FrozenFontList>>,
 }
 
 impl ChunkedText {
@@ -361,6 +364,7 @@ pub(crate) fn chunk_text(inputs: TextChunkInputs<'_>) -> ChunkedText {
     ChunkedText {
         chunks,
         fonts: chunker.fonts.into_boxed_slice(),
+        frozen_font_list_held_for_memo_key: None,
     }
 }
 
@@ -1371,7 +1375,8 @@ pub(crate) fn text_chunks(
     unidirectional_ltr: bool,
 ) -> std::sync::Arc<super::rendered_text::CachedTextChunks> {
     let parent_style = StyleValues::for_node(callbacks, callbacks.parent(node));
-    let frozen_font_list = parent_style.frozen_font_list_ref();
+    let frozen_font_list = parent_style.frozen_font_list();
+    let counted_frozen_font_list = &parent_style.font().frozen_font_list;
     let key = super::rendered_text::TextChunkCacheKey {
         should_wrap_lines,
         should_respect_linebreaks,
@@ -1385,18 +1390,19 @@ pub(crate) fn text_chunks(
             LineBreakLanguage::Other
         },
         font_variant_emoji: parent_style.font_variant_emoji(),
+        frozen_font_list: crate::css::style::pointer_key::PointerLookup::new(counted_frozen_font_list, ()),
         frozen_font_list_fill_generation: frozen_font_list.fill_generation(),
-        frozen_font_list,
         splits_at_orientation_changes: matches!(
             parent_style.writing_mode(),
             writing_mode::VERTICAL_RL | writing_mode::VERTICAL_LR
         ) && parent_style.text_orientation() == text_orientation::MIXED,
     };
     let text = &callbacks.text_content(node).text;
-    callbacks.text_chunks(node, &key, || {
-        chunk_text(TextChunkInputs {
+    callbacks.text_chunks(node, &key, || ChunkedText {
+        frozen_font_list_held_for_memo_key: Some(parent_style.frozen_font_list_ref()),
+        ..chunk_text(TextChunkInputs {
             text,
-            frozen_font_list: &key.frozen_font_list,
+            frozen_font_list,
             white_space_collapse: key.white_space_collapse,
             word_break: key.word_break,
             line_break: key.line_break,
