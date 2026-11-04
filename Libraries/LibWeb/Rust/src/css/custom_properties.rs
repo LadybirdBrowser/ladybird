@@ -2763,6 +2763,25 @@ pub(crate) fn evaluate_retained_container_style_feature(
     let registry = Some(registry);
     let result = match feature {
         StyleFeature::Boolean(name) => evaluate_named_style_feature(store, registry, name, None, &mut context, 0),
+        // The value is computed with respect to the query container, as the property it is compared with was.
+        StyleFeature::Plain { name, value, .. }
+            if name.starts_with_ascii("--") && contains_arbitrary_substitution_function(value) =>
+        {
+            match substitute_tokens(store, registry, value.as_slice(), &mut context, 0) {
+                TokenResolution::Resolved(query) => {
+                    evaluate_named_style_feature(store, registry, name, Some(&query), &mut context, 0)
+                }
+                // NB: A value that substitutes to nothing valid matches a property that holds nothing valid either.
+                TokenResolution::Invalid | TokenResolution::Cyclic => {
+                    match resolve_custom_property(store, registry, name.fly_string().as_ref(), &mut context, 1) {
+                        TokenResolution::Resolved(_) => ConditionEvaluation::Match(false),
+                        TokenResolution::Invalid | TokenResolution::Cyclic => ConditionEvaluation::Match(true),
+                        TokenResolution::NotHandled => ConditionEvaluation::NotHandled,
+                    }
+                }
+                TokenResolution::NotHandled => ConditionEvaluation::NotHandled,
+            }
+        }
         StyleFeature::Plain { name, value, .. } => {
             evaluate_named_style_feature(store, registry, name, Some(value), &mut context, 0)
         }

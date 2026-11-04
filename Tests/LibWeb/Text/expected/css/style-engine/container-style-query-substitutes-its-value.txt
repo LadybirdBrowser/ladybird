@@ -1,14 +1,14 @@
-registered: no
+registered: yes
 registered-other: no
-registered-fallback: no
-registered-calc: no
-unregistered: no
+registered-fallback: yes
+registered-calc: yes
+unregistered: yes
 unregistered-other: no
-unregistered-fallback: no
+unregistered-fallback: yes
 unregistered-missing: yes
-itself: no
-both-missing: no
-no-arguments: yes
+itself: yes
+both-missing: yes
+no-arguments: no
 function: yes
 registered, after its value moves: no
-registered, moved back: no
+registered, moved back: yes
