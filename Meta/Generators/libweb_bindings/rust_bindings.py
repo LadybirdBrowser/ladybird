@@ -885,7 +885,7 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
         DefaultIterator, DefaultIteratorClasses, define_pair_iterator_properties, entries, for_each, iterator_next, keys,
         values,
     };
-    use crate::bindings::callback::{CallbackFunction, PromiseCallbackFunction};
+    use crate::bindings::callback::{CallbackFunction, CallbackInterface, PromiseCallbackFunction};
     use crate::bindings::event_target::{event_handler_attribute, set_event_handler_attribute};
     use crate::bindings::promise::WebIdlPromise;
     use crate::bindings::structured_data;
@@ -1991,7 +1991,7 @@ pub(crate) mod definitions {
     };
 
     use crate::bindings::CallContext;
-    use crate::bindings::callback::{CallbackFunction, PromiseCallbackFunction};
+    use crate::bindings::callback::{CallbackFunction, CallbackInterface, PromiseCallbackFunction};
     use crate::bindings::conversions::{
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
         buffer_source_if, dictionary_member, dictionary_object, enumeration_value_to_js, implements_cpp_interface,
