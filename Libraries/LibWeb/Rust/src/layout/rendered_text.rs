@@ -377,6 +377,70 @@ impl RenderedText {
         );
         rendered_text_offset_for_dom_offset(&self.edits, self.dom_start_offset, offset, boundary).min(self.text.len())
     }
+
+    /// Calls `callback` with each DOM offset from `start` through `end`, in order, and the rendered offset that
+    /// rendered_text_offset_for_dom_offset() maps it to, walking the edits once for the whole range rather than once
+    /// per offset.
+    pub(crate) fn for_each_rendered_text_offset_of_dom_offsets(
+        &self,
+        start: usize,
+        end: usize,
+        boundary: RenderedTextBoundary,
+        mut callback: impl FnMut(usize, usize),
+    ) {
+        // Start past the edits that end before the first offset, since offsets only grow and the loop below would
+        // just step over them; so a range late in a text with many edits doesn't walk them all again.
+        let first = start.clamp(
+            self.dom_start_offset,
+            self.dom_start_offset + self.dom_length_in_code_units,
+        );
+        let mut edit_index = self
+            .edits
+            .partition_point(|edit| edit.dom_start_offset + edit.dom_length_in_code_units < first);
+        let (mut previous_dom_end, mut previous_rendered_end) = match edit_index.checked_sub(1) {
+            Some(index) => {
+                let edit = &self.edits[index];
+                (
+                    edit.dom_start_offset + edit.dom_length_in_code_units,
+                    edit.rendered_start_offset + edit.rendered_length_in_code_units,
+                )
+            }
+            None => (self.dom_start_offset, 0),
+        };
+        for dom_offset in start..=end {
+            let offset = dom_offset.clamp(
+                self.dom_start_offset,
+                self.dom_start_offset + self.dom_length_in_code_units,
+            );
+            let rendered_offset = loop {
+                let Some(edit) = self.edits.get(edit_index) else {
+                    break previous_rendered_end + offset - previous_dom_end;
+                };
+                if offset < edit.dom_start_offset {
+                    break previous_rendered_end + offset - previous_dom_end;
+                }
+                let dom_end = edit.dom_start_offset + edit.dom_length_in_code_units;
+                let rendered_end = edit.rendered_start_offset + edit.rendered_length_in_code_units;
+                if offset <= dom_end {
+                    break if offset == edit.dom_start_offset {
+                        edit.rendered_start_offset
+                    } else if offset == dom_end {
+                        rendered_end
+                    } else {
+                        match boundary {
+                            RenderedTextBoundary::Start => edit.rendered_start_offset,
+                            RenderedTextBoundary::End => rendered_end,
+                        }
+                    };
+                }
+                // Offsets only grow, so an edit the offset is past is past every later offset too.
+                previous_dom_end = dom_end;
+                previous_rendered_end = rendered_end;
+                edit_index += 1;
+            };
+            callback(dom_offset, rendered_offset.min(self.text.len()));
+        }
+    }
 }
 
 pub(super) fn rendered_text_offset_for_dom_offset(

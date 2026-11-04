@@ -282,6 +282,57 @@ fn for_each_cluster_in_glyph_run(
     }
 }
 
+/// Calls `callback` with each DOM offset (in UTF-16 code units) that the horizontal `fragment` renders, from its first
+/// offset through the one past its last, along with the document-absolute x coordinate where that offset's character
+/// starts (or, for the last one, where the fragment's text ends). The advances come from the fragment's shaped glyph
+/// run, so kerning and ligatures are reflected; a cluster's advance is split evenly among its code units.
+pub(crate) fn for_each_dom_offset_x(
+    layout_arena: &impl PaintRead,
+    fragment: &FragmentRecord,
+    mut callback: impl FnMut(usize, f32),
+) {
+    if !is_horizontal(fragment) {
+        return;
+    }
+    let Some(run) = &fragment.glyph_run else {
+        return;
+    };
+    // FIXME: Report the positions of right-to-left text. Its glyphs are in visual order, so an advance accumulated in
+    //        glyph order doesn't belong to the character at the same logical offset.
+    if run.glyphs.placed().any(|placed| placed.is_rtl) {
+        return;
+    }
+    let Some(rendered_text) = layout_arena.rendered_text(fragment.layout_node) else {
+        return;
+    };
+    let length = fragment.length_in_code_units;
+    // advance_before[i] is the advance of the fragment's rendered text before its rendered offset i.
+    let mut advance_before = vec![0.0f32; length + 1];
+    let mut cursor = 0usize;
+    for_each_cluster_in_glyph_run(&run.glyphs, length, |cluster_start, cluster_end, cluster_width| {
+        let per_unit_advance = cluster_width / (cluster_end - cluster_start) as f32;
+        for offset in cluster_start..cluster_end {
+            advance_before[offset + 1] = advance_before[offset] + per_unit_advance;
+        }
+        cursor = cluster_end;
+        true
+    });
+    // Code units past the last cluster take the end position.
+    for offset in cursor..length {
+        advance_before[offset + 1] = advance_before[offset];
+    }
+    let x = absolute_rect(layout_arena, fragment).x.to_float();
+    rendered_text.for_each_rendered_text_offset_of_dom_offsets(
+        fragment.dom_start_offset_in_node,
+        fragment.dom_end_offset_in_node,
+        crate::layout::RenderedTextBoundary::End,
+        |dom_offset, rendered_offset| {
+            let offset_in_fragment = rendered_offset.clamp(fragment.start, fragment.start + length) - fragment.start;
+            callback(dom_offset, x + advance_before[offset_in_fragment]);
+        },
+    );
+}
+
 pub(crate) fn rect_for_selection_offsets(
     layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
