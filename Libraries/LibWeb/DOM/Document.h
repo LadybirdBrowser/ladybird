@@ -404,7 +404,7 @@ public:
     void set_referrer(Utf16String);
 
     void set_url(URL::URL const& url);
-    URL::URL url() const { return m_url; }
+    URL::URL const& url() const { return m_url; }
     URL::URL fallback_base_url() const;
     URL::URL base_url() const;
     Optional<URL::URL> get_the_base_url() const;
