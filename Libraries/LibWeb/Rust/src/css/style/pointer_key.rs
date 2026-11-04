@@ -30,6 +30,12 @@ impl Counted for RetainedStyleValueData {
     }
 }
 
+impl Counted for libgfx_rust::font::FrozenFontListRef {
+    fn address(&self) -> usize {
+        self.as_raw().addr()
+    }
+}
+
 /// What a map keyed by [`PointerKey`] is looked up by, which takes no count, so that a hit costs what one by the bare
 /// address would. It is made only from a counted reference, and a key is the only way to keep one in a map.
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]

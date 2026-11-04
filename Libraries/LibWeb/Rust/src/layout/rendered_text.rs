@@ -151,7 +151,7 @@ pub(crate) fn enroll_text_after_language_change(arena: &mut LayoutNodeArena, roo
     !enrolled.is_empty()
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct TextChunkCacheKey {
     pub(crate) should_wrap_lines: bool,
     pub(crate) should_respect_linebreaks: bool,
@@ -161,28 +161,12 @@ pub(crate) struct TextChunkCacheKey {
     pub(crate) line_break: u8,
     pub(crate) line_break_language: super::text_chunker::LineBreakLanguage,
     pub(crate) font_variant_emoji: u8,
-    pub(crate) frozen_font_list: std::sync::Arc<libgfx_rust::font::FrozenFontList>,
+    /// A frozen cascade only moves when a load fills one of its faces in. The chunks made against it hold it.
+    pub(crate) frozen_font_list: crate::css::style::pointer_key::PointerLookup,
     /// How many times loads had filled faces of the frozen cascade in, each of which can move the
     /// font of a chunk.
     pub(crate) frozen_font_list_fill_generation: u32,
     pub(crate) splits_at_orientation_changes: bool,
-}
-
-impl PartialEq for TextChunkCacheKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.should_wrap_lines == other.should_wrap_lines
-            && self.should_respect_linebreaks == other.should_respect_linebreaks
-            && self.unidirectional_ltr == other.unidirectional_ltr
-            && self.white_space_collapse == other.white_space_collapse
-            && self.word_break == other.word_break
-            && self.line_break == other.line_break
-            && self.line_break_language == other.line_break_language
-            && self.font_variant_emoji == other.font_variant_emoji
-            && self.splits_at_orientation_changes == other.splits_at_orientation_changes
-            // A frozen cascade only moves when a load fills one of its faces in.
-            && std::sync::Arc::ptr_eq(&self.frozen_font_list, &other.frozen_font_list)
-            && self.frozen_font_list_fill_generation == other.frozen_font_list_fill_generation
-    }
 }
 
 pub(crate) struct CachedTextChunks {
@@ -528,6 +512,8 @@ mod tests {
     fn text_chunk_cache_tracks_line_break_language_changes() {
         use crate::layout::text_chunker::{ChunkedText, LineBreakLanguage};
         let content = content("文・", 0, 2, Vec::new());
+        let frozen_font_list =
+            libgfx_rust::font::FrozenFontListRef::new(std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()));
         let mut key = TextChunkCacheKey {
             should_wrap_lines: true,
             should_respect_linebreaks: false,
@@ -537,7 +523,7 @@ mod tests {
             line_break: crate::css::css_enums::line_break::LOOSE,
             line_break_language: LineBreakLanguage::Japanese,
             font_variant_emoji: 0,
-            frozen_font_list: std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()),
+            frozen_font_list: crate::css::style::pointer_key::PointerLookup::new(&frozen_font_list, ()),
             frozen_font_list_fill_generation: 0,
             splits_at_orientation_changes: false,
         };
@@ -579,6 +565,8 @@ mod tests {
                 .text_memos()
                 .text_chunks(node, arena.text_content(node).unwrap().rendered(), key, compute)
         };
+        let frozen_font_list =
+            libgfx_rust::font::FrozenFontListRef::new(std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()));
         let key = TextChunkCacheKey {
             should_wrap_lines: true,
             should_respect_linebreaks: false,
@@ -588,7 +576,7 @@ mod tests {
             line_break: crate::css::css_enums::line_break::AUTO,
             line_break_language: crate::layout::text_chunker::LineBreakLanguage::Other,
             font_variant_emoji: 0,
-            frozen_font_list: std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()),
+            frozen_font_list: crate::css::style::pointer_key::PointerLookup::new(&frozen_font_list, ()),
             frozen_font_list_fill_generation: 0,
             splits_at_orientation_changes: false,
         };
@@ -606,6 +594,7 @@ mod tests {
         let chunked_hello = || ChunkedText {
             chunks: vec![chunk],
             fonts: Box::new([font.clone()]),
+            frozen_font_list_held_for_memo_key: None,
         };
         let original = text_chunks(&scratch, &arena, &key, &chunked_hello);
         let hit = text_chunks(&scratch, &arena, &key, &|| panic!("matching chunks should be cached"));
