@@ -247,7 +247,7 @@ impl RetainedState {
             .filter(|&(_, &node)| self.computed_group_sets.assigned_style_record(node).is_some())
             .filter_map(|(index, &node)| Some((index, live.demanded_record(node)?)))
             .collect();
-        let pool = self.style_pool.as_ref().and_then(|pool| pool.started());
+        let pool = self.style_layout_pool.as_ref().and_then(|pool| pool.started());
         let answers: Vec<u32> = match pool.as_deref() {
             Some(pool) if moving.len() > ELEMENTS_PER_TASK => {
                 use rayon::prelude::*;

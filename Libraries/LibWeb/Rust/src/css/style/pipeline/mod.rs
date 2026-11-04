@@ -37,7 +37,7 @@ mod matched_rules;
 mod matching;
 mod pending_inputs;
 pub(super) use pending_inputs::HoverSealMemo;
-pub(crate) mod pool;
+pub(crate) mod per_thread;
 pub(in crate::css::style) mod projection;
 mod records;
 mod rule_changes;
@@ -248,17 +248,17 @@ impl StyleEngine {
     }
 
     /// Has style passes run on the threads of `pool`, which the process shares.
-    pub(crate) fn share_style_pool(&mut self, pool: std::sync::Arc<pool::StylePool>) {
-        self.retained.style_pool = Some(pool);
+    pub(crate) fn share_style_layout_pool(&mut self, pool: std::sync::Arc<crate::style_layout_pool::StyleLayoutPool>) {
+        self.retained.style_layout_pool = Some(pool);
     }
 
     /// The pool a pass on `threads` threads runs on besides the calling thread, or on the default
     /// number for the machine for none.
-    fn style_pool(&mut self, threads: u32) -> Option<std::sync::Arc<rayon::ThreadPool>> {
+    fn style_layout_pool(&mut self, threads: u32) -> Option<std::sync::Arc<rayon::ThreadPool>> {
         // NB: An engine no render state holds, such as a test's, starts threads of its own.
         self.retained
-            .style_pool
-            .get_or_insert_with(|| std::sync::Arc::new(pool::StylePool::of_engine()))
+            .style_layout_pool
+            .get_or_insert_with(|| std::sync::Arc::new(crate::style_layout_pool::StyleLayoutPool::of_engine()))
             .for_threads(threads)
     }
 }

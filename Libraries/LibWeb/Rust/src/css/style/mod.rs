@@ -336,7 +336,7 @@ pub struct RetainedState {
     live_counters: pipeline::counters::Counters,
     /// The threads style passes run on, which the process shares where a render state holds the
     /// engine.
-    style_pool: Option<std::sync::Arc<pipeline::pool::StylePool>>,
+    style_layout_pool: Option<std::sync::Arc<crate::style_layout_pool::StyleLayoutPool>>,
     /// The font longhand values the engine substituted, one value per property and content: the
     /// font resolver knows a family and its feature values by their values' identities.
     substituted_font_values: std::sync::Arc<std::sync::Mutex<Vec<(u16, RetainedStyleValueData)>>>,

@@ -29,6 +29,7 @@ pub(crate) mod painting;
 pub(crate) mod render_state;
 pub(crate) mod stage;
 pub(crate) mod stage_thread;
+pub(crate) mod style_layout_pool;
 pub(crate) mod svg;
 
 // What libweb_bindings_rust, whose interfaces are implemented in Rust, uses of this crate.

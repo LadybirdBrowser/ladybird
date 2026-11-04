@@ -79,8 +79,8 @@ struct Slot {
     process_style: Arc<crate::css::style::ProcessStyle>,
     /// What names the slot to ThreadSanitizer, which sees the ordering holding it gives only through it.
     tsan_key: AtomicBool,
-    /// The threads the style passes of every document run on besides the owner's.
-    style_pool: Arc<crate::css::style::pipeline::pool::StylePool>,
+    /// The threads the style and layout passes of every document run on besides the owner's.
+    style_layout_pool: Arc<crate::style_layout_pool::StyleLayoutPool>,
 }
 
 // SAFETY: Only the thread that holds the slot reaches its states, which may cross threads, and holding it orders what
@@ -99,7 +99,7 @@ static SLOT: LazyLock<Slot> = LazyLock::new(|| Slot {
     states: RefCell::new(HashMap::new()),
     process_style: Arc::default(),
     tsan_key: AtomicBool::new(false),
-    style_pool: Arc::new(crate::css::style::pipeline::pool::StylePool::of_process()),
+    style_layout_pool: Arc::new(crate::style_layout_pool::StyleLayoutPool::of_process()),
 });
 
 /// The style data every document's style engine shares with the others, which any thread reaches without the slot: only
@@ -192,7 +192,7 @@ pub(super) fn with_state<R>(
             let entry = match seed {
                 Some(seed) => states.entry(document).or_insert_with(|| {
                     Box::new(DocumentEntry {
-                        state: UnsafeCell::new(RenderState::new(seed, &SLOT.process_style, &SLOT.style_pool)),
+                        state: UnsafeCell::new(RenderState::new(seed, &SLOT.process_style, &SLOT.style_layout_pool)),
                         lanes: Cell::default(),
                         job_runs_on_state: Cell::new(false),
                     })
