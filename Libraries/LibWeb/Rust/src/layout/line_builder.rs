@@ -1417,6 +1417,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             let block_end = line.block_end;
             if clearance > block_end {
                 line.block_length += clearance - block_end;
+                line.clearance_block_length += clearance - block_end;
                 line.block_end = clearance;
             }
         }

@@ -124,6 +124,9 @@ pub struct LineRecord {
     pub block_length: CssPixels,
     pub block_start: CssPixels,
     pub block_end: CssPixels,
+    /// The part of the block length that a clearing break after the line adds past the line's own content, so that
+    /// the line reaches down to the clearance.
+    pub(crate) clearance_block_length: CssPixels,
     pub(crate) next_line_block_offset: CssPixels,
     pub baseline: CssPixels,
     pub block_level_box_block_end_margin: CssPixels,
@@ -661,8 +664,11 @@ impl<'content> PhysicalPlane<'content> {
         let Some(line) = self.content.lines.get(line_index as usize) else {
             return block_offset;
         };
+        // The line's content is mirrored within its own extent: a clearing break after the line extends the line
+        // toward the clearance, and the content stays where it is.
         let line_block_start = line.block_end - line.block_length;
-        line_block_start + line.block_end - block_offset - block_length
+        let line_content_block_end = line.block_end - line.clearance_block_length;
+        line_block_start + line_content_block_end - block_offset - block_length
     }
 
     fn unmoved_fragment_rect(

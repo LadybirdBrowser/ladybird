@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px/1 monospace;
+    }
+    .box {
+        writing-mode: vertical-lr;
+        height: 200px;
+    }
+    .float {
+        float: left;
+        inline-size: 50px;
+        block-size: 60px;
+    }
+    br {
+        clear: left;
+    }
+</style>
+<div class="box" id="box"><div class="float"></div><span id="before">abc</span><br><span id="after">def</span></div>
+<script>
+    test(() => {
+        // The text beside the float stays at the line's block start, and the text after the clearing break starts
+        // past the float.
+        const box = document.getElementById("box").getBoundingClientRect();
+        for (const id of ["before", "after"]) {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            println(`${id}: x=${rect.left - box.left} y=${rect.top - box.top}`);
+        }
+    });
+</script>
