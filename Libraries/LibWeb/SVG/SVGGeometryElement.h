@@ -31,9 +31,13 @@ public:
 
     GC::Ref<SVGAnimatedNumber> path_length();
 
+    // The pathLength attribute's value, where it parses as a number.
+    Optional<float> author_path_length() const;
+
 protected:
     SVGGeometryElement(DOM::Document& document, DOM::QualifiedName qualified_name);
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
 private:
     bool with_computed_values(Function<void(CSSPixelSize viewport_size, CSS::ComputedValues const&)> const&);

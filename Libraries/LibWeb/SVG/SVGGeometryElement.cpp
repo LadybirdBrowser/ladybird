@@ -197,9 +197,11 @@ WebIDL::ExceptionOr<bool> SVGGeometryElement::is_point_in_stroke(Bindings::DOMPo
             // https://svgwg.org/svg2-draft/paths.html#PathLengthAttribute
             // The user agent will scale all distance-along-a-path computations by the ratio of ‘pathLength’ to the
             // user agent's own computed value for total path length.
-            // FIXME: A value of zero must be treated as a scaling factor of infinity.
+            // A value of zero is valid and must be treated as a scaling factor of infinity.
             float dash_scale = 1;
-            if (auto path_length = parse_number(get_attribute_value(AttributeNames::pathLength)); path_length.has_value() && *path_length > 0)
+            if (auto path_length = author_path_length(); path_length.has_value() && *path_length == 0)
+                dash_scale = AK::Infinity<float>;
+            else if (path_length.has_value() && *path_length > 0)
                 dash_scale = Layout::RustFFI::svg_geometry_element_total_length(&shape) / *path_length;
             return Layout::RustFFI::svg_geometry_element_stroke_contains(&shape, dash_scale, host_scale, static_cast<float>(point.x), static_cast<float>(point.y));
         });
@@ -248,6 +250,20 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMPoint>> SVGGeometryElement::get_point_a
 
     // 5. Return a newly created, detached DOMPoint object representing the point (x, y).
     return Geometry::DOMPoint::create(point_along_path->x(), point_along_path->y(), 0, 1);
+}
+
+void SVGGeometryElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    // The pathLength scales the dashes of the stroke, which layout reads with the element's geometry.
+    if (name == AttributeNames::pathLength && !namespace_.has_value() && old_value != value)
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
+}
+
+Optional<float> SVGGeometryElement::author_path_length() const
+{
+    return parse_number(get_attribute_value(AttributeNames::pathLength));
 }
 
 GC::Ref<SVGAnimatedNumber> SVGGeometryElement::path_length()

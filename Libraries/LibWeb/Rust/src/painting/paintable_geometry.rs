@@ -356,6 +356,14 @@ pub(crate) fn committed_svg_viewport_percentage_basis(arena: &impl GeometryRead,
     })
 }
 
+/// The `pathLength` the box of a geometry element committed, where its element has one.
+pub(crate) fn committed_svg_author_path_length(arena: &impl GeometryRead, slot: NodeSlotId) -> Option<f32> {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.svg.as_ref())
+            .and_then(|svg| svg.author_path_length)
+    })
+}
+
 pub(crate) fn absolute_rect_or_default(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelRect {
     if !arena.paintable_row_is_populated(slot) {
         return CssPixelRect::default();
