@@ -1773,6 +1773,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "libhttp_rust"
+version = "0.1.0"
+dependencies = [
+ "ak",
+]
+
+[[package]]
 name = "libimagedecoders_rust"
 version = "0.1.0"
 dependencies = [
@@ -2013,6 +2020,7 @@ dependencies = [
  "ak",
  "cbindgen",
  "ladybird_allocator",
+ "libhttp_rust",
  "liburl_rust",
  "rustc-demangle",
 ]
