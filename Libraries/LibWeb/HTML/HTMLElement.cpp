@@ -1148,6 +1148,17 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
     }
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
+// NB: Inertness reaches into shadow trees, so this looks past a shadow root to its host.
+static bool nearest_html_element_is_inert(DOM::Node const* node)
+{
+    for (; node; node = node->parent_or_shadow_host_node()) {
+        if (auto const* html_element = as_if<HTMLElement>(*node))
+            return html_element->is_inert();
+    }
+    return false;
+}
+
 void HTMLElement::set_subtree_inertness(bool is_inert)
 {
     // NB: An inert element behaves as if it were not editable, which :read-write and :read-only tell.
@@ -1156,8 +1167,9 @@ void HTMLElement::set_subtree_inertness(bool is_inert)
         bool value;
     };
     GC::ConservativeVector<PreviousReadWriteState> previous_read_write_states;
-    for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
-        previous_read_write_states.append({ element, SelectorMatching::element_matches_state(element, CSS::PseudoClass::ReadWrite) });
+    for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
+        if (auto* element = as_if<DOM::Element>(node))
+            previous_read_write_states.append({ *element, SelectorMatching::element_matches_state(*element, CSS::PseudoClass::ReadWrite) });
         return TraversalDecision::Continue;
     });
 
@@ -1172,7 +1184,7 @@ void HTMLElement::set_subtree_inertness(bool is_inert)
     };
 
     update_inertness(*this);
-    for_each_in_subtree([&](DOM::Node& node) {
+    for_each_shadow_including_descendant([&](DOM::Node& node) {
         auto* html_element = as_if<HTMLElement>(node);
         if (!html_element) {
             repaint_if_inertness_reaches_painted_output(node);
@@ -1201,7 +1213,7 @@ void HTMLElement::inserted()
     Base::inserted();
     HTMLOrSVGOrMathMLElement::inserted();
 
-    if (auto* parent_html_element = first_ancestor_of_type<HTMLElement>(); parent_html_element && parent_html_element->is_inert() && !has_attribute(HTML::AttributeNames::inert))
+    if (nearest_html_element_is_inert(parent_or_shadow_host_node()) && !has_attribute(HTML::AttributeNames::inert))
         set_subtree_inertness(true);
 
     if (is_form_associated_element()) {
@@ -2625,13 +2637,8 @@ void HTMLElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor
         MUST(hide_popover(FocusPreviousElement::No, FireEvents::No, ThrowExceptions::No, IgnoreDomState::Yes, nullptr));
 
     // AD-HOC: Update inertness
-    if (old_ancestor) {
-        auto* parent_html_element = as_if<HTMLElement>(old_ancestor);
-        if (!parent_html_element)
-            parent_html_element = old_ancestor->first_ancestor_of_type<HTMLElement>();
-        if (parent_html_element && parent_html_element->is_inert() && !has_attribute(HTML::AttributeNames::inert))
-            set_subtree_inertness(false);
-    }
+    if (nearest_html_element_is_inert(old_ancestor) && !has_attribute(HTML::AttributeNames::inert))
+        set_subtree_inertness(false);
 }
 
 // https://html.spec.whatwg.org/multipage/infrastructure.html#dom-trees:concept-node-move-ext
@@ -2650,6 +2657,13 @@ void HTMLElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<DOM::Node> o
     if (is_form_associated_element()) {
         form_node_was_moved();
         form_associated_element_was_moved(old_ancestor);
+    }
+
+    // AD-HOC: Update inertness
+    if (!has_attribute(HTML::AttributeNames::inert)) {
+        bool parent_is_inert = nearest_html_element_is_inert(parent_or_shadow_host_node());
+        if (is_inert() != parent_is_inert)
+            set_subtree_inertness(parent_is_inert);
     }
 }
 
