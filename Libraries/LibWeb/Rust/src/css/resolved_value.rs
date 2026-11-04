@@ -12,27 +12,29 @@ use core::ffi::c_void;
 use crate::css::calc::canonical_unit_code;
 use crate::css::color_conversion::{LAB, LCH, OKLAB, OKLCH};
 use crate::css::color_resolution::{
-    ColorResolutionInput, FfiColorResolutionStyle, Rgba, SerializationBehavior, descriptor_for_color_type,
-    resolve_color_mix, resolve_relative_form, to_color,
+    ColorResolutionInput, Rgba, SerializationBehavior, descriptor_for_color_type, resolve_color_mix,
+    resolve_relative_form, to_color,
 };
-use crate::css::computed_value_types::{ComputedLengthPercentageOrAuto, ComputedShadow, ComputedStyleValueHandle};
+use crate::css::computed_value_types::{
+    BackgroundValues, BorderValues, ComputedLengthPercentageOrAuto, ComputedShadow, ComputedStyleValueHandle,
+    EffectsValues, InheritedTextValues, InheritedUIValues, MiscLayoutValues, TextResetValues, TransformValues,
+};
 use crate::css::computed_value_views::{ComputedValuesView, StyleRecordGroups, resolve_calc_to_px_without_rounding};
 use crate::css::css_enums::{box_sizing, keyword, positioning, writing_mode};
 use crate::css::css_pixels::{
     CssPixelRect, CssPixels, FfiCssPixelRect, FfiCssPixelSize, MAX_INTEGER_VALUE, MIN_INTEGER_VALUE,
 };
-use crate::css::property_metadata::{
-    longhand_is_logical_alias, longhands_for_shorthand, property_id, property_is_shorthand,
-};
+use crate::css::property_metadata::{longhand_is_logical_alias, property_id};
 use crate::css::serialize::color_function_has_missing_component;
 use crate::css::serialize::transform_function;
 use crate::css::style_compute::map_logical_alias_to_physical;
 use crate::css::style_value::{
-    ColorBase, ColorFunctionPayload, CssString, FILTER_KIND_DROP_SHADOW, RetainedPropertyIdList,
-    RetainedStyleValueData, RetainedStyleValueDataList, ShadowPayload, ShorthandPayload, StyleValueBox, StyleValueData,
-    TransformationPayload, shared_style_value, value_depends_on_current_color,
+    ColorBase, ColorFunctionPayload, CssString, FILTER_KIND_DROP_SHADOW, RetainedStyleValueData,
+    RetainedStyleValueDataList, ShadowPayload, StyleValueBox, StyleValueData, TransformationPayload,
+    shared_style_value, value_depends_on_current_color,
 };
 use crate::css::style_value_arc::StyleValueArc;
+use crate::css::table_group_builder::group_index;
 use crate::css::value_codes::{COLOR_SYNTAX_MODERN, COLOR_TYPE_RGB};
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::script_entries::FfiAnchorSizedProperty;
@@ -279,74 +281,6 @@ fn retained(value: &StyleValueData) -> StyleValueArc {
     }
 }
 
-/// The resolved value of a color property, as one strong reference. `style` may be null.
-///
-/// # Safety
-/// `style` must be null or point at a style whose group payloads outlive the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_resolved_color_value(
-    value: &StyleValueData,
-    computed_color: u32,
-    style: *const FfiColorResolutionStyle,
-) -> *const StyleValueData {
-    // SAFETY: Guaranteed by the caller.
-    let input = (!style.is_null()).then(|| unsafe { ColorResolutionInput::for_ffi_style(style) });
-    StyleValueArc::into_raw(resolve_color_style_value(
-        &retained(value),
-        Rgba::from_packed(computed_color),
-        input.as_ref(),
-    ))
-}
-
-/// The resolved value of a paint or color SVG property, as one strong reference.
-///
-/// # Safety
-/// `style` must point at a style whose group payloads outlive the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_resolved_svg_color_value(
-    value: &StyleValueData,
-    style: *const FfiColorResolutionStyle,
-) -> *const StyleValueData {
-    // SAFETY: Guaranteed by the caller.
-    let input = unsafe { ColorResolutionInput::for_ffi_style(style) };
-    StyleValueArc::into_raw(resolve_svg_color_style_value(&retained(value), &input))
-}
-
-/// The resolved value of a filter property, as one strong reference.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_resolved_filter_value(value: &StyleValueData, current_color: u32) -> *const StyleValueData {
-    StyleValueArc::into_raw(resolve_filter_style_value(
-        &retained(value),
-        Rgba::from_packed(current_color),
-    ))
-}
-
-/// The resolved value of touch-action, as one strong reference.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_resolved_touch_action_value(value: &StyleValueData) -> *const StyleValueData {
-    StyleValueArc::into_raw(resolve_touch_action_style_value(&retained(value)))
-}
-
-/// The resolved value of a shadow property, as one strong reference.
-///
-/// # Safety
-/// `shadows` must point at `shadow_count` `ComputedShadow`s, or be null with a count of 0.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_resolved_shadow_value(
-    shadow_type: u8,
-    shadows: *const core::ffi::c_void,
-    shadow_count: usize,
-    current_color: u32,
-) -> *const StyleValueData {
-    // SAFETY: Guaranteed by the caller.
-    let shadows = unsafe { ak::slice_from_raw_parts(shadows.cast::<ComputedShadow>(), shadow_count) };
-    StyleValueArc::into_raw(style_value_for_shadow(
-        shadow_type,
-        shadows,
-        Rgba::from_packed(current_color),
-    ))
-}
-
 const TIME_UNIT_SECONDS: u8 = 1;
 
 fn length_value(pixels: f64) -> StyleValueArc {
@@ -530,6 +464,13 @@ fn transform_reference_box(host: &DocumentHost, node: NodeSlotId) -> CssPixelRec
     rect.into()
 }
 
+fn physical_property(property: u16, writing_mode: u8, direction: u8) -> u16 {
+    if longhand_is_logical_alias(property) {
+        return map_logical_alias_to_physical(property, writing_mode, direction);
+    }
+    property
+}
+
 #[derive(Clone, Copy)]
 enum InsetAxis {
     Horizontal,
@@ -637,22 +578,21 @@ impl ResolvedValueBox<'_> {
     fn resolved_value_for_size(
         &self,
         property: u16,
-        content_box: impl FnOnce(FfiCssPixelSize) -> CssPixels,
-        border_box: impl FnOnce(FfiCssPixelSize) -> CssPixels,
+        size_in_axis: impl FnOnce(FfiCssPixelSize) -> CssPixels,
     ) -> StyleValueArc {
         if !self.query.svg_sizing_properties_apply || !self.has_used_box(self.node, self.style) {
             return self.computed(property);
         }
-        let used_value = if self.style.box_sizing() == box_sizing::BORDER_BOX {
+        let used_size = if self.style.box_sizing() == box_sizing::BORDER_BOX {
             let mut size = FfiCssPixelSize::default();
             crate::layout::script_entries::layout_script_paintable_unbroken_border_box_size(
                 self.host, self.node, &mut size,
             );
-            border_box(size)
+            size
         } else {
-            content_box(content_size(self.host, self.node))
+            content_size(self.host, self.node)
         };
-        length_value(used_value.to_double())
+        length_value(size_in_axis(used_size).to_double())
     }
 
     // https://drafts.csswg.org/cssom/#resolved-value-special-case-property-like-top
@@ -853,16 +793,13 @@ impl ResolvedValueBox<'_> {
 
         // A logical property maps by the element's own writing mode and direction, which its box may not show yet: a box
         // awaiting the layout tree update that replaces it keeps the style it was built for.
-        // NB: A shorthand has no alias of its own to map.
-        let property = if !property_is_shorthand(property) && longhand_is_logical_alias(property) {
-            let element_style = self.element_style;
-            map_logical_alias_to_physical(property, element_style.writing_mode(), element_style.direction())
-        } else {
-            property
-        };
+        let property = physical_property(
+            property,
+            self.element_style.writing_mode(),
+            self.element_style.direction(),
+        );
 
         // A limited number of properties have special rules for producing their "resolved value".
-        // We also have to manually construct shorthands from their longhands here.
         // Everything else uses the computed value.
         // https://drafts.csswg.org/cssom/#resolved-values
         match property {
@@ -921,8 +858,8 @@ impl ResolvedValueBox<'_> {
                 length_value(self.element_style.font().line_height_used().to_double())
             }
 
-            property_id::HEIGHT => self.resolved_value_for_size(property, |size| size.height, |size| size.height),
-            property_id::WIDTH => self.resolved_value_for_size(property, |size| size.width, |size| size.width),
+            property_id::HEIGHT => self.resolved_value_for_size(property, |size| size.height),
+            property_id::WIDTH => self.resolved_value_for_size(property, |size| size.width),
             property_id::MARGIN_BOTTOM => {
                 self.resolved_value_for_margin(&principal_surround.margin.bottom, |metrics| metrics.margin.bottom)
             }
@@ -1047,21 +984,7 @@ impl ResolvedValueBox<'_> {
                     }
                 }
 
-                if !property_is_shorthand(property) {
-                    return self.computed(property);
-                }
-
-                // Handle shorthands in a generic way
-                let longhand_ids = longhands_for_shorthand(property);
-                let longhand_values = longhand_ids
-                    .iter()
-                    .map(|&longhand| RetainedStyleValueData::from_arc(self.resolved_value(longhand)))
-                    .collect();
-                StyleValueArc::new(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
-                    shorthand_property: property,
-                    sub_properties: RetainedPropertyIdList::from_property_ids(longhand_ids.to_vec()),
-                    values: RetainedStyleValueDataList::from_retained_values(longhand_values),
-                })))
+                self.computed(property)
             }
         }
     }
@@ -1097,4 +1020,117 @@ pub unsafe extern "C" fn rust_resolved_value_of_box(
         element_style,
     };
     StyleValueArc::into_raw(resolved_box.resolved_value(property))
+}
+
+/// What the host names for a style with no box behind it.
+#[repr(C)]
+pub struct FfiResolvedValueStyle {
+    /// The payload of each style group, by group index.
+    pub groups: *const *const c_void,
+    pub writing_mode: u8,
+    pub direction: u8,
+    pub generates_no_box: bool,
+    pub computed_value_context: *mut c_void,
+    /// The computed value of a longhand of the style, as one strong reference.
+    pub computed_value: unsafe extern "C" fn(context: *mut c_void, property: u16) -> *const StyleValueData,
+}
+
+/// The resolved value of the longhand `property` of a style with no box behind it, as one strong reference.
+/// Resolved value special cases that need a box read the style's own values instead.
+///
+/// # Safety
+/// The query must name the live payload of every group, and a context its callback accepts.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_resolved_value_of_style(
+    query: &FfiResolvedValueStyle,
+    property: u16,
+) -> *const StyleValueData {
+    /// The group at `index`, whose type the caller names.
+    ///
+    /// # Safety
+    /// `T` must be the type of the group at `index`, and the payload must outlive the borrow of `query`.
+    unsafe fn group<T>(query: &FfiResolvedValueStyle, index: usize) -> &T {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { &*(*query.groups.add(index)).cast::<T>() }
+    }
+    // SAFETY: Each type is the one of its group, and the caller keeps the payloads live.
+    let (text, ui, background, border, misc_layout, text_reset, effects, transform) = unsafe {
+        (
+            group::<InheritedTextValues>(query, group_index::INHERITED_TEXT),
+            group::<InheritedUIValues>(query, group_index::INHERITED_UI),
+            group::<BackgroundValues>(query, group_index::BACKGROUND),
+            group::<BorderValues>(query, group_index::BORDER),
+            group::<MiscLayoutValues>(query, group_index::MISC_LAYOUT),
+            group::<TextResetValues>(query, group_index::TEXT_RESET),
+            group::<EffectsValues>(query, group_index::EFFECTS),
+            group::<TransformValues>(query, group_index::TRANSFORM),
+        )
+    };
+    let current_color = text.color;
+    let current = Rgba::from_packed(current_color);
+    let color_input = ColorResolutionInput::for_style_groups(Some(ui), Some(text));
+    let property = physical_property(property, query.writing_mode, query.direction);
+    // SAFETY: The caller passes a context its callback accepts, and the call hands over one strong reference.
+    let computed =
+        || unsafe { StyleValueArc::from_raw((query.computed_value)(query.computed_value_context, property)) };
+    let used_color = |color: u32| resolve_color_style_value(&computed(), Rgba::from_packed(color), None);
+
+    // NB: These are the resolved value special cases of a box, read from the style's own groups.
+    let resolved = match property {
+        property_id::COLOR => resolve_color_style_value(&computed(), current, Some(&color_input)),
+        property_id::FILL | property_id::FLOOD_COLOR | property_id::STOP_COLOR | property_id::STROKE => {
+            resolve_svg_color_style_value(&computed(), &color_input)
+        }
+        property_id::CARET_COLOR => used_color(ui.caret_color.color.resolve(current_color)),
+        property_id::BACKGROUND_COLOR => match handle_value(&background.background_color_style_value) {
+            Some(value) if !value_depends_on_current_color(value) => retained(value),
+            _ => used_color(background.background_color.resolve(current_color)),
+        },
+        property_id::BORDER_BOTTOM_COLOR => used_color(border.border_bottom.color.resolve(current_color)),
+        property_id::BORDER_LEFT_COLOR => used_color(border.border_left.color.resolve(current_color)),
+        property_id::BORDER_RIGHT_COLOR => used_color(border.border_right.color.resolve(current_color)),
+        property_id::BORDER_TOP_COLOR => used_color(border.border_top.color.resolve(current_color)),
+        property_id::COLUMN_RULE_COLOR => used_color(misc_layout.column_rule_color.resolve(current_color)),
+        property_id::OUTLINE_COLOR => used_color(misc_layout.outline_color.resolve(current_color)),
+        property_id::TEXT_DECORATION_COLOR => used_color(text_reset.text_decoration_color.resolve(current_color)),
+        property_id::_WEBKIT_TEXT_FILL_COLOR => used_color(text.webkit_text_fill_color),
+        property_id::BOX_SHADOW => {
+            // SAFETY: The list holds `length` shadows while the style lives.
+            let shadows = unsafe {
+                ak::slice_from_raw_parts(effects.box_shadows.pointer.cast_const(), effects.box_shadows.length)
+            };
+            style_value_for_shadow(SHADOW_TYPE_NORMAL, shadows, current)
+        }
+        property_id::TEXT_SHADOW => {
+            // SAFETY: The list holds `length` shadows while the style lives.
+            let shadows =
+                unsafe { ak::slice_from_raw_parts(text.text_shadow.pointer.cast_const(), text.text_shadow.length) };
+            style_value_for_shadow(SHADOW_TYPE_TEXT, shadows, current)
+        }
+        property_id::BACKDROP_FILTER | property_id::FILTER => resolve_filter_style_value(&computed(), current),
+        property_id::TOUCH_ACTION => resolve_touch_action_style_value(&computed()),
+        property_id::TRANSFORM_ORIGIN => style_value_for_transform_origin(
+            handle_value(&transform.transform_origin_x).expect("transform-origin has an x offset"),
+            handle_value(&transform.transform_origin_y).expect("transform-origin has a y offset"),
+            handle_value(&transform.transform_origin_z),
+            None,
+        ),
+        property_id::MIN_HEIGHT | property_id::MIN_WIDTH => {
+            // https://drafts.csswg.org/css-sizing-3/#valdef-width-auto
+            // For backwards-compatibility, the resolved value of this keyword is zero for boxes of all [CSS2]
+            // display types (block and inline boxes, inline blocks, and all table display types) when
+            // 'aspect-ratio' is 'auto'. It also resolves to zero when no box is generated.
+            let value = computed();
+            if query.generates_no_box
+                && matches!(&*value, StyleValueData::Keyword { keyword } if *keyword == keyword::AUTO)
+            {
+                length_value(0.0)
+            } else {
+                resolve_unresolvable_anchor_functions(property, value)
+            }
+        }
+        property_id::MAX_HEIGHT | property_id::MAX_WIDTH => resolve_unresolvable_anchor_functions(property, computed()),
+        _ => computed(),
+    };
+    StyleValueArc::into_raw(resolved)
 }
