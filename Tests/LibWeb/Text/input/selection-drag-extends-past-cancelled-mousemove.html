@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; font: 20px monospace; line-height: 30px; }
+</style>
+<div id="text">one two three four five</div>
+<script src="include.js"></script>
+<script>
+    // The mousemove event has no default action, so cancelling one leaves a drag that selects text going.
+    test(() => {
+        const rect = document.getElementById("text").getBoundingClientRect();
+        const y = rect.top + 15;
+
+        for (const type of ["mousemove", "pointermove"]) {
+            const cancel = event => event.preventDefault();
+            document.addEventListener(type, cancel);
+
+            getSelection().removeAllRanges();
+            internals.mouseDown(rect.left + 1, y);
+            internals.mouseMove(rect.left + 100, y, 0, 1);
+            internals.mouseMove(rect.left + 200, y, 0, 1);
+            internals.mouseUp(rect.left + 200, y);
+
+            println(`${type}: "${getSelection().toString()}"`);
+            document.removeEventListener(type, cancel);
+        }
+    });
+</script>
