@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+    #snapper {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        overflow: auto;
+        scroll-snap-type: y mandatory;
+    }
+    .snap-point {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="snapper">
+    <div style="height: 1500px"></div>
+    <div class="snap-point" style="top: 0"></div>
+    <div class="snap-point" style="top: 500px"></div>
+</div>
+<script>
+    // The compositor scrolled the box for the wheel, and the next step turned it back before it moved. Later, beside a
+    // task, Up at the top of the page goes nowhere and the compositor scrolls for the Downs after it.
+    promiseTest(async () => {
+        const compositorOffset = () => internals.compositorScrollState().scrollOffset.y;
+        const keys = [];
+        document.addEventListener("keyup", event => keys.push(event.key));
+        window.addEventListener("wheel", () => {}, { passive: false });
+        await waitForCondition(() => internals.compositorWheelTargetAt(50, 50, 0, 10).decision === "blocking-wheel-event-listeners");
+
+        await Promise.all([internals.wheel(50, 50, 0, 200), internals.wheel(80, 50, 0, -40)]);
+        await animationFrame();
+        await animationFrame();
+        println(`box offset: ${snapper.scrollTop}`);
+        internals.synchronizeCompositor();
+
+        for (const key of ["Up", "Down", "Down"]) internals.sendKeyThroughUIProcess(key);
+
+        // NB: These only give up on what never comes, so the time limits can't fail a slow machine's run of a fixed engine.
+        let giveUpAt = performance.now() + 5000;
+        while (compositorOffset() <= 100 && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`beside the task, the compositor scrolled past the first Down: ${compositorOffset() > 100}`);
+
+        giveUpAt = performance.now() + 5000;
+        while (keys.length < 3 && performance.now() < giveUpAt) await animationFrame();
+        println(`keys the page heard of: ${keys.join(", ")}`);
+
+        // NB: The scroll eases to its end, and the main thread adopts it separately.
+        giveUpAt = performance.now() + 5000;
+        while ((compositorOffset() < 200 || window.scrollY < 200) && performance.now() < giveUpAt) await animationFrame();
+        println(`compositor offset once settled: ${compositorOffset()}`);
+        println(`main thread offset: ${window.scrollY}`);
+    });
+</script>
