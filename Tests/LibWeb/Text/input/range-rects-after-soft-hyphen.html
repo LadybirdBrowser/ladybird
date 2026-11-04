@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #text {
+        font: 16px SerenitySans;
+    }
+</style>
+<!-- A soft hyphen that doesn't end a line renders nothing, so the characters after it are where they'd be without it:
+     A range around a character starts where the one before it ends. -->
+<div id="text">ab&shy;cd</div>
+<script>
+    test(() => {
+        const text = document.getElementById("text").firstChild;
+        const range = document.createRange();
+        const rectOf = index => {
+            range.setStart(text, index);
+            range.setEnd(text, index + 1);
+            return range.getBoundingClientRect();
+        };
+        const b = rectOf(1);
+        const c = rectOf(3);
+        const d = rectOf(4);
+        println(`c starts where b ends: ${Math.abs(c.x - b.right) < 0.5}`);
+        println(`d starts where c ends: ${Math.abs(d.x - c.right) < 0.5}`);
+    });
+</script>
