@@ -7,44 +7,32 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/Utf16String.h>
-#include <AK/Utf16View.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/CSSRule.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/Parser/SourcePosition.h>
 #include <LibWeb/CSS/RustRule.h>
 #include <LibWeb/Export.h>
-#include <LibWebCommon/WebIDL/Types.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
-class WEB_API CSSRule : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(CSSRule, Bindings::GCAllocatedWrappable);
+class WEB_API CSSRule : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(CSSRule, css_rule)
 
 public:
-    static GC::Ref<CSSRule> create(RustRule, GC::Ptr<DOM::Document>);
-    virtual ~CSSRule() override;
-
     using Type = RustRule::Type;
 
-    Type type() const { return m_type; }
-    RustRule const& native_rule() const { return m_native_rule; }
-    WebIDL::UnsignedShort type_for_bindings() const;
+    Type type() const;
+    RustRule native_rule() const { return RustRule { native_handle() }; }
 
-    Utf16String css_text() const;
-    void set_css_text(Utf16View);
+    Utf16String css_text() const { return serialized(); }
 
-    CSSRule* parent_rule() { return m_parent_rule.ptr(); }
-    CSSRule const* parent_rule() const { return m_parent_rule.ptr(); }
-    void set_parent_rule(CSSRule*);
-    static constexpr size_t parent_rule_offset() { return offsetof(CSSRule, m_parent_rule); }
-
-    StyleSheetState* parent_style_sheet() { return m_parent_style_sheet.ptr(); }
-    StyleSheetState const* parent_style_sheet() const { return m_parent_style_sheet.ptr(); }
-    MUST_UPCALL virtual void set_parent_style_sheet(StyleSheetState*);
-    CSSStyleSheet* parent_style_sheet_for_bindings() const;
+    CSSRule* parent_rule() const;
+    StyleSheetState* parent_style_sheet() const;
 
     Optional<SourcePosition> source_location() const;
 
@@ -52,23 +40,14 @@ public:
     bool fast_is() const = delete;
 
     // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
-    virtual Utf16String serialized() const = 0;
-
-    MUST_UPCALL virtual void dump(StringBuilder&, int indent_levels = 0) const;
-
-    MUST_UPCALL virtual void clear_caches();
+    Utf16String serialized() const;
 
 protected:
-    explicit CSSRule(RustRule);
+    // The CSSStyleDeclaration of the declarations of the rule, which the first call creates.
+    GC::Ref<CSSStyleDeclaration> declarations() const;
 
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual size_t external_memory_size() const override;
-
-    Type m_type;
-    RustRule m_native_rule;
-    GC::Ptr<CSSRule> m_parent_rule;
-    RefPtr<StyleSheetState> m_parent_style_sheet;
-    GC::Ptr<CSSStyleSheet> m_parent_cssom_sheet;
+private:
+    Parser::ValueParserFFI::NativeRule const* native_handle() const;
 };
 
 }

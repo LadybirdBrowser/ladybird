@@ -105,6 +105,7 @@ public:
     bool evaluate_media_queries(DOM::Document const&, Parser::ValueParserFFI::NativeStyleSheetMediaEvaluation&);
     void reload_fonts_after_media_query_change();
     void synchronize_fonts_after_rule_change();
+    void recalculate_rule_caches();
     void record_conditions_for_owners();
 
     HashTable<GC::Ptr<DOM::Node>> const& owning_documents_or_shadow_roots() const { return m_owning_documents_or_shadow_roots; }
@@ -205,7 +206,6 @@ public:
 private:
     StyleSheetState(RustRuleList, GC::Ptr<DOM::Document>, RustMediaList, Optional<::URL::URL> location, Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy);
 
-    void recalculate_rule_caches();
     void set_rules(RustRuleList);
     bool has_document_owner() const;
     void forget_font_feature_values();

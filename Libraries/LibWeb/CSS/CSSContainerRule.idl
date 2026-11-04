@@ -5,7 +5,7 @@ dictionary CSSContainerCondition {
 };
 
 // https://drafts.csswg.org/css-conditional-5/#csscontainerrule
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSContainerRule : CSSConditionRule {
     readonly attribute CSSOMString containerName;
     readonly attribute CSSOMString containerQuery;

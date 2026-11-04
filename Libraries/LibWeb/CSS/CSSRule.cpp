@@ -6,54 +6,86 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/CSSRule.h>
-#include <LibWeb/CSS/CSSContainerRule.h>
-#include <LibWeb/CSS/CSSCounterStyleRule.h>
-#include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/CSS/CSSFontFaceDescriptors.h>
+#include <LibWeb/CSS/CSSFontFeatureValuesMap.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
-#include <LibWeb/CSS/CSSFunctionDeclarations.h>
-#include <LibWeb/CSS/CSSFunctionRule.h>
-#include <LibWeb/CSS/CSSImportRule.h>
-#include <LibWeb/CSS/CSSKeyframeRule.h>
-#include <LibWeb/CSS/CSSKeyframesRule.h>
-#include <LibWeb/CSS/CSSLayerBlockRule.h>
-#include <LibWeb/CSS/CSSLayerStatementRule.h>
-#include <LibWeb/CSS/CSSMarginRule.h>
-#include <LibWeb/CSS/CSSMediaRule.h>
-#include <LibWeb/CSS/CSSNamespaceRule.h>
-#include <LibWeb/CSS/CSSNestedDeclarations.h>
-#include <LibWeb/CSS/CSSPageRule.h>
-#include <LibWeb/CSS/CSSPositionTryRule.h>
-#include <LibWeb/CSS/CSSPropertyRule.h>
+#include <LibWeb/CSS/CSSFunctionDescriptors.h>
+#include <LibWeb/CSS/CSSPageDescriptors.h>
+#include <LibWeb/CSS/CSSPositionTryDescriptors.h>
 #include <LibWeb/CSS/CSSRule.h>
-#include <LibWeb/CSS/CSSRuleList.h>
-#include <LibWeb/CSS/CSSScopeRule.h>
-#include <LibWeb/CSS/CSSStyleRule.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
-#include <LibWeb/CSS/CSSSupportsRule.h>
+#include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/CSS/StylePropertyMap.h>
+#include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/CSS/StyleSheetImport.h>
 #include <LibWeb/CSS/StyleSheetState.h>
-#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
-CSSRule::~CSSRule() = default;
+using Parser::ValueParserFFI::NativeRule;
+using Parser::ValueParserFFI::NativeRuleList;
 
-CSSStyleSheet* CSSRule::parent_style_sheet_for_bindings() const
-{
-    return m_parent_style_sheet ? &m_parent_style_sheet->cssom_sheet() : nullptr;
+// NB: Implemented in Libraries/LibWeb/Bindings/Rust/src/css/exports.rs.
+extern "C" {
+NativeRule const* web_css_rule_native(void* rule);
+void* web_css_rule_parent_rule(void* rule);
+void* web_css_rule_parent_style_sheet(void* rule);
+FlatPtr web_css_rule_serialized(void* vm, void* rule);
+void* web_css_rule_declarations(void* vm, void* rule);
 }
 
-CSSRule::CSSRule(RustRule rule)
-    : m_type(rule.type())
-    , m_native_rule(move(rule))
+// NB: What the implementation of the rules in Rust asks of the C++ code of LibWeb.
+extern "C" {
+void* web_css_rule_create_declarations(void* rule);
+FlatPtr web_css_declarations_serialized(void* declarations);
+NativeRuleList const* web_css_style_sheet_native_rules(void* sheet);
+FlatPtr web_css_selector_list_text(void const* selectors, void* sheet);
+void* web_css_style_sheet_import_rule(void* sheet, u64 identity);
+void web_css_style_sheet_disconnect_font_faces(void* sheet, NativeRule const* rule);
+void web_css_style_sheet_rules_changed(void* sheet);
+void web_css_counter_style_rule_changed(void* rule);
+void* web_css_style_property_map_create(void* declarations);
+void* web_css_font_feature_values_map_create(void* rule, u8 kind);
+}
+
+static StyleSheetState& state_of_sheet(void* sheet)
 {
+    return static_cast<CSSStyleSheet*>(static_cast<GC::Cell*>(sheet))->state();
+}
+
+CSSRule::Type CSSRule::type() const
+{
+    return Parser::ValueParserFFI::rust_rule_type(native_handle());
+}
+
+NativeRule const* CSSRule::native_handle() const
+{
+    return web_css_rule_native(const_cast<CSSRule*>(this));
+}
+
+CSSRule* CSSRule::parent_rule() const
+{
+    return static_cast<CSSRule*>(web_css_rule_parent_rule(const_cast<CSSRule*>(this)));
+}
+
+StyleSheetState* CSSRule::parent_style_sheet() const
+{
+    auto* sheet = web_css_rule_parent_style_sheet(const_cast<CSSRule*>(this));
+    return sheet ? &state_of_sheet(sheet) : nullptr;
 }
 
 // NB: Read from the native rule when asked, as only DevTools asks.
 Optional<SourcePosition> CSSRule::source_location() const
 {
-    auto payload = m_native_rule.payload();
+    auto payload = native_rule().payload();
     if (!payload.has_source_position)
         return {};
     VERIFY(payload.start_line <= NumericLimits<u32>::max());
@@ -61,126 +93,106 @@ Optional<SourcePosition> CSSRule::source_location() const
     return SourcePosition { static_cast<u32>(payload.start_line), static_cast<u32>(payload.start_column) };
 }
 
-GC::Ref<CSSRule> CSSRule::create(RustRule rule, GC::Ptr<DOM::Document> document)
+Utf16String CSSRule::serialized() const
 {
-    // NB: A style rule makes its list of nested rules when it is first read, as most style rules nest none.
-    if (rule.type() == Type::Style)
-        return CSSStyleRule::create(move(rule));
-    GC::Ptr<CSSRuleList> children;
-    if (auto* native_children = Parser::ValueParserFFI::rust_rule_children(rule.handle()); native_children && rule.type() != Type::Keyframes)
-        children = CSSRuleList::create(RustRuleList { Parser::ValueParserFFI::rust_rule_list_retain(native_children) }, document);
-    switch (rule.type()) {
-    case Type::Style:
-        VERIFY_NOT_REACHED();
-    case Type::Media:
-        return CSSMediaRule::create(move(rule), *children);
-    case Type::Supports:
-        return CSSSupportsRule::create(move(rule), *children);
-    case Type::Container:
-        return CSSContainerRule::create(move(rule), *children);
-    case Type::Scope:
-        return CSSScopeRule::create(move(rule), *children);
-    case Type::LayerBlock:
-        return CSSLayerBlockRule::create(move(rule), *children);
-    case Type::Page:
-        return CSSPageRule::create(move(rule), *children);
-    case Type::Function:
-        return CSSFunctionRule::create(move(rule), *children);
-    case Type::Import:
-        return CSSImportRule::create(*StyleSheetImport::create(move(rule), document));
-    case Type::FontFace:
-        return CSSFontFaceRule::create(move(rule));
-    case Type::Keyframes:
-        return CSSKeyframesRule::create(move(rule));
-    case Type::Keyframe:
-        return CSSKeyframeRule::create(move(rule));
-    case Type::Margin:
-        return CSSMarginRule::create(move(rule));
-    case Type::PositionTry:
-        return CSSPositionTryRule::create(move(rule));
-    case Type::Namespace:
-        return CSSNamespaceRule::create(move(rule));
-    case Type::CounterStyle:
-        return CSSCounterStyleRule::create(move(rule));
-    case Type::FontFeatureValues:
-        return CSSFontFeatureValuesRule::create(move(rule));
-    case Type::LayerStatement:
-        return CSSLayerStatementRule::create(move(rule));
-    case Type::NestedDeclarations:
-        return CSSNestedDeclarations::create(move(rule));
-    case Type::Property:
-        return CSSPropertyRule::create(move(rule));
-    case Type::FunctionDeclarations:
-        return CSSFunctionDeclarations::create(move(rule));
-    }
-    VERIFY_NOT_REACHED();
+    return Utf16String::from_raw(web_css_rule_serialized(JS::HostABI::vm_to_abi(JS::VM::the()), const_cast<CSSRule*>(this)));
 }
 
-void CSSRule::visit_edges(GC::Cell::Visitor& visitor)
+GC::Ref<CSSStyleDeclaration> CSSRule::declarations() const
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_parent_style_sheet);
-    visitor.visit(m_parent_cssom_sheet);
-    visitor.visit(m_parent_rule);
+    auto* declarations = web_css_rule_declarations(JS::HostABI::vm_to_abi(JS::VM::the()), const_cast<CSSRule*>(this));
+    return *static_cast<CSSStyleDeclaration*>(static_cast<GC::Cell*>(declarations));
 }
 
-size_t CSSRule::external_memory_size() const
+void* web_css_rule_create_declarations(void* cell)
 {
-    return JS::saturating_add_external_memory_size(Base::external_memory_size(), m_native_rule.external_memory_size());
+    using namespace Parser::ValueParserFFI;
+
+    auto& rule = *static_cast<CSSRule*>(cell);
+    auto native_rule = rule.native_rule();
+    auto payload = native_rule.payload();
+
+    auto declarations = [&]() -> GC::Ref<CSSStyleDeclaration> {
+        switch (native_rule.type()) {
+        case CSSRule::Type::Style:
+            return CSSStyleProperties::create(RustDeclarationBlock { rust_rule_declarations(native_rule.handle()) });
+        case CSSRule::Type::NestedDeclarations:
+        case CSSRule::Type::Margin:
+            return CSSStyleProperties::create(RustDeclarationBlock { rust_declaration_block_retain(payload.declarations) });
+        case CSSRule::Type::Keyframe:
+            return CSSStyleProperties::create(RustDeclarationBlock { rust_keyframe_declarations(payload.keyframe) });
+        case CSSRule::Type::PositionTry:
+            return CSSPositionTryDescriptors::create(RustDeclarationBlock { rust_declaration_block_retain(payload.declarations) });
+        case CSSRule::Type::FontFace:
+            return CSSFontFaceDescriptors::create(RustDescriptorBlock { rust_descriptor_block_retain(payload.descriptors) });
+        case CSSRule::Type::Page:
+            return CSSPageDescriptors::create(RustDescriptorBlock { rust_descriptor_block_retain(payload.descriptors) });
+        case CSSRule::Type::FunctionDeclarations:
+            return CSSFunctionDescriptors::create(RustDescriptorBlock { rust_descriptor_block_retain(payload.descriptors) });
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }();
+    declarations->set_parent_rule(rule);
+    return static_cast<GC::Cell*>(declarations.ptr());
 }
 
-// https://www.w3.org/TR/cssom/#dom-cssrule-type
-WebIDL::UnsignedShort CSSRule::type_for_bindings() const
+FlatPtr web_css_declarations_serialized(void* declarations)
 {
-    // NOTE: Types that aren't defined in the spec must return 0.
-    // To do this, we arbitrarily make non-spec ones start at 100.
-    auto type = to_underlying(m_type);
-    if (type >= 100)
-        return 0;
-    return type;
+    return static_cast<CSSStyleDeclaration*>(static_cast<GC::Cell*>(declarations))->serialized().into_raw();
 }
 
-// https://www.w3.org/TR/cssom/#dom-cssrule-csstext
-Utf16String CSSRule::css_text() const
+NativeRuleList const* web_css_style_sheet_native_rules(void* sheet)
 {
-    // The cssText attribute must return a serialization of the CSS rule.
-    return serialized();
+    return state_of_sheet(sheet).native_rules().handle();
 }
 
-// https://www.w3.org/TR/cssom/#dom-cssrule-csstext
-void CSSRule::set_css_text(Utf16View)
+FlatPtr web_css_selector_list_text(void const* selectors, void* sheet)
 {
-    // On setting the cssText attribute must do nothing.
+    auto list = selector_list_from_rust(static_cast<SelectorFFI::RustParsedSelectorList const*>(selectors));
+    return serialize_a_group_of_selectors(list, sheet ? &state_of_sheet(sheet) : nullptr).into_raw();
 }
 
-void CSSRule::set_parent_rule(CSSRule* parent_rule)
+void* web_css_style_sheet_import_rule(void* sheet, u64 identity)
 {
-    clear_caches();
-    m_parent_rule = parent_rule;
-
-    if (parent_rule == nullptr)
-        set_parent_style_sheet(nullptr);
-    else
-        set_parent_style_sheet(parent_rule->parent_style_sheet());
-    clear_caches();
+    auto* import = state_of_sheet(sheet).import_for_rule(identity);
+    return import ? &import->cssom_rule() : nullptr;
 }
 
-void CSSRule::set_parent_style_sheet(StyleSheetState* parent_style_sheet)
+void web_css_style_sheet_disconnect_font_faces(void* sheet, NativeRule const* rule)
 {
-    clear_caches();
-    m_parent_style_sheet = parent_style_sheet;
-    m_parent_cssom_sheet = parent_style_sheet ? &parent_style_sheet->cssom_sheet() : nullptr;
-    clear_caches();
+    state_of_sheet(sheet).disconnect_font_faces_in_rule(RustRule { rule });
 }
 
-void CSSRule::dump(StringBuilder& builder, int indent_levels) const
+void web_css_style_sheet_rules_changed(void* sheet)
 {
-    dump_indent(builder, indent_levels);
-    builder.appendff("{}:\n", class_name());
+    state_of_sheet(sheet).recalculate_rule_caches();
 }
 
-void CSSRule::clear_caches()
+void web_css_counter_style_rule_changed(void* cell)
 {
+    auto& rule = *static_cast<CSSRule*>(cell);
+    auto* parent_style_sheet = rule.parent_style_sheet();
+
+    if (!parent_style_sheet)
+        return;
+
+    parent_style_sheet->for_each_owning_style_scope([&](StyleScope& style_scope) {
+        style_scope.invalidate_counter_style_cache();
+    });
+    record_style_rule_declarations_changed(rule);
+}
+
+void* web_css_style_property_map_create(void* declarations)
+{
+    auto& style_properties = *static_cast<CSSStyleProperties*>(static_cast<GC::Cell*>(declarations));
+    return static_cast<GC::Cell*>(StylePropertyMap::create(style_properties).ptr());
+}
+
+void* web_css_font_feature_values_map_create(void* rule, u8 kind)
+{
+    auto& parent_rule = *static_cast<CSSFontFeatureValuesRule*>(rule);
+    return static_cast<GC::Cell*>(CSSFontFeatureValuesMap::create(static_cast<FontFeatureValuesRuleKind>(kind), parent_rule).ptr());
 }
 
 }

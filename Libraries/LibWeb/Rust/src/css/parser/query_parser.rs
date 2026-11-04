@@ -3079,6 +3079,21 @@ pub(crate) unsafe fn evaluate_container_query(
     evaluate_container_expression(expression, facts, length_context, style)
 }
 
+/// The text of a retained query condition.
+pub(crate) fn serialized_query_condition(handle: &FfiQueryHandle) -> Vec<u16> {
+    let QueryTree::Expression { expression, kind } = &handle.tree else {
+        unreachable!("the condition of a rule is an expression")
+    };
+    let mut sink = TextSink::new();
+    serialize_expression(&mut sink, expression, *kind);
+    sink.into_utf16()
+}
+
+/// Whether a retained supports condition matches.
+pub(crate) fn supports_query_matches(handle: &FfiQueryHandle) -> bool {
+    css_query_evaluate_supports(Some(handle)) == 1
+}
+
 /// Serializes a retained query condition without changing its UTF-16 representation.
 ///
 /// # Safety

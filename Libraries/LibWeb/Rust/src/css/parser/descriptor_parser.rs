@@ -548,6 +548,12 @@ pub extern "C" fn rust_parse_css_descriptor(
         .unwrap_or(std::ptr::null())
 }
 
+/// The value of the descriptor of the at-rule that the text parses to, in an empty context.
+pub(crate) fn parse_descriptor_text(at_rule: u8, name: &[u16], source: &[u16]) -> Option<StyleValueArc> {
+    let values = consume_a_list_of_component_values(tokenize_for_parser(source)).ok()?;
+    parse_descriptor(&ParseContext::default(), at_rule, name, &values, source).map(|descriptor| descriptor.value)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{consume_a_list_of_component_values, parse_descriptor, tokenize_for_parser};

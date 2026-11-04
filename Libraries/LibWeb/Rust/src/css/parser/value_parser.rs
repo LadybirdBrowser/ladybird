@@ -6646,9 +6646,10 @@ pub unsafe extern "C" fn rust_parse_entire_css_primitive_from_source(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_is_valid_animation_name_custom_ident(source: FfiUtf16View) -> bool {
-    let Some(source) = source.units() else {
-        return false;
-    };
+    source.units().is_some_and(is_valid_animation_name)
+}
+
+pub(crate) fn is_valid_animation_name(source: TokenizerInput<'_>) -> bool {
     is_valid_custom_ident_matching(
         |expected| {
             source.len() == expected.len()

@@ -72,6 +72,28 @@ impl FontFeatureValuesRule {
     pub(crate) fn snapshot(&self) -> Arc<FontFeatureValuesData> {
         self.data.borrow().clone()
     }
+    pub(crate) fn families_text(&self) -> Vec<ak::Utf16String> {
+        let data = self.data.borrow();
+        data.families
+            .iter()
+            .map(|family| ak::Utf16String::from_utf16(family.units()))
+            .collect()
+    }
+
+    pub(crate) fn set_families_text(&self, families: Vec<Vec<u16>>) {
+        let families = families.iter().map(|family| CssString::from_utf16(family)).collect();
+        Arc::make_mut(&mut self.data.borrow_mut()).families = families;
+    }
+
+    pub(crate) fn entries_of(&self, kind: FontFeatureValuesRuleKind) -> Vec<(Vec<u16>, Vec<u32>)> {
+        let data = self.data.borrow();
+        data.maps[kind as usize]
+            .entries
+            .iter()
+            .map(|entry| (entry.name.to_vec(), entry.values.clone()))
+            .collect()
+    }
+
     pub(crate) fn new(data: Arc<FontFeatureValuesData>) -> Self {
         Self {
             data: RefCell::new(data),
@@ -239,26 +261,6 @@ pub extern "C" fn rust_font_feature_values_clear(owner: &FontFeatureValuesRule, 
         map.entries.clear();
         map.indices.clear();
     }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_font_feature_values_external_memory_size(owner: &FontFeatureValuesRule) -> usize {
-    let data = owner.data.borrow();
-    let mut size = size_of::<FontFeatureValuesRule>().saturating_add(size_of::<FontFeatureValuesData>());
-    size = size.saturating_add(data.families.capacity().saturating_mul(size_of::<CssString>()));
-    for family in &data.families {
-        size = size.saturating_add(size_of_val(family.units()));
-    }
-    for map in &data.maps {
-        size = size.saturating_add(map.entries.capacity().saturating_mul(size_of::<FeatureValueEntry>()));
-        size = size.saturating_add(map.indices.capacity().saturating_mul(size_of::<(Arc<[u16]>, usize)>()));
-        for entry in &map.entries {
-            size = size
-                .saturating_add(size_of_val(&*entry.name))
-                .saturating_add(entry.values.capacity().saturating_mul(size_of::<u32>()));
-        }
-    }
-    size
 }
 
 /// The OpenType features a style asks of a font, by tag, the later setting of a tag winning.

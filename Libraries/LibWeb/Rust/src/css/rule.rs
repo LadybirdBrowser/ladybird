@@ -38,6 +38,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 mod compilation;
+pub mod cssom;
 mod function;
 pub(crate) use function::CompiledFunction;
 #[cfg(test)]
@@ -870,44 +871,6 @@ pub unsafe extern "C" fn rust_namespace_context_retain(
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_namespace_context_release(context: OwnedArc<NativeNamespaceContext>) {
     drop(context);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_keyframes_set_name(rule: &NativeRule, name: FfiUtf16View) {
-    let RulePayload::Keyframes(current) = &rule.payload else {
-        unreachable!()
-    };
-    *current.borrow_mut() = CssString::from_utf16(&name.to_utf16().unwrap());
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_keyframes_find_rule(rule: &NativeRule, selector: FfiUtf16View) -> usize {
-    let Some(selectors) = selector
-        .units()
-        .and_then(crate::css::parser::syntax_parser::parse_keyframe_selector_list)
-    else {
-        return usize::MAX;
-    };
-    let matches = |frame: &NativeRule| {
-        let RulePayload::Keyframe(frame) = &frame.payload else {
-            unreachable!()
-        };
-        frame.keys() == selectors
-    };
-    let children = rule.child_rules().unwrap();
-    if let Some(rules) = children.rules.borrow().as_ref() {
-        return rules.iter().rposition(|frame| matches(frame)).unwrap_or(usize::MAX);
-    }
-    let parsed = children.parsed_source.borrow();
-    let parsed = parsed.as_ref().unwrap();
-    let exposed = children.exposed_rules.borrow();
-    (0..parsed.len())
-        .rev()
-        .find(|index| match exposed.get(index) {
-            Some(frame) => matches(frame),
-            None => *parsed.rule_at(*index).keyframe().unwrap().keys == selectors,
-        })
-        .unwrap_or(usize::MAX)
 }
 
 static NEXT_RULE_IDENTITY: AtomicU64 = AtomicU64::new(1);

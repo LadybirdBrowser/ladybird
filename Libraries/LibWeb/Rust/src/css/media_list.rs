@@ -150,7 +150,7 @@ impl MediaList {
         };
     }
 
-    pub(crate) fn matches(&self) -> bool {
+    pub fn matches(&self) -> bool {
         let state = self.owner.borrow();
         state.matches.is_empty() || state.matches.iter().any(|matches| *matches)
     }

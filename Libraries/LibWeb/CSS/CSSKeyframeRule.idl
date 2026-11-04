@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/css-animations-1/#interface-csskeyframerule-idl
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSKeyframeRule : CSSRule {
     attribute CSSOMString keyText;
     [SameObject, PutForwards=cssText] readonly attribute CSSStyleProperties style;

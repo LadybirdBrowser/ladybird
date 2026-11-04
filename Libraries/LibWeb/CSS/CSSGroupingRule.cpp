@@ -5,92 +5,119 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetState.h>
-#include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
 
-CSSGroupingRule::CSSGroupingRule(GC::Ptr<CSSRuleList> rules, RustRule rule)
-    : CSSRule(move(rule))
-    , m_rules(rules)
-{
-    if (!m_rules)
-        return;
-    VERIFY(Parser::ValueParserFFI::rust_rule_children(native_rule().handle()) == m_rules->native_rules().handle());
-    m_rules->set_owner_rule(*this);
+using Parser::ValueParserFFI::NativeRule;
+
+// NB: Implemented in Libraries/LibWeb/Bindings/Rust/src/css/exports.rs.
+extern "C" void* web_css_rule_child_rules(void* vm, void* rule);
+
+// NB: What the implementation of CSSGroupingRule in Rust asks of the C++ code of LibWeb.
+extern "C" {
+NativeRule const* web_css_grouping_rule_parse_rule(void* rule, FlatPtr text, bool* declarations_failed);
+void web_css_grouping_rule_inserted(void* rule, NativeRule const* inserted);
+void web_css_grouping_rule_removed(void* rule, NativeRule const* removed);
 }
 
-CSSRuleList& CSSGroupingRule::ensure_rules() const
+CSSRuleList& CSSGroupingRule::css_rules() const
 {
-    if (!m_rules) {
-        auto& rule = const_cast<CSSGroupingRule&>(*this);
-        auto* sheet = rule.parent_style_sheet();
-        m_rules = CSSRuleList::create(RustRuleList { Parser::ValueParserFFI::rust_rule_list_retain(Parser::ValueParserFFI::rust_rule_children(native_rule().handle())) }, sheet ? sheet->parsing_document() : nullptr);
-        m_rules->set_owner_rule(rule);
-        m_rules->set_parent_style_sheet(sheet);
-    }
-    return *m_rules;
+    return *static_cast<CSSRuleList*>(web_css_rule_child_rules(JS::HostABI::vm_to_abi(JS::VM::the()), const_cast<CSSGroupingRule*>(this)));
 }
 
-void CSSGroupingRule::visit_edges(GC::Cell::Visitor& visitor)
+static CSSRule& rule_from_cell(void* cell)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_rules);
+    return *static_cast<CSSRule*>(cell);
 }
 
-void CSSGroupingRule::clear_caches()
+static Vector<Parser::RuleContext> rule_context(CSSRule& owner_rule)
 {
-    Base::clear_caches();
-    if (!m_rules)
-        return;
-    m_rules->for_each_existing_rule([](CSSRule& rule) { rule.clear_caches(); });
+    Vector<Parser::RuleContext> context;
+    for (auto* rule = &owner_rule; rule; rule = rule->parent_rule())
+        context.append(Parser::rule_context_type_for_rule(rule->type()));
+    context.reverse();
+    return context;
 }
 
-// https://drafts.csswg.org/cssom/#dom-cssgroupingrule-insertrule
-WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(Utf16View rule, u32 index)
+// https://drafts.csswg.org/cssom/#insert-a-css-rule
+NativeRule const* web_css_grouping_rule_parse_rule(void* cell, FlatPtr raw_text, bool* declarations_failed)
 {
-    // The insertRule(rule, index) method must return the result of invoking insert a CSS rule rule into the child CSS
-    // rules at index, with the nested flag set.
+    auto& owner_rule = rule_from_cell(cell);
+    auto text = Utf16String::from_raw(raw_text);
+    auto rule = text.utf16_view();
+
+    // AD-HOC: The spec doesn't include a declared_namespaces parameter, but we need it to handle parsing of namespaced
+    //         selectors.
     RustNamespaceContext declared_namespaces;
-    if (auto* sheet = parent_style_sheet())
+    if (auto* sheet = owner_rule.parent_style_sheet())
         declared_namespaces = sheet->declared_namespaces();
-    auto& rules = css_rules();
-    TRY(rules.insert_a_css_rule(rule, index, CSSRuleList::Nested::Yes, declared_namespaces));
 
-    if (auto* sheet = parent_style_sheet()) {
-        sheet->invalidate_image_resource_registration();
-        if (auto* function = Parser::ValueParserFFI::rust_rule_containing_function(native_rule().handle()))
-            record_style_rule_declarations_changed(RustRule { function }, *sheet);
-        else
-            record_style_rule_inserted(rules.native_rules().at(index), *sheet);
-        sheet->invalidate_owners();
-        sheet->synchronize_fonts_after_rule_change();
+    // 3. Set new rule to the results of performing parse a CSS rule on argument rule.
+    Parser::ParsingParams parsing_params {};
+    parsing_params.rule_context = rule_context(owner_rule);
+    parsing_params.declared_namespaces = declared_namespaces;
+    auto new_rule = parse_css_rule(parsing_params, rule, true);
+    if (!new_rule.has_value()) {
+        auto trimmed_rule = rule.trim(" \t\n\f\r"sv, TrimMode::Left);
+        if (trimmed_rule.starts_with("@import"sv) || trimmed_rule.starts_with("@namespace"sv)) {
+            auto top_level_params = parsing_params;
+            top_level_params.rule_context.clear();
+            new_rule = parse_css_rule(top_level_params, rule);
+        }
     }
-    return index;
+
+    // 4. If new rule is a syntax error, and nested is set, perform the following substeps:
+    if (!new_rule.has_value()) {
+        // - Set declarations to the results of performing parse a CSS declaration block, on argument rule.
+        auto declarations = parse_css_property_declaration_block(parsing_params, rule);
+
+        // - If declarations is empty, throw a SyntaxError exception.
+        if (declarations.is_empty()) {
+            *declarations_failed = true;
+            return nullptr;
+        }
+
+        // - Otherwise, set new rule to a new nested declarations rule with declarations as it contents.
+        new_rule = RustRule { declarations };
+    }
+
+    return Parser::ValueParserFFI::rust_rule_retain(new_rule->handle());
 }
 
-WebIDL::ExceptionOr<void> CSSGroupingRule::delete_rule(u32 index)
+void web_css_grouping_rule_inserted(void* cell, NativeRule const* inserted)
 {
-    auto removed_rule = TRY(css_rules().remove_a_css_rule(index));
-    if (auto* sheet = parent_style_sheet()) {
-        if (auto* function = Parser::ValueParserFFI::rust_rule_containing_function(native_rule().handle()))
-            record_style_rule_declarations_changed(RustRule { function }, *sheet);
-        else
-            record_style_rule_removed(*sheet, removed_rule);
-        sheet->invalidate_owners();
-        sheet->synchronize_fonts_after_rule_change();
-    }
-    return {};
+    auto& rule = rule_from_cell(cell);
+    auto* sheet = rule.parent_style_sheet();
+    if (!sheet)
+        return;
+    sheet->invalidate_image_resource_registration();
+    if (auto* function = Parser::ValueParserFFI::rust_rule_containing_function(rule.native_rule().handle()))
+        record_style_rule_declarations_changed(RustRule { function }, *sheet);
+    else
+        record_style_rule_inserted(RustRule { inserted }, *sheet);
+    sheet->invalidate_owners();
+    sheet->synchronize_fonts_after_rule_change();
 }
 
-void CSSGroupingRule::set_parent_style_sheet(StyleSheetState* parent_style_sheet)
+void web_css_grouping_rule_removed(void* cell, NativeRule const* removed)
 {
-    CSSRule::set_parent_style_sheet(parent_style_sheet);
-    if (m_rules)
-        m_rules->set_parent_style_sheet(parent_style_sheet);
+    auto& rule = rule_from_cell(cell);
+    auto* sheet = rule.parent_style_sheet();
+    if (!sheet)
+        return;
+    if (auto* function = Parser::ValueParserFFI::rust_rule_containing_function(rule.native_rule().handle()))
+        record_style_rule_declarations_changed(RustRule { function }, *sheet);
+    else
+        record_style_rule_removed(*sheet, RustRule { removed });
+    sheet->invalidate_owners();
+    sheet->synchronize_fonts_after_rule_change();
 }
 
 }

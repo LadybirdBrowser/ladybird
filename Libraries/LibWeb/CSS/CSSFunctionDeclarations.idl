@@ -1,4 +1,4 @@
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSFunctionDeclarations : CSSRule {
     [SameObject, PutForwards=cssText] readonly attribute CSSFunctionDescriptors style;
 };

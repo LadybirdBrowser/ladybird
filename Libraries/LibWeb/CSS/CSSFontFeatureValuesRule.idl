@@ -1,4 +1,4 @@
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSFontFeatureValuesRule : CSSRule {
     attribute CSSOMString fontFamily;
     readonly attribute CSSFontFeatureValuesMap annotation;

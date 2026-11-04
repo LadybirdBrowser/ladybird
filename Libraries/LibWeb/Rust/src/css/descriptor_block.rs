@@ -71,6 +71,23 @@ impl DescriptorData {
 }
 
 impl FfiDescriptorBlock {
+    /// Sets the descriptor with the id and the name to the value.
+    pub(crate) fn set_value(&self, id: u8, name: &[u16], value: StyleValueArc) {
+        let descriptor = DescriptorData {
+            name: CssString::from_utf16(name),
+            id,
+            value,
+        };
+        self.mutate(|data| {
+            if let Some(index) = data.descriptors.iter().position(|existing| existing.id == id) {
+                data.descriptors[index] = descriptor;
+            } else {
+                data.descriptors.push(descriptor);
+            }
+            true
+        });
+    }
+
     pub(crate) fn data(&self) -> Arc<DescriptorBlockData> {
         match &*self.state.borrow() {
             DescriptorBlockState::Immutable(data) => data.clone(),
@@ -97,7 +114,7 @@ impl FfiDescriptorBlock {
         owner.clone()
     }
 
-    fn mutate(&mut self, mutation: impl FnOnce(&mut DescriptorBlockData) -> bool) -> bool {
+    fn mutate(&self, mutation: impl FnOnce(&mut DescriptorBlockData) -> bool) -> bool {
         let owner = self.owner();
         let mut owner = owner.borrow_mut();
         mutation(Arc::make_mut(&mut owner))

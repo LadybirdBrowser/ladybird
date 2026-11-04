@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/cssom/#the-cssrulelist-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSRuleList {
 
     getter CSSRule? item(unsigned long index);

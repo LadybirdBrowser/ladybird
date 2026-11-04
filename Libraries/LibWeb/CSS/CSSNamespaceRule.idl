@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/cssom/#the-cssnamespacerule-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSNamespaceRule : CSSRule {
     readonly attribute CSSOMString namespaceURI;
     readonly attribute CSSOMString prefix;

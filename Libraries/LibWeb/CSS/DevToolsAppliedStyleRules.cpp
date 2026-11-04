@@ -31,10 +31,7 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSImportRule.h>
-#include <LibWeb/CSS/CSSLayerBlockRule.h>
-#include <LibWeb/CSS/CSSLayerStatementRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
-#include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSTransition.h>
@@ -107,7 +104,7 @@
 namespace Web::CSS {
 
 // What a rule contributes, for the two rule types that carry a declaration block.
-static RustDeclarationBlock const& declaration_of_rule(CSSRule const& rule)
+static RustDeclarationBlock declaration_of_rule(CSSRule const& rule)
 {
     if (rule.type() == CSSRule::Type::Style)
         return static_cast<CSSStyleRule const&>(rule).declaration();
@@ -377,15 +374,13 @@ static JsonObject serialize_devtools_style_sheet_identifier(StyleSheetIdentifier
 // the entry, and a panel can afford to match each selector again.
 static JsonObject serialize_devtools_applied_rule(DOM::Document& document, CSSRule const& rule, DOM::AbstractElement const& element)
 {
-    auto const& declaration = declaration_of_rule(rule);
+    auto declaration = declaration_of_rule(rule);
     auto authored_text = extract_css_declaration_block_from_source(rule);
-    SelectorList const* selector_list = nullptr;
+    SelectorList selectors;
     if (auto const* style_rule = as_if<CSSStyleRule>(rule))
-        selector_list = &style_rule->absolutized_selectors();
+        selectors = style_rule->absolutized_selectors();
     else if (auto const* nested = as_if<CSSNestedDeclarations>(rule))
-        selector_list = &nested->absolutized_selectors();
-    SelectorList const empty_selectors;
-    auto const& selectors = selector_list ? *selector_list : empty_selectors;
+        selectors = nested->absolutized_selectors();
 
     JsonArray serialized_selectors;
     JsonArray specificities;

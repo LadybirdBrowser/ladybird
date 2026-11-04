@@ -38,20 +38,6 @@ impl FfiKeyframe {
     }
 }
 
-#[repr(C)]
-pub struct FfiKeyframeKeys {
-    pub values: *const f64,
-    pub count: usize,
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_keyframe_keys(frame: &FfiKeyframe) -> FfiKeyframeKeys {
-    FfiKeyframeKeys {
-        values: frame.keys().as_ptr(),
-        count: frame.keys().len(),
-    }
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_keyframe_declarations(frame: &FfiKeyframe) -> *mut DeclarationBlock {
     Box::into_raw(Box::new(frame.declaration_block().clone()))

@@ -13,12 +13,14 @@ use crate::css::css_enums::{
 };
 use crate::css::css_string::CssString;
 use crate::css::descriptor_block::{DescriptorBlockData, FfiDescriptorBlock, rust_descriptor_block_retain};
+use crate::css::descriptor_metadata::descriptor_metadata;
 use crate::css::ffi_support::{FfiUtf16View, ascii_lowercase};
 use crate::css::parser::descriptor_parser::resolve_descriptor_integer;
 use crate::css::parser::value_parser::equals_ascii_case_insensitive;
 use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::css::style_value::CounterStyleSystemPayload;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
+use crate::css::style_value_arc::StyleValueArc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -35,6 +37,9 @@ const _: () = {
     assert_send_sync::<CounterStyleData>();
 };
 
+/// The id of @counter-style among the at-rules with descriptors, AtRuleID::CounterStyle.
+const COUNTER_STYLE_AT_RULE: u8 = 3;
+
 pub struct FfiCounterStyle {
     name: RefCell<CssString>,
     descriptors: FfiDescriptorBlock,
@@ -49,6 +54,54 @@ impl FfiCounterStyle {
         self.descriptors.data()
     }
 
+    pub(crate) fn descriptor_block(&self) -> &FfiDescriptorBlock {
+        &self.descriptors
+    }
+
+    pub(crate) fn name_text(&self) -> ak::Utf16String {
+        ak::Utf16String::from_utf16(self.name.borrow().units())
+    }
+
+    pub(crate) fn set_name_text(&self, name: &[u16]) -> bool {
+        rust_counter_style_set_name(self, FfiUtf16View::from_utf16(name))
+    }
+
+    /// The value of the `system` descriptor, if the rule has one.
+    fn system(&self) -> Option<StyleValueArc> {
+        let data = self.descriptors.data();
+        let id = descriptor_metadata(COUNTER_STYLE_AT_RULE, &"system".encode_utf16().collect::<Vec<_>>())?.id;
+        data.descriptors
+            .iter()
+            .find(|descriptor| descriptor.id == id)
+            .map(|descriptor| descriptor.value.clone())
+    }
+
+    /// Whether the rule still defines a counter style with the value as its `symbols` descriptor, or as its
+    /// `additive-symbols` one when `additive`.
+    pub(crate) fn system_accepts_symbols(&self, additive: bool, value: &StyleValueData) -> bool {
+        let Some(system) = self.system() else {
+            return true;
+        };
+        rust_counter_style_system_accepts_symbols(
+            Some(&system),
+            additive,
+            value.child_values().map_or(0, |values| values.len()),
+        )
+    }
+
+    /// Whether the value of the `system` descriptor would change the algorithm that the rule uses.
+    pub(crate) fn system_change_alters_algorithm(&self, new: &StyleValueData) -> bool {
+        self.system()
+            .is_none_or(|current| rust_counter_style_system_changes_algorithm(&current, new))
+    }
+
+    pub(crate) fn set_descriptor(&self, name: &[u16], value: StyleValueArc) {
+        let id = descriptor_metadata(COUNTER_STYLE_AT_RULE, name)
+            .expect("the descriptor exists")
+            .id;
+        self.descriptors.set_value(id, name, value);
+    }
+
     pub(crate) fn new(data: Arc<CounterStyleData>) -> Self {
         Self {
             name: RefCell::new(data.name.clone()),
@@ -60,15 +113,6 @@ impl FfiCounterStyle {
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_counter_style_descriptors(rule: &FfiCounterStyle) -> *mut FfiDescriptorBlock {
     rust_descriptor_block_retain(&rule.descriptors)
-}
-
-/// # Safety
-/// The caller must not set the rule's name while it uses the returned view.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_style_name(rule: &FfiCounterStyle) -> FfiUtf16View<'_> {
-    // SAFETY: The caller reads the name before it next sets one.
-    let name = unsafe { rule.name.try_borrow_unguarded() }.expect("the name is not being set");
-    FfiUtf16View::from_utf16(name.units())
 }
 
 #[unsafe(no_mangle)]

@@ -7,52 +7,16 @@
 
 #pragma once
 
-#include <AK/NonnullRefPtr.h>
-#include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/CSS/CSSKeyframeRule.h>
+#include <LibWeb/Bindings/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-animations/#interface-csskeyframesrule
 class CSSKeyframesRule final : public CSSRule {
-    WEB_WRAPPABLE(CSSKeyframesRule, CSSRule);
-    GC_DECLARE_ALLOCATOR(CSSKeyframesRule);
-
-public:
-    [[nodiscard]] static GC::Ref<CSSKeyframesRule> create(RustRule);
-
-    virtual ~CSSKeyframesRule() = default;
-
-    GC::Ref<CSSRuleList> css_rules() const;
-    Utf16FlyString const& name() const { return m_name; }
-    [[nodiscard]] WebIDL::UnsignedLong length() const;
-    GC::Ptr<CSSKeyframeRule> item(size_t index) const;
-
-    void set_name(Utf16String const& name);
-
-    void append_rule(Utf16String const& rule);
-    void delete_rule(Utf16String const& select);
-    GC::Ptr<CSSKeyframeRule> find_rule(Utf16String const& select);
-
-    // A keyframes rule holds rules without being a grouping rule, so its keyframes have to be handed
-    // the sheet themselves. A keyframe edited through the CSSOM reports against the sheet it belongs
-    // to, and one that never learned its sheet reports against nothing at all.
-    virtual void set_parent_style_sheet(StyleSheetState*) override;
-
-private:
-    CSSKeyframesRule(RustRule);
-    virtual void visit_edges(Visitor&) override;
-
-    virtual Utf16String serialized() const override;
-    virtual void dump(StringBuilder&, int indent_levels) const override;
-
-    Utf16FlyString m_name;
-    mutable GC::Ptr<CSSRuleList> m_rules;
+    WEB_RUST_INTERFACE(CSSKeyframesRule, css_keyframes_rule)
 };
 
 template<>

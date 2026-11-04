@@ -7,23 +7,12 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
-#include <LibWeb/CSS/CSSKeyframeRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
-#include <LibWeb/CSS/CSSLayerBlockRule.h>
-#include <LibWeb/CSS/CSSLayerStatementRule.h>
-#include <LibWeb/CSS/CSSMarginRule.h>
-#include <LibWeb/CSS/CSSMediaRule.h>
-#include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
-#include <LibWeb/CSS/CSSPageRule.h>
-#include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSRule.h>
-#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
@@ -168,38 +157,16 @@ void dump_rule(CSS::CSSRule const& rule)
 
 void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_levels)
 {
-    rule.dump(builder, indent_levels);
-}
-
-void dump_style_properties(StringBuilder& builder, CSS::CSSStyleProperties const& declaration, int indent_levels)
-{
     dump_indent(builder, indent_levels);
-    builder.appendff("Declarations ({}):\n", declaration.length());
-    for (auto& property : declaration.properties()) {
-        dump_indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string(CSS::SerializationMode::Normal));
-        if (property.important == CSS::Important::Yes)
-            builder.append(" \033[31;1m!important\033[0m"sv);
-        builder.append('\n');
-    }
-    for (auto& property : declaration.custom_properties()) {
-        dump_indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", property.key, property.value.value->to_string(CSS::SerializationMode::Normal));
-        if (property.value.important == CSS::Important::Yes)
-            builder.append(" \033[31;1m!important\033[0m"sv);
-        builder.append('\n');
-    }
-}
+    builder.appendff("{}\n", rule.serialized());
 
-void dump_descriptors(StringBuilder& builder, CSS::CSSDescriptors const& descriptors, int indent_levels)
-{
-    dump_indent(builder, indent_levels);
-    builder.appendff("Declarations ({}):\n", descriptors.length());
-    for (size_t index = 0; index < descriptors.length(); ++index) {
-        auto name = descriptors.item(index);
-        dump_indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", name, descriptors.get_property_value(Utf16FlyString::from_utf16(name.utf16_view())));
-        builder.append('\n');
+    if (auto const* style_rule = as_if<CSS::CSSStyleRule>(rule)) {
+        for (auto const& selector : style_rule->selectors())
+            dump_selector(builder, selector, indent_levels + 1);
+        dump_indent(builder, indent_levels + 1);
+        builder.append("Absolutized selectors:\n"sv);
+        for (auto const& selector : style_rule->absolutized_selectors())
+            dump_selector(builder, selector, indent_levels + 2);
     }
 }
 
@@ -215,7 +182,7 @@ void dump_sheet(StringBuilder& builder, CSS::StyleSheetState const& sheet, int i
     dump_indent(builder, indent_levels);
     builder.appendff("CSSStyleSheet{{{}}}: {} rule(s)\n", &sheet, sheet.rules().length());
 
-    for (auto& rule : sheet.rules())
+    for (auto rule : sheet.rules())
         dump_rule(builder, rule, indent_levels + 1);
 }
 

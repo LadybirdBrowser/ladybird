@@ -9,13 +9,11 @@
 #pragma once
 
 #include <AK/Badge.h>
-#include <AK/Function.h>
-#include <AK/HashMap.h>
-#include <AK/Utf16FlyString.h>
-#include <AK/Utf16View.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/CSSRuleList.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/CSS/CSSRule.h>
-#include <LibWeb/CSS/Parser/RuleContext.h>
+#include <LibWeb/CSS/RustRule.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -23,36 +21,18 @@
 namespace Web::CSS {
 
 // https://www.w3.org/TR/cssom/#the-cssrulelist-interface
-class WEB_API CSSRuleList : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(CSSRuleList, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(CSSRuleList);
+class WEB_API CSSRuleList final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(CSSRuleList, css_rule_list)
 
 public:
-    [[nodiscard]] static GC::Ref<CSSRuleList> create(RustRuleList, GC::Ptr<DOM::Document>);
+    [[nodiscard]] static GC::Ref<CSSRuleList> create(RustRuleList const&, GC::Ptr<DOM::Document>);
 
-    virtual ~CSSRuleList() override;
-
-    CSSRule const* item(size_t index) const
-    {
-        if (index >= length())
-            return nullptr;
-        return wrapper_at(index).ptr();
-    }
-
-    CSSRule* item(size_t index)
-    {
-        if (index >= length())
-            return nullptr;
-        return wrapper_at(index).ptr();
-    }
-
-    size_t length() const { return m_rules.size(); }
-    RustRuleList const& native_rules() const { return m_rules; }
+    CSSRule* item(size_t index) const;
+    size_t length() const;
+    RustRuleList native_rules() const;
     CSSRule* existing_wrapper(u64 identity) const;
-    void for_each_existing_rule(Function<void(CSSRule&)> const&) const;
     void set_parent_style_sheet(StyleSheetState*);
-    CSSRule const* rule_for_identity(u64) const;
-    CSSRule* rule_for_identity(u64 identity) { return const_cast<CSSRule*>(std::as_const(*this).rule_for_identity(identity)); }
+    CSSRule* rule_for_identity(u64) const;
 
     class Iterator {
     public:
@@ -61,7 +41,7 @@ public:
             , m_index(index)
         {
         }
-        GC::Ref<CSSRule> const& operator*() const { return m_list->wrapper_at(m_index); }
+        GC::Ref<CSSRule> operator*() const { return *m_list->item(m_index); }
         Iterator& operator++()
         {
             ++m_index;
@@ -78,36 +58,14 @@ public:
     Iterator end() const { return { *this, length() }; }
 
     static WebIDL::ExceptionOr<void> validate_rule_removal(RustRuleList const&, u32 index);
-    WebIDL::ExceptionOr<RustRule> remove_a_css_rule(u32 index);
     void remove_a_css_rule_without_validation(Badge<StyleSheetState>, u32 index);
     enum class Nested {
         No,
         Yes,
     };
     static WebIDL::ExceptionOr<unsigned> insert_a_css_rule(RustRuleList&, RustRule const&, u32 index, Nested);
-    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(Utf16View, u32 index, Nested, RustNamespaceContext const& declared_namespaces);
 
-    void set_owner_rule(GC::Ref<CSSRule>);
-    void set_rules(Badge<StyleSheetState>, RustRuleList, GC::Ptr<DOM::Document>);
-
-    Function<void()> on_change;
-
-private:
-    CSSRuleList(RustRuleList, GC::Ptr<DOM::Document>);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual size_t external_memory_size() const override;
-
-    void remove_a_css_rule_without_validation(u32 index);
-    Vector<Parser::RuleContext> rule_context() const;
-    GC::Ref<CSSRule> const& wrapper_at(size_t index) const;
-
-    RustRuleList m_rules;
-    mutable HashMap<u64, GC::Ref<CSSRule>> m_wrappers;
-    GC::Ptr<CSSRule> m_owner_rule;
-    RefPtr<StyleSheetState> m_parent_style_sheet;
-    GC::Ptr<CSSStyleSheet> m_parent_cssom_sheet;
-    GC::Ptr<DOM::Document> m_document;
+    void set_rules(Badge<StyleSheetState>, RustRuleList const&, GC::Ptr<DOM::Document>);
 };
 
 }

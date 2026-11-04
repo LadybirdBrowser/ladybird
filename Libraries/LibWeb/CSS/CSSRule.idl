@@ -1,10 +1,10 @@
 // https://drafts.csswg.org/cssom/#the-cssrule-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSRule {
 
     attribute CSSOMString cssText;
-    [DirectGetter] readonly attribute CSSRule? parentRule;
-    [ImplementedAs=parent_style_sheet_for_bindings] readonly attribute CSSStyleSheet? parentStyleSheet;
+    readonly attribute CSSRule? parentRule;
+    readonly attribute CSSStyleSheet? parentStyleSheet;
 
     // the following attribute and constants are historical
     [ImplementedAs=type_for_bindings] readonly attribute unsigned short type;

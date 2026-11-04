@@ -49,13 +49,13 @@ void MediaList::set_associated_style_sheet(NonnullRefPtr<StyleSheetState> sheet)
 
 void MediaList::set_associated_rule(GC::Ref<CSSRule> rule)
 {
-    web_media_list_set_associated_rule(JS::HostABI::vm_to_abi(JS::VM::the()), this, static_cast<GC::Cell*>(rule.ptr()));
+    web_media_list_set_associated_rule(JS::HostABI::vm_to_abi(JS::VM::the()), this, rule.ptr());
 }
 
 void web_css_media_list_changed(void* style_sheet_cell, void* rule_cell)
 {
     auto* style_sheet = static_cast<CSSStyleSheet*>(static_cast<GC::Cell*>(style_sheet_cell));
-    auto* rule = static_cast<CSSRule*>(static_cast<GC::Cell*>(rule_cell));
+    auto* rule = static_cast<CSSRule*>(rule_cell);
 
     // Both owners reach the same place: the sheet whose rules the gate belongs to.
     RefPtr<StyleSheetState> sheet;

@@ -319,8 +319,8 @@ fn keyframe_mutation_preserves_exposed_declarations_and_snapshots() {
         let children = &*rust_rule_children(&frames);
         let originals = &*rust_rule_children(&original_frames);
         let owners = RULE_OWNER_ALLOCATIONS.get();
-        assert_eq!(rust_keyframes_find_rule(&frames, view(&utf16("from, 50%"))), 0);
-        assert_eq!(rust_keyframes_find_rule(&frames, view(&utf16("50%"))), usize::MAX);
+        assert_eq!(frames.find_keyframe(&utf16("from, 50%")), Some(0));
+        assert_eq!(frames.find_keyframe(&utf16("50%")), None);
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), owners);
         let mut early = declarations_at(children, 1);
         let later = children.rule_at(1);
@@ -348,7 +348,7 @@ fn keyframe_mutation_preserves_exposed_declarations_and_snapshots() {
             serialize_style_value_to_utf16(&snapshot.properties().get(0).unwrap().value),
             utf16("31px")
         );
-        rust_keyframes_set_name(&frames, view(&utf16("新しい名前")));
+        frames.set_keyframes_name(&utf16("新しい名前"));
         assert_eq!(
             rust_rule_payload(&retained).name.to_utf16().unwrap(),
             utf16("新しい名前")
@@ -364,7 +364,7 @@ fn keyframe_mutation_preserves_exposed_declarations_and_snapshots() {
         rust_rule_list_remove(children, 0);
         assert_eq!(rust_rule_list_count(&*rust_rule_children(&retained)), 1);
         assert_eq!(first_value(&later_declarations), utf16("23px"));
-        assert_eq!(rust_keyframes_find_rule(&retained, view(&utf16("to"))), 0);
+        assert_eq!(retained.find_keyframe(&utf16("to")), Some(0));
         assert_eq!(first_value(&exposed_declarations), utf16("29px"));
     }
 }

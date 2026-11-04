@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/css-nesting-1/#cssnesteddeclarations
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSNestedDeclarations : CSSRule {
     [SameObject, PutForwards=cssText] readonly attribute CSSStyleProperties style;
 };

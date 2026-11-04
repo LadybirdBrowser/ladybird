@@ -5,47 +5,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
-#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/FontFaceState.h>
-#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Dump.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
-GC_DEFINE_ALLOCATOR(CSSFontFaceRule);
-
-GC::Ref<CSSFontFaceRule> CSSFontFaceRule::create(RustRule rule)
-{
-    return GC::Heap::the().allocate<CSSFontFaceRule>(move(rule));
-}
-
-CSSFontFaceRule::CSSFontFaceRule(RustRule rule)
-    : CSSRule(move(rule))
-    , m_descriptors(Parser::ValueParserFFI::rust_descriptor_block_retain(native_rule().payload().descriptors))
-{
-}
-
-size_t CSSFontFaceRule::external_memory_size() const
-{
-    return JS::saturating_add_external_memory_size(Base::external_memory_size(), m_descriptors.external_memory_size());
-}
-
 GC::Ref<CSSFontFaceDescriptors> CSSFontFaceRule::descriptors() const
 {
-    if (!m_style) {
-        m_style = CSSFontFaceDescriptors::create(m_descriptors.retain());
-        m_style->set_parent_rule(const_cast<CSSFontFaceRule&>(*this));
-    }
-    return *m_style;
+    return static_cast<CSSFontFaceDescriptors&>(*declarations());
 }
 
 bool CSSFontFaceRule::is_valid() const
@@ -53,108 +27,9 @@ bool CSSFontFaceRule::is_valid() const
     // @font-face rules require a font-family and src descriptor; if either of these are missing, the @font-face rule
     // must not be considered when performing the font matching algorithm.
     // https://drafts.csswg.org/css-fonts-4/#font-face-rule
-    return !m_descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)).is_null()
-        && !m_descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::Src)).is_null();
-}
-
-// https://drafts.csswg.org/cssom/#ref-for-cssfontfacerule
-Utf16String CSSFontFaceRule::serialized() const
-{
-    auto const& descriptors = m_descriptors;
-
-    Utf16StringBuilder builder;
-    // The result of concatenating the following:
-
-    // 1. The string "@font-face {".
-    builder.append_ascii("@font-face {"sv);
-
-    // 2. If the font-family descriptor is present:
-    if (auto font_family = descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)); !font_family.is_null()) {
-        // 1. A single SPACE (U+0020), followed by the string "font-family:", followed by a single SPACE (U+0020).
-        builder.append_ascii(" font-family: "sv);
-
-        // 2. The result of performing serialize a string on the rule’s font family name.
-        descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily))->serialize(builder, SerializationMode::Normal);
-
-        // 3. The string ";", i.e., SEMICOLON (U+003B).
-        builder.append_ascii(';');
-    }
-
-    // 3. If the rule’s associated source list is not empty, follow these substeps:
-    if (auto sources = descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::Src))) {
-        // 1. A single SPACE (U+0020), followed by the string "src:", followed by a single SPACE (U+0020).
-        builder.append_ascii(" src: "sv);
-
-        // 2. The result of invoking serialize a comma-separated list on performing serialize a URL or serialize a LOCAL for each source on the source list.
-        sources->serialize(builder, SerializationMode::Normal);
-
-        // 3. The string ";", i.e., SEMICOLON (U+003B).
-        builder.append_ascii(';');
-    }
-
-    // 4. If rule’s associated unicode-range descriptor is present, a single SPACE (U+0020), followed by the string "unicode-range:", followed by a single SPACE (U+0020), followed by the result of performing serialize a <'unicode-range'>, followed by the string ";", i.e., SEMICOLON (U+003B).
-    if (auto unicode_range = descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::UnicodeRange))) {
-        builder.append_ascii(" unicode-range: "sv);
-        unicode_range->serialize(builder, SerializationMode::Normal);
-        builder.append_ascii(';');
-    }
-
-    // FIXME: 5. If rule’s associated font-variant descriptor is present, a single SPACE (U+0020),
-    // followed by the string "font-variant:", followed by a single SPACE (U+0020),
-    // followed by the result of performing serialize a <'font-variant'>,
-    // followed by the string ";", i.e., SEMICOLON (U+003B).
-
-    // 6. If rule’s associated font-feature-settings descriptor is present, a single SPACE (U+0020),
-    //    followed by the string "font-feature-settings:", followed by a single SPACE (U+0020),
-    //    followed by the result of performing serialize a <'font-feature-settings'>,
-    //    followed by the string ";", i.e., SEMICOLON (U+003B).
-    if (auto font_feature_settings = descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings))) {
-        builder.append_ascii(" font-feature-settings: "sv);
-        font_feature_settings->serialize(builder, SerializationMode::Normal);
-        builder.append_ascii(";"sv);
-    }
-
-    // 7. If rule’s associated font-stretch descriptor is present, a single SPACE (U+0020),
-    //    followed by the string "font-stretch:", followed by a single SPACE (U+0020),
-    //    followed by the result of performing serialize a <'font-stretch'>,
-    //    followed by the string ";", i.e., SEMICOLON (U+003B).
-    // NOTE: font-stretch is now an alias for font-width, so we use that instead.
-    if (auto font_width = descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontWidth))) {
-        builder.append_ascii(" font-stretch: "sv);
-        font_width->serialize(builder, SerializationMode::Normal);
-        builder.append_ascii(";"sv);
-    }
-
-    // 8. If rule’s associated font-weight descriptor is present, a single SPACE (U+0020),
-    //     followed by the string "font-weight:", followed by a single SPACE (U+0020),
-    //     followed by the result of performing serialize a <'font-weight'>,
-    //     followed by the string ";", i.e., SEMICOLON (U+003B).
-    if (auto font_weight = descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontWeight))) {
-        builder.append_ascii(" font-weight: "sv);
-        font_weight->serialize(builder, SerializationMode::Normal);
-        builder.append_ascii(";"sv);
-    }
-
-    // 9. If rule’s associated font-style descriptor is present, a single SPACE (U+0020),
-    //     followed by the string "font-style:", followed by a single SPACE (U+0020),
-    //     followed by the result of performing serialize a <'font-style'>,
-    //     followed by the string ";", i.e., SEMICOLON (U+003B).
-    if (auto font_style = descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontStyle))) {
-        builder.append_ascii(" font-style: "sv);
-        font_style->serialize(builder, SerializationMode::Normal);
-        builder.append_ascii(";"sv);
-    }
-
-    // 10. A single SPACE (U+0020), followed by the string "}", i.e., RIGHT CURLY BRACKET (U+007D).
-    builder.append_ascii(" }"sv);
-
-    return builder.to_string();
-}
-
-void CSSFontFaceRule::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_style);
+    RustDescriptorBlock descriptors { Parser::ValueParserFFI::rust_descriptor_block_retain(native_rule().payload().descriptors) };
+    return !descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)).is_null()
+        && !descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::Src)).is_null();
 }
 
 RefPtr<FontFaceState> CSSFontFaceRule::css_connected_font_face() const
@@ -246,15 +121,6 @@ void CSSFontFaceRule::disconnect_font_face()
         return;
 
     font_face->disconnect_from_css_rule();
-}
-
-void CSSFontFaceRule::dump(StringBuilder& builder, int indent_levels) const
-{
-    Base::dump(builder, indent_levels);
-
-    dump_indent(builder, indent_levels + 1);
-    builder.appendff("Valid: {}\n", is_valid());
-    dump_descriptors(builder, descriptors(), indent_levels + 1);
 }
 
 }
