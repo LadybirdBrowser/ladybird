@@ -57,6 +57,8 @@ public:
 private:
     enum class StreamState {
         Suspended,
+        // Playback is wanted, but the stream is still stopping for a seek or has yet to open. The clock holds meanwhile.
+        Resuming,
         Playing,
     };
 
@@ -64,10 +66,12 @@ private:
     bool playback_stream_is_current(Audio::PlaybackStream const&) const;
 
     void create_playback_stream();
-    bool effectively_paused() const;
+    bool playback_is_wanted() const;
+    void set_stream_state(StreamState);
     void update_playback_stream_state();
     void resume_playback_stream();
     void pause_playback_stream();
+    void hold_clock_until_stream_can_resume();
     void resume_input_from_suspension();
     void dispatch_waiting_status_once_played_out();
 
@@ -77,7 +81,6 @@ private:
 
     bool m_started_creating_playback_stream { false };
     bool m_playing { false };
-    StreamState m_stream_state { StreamState::Suspended };
     double m_volume { 1 };
 
     Optional<AK::Duration> m_seek_target_awaiting_discard;

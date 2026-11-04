@@ -614,6 +614,33 @@ TEST_CASE(audio_playback_sink_reseeks_its_input_from_the_written_output_without_
     EXPECT(pump_until(loop, [&] { return time_reader.current_time() > time_after_reseeking + AK::Duration::from_milliseconds(200); }));
 }
 
+// Video sinks stop watching a stopped clock until they are told it resumed, so a seek while playing must hold the clock
+// rather than stop it. Pausing must then stop it, even before the stream has finished stopping for the seek.
+TEST_CASE(audio_playback_sink_holds_its_clock_through_a_seek_while_playing)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus) { }, Media::AudioOutputFactory::create_null()));
+    auto producer = RecordingAudioProducer::create();
+    MUST(sink->connect_input(producer));
+    sink->start();
+    EXPECT(pump_until(loop, [&] { return !producer->seeks().is_empty(); }));
+
+    sink->resume();
+    auto time_reader = sink->time_reader();
+    EXPECT(pump_until(loop, [&] { return time_reader.current_time() > AK::Duration::from_milliseconds(100); }));
+
+    sink->seek(AK::Duration::from_seconds(2));
+    EXPECT(time_reader.time_state(MonotonicTime::now()).is_advancing);
+    EXPECT(pump_until(loop, [&] { return time_reader.current_time() > AK::Duration::from_milliseconds(2100); }));
+
+    sink->seek(AK::Duration::from_seconds(1));
+    sink->pause();
+    EXPECT(!time_reader.time_state(MonotonicTime::now()).is_advancing);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(pump_until(loop, [&] { return !time_reader.time_state(MonotonicTime::now()).is_advancing; }));
+}
+
 TEST_CASE(displaying_video_sink_reports_a_suspended_input_while_unticked)
 {
     auto& loop = never_destroyed_event_loop();
