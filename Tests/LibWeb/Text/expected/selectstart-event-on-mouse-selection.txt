@@ -1,0 +1,9 @@
+document.onselectstart: undefined
+window.onselectstart: undefined
+div.onselectstart: undefined
+free: selected "one two t"
+blocked: selected "six seven"
+unselectable: selected ""
+handler: selected "fourteen "
+click count 2: selected "one"
+click count 3: selected "one two three four five"
