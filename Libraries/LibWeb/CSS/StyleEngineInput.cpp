@@ -346,6 +346,17 @@ static void record_element_relinked(StyleEngine& style_engine, StyleNodeID node,
     });
 }
 
+// How many nodes ahead a loop over a big list of nodes asks for their memory.
+static constexpr size_t nodes_ahead = 8;
+
+// Asks for the memory of a node whose kind isn't known yet, which reading its kind would wait for.
+static void prefetch_node(DOM::Node const& node)
+{
+    auto const* bytes = reinterpret_cast<u8 const*>(&node);
+    for (size_t offset = 0; offset < sizeof(DOM::Element); offset += 64)
+        __builtin_prefetch(bytes + offset);
+}
+
 void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& style_computer, Layout::BegunRead const& read)
 {
     auto nodes = style_engine.take_deferred_element_initial_features();
@@ -356,18 +367,19 @@ void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& 
     PublishedDirectionalities directionalities;
     for (size_t index = 0; index < nodes.size(); ++index) {
         // OPTIMIZATION: Most of an element's publication is first reading memory no one touched since the element was
-        //               parsed. Asking for it ahead turns waiting for one element at a time into overlapping waits.
-        static constexpr size_t elements_ahead = 8;
-        if (index + 2 * elements_ahead < nodes.size()) {
-            if (auto ahead = style_computer.node_for_style_node(nodes[index + 2 * elements_ahead])) {
-                auto const* bytes = reinterpret_cast<u8 const*>(ahead.ptr());
-                for (size_t offset = 0; offset < sizeof(DOM::Element); offset += 64)
-                    __builtin_prefetch(bytes + offset);
-            }
+        //               parsed. Asking for it ahead turns waiting for one element at a time into overlapping waits. Each
+        //               stage reads what the one before it asked for, so the distances shrink along the chain.
+        if (index + 2 * nodes_ahead < nodes.size()) {
+            if (auto ahead = style_computer.node_for_style_node(nodes[index + 2 * nodes_ahead]))
+                prefetch_node(*ahead);
         }
-        if (index + elements_ahead < nodes.size()) {
-            if (auto ahead = style_computer.element_for_style_node(nodes[index + elements_ahead]))
+        if (index + nodes_ahead < nodes.size()) {
+            if (auto ahead = style_computer.element_for_style_node(nodes[index + nodes_ahead]))
                 __builtin_prefetch(ahead->inline_style_declarations());
+        }
+        if (index + nodes_ahead / 2 < nodes.size()) {
+            if (auto ahead = style_computer.element_for_style_node(nodes[index + nodes_ahead / 2]); ahead && ahead->inline_style_declarations())
+                Parser::ValueParserFFI::rust_declaration_block_prefetch_header(ahead->inline_style_declarations());
         }
         auto node = nodes[index];
         auto element = style_computer.element_for_style_node(node);
@@ -730,7 +742,10 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
         style_computer.ensure_style_node_slot(identities.last());
         size_t next_element_identity = 0;
         size_t next_shadow_root_identity = element_count;
-        for (auto const& arrival : arrivals) {
+        for (size_t index = 0; index < arrivals.size(); ++index) {
+            auto const& arrival = arrivals[index];
+            if (index + nodes_ahead < arrivals.size())
+                prefetch_node(*arrivals[index + nodes_ahead].node);
             if (auto* element = as_if<DOM::Element>(*arrival.node)) {
                 auto identity = identities[next_element_identity++];
                 element->set_style_node_id(identity);
@@ -750,7 +765,10 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
         // The elements of the subtrees arrive in the engine's tree in one write, each standing in no tree before.
         Vector<StyleEngineFFI::FfiArrivingElement, 64> arriving_elements;
         arriving_elements.ensure_capacity(element_count);
-        for (auto const& arrival : arrivals) {
+        for (size_t index = 0; index < arrivals.size(); ++index) {
+            auto const& arrival = arrivals[index];
+            if (index + nodes_ahead < arrivals.size())
+                prefetch_node(*arrivals[index + nodes_ahead].node);
             auto* element = as_if<DOM::Element>(*arrival.node);
             if (!element)
                 continue;
@@ -775,8 +793,11 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
         return;
     Vector<u32, 192> links;
     links.ensure_capacity(dom_order_arrivals.size() * 3);
-    for (auto const& node : dom_order_arrivals)
-        append_dom_order_link(links, node);
+    for (size_t index = 0; index < dom_order_arrivals.size(); ++index) {
+        if (index + nodes_ahead < dom_order_arrivals.size())
+            prefetch_node(*dom_order_arrivals[index + nodes_ahead]);
+        append_dom_order_link(links, dom_order_arrivals[index]);
+    }
     StyleEngineFFI::style_engine_link_style_nodes_in_dom_order(style_engine.host(), links.span());
 
     republish_assigned_slots_of(dom_order_arrivals);
@@ -784,7 +805,10 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
     // What the insertion steps publish about a node under its identity waited for the identity (see Node::inserted()).
     auto focused_area = document.focused_area();
     auto const* focused_text_control = is<HTML::FormAssociatedTextControlElement>(focused_area.ptr()) ? focused_area.ptr() : nullptr;
-    for (auto const& node : dom_order_arrivals) {
+    for (size_t index = 0; index < dom_order_arrivals.size(); ++index) {
+        auto const& node = dom_order_arrivals[index];
+        if (index + nodes_ahead < dom_order_arrivals.size())
+            prefetch_node(*dom_order_arrivals[index + nodes_ahead]);
         // Inertness, editability and the wheel handler state are inherited from the place the node arrived in.
         node->publish_dom_paint_facts();
         // As is being in the shadow tree of the focused text control.
