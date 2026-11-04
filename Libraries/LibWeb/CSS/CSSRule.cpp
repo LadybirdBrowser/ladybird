@@ -21,7 +21,6 @@
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
-#include <LibWeb/CSS/StylePropertyMap.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetImport.h>
 #include <LibWeb/CSS/StyleSheetState.h>
@@ -53,7 +52,6 @@ void* web_css_style_sheet_import_rule(void* sheet, u64 identity);
 void web_css_style_sheet_disconnect_font_faces(void* sheet, NativeRule const* rule);
 void web_css_style_sheet_rules_changed(void* sheet);
 void web_css_counter_style_rule_changed(void* rule);
-void* web_css_style_property_map_create(void* declarations);
 void* web_css_font_feature_values_map_create(void* rule, u8 kind);
 }
 
@@ -189,12 +187,6 @@ void web_css_counter_style_rule_changed(void* cell)
         style_scope.invalidate_counter_style_cache();
     });
     record_style_rule_declarations_changed(rule);
-}
-
-void* web_css_style_property_map_create(void* declarations)
-{
-    auto& style_properties = *static_cast<CSSStyleProperties*>(static_cast<GC::Cell*>(declarations));
-    return static_cast<GC::Cell*>(StylePropertyMap::create(style_properties).ptr());
 }
 
 void* web_css_font_feature_values_map_create(void* rule, u8 kind)

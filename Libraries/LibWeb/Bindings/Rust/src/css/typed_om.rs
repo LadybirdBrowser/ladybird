@@ -63,7 +63,7 @@ unsafe extern "C" {
         perform_type_check: bool,
     ) -> *const c_void;
     fn web_css_typed_om_keyword_style_value(property_id: u16, value: usize, perform_type_check: bool) -> *const c_void;
-    fn web_css_typed_om_style_value_list(values: *const *const c_void, count: usize) -> *const c_void;
+    fn web_css_typed_om_style_value_list(values: *const *const c_void, count: usize, comma: bool) -> *const c_void;
     fn web_css_typed_om_parse_numeric_value(css_text: usize) -> *const c_void;
     fn web_css_typed_om_parse_value(
         property: usize,
@@ -156,11 +156,19 @@ pub(crate) fn keyword_style_value_for_property(
 }
 
 /// A list of the values, separated by spaces.
-pub(crate) fn style_value_list(values: Vec<RetainedStyleValue>) -> RetainedStyleValue {
+fn create_style_value_list(values: Vec<RetainedStyleValue>, comma: bool) -> RetainedStyleValue {
     let values: Vec<_> = values.into_iter().map(RetainedStyleValue::into_raw).collect();
     // SAFETY: This hands over one strong reference to each of the values.
-    optional_style_value(unsafe { web_css_typed_om_style_value_list(values.as_ptr(), values.len()) })
+    optional_style_value(unsafe { web_css_typed_om_style_value_list(values.as_ptr(), values.len(), comma) })
         .expect("a list is a style value")
+}
+
+pub(crate) fn style_value_list(values: Vec<RetainedStyleValue>) -> RetainedStyleValue {
+    create_style_value_list(values, false)
+}
+
+pub(crate) fn comma_separated_style_value_list(values: Vec<RetainedStyleValue>) -> RetainedStyleValue {
+    create_style_value_list(values, true)
 }
 
 /// The first of the numeric types that the text parses as, https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse
@@ -169,7 +177,7 @@ pub(crate) fn parse_a_numeric_value(css_text: &Utf16String) -> Option<RetainedSt
     optional_style_value(unsafe { web_css_typed_om_parse_numeric_value(css_text.clone().into_raw()) })
 }
 
-unsafe extern "C" fn append_style_value(values: *mut c_void, value: *const c_void) {
+pub(crate) unsafe extern "C" fn append_style_value(values: *mut c_void, value: *const c_void) {
     // SAFETY: The context is the Vec of parse_a_css_style_value(), and C++ hands over a strong reference.
     unsafe { (*values.cast::<Vec<RetainedStyleValue>>()).push(RetainedStyleValue::from_raw(value)) };
 }

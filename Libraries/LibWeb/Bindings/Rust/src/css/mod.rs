@@ -70,6 +70,8 @@ pub(crate) mod media_query_list;
 pub(crate) mod media_query_list_event;
 pub(crate) mod screen;
 pub(crate) mod screen_orientation;
+pub(crate) mod style_property_map;
+pub(crate) mod style_property_map_read_only;
 pub(crate) mod style_sheet;
 pub(crate) mod style_sheet_list;
 pub(crate) mod transition_event;

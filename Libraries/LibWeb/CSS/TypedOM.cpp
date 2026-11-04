@@ -196,7 +196,7 @@ bool web_css_typed_om_property_accepts_type(u16 property_id, TypedOmValueType va
 StyleValueData const* web_css_typed_om_numeric_style_value(u16 property_id_abi, StyleValueData const* value_data, FfiCalcNode const* calculation_data, FfiNumericType numeric_type);
 StyleValueData const* web_css_typed_om_calculated_style_value(u16 property_id_abi, FfiCalcNode const* calculation_data, FfiNumericType numeric_type, bool perform_type_check);
 StyleValueData const* web_css_typed_om_keyword_style_value(u16 property_id_abi, FlatPtr raw_value, bool perform_type_check);
-StyleValueData const* web_css_typed_om_style_value_list(StyleValueData const* const* values, size_t count);
+StyleValueData const* web_css_typed_om_style_value_list(StyleValueData const* const* values, size_t count, bool comma);
 StyleValueData const* web_css_typed_om_parse_numeric_value(FlatPtr raw_css_text);
 bool web_css_typed_om_parse_value(FlatPtr raw_property, FlatPtr raw_css_text, void* values, void (*append)(void*, StyleValueData const*), FlatPtr* name_or_error);
 bool web_css_typed_om_zero_is_a_length(FlatPtr raw_property, bool is_integer);
@@ -366,13 +366,13 @@ StyleValueData const* web_css_typed_om_keyword_style_value(u16 property_id_abi, 
     return into_rust(*CustomIdentStyleValue::create(value));
 }
 
-StyleValueData const* web_css_typed_om_style_value_list(StyleValueData const* const* values, size_t count)
+StyleValueData const* web_css_typed_om_style_value_list(StyleValueData const* const* values, size_t count, bool comma)
 {
     StyleValueVector list;
     list.ensure_capacity(count);
     for (size_t i = 0; i < count; ++i)
         list.unchecked_append(StyleValue::adopt_rust_style_value_data(values[i]));
-    return into_rust(*StyleValueList::create(move(list), StyleValueList::Separator::Space));
+    return into_rust(*StyleValueList::create(move(list), comma ? StyleValueList::Separator::Comma : StyleValueList::Separator::Space));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse

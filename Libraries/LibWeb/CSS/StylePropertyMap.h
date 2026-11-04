@@ -6,30 +6,19 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
-#include <LibWeb/CSS/StylePropertyMapReadOnly.h>
+#include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Bindings/StylePropertyMap.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap
-class StylePropertyMap : public StylePropertyMapReadOnly {
-    WEB_WRAPPABLE(StylePropertyMap, StylePropertyMapReadOnly);
-    GC_DECLARE_ALLOCATOR(StylePropertyMap);
+class StylePropertyMap final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(StylePropertyMap, style_property_map)
 
 public:
     [[nodiscard]] static GC::Ref<StylePropertyMap> create(GC::Ref<CSSStyleDeclaration>);
-
-    virtual ~StylePropertyMap() override;
-
-    WebIDL::ExceptionOr<void> set(Utf16FlyString property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, Utf16String>> values);
-    WebIDL::ExceptionOr<void> append(Utf16FlyString property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, Utf16String>> values);
-    WebIDL::ExceptionOr<void> delete_(Utf16FlyString property);
-    WebIDL::ExceptionOr<void> clear();
-
-private:
-    explicit StylePropertyMap(GC::Ref<CSSStyleDeclaration>);
-
-    CSSStyleDeclaration& declarations();
 };
 
 }
