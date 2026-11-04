@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibURL/RustIntegration.h>
 #include <LibWeb/Bindings/DOMException.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Bindings/RustSerialization.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -107,6 +108,7 @@ void* web_bindings_create_callback_function(JSObject* callable, bool returns_pro
 JSCompletion web_bindings_invoke_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
 void* web_bindings_invoke_promise_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
 bool web_bindings_realm_is_window(void* realm);
+bool web_bindings_realm_is_secure_context(void* realm);
 HTML::Window* web_bindings_window_from_global_object(JSObject* global_object);
 DOM::Document* web_bindings_window_associated_document(HTML::Window*);
 bool web_bindings_document_is_fully_active(DOM::Document*);
@@ -170,6 +172,11 @@ void* web_css_wrap_object(void* realm, void* cell)
 void* web_css_realm_document(void* realm)
 {
     return static_cast<GC::Cell*>(const_cast<DOM::Document*>(HTML::relevant_window(static_cast<JS::Realm*>(realm)->global_object()).document().ptr()));
+}
+
+bool web_bindings_realm_is_secure_context(void* realm)
+{
+    return HTML::is_secure_context(principal_host_defined_environment_settings_object(*static_cast<JS::Realm*>(realm)));
 }
 
 bool web_bindings_realm_is_window(void* realm)

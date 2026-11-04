@@ -34,6 +34,7 @@ unsafe extern "C" {
 
     /// Whether the global object of the realm is a Window.
     pub(crate) fn web_bindings_realm_is_window(realm: *mut c_void) -> bool;
+    pub(crate) fn web_bindings_realm_is_secure_context(realm: *mut c_void) -> bool;
 
     /// Runs the steps with the context while an execution context of the realm is on the stack, as an
     /// HTML::TemporaryExecutionContext puts it there, with callbacks enabled if `callbacks_enabled`.

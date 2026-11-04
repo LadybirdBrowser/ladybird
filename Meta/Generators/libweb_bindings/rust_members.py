@@ -44,6 +44,7 @@ SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {
     "NewObject",
     "PutForwards",
     "SameObject",
+    "SecureContext",
 }
 SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {
     "Default",
@@ -329,7 +330,7 @@ def rust_members(interface: Interface) -> RustMembers:
         event handler."""
         if attribute.readonly or not attribute.name.startswith("on"):
             fail(f"its event handler IDL attribute {attribute.name} is not a plain attribute named on<event type>")
-        check_extended_attributes(attribute.name, attribute.extended_attributes, {"ImplementedAs"})
+        check_extended_attributes(attribute.name, attribute.extended_attributes, {"ImplementedAs", "SecureContext"})
         setter_method = None
         if "ImplementedAs" in attribute.extended_attributes:
             setter_method = method_of(attribute.name, attribute.extended_attributes)
