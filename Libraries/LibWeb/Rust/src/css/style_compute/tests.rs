@@ -440,23 +440,27 @@ fn absolute_units_resolve() {
     assert_eq!(inch.px, 96.0);
 }
 
+fn computed(value: f64) -> Option<ComputedNumber> {
+    Some(ComputedNumber::Computed(value))
+}
+
 #[test]
 fn font_weight_keywords_compute() {
     let bolder = StyleValueData::Keyword {
         keyword: keyword::BOLDER,
     };
-    assert_eq!(compute_font_weight(&bolder, 300.0).value, 400.0);
-    assert_eq!(compute_font_weight(&bolder, 400.0).value, 700.0);
-    assert_eq!(compute_font_weight(&bolder, 700.0).value, 900.0);
-    assert_eq!(compute_font_weight(&bolder, 900.0).value, 900.0);
+    assert_eq!(compute_font_weight(&bolder, 300.0), computed(400.0));
+    assert_eq!(compute_font_weight(&bolder, 400.0), computed(700.0));
+    assert_eq!(compute_font_weight(&bolder, 700.0), computed(900.0));
+    assert_eq!(compute_font_weight(&bolder, 900.0), computed(900.0));
 
     let lighter = StyleValueData::Keyword {
         keyword: keyword::LIGHTER,
     };
-    assert_eq!(compute_font_weight(&lighter, 50.0).value, 50.0);
-    assert_eq!(compute_font_weight(&lighter, 400.0).value, 100.0);
-    assert_eq!(compute_font_weight(&lighter, 700.0).value, 400.0);
-    assert_eq!(compute_font_weight(&lighter, 900.0).value, 700.0);
+    assert_eq!(compute_font_weight(&lighter, 50.0), computed(50.0));
+    assert_eq!(compute_font_weight(&lighter, 400.0), computed(100.0));
+    assert_eq!(compute_font_weight(&lighter, 700.0), computed(400.0));
+    assert_eq!(compute_font_weight(&lighter, 900.0), computed(700.0));
 
     assert_eq!(
         compute_font_weight(
@@ -464,15 +468,17 @@ fn font_weight_keywords_compute() {
                 keyword: keyword::NORMAL
             },
             700.0
-        )
-        .value,
-        400.0
+        ),
+        computed(400.0)
     );
     assert_eq!(
-        compute_font_weight(&StyleValueData::Keyword { keyword: keyword::BOLD }, 100.0).value,
-        700.0
+        compute_font_weight(&StyleValueData::Keyword { keyword: keyword::BOLD }, 100.0),
+        computed(700.0)
     );
-    assert!(compute_font_weight(&StyleValueData::Number { value: 512.0 }, 100.0).unchanged);
+    assert_eq!(
+        compute_font_weight(&StyleValueData::Number { value: 512.0 }, 100.0),
+        Some(ComputedNumber::Unchanged)
+    );
 }
 
 #[test]
@@ -480,25 +486,25 @@ fn font_width_keywords_compute() {
     assert_eq!(
         compute_font_width(&StyleValueData::Keyword {
             keyword: keyword::ULTRA_CONDENSED
-        })
-        .value,
-        50.0
+        }),
+        computed(50.0)
     );
     assert_eq!(
         compute_font_width(&StyleValueData::Keyword {
             keyword: keyword::SEMI_EXPANDED
-        })
-        .value,
-        112.5
+        }),
+        computed(112.5)
     );
     assert_eq!(
         compute_font_width(&StyleValueData::Keyword {
             keyword: keyword::NORMAL
-        })
-        .value,
-        100.0
+        }),
+        computed(100.0)
     );
-    assert!(compute_font_width(&StyleValueData::Percentage { value: 80.0 }).unchanged);
+    assert_eq!(
+        compute_font_width(&StyleValueData::Percentage { value: 80.0 }),
+        Some(ComputedNumber::Unchanged)
+    );
 }
 
 #[test]
@@ -514,7 +520,7 @@ fn font_size_keywords_compute() {
         sixteen,
         1.0,
     );
-    assert_eq!(medium.value, 16.0);
+    assert_eq!(medium, computed(16.0));
     let large = compute_font_size(
         &StyleValueData::Keyword {
             keyword: keyword::LARGE,
@@ -525,7 +531,7 @@ fn font_size_keywords_compute() {
         sixteen,
         1.0,
     );
-    assert_eq!(large.value, 18.0);
+    assert_eq!(large, computed(18.0));
     let percent = compute_font_size(
         &StyleValueData::Percentage { value: 150.0 },
         0,
@@ -534,7 +540,7 @@ fn font_size_keywords_compute() {
         sixteen,
         1.0,
     );
-    assert_eq!(percent.value, 24.0);
+    assert_eq!(percent, computed(24.0));
     let math = compute_font_size(
         &StyleValueData::Keyword { keyword: keyword::MATH },
         1,
@@ -543,7 +549,7 @@ fn font_size_keywords_compute() {
         sixteen,
         1.0,
     );
-    assert_eq!(math.value, CssPixels::from_integer(16).scaled(0.71).to_double());
+    assert_eq!(math, computed(CssPixels::from_integer(16).scaled(0.71).to_double()));
     let math_two_levels = compute_font_size(
         &StyleValueData::Keyword { keyword: keyword::MATH },
         2,
@@ -553,8 +559,8 @@ fn font_size_keywords_compute() {
         1.0,
     );
     assert_eq!(
-        math_two_levels.value,
-        CssPixels::from_integer(16).scaled(0.71f64.powi(2)).to_double()
+        math_two_levels,
+        computed(CssPixels::from_integer(16).scaled(0.71f64.powi(2)).to_double())
     );
 }
 
@@ -563,34 +569,34 @@ fn math_depth_computes() {
     let auto_add = StyleValueData::Keyword {
         keyword: keyword::AUTO_ADD,
     };
-    assert_eq!(compute_math_depth(&auto_add, 2, true).value, 3.0);
-    assert_eq!(compute_math_depth(&auto_add, 2, false).value, 2.0);
+    assert_eq!(compute_math_depth(&auto_add, 2, true), 3);
+    assert_eq!(compute_math_depth(&auto_add, 2, false), 2);
+    assert_eq!(compute_math_depth(&StyleValueData::Integer { value: 5 }, 2, true), 5);
     assert_eq!(
-        compute_math_depth(&StyleValueData::Integer { value: 5 }, 2, true).value,
-        5.0
-    );
-    assert_eq!(
-        compute_math_depth(&StyleValueData::Keyword { keyword: keyword::AUTO }, 4, true).value,
-        4.0
+        compute_math_depth(&StyleValueData::Keyword { keyword: keyword::AUTO }, 4, true),
+        4
     );
 }
 
 #[test]
 fn line_height_computes() {
     let sixteen = CssPixels::from_integer(16);
-    assert!(
+    assert_eq!(
         compute_line_height(
             &StyleValueData::Keyword {
                 keyword: keyword::NORMAL
             },
             sixteen
-        )
-        .unchanged
+        ),
+        ComputedLineHeight::Unchanged
     );
-    assert!(compute_line_height(&StyleValueData::Number { value: 1.5 }, sixteen).unchanged);
     assert_eq!(
-        compute_line_height(&StyleValueData::Percentage { value: 150.0 }, sixteen).value,
-        24.0
+        compute_line_height(&StyleValueData::Number { value: 1.5 }, sixteen),
+        ComputedLineHeight::Unchanged
+    );
+    assert_eq!(
+        compute_line_height(&StyleValueData::Percentage { value: 150.0 }, sixteen),
+        ComputedLineHeight::Px(24.0)
     );
 }
 
@@ -601,13 +607,13 @@ fn border_width_snaps() {
         value: 2.5,
         unit: unit_code("px") as u8,
     };
-    assert_eq!(compute_border_or_outline_width(&length, 2.0, 1.0, None).value, 2.5);
+    assert_eq!(compute_border_or_outline_width(&length, 2.0, 1.0, None), 2.5);
     // 0.4px at 1 dppx rounds up to 1 device pixel.
     let thin = StyleValueData::Length {
         value: 0.4,
         unit: unit_code("px") as u8,
     };
-    assert_eq!(compute_border_or_outline_width(&thin, 1.0, 1.0, None).value, 1.0);
+    assert_eq!(compute_border_or_outline_width(&thin, 1.0, 1.0, None), 1.0);
     // medium is 3px.
     assert_eq!(
         compute_border_or_outline_width(
@@ -617,8 +623,7 @@ fn border_width_snaps() {
             1.0,
             1.0,
             None
-        )
-        .value,
+        ),
         3.0
     );
 }
@@ -628,16 +633,14 @@ fn corner_shapes_map_to_superellipse_parameters() {
     assert_eq!(
         compute_corner_shape_parameter(&StyleValueData::Keyword {
             keyword: keyword::ROUND
-        })
-        .value,
-        1.0
+        }),
+        Some(1.0)
     );
     assert_eq!(
         compute_corner_shape_parameter(&StyleValueData::Keyword {
             keyword: keyword::NOTCH
-        })
-        .value,
-        f64::NEG_INFINITY
+        }),
+        Some(f64::NEG_INFINITY)
     );
 }
 
