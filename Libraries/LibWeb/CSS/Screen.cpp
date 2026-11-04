@@ -5,108 +5,58 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibGfx/Rect.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/Screen.h>
-#include <LibWeb/CSS/ScreenOrientation.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::CSS {
 
-GC_DEFINE_ALLOCATOR(Screen);
+extern "C" {
 
-GC::Ref<Screen> Screen::create(HTML::Window& window)
-{
-    return GC::Heap::the().allocate<Screen>(window);
+// Defined in Bindings/Rust/src/css/exports.rs.
+void* web_screen_create(JSVM*, void* realm, void* window);
+
+// Declared in Bindings/Rust/src/css/screen.rs.
+void web_css_screen_area(void* window, bool available, i32* width, i32* height);
+bool web_css_screen_is_extended(void* window);
 }
 
-Screen::Screen(HTML::Window& window)
-    : DOM::EventTarget()
-    , m_window(window)
+static HTML::Window& window_from_abi(void* window)
 {
+    return *static_cast<HTML::Window*>(static_cast<GC::Cell*>(window));
 }
 
-void Screen::visit_edges(Cell::Visitor& visitor)
+void web_css_screen_area(void* window, bool available, i32* width, i32* height)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_window);
-    visitor.visit(m_orientation);
-}
-
-// https://drafts.csswg.org/cssom-view-1/#dom-screen-width
-i32 Screen::width() const
-{
-    // The width attribute must return the width of the Web-exposed screen area.
-    return window().page().web_exposed_screen_area().width().to_int();
-}
-
-// https://drafts.csswg.org/cssom-view-1/#dom-screen-height
-i32 Screen::height() const
-{
-    // The height attribute must return the height of the Web-exposed screen area.
-    return window().page().web_exposed_screen_area().height().to_int();
-}
-
-// https://drafts.csswg.org/cssom-view-1/#dom-screen-availwidth
-i32 Screen::avail_width() const
-{
-    // The availWidth attribute must return the width of the Web-exposed available screen area.
-    return window().page().web_exposed_available_screen_area().width().to_int();
-}
-
-// https://drafts.csswg.org/cssom-view-1/#dom-screen-availheight
-i32 Screen::avail_height() const
-{
-    // The availHeight attribute must return the height of the Web-exposed available screen area.
-    return window().page().web_exposed_available_screen_area().height().to_int();
-}
-
-// https://drafts.csswg.org/cssom-view-1/#dom-screen-colordepth
-u32 Screen::color_depth() const
-{
-    // The colorDepth and pixelDepth attributes should return the number of bits allocated to colors for a pixel in
-    // the output device, excluding the alpha channel.
-    return 24;
-}
-
-// https://drafts.csswg.org/cssom-view-1/#dom-screen-pixeldepth
-u32 Screen::pixel_depth() const
-{
-    // The colorDepth and pixelDepth attributes should return the number of bits allocated to colors for a pixel in
-    // the output device, excluding the alpha channel.
-    return 24;
-}
-
-GC::Ref<ScreenOrientation> Screen::orientation()
-{
-    if (!m_orientation)
-        m_orientation = ScreenOrientation::create(window());
-    return *m_orientation;
+    auto& page = window_from_abi(window).page();
+    auto area = available ? page.web_exposed_available_screen_area() : page.web_exposed_screen_area();
+    *width = area.width().to_int();
+    *height = area.height().to_int();
 }
 
 // https://w3c.github.io/window-management/#dom-screen-isextended
-bool Screen::is_extended() const
+bool web_css_screen_is_extended(void* window_pointer)
 {
+    auto& window = window_from_abi(window_pointer);
+
     // 1. If this's relevant global object's associated Document is not allowed to use
     //    the policy-controlled feature named "window-management", return false.
-    if (!window().associated_document().is_allowed_to_use_feature(DOM::PolicyControlledFeature::WindowManagement))
+    if (!window.associated_document().is_allowed_to_use_feature(DOM::PolicyControlledFeature::WindowManagement))
         return false;
 
     // 2. Return true if the device has more than one screen, and false otherwise.
-    return window().page().client().screen_count() > 1;
+    return window.page().client().screen_count() > 1;
 }
 
-// https://w3c.github.io/window-management/#dom-screen-onchange
-void Screen::set_onchange(GC::Ptr<WebIDL::CallbackType> event_handler)
+GC::Ref<Screen> Screen::create(HTML::Window& window)
 {
-    set_event_handler_attribute(HTML::EventNames::change, event_handler);
-}
-
-// https://w3c.github.io/window-management/#dom-screen-onchange
-GC::Ptr<WebIDL::CallbackType> Screen::onchange()
-{
-    return event_handler_attribute(HTML::EventNames::change);
+    auto* screen = web_screen_create(JS::HostABI::vm_to_abi(JS::VM::the()), &HTML::relevant_realm(window), static_cast<GC::Cell*>(&window));
+    return GC::Ref { *static_cast<Screen*>(screen) };
 }
 
 }

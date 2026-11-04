@@ -144,7 +144,6 @@ set(SOURCES
     CSS/Resolution.cpp
     CSS/ResolvedTransform.cpp
     CSS/Screen.cpp
-    CSS/ScreenOrientation.cpp
     CSS/ScrollStateContainerQuery.cpp
     CSS/Selector.cpp
     CSS/SelectorMatching.cpp

@@ -19,7 +19,7 @@ enum OrientationLockType {
 };
 
 // https://w3c.github.io/screen-orientation/#screenorientation-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface ScreenOrientation : EventTarget {
     Promise<undefined> lock(OrientationLockType orientation);
     undefined unlock();

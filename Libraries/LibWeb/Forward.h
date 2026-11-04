@@ -323,7 +323,6 @@ class RatioStyleValue;
 class Resolution;
 class ResolutionStyleValue;
 class Screen;
-class ScreenOrientation;
 class Selector;
 class ShadowStyleValue;
 class ShorthandStyleValue;

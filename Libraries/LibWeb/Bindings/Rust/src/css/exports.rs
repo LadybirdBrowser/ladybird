@@ -58,6 +58,7 @@ use super::css_unit_value::CSSUnitValue;
 use super::css_unparsed_value::CSSUnparsedValue;
 use super::media_list::MediaList;
 use super::media_query_list::MediaQueryList;
+use super::screen::Screen;
 use super::style_sheet_list::StyleSheetList;
 use super::transition_event::{TransitionEvent, TransitionEventInit};
 use super::typed_om;
@@ -494,6 +495,21 @@ pub unsafe extern "C" fn web_media_query_list_evaluate_and_report_change(vm: *mu
     // SAFETY: The caller passes the live VM and a live MediaQueryList.
     let (vm, list) = unsafe { (vm_from_abi(vm), cell_from_abi::<MediaQueryList>(list)) };
     list.evaluate_and_report_change(vm);
+}
+
+/// A new Screen of the window.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `realm` a live realm, and `window` the live Window of the realm.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_screen_create(vm: *mut c_void, realm: *mut c_void, window: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes the live VM, a live realm and a live Window.
+    let (vm, realm, window) = unsafe {
+        let (vm, realm) = realm_arguments(vm, realm);
+        (vm, realm, CppCell::from_raw(window))
+    };
+    cell_into_abi(Screen::create(vm, realm, window))
 }
 
 /// The object of a wrapper that C++ passes, if it passes one.
