@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    ::selection { color: black; background: lime; }
+    span { display: inline-block; }
+</style>
+<p id="start"><span>outside of the selection</span></p>
+<p id="end">selected text</p>
+<script>
+    getSelection().setBaseAndExtent(end.firstChild, 0, end.firstChild, 8);
+</script>
