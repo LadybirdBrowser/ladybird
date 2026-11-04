@@ -8,13 +8,11 @@
 
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/RustCSSDescriptors.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
-#include <LibWeb/CSS/CSSFontFaceDescriptors.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesMap.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
-#include <LibWeb/CSS/CSSFunctionDescriptors.h>
-#include <LibWeb/CSS/CSSPageDescriptors.h>
 #include <LibWeb/CSS/CSSPositionTryDescriptors.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -40,6 +38,9 @@ void* web_css_rule_parent_rule(void* rule);
 void* web_css_rule_parent_style_sheet(void* rule);
 FlatPtr web_css_rule_serialized(void* vm, void* rule);
 void* web_css_rule_declarations(void* vm, void* rule);
+void web_css_font_face_descriptors_create(void* vm, void* descriptors);
+void web_css_page_descriptors_create(void* vm, void* descriptors);
+void web_css_function_descriptors_create(void* vm, void* descriptors);
 }
 
 // NB: What the implementation of the rules in Rust asks of the C++ code of LibWeb.
@@ -104,6 +105,13 @@ GC::Ref<CSSStyleDeclaration> CSSRule::declarations() const
     return *static_cast<CSSStyleDeclaration*>(static_cast<GC::Cell*>(declarations));
 }
 
+static GC::Ref<CSSStyleDeclaration> create_rust_descriptors(AtRuleID at_rule, Parser::ValueParserFFI::FfiDescriptorBlock const* block, void (*create_owner)(void* vm, void* descriptors))
+{
+    auto descriptors = RustCSSDescriptors::create(at_rule, RustDescriptorBlock { Parser::ValueParserFFI::rust_descriptor_block_retain(block) });
+    create_owner(JS::HostABI::vm_to_abi(JS::VM::the()), static_cast<GC::Cell*>(descriptors.ptr()));
+    return descriptors;
+}
+
 void* web_css_rule_create_declarations(void* cell)
 {
     using namespace Parser::ValueParserFFI;
@@ -124,11 +132,11 @@ void* web_css_rule_create_declarations(void* cell)
         case CSSRule::Type::PositionTry:
             return CSSPositionTryDescriptors::create(RustDeclarationBlock { rust_declaration_block_retain(payload.declarations) });
         case CSSRule::Type::FontFace:
-            return CSSFontFaceDescriptors::create(RustDescriptorBlock { rust_descriptor_block_retain(payload.descriptors) });
+            return create_rust_descriptors(AtRuleID::FontFace, payload.descriptors, web_css_font_face_descriptors_create);
         case CSSRule::Type::Page:
-            return CSSPageDescriptors::create(RustDescriptorBlock { rust_descriptor_block_retain(payload.descriptors) });
+            return create_rust_descriptors(AtRuleID::Page, payload.descriptors, web_css_page_descriptors_create);
         case CSSRule::Type::FunctionDeclarations:
-            return CSSFunctionDescriptors::create(RustDescriptorBlock { rust_descriptor_block_retain(payload.descriptors) });
+            return create_rust_descriptors(AtRuleID::Function, payload.descriptors, web_css_function_descriptors_create);
         default:
             VERIFY_NOT_REACHED();
         }

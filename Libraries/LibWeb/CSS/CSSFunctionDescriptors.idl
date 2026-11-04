@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/css-mixins-1/#cssfunctiondescriptors
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSFunctionDescriptors : CSSStyleDeclaration {
     [LegacyNullToEmptyString] attribute CSSOMString result;
 };

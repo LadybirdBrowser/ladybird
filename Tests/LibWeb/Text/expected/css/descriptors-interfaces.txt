@@ -1,0 +1,10 @@
+font face: true true
+same object: true
+length: 3
+indexed: font-family src font-display undefined
+in: true false
+spellings: swap swap
+after dashed set: block
+after null: "" 2
+page: true 1px 1px
+parent rule: true

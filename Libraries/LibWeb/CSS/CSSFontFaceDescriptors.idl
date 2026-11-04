@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/css-fonts-4/#cssfontfacedescriptors
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSFontFaceDescriptors : CSSStyleDeclaration {
     [LegacyNullToEmptyString] attribute CSSOMString src;
     [LegacyNullToEmptyString, AttributeCallbackName=font_family_regular, ImplementedAs=font_family] attribute CSSOMString fontFamily;
