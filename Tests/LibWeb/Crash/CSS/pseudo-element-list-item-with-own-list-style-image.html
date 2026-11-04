@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<style>
+.own::before { display: list-item; content: "own"; list-style-type: none; list-style-image: linear-gradient(red, blue); }
+.inherited { list-style-image: linear-gradient(red, blue); }
+.inherited::before { display: list-item; content: "inherited"; list-style-type: none; }
+</style>
+<div class="own">a</div>
+<div class="inherited">b</div>

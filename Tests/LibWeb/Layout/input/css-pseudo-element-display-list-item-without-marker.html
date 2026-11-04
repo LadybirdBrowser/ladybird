@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+.own::before { display: list-item; content: "own"; list-style-type: none; }
+ul.inherited { list-style-type: none; }
+ul.inherited li::before { display: list-item; content: "inherited"; }
+.item { display: list-item; list-style-type: disc; }
+.item::before { display: list-item; content: "nested"; list-style-type: none; }
+.shown::before { display: list-item; content: "shown"; list-style-type: square; }
+.toggled::before { display: list-item; content: "toggled"; list-style-type: square; }
+.toggled.off::before { list-style-type: none; }
+</style>
+<div class="own">a</div>
+<ul class="inherited"><li>b</li></ul>
+<div class="item">c</div>
+<div class="shown">d</div>
+<div class="toggled" id="hides">e</div>
+<div class="toggled off" id="shows">f</div>
+<script>
+    document.body.offsetWidth;
+    hides.classList.add("off");
+    shows.classList.remove("off");
+</script>
