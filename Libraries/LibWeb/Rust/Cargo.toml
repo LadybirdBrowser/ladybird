@@ -25,7 +25,7 @@ libweb_html_tokenizer = { path = "../HTML/Parser/Rust" }
 rayon = "1.12"
 rustc-demangle = "0.1"
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
-smallvec = { version = "1.16.3", features = ["const_generics"] }
+smallvec = { version = "1.16.3", features = ["const_generics", "union"] }
 
 [build-dependencies]
 cbindgen = "0.29"
