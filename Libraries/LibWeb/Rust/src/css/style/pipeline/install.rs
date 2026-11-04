@@ -289,7 +289,13 @@ impl RetainedState {
         let ordered = std::mem::take(&mut scratch.ordered);
         let element_damages = self.element_move_damages(live, &ordered);
         let mut rows = Vec::with_capacity(ordered.len());
-        for (&node, &element_damage) in ordered.iter().zip(&element_damages) {
+        for (index, (&node, &element_damage)) in ordered.iter().zip(&element_damages).enumerate() {
+            if let Some(ahead) = ordered
+                .get(index + super::records::RECORDS_AHEAD)
+                .and_then(|&ahead| live.demanded_record(ahead))
+            {
+                ahead.prefetch();
+            }
             let Some(record) = live.demanded_record(node) else {
                 continue;
             };
