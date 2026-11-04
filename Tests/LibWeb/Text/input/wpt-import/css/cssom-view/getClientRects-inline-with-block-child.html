@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/cssom-view-1/#dom-element-getclientrects">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+
+<section>
+  <span id="target">
+    <div style="height: 50px"></div>
+  </span>
+</section>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+function assert_rect_equals(actual, expected, description) {
+  assert_equals(actual.x, expected.x, description + " - x");
+  assert_equals(actual.y, expected.y, description + " - y");
+  assert_equals(actual.width, expected.width, description + " - width");
+  assert_equals(actual.height, expected.height, description + " - height");
+}
+test(() => {
+  const target = document.getElementById("target");
+  const rects = target.getClientRects();
+  // TODO: check that it's exactly 3 fragments.
+  assert_greater_than_equal(rects.length, 2, "At least 2 fragments");
+  assert_rect_equals(
+    rects[0],
+    {x: 8, y: 8, width: 0, height: 0},
+    "First rect",
+  );
+  assert_rect_equals(
+    rects[rects.length - 1],
+    {x: 8, y: 58, width: 0, height: 0},
+    "Last rect",
+  );
+});
+</script>

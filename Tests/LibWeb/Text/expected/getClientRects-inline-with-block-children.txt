@@ -1,0 +1,17 @@
+reporter: 3 rects: 0,50 0x0 | 0,50 800x200 | 0,250 0x0 || bounding 0,50 800x200
+text-around: 3 rects: 0,2 19x16 | 0,20 800x30 | 0,52 19x16 || bounding 0,2 800x66
+two-blocks: 4 rects: 0,0 0x0 | 0,0 800x30 | 0,30 800x40 | 0,70 0x0 || bounding 0,0 800x70
+outer: 3 rects: 0,0 0x0 | 0,0 800x30 | 0,30 0x0 || bounding 0,0 800x30
+inner: 3 rects: 0,0 0x0 | 0,0 800x30 | 0,30 0x0 || bounding 0,0 800x30
+abspos: 1 rects: 0,2 19x16 || bounding 0,2 19x16
+no-block: 1 rects: 0,2 73x16 || bounding 0,2 73x16
+text-before: 3 rects: 0,2 19x16 | 0,20 800x30 | 0,50 0x0 || bounding 0,2 800x48
+relpos: 3 rects: 0,0 0x0 | 0,100 800x30 | 0,30 0x0 || bounding 0,100 800x30
+box-model: 3 rects: 0,0 0x0 | 7,0 786x30 | 0,35 0x0 || bounding 7,0 786x30
+margins-in-padding: 3 rects: 0,1 0x0 | 7,6 786x20 | 0,31 0x0 || bounding 7,6 786x20
+rtl-margins: 3 rects: 800,1 0x0 | 7,6 786x20 | 800,31 0x0 || bounding 7,6 786x20
+run-in: 3 rects: 0,0 0x0 | 0,0 80x30 | 0,30 0x0 || bounding 0,0 80x30
+rtl: 3 rects: 100,0 0x0 | 0,0 100x30 | 100,30 0x0 || bounding 0,0 100x30
+vertical-rl: 3 rects: 100,0 0x0 | 70,0 30x80 | 70,0 0x0 || bounding 70,0 30x80
+vertical-lr: 3 rects: 0,0 0x0 | 0,0 30x80 | 30,0 0x0 || bounding 0,0 30x80
+scrollTop after scrollIntoView: 950

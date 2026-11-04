@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #light, #shadow {
+        position: absolute;
+        left: 50px;
+    }
+    #light {
+        top: 50px;
+    }
+    #shadow {
+        top: 200px;
+    }
+</style>
+<!-- An inline element's client rects include the block it contains, whether that block is its light-DOM child or in
+     its shadow tree. -->
+<div id="light"><x-light><div style="width: 200px; height: 80px">light DOM block</div></x-light></div>
+<div id="shadow"><x-tile></x-tile></div>
+<script>
+    customElements.define("x-tile", class extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = `<div style="width: 200px; height: 80px">shadow DOM block</div>`;
+        }
+    });
+    test(() => {
+        const describe = (name, element) => {
+            const bounds = element.getBoundingClientRect();
+            const rects = Array.from(element.getClientRects()).map(r => `${r.x},${r.y} ${r.width}x${r.height}`);
+            println(`${name}: bounding ${bounds.x},${bounds.y} ${bounds.width}x${bounds.height}; client rects: ${rects.join(", ")}`);
+        };
+        describe("light DOM block", document.querySelector("x-light"));
+        describe("shadow DOM block", document.querySelector("x-tile"));
+    });
+</script>
