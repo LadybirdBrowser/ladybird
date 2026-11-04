@@ -33,9 +33,6 @@ interface Navigator {
     // https://w3c.github.io/battery/
     [SecureContext, Experimental] Promise<BatteryManager> getBattery();
 
-    // https://immersive-web.github.io/webxr/#navigator-xr-attribute
-    [SecureContext, SameObject] readonly attribute XRSystem xr;
-
     // https://w3c.github.io/permissions/#navigator-and-workernavigator-extension
     [SameObject] readonly attribute Permissions permissions;
 };

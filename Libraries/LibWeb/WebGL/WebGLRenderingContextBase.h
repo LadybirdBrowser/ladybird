@@ -51,12 +51,6 @@ public:
     // page can re-create its now-lost GL resources.
     void restore_context_after_compositor_reconnect();
 
-    bool xr_compatible() const;
-    void set_xr_compatible(bool);
-
-    // https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
-    GC::Ref<WebIDL::Promise> make_xr_compatible();
-
 protected:
     static JS::ThrowCompletionOr<WebGLRenderingContextBase*> create(JS::Realm&, CanvasOwner, JS::Value options, WebGLVersion);
 };

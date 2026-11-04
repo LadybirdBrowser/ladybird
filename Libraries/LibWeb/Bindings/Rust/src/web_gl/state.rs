@@ -8,7 +8,6 @@
 //! what.
 
 use core::cell::{Cell, RefCell};
-use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::ops::Deref;
 
@@ -39,7 +38,7 @@ use super::web_gl_transform_feedback::WebGLTransformFeedback;
 use super::web_gl_uniform_location::WebGLUniformLocation;
 use super::web_gl_vertex_array_object::WebGLVertexArrayObject;
 use super::web_gl_vertex_array_object_oes::WebGLVertexArrayObjectOES;
-use crate::bindings::interface::{Inherits, Interface, Ref, Wrappable, cell_into_abi};
+use crate::bindings::interface::{Inherits, Interface, Ref, Wrappable};
 use crate::bindings::{Exception, WebIdlResult};
 use crate::canvas_2d::canvas::CanvasImageSourceKind;
 
@@ -109,13 +108,6 @@ impl ContextRef {
             Self::WebGL2(context) => &context.state,
         }
     }
-
-    pub(crate) fn cell(&self) -> *mut c_void {
-        match *self {
-            Self::WebGL1(context) => cell_into_abi(context),
-            Self::WebGL2(context) => cell_into_abi(context),
-        }
-    }
 }
 
 #[derive(Clone, Copy, Trace)]
@@ -156,9 +148,6 @@ pub(crate) struct ContextState {
     context_lost: Cell<bool>,
     #[gc(untraced)]
     context_restore_requested: Cell<bool>,
-    /// https://immersive-web.github.io/webxr/#xr-compatible
-    #[gc(untraced)]
-    xr_compatible: Cell<bool>,
     #[gc(untraced)]
     context_generation: Cell<u64>,
 
@@ -227,7 +216,6 @@ impl ContextState {
             error: Cell::new(GL_NO_ERROR),
             context_lost: Cell::new(false),
             context_restore_requested: Cell::new(false),
-            xr_compatible: Cell::new(false),
             context_generation: Cell::new(0),
             unpack_state: Cell::new(PixelUnpackState::default()),
             unpack_flip_y: Cell::new(false),
@@ -291,14 +279,6 @@ impl ContextState {
 
     pub(crate) fn is_context_lost(&self) -> bool {
         self.context_lost.get()
-    }
-
-    pub(crate) fn xr_compatible(&self) -> bool {
-        self.xr_compatible.get()
-    }
-
-    pub(crate) fn set_xr_compatible(&self, xr_compatible: bool) {
-        self.xr_compatible.set(xr_compatible);
     }
 
     /// Makes `error` the error of the context, unless it has one already.

@@ -21,14 +21,12 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Internals/XRTest.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
-#include <LibWeb/WebXR/XRSystem.h>
 
 namespace Web::HTML {
 
@@ -90,7 +88,6 @@ void Navigator::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_media_capabilities);
     visitor.visit(m_media_devices);
     visitor.visit(m_credentials);
-    visitor.visit(m_xr);
     visitor.visit(m_permissions);
 }
 
@@ -141,19 +138,6 @@ GC::Ref<CredentialManagement::CredentialsContainer> Navigator::credentials()
     if (!m_credentials)
         m_credentials = CredentialManagement::CredentialsContainer::create();
     return *m_credentials;
-}
-
-GC::Ref<WebXR::XRSystem> Navigator::xr()
-{
-    if (!m_xr)
-        m_xr = WebXR::XRSystem::create(*m_window);
-    auto& realm = HTML::relevant_realm(*m_window);
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-
-    if (Window::is_internals_object_exposed())
-        Bindings::wrap(wrapper_world, realm, GC::Ref { *m_xr })->define_direct_property("test"_utf16_fly_string, Bindings::wrap(wrapper_world, realm, Internals::XRTest::create(*m_window)), JS::default_attributes);
-
-    return *m_xr;
 }
 
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints

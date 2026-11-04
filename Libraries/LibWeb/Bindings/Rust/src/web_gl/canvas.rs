@@ -17,7 +17,6 @@ use libjs_rust::api::{Gc, Object, Realm};
 use super::host::Frame;
 use super::pixel_unpacking::PixelUnpackState;
 use crate::bindings::conversions::CppInterface;
-use crate::bindings::promise::{WebIdlPromise, promise_from_abi};
 
 /// The sources of texture images that are implemented in C++, in the order of the C++ enum of the same name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,7 +69,6 @@ unsafe extern "C" {
         r#type: u32,
         out_frame: *mut *mut c_void,
     ) -> u8;
-    fn web_webgl_make_xr_compatible(context: *mut c_void) -> *mut c_void;
 }
 
 #[derive(Clone, Copy)]
@@ -195,14 +193,4 @@ fn tex_image_source_frame(result: u8, frame: *mut c_void) -> TexImageSourceFrame
         TEX_IMAGE_SOURCE_RESULT_INVALID_VALUE => TexImageSourceFrame::InvalidValue,
         unknown_result => unreachable!("LibWeb returned {unknown_result} for the reading of a texture image source"),
     }
-}
-
-/// LibWeb's C++ code settles the promise.
-///
-/// # Safety
-///
-/// `context` is the cell of a WebGL context.
-pub(crate) unsafe fn make_xr_compatible(context: *mut c_void) -> WebIdlPromise {
-    // SAFETY: The caller passes the cell of a context, and LibWeb returns a live promise.
-    unsafe { promise_from_abi(web_webgl_make_xr_compatible(context)) }
 }
