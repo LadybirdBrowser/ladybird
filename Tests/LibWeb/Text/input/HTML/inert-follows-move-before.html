@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="inert" inert><span id="span"></span><button id="button"></button></div>
+<div id="editor" contenteditable=""></div>
+<div id="inert-editor" inert contenteditable=""></div>
+<div id="plain"></div>
+<div id="inert-shadow-parent" inert><div id="from-inert" contenteditable=""><span></span></div></div>
+<div id="from-plain" contenteditable=""><span></span></div>
+<div id="inert-host" inert></div>
+<div id="host"></div>
+<script>
+    test(() => {
+        const report = label => {
+            button.focus();
+            println(`${label}: read-write ${span.matches(":read-write")}, focusable ${document.activeElement === button}`);
+            button.blur();
+        };
+        const moveTo = parent => {
+            parent.moveBefore(span, null);
+            parent.moveBefore(button, null);
+        };
+
+        report("in an inert element");
+        moveTo(editor);
+        report("moved into an editing host");
+        moveTo(document.getElementById("inert-editor"));
+        report("moved into an inert editing host");
+        moveTo(plain);
+        report("moved out");
+
+        const readWrite = (label, editor) => println(`${label}: read-write ${editor.firstChild.matches(":read-write")}`);
+        const shadowRoot = document.getElementById("inert-host").attachShadow({ mode: "open" });
+        const fromInert = document.getElementById("from-inert");
+        const fromPlain = document.getElementById("from-plain");
+        shadowRoot.moveBefore(fromInert, null);
+        readWrite("moved from an inert element into the shadow tree of an inert host", fromInert);
+        shadowRoot.moveBefore(fromPlain, null);
+        readWrite("moved into the shadow tree of an inert host", fromPlain);
+
+        const inserted = document.createElement("div");
+        inserted.setAttribute("contenteditable", "");
+        inserted.append(document.createElement("span"));
+        shadowRoot.append(inserted);
+        readWrite("inserted into the shadow tree of an inert host", inserted);
+
+        const host = document.getElementById("host");
+        host.attachShadow({ mode: "open" }).append(inserted);
+        readWrite("inserted into the shadow tree of a host", inserted);
+        host.setAttribute("inert", "");
+        readWrite("host made inert", inserted);
+        host.removeAttribute("inert");
+        readWrite("host no longer inert", inserted);
+    });
+</script>
