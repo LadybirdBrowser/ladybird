@@ -172,6 +172,7 @@ private:
     void seek_clock_and_video_sinks(AK::Duration);
     void seek_tracks_with_invalidated_data(Demuxer const&, TimeRanges const& invalidated_ranges);
     void resume_clock_and_notify_video_sinks();
+    void notify_video_sinks_of_clock_resumption();
 
     void set_clock(NonnullRefPtr<MediaClock> const&);
     void disable_audio();
