@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; font: 20px monospace; line-height: 30px; }
+</style>
+<div id="free">one two three four five</div>
+<div id="blocked">six seven eight nine ten</div>
+<div id="unselectable" style="user-select: none">eleven twelve thirteen</div>
+<div id="handler" onselectstart="println(`onselectstart attribute at ${event.target.nodeName}`); return false">fourteen fifteen</div>
+<script src="include.js"></script>
+<script>
+    const describe = () => `"${getSelection().toString()}"`;
+
+    function drag(element) {
+        const rect = element.getBoundingClientRect();
+        const y = rect.top + 15;
+        getSelection().removeAllRanges();
+        internals.mouseDown(rect.left + 1, y);
+        internals.mouseMove(rect.left + 100, y, 0, 1);
+        internals.mouseUp(rect.left + 100, y);
+        println(`${element.id}: selected ${describe()}`);
+    }
+
+    test(() => {
+        println(`document.onselectstart: ${document.onselectstart}`);
+        println(`window.onselectstart: ${window.onselectstart}`);
+        println(`div.onselectstart: ${document.createElement("div").onselectstart}`);
+
+        document.addEventListener("selectstart", event => {
+            println(`selectstart at ${event.target.nodeName}, bubbles ${event.bubbles}, cancelable ${event.cancelable}, trusted ${event.isTrusted}, selection ${describe()}`);
+            if (event.target.parentNode.id === "blocked")
+                event.preventDefault();
+        });
+
+        // A press that starts a selection fires the event before the selection changes.
+        drag(document.getElementById("free"));
+
+        // Cancelling the event leaves the selection alone, and the drag selects nothing.
+        drag(document.getElementById("blocked"));
+
+        // A press where no selection may start fires nothing.
+        drag(document.getElementById("unselectable"));
+
+        // An event handler content attribute cancels it too.
+        drag(document.getElementById("handler"));
+
+        // A double click selects a word, and a triple click a paragraph, through the same event.
+        const rect = document.getElementById("free").getBoundingClientRect();
+        for (const clickCount of [2, 3]) {
+            getSelection().removeAllRanges();
+            internals.mouseDown(rect.left + 1, rect.top + 15, clickCount);
+            internals.mouseUp(rect.left + 1, rect.top + 15);
+            println(`click count ${clickCount}: selected ${describe()}`);
+        }
+    });
+</script>
