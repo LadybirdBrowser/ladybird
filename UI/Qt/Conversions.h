@@ -25,6 +25,10 @@ namespace Ladybird {
 String ns_string_to_string(NSString*);
 NSString* string_to_ns_string(StringView);
 
+// NSString and our UTF-16 strings hold the same code units, lone surrogates included, so offsets carry over unchanged.
+Utf16String ns_string_to_utf16_string(NSString*);
+NSString* utf16_string_to_ns_string(Utf16View const&);
+
 NSData* string_to_ns_data(StringView);
 
 Gfx::Color ns_color_to_gfx_color(NSColor*);
