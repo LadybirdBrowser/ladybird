@@ -337,17 +337,17 @@ impl<'arena> LayoutPass<'arena> {
     }
 
     pub(crate) fn is_before(&self, node: Node, other: Node) -> bool {
-        self.arena().is_before(self.node_data(node), self.node_data(other))
+        self.arena().is_before(node, other)
     }
 
     pub(crate) fn saved_abspos_layout_inputs(&self, node: Node) -> Option<abspos_inputs::AbsposLayoutInputs> {
         let data = self.node_data(node);
         assert!(node_facts::kind_is_box(data.kind.get()));
-        self.arena().saved_abspos_layout_inputs(data)
+        self.arena().saved_abspos_layout_inputs(node)
     }
 
     pub(crate) fn committed_fragment_link(&self, node: Node) -> Option<FragmentLink> {
-        self.arena().committed_fragment_link(self.node_data(node))
+        self.arena().committed_fragment_link(node)
     }
 
     #[inline]

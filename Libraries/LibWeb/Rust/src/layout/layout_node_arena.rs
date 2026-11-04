@@ -543,12 +543,6 @@ struct SlotMetadata {
     occupied: bool,
 }
 
-#[derive(Clone, Copy)]
-struct ChunkAddress {
-    start: usize,
-    chunk_index: usize,
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum AncestorInvalidation {
     StructuralChange,
@@ -1078,7 +1072,6 @@ pub(crate) struct LayoutNodeArena {
     /// Advanced by every write to a node's shape, or to the style record or node kept beside it, which
     /// publication takes into the published rows.
     shape_writes: ShapeWrites,
-    chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
     style_records: Vec<u64>,
     /// How many of `style_records` name a record other than one the engine installed.
@@ -1145,10 +1138,8 @@ pub(crate) struct LayoutNodeArena {
     pre_order_labels: Vec<u64>,
     pre_order_relabel_count: u64,
     free_list: Vec<u32>,
-    next_index: u32,
     live_count: u32,
     default_scroll_shift_anchors: Vec<DefaultScrollShiftAnchorSlot>,
-    any_default_scroll_shift_anchor_ever_stored: bool,
     text_slots: TextSlots,
     pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
     replaced_content_facts: CowVec<ReplacedContentFactsSlot, REPLACED_CONTENT_FACTS_PER_CHUNK>,
@@ -1253,7 +1244,6 @@ impl LayoutNodeArena {
             chunks: Vec::new(),
             tree_shape: TreeShape::default(),
             shape_writes: ShapeWrites::default(),
-            chunks_by_address: Vec::new(),
             slot_metadata: Vec::new(),
             style_records: Vec::new(),
             rows_naming_uninstalled_records: 0,
@@ -1286,10 +1276,8 @@ impl LayoutNodeArena {
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: 0,
             free_list: Vec::new(),
-            next_index: 0,
             live_count: 0,
             default_scroll_shift_anchors: Vec::new(),
-            any_default_scroll_shift_anchor_ever_stored: false,
             text_slots: TextSlots::default(),
             searchable_text: None,
             replaced_content_facts: CowVec::default(),
@@ -1503,19 +1491,14 @@ impl LayoutNodeArena {
         let index = if let Some(index) = self.free_list.pop() {
             index
         } else {
-            let index = self.next_index;
+            let index = u32::try_from(self.slot_metadata.len()).expect("layout node arena exhausted its slot ID space");
             assert!(
                 index < MAX_NODE_SLOT_COUNT,
                 "layout node arena exhausted its 24-bit slot index space"
             );
             if (index as usize).is_multiple_of(SLOTS_PER_CHUNK) {
-                let chunk = Chunk::new();
-                let start = chunk.slots_address();
                 let chunk_index = self.chunks.len();
-                let insertion_index = self.chunks_by_address.partition_point(|address| address.start < start);
-                self.chunks_by_address
-                    .insert(insertion_index, ChunkAddress { start, chunk_index });
-                self.chunks.push(chunk);
+                self.chunks.push(Chunk::new());
                 self.shape_writes.add_chunk(chunk_index);
             }
             self.slot_metadata.push(SlotMetadata::default());
@@ -1527,10 +1510,6 @@ impl LayoutNodeArena {
             self.next_rows_with_same_style_node.push(NodeSlotId::INVALID);
             self.next_rows_built_for_same_node.push(NodeSlotId::INVALID);
             self.pre_order_labels.push(0);
-            self.next_index = self
-                .next_index
-                .checked_add(1)
-                .expect("layout node arena exhausted its slot ID space");
             index
         };
 
@@ -2890,16 +2869,6 @@ impl LayoutNodeArena {
     /// and the flags the arena shares with the host are its own. See [`crate::fork`].
     pub(crate) fn fork(&self, engine: crate::css::style::StyleEngineHandle) -> Self {
         let mut fork = self.clone();
-        fork.chunks_by_address = fork
-            .chunks
-            .iter()
-            .enumerate()
-            .map(|(chunk_index, chunk)| ChunkAddress {
-                start: chunk.slots_address(),
-                chunk_index,
-            })
-            .collect();
-        fork.chunks_by_address.sort_unstable_by_key(|address| address.start);
         fork.style_engine = ArenaStyleEngine(engine);
         fork.svg_paint_resources.detach_enrolled_flag_for_fork();
         fork.first_letter_styles_derived = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(
@@ -4978,38 +4947,6 @@ impl LayoutNodeArena {
         true
     }
 
-    fn slot_for_data(&self, data: &NodeData) -> (u32, SlotMetadata) {
-        let data_address = std::ptr::from_ref(data) as usize;
-        let slot_size = size_of::<NodeData>();
-
-        let address_index = self
-            .chunks_by_address
-            .partition_point(|address| address.start <= data_address);
-        assert_ne!(
-            address_index, 0,
-            "layout node data pointer does not belong to this arena"
-        );
-        let address = self.chunks_by_address[address_index - 1];
-        let chunk_end = address.start + size_of::<[NodeData; SLOTS_PER_CHUNK]>();
-        assert!(
-            data_address < chunk_end,
-            "layout node data pointer does not belong to this arena"
-        );
-
-        let offset = data_address - address.start;
-        assert_eq!(offset % slot_size, 0, "unaligned layout node arena data pointer");
-        let index = address.chunk_index * SLOTS_PER_CHUNK + offset / slot_size;
-        let index = u32::try_from(index).expect("layout node arena slot index overflowed");
-        let metadata = *self.metadata(index);
-        assert!(metadata.occupied, "layout node arena access for an unused slot");
-        let generation = data.slot_generation.get();
-        assert_eq!(
-            generation, metadata.generation,
-            "layout node arena access used a stale slot"
-        );
-        (index, metadata)
-    }
-
     pub(crate) fn node_pre_order_label(&self, id: NodeSlotId) -> u64 {
         let _ = self.data(id);
         self.pre_order_labels[id.slot_index() as usize]
@@ -5149,18 +5086,18 @@ impl LayoutNodeArena {
         root_of(node) == root_of(other)
     }
 
-    pub(crate) fn is_before(&self, node: &NodeData, other: &NodeData) -> bool {
-        let (node_index, node_metadata) = self.slot_for_data(node);
-        let (other_index, other_metadata) = self.slot_for_data(other);
-        let node = NodeSlotId::new(node_index, node_metadata.generation);
-        let other = NodeSlotId::new(other_index, other_metadata.generation);
+    pub(crate) fn is_before(&self, node: NodeSlotId, other: NodeSlotId) -> bool {
+        assert!(
+            self.slot_is_live(node) && self.slot_is_live(other),
+            "layout node arena compared a stale or unused slot"
+        );
         assert_ne!(node, other, "a layout node cannot precede itself");
         #[cfg(debug_assertions)]
         debug_assert!(
             self.nodes_share_a_layout_tree_root(node, other),
             "layout nodes belong to different trees"
         );
-        self.node_pre_order_label(node) < self.node_pre_order_label(other)
+        self.pre_order_labels[node.slot_index() as usize] < self.pre_order_labels[other.slot_index() as usize]
     }
 
     /// Notes the position option the committed layout of the box `node` uses, or that it uses none.
@@ -5203,17 +5140,16 @@ impl LayoutNodeArena {
         self.position_options_in_use = in_use;
     }
 
-    pub(crate) fn saved_abspos_layout_inputs(&self, data: &NodeData) -> Option<AbsposLayoutInputs> {
-        let (index, metadata) = self.slot_for_data(data);
+    pub(crate) fn saved_abspos_layout_inputs(&self, node: NodeSlotId) -> Option<AbsposLayoutInputs> {
+        assert!(
+            self.slot_is_live(node),
+            "layout node arena read absolute positioning inputs of a stale or unused slot"
+        );
         self.paintable_rows
-            .with_committed_fragment_link(index, metadata.generation, |link| {
+            .with_committed_fragment_link(node.slot_index(), node.generation(), |link| {
                 link.and_then(|link| link.abspos_layout_inputs.as_deref().copied())
             })
-            .or_else(|| {
-                self.confined_abspos_layout_inputs
-                    .get(&NodeSlotId::new(index, metadata.generation))
-                    .copied()
-            })
+            .or_else(|| self.confined_abspos_layout_inputs.get(&node).copied())
     }
 
     pub(crate) fn set_default_scroll_shift(
@@ -5257,9 +5193,6 @@ impl LayoutNodeArena {
             NodeFlag::CompensatesForVerticalScroll,
             compensates_for_vertical_scroll,
         );
-        if anchor_is_live {
-            self.any_default_scroll_shift_anchor_ever_stored = true;
-        }
         if scroll_shift_inputs_changed {
             self.note_visual_context_box_dirty(
                 id,
@@ -5269,9 +5202,6 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn default_scroll_shift_anchor(&self, id: NodeSlotId) -> NodeSlotId {
-        if !self.any_default_scroll_shift_anchor_ever_stored {
-            return NodeSlotId::INVALID;
-        }
         let slots = &self.default_scroll_shift_anchors;
         let Some(slot) = slots.get(id.slot_index() as usize) else {
             return NodeSlotId::INVALID;
@@ -5283,13 +5213,10 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn may_have_default_scroll_shift_anchor(&self) -> bool {
-        self.any_default_scroll_shift_anchor_ever_stored
+        !self.default_scroll_shift_anchors.is_empty()
     }
 
     pub(crate) fn for_each_default_scroll_shift_anchor(&self, mut visit: impl FnMut(NodeSlotId, NodeSlotId)) {
-        if !self.any_default_scroll_shift_anchor_ever_stored {
-            return;
-        }
         let slots = &self.default_scroll_shift_anchors;
         for (index, slot) in slots.iter().enumerate() {
             if slot.anchor.is_invalid() || slot.generation == 0 {
@@ -5302,13 +5229,16 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn committed_fragment_link(&self, data: &NodeData) -> Option<super::fragment_tree::FragmentLink> {
-        let (index, metadata) = self.slot_for_data(data);
+    pub(crate) fn committed_fragment_link(&self, node: NodeSlotId) -> Option<super::fragment_tree::FragmentLink> {
+        assert!(
+            self.slot_is_live(node),
+            "layout node arena read a committed fragment link of a stale or unused slot"
+        );
         let link = self
             .paintable_rows
-            .committed_fragment_link_cloned(index, metadata.generation);
+            .committed_fragment_link_cloned(node.slot_index(), node.generation());
 
-        let flags = data.flags.get();
+        let flags = self.data(node).flags.get();
         assert_eq!(
             flags & NodeFlag::HasCommittedFragmentLink as u32 != 0,
             link.is_some(),
@@ -6226,12 +6156,6 @@ impl LayoutNodeArena {
             .get_mut(index / SLOTS_PER_CHUNK)
             .expect("invalid layout node arena slot ID");
         chunk.slot_mut(index / SLOTS_PER_CHUNK, index % SLOTS_PER_CHUNK, &mut self.shape_writes)
-    }
-
-    fn metadata(&self, index: u32) -> &SlotMetadata {
-        self.slot_metadata
-            .get(index as usize)
-            .expect("invalid layout node arena slot ID")
     }
 
     fn metadata_mut(&mut self, index: u32) -> &mut SlotMetadata {
@@ -7631,11 +7555,8 @@ mod tests {
         let mut link = fragment_tree::FragmentLink::for_test(allocation.slot);
         link.abspos_layout_inputs = Some(std::sync::Arc::new(inputs));
         arena.set_committed_fragment_link(allocation.slot, link, None);
-        assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_some());
-        assert_eq!(
-            arena.saved_abspos_layout_inputs(arena.data(allocation.slot)),
-            Some(inputs)
-        );
+        assert!(arena.committed_fragment_link(allocation.slot).is_some());
+        assert_eq!(arena.saved_abspos_layout_inputs(allocation.slot), Some(inputs));
 
         let work = crate::layout::tree_mutation::OwedHostWork::default();
         crate::painting::ffi::paintable_cleared_from_node(
@@ -7644,8 +7565,8 @@ mod tests {
             allocation.slot,
         );
 
-        assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_none());
-        assert_eq!(arena.saved_abspos_layout_inputs(arena.data(allocation.slot)), None);
+        assert!(arena.committed_fragment_link(allocation.slot).is_none());
+        assert_eq!(arena.saved_abspos_layout_inputs(allocation.slot), None);
         arena
             .free_subtree(allocation.slot)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
@@ -7668,15 +7589,15 @@ mod tests {
         assert!(std::sync::Arc::ptr_eq(&moved.fragment, &retained_fragment));
         arena.set_committed_fragment_link(new.slot, moved, None);
 
-        assert!(arena.committed_fragment_link(arena.data(old.slot)).is_none());
-        assert_eq!(arena.saved_abspos_layout_inputs(arena.data(old.slot)), None);
-        assert_eq!(arena.saved_abspos_layout_inputs(arena.data(new.slot)), Some(inputs));
+        assert!(arena.committed_fragment_link(old.slot).is_none());
+        assert_eq!(arena.saved_abspos_layout_inputs(old.slot), None);
+        assert_eq!(arena.saved_abspos_layout_inputs(new.slot), Some(inputs));
         let moved = arena
-            .committed_fragment_link(arena.data(new.slot))
+            .committed_fragment_link(new.slot)
             .expect("new slot must receive the committed fragment");
         assert!(std::sync::Arc::ptr_eq(&moved.fragment, &retained_fragment));
         arena.set_committed_fragment_link(new.slot, fragment_tree::FragmentLink::for_test(new.slot), None);
-        assert_eq!(arena.saved_abspos_layout_inputs(arena.data(new.slot)), None);
+        assert_eq!(arena.saved_abspos_layout_inputs(new.slot), None);
         arena
             .free_subtree(old.slot)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());

@@ -168,7 +168,7 @@ impl LayoutNodeArena {
         if node_facts::has_flag(data, NodeFlag::IsDocumentElement) {
             return false;
         }
-        if self.saved_abspos_layout_inputs(data).is_none() {
+        if self.saved_abspos_layout_inputs(node).is_none() {
             return false;
         }
 
@@ -436,7 +436,7 @@ impl LayoutNodeArena {
     fn containing_block_the_commit_stands_in(&self, node: NodeSlotId) -> Option<NodeSlotId> {
         let data = self.data(node);
         let committed = if node_facts::node_style_view(data).is_some_and(|style| style.is_absolutely_positioned()) {
-            self.saved_abspos_layout_inputs(data)?.containing_block
+            self.saved_abspos_layout_inputs(node)?.containing_block
         } else {
             self.with_committed_fragment_link(node, |link| link.map(|link| link.containing_block))?
         };
@@ -445,7 +445,7 @@ impl LayoutNodeArena {
 
     pub(crate) fn node_can_replay_saved_abspos_layout_inputs_after_style_change(&self, node: NodeSlotId) -> bool {
         let data = self.data(node);
-        let Some(inputs) = self.saved_abspos_layout_inputs(data) else {
+        let Some(inputs) = self.saved_abspos_layout_inputs(node) else {
             return false;
         };
         if inputs.containing_block.is_invalid() || !self.slot_is_live(inputs.containing_block) {
