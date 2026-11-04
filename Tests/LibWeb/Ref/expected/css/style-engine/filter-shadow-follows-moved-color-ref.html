@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    .box { width: 50px; height: 50px; margin: 30px; background: gray; }
+    .implicit { filter: drop-shadow(8px 8px); }
+    .explicit { filter: drop-shadow(8px 8px currentcolor); }
+    .backdrop-root { position: relative; width: 200px; height: 200px; opacity: 0.99; }
+    .square { position: absolute; left: 40px; top: 40px; width: 20px; height: 20px; background: black; }
+    .backdrop { position: absolute; left: 10px; top: 10px; width: 120px; height: 120px; backdrop-filter: drop-shadow(8px 8px); }
+    .pseudo::before { content: ""; display: block; width: 50px; height: 50px; margin: 30px; background: gray; filter: drop-shadow(8px 8px); }
+</style>
+<div style="color: rgb(0, 0, 255)">
+    <div class="box implicit"></div>
+    <div class="box explicit"></div>
+</div>
+<div style="color: rgb(0, 0, 255)">
+    <div class="box implicit"></div>
+    <div class="box explicit"></div>
+</div>
+<div class="backdrop-root">
+    <div class="square"></div>
+    <div class="backdrop" style="color: rgb(0, 0, 255)"></div>
+</div>
+<div class="pseudo" style="color: rgb(0, 0, 255)"></div>

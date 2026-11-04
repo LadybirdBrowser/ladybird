@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/style-engine/filter-shadow-follows-moved-color-ref.html">
+<style>
+    .box { width: 50px; height: 50px; margin: 30px; background: gray; }
+    .implicit { filter: drop-shadow(8px 8px); }
+    .explicit { filter: drop-shadow(8px 8px currentcolor); }
+    .backdrop-root { position: relative; width: 200px; height: 200px; opacity: 0.99; }
+    .square { position: absolute; left: 40px; top: 40px; width: 20px; height: 20px; background: black; }
+    .backdrop { position: absolute; left: 10px; top: 10px; width: 120px; height: 120px; backdrop-filter: drop-shadow(8px 8px); }
+    .pseudo::before { content: ""; display: block; width: 50px; height: 50px; margin: 30px; background: gray; filter: drop-shadow(8px 8px); }
+</style>
+<div id="animated" style="color: rgb(255, 0, 0)">
+    <div class="box implicit"></div>
+    <div class="box explicit"></div>
+</div>
+<div id="inherited" style="color: rgb(255, 0, 0)">
+    <div class="box implicit"></div>
+    <div class="box explicit"></div>
+</div>
+<div class="backdrop-root">
+    <div class="square"></div>
+    <div id="backdrop" class="backdrop" style="color: rgb(255, 0, 0)"></div>
+</div>
+<div id="pseudo" class="pseudo" style="color: rgb(255, 0, 0)"></div>
+<script>
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const animation = document.getElementById("animated").animate([
+        { color: "rgb(0, 128, 0)", offset: 0 },
+        { color: "rgb(0, 128, 0)", offset: 0.5 },
+        { color: "rgb(0, 0, 255)", offset: 0.5 },
+        { color: "rgb(0, 0, 255)", offset: 1 },
+    ], { duration: 1000, fill: "both" });
+    const keyframes = animation.effect.getKeyframes();
+    const backdropAnimation = document.getElementById("backdrop").animate(keyframes, { duration: 1000, fill: "both" });
+    const pseudoAnimation = document.getElementById("pseudo").animate(keyframes, { duration: 1000, fill: "both" });
+    animation.pause();
+    backdropAnimation.pause();
+    pseudoAnimation.pause();
+    (async () => {
+        animation.currentTime = backdropAnimation.currentTime = pseudoAnimation.currentTime = 250;
+        await nextFrame();
+        animation.currentTime = backdropAnimation.currentTime = pseudoAnimation.currentTime = 750;
+        document.getElementById("inherited").style.color = "rgb(0, 0, 255)";
+        await nextFrame();
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>

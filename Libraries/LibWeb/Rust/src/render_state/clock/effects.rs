@@ -18,9 +18,7 @@ use crate::css::style::layout_style::DerivedStyleRecord;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::{SampleBounds, StyleEngine};
 use crate::css::transition::{HoverTransitions, LaneTransitions};
-use crate::layout::node_data::{
-    GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId, pseudo_kind_of,
-};
+use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId};
 use crate::layout::{LayoutNodeArena, SampleKind, StyleRelayout};
 use crate::painting::host::FfiVisualAnimationTargetKind;
 use crate::painting::record::damage::PaintDamage;
@@ -516,13 +514,10 @@ impl Lane {
                     inherited.set_owned(property, entry.clone_value(), true, false);
                 }
             }
-            match state.engine_mut().compose_overlay_over_record(
-                *descendant,
-                crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
-                &host_record,
-                &inherited,
-                bounds,
-            ) {
+            match state
+                .engine_mut()
+                .compose_overlay_over_record(*descendant, &host_record, &inherited, bounds)
+            {
                 Ok(sample) => samples.push((row, *descendant, sample, &properties[..])),
                 Err(needs_host) => {
                     composed = Err(needs_host);
@@ -626,13 +621,9 @@ impl Lane {
                     }
                 }
                 let host_record = state.engine_ref().host_record(host_record).ok_or(NeedsHost)?.clone();
-                let sample = state.engine_mut().compose_overlay_over_record(
-                    *node,
-                    pseudo_kind_of(generated_for),
-                    &host_record,
-                    &inherited,
-                    bounds,
-                )?;
+                let sample = state
+                    .engine_mut()
+                    .compose_overlay_over_record(*node, &host_record, &inherited, bounds)?;
                 composed.push((row, sample, inherited_properties));
             }
         }

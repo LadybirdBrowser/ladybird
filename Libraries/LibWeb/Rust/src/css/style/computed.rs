@@ -1020,11 +1020,6 @@ impl ComputedGroupSets {
         }
     }
 
-    /// The installed record `record` names, while it is live.
-    fn installed(&self, record: FinalStyleRecordID) -> Option<&InstalledRecord> {
-        self.installed.get(record.installed_record()?)
-    }
-
     /// Take a slot for a record the engine computed, or answer the one it holds already.
     /// `dependency_flags` says what the view of a record in a new slot depends on.
     pub(super) fn install_record(
@@ -1587,10 +1582,6 @@ impl ComputedGroupSets {
             .filter_map(|row| row.published.then_some(row.kind))
     }
 
-    fn longhands_for_target(&self, target: ComputedStyleTarget) -> Option<ViewLonghands<'_>> {
-        let installed = self.installed(self.assigned_final_style_record(target)?)?;
-        Some(ViewLonghands::of_record(installed.record()))
-    }
     /// The groups whose values read, from `values`, the recorded specified values of the longhands
     /// whose computed values depend on what the element inherits, one that `depends_on_input`.
     pub(super) fn specified_value_dependency_mask_of<'a>(
@@ -1605,19 +1596,15 @@ impl ComputedGroupSets {
             .fold(0, |mask, groups| mask | groups)
     }
 
-    /// The groups whose previous specified values actually read `currentColor` while computing.
-    /// Missing dependency coverage stays typed so a color winner change can widen safely.
+    /// The groups whose specified values in `longhands` actually read `currentColor` while computing.
     #[must_use]
-    pub fn current_color_dependency_mask(&self, target: ComputedStyleTarget) -> Option<u32> {
-        let longhands = self.longhands_for_target(target)?;
-        Some(
-            Self::specified_value_dependency_mask_of(
-                longhands.inheritance_dependent_values(),
-                retained_value_depends_on_current_color,
-            ) | crate::css::table_group_builder::groups_reading_current_color_through_inherited_values(|property| {
-                longhands.value(property)
-            }),
-        )
+    pub(crate) fn current_color_dependency_mask(longhands: ViewLonghands<'_>) -> u32 {
+        Self::specified_value_dependency_mask_of(
+            longhands.inheritance_dependent_values(),
+            retained_value_depends_on_current_color,
+        ) | crate::css::table_group_builder::groups_reading_current_color_through_inherited_values(|property| {
+            longhands.value(property)
+        })
     }
 
     /// Whether a raw final record identity still names a live installed record.

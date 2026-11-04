@@ -4919,8 +4919,9 @@ pub(crate) fn value_depends_on_current_color(value: &StyleValueData) -> bool {
             retained_data_depends(light) || retained_data_depends(dark)
         }
         StyleValueData::Shadow(shadow_payload) => {
+            // A shadow without a color is `currentcolor`.
             let ShadowPayload { color, .. } = &**shadow_payload;
-            retained_data_depends(color)
+            color.optional_data().is_none_or(value_depends_on_current_color)
         }
         StyleValueData::Filter { value, .. } => retained_data_depends(value),
         StyleValueData::ScrollbarColor(scrollbar_color_payload) => {

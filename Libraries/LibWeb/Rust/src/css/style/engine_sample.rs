@@ -193,8 +193,6 @@ impl RetainedState {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn build_animation_overlay_payloads(
         &self,
-        node: StyleNodeID,
-        pseudo_kind: u8,
         view: StyleRecordView<'_>,
         longhands: ViewLonghands<'_>,
         overlay: Option<&AnimatedOverlay>,
@@ -213,8 +211,7 @@ impl RetainedState {
                 bits: view.base_payloads.style_bits(),
             });
         };
-        // A value no group is known to hold, or an animated `color` whose readers the engine cannot
-        // name, rebuilds every group.
+        // A value no group is known to hold rebuilds every group.
         let named_groups = overlay.entries().iter().try_fold(0u32, |groups, entry| {
             // NB: A value the inherited bits hold is in no group: the sample holds it beside them.
             if crate::css::computed_values::StyleBitField::of(entry.property).is_some() {
@@ -222,7 +219,7 @@ impl RetainedState {
             }
             let group = crate::css::property_metadata::property_style_group_index(entry.property)?;
             let readers = match entry.property {
-                prop::COLOR => self.current_color_dependent_group_mask(node, pseudo_kind)?,
+                prop::COLOR => Self::current_color_dependent_group_mask(longhands)?,
                 _ => 0,
             };
             Some(groups | 1 << group | readers)
@@ -482,13 +479,7 @@ impl super::StyleEngine {
         if outcome == crate::css::style_compute::FfiHostAnimationSampleOutcome::Cleared {
             overlay = AnimatedOverlay::default();
         }
-        let sample = self.compose_overlay_over_record(
-            node,
-            crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
-            record,
-            &overlay,
-            bounds,
-        )?;
+        let sample = self.compose_overlay_over_record(node, record, &overlay, bounds)?;
         Ok((sample, overlay))
     }
 
@@ -499,7 +490,6 @@ impl super::StyleEngine {
     pub(crate) fn compose_overlay_over_record(
         &mut self,
         node: StyleNodeID,
-        pseudo_kind: u8,
         record: &std::sync::Arc<super::pipeline::Record>,
         overlay: &AnimatedOverlay,
         bounds: super::style_invalidation::SampleBounds,
@@ -522,8 +512,6 @@ impl super::StyleEngine {
         let mut payloads = [std::ptr::null(); group_index::COUNT];
         let mut build = |engine: &Self, font: Option<&FfiFontGroupBuildInputs>| {
             engine.build_animation_overlay_payloads(
-                node,
-                pseudo_kind,
                 view,
                 longhands,
                 Some(overlay),
