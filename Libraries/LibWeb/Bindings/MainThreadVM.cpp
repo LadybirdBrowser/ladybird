@@ -158,7 +158,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
     main_thread_vm_ptr()->host_ensure_can_add_private_element = [](JS::Object const& object) -> JS::ThrowCompletionOr<void> {
         // 1. If O is a WindowProxy object, or implements Location, then return ThrowCompletion(a new TypeError).
         if (HTML::WindowProxy::from_object(object) || impl_from<HTML::Location>(&object))
-            return main_thread_vm_ptr()->throw_completion<JS::TypeError>("Cannot add private elements to window or location object"sv);
+            return main_thread_vm_ptr()->throw_completion<JS::TypeError>(u"Cannot add private elements to window or location object"sv);
 
         // 2. Return NormalCompletion(unused).
         return {};

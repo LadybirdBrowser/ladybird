@@ -2544,8 +2544,8 @@ void record_element_directionality(DOM::Element& element)
     if (!style_engine)
         return;
 
-    auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"sv : "ltr"sv;
-    StyleEngineFFI::style_engine_set_element_directionality(style_engine->host(), element.style_node_id(), style_engine->intern_text_atom(Utf16View { directionality }));
+    auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? u"rtl"sv : u"ltr"sv;
+    StyleEngineFFI::style_engine_set_element_directionality(style_engine->host(), element.style_node_id(), style_engine->intern_text_atom(directionality));
 }
 
 void record_element_custom_states_changed(DOM::Element& element)

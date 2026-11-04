@@ -310,7 +310,12 @@ void Utf16StringBuilder::append_ascii_without_validation(ReadonlyBytes string)
 
 void Utf16StringBuilder::append_quoted_escaped_for_json(StringView string)
 {
-    append_quoted_escaped_for_json(Utf16View { string });
+    if (string.is_ascii()) {
+        append_quoted_escaped_for_json(Utf16View::from_ascii(string));
+        return;
+    }
+    auto utf16_string = Utf16String::from_wtf8_with_replacement_character(string);
+    append_quoted_escaped_for_json(utf16_string.utf16_view());
 }
 
 void Utf16StringBuilder::append_quoted_escaped_for_json(Utf16View const& string)
@@ -470,7 +475,10 @@ ErrorOr<void> Utf16StringBuilder::try_append(Utf16View const& view)
 
 ErrorOr<void> Utf16StringBuilder::try_append_escaped_for_json(StringView string)
 {
-    return try_append_escaped_for_json(Utf16View { string });
+    if (string.is_ascii())
+        return try_append_escaped_for_json(Utf16View::from_ascii(string));
+    auto utf16_string = Utf16String::from_wtf8_with_replacement_character(string);
+    return try_append_escaped_for_json(utf16_string.utf16_view());
 }
 
 ErrorOr<void> Utf16StringBuilder::try_append_escaped_for_json(Utf16View const& string)

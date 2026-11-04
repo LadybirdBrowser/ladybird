@@ -356,7 +356,7 @@ private:
     Optional<double> convert_string_to_number(Utf16View input) const;
     Utf16String convert_number_to_string(double input) const;
 
-    WebIDL::ExceptionOr<Optional<double>> convert_string_to_date(StringView input) const;
+    WebIDL::ExceptionOr<Optional<double>> convert_string_to_date(Utf16View input) const;
     WebIDL::ExceptionOr<Optional<double>> convert_string_to_date(Utf16String const& input) const;
     Utf16String convert_date_to_string(double input) const;
 

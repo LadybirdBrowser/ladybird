@@ -23,11 +23,11 @@ WebIDL::ExceptionOr<GC::Ref<AudioWorkletProcessor>> AudioWorkletProcessor::const
     //    pending processor construction data, and a TypeError must be thrown.
     auto* global_scope = Bindings::impl_from<AudioWorkletGlobalScope>(&realm.global_object());
     if (!global_scope)
-        return realm.vm().throw_completion<JS::TypeError>("AudioWorkletProcessor can only be constructed in an AudioWorkletGlobalScope"sv);
+        return realm.vm().throw_completion<JS::TypeError>(u"AudioWorkletProcessor can only be constructed in an AudioWorkletGlobalScope"sv);
 
     auto pending_data = global_scope->take_pending_processor_construction_data();
     if (!pending_data.has_value())
-        return realm.vm().throw_completion<JS::TypeError>("AudioWorkletProcessor cannot be constructed directly; it is instantiated by AudioWorkletNode"sv);
+        return realm.vm().throw_completion<JS::TypeError>(u"AudioWorkletProcessor cannot be constructed directly; it is instantiated by AudioWorkletNode"sv);
 
     // 2. Set this's port to the pending construction data's transferred port.
     return GC::Heap::the().allocate<AudioWorkletProcessor>(*global_scope, pending_data->port);

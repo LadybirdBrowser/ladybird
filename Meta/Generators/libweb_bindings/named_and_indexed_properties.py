@@ -317,11 +317,11 @@ def svg_list_indexed_property_setter_conversion(
     value_type = fully_qualified_name_for_interface(value_interface)
     return f"""[&]() -> JS::ThrowCompletionOr<GC::Ref<{value_type}>> {{
         if (!value.is_object())
-            return vm.throw_completion<JS::TypeError>("Value must be an {value_parameter.type.name}"sv);
+            return vm.throw_completion<JS::TypeError>(u"Value must be an {value_parameter.type.name}"sv);
 
         if (auto* impl = Web::Bindings::impl_from<{value_type}>(&value.as_object()))
             return GC::Ref {{ *impl }};
-        return vm.throw_completion<JS::TypeError>("Value must be an {value_parameter.type.name}"sv);
+        return vm.throw_completion<JS::TypeError>(u"Value must be an {value_parameter.type.name}"sv);
     }}()"""
 
 

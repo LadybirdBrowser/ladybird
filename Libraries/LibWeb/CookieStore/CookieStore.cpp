@@ -167,7 +167,7 @@ static GC::Ref<CookieListCompletionSteps> create_cookie_list_completion_steps(JS
     });
 }
 
-static GC::Ref<CookieMutationCompletionSteps> create_cookie_mutation_completion_steps(JS::Object& global, GC::Ref<WebIDL::Promise> promise, StringView failure_message)
+static GC::Ref<CookieMutationCompletionSteps> create_cookie_mutation_completion_steps(JS::Object& global, GC::Ref<WebIDL::Promise> promise, Utf16View failure_message)
 {
     return GC::Function<void(bool)>::create(GC::Heap::the(), [global = GC::Ref { global }, promise, failure_message](bool result) {
         // NB: The UI's notification of this mutation's cookie changes is handled from a deferred invocation scheduled while
@@ -549,7 +549,7 @@ GC::Ref<WebIDL::Promise> CookieStore::set(JS::Realm& realm, CookieInit const& op
     if (!url.has_value())
         return promise;
 
-    set(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name, value, domain or path are malformed"sv));
+    set(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, u"Name, value, domain or path are malformed"sv));
     return promise;
 }
 
@@ -569,7 +569,7 @@ GC::Ref<WebIDL::Promise> CookieStore::set(JS::Realm& realm, Utf16String name, Ut
     if (!url.has_value())
         return promise;
 
-    set(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name or value are malformed"sv));
+    set(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, u"Name or value are malformed"sv));
     return promise;
 }
 
@@ -613,7 +613,7 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(JS::Realm& realm, CookieStoreDelet
     if (!url.has_value())
         return promise;
 
-    delete_(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name is malformed"sv));
+    delete_(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, u"Name is malformed"sv));
     return promise;
 }
 
@@ -630,7 +630,7 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(JS::Realm& realm, Utf16String name
     if (!url.has_value())
         return promise;
 
-    delete_(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name is malformed"sv));
+    delete_(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, u"Name is malformed"sv));
     return promise;
 }
 

@@ -821,7 +821,7 @@ void MediaControls::update_placeholder_visibility()
     if (!m_dom->placeholder_circle)
         return;
 
-    auto display = should_show_placeholder() ? "flex"sv : "none"sv;
+    auto display = should_show_placeholder() ? u"flex"sv : u"none"sv;
     MUST(m_dom->placeholder_circle->style()->set_property(CSS::PropertyID::Display, display));
 }
 
