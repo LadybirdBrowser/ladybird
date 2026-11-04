@@ -62,7 +62,9 @@
 
         // The compositor scrolls a gesture the box keeps by nothing, and the page stays where it was.
         box.style.overscrollBehavior = "contain";
-        await waitForCondition(() => internals.compositorWheelTargetAt(...besideTheScroller, 0, -50).decision === "no-scroll-target");
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
         internals.beginInputTrace();
         await internals.wheelThroughUIProcess(...besideTheScroller, 0, -50, true, "ongoing");
         await internals.wheelThroughUIProcess(...besideTheScroller, 0, 0, true, "ended");
