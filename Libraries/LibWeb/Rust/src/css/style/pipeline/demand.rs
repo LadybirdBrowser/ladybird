@@ -15,7 +15,9 @@ use super::super::container_queries::ContainerVerdict;
 use super::super::publication::{DemandedEngineRecord, RecordDemand, RecordDemandAnswer};
 use super::super::*;
 use super::live::Live;
-use super::records::{ChildImpact, MatchList, PseudoElementRecords, Record, RecordCells, Records, RetainedRecords};
+use super::records::{
+    ChildImpact, MatchList, PseudoElementRecords, Record, RecordCells, Records, RetainedRecords, highlights_moved,
+};
 use super::rule_changes::RuleIndexChanges;
 use super::rules::RuleIndex;
 use super::traversal::{self, DemandedPseudoElement, PassContext, PseudoElementRead};
@@ -40,6 +42,9 @@ struct KeptComputation {
     matches: Option<MatchList>,
     /// What it computed, which what inherits through it computed from.
     record: Arc<Record>,
+    /// The records of its highlight pseudo-elements beside `record`, which those of what inherits
+    /// through it computed from.
+    highlights: PseudoElementRecords,
 }
 
 /// Which records of the elements that keep their style below an element that is not displayed
@@ -293,6 +298,15 @@ impl Live {
             true => self.demand_records().pseudo_element_records(node),
             false => self.records.pseudo_element_records(node),
         }
+    }
+
+    /// The records of the highlight pseudo-elements of `node`, beside its current record.
+    fn demanded_highlights(&self, node: StyleNodeID) -> PseudoElementRecords {
+        self.demanded_pseudo_element_records(node)
+            .iter()
+            .filter(|(kind, _)| super::HIGHLIGHT_KINDS.contains(kind))
+            .cloned()
+            .collect()
     }
 
     /// What the container conditions of the current record of `node` read of its containers.
@@ -582,25 +596,30 @@ impl StyleEngine {
         let live = self.retained.live_style.as_ref().expect("the engine owns the document");
         let kept = &live.kept_hidden_records;
         // NB: The chain of one element can compute another of them, so what each held is taken first.
-        let mut reached: Vec<(StyleNodeID, Arc<Record>)> = kept
+        let mut reached: Vec<(StyleNodeID, Arc<Record>, PseudoElementRecords)> = kept
             .moved
             .iter()
             .filter(|node| !kept.descendants_moved.contains(node) && self.retained.projection.is_live(**node))
-            .filter_map(|&node| Some((node, kept.computed.get(&node)?.record.clone())))
+            .filter_map(|&node| {
+                let computation = kept.computed.get(&node)?;
+                Some((node, computation.record.clone(), computation.highlights.clone()))
+            })
             .collect();
-        reached.sort_unstable_by_key(|&(node, _)| node);
+        reached.sort_unstable_by_key(|&(node, ..)| node);
         let mut installed = Vec::new();
-        for (node, held) in reached {
+        for (node, held, held_highlights) in reached {
             let mut demanded = self.demand_kept_chain(node);
             let state = &self.retained;
             let live = state.live_style.as_ref().expect("the engine owns the document");
             let kept = &live.kept_hidden_records;
             // NB: An element a pass styles now holds its record, not one computed on demand.
             let current = live.demanded_record(node).filter(|_| kept.computed(node)).cloned();
+            let highlights = live.demanded_highlights(node);
             let holds_the_same = current.as_ref().is_some_and(|record| record.holds_the_same_as(&held));
             let children_stand = current.as_ref().is_some_and(|record| {
                 record.pseudo_element_styles() == held.pseudo_element_styles()
-                    && match ChildImpact::of_records(record, &held, &held.payloads) {
+                    && !highlights_moved(&highlights, &held_highlights)
+                    && match state.child_impact_of_records(node, record, &held) {
                         ChildImpact::None => true,
                         ChildImpact::ResetReaders => state.projection.style_children(node).all(|child| {
                             let record = kept.computed.get(&child).map(|computation| &computation.record);
@@ -614,6 +633,7 @@ impl StyleEngine {
             let live = self.retained.live_style.as_mut().expect("the engine owns the document");
             if let (Some(record), Some(computation)) = (current, live.kept_hidden_records.computed.get_mut(&node)) {
                 computation.record = record;
+                computation.highlights = highlights;
             }
             if children_stand {
                 live.kept_hidden_records.moved.remove(&node);
@@ -645,6 +665,7 @@ impl StyleEngine {
                     environment_reads: record.rare().reads.environment_reads,
                     matches: live.demand_records().matches_of(element).cloned(),
                     record: record.clone(),
+                    highlights: live.demanded_highlights(element),
                 })
             });
             match computation {

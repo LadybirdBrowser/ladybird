@@ -1085,6 +1085,46 @@ impl Record {
 }
 
 impl RetainedState {
+    /// Which children of `node`, an element computing `new` where it computed `old`, compute anew:
+    /// those computing from something `new` differs in from what they inherited before, `old` or
+    /// the composition of its animations over that. A child computes from its parent's inherited
+    /// groups, color, zoom, publication dependencies, display and custom properties, as a result
+    /// is reused by, and from its other groups only where it read them.
+    pub(super) fn child_impact_of_records(
+        &self,
+        node: StyleNodeID,
+        new: &Arc<Record>,
+        old: &Arc<Record>,
+    ) -> ChildImpact {
+        if Arc::ptr_eq(new, old) {
+            return ChildImpact::None;
+        }
+        // The children inherited the composition of the element's animations over the record it
+        // held, where the host composed one, and the custom properties those sampled.
+        let composition = self.computed_group_sets.composition_over_record(node, old);
+        if self.sampled_custom_property_store(node).is_some() {
+            return ChildImpact::All;
+        }
+        ChildImpact::of_records(new, old, composition.map_or(&old.payloads, |view| view.payloads))
+    }
+
+    /// The custom properties the animations of `node` sampled, where the host sampled them over
+    /// the environment of the record the element holds, borrowed.
+    fn sampled_custom_property_store(
+        &self,
+        node: StyleNodeID,
+    ) -> Option<Option<&Arc<crate::css::custom_properties::CustomPropertyStore>>> {
+        let environment = self.computed_group_sets.custom_property_environment_identity(node);
+        let sampled = self
+            .element_custom_property_data
+            .get(&node)
+            .filter(|held| {
+                held.sampled_over.is_some() && (environment == Some(held.identity) || held.sampled_over == environment)
+            })?
+            .identity;
+        Some(self.custom_property_environments.store(sampled))
+    }
+
     /// Install the record of a style the host made holding `payloads`, whose computed values are
     /// the initial ones, and answer its identity. Nothing holds
     /// the record yet: the next sweep frees it unless a holder pins it first.
@@ -1235,6 +1275,25 @@ pub(super) type HeldCustomProperties = Option<Arc<crate::css::custom_properties:
 pub(super) type BorrowedCustomProperties<'a> = Option<Cow<'a, Arc<crate::css::custom_properties::CustomPropertyStore>>>;
 
 pub(super) type PseudoElementRecords = smallvec::SmallVec<[(u8, Arc<Record>); 2]>;
+
+/// https://drafts.csswg.org/css-pseudo-4/#highlight-cascade
+/// Whether the highlight pseudo-elements of `new` hold other styles than those of `old`, which the
+/// highlight pseudo-elements of an element's children inherit from.
+pub(super) fn highlights_moved(new: &[(u8, Arc<Record>)], old: &[(u8, Arc<Record>)]) -> bool {
+    let of_kind = |records: &'_ [(u8, Arc<Record>)], kind: u8| {
+        records
+            .iter()
+            .find(|(held, _)| *held == kind)
+            .map(|(_, record)| record.clone())
+    };
+    super::HIGHLIGHT_KINDS
+        .iter()
+        .any(|&kind| match (of_kind(new, kind), of_kind(old, kind)) {
+            (None, None) => false,
+            (Some(new), Some(old)) => !Arc::ptr_eq(&new, &old) && !new.holds_the_same_as(&old),
+            _ => true,
+        })
+}
 
 /// One element's record, with the identity it shares under. Elements holding one record need not
 /// share an identity: a record reused for an equal cascade says nothing of the elements' selectors.
@@ -1832,7 +1891,9 @@ impl<'a> Records<'a> {
     /// the environment of the record the element holds: the element's own custom properties with
     /// the animated values in place of theirs.
     pub(super) fn sampled_custom_properties(&self, node: StyleNodeID) -> Option<HeldCustomProperties> {
-        self.sampled_custom_property_store(node).map(|store| store.cloned())
+        self.state
+            .sampled_custom_property_store(node)
+            .map(|store| store.cloned())
     }
 
     /// The custom properties the animations of the pseudo-element of `kind` of `node` sampled:
@@ -1846,26 +1907,6 @@ impl<'a> Records<'a> {
             .iter()
             .find(|(pseudo, held)| *pseudo == kind && held.sampled_over.is_some())?;
         self.state.custom_property_environments.store(held.identity).cloned()
-    }
-
-    /// As [`Self::sampled_custom_properties`], borrowed.
-    fn sampled_custom_property_store(
-        &self,
-        node: StyleNodeID,
-    ) -> Option<Option<&'a Arc<crate::css::custom_properties::CustomPropertyStore>>> {
-        let environment = self
-            .state
-            .computed_group_sets
-            .custom_property_environment_identity(node);
-        let sampled = self
-            .state
-            .element_custom_property_data
-            .get(&node)
-            .filter(|held| {
-                held.sampled_over.is_some() && (environment == Some(held.identity) || held.sampled_over == environment)
-            })?
-            .identity;
-        Some(self.state.custom_property_environments.store(sampled))
     }
 
     /// The record `node` held before this pass, or the one the host holds for it or composes its animations over, where
@@ -1910,11 +1951,9 @@ impl<'a> Records<'a> {
             .is_none_or(|held| !Arc::ptr_eq(held, record) && !held.holds_the_same_style_as(record))
     }
 
-    /// Which children of `node` the record this pass computed for it restyles: those computing
-    /// from something it differs in from what they inherited before, the one it held or the
-    /// composition of its animations over that. A child computes from its parent's
-    /// inherited groups, color, zoom, publication dependencies, display and custom properties, as
-    /// a result is reused by, and from its other groups only where it read them.
+    /// Which children of `node` the record this pass computed for it restyles, as
+    /// [`RetainedState::child_impact_of_records`] finds of the one it held before, or all of them
+    /// where its highlight pseudo-elements moved.
     pub(super) fn child_impact(&self, node: StyleNodeID) -> ChildImpact {
         let (Some(new), Some(old)) = (
             self.cells.held(node.element_slot()),
@@ -1927,17 +1966,7 @@ impl<'a> Records<'a> {
         if self.highlights_moved(node) {
             return ChildImpact::All;
         }
-        let new = &new.record;
-        if Arc::ptr_eq(new, old) {
-            return ChildImpact::None;
-        }
-        // The children inherited the composition of the element's animations over the record it
-        // held, where the host composed one, and the custom properties those sampled.
-        let composition = self.state.computed_group_sets.composition_over_record(node, old);
-        if self.sampled_custom_properties(node).is_some() {
-            return ChildImpact::All;
-        }
-        ChildImpact::of_records(new, old, composition.map_or(&old.payloads, |view| view.payloads))
+        self.state.child_impact_of_records(node, &new.record, old)
     }
 
     /// Whether the records this pass computed for the highlight pseudo-elements of `node` hold
@@ -1949,19 +1978,7 @@ impl<'a> Records<'a> {
         let old = self
             .previous
             .map_or(&[][..], |previous| previous.pseudo_element_records(node));
-        let of_kind = |records: &'_ [(u8, Arc<Record>)], kind: u8| {
-            records
-                .iter()
-                .find(|(held, _)| *held == kind)
-                .map(|(_, record)| record.clone())
-        };
-        super::HIGHLIGHT_KINDS
-            .iter()
-            .any(|&kind| match (of_kind(new, kind), of_kind(old, kind)) {
-                (None, None) => false,
-                (Some(new), Some(old)) => !Arc::ptr_eq(&new, &old) && !new.holds_the_same_as(&old),
-                _ => true,
-            })
+        highlights_moved(new, old)
     }
 
     pub(super) fn get(&self, node: StyleNodeID) -> Option<&'a Record> {
@@ -2273,7 +2290,7 @@ impl ContainerRecords for Records<'_> {
         }
         let record = self.get_shared(node)?;
         if self.samples_custom_properties_of(node, record)
-            && let Some(sampled) = self.sampled_custom_property_store(node)
+            && let Some(sampled) = self.state.sampled_custom_property_store(node)
         {
             return Some(sampled.map(|store| &**store));
         }
