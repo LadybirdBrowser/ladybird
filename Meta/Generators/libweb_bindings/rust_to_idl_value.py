@@ -53,7 +53,10 @@ from Utils.webidl_parser import IDLUnionType
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import OperationParameter
 
-STRING_TYPES = ("DOMString", "USVString")
+# NB: CSSOMString is a string type that an implementation chooses, https://drafts.csswg.org/cssom/#cssomstring-type,
+#     and it is a DOMString here, as it is in the C++ bindings.
+DOM_STRING_TYPES = ("CSSOMString", "DOMString")
+STRING_TYPES = (*DOM_STRING_TYPES, "USVString")
 
 
 def buffer_source_rules(idl_type: IDLType, parameter_attributes: dict[str, str]) -> str:
@@ -86,7 +89,7 @@ def rust_to_idl_value(
                 f"{what} has the type {idl_type} with [{integer_attribute}], which the Rust bindings only handle on "
                 "integer types"
             )
-    if "LegacyNullToEmptyString" in attributes and (idl_type.nullable or name != "DOMString"):
+    if "LegacyNullToEmptyString" in attributes and (idl_type.nullable or name not in DOM_STRING_TYPES):
         raise UnsupportedByRustBindings(
             f"{what} has the type {idl_type} with [LegacyNullToEmptyString], which applies to DOMString only"
         )
@@ -114,7 +117,7 @@ def rust_to_idl_value(
         raise UnsupportedByRustBindings(
             f"{what} has the type {idl_type}, which the Rust bindings do not convert to yet"
         )
-    if name == "DOMString":
+    if name in DOM_STRING_TYPES:
         if "LegacyNullToEmptyString" in attributes:
             return f"to_dom_string_treating_null_as_empty(vm, {value})"
         return f"to_dom_string(vm, {value})"
