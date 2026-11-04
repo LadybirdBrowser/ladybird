@@ -6,11 +6,9 @@
 
 //! CSSFontFeatureValuesRule, https://drafts.csswg.org/css-fonts/#cssfontfeaturevaluesrule
 
-use super::css_rule::CSSRule;
+use super::css_font_feature_values_map::CSSFontFeatureValuesMap;
 use super::css_rule::impl_rule_wrappable;
-use super::css_rule::{RuleText, wrap_cpp_cell};
-use crate::bindings::conversions::CppInterface;
-use crate::bindings::cpp_cell::CppCell;
+use super::css_rule::{AnyCSSRule, CSSRule, RuleText};
 use crate::bindings::interface::{Inherits, Ref, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use ak::Utf16String;
@@ -23,7 +21,7 @@ use libweb_rust::cssom::{FONT_FEATURE_VALUES_KINDS, serialize_identifier, serial
 use std::rc::Rc;
 
 unsafe extern "C" {
-    fn web_css_font_feature_values_map_create(rule: *mut c_void, kind: u8) -> *mut c_void;
+    fn web_css_font_feature_values_rule_clear_caches(rule: *mut c_void);
 }
 
 /// https://infra.spec.whatwg.org/#ascii-whitespace
@@ -35,8 +33,8 @@ fn is_ascii_whitespace(unit: u16) -> bool {
 #[gc(crate = libjs_rust)]
 pub(crate) struct CSSFontFeatureValuesRule {
     rule: CSSRule,
-    /// The cells of the CSSFontFeatureValuesMaps of the rule, by the kind of its feature values.
-    maps: GcRefCell<[Option<CppCell>; 7]>,
+    /// The CSSFontFeatureValuesMaps of the rule, by the kind of its feature values.
+    maps: GcRefCell<[Option<Ref<CSSFontFeatureValuesMap>>; 7]>,
 }
 
 impl_rule_wrappable!(CSSFontFeatureValuesRule);
@@ -59,18 +57,23 @@ impl CSSFontFeatureValuesRule {
         &self.rule
     }
 
-    fn map(&self, cx: &CallContext, kind: FontFeatureValuesRuleKind) -> CppInterface {
-        let index = kind as usize;
-        if let Some(map) = &self.maps.borrow()[index] {
-            return wrap_cpp_cell(cx, map);
-        }
+    /// Drops what the fonts of the document cached from the values of the rule.
+    pub(crate) fn clear_caches(&self) {
         // SAFETY: The cell is that of this object, which is live.
-        let map = unsafe { web_css_font_feature_values_map_create(self.rule.object().cell(), kind as u8) };
-        // SAFETY: LibWeb returns a live cell.
-        let map = unsafe { CppCell::from_raw(map) };
-        let result = wrap_cpp_cell(cx, &map);
+        unsafe { web_css_font_feature_values_rule_clear_caches(self.rule.object().cell()) };
+    }
+
+    fn map(&self, cx: &CallContext, kind: FontFeatureValuesRuleKind) -> Ref<CSSFontFeatureValuesMap> {
+        let index = kind as usize;
+        if let Some(map) = self.maps.borrow()[index] {
+            return map;
+        }
+        let AnyCSSRule::CSSFontFeatureValuesRule(rule) = self.rule.object() else {
+            unreachable!("this rule is a CSSFontFeatureValuesRule");
+        };
+        let map = CSSFontFeatureValuesMap::create(cx.vm(), kind, rule);
         self.maps.borrow_mut(cx.vm())[index] = Some(map);
-        result
+        map
     }
 
     fn serialized_font_family(&self) -> Utf16String {
@@ -123,37 +126,37 @@ impl CSSFontFeatureValuesRule {
     }
 
     // https://drafts.csswg.org/css-fonts/#dom-cssfontfeaturevaluesrule-annotation
-    pub(crate) fn annotation(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn annotation(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSFontFeatureValuesMap>> {
         Ok(self.map(cx, FontFeatureValuesRuleKind::Annotation))
     }
 
     // https://drafts.csswg.org/css-fonts/#dom-cssfontfeaturevaluesrule-ornaments
-    pub(crate) fn ornaments(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn ornaments(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSFontFeatureValuesMap>> {
         Ok(self.map(cx, FontFeatureValuesRuleKind::Ornaments))
     }
 
     // https://drafts.csswg.org/css-fonts/#dom-cssfontfeaturevaluesrule-stylistic
-    pub(crate) fn stylistic(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn stylistic(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSFontFeatureValuesMap>> {
         Ok(self.map(cx, FontFeatureValuesRuleKind::Stylistic))
     }
 
     // https://drafts.csswg.org/css-fonts/#dom-cssfontfeaturevaluesrule-swash
-    pub(crate) fn swash(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn swash(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSFontFeatureValuesMap>> {
         Ok(self.map(cx, FontFeatureValuesRuleKind::Swash))
     }
 
     // https://drafts.csswg.org/css-fonts/#dom-cssfontfeaturevaluesrule-charactervariant
-    pub(crate) fn character_variant(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn character_variant(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSFontFeatureValuesMap>> {
         Ok(self.map(cx, FontFeatureValuesRuleKind::CharacterVariant))
     }
 
     // https://drafts.csswg.org/css-fonts/#dom-cssfontfeaturevaluesrule-styleset
-    pub(crate) fn styleset(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn styleset(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSFontFeatureValuesMap>> {
         Ok(self.map(cx, FontFeatureValuesRuleKind::Styleset))
     }
 
     // https://drafts.csswg.org/css-fonts/#dom-cssfontfeaturevaluesrule-historicalforms
-    pub(crate) fn historical_forms(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn historical_forms(&self, cx: &mut CallContext) -> WebIdlResult<Ref<CSSFontFeatureValuesMap>> {
         Ok(self.map(cx, FontFeatureValuesRuleKind::HistoricalForms))
     }
 

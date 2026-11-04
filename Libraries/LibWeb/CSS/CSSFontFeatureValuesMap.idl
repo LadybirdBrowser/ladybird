@@ -1,5 +1,5 @@
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSFontFeatureValuesMap {
     maplike<CSSOMString, sequence<unsigned long>>;
-    [ImplementedInBindings] undefined set(CSSOMString featureValueName, (unsigned long or sequence<unsigned long>) values);
+    undefined set(CSSOMString featureValueName, (unsigned long or sequence<unsigned long>) values);
 };

@@ -10,12 +10,13 @@ use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use std::collections::HashSet;
 
-use libjs_rust::api::{Gc, GcRefCell, MarkedVec, Object, Set, Trace, Value};
+use libjs_rust::api::{Gc, GcRefCell, MarkedVec, Set, Trace, Value};
 
 use super::css_rule::wrap_cpp_cell;
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
+use crate::bindings::setlike::context_of_set;
 use crate::bindings::setlike::{Setlike, WorldEntries, WritableSetlike};
 use crate::bindings::{CallContext, WebIdlResult};
 
@@ -39,11 +40,6 @@ fn range_of_value(value: Value) -> CppCell {
 
 fn range_wrapper(cx: &CallContext, range: &CppCell) -> Value {
     Value::from_object(wrap_cpp_cell(cx, range).wrapper())
-}
-
-/// The call context of the realm that a collection of a wrapper world lives in.
-fn context_of_set<'vm>(cx: &CallContext<'vm>, set: Gc<Set>) -> CallContext<'vm> {
-    CallContext::new(cx.vm(), set.upcast::<Object>().shape().realm())
 }
 
 // https://drafts.csswg.org/css-highlight-api-1/#highlight

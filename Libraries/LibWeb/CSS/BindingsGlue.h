@@ -25,7 +25,6 @@
 
 namespace Web::CSS {
 
-class CSSFontFeatureValuesMap;
 class FontFace;
 class FontFaceState;
 class FontFaceSet;
@@ -39,13 +38,6 @@ inline WebIDL::ExceptionOr<void> register_property(JS::Realm& realm, CSS::Proper
     auto& window = HTML::relevant_window(realm.global_object());
     return CSS::register_property(window.associated_document(), definition);
 }
-
-WEB_API GC::Ref<JS::Map> map_entries(JS::Realm&, CSS::CSSFontFeatureValuesMap&);
-WEB_API Optional<JS::Value> map_get(JS::Realm&, CSS::CSSFontFeatureValuesMap&, Utf16View key);
-WEB_API bool map_has(CSS::CSSFontFeatureValuesMap&, Utf16View key);
-WEB_API bool map_remove(CSS::CSSFontFeatureValuesMap&, Utf16View key);
-WEB_API void map_clear(CSS::CSSFontFeatureValuesMap&);
-WEB_API WebIDL::ExceptionOr<void> set(CSS::CSSFontFeatureValuesMap&, Utf16String const& feature_value_name, Variant<u32, Vector<u32>> const& values);
 
 WEB_API void resolve_font_face_list_promise(JS::Realm&, WebIDL::Promise const&, Vector<NonnullRefPtr<CSS::FontFaceState>> const&);
 WEB_API void resolve_font_face_set_promise(JS::Realm&, WebIDL::Promise const&, CSS::FontFaceSet&);

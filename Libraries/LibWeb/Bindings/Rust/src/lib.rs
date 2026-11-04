@@ -125,6 +125,11 @@ pub(crate) mod indexed_db;
     not(web_idl_bindings),
     allow(dead_code, reason = "only the generated bindings use the interfaces")
 )]
+pub(crate) mod notifications_api;
+#[cfg_attr(
+    not(web_idl_bindings),
+    allow(dead_code, reason = "only the generated bindings use the interfaces")
+)]
 pub(crate) mod speech;
 #[cfg(not(test))]
 pub(crate) mod storage_api;
