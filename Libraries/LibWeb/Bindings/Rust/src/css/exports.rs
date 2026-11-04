@@ -60,6 +60,8 @@ use super::font_face_set_load_event::{FontFaceSetLoadEvent, FontFaceSetLoadEvent
 use super::media_list::MediaList;
 use super::media_query_list::MediaQueryList;
 use super::screen::Screen;
+use super::style_property_map::StylePropertyMap;
+use super::style_property_map_read_only::StylePropertyMapReadOnly;
 use super::style_sheet_list::StyleSheetList;
 use super::transition_event::{TransitionEvent, TransitionEventInit};
 use super::typed_om;
@@ -533,6 +535,30 @@ pub unsafe extern "C" fn web_font_face_set_load_event_create(
     FontFaceSetLoadEvent::create(vm, realm, &name, event_init)
         .event()
         .as_ptr()
+}
+
+/// A new StylePropertyMap of the declaration.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `declaration` a live CSSStyleDeclaration.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_style_property_map_create(vm: *mut c_void, declaration: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live CSSStyleDeclaration.
+    let (vm, declaration) = unsafe { (vm_from_abi(vm), CppCell::from_raw(declaration)) };
+    cell_into_abi(StylePropertyMap::create(vm, declaration))
+}
+
+/// A new StylePropertyMapReadOnly of the computed style of the element.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `element` a live Element.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_style_property_map_read_only_create(vm: *mut c_void, element: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live Element.
+    let (vm, element) = unsafe { (vm_from_abi(vm), CppCell::from_raw(element)) };
+    cell_into_abi(StylePropertyMapReadOnly::create_computed_style(vm, element))
 }
 
 /// A new Screen of the window.

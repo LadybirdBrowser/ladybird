@@ -8,9 +8,9 @@
 
 use super::css_grouping_rule::CSSGroupingRule;
 use super::css_rule::impl_rule_wrappable;
-use super::css_rule::{CSSRule, RuleText, native_rules_of_sheet, selector_list_text, wrap_cpp_cell};
+use super::css_rule::{CSSRule, RuleText, native_rules_of_sheet, selector_list_text};
+use super::style_property_map::StylePropertyMap;
 use crate::bindings::conversions::CppInterface;
-use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Inherits, Ref, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use ak::Utf16String;
@@ -22,15 +22,14 @@ use std::rc::Rc;
 
 unsafe extern "C" {
     fn web_css_style_rule_selector_changed(rule: *mut c_void);
-    fn web_css_style_property_map_create(declarations: *mut c_void) -> *mut c_void;
 }
 
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct CSSStyleRule {
     grouping_rule: CSSGroupingRule,
-    /// The cell of the StylePropertyMap of the rule, once it is asked for.
-    style_map: GcRefCell<Option<CppCell>>,
+    /// The StylePropertyMap of the rule, once it is asked for.
+    style_map: GcRefCell<Option<Ref<StylePropertyMap>>>,
 }
 
 impl_rule_wrappable!(CSSStyleRule);
@@ -100,19 +99,14 @@ impl CSSStyleRule {
     }
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylerule-stylemap
-    pub(crate) fn style_map(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
-        if let Some(style_map) = self.style_map.borrow().as_ref() {
-            return Ok(wrap_cpp_cell(cx, style_map));
+    pub(crate) fn style_map(&self, cx: &mut CallContext) -> WebIdlResult<Ref<StylePropertyMap>> {
+        if let Some(style_map) = *self.style_map.borrow() {
+            return Ok(style_map);
         }
         let vm = cx.vm();
-        let declarations = self.rule().declarations(vm);
-        // SAFETY: The cell is that of a live CSSStyleProperties.
-        let style_map = unsafe { web_css_style_property_map_create(declarations.as_ptr()) };
-        // SAFETY: LibWeb returns a live cell.
-        let style_map = unsafe { CppCell::from_raw(style_map) };
-        let result = wrap_cpp_cell(cx, &style_map);
+        let style_map = StylePropertyMap::create(vm, self.rule().declarations(vm));
         *self.style_map.borrow_mut(vm) = Some(style_map);
-        Ok(result)
+        Ok(style_map)
     }
 
     // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule

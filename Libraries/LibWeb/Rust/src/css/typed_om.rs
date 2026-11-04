@@ -21,11 +21,13 @@ use crate::css::dimension_units::{
 };
 use crate::css::parser::arbitrary_substitution::SubstitutionFunctionsPresence;
 use crate::css::parser::arbitrary_substitution::collect_arbitrary_substitution_function_presence;
-use crate::css::parser::value_parser::component_values_from_source;
+use crate::css::parser::value_parser::{component_values_from_source, is_css_wide_keyword};
 use crate::css::property_metadata::is_custom_property_name;
+pub use crate::css::property_metadata::property_is_shorthand;
 use crate::css::serialize::{SerializationMode, TextSink, serialize_style_value};
 use crate::css::style_compute::{LENGTH_UNIT_CANONICAL_PX_RATIOS, LENGTH_UNIT_NAMES};
 use crate::css::style_value::StyleValueData;
+use crate::css::style_value::rust_style_value_create_grid_track_size_list;
 pub use crate::css::style_value::{ReifiedUnresolvedSegment, RetainedStyleValueData as RetainedStyleValue};
 
 /// The base types of a numeric type, as indices of [`NumericType::exponents`].
@@ -353,6 +355,80 @@ impl RetainedStyleValue {
 
     pub fn is_transformation(&self) -> bool {
         matches!(self.data(), StyleValueData::Transformation(_))
+    }
+
+    pub fn is_unresolved(&self) -> bool {
+        matches!(self.data(), StyleValueData::Unresolved(_))
+    }
+
+    pub fn is_custom_ident(&self) -> bool {
+        matches!(self.data(), StyleValueData::CustomIdent { .. })
+    }
+
+    pub fn is_keyword(&self) -> bool {
+        matches!(self.data(), StyleValueData::Keyword { .. })
+    }
+
+    pub fn is_css_wide_keyword(&self) -> bool {
+        matches!(self.data(), StyleValueData::Keyword { keyword } if is_css_wide_keyword(*keyword))
+    }
+
+    pub fn is_shorthand(&self) -> bool {
+        matches!(self.data(), StyleValueData::Shorthand(_))
+    }
+
+    pub fn is_pending_substitution(&self) -> bool {
+        matches!(self.data(), StyleValueData::PendingSubstitution { .. })
+    }
+
+    pub fn is_guaranteed_invalid(&self) -> bool {
+        matches!(self.data(), StyleValueData::GuaranteedInvalid)
+    }
+
+    pub fn is_grid_track_size_list(&self) -> bool {
+        matches!(self.data(), StyleValueData::GridTrackSizeList(_))
+    }
+
+    pub fn is_length_percentage(&self) -> bool {
+        matches!(
+            self.data(),
+            StyleValueData::Length { .. } | StyleValueData::Percentage { .. } | StyleValueData::Calculated(_)
+        )
+    }
+
+    /// The items of a value list.
+    pub fn value_list_items(&self) -> Option<Vec<RetainedStyleValue>> {
+        let StyleValueData::ValueList { values, .. } = self.data() else {
+            return None;
+        };
+        Some(
+            values
+                .as_slice()
+                .iter()
+                .map(RetainedStyleValue::clone_retained)
+                .collect(),
+        )
+    }
+
+    /// A text-indent value of the length-percentage, which neither hangs nor applies to each line.
+    pub fn into_text_indent(self) -> RetainedStyleValue {
+        RetainedStyleValue::from_owned(StyleValueData::TextIndent {
+            length_percentage: self,
+            hanging: false,
+            each_line: false,
+        })
+    }
+
+    /// A grid track size list of the track sizes.
+    pub fn grid_track_size_list(track_sizes: Vec<RetainedStyleValue>) -> RetainedStyleValue {
+        let pointers: Vec<_> = track_sizes.into_iter().map(|size| size.into_raw().cast()).collect();
+        // SAFETY: This hands over strong references to the track sizes, and takes over the one that the call returns.
+        unsafe {
+            RetainedStyleValue::from_retained_pointer(rust_style_value_create_grid_track_size_list(
+                pointers.as_ptr(),
+                pointers.len(),
+            ))
+        }
     }
 
     /// Takes over one strong reference, which C++ hands over.

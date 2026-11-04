@@ -1,5 +1,5 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymapreadonly
-[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet), ImplementedIn=Rust]
 interface StylePropertyMapReadOnly {
     iterable<USVString, sequence<CSSStyleValue>>;
     (undefined or CSSStyleValue) get(USVString property);

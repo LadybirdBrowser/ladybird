@@ -31,7 +31,6 @@ set(SOURCES
     Bindings/RustBindingsServices.cpp
     Bindings/RustCSSDescriptors.cpp
     Bindings/RustEventTarget.cpp
-    Bindings/StylePropertyMapReadOnlyIterator.cpp
     Bindings/PrincipalHostDefined.cpp
     Bindings/Wrappable.cpp
     Bindings/WrapperWorld.cpp
@@ -156,7 +155,6 @@ set(SOURCES
     CSS/StyleProperty.cpp
     CSS/StylePropertyMapReadOnly.cpp
     CSS/Zoom.cpp
-    CSS/StylePropertyMap.cpp
     CSS/StyleScope.cpp
     CSS/StyleSheetIdentifier.cpp
     CSS/StyleSheetImport.cpp

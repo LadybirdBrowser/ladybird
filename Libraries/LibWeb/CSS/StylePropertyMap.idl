@@ -1,5 +1,5 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface StylePropertyMap : StylePropertyMapReadOnly {
     undefined set(USVString property, (CSSStyleValue or USVString)... values);
     undefined append(USVString property, (CSSStyleValue or USVString)... values);

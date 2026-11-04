@@ -4,17 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "StylePropertyMapReadOnly.h"
-#include <AK/QuickSort.h>
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StylePropertyMap.h>
+#include <LibWeb/CSS/StylePropertyMapReadOnly.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -22,32 +23,92 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/Zoom.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
-GC_DEFINE_ALLOCATOR(StylePropertyMapReadOnly);
+using StyleValueData = StyleValueFFI::StyleValueData;
 
-GC::Ref<StylePropertyMapReadOnly> StylePropertyMapReadOnly::create_computed_style(DOM::AbstractElement element)
-{
-    return GC::Heap::the().allocate<StylePropertyMapReadOnly>(element);
+extern "C" {
+
+// Defined in Bindings/Rust/src/css/exports.rs.
+void* web_style_property_map_create(JSVM*, void* declaration);
+void* web_style_property_map_read_only_create(JSVM*, void* element);
+
+// Declared in Bindings/Rust/src/css/style_property_map_read_only.rs.
+bool web_css_style_map_property(FlatPtr name, u16* id, FlatPtr* canonical_name);
+u8 web_css_style_map_iterations(bool is_computed, void* source, FlatPtr name, void* values, void (*append)(void*, StyleValueData const*));
+bool web_css_style_map_has(bool is_computed, void* source, FlatPtr name);
+void web_css_style_map_property_names(bool is_computed, void* source, void* names, void (*append)(void*, FlatPtr));
+size_t web_css_style_map_property_count(bool is_computed, void* source);
+
+// Declared in Bindings/Rust/src/css/style_property_map.rs.
+bool web_css_style_map_property_is_list_valued(u16 property_id);
+StyleValueData const* web_css_style_map_parse(void* declaration, u16 property_id, FlatPtr css_text);
+StyleValueData const* web_css_style_map_declared_value(void* declaration, FlatPtr name);
+u8 web_css_style_map_set_value(void* declaration, FlatPtr name, StyleValueData const* value, FlatPtr* message);
+u8 web_css_style_map_remove(void* declaration, FlatPtr name, FlatPtr* message);
+u8 web_css_style_map_clear(void* declaration, FlatPtr* message);
 }
 
-StylePropertyMapReadOnly::StylePropertyMapReadOnly(Source source)
-    : m_declarations(move(source))
+// What web_css_style_map_iterations() found, which Bindings/Rust/src/css/style_property_map_read_only.rs reads.
+enum class Iterations : u8 {
+    Absent,
+    Values,
+    Shorthand,
+};
+
+// How a change to a declaration ended, which Bindings/Rust/src/css/style_property_map.rs reads.
+enum class ChangeResult : u8 {
+    Success,
+    TypeError,
+    NoModificationAllowedError,
+};
+
+template<typename T>
+static u8 change_result(WebIDL::ExceptionOr<T> result, FlatPtr* message)
 {
+    if (!result.is_exception())
+        return to_underlying(ChangeResult::Success);
+    return to_underlying(result.exception().visit(
+        [&](WebIDL::SimpleException const& exception) {
+            VERIFY(exception.type == WebIDL::SimpleExceptionType::TypeError);
+            *message = Utf16String { exception.message }.into_raw();
+            return ChangeResult::TypeError;
+        },
+        [&](GC::Ref<WebIDL::DOMException> const& exception) {
+            VERIFY(exception->name() == "NoModificationAllowedError"sv);
+            *message = exception->message().to_utf16_string().into_raw();
+            return ChangeResult::NoModificationAllowedError;
+        },
+        [](JS::Completion const&) -> ChangeResult {
+            VERIFY_NOT_REACHED();
+        }));
 }
 
-StylePropertyMapReadOnly::~StylePropertyMapReadOnly() = default;
+using Source = Variant<DOM::AbstractElement, GC::Ref<CSSStyleDeclaration>>;
 
-void StylePropertyMapReadOnly::visit_edges(GC::Cell::Visitor& visitor)
+static CSSStyleDeclaration& declaration_from_abi(void* declaration)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_cached_document);
+    return *static_cast<CSSStyleDeclaration*>(static_cast<GC::Cell*>(declaration));
+}
 
-    m_declarations.visit(
-        [&visitor](DOM::AbstractElement& element) { element.visit(visitor); },
-        [&visitor](GC::Ref<CSSStyleDeclaration>& declaration) { visitor.visit(declaration); });
+static Source source_from_abi(bool is_computed, void* source)
+{
+    if (is_computed)
+        return DOM::AbstractElement { *static_cast<DOM::Element*>(static_cast<GC::Cell*>(source)) };
+    return GC::Ref { declaration_from_abi(source) };
+}
+
+static StyleValueData const* into_rust(StyleValue const& value)
+{
+    return StyleValueFFI::rust_style_value_retain(value.rust_style_value_data());
+}
+
+static PropertyNameAndID property_from_abi(FlatPtr name)
+{
+    return PropertyNameAndID::from_name(Utf16FlyString { Utf16String::from_raw(name) }).release_value();
 }
 
 // A computed style map describes an element's computed style, and a disconnected element has none.
@@ -71,238 +132,7 @@ static StyleValueVector subdivide_property_value(StyleValue const& value, Proper
     return value.subdivide_into_iterations(property);
 }
 
-static GC::Ref<CSSStyleValue> reify_property_value(StyleValue const& value, PropertyNameAndID const& property, bool is_computed)
-{
-    // INTEROP: Computed border-image values represent all four sides or both axes, even when their serialization
-    //          collapses to a single numeric value or keyword.
-    if (is_computed && first_is_one_of(property.id(), PropertyID::BorderImageWidth, PropertyID::BorderImageOutset, PropertyID::BorderImageSlice, PropertyID::BorderImageRepeat))
-        return CSSStyleValue::create(property.name(), value);
-    return CSSStyleValue::reify(value, property.name());
-}
-
-// https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-get
-WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapReadOnly::get(Utf16String property_name)
-{
-    // The get(property) method, when called on a StylePropertyMapReadOnly this, must perform the following steps:
-
-    // 1. If property is not a custom property name string, set property to property ASCII lowercased.
-    // 2. If property is not a valid CSS property, throw a TypeError.
-    auto property_name_utf16 = Utf16FlyString::from_utf16(property_name.utf16_view());
-    auto property = PropertyNameAndID::from_name(property_name_utf16);
-    if (!property.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is not a valid CSS property", property_name) };
-
-    // 3. Let props be the value of this’s [[declarations]] internal slot.
-    auto& props = m_declarations;
-
-    // 4. If props[property] exists, subdivide into iterations props[property], then reify the first item of the result and return it.
-    if (auto property_value = get_style_value(props, property.value())) {
-        if (props.has<DOM::AbstractElement>() && property_is_shorthand(property->id()))
-            return CSSStyleValue::create(property->name(), *property_value, SerializationMode::ResolvedValue);
-        auto iterations = subdivide_property_value(*property_value, property.value(), props.get_pointer<DOM::AbstractElement>());
-        return reify_property_value(*iterations.first(), property.value(), props.has<DOM::AbstractElement>());
-    }
-
-    // 5. Otherwise, return undefined.
-    return Empty {};
-}
-
-// https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-getall
-WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::get_all(Utf16String property_name)
-{
-    // The getAll(property) method, when called on a StylePropertyMap this, must perform the following steps:
-
-    // 1. If property is not a custom property name string, set property to property ASCII lowercased.
-    // 2. If property is not a valid CSS property, throw a TypeError.
-    auto property_name_utf16 = Utf16FlyString::from_utf16(property_name.utf16_view());
-    auto property = PropertyNameAndID::from_name(property_name_utf16);
-    if (!property.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is not a valid CSS property", property_name) };
-
-    // 3. Let props be the value of this’s [[declarations]] internal slot.
-    auto& props = m_declarations;
-
-    GC::RootVector<GC::Ref<CSSStyleValue>> results;
-
-    // 4. If props[property] exists, subdivide into iterations props[property], then reify each item of the result, and return the list.
-    if (auto property_value = get_style_value(props, property.value())) {
-        if (props.has<DOM::AbstractElement>() && property_is_shorthand(property->id())) {
-            results.append(CSSStyleValue::create(property->name(), *property_value, SerializationMode::ResolvedValue));
-            return results;
-        }
-        auto iterations = subdivide_property_value(*property_value, property.value(), props.get_pointer<DOM::AbstractElement>());
-        for (auto const& style_value : iterations)
-            results.append(reify_property_value(*style_value, property.value(), props.has<DOM::AbstractElement>()));
-        return results;
-    }
-
-    // 5. Otherwise, return an empty list.
-    return results;
-}
-
-// https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-has
-WebIDL::ExceptionOr<bool> StylePropertyMapReadOnly::has(Utf16String property_name)
-{
-    // The has(property) method, when called on a StylePropertyMapReadOnly this, must perform the following steps:
-
-    // 1. If property is not a custom property name string, set property to property ASCII lowercased.
-    // 2. If property is not a valid CSS property, throw a TypeError.
-    auto property_name_utf16 = Utf16FlyString::from_utf16(property_name.utf16_view());
-    auto property = PropertyNameAndID::from_name(property_name_utf16);
-    if (!property.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is not a valid CSS property", property_name) };
-
-    // 3. Let props be the value of this’s [[declarations]] internal slot.
-    auto& props = m_declarations;
-
-    // 4. If props[property] exists, return true. Otherwise, return false.
-    return props.visit(
-        [&property](DOM::AbstractElement& element) {
-            if (!has_computed_style(element))
-                return false;
-            // From https://drafts.css-houdini.org/css-typed-om-1/#dom-element-computedstylemap we need to include:
-            // "the name and computed value of every longhand CSS property supported by the User Agent, every
-            // registered custom property, and every non-registered custom property which is not set to its initial
-            // value on this"
-            // Ensure style is computed on the element before we try to read it, so we can check custom properties.
-            element.document().update_style_for_element(element);
-            if (property->is_custom_property()) {
-                if (element.get_custom_property(property->name()))
-                    return true;
-                return element.document().get_registered_custom_property(property->name()).has_value();
-            }
-            return true;
-        },
-        [&property](GC::Ref<CSSStyleDeclaration> const& declaration) {
-            return declaration->has_property(property.value());
-        });
-}
-
-// https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-size
-WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
-{
-    // The size attribute, on getting from a StylePropertyMapReadOnly this, must perform the following steps:
-
-    // 1. Return the size of the value of this’s [[declarations]] internal slot.
-    return property_names().size();
-}
-
-// https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-declarations-slot
-ReadonlySpan<Utf16FlyString> StylePropertyMapReadOnly::property_names() const
-{
-    if (auto* element = m_declarations.get_pointer<DOM::AbstractElement>(); element && !has_computed_style(*element))
-        return {};
-
-    auto needs_update = m_declarations.visit(
-        [&](DOM::AbstractElement const& element) {
-            element.document().update_style_for_element(element);
-            auto custom_property_data = element.custom_property_data();
-            auto& document = element.document();
-            if (m_cached_document.ptr() == &document
-                && m_cached_custom_property_data == custom_property_data
-                && m_cached_registration_generation == document.custom_property_registration_generation()) {
-                return false;
-            }
-
-            m_cached_document = document;
-            m_cached_custom_property_data = move(custom_property_data);
-            m_cached_registration_generation = document.custom_property_registration_generation();
-            m_cached_property_names.clear_with_capacity();
-            for (auto id = to_underlying(first_longhand_property_id); id <= to_underlying(last_longhand_property_id); ++id)
-                m_cached_property_names.append(string_from_property_id(static_cast<PropertyID>(id)));
-
-            HashTable<Utf16FlyString> custom_properties;
-            if (m_cached_custom_property_data) {
-                m_cached_custom_property_data->for_each_property([&](auto const& name, auto const& property) {
-                    if (!property.value->is_guaranteed_invalid())
-                        custom_properties.set(name);
-                });
-            }
-            document.for_each_registered_custom_property([&](CustomPropertyRegistration const& registration) {
-                custom_properties.set(registration.property_name);
-            });
-            for (auto const& name : custom_properties)
-                m_cached_property_names.append(name);
-            return true;
-        },
-        [&](GC::Ref<CSSStyleDeclaration> const& declaration) {
-            // NB: Inline and declared maps are both backed by CSSStyleProperties.
-            auto const& properties = as<CSSStyleProperties>(*declaration);
-            if (m_cached_declaration_revision == properties.revision())
-                return false;
-            m_cached_declaration_revision = properties.revision();
-            m_cached_property_names.clear_with_capacity();
-            for (size_t i = 0; i < declaration->length(); ++i)
-                m_cached_property_names.append(Utf16FlyString { declaration->item(i) });
-            return true;
-        });
-
-    // INTEROP: Inline and declared maps preserve declaration order.
-    if (needs_update && m_declarations.has<DOM::AbstractElement>()) {
-        // Unless otherwise stated, the initial ordering of the [[declarations]] internal slot is based on the key of each entry:
-        // 1. Standardized properties (not custom properties or vendor-prefixed properties), ASCII lowercased
-        //    and then sorted in increasing code-point order.
-        // 2. Vendor-prefixed/experimental properties (those whose name starts with a single dash), ASCII lowercased
-        //    and then sorted in increasing code-point order.
-        // 3. Custom properties, sorted in increasing code-point order. (These are never lower-cased; they are
-        //    preserved exactly as written.)
-        quick_sort(m_cached_property_names, [](auto const& left, auto const& right) {
-            auto category = [](auto const& name) {
-                if (name.starts_with("--"sv))
-                    return 2;
-                return name.starts_with("-"sv) ? 1 : 0;
-            };
-            if (category(left) != category(right))
-                return category(left) < category(right);
-            auto left_view = left.view();
-            auto right_view = right.view();
-            auto left_iterator = left_view.begin();
-            auto right_iterator = right_view.begin();
-            for (; left_iterator != left_view.end() && right_iterator != right_view.end(); ++left_iterator, ++right_iterator) {
-                if (*left_iterator != *right_iterator)
-                    return *left_iterator < *right_iterator;
-            }
-            return left_iterator == left_view.end() && right_iterator != right_view.end();
-        });
-    }
-    return m_cached_property_names;
-}
-
-// https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymapreadonly
-void StylePropertyMapReadOnly::collect_iteration_entries(Vector<IterationEntry>& entries, GC::RootVector<GC::Ref<CSSStyleValue>>& values)
-{
-    // The value pairs to iterate over for a StylePropertyMapReadOnly object this are obtained as follows:
-    // 1. Let declarations be this’s [[declarations]] slot.
-    // 2. Let value pairs be an empty list.
-    // 3. For each prop → value in declarations:
-    // NB: Copy the names, since reifying values may refresh the cached names.
-    Vector<Utf16FlyString> names { property_names() };
-    for (auto const& name : names) {
-        // 1. Let iterations be the result of dividing into iterations value.
-        // 2. Reify each item of iterations, and let objects be the result.
-        auto objects = MUST(get_all(name.to_utf16_string()));
-        // 3. Append prop/objects to value pairs.
-        entries.append({ name, values.size(), objects.size() });
-        for (auto object : objects)
-            values.append(object);
-    }
-    // 4. Return value pairs.
-}
-
-// https://webidl.spec.whatwg.org/#es-iterable
-void StylePropertyMapReadOnly::for_each(ForEachCallback callback)
-{
-    // INTEROP: Snapshot style-map entries before invoking callbacks, matching Chrome and Safari.
-    Vector<IterationEntry> entries;
-    GC::RootVector<GC::Ref<CSSStyleValue>> values;
-    collect_iteration_entries(entries, values);
-    for (auto const& entry : entries) {
-        if (callback(entry.name.to_utf16_string(), values.span().slice(entry.value_offset, entry.value_count)) == IterationDecision::Break)
-            break;
-    }
-}
-
-RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& source, PropertyNameAndID const& property)
+static RefPtr<StyleValue const> get_style_value(Source& source, PropertyNameAndID const& property)
 {
     return source.visit(
         [&property](DOM::AbstractElement& element) -> RefPtr<StyleValue const> {
@@ -368,6 +198,164 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
         [&property](GC::Ref<CSSStyleDeclaration>& declaration) {
             return declaration->get_property_style_value(property);
         });
+}
+
+GC::Ref<StylePropertyMapReadOnly> StylePropertyMapReadOnly::create_computed_style(DOM::Element& element)
+{
+    auto* map = web_style_property_map_read_only_create(JS::HostABI::vm_to_abi(JS::VM::the()), static_cast<GC::Cell*>(&element));
+    return GC::Ref { *static_cast<StylePropertyMapReadOnly*>(map) };
+}
+
+GC::Ref<StylePropertyMap> StylePropertyMap::create(GC::Ref<CSSStyleDeclaration> declaration)
+{
+    auto* map = web_style_property_map_create(JS::HostABI::vm_to_abi(JS::VM::the()), static_cast<GC::Cell*>(declaration.ptr()));
+    return GC::Ref { *static_cast<StylePropertyMap*>(map) };
+}
+
+bool web_css_style_map_property(FlatPtr raw_name, u16* id, FlatPtr* canonical_name)
+{
+    auto property = PropertyNameAndID::from_name(Utf16FlyString { Utf16String::from_raw(raw_name) });
+    if (!property.has_value())
+        return false;
+    *id = to_underlying(property->id());
+    *canonical_name = property->name().to_utf16_string().into_raw();
+    return true;
+}
+
+u8 web_css_style_map_iterations(bool is_computed, void* raw_source, FlatPtr name, void* values, void (*append)(void*, StyleValueData const*))
+{
+    auto source = source_from_abi(is_computed, raw_source);
+    auto property = property_from_abi(name);
+
+    auto property_value = get_style_value(source, property);
+    if (!property_value)
+        return to_underlying(Iterations::Absent);
+
+    if (is_computed && property_is_shorthand(property.id())) {
+        append(values, into_rust(*property_value));
+        return to_underlying(Iterations::Shorthand);
+    }
+
+    for (auto const& value : subdivide_property_value(*property_value, property, source.get_pointer<DOM::AbstractElement>()))
+        append(values, into_rust(*value));
+    return to_underlying(Iterations::Values);
+}
+
+bool web_css_style_map_has(bool is_computed, void* raw_source, FlatPtr name)
+{
+    auto source = source_from_abi(is_computed, raw_source);
+    auto property = property_from_abi(name);
+    return source.visit(
+        [&property](DOM::AbstractElement& element) {
+            if (!has_computed_style(element))
+                return false;
+            // From https://drafts.css-houdini.org/css-typed-om-1/#dom-element-computedstylemap we need to include:
+            // "the name and computed value of every longhand CSS property supported by the User Agent, every
+            // registered custom property, and every non-registered custom property which is not set to its initial
+            // value on this"
+            // Ensure style is computed on the element before we try to read it, so we can check custom properties.
+            element.document().update_style_for_element(element);
+            if (property.is_custom_property()) {
+                if (element.get_custom_property(property.name()))
+                    return true;
+                return element.document().get_registered_custom_property(property.name()).has_value();
+            }
+            return true;
+        },
+        [&property](GC::Ref<CSSStyleDeclaration> const& declaration) {
+            return declaration->has_property(property);
+        });
+}
+
+static HashTable<Utf16FlyString> computed_custom_property_names(DOM::AbstractElement const& element)
+{
+    HashTable<Utf16FlyString> custom_properties;
+    if (auto custom_property_data = element.custom_property_data()) {
+        custom_property_data->for_each_property([&](auto const& name, auto const& property) {
+            if (!property.value->is_guaranteed_invalid())
+                custom_properties.set(name);
+        });
+    }
+    element.document().for_each_registered_custom_property([&](CustomPropertyRegistration const& registration) {
+        custom_properties.set(registration.property_name);
+    });
+    return custom_properties;
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-declarations-slot
+void web_css_style_map_property_names(bool is_computed, void* raw_source, void* names, void (*append)(void*, FlatPtr))
+{
+    source_from_abi(is_computed, raw_source)
+        .visit(
+            [&](DOM::AbstractElement const& element) {
+                if (!has_computed_style(element))
+                    return;
+
+                element.document().update_style_for_element(element);
+                for (auto id = to_underlying(first_longhand_property_id); id <= to_underlying(last_longhand_property_id); ++id)
+                    append(names, string_from_property_id(static_cast<PropertyID>(id)).to_utf16_string().into_raw());
+                for (auto const& name : computed_custom_property_names(element))
+                    append(names, name.to_utf16_string().into_raw());
+            },
+            [&](GC::Ref<CSSStyleDeclaration> const& declaration) {
+                for (size_t i = 0; i < declaration->length(); ++i)
+                    append(names, declaration->item(i).into_raw());
+            });
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-size
+size_t web_css_style_map_property_count(bool is_computed, void* raw_source)
+{
+    return source_from_abi(is_computed, raw_source)
+        .visit(
+            [](DOM::AbstractElement const& element) -> size_t {
+                if (!has_computed_style(element))
+                    return 0;
+
+                element.document().update_style_for_element(element);
+                return number_of_longhand_properties + computed_custom_property_names(element).size();
+            },
+            [](GC::Ref<CSSStyleDeclaration> const& declaration) -> size_t {
+                return declaration->length();
+            });
+}
+
+bool web_css_style_map_property_is_list_valued(u16 property_id)
+{
+    return property_is_list_valued(static_cast<PropertyID>(property_id));
+}
+
+StyleValueData const* web_css_style_map_parse(void* raw_declaration, u16 property_id, FlatPtr css_text)
+{
+    auto text = Utf16String::from_raw(css_text);
+    auto parsing_params = Parser::ParsingParams {};
+    if (raw_declaration) {
+        if (auto owner_node = declaration_from_abi(raw_declaration).owner_node(); owner_node.has_value())
+            parsing_params = Parser::ParsingParams { owner_node->element().document() };
+    }
+    auto value = parse_css_value(parsing_params, text, static_cast<PropertyID>(property_id));
+    return value ? into_rust(*value) : nullptr;
+}
+
+StyleValueData const* web_css_style_map_declared_value(void* declaration, FlatPtr name)
+{
+    auto value = declaration_from_abi(declaration).get_property_style_value(property_from_abi(name));
+    return value ? into_rust(*value) : nullptr;
+}
+
+u8 web_css_style_map_set_value(void* declaration, FlatPtr name, StyleValueData const* value, FlatPtr* message)
+{
+    return change_result(declaration_from_abi(declaration).set_property_style_value(property_from_abi(name), StyleValue::adopt_rust_style_value_data(value)), message);
+}
+
+u8 web_css_style_map_remove(void* declaration, FlatPtr name, FlatPtr* message)
+{
+    return change_result(declaration_from_abi(declaration).remove_property(Utf16FlyString { Utf16String::from_raw(name) }), message);
+}
+
+u8 web_css_style_map_clear(void* declaration, FlatPtr* message)
+{
+    return change_result(declaration_from_abi(declaration).set_css_text(""sv), message);
 }
 
 }

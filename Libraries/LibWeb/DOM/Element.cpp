@@ -54,6 +54,7 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StylePropertyMap.h>
+#include <LibWeb/CSS/StylePropertyMapReadOnly.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
@@ -7135,7 +7136,7 @@ GC::Ref<CSS::StylePropertyMapReadOnly> Element::computed_style_map()
     //    until a given property is actually requested.
     auto& computed_style_map_cache = ensure_element_rare_data().computed_style_map_cache;
     if (computed_style_map_cache == nullptr) {
-        computed_style_map_cache = CSS::StylePropertyMapReadOnly::create_computed_style(AbstractElement { *this });
+        computed_style_map_cache = CSS::StylePropertyMapReadOnly::create_computed_style(*this);
     }
 
     // 2. Return this’s [[computedStyleMapCache]] internal slot.
