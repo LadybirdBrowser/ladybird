@@ -146,7 +146,14 @@ impl Verifier<'_> {
                 .expect("every expected root has an expected entry set");
             expected
                 .child_contexts_with_nonzero_z_index
-                .sort_by_key(|(z_index, _)| *z_index);
+                .sort_by(|(left_z_index, left), (right_z_index, right)| {
+                    left_z_index
+                        .cmp(right_z_index)
+                        .then_with(|| self.arena.compare_order_modified_document_order(*left, *right))
+                });
+            expected
+                .stack_level_zero_boxes
+                .sort_by(|&left, &right| self.arena.compare_order_modified_document_order(left, right));
             let Some(table) = self.arena.stacking_context_entries(root) else {
                 self.report
                     .note(format_args!("establishing box {root:?} has no entries table"));
