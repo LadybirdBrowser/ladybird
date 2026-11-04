@@ -104,7 +104,7 @@ JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value,
 void web_bindings_queue_a_microtask(void* realm, JSObject* function);
 void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, void*));
 void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
-u64 web_bindings_queue_a_global_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
+u64 web_bindings_queue_a_global_task(JSObject* global_object, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
 void web_bindings_remove_tasks(void* realm, ReadonlySpan<u64> task_ids);
 u64 web_bindings_currently_running_task(void* realm);
 void* web_bindings_create_callback_function(JSObject* callable, bool returns_promise);
@@ -483,12 +483,12 @@ void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*s
     }));
 }
 
-u64 web_bindings_queue_a_global_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*))
+u64 web_bindings_queue_a_global_task(JSObject* global_object, u8 task_source, void* cell, void (*steps)(JSVM*, void*))
 {
-    GC::Ref<JS::Realm> js_realm = *static_cast<JS::Realm*>(realm);
+    auto& global = *JS::HostABI::object_from_abi(global_object);
     // NB: The task's captures, which the collector scans, keep the cell alive until the steps run.
-    auto task_id = HTML::queue_global_task(static_cast<HTML::Task::Source>(task_source), js_realm->global_object(), GC::create_function(GC::Heap::the(), [js_realm, cell, steps] {
-        steps(JS::HostABI::vm_to_abi(js_realm->vm()), cell);
+    auto task_id = HTML::queue_global_task(static_cast<HTML::Task::Source>(task_source), global, GC::create_function(GC::Heap::the(), [&vm = global.vm(), cell, steps] {
+        steps(JS::HostABI::vm_to_abi(vm), cell);
     }));
     return task_id.value();
 }

@@ -305,7 +305,7 @@ impl FileReader {
 
         let id = queue_a_global_task(
             vm,
-            this.realm,
+            this.realm.global_object(),
             TaskSource::FileReading,
             (this, QueuedSteps { captures, steps }),
             |vm, (this, task)| {
@@ -377,7 +377,7 @@ impl FileReader {
 
         queue_a_global_task(
             vm,
-            realm,
+            realm.global_object(),
             TaskSource::FileReading,
             (*this, state, chunk_promise),
             |vm, (this, state, chunk_promise)| {

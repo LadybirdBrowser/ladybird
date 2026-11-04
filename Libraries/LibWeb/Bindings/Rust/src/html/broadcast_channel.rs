@@ -305,7 +305,7 @@ impl BroadcastChannel {
         for destination in destinations.values().iter() {
             queue_a_global_task(
                 vm,
-                destination.realm,
+                destination.realm.global_object(),
                 TaskSource::DOMManipulation,
                 (*destination, message),
                 |vm, (destination, message)| Self::message_task_steps(destination, vm, &message),
