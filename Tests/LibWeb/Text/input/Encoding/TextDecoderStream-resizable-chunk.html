@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    async function write(chunk) {
+        const stream = new TextDecoderStream();
+        stream.readable.getReader().read().catch(() => {});
+        const writer = stream.writable.getWriter();
+        try {
+            await writer.write(chunk);
+            return "fulfilled";
+        } catch (error) {
+            return `rejected with ${error.name}`;
+        }
+    }
+
+    asyncTest(async done => {
+        const resizable = new ArrayBuffer(1, { maxByteLength: 2 });
+        println(`resizable ArrayBuffer: ${await write(resizable)}`);
+        println(`Uint8Array on a resizable ArrayBuffer: ${await write(new Uint8Array(resizable))}`);
+        println(`fixed-length ArrayBuffer: ${await write(new ArrayBuffer(1))}`);
+        done();
+    });
+</script>

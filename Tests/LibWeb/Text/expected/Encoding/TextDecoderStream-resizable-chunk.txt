@@ -1,0 +1,3 @@
+resizable ArrayBuffer: rejected with TypeError
+Uint8Array on a resizable ArrayBuffer: rejected with TypeError
+fixed-length ArrayBuffer: fulfilled

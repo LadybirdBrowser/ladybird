@@ -775,8 +775,15 @@ pub(crate) fn buffer_source_if(
         return Ok(Some(BufferSource::ArrayBuffer(buffer)));
     }
 
-    // FIXME: 7. If V is an Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is true,
-    //           then:
+    // 7. If V is an Object, V, has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is true, then:
+    //     1. If types includes SharedArrayBuffer, then return the result of converting V to SharedArrayBuffer.
+    if rules.allow_shared
+        && let Some(buffer) = object.downcast::<ArrayBuffer>()
+        && buffer.is_shared_array_buffer()
+    {
+        check_buffer_of_buffer_source(vm, &buffer, "SharedArrayBuffer", rules)?;
+        return Ok(Some(BufferSource::ArrayBuffer(buffer)));
+    }
 
     // 8. If V is an Object and V has a [[DataView]] internal slot, then:
     //     1. If types includes DataView, then return the result of converting V to DataView.
