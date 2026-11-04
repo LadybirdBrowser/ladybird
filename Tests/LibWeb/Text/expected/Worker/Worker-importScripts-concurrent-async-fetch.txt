@@ -1,0 +1,3 @@
+The imported script ran: true
+The fetch() completed after importScripts() returned, with body: fetched body
+The fetch() promise reactions ran while importScripts() was blocked: false

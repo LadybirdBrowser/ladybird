@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // importScripts() fetches and runs its script when it is called from a microtask.
+    asyncTest(done => {
+        const worker = new Worker("worker-importScripts-in-microtask.js");
+        worker.onmessage = event => {
+            println(`importScripts() called from a promise reaction: ${event.data.fromPromiseReaction}`);
+            println(`importScripts() called from a queueMicrotask() callback: ${event.data.fromQueueMicrotask}`);
+            done();
+        };
+    });
+</script>

@@ -46,6 +46,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 #include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/Infra/Strings.h>
@@ -927,18 +928,26 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
         TRY(perform_fetch->function()(request, TopLevelModule::Yes, move(process_response_consume_body)));
     }
     // Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
+    // AD-HOC: The fetch runs on a parallel queue, since the event loop it would otherwise queue tasks on is paused below.
     else {
-        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::SyncAccumulate };
         fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
-        Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
+        Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)), Fetch::Fetching::UseParallelQueue::Yes);
     }
 
     // 5. Pause until response is not null.
     // FIXME: Consider using a "response holder" to avoid needing to annotate response as IGNORE_USE_IN_ESCAPING_LAMBDA.
     auto& event_loop = settings_object.responsible_event_loop();
-    event_loop.spin_until(GC::create_function(GC::Heap::the(), [&]() -> bool {
+    auto response_is_not_null = GC::create_function(GC::Heap::the(), [&]() -> bool {
         return !!response;
-    }));
+    });
+    if (perform_fetch) {
+        // AD-HOC: The event loop is spun rather than paused, since a perform the fetch hook may queue tasks on it.
+        event_loop.spin_until(response_is_not_null);
+    } else {
+        auto pause_handle = event_loop.pause(EventLoop::UpdateTheRendering::No);
+        Platform::EventLoopPlugin::the().spin_until(response_is_not_null);
+    }
 
     // NB: Whether response was CORS-cross-origin must be determined before unwrapping it, since the internal
     //     response of an opaque filtered response is never CORS-cross-origin itself.

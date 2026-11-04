@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A fetch() in flight while importScripts() blocks completes once the call returns, and none of its promise
+    // reactions run during the call.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const fetchToken = crypto.randomUUID();
+        const fetchURL = await server.createEcho("GET", "/worker-importScripts-concurrent-async-fetch-fetched", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain" },
+            body: "fetched body",
+            wait_for_unblock: fetchToken,
+        });
+        const importToken = crypto.randomUUID();
+        const importURL = await server.createEcho("GET", "/worker-importScripts-concurrent-async-fetch-imported", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/javascript" },
+            body: "self.importedScriptRan = true;",
+            wait_for_unblock: importToken,
+        });
+
+        const worker = new Worker("worker-importScripts-concurrent-async-fetch.js");
+        const results = new Promise(resolve => (worker.onmessage = event => resolve(event.data)));
+        worker.postMessage({ fetchURL, importURL });
+
+        await server.waitForRequest(fetchURL);
+        await server.waitForRequest(importURL);
+        await fetch(`${server.baseURL}/unblock/${fetchToken}`);
+        await fetch(`${server.baseURL}/unblock/${importToken}`);
+
+        for (const line of await results)
+            println(line);
+    });
+</script>
