@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --length {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+    }
+    #container {
+        --length: 100px;
+        --plain: 100px;
+        --other: 50px;
+        --keyword: baz;
+        --same: baz;
+    }
+    .answer { --answer: no; }
+    @container style(--length: var(--plain)) { #registered { --answer: yes; } }
+    @container style(--length: var(--other)) { #registered-other { --answer: yes; } }
+    @container style(--length: var(--missing, 100px)) { #registered-fallback { --answer: yes; } }
+    @container style(--length: calc(var(--other) * 2)) { #registered-calc { --answer: yes; } }
+    @container style(--keyword: var(--same)) { #unregistered { --answer: yes; } }
+    @container style(--keyword: var(--other)) { #unregistered-other { --answer: yes; } }
+    @container style(--keyword: var(--missing, baz)) { #unregistered-fallback { --answer: yes; } }
+    @container not style(--keyword: var(--missing)) { #unregistered-missing { --answer: yes; } }
+    @container style(--keyword: var(--keyword)) { #itself { --answer: yes; } }
+    @container style(--undeclared: var(--missing)) { #both-missing { --answer: yes; } }
+    @container not style(--keyword: var()) { #no-arguments { --answer: yes; } }
+    #function { --answer: if(style(--length: var(--plain)): yes; else: no); }
+</style>
+<div id="container">
+    <div class="answer" id="registered"></div>
+    <div class="answer" id="registered-other"></div>
+    <div class="answer" id="registered-fallback"></div>
+    <div class="answer" id="registered-calc"></div>
+    <div class="answer" id="unregistered"></div>
+    <div class="answer" id="unregistered-other"></div>
+    <div class="answer" id="unregistered-fallback"></div>
+    <div class="answer" id="unregistered-missing"></div>
+    <div class="answer" id="itself"></div>
+    <div class="answer" id="both-missing"></div>
+    <div class="answer" id="no-arguments"></div>
+    <div id="function" style="--length: 100px; --plain: 100px"></div>
+</div>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll("#container > div"))
+            println(`${element.id}: ${getComputedStyle(element).getPropertyValue("--answer").trim()}`);
+
+        container.style.setProperty("--plain", "50px");
+        println(`registered, after its value moves: ${getComputedStyle(registered).getPropertyValue("--answer").trim()}`);
+        container.style.setProperty("--plain", "100px");
+        println(`registered, moved back: ${getComputedStyle(registered).getPropertyValue("--answer").trim()}`);
+    });
+</script>
