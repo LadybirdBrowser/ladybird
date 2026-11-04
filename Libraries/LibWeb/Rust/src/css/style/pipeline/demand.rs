@@ -132,9 +132,16 @@ impl KeptHiddenRecords {
         !self.computed.is_empty()
     }
 
+    /// The elements with a computation, for a check of what they computed.
+    pub(super) fn computed_nodes(&self) -> impl Iterator<Item = (StyleNodeID, &Arc<Record>)> {
+        self.computed
+            .iter()
+            .map(|(&node, computation)| (node, &computation.record))
+    }
+
     /// Whether what `node` computes from stands, as `standing` remembers of the elements it
     /// inherits through.
-    fn stands(
+    pub(super) fn stands(
         &self,
         state: &RetainedState,
         records: &RetainedRecords,
@@ -186,6 +193,64 @@ enum DemandedElement {
 }
 
 impl Live {
+    /// What the computation kept of each element below one that is not displayed differs in from
+    /// what computing it now finds, one line per element.
+    pub(super) fn kept_hidden_differences(
+        &self,
+        state: &RetainedState,
+        describe: &dyn Fn(StyleNodeID) -> String,
+    ) -> Vec<String> {
+        let mut differences = Vec::new();
+        let mut standing = HashMap::default();
+        for (node, kept) in self.kept_hidden_records.computed_nodes() {
+            if !state.projection.is_live(node)
+                || !self
+                    .kept_hidden_records
+                    .stands(state, &self.records, node, &mut standing)
+            {
+                continue;
+            }
+            let mut chain: SmallVec<[StyleNodeID; 32]> =
+                std::iter::successors(Some(node), |&node| state.projection.inheritance_parent(node)).collect();
+            chain.reverse();
+            // NB: The records held below an element that is not displayed are what they were as it stopped being
+            //     displayed, and nothing computes from them.
+            let mut parent_is_displayed = true;
+            let Some(first) = chain.iter().position(|&element| {
+                let record = self.records.get(element).filter(|_| parent_is_displayed);
+                parent_is_displayed = record.is_some_and(|record| record.is_displayed());
+                record.is_none()
+            }) else {
+                continue;
+            };
+            let mut cells = RecordCells::default();
+            cells.reserve(state.projection.element_slot_count());
+            let records = Records::new(state, &cells, Some(&self.records));
+            let context = PassContext::new(
+                state,
+                &self.index,
+                &self.initial,
+                &records,
+                traversal::held_root_font(state, &records, chain[0]),
+            );
+            let statistics = traversal::style_chain(&context, &chain[first..]);
+            if !statistics.font_requests.is_empty() || !statistics.random_requests.is_empty() {
+                continue;
+            }
+            if let Some(fresh) = records.get_shared(node) {
+                let moved = super::self_check::record_differences(kept, fresh);
+                if !moved.is_empty() {
+                    differences.push(format!(
+                        "the kept computation of {}: {}",
+                        describe(node),
+                        moved.join(", ")
+                    ));
+                }
+            }
+        }
+        differences
+    }
+
     /// The records computed on demand, for the current generation.
     fn demand_overlay(&mut self) -> &mut DemandOverlay {
         if self.demanded.generation != self.generation || self.demanded.records.is_none() {
