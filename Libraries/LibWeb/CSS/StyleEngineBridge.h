@@ -447,6 +447,8 @@ private:
 
     Optional<StyleSheetResourceContexts> m_style_sheet_resource_contexts;
     u64 m_style_sheet_resource_contexts_version { 0 };
+    Optional<u64> m_function_rules_checked_generation;
+    bool m_document_has_function_rules { false };
 
     NonnullRefPtr<Layout::RenderDocument> m_render_document;
     u64 m_published_font_environment_generation { 0 };
