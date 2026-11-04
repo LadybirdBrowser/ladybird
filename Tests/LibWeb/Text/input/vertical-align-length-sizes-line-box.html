@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px/20px SerenitySans;
+    }
+    .box {
+        width: 200px;
+    }
+    .ib {
+        display: inline-block;
+        width: 0;
+        height: 20px;
+    }
+    .pseudo::after {
+        content: "";
+        display: inline-block;
+        width: 0;
+        height: 20px;
+        vertical-align: -20px;
+    }
+</style>
+<!-- A line box is tall enough to contain every inline-level box on it, wherever vertical-align puts the box. So a box
+     lowered by a negative length or percentage makes the line box grow below the baseline, and one raised by a positive
+     length makes it grow above the baseline, by just as much. -->
+<div class="box" id="plain">text</div>
+<div class="box" id="lowered">text<span class="ib" style="vertical-align: -20px"></span></div>
+<div class="box pseudo" id="lowered-pseudo">text</div>
+<div class="box" id="lowered-with-text">text<span class="ib" style="vertical-align: -20px">x</span></div>
+<div class="box" id="lowered-a-little">text<span class="ib" style="vertical-align: -5px"></span></div>
+<div class="box" id="lowered-by-percentage">text<span class="ib" style="vertical-align: -100%"></span></div>
+<div class="box" id="lowered-inline">text<span style="vertical-align: -20px">x</span></div>
+<div class="box" id="raised">text<span class="ib" style="vertical-align: 20px"></span></div>
+<script>
+    test(() => {
+        const height = id => document.getElementById(id).getBoundingClientRect().height;
+        const plain = height("plain");
+        for (const id of ["lowered", "lowered-pseudo", "lowered-with-text", "lowered-a-little", "lowered-by-percentage", "lowered-inline", "raised"])
+            println(`${id}: ${height(id) - plain}px taller than a plain line`);
+    });
+</script>

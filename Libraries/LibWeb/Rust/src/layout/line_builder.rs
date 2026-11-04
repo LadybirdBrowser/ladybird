@@ -1246,7 +1246,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 snapshot.block_offset = fragment.block_offset;
             }
 
-            let (inline_box_start, mut inline_box_end) = if snapshot.is_atomic_inline {
+            let (inline_box_start, inline_box_end) = if snapshot.is_atomic_inline {
                 let atomic_inline = self.line(line_index).fragments[fragment_index].box_cells();
                 (
                     snapshot.block_offset - (atomic_inline.margin_top + atomic_inline.border_box_top(false)),
@@ -1262,9 +1262,6 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     snapshot.block_offset + snapshot.baseline + bounds.descent,
                 )
             };
-            if !alignment_style.vertical_align_is_keyword() {
-                inline_box_end += alignment_style.vertical_align_value().to_px(style.line_height());
-            }
             if let Some((root, alignment)) = aligned_subtree {
                 if let Some(subtree) = aligned_subtrees.iter_mut().find(|subtree| subtree.root == root) {
                     subtree.block_start = subtree.block_start.min(inline_box_start);
