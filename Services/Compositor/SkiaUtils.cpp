@@ -58,10 +58,11 @@ namespace {
 // layout is defined by the filter module of libgfx_rust, whose codec is the other reader of it.
 class SkiaFilterReader {
 public:
-    SkiaFilterReader(ReadonlyBytes bytes, Function<DecodedImageFrame const&(u64)> const& image_frame)
+    SkiaFilterReader(ReadonlyBytes bytes, Function<DecodedImageFrame const&(u64)> const& image_frame, Optional<FloatRect> blur_edge)
         : m_bytes(bytes)
         , m_stream(bytes)
         , m_image_frame(image_frame)
+        , m_blur_edge(blur_edge)
     {
     }
 
@@ -123,6 +124,7 @@ private:
     ReadonlyBytes m_bytes;
     FixedMemoryStream m_stream;
     Function<DecodedImageFrame const&(u64)> const& m_image_frame;
+    Optional<FloatRect> m_blur_edge;
 };
 
 sk_sp<SkImageFilter> SkiaFilterReader::filter()
@@ -200,7 +202,10 @@ sk_sp<SkImageFilter> SkiaFilterReader::filter()
     case FilterOperationType::Blur: {
         auto radius_x = value<float>();
         auto radius_y = value<float>();
+        auto mirrors_at_backdrop_edge = value<bool>();
         auto input = optional_filter();
+        if (mirrors_at_backdrop_edge && m_blur_edge.has_value())
+            input = SkImageFilters::Crop(to_skia_rect(*m_blur_edge), SkTileMode::kMirror, move(input));
         return SkImageFilters::Blur(radius_x, radius_y, input);
     }
     case FilterOperationType::ColorFilter: {
@@ -424,9 +429,9 @@ sk_sp<SkImageFilter> SkiaFilterReader::filter()
 
 }
 
-sk_sp<SkImageFilter> to_skia_image_filter(ReadonlyBytes serialized_filter, Function<DecodedImageFrame const&(u64)> const& image_frame)
+sk_sp<SkImageFilter> to_skia_image_filter(ReadonlyBytes serialized_filter, Function<DecodedImageFrame const&(u64)> const& image_frame, Optional<FloatRect> blur_edge)
 {
-    return SkiaFilterReader { serialized_filter, image_frame }.read_graph();
+    return SkiaFilterReader { serialized_filter, image_frame, blur_edge }.read_graph();
 }
 
 sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space)

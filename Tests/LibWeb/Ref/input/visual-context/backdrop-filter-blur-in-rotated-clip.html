@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/backdrop-filter-blur-in-rotated-clip-ref.html">
+<style>
+body {
+    margin: 0;
+    background: black;
+}
+.rotated {
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    width: 200px;
+    height: 200px;
+    transform: rotate(20deg);
+}
+.neighbor {
+    position: absolute;
+    left: 50px;
+    top: 40px;
+    width: 100px;
+    height: 16px;
+    background: white;
+}
+.clip {
+    position: absolute;
+    left: 50px;
+    top: 60px;
+    width: 100px;
+    height: 40px;
+    overflow: hidden;
+}
+.filtered {
+    position: absolute;
+    left: 0;
+    top: -20px;
+    width: 100px;
+    height: 60px;
+    backdrop-filter: blur(20px);
+}
+</style>
+<!-- The white box lies inside the filtered box but outside the clip, which turns along with both, so
+     it stays out of the black backdrop that the clip leaves visible. -->
+<div class="rotated">
+    <div class="neighbor"></div>
+    <div class="clip">
+        <div class="filtered"></div>
+    </div>
+</div>

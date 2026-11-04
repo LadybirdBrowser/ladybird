@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/backdrop-filter-blur-mirrors-at-border-box-ref.html">
+<style>
+body {
+    margin: 0;
+    background: blue;
+}
+.strip {
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    width: 20px;
+    height: 100px;
+    background: red;
+}
+.filtered {
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    width: 100px;
+    height: 100px;
+    backdrop-filter: blur(24px);
+}
+</style>
+<!-- The red strip lies against the left edge of the box. Mirrored at that edge it blurs as a strip twice
+     as wide, which the reference spells out. Clamping or dropping the edge pixels looks different. -->
+<div class="strip"></div>
+<div class="filtered"></div>

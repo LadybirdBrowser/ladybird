@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <Compositor/CompositedContext.h>
 #include <Compositor/DisplayListPlayer.h>
@@ -17,6 +18,7 @@
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/Rect.h>
 
 class GrDirectContext;
 class SkColorFilter;
@@ -80,7 +82,7 @@ private:
     SkPaint paint_style_to_skia_paint(Compositing::DisplayListPaintStyle const&, Gfx::FloatRect const& bounding_rect);
     sk_sp<SkImageFilter> layer_image_filter(Compositing::ReplayLayer const&);
     sk_sp<SkImageFilter> backdrop_image_filter(Compositing::ReplayLayer const&, bool limited_to_region);
-    sk_sp<SkImageFilter> image_filter_from_bytes(ReadonlyBytes);
+    sk_sp<SkImageFilter> image_filter_from_bytes(ReadonlyBytes, Optional<Gfx::FloatRect> blur_edge = {});
     Gfx::Path path_from_data(Compositing::DisplayListDataSpan) const;
     sk_sp<SkImage> rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect);
     ReadonlySpan<Color> gradient_colors(Compositing::DisplayListGradientColorStops) const;

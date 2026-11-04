@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/backdrop-filter-blur-of-thin-and-huge-boxes-ref.html">
+<style>
+body {
+    margin: 0;
+    background: black;
+}
+.filtered {
+    position: absolute;
+    backdrop-filter: blur(1px) invert(1);
+}
+</style>
+<!-- Blurring the uniform black backdrop changes nothing, so each box shows it inverted, however thin the box
+     is in device pixels and however far it reaches beyond the viewport. -->
+<div class="filtered" style="left: 20px; top: 20px; width: 100px; height: 1px; transform: translateY(0.5px)"></div>
+<div class="filtered" style="left: 20px; top: 40px; width: 100px; height: 1px; transform: scaleY(0.5)"></div>
+<div class="filtered" style="left: 20px; top: 80px; width: 100px; height: 1px; transform: rotate(30deg) scaleY(0.5)"></div>
+<div class="filtered" style="left: 200px; top: 20px; width: 100px; height: 60000px"></div>

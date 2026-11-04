@@ -13,7 +13,9 @@ use crate::display_list::commands::{
 };
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::display_list::effect_clip_plan::EffectClipPlan;
-use crate::display_list::effect_geometry::{EffectGeometry, Extent, SpaceMatrices, compute_effect_geometry};
+use crate::display_list::effect_geometry::{
+    EffectGeometry, Extent, SpaceMatrices, compute_effect_geometry, map_rect_between_spaces,
+};
 use crate::display_list::ffi_bytes::FfiBytes;
 use crate::display_list::nested_records::span_bytes;
 use crate::visual_context::queries::TreeCullingScratch;
@@ -21,6 +23,7 @@ use crate::visual_context::{
     ClipNodeData, ContextRef, EffectNodeData, SpatialData, SpatialNode, VisualContextTree, device_offset_for_index,
     resolve_leaf_to_context_matrices, should_cull_back_face,
 };
+use libgfx_rust::filter::Filter;
 use libgfx_rust::path::Path;
 use libgfx_rust::{
     AffineTransform, Color, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, WindingRule,
@@ -332,6 +335,7 @@ fn replay_layer_of(
         backdrop_region,
         backdrop_corner_radii,
         backdrop_base_color: Color::TRANSPARENT,
+        backdrop_blur_edge: OptionalFloatRect::none(),
         effect,
         content_bounds: OptionalFloatRect::from(content_bounds),
     }
@@ -584,11 +588,49 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                 EffectNodeData::Effects(effects) if backdrop_is_drawn_by_masks(tree, effect) => {
                     let mut layer = replay_layer_of(effects, effect, None);
                     layer.backdrop_base_color = self.backdrop_base_color(mask_effect);
+                    layer.backdrop_blur_edge = self.backdrop_blur_edge(effect);
                     Some(layer)
                 }
                 _ => None,
             }
         })
+    }
+
+    // https://drafts.csswg.org/filter-effects-2/#backdrop-filter-operation
+    // If the filter functions list includes a blur() filter, the filter will be applied with edgeMode="mirror", with
+    // the edge defined by the clipped, transformed border box of the element.
+    // The clips come from the effect's clip chain and not from the canvas, whose clip also holds the rect a partial
+    // repaint is limited to, and whose bounds lose the shape of a clip that turns along with the box.
+    fn backdrop_blur_edge(&self, effect: EffectNodeIndex) -> OptionalFloatRect {
+        let tree = self.tree;
+        let node = &tree.effect_nodes[effect.0 as usize];
+        let EffectNodeData::Effects(effects) = &node.data else {
+            return OptionalFloatRect::none();
+        };
+        let Some(backdrop) = effects
+            .backdrop_filter
+            .as_ref()
+            .filter(|backdrop| Filter::serialized_has_mirroring_blur(&backdrop.filter))
+        else {
+            return OptionalFloatRect::none();
+        };
+        let mut edge = backdrop.region.to_float();
+        let mut clip = self.effect_clips.output_clip(effect);
+        while !clip.is_none() {
+            let clip_node = &tree.clip_nodes[clip.0 as usize];
+            let clip_rect = match &clip_node.data {
+                ClipNodeData::Rect(data) if data.mode == ClipMode::Intersect => Some(data.rect),
+                ClipNodeData::Path(path) => Some(path.bounding_rect.to_float()),
+                _ => None,
+            };
+            if let Some(clip_rect) = clip_rect
+                .and_then(|rect| map_rect_between_spaces(&mut &self.palette, rect, clip_node.spatial, node.spatial))
+            {
+                edge = edge.intersected(clip_rect);
+            }
+            clip = clip_node.parent;
+        }
+        OptionalFloatRect::from(Some(edge))
     }
 
     // https://drafts.fxtf.org/filter-effects-2/#BackdropRoot
@@ -779,6 +821,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                                     layer.blend_mode = libgfx_rust::CompositingAndBlendingOperator::Normal;
                                 } else if effects.backdrop_filter.is_some() {
                                     layer.backdrop_base_color = self.backdrop_base_color(effect);
+                                    layer.backdrop_blur_edge = self.backdrop_blur_edge(effect);
                                 }
                                 self.painter.push_layer(&layer);
                             }

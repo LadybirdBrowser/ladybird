@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    background: black;
+}
+.rotated {
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    width: 200px;
+    height: 200px;
+    transform: rotate(20deg);
+}
+.neighbor {
+    position: absolute;
+    left: 50px;
+    top: 40px;
+    width: 100px;
+    height: 16px;
+    background: white;
+}
+.clip {
+    position: absolute;
+    left: 50px;
+    top: 60px;
+    width: 100px;
+    height: 40px;
+    overflow: hidden;
+}
+</style>
+<div class="rotated">
+    <div class="neighbor"></div>
+    <div class="clip">
+    </div>
+</div>
