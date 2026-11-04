@@ -1,0 +1,19 @@
+When an inline’s only in-flow child is a block, Ladybird preserves
+line boxes for its nonzero inline-axis margins, borders, or padding.
+It preserves the edges separately even when their widths cancel.
+
+Gecko checks each margin, border, and padding edge separately in
+nsInlineFrame::IsSelfEmpty(), including edges on split inlines.
+
+Blink uses LineBreaker::HandleOpenTag() and HandleCloseTag() to
+make nonempty inline edges create line boxes.
+
+WebKit checks individual edges even when their total width is zero,
+in LineRun::isContentfulOrHasDecoration(). Ladybird follows the same
+rule, with its own inline-item and line-fragment representation.
+
+Ladybird returns zero client dimensions for non-atomic inline boxes.
+Blink’s Element::clientWidth() and Element::clientHeight() require a
+GetLayoutBox() result, and WebKit’s counterparts require renderBox().
+Gecko excludes non-replaced inline-flow frames in its implementation
+of Element::GetClientAreaRect().
