@@ -64,6 +64,8 @@ public:
         // Where to show it, in the logical coordinates of the window's surface.
         QPoint position;
         QSize destination;
+        // Whether the backing store may hold different pixels than when it was last presented.
+        bool has_new_content { true };
     };
 
     enum class PresentResult {
@@ -75,6 +77,8 @@ public:
         Failed,
     };
     PresentResult present(QWindow& parent, Frame const&);
+    // Whether the frame would show a different part of its buffer, or show it somewhere else, than the surface does.
+    bool would_change_placement(Frame const&) const;
     // Whether the last present takes effect only once the parent commits, because it moved the surface or because the
     // surface is synchronized.
     bool needs_parent_commit() const { return m_position_needs_parent_commit || m_is_synchronized; }
@@ -171,6 +175,9 @@ private:
     QMetaObject::Connection m_parent_surface_created_connection;
     Optional<QPoint> m_position;
     bool m_position_needs_parent_commit { false };
+    Buffer const* m_presented_buffer { nullptr };
+    QRect m_presented_source;
+    QSize m_presented_destination;
     bool m_is_synchronized { false };
     bool m_is_attached { false };
     u64 m_commit_count { 0 };

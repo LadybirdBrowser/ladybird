@@ -1879,12 +1879,9 @@ void WebContentView::resizeEvent(QResizeEvent* event)
     update_vulkan_window_geometry();
 #endif
 #ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
-    // NB: The page surface would stick out of a browser window that shrinks, so it is cropped to the view, and shows
-    //     that only together with the browser window's next commit at its new size.
-    if (m_page_surface && !QRect { QPoint { 0, 0 }, size() * m_device_pixel_ratio }.contains(m_page_surface_rect)) {
-        m_page_surface->set_synchronized(true);
-        update_page_surface();
-    }
+    // NB: The page surface would stick out of a browser window that shrinks, so it is cropped to the view.
+    if (m_page_surface && !QRect { QPoint { 0, 0 }, size() * m_device_pixel_ratio }.contains(m_page_surface_rect))
+        update_page_surface(PageSurfaceContent::Unchanged);
 #endif
     // One window resize reaches the view as several resize events in one turn of the event loop
     // (the chrome around it settles after it). The page gets one viewport size per turn: the size
@@ -2372,7 +2369,7 @@ void WebContentView::place_native_view_again()
 {
     // NB: Presenting the frame again places it, and crops it to what the widgets the view is in still show of it.
     if (m_page_surface && m_page_surface->is_showing())
-        update_page_surface();
+        update_page_surface(PageSurfaceContent::Unchanged);
 }
 #endif
 

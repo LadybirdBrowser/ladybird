@@ -332,6 +332,11 @@ void WaylandPageSurface::buffer_released(void* data, wl_buffer*)
         callback(page_id, bitmap_id);
 }
 
+bool WaylandPageSurface::would_change_placement(Frame const& frame) const
+{
+    return m_position != frame.position || m_presented_source != frame.source || m_presented_destination != frame.destination;
+}
+
 WaylandPageSurface::PresentResult WaylandPageSurface::present(QWindow& parent, Frame const& frame)
 {
     // NB: The source has to lie within the buffer, or the compositor disconnects us.
@@ -351,6 +356,12 @@ WaylandPageSurface::PresentResult WaylandPageSurface::present(QWindow& parent, F
 
     if (!ensure_subsurface(parent))
         return PresentResult::Pending;
+
+    // NB: The browser window's layout places the view several times for one resize, mostly at the same place.
+    if (!frame.has_new_content && m_is_attached && m_presented_buffer == buffer && !would_change_placement(frame)) {
+        m_position_needs_parent_commit = false;
+        return PresentResult::Presented;
+    }
 
     // NB: The position belongs to the browser window's state, and takes effect when it commits next.
     m_position_needs_parent_commit = m_position != frame.position;
@@ -373,6 +384,9 @@ WaylandPageSurface::PresentResult WaylandPageSurface::present(QWindow& parent, F
     ++m_commit_count;
     buffer->is_held_by_compositor = true;
     m_is_attached = true;
+    m_presented_buffer = buffer;
+    m_presented_source = frame.source;
+    m_presented_destination = frame.destination;
     return PresentResult::Presented;
 }
 
