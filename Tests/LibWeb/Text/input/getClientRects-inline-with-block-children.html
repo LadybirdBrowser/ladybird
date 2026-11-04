@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<!-- An inline box that contains in-flow block-level boxes is broken around them, so its client rects are its pieces
+     before and after each block (even if empty) and the blocks themselves, in content order. -->
+<style>
+    body { margin: 0; font: 16px/20px SerenitySans; }
+    fieldset { margin: 0; padding: 0; border: 0; height: 200px; }
+    .case { position: relative; }
+    #scroller { height: 300px; overflow: auto; }
+</style>
+<div style="height: 50px">before</div>
+<x-wrap id="reporter"><fieldset>block inside an inline custom element</fieldset></x-wrap>
+<div style="height: 50px">after</div>
+<div class="case"><span id="text-around">aa<div style="height: 30px">block</div>bb</span></div>
+<div class="case"><span id="two-blocks"><div style="height: 30px"></div><div style="height: 40px"></div></span></div>
+<div class="case"><span id="outer"><b id="inner"><div style="height: 30px">x</div></b></span></div>
+<div class="case"><span id="abspos">a<div style="position: absolute; height: 30px">x</div>b</span></div>
+<div class="case"><span id="no-block">just text</span></div>
+<div class="case"><span id="text-before">aa<div style="height: 30px">block</div></span></div>
+<div class="case"><span id="relpos"><div style="position: relative; top: 100px; height: 30px"></div></span></div>
+<div class="case"><span id="box-model"><div style="margin: 5px 7px; border: 3px solid; padding: 2px; height: 20px"></div></span></div>
+<div class="case" style="padding: 1px 0"><span id="margins-in-padding"><div style="margin: 5px 7px; height: 20px"></div></span></div>
+<div class="case" style="padding: 1px 0; direction: rtl"><span id="rtl-margins"><div style="margin: 5px 7px; height: 20px"></div></span></div>
+<div class="case"><span id="run-in"><div style="display: run-in; width: 80px; height: 30px"></div></span></div>
+<div class="case" style="width: 100px; direction: rtl"><span id="rtl"><div style="height: 30px"></div></span></div>
+<div class="case" style="width: 100px; height: 80px; writing-mode: vertical-rl"><span id="vertical-rl"><div style="width: 30px"></div></span></div>
+<div class="case" style="width: 100px; height: 80px; writing-mode: vertical-lr"><span id="vertical-lr"><div style="width: 30px"></div></span></div>
+<div id="scroller">
+  <div style="height: 1000px"></div>
+  <x-wrap id="b"><fieldset>section</fieldset></x-wrap>
+  <div style="height: 1000px"></div>
+</div>
+<script>
+    test(() => {
+        // Each rect is x,y widthxheight, relative to the case's container.
+        const ids = ["reporter", "text-around", "two-blocks", "outer", "inner", "abspos", "no-block", "text-before", "relpos",
+            "box-model", "margins-in-padding", "rtl-margins", "run-in", "rtl", "vertical-rl", "vertical-lr"];
+        for (const id of ids) {
+            const element = document.getElementById(id);
+            const container = id === "reporter" ? { x: 0, y: 0 } : element.closest(".case").getBoundingClientRect();
+            const format = r => `${Math.round(r.x - container.x)},${Math.round(r.y - container.y)} ${Math.round(r.width)}x${Math.round(r.height)}`;
+            const rects = [...element.getClientRects()].map(format).join(" | ");
+            println(`${id}: ${element.getClientRects().length} rects: ${rects} || bounding ${format(element.getBoundingClientRect())}`);
+        }
+        document.getElementById("b").scrollIntoView({ block: "center" });
+        println(`scrollTop after scrollIntoView: ${document.getElementById("scroller").scrollTop}`);
+    });
+</script>

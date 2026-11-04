@@ -1,0 +1,2 @@
+light DOM block: bounding 50,50 200x80; client rects: 50,50 0x0, 50,50 200x80, 50,130 0x0
+shadow DOM block: bounding 50,200 200x80; client rects: 50,200 0x0, 50,200 200x80, 50,280 0x0
