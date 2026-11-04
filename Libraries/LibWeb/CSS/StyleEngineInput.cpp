@@ -68,31 +68,9 @@ namespace Web::CSS {
 
 static void record_element_heading_level(DOM::Element&);
 
-// The directionalities of the elements on the way from the root to the one published last, as far as they were published
-// in this batch. A batch comes mostly in tree order, so most elements find their parent's here and don't walk to the root.
-class PublishedDirectionalities {
-public:
-    DOM::Element::Directionality publish(DOM::Element const& element)
-    {
-        auto const* parent = element.parent_or_shadow_host_element();
-        while (!m_elements_to_parent.is_empty() && m_elements_to_parent.last().element.ptr() != parent)
-            m_elements_to_parent.take_last();
-        auto directionality = element.directionality_unless_from_parent().value_or_lazy_evaluated([&] {
-            return m_elements_to_parent.is_empty() ? element.directionality() : m_elements_to_parent.last().directionality;
-        });
-        m_elements_to_parent.append({ element, directionality });
-        return directionality;
-    }
+class ElementPublication;
 
-private:
-    struct Row {
-        GC::Ptr<DOM::Element const> element;
-        DOM::Element::Directionality directionality;
-    };
-    GC::ConservativeVector<Row, 32> m_elements_to_parent;
-};
-
-static void record_element_initial_features(DOM::Element&, PublishedDirectionalities&);
+static void record_element_initial_features(DOM::Element&, ElementPublication&);
 static void record_element_inline_style_properties(DOM::Element&);
 static void record_heading_levels_in_subtree(DOM::Element&);
 static void republish_assigned_slots_of(ReadonlySpan<GC::Ref<DOM::Node>>);
@@ -100,6 +78,7 @@ static Optional<StyleEngineFFI::FfiStateFact> state_fact_for(PseudoClass);
 static StyleAtomID intern_id_or_class_atom(StyleEngine&, DOM::Element const&, Utf16FlyString const&);
 static u32 element_construction_facts(DOM::Element const&);
 static u32 element_style_adjustment_facts(DOM::Element const&);
+static void publish_element_replaced_content_input(DOM::Element&, StyleEngine&);
 
 static constexpr StyleNodeID no_style_node;
 // Shadow trees get their own scopes with the shadow surface; today everything names the document.
@@ -355,55 +334,6 @@ static void prefetch_node(DOM::Node const& node)
     auto const* bytes = reinterpret_cast<u8 const*>(&node);
     for (size_t offset = 0; offset < sizeof(DOM::Element); offset += 64)
         __builtin_prefetch(bytes + offset);
-}
-
-void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& style_computer, Layout::BegunRead const& read)
-{
-    auto nodes = style_engine.take_deferred_element_initial_features();
-    // What the engine reads decides what of the elements is withheld from it, which the host asks the engine where a
-    // rule it queued since its last job leaves it not knowing.
-    if (!nodes.is_empty())
-        StyleEngineFFI::document_host_learn_selector_requirements(style_engine.host(), &read);
-    PublishedDirectionalities directionalities;
-    for (size_t index = 0; index < nodes.size(); ++index) {
-        // OPTIMIZATION: Most of an element's publication is first reading memory no one touched since the element was
-        //               parsed. Asking for it ahead turns waiting for one element at a time into overlapping waits. Each
-        //               stage reads what the one before it asked for, so the distances shrink along the chain.
-        if (index + 2 * nodes_ahead < nodes.size()) {
-            if (auto ahead = style_computer.node_for_style_node(nodes[index + 2 * nodes_ahead]))
-                prefetch_node(*ahead);
-        }
-        if (index + nodes_ahead < nodes.size()) {
-            if (auto ahead = style_computer.element_for_style_node(nodes[index + nodes_ahead]))
-                __builtin_prefetch(ahead->inline_style_declarations());
-        }
-        if (index + nodes_ahead / 2 < nodes.size()) {
-            if (auto ahead = style_computer.element_for_style_node(nodes[index + nodes_ahead / 2]); ahead && ahead->inline_style_declarations())
-                Parser::ValueParserFFI::rust_declaration_block_prefetch_header(ahead->inline_style_declarations());
-        }
-        auto node = nodes[index];
-        auto element = style_computer.element_for_style_node(node);
-        // NB: An element that left the tree gave up its mark. Its identity may have gone to an element since, which is
-        //     then listed twice and published at the first.
-        if (!element || !element->initial_style_features_pending())
-            continue;
-        // An inserted subtree takes its identities before its insertion steps mark its nodes connected, in tree order.
-        // A step that submits the recorded input on the way, as a <style> writing its sheet to the engine in place
-        // while a style update flies, finds the elements after it unconnected: their arrivals are submitted, and
-        // their features wait for the next submit, which folds them onto those arrivals.
-        if (!element->is_connected()) {
-            style_engine.defer_element_initial_features(*element);
-            continue;
-        }
-        element->set_initial_style_features_pending(false);
-        record_element_initial_features(*element, directionalities);
-    }
-    // NB: A tag read now may not be final, as an XML parser sets attributes after insertion, so none is left cached. They
-    //     stay for the length of this loop, as the batch itself changes no tag and each element reads its parent's.
-    for (auto node : nodes) {
-        if (auto element = style_computer.element_for_style_node(node))
-            element->invalidate_lang_value();
-    }
 }
 
 // A node that connects takes no identity at once. Script often inserts markup and replaces it again before anything
@@ -1079,25 +1009,216 @@ static u8 associated_pseudo_kind_plus_one(DOM::Element const& element)
     return pseudo_element.has_value() ? static_cast<u8>(to_underlying(*pseudo_element) + 1) : 0;
 }
 
+// The questions about an element that elements of its name answer differently.
+enum class ElementOpenFacts : u16 {
+    None = 0,
+    Input = 1 << 0,
+    Audio = 1 << 1,
+    SvgRoot = 1 << 2,
+    SvgSymbol = 1 << 3,
+    SvgElement = 1 << 4,
+    Body = 1 << 5,
+    Heading = 1 << 6,
+    ReplacedContent = 1 << 7,
+    OwnDirectionality = 1 << 8,
+    PresentationalHints = 1 << 9,
+};
+AK_ENUM_BITWISE_OPERATORS(ElementOpenFacts);
+
+static ElementOpenFacts element_open_facts(DOM::Element const&);
+static u32 kind_style_adjustment_facts(DOM::Element const&);
+static u32 kind_construction_facts(DOM::Element const&);
+static u32 open_style_adjustment_facts(DOM::Element const&, ElementOpenFacts);
+static u32 open_construction_facts(DOM::Element const&, ElementOpenFacts, bool is_in_user_agent_shadow_tree);
+
+// What an element's qualified name settles. The name picks the element's class, so this holds for every element of it,
+// and only what the name leaves open is asked of each.
+struct ElementKind {
+    DOM::QualifiedName::Impl const* name { nullptr };
+    StyleAtomID tag_atom;
+    StyleAtomID folded_tag_atom;
+    StyleAtomID namespace_atom;
+    u32 adjustment_facts { 0 };
+    u32 construction_facts { 0 };
+    ElementOpenFacts open_facts { ElementOpenFacts::None };
+    SelectorMatching::ElementStateQuestions state_questions { SelectorMatching::ElementStateQuestions::None };
+    bool is_slot { false };
+};
+
+static ElementKind element_kind_of(StyleEngine& style_engine, DOM::Element const& element)
+{
+    auto tag_atom = style_engine.intern_atom(element.local_name());
+    ElementKind kind {
+        .name = element.qualified_name_identity(),
+        .tag_atom = tag_atom,
+        .folded_tag_atom = tag_atom,
+        .namespace_atom = {},
+        .adjustment_facts = kind_style_adjustment_facts(element),
+        .construction_facts = kind_construction_facts(element),
+        .open_facts = element_open_facts(element),
+        .state_questions = SelectorMatching::element_state_questions(element),
+        .is_slot = is<HTML::HTMLSlotElement>(element),
+    };
+    if (auto folded_name = element.local_name().to_ascii_lowercase(); folded_name != element.local_name())
+        kind.folded_tag_atom = style_engine.intern_atom(folded_name);
+    if (auto const& namespace_uri = element.namespace_uri(); namespace_uri.has_value() && !namespace_uri->is_empty())
+        kind.namespace_atom = style_engine.intern_atom(*namespace_uri);
+    return kind;
+}
+
+// What one attribute name settles, which is the same on every element that has it.
+struct PublishedAttributeName {
+    DOM::QualifiedName::Impl const* name { nullptr };
+    StyleAtomID atom;
+    bool is_known_unread { false };
+    bool is_lang { false };
+    bool is_dir { false };
+};
+
+// A table a batch keeps of what it found out by name. Names repeat, so a slot a name shares with another only costs
+// asking again.
+template<typename Entry, size_t slot_count>
+class TableByName {
+public:
+    static_assert((slot_count & (slot_count - 1)) == 0);
+
+    Entry& slot_of(DOM::QualifiedName::Impl const* name)
+    {
+        // Fibonacci hashing: the high bits of the product depend on all of an allocation's address.
+        auto hash = (reinterpret_cast<FlatPtr>(name) * 0x9e3779b97f4a7c15ull) >> (64 - count_trailing_zeroes(slot_count));
+        return m_slots[hash];
+    }
+
+private:
+    Array<Entry, slot_count> m_slots {};
+};
+
+// One batch of elements publishing their initial features. Nothing but the batch changes the DOM or what the engine
+// reads while it lives, so what one element answers holds for the next one asking.
+class ElementPublication {
+    AK_MAKE_NONCOPYABLE(ElementPublication);
+    AK_MAKE_NONMOVABLE(ElementPublication);
+
+public:
+    // The facts an element takes from its parent where it has none of its own.
+    struct Inherited {
+        DOM::Element::Directionality directionality { DOM::Element::Directionality::Ltr };
+        StyleAtomID language_atom;
+        bool is_in_user_agent_shadow_tree { false };
+    };
+
+    ElementPublication(StyleEngine& style_engine, DOM::Document const& document)
+        : m_style_engine(style_engine)
+        , m_focus_within_chain(document)
+        , m_hovered_element(hovered_element_of(document.hovered_node()))
+        , m_ltr_atom(style_engine.intern_atom("ltr"_utf16_fly_string))
+        , m_rtl_atom(style_engine.intern_atom("rtl"_utf16_fly_string))
+    {
+    }
+
+    ~ElementPublication()
+    {
+        // NB: A tag read now may not be final, as an XML parser sets attributes after insertion, so none is left cached.
+        for (auto element : m_elements_asked_their_language)
+            element->invalidate_lang_value_of_inclusive_ancestors();
+    }
+
+    ElementKind const& kind_of(DOM::Element const& element)
+    {
+        auto& kind = m_kinds.slot_of(element.qualified_name_identity());
+        if (kind.name != element.qualified_name_identity())
+            kind = element_kind_of(m_style_engine, element);
+        return kind;
+    }
+
+    PublishedAttributeName const& attribute_name(DOM::QualifiedName const& name)
+    {
+        auto& slot = m_attribute_names.slot_of(name.identity());
+        if (slot.name == name.identity())
+            return slot;
+        auto atom = m_style_engine.intern_attribute_name(name.local_name(), name.namespace_());
+        slot = {
+            .name = name.identity(),
+            .atom = atom,
+            .is_known_unread = m_style_engine.attribute_is_known_unread(atom),
+            .is_lang = name.local_name() == HTML::AttributeNames::lang,
+            .is_dir = name.local_name() == HTML::AttributeNames::dir,
+        };
+        if (slot.is_known_unread)
+            m_style_engine.note_attribute_withheld(name.local_name(), name.namespace_());
+        return slot;
+    }
+
+    // What the element's parent passes on, if it has one. Elements come mostly in tree order, so most parents were
+    // just published, and most of the rest are asked once for all the children that follow.
+    Optional<Inherited> inherited_by(DOM::Element& element)
+    {
+        auto* parent = element.parent_or_shadow_host_element();
+        while (!m_elements_to_parent.is_empty() && m_elements_to_parent.last().element.ptr() != parent)
+            m_elements_to_parent.take_last();
+        if (!parent)
+            return {};
+        if (m_elements_to_parent.is_empty()) {
+            auto const* shadow_root = parent->containing_shadow_root().ptr();
+            published(*parent, {
+                                   .directionality = parent->directionality(),
+                                   .language_atom = language_atom_asked_of(*parent),
+                                   .is_in_user_agent_shadow_tree = shadow_root && shadow_root->is_user_agent_internal(),
+                               });
+        }
+        return m_elements_to_parent.last().inherited;
+    }
+
+    void published(DOM::Element& element, Inherited inherited)
+    {
+        m_elements_to_parent.append({ element, inherited });
+    }
+
+    // The tag is computed afresh. One cached where the element used to be says nothing about where it arrives, as a
+    // subtree that moves while detached is never reached by the walk a `lang` change runs.
+    StyleAtomID language_atom_asked_of(DOM::Element& element)
+    {
+        element.invalidate_lang_value();
+        auto const language = element.lang_view();
+        m_elements_asked_their_language.append(element);
+        return language.has_value() ? m_style_engine.intern_language_atom(*language) : StyleAtomID {};
+    }
+
+    SelectorMatching::FocusWithinChain const& focus_within_chain() const { return m_focus_within_chain; }
+    DOM::Element const* hovered_element() const { return m_hovered_element.ptr(); }
+    StyleAtomID directionality_atom(DOM::Element::Directionality directionality) const
+    {
+        return directionality == DOM::Element::Directionality::Rtl ? m_rtl_atom : m_ltr_atom;
+    }
+
+private:
+    struct AncestorRow {
+        GC::Ptr<DOM::Element const> element;
+        Inherited inherited;
+    };
+
+    StyleEngine& m_style_engine;
+    SelectorMatching::FocusWithinChain m_focus_within_chain;
+    GC::Ptr<DOM::Element const> m_hovered_element;
+    StyleAtomID m_ltr_atom;
+    StyleAtomID m_rtl_atom;
+    TableByName<ElementKind, 64> m_kinds;
+    TableByName<PublishedAttributeName, 32> m_attribute_names;
+    GC::ConservativeVector<AncestorRow, 32> m_elements_to_parent;
+    GC::RootVector<GC::Ref<DOM::Element>> m_elements_asked_their_language;
+};
+
 // Publish every selector-visible fact intrinsic to one element.
 //
 // An element arrives with facts already true of it, and the engine has heard none of them. They are
 // published as ordinary deltas from absent, so the projection learns them by exactly the same path
 // later mutations take rather than by a second one.
-static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element, PublishedDirectionalities& directionalities)
+static ElementKind const& publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element, ElementPublication& publication)
 {
     auto node = element.style_node_id();
     // Everything the element's selectors test arrives as one row, which the engine writes in one go.
     // Slot identity and namespace never change during an element's lifetime.
-    auto is_slot = is<HTML::HTMLSlotElement>(element);
-    StyleAtomID namespace_atom;
-    if (auto const& namespace_uri = element.namespace_uri(); namespace_uri.has_value() && !namespace_uri->is_empty())
-        namespace_atom = style_engine.intern_atom(*namespace_uri);
-
-    auto tag_atom = style_engine.intern_atom(element.local_name());
-    auto folded_tag_atom = tag_atom;
-    if (auto folded_name = element.local_name().to_ascii_lowercase(); folded_name != element.local_name())
-        folded_tag_atom = style_engine.intern_atom(folded_name);
+    auto const& kind = publication.kind_of(element);
     StyleAtomID id_atom;
     if (auto const& id = element.id(); id.has_value())
         id_atom = intern_id_or_class_atom(style_engine, element, *id);
@@ -1105,14 +1226,16 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     for (auto const& class_name : element.class_names())
         classes.append(intern_id_or_class_atom(style_engine, element, class_name));
     Vector<StyleAtomID, 16> attributes;
+    bool has_own_language = false;
+    bool has_own_directionality = has_flag(kind.open_facts, ElementOpenFacts::OwnDirectionality);
     for (auto const& [name, value] : element.attribute_list()) {
-        auto name_atom = style_engine.intern_attribute_name(name.local_name(), name.namespace_());
-        if (style_engine.attribute_is_known_unread(name_atom)) {
-            style_engine.note_attribute_withheld(name.local_name(), name.namespace_());
+        auto const& attribute_name = publication.attribute_name(name);
+        has_own_language |= attribute_name.is_lang;
+        has_own_directionality |= attribute_name.is_dir;
+        if (attribute_name.is_known_unread)
             continue;
-        }
-        attributes.append(name_atom);
-        attributes.append(style_engine.intern_attribute_value(name_atom, value));
+        attributes.append(attribute_name.atom);
+        attributes.append(style_engine.intern_attribute_value(attribute_name.atom, value));
     }
 
     bool has_nonempty_text_child = false;
@@ -1124,35 +1247,44 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     }
 
     auto ask_local_link = SelectorMatching::AskLocalLink::Yes;
-    if (element.matches_link_pseudo_class() && style_engine.local_link_is_known_untested()) {
+    if (has_flag(kind.state_questions, SelectorMatching::ElementStateQuestions::Link) && element.matches_link_pseudo_class() && style_engine.local_link_is_known_untested()) {
         ask_local_link = SelectorMatching::AskLocalLink::No;
         style_engine.note_local_link_state_withheld();
     }
     auto ask_validity = SelectorMatching::AskValidity::Yes;
-    if (SelectorMatching::element_can_have_validity(element) && style_engine.validity_is_known_untested()) {
+    // A custom element's definition can make it a control, whatever its name settles.
+    if ((has_flag(kind.state_questions, SelectorMatching::ElementStateQuestions::Control) || element.has_custom_element_definition())
+        && SelectorMatching::element_can_have_validity(element) && style_engine.validity_is_known_untested()) {
         ask_validity = SelectorMatching::AskValidity::No;
         style_engine.note_validity_state_withheld();
     }
-    auto states = SelectorMatching::element_states(element, ask_local_link, ask_validity);
+    auto states = SelectorMatching::element_states(element, kind.state_questions, publication.focus_within_chain(), ask_local_link, ask_validity);
     u64 state_bits = 0;
     states.for_each_set([&](PseudoClass pseudo_class) {
-        // The engine's hover chain holds `:hover`, which the hover follows to an element that arrives hovered.
-        if (pseudo_class == PseudoClass::Hover)
-            return;
         if (auto fact = state_fact_for(pseudo_class); fact.has_value())
             state_bits |= static_cast<u64>(1) << to_underlying(*fact);
     });
 
-    // The tag is computed afresh. One cached where the element used to be says nothing about where it arrives, as a
-    // subtree that moves while detached is never reached by the walk a `lang` change runs.
-    element.invalidate_lang_value();
-    auto const language = element.lang_view();
-    auto language_atom = language.has_value() ? style_engine.intern_language_atom(*language) : StyleAtomID {};
-    auto const directionality = directionalities.publish(element) == DOM::Element::Directionality::Rtl ? "rtl"_utf16_fly_string : "ltr"_utf16_fly_string;
-    auto directionality_atom = style_engine.intern_atom(directionality);
+    auto inherited = publication.inherited_by(element);
+    ElementPublication::Inherited own;
+    own.language_atom = inherited.has_value() && !has_own_language ? inherited->language_atom : publication.language_atom_asked_of(element);
+    auto directionality = has_own_directionality ? element.directionality_unless_from_parent() : Optional<DOM::Element::Directionality> {};
+    own.directionality = directionality.value_or_lazy_evaluated([&] {
+        return inherited.has_value() ? inherited->directionality : element.directionality();
+    });
+    if (auto const* shadow_root = as_if<DOM::ShadowRoot>(element.parent())) {
+        own.is_in_user_agent_shadow_tree = shadow_root->is_user_agent_internal();
+    } else if (inherited.has_value()) {
+        own.is_in_user_agent_shadow_tree = inherited->is_in_user_agent_shadow_tree;
+    } else {
+        auto const* containing_shadow_root = element.containing_shadow_root().ptr();
+        own.is_in_user_agent_shadow_tree = containing_shadow_root && containing_shadow_root->is_user_agent_internal();
+    }
+    publication.published(element, own);
 
-    GC::Ptr<HTML::HTMLHeadingElement const> heading = as_if<HTML::HTMLHeadingElement>(element);
-    auto heading_level = static_cast<u8>(min(heading ? heading->heading_level() : 0, 255u));
+    u8 heading_level = 0;
+    if (has_flag(kind.open_facts, ElementOpenFacts::Heading))
+        heading_level = static_cast<u8>(min(as<HTML::HTMLHeadingElement>(element).heading_level(), 255u));
 
     Vector<StyleAtomID> custom_states;
     if (auto states = element.custom_state_set()) {
@@ -1162,27 +1294,28 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     style_engine.record_element_arrival({
                                             .states = state_bits,
                                             .node = node.value(),
-                                            .tag_atom = tag_atom.value(),
-                                            .folded_tag_atom = folded_tag_atom.value(),
+                                            .tag_atom = kind.tag_atom.value(),
+                                            .folded_tag_atom = kind.folded_tag_atom.value(),
                                             .id_atom = id_atom.value(),
-                                            .namespace_atom = namespace_atom.value(),
-                                            .language_atom = language_atom.value(),
-                                            .directionality_atom = directionality_atom.value(),
+                                            .namespace_atom = kind.namespace_atom.value(),
+                                            .language_atom = own.language_atom.value(),
+                                            .directionality_atom = publication.directionality_atom(own.directionality).value(),
                                             .custom_state_count = static_cast<u32>(custom_states.size()),
                                             .class_count = static_cast<u32>(classes.size()),
                                             .attribute_count = static_cast<u32>(attributes.size() / 2),
                                             .heading_level = heading_level,
-                                            .is_slot = is_slot,
+                                            .is_slot = kind.is_slot,
                                             .has_text_content = has_nonempty_text_child,
                                             .associated_pseudo_kind_plus_one = associated_pseudo_kind_plus_one(element),
                                             .box_kind = to_underlying(box_kind_for_layout(element)),
-                                            .adjustment_facts = element_style_adjustment_facts(element),
-                                            .construction_facts = element_construction_facts(element),
+                                            .adjustment_facts = kind.adjustment_facts | open_style_adjustment_facts(element, kind.open_facts),
+                                            .construction_facts = kind.construction_facts | open_construction_facts(element, kind.open_facts, own.is_in_user_agent_shadow_tree),
                                         },
         custom_states, classes, attributes);
     // The hover follows the element the events hover to where it arrives, the place a move took it to.
-    if (&element == hovered_element_of(element.document().hovered_node()))
+    if (&element == publication.hovered_element())
         style_engine.record_hover(node);
+    return kind;
 }
 
 // An element's hints move when something beside its own attributes that they are mapped from
@@ -1198,29 +1331,32 @@ void republish_presentational_hints(DOM::Element& element)
     record_element_declarations_changed(element, ElementDeclarationKind::SvgPresentationAttribute, true, true);
 }
 
-static bool element_has_presentational_hints_to_publish(DOM::Element const& element)
+static bool element_has_presentational_hints_to_publish(DOM::Element const& element, ElementKind const& kind)
 {
-    if (element.publishes_presentational_hints_on_arrival())
-        return true;
-    // A table cell can take hints from its table's border and cellpadding, and an image from its
-    // <picture>'s <source>, without a presentational attribute of its own.
-    if (element.namespace_uri() == Namespace::HTML && first_is_one_of(element.local_name(), HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::img))
-        return true;
+    if (has_flag(kind.open_facts, ElementOpenFacts::PresentationalHints)) {
+        if (element.publishes_presentational_hints_on_arrival())
+            return true;
+        // A table cell can take hints from its table's border and cellpadding, and an image from its
+        // <picture>'s <source>, without a presentational attribute of its own.
+        if (element.namespace_uri() == Namespace::HTML && first_is_one_of(element.local_name(), HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::img))
+            return true;
+        // The cascade also reads the width and height attributes of an element that supports them.
+        if (element.supports_dimension_attributes()
+            && (element.has_attribute(HTML::AttributeNames::width) || element.has_attribute(HTML::AttributeNames::height)))
+            return true;
+        // A body takes its margins from its frame's marginwidth and marginheight.
+        if (is<HTML::HTMLBodyElement>(element)) {
+            if (auto navigable = element.document().navigable(); navigable && navigable->container()
+                && (navigable->container()->has_attribute(HTML::AttributeNames::marginwidth) || navigable->container()->has_attribute(HTML::AttributeNames::marginheight)))
+                return true;
+        }
+    }
     // A body's link, vlink and alink attributes are presentational hints on every link, by the
     // link's :link, :visited and :active state.
-    if ((element.matches_link_pseudo_class() || element.matches_visited_pseudo_class())
+    if (has_flag(kind.state_questions, SelectorMatching::ElementStateQuestions::Link)
+        && (element.matches_link_pseudo_class() || element.matches_visited_pseudo_class())
         && (element.document().normal_link_color().has_value() || element.document().visited_link_color().has_value() || element.document().active_link_color().has_value()))
         return true;
-    // The cascade also reads the width and height attributes of an element that supports them.
-    if (element.supports_dimension_attributes()
-        && (element.has_attribute(HTML::AttributeNames::width) || element.has_attribute(HTML::AttributeNames::height)))
-        return true;
-    // A body takes its margins from its frame's marginwidth and marginheight.
-    if (is<HTML::HTMLBodyElement>(element)) {
-        if (auto navigable = element.document().navigable(); navigable && navigable->container()
-            && (navigable->container()->has_attribute(HTML::AttributeNames::marginwidth) || navigable->container()->has_attribute(HTML::AttributeNames::marginheight)))
-            return true;
-    }
     return any_of(element.attribute_list(), [&](auto const& attribute) { return element.is_presentational_hint(attribute.name.as_string()); });
 }
 
@@ -1364,63 +1500,46 @@ static MathMLLayoutKind mathml_layout_kind(DOM::Element const& element)
     // Unknown MathML elements behave the same as the <mrow> element.
     return MathMLLayoutKind::Mrow;
 }
-u32 element_box_type_adjustment_facts(DOM::Element const& element)
+static ElementOpenFacts element_open_facts(DOM::Element const& element)
+{
+    bool is_html_element = element.namespace_uri() == Namespace::HTML;
+    bool is_svg_element = element.namespace_uri() == Namespace::SVG;
+    auto const& local_name = element.local_name();
+    auto facts = ElementOpenFacts::None;
+    auto set = [&](bool condition, ElementOpenFacts fact) {
+        if (condition)
+            facts |= fact;
+    };
+    auto is_input = is<HTML::HTMLInputElement>(element);
+    auto is_body = is<HTML::HTMLBodyElement>(element);
+    set(is_input, ElementOpenFacts::Input);
+    set(is_html_element && local_name == HTML::TagNames::audio, ElementOpenFacts::Audio);
+    set(is_svg_element && local_name == "svg"sv, ElementOpenFacts::SvgRoot);
+    set(is_svg_element && local_name == "symbol"sv, ElementOpenFacts::SvgSymbol);
+    set(is<SVG::SVGElement>(element), ElementOpenFacts::SvgElement);
+    set(is_body || is<HTML::HTMLFrameSetElement>(element), ElementOpenFacts::Body);
+    set(is<HTML::HTMLHeadingElement>(element), ElementOpenFacts::Heading);
+    set(is_input || is<HTML::HTMLTextAreaElement>(element) || is<HTML::HTMLImageElement>(element) || is<HTML::HTMLObjectElement>(element) || is<HTML::HTMLVideoElement>(element)
+            || is<SVG::SVGImageElement>(element) || is<HTML::HTMLCanvasElement>(element),
+        ElementOpenFacts::ReplacedContent);
+    set(is_input || local_name == HTML::TagNames::bdi, ElementOpenFacts::OwnDirectionality);
+    set(is_body || is_input || element.publishes_presentational_hints_on_arrival() || element.supports_dimension_attributes()
+            || (is_html_element && first_is_one_of(local_name, HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::img)),
+        ElementOpenFacts::PresentationalHints);
+    return facts;
+}
+
+// The box-type adjustment facts every element of a name shares.
+static u32 kind_box_type_adjustment_facts(DOM::Element const& element)
 {
     bool is_html_element = element.namespace_uri() == Namespace::HTML;
     bool is_svg_element = element.namespace_uri() == Namespace::SVG;
     bool is_mathml_element = element.namespace_uri() == Namespace::MathML;
     auto local_name = element.local_name();
 
-    bool input_allows_adjustment = false;
-    bool input_is_single_line = false;
-    if (is<HTML::HTMLInputElement>(element)) {
-        auto const& input = static_cast<HTML::HTMLInputElement const&>(element);
-        input_allows_adjustment = !first_is_one_of(
-            input.type_state(),
-            HTML::HTMLInputElement::TypeAttributeState::Hidden,
-            HTML::HTMLInputElement::TypeAttributeState::SubmitButton,
-            HTML::HTMLInputElement::TypeAttributeState::Button,
-            HTML::HTMLInputElement::TypeAttributeState::ResetButton,
-            HTML::HTMLInputElement::TypeAttributeState::ImageButton,
-            HTML::HTMLInputElement::TypeAttributeState::Checkbox,
-            HTML::HTMLInputElement::TypeAttributeState::RadioButton);
-        input_is_single_line = input_allows_adjustment && input.is_single_line();
-    }
-
-    bool is_outermost_svg_element = false;
-    bool force_position_static = false;
-    if (is_svg_element) {
-        force_position_static = true;
-        if (local_name == "svg"sv) {
-            is_outermost_svg_element = true;
-            for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element()) {
-                if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "foreignObject"sv)
-                    break;
-                if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "svg"sv) {
-                    is_outermost_svg_element = false;
-                    break;
-                }
-            }
-            force_position_static = !is_outermost_svg_element;
-        }
-    }
-
-    bool force_symbol_display_inline = false;
-    if (is_svg_element && local_name == "symbol"sv) {
-        if (auto* shadow_root = as_if<DOM::ShadowRoot>(element.parent())) {
-            if (auto* host = shadow_root->host())
-                force_symbol_display_inline = host->namespace_uri() == Namespace::SVG && host->local_name() == "use"sv;
-        }
-    }
-
     bool display_contents_computes_to_none = false;
 
     // https://drafts.csswg.org/css-display-3/#unbox-svg
-    // - An svg element that has CSS box layout (this includes all svg whose parent is an HTML element, as well as
-    //   document root elements):
-    //     display: contents computes to display: none.
-    display_contents_computes_to_none |= is_outermost_svg_element;
-
     // - All other SVG container elements that are also renderable elements
     // - SVG text content child elements
     // - <use>
@@ -1442,61 +1561,132 @@ u32 element_box_type_adjustment_facts(DOM::Element const& element)
     };
     set(is<HTML::HTMLBRElement>(element), ElementStyleAdjustmentFact::IsBr);
     set(is_html_element && local_name == HTML::TagNames::wbr, ElementStyleAdjustmentFact::IsWbr);
-    set(input_allows_adjustment || display_contents_computes_to_none || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::canvas, HTML::TagNames::object, HTML::TagNames::iframe, HTML::TagNames::progress, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::meter, HTML::TagNames::frameset, HTML::TagNames::img)), ElementStyleAdjustmentFact::DisallowDisplayContents);
-    set(input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::select)), ElementStyleAdjustmentFact::RewriteInlineFlow);
+    set(display_contents_computes_to_none || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::canvas, HTML::TagNames::object, HTML::TagNames::iframe, HTML::TagNames::progress, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::meter, HTML::TagNames::frameset, HTML::TagNames::img)), ElementStyleAdjustmentFact::DisallowDisplayContents);
+    set(is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::select), ElementStyleAdjustmentFact::RewriteInlineFlow);
     set(is_html_element && local_name == HTML::TagNames::button, ElementStyleAdjustmentFact::IsButton);
     set(is_html_element && local_name == HTML::TagNames::select, ElementStyleAdjustmentFact::ForceLineHeightNormal);
-    set(input_is_single_line, ElementStyleAdjustmentFact::CheckInputLineHeight);
-    set(is_html_element && local_name == HTML::TagNames::audio && !element.has_attribute(HTML::AttributeNames::controls), ElementStyleAdjustmentFact::HideAudioWithoutControls);
     set(is_html_element && local_name == HTML::TagNames::table, ElementStyleAdjustmentFact::IsTable);
-    set(force_position_static, ElementStyleAdjustmentFact::ForcePositionStatic);
-    set(force_symbol_display_inline, ElementStyleAdjustmentFact::ForceSymbolDisplayInline);
+    set(is_svg_element && local_name != "svg"sv, ElementStyleAdjustmentFact::ForcePositionStatic);
     set(is_mathml_element, ElementStyleAdjustmentFact::IsMathML);
     set(local_name.equals_ignoring_ascii_case("mtable"sv), ElementStyleAdjustmentFact::IsMathMLMtable);
     set(local_name.equals_ignoring_ascii_case("mtr"sv), ElementStyleAdjustmentFact::IsMathMLMtr);
     set(local_name.equals_ignoring_ascii_case("mtd"sv), ElementStyleAdjustmentFact::IsMathMLMtd);
     set(is_html_element && local_name.equals_ignoring_ascii_case(HTML::TagNames::th), ElementStyleAdjustmentFact::IsTh);
+    return facts;
+}
+
+// The box-type adjustment facts that hang on the element itself or on where it stands.
+static u32 open_box_type_adjustment_facts(DOM::Element const& element, ElementOpenFacts open_facts)
+{
+    u32 facts = 0;
+    auto set = [&](bool condition, ElementStyleAdjustmentFact fact) {
+        if (condition)
+            facts |= fact;
+    };
+
+    if (has_flag(open_facts, ElementOpenFacts::Input)) {
+        auto const& input = static_cast<HTML::HTMLInputElement const&>(element);
+        bool input_allows_adjustment = !first_is_one_of(
+            input.type_state(),
+            HTML::HTMLInputElement::TypeAttributeState::Hidden,
+            HTML::HTMLInputElement::TypeAttributeState::SubmitButton,
+            HTML::HTMLInputElement::TypeAttributeState::Button,
+            HTML::HTMLInputElement::TypeAttributeState::ResetButton,
+            HTML::HTMLInputElement::TypeAttributeState::ImageButton,
+            HTML::HTMLInputElement::TypeAttributeState::Checkbox,
+            HTML::HTMLInputElement::TypeAttributeState::RadioButton);
+        set(input_allows_adjustment, ElementStyleAdjustmentFact::DisallowDisplayContents);
+        set(input_allows_adjustment, ElementStyleAdjustmentFact::RewriteInlineFlow);
+        set(input_allows_adjustment && input.is_single_line(), ElementStyleAdjustmentFact::CheckInputLineHeight);
+    }
+
+    if (has_flag(open_facts, ElementOpenFacts::SvgRoot)) {
+        bool is_outermost_svg_element = true;
+        for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "foreignObject"sv)
+                break;
+            if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "svg"sv) {
+                is_outermost_svg_element = false;
+                break;
+            }
+        }
+        set(!is_outermost_svg_element, ElementStyleAdjustmentFact::ForcePositionStatic);
+
+        // https://drafts.csswg.org/css-display-3/#unbox-svg
+        // - An svg element that has CSS box layout (this includes all svg whose parent is an HTML element, as well as
+        //   document root elements):
+        //     display: contents computes to display: none.
+        set(is_outermost_svg_element, ElementStyleAdjustmentFact::DisallowDisplayContents);
+    }
+
+    if (has_flag(open_facts, ElementOpenFacts::SvgSymbol)) {
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(element.parent())) {
+            if (auto* host = shadow_root->host())
+                set(host->namespace_uri() == Namespace::SVG && host->local_name() == "use"sv, ElementStyleAdjustmentFact::ForceSymbolDisplayInline);
+        }
+    }
+
+    set(has_flag(open_facts, ElementOpenFacts::Audio) && !element.has_attribute(HTML::AttributeNames::controls), ElementStyleAdjustmentFact::HideAudioWithoutControls);
     set(element.is_document_element(), ElementStyleAdjustmentFact::IsDocumentElement);
     return facts;
 }
 
-static u32 element_construction_facts(DOM::Element const& element)
+u32 element_box_type_adjustment_facts(DOM::Element const& element)
+{
+    return kind_box_type_adjustment_facts(element) | open_box_type_adjustment_facts(element, element_open_facts(element));
+}
+
+// The construction facts every element of a name shares.
+static u32 kind_construction_facts(DOM::Element const& element)
 {
     u32 facts = 0;
     auto set = [&](bool condition, ElementConstructionFact fact) {
         if (condition)
             facts |= fact;
     };
-    auto shadow_root = element.containing_shadow_root();
     auto const* html_element = as_if<HTML::HTMLElement>(element);
-    auto const* svg_element = as_if<SVG::SVGElement>(element);
-    set(is<HTML::HTMLInputElement>(element), ElementConstructionFact::IsHtmlInputElement);
+    auto is_input = is<HTML::HTMLInputElement>(element);
+    set(is_input, ElementConstructionFact::IsHtmlInputElement);
     set(element.is_html_html_element(), ElementConstructionFact::ConstructedAsHtmlHtmlElement);
-    set(shadow_root && shadow_root->is_user_agent_internal(), ElementConstructionFact::IsInUserAgentShadowTree);
-    set(html_element && html_element->uses_button_layout(), ElementConstructionFact::UsesButtonLayout);
-    set(element.is_editing_host(), ElementConstructionFact::IsEditingHost);
-    // NB: The document's body is found by walking its html element's children, which only these elements need to do.
-    set((is<HTML::HTMLBodyElement>(element) || is<HTML::HTMLFrameSetElement>(element)) && &element == element.document().body(), ElementConstructionFact::IsBody);
-    set(element.is_document_element(), ElementConstructionFact::ConstructedAsDocumentElement);
-    set(svg_element && svg_element->is_resource_element(), ElementConstructionFact::IsSvgResourceElement);
+    set(!is_input && html_element && html_element->uses_button_layout(), ElementConstructionFact::UsesButtonLayout);
     set(element.is_svg_geometry_element(), ElementConstructionFact::IsSvgGeometryElement);
     set(is<HTML::HTMLSelectElement>(element), ElementConstructionFact::IsHtmlSelectElement);
     facts |= to_underlying(mathml_layout_kind(element)) << ElementConstructionFact::MathMLLayoutKindShift;
     return facts;
 }
 
-static u32 element_style_adjustment_facts(DOM::Element const& element)
+// The construction facts that hang on the element itself or on where it stands.
+static u32 open_construction_facts(DOM::Element const& element, ElementOpenFacts open_facts, bool is_in_user_agent_shadow_tree)
 {
-    auto facts = element_box_type_adjustment_facts(element);
+    u32 facts = 0;
+    auto set = [&](bool condition, ElementConstructionFact fact) {
+        if (condition)
+            facts |= fact;
+    };
+    set(is_in_user_agent_shadow_tree, ElementConstructionFact::IsInUserAgentShadowTree);
+    set(has_flag(open_facts, ElementOpenFacts::Input) && static_cast<HTML::HTMLInputElement const&>(element).uses_button_layout(), ElementConstructionFact::UsesButtonLayout);
+    set(element.may_be_editable_or_editing_host() && element.is_editing_host(), ElementConstructionFact::IsEditingHost);
+    // NB: The document's body is found by walking its html element's children, which only these elements need to do.
+    set(has_flag(open_facts, ElementOpenFacts::Body) && &element == element.document().body(), ElementConstructionFact::IsBody);
+    set(element.is_document_element(), ElementConstructionFact::ConstructedAsDocumentElement);
+    set(has_flag(open_facts, ElementOpenFacts::SvgElement) && static_cast<SVG::SVGElement const&>(element).is_resource_element(), ElementConstructionFact::IsSvgResourceElement);
+    return facts;
+}
+
+static u32 element_construction_facts(DOM::Element const& element)
+{
+    auto shadow_root = element.containing_shadow_root();
+    return kind_construction_facts(element) | open_construction_facts(element, element_open_facts(element), shadow_root && shadow_root->is_user_agent_internal());
+}
+
+// The style adjustment facts every element of a name shares.
+static u32 kind_style_adjustment_facts(DOM::Element const& element)
+{
+    auto facts = kind_box_type_adjustment_facts(element);
     auto set = [&](bool condition, ElementStyleAdjustmentFact fact) {
         if (condition)
             facts |= fact;
     };
-    // Admission facts do not participate in box transformations.
-    // An animation the element is associated with composes into its style once it is relevant,
-    // which its timeline can make it after the element's arrival.
-    set(element.has_relevant_animations() || element.has_associated_animations(), ElementStyleAdjustmentFact::HasAnimations);
-    set(element.associated_shadow_host_pseudo_element().has_value(), ElementStyleAdjustmentFact::IsShadowHostPseudoElement);
     set(element.is_html_html_element(), ElementStyleAdjustmentFact::IsHtmlHtmlElement);
     set(is<HTML::HTMLBodyElement>(element), ElementStyleAdjustmentFact::IsHtmlBodyElement);
     if (is<SVG::SVGElement>(element)) {
@@ -1510,9 +1700,30 @@ static u32 element_style_adjustment_facts(DOM::Element const& element)
         set(is<SVG::SVGClipPathElement>(element), ElementStyleAdjustmentFact::IsSvgClipPathElement);
         set(is<SVG::SVGPatternElement>(element), ElementStyleAdjustmentFact::IsSvgPatternElement);
     }
-    set(element.rendered_in_top_layer(), ElementStyleAdjustmentFact::RenderedInTopLayer);
     set(is<HTML::HTMLFrameSetElement>(element), ElementStyleAdjustmentFact::IsHtmlFramesetElement);
     return facts;
+}
+
+// The style adjustment facts that hang on the element itself or on where it stands.
+static u32 open_style_adjustment_facts(DOM::Element const& element, ElementOpenFacts open_facts)
+{
+    auto facts = open_box_type_adjustment_facts(element, open_facts);
+    auto set = [&](bool condition, ElementStyleAdjustmentFact fact) {
+        if (condition)
+            facts |= fact;
+    };
+    // Admission facts do not participate in box transformations.
+    // An animation the element is associated with composes into its style once it is relevant,
+    // which its timeline can make it after the element's arrival.
+    set(element.has_relevant_animations() || element.has_associated_animations(), ElementStyleAdjustmentFact::HasAnimations);
+    set(element.associated_shadow_host_pseudo_element().has_value(), ElementStyleAdjustmentFact::IsShadowHostPseudoElement);
+    set(element.rendered_in_top_layer(), ElementStyleAdjustmentFact::RenderedInTopLayer);
+    return facts;
+}
+
+static u32 element_style_adjustment_facts(DOM::Element const& element)
+{
+    return kind_style_adjustment_facts(element) | open_style_adjustment_facts(element, element_open_facts(element));
 }
 
 void record_element_adjustment_facts(DOM::Element& element)
@@ -1581,31 +1792,34 @@ static void set_image_natural_size_input(StyleEngine& style_engine, StyleNodeID 
 // element's box: what its attributes say, or the size of what it has loaded.
 void record_element_replaced_content_input(DOM::Element& element)
 {
+    if (auto* style_engine = style_engine_for_identified(element))
+        publish_element_replaced_content_input(element, *style_engine);
+}
+
+static void publish_element_replaced_content_input(DOM::Element& element, StyleEngine& style_engine)
+{
     using Kind = StyleEngineFFI::FfiReplacedContentInputKind;
-    auto* style_engine = style_engine_for_identified(element);
-    if (!style_engine)
-        return;
     auto node = element.style_node_id();
     if (auto const* text_area = as_if<HTML::HTMLTextAreaElement>(element)) {
-        set_replaced_content_input(*style_engine, node, Kind::TextArea, 0, text_area->cols(), text_area->rows());
+        set_replaced_content_input(style_engine, node, Kind::TextArea, 0, text_area->cols(), text_area->rows());
         return;
     }
     if (auto const* image = as_if<HTML::HTMLImageElement>(element)) {
-        set_image_natural_size_input(*style_engine, node, *image);
+        set_image_natural_size_input(style_engine, node, *image);
         return;
     }
     if (auto const* object = as_if<HTML::HTMLObjectElement>(element)) {
         // An object representing its content navigable is sized from the SVG document it shows.
         if (object->represents_its_content_navigable())
-            set_natural_size_input(*style_engine, node, object->natural_size_of_content_document());
+            set_natural_size_input(style_engine, node, object->natural_size_of_content_document());
         else
-            set_image_natural_size_input(*style_engine, node, *object);
+            set_image_natural_size_input(style_engine, node, *object);
         return;
     }
     if (auto const* input = as_if<HTML::HTMLInputElement>(element)) {
         // An image button's box is an image box, which no size attribute sizes.
         if (input->type_state() == HTML::HTMLInputElement::TypeAttributeState::ImageButton) {
-            set_image_natural_size_input(*style_engine, node, *input);
+            set_image_natural_size_input(style_engine, node, *input);
             return;
         }
         auto kind = Kind::Input;
@@ -1622,7 +1836,7 @@ void record_element_replaced_content_input(DOM::Element& element)
         default:
             break;
         }
-        set_replaced_content_input(*style_engine, node, kind, 0, input->size());
+        set_replaced_content_input(style_engine, node, kind, 0, input->size());
         return;
     }
     if (auto const* video = as_if<HTML::HTMLVideoElement>(element)) {
@@ -1633,18 +1847,18 @@ void record_element_replaced_content_input(DOM::Element& element)
             else
                 natural_size = { size->width(), size->height(), size->width() / size->height() };
         }
-        set_natural_size_input(*style_engine, node, natural_size);
+        set_natural_size_input(style_engine, node, natural_size);
         return;
     }
     if (auto const* image = as_if<SVG::SVGImageElement>(element)) {
         // An SVG <image> takes its image's natural size as the image reports it, and the default object size once
         // something has decoded.
-        set_natural_size_input(*style_engine, node, { image->intrinsic_width(), image->intrinsic_height(), image->intrinsic_aspect_ratio() },
+        set_natural_size_input(style_engine, node, { image->intrinsic_width(), image->intrinsic_height(), image->intrinsic_aspect_ratio() },
             image->decoded_image_data() ? Kind::DecodedSvgImage : Kind::NaturalSize);
         return;
     }
     if (auto const* canvas = as_if<HTML::HTMLCanvasElement>(element))
-        set_replaced_content_input(*style_engine, node, Kind::Canvas, 0, canvas->width(), canvas->height());
+        set_replaced_content_input(style_engine, node, Kind::Canvas, 0, canvas->width(), canvas->height());
 }
 
 void record_element_construction_facts(DOM::Element& element)
@@ -1713,13 +1927,13 @@ static StyleAtomID intern_id_or_class_atom(StyleEngine& style_engine, DOM::Eleme
     return style_engine.intern_atom(name);
 }
 
-static void record_element_initial_features(DOM::Element& element, PublishedDirectionalities& directionalities)
+static void record_element_initial_features(DOM::Element& element, ElementPublication& publication)
 {
     auto* style_engine = style_engine_for_identified(element);
     if (!style_engine)
         return;
 
-    publish_element_selector_features(*style_engine, element, directionalities);
+    auto const& kind = publish_element_selector_features(*style_engine, element, publication);
 
     if (auto const& id = element.id(); id.has_value())
         StyleEngineFFI::style_engine_set_element_id_name(style_engine->host(), element.style_node_id(), style_engine->intern_atom(*id));
@@ -1728,9 +1942,54 @@ static void record_element_initial_features(DOM::Element& element, PublishedDire
         record_element_parts_changed(element);
     if (element.has_inline_style_declarations())
         record_element_inline_style_properties(element);
-    if (element_has_presentational_hints_to_publish(element))
+    if (element_has_presentational_hints_to_publish(element, kind))
         StyleComputer::collect_presentational_hint_properties({ element });
-    record_element_replaced_content_input(element);
+    if (has_flag(kind.open_facts, ElementOpenFacts::ReplacedContent))
+        publish_element_replaced_content_input(element, *style_engine);
+}
+
+void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& style_computer, Layout::BegunRead const& read)
+{
+    auto nodes = style_engine.take_deferred_element_initial_features();
+    if (nodes.is_empty())
+        return;
+    // What the engine reads decides what of the elements is withheld from it, which the host asks the engine where a
+    // rule it queued since its last job leaves it not knowing.
+    StyleEngineFFI::document_host_learn_selector_requirements(style_engine.host(), &read);
+    ElementPublication publication { style_engine, style_computer.document() };
+    for (size_t index = 0; index < nodes.size(); ++index) {
+        // OPTIMIZATION: Most of an element's publication is first reading memory no one touched since the element was
+        //               parsed. Asking for it ahead turns waiting for one element at a time into overlapping waits. Each
+        //               stage reads what the one before it asked for, so the distances shrink along the chain.
+        if (index + 2 * nodes_ahead < nodes.size()) {
+            if (auto ahead = style_computer.node_for_style_node(nodes[index + 2 * nodes_ahead]))
+                prefetch_node(*ahead);
+        }
+        if (index + nodes_ahead < nodes.size()) {
+            if (auto ahead = style_computer.element_for_style_node(nodes[index + nodes_ahead]))
+                __builtin_prefetch(ahead->inline_style_declarations());
+        }
+        if (index + nodes_ahead / 2 < nodes.size()) {
+            if (auto ahead = style_computer.element_for_style_node(nodes[index + nodes_ahead / 2]); ahead && ahead->inline_style_declarations())
+                Parser::ValueParserFFI::rust_declaration_block_prefetch_header(ahead->inline_style_declarations());
+        }
+        auto node = nodes[index];
+        auto element = style_computer.element_for_style_node(node);
+        // NB: An element that left the tree gave up its mark. Its identity may have gone to an element since, which is
+        //     then listed twice and published at the first.
+        if (!element || !element->initial_style_features_pending())
+            continue;
+        // An inserted subtree takes its identities before its insertion steps mark its nodes connected, in tree order.
+        // A step that submits the recorded input on the way, as a <style> writing its sheet to the engine in place
+        // while a style update flies, finds the elements after it unconnected: their arrivals are submitted, and
+        // their features wait for the next submit, which folds them onto those arrivals.
+        if (!element->is_connected()) {
+            style_engine.defer_element_initial_features(*element);
+            continue;
+        }
+        element->set_initial_style_features_pending(false);
+        record_element_initial_features(*element, publication);
+    }
 }
 
 void record_node_moved_in_dom_order(DOM::Node& node, DOM::Node const& old_parent)

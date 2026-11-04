@@ -39,6 +39,9 @@ public:
         Utf16FlyString as_string;
     };
 
+    // Names that are equal in every part share their Impl, so this tells them apart in one comparison.
+    Impl const* identity() const { return m_impl.ptr(); }
+
     void set_prefix(Optional<Utf16FlyString> value);
 
 private:

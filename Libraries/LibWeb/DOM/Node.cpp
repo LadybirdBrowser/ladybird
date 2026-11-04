@@ -2461,6 +2461,14 @@ void Node::recompute_editable_subtree_flags_and_repaint()
     CSS::Invalidation::invalidate_style_after_focused_element_keyboard_input_change(document());
 }
 
+bool Node::may_be_editable_or_editing_host() const
+{
+    if (m_in_editable_subtree)
+        return true;
+    auto const* parent = this->parent();
+    return parent && (parent->m_in_editable_subtree || parent->is_document());
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#editable
 bool Node::is_editable() const
 {
