@@ -1550,7 +1550,6 @@ impl StyleEngine {
                 process_style: Arc::clone(&process_style),
                 declaration_block_version: Arc::new(std::sync::atomic::AtomicU32::new(1)),
 
-                next_style_update_version: StyleUpdateVersion(1),
                 document_style_computation_inputs: Default::default(),
                 document_resource_contexts: Default::default(),
                 document_media: Default::default(),
@@ -2450,7 +2449,6 @@ impl RetainedState {
             rules: _,
             process_style: _,
             declaration_block_version: _,
-            next_style_update_version: _,
             document_style_computation_inputs: _,
             document_resource_contexts: _,
             document_media: _,

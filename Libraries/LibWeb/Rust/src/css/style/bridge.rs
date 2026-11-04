@@ -164,8 +164,6 @@ pub const PSEUDO_RECORD_SLOTS: usize = 11;
 
 #[derive(Default)]
 pub(crate) struct FfiStyleUpdateOutput {
-    scoped: bool,
-    transaction_version: u64,
     answers: Vec<FfiStyleDelta>,
     reclaimed_style_atoms: Vec<super::atoms::ReclaimedStyleAtom>,
 }
@@ -1727,9 +1725,8 @@ pub(crate) unsafe fn run_style_update(
     };
     engine.document_style_computation_inputs = computation_inputs;
     let mut output = FfiStyleUpdateOutput::default();
-    output.scoped = engine.run_style_update(root, |transaction_version, answers| {
+    engine.run_style_update(root, |answers| {
         assert!(output.answers.is_empty(), "a style update emitted more than one batch");
-        output.transaction_version = transaction_version.0;
         output.answers.extend_from_slice(answers);
     });
     output.reclaimed_style_atoms = std::mem::take(&mut engine.host.reclaimed_style_atoms);

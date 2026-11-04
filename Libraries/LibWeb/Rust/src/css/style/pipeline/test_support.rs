@@ -356,7 +356,7 @@ pub(super) fn add_user_agent_sheet(engine: &mut StyleEngine, source: &str) -> (S
 /// each wave; nothing is installed here. The engine, where it owns the document, restyles what
 /// the transaction changed as it does.
 pub(super) fn run_style_update(engine: &mut StyleEngine, root: StyleNodeID) {
-    engine.run_style_update(root, |_, _| {});
+    engine.run_style_update(root, |_| {});
 }
 
 /// Have the engine own the document under `root`, from a cold pass of it after the inputs
