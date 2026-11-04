@@ -547,6 +547,18 @@ impl NativeRule {
         values
     }
 
+    pub fn set_font_feature_value(&self, kind: FontFeatureValuesRuleKind, name: &[u16], values: Vec<u32>) {
+        self.font_feature_values().set_value(kind, name, values);
+    }
+
+    pub fn remove_font_feature_value(&self, kind: FontFeatureValuesRuleKind, name: &[u16]) -> bool {
+        self.font_feature_values().remove_value(kind, name)
+    }
+
+    pub fn clear_font_feature_values(&self, kind: FontFeatureValuesRuleKind) {
+        self.font_feature_values().clear_values(kind);
+    }
+
     /// The name and the values of each feature value of the kind, in the order of the map.
     pub fn font_feature_values_entries(&self, kind: FontFeatureValuesRuleKind) -> Vec<(Vec<u16>, Vec<u32>)> {
         self.font_feature_values().entries_of(kind)

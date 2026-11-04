@@ -14,7 +14,7 @@ use libjs_rust::api::{
 };
 
 use crate::bindings::CallContext;
-use crate::bindings::interface::{Interface, Ref, define_attribute, define_operation, implementation_of, this_object};
+use crate::bindings::interface::{Interface, define_attribute, define_operation, this_implementation};
 use crate::bindings::realm_data::{WrapperWorld, wrapper_world_of};
 
 /// The JS collection of an object in each wrapper world that asked for it, as the entries of a collection hold the
@@ -111,9 +111,9 @@ pub(crate) fn define_setlike_properties(
     define_operation(vm, realm, prototype, "has", has, 1);
 }
 
-fn this_implementation<T: Setlike>(vm: &Vm) -> ThrowCompletionOr<(Gc<Object>, Ref<T>, CallContext<'_>)> {
-    let (wrapper, realm) = this_object(vm, T::wrapper_class(), T::NAME)?;
-    Ok((wrapper, implementation_of(wrapper), CallContext::new(vm, realm)))
+/// The call context of the realm that a collection of a wrapper world lives in.
+pub(crate) fn context_of_set<'vm>(cx: &CallContext<'vm>, set: Gc<Set>) -> CallContext<'vm> {
+    CallContext::new(cx.vm(), set.upcast::<Object>().shape().realm())
 }
 
 // https://webidl.spec.whatwg.org/#js-set-size

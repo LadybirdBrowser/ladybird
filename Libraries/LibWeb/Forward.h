@@ -258,7 +258,6 @@ class CounterStyleStyleValue;
 class CSSAnimation;
 class CSSDescriptors;
 class CSSFontFaceRule;
-class CSSFontFeatureValuesMap;
 class CSSFontFeatureValuesRule;
 class CSSFunctionRule;
 class CSSGroupingRule;

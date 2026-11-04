@@ -14,12 +14,18 @@ use libjs_rust::api::{
 
 use crate::bindings::CallContext;
 use crate::bindings::conversions::{ToJs, to_dom_string};
-use crate::bindings::interface::{Interface, Ref, define_attribute, define_operation, implementation_of, this_object};
+use crate::bindings::interface::{Interface, define_attribute, define_operation, this_implementation};
 
 /// What the implementation of an interface with a maplike declaration, whose keys are strings, implements.
 pub(crate) trait Maplike: Interface {
     // https://webidl.spec.whatwg.org/#dfn-map-entries
     fn map_entries(&self, cx: &CallContext) -> Gc<Map>;
+
+    /// The value of the entry of the key, converted to a JS value, if there is one.
+    fn map_value(&self, cx: &CallContext, key: &Utf16String) -> Option<Value> {
+        let key = key.clone().to_js(cx).expect("a string converts to a JS value");
+        self.map_entries(cx).map_get(key)
+    }
 }
 
 /// What the implementation of an interface with a read-write maplike declaration implements, for the operations that
@@ -66,9 +72,9 @@ pub(crate) fn define_maplike_properties(
     define_operation(vm, realm, prototype, "has", has, 1);
 }
 
-fn this_implementation<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<(Gc<Object>, Ref<T>, CallContext<'_>)> {
-    let (wrapper, realm) = this_object(vm, T::wrapper_class(), T::NAME)?;
-    Ok((wrapper, implementation_of(wrapper), CallContext::new(vm, realm)))
+/// The call context of the realm that a collection of a wrapper world lives in.
+pub(crate) fn context_of_map<'vm>(cx: &CallContext<'vm>, map: Gc<Map>) -> CallContext<'vm> {
+    CallContext::new(cx.vm(), map.upcast::<Object>().shape().realm())
 }
 
 // https://webidl.spec.whatwg.org/#js-map-size
@@ -165,15 +171,16 @@ fn entries_and_key<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<(Gc<Map>, Value)> {
 // https://webidl.spec.whatwg.org/#js-map-get
 pub(crate) fn map_get<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "get" and type "method".
-    // 2. Let map be the map entries of the IDL value that represents a reference to O.
+    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+
     // 3. Let keyType be the key type specified in the maplike declaration.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let key be keyArg converted to an IDL value of type keyType.
-    let (map, key) = entries_and_key::<T>(vm)?;
+    let key = to_dom_string(vm, vm.argument(0))?;
 
     // 7. If map[key] exists, then return map[key], converted to a JavaScript value.
     // 8. Return undefined.
-    Ok(map.map_get(key).unwrap_or(Value::UNDEFINED))
+    Ok(implementation.map_value(&cx, &key).unwrap_or(Value::UNDEFINED))
 }
 
 // https://webidl.spec.whatwg.org/#js-map-has

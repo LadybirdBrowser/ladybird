@@ -249,6 +249,12 @@ pub(crate) fn to_interface<T: Interface>(vm: &Vm, value: Value) -> ThrowCompleti
     vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&T::NAME])
 }
 
+/// The `this` value of an operation of a setlike or maplike, its implementation, and the context of its realm.
+pub(crate) fn this_implementation<T: Interface>(vm: &Vm) -> ThrowCompletionOr<(Gc<Object>, Ref<T>, CallContext<'_>)> {
+    let (wrapper, realm) = this_object(vm, T::wrapper_class(), T::NAME)?;
+    Ok((wrapper, implementation_of(wrapper), CallContext::new(vm, realm)))
+}
+
 /// The wrapper of the object in the wrapper world of the realm of the call context, which the first call for that
 /// world creates, as Web::Bindings::wrap() does for a C++ implementation object.
 pub(crate) fn wrap<T: Interface>(cx: &CallContext, object: Ref<T>) -> Gc<Object> {

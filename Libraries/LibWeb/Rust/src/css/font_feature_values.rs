@@ -85,6 +85,33 @@ impl FontFeatureValuesRule {
         Arc::make_mut(&mut self.data.borrow_mut()).families = families;
     }
 
+    pub(crate) fn set_value(&self, kind: FontFeatureValuesRuleKind, name: &[u16], values: Vec<u32>) {
+        Arc::make_mut(&mut self.data.borrow_mut()).set(kind, name, values);
+    }
+
+    pub(crate) fn remove_value(&self, kind: FontFeatureValuesRuleKind, name: &[u16]) -> bool {
+        let mut data = self.data.borrow_mut();
+        let Some(&index) = data.maps[kind as usize].indices.get(name) else {
+            return false;
+        };
+        let map = &mut Arc::make_mut(&mut data).maps[kind as usize];
+        map.indices.remove(name);
+        map.entries.remove(index);
+        for (index, entry) in map.entries.iter().enumerate().skip(index) {
+            *map.indices.get_mut(&entry.name).unwrap() = index;
+        }
+        true
+    }
+
+    pub(crate) fn clear_values(&self, kind: FontFeatureValuesRuleKind) {
+        let mut data = self.data.borrow_mut();
+        if !data.maps[kind as usize].entries.is_empty() {
+            let map = &mut Arc::make_mut(&mut data).maps[kind as usize];
+            map.entries.clear();
+            map.indices.clear();
+        }
+    }
+
     pub(crate) fn entries_of(&self, kind: FontFeatureValuesRuleKind) -> Vec<(Vec<u16>, Vec<u32>)> {
         let data = self.data.borrow();
         data.maps[kind as usize]
@@ -177,7 +204,7 @@ pub unsafe extern "C" fn rust_font_feature_values_set_families(
     Arc::make_mut(&mut owner.data.borrow_mut()).families = families;
 }
 
-#[unsafe(no_mangle)]
+#[cfg(test)]
 pub extern "C" fn rust_font_feature_values_count(
     owner: &FontFeatureValuesRule,
     kind: FontFeatureValuesRuleKind,
@@ -185,7 +212,7 @@ pub extern "C" fn rust_font_feature_values_count(
     owner.data.borrow().maps[kind as usize].entries.len()
 }
 
-#[unsafe(no_mangle)]
+#[cfg(test)]
 pub extern "C" fn rust_font_feature_values_find(
     owner: &FontFeatureValuesRule,
     kind: FontFeatureValuesRuleKind,
@@ -201,7 +228,7 @@ pub extern "C" fn rust_font_feature_values_find(
 
 /// # Safety
 /// The caller must not change the rule's values while it uses the returned entry.
-#[unsafe(no_mangle)]
+#[cfg(test)]
 pub unsafe extern "C" fn rust_font_feature_values_at(
     owner: &FontFeatureValuesRule,
     kind: FontFeatureValuesRuleKind,
@@ -217,7 +244,7 @@ pub unsafe extern "C" fn rust_font_feature_values_at(
     }
 }
 
-#[unsafe(no_mangle)]
+#[cfg(test)]
 pub unsafe extern "C" fn rust_font_feature_values_set(
     owner: &FontFeatureValuesRule,
     kind: FontFeatureValuesRuleKind,
@@ -230,37 +257,21 @@ pub unsafe extern "C" fn rust_font_feature_values_set(
     let values = (0..count)
         .map(|index| unsafe { *values.add(index) })
         .collect::<Vec<_>>();
-    Arc::make_mut(&mut owner.data.borrow_mut()).set(kind, &name, values);
+    owner.set_value(kind, &name, values);
 }
 
-#[unsafe(no_mangle)]
+#[cfg(test)]
 pub extern "C" fn rust_font_feature_values_remove(
     owner: &FontFeatureValuesRule,
     kind: FontFeatureValuesRuleKind,
     name: FfiUtf16View,
 ) -> bool {
-    let name = name.to_utf16().unwrap();
-    let mut data = owner.data.borrow_mut();
-    let Some(&index) = data.maps[kind as usize].indices.get(name.as_slice()) else {
-        return false;
-    };
-    let map = &mut Arc::make_mut(&mut data).maps[kind as usize];
-    map.indices.remove(name.as_slice());
-    map.entries.remove(index);
-    for (index, entry) in map.entries.iter().enumerate().skip(index) {
-        *map.indices.get_mut(&entry.name).unwrap() = index;
-    }
-    true
+    owner.remove_value(kind, &name.to_utf16().unwrap())
 }
 
-#[unsafe(no_mangle)]
+#[cfg(test)]
 pub extern "C" fn rust_font_feature_values_clear(owner: &FontFeatureValuesRule, kind: FontFeatureValuesRuleKind) {
-    let mut data = owner.data.borrow_mut();
-    if !data.maps[kind as usize].entries.is_empty() {
-        let map = &mut Arc::make_mut(&mut data).maps[kind as usize];
-        map.entries.clear();
-        map.indices.clear();
-    }
+    owner.clear_values(kind);
 }
 
 /// The OpenType features a style asks of a font, by tag, the later setting of a tag winning.

@@ -11,7 +11,6 @@
 #include <LibWeb/Bindings/RustCSSDescriptors.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
-#include <LibWeb/CSS/CSSFontFeatureValuesMap.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSPositionTryDescriptors.h>
 #include <LibWeb/CSS/CSSRule.h>
@@ -52,7 +51,7 @@ void* web_css_style_sheet_import_rule(void* sheet, u64 identity);
 void web_css_style_sheet_disconnect_font_faces(void* sheet, NativeRule const* rule);
 void web_css_style_sheet_rules_changed(void* sheet);
 void web_css_counter_style_rule_changed(void* rule);
-void* web_css_font_feature_values_map_create(void* rule, u8 kind);
+void web_css_font_feature_values_rule_clear_caches(void* rule);
 }
 
 static StyleSheetState& state_of_sheet(void* sheet)
@@ -189,10 +188,9 @@ void web_css_counter_style_rule_changed(void* cell)
     record_style_rule_declarations_changed(rule);
 }
 
-void* web_css_font_feature_values_map_create(void* rule, u8 kind)
+void web_css_font_feature_values_rule_clear_caches(void* rule)
 {
-    auto& parent_rule = *static_cast<CSSFontFeatureValuesRule*>(rule);
-    return static_cast<GC::Cell*>(CSSFontFeatureValuesMap::create(static_cast<FontFeatureValuesRuleKind>(kind), parent_rule).ptr());
+    static_cast<CSSFontFeatureValuesRule*>(rule)->clear_caches();
 }
 
 }

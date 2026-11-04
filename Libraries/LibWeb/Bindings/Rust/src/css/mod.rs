@@ -13,6 +13,7 @@ pub(crate) mod css_counter_style_rule;
 pub(crate) mod css_descriptors;
 pub(crate) mod css_font_face_descriptors;
 pub(crate) mod css_font_face_rule;
+pub(crate) mod css_font_feature_values_map;
 pub(crate) mod css_font_feature_values_rule;
 pub(crate) mod css_function_declarations;
 pub(crate) mod css_function_descriptors;

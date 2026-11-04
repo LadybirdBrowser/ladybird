@@ -82,7 +82,6 @@ set(SOURCES
     CSS/CSSAnimation.cpp
     CSS/CSSDescriptors.cpp
     CSS/CSSFontFaceRule.cpp
-    CSS/CSSFontFeatureValuesMap.cpp
     CSS/CSSFontFeatureValuesRule.cpp
     CSS/CSSGroupingRule.cpp
     CSS/CSSImportRule.cpp

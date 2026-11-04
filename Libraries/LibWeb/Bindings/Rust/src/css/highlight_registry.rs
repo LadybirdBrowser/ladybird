@@ -9,13 +9,14 @@
 use core::ffi::c_void;
 
 use ak::Utf16String;
-use libjs_rust::api::{Gc, GcRefCell, Map, MarkedVec, Object, Trace, Value, Vm};
+use libjs_rust::api::{Gc, GcRefCell, Map, MarkedVec, Trace, Value, Vm};
 
 use super::css_rule::wrap_cpp_cell;
 use super::highlight::Highlight;
 use crate::bindings::conversions::{CppInterface, ToJs};
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, Wrappable, allocate, implementation_of, wrap};
+use crate::bindings::maplike::context_of_map;
 use crate::bindings::maplike::{Maplike, WritableMaplike};
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::{CallContext, WebIdlResult};
@@ -59,11 +60,6 @@ pub(crate) struct HighlightRegistry {
 }
 
 impl Wrappable for HighlightRegistry {}
-
-/// The call context of the realm that a collection of a wrapper world lives in.
-fn context_of_map<'vm>(cx: &CallContext<'vm>, map: Gc<Map>) -> CallContext<'vm> {
-    CallContext::new(cx.vm(), map.upcast::<Object>().shape().realm())
-}
 
 fn set_map_entry(cx: &CallContext, map: Gc<Map>, name: &Utf16String, highlight: Ref<Highlight>) {
     let key = name.clone().to_js(cx).expect("a string converts to a JS value");
