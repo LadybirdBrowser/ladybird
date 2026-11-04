@@ -1,0 +1,10 @@
+in an inert element: read-write false, focusable false
+moved into an editing host: read-write false, focusable false
+moved into an inert editing host: read-write false, focusable false
+moved out: read-write false, focusable false
+moved from an inert element into the shadow tree of an inert host: read-write false
+moved into the shadow tree of an inert host: read-write true
+inserted into the shadow tree of an inert host: read-write true
+inserted into the shadow tree of a host: read-write true
+host made inert: read-write true
+host no longer inert: read-write true
