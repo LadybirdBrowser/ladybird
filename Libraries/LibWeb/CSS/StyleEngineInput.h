@@ -166,6 +166,8 @@ WEB_API void record_element_emptiness_changed(DOM::Element&, DOM::Node const& ch
 // Called for each element whose pseudo-class state actually changed, with the value it changed to.
 // Only the states StyleEngine models as facts are recorded; the rest arrive when it models them.
 WEB_API bool can_record_element_state_change(DOM::Element&);
+// Whether nothing reads the validity of the element, which notes it as withheld from the engine.
+WEB_API bool element_validity_is_withheld(DOM::Element&);
 WEB_API void record_element_state_changed(DOM::Element&, PseudoClass, bool new_value);
 
 // Called before each style flush. The user-agent and user origins have no sheet list to announce

@@ -840,6 +840,13 @@ impl DocumentHost {
             .map(|facts| facts.selectors_test_local_link)
     }
 
+    /// Whether the engine's selectors test a control's validity, where the host knows: as it knows where their
+    /// requirements are.
+    pub(crate) fn known_selectors_test_validity(&self) -> Option<bool> {
+        self.facts_where(|moves| !moves.selectors)
+            .map(|facts| facts.selectors_test_validity)
+    }
+
     /// Whether the engine's selectors test an attribute that answers to any of `keys`, where the host knows: as it knows
     /// where their requirements are.
     pub(crate) fn known_selectors_test_attribute(

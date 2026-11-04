@@ -302,13 +302,14 @@ pub(super) fn dispatch_selectivity(key: DispatchKey) -> u8 {
 }
 
 /// What the host and the arrival routing ask of a document's selectors: the attribute names they
-/// test, those whose values they read as text, whether they test `:local-link`, and what an element
-/// arriving has to carry to reach the anchor of one of their `:has()`.
+/// test, those whose values they read as text, whether they test `:local-link` or a control's validity, and what an
+/// element arriving has to carry to reach the anchor of one of their `:has()`.
 #[derive(Clone, Default)]
 pub(in crate::css::style) struct SelectorSummary {
     pub(super) tested_attribute_names: Vec<StyleAtomID>,
     pub(super) attribute_value_text_names: Vec<StyleAtomID>,
     pub(super) tests_local_link: bool,
+    pub(super) tests_validity: bool,
     pub(super) relational_arrival_keys: Vec<DispatchKey>,
 }
 
@@ -431,6 +432,13 @@ impl SelectorSummary {
                     kind => {
                         if let Some(fact) = super::compiler::state_fact_for(kind) {
                             self.tests_local_link |= fact == super::input_types::StateFact::LocalLink;
+                            self.tests_validity |= matches!(
+                                fact,
+                                super::input_types::StateFact::Valid
+                                    | super::input_types::StateFact::Invalid
+                                    | super::input_types::StateFact::UserValid
+                                    | super::input_types::StateFact::UserInvalid
+                            );
                             self.arrival_key(in_argument, DispatchKey::State(fact));
                         }
                         if reads_position(pseudo_class) {

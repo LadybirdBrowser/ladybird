@@ -20,6 +20,9 @@ void invalidate_style_after_checked_state_change(DOM::Element&);
 void invalidate_style_after_placeholder_shown_change(DOM::Element&);
 void invalidate_style_after_validity_change(DOM::Element&);
 
+// Publishes the validity the element now has, where something may read it.
+void record_validity_states(DOM::Element&);
+
 // A control leaving the tree takes its constraints with it, so the form and the fieldsets it was
 // under answer differently for `:valid`/`:invalid` without anything about them having moved. The
 // control is gone by the time this runs, so the containers are reached from where it was.

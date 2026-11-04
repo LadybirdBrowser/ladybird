@@ -193,6 +193,7 @@ impl RenderState {
                 .selector_attribute_value_text_requirements_version(),
             relational_arrival_keys_version: engine.relational_arrival_keys_version(),
             selectors_test_local_link: engine.selectors_test_local_link(),
+            selectors_test_validity: engine.selectors_test_validity(),
         };
         let selector_value_text_names = std::sync::Arc::clone(engine.selector_attribute_value_text_names());
         let selector_tested_attribute_names = std::sync::Arc::clone(engine.selector_tested_attribute_names());
@@ -334,6 +335,7 @@ pub(crate) struct StateFacts {
     pub(crate) relational_arrival_keys_version: u64,
     /// Whether the engine's selectors test `:local-link`.
     pub(crate) selectors_test_local_link: bool,
+    pub(crate) selectors_test_validity: bool,
 }
 
 /// What the style engine answers of itself as a job or a frame leaves it, which only a write to the engine moves (see

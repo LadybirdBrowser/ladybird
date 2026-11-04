@@ -37,11 +37,14 @@ void invalidate_style_after_placeholder_shown_change(DOM::Element& element)
 // A control's validity is also its form's and its ancestor fieldsets': `:invalid` on a form is a
 // statement about the controls under it. Each element whose truth can have moved hears the state it
 // now has, which is what lets a change that moved nothing publish nothing.
-static void record_validity_states(DOM::Element& element)
+void record_validity_states(DOM::Element& element)
 {
     // An element whose initial features are pending will publish its current state when those
     // features are recorded. Computing that state here would be discarded by the style engine.
     if (!can_record_element_state_change(element))
+        return;
+    // OPTIMIZATION: Checking a control's constraints is the cost of this, which a value set by script pays each time.
+    if (element_validity_is_withheld(element))
         return;
 
     auto validity = SelectorMatching::element_validity_state(element);

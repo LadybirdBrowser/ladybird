@@ -324,6 +324,7 @@ impl RetainedState {
             tested_attribute_names: self.tested_attribute_names.iter().copied().collect(),
             attribute_value_text_names: self.attribute_value_text_names.iter().copied().collect(),
             tests_local_link: self.selectors_test_local_link,
+            tests_validity: self.selectors_test_validity,
             relational_arrival_keys: self.unresolved_relational_arrival_keys.iter().copied().collect(),
         }
     }
@@ -331,6 +332,7 @@ impl RetainedState {
     /// Note what the selectors `summary` sums up test, which the engine's fact projection reads.
     pub(super) fn note_selector_summary(&mut self, summary: super::selector_analysis::SelectorSummary) {
         self.selectors_test_local_link |= summary.tests_local_link;
+        self.selectors_test_validity |= summary.tests_validity;
         if !summary
             .tested_attribute_names
             .iter()
@@ -413,6 +415,10 @@ impl RetainedState {
     /// Whether a selector here tests `:local-link`.
     pub(crate) fn selectors_test_local_link(&self) -> bool {
         self.selectors_test_local_link
+    }
+
+    pub(crate) fn selectors_test_validity(&self) -> bool {
+        self.selectors_test_validity
     }
 
     /// The attribute names a selector here tests in any way.
@@ -1608,6 +1614,7 @@ impl StyleEngine {
                 tested_attribute_names: Arc::default(),
                 attribute_value_text_requirements_version: 0,
                 selectors_test_local_link: false,
+                selectors_test_validity: false,
                 relational_arrival_keys: Arc::default(),
                 unresolved_relational_arrival_keys: HashSet::default(),
                 relational_arrival_keys_version: 0,
@@ -2514,6 +2521,7 @@ impl RetainedState {
             tested_attribute_names: _,
             attribute_value_text_requirements_version: _,
             selectors_test_local_link: _,
+            selectors_test_validity: _,
             relational_arrival_keys: _,
             unresolved_relational_arrival_keys: _,
             relational_arrival_keys_version: _,
