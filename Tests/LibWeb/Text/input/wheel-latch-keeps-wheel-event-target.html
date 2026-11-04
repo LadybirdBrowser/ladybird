@@ -30,7 +30,8 @@
         await animationFrame();
         await animationFrame();
 
-        // The first step scrolls #b under the cursor, but the gesture's events keep going to #a, its end included.
+        // The first step scrolls #b under the cursor, but the gesture's events keep going to #a. Its end, a step that
+        // moves along no axis, goes to the page as no wheel event.
         await internals.wheel(50, 50, 0, 100, true, "ongoing");
         await internals.wheel(50, 50, 0, 100, true, "ongoing");
         await internals.wheel(50, 50, 0, 0, true, "ended");

@@ -26,7 +26,8 @@
         await animationFrame();
         await animationFrame();
 
-        // Every step of a gesture that starts over text goes to the element around the text and scrolls the scroller.
+        // Every step of a gesture that starts over text and moves along an axis goes to the element around the text and
+        // scrolls the scroller.
         for (let step = 0; step < 3; step++)
             await internals.wheel(15, 15, 0, 10, true, "ongoing");
         await internals.wheel(15, 15, 0, 0, true, "ended");

@@ -1,2 +1,2 @@
-wheel event targets: a,a,a,b,b
+wheel event targets: a,a,b
 window.scrollY: 300

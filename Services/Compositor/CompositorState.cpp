@@ -1262,7 +1262,10 @@ Compositing::WheelEventAnswer CompositorState::scroll_for_wheel_event_the_page_l
 
     auto now = MonotonicTime::now();
     auto gesture_id = let_through.wheel_gesture_mark.gesture_id;
-    listener_context->note_page_let_wheel_gesture_through(gesture_id);
+    // A step that moves along no axis goes to the page as no wheel event, so the page had no say in letting it through,
+    // and it decides nothing for the steps after it.
+    if (!let_through.delta_in_css_pixels.is_zero())
+        listener_context->note_page_let_wheel_gesture_through(gesture_id);
     ContextState::WheelStep step {
         .position = let_through.position,
         .delta_in_css_pixels = let_through.delta_in_css_pixels,

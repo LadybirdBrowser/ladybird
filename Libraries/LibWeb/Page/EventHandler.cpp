@@ -1176,7 +1176,11 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     }
 
     auto dispatch_result = EventResult::Accepted;
-    if (wheel_event_target_node) {
+    // A step that moves along no axis, as a touchpad sends when fingers come to rest on it or lift off, is no wheel
+    // rotation, so no wheel event goes to the page for it. A page could otherwise take one for the start of a scroll,
+    // and handle the pinch that follows it as if it were part of that scroll.
+    bool moves_along_an_axis = wheel_delta_x != 0 || wheel_delta_y != 0;
+    if (wheel_event_target_node && moves_along_an_axis) {
         dispatch_result = dispatch_wheel_event(read, *wheel_event_target_layout_node, visual_viewport_position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_tick_120ths_x, wheel_tick_120ths_y, !async_scroll_performed_default_action);
         if (dispatch_result == EventResult::Accepted)
             record_input_routing(InputRoutingDecision::DispatchedWheelEvent, {}, wheel_event_target_node);
