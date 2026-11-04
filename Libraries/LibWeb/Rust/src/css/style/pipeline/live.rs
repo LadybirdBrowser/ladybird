@@ -10,12 +10,12 @@
 
 use super::super::component_matching::DocumentMatching;
 use super::super::index::dispatch_bloom_bit;
+use super::super::input_types::TransactionFactSide;
 use super::super::input_types::{
     STYLE_REACTION_FONT_INPUTS_CHANGED, STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES,
     StyleEnvironment, StyleUpdate, TreeRelations,
 };
 use super::super::selector_evaluation::StructuralRead;
-use super::super::transaction_view::TransactionFactSide;
 use super::super::*;
 use super::drive::DriveRecords;
 use super::invalidation::{

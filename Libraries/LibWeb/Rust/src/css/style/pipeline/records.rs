@@ -10,8 +10,8 @@
 
 use super::super::animations::DeclarationScope;
 use super::super::container_queries::{ContainerRecords, ContainerVerdict};
+use super::super::input_types::TransactionFactSide;
 use super::super::selector_evaluation::StructuralRead;
-use super::super::transaction_view::TransactionFactSide;
 use super::super::*;
 use super::drive::DriveRecords;
 use super::traversal::InitialStyle;

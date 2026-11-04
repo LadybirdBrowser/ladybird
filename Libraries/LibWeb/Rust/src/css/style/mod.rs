@@ -72,7 +72,6 @@ pub mod engine_calls;
 pub(crate) mod engine_sample;
 #[cfg(test)]
 pub mod exact_matcher;
-mod facts_types;
 pub(crate) mod host_atoms;
 pub(crate) mod style_job;
 pub(crate) use crate::fast_hash;
@@ -112,10 +111,8 @@ pub(crate) use process_style::ProcessStyle;
 pub(crate) use publication::RecordDemand;
 pub(crate) use transition_baselines::{InheritedAnimatedValue, TransitionBaselines};
 pub mod input_types;
-pub mod relative_selector;
 pub mod selector;
 pub mod selector_evaluation;
-mod shareable;
 mod size_container_invalidation;
 mod specified_value;
 
@@ -124,7 +121,6 @@ pub(crate) fn value_reads_attributes(value: &crate::css::style_value::StyleValue
     custom_property_cascade::unresolved_reading_attributes(value).is_some()
 }
 
-mod transaction_view;
 pub mod tree;
 mod weak_pool;
 
@@ -187,6 +183,7 @@ use input_types::InputValue;
 use input_types::PendingElementInputs;
 use input_types::StateFact;
 use input_types::StyleUpdate;
+use input_types::TransactionFactSide;
 use input_types::TreeRelations;
 use pipeline::rule_store::CascadeLayerID;
 use pipeline::rule_store::CustomDeclaration;
@@ -202,7 +199,6 @@ use pipeline::rule_store::StyleScopeID;
 use selector::Incomplete;
 use selector::MatchScratch;
 use selector::Specificity;
-use transaction_view::TransactionFactSide;
 use tree::HostTree;
 use tree::SegmentedNodeColumn;
 use tree::StyleNodeID;
