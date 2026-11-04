@@ -1,15 +1,15 @@
 // https://drafts.csswg.org/cssom/#stylesheet
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface StyleSheet {
 
     readonly attribute CSSOMString type;
-    [ImplementedAs=href_for_bindings] readonly attribute USVString? href;
+    readonly attribute USVString? href;
 
     // FIXME: readonly attribute (Element or ProcessingInstruction)? ownerNode;
     readonly attribute Element? ownerNode;
 
     readonly attribute CSSStyleSheet? parentStyleSheet;
-    [ImplementedAs=title_for_bindings] readonly attribute DOMString? title;
+    readonly attribute DOMString? title;
     [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
     attribute boolean disabled;
 

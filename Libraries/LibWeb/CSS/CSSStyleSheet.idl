@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/cssom/#cssstylesheet
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSStyleSheet : StyleSheet {
     constructor(optional CSSStyleSheetInit options = {});
 
@@ -12,7 +12,7 @@ interface CSSStyleSheet : StyleSheet {
     undefined replaceSync(USVString text);
 
     // https://drafts.csswg.org/cssom/#legacy-css-style-sheet-members
-    [SameObject, ImplementedAs=css_rules] readonly attribute CSSRuleList rules;
+    [SameObject] readonly attribute CSSRuleList rules;
     long addRule(optional DOMString selector = "undefined", optional DOMString style = "undefined", optional unsigned long index);
     undefined removeRule(optional unsigned long index);
 };

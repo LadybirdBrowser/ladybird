@@ -79,7 +79,7 @@ void web_css_import_set_rule(void* import, void* rule)
 void web_css_import_set_parent_style_sheet(void* import_cell, void* sheet)
 {
     auto& import = import_from_cell(import_cell);
-    auto* state = sheet ? &static_cast<CSSStyleSheet*>(static_cast<GC::Cell*>(sheet))->state() : nullptr;
+    auto* state = sheet ? &static_cast<CSSStyleSheet*>(sheet)->state() : nullptr;
     if (import.parent_style_sheet() != state)
         import.set_parent_style_sheet(state);
 }
@@ -102,7 +102,7 @@ void* web_css_import_media(void* import)
 void* web_css_import_style_sheet(void* import)
 {
     auto* sheet = import_from_cell(import).loaded_style_sheet();
-    return sheet ? static_cast<GC::Cell*>(&sheet->cssom_sheet()) : nullptr;
+    return sheet ? &sheet->cssom_sheet() : nullptr;
 }
 
 NonnullRefPtr<StyleSheetImport> StyleSheetImport::create(RustRule rule, GC::Ptr<DOM::Document> document)
@@ -160,7 +160,7 @@ CSSImportRule& StyleSheetImport::cssom_rule() const
         auto import = StyleSheetImportCell::create(const_cast<StyleSheetImport&>(*this));
         auto* sheet = parent_style_sheet();
         // NB: The new object tells this import that it is its rule.
-        web_css_import_rule_create(JS::HostABI::vm_to_abi(JS::VM::the()), native_rule().handle(), static_cast<GC::Cell*>(import.ptr()), sheet ? static_cast<GC::Cell*>(&sheet->cssom_sheet()) : nullptr);
+        web_css_import_rule_create(JS::HostABI::vm_to_abi(JS::VM::the()), native_rule().handle(), static_cast<GC::Cell*>(import.ptr()), sheet ? &sheet->cssom_sheet() : nullptr);
     }
     return *m_cssom_rule;
 }

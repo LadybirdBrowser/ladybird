@@ -137,6 +137,7 @@ bool web_bindings_message_port_transport_send(IPC::Transport*, HTML::SerializedT
 bool web_bindings_message_port_transport_read_messages(IPC::Transport*, void* records, void (*append)(void*, HTML::SerializedTransferRecord*));
 
 void* web_css_wrap_object(void* realm, void* cell);
+void* web_css_realm_document(void* realm);
 
 void* web_bindings_wrapper_world(void* realm, bool* is_main_world)
 {
@@ -164,6 +165,11 @@ void* web_css_wrap_object(void* realm, void* cell)
     auto& wrappable = *static_cast<GCAllocatedWrappable*>(static_cast<GC::Cell*>(cell));
     auto wrapper = wrap(host_defined_wrapper_world(js_realm), js_realm, GC::Ref<Wrappable> { wrappable });
     return JS::HostABI::object_to_abi(wrapper.ptr());
+}
+
+void* web_css_realm_document(void* realm)
+{
+    return static_cast<GC::Cell*>(const_cast<DOM::Document*>(HTML::relevant_window(static_cast<JS::Realm*>(realm)->global_object()).document().ptr()));
 }
 
 bool web_bindings_realm_is_window(void* realm)

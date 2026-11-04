@@ -38,10 +38,11 @@ use super::css_property_rule::CSSPropertyRule;
 use super::css_rule_list::CSSRuleList;
 use super::css_scope_rule::CSSScopeRule;
 use super::css_style_rule::CSSStyleRule;
+use super::css_style_sheet::CSSStyleSheet;
 use super::css_supports_rule::CSSSupportsRule;
 use crate::bindings::conversions::{CppInterface, ToJs};
 use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::interface::{Ref, Wrappable, cell_into_abi, wrap};
+use crate::bindings::interface::{Ref, Wrappable, cell_from_abi, cell_into_abi, wrap};
 use crate::bindings::{CallContext, WebIdlResult};
 
 unsafe extern "C" {
@@ -196,8 +197,10 @@ impl CSSRule {
     }
 
     // https://drafts.csswg.org/cssom/#dom-cssrule-parentstylesheet
-    pub(crate) fn parent_style_sheet(&self, cx: &mut CallContext) -> WebIdlResult<Option<CppInterface>> {
-        Ok(self.parent_sheet().map(|sheet| wrap_cpp_cell(cx, &sheet)))
+    pub(crate) fn parent_style_sheet(&self, _: &mut CallContext) -> WebIdlResult<Option<Ref<CSSStyleSheet>>> {
+        let sheet = self.parent_style_sheet.borrow();
+        // SAFETY: The cell is that of a live CSSStyleSheet.
+        Ok(sheet.as_ref().map(|sheet| unsafe { cell_from_abi(sheet.as_ptr()) }))
     }
 
     // https://drafts.csswg.org/cssom/#dom-cssrule-type

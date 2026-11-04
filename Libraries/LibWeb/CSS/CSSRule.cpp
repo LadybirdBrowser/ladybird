@@ -58,7 +58,7 @@ void* web_css_font_feature_values_map_create(void* rule, u8 kind);
 
 static StyleSheetState& state_of_sheet(void* sheet)
 {
-    return static_cast<CSSStyleSheet*>(static_cast<GC::Cell*>(sheet))->state();
+    return static_cast<CSSStyleSheet*>(sheet)->state();
 }
 
 CSSRule::Type CSSRule::type() const

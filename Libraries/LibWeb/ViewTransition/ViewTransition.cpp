@@ -1045,7 +1045,7 @@ void ViewTransition::clear_view_transition()
                 auto rules = stylesheet->css_rules();
                 for (u32 i = 0; i < rules->length(); i++) {
                     if (GC::Ptr { rules->item(i) } == style) {
-                        MUST(stylesheet->delete_rule(i));
+                        stylesheet->remove_rule(i);
                         break;
                     }
                 }

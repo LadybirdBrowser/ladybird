@@ -14,9 +14,9 @@ use ak::Utf16String;
 use libjs_rust::api::{Trace, Vm};
 use libweb_rust::NativeRule;
 
-use super::css_rule::{AnyCSSRule, CSSRule, RuleText, impl_rule_wrappable, selector_list_text, wrap_cpp_cell};
+use super::css_rule::{AnyCSSRule, CSSRule, RuleText, impl_rule_wrappable, selector_list_text};
+use super::css_style_sheet::CSSStyleSheet;
 use super::media_list::MediaList;
-use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Inherits, Ref, allocate, cell_from_abi};
 use crate::bindings::{CallContext, WebIdlResult};
@@ -106,15 +106,11 @@ impl CSSImportRule {
     }
 
     // https://drafts.csswg.org/cssom/#dom-cssimportrule-stylesheet
-    pub(crate) fn style_sheet(&self, cx: &mut CallContext) -> WebIdlResult<Option<CppInterface>> {
+    pub(crate) fn style_sheet(&self, _: &mut CallContext) -> WebIdlResult<Option<Ref<CSSStyleSheet>>> {
         // SAFETY: The cell is live.
         let sheet = unsafe { web_css_import_style_sheet(self.import.as_ptr()) };
-        if sheet.is_null() {
-            return Ok(None);
-        }
-        // SAFETY: LibWeb returns a live cell.
-        let sheet = unsafe { CppCell::from_raw(sheet) };
-        Ok(Some(wrap_cpp_cell(cx, &sheet)))
+        // SAFETY: LibWeb returns the live cell of a CSSStyleSheet, or null.
+        Ok((!sheet.is_null()).then(|| unsafe { cell_from_abi(sheet) }))
     }
 
     // https://drafts.csswg.org/cssom/#dom-cssimportrule-layername

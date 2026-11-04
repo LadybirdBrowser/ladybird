@@ -335,7 +335,6 @@ class StyleComputer;
 class StylePropertyMap;
 class StylePropertyMapReadOnly;
 class StyleScope;
-class StyleSheet;
 class StyleSheetImport;
 class StyleSheetList;
 class StyleValue;

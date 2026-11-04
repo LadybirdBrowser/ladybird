@@ -22,7 +22,6 @@ static NEXT_SHEET_IDENTITY: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
-#[cfg_attr(not(test), expect(dead_code, reason = "Flags are selected by CSSOM through FFI"))]
 pub enum NativeStyleSheetFlag {
     Disabled = 1,
     Alternate = 2,
