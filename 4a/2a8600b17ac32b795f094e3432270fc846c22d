@@ -1,0 +1,9 @@
+When a style change asks for another kind of box, Ladybird keeps the
+old style on the old box until the layout tree update replaces the box,
+so no layout sees a box of one kind with the style of another. Blink
+does the same: Element::RecalcOwnStyle() returns before it updates an
+existing LayoutObject when the layout tree needs reattaching. Gecko’s
+RestyleManager::ProcessPostTraversal() leaves a frame that needs
+reconstructing with its old style, for the frame constructor to replace.
+And WebKit’s RenderTreeUpdater::updateElementRenderer() tears the
+renderers down before the new style reaches any renderer.
