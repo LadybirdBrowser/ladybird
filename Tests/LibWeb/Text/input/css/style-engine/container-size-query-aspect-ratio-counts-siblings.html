@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container { container-type: size; width: 200px; height: 100px; }
+    #target { --index: no; --count: no; --calculated: no; }
+    @container (aspect-ratio: sibling-index() / 1) { #target { --index: yes; } }
+    @container (aspect-ratio: 4 / sibling-count()) { #target { --count: yes; } }
+    @container (aspect-ratio: calc(sibling-index() * 2) / 2) { #target { --calculated: yes; } }
+</style>
+<section>
+    <div id="first"></div>
+    <div id="container"><div id="target"></div></div>
+</section>
+<script>
+    test(() => {
+        const report = label => {
+            const style = getComputedStyle(target);
+            println(`${label}: ${["--index", "--count", "--calculated"].map(name => style.getPropertyValue(name).trim()).join(" ")}`);
+        };
+        report("second of two");
+        first.remove();
+        report("first of one");
+    });
+</script>

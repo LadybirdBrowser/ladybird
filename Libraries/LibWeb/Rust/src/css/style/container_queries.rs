@@ -567,6 +567,12 @@ impl RetainedState {
                         .map(|position| (u64::from(position.count), u64::from(position.index))),
                 });
             }
+            let read_sibling_position = std::cell::Cell::new(false);
+            let tree_counting = || {
+                read_sibling_position.set(true);
+                self.sibling_position(candidate)
+                    .map(|position| (u64::from(position.count), u64::from(position.index)))
+            };
             let facts = ContainerFacts {
                 container_available: true,
                 size_available: snapshot.has_committed_box && inputs.size_queries_available,
@@ -576,6 +582,7 @@ impl RetainedState {
                 // styled, so the writing mode is the record's, not the last commit's.
                 inline_axis_horizontal,
                 length_resolution_context: std::ptr::from_ref(&length).cast(),
+                tree_counting: &tree_counting,
                 scroll_state_available: requirements & CONTAINER_QUERY_REQUIRES_SCROLL_STATE != 0,
                 stuck: snapshot.stuck,
                 snapped: snapshot.snapped,
@@ -629,26 +636,28 @@ impl RetainedState {
                     .effects
                     .push((candidate, FfiContainerEffectKind::NeedsEvaluationAfterLayout));
             }
-            let mut read_sibling_position = false;
             // SAFETY: The facts' length context is live for the call.
             let result = unsafe {
                 crate::css::parser::query_parser::evaluate_container_query(query, &facts, &mut |feature| {
                     let Some(context) = &style_context else {
                         return MatchResult::Unknown;
                     };
-                    crate::css::custom_properties::evaluate_retained_container_style_feature(
+                    let mut read = false;
+                    let result = crate::css::custom_properties::evaluate_retained_container_style_feature(
                         context.store,
                         context.registry,
                         feature,
                         &length,
                         context.color,
                         context.tree_counting,
-                        &mut read_sibling_position,
-                    )
+                        &mut read,
+                    );
+                    read_sibling_position.set(read_sibling_position.get() || read);
+                    result
                 })
             };
             // NB: Its siblings moving is what moves the answer, as for a record reading its own place.
-            if read_sibling_position {
+            if read_sibling_position.get() {
                 self.containers_counted_by_style_queries
                     .lock()
                     .expect("the counted containers are never held across a panic")
