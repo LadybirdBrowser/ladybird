@@ -389,8 +389,11 @@ impl FcRunCacheEntry {
     }
 
     fn note_used_at_layout_commit(&self, layout_commit_count: u64) {
-        self.last_used_at_layout_commit
-            .store(layout_commit_count, std::sync::atomic::Ordering::Relaxed);
+        // NB: Reused entries are read on many threads, so a write that changes nothing would still evict their line.
+        if self.last_used_at_layout_commit() != layout_commit_count {
+            self.last_used_at_layout_commit
+                .store(layout_commit_count, std::sync::atomic::Ordering::Relaxed);
+        }
     }
 
     fn holds_fragments(&self) -> bool {
