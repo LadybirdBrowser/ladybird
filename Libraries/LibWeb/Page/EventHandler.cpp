@@ -4455,6 +4455,43 @@ GC::Ptr<DOM::Range> EventHandler::context_menu_url_token_range(DOM::Text& hit_no
     return DOM::Range::create(hit_node, token_start, hit_node, token_end);
 }
 
+static CSS::StyleNodeID style_node_of_text_or_element(DOM::Node const& node)
+{
+    if (auto const* text = as_if<DOM::Text>(node))
+        return text->style_node_id();
+    if (auto const* element = as_if<DOM::Element>(node))
+        return element->style_node_id();
+    return {};
+}
+
+Optional<EventHandler::SelectionDragForLanes> EventHandler::selection_drag_for_lanes(Layout::BegunRead const& read) const
+{
+    if (m_selection_mode != SelectionMode::Character || m_mouse_selection_target)
+        return {};
+    // NB: A press on something draggable drags it once the pointer leaves the drag threshold, which ends the selection.
+    if (auto mousedown_target = m_mousedown_target.ptr(); m_mousedown_target_is_drag_candidate && mousedown_target
+        && DragAndDropEventHandler::first_draggable_inclusive_ancestor(*mousedown_target))
+        return {};
+    auto document = m_navigable->active_document();
+    if (!document)
+        return {};
+    auto selection = document->get_selection();
+    if (!selection)
+        return {};
+    auto anchor = selection->anchor_node();
+    if (!anchor || !anchor->is_connected())
+        return {};
+    auto anchor_style_node = style_node_of_text_or_element(*anchor);
+    if (!anchor_style_node)
+        return {};
+    SelectionDragForLanes drag { .anchor = anchor_style_node, .anchor_offset = selection->anchor_offset(), .anchor_child = {}, .scrollport = {} };
+    for (auto* child = anchor->child_at_index(selection->anchor_offset()); child && !drag.anchor_child; child = child->next_sibling())
+        drag.anchor_child = style_node_of_text_or_element(*child);
+    if (m_auto_scroll_handler)
+        drag.scrollport = m_auto_scroll_handler->scrollport_in_viewport(read);
+    return drag;
+}
+
 void EventHandler::update_mouse_selection(Layout::BegunRead const& read, CSSPixelPoint visual_viewport_position)
 {
     if (m_selection_mode == SelectionMode::None)

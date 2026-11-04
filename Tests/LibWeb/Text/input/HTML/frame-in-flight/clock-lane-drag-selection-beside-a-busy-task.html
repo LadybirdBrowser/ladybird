@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; font: 20px SerenitySans, sans-serif; line-height: 30px; }
+    p { margin: 0; height: 30px; width: max-content; white-space: nowrap; }
+</style>
+<p id="line">a line of plain text to drag over</p>
+<script>
+    // A drag goes through the UI process and the compositor to the clock lane while a task keeps the event loop from it.
+    // The task ends once the lane showed the move, which the host then handles to the same highlight.
+    asyncTest(async done => {
+        const rect = line.getBoundingClientRect();
+        const y = Math.round(rect.top + rect.height / 2);
+        const [from, to] = [Math.round(rect.left + 10), Math.round(rect.left + 150)];
+        await internals.mouseEventThroughUIProcess("mousemove", from, y);
+        await internals.mouseEventThroughUIProcess("mousedown", from, y, { buttons: 1 });
+        await twoFramesLanded();
+
+        const moved = internals.mouseEventThroughUIProcess("mousemove", to, y, { buttons: 1 });
+        let shown;
+        do shown = internals.presentedSelection();
+        while (shown === "");
+        const selectionDuringTheTask = getSelection().toString();
+        await moved;
+        await twoFramesLanded();
+
+        println(`script saw nothing during the task: ${selectionDuringTheTask === ""}`);
+        println(`the host paints what the lane showed: ${internals.paintedSelection() === shown}`);
+        await internals.mouseEventThroughUIProcess("mouseup", to, y);
+        done();
+    });
+</script>

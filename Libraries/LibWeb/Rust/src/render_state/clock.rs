@@ -64,6 +64,7 @@ use std::sync::{Arc, Mutex};
 mod effects;
 pub(crate) mod hover;
 mod lane;
+mod selection;
 pub(crate) use hover::PendingPointer;
 pub(crate) use lane::LaneDelivery;
 pub(super) use lane::{LaneSlot, note_host_write, retire_slot, seal_plan, take_lane_report, take_lanes_in};
@@ -354,6 +355,12 @@ pub(crate) struct Lane {
     /// Whether a move of the hover had boxes show the styles the host installed in them again in place of samples, which
     /// the tick shows again.
     samples_restored: bool,
+    /// The list a drag selection finds its caret positions in, for the frame whose items it holds.
+    selection_hit_test_list: Option<crate::painting::hit_test::HitTestList>,
+    /// What a drag selection owes the rows of the fork of `::selection` styles, once a tick asked.
+    selection_styles: Option<crate::css::style::drag_selection::SelectionStyles>,
+    /// Where the highlight the fork holds ends, if a tick moved it.
+    selection_focus_shown: Option<selection::Boundary>,
 }
 
 /// What the ticks of a lane write: the render state of the render owner while it still shows the lane's frame, which
@@ -1301,6 +1308,9 @@ impl Lane {
             hovered: hover::LaneHover::default(),
             unshown_move: None,
             samples_restored: false,
+            selection_hit_test_list: None,
+            selection_styles: None,
+            selection_focus_shown: None,
         }
     }
 
@@ -1320,6 +1330,7 @@ impl Lane {
     fn rejoin_the_state(&mut self) {
         if self.samples_nothing() && self.state.rejoin_the_state() {
             self.hovered.installs.clear();
+            self.selection_focus_shown = None;
         }
     }
 
@@ -1341,6 +1352,11 @@ impl Lane {
         self.shown_scroll_progress = plan.scroll_progress(&self.scroll_positions);
         self.settling_frames = 0;
         self.shown_at = f64::NEG_INFINITY;
+        self.selection_focus_shown = None;
+        self.selection_styles = None;
+        if plan.hover.as_ref().is_none_or(|hover| hover.selection_drag().is_none()) {
+            self.selection_hit_test_list = None;
+        }
         self.replan_host_effects(&plan.elements);
         self.plan = plan;
     }
@@ -1439,7 +1455,19 @@ impl Lane {
             sampled |= self.sample_started_transitions(state, sampled_at.0).unwrap_or(true);
             moved |= sampled;
         }
-        if let Some(pointer) = hovers {
+        let drags = hovers.filter(|pointer| pointer.holds_the_primary_button() && self.selection_drag().is_some());
+        if let Some(pointer) = drags {
+            moved |= self.extend_selection(state, pointer, frame_time_nanoseconds);
+            // The host hovers what is under the pointer as it handles the move, as for any move with a button held.
+            ticked.hover_move = Some(LaneMove {
+                input_event_id: pointer.input_event_id,
+                target: None,
+                handed: false,
+            });
+        } else if let Some(pointer) = hovers {
+            if !pointer.holds_the_primary_button() {
+                self.end_selection_drag();
+            }
             let hovered = self.hover(state, pointer, sampled_at.0, frame_time_nanoseconds);
             ticked.hover_move = Some(LaneMove {
                 input_event_id: pointer.input_event_id,
@@ -2079,6 +2107,29 @@ pub extern "C" fn document_host_presented_compositor_animation_count(
     };
     *count = presented;
     true
+}
+
+/// Calls `push` with `context` for every node the selection highlights, in the state the host paints, or where
+/// `presented`, in the fork the lane of `host`'s document shows, if it has one: the node's style node, its selection
+/// state, where the selection starts and ends, and the background and text colors of its `::selection` styles. For a
+/// test.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_selection_for_testing(
+    host: &DocumentHost,
+    presented: bool,
+    context: *mut std::ffi::c_void,
+    push: extern "C" fn(*mut std::ffi::c_void, u32, u8, usize, usize, u32, u32),
+) {
+    let document = host.clock_ticks().document;
+    let rows = super::on_render_side(0, move || {
+        presented
+            .then(|| lane::selection_shown_for_testing(document))
+            .flatten()
+            .unwrap_or_else(|| super::owner::with_state(document, None, |state| selection::rows_for_testing(state)))
+    });
+    for (node, state, start, end, background, text) in rows {
+        push(context, node, state, start, end, background, text);
+    }
 }
 
 /// Writes the opacity the effect nodes of the box of `element` gave it in the last frame a tick of a lane of `host`'s

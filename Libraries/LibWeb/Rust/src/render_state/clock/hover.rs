@@ -24,6 +24,8 @@ use crate::layout::tree_mutation::{HostCalls, OwedHostWork};
 use crate::painting::ffi::FfiChromeMetrics;
 use crate::painting::hit_test::{HitTestItemKind, HitTestList};
 use crate::painting::host::FfiHitTestQueryCallbacks;
+use crate::painting::record::PublishedHitTestItems;
+use crate::painting::visual_context::VisualContextTree;
 use crate::stage_thread::Riding;
 use libgfx_rust::FloatPoint;
 use std::sync::Arc;
@@ -44,6 +46,15 @@ pub struct FfiHoverPlanInputs {
     pub effect_timing_identities: *const u64,
     pub effect_timings: *const std::ffi::c_void,
     pub effect_timing_count: usize,
+    /// Where a drag selecting text the lane may follow is anchored, if one runs: the style node of a text node or an
+    /// element, or 0, and the offset in that text, or the style node of the child of that element right after the anchor,
+    /// or 0 after its last child.
+    pub selection_drag_anchor: u32,
+    pub selection_drag_anchor_offset: usize,
+    pub selection_drag_anchor_child: u32,
+    /// The scrollport the host's autoscroll keeps the pointer of that drag in, in CSS pixels of the viewport. Empty where
+    /// none does.
+    pub selection_drag_scrollport: crate::layout::svg_formatting_context::FfiFloatRect,
 }
 
 unsafe extern "C" {
@@ -140,6 +151,8 @@ pub(crate) struct HoverPlan {
     /// The timings the host runs effects on without sampling them, which the descriptions of their elements' effects
     /// hold from before: the step a hover decides over the transitions they run reads them.
     effect_timings: Vec<(StyleNodeID, u64, FfiEffectTiming)>,
+    /// The drag selecting text the ticks show, until the button goes up.
+    selection_drag: Option<super::selection::SelectionDrag>,
 }
 
 impl HoverPlan {
@@ -187,6 +200,12 @@ impl HoverPlan {
             // SAFETY: Guaranteed by the caller.
             page_cursor: unsafe { PageCursor::retained(inputs.page_cursor) },
             effect_timings,
+            selection_drag: super::selection::SelectionDrag::new(
+                inputs.selection_drag_anchor,
+                inputs.selection_drag_anchor_offset,
+                inputs.selection_drag_anchor_child,
+                inputs.selection_drag_scrollport,
+            ),
         }
     }
 
@@ -194,6 +213,10 @@ impl HoverPlan {
         let Some((root, _)) = self.style.as_ref() else {
             return;
         };
+        // A drag writes the highlight in the lane's fork.
+        if self.selection_drag.is_some() {
+            return;
+        }
         if !state.engine_ref().takes_hover_transactions()
             || state.engine_ref().has_animation_overlay_records()
             || state.engine_mut().hover_needs_style_state(*root)
@@ -241,6 +264,22 @@ impl HoverPlan {
         self.read_only_frame.is_none()
     }
 
+    pub(super) fn selection_drag(&self) -> Option<super::selection::SelectionDrag> {
+        self.selection_drag
+    }
+
+    pub(super) fn end_selection_drag(&mut self) {
+        self.selection_drag = None;
+    }
+
+    pub(super) fn device_pixels_per_css_pixel(&self) -> f64 {
+        self.device_pixels_per_css_pixel
+    }
+
+    pub(super) fn chrome_metrics(&self) -> FfiChromeMetrics {
+        self.chrome_metrics
+    }
+
     /// Has the hover's style updates take `inputs`, the document computation inputs the host sealed for its last
     /// transaction under `root`.
     pub(crate) fn with_style_inputs(self, style: Option<(StyleNodeID, Arc<SealedStyleInputs>)>) -> Self {
@@ -263,6 +302,9 @@ fn hand_pointer_to_context(context: u64, position: Option<FloatPoint>, pointer: 
     );
 }
 
+/// The bit of `UIEvents::MouseButton::Primary` in the buttons of a move.
+const PRIMARY_MOUSE_BUTTON: u32 = 1;
+
 /// Where the render clock heard the pointer went.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PendingPointer {
@@ -274,6 +316,13 @@ pub(crate) struct PendingPointer {
     pub(crate) scrolled_since_frame: bool,
     /// The input event id of the mouse event the host takes beside the move, or 0 where there is none.
     pub(crate) input_event_id: u64,
+}
+
+impl PendingPointer {
+    /// Whether the move has the primary mouse button held, the one that drags a selection.
+    pub(super) fn holds_the_primary_button(&self) -> bool {
+        self.buttons & PRIMARY_MOUSE_BUTTON != 0
+    }
 }
 
 /// What the lanes want once they heard where the pointer went, as the render clock reads it.
@@ -342,6 +391,11 @@ impl PointerState {
         self.pending.is_some()
     }
 
+    /// Whether the move that waits for a tick has the primary mouse button held.
+    pub(super) fn holds_the_primary_button(&self) -> bool {
+        self.pending.is_some_and(|pending| pending.holds_the_primary_button())
+    }
+
     /// Forgets where the pointer went, short of the mouse events the host handled.
     pub(super) fn forget(&mut self) {
         self.pending = None;
@@ -349,10 +403,15 @@ impl PointerState {
     }
 
     /// Notes that the host handled the mouse event with the input event id `input_event_id`, and forgets the move that
-    /// waits for a tick, where it is older.
+    /// waits for a tick, where it is older, or the very move of a drag, which an idle host paints itself.
     pub(super) fn note_handled(&mut self, input_event_id: u64) {
         self.handled = self.handled.max(input_event_id);
-        if self.pending.is_some_and(|pending| self.is_older_than_handled(pending)) {
+        if self.pending.is_some_and(|pending| {
+            self.is_older_than_handled(pending)
+                || (pending.holds_the_primary_button()
+                    && pending.input_event_id != 0
+                    && pending.input_event_id == self.handled)
+        }) {
             self.pending = None;
         }
     }
@@ -1144,9 +1203,7 @@ impl Lane {
             }
             let frame = plan.read_only_frame.as_ref()?;
             let tree = frame.visual_context.tree.as_ref()?;
-            let recorder = self.recording.0.take(WaitsForTickRecording(()));
-            let published = recorder.recorder.published_hit_test_items.clone();
-            self.recording = TickRecording(Riding::landed(recorder));
+            let published = self.published_hit_test_items();
             let published = published?;
             if published.structural_epoch != tree.structural_epoch {
                 return None;
@@ -1262,6 +1319,37 @@ impl Lane {
         }
     }
 
+    /// The hit-test items of the frame the lane presented last, which come back with its recording.
+    fn published_hit_test_items(&mut self) -> Option<Arc<PublishedHitTestItems>> {
+        let recorder = self.recording.0.take(WaitsForTickRecording(()));
+        let published = recorder.recorder.published_hit_test_items.clone();
+        self.recording = TickRecording(Riding::landed(recorder));
+        published
+    }
+
+    /// The hit-test items of the frame the lane presented last, with the tree of visual contexts of `state` they name as
+    /// the screen shows them at `frame_time_nanoseconds`, or why a hit test cannot read them.
+    pub(super) fn presented_hit_test_items(
+        &mut self,
+        state: &RenderState,
+        frame_time_nanoseconds: i64,
+    ) -> Result<(Arc<VisualContextTree>, Arc<PublishedHitTestItems>), &'static str> {
+        let published = self.published_hit_test_items().ok_or("no hit-test list")?;
+        let visual_context = &state.arena.arena().paint_state().visual_context;
+        let tree = visual_context.tree.clone().ok_or("no visual context tree")?;
+        // The items name the visual contexts of the tree they were recorded against, which a hit test of the host's may
+        // have built anew since without presenting it.
+        if published.structural_epoch != tree.structural_epoch {
+            return Err("visual contexts the frame does not show");
+        }
+        // The screen shows the compositor's animations sampled at the frame's time, where the hit test finds them.
+        let tree = match tree.has_visual_animations() {
+            true => Arc::new(tree.with_visual_animation_samples(frame_time_nanoseconds)),
+            false => tree,
+        };
+        Ok((tree, published))
+    }
+
     /// Hit tests `position`, in device pixels, in the frame the lane presented last.
     fn hit_test(
         &mut self,
@@ -1270,28 +1358,10 @@ impl Lane {
         position: FloatPoint,
         frame_time_nanoseconds: i64,
     ) -> Result<HoverTarget, HoverDeclined> {
-        // The hit-test list is the one of the frame the lane presented last, which comes back with its recording.
-        let recorder = self.recording.0.take(WaitsForTickRecording(()));
-        let published = recorder.recorder.published_hit_test_items.clone();
-        self.recording = TickRecording(Riding::landed(recorder));
-        let published = published.ok_or(HoverDeclined::Unplaced("no hit-test list"))?;
+        let (tree, published) = self
+            .presented_hit_test_items(state, frame_time_nanoseconds)
+            .map_err(HoverDeclined::Unplaced)?;
         let arena = state.arena.arena();
-        let tree = arena
-            .paint_state()
-            .visual_context
-            .tree
-            .clone()
-            .ok_or(HoverDeclined::Unplaced("no visual context tree"))?;
-        // The items name the visual contexts of the tree they were recorded against, which a hit test of the host's may
-        // have built anew since without presenting it.
-        if published.structural_epoch != tree.structural_epoch {
-            return Err(HoverDeclined::Unplaced("visual contexts the frame does not show"));
-        }
-        // The screen shows the compositor's animations sampled at the frame's time, where the hit test finds them.
-        let tree = match tree.has_visual_animations() {
-            true => Arc::new(tree.with_visual_animation_samples(frame_time_nanoseconds)),
-            false => tree,
-        };
         let mut list = HitTestList {
             items: std::sync::Arc::clone(&published.items),
             ..HitTestList::default()
@@ -1378,7 +1448,7 @@ impl Lane {
     /// The device scroll offsets of the visual context tree's nodes as the screen shows them: those of the frame the
     /// host laid out, where the compositor scrolled the scroll containers to at the latest tick, as the hit test reads
     /// them.
-    fn scroll_offsets_on_screen(
+    pub(super) fn scroll_offsets_on_screen(
         &self,
         arena: &impl crate::painting::paint_read::PaintRead,
         visual_context: &crate::painting::visual_context::VisualContextState,
@@ -1558,14 +1628,15 @@ pub extern "C" fn document_host_move_pointer(
     });
 }
 
-/// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, beside the mouse event with
-/// the input event id `input_event_id`, or none for 0, ticks them at `frame_time_nanoseconds`, and waits until the
-/// Render thread has run the tick and the Paint thread the recording of the frame it presents. For a test.
+/// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, with `buttons` held, beside the
+/// mouse event with the input event id `input_event_id`, or none for 0, ticks them at `frame_time_nanoseconds`, and waits
+/// until the Render thread has run the tick and the Paint thread the recording of the frame it presents. For a test.
 #[unsafe(no_mangle)]
 pub extern "C" fn document_host_inject_pointer(
     host: &crate::render_state::DocumentHost,
     x: f32,
     y: f32,
+    buttons: u32,
     frame_time_nanoseconds: i64,
     input_event_id: u64,
 ) {
@@ -1573,7 +1644,7 @@ pub extern "C" fn document_host_inject_pointer(
     host.clock_ticks().inject_pointer(
         PendingPointer {
             position: Some(FloatPoint { x, y }),
-            buttons: 0,
+            buttons,
             scrolled_since_frame: false,
             input_event_id,
         },

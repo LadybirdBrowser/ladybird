@@ -89,6 +89,14 @@ void AutoScrollHandler::visit_edges(JS::Cell::Visitor& visitor) const
     visitor.visit(m_container_element);
 }
 
+Optional<CSSPixelRect> AutoScrollHandler::scrollport_in_viewport(Layout::BegunRead const& read) const
+{
+    auto* layout_node = auto_scroll_layout_node(read, m_container_element);
+    if (!layout_node)
+        return {};
+    return scrollport_rect_in_viewport(*layout_node);
+}
+
 CSSPixelPoint AutoScrollHandler::process(CSSPixelPoint mouse_position)
 {
     m_mouse_position = mouse_position;

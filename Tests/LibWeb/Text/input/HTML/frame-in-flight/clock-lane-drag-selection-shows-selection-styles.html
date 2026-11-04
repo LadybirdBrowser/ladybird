@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; font: 20px SerenitySans, sans-serif; line-height: 30px; }
+    p, div { margin: 0; height: 30px; white-space: nowrap; }
+    #styled::selection { color: red; background: yellow; }
+    #around::selection { color: white; background: green; }
+</style>
+<p id="plain">text no rule styles</p>
+<p id="styled">text a rule styles</p>
+<div id="around"><span id="inheriting">text that inherits a style</span></div>
+<div id="host"></div>
+<p id="last">text the rules leave alone</p>
+<script>
+    // What a lane shows of a drag beside a task is what the host paints once it handled the same move, the colors of the
+    // `::selection` styles of the elements the drag reaches included.
+    asyncTest(async done => {
+        host.attachShadow({ mode: "open" }).innerHTML =
+            "<style>::selection { color: white; background: purple; }</style><p>text in a shadow tree</p>";
+
+        const place = (id, fraction) => {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            return [rect.left + 5 + fraction * 140, rect.top + 15];
+        };
+        const compare = async (name, from, to) => {
+            getSelection().removeAllRanges();
+            await twoFramesLanded();
+            internals.mouseDown(...from);
+            await twoFramesLanded();
+            const shown = await whileLaneHovers(frameTime => {
+                internals.injectHoverPointer(...to, frameTime + 16, 0, 1);
+                return internals.presentedSelection();
+            });
+            await twoFramesLanded();
+            internals.mouseMove(...to, 0, 1);
+            await twoFramesLanded();
+            const painted = internals.paintedSelection();
+            internals.mouseUp(...to);
+            await twoFramesLanded();
+            println(`${name}: ${shown === painted ? "same" : `DIFFERENT, shown ${JSON.stringify(shown)}`}: ${JSON.stringify(painted)}`);
+        };
+
+        await compare("no rule", place("plain", 0.1), place("plain", 0.9));
+        await compare("a rule", place("styled", 0.1), place("styled", 0.9));
+        await compare("into a rule", place("plain", 0.1), place("styled", 0.9));
+        await compare("past a rule", place("plain", 0.1), place("around", 0.1));
+        await compare("an inherited style", place("inheriting", 0.1), place("inheriting", 0.9));
+        await compare("a shadow tree's rule", place("host", 0.1), place("host", 0.9));
+
+        const sheet = document.head.appendChild(document.createElement("style"));
+        sheet.textContent = "#last::selection { color: blue; background: pink; }";
+        await twoFramesLanded();
+        await compare("a rule that came later", place("last", 0.1), place("last", 0.9));
+        sheet.textContent = "";
+        await twoFramesLanded();
+        await compare("a rule that went away", place("last", 0.1), place("last", 0.9));
+
+        // A sheet this long is kept apart from the entries of the document.
+        const unused = Array.from({ length: 64 }, (_, index) => `.unused-${index} { color: red; }`).join(" ");
+        sheet.textContent = `${unused} #last::selection { color: blue; background: pink; }`;
+        await twoFramesLanded();
+        await compare("a rule of a long sheet", place("last", 0.1), place("last", 0.9));
+        done();
+    });
+</script>

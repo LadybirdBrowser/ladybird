@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; font: 14px SerenitySans, sans-serif; line-height: 20px; }
+    p { margin: 0; height: 20px; width: max-content; white-space: nowrap; }
+    img { display: inline-block; width: 40px; height: 14px; background: blue; }
+    table { border-collapse: collapse; }
+    td { padding: 0; width: 200px; height: 20px; }
+    #scroller { width: 300px; height: 40px; overflow: auto; }
+    #floated { float: left; width: 120px; height: 20px; }
+    #transformed { transform: translateX(40px); }
+    #positioned { position: absolute; left: 400px; top: 0; width: 200px; height: 20px; }
+    #commented-block { position: absolute; left: 400px; top: 20px; }
+    #generated::before { content: "generated "; }
+    #broken { height: 40px; }
+    #inline-block { display: inline-block; width: 100px; height: 20px; }
+    #empty { display: inline-block; width: 60px; height: 14px; }
+    #styled::selection { color: red; background: yellow; }
+    iframe { display: block; width: 200px; height: 20px; border: 0; }
+    button { display: block; height: 20px; padding: 0; font: inherit; }
+    svg { display: block; width: 300px; height: 20px; }
+</style>
+<p id="first">first line of plain text</p>
+<p id="inline">some <b>bold</b> and <i>italic <u>underlined</u></i> text</p>
+<p id="commented"><!-- a comment -->text <!-- another comment -->around<!-- and one more --> comments</p>
+<p id="commented-block">words <span id="before-a-comment" style="display: inline-block">in a block</span><!-- a comment --></p>
+<p id="hidden">before <span style="display: none">not rendered</span> after</p>
+<p id="unselectable-child">kept <span id="none" style="user-select: none">left <b id="none-inside">out</b></span> kept again</p>
+<p id="all-child">around <span id="all" style="user-select: all">all of this</span> the element</p>
+<p id="contain-child">outside <span id="contain" style="user-select: contain">kept in here</span> again outside</p>
+<p id="contents">outer <span style="display: contents">inside contents <img id="unselectable-in-contents" style="user-select: none" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="></span> outer again</p>
+<p id="image">words <img id="picture" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="> more words</p>
+<p id="host"></p>
+<p id="slotted-host">light text</p>
+<table><tr><td id="left">left cell</td><td id="right">right cell</td></tr></table>
+<p id="right-to-left" dir="rtl">שלום עולם</p>
+<div id="scroller"><p id="scrolled-one">scrolled line one</p><p id="scrolled-two">scrolled line two</p><p id="scrolled-three">scrolled line three</p><p id="scrolled-four">scrolled line four</p></div>
+<p id="floated-around"><span id="floated">floated text</span> text around the float</p>
+<p id="transformed">text moved by a transform</p>
+<div id="positioned">placed out of the flow</div>
+<p id="generated">text after generated content</p>
+<p id="broken">one line<br>another line</p>
+<p id="inline-block-around">words <span id="inline-block">in a block</span> more words</p>
+<p id="anchors">words <a id="empty" href="#" draggable="false"></a> around <img id="unselectable-picture" style="user-select: none" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="> boxes <span style="user-select: none"><img id="selectable-picture" style="user-select: text" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="></span> end</p>
+<p id="inert" inert>inert text in here</p>
+<p id="styled">text with a selection style</p>
+<p id="linked">before <a id="link" href="#" draggable="false">the link text</a> after <a id="draggable-link" href="#">a link to drag</a></p>
+<iframe id="frame" srcdoc="<p style='margin: 0'>text in a frame</p>"></iframe>
+<button id="button">text of a button</button>
+<svg id="vector"><text id="vector-text" x="0" y="15">text of a vector</text></svg>
+<p id="last">the very last line</p>
+<script>
+    document.getElementById("host").attachShadow({ mode: "open" }).innerHTML = "shadow text";
+    document.getElementById("slotted-host").attachShadow({ mode: "open" }).innerHTML = "before <slot></slot> after";
+    document.getElementById("scroller").scrollTop = 10;
+
+    const place = (id, across = 0.5) => {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        return [Math.round(rect.left + rect.width * across), Math.round(rect.top + rect.height / 2)];
+    };
+
+    // Where each drag starts, and the places it goes to, in order.
+    const drags = [
+        { from: place("first", 0.2), to: [place("first", 0.1), place("first", 0.9), place("last", 0.5), place("inline", 0.5)] },
+        { from: place("last", 0.5), to: [place("last", 0.1), place("first", 0.5), place("commented", 0.5), place("image", 0.2)] },
+        { from: place("inline", 0.1), to: [place("inline", 0.4), place("inline", 0.8), place("commented", 0.3)] },
+        { from: place("commented", 0.7), to: [place("commented", 0.2), place("hidden", 0.8), place("first", 0.8)] },
+        { from: place("hidden", 0.5), to: [place("before-a-comment", 0.95), place("commented-block", 0.05)] },
+        { from: place("before-a-comment", 0.95), to: [place("hidden", 0.5), place("commented-block", 0.05)] },
+        { from: place("hidden", 0.1), to: [place("hidden", 0.9), place("unselectable-child", 0.9)] },
+        { from: place("unselectable-child", 0.05), to: [place("none", 0.5), place("unselectable-child", 0.9), place("contents", 0.5)] },
+        { from: place("unselectable-child", 0.95), to: [place("none", 0.5), place("none-inside", 0.5), place("unselectable-child", 0.05)] },
+        { from: place("unselectable-child", 0.05), to: [place("none-inside", 0.5), place("contents", 0.5), place("none", 0.5)] },
+        { from: place("first", 0.2), to: [place("none-inside", 0.5), place("unselectable-child", 0.9)] },
+        { from: place("last", 0.2), to: [place("none", 0.5), place("first", 0.5)] },
+        { from: place("first", 0.2), to: [place("unselectable-in-contents", 0.5), place("contents", 0.95)] },
+        { from: place("last", 0.2), to: [place("unselectable-in-contents", 0.5), place("selectable-picture", 0.5)] },
+        { from: place("anchors", 0.05), to: [place("selectable-picture", 0.5), place("anchors", 0.98)] },
+        { from: place("all-child", 0.05), to: [place("all", 0.5), place("all-child", 0.9), place("contents", 0.5)] },
+        { from: place("all", 0.5), to: [place("all", 0.9), place("all-child", 0.95), place("first", 0.5)] },
+        { from: place("contain-child", 0.05), to: [place("contain", 0.5), place("contain-child", 0.95)] },
+        { from: place("contain", 0.5), to: [place("contain", 0.9), place("contain-child", 0.95), place("first", 0.5)] },
+        { from: place("contents", 0.05), to: [place("contents", 0.5), place("contents", 0.9)] },
+        { from: place("image", 0.05), to: [place("picture", 0.1), place("picture", 0.9), place("image", 0.9)] },
+        { from: place("image", 0.9), to: [place("picture", 0.9), place("picture", 0.1), place("image", 0.05)] },
+        { from: place("first", 0.1), to: [place("host", 0.05), place("slotted-host", 0.5), place("left", 0.2), place("right", 0.5)] },
+        { from: place("left", 0.1), to: [place("right", 0.5), place("right-to-left", 0.5), place("last", 0.5)] },
+        { from: place("right-to-left", 0.9), to: [place("right-to-left", 0.95), place("left", 0.5)] },
+        { from: place("floated", 0.2), to: [place("floated", 0.8), place("floated-around", 0.8), place("transformed", 0.5)] },
+        { from: place("transformed", 0.2), to: [place("transformed", 0.8), place("positioned", 0.5), place("generated", 0.5)] },
+        { from: place("positioned", 0.2), to: [place("positioned", 0.8), place("first", 0.5), place("last", 0.5)] },
+        { from: place("generated", 0.5), to: [place("generated", 0.1), place("generated", 0.9), place("broken", 0.5)] },
+        { from: place("broken", 0.2), to: [[10, document.getElementById("broken").getBoundingClientRect().top + 30], place("inline-block-around", 0.5)] },
+        { from: place("inline-block", 0.5), to: [place("inline-block", 0.9), place("inline-block-around", 0.05), place("inline-block-around", 0.95)] },
+        { from: place("inert", 0.5), to: [place("inert", 0.9), place("last", 0.5)] },
+        { from: place("last", 0.2), to: [place("inert", 0.5), place("generated", 0.5)] },
+        { from: place("picture", 0.5), to: [place("image", 0.9), place("image", 0.05), place("first", 0.5), place("last", 0.5)] },
+        { from: place("picture", 0.1), to: [place("picture", 0.9), place("picture", 0.1)] },
+        { from: place("empty", 0.5), to: [place("anchors", 0.9), place("anchors", 0.05), place("first", 0.5), place("last", 0.5)] },
+        { from: place("anchors", 0.05), to: [place("empty", 0.5), place("unselectable-picture", 0.5), place("anchors", 0.95)] },
+        { from: place("inline-block", 0.5), to: [place("unselectable-picture", 0.5)] },
+        { from: place("styled", 0.2), to: [place("styled", 0.8), place("linked", 0.5)] },
+        { from: place("linked", 0.05), to: [place("link", 0.5), place("linked", 0.95), place("frame", 0.5)] },
+        { from: place("draggable-link", 0.1), to: [place("draggable-link", 0.9), place("first", 0.5)] },
+        { from: place("last", 0.2), to: [place("frame", 0.5), place("button", 0.5), place("vector-text", 0.5), place("styled", 0.5)] },
+        { from: place("vector-text", 0.2), to: [place("vector-text", 0.8), place("last", 0.5)] },
+        { from: place("last", 0.2), to: [[10, -40], [10, 5000], [-100, 45], [5000, 45]] },
+    ];
+
+    // Drags past the edge of what scrolls, which the host keeps in its scrollport as it starts to scroll.
+    const dragsThatScroll = [
+        { from: place("scrolled-two", 0.2), to: place("scrolled-two", 0.8) },
+        { from: place("scrolled-two", 0.2), to: place("scrolled-three", 0.5) },
+        { from: place("scrolled-two", 0.2), to: place("first", 0.5) },
+        { from: place("scrolled-two", 0.2), to: place("last", 0.5) },
+    ];
+    const dragsThatScrollThePage = [
+        { from: place("inline", 0.2), to: [10, 5000] },
+        { from: place("inline", 0.2), to: [5000, 45] },
+    ];
+
+    // The highlight a lane shows while the task runs is the one the host paints once it handled the same move, or the
+    // one it showed before, for a move only the host can follow.
+    asyncTest(async done => {
+        await srcdocLoaded(document.getElementById("frame"));
+        // NB: Printing moves what the drags point at.
+        const results = [];
+        for (const drag of drags) {
+            const [x, y] = drag.from;
+            getSelection().removeAllRanges();
+            internals.mouseDown(x, y);
+            await twoFramesLanded();
+            let previous = internals.paintedSelection();
+            for (const [toX, toY] of drag.to) {
+                const shown = await whileLaneHovers(frameTime => {
+                    internals.injectHoverPointer(toX, toY, frameTime + 16, 0, 1);
+                    return internals.presentedSelection();
+                });
+                internals.mouseMove(toX, toY, 0, 1);
+                await twoFramesLanded();
+                const painted = internals.paintedSelection();
+                if (shown === painted)
+                    results.push(`same: ${JSON.stringify(painted)}`);
+                else if (shown === previous)
+                    results.push(`left to the host: ${JSON.stringify(painted)}`);
+                else
+                    results.push(`DIFFERENT, shown ${JSON.stringify(shown)}: ${JSON.stringify(painted)}`);
+                previous = painted;
+            }
+            internals.mouseUp(...drag.to.at(-1));
+            await twoFramesLanded();
+        }
+        // NB: The button goes up before a scroll moves anything, in the task of the host's last move.
+        const dragPastTheEdge = async ({ from, to }) => {
+            getSelection().removeAllRanges();
+            internals.mouseDown(...from);
+            await twoFramesLanded();
+            const shown = await whileLaneHovers(frameTime => {
+                internals.injectHoverPointer(...to, frameTime + 16, 0, 1);
+                return internals.presentedSelection();
+            });
+            internals.mouseMove(...to, 0, 1);
+            internals.mouseUp(...to);
+            await twoFramesLanded();
+            const painted = internals.paintedSelection();
+            results.push(`${shown === painted ? "same" : `DIFFERENT, shown ${JSON.stringify(shown)}`}: ${JSON.stringify(painted)}`);
+        };
+        for (const drag of dragsThatScroll) {
+            await dragPastTheEdge(drag);
+            document.getElementById("scroller").scrollTop = 10;
+        }
+        document.body.style.height = "2000px";
+        await twoFramesLanded();
+        for (const drag of dragsThatScrollThePage) {
+            await dragPastTheEdge(drag);
+            window.scrollTo(0, 0);
+        }
+        results.forEach(result => println(result));
+        done();
+    });
+</script>

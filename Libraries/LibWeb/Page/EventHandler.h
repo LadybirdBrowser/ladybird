@@ -146,6 +146,18 @@ public:
         Paragraph,
     };
     bool is_handling_mouse_selection() const { return m_selection_mode != SelectionMode::None; }
+
+    // What a clock lane reads of a drag selecting the page's text by characters, which it shows beside a task.
+    struct SelectionDragForLanes {
+        CSS::StyleNodeID anchor;
+        // Where the anchor is a text node, the offset in its text.
+        size_t anchor_offset { 0 };
+        // Where the anchor is an element, the first child after the boundary point that the lane knows of.
+        CSS::StyleNodeID anchor_child;
+        Optional<CSSPixelRect> scrollport;
+    };
+    Optional<SelectionDragForLanes> selection_drag_for_lanes(Layout::BegunRead const&) const;
+
     void reset_mouse_input_tracking(Badge<Page>);
     void reset_hover_for_document_replacement(Badge<HTML::LocalNavigable>);
 

@@ -421,6 +421,20 @@ pub(crate) fn sync_highlight_pseudo_styles(
     }
 }
 
+/// Gives the rows that paint text under `element` `selection_record`, the record of its `::selection` a clock lane
+/// styled, zero for none. The other highlight pseudo-elements stay as the host published them.
+pub(crate) fn sync_selection_style(arena: &mut LayoutNodeArena, element: StyleNodeID, selection_record: u64) {
+    let style_records = arena.with_style_store(|engine| {
+        HighlightPseudoElement::ALL.map(|highlight| match highlight {
+            HighlightPseudoElement::Selection => selection_record,
+            _ => engine
+                .pseudo_published_style_record(element, highlight.pseudo_kind())
+                .unwrap_or(0),
+        })
+    });
+    sync_highlight_pseudo_styles(arena, element, style_records);
+}
+
 /// Gives a row the tree build made what the published highlight pseudo-element records of
 /// `element` say highlighted text paints with: `element`'s own row, or a text row whose parent
 /// element has no box.

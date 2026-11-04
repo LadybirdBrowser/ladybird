@@ -27,8 +27,7 @@ pub struct FfiHitTestQueryCallbacks {
 
 impl FfiHitTestQueryCallbacks {
     /// Callbacks for a point query on the render owner, which reaches nothing of the host: the scroll offsets and
-    /// chrome metrics are copies the host sealed, and no caret query, the only one that asks the host about the DOM,
-    /// runs there.
+    /// chrome metrics are copies the host sealed, and a caret query there asks the style engine's mirror about the DOM.
     pub(crate) fn sealed(
         device_pixels_per_css_pixel: f64,
         scroll_offsets: &[libgfx_rust::FloatPoint],

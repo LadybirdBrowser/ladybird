@@ -957,6 +957,12 @@ impl Live {
         &self.index
     }
 
+    /// Whether a rule of the document's sheets styles `::selection`.
+    pub(in super::super) fn styles_selection(&self) -> bool {
+        self.index
+            .styles_pseudo_element(super::super::publication::pseudo_kind::SELECTION)
+    }
+
     #[cfg(test)]
     pub(super) fn records(&self) -> &RetainedRecords {
         &self.records

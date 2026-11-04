@@ -19,12 +19,14 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/EventLoop/ClockPlan.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 
@@ -310,6 +312,10 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                 }
             }
             scroll_offsets = document.scroll_state_snapshot().device_offsets();
+            Optional<Web::EventHandler::SelectionDragForLanes> selection_drag;
+            if (auto navigable = document.navigable())
+                selection_drag = navigable->event_handler().selection_drag_for_lanes(read);
+            auto scrollport = selection_drag.has_value() ? selection_drag->scrollport.value_or(CSSPixelRect {}) : CSSPixelRect {};
             hover = Layout::RustFFI::FfiHoverPlanInputs {
                 .device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel(),
                 .scroll_offsets = scroll_offsets.data(),
@@ -320,6 +326,15 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                 .effect_timing_identities = effect_timing_identities.data(),
                 .effect_timings = effect_timings.data(),
                 .effect_timing_count = effect_timings.size(),
+                .selection_drag_anchor = selection_drag.has_value() ? selection_drag->anchor.value() : 0,
+                .selection_drag_anchor_offset = selection_drag.has_value() ? selection_drag->anchor_offset : 0,
+                .selection_drag_anchor_child = selection_drag.has_value() ? selection_drag->anchor_child.value() : 0,
+                .selection_drag_scrollport = {
+                    .x = scrollport.x().to_float(),
+                    .y = scrollport.y().to_float(),
+                    .width = scrollport.width().to_float(),
+                    .height = scrollport.height().to_float(),
+                },
             };
         }
         if (animates || hover.has_value()) {

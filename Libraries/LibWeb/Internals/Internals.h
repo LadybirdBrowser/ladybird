@@ -292,13 +292,15 @@ public:
     Utf16String last_frame_presented_by(DOM::Document&);
     void inject_clock_tick(double frame_time_ms, Optional<double> viewport_scroll_y);
     void inject_clock_tick_scrolling_element(double frame_time_ms, DOM::Element& scroller, double x, double y);
-    void inject_hover_pointer(double x, double y, Optional<double> frame_time_ms, Optional<u64> input_event_id);
+    void inject_hover_pointer(double x, double y, Optional<double> frame_time_ms, Optional<u64> input_event_id, u32 buttons);
     void note_animated_content_moved_under_pointer(double frame_time_ms);
     void inject_pointer_rests_on_moving_content(double frame_time_ms);
     u64 queue_mouse_move(double x, double y, u32 buttons);
     void move_hover_pointer(double x, double y, Optional<u64> input_event_id);
     Utf16String clock_lane_state(DOM::Document&);
     bool clock_lane_is_coming(DOM::Document&);
+    Utf16String presented_selection();
+    Utf16String painted_selection();
     GC::Ptr<Geometry::DOMRect> presented_border_box(DOM::Element&);
     Optional<u32> presented_compositor_animation_count(DOM::Element&);
     Optional<double> presented_opacity(DOM::Element&);

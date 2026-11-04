@@ -28,6 +28,9 @@ public:
 
     bool is_active() const { return m_active; }
 
+    // The scrollport that keeps the pointer of the selection the handler scrolls for, in the coordinates of the viewport.
+    Optional<CSSPixelRect> scrollport_in_viewport(Layout::BegunRead const&) const;
+
     static GC::Ptr<DOM::Element> find_scrollable_ancestor(Layout::Node const&);
     static Layout::Node* auto_scroll_layout_node(Layout::BegunRead const& read, DOM::Element&);
 

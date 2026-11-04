@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; font: 20px SerenitySans, sans-serif; line-height: 30px; }
+    p { margin: 0; height: 30px; white-space: nowrap; }
+</style>
+<p id="first">first line of plain text</p>
+<p id="second">second line of plain text</p>
+<script>
+    // A lane paints a drag selection beside a task, and script keeps seeing only the selection of the host: the task
+    // reads the same selection before and after the lane showed the move, and no selectionchange comes from the lane.
+    asyncTest(async done => {
+        let selectionChanges = 0;
+        document.addEventListener("selectionchange", () => ++selectionChanges);
+        const rect = first.getBoundingClientRect();
+        internals.mouseDown(rect.left + 5, rect.top + 15);
+        await twoFramesLanded();
+        const changesBefore = selectionChanges;
+
+        const seen = await whileLaneHovers(frameTime => {
+            const before = getSelection().toString();
+            internals.injectHoverPointer(rect.left + 150, rect.top + 45, frameTime + 16, 0, 1);
+            return {
+                before,
+                after: getSelection().toString(),
+                shown: internals.presentedSelection(),
+                painted: internals.paintedSelection(),
+            };
+        });
+        println(`selection before the tick: ${JSON.stringify(seen.before)}`);
+        println(`selection after the tick: ${JSON.stringify(seen.after)}`);
+        println(`the lane shows something: ${seen.shown.length > 0}`);
+        println(`the host paints nothing new: ${seen.painted === ""}`);
+        await twoFramesLanded();
+        println(`selection changes from the lane: ${selectionChanges - changesBefore}`);
+
+        // The host handles the same move in its own time, and takes over from the lane.
+        internals.mouseMove(rect.left + 150, rect.top + 45, 0, 1);
+        await twoFramesLanded();
+        println(`selection after the host handled the move: ${JSON.stringify(getSelection().toString())}`);
+        println(`the host paints what the lane showed: ${internals.paintedSelection() === seen.shown}`);
+        internals.mouseUp(rect.left + 150, rect.top + 45);
+        await twoFramesLanded();
+
+        // The lane hears the button go up before the host does, and a later press is the host's to start.
+        internals.mouseDown(rect.left + 5, rect.top + 15);
+        await twoFramesLanded();
+        const shownBesideARelease = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(rect.left + 100, rect.top + 15, frameTime + 16, 0, 1);
+            const shown = internals.presentedSelection();
+            internals.injectHoverPointer(rect.left + 100, rect.top + 15, frameTime + 32, 0, 0);
+            internals.injectHoverPointer(rect.left + 150, rect.top + 45, frameTime + 48, 0, 1);
+            return shown === internals.presentedSelection();
+        });
+        internals.mouseUp(rect.left + 5, rect.top + 15);
+        await twoFramesLanded();
+        println(`a drag ends when the button goes up: ${shownBesideARelease}`);
+        done();
+    });
+</script>

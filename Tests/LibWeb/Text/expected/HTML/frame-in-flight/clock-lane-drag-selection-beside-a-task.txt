@@ -1,0 +1,8 @@
+selection before the tick: ""
+selection after the tick: ""
+the lane shows something: true
+the host paints nothing new: true
+selection changes from the lane: 0
+selection after the host handled the move: "irst line of plain text\nsecond line of "
+the host paints what the lane showed: true
+a drag ends when the button goes up: true

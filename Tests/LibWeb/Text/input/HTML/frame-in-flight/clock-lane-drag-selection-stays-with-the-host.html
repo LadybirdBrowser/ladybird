@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; font: 20px SerenitySans, sans-serif; line-height: 30px; }
+    p, div { margin: 0; height: 30px; white-space: nowrap; }
+    input { display: block; width: 300px; height: 30px; padding: 0; border: 0; font: inherit; }
+    textarea { display: block; width: 300px; height: 30px; padding: 0; border: 0; font: inherit; }
+</style>
+<p id="plain">plain text of the page, in one line</p>
+<input id="input" value="text in an input element">
+<textarea id="area">text in a textarea</textarea>
+<div id="editable" contenteditable>text in an editing host</div>
+<p id="cancelled">text whose selectstart is cancelled</p>
+<script>
+    cancelled.addEventListener("selectstart", event => event.preventDefault());
+
+    // What a lane shows of a drag, beside a task, which starts at `id` with `clickCount` clicks.
+    const shownOfDrag = async (id, clickCount) => {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        const [x, y] = [rect.left + 10, rect.top + 15];
+        getSelection().removeAllRanges();
+        internals.mouseDown(x, y, clickCount);
+        await twoFramesLanded();
+        const before = internals.paintedSelection();
+        const shown = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(x + 150, y, frameTime + 16, 0, 1);
+            return internals.presentedSelection();
+        });
+        internals.mouseUp(x + 150, y);
+        await twoFramesLanded();
+        return shown === before ? "left to the host" : "followed";
+    };
+
+    // A lane follows a drag by characters over the text of the page, and leaves the rest to the host.
+    asyncTest(async done => {
+        println(`characters of the page: ${await shownOfDrag("plain", 1)}`);
+        println(`words of the page: ${await shownOfDrag("plain", 2)}`);
+        println(`paragraphs of the page: ${await shownOfDrag("plain", 3)}`);
+        println(`an input element: ${await shownOfDrag("input", 1)}`);
+        println(`a textarea: ${await shownOfDrag("area", 1)}`);
+        println(`an editing host: ${await shownOfDrag("editable", 1)}`);
+        println(`a cancelled selectstart: ${await shownOfDrag("cancelled", 1)}`);
+        done();
+    });
+</script>

@@ -197,6 +197,19 @@ fn with_slot<R>(document: DocumentId, job: impl FnOnce(&mut LaneSlot) -> R) -> O
     .flatten()
 }
 
+/// The nodes the selection in the fork of the lane that follows the presented frame of `document` highlights. For a test.
+pub(in crate::render_state) fn selection_shown_for_testing(
+    document: DocumentId,
+) -> Option<Vec<super::selection::SelectionRowForTesting>> {
+    with_slot(document, |slot| {
+        match slot.lanes.current_ref().map(|lane| &lane.state) {
+            Some(super::LaneState::Forked { fork, .. }) => Some(super::selection::rows_for_testing(fork)),
+            _ => None,
+        }
+    })
+    .flatten()
+}
+
 /// On the render owner: notes that it sampled a frame of the document `ticks` belong to, whose lane starts once the
 /// frame is presented, and answers what hands the lane its pieces then.
 pub(in crate::render_state) fn note_sampled(ticks: &Arc<ClockTicks>) -> LaneDelivery {
@@ -504,7 +517,18 @@ impl LaneSlot {
             return;
         }
         let samples_animations = !self.ticks.animations_held.load(Ordering::Relaxed);
-        let pointer = self.ticks.pointer_state().take();
+        // NB: Beside an idle event loop the host gets to the move of a drag at once, and paints it itself. The move waits
+        //     until then, as a task that begins first keeps the host from it.
+        let host_paints_the_drag = !samples_animations
+            && self
+                .lanes
+                .current_ref()
+                .is_some_and(|lane| lane.selection_drag().is_some())
+            && self.ticks.pointer_state().holds_the_primary_button();
+        let pointer = match host_paints_the_drag {
+            true => None,
+            false => self.ticks.pointer_state().take(),
+        };
         if let Lanes::Newest(lane) = &mut self.lanes
             && !lane.needs_render_state()
         {
