@@ -659,6 +659,7 @@ impl ProjectionWriter {
 
     /// Write every fact an element arrives with in one edit of its row: the facts it names are
     /// set, its classes and attributes join any its row holds, and its states join those set.
+    /// Relations it arrives with are written in the same edit, as [`Self::write_relations`] writes them.
     pub(in crate::css::style) fn write_arrival_facts(&mut self, node: StyleNodeID, arrival: &ArrivalFacts<'_>) {
         let empty = FactLists::default();
         let mut lists = self
@@ -694,11 +695,28 @@ impl ProjectionWriter {
             true => StyleAtomID::NONE,
             false => arrival.folded_tag,
         };
+        if let Some(relations) = arrival.relations {
+            lists.tree_scope = relations.tree_scope;
+            lists.assigned_slot = relations.assigned_slot;
+        }
         let lists = Self::make_lists(&mut self.recent_lists, &self.catalogs.name_forms, lists);
+        if arrival.relations.is_some() {
+            self.relations_written.insert(node, node.element_slot());
+            self.note_links_written(node);
+        }
         if arrival.states.contains(StateFact::Disabled) {
             self.note_disabled(node, true);
         }
-        self.edit_facts(node, |facts| {
+        self.edit(node, |row| {
+            if let Some(relations) = arrival.relations {
+                assert!(row.live(), "linking an identity that is not live");
+                row.links.parent = relations.parent;
+                row.links.previous_element_sibling = relations.previous_element_sibling;
+                row.links.next_element_sibling = relations.next_element_sibling;
+                row.facts.set_flag(ElementFacts::CONNECTED, true);
+            }
+            let facts = &mut row.facts;
+            facts.set_flag(ElementFacts::RESIDENT, true);
             facts.tag = arrival.tag;
             facts.set_flag(ElementFacts::IS_SLOT, arrival.is_slot);
             facts.set_flag(ElementFacts::HAS_TEXT_CONTENT, arrival.has_text_content);
@@ -707,6 +725,7 @@ impl ProjectionWriter {
                 facts.heading_level = arrival.heading_level;
             }
             facts.lists = lists;
+            facts.refresh_dispatch_bloom();
         });
     }
 

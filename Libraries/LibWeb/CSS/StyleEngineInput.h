@@ -71,6 +71,8 @@ enum class HiddenChildArrivals {
     MayWait,
 };
 WEB_API void take_in_pending_style_arrivals(DOM::Document&, HiddenChildArrivals = HiddenChildArrivals::TakeIn);
+// The same, with the features of the elements that arrive published as they do, in one write of each element's row.
+WEB_API void take_in_and_publish_pending_style_arrivals(DOM::Document&, HiddenChildArrivals, Layout::BegunRead const&);
 
 // Called once an element whose children, or some descendant's, wait to arrive in a display:none
 // subtree takes a style that is not display:none, or an animation, either of which may reveal them.

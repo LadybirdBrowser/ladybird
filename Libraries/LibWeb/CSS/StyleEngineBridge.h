@@ -13,6 +13,7 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/StringView.h>
+#include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <AK/Utf16FlyString.h>
@@ -186,7 +187,10 @@ public:
     StyleNodeID mint_style_node();
     void mint_style_nodes(Span<StyleNodeID> nodes);
     void mint_text_style_nodes(Span<StyleNodeID> nodes);
+    bool is_taking_in_pending_arrivals() const { return m_taking_in_pending_arrivals; }
+    [[nodiscard]] TemporaryChange<bool> begin_taking_in_pending_arrivals() { return TemporaryChange<bool>(m_taking_in_pending_arrivals, true); }
     void defer_element_initial_features(DOM::Element&);
+    void note_element_awaiting_first_style_computation(DOM::Element&);
     void cancel_deferred_element_initial_features(DOM::Element&);
     // Whether any element waits to have its initial features published, or to be prepared for its first style.
     [[nodiscard]] bool has_elements_awaiting_initial_style_work() const { return !m_nodes_with_pending_initial_features.is_empty() || !m_nodes_awaiting_first_style_computation.is_empty(); }
@@ -306,10 +310,10 @@ public:
     // The document host stages deltas, which cross to the engine in one batch per style flush, never one write per
     // element.
     void record_tree_delta(StyleEngineFFI::FfiTreeDelta const&);
-    // Everything an element's selectors test arrives with it, as one row: its custom states, classes, and attributes
-    // as name and value atom pairs, beside the facts the arrival names.
+    // Everything an element's selectors test arrives with it, as one row, and the rows of many elements in one write.
+    // The atoms hold each row's custom states, classes, and attributes as name and value atom pairs in turn.
     void record_element_arrivals(ReadonlySpan<StyleEngineFFI::FfiArrivingElement>);
-    void record_element_arrival(StyleEngineFFI::FfiElementArrival const&, ReadonlySpan<StyleAtomID> custom_states, ReadonlySpan<StyleAtomID> classes, ReadonlySpan<StyleAtomID> attributes);
+    void record_element_arrival_rows(ReadonlySpan<StyleEngineFFI::FfiElementArrivalRow>, ReadonlySpan<u32> atoms);
     void record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const&);
     void record_state_delta(StyleEngineFFI::FfiStateDelta const&);
     // The hover moves to `target`, or off the document for none, as the events of a mouse move hover it, once the rest
@@ -469,6 +473,7 @@ private:
     // NB: In the order the elements arrived, which is tree order. An element that left since is still listed, and no
     //     longer holds its mark, DOM::Element::initial_style_features_pending().
     Vector<StyleNodeID> m_nodes_with_pending_initial_features;
+    bool m_taking_in_pending_arrivals { false };
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
 
     HashTable<StyleNodeID> m_parents_whose_children_changed_beside_flown_transaction;

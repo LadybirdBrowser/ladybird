@@ -814,6 +814,8 @@ pub(in crate::css::style) struct Projection {
 
 /// Everything an element arrives with that its selectors test, which its row takes in one write.
 pub(in crate::css::style) struct ArrivalFacts<'a> {
+    /// How the element stands in the tree, where it arrives there with its facts.
+    pub relations: Option<TreeRelations>,
     pub tag: StyleAtomID,
     /// The ASCII-lowercase folding of the tag, or the tag itself where folding leaves it as it is.
     pub folded_tag: StyleAtomID,
