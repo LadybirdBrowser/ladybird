@@ -53,6 +53,9 @@ public:
 
     void set_owner(InterfaceName, RustInterfaceCell&);
 
+    // For the init*Event() operations of its owner.
+    using DOM::Event::initialize_event;
+
 private:
     RustEvent(Utf16FlyString const& type, DOM::EventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 

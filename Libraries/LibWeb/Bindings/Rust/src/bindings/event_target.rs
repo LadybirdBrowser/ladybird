@@ -89,6 +89,8 @@ unsafe extern "C" {
         event: *mut c_void,
     ) -> bool;
     fn web_bindings_event_canceled(event: *mut c_void) -> bool;
+    fn web_bindings_event_dispatched(event: *mut c_void) -> bool;
+    fn web_bindings_initialize_event(event: *mut c_void, r#type: usize, bubbles: bool, cancelable: bool);
 }
 
 /// The EventTarget that an object owns.
@@ -316,6 +318,18 @@ impl CppEvent {
     pub(crate) fn canceled(&self) -> bool {
         // SAFETY: The event is live.
         unsafe { web_bindings_event_canceled(self.as_ptr()) }
+    }
+
+    /// https://dom.spec.whatwg.org/#dispatch-flag
+    pub(crate) fn dispatched(&self) -> bool {
+        // SAFETY: The event is live.
+        unsafe { web_bindings_event_dispatched(self.as_ptr()) }
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-event-initialize
+    pub(crate) fn initialize_event(&self, r#type: &Utf16String, bubbles: bool, cancelable: bool) {
+        // SAFETY: The event is live, and the type is lent for the call.
+        unsafe { web_bindings_initialize_event(self.as_ptr(), r#type.raw_identity(), bubbles, cancelable) };
     }
 }
 

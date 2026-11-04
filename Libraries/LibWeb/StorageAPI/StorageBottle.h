@@ -12,6 +12,7 @@
 #include <AK/String.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/StorageAPI/StorageAreaMirror.h>
@@ -28,7 +29,7 @@ using StorageSetResult = Variant<WebView::StorageOperationError, Optional<Utf16S
 // https://storage.spec.whatwg.org/#storage-bottle
 // NB: The bottle's map lives in the browser process; what a bottle here holds is this process's mirror of it, shared
 //     with every other bottle in the process for the same area. Each bottle object is one storage proxy map over it.
-class StorageBottle : public GC::Cell {
+class WEB_API StorageBottle : public GC::Cell {
     GC_CELL(StorageBottle, GC::Cell);
     GC_DECLARE_ALLOCATOR(StorageBottle);
 

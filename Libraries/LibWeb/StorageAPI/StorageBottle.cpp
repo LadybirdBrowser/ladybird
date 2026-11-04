@@ -109,7 +109,7 @@ StorageBottle::StorageBottle(GC::Ref<Page> page, StorageEndpointType endpoint_ty
             if (!mirror)
                 return;
             auto type = mirror->endpoint_type() == StorageEndpointType::SessionStorage ? HTML::Storage::Type::Session : HTML::Storage::Type::Local;
-            HTML::Storage::dispatch_storage_events_for_remote_change(type, mirror->storage_key(), mirror->session_page(), key, old_value, new_value, url, nullptr);
+            HTML::Storage::dispatch_storage_events_for_remote_change(type, mirror->storage_key(), mirror->session_page(), key, old_value, new_value, url);
         };
     }
 }
@@ -158,6 +158,72 @@ void StorageBottle::clear(String const& document_url)
 void StorageBottle::remove(Utf16View key, String const& document_url)
 {
     (void)m_mirror->remove(requester(), key, document_url);
+}
+
+// Declared on the Rust side in Libraries/LibWeb/Bindings/Rust/src/storage_api/storage_bottle.rs.
+extern "C" {
+
+size_t web_storage_api_storage_bottle_size(StorageBottle*);
+void web_storage_api_storage_bottle_keys(StorageBottle*, void* keys, void (*append)(void* keys, FlatPtr key));
+bool web_storage_api_storage_bottle_get(StorageBottle*, FlatPtr key, FlatPtr* value);
+u8 web_storage_api_storage_bottle_set(StorageBottle*, FlatPtr key, FlatPtr value, ReadonlyBytes document_url, FlatPtr* old_value);
+void web_storage_api_storage_bottle_remove(StorageBottle*, FlatPtr key, ReadonlyBytes document_url);
+void web_storage_api_storage_bottle_clear(StorageBottle*, ReadonlyBytes document_url);
+bool web_storage_api_storage_bottle_quota(StorageBottle*, u64* quota);
+}
+
+size_t web_storage_api_storage_bottle_size(StorageBottle* bottle)
+{
+    return bottle->size();
+}
+
+void web_storage_api_storage_bottle_keys(StorageBottle* bottle, void* keys, void (*append)(void* keys, FlatPtr key))
+{
+    for (auto& key : bottle->keys())
+        append(keys, move(key).into_raw());
+}
+
+bool web_storage_api_storage_bottle_get(StorageBottle* bottle, FlatPtr key, FlatPtr* value)
+{
+    auto key_string = Utf16String::from_raw(key);
+    auto found = bottle->get(key_string);
+    if (!found.has_value())
+        return false;
+    *value = found.release_value().into_raw();
+    return true;
+}
+
+u8 web_storage_api_storage_bottle_set(StorageBottle* bottle, FlatPtr key, FlatPtr value, ReadonlyBytes document_url, FlatPtr* old_value)
+{
+    auto key_string = Utf16String::from_raw(key);
+    auto value_string = Utf16String::from_raw(value);
+    auto result = bottle->set(key_string, value_string, MUST(String::from_utf8(document_url)));
+    if (result.has<WebView::StorageOperationError>())
+        return 0;
+    auto& existing = result.get<Optional<Utf16String>>();
+    if (!existing.has_value())
+        return 1;
+    *old_value = existing.release_value().into_raw();
+    return 2;
+}
+
+void web_storage_api_storage_bottle_remove(StorageBottle* bottle, FlatPtr key, ReadonlyBytes document_url)
+{
+    auto key_string = Utf16String::from_raw(key);
+    bottle->remove(key_string, MUST(String::from_utf8(document_url)));
+}
+
+void web_storage_api_storage_bottle_clear(StorageBottle* bottle, ReadonlyBytes document_url)
+{
+    bottle->clear(MUST(String::from_utf8(document_url)));
+}
+
+bool web_storage_api_storage_bottle_quota(StorageBottle* bottle, u64* quota)
+{
+    if (!bottle->quota().has_value())
+        return false;
+    *quota = *bottle->quota();
+    return true;
 }
 
 }

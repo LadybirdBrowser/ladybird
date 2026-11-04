@@ -6,4 +6,5 @@
 
 //! The Storage Standard, https://storage.spec.whatwg.org/
 
+pub(crate) mod storage_bottle;
 pub(crate) mod storage_key;
