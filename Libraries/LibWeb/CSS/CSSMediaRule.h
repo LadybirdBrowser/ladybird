@@ -26,7 +26,7 @@ public:
     virtual Utf16String serialized_condition_text() const override;
     bool matches() const { return m_media_list.matches(); }
 
-    MediaList* media() const;
+    GC::Ref<MediaList> media() const;
     RustMediaList const& native_media_list() const { return m_media_list; }
 
 private:

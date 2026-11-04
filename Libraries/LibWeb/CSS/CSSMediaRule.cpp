@@ -24,13 +24,13 @@ CSSMediaRule::CSSMediaRule(RustRule rule, CSSRuleList& rules)
 {
 }
 
-MediaList* CSSMediaRule::media() const
+GC::Ref<MediaList> CSSMediaRule::media() const
 {
     if (!m_media) {
-        m_media = MediaList::create(m_media_list.retain());
+        m_media = MediaList::create(m_media_list);
         m_media->set_associated_rule(const_cast<CSSMediaRule&>(*this));
     }
-    return m_media.ptr();
+    return *m_media;
 }
 
 void CSSMediaRule::visit_edges(GC::Cell::Visitor& visitor)

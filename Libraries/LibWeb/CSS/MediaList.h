@@ -8,51 +8,26 @@
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <AK/String.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/MediaList.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/CSS/RustMediaList.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
 // https://www.w3.org/TR/cssom-1/#the-medialist-interface
-class MediaList final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(MediaList, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(MediaList);
+class MediaList final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(MediaList, media_list)
 
 public:
-    [[nodiscard]] static GC::Ref<MediaList> create(RustMediaList);
-    virtual ~MediaList() override;
+    // The new list shares the media queries of the list it is created with.
+    [[nodiscard]] static GC::Ref<MediaList> create(RustMediaList const&);
 
-    Utf16String media_text() const;
-    void set_media_text(Utf16View);
-    size_t length() const { return m_media.length(); }
-    Optional<Utf16String> item(u32 index) const;
-    void append_medium(Utf16View);
-    WebIDL::ExceptionOr<void> delete_medium(Utf16View);
-
-    RustMediaList const& native_list() const { return m_media; }
+    RustMediaList share_native_list() const;
 
     void set_associated_style_sheet(NonnullRefPtr<StyleSheetState>);
-
-    // A media list belongs either to a sheet or to an `@media` rule inside one. Both are gates on
-    // whether rules apply, so both have to say when the gate moves - a rule's list said nothing at
-    // all, and changing a group's media therefore changed no style.
-    void set_associated_rule(GC::Ref<CSSRule> rule) { m_associated_rule = rule; }
-
-private:
-    MediaList(RustMediaList);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    RefPtr<StyleSheetState> owning_style_sheet();
-    void invalidate_owners_for_media_change();
-
-    RefPtr<StyleSheetState> m_associated_style_sheet;
-    GC::Ptr<CSSStyleSheet> m_associated_cssom_sheet;
-    GC::Ptr<CSSRule> m_associated_rule;
-    RustMediaList m_media;
+    void set_associated_rule(GC::Ref<CSSRule>);
 };
 
 void invalidate_style_sheet_for_media_change(StyleSheetState&);

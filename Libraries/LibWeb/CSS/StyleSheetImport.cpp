@@ -274,7 +274,7 @@ GC::Ref<MediaList> StyleSheetImport::media() const
     // AD-HOC: Return our own MediaList.
     //         https://github.com/w3c/csswg-drafts/issues/12063
     if (!m_media) {
-        m_media = MediaList::create(m_media_list.retain());
+        m_media = MediaList::create(m_media_list);
         if (m_style_sheet)
             m_media->set_associated_style_sheet(*m_style_sheet);
         else
