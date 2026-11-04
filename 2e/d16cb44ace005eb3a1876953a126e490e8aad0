@@ -1,0 +1,12 @@
+Ladybird accepts empty custom-property values with important priority.
+Blink’s CSSVariableParser::ConsumeUnparsedDeclaration() accepts empty
+CSSVariableData, and css_parsing_utils::MaybeConsumeImportant() marks
+the declaration important independently of its value.
+
+WebKit’s CSSParser::consumeTrailingImportantAndWhitespace() removes
+the priority annotation. CSSParser::consumeCustomPropertyValue()
+creates an empty CSSCustomPropertyValue with that priority.
+
+Gecko’s DeclarationParserState::parse_value() parses the value before
+calling parse_important() to mark its priority. VariableValue::parse()
+accepts an empty custom-property value.
