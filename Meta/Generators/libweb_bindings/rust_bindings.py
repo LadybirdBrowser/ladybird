@@ -874,7 +874,7 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
         define_attribute, define_cached_attribute, define_constants, define_indexed_properties_iterator,
         define_interface_object_properties, define_operation, define_to_string_tag, define_unimplemented_property,
         define_value_iterator_properties, entry_point_arguments, implementation_if, implementation_of,
-        prototype_from_new_target, realm_is_window, rejected_promise, set_dictionary_member,
+        prototype_from_new_target, realm_is_secure_context, realm_is_window, rejected_promise, set_dictionary_member,
         set_interface_prototype_object_prototype, this_object, to_interface,
     };
     use crate::bindings::async_iterable::{
@@ -1086,13 +1086,16 @@ def write_rust_interface(
             continue
         name = attribute.attribute.name
         getter = f"raw_native!({attribute.getter_function})"
+        is_secure_context_only = "SecureContext" in attribute.attribute.extended_attributes
         if attribute.is_cached:
-            out.write(f'        define_cached_attribute(vm, realm, prototype, "{name}", {getter});\n')
+            definition = f'define_cached_attribute(vm, realm, prototype, "{name}", {getter});'
+            out.write(secure_context_only_definition(definition, is_secure_context_only))
             defined_property_names.append(name)
             continue
         has_setter = not attribute.attribute.readonly or attribute.put_forwards is not None
         setter = f"raw_native!({attribute.setter_function})" if has_setter else "None"
-        out.write(f'        define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});\n')
+        definition = f'define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});'
+        out.write(secure_context_only_definition(definition, is_secure_context_only))
         defined_property_names.append(name)
     for operation_set in members.operation_sets:
         name = operation_set.name
@@ -1320,6 +1323,17 @@ def write_rust_namespace(out: TextIO, context: GenerationContext, interface: Int
     if "WithInitializer" in interface.extended_attributes:
         out.write("        Implementation::initialize(&mut CallContext::new(vm, realm), object);\n")
     out.write("    }\n}\n")
+
+
+def secure_context_only_definition(definition: str, is_secure_context_only: bool) -> str:
+    """A statement of the steps that initialize an interface prototype object, which defines a [SecureContext] member
+    only if the realm is a secure context."""
+    if not is_secure_context_only:
+        return f"        {definition}\n"
+    return f"""        if realm_is_secure_context(realm) {{
+            {definition}
+        }}
+"""
 
 
 def window_only_definition(definition: str, is_window_only: bool) -> str:
