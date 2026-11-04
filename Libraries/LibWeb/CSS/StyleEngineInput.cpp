@@ -347,8 +347,10 @@ static void prefetch_publication_ahead(size_t index, size_t count, NodeAt const&
             prefetch_node(*ahead);
     }
     if (index + nodes_ahead < count) {
-        if (auto const* ahead = as_if<DOM::Element>(node_at(index + nodes_ahead)))
+        if (auto const* ahead = as_if<DOM::Element>(node_at(index + nodes_ahead))) {
             __builtin_prefetch(ahead->inline_style_declarations());
+            __builtin_prefetch(ahead->attribute_list_memory());
+        }
     }
     if (index + nodes_ahead / 2 < count) {
         if (auto const* ahead = as_if<DOM::Element>(node_at(index + nodes_ahead / 2)); ahead && ahead->inline_style_declarations())
