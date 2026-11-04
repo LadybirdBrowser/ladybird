@@ -58,10 +58,10 @@ public:
     OrderedHashMap<Utf16FlyString, StyleProperty> const& custom_properties() const;
     size_t external_memory_size() const;
 
-    bool set(PropertyID, StyleValue const&, Important);
-    void append(PropertyID, StyleValue const&, Important);
+    bool set_expanding_shorthands(PropertyID, StyleValue const&, Important);
+    void append_expanding_shorthands(PropertyID, StyleValue const&, Important);
     void set_custom(Utf16FlyString const&, StyleProperty const&);
-    bool remove(PropertyID);
+    bool remove_expanding_shorthands(PropertyID);
     bool remove_custom(Utf16FlyString const&);
 
     Parser::ValueParserFFI::DeclarationBlock const* handle() const { return m_block; }
