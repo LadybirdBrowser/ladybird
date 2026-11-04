@@ -62,11 +62,8 @@ void set_proxy_configuration(HTTP::ProxyConfiguration);
 Optional<Utf16String> const& process_top_level_site();
 void set_process_top_level_site(Optional<Utf16String>);
 
-// Sites have RequestServers of their own, and this one has no site.
-void set_process_sites_have_their_own();
-
-// Cache only this server's site's responses. A server with no site caches all sites unless they have
-// their own RequestServers; other sites' responses are only in transit to their site's server.
+// Cache only this server's site's responses. Other sites' responses are only in transit to their site's server. A
+// server with no site has a disk cache only if sites have no servers of their own, so it caches all sites.
 bool process_keeps_responses_under(Utf16String const& top_level_site);
 
 }

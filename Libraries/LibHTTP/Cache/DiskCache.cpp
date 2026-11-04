@@ -61,7 +61,7 @@ ErrorOr<Optional<DiskCache>> DiskCache::create(Mode mode, LexicalPath const& cac
 
     // Start with a clean slate in test mode. The index is in-memory, but the cache files themselves are leftover.
     if (mode == Mode::Testing)
-        (void)FileSystem::remove(cache_directory.string(), FileSystem::RecursionMode::Allowed);
+        remove(mode, cache_root);
 
     TRY(Core::Directory::create(cache_directory, Core::Directory::CreateDirectories::Yes));
 
@@ -79,6 +79,11 @@ ErrorOr<Optional<DiskCache>> DiskCache::create(Mode mode, LexicalPath const& cac
 
     auto index = TRY(CacheIndex::create(database, cache_directory));
     return DiskCache { mode, move(database), move(cache_directory), move(index) };
+}
+
+void DiskCache::remove(Mode mode, LexicalPath const& cache_root)
+{
+    (void)FileSystem::remove(cache_root.append(cache_directory_for_mode(mode)).string(), FileSystem::RecursionMode::Allowed);
 }
 
 DiskCache::DiskCache(Mode mode, NonnullRefPtr<Database::Database> database, LexicalPath cache_directory, CacheIndex index)

@@ -33,6 +33,7 @@ public:
         Testing,
     };
     static ErrorOr<Optional<DiskCache>> create(Mode, LexicalPath const& cache_root);
+    static void remove(Mode, LexicalPath const& cache_root);
 
     DiskCache(DiskCache&&);
     DiskCache& operator=(DiskCache&&);
