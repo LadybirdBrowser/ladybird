@@ -8,6 +8,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use ak::GenericLexer;
+use libhttp_rust::http::{
+    collect_an_http_quoted_string_extracting_the_value, is_http_token_code_point, is_http_whitespace,
+};
+
 // https://mimesniff.spec.whatwg.org/#javascript-mime-type
 // A JavaScript MIME type is any MIME type whose essence is one of the following:
 const JAVASCRIPT_MIME_TYPE_ESSENCE_STRINGS: [&str; 16] = [
@@ -29,22 +34,6 @@ const JAVASCRIPT_MIME_TYPE_ESSENCE_STRINGS: [&str; 16] = [
     "text/x-javascript",
 ];
 
-// https://fetch.spec.whatwg.org/#http-whitespace
-// HTTP whitespace is U+000A LF, U+000D CR, or an HTTP tab or space.
-fn is_http_whitespace(code_point: char) -> bool {
-    matches!(code_point, '\n' | '\r' | '\t' | ' ')
-}
-
-// https://mimesniff.spec.whatwg.org/#http-token-code-point
-// An HTTP token code point is U+0021 (!), U+0023 (#), U+0024 ($), U+0025 (%), U+0026 (&), U+0027 ('), U+002A (*),
-// U+002B (+), U+002D (-), U+002E (.), U+005E (^), U+005F (_), U+0060 (`), U+007C (|), U+007E (~), or an ASCII alphanumeric.
-fn is_http_token_code_point(code_point: char) -> bool {
-    matches!(
-        code_point,
-        '!' | '#' | '$' | '%' | '&' | '\'' | '*' | '+' | '-' | '.' | '^' | '_' | '`' | '|' | '~'
-    ) || code_point.is_ascii_alphanumeric()
-}
-
 // https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
 // An HTTP quoted-string token code point is U+0009 TAB, a code point in the range U+0020 SPACE to U+007E (~), inclusive,
 // or a code point in the range U+0080 through U+00FF (ÿ), inclusive.
@@ -62,80 +51,6 @@ fn trim_trailing_http_whitespace(code_points: &[char]) -> &[char] {
         .rposition(|&code_point| !is_http_whitespace(code_point))
         .map_or(0, |index| index + 1);
     &code_points[..end]
-}
-
-// https://infra.spec.whatwg.org/#collect-a-sequence-of-code-points
-fn collect_a_sequence_of_code_points<'a>(
-    input: &'a [char],
-    position: &mut usize,
-    condition: impl Fn(char) -> bool,
-) -> &'a [char] {
-    let start = *position;
-    while *position < input.len() && condition(input[*position]) {
-        *position += 1;
-    }
-    &input[start..*position]
-}
-
-// https://fetch.spec.whatwg.org/#collect-an-http-quoted-string
-fn collect_an_http_quoted_string_extracting_the_value(input: &[char], position: &mut usize) -> String {
-    // 1. Let positionStart be position.
-    // NB: Skipped, as MIME type parsing uses the extract-value flag.
-
-    // 2. Let value be the empty string.
-    let mut value = String::new();
-
-    // 3. Assert: the code point at position within input is U+0022 (").
-    assert_eq!(input[*position], '"');
-
-    // 4. Advance position by 1.
-    *position += 1;
-
-    // 5. While true:
-    loop {
-        // 1. Append the result of collecting a sequence of code points that are not U+0022 (") or U+005C (\) from
-        //    input, given position, to value.
-        value.extend(collect_a_sequence_of_code_points(input, position, |code_point| {
-            code_point != '"' && code_point != '\\'
-        }));
-
-        // 2. If position is past the end of input, then break.
-        if *position >= input.len() {
-            break;
-        }
-
-        // 3. Let quoteOrBackslash be the code point at position within input.
-        let quote_or_backslash = input[*position];
-
-        // 4. Advance position by 1.
-        *position += 1;
-
-        // 5. If quoteOrBackslash is U+005C (\), then:
-        if quote_or_backslash == '\\' {
-            // 1. If position is past the end of input, then append U+005C (\) to value and break.
-            if *position >= input.len() {
-                value.push('\\');
-                break;
-            }
-
-            // 2. Append the code point at position within input to value.
-            value.push(input[*position]);
-
-            // 3. Advance position by 1.
-            *position += 1;
-        }
-        // 6. Otherwise:
-        else {
-            // 1. Assert: quoteOrBackslash is U+0022 (").
-            assert_eq!(quote_or_backslash, '"');
-
-            // 2. Break.
-            break;
-        }
-    }
-
-    // 6. If the extract-value flag is set, then return value.
-    value
 }
 
 /// The type and subtype of a MIME type, which say which groups of MIME types it belongs to.
@@ -323,10 +238,10 @@ impl MimeType {
         let input = trim_trailing_http_whitespace(&input[start..]);
 
         // 2. Let position be a position variable for input, initially pointing at the start of input.
-        let mut position = 0;
+        let mut lexer = GenericLexer::new(input);
 
         // 3. Let type be the result of collecting a sequence of code points that are not U+002F (/) from input, given position.
-        let type_ = collect_a_sequence_of_code_points(input, &mut position, |code_point| code_point != '/');
+        let type_ = lexer.consume_while(|code_point| code_point != '/');
 
         // 4. If type is the empty string or does not solely contain HTTP token code points, then return failure.
         if type_.is_empty() || !type_.iter().copied().all(is_http_token_code_point) {
@@ -334,15 +249,15 @@ impl MimeType {
         }
 
         // 5. If position is past the end of input, then return failure.
-        if position >= input.len() {
+        if lexer.is_eof() {
             return None;
         }
 
         // 6. Advance position by 1. (This skips past U+002F (/).)
-        position += 1;
+        lexer.ignore(1);
 
         // 7. Let subtype be the result of collecting a sequence of code points that are not U+003B (;) from input, given position.
-        let subtype = collect_a_sequence_of_code_points(input, &mut position, |code_point| code_point != ';');
+        let subtype = lexer.consume_while(|code_point| code_point != ';');
 
         // 8. Remove any trailing HTTP whitespace from subtype.
         let subtype = trim_trailing_http_whitespace(subtype);
@@ -360,52 +275,53 @@ impl MimeType {
         };
 
         // 11. While position is not past the end of input:
-        while position < input.len() {
+        while !lexer.is_eof() {
             // 1. Advance position by 1. (This skips past U+003B (;).)
-            position += 1;
+            lexer.ignore(1);
 
             // 2. Collect a sequence of code points that are HTTP whitespace from input given position.
-            collect_a_sequence_of_code_points(input, &mut position, is_http_whitespace);
+            lexer.ignore_while(is_http_whitespace);
 
             // 3. Let parameterName be the result of collecting a sequence of code points that are not U+003B (;) or U+003D (=) from input, given position.
-            let parameter_name = collect_a_sequence_of_code_points(input, &mut position, |code_point| {
-                code_point != ';' && code_point != '='
-            });
+            let parameter_name = lexer.consume_while(|code_point| code_point != ';' && code_point != '=');
 
             // 4. Set parameterName to parameterName, in ASCII lowercase.
             let parameter_name: String = parameter_name.iter().map(char::to_ascii_lowercase).collect();
 
             // 5. If position is not past the end of input, then:
-            if position < input.len() {
+            if !lexer.is_eof() {
                 // 1. If the code point at position within input is U+003B (;), then continue.
-                if input[position] == ';' {
+                if lexer.peek() == Some(';') {
                     continue;
                 }
 
                 // 2. Advance position by 1. (This skips past U+003D (=).)
-                position += 1;
+                lexer.ignore(1);
             }
 
             // 6. If position is past the end of input, then break.
-            if position >= input.len() {
+            if lexer.is_eof() {
                 break;
             }
 
             // 7. Let parameterValue be null.
-            let parameter_value;
+            let parameter_value: String;
 
             // 8. If the code point at position within input is U+0022 ("), then:
-            if input[position] == '"' {
+            if lexer.peek() == Some('"') {
                 // 1. Set parameterValue to the result of collecting an HTTP quoted string from input, given position and the extract-value flag.
-                parameter_value = collect_an_http_quoted_string_extracting_the_value(input, &mut position);
+                parameter_value = collect_an_http_quoted_string_extracting_the_value(&mut lexer)
+                    .value
+                    .into_iter()
+                    .collect();
 
                 // 2. Collect a sequence of code points that are not U+003B (;) from input, given position.
-                collect_a_sequence_of_code_points(input, &mut position, |code_point| code_point != ';');
+                lexer.ignore_until(';');
             }
             // 9. Otherwise:
             else {
                 // 1. Set parameterValue to the result of collecting a sequence of code points that are not U+003B (;) from input, given position.
-                let value = collect_a_sequence_of_code_points(input, &mut position, |code_point| code_point != ';');
+                let value = lexer.consume_while(|code_point| code_point != ';');
 
                 // 2. Remove any trailing HTTP whitespace from parameterValue.
                 let value = trim_trailing_http_whitespace(value);
