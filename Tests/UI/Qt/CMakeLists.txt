@@ -10,7 +10,7 @@ if (Qt6_FOUND)
         "${LADYBIRD_SOURCE_DIR}/Libraries/LibTest/AssertionHandler.cpp"
     )
     target_link_libraries(QtTestMain PRIVATE AK LibCore LibTest Qt::Core Qt::Gui Qt::Widgets)
-    ladybird_test_suite(UI/Qt CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>")
+    ladybird_test_suite(UI/Qt NO_TEST CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>")
     target_link_libraries(TestUIQt PRIVATE LibCore LibFileSystem LibGfx LibIPC LibURL LibWeb LibWebCommon LibWebView Qt::Core Qt::Gui Qt::Widgets)
 else()
     ladybird_test_suite(UI/Qt)
@@ -120,13 +120,17 @@ set_target_properties(TestUIQt PROPERTIES AUTOMOC ON)
 
 # QtTestMain runs on the offscreen platform plugin. Static Qt needs it imported explicitly, and Windows needs it
 # copied alongside the default platform plugin deployed by the ladybird target.
-qt_import_plugins(TestUIQt INCLUDE Qt6::QOffscreenIntegrationPlugin)
-if (WIN32)
-    add_custom_command(TARGET TestUIQt POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:TestUIQt>/platforms"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
-            "$<TARGET_FILE_DIR:TestUIQt>/platforms/"
-        VERBATIM
-    )
+ladybird_import_qt_plugin(TestUIQt QOffscreenIntegrationPlugin)
+if (TARGET Qt6::QOffscreenIntegrationPlugin)
+    add_test(NAME TestUIQt COMMAND TestUIQt WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+    if (WIN32)
+        add_custom_command(TARGET TestUIQt POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:TestUIQt>/platforms"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
+                "$<TARGET_FILE_DIR:TestUIQt>/platforms/"
+            VERBATIM
+        )
+    endif()
 endif()

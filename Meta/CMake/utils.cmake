@@ -1,4 +1,3 @@
-
 include(${CMAKE_CURRENT_LIST_DIR}/code_generators.cmake)
 
 function(ladybird_generated_sources target_name)
@@ -274,4 +273,19 @@ function(add_lagom_library_install_rules target_name)
         ARCHIVE COMPONENT Lagom_Development
         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
+endfunction()
+
+function(ladybird_import_qt_plugin target_name plugin_name)
+    # Some Qt installations (such as Ubuntu's) do not automatically load plugin CMake targets. Find the plugin
+    # explicitly so qt_import_plugins can recognize it.
+    if (NOT TARGET Qt6::${plugin_name})
+        find_package(Qt6${plugin_name} QUIET
+            PATHS "${Qt6Gui_DIR}"
+            NO_DEFAULT_PATH
+        )
+    endif()
+
+    if (TARGET Qt6::${plugin_name})
+        qt_import_plugins(${target_name} INCLUDE Qt6::${plugin_name})
+    endif()
 endfunction()
