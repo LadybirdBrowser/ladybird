@@ -1,2 +1,2 @@
 Width 100: parent --ratio 0.625, child opacity 0.625
-Width 160: parent --ratio 0.625, child opacity 0.625
+Width 160: parent --ratio 1, child opacity 1
