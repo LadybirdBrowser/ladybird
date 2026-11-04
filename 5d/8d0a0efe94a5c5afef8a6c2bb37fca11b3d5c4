@@ -1,0 +1,17 @@
+Ladybird scales the stroke-dasharray and stroke-dashoffset of a geometry
+element by its path’s length over its pathLength, for painting and for
+hit testing the stroke. Blink does the same, in its SVGLayoutSupport::
+ApplyStrokeStyleToStrokeData(), with the scale from SVGGeometryElement::
+PathLengthScaleFactor(). WebKit does it in SVGRenderSupport::
+applyStrokeStyleToContext(), and Gecko in GetStrokeDashData(), with
+the scale from SVGGeometryElement::GetPathLengthScale().
+
+All three scale a percentage dash after resolving it, though the spec
+says pathLength has no effect on percentages, and so does Ladybird.
+For a pathLength of zero, WebKit and Gecko turn dashing off, so the
+stroke draws solid; Blink caps the scale at the largest float, which
+draws a dash array without a zero solid too. Ladybird draws it solid.
+All three ignore a negative pathLength. For one that doesn’t parse,
+they split: Blink and WebKit treat it as zero, while Gecko ignores it,
+as the spec’s error handling has it. Ladybird ignores it too, as its
+own isPointInStroke() already did.
