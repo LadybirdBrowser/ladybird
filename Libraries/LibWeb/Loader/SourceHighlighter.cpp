@@ -6,6 +6,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <AK/Utf16String.h>
 #include <LibJS/SyntaxHighlighter.h>
 #include <LibJS/Token.h>
 #include <LibURL/URL.h>
@@ -316,7 +317,7 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
             attribute_url = attribute_url.substring_view(1, attribute_url.length() - 2);
         }
 
-        auto url = Web::DOMURL::parse(attribute_url, base_url);
+        auto url = Web::DOMURL::parse(Utf16String::from_utf8(attribute_url), base_url);
 
         // NB: Following a javascript:, data: or blob: link could run the page's script inside the view-source document,
         //     so only link to schemes that load an ordinary resource.
