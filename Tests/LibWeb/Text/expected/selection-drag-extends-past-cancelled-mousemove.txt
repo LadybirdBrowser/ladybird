@@ -1,2 +1,2 @@
-mousemove: ""
+mousemove: "one two three four"
 pointermove: "one two three four"
