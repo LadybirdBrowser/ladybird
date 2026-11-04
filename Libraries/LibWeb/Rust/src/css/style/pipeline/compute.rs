@@ -1348,6 +1348,7 @@ impl RetainedState {
                     .custom_property_reads
                     .append(&mut classified.reads.custom_properties);
                 decided.reads.reads_unnamed_custom_properties |= classified.reads.unnamed_custom_properties;
+                decided.reads.substitution_reads |= classified.reads.substitution;
                 let Some(operator @ (CascadeOperator::Revert | CascadeOperator::RevertLayer)) =
                     classified.cascade_operator()
                 else {
