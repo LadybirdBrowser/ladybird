@@ -182,7 +182,12 @@ static bool element_popover_is_open(DOM::Element const& element)
     X(OptimalValue, meter->value_state() == HTML::HTMLMeterElement::ValueState::Optimal)           \
     X(SuboptimalValue, meter->value_state() == HTML::HTMLMeterElement::ValueState::Suboptimal)
 
-CSS::PseudoClassBitmap element_states(DOM::Element const& element, AskLocalLink ask_local_link)
+bool element_can_have_validity(DOM::Element const& element)
+{
+    return as_form_associated_element(element) || is<HTML::HTMLFormElement>(element) || is<HTML::HTMLFieldSetElement>(element);
+}
+
+CSS::PseudoClassBitmap element_states(DOM::Element const& element, AskLocalLink ask_local_link, AskValidity ask_validity)
 {
     CSS::PseudoClassBitmap states;
     auto set = [&](CSS::PseudoClass pseudo_class, bool holds) {
@@ -218,12 +223,14 @@ CSS::PseudoClassBitmap element_states(DOM::Element const& element, AskLocalLink 
         set(CSS::PseudoClass::Required, required == RequiredState::Required);
         set(CSS::PseudoClass::Optional, required == RequiredState::Optional);
 
-        auto user_validity = element_user_validity_state(element);
-        set(CSS::PseudoClass::UserValid, user_validity == ValidityState::Valid);
-        set(CSS::PseudoClass::UserInvalid, user_validity == ValidityState::Invalid);
+        if (ask_validity == AskValidity::Yes) {
+            auto user_validity = element_user_validity_state(element);
+            set(CSS::PseudoClass::UserValid, user_validity == ValidityState::Valid);
+            set(CSS::PseudoClass::UserInvalid, user_validity == ValidityState::Invalid);
+        }
     }
 
-    if (form_associated_element || is<HTML::HTMLFormElement>(element) || is<HTML::HTMLFieldSetElement>(element)) {
+    if (ask_validity == AskValidity::Yes && element_can_have_validity(element)) {
         auto validity = element_validity_state(element);
         set(CSS::PseudoClass::Valid, validity == ValidityState::Valid);
         set(CSS::PseudoClass::Invalid, validity == ValidityState::Invalid);

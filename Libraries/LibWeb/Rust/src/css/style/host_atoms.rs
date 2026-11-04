@@ -364,6 +364,13 @@ pub extern "C" fn document_host_local_link_is_known_untested(host: &DocumentHost
     host.known_selectors_test_local_link() == Some(false)
 }
 
+/// Whether the host knows that no selector of the engine tests `:valid`, `:invalid`, `:user-valid` or `:user-invalid`,
+/// which spares it checking the constraints of a control as its value moves.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_validity_is_known_untested(host: &DocumentHost) -> bool {
+    host.known_selectors_test_validity() == Some(false)
+}
+
 /// Whether the host knows that nothing of the engine reads the attribute name `name`: no selector tests it, by `name` or
 /// the other forms the host published with it, and no `attr()` reads it, by its local name if it has one. Where it does
 /// not know, the host hands the engine each change to the attribute.

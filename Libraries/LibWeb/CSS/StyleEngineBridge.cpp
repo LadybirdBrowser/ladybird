@@ -263,12 +263,16 @@ void StyleEngine::publish_html_element_namespace(StyleAtomID namespace_atom)
 StyleEngine::WithheldFeaturesNowRead StyleEngine::take_withheld_features_now_read(Layout::BegunRead const& read)
 {
     WithheldFeaturesNowRead now_read;
-    if (!m_local_link_state_is_withheld && m_withheld_attribute_names.is_empty())
+    if (!m_local_link_state_is_withheld && !m_validity_state_is_withheld && m_withheld_attribute_names.is_empty())
         return now_read;
     StyleEngineFFI::document_host_learn_selector_requirements(host(), &read);
     if (m_local_link_state_is_withheld && !local_link_is_known_untested()) {
         m_local_link_state_is_withheld = false;
         now_read.local_link_state = true;
+    }
+    if (m_validity_state_is_withheld && !validity_is_known_untested()) {
+        m_validity_state_is_withheld = false;
+        now_read.validity_state = true;
     }
     for (auto const& name : m_withheld_attribute_names) {
         if (!attribute_is_known_unread(intern_attribute_name(name.local_name, name.namespace_uri)))

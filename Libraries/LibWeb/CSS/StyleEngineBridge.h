@@ -269,8 +269,13 @@ public:
     {
         return StyleEngineFFI::document_host_local_link_is_known_untested(host());
     }
+    bool validity_is_known_untested() const
+    {
+        return StyleEngineFFI::document_host_validity_is_known_untested(host());
+    }
     // What an element arrives with that the host knows nothing reads is withheld from the engine: whether a link is a
-    // local link where no selector tests `:local-link`, and each attribute no selector and no attr() reads. Each
+    // local link where no selector tests `:local-link`, a control's validity where none tests that, and each attribute
+    // no selector and no attr() reads. Each
     // withheld fact notes the element it was withheld from, so that once something may read it, it is published for
     // those elements alone.
     struct WithheldAttributeName {
@@ -284,6 +289,7 @@ public:
     // NB: An element's identity may have been retired, or taken by another element, by the time a fact withheld from
     //     it is published: what is published is read from whatever element holds the identity then.
     void note_local_link_state_withheld() { m_local_link_state_is_withheld = true; }
+    void note_validity_state_withheld() { m_validity_state_is_withheld = true; }
     void note_attribute_withheld(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri)
     {
         m_withheld_attribute_names.set({ local_name, namespace_uri });
@@ -292,6 +298,7 @@ public:
     // from.
     struct WithheldFeaturesNowRead {
         bool local_link_state { false };
+        bool validity_state { false };
         Vector<WithheldAttributeName> attributes;
     };
     WithheldFeaturesNowRead take_withheld_features_now_read(Layout::BegunRead const&);
@@ -471,6 +478,7 @@ private:
     Optional<u64> m_waiting_children_checked_against_keys_version;
     bool m_may_have_waiting_children { false };
     bool m_local_link_state_is_withheld { false };
+    bool m_validity_state_is_withheld { false };
     HashTable<WithheldAttributeName, WithheldAttributeNameTraits> m_withheld_attribute_names;
     bool m_css_transitions_may_observe_style_changes { false };
     mutable bool m_geometry_read_deferred_transaction { false };

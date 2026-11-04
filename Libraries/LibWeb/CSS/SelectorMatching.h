@@ -56,6 +56,12 @@ enum class AskLocalLink : u8 {
     No,
     Yes,
 };
-WEB_API CSS::PseudoClassBitmap element_states(DOM::Element const&, AskLocalLink);
+enum class AskValidity : u8 {
+    No,
+    Yes,
+};
+WEB_API CSS::PseudoClassBitmap element_states(DOM::Element const&, AskLocalLink, AskValidity);
+// Whether `:valid`, `:invalid`, `:user-valid` or `:user-invalid` can hold of the element.
+WEB_API bool element_can_have_validity(DOM::Element const&);
 
 }

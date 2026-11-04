@@ -1,0 +1,14 @@
+before: rgb(0, 0, 0)
+script reads input valid: true
+script reads other invalid: true
+script finds form invalid: true
+arrived unread: rgb(0, 0, 0)
+now read, input: rgb(1, 0, 0)
+now read, other: rgb(2, 0, 0)
+now read, arrived: rgb(2, 0, 0)
+now read, form: rgb(3, 0, 0)
+now read, fieldset: rgb(4, 0, 0)
+now read, parent: rgb(5, 0, 0)
+moved, input: rgb(2, 0, 0)
+moved, fieldset: rgb(3, 0, 0)
+moved, parent: rgb(0, 0, 0)

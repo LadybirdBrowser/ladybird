@@ -364,6 +364,7 @@ pub struct RetainedState {
     attribute_value_text_requirements_version: u64,
     /// Whether a selector tests `:local-link`, which the host holds a copy of between jobs.
     selectors_test_local_link: bool,
+    selectors_test_validity: bool,
     /// What an arrival has to carry to reach a `:has()` anchor, which the host holds a copy of between jobs.
     relational_arrival_keys: Arc<RelationalArrivalKeys>,
     /// The keys rules added since, which the host learns of once they are resolved.

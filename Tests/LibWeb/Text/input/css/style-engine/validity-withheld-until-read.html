@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<form id="form">
+    <fieldset id="fieldset">
+        <input id="input" required>
+    </fieldset>
+    <input id="other" required value="filled">
+</form>
+<div id="parent"><input id="inside" required></div>
+<script>
+    test(() => {
+        const color = element => getComputedStyle(element).color;
+        const form = document.getElementById("form");
+        const fieldset = document.getElementById("fieldset");
+        const input = document.getElementById("input");
+        const other = document.getElementById("other");
+        const parent = document.getElementById("parent");
+        const inside = document.getElementById("inside");
+
+        // Nothing tests a control's validity once this update is through.
+        println(`before: ${color(input)}`);
+
+        // What moves while nothing reads it, on elements that have arrived.
+        other.value = "";
+        input.value = "filled";
+        inside.value = "filled";
+
+        // Script asks of the element itself, whatever the style engine holds.
+        println(`script reads input valid: ${input.matches(":valid")}`);
+        println(`script reads other invalid: ${other.matches(":invalid")}`);
+        println(`script finds form invalid: ${document.querySelector("form:invalid") === form}`);
+
+        // A control arriving while nothing reads its validity.
+        const arrived = document.createElement("input");
+        arrived.required = true;
+        form.appendChild(arrived);
+        println(`arrived unread: ${color(arrived)}`);
+
+        const style = document.createElement("style");
+        style.textContent = `
+            input:valid { color: rgb(1, 0, 0); }
+            input:invalid { color: rgb(2, 0, 0); }
+            form:invalid { color: rgb(3, 0, 0); }
+            fieldset:valid { color: rgb(4, 0, 0); }
+            div:has(:valid) { color: rgb(5, 0, 0); }
+        `;
+        document.head.appendChild(style);
+        println(`now read, input: ${color(input)}`);
+        println(`now read, other: ${color(other)}`);
+        println(`now read, arrived: ${color(arrived)}`);
+        println(`now read, form: ${color(form)}`);
+        println(`now read, fieldset: ${color(fieldset)}`);
+        println(`now read, parent: ${color(parent)}`);
+
+        // Once read, a move shows at once.
+        input.value = "";
+        println(`moved, input: ${color(input)}`);
+        println(`moved, fieldset: ${color(fieldset)}`);
+        inside.value = "";
+        println(`moved, parent: ${color(parent)}`);
+    });
+</script>

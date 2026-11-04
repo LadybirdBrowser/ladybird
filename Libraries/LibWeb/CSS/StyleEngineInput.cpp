@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
+#include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/Selector.h>
@@ -1088,7 +1089,12 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
         ask_local_link = SelectorMatching::AskLocalLink::No;
         style_engine.note_local_link_state_withheld();
     }
-    auto states = SelectorMatching::element_states(element, ask_local_link);
+    auto ask_validity = SelectorMatching::AskValidity::Yes;
+    if (SelectorMatching::element_can_have_validity(element) && style_engine.validity_is_known_untested()) {
+        ask_validity = SelectorMatching::AskValidity::No;
+        style_engine.note_validity_state_withheld();
+    }
+    auto states = SelectorMatching::element_states(element, ask_local_link, ask_validity);
     u64 state_bits = 0;
     states.for_each_set([&](PseudoClass pseudo_class) {
         // The engine's hover chain holds `:hover`, which the hover follows to an element that arrives hovered.
@@ -1610,7 +1616,7 @@ void record_element_construction_facts(DOM::Element& element)
 void publish_withheld_element_features(StyleEngine& style_engine, StyleComputer& style_computer, Layout::BegunRead const& read)
 {
     auto now_read = style_engine.take_withheld_features_now_read(read);
-    if (!now_read.local_link_state && now_read.attributes.is_empty())
+    if (!now_read.local_link_state && !now_read.validity_state && now_read.attributes.is_empty())
         return;
     auto local_link = state_fact_for(PseudoClass::LocalLink);
     VERIFY(local_link.has_value());
@@ -1630,6 +1636,8 @@ void publish_withheld_element_features(StyleEngine& style_engine, StyleComputer&
         auto node = element.style_node_id();
         if (now_read.local_link_state && element.matches_local_link_pseudo_class())
             style_engine.record_state_delta({ .node = node.value(), .fact = *local_link, .new_value = true });
+        if (now_read.validity_state && SelectorMatching::element_can_have_validity(element))
+            Invalidation::record_validity_states(element);
         for (auto const& [name, atom] : names_now_read) {
             if (auto value = element.get_attribute_ns(name.namespace_uri, name.local_name); value.has_value()) {
                 style_engine.record_local_feature_delta({
@@ -3158,6 +3166,15 @@ void record_stylesheet_detached(StyleSheetState& sheet, DOM::Node& document_or_s
 // facts -- positional, logical, structural, and the parameterized ones -- and those change with
 // inputs the engine already routes, not with a state transition published here.
 #include <LibWeb/StyleEngineStateFactsGenerated.inc>
+
+bool element_validity_is_withheld(DOM::Element& element)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || !style_engine->validity_is_known_untested())
+        return false;
+    style_engine->note_validity_state_withheld();
+    return true;
+}
 
 bool can_record_element_state_change(DOM::Element& element)
 {
