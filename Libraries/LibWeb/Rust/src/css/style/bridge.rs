@@ -463,7 +463,7 @@ pub struct FfiStyleRecordView {
     pub present: bool,
 }
 
-// NB: Every element and pseudo-element the host styles holds one of these.
+// NB: Every styled element and pseudo-element holds one of these.
 const _: () = assert!(size_of::<FfiStyleRecordView>() == 32);
 
 impl FfiStyleRecordView {

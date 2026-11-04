@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! A slot one thread writes once, which other threads read after it is written: what a the engine
-//! pass keeps per element, written by the thread styling the element and read by those styling its
+//! A slot one thread writes once, which other threads read after it is written: what a pass keeps
+//! per element, written by the thread styling the element and read by those styling its
 //! descendants. Writing it takes one atomic compare-exchange and one store, where a `OnceLock` goes
 //! through `Once`.
 
