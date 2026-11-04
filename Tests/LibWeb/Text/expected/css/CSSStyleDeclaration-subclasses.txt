@@ -1,0 +1,38 @@
+inline: CSSStyleProperties, instanceof CSSStyleDeclaration: true
+  length 1, items [color], item(0) color, past the end: "", undefined
+  own keys [0], 0 in style: true, 99 in style: false
+  cssText: color: green;
+CSSStyleRule: CSSStyleProperties, instanceof CSSStyleDeclaration: true
+  length 2, items [color,margin-top], item(0) color, past the end: "", undefined
+  own keys [0,1], 0 in style: true, 99 in style: false
+  cssText: color: red; margin-top: 1px !important;
+CSSFontFaceRule: CSSFontFaceDescriptors, instanceof CSSStyleDeclaration: true
+  length 2, items [font-family,src], item(0) font-family, past the end: "", undefined
+  own keys [0,1], 0 in style: true, 99 in style: false
+  cssText: font-family: "x"; src: url("x.woff");
+CSSPageRule: CSSPageDescriptors, instanceof CSSStyleDeclaration: true
+  length 1, items [margin-top], item(0) margin-top, past the end: "", undefined
+  own keys [0], 0 in style: true, 99 in style: false
+  cssText: margin-top: 1px;
+CSSPositionTryRule: CSSPositionTryDescriptors, instanceof CSSStyleDeclaration: true
+  length 2, items [top,left], item(0) top, past the end: "", undefined
+  own keys [0,1], 0 in style: true, 99 in style: false
+  cssText: top: 1px; left: 2px;
+CSSStyleRule: parentRule is the rule: true, same object: true
+CSSFontFaceRule: parentRule is the rule: true, same object: true
+CSSPageRule: parentRule is the rule: true, same object: true
+CSSPositionTryRule: parentRule is the rule: true, same object: true
+inline parentRule: null
+priority: "important", ""
+after setProperty: color: blue !important; margin-top: 1px !important;
+removeProperty: blue, margin-top: 1px !important;
+custom: 1
+cssText setter: width: 1px;, 1
+PutForwards: height: 2px;
+computed: CSSStyleProperties, length > 0: true, [0] is item(0): true, cssText: ""
+computed setProperty: NoModificationAllowedError: Cannot modify properties in result of getComputedStyle()
+computed removeProperty: NoModificationAllowedError: Cannot remove property: CSSStyleProperties is read-only.
+computed cssText: NoModificationAllowedError: Cannot modify properties: CSSStyleProperties is read-only.
+wrong this: TypeError: Not an object of type CSSStyleDeclaration
+constructor: TypeError: CSSStyleDeclaration is not a constructor
+subclass method on base: TypeError: Not an object of type CSSStyleProperties

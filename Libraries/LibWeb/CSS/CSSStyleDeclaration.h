@@ -23,7 +23,7 @@ namespace Web::CSS {
 // https://drafts.csswg.org/cssom/#css-declaration-blocks
 class CSSStyleDeclaration
     : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(CSSStyleDeclaration, Bindings::GCAllocatedWrappable);
+    WEB_NON_IDL_WRAPPABLE(CSSStyleDeclaration, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(CSSStyleDeclaration);
 
 public:

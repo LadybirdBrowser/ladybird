@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<style id="sheet">
+    .a { color: red; margin-top: 1px !important; }
+    @font-face { font-family: "x"; src: url(x.woff); }
+    @page { margin-top: 1px; }
+    @position-try --p { top: 1px; left: 2px; }
+</style>
+<div id="target" style="color: green"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rules = [...document.getElementById("sheet").sheet.cssRules];
+        const declarations = [
+            ["inline", target.style],
+            ...rules.map(rule => [rule.constructor.name, rule.style]),
+        ];
+        for (const [name, style] of declarations) {
+            const items = [];
+            for (let i = 0; i < style.length; ++i)
+                items.push(style[i]);
+            println(`${name}: ${style.constructor.name}, instanceof CSSStyleDeclaration: ${style instanceof CSSStyleDeclaration}`);
+            println(`  length ${style.length}, items [${items}], item(0) ${style.item(0)}, past the end: "${style.item(99)}", ${style[99]}`);
+            println(`  own keys [${Object.keys(style)}], 0 in style: ${0 in style}, 99 in style: ${99 in style}`);
+            println(`  cssText: ${style.cssText}`);
+        }
+
+        for (const rule of rules)
+            println(`${rule.constructor.name}: parentRule is the rule: ${rule.style.parentRule === rule}, same object: ${rule.style === rule.style}`);
+        println(`inline parentRule: ${target.style.parentRule}`);
+
+        const style = rules[0].style;
+        println(`priority: "${style.getPropertyPriority("margin-top")}", "${style.getPropertyPriority("color")}"`);
+        style.setProperty("color", "blue", "important");
+        println(`after setProperty: ${style.cssText}`);
+        println(`removeProperty: ${style.removeProperty("color")}, ${style.cssText}`);
+        style.setProperty("--custom", "1");
+        println(`custom: ${style.getPropertyValue("--custom")}`);
+        style.setProperty("margin-left", null);
+        style.cssText = "width: 1px";
+        println(`cssText setter: ${style.cssText}, ${style.length}`);
+        rules[0].style = "height: 2px";
+        println(`PutForwards: ${style.cssText}`);
+
+        const computed = getComputedStyle(target);
+        println(`computed: ${computed.constructor.name}, length > 0: ${computed.length > 0}, [0] is item(0): ${computed[0] === computed.item(0)}, cssText: "${computed.cssText}"`);
+        const attempt = (name, steps) => {
+            try {
+                steps();
+                println(`${name}: no exception`);
+            } catch (error) {
+                println(`${name}: ${error.name}: ${error.message}`);
+            }
+        };
+        attempt("computed setProperty", () => computed.setProperty("color", "red"));
+        attempt("computed removeProperty", () => computed.removeProperty("color"));
+        attempt("computed cssText", () => { computed.cssText = "color: red"; });
+        attempt("wrong this", () => CSSStyleDeclaration.prototype.item.call({}, 0));
+        attempt("constructor", () => new CSSStyleDeclaration());
+        attempt("subclass method on base", () => Object.getOwnPropertyDescriptor(CSSStyleProperties.prototype, "cssFloat").get.call(rules[1].style));
+    });
+</script>

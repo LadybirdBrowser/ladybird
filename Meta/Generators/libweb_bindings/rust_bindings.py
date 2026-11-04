@@ -266,11 +266,13 @@ void {interface.namespace_class}::initialize(JS::Realm& realm, JS::Object& objec
     initialize_prototype = rust_entry_point_name(interface, "initialize_prototype")
     initialize_constructor = rust_entry_point_name(interface, "initialize_constructor")
     construct = rust_entry_point_name(interface, "construct")
-    supports_indexed_properties = rust_members(interface).indexed_property_getter is not None
+    # NB: An interface that inherits indexed properties reads them through the entry point of the interface defining them.
+    indexed_interface = rust_interface_with_indexed_properties(interface, context)
+    supports_indexed_properties = indexed_interface is not None
     has_indexed_property_setter = rust_members(interface).indexed_property_setter is not None
-    if supports_indexed_properties and inheriting_interfaces(interface, context):
+    if has_indexed_property_setter and inheriting_interfaces(interface, context):
         raise UnsupportedByRustBindings(
-            f"{interface.path}: {interface.name} supports indexed properties and others inherit from it, which the "
+            f"{interface.path}: {interface.name} has an indexed property setter and others inherit from it, which the "
             "Rust bindings do not handle yet"
         )
     out.write(
@@ -283,7 +285,7 @@ void {initialize_constructor}(JSVM*, void* realm, JSObject* constructor);
     )
     if supports_indexed_properties:
         out.write(
-            f"bool {item_value_entry_point(interface)}(JSVM*, void* realm, JSObject* wrapper, size_t index, "
+            f"bool {item_value_entry_point(indexed_interface)}(JSVM*, void* realm, JSObject* wrapper, size_t index, "
             "JSValue* out_value);\n"
         )
     if has_indexed_property_setter:
@@ -370,7 +372,7 @@ constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_cla
 static Optional<JS::Value> {wrapper_name(interface)}_item_value(JS::HostObject const& wrapper, WrapperWorld&, JS::Realm& realm, size_t index)
 {{
     JSValue value {{}};
-    if (!{item_value_entry_point(interface)}(JS::HostABI::vm_to_abi(realm.vm()), &realm, JS::HostABI::object_to_abi(const_cast<JS::HostObject*>(&wrapper)), index, &value))
+    if (!{item_value_entry_point(indexed_interface)}(JS::HostABI::vm_to_abi(realm.vm()), &realm, JS::HostABI::object_to_abi(const_cast<JS::HostObject*>(&wrapper)), index, &value))
         return {{}};
     return JS::HostABI::value_from_abi(value);
 }}
@@ -1497,6 +1499,17 @@ def cpp_ancestor_with_indexed_properties(interface: Interface, context: Generati
     return None
 
 
+def rust_interface_with_indexed_properties(interface: Interface, context: GenerationContext) -> Optional[Interface]:
+    """The interface implemented in Rust that defines the indexed properties of the interface: itself or the closest
+    ancestor implemented in Rust that has them, if any."""
+    candidate: Optional[Interface] = interface
+    while candidate is not None and is_implemented_in_rust(candidate):
+        if rust_members(candidate).indexed_property_getter is not None:
+            return candidate
+        candidate = context.interfaces.get(candidate.parent_name)
+    return None
+
+
 def item_value_entry_point(interface: Interface) -> str:
     return rust_entry_point_name(interface, "item_value")
 
@@ -1509,6 +1522,9 @@ def write_rust_item_value(
     https://webidl.spec.whatwg.org/#legacy-platform-object-getownproperty"""
     getter = indexed_property_getter.operation
     return_type = getter.operation.return_type
+    implementation = "implementation_of::<Implementation>(wrapper)"
+    if inheriting_interfaces(interface, context):
+        implementation = "receiver_of(wrapper)"
     what = f"the indexed property getter of {interface.name}"
     conversion = rust_to_js_value(return_type.without_nullable(), "value", "&cx", context, what)
     if return_type.nullable:
@@ -1547,7 +1563,7 @@ def write_rust_item_value(
         let Ok(index) = u32::try_from(index) else {{
             return false;
         }};
-        let implementation = implementation_of::<Implementation>(wrapper);
+        let implementation = {implementation};
         let mut cx = CallContext::new(vm, realm);
         {value_steps}
         let value = {conversion}.expect("converting an object to a JS value does not throw");
@@ -1801,7 +1817,7 @@ def write_this_implementation(out: TextIO, context: GenerationContext, interface
                 }}
 """
     choices = f"""        if let Some(object) = implementation_if::<Implementation>(object) {{
-            return Ok((Receiver::{interface.name}(object), cx));
+            return Receiver::{interface.name}(object);
         }}
 """
     for other in inheriting:
@@ -1824,7 +1840,7 @@ def write_this_implementation(out: TextIO, context: GenerationContext, interface
 {steps}                }}
 """
         choices += f"""        if let Some(object) = implementation_if::<{path}>(object) {{
-            return Ok((Receiver::{other.name}(object), cx));
+            return Receiver::{other.name}(object);
         }}
 """
     out.write(
@@ -1843,11 +1859,15 @@ def write_this_implementation(out: TextIO, context: GenerationContext, interface
         }}
     }}
 
+    /// The object that a wrapper of the interface wraps.
+    fn receiver_of(object: Gc<Object>) -> Receiver {{
+{choices}        unreachable!("a wrapper of the interface wraps an object of it or of an interface that inherits from it")
+    }}
+
     /// The object that an attribute or an operation runs on, and the context it runs in.
     fn this_implementation(vm: &Vm) -> ThrowCompletionOr<(Receiver, CallContext<'_>)> {{
         let (object, realm) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME)?;
-        let cx = CallContext::new(vm, realm);
-{choices}        unreachable!("a wrapper of the interface wraps an object of it or of an interface that inherits from it")
+        Ok((receiver_of(object), CallContext::new(vm, realm)))
     }}
 """
     )
