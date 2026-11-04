@@ -45,6 +45,7 @@ struct LegacyPlatformObjectInfo {
     using IndexedPropertySetter = WebIDL::ExceptionOr<void> (*)(JS::HostObject& wrapper, JS::Realm&, u32 index, JS::Value);
     using NamedPropertySetter = WebIDL::ExceptionOr<void> (*)(JS::HostObject& wrapper, JS::Realm&, Utf16FlyString const& name, JS::Value);
     using NamedPropertyDeleter = WebIDL::ExceptionOr<NamedPropertyDeletionResult> (*)(JS::HostObject& wrapper, Utf16FlyString const& name);
+    using SupportedPropertyNames = Vector<Utf16FlyString> (*)(JS::HostObject const& wrapper);
 
     bool supports_indexed_properties { false };
     bool supports_named_properties { false };
@@ -74,6 +75,8 @@ struct LegacyPlatformObjectInfo {
     NamedPropertySetter set_value_of_named_property { nullptr };
 
     NamedPropertyDeleter delete_value { nullptr };
+
+    SupportedPropertyNames supported_property_names { nullptr };
 };
 
 [[nodiscard]] inline LegacyPlatformObjectInfo const* legacy_platform_object_info_of(JS::HostObject const& wrapper)
