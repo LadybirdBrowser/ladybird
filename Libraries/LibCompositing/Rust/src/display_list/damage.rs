@@ -957,7 +957,7 @@ impl DamageAccumulator {
         self.add_command_damage(command, chains.new_side());
     }
 
-    // A backdrop filter reads the pixels around its region, so damage beneath the region changes it
+    // A backdrop filter can read the pixels around its region, so damage beneath the region changes it
     // wherever the filter carries that damage in. The whole region then changes as content of the
     // backdrop's effect: that effect's own filter and the filters above it spread it further, and it
     // can carry the damage on to the backdrop filters above it.

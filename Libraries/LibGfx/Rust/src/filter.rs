@@ -138,6 +138,8 @@ pub enum Filter {
     Blur {
         radius_x: f32,
         radius_y: f32,
+        /// Whether this is a blur() filter function, which mirrors at the edge of a backdrop.
+        mirrors_at_backdrop_edge: bool,
         input: Option<Box<Filter>>,
     },
     ColorFilter {
@@ -214,10 +216,23 @@ impl Filter {
         }
     }
 
+    /// The blur() filter function, which unlike [`Self::gaussian_blur`] mirrors at the edge of a
+    /// backdrop.
     pub fn blur(radius_x: f32, radius_y: f32, input: Option<Filter>) -> Self {
         Self::Blur {
             radius_x,
             radius_y,
+            mirrors_at_backdrop_edge: true,
+            input: input.map(Box::new),
+        }
+    }
+
+    /// A blur that reads its input as it is, such as an feGaussianBlur primitive.
+    pub fn gaussian_blur(radius_x: f32, radius_y: f32, input: Option<Filter>) -> Self {
+        Self::Blur {
+            radius_x,
+            radius_y,
+            mirrors_at_backdrop_edge: false,
             input: input.map(Box::new),
         }
     }
@@ -343,6 +358,27 @@ impl Filter {
         }
     }
 
+    /// Whether the graph holds a blur that mirrors at the edge of a backdrop.
+    fn has_mirroring_blur(&self) -> bool {
+        if matches!(
+            self,
+            Self::Blur {
+                mirrors_at_backdrop_edge: true,
+                ..
+            }
+        ) {
+            return true;
+        }
+        let mut found = false;
+        self.for_each_input(&mut |input| found = found || input.has_mirroring_blur());
+        found
+    }
+
+    /// [`Self::has_mirroring_blur`] for a serialized graph. Bytes that do not hold a graph have none.
+    pub fn serialized_has_mirroring_blur(bytes: &[u8]) -> bool {
+        Self::deserialize(bytes).is_some_and(|filter| filter.has_mirroring_blur())
+    }
+
     /// [`Self::may_affect_output_bounds`] for a serialized graph, answered without building it.
     /// Bytes that do not hold a graph are assumed to affect the bounds.
     pub fn serialized_may_affect_output_bounds(bytes: &[u8]) -> bool {
@@ -455,6 +491,7 @@ impl Filter {
                 radius_x,
                 radius_y,
                 input,
+                ..
             } => input_bounds(input).outset(gaussian_reach(*radius_x), gaussian_reach(*radius_y)),
             Self::DropShadow {
                 offset_x,
@@ -783,9 +820,15 @@ impl Writer<'_> {
             Filter::Blur {
                 radius_x,
                 radius_y,
+                mirrors_at_backdrop_edge,
                 input,
+            } => {
+                self.f32(*radius_x);
+                self.f32(*radius_y);
+                self.bool(*mirrors_at_backdrop_edge);
+                self.optional_filter(input.as_deref());
             }
-            | Filter::Erode {
+            Filter::Erode {
                 radius_x,
                 radius_y,
                 input,
@@ -993,6 +1036,7 @@ impl Reader<'_> {
             FilterOperationType::Blur => Filter::Blur {
                 radius_x: self.f32()?,
                 radius_y: self.f32()?,
+                mirrors_at_backdrop_edge: self.bool()?,
                 input: self.optional_input()?,
             },
             FilterOperationType::ColorFilter => Filter::ColorFilter {
@@ -1081,7 +1125,7 @@ mod tests {
     const EVERY_OPERATION_FILTER_BYTES: &str = concat!(
         "01020103332211ff0000003f010000010e0000c03f000020c0010c2a0000000000000001000000020000000300000004",
         "00000005000000060000000700000008000000010000000000803e0000003f0000403f0000803f130000000d04000000",
-        "01050000803f000000400000404000ff007f0106000080400000a0400107020000000000003f00000104011100000000",
+        "01050000803f000000400000404000ff007f0106000080400000a040010107020000000000003f00000104011100000000",
         "cdcccc3dcdcc4c3e030000000000e0401000000008000000010f0000803f0000803f0110000000400000004000000020",
         "41000000000300000001090100010000fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0",
         "dfdedddcdbdad9d8d7d6d5d4d3d2d1d0cfcecdcccbcac9c8c7c6c5c4c3c2c1c0bfbebdbcbbbab9b8b7b6b5b4b3b2b1b0",

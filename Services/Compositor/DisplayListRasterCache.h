@@ -86,7 +86,7 @@ public:
     sk_sp<SkTextBlob> text_blob(Compositing::DisplayListResourceStorage const&, Compositing::FontResourceId, float scale, ReadonlySpan<Compositing::DisplayListGlyph>, u8 font_smoothing);
 
     sk_sp<SkImageFilter> layer_image_filter(u64 tree_structural_epoch, Compositing::ReplayLayer const&, Function<sk_sp<SkImageFilter>()> const& create);
-    sk_sp<SkImageFilter> backdrop_image_filter(u64 tree_structural_epoch, Compositing::ReplayLayer const&, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create);
+    sk_sp<SkImageFilter> backdrop_image_filter(u64 tree_structural_epoch, Compositing::ReplayLayer const&, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create);
 
     // The Skia path for a path that stays the same for as long as it has this identity. Keeping one Skia path lets
     // the caches that are keyed on it work.

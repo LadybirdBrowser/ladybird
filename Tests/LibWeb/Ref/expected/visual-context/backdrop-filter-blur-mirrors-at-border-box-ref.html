@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    background: blue;
+}
+.clip {
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    width: 100px;
+    height: 100px;
+    overflow: hidden;
+}
+.blurred {
+    position: absolute;
+    left: -100px;
+    top: -100px;
+    width: 300px;
+    height: 300px;
+    background: blue;
+    filter: blur(24px);
+}
+.strip {
+    position: absolute;
+    left: 80px;
+    top: 0;
+    width: 40px;
+    height: 300px;
+    background: red;
+}
+</style>
+<div class="clip">
+    <div class="blurred">
+        <div class="strip"></div>
+    </div>
+</div>

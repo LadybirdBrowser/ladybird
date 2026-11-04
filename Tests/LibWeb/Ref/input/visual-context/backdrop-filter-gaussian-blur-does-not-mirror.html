@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/backdrop-filter-gaussian-blur-does-not-mirror-ref.html">
+<style>
+body {
+    margin: 0;
+    background: blue;
+}
+.strip {
+    position: absolute;
+    left: 100px;
+    top: 0;
+    width: 20px;
+    height: 300px;
+    background: red;
+}
+.filtered {
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    width: 100px;
+    height: 100px;
+    backdrop-filter: url(#blur);
+}
+</style>
+<!-- Only the blur() function mirrors at the box. An feGaussianBlur reads the blue beyond the left edge
+     of the box as it is, as in the reference. -->
+<svg width="0" height="0" style="position: absolute">
+    <filter id="blur" color-interpolation-filters="sRGB">
+        <feGaussianBlur stdDeviation="24" />
+    </filter>
+</svg>
+<div class="strip"></div>
+<div class="filtered"></div>

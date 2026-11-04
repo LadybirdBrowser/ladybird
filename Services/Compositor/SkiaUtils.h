@@ -10,6 +10,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/Function.h>
+#include <AK/Optional.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/PaintStyle.h>
@@ -142,7 +143,8 @@ SkPath to_skia_path(PathData const&);
 SkPath to_skia_path(Path const& path);
 // Builds the SkImageFilter tree a serialized filter graph describes; `image_frame` supplies the
 // frames the graph names by id.
-sk_sp<SkImageFilter> to_skia_image_filter(ReadonlyBytes serialized_filter, Function<DecodedImageFrame const&(u64)> const& image_frame);
+// With `blur_edge`, every blur() filter function reads its input mirrored at that rect, not what lies outside it.
+sk_sp<SkImageFilter> to_skia_image_filter(ReadonlyBytes serialized_filter, Function<DecodedImageFrame const&(u64)> const& image_frame, Optional<FloatRect> blur_edge = {});
 sk_sp<SkBlender> to_skia_blender(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
 
 // The returned SkImage references the source bitmap's pixels without copying; the caller

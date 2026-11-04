@@ -1571,13 +1571,43 @@ void DisplayListPlayerSkia::push_layer(ReplayLayer const& layer)
     canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &paint, backdrop_image_filter(layer, true).get(), 0));
 }
 
-// With `limited_to_region`, the filtered backdrop is cropped to the rounded region inside the filter
-// graph, which also bounds what the filter reads.
+// Replay gives the edge as the clips around the box leave it. What lies beyond the surface cannot be read, so the edge
+// stops there too, which keeps a box larger than the surface cheap to read. Skia keeps only whole pixels of a mirroring
+// crop, so the edge has to span the pixels it touches; otherwise, a region thinner than a pixel would vanish.
+static Gfx::FloatRect backdrop_blur_edge_on_surface(SkCanvas const& canvas, Gfx::FloatRect clipped_region)
+{
+    auto const& matrix = canvas.getTotalMatrix();
+    SkMatrix inverse;
+    if (!matrix.invert(&inverse))
+        return clipped_region;
+    auto edge = to_skia_rect(clipped_region);
+    auto surface_bounds = SkRect::Make(canvas.getBaseLayerSize());
+    if (matrix.rectStaysRect()) {
+        edge = SkRect::Make(matrix.mapRect(edge).roundOut());
+        if (!edge.intersect(surface_bounds))
+            return {};
+        edge = inverse.mapRect(edge);
+    } else {
+        if (!edge.intersect(inverse.mapRect(surface_bounds)))
+            return {};
+        // Skia picks the pixels of a turned box in a space of its own, so only their largest possible size is known.
+        if (auto scale = matrix.getMinScale(); scale > 0) {
+            auto pixel = 1 / scale;
+            edge.outset(edge.width() < 2 * pixel ? pixel : 0, edge.height() < 2 * pixel ? pixel : 0);
+        }
+    }
+    return { edge.x(), edge.y(), edge.width(), edge.height() };
+}
+
+// With `limited_to_region`, the filtered backdrop is cropped to the rounded region inside the filter graph.
 sk_sp<SkImageFilter> DisplayListPlayerSkia::backdrop_image_filter(ReplayLayer const& layer, bool limited_to_region)
 {
     ReadonlyBytes filter_bytes { layer.backdrop_filter_bytes, layer.backdrop_filter_bytes_size };
-    return raster_cache().backdrop_image_filter(active_visual_context_tree().structural_epoch(), layer, limited_to_region, [&] {
-        auto image_filter = image_filter_from_bytes(filter_bytes);
+    Optional<Gfx::FloatRect> blur_edge;
+    if (layer.backdrop_blur_edge.has_value())
+        blur_edge = backdrop_blur_edge_on_surface(surface().canvas(), *layer.backdrop_blur_edge);
+    return raster_cache().backdrop_image_filter(active_visual_context_tree().structural_epoch(), layer, blur_edge, limited_to_region, [&] {
+        auto image_filter = image_filter_from_bytes(filter_bytes, blur_edge);
         if (layer.backdrop_base_color.alpha() != 0) {
             auto base = SkImageFilters::Shader(SkShaders::Color(to_skia_color(layer.backdrop_base_color)));
             image_filter = SkImageFilters::Compose(move(image_filter), SkImageFilters::Blend(SkBlendMode::kSrcOver, move(base), nullptr));
@@ -1607,11 +1637,9 @@ sk_sp<SkImageFilter> DisplayListPlayerSkia::layer_image_filter(ReplayLayer const
     });
 }
 
-sk_sp<SkImageFilter> DisplayListPlayerSkia::image_filter_from_bytes(ReadonlyBytes filter_bytes)
+sk_sp<SkImageFilter> DisplayListPlayerSkia::image_filter_from_bytes(ReadonlyBytes filter_bytes, Optional<Gfx::FloatRect> blur_edge)
 {
-    return Gfx::to_skia_image_filter(filter_bytes, [&](u64 image_id) -> Gfx::DecodedImageFrame const& {
-        return resource_storage().image_frame(ImageFrameResourceId { image_id });
-    });
+    return Gfx::to_skia_image_filter(filter_bytes, [&](u64 image_id) -> Gfx::DecodedImageFrame const& { return resource_storage().image_frame(ImageFrameResourceId { image_id }); }, blur_edge);
 }
 
 // A mask that applies to a box's filtered backdrop starts its layer with that backdrop, read from the

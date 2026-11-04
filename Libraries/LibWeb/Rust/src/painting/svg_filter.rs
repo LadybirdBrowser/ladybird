@@ -237,11 +237,11 @@ impl SvgFilterGraphBuilder {
                     })
                 }
             }
-            FfiSvgFilterPrimitiveKind::GaussianBlur => in_space(Filter::Blur {
-                radius_x: values.std_deviation_x * self.scale,
-                radius_y: values.std_deviation_y * self.scale,
-                input: boxed(self.resolve_input_in(&primitive.in1, space)),
-            }),
+            FfiSvgFilterPrimitiveKind::GaussianBlur => in_space(Filter::gaussian_blur(
+                values.std_deviation_x * self.scale,
+                values.std_deviation_y * self.scale,
+                self.resolve_input_in(&primitive.in1, space),
+            )),
             FfiSvgFilterPrimitiveKind::ColorMatrix => {
                 let input = self.resolve_input_in(&primitive.in1, space);
                 let matrix_values = primitive.color_matrix_values;
@@ -341,11 +341,11 @@ impl SvgFilterGraphBuilder {
                     matrix: ALPHA_ONLY_MATRIX,
                     input: boxed(input.clone()),
                 };
-                let blurred = Filter::Blur {
-                    radius_x: values.std_deviation_x * self.scale,
-                    radius_y: values.std_deviation_y * self.scale,
-                    input: Some(Box::new(alpha)),
-                };
+                let blurred = Filter::gaussian_blur(
+                    values.std_deviation_x * self.scale,
+                    values.std_deviation_y * self.scale,
+                    Some(alpha),
+                );
                 // 2. Offset the result of step 1 by dx and dy as specified on the feDropShadow element,
                 //    equivalent to applying an feOffset with these parameters:
                 //
@@ -504,15 +504,15 @@ mod tests {
             Some(Filter::ColorSpaceConversion {
                 source_color_space: InterpolationColorSpace::LinearRGB,
                 destination_color_space: InterpolationColorSpace::SRGB,
-                input: Some(Box::new(Filter::Blur {
-                    radius_x: 4.0,
-                    radius_y: 4.0,
-                    input: Some(Box::new(Filter::ColorSpaceConversion {
+                input: Some(Box::new(Filter::gaussian_blur(
+                    4.0,
+                    4.0,
+                    Some(Filter::ColorSpaceConversion {
                         source_color_space: InterpolationColorSpace::SRGB,
                         destination_color_space: InterpolationColorSpace::LinearRGB,
                         input: None,
-                    })),
-                })),
+                    }),
+                ))),
             })
         );
     }
@@ -522,8 +522,8 @@ mod tests {
         let mut merge = primitive(FfiSvgFilterPrimitiveKind::Merge, InterpolationColorSpace::SRGB);
         merge.merge_inputs = vec![name("first"), name("SourceAlpha"), name("missing")];
 
-        let first_blur = Filter::blur(1.0, 1.0, None);
-        let second_blur = Filter::blur(2.0, 2.0, Some(first_blur.clone()));
+        let first_blur = Filter::gaussian_blur(1.0, 1.0, None);
+        let second_blur = Filter::gaussian_blur(2.0, 2.0, Some(first_blur.clone()));
         assert_eq!(
             graph([blur("SourceGraphic", 1.0, "first"), blur("", 2.0, ""), merge], 1.0),
             Some(Filter::Merge {
@@ -550,7 +550,7 @@ mod tests {
         assert_eq!(graph([matrix()], 1.0), None);
         assert_eq!(
             graph([blur("SourceGraphic", 1.0, ""), matrix()], 1.0),
-            Some(Filter::blur(1.0, 1.0, None))
+            Some(Filter::gaussian_blur(1.0, 1.0, None))
         );
     }
 
@@ -569,14 +569,14 @@ mod tests {
             background: Some(Box::new(Filter::Offset {
                 dx: 1.0,
                 dy: 2.0,
-                input: Some(Box::new(Filter::Blur {
-                    radius_x: 3.0,
-                    radius_y: 3.0,
-                    input: Some(Box::new(Filter::ColorMatrix {
+                input: Some(Box::new(Filter::gaussian_blur(
+                    3.0,
+                    3.0,
+                    Some(Filter::ColorMatrix {
                         matrix: ALPHA_ONLY_MATRIX,
                         input: None,
-                    })),
-                })),
+                    }),
+                ))),
             })),
             foreground: Some(Box::new(Filter::Flood {
                 color: Color::from_rgb(0, 0, 0),
