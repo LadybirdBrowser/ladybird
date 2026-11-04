@@ -9,6 +9,7 @@
 //! a token nor call an entry that does.
 
 use super::*;
+use crate::painting::hit_test::caret::HostNodeScopes;
 use crate::painting::host::FfiCaretAt;
 use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paint_passes::{PassEffect, pending_preparation, run as run_paint_pass};
@@ -1079,7 +1080,10 @@ pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
     let mode = crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode);
     *out = with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, true, None, |list, tree, arena| {
         list.caret_position_from_point(
-            &main_thread,
+            &HostNodeScopes {
+                main_thread: &main_thread,
+                callbacks: &callbacks,
+            },
             arena,
             tree,
             &callbacks,
@@ -1115,9 +1119,11 @@ pub unsafe extern "C" fn layout_hit_test_caret_at_line_edge(
     let main_thread = unsafe { main_thread(host) };
     *out = with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
         list.caret_at_line_edge(
-            &main_thread,
+            &HostNodeScopes {
+                main_thread: &main_thread,
+                callbacks: &callbacks,
+            },
             arena,
-            &callbacks,
             &query,
             offset,
             affinity_is_downstream,
@@ -1158,9 +1164,11 @@ pub unsafe extern "C" fn layout_hit_test_caret_on_adjacent_line(
     let main_thread = unsafe { main_thread(host) };
     *out = with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
         list.caret_on_adjacent_line(
-            &main_thread,
+            &HostNodeScopes {
+                main_thread: &main_thread,
+                callbacks: &callbacks,
+            },
             arena,
-            &callbacks,
             &query,
             offset,
             affinity_is_downstream,
