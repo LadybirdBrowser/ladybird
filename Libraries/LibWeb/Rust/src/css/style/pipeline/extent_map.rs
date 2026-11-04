@@ -16,6 +16,10 @@ use super::shared_pages::{PagePool, SharedPages};
 use std::ops::Range;
 use std::sync::Arc;
 
+/// The hash a frozen map looks a key up by, for a caller looking the same key up in many maps.
+#[derive(Clone, Copy)]
+pub(super) struct KeyHash(u64);
+
 /// Where one key's list stands in the backing, and how much room it has there.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub(super) struct Extent {
@@ -222,11 +226,11 @@ impl<K, V> Default for FrozenExtentMap<K, V> {
 }
 
 impl<K: Copy + Eq + std::hash::Hash, V: Copy> FrozenExtentMap<K, V> {
-    fn hash_of(key: &K) -> u64 {
+    pub(super) fn hash_of(key: &K) -> KeyHash {
         use std::hash::Hasher;
         let mut hasher = super::super::fast_hash::fast_hasher();
         key.hash(&mut hasher);
-        hasher.finish()
+        KeyHash(hasher.finish())
     }
 
     /// The lists of `map`, packed.
@@ -249,7 +253,7 @@ impl<K: Copy + Eq + std::hash::Hash, V: Copy> FrozenExtentMap<K, V> {
         };
         let mut slots = vec![0_u32; length].into_boxed_slice();
         for (number, record) in records.iter().enumerate() {
-            let hash = Self::hash_of(&record.key);
+            let KeyHash(hash) = Self::hash_of(&record.key);
             let mut slot = hash as usize & (length - 1);
             while slots[slot] != 0 {
                 slot = (slot + 1) & (length - 1);
@@ -267,10 +271,15 @@ impl<K: Copy + Eq + std::hash::Hash, V: Copy> FrozenExtentMap<K, V> {
     /// The list of `key`, where the map has it, which may be empty.
     #[inline]
     pub(super) fn get(&self, key: &K) -> Option<&[V]> {
+        self.get_hashed(key, Self::hash_of(key))
+    }
+
+    /// The list of `key`, whose hash is `hash`, where the map has it, which may be empty.
+    #[inline]
+    pub(super) fn get_hashed(&self, key: &K, KeyHash(hash): KeyHash) -> Option<&[V]> {
         if self.slots.is_empty() {
             return None;
         }
-        let hash = Self::hash_of(key);
         let mask = self.slots.len() - 1;
         let tag = (hash >> (64 - (32 - FROZEN_TAG_SHIFT))) as u32;
         let mut slot = hash as usize & mask;

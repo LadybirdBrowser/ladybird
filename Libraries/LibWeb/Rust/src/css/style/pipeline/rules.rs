@@ -24,7 +24,7 @@ use super::super::selector_analysis::{EntryFacts, collect_tested_ids, state_disp
 use super::super::weak_pool::WeakPool;
 use super::super::*;
 use super::bloom::AncestorHashes;
-use super::extent_map::{Extent, ExtentMap, FrozenExtentMap, PagedExtentMap};
+use super::extent_map::{Extent, ExtentMap, FrozenExtentMap, KeyHash, PagedExtentMap};
 use super::rule_changes::{Regrouped, RuleIndexChanges, StayedEntry};
 use super::rule_store::UserAgentVariant;
 use super::shared_pages::{PagePool, SharedPages};
@@ -489,6 +489,22 @@ impl Buckets {
         let words = match self {
             Self::Growing(map) => map.get(key),
             Self::Frozen(map) => map.get(key),
+        };
+        words.map(|words| BucketSlots { words })
+    }
+
+    /// The hash [`Self::get_hashed`] takes for `key`.
+    #[inline]
+    pub(super) fn hash_of(key: &DispatchKey) -> KeyHash {
+        FrozenExtentMap::<DispatchKey, u32>::hash_of(key)
+    }
+
+    /// The slots of `key`, whose hash is `hash`, where it has any.
+    #[inline]
+    pub(super) fn get_hashed(&self, key: &DispatchKey, hash: KeyHash) -> Option<BucketSlots<'_>> {
+        let words = match self {
+            Self::Growing(map) => map.get(key),
+            Self::Frozen(map) => map.get_hashed(key, hash),
         };
         words.map(|words| BucketSlots { words })
     }
