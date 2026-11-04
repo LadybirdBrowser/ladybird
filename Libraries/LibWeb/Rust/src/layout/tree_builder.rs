@@ -3565,7 +3565,10 @@ fn stamp_nested_list_marker_row(
     generator: StyleNodeID,
     pseudo_element: FfiPseudoElement,
     list_item_box: NodeSlotId,
-) -> NodeSlotId {
+) -> Option<NodeSlotId> {
+    let list_item_shows_its_type = host
+        .style(list_item_box)
+        .is_some_and(|style| !style.list_style_type_is_none());
     let derived = host.arena_mut().with_style_engine(|engine| {
         // The generator's own `::marker` record, which the engine derives for this read alone where the generator
         // holds none. It answers one for every list item; should it not, the marker takes the generator's style.
@@ -3581,10 +3584,18 @@ fn stamp_nested_list_marker_row(
             })
             .or_else(|| engine.element_published_style_record(generator))
             .expect("a list item the build reaches has published its style");
+        // As for an element's ::marker, the marker shows its own list-style-image, or else the list item's
+        // list-style-type, which shows nothing where it's none. Where neither shows anything, there's no marker.
+        let marker_shows_its_image = engine
+            .style_record_view(record)
+            .is_some_and(|view| ComputedValuesView::of(view.payloads).list_style_image_is_set());
+        if !marker_shows_its_image && !list_item_shows_its_type {
+            return None;
+        }
         // NB: Republishing the generator's own `::marker` record can retire its animation record while the nested
         //     marker still refers to it. The marker takes a record of its own, copied from it.
-        LayoutStyle::from_record(engine, record).intern(engine)
-    });
+        Some(LayoutStyle::from_record(engine, record).intern(engine))
+    })?;
     let slot = host.arena.allocate_unbound();
     host.arena_mut()
         .stamp_anonymous_box(slot, NodeKind::ListItemMarkerBox, derived);
@@ -3602,7 +3613,7 @@ fn stamp_nested_list_marker_row(
             owns_content_replacement_image: false,
         },
     );
-    slot
+    Some(slot)
 }
 
 /// The row one item of a pseudo-element's generated content is built in, and its layout node. An
@@ -3761,8 +3772,10 @@ fn create_pseudo_element(
     let owner = resolve_counters(host, element_identity, pseudo_element);
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
-    if layout_node_kind == NodeKind::ListItemBox {
-        let marker_slot = stamp_nested_list_marker_row(host, element_identity, pseudo_element, layout_node);
+    let nested_marker_slot = (layout_node_kind == NodeKind::ListItemBox)
+        .then(|| stamp_nested_list_marker_row(host, element_identity, pseudo_element, layout_node))
+        .flatten();
+    if let Some(marker_slot) = nested_marker_slot {
         let marker = host.created(marker_slot);
         let first_child = host.first_child(layout_node);
         host.attach_child(layout_node, marker, first_child);
