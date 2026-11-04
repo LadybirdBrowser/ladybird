@@ -586,12 +586,17 @@ void StyleEngine::gather_computation_inputs(LentComputationInputs& lent)
     // Each scope's @function rules, published after the media environment is settled: a media
     // change rebuilds the definitions. The style engine decides which of them a call names. Most
     // documents hold none, and then no scope is published.
-    auto has_function_rules = [](StyleScope const& scope) { return !scope.rule_cache().function_rules.is_empty(); };
-    bool document_has_function_rules = has_function_rules(document.style_scope());
-    document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
-        document_has_function_rules = document_has_function_rules || has_function_rules(shadow_root.style_scope());
-    });
-    if (document_has_function_rules) {
+    // OPTIMIZATION: Only a change to the document's style sheets or shadow roots moves the answer, so a style update
+    //               visits them only after one, and a document with many shadow trees pays nothing per update.
+    if (m_function_rules_checked_generation != document.style_sheet_set_generation()) {
+        m_function_rules_checked_generation = document.style_sheet_set_generation();
+        auto has_function_rules = [](StyleScope const& scope) { return !scope.rule_cache().function_rules.is_empty(); };
+        m_document_has_function_rules = has_function_rules(document.style_scope());
+        document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
+            m_document_has_function_rules = m_document_has_function_rules || has_function_rules(shadow_root.style_scope());
+        });
+    }
+    if (m_document_has_function_rules) {
         auto& style_engine = m_style_computer->style_engine();
         auto publish_scope = [&](StyleScope const& scope) {
             StyleEngineFFI::FfiCustomFunctionEntry entry {
