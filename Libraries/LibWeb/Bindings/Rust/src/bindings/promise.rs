@@ -45,11 +45,11 @@ unsafe extern "C" {
         steps: unsafe extern "C" fn(*mut c_void, *mut c_void),
     );
 
-    /// Queues a global task on the task source, an HTML::Task::Source, with the global object of the realm, that calls
-    /// the steps with the VM and the cell, as HTML::queue_global_task() queues one. The cell lives until then. Returns
-    /// the task's HTML::TaskID.
+    /// Queues a global task on the task source, an HTML::Task::Source, with the global object, that calls the steps with
+    /// the VM and the cell, as HTML::queue_global_task() queues one. The cell lives until then. Returns the task's
+    /// HTML::TaskID.
     fn web_bindings_queue_a_global_task(
-        realm: *mut c_void,
+        global_object: *mut c_void,
         task_source: u8,
         cell: *mut c_void,
         steps: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -598,20 +598,20 @@ pub(crate) fn queue_a_task<C: Trace + Copy + 'static>(
     unsafe { web_bindings_queue_a_task(realm.as_ptr().cast(), task_source as u8, cell, run_pending_steps) };
 }
 
-/// Queues a global task on the task source, given the global object of the realm, that performs the steps with the
-/// captures, https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task. Unlike queue_a_task(), the
-/// steps run with no execution context of their own on the stack.
+/// Queues a global task on the task source, given the global object, that performs the steps with the captures,
+/// https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task. Unlike queue_a_task(), the steps run
+/// with no execution context of their own on the stack.
 pub(crate) fn queue_a_global_task<C: Trace + Copy + 'static>(
     vm: &Vm,
-    realm: Gc<Realm>,
+    global: Gc<Object>,
     task_source: TaskSource,
     captures: C,
     steps: fn(&Vm, C),
 ) -> TaskId {
     let cell = pending_steps(vm, captures, steps);
-    // SAFETY: The realm and the cell are live.
+    // SAFETY: The global object and the cell are live.
     TaskId(unsafe {
-        web_bindings_queue_a_global_task(realm.as_ptr().cast(), task_source as u8, cell, run_pending_steps)
+        web_bindings_queue_a_global_task(global.as_ptr().cast(), task_source as u8, cell, run_pending_steps)
     })
 }
 

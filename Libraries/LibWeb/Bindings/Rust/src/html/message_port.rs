@@ -358,7 +358,7 @@ impl MessagePort {
         let message_task_generation = this.message_task_generation.get();
         queue_a_global_task(
             vm,
-            this.realm,
+            this.realm.global_object(),
             TaskSource::PostedMessage,
             (this, message_task_generation),
             |vm, (this, message_task_generation)| {
@@ -437,9 +437,15 @@ impl MessagePort {
         }
 
         if this.enabled.get() && this.should_shutdown_on_enable.replace(false) {
-            queue_a_global_task(vm, this.realm, TaskSource::PostedMessage, this, |_, this| {
-                this.close_steps();
-            });
+            queue_a_global_task(
+                vm,
+                this.realm.global_object(),
+                TaskSource::PostedMessage,
+                this,
+                |_, this| {
+                    this.close_steps();
+                },
+            );
         }
     }
 
