@@ -52,6 +52,7 @@ set(TEST_SOURCES
     TestChromeIcons.cpp
     TestHiddenPageSizing.cpp
     TestNativeTextEditingLineEdit.cpp
+    TestPerformanceMonitorWidget.cpp
     TestProcessManagerWindow.cpp
     TestScreenshotSelectionOverlay.cpp
     TestScreenshotViewer.cpp
@@ -59,12 +60,12 @@ set(TEST_SOURCES
     TestSiteSettingsPopover.cpp
     TestWebCompatReportReview.cpp
     TestWebContentViewInputMethod.cpp
-    "${LADYBIRD_SOURCE_DIR}/Libraries/LibWebView/ProcessMonitor.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/ChromeStyle.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/HiddenPageSizing.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/Icon.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/InputMethodUtils.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/NativeTextEditingLineEdit.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/PerformanceMonitorWidget.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/Popover.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/ProcessManagerWindow.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/ReportReview.cpp"
@@ -89,9 +90,9 @@ endif()
 
 if (APPLE)
     list(APPEND TEST_SOURCES
-        "${LADYBIRD_SOURCE_DIR}/UI/Qt/SystemAppearanceMac.mm"
-        "${LADYBIRD_SOURCE_DIR}/UI/Qt/NativeTextEditingBindings.mm"
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/MacWindowFocus.mm"
+        "${LADYBIRD_SOURCE_DIR}/UI/Qt/NativeTextEditingBindings.mm"
+        "${LADYBIRD_SOURCE_DIR}/UI/Qt/SystemAppearanceMac.mm"
     )
     target_link_libraries(TestUIQt PRIVATE "-framework AppKit")
 endif()
@@ -103,8 +104,8 @@ if (LINUX)
         TestPermissionPromptPopover.cpp
         TestStringUtils.cpp
         TestWindowCloseCoordinator.cpp
-        "${LADYBIRD_SOURCE_DIR}/UI/Qt/NativeWindowContainer.cpp"
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/JavaScriptDialog.cpp"
+        "${LADYBIRD_SOURCE_DIR}/UI/Qt/NativeWindowContainer.cpp"
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/PermissionPromptPopover.cpp"
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/WindowCloseCoordinator.cpp"
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/X11Window.cpp"
@@ -133,4 +134,24 @@ if (TARGET Qt6::QOffscreenIntegrationPlugin)
             VERBATIM
         )
     endif()
+endif()
+
+if (APPLE)
+    add_library(NativeTextEditingTestMain OBJECT
+        NativeTextEditingTestMain.mm
+        "${LADYBIRD_SOURCE_DIR}/Libraries/LibTest/AssertionHandler.cpp"
+    )
+    target_link_libraries(NativeTextEditingTestMain PRIVATE AK LibTest "-framework AppKit")
+    ladybird_test("TestNativeTextEditingBindings.mm" UI/Qt
+        NO_TEST
+        CUSTOM_MAIN "$<TARGET_OBJECTS:NativeTextEditingTestMain>"
+        LIBS LibWebCommon Qt::Widgets "-framework AppKit"
+    )
+    foreach(mode default custom)
+        add_test(NAME TestNativeTextEditingBindings-${mode}
+            COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/run-native-text-editing-tests.py
+                $<TARGET_FILE:TestNativeTextEditingBindings> ${mode}
+        )
+    endforeach()
 endif()
