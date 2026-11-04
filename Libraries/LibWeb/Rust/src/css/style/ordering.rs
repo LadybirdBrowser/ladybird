@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::pipeline::projection::NoteChanges;
 use super::*;
 
 impl RetainedState {
@@ -253,17 +254,17 @@ impl StyleEngine {
 
 impl StyleEngine {
     /// Advance every staged input family to the transaction's final snapshot.
-    pub(super) fn apply_staged_transaction(&mut self, transaction: &mut StyleUpdate) {
+    pub(super) fn apply_staged_transaction(&mut self, transaction: &mut StyleUpdate, note_changes: NoteChanges) {
         transaction.rule_changes = self.commit_staged_program();
         self.settle_tree_at_barrier();
-        self.retained.projection.commit();
+        self.retained.projection.commit_noting(note_changes);
     }
 
     /// Normalize and apply the staged inputs into one transaction. A required style observation
     /// drains here first, so normalization never combines changes across an observation boundary.
     pub fn take_transaction(&mut self) -> StyleUpdate {
         let mut transaction = self.drain_transaction();
-        self.apply_staged_transaction(&mut transaction);
+        self.apply_staged_transaction(&mut transaction, NoteChanges::Yes);
         transaction
     }
 

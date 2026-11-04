@@ -976,7 +976,10 @@ impl Projection {
     ///
     /// The transaction that flushes a geometry read's seal publishes the sealed rows instead, and
     /// the elements written after the seal stay written for the transaction after it.
-    pub(in crate::css::style) fn commit(&mut self) {
+    ///
+    /// What a transaction changed is three scans over every written row, for the live style to read. `note_changes`
+    /// says whether anything will.
+    pub(in crate::css::style) fn commit_noting(&mut self, note_changes: NoteChanges) {
         let committed = match self.flushing_seal {
             true => self.sealed.clone().expect("a flushed seal holds its rows"),
             false => self.rows.clone(),
@@ -993,16 +996,18 @@ impl Projection {
         let hovered = HoveredFacts::of(chain, &self.committed);
         self.hover.before = std::mem::replace(&mut self.hover.committed, hovered);
         let mut written = self.written.take();
-        written.sort_unstable();
         self.pending_change_scan.clear();
         self.changes.clear();
-        for pass in ChangePass::ALL {
-            for &node in &written {
-                let slot = node.element_slot();
-                let before = self.before.get(slot);
-                let after = self.committed.get(slot);
-                let hovered = (self.hover.before.contains(node), self.hover.committed.contains(node));
-                note_changes(pass, node, (before, after), hovered, &mut self.changes);
+        if note_changes == NoteChanges::Yes {
+            written.sort_unstable();
+            for pass in ChangePass::ALL {
+                for &node in &written {
+                    let slot = node.element_slot();
+                    let before = self.before.get(slot);
+                    let after = self.committed.get(slot);
+                    let hovered = (self.hover.before.contains(node), self.hover.committed.contains(node));
+                    self::note_changes(pass, node, (before, after), hovered, &mut self.changes);
+                }
             }
         }
         self.note_watched_key_writes(&written);
@@ -1016,6 +1021,11 @@ impl Projection {
         } else {
             self.forget_written_since_seal();
         }
+    }
+
+    #[cfg(test)]
+    pub(in crate::css::style) fn commit(&mut self) {
+        self.commit_noting(NoteChanges::Yes);
     }
 
     /// Note those of the elements `written`, in the transaction being taken, that carried a watched key or carry one,
@@ -2007,6 +2017,13 @@ fn relations_of(row: &Row) -> Option<TreeRelations> {
         tree_scope: row.facts.lists.tree_scope(),
         assigned_slot: row.facts.lists.assigned_slot(),
     })
+}
+
+/// Whether a transaction being taken notes what it changed.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::css::style) enum NoteChanges {
+    Yes,
+    No,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
