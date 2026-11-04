@@ -678,6 +678,7 @@ impl StyleEngine {
     /// takes a recording in, so that a document that styles nothing more still frees what its recording kept.
     pub(crate) fn free_style_records_kept_for_leases(&mut self) {
         self.retained.computed_group_sets.free_retired_animation_overlays();
+        self.retained.computed_group_sets.sweep_at_next_reclamation();
         self.reclaim_unreachable_computed_records();
     }
 

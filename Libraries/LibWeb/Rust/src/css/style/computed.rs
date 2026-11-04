@@ -471,6 +471,9 @@ pub(crate) struct HoverFrameLease {
 /// as many as they are, so that reading them costs a task less than what it made them for, but at least this many.
 const MIN_RECORDS_RELEASED_BEFORE_READING_LEASES: usize = 1024;
 
+/// How few released records a reclamation leaves to a later sweep.
+const MIN_RECORDS_RELEASED_BEFORE_SWEEPING: usize = 64;
+
 /// A reader's hold on the payloads of every style record published so far: while one is held, the
 /// engine frees no record's payloads, which a reader on another thread may be reading.
 pub(crate) struct StyleRecordLease {
@@ -831,6 +834,9 @@ pub struct ComputedGroupSets {
     hover_frame_leases: std::sync::Arc<std::sync::Mutex<Vec<std::sync::Weak<HoverFrameLease>>>>,
     /// How many released records have the next sweep read the rows of the hover frames' leases.
     released_records_reading_leases: usize,
+    /// How many records have to be released, as a sweep leaves them, for a reclamation to sweep them. A sweep reads
+    /// every record it does not free, so a style update that releases a few sweeps only once they add up.
+    released_records_sweeping: usize,
     // Recyclable animation overlays are deliberately separate from the installed records above.
     // Dense element assignments and sparse pseudo assignments pin at most one slot each.
     animation_overlay_column: AnimationOverlayColumn,
@@ -860,6 +866,7 @@ impl Default for ComputedGroupSets {
             pseudo_rows_moved: Vec::new(),
             hover_frame_leases: std::sync::Arc::default(),
             released_records_reading_leases: MIN_RECORDS_RELEASED_BEFORE_READING_LEASES,
+            released_records_sweeping: MIN_RECORDS_RELEASED_BEFORE_SWEEPING,
             animation_overlay_column: AnimationOverlayColumn::default(),
             animation_overlay_slots: animation_overlay_slots::AnimationOverlaySlots::default(),
             animation_overlay_slots_by_record: HashMap::default(),
@@ -1745,6 +1752,11 @@ impl ComputedGroupSets {
         self.sweep_installed_records();
     }
 
+    /// Has the next reclamation sweep however few records were released.
+    pub(super) fn sweep_at_next_reclamation(&mut self) {
+        self.released_records_sweeping = 0;
+    }
+
     /// Frees the installed records nothing holds, where nothing views or leases them, and answers
     /// whether enough were freed since the last time it did for what they named to be reclaimed.
     pub(super) fn reclaim_unreachable_if_needed(&mut self, records_are_viewed: bool) -> bool {
@@ -1753,7 +1765,11 @@ impl ComputedGroupSets {
         if records_are_viewed || self.style_records_are_leased() {
             return false;
         }
-        self.sweep_installed_records();
+        if self.installed.released_count() >= self.released_records_sweeping {
+            self.sweep_installed_records();
+            self.released_records_sweeping =
+                (self.installed.released_count() * 2).max(MIN_RECORDS_RELEASED_BEFORE_SWEEPING);
+        }
         if self.records_freed_since_reclamation < self.next_reclamation_after {
             return false;
         }
