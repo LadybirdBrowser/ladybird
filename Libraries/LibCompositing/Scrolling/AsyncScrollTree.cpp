@@ -229,6 +229,7 @@ Optional<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(Compositing::Spa
                 .visual_viewport_scale = {},
                 .applied_scroll_request_id = 0,
                 .user_input_scroll_count = 0,
+                .context_user_input_scroll_count = 0,
             };
         }
 

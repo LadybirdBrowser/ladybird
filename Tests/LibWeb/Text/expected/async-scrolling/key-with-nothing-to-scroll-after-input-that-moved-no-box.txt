@@ -1,5 +1,5 @@
 box offset: 0
-beside the task, the compositor scrolled past the first Down: false
+beside the task, the compositor scrolled past the first Down: true
 keys the page heard of: ArrowUp, ArrowDown, ArrowDown
-compositor offset once settled: 100
-main thread offset: 100
+compositor offset once settled: 200
+main thread offset: 200
