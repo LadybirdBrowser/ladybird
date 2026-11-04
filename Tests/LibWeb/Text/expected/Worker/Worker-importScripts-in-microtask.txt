@@ -1,0 +1,2 @@
+importScripts() called from a promise reaction: the imported script ran
+importScripts() called from a queueMicrotask() callback: the imported script ran

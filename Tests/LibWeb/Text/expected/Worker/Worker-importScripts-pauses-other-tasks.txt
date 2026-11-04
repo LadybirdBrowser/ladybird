@@ -1,0 +1,6 @@
+The imported script ran: true
+Ran while importScripts() was blocked: (nothing)
+Never ran after importScripts() returned: (none)
+Ran more than once: (none)
+The microtasks ran before the tasks: true
+The microtasks ran in the order they were queued: true
