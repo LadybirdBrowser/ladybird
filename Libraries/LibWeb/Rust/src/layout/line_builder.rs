@@ -489,8 +489,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         prepared: &prepared_inline_content::PreparedInlineContent,
         style: StyleValues,
     ) {
-        let glyphs = item.take_glyph_data(prepared);
-        let content_block_size = TextLayoutBounds::new(style, Some(&glyphs.font)).block_size();
+        let glyphs = item.take_glyph_run(prepared);
+        let content_block_size = TextLayoutBounds::new(style, Some(glyphs.font)).block_size();
         self.append_text_chunk(
             item.node,
             item.offset_in_node,
@@ -518,7 +518,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         trailing_margin: CssPixels,
         content_inline_size: CssPixels,
         content_block_size: CssPixels,
-        glyphs: line_box_fragment::GlyphData,
+        glyphs: line_box_fragment::ItemGlyphRun<'_>,
         trailing_whitespace: line_box_fragment::TrailingWhitespace,
     ) {
         self.prepare_to_append_inline_content();

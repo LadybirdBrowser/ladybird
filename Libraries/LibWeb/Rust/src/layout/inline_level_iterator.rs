@@ -206,16 +206,19 @@ impl Item {
             return None;
         }
         let prepared_item = self.prepared_item(prepared);
+        let font = prepared.font_of(prepared_item);
         let text_type = prepared_item.text_type();
         Some(match &self.owned_glyph_run {
             Some(owned) => line_box_fragment::ItemGlyphRun {
                 glyphs: std::borrow::Cow::Borrowed(&owned.glyphs),
+                font,
                 text_type,
                 width: owned.width,
                 is_upright: owned.is_upright,
             },
             None => line_box_fragment::ItemGlyphRun {
                 glyphs: std::borrow::Cow::Borrowed(prepared_item.shape().glyphs()),
+                font,
                 text_type,
                 width: prepared_item.shape().width(),
                 is_upright: prepared_item.has(PreparedItem::UPRIGHT),
@@ -223,21 +226,25 @@ impl Item {
         })
     }
 
-    /// The glyph run of a text item, which the line it goes on takes from it.
-    pub(crate) fn take_glyph_data(&mut self, prepared: &PreparedInlineContent) -> line_box_fragment::GlyphData {
+    /// The glyph run of a text item, which the line it goes on takes from it: the item's own glyphs, moved out of it,
+    /// or the shape of its prepared item, borrowed.
+    pub(crate) fn take_glyph_run<'prepared>(
+        &mut self,
+        prepared: &'prepared PreparedInlineContent,
+    ) -> line_box_fragment::ItemGlyphRun<'prepared> {
         let prepared_item = self.prepared_item(prepared);
-        let font = prepared.font_of(prepared_item).clone();
+        let font = prepared.font_of(prepared_item);
         let text_type = prepared_item.text_type();
         match self.owned_glyph_run.take() {
-            Some(owned) => line_box_fragment::GlyphData {
-                glyphs: owned.glyphs.into(),
+            Some(owned) => line_box_fragment::ItemGlyphRun {
+                glyphs: std::borrow::Cow::Owned(owned.glyphs),
                 font,
                 text_type,
                 width: owned.width,
                 is_upright: owned.is_upright,
             },
-            None => line_box_fragment::GlyphData {
-                glyphs: libgfx_rust::text_layout::GlyphBuffer::Shared(prepared_item.shape().glyphs().clone()),
+            None => line_box_fragment::ItemGlyphRun {
+                glyphs: std::borrow::Cow::Borrowed(prepared_item.shape().glyphs()),
                 font,
                 text_type,
                 width: prepared_item.shape().width(),
