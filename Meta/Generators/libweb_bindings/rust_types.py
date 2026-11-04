@@ -65,6 +65,7 @@ FLOATING_POINT_TYPES = {"float": "f32", "unrestricted float": "f32", "double": "
 # The types whose values are plain data, with the Rust type of their values. None of these Rust types is or holds a
 # cell, which holds_cells() relies on.
 PLAIN_DATA_TYPES = {
+    "CSSOMString": "Utf16String",
     "DOMString": "Utf16String",
     "USVString": "UsvString",
     "boolean": "bool",

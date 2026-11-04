@@ -37,7 +37,7 @@ from Utils.webidl_parser import IDLUnionType
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Operation
 
-STRING_TYPES = {"ByteString", "DOMString", "USVString"}
+STRING_TYPES = {"ByteString", "CSSOMString", "DOMString", "USVString"}
 INTEGER_TYPES = {
     "byte",
     "octet",
