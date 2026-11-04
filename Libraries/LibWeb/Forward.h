@@ -1068,10 +1068,7 @@ class WritableStream;
 namespace Web::StorageAPI {
 
 class NavigatorStorage;
-class StorageBottle;
-class StorageBucket;
 class StorageManager;
-class StorageShelf;
 
 }
 

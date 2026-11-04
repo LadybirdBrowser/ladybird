@@ -124,6 +124,8 @@ bool web_bindings_document_is_fully_active(DOM::Document*);
 URL::FFI::RustUrl web_bindings_document_url(DOM::Document*);
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object);
 HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject* global_object);
+JSObject* web_bindings_environment_settings_object_global_object(HTML::EnvironmentSettingsObject*);
+void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject*, void* ctx, void (*on_id)(void*, ReadonlyBytes));
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*));
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
@@ -252,6 +254,16 @@ URL::FFI::RustUrl web_bindings_document_url(DOM::Document* document)
 HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject* global_object)
 {
     return &HTML::relevant_settings_object(*JS::HostABI::object_from_abi(global_object));
+}
+
+JSObject* web_bindings_environment_settings_object_global_object(HTML::EnvironmentSettingsObject* settings_object)
+{
+    return JS::HostABI::object_to_abi(&settings_object->global_object());
+}
+
+void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject* settings_object, void* ctx, void (*on_id)(void*, ReadonlyBytes))
+{
+    on_id(ctx, settings_object->id.to_string().bytes());
 }
 
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object)

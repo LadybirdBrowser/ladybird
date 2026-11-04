@@ -27,7 +27,7 @@
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/Timer.h>
-#include <LibWeb/StorageAPI/StorageAreaMirror.h>
+#include <LibWeb/StorageAPI/StorageAreaMirrorClient.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>

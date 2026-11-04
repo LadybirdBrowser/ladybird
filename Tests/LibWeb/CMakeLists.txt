@@ -49,7 +49,6 @@ set(TEST_SOURCES
     TestSharedCompiledStyleSheet.cpp
     TestSimpleRealm.cpp
     TestSourceHighlighter.cpp
-    TestStorageAreaMirror.cpp
     TestStructuredSerializeCorpus.cpp
     TestStructuredSerializeDurability.cpp
     TestStructuredSerializeFormat.cpp

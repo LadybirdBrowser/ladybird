@@ -1387,18 +1387,13 @@ void ConnectionFromClient::inspect_storage(Web::PageId page_id, Web::StorageAPI:
         return;
     }
 
-    auto& map = storage_or_error.value()->map();
     JsonArray storage_items;
-    for (auto const& name : map.keys()) {
-        auto value = map.get(name);
-        if (!value.has_value())
-            continue;
-
+    storage_or_error.value()->for_each_item([&](auto const& name, auto const& value) {
         JsonObject item;
         item.set("name"sv, name.to_utf8());
-        item.set("value"sv, value.release_value().to_utf8());
+        item.set("value"sv, value.to_utf8());
         storage_items.must_append(move(item));
-    }
+    });
 
     async_did_inspect_storage(page_id, request_id, storage_items.serialized());
 }
@@ -1435,22 +1430,22 @@ void ConnectionFromClient::clear_storage_area(Web::StorageAPI::StorageAreaId are
 
 void ConnectionFromClient::storage_area_changed(Web::StorageAPI::StorageAreaId area_id, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value, String url)
 {
-    Web::StorageAPI::StorageAreaMirror::did_change(area_id, key, old_value, new_value, url);
+    Web::StorageAPI::storage_area_did_change(area_id, key, old_value, new_value, url);
 }
 
 void ConnectionFromClient::storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId area_id)
 {
-    Web::StorageAPI::StorageAreaMirror::did_acknowledge_write(area_id);
+    Web::StorageAPI::storage_area_did_acknowledge_write(area_id);
 }
 
 void ConnectionFromClient::storage_area_write_refused(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values)
 {
-    Web::StorageAPI::StorageAreaMirror::did_refuse_write(area_id, move(keys), move(values));
+    Web::StorageAPI::storage_area_did_refuse_write(area_id, move(keys), move(values));
 }
 
 void ConnectionFromClient::storage_area_reset(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values)
 {
-    Web::StorageAPI::StorageAreaMirror::did_reset(area_id, move(keys), move(values));
+    Web::StorageAPI::storage_area_did_reset(area_id, move(keys), move(values));
 }
 
 void ConnectionFromClient::inspect_dom_node(Web::PageId page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options_value)

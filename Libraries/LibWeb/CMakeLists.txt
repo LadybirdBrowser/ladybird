@@ -778,11 +778,9 @@ set(SOURCES
     SRI/IntegrityPolicy.cpp
     SRI/SRI.cpp
     StorageAPI/NavigatorStorage.cpp
-    StorageAPI/StorageAreaMirror.cpp
-    StorageAPI/StorageBottle.cpp
+    StorageAPI/StorageAreaMirrorClient.cpp
     StorageAPI/StorageKey.cpp
     StorageAPI/StorageManager.cpp
-    StorageAPI/StorageShelf.cpp
     Streams/ReadableStream.cpp
     Streams/TransformStream.cpp
     Streams/WritableStream.cpp
