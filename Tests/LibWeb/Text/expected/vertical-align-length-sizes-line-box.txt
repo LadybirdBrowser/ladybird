@@ -1,0 +1,7 @@
+lowered: 14px taller than a plain line
+lowered-pseudo: 14px taller than a plain line
+lowered-with-text: 20px taller than a plain line
+lowered-a-little: 0px taller than a plain line
+lowered-by-percentage: 14px taller than a plain line
+lowered-inline: 20px taller than a plain line
+raised: 25px taller than a plain line
