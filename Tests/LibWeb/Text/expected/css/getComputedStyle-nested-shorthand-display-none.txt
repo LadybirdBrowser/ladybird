@@ -1,0 +1,6 @@
+border: 2px solid rgb(255, 0, 0)
+border-width: 2px
+border-color: rgb(255, 0, 0)
+margin: 1px 2px
+background: rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box
+font: 16px serif

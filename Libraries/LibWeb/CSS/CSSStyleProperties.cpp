@@ -326,53 +326,6 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_i
     return set_property_internal(PropertyNameAndID::from_id(property_id), css_text, priority);
 }
 
-static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
-{
-    if (length_percentage.is_percentage())
-        return PercentageStyleValue::create(length_percentage.percentage());
-    if (length_percentage.is_length())
-        return LengthStyleValue::create(length_percentage.length());
-    return length_percentage.calculated();
-}
-
-static NonnullRefPtr<StyleValue const> style_value_for_transform_origin(TransformOrigin const& transform_origin, Optional<CSSPixelRect> const& reference_box)
-{
-    auto offset_in_px = [](LengthPercentage const& offset, CSSPixels reference_length) {
-        if (offset.is_percentage())
-            return reference_length.to_double() * offset.percentage().as_fraction();
-        return offset.resolved(reference_length).absolute_length_to_px_without_rounding();
-    };
-
-    StyleValueVector offsets;
-    if (reference_box.has_value()) {
-        offsets.append(LengthStyleValue::create(Length::make_px(offset_in_px(transform_origin.x, reference_box->width()))));
-        offsets.append(LengthStyleValue::create(Length::make_px(offset_in_px(transform_origin.y, reference_box->height()))));
-    } else {
-        offsets.append(style_value_for_length_percentage(transform_origin.x));
-        offsets.append(style_value_for_length_percentage(transform_origin.y));
-    }
-    if (auto z_offset = offset_in_px(transform_origin.z, 0); z_offset != 0)
-        offsets.append(LengthStyleValue::create(Length::make_px(z_offset)));
-    return StyleValueList::create(move(offsets), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
-}
-
-static NonnullRefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowType shadow_type, ReadonlySpan<ShadowData> shadow_data, Color current_color)
-{
-    static_assert(sizeof(ShadowData) == sizeof(ComputedValuesFFI::ComputedShadow));
-    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_shadow_value(
-        to_underlying(shadow_type), shadow_data.data(), shadow_data.size(), current_color.value()));
-}
-
-static NonnullRefPtr<StyleValue const> resolve_filter_style_value(NonnullRefPtr<StyleValue const> value, Color current_color)
-{
-    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_filter_value(value->rust_style_value_data(), current_color.value()));
-}
-
-static NonnullRefPtr<StyleValue const> resolve_touch_action_style_value(NonnullRefPtr<StyleValue const> value)
-{
-    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_touch_action_value(value->rust_style_value_data()));
-}
-
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 Utf16String CSSStyleProperties::get_property_value(Utf16FlyString const& property_name) const
 {
@@ -635,9 +588,6 @@ static void ensure_pseudo_element_style_for_cssom(Layout::BegunRead const& read,
     install_engine_pseudo_element_style(read, abstract_element);
 }
 
-static NonnullRefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, Optional<ColorResolutionStyle> = {});
-static NonnullRefPtr<StyleValue const> resolve_svg_color_style_value(StyleValue const&, ColorResolutionStyle);
-
 static bool is_min_or_max_size_property(PropertyID property_id)
 {
     return first_is_one_of(property_id,
@@ -649,19 +599,6 @@ static bool min_or_max_size_holds_anchor_function(ComputedValues const& style, P
 {
     // NB: computed_style_value() maps a logical alias to its physical property.
     return style.computed_style_value(property_id)->contains_anchor_function();
-}
-
-// NB: The computed value of a min or max sizing property resolves its anchor-size() functions. Where layout did not
-//     resolve them against an anchor box, they are unresolvable: each resolves to its fallback value, and one without
-//     makes the declaration invalid at computed-value time.
-static NonnullRefPtr<StyleValue const> resolve_unresolvable_anchor_functions(PropertyID property_id, NonnullRefPtr<StyleValue const> computed_value)
-{
-    bool is_invalid = false;
-    if (auto const* substituted = StyleValueFFI::rust_style_value_with_unresolvable_anchor_functions(computed_value->rust_style_value_data(), &is_invalid))
-        return StyleValue::adopt_rust_style_value_data(substituted);
-    if (is_invalid)
-        return property_initial_value(property_id);
-    return computed_value;
 }
 
 // NB: An element without a layout node may still generate a box whose layout is not up to date yet, so this only
@@ -873,88 +810,27 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             auto const* computed_values = style_record ? &*style_record : transient_style.ptr();
             VERIFY(computed_values);
 
-            auto computed_value_for_property = [&](PropertyID computed_property_id) -> NonnullRefPtr<StyleValue const> {
-                if (property_is_logical_alias(computed_property_id))
-                    computed_property_id = map_logical_alias_to_physical_property(computed_property_id, LogicalAliasMappingContext { computed_values->writing_mode(), computed_values->direction() });
-                if (computed_property_id == PropertyID::BackgroundColor) {
-                    if (auto style_value = computed_values->background_color_style_value(); style_value && !style_value->depends_on_current_color())
-                        return style_value.release_nonnull();
-                }
-                auto computed_value = computed_values->computed_style_value(computed_property_id).release_nonnull();
-                // The same resolved-value special cases the layout-node path applies, read from
-                // the style's own resolved group data since there is no layout node to ask.
-                switch (computed_property_id) {
-                case PropertyID::Color:
-                    return resolve_color_style_value(*computed_value, computed_values->color(), ColorResolutionStyle::for_computed_values(*computed_values));
-                case PropertyID::Fill:
-                case PropertyID::FloodColor:
-                case PropertyID::StopColor:
-                case PropertyID::Stroke:
-                    return resolve_svg_color_style_value(*computed_value, ColorResolutionStyle::for_computed_values(*computed_values));
-                case PropertyID::CaretColor:
-                    return resolve_color_style_value(*computed_value, computed_values->caret_color());
-                case PropertyID::BackgroundColor:
-                    return resolve_color_style_value(*computed_value, computed_values->background_color());
-                case PropertyID::BorderBottomColor:
-                    return resolve_color_style_value(*computed_value, computed_values->border_bottom().color);
-                case PropertyID::BorderLeftColor:
-                    return resolve_color_style_value(*computed_value, computed_values->border_left().color);
-                case PropertyID::BorderRightColor:
-                    return resolve_color_style_value(*computed_value, computed_values->border_right().color);
-                case PropertyID::BorderTopColor:
-                    return resolve_color_style_value(*computed_value, computed_values->border_top().color);
-                case PropertyID::ColumnRuleColor:
-                    return resolve_color_style_value(*computed_value, computed_values->column_rule_color());
-                case PropertyID::OutlineColor:
-                    return resolve_color_style_value(*computed_value, computed_values->outline_color());
-                case PropertyID::TextDecorationColor:
-                    return resolve_color_style_value(*computed_value, computed_values->text_decoration_color());
-                case PropertyID::WebkitTextFillColor:
-                    return resolve_color_style_value(*computed_value, computed_values->webkit_text_fill_color());
-                case PropertyID::BoxShadow:
-                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, computed_values->box_shadow(), computed_values->color());
-                case PropertyID::TextShadow:
-                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, computed_values->text_shadow(), computed_values->color());
-                case PropertyID::BackdropFilter:
-                case PropertyID::Filter:
-                    return resolve_filter_style_value(move(computed_value), computed_values->color());
-                case PropertyID::TouchAction:
-                    return resolve_touch_action_style_value(move(computed_value));
-                case PropertyID::TransformOrigin:
-                    return style_value_for_transform_origin(computed_values->transform_origin(), {});
-                case PropertyID::MinHeight:
-                case PropertyID::MinWidth:
-                    // https://drafts.csswg.org/css-sizing-3/#valdef-width-auto
-                    // For backwards-compatibility, the resolved value of this keyword is zero for boxes of all [CSS2]
-                    // display types (block and inline boxes, inline blocks, and all table display types) when
-                    // 'aspect-ratio' is 'auto'. It also resolves to zero when no box is generated.
-                    if (computed_value->to_keyword() == Keyword::Auto && element_generates_no_box(abstract_element, *computed_values))
-                        return LengthStyleValue::create(Length::make_px(0));
-                    return resolve_unresolvable_anchor_functions(computed_property_id, move(computed_value));
-                case PropertyID::MaxHeight:
-                case PropertyID::MaxWidth:
-                    return resolve_unresolvable_anchor_functions(computed_property_id, move(computed_value));
-                default:
-                    return computed_value;
-                }
+            Array<void const*, to_underlying(StyleGroupIndex::Count)> style_groups;
+            for (size_t group = 0; group < style_groups.size(); ++group)
+                style_groups[group] = computed_values->style_group_payload(static_cast<StyleGroupIndex>(group));
+            auto computed_value = [](void* context, u16 computed_property_id) -> StyleValueFFI::StyleValueData const* {
+                auto value = static_cast<ComputedValues const*>(context)->computed_style_value(static_cast<PropertyID>(computed_property_id));
+                VERIFY(value);
+                return StyleValueFFI::rust_style_value_retain(value->rust_style_value_data());
             };
-
-            auto const zoom = computed_values->effective_zoom();
-            if (property_is_shorthand(property_id)) {
-                auto longhand_ids = longhands_for_shorthand(property_id);
-                StyleValueVector longhand_values;
-                longhand_values.ensure_capacity(longhand_ids.size());
-                for (auto longhand_id : longhand_ids)
-                    longhand_values.append(unscaled_by_zoom(longhand_id, computed_value_for_property(longhand_id), zoom));
-                return StyleProperty {
-                    .property_id = property_id,
-                    .value = ShorthandStyleValue::create(property_id, move(longhand_ids), move(longhand_values)),
-                };
-            }
-
+            StyleValueFFI::FfiResolvedValueStyle resolved_value_style {
+                .groups = style_groups.data(),
+                .writing_mode = to_underlying(computed_values->writing_mode()),
+                .direction = to_underlying(computed_values->direction()),
+                .generates_no_box = element_generates_no_box(abstract_element, *computed_values),
+                .computed_value_context = const_cast<ComputedValues*>(computed_values),
+                .computed_value = computed_value,
+            };
             return StyleProperty {
                 .property_id = property_id,
-                .value = unscaled_by_zoom(property_id, computed_value_for_property(property_id), zoom),
+                .value = unscaled_by_zoom(property_id,
+                    StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_value_of_style(&resolved_value_style, to_underlying(property_id))),
+                    computed_values->effective_zoom()),
             };
         }
 
@@ -1064,19 +940,6 @@ Optional<Utf16String> CSSStyleProperties::serialized_computed_value_from_stored_
     return serialize_style_value_handle(*handle, SerializationMode::ResolvedValue);
 }
 
-static NonnullRefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color, Optional<ColorResolutionStyle> color_resolution_style)
-{
-    auto ffi_style = color_resolution_style.map([](auto const& style) { return style.to_ffi(); });
-    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_color_value(
-        style_value.rust_style_value_data(), computed_color.value(), ffi_style.has_value() ? &*ffi_style : nullptr));
-}
-
-static NonnullRefPtr<StyleValue const> resolve_svg_color_style_value(StyleValue const& style_value, ColorResolutionStyle color_resolution_style)
-{
-    auto ffi_style = color_resolution_style.to_ffi();
-    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_resolved_svg_color_value(style_value.rust_style_value_data(), &ffi_style));
-}
-
 // https://svgwg.org/svg2-draft/geometry.html#Sizing
 // The CSS width and height properties are used for sizing some SVG elements. Specifically, they are used to size
 // ‘rect’, ‘svg’, ‘image’ and ‘foreignObject’.
@@ -1091,10 +954,6 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
 {
     if (!owner_node().has_value()) {
         dbgln_if(LIBWEB_CSS_DEBUG, "Computed style for CSSStyleProperties without owner node was requested");
-        return nullptr;
-    }
-    if (property_id == PropertyID::Custom) {
-        dbgln_if(LIBWEB_CSS_DEBUG, "Computed style for custom properties was requested (?)");
         return nullptr;
     }
 

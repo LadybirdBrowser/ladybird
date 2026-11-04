@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="display: none; border: 2px solid red; margin: 1px 2px"></div>
+<script>
+    test(() => {
+        const style = getComputedStyle(document.getElementById("target"));
+        for (const property of ["border", "border-width", "border-color", "margin", "background", "font"])
+            println(`${property}: ${style.getPropertyValue(property)}`);
+    });
+</script>
