@@ -125,6 +125,25 @@ describe("testing behavior", () => {
         expect(passed).toBeTrue();
     });
 
+    test("reads the specifier before evaluating the options", () => {
+        let specifier = "./empty.mjs";
+        let passed = false;
+        let error = null;
+
+        import(specifier, ((specifier = "./does-not-exist.mjs"), undefined))
+            .then(() => {
+                passed = true;
+            })
+            .catch(err => {
+                error = err;
+            });
+
+        runQueuedPromiseJobs();
+        if (error) throw error;
+
+        expect(passed).toBeTrue();
+    });
+
     test("expectModulePassed works", () => {
         expectModulePassed("./single-const-export.mjs");
     });
