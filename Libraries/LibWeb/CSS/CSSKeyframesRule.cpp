@@ -50,7 +50,7 @@ void web_css_keyframes_rule_renamed(void* cell)
 
 NativeRule const* web_css_parse_keyframe_rule(FlatPtr text)
 {
-    auto parsed_rule = Parser::parse_keyframe_rule(Parser::ParsingParams {}, Utf16String::from_raw(text));
+    auto parsed_rule = Parser::parse_keyframe_rule(Parser::ParsingParams {}, Utf16String::adopt_raw(text));
     if (!parsed_rule.has_value())
         return nullptr;
     return Parser::ValueParserFFI::rust_rule_retain(parsed_rule->handle());

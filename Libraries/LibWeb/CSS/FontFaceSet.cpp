@@ -178,7 +178,7 @@ FlatPtr web_css_font_face_family_name(void* font_face)
 
 bool web_css_font_face_unicode_ranges_include_any_of(void* font_face, FlatPtr raw_text)
 {
-    auto text = Utf16String::from_raw(raw_text);
+    auto text = Utf16String::adopt_raw(raw_text);
     auto const& ranges = state_from_abi(font_face).unicode_ranges();
     for (auto code_point : text.utf16_view()) {
         for (auto const& range : ranges) {
