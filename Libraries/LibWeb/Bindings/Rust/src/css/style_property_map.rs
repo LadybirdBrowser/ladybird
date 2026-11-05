@@ -35,10 +35,6 @@ unsafe extern "C" {
     fn web_css_style_map_clear(declaration: *mut c_void, message: *mut usize) -> u8;
 }
 
-fn type_error(message: String) -> Exception {
-    Exception::TypeError(Utf16String::from_utf8(&message))
-}
-
 /// What a change to a declaration reported, as the ChangeResult of C++.
 const CHANGE_RESULT_SUCCESS: u8 = 0;
 const CHANGE_RESULT_TYPE_ERROR: u8 = 1;
@@ -117,8 +113,8 @@ fn create_an_internal_representation(
                 && !matches!(css_style_value, AnyCSSStyleValue::CSSUnparsedValue(_))
                 && !internal_representation.is_css_wide_keyword()
             {
-                return Err(type_error(
-                    "Custom properties only accept unparsed values and CSS-wide keywords".into(),
+                return Err(Exception::type_error(
+                    "Custom properties only accept unparsed values and CSS-wide keywords",
                 ));
             }
             internal_representation
@@ -140,7 +136,7 @@ fn create_an_internal_representation(
     {
         // INTEROP: Shape image thresholds accept typed numbers but not typed percentages.
         if property_name == "shape-image-threshold" && !numeric_value.numeric_type().matches_number(None) {
-            return Err(type_error("Shape image thresholds require a number".into()));
+            return Err(Exception::type_error("Shape image thresholds require a number"));
         }
 
         // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
@@ -148,7 +144,9 @@ fn create_an_internal_representation(
         // NB: A property's component types do not establish that a numeric value alone matches its whole grammar.
         let serialized_value = internal_representation.serialize(SERIALIZATION_MODE_NORMAL);
         if parse(core::ptr::null_mut(), property.id, serialized_value).is_none() {
-            return Err(type_error("Numeric value does not match the property's grammar".into()));
+            return Err(Exception::type_error(
+                "Numeric value does not match the property's grammar",
+            ));
         }
     }
 
@@ -205,7 +203,7 @@ fn normalize_overflow_clip_margin_internal_representation(
     // iteration of property, throw a TypeError.
     let serialized_value = value.serialize(SERIALIZATION_MODE_NORMAL);
     parse(declaration, property.id, serialized_value.clone()).ok_or_else(|| {
-        type_error(format!(
+        Exception::type_error(&format!(
             "Property '{property_name}' does not accept the value '{}'",
             to_rust_string(&serialized_value)
         ))
@@ -323,20 +321,24 @@ impl StylePropertyMap {
         // 3. If property is a single-valued property and values has more than one item, throw a TypeError.
         // NB: Custom properties should all be single-valued.
         if (is_custom_property(&property) || !is_list_valued(&property)) && values.len() > 1 {
-            return Err(type_error(format!("Property '{name}' only accepts a single value")));
+            return Err(Exception::type_error(&format!(
+                "Property '{name}' only accepts a single value"
+            )));
         }
 
         // FIXME: The spec doesn't say how to handle empty `values`, but other browsers throw a TypeError so let's do
         //        that too - see https://github.com/w3c/css-houdini-drafts/issues/1176
         if values.is_empty() {
-            return Err(type_error(format!("Property '{name}' requires at least one value")));
+            return Err(Exception::type_error(&format!(
+                "Property '{name}' requires at least one value"
+            )));
         }
 
         // 4. If any of the items in values have a non-null [[associatedProperty]] internal slot, and that slot’s value
         //    is anything other than property, throw a TypeError.
         if any_have_non_matching_associated_property(&property.name, &values) {
-            return Err(type_error(
-                "One of the passed CSSStyleValues has a different associated property".into(),
+            return Err(Exception::type_error(
+                "One of the passed CSSStyleValues has a different associated property",
             ));
         }
 
@@ -366,8 +368,8 @@ impl StylePropertyMap {
                 normalize_overflow_clip_margin_internal_representation(props, &property, internal_representation)?;
 
             if values.len() >= 2 && internal_representation.is_unresolved() {
-                return Err(type_error(
-                    "Cannot provide multiple values if one is an CSSUnparsedValue or CSSVariableReferenceValue".into(),
+                return Err(Exception::type_error(
+                    "Cannot provide multiple values if one is an CSSUnparsedValue or CSSVariableReferenceValue",
                 ));
             }
 
@@ -416,14 +418,16 @@ impl StylePropertyMap {
 
         // 3. If property is not a list-valued property, throw a TypeError.
         if !is_list_valued(&property) {
-            return Err(type_error(format!("'{name}' is not a list-valued property")));
+            return Err(Exception::type_error(&format!(
+                "'{name}' is not a list-valued property"
+            )));
         }
 
         // 4. If any of the items in values have a non-null [[associatedProperty]] internal slot, and that slot’s value
         //    is anything other than property, throw a TypeError.
         if any_have_non_matching_associated_property(&property.name, &values) {
-            return Err(type_error(
-                "One of the passed CSSStyleValues has a different associated property".into(),
+            return Err(Exception::type_error(
+                "One of the passed CSSStyleValues has a different associated property",
             ));
         }
 
@@ -448,7 +452,7 @@ impl StylePropertyMap {
 
         // 8. If props[property] contains a var() reference, throw a TypeError.
         if existing_value.as_ref().is_some_and(RetainedStyleValue::is_unresolved) {
-            return Err(type_error(format!(
+            return Err(Exception::type_error(&format!(
                 "Existing value for '{name}' contains var() references."
             )));
         }
@@ -476,8 +480,8 @@ impl StylePropertyMap {
             let internal_representation = create_an_internal_representation(cx.vm(), &property, value)?;
 
             if internal_representation.is_unresolved() {
-                return Err(type_error(
-                    "Cannot append a CSSUnparsedValue or CSSVariableReferenceValue".into(),
+                return Err(Exception::type_error(
+                    "Cannot append a CSSUnparsedValue or CSSVariableReferenceValue",
                 ));
             }
 

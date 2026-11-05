@@ -14,6 +14,7 @@ use libjs_rust::api::{MarkedVec, ThrowCompletionOr, Trace, Value, Vm};
 use libweb_rust::typed_om::{
     BASE_TYPE_ANGLE, BASE_TYPE_FLEX, BASE_TYPE_FREQUENCY, BASE_TYPE_LENGTH, BASE_TYPE_PERCENT, BASE_TYPE_RESOLUTION,
     BASE_TYPE_TIME, CalcNode, NumericType, RetainedStyleValue, SumValue, create_a_type_from_unit,
+    parse_a_numeric_value,
 };
 
 use super::css_math_clamp::CSSMathClamp;
@@ -679,7 +680,7 @@ impl CSSNumericValue {
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse
     pub(crate) fn parse(cx: &mut CallContext, css_text: UsvString) -> WebIdlResult<AnyCSSNumericValue> {
         // The parse(cssText) method, when called, must perform the following steps:
-        let value = typed_om::parse_a_numeric_value(&css_text.into_utf16_string()).ok_or_else(|| {
+        let value = parse_a_numeric_value(&css_text.into_utf16_string()).ok_or_else(|| {
             Exception::syntax_error(Utf16String::from_utf8("Input is not a numeric component value."))
         })?;
         typed_om::reify_a_numeric_value(cx.vm(), &value)

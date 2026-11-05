@@ -303,10 +303,6 @@ fn handle_value(handle: &ComputedStyleValueHandle) -> Option<&StyleValueData> {
     unsafe { handle.pointer.cast::<StyleValueData>().as_ref() }
 }
 
-fn style_value_for_length_percentage(value: &StyleValueData) -> StyleValueArc {
-    retained(value)
-}
-
 fn style_value_for_length_percentage_or_auto(value: &ComputedLengthPercentageOrAuto) -> StyleValueArc {
     if value.is_auto {
         return keyword_value(keyword::AUTO);
@@ -337,8 +333,8 @@ fn style_value_for_transform_origin(
             length_px(offset_in_px(y, reference_box.height)),
         ],
         None => vec![
-            RetainedStyleValueData::from_arc(style_value_for_length_percentage(x)),
-            RetainedStyleValueData::from_arc(style_value_for_length_percentage(y)),
+            RetainedStyleValueData::from_arc(retained(x)),
+            RetainedStyleValueData::from_arc(retained(y)),
         ],
     };
     if let Some(z) = z {
