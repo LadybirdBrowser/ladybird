@@ -5082,7 +5082,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         )
         page_server.release_blocked_reload.set()
         wait_for_event(page_server.reload_blocked_document_ran, "reload document after crash recovery")
-        expect_url(webdriver_port, session_id, "after blocked reload crash recovery", url_reload_blocked, log)
+        wait_for_url(webdriver_port, session_id, "after blocked reload crash recovery", url_reload_blocked, log)
         wait_for_session_history(
             webdriver_port,
             session_id,

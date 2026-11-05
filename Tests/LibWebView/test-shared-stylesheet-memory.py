@@ -7,6 +7,7 @@
 import argparse
 import http.server
 import runpy
+import socket
 import subprocess
 import sys
 import tempfile
@@ -36,6 +37,10 @@ STYLE_SHEET = "\n".join(
     f".c{i} .d{i % 97} > span.e{i % 13}:hover{{color:#{i % 4096:03x};background:url(img.png)}}"
     for i in range(RULE_COUNT)
 ).encode()
+
+
+class TestPageServer(http.server.ThreadingHTTPServer):
+    request_queue_size = socket.SOMAXCONN
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -173,7 +178,7 @@ def main():
     parser.add_argument("webdriver_binary")
     webdriver_binary = parser.parse_args().webdriver_binary
 
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = TestPageServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         measured = {
