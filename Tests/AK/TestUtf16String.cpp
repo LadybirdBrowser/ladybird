@@ -1405,3 +1405,12 @@ TEST_CASE(latin1_storage_for_text_up_to_u00ff)
     EXPECT(Utf16String::from_utf16(string.substring_view(6, 3)).has_short_ascii_storage());
     EXPECT(Utf16String::from_utf16(Utf16String::from_utf8("éabcdefghij"sv).substring_view(1)).has_long_ascii_storage());
 }
+
+TEST_CASE(formatting_latin1_storage)
+{
+    auto string = Utf16String::from_utf8("Grüße aus Köln"sv);
+    EXPECT(string.utf16_view().has_latin1_storage());
+    EXPECT_EQ(ByteString::formatted("{}", string), "Grüße aus Köln"sv);
+    EXPECT_EQ(MUST(String::formatted("<{}>", string)), "<Grüße aus Köln>"sv);
+    EXPECT_EQ(Utf16String::formatted("function() {{ {} }}", Utf16String::from_utf8("return 'é'"sv)), u"function() { return 'é' }"sv);
+}
