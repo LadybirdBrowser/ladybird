@@ -299,6 +299,9 @@ fn generate_expression_inner(
     if !matches!(expression.inner, ExpressionKind::Function(_) | ExpressionKind::Class(_)) {
         generator.pending_lhs_name = None;
     }
+    if !matches!(expression.inner, ExpressionKind::Class(_)) {
+        generator.pending_computed_class_name = None;
+    }
 
     match &expression.inner {
         // === Literals ===
@@ -6333,6 +6336,12 @@ fn generate_object_expression(
                     .value
                     .as_ref()
                     .is_some_and(|value| is_anonymous_function_definition(generator, value)));
+        // NB: A class has its name before its static elements are evaluated, so NewClass is given it.
+        let names_class = should_set_runtime_function_name
+            && property
+                .value
+                .as_ref()
+                .is_some_and(|value| matches!(value.inner, ExpressionKind::Class(_)));
 
         // Set pending LHS name for function name inference on non-computed properties.
         // ProtoSetter (__proto__) skips NamedEvaluation per spec.
@@ -6368,6 +6377,9 @@ fn generate_object_expression(
         if is_method_like {
             generator.home_objects.push(dst.clone());
         }
+        if names_class {
+            generator.pending_computed_class_name = computed_key.clone();
+        }
         let value = property
             .value
             .as_ref()
@@ -6377,7 +6389,7 @@ fn generate_object_expression(
             generator.home_objects.pop();
         }
         generator.pending_lhs_name = None;
-        if should_set_runtime_function_name {
+        if should_set_runtime_function_name && !names_class {
             emit_set_function_name(
                 generator,
                 &value,
@@ -7068,17 +7080,16 @@ fn generate_class_expression(
     preferred_dst: Option<&ScopedOperand>,
 ) -> ScopedOperand {
     let has_super = data.super_class.is_some();
-    // Always consume pending_lhs_name. Named classes don't use it, but we
-    // must clear it to prevent it from leaking to nested expressions.
-    let lhs_name = if data.name.is_none() {
-        generator.pending_lhs_name.take()
-    } else {
-        generator.pending_lhs_name = None;
-        None
-    };
+    // Always consume the pending names. Named classes don't use them, but we
+    // must clear them to prevent them from leaking to nested expressions.
+    let lhs_name = generator.pending_lhs_name.take().filter(|_| data.name.is_none());
+    let computed_name = generator
+        .pending_computed_class_name
+        .take()
+        .filter(|_| data.name.is_none());
 
     // Step 2: Save parent environment, create class lexical environment.
-    let has_class_binding = data.name.is_some() || lhs_name.is_none();
+    let has_class_binding = data.name.is_some() || (lhs_name.is_none() && computed_name.is_none());
     let parent_env = generator.current_lexical_environment();
     let class_env = generator.allocate_register();
     let shape_cache = generator.next_environment_shape_cache();
@@ -7435,6 +7446,7 @@ fn generate_class_expression(
         class_environment: class_env.operand(),
         class_blueprint_index: blueprint_index,
         lhs_name,
+        computed_name: computed_name.as_ref().map(|name| name.operand()),
         element_keys_count: u32_from_usize(element_key_ops.len()),
         element_keys: element_key_ops,
     });

@@ -9121,9 +9121,9 @@ asm_handler_NewClass:
     mov DWORD PTR [rbx + -64], r13d
     lea rcx, [r14 + r13]
     mov r11, rsp
-    mov r10d, DWORD PTR [rcx + 32]
+    mov r10d, DWORD PTR [rcx + 36]
     shl r10, 3
-    add r10, 63
+    add r10, 71
     and r10, -16
     mov rax, rsp
     sub rax, r10
@@ -9166,51 +9166,58 @@ asm_handler_NewClass:
     mov rax, QWORD PTR [rbx + r10 * 8]
 .Lasm_NewClass.value_ready_6:
     mov QWORD PTR [rsp + 40], rax
-    mov r11d, 0
+    movabs rax, 9221964661971222528
     mov r10d, DWORD PTR [rcx + 32]
-.Lasm_NewClass.array_value_next_7:
+    cmp r10d, -1
+    je .Lasm_NewClass.value_ready_7
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_NewClass.value_ready_7:
+    mov QWORD PTR [rsp + 48], rax
+    mov r11d, 0
+    mov r10d, DWORD PTR [rcx + 36]
+.Lasm_NewClass.array_value_next_8:
     cmp r11, r10
-    jae .Lasm_NewClass.array_values_end_9
-    mov edx, DWORD PTR [rcx + r11 * 4 + 36]
+    jae .Lasm_NewClass.array_values_end_10
+    mov edx, DWORD PTR [rcx + r11 * 4 + 40]
     movabs rax, 9221964661971222528
     cmp edx, -1
-    je .Lasm_NewClass.array_value_ready_8
+    je .Lasm_NewClass.array_value_ready_9
     mov rax, QWORD PTR [rbx + rdx * 8]
-.Lasm_NewClass.array_value_ready_8:
-    mov QWORD PTR [rsp + r11 * 8 + 48], rax
+.Lasm_NewClass.array_value_ready_9:
+    mov QWORD PTR [rsp + r11 * 8 + 56], rax
     add r11, 1
-    jmp .Lasm_NewClass.array_value_next_7
-.Lasm_NewClass.array_values_end_9:
+    jmp .Lasm_NewClass.array_value_next_8
+.Lasm_NewClass.array_values_end_10:
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
     lea rdx, [r14 + r13]
     lea rcx, [rsp + 16]
     call CSYM(asm_slow_path_new_class)
     test rax, rax
-    js .Lasm_NewClass.values_exceptional_outputs_11
+    js .Lasm_NewClass.values_exceptional_outputs_12
     bt rax, 32
-    jnc .Lasm_NewClass.values_exceptional_outputs_11
+    jnc .Lasm_NewClass.values_exceptional_outputs_12
     lea rcx, [r14 + r13]
     mov r10d, DWORD PTR [rcx + 8]
     mov r11, QWORD PTR [rsp + 16]
     mov QWORD PTR [rbx + r10 * 8], r11
-.Lasm_NewClass.skip_output_value_12:
+.Lasm_NewClass.skip_output_value_13:
     mov rsp, QWORD PTR [rsp]
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_NewClass.values_exceptional_outputs_11:
-.Lasm_NewClass.values_restore_stack_10:
+.Lasm_NewClass.values_exceptional_outputs_12:
+.Lasm_NewClass.values_restore_stack_11:
     mov rsp, QWORD PTR [rsp]
 .Lasm_NewClass.values_call_done_0:
     test rax, rax
     js .Lexit
     bt rax, 32
-    jnc .Lasm_NewClass.slow_path_transfer_13
+    jnc .Lasm_NewClass.slow_path_transfer_14
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_NewClass.slow_path_transfer_13:
+.Lasm_NewClass.slow_path_transfer_14:
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx]
     add rbx, 128

@@ -9110,9 +9110,9 @@ asm_handler_NewClass:
     sub w1, w21, w26
     str w1, [x28, #64]
     add x9, sp, #0
-    ldr w10, [x21, #32]
+    ldr w10, [x21, #36]
     lsl x10, x10, #3
-    add x10, x10, #63
+    add x10, x10, #71
     and x10, x10, #0xfffffffffffffff0
     sub x14, x9, x10
     ldr x12, [x20, #40]
@@ -9155,55 +9155,63 @@ asm_handler_NewClass:
     ldr x11, [x27, x12, lsl #3]
 .Lasm_NewClass.value_ready_6:
     str x11, [sp, #40]
+    movz x11, #0x7ffb, lsl #48
+    ldr w12, [x21, #32]
+    movn w13, #0
+    cmp w12, w13
+    b.eq .Lasm_NewClass.value_ready_7
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_NewClass.value_ready_7:
+    str x11, [sp, #48]
     mov w9, #0
-    ldr w10, [x21, #32]
-    add x14, sp, #48
-    add x3, x21, #36
-.Lasm_NewClass.array_value_next_7:
+    ldr w10, [x21, #36]
+    add x14, sp, #56
+    add x3, x21, #40
+.Lasm_NewClass.array_value_next_8:
     cmp x9, x10
-    b.hs .Lasm_NewClass.array_values_end_9
+    b.hs .Lasm_NewClass.array_values_end_10
     ldr w12, [x3, x9, lsl #2]
     movz x11, #0x7ffb, lsl #48
     movn w13, #0
     cmp w12, w13
-    b.eq .Lasm_NewClass.array_value_ready_8
+    b.eq .Lasm_NewClass.array_value_ready_9
     ldr x11, [x27, x12, lsl #3]
-.Lasm_NewClass.array_value_ready_8:
+.Lasm_NewClass.array_value_ready_9:
     str x11, [x14, x9, lsl #3]
     add x9, x9, #1
-    b .Lasm_NewClass.array_value_next_7
-.Lasm_NewClass.array_values_end_9:
+    b .Lasm_NewClass.array_value_next_8
+.Lasm_NewClass.array_values_end_10:
     mov x0, x20
     sub w1, w21, w26
     mov x2, x21
     add x3, sp, #16
     bl CSYM(asm_slow_path_new_class)
-    tbnz x0, #63, .Lasm_NewClass.values_exceptional_outputs_11
-    tbz x0, #32, .Lasm_NewClass.values_exceptional_outputs_11
+    tbnz x0, #63, .Lasm_NewClass.values_exceptional_outputs_12
+    tbz x0, #32, .Lasm_NewClass.values_exceptional_outputs_12
     ldr w12, [x21, #8]
     ldr x11, [sp, #16]
     str x11, [x27, x12, lsl #3]
-.Lasm_NewClass.skip_output_value_12:
+.Lasm_NewClass.skip_output_value_13:
     ldr x9, [sp]
     add sp, x9, #0
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_NewClass.values_exceptional_outputs_11:
-.Lasm_NewClass.values_restore_stack_10:
+.Lasm_NewClass.values_exceptional_outputs_12:
+.Lasm_NewClass.values_restore_stack_11:
     ldr x9, [sp]
     add sp, x9, #0
 .Lasm_NewClass.values_call_done_0:
     tbz x0, #63, 1f
     b .Lexit
 1:
-    tbz x0, #32, .Lasm_NewClass.slow_path_transfer_13
+    tbz x0, #32, .Lasm_NewClass.slow_path_transfer_14
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_NewClass.slow_path_transfer_13:
+.Lasm_NewClass.slow_path_transfer_14:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]

@@ -1528,6 +1528,7 @@ handler NewClass(
     class_environment: Operand,
     class_blueprint_index: u32,
     lhs_name: Optional<IdentifierTableIndex>,
+    computed_name: Optional<Operand>,
     element_keys_count: u32,
     element_keys: Optional<Operand>[]
 ) @cold = call_slow_path(new_class);

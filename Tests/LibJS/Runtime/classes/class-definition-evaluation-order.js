@@ -76,4 +76,21 @@ describe("class definition evaluation order", () => {
         }
         expect(log).toEqual(["get prototype", "key"]);
     });
+
+    test("a class named by a computed property key has its name while its static elements are evaluated", () => {
+        const key = "named";
+        const symbol = Symbol("description");
+        const object = {
+            [key]: class {
+                static seenName = this.name;
+            },
+            [symbol]: class {
+                static seenName = this.name;
+            },
+        };
+
+        expect(object.named.seenName).toBe("named");
+        expect(object.named.name).toBe("named");
+        expect(object[symbol].seenName).toBe("[description]");
+    });
 });
