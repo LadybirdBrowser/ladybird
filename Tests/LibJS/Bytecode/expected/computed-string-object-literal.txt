@@ -46,7 +46,7 @@ block0:
   [  58] Return value:reg5
 
 
-dynamic$fa493621 computed-string-object-literal.js:12:5
+dynamic$fd0d2731 computed-string-object-literal.js:12:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -55,7 +55,6 @@ dynamic$fa493621 computed-string-object-literal.js:12:5
 block0:
   [   0] Enter
   [   8] NewObject dst:reg5
-  [  18] Mov dst:reg6, src:arg0
-  [  28] ToPrimitiveWithStringHint dst:reg6, value:reg6
-  [  38] PutByValue keyed_feedback:0, base:reg5, property:reg6, src:Int32(1), kind:Own
-  [  58] Return value:reg5
+  [  18] ToPrimitiveWithStringHint dst:reg6, value:arg0
+  [  28] PutByValue keyed_feedback:0, base:reg5, property:reg6, src:Int32(1), kind:Own
+  [  48] Return value:reg5
