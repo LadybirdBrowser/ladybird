@@ -21,22 +21,22 @@ static StyleValueFFI::FfiUtf16View ffi_view(Utf16View view)
 
 Utf16String serialize_an_identifier_to_utf16(Utf16View ident)
 {
-    return Utf16String::from_raw(StyleValueFFI::rust_serialize_an_identifier(ffi_view(ident)));
+    return Utf16String::adopt_raw(StyleValueFFI::rust_serialize_an_identifier(ffi_view(ident)));
 }
 
 static Utf16String serialize_a_string_to_utf16(Utf16View string)
 {
-    return Utf16String::from_raw(StyleValueFFI::rust_serialize_a_string(ffi_view(string)));
+    return Utf16String::adopt_raw(StyleValueFFI::rust_serialize_a_string(ffi_view(string)));
 }
 
 static Utf16String serialize_a_url_to_utf16(Utf16View url)
 {
-    return Utf16String::from_raw(StyleValueFFI::rust_serialize_a_url(ffi_view(url)));
+    return Utf16String::adopt_raw(StyleValueFFI::rust_serialize_a_url(ffi_view(url)));
 }
 
 static Utf16String serialize_a_number_to_utf16(double value)
 {
-    return Utf16String::from_raw(StyleValueFFI::rust_serialize_a_number(value));
+    return Utf16String::adopt_raw(StyleValueFFI::rust_serialize_a_number(value));
 }
 
 void serialize_an_identifier(StringBuilder& builder, Utf16View ident)

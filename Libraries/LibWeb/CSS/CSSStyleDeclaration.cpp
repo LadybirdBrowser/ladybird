@@ -153,7 +153,7 @@ static Utf16FlyString property_name_from_utf8(u8 const* name, size_t name_length
 
 static Utf16FlyString property_name_from_raw(FlatPtr property)
 {
-    return Utf16FlyString { Utf16String::from_raw(property) };
+    return Utf16FlyString { Utf16String::adopt_raw(property) };
 }
 
 // NB: Every step that throws throws a NoModificationAllowedError, which the Rust bindings recreate from its message.
@@ -183,7 +183,7 @@ FlatPtr web_css_declaration_get_by_name(void* declaration, u8 const* name, size_
 
 bool web_css_declaration_set_by_name(void* declaration, u8 const* name, size_t name_length, FlatPtr value, FlatPtr* error_message)
 {
-    auto text = Utf16String::from_raw(value);
+    auto text = Utf16String::adopt_raw(value);
     return succeeded_or_store_message(declaration_from_cell(declaration).set_property(property_name_from_utf8(name, name_length), text.utf16_view(), u""sv), error_message);
 }
 
@@ -194,7 +194,7 @@ FlatPtr web_css_declaration_css_text(void* declaration)
 
 bool web_css_declaration_set_css_text(void* declaration, FlatPtr text, FlatPtr* error_message)
 {
-    auto css_text = Utf16String::from_raw(text);
+    auto css_text = Utf16String::adopt_raw(text);
     return succeeded_or_store_message(declaration_from_cell(declaration).set_css_text(css_text.utf16_view()), error_message);
 }
 
@@ -220,8 +220,8 @@ FlatPtr web_css_declaration_get_property_priority(void* declaration, FlatPtr pro
 
 bool web_css_declaration_set_property(void* declaration, FlatPtr property, FlatPtr value, FlatPtr priority, FlatPtr* error_message)
 {
-    auto value_text = Utf16String::from_raw(value);
-    auto priority_text = Utf16String::from_raw(priority);
+    auto value_text = Utf16String::adopt_raw(value);
+    auto priority_text = Utf16String::adopt_raw(priority);
     return succeeded_or_store_message(declaration_from_cell(declaration).set_property(property_name_from_raw(property), value_text.utf16_view(), priority_text.utf16_view()), error_message);
 }
 

@@ -73,7 +73,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse_a_css_style_val
     FlatPtr error = 0;
     auto* value = web_css_style_value_parse(vm_abi(), property.to_utf16_string().into_raw(), Utf16String::from_utf16(css_text).into_raw(), &error);
     if (!value)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::from_raw(error) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::adopt_raw(error) };
     return GC::Ref { *static_cast<CSSStyleValue*>(value) };
 }
 
@@ -82,7 +82,7 @@ Optional<Utf16FlyString> CSSStyleValue::associated_property() const
     FlatPtr associated_property = 0;
     if (!web_css_style_value_associated_property(const_cast<CSSStyleValue*>(this), &associated_property))
         return {};
-    return Utf16FlyString { Utf16String::from_raw(associated_property) };
+    return Utf16FlyString { Utf16String::adopt_raw(associated_property) };
 }
 
 WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSStyleValue::create_an_internal_representation(PropertyNameAndID const& property, PerformTypeCheck perform_type_check) const
@@ -90,7 +90,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSStyleValue::create_an_in
     FlatPtr error = 0;
     auto const* value = web_css_style_value_create_an_internal_representation(vm_abi(), const_cast<CSSStyleValue*>(this), to_underlying(property.id()), property.name().to_utf16_string().into_raw(), perform_type_check == PerformTypeCheck::Yes, &error);
     if (!value)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::from_raw(error) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::adopt_raw(error) };
     return NonnullRefPtr<StyleValue const> { *StyleValue::adopt_rust_style_value_data(value) };
 }
 
@@ -122,7 +122,7 @@ NumericType CSSNumericValue::type() const
 
 Utf16String CSSNumericValue::to_string() const
 {
-    return Utf16String::from_raw(web_css_numeric_value_to_string(const_cast<CSSNumericValue*>(this)));
+    return Utf16String::adopt_raw(web_css_numeric_value_to_string(const_cast<CSSNumericValue*>(this)));
 }
 
 Optional<CalcNodeRef> CSSNumericValue::create_calculation_node() const
@@ -145,12 +145,12 @@ double CSSUnitValue::value() const
 
 Utf16FlyString CSSUnitValue::unit() const
 {
-    return Utf16FlyString { Utf16String::from_raw(web_css_unit_value_unit(const_cast<CSSUnitValue*>(this))) };
+    return Utf16FlyString { Utf16String::adopt_raw(web_css_unit_value_unit(const_cast<CSSUnitValue*>(this))) };
 }
 
 Utf16String CSSKeywordValue::value() const
 {
-    return Utf16String::from_raw(web_css_keyword_value_value(const_cast<CSSKeywordValue*>(this)));
+    return Utf16String::adopt_raw(web_css_keyword_value_value(const_cast<CSSKeywordValue*>(this)));
 }
 
 }

@@ -142,8 +142,8 @@ GC::Ref<StyleSheetList> StyleSheetList::create(StyleScope& scope)
 
 void* web_css_style_sheet_construct(void* document, bool has_base_url, FlatPtr base_url, void* media_list, FlatPtr media_text, bool disabled)
 {
-    auto base_url_text = Utf16String::from_raw(base_url);
-    auto media_text_string = Utf16String::from_raw(media_text);
+    auto base_url_text = Utf16String::adopt_raw(base_url);
+    auto media_text_string = Utf16String::adopt_raw(media_text);
 
     CSSStyleSheetOptions options;
     if (has_base_url)
@@ -222,7 +222,7 @@ void* web_css_sheet_state_rule_list(void* state)
 
 Parser::ValueParserFFI::NativeRule const* web_css_sheet_state_parse_rule(void* state, FlatPtr rule)
 {
-    auto text = Utf16String::from_raw(rule);
+    auto text = Utf16String::adopt_raw(rule);
     auto parsed_rule = state_of(state).parse_rule(text.utf16_view());
     if (!parsed_rule.has_value())
         return nullptr;
@@ -241,12 +241,12 @@ void web_css_sheet_state_remove_rule(void* state, u32 index)
 
 void* web_css_sheet_state_replace(void* state, FlatPtr text)
 {
-    return state_of(state).replace(Utf16String::from_raw(text)).ptr();
+    return state_of(state).replace(Utf16String::adopt_raw(text)).ptr();
 }
 
 void web_css_sheet_state_replace_rules(void* state, FlatPtr text)
 {
-    state_of(state).replace_rules(Utf16String::from_raw(text));
+    state_of(state).replace_rules(Utf16String::adopt_raw(text));
 }
 
 u32 web_css_style_sheet_list_length(void* scope)

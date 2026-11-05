@@ -50,7 +50,7 @@ static Vector<Parser::RuleContext> rule_context(CSSRule& owner_rule)
 NativeRule const* web_css_grouping_rule_parse_rule(void* cell, FlatPtr raw_text, bool* declarations_failed)
 {
     auto& owner_rule = rule_from_cell(cell);
-    auto text = Utf16String::from_raw(raw_text);
+    auto text = Utf16String::adopt_raw(raw_text);
     auto rule = text.utf16_view();
 
     // AD-HOC: The spec doesn't include a declared_namespaces parameter, but we need it to handle parsing of namespaced

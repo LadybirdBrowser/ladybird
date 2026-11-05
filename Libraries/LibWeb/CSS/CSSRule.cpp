@@ -93,7 +93,7 @@ Optional<SourcePosition> CSSRule::source_location() const
 
 Utf16String CSSRule::serialized() const
 {
-    return Utf16String::from_raw(web_css_rule_serialized(JS::HostABI::vm_to_abi(JS::VM::the()), const_cast<CSSRule*>(this)));
+    return Utf16String::adopt_raw(web_css_rule_serialized(JS::HostABI::vm_to_abi(JS::VM::the()), const_cast<CSSRule*>(this)));
 }
 
 GC::Ref<CSSStyleDeclaration> CSSRule::declarations() const

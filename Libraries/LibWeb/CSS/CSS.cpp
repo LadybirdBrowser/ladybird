@@ -45,26 +45,26 @@ void* web_css_namespace_highlight_registry(void* document)
 
 bool web_css_namespace_is_registered(void* document, FlatPtr name)
 {
-    return document_from_abi(document).registered_property_set().contains(Utf16FlyString { Utf16String::from_raw(name) });
+    return document_from_abi(document).registered_property_set().contains(Utf16FlyString { Utf16String::adopt_raw(name) });
 }
 
 StyleValueData const* web_css_namespace_parse_initial_value_descriptor(void* document, FlatPtr value)
 {
     Parser::ParsingParams parsing_params { document_from_abi(document) };
-    return into_rust(parse_css_descriptor(parsing_params, AtRuleID::Property, DescriptorNameAndID::from_id(DescriptorID::InitialValue), Utf16String::from_raw(value)));
+    return into_rust(parse_css_descriptor(parsing_params, AtRuleID::Property, DescriptorNameAndID::from_id(DescriptorID::InitialValue), Utf16String::adopt_raw(value)));
 }
 
 StyleValueData const* web_css_namespace_parse_with_a_syntax(void* document, FlatPtr value, void const* syntax)
 {
     Parser::ParsingParams parsing_params { document_from_abi(document) };
     Parser::RustSyntaxHandle handle { Parser::ValueParserFFI::rust_syntax_retain(syntax) };
-    return into_rust(Parser::parse_with_a_syntax(parsing_params, Utf16String::from_raw(value), handle));
+    return into_rust(Parser::parse_with_a_syntax(parsing_params, Utf16String::adopt_raw(value), handle));
 }
 
 void web_css_namespace_register(void* raw_document, FlatPtr name, void const* syntax, bool inherits, StyleValueData const* initial_value)
 {
     auto& document = document_from_abi(raw_document);
-    auto property_name = Utf16FlyString { Utf16String::from_raw(name) };
+    auto property_name = Utf16FlyString { Utf16String::adopt_raw(name) };
     CustomPropertyRegistration registered_property {
         .property_name = property_name,
         .syntax = Parser::RustSyntaxHandle { syntax },

@@ -108,7 +108,7 @@ static StyleValueData const* into_rust(StyleValue const& value)
 
 static PropertyNameAndID property_from_abi(FlatPtr name)
 {
-    return PropertyNameAndID::from_name(Utf16FlyString { Utf16String::from_raw(name) }).release_value();
+    return PropertyNameAndID::from_name(Utf16FlyString { Utf16String::adopt_raw(name) }).release_value();
 }
 
 // A computed style map describes an element's computed style, and a disconnected element has none.
@@ -214,7 +214,7 @@ GC::Ref<StylePropertyMap> StylePropertyMap::create(GC::Ref<CSSStyleDeclaration> 
 
 bool web_css_style_map_property(FlatPtr raw_name, u16* id, FlatPtr* canonical_name)
 {
-    auto property = PropertyNameAndID::from_name(Utf16FlyString { Utf16String::from_raw(raw_name) });
+    auto property = PropertyNameAndID::from_name(Utf16FlyString { Utf16String::adopt_raw(raw_name) });
     if (!property.has_value())
         return false;
     *id = to_underlying(property->id());
@@ -327,7 +327,7 @@ bool web_css_style_map_property_is_list_valued(u16 property_id)
 
 StyleValueData const* web_css_style_map_parse(void* raw_declaration, u16 property_id, FlatPtr css_text)
 {
-    auto text = Utf16String::from_raw(css_text);
+    auto text = Utf16String::adopt_raw(css_text);
     auto parsing_params = Parser::ParsingParams {};
     if (raw_declaration) {
         if (auto owner_node = declaration_from_abi(raw_declaration).owner_node(); owner_node.has_value())
@@ -350,7 +350,7 @@ u8 web_css_style_map_set_value(void* declaration, FlatPtr name, StyleValueData c
 
 u8 web_css_style_map_remove(void* declaration, FlatPtr name, FlatPtr* message)
 {
-    return change_result(declaration_from_abi(declaration).remove_property(Utf16FlyString { Utf16String::from_raw(name) }), message);
+    return change_result(declaration_from_abi(declaration).remove_property(Utf16FlyString { Utf16String::adopt_raw(name) }), message);
 }
 
 u8 web_css_style_map_clear(void* declaration, FlatPtr* message)
