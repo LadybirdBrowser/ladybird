@@ -549,7 +549,7 @@ impl FcRunCacheStore {
         Self {
             slots: self.slots.fork(),
             inline_layout_damage: self.inline_layout_damage.clone(),
-            queued_for_sweep: self.queued_for_sweep.copy(),
+            queued_for_sweep: super::pass_column::PassFlags::default(),
         }
     }
 
