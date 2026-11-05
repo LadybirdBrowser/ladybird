@@ -62,26 +62,16 @@ runs:
       with:
         python-version: 3.12
         cache: ${{ inputs.use_caches == 'true' && 'pip' || '' }}
+        cache-dependency-path: requirements.txt
 
-    # actions/setup-python can fail to find its tool-cache pip inside job containers.
+    # Use the system interpreter in Linux job containers: actions/setup-python can
+    # fail to find its tool-cache pip there.
     - name: 'Set up Python environment'
-      if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: |
-        python3 -m venv "${RUNNER_TEMP}/ladybird-python"
-        echo "${RUNNER_TEMP}/ladybird-python/bin" >> "$GITHUB_PATH"
-        echo "pythonLocation=${RUNNER_TEMP}/ladybird-python" >> "$GITHUB_ENV"
-
-    - name: 'Install Python dependencies'
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip
-
-        if ${{ inputs.type == 'build' }} ; then
-          pip3 install pyyaml requests six cryptography
-        else
-          python3 "${GITHUB_WORKSPACE}/Meta/Linters/run.py"
-        fi
+        python_bin=$(python3 "${GITHUB_WORKSPACE}/Meta/Utils/python_environment.py" --print-bin | tr -d '\r')
+        echo "${python_bin}" >> "$GITHUB_PATH"
+        echo "pythonLocation=$(dirname "${python_bin}")" >> "$GITHUB_ENV"
 
     - name: 'Select latest Xcode'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
