@@ -20,6 +20,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -28,6 +29,7 @@
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationParams.h>
@@ -35,6 +37,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/IncrementalDocumentParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
@@ -370,34 +373,30 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         return {};
     };
 
-    auto style_element = TRY(DOM::create_element(document, HTML::TagNames::style, Namespace::HTML));
-    style_element->string_replace_all(R"~~~(
-        :root {
-            background-color: #222;
-        }
-        img, video, audio {
-            position: absolute;
-            inset: 0;
-            max-width: 100vw;
-            max-height: 100vh;
-            margin: auto;
-        }
-        img {
-            background-color: #fff;
-        }
-    )~~~"_utf16);
-    TRY(document->head()->append_child(style_element));
+    // NB: The Content-Security-Policy of the response applies to document, but must not block the user agent's own
+    //     styles. So set these declarations directly, not through a style element or attribute.
+    auto set_host_element_style = [](DOM::Element& element, Utf16View declarations) {
+        auto style = CSS::CSSStyleProperties::create_element_inline_style({ element });
+        style->set_declarations_from_text(declarations);
+        element.set_inline_style(style);
+    };
+    set_host_element_style(*document->document_element(), u"background-color: #222;"sv);
+    auto host_element_style = u"position: absolute; inset: 0; max-width: 100vw; max-height: 100vh; margin: auto;"sv;
 
     auto url_string = document->url().to_string();
     auto url_utf16 = utf16_string_from_url_ascii(url_string);
+    GC::Ptr<HTML::HTMLImageElement> image_element;
     if (type.is_image()) {
         auto img_element = TRY(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
+        image_element = as<HTML::HTMLImageElement>(*img_element);
+        set_host_element_style(img_element, Utf16String::formatted("{} background-color: #fff;", host_element_style));
         img_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
         TRY(document->body()->append_child(img_element));
         TRY(insert_title(document, url_string));
 
     } else if (type.type() == "video"sv) {
         auto video_element = TRY(DOM::create_element(document, HTML::TagNames::video, Namespace::HTML));
+        set_host_element_style(video_element, host_element_style);
         video_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
         video_element->set_attribute_value(HTML::AttributeNames::autoplay, Utf16String {});
         video_element->set_attribute_value(HTML::AttributeNames::controls, Utf16String {});
@@ -406,6 +405,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
 
     } else if (type.type() == "audio"sv) {
         auto audio_element = TRY(DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML));
+        set_host_element_style(audio_element, host_element_style);
         audio_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
         audio_element->set_attribute_value(HTML::AttributeNames::autoplay, Utf16String {});
         audio_element->set_attribute_value(HTML::AttributeNames::controls, Utf16String {});
@@ -432,11 +432,18 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     // FIXME: We should not need to force the media file to load before saying that parsing has completed!
     //        However, if we don't, then we get stuck in HTMLParser::the_end() waiting for the media file to load, which
     //        never happens.
-    navigation_params.response->body()->fully_read(
-        realm,
-        GC::create_function(GC::Heap::the(), [document](ByteBuffer) { HTML::HTMLParser::the_end(document, nullptr); }),
-        GC::create_function(GC::Heap::the(), [](JS::Value) { }),
-        GC::Ref { realm.global_object() });
+    auto stop_parsing = GC::create_function(GC::Heap::the(), [document] { HTML::HTMLParser::the_end(document, nullptr); });
+    if (image_element) {
+        // INTEROP: All major engines present the image from the response that was navigated to rather than fetching it
+        //          again. A second fetch would be subject to the Content-Security-Policy of that same response.
+        image_element->set_resource_from_navigation_response(HTML::SharedResourceRequest::create_from_navigation_response_body(document, *navigation_params.response->body(), stop_parsing));
+    } else {
+        navigation_params.response->body()->fully_read(
+            realm,
+            GC::create_function(GC::Heap::the(), [stop_parsing](ByteBuffer) { stop_parsing->function()(); }),
+            GC::create_function(GC::Heap::the(), [](JS::Value) { }),
+            GC::Ref { realm.global_object() });
+    }
 
     // 9. Return document.
     return document;

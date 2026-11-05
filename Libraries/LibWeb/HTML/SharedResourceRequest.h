@@ -37,9 +37,16 @@ public:
     [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(DOM::Document&, URL::URL const&, CORSSettingAttribute);
     [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(DOM::Document&, Fetch::Infrastructure::Request const&);
 
+    // Creates a request that loads the resource from the body of the response that the document was navigated to,
+    // instead of fetching it. No fetch checks this resource against the policies of the document, so it is only for
+    // the element that presents it, and get_or_create() never returns it.
+    // Calls on_body_read once reading the body has ended, whether or not that succeeded.
+    [[nodiscard]] static GC::Ref<SharedResourceRequest> create_from_navigation_response_body(DOM::Document&, Fetch::Infrastructure::Body const&, GC::Ref<GC::Function<void()>> on_body_read);
+
     virtual ~SharedResourceRequest() override;
 
     URL::URL const& url() const { return m_key.url; }
+    [[nodiscard]] bool can_be_shared() const { return m_can_be_shared; }
 
     [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
     [[nodiscard]] bool can_be_pruned_from_memory_cache() const;
@@ -114,6 +121,7 @@ private:
     bool m_fetch_has_user_without_callbacks { false };
 
     Key m_key;
+    bool m_can_be_shared { true };
     GC::Ptr<DecodedImageData> m_image_data;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     u64 m_cache_touch_serial { 0 };

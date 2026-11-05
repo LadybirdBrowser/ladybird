@@ -233,9 +233,15 @@ void HTMLImageElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* ol
     m_last_auto_sizes_width = {};
 }
 
+void HTMLImageElement::set_resource_from_navigation_response(GC::Ref<SharedResourceRequest> resource)
+{
+    m_resource_from_navigation_response = resource;
+}
+
 void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_resource_from_navigation_response);
     visitor.visit(m_current_request);
     visitor.visit(m_pending_request);
     visitor.visit(m_alt_text_node);
@@ -1228,7 +1234,10 @@ after_step_7:
 
         // 17. Set image request to a new image request whose current URL is urlString.
         auto image_request = ImageRequest::create();
-        image_request->set_current_url(document(), *url_string, m_cors_setting);
+        if (auto resource = exchange(m_resource_from_navigation_response, nullptr))
+            image_request->set_current_url(*url_string, *resource);
+        else
+            image_request->set_current_url(document(), *url_string, m_cors_setting);
         image_request->set_current_pixel_density(pixel_density.value_or(1.0f));
 
         // 18. If the current request's state is unavailable or broken, then set the current request to image request.
@@ -1363,7 +1372,10 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 image_request->set_state(ImageRequest::State::CompletelyAvailable);
 
                 // 3. Add the image to the list of available images using the key key, with the ignore higher-layer caching flag set.
-                originating_document->list_of_available_images().add(cache_key, *image_data, true);
+                // NB: An image from a navigation response was not checked against the policies of the document, so other
+                //     elements must not get it from this list.
+                if (image_request->shared_resource_request()->can_be_shared())
+                    originating_document->list_of_available_images().add(cache_key, *image_data, true);
                 originating_document->prune_image_resource_caches();
 
                 set_needs_layout_update_or_repaint_after_image_data_change();
