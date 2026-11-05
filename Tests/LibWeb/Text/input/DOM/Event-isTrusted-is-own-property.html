@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const events = [
+            new Event("x"),
+            new AnimationEvent("x"),
+            new FontFaceSetLoadEvent("x"),
+            new IDBVersionChangeEvent("x"),
+            new MediaQueryListEvent("x"),
+            new TransitionEvent("x"),
+        ];
+        for (const event of events)
+            println(`${event.constructor.name}: ${event.isTrusted}, own: ${Object.hasOwn(event, "isTrusted")}`);
+    });
+</script>

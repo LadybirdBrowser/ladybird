@@ -456,8 +456,16 @@ def write_ensure_web_prototype_declaration(out: TextIO) -> None:
 extern "C" JSObject* web_bindings_ensure_web_prototype(void* realm, u16 interface_name);
 extern "C" JSObject* web_bindings_ensure_web_constructor(void* realm, u16 interface_name);
 extern "C" JSObject* web_bindings_ensure_web_iterator_prototype(void* realm, u16 interface_name);
+
+// Defines the unforgeable attributes of an interface implemented in C++ on the wrapper of an object of an interface
+// implemented in Rust that inherits from it.
+extern "C" void web_bindings_define_unforgeable_attributes(void* realm, JSObject* wrapper, u16 interface_name);
 """
     )
+
+
+def has_unforgeable_attributes(interface: Interface) -> bool:
+    return any("LegacyUnforgeable" in attribute.extended_attributes for attribute in interface.regular_attributes)
 
 
 def write_ensure_web_prototype_implementation(out: TextIO, intrinsics: List[Interface]) -> None:
@@ -523,6 +531,31 @@ JSObject* {function}(void* realm, u16 interface_name)
             if rust_members(interface).async_iterator is not None
             else f'ensure_web_prototype<{interface.name}IteratorPrototype>(js_realm, "{interface.name}Iterator"_utf16_fly_string)'
         ),
+    )
+
+    out.write(
+        """
+void web_bindings_define_unforgeable_attributes(void* realm, JSObject* wrapper, u16 interface_name)
+{
+    [[maybe_unused]] auto& js_realm = *static_cast<JS::Realm*>(realm);
+    [[maybe_unused]] auto& object = *JS::HostABI::object_from_abi(wrapper);
+    switch (static_cast<InterfaceName>(interface_name)) {
+"""
+    )
+    out.writelines(
+        f"""    case InterfaceName::{interface.name}:
+        {interface.prototype_class}::define_unforgeable_attributes(js_realm, object);
+        return;
+"""
+        for interface in intrinsics
+        if interface.name in cpp_parent_names and has_unforgeable_attributes(interface)
+    )
+    out.write(
+        """    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+"""
     )
 
 
@@ -1037,6 +1070,14 @@ def write_rust_interface(
         inherited_interface_name = f"Some(super::{rust_module_name(parent)}::INTERFACE_NAME)"
     else:
         inherited_interface_name = f"Some({cpp_interface_name_constant(parent)})"
+    cpp_ancestor = parent
+    while cpp_ancestor is not None and is_implemented_in_rust(cpp_ancestor):
+        cpp_ancestor = context.interfaces.get(cpp_ancestor.parent_name)
+    unforgeable_attributes_interface = (
+        f"Some({cpp_interface_name_constant(cpp_ancestor)})"
+        if cpp_ancestor is not None and has_unforgeable_attributes(cpp_ancestor)
+        else "None"
+    )
     method_documentation = "".join(
         f"/// - `{signature}`\n" for signature in implementation_method_signatures(context, interface, members)
     )
@@ -1061,6 +1102,7 @@ def write_rust_interface(
         const CELL_CLASS: &'static EmbedderClass<Wrapped<Self>> = &CELL_CLASS;
         const INTERFACE_NAME: u16 = INTERFACE_NAME;
         const NAME: &'static str = "{interface.namespaced_name}";
+        const UNFORGEABLE_ATTRIBUTES_INTERFACE: Option<u16> = {unforgeable_attributes_interface};
 
         fn wrapper_class() -> &'static JSHostClass {{
             // SAFETY: LibWeb defines the class of the wrappers as constant data.
