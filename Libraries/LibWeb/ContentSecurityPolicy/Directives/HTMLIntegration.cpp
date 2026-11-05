@@ -106,13 +106,8 @@ static AllowsResult does_a_source_list_allow_all_inline_behavior_for_type(Vector
     return allow_all_inline ? AllowsResult::Allows : AllowsResult::DoesNotAllow;
 }
 
-enum class NonceableResult {
-    NotNonceable,
-    Nonceable,
-};
-
 // https://w3c.github.io/webappsec-csp/#is-element-nonceable
-[[nodiscard]] static NonceableResult is_element_nonceable(GC::Ptr<DOM::Element const> element)
+Nonceable is_element_nonceable(GC::Ptr<DOM::Element const> element)
 {
     // SPEC ISSUE 7: This processing is meant to mitigate the risk of dangling markup attacks that steal the nonce from
     //               an existing element in order to load injected script. It is fairly expensive, however, as it
@@ -123,17 +118,17 @@ enum class NonceableResult {
 
     // FIXME: See FIXME in `does_element_match_source_list_for_type_and_source`
     if (!element)
-        return NonceableResult::NotNonceable;
+        return Nonceable::No;
 
     // 1. If element does not have an attribute named "nonce", return "Not Nonceable".
     if (!is<HTML::HTMLElement>(element.ptr()) && !is<SVG::SVGElement>(element.ptr()))
-        return NonceableResult::NotNonceable;
+        return Nonceable::No;
 
     // INTEROP: An element whose [[CryptographicNonce]] was set through the nonce IDL attribute, which intentionally
     //          does not update the content attribute, is treated as if it had a nonce attribute.
     auto const& internal_nonce = is<HTML::HTMLElement>(element.ptr()) ? as<HTML::HTMLElement>(*element).nonce() : as<SVG::SVGElement>(*element).nonce();
     if (!element->has_attribute(HTML::AttributeNames::nonce) && internal_nonce.is_empty())
-        return NonceableResult::NotNonceable;
+        return Nonceable::No;
 
     // 2. If element is a script element, then for each attribute of element’s attribute list:
     // FIXME: File spec issue to ask if this should include SVGScriptElement.
@@ -151,12 +146,12 @@ enum class NonceableResult {
             // 1. If attribute’s name contains an ASCII case-insensitive match for "<link", "<script", or "<style",
             //    return "Not Nonceable".
             if (contains_dangling_markup(attribute->name().view()))
-                return NonceableResult::NotNonceable;
+                return Nonceable::No;
 
             // 2. If attribute’s value contains an ASCII case-insensitive match for "<link", "<script", or "<style",
             //    return "Not Nonceable".
             if (contains_dangling_markup(attribute->value()))
-                return NonceableResult::NotNonceable;
+                return Nonceable::No;
         }
     }
 
@@ -164,10 +159,10 @@ enum class NonceableResult {
     // SPEC ISSUE 6: We need some sort of hook in HTML to record this error if we’re planning on using it here.
     //               [Issue #whatwg/html#3257] (https://github.com/whatwg/html/issues/3257)
     if (element->had_duplicate_attribute_during_tokenization())
-        return NonceableResult::NotNonceable;
+        return Nonceable::No;
 
     // 4. Return "Nonceable".
-    return NonceableResult::Nonceable;
+    return Nonceable::Yes;
 }
 
 // https://w3c.github.io/webappsec-csp/#match-element-to-source-list
@@ -193,7 +188,7 @@ static MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DO
     // the content attribute. Keep applying the nonceability checks above to script elements to prevent dangling markup
     // attacks.
     auto is_nonceable = (type == Directive::InlineType::Style && element && (is<HTML::HTMLStyleElement>(element.ptr()) || is<SVG::SVGStyleElement>(element.ptr())))
-        || (type == Directive::InlineType::Script && is_element_nonceable(element) == NonceableResult::Nonceable);
+        || (type == Directive::InlineType::Script && is_element_nonceable(element) == Nonceable::Yes);
     if (is_nonceable) {
         // 1. For each expression of list:
         for (auto const& expression : source_list) {
