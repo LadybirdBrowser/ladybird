@@ -144,6 +144,15 @@ struct WEBCOMMON_API AccessibilityNodeData {
     bool operator==(AccessibilityNodeData const&) const = default;
 };
 
+// A change to an accessibility tree the receiver already holds: the complete data of every node that's new or whose data
+// changed (a node whose children changed among them, with its new child IDs), in tree order, and the IDs of the nodes no
+// longer in the tree. A node that moves keeps its ID: Its old and new parents are both among the changed nodes. The order
+// decides which of several nodes inserted into a live region the region announces: the first.
+struct WEBCOMMON_API AccessibilityTreeDelta {
+    Vector<AccessibilityNodeData> changed_nodes;
+    Vector<i64> removed_ids;
+};
+
 }
 
 #include <LibWebCommon/WebView/AccessibilityNodeDataCodecs.h>
