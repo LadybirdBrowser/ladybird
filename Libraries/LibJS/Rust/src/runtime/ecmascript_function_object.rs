@@ -412,6 +412,8 @@ impl EcmascriptFunctionObject {
         self.set_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME, false);
 
         let old_shape = self.shape();
+        // NB: Rebuilding the shape bypasses transitions away from the old one and moves existing property offsets.
+        old_shape.mark_unstable(vm);
         let realm = old_shape.realm();
         let mut shape = match self.kind() {
             FunctionKind::Normal => realm.normal_function_shape(),
