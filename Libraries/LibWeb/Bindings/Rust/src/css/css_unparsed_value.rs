@@ -6,6 +6,8 @@
 
 //! CSSUnparsedValue, https://drafts.css-houdini.org/css-typed-om-1/#cssunparsedvalue
 
+use std::collections::HashSet;
+
 use ak::Utf16String;
 use libjs_rust::api::{GcRefCell, MarkedVec, Trace, Vm};
 use libweb_rust::typed_om::{RetainedStyleValue, unresolved_style_value};
@@ -107,7 +109,11 @@ impl CSSUnparsedValue {
         Ok(())
     }
 
-    fn contains_unparsed_value(&self, needle: &Self) -> bool {
+    fn contains_unparsed_value(&self, needle: &Self, visited: &mut HashSet<*const Self>) -> bool {
+        // NB: A value can contain itself without containing the needle, so each value is only scanned once.
+        if !visited.insert(core::ptr::from_ref(self)) {
+            return false;
+        }
         self.tokens.borrow().iter().any(|segment| {
             let CSSUnparsedSegment::CSSVariableReferenceValue(variable_reference) = segment else {
                 return false;
@@ -116,7 +122,7 @@ impl CSSUnparsedValue {
                 return false;
             };
             let fallback: &Self = &fallback;
-            core::ptr::eq(fallback, needle) || fallback.contains_unparsed_value(needle)
+            core::ptr::eq(fallback, needle) || fallback.contains_unparsed_value(needle, visited)
         })
     }
 
@@ -125,7 +131,7 @@ impl CSSUnparsedValue {
         // AD-HOC: It's possible for one of the tokens to contain this in its fallback slot, or a similar situation with
         //         more levels of nesting. To avoid crashing, do a scan for that first and return the empty string.
         // Spec issue: https://github.com/w3c/css-houdini-drafts/issues/1158
-        if self.contains_unparsed_value(self) {
+        if self.contains_unparsed_value(self, &mut HashSet::new()) {
             return Utf16String::default();
         }
 
