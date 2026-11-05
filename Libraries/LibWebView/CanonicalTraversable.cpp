@@ -1444,7 +1444,8 @@ void CanonicalTraversable::continue_history_navigation_population(HistoryOperati
     auto* acquiring = changing_navigable.population.get_pointer<ChangingNavigable::AcquiringResponseBody>();
     if (!acquiring)
         return;
-    RefPtr<WebContentPage> endpoint = changing_job_endpoint(changing_navigable);
+    NonnullRefPtr<WebContentPage> job_page = changing_job_endpoint(changing_navigable);
+    RefPtr<WebContentPage> endpoint = job_page;
     auto loader = acquiring->loader;
     changing_navigable.population = Empty {};
 
@@ -1473,7 +1474,7 @@ void CanonicalTraversable::continue_history_navigation_population(HistoryOperati
     endpoint = host.page;
     add_history_operation_completion_endpoint(operation, *endpoint);
     changing_navigable.population = ChangingNavigable::Populating { loader };
-    auto finish_handoff = [this, operation_id, navigable_id, weak_loader = loader->make_weak_ptr(), endpoint](bool succeeded) {
+    auto finish_handoff = [this, operation_id, navigable_id, weak_loader = loader->make_weak_ptr(), endpoint, job_page = move(job_page)](bool succeeded) {
         auto* operation = find_history_operation(operation_id);
         auto* changing_navigable = operation ? operation->pending_changing_job(navigable_id) : nullptr;
         auto* populating = changing_navigable ? changing_navigable->population.get_pointer<ChangingNavigable::Populating>() : nullptr;
@@ -1484,9 +1485,16 @@ void CanonicalTraversable::continue_history_navigation_population(HistoryOperati
             return;
         }
         auto& loader = *populating->loader;
+        Web::HTML::HistoryNavigationPopulation population { loader.request(), loader.take_result() };
         endpoint->owe_reply({ OwedReply::Kind::ChangingJob, operation_id, navigable_id });
-        endpoint->async_continue_history_navigation_population(operation_id, changing_navigable->target_entry_descriptor(), operation->algorithm->navigation_type(),
-            changing_navigable->navigable().ongoing_navigation().has<CanonicalNavigable::Traversal>(), Web::HTML::HistoryNavigationPopulation { loader.request(), loader.take_result() });
+        if (endpoint == job_page) {
+            endpoint->async_continue_history_navigation_population(operation_id, move(population));
+            return;
+        }
+        // NB: The job's steps ran in the process displaying the navigable's document. Another process hosts the document
+        //     the population creates, and creates it there.
+        endpoint->async_populate_history_entry_document(operation_id, changing_navigable->target_entry_descriptor(), operation->algorithm->navigation_type(),
+            changing_navigable->navigable().ongoing_navigation().has<CanonicalNavigable::Traversal>(), move(population));
     };
     loader->move_response_body_to(endpoint->client().request_server_site_bindings(), move(finish_handoff));
 }

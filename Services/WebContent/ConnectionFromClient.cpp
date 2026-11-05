@@ -638,23 +638,26 @@ void ConnectionFromClient::queue_navigation_api_state_clear_task(Web::PageId pag
     navigable->queue_navigation_api_state_clear_task();
 }
 
-void ConnectionFromClient::continue_history_navigation_population(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Web::Bindings::NavigationType> navigation_type, bool ongoing_navigation_is_traversal, Web::HTML::HistoryNavigationPopulation population)
+void ConnectionFromClient::continue_history_navigation_population(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation population)
 {
-    auto page = this->page(page_id);
     auto navigable_id = population.request.navigable_id;
+    if (auto page = this->page(page_id); page.has_value() && page->page().history_executor().resume_history_navigation_population(operation_id, move(population)))
+        return;
+    async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped, false);
+}
+
+void ConnectionFromClient::populate_history_entry_document(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Web::Bindings::NavigationType> navigation_type, bool ongoing_navigation_is_traversal, Web::HTML::HistoryNavigationPopulation population)
+{
+    auto navigable_id = population.request.navigable_id;
+    auto page = this->page(page_id);
     if (!page.has_value()) {
         async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped, false);
         return;
     }
-    auto& history_executor = page->page().history_executor();
-    if (history_executor.resume_history_navigation_population(operation_id, move(population)))
-        return;
-    auto user_involvement = population.request.user_involvement;
-    history_executor.run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, {}, ongoing_navigation_is_traversal, false,
+    page->page().history_executor().populate_ui_history_entry_document(operation_id, move(target_entry), navigation_type, ongoing_navigation_is_traversal, move(population),
         GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only) {
             async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition, update_only);
-        }),
-        move(population));
+        }));
 }
 
 void ConnectionFromClient::run_changing_navigable_history_job(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Optional<Utf16String> finalized_navigation_id, bool ongoing_navigation_is_traversal, bool needs_population)
