@@ -90,11 +90,8 @@ impl<T> PassColumn<T> {
         }
     }
 
-    fn empty_like<OtherRow>(&self) -> PassColumn<OtherRow> {
-        PassColumn {
-            rows_are_slots: self.rows_are_slots,
-            ..PassColumn::default()
-        }
+    fn rows_are_slots(&self) -> bool {
+        self.rows_are_slots
     }
 }
 
@@ -216,6 +213,117 @@ fn make_chunk<T: Default>(slot: &AtomicPtr<PassChunk<T>>) -> &PassChunk<T> {
     }
 }
 
+/// How many chunks a page of [`SparseRows`] holds.
+const CHUNKS_PER_PAGE: usize = 1024;
+
+/// How many pages reach every row: the arena holds at most 2^24 slots.
+const SPARSE_PAGE_COUNT: usize = (1 << 24) / (ROWS_PER_CHUNK * CHUNKS_PER_PAGE);
+
+struct SparsePage<T>([OwnedChunk<T>; CHUNKS_PER_PAGE]);
+
+/// The rows one side of a fork holds of its own, which are few however many rows the document has. It costs the same to
+/// make whatever the size of the document: pages and chunks come to be as rows are written, by any run of a pass, as a
+/// [`PassColumn`]'s chunks do.
+struct SparseRows<T> {
+    pages: Box<[AtomicPtr<SparsePage<T>>; SPARSE_PAGE_COUNT]>,
+    owns: std::marker::PhantomData<Box<SparsePage<T>>>,
+    rows_are_slots: bool,
+}
+
+// SAFETY: As for `PassColumn`, whose rows these are written and read as.
+unsafe impl<T: Send + Sync> Sync for SparseRows<T> {}
+
+impl<T> Drop for SparseRows<T> {
+    fn drop(&mut self) {
+        for page in self.pages.iter_mut() {
+            let page = *page.get_mut();
+            if !page.is_null() {
+                // SAFETY: A non-null page pointer came from `Box::into_raw` in `page_for_writing`, and only this slot owns
+                // it.
+                drop(unsafe { Box::from_raw(page) });
+            }
+        }
+    }
+}
+
+impl<T> SparseRows<T> {
+    fn new(rows_are_slots: bool) -> Self {
+        Self {
+            pages: Box::new(std::array::from_fn(|_| AtomicPtr::default())),
+            owns: std::marker::PhantomData,
+            rows_are_slots,
+        }
+    }
+
+    fn page(&self, chunk_index: usize) -> Option<&SparsePage<T>> {
+        let page = self.pages.get(chunk_index / CHUNKS_PER_PAGE)?.load(Ordering::Acquire);
+        // SAFETY: A non-null page pointer stays valid until the rows drop, which the borrow of them rules out.
+        unsafe { page.as_ref() }
+    }
+
+    fn page_for_writing(&self, chunk_index: usize) -> &SparsePage<T> {
+        if let Some(page) = self.page(chunk_index) {
+            return page;
+        }
+        let made = Box::into_raw(Box::new(SparsePage(std::array::from_fn(|_| OwnedChunk::default()))));
+        let slot = &self.pages[chunk_index / CHUNKS_PER_PAGE];
+        match slot.compare_exchange(std::ptr::null_mut(), made, Ordering::AcqRel, Ordering::Acquire) {
+            // SAFETY: The slot now owns `made`, which stays valid until the rows drop.
+            Ok(_) => unsafe { &*made },
+            Err(made_by_another_run) => {
+                // SAFETY: `made` was never shared.
+                drop(unsafe { Box::from_raw(made) });
+                // SAFETY: As in `page`.
+                unsafe { &*made_by_another_run }
+            }
+        }
+    }
+}
+
+impl<T: Default> SparseRows<T> {
+    fn chunk_for_reading(&self, chunk_index: usize) -> Option<&PassChunk<T>> {
+        let chunk = self.page(chunk_index)?.0[chunk_index % CHUNKS_PER_PAGE]
+            .pointer
+            .load(Ordering::Acquire);
+        // SAFETY: As in `ChunkTable::chunk_for_reading`.
+        unsafe { chunk.as_ref() }
+    }
+
+    #[inline]
+    fn with_row<R>(&self, index: usize, read: impl FnOnce(Option<&T>) -> R) -> R {
+        if self.rows_are_slots {
+            super::parallel_layout::check_row_reached_by_forked_task(index, false);
+        }
+        let Some(chunk) = self.chunk_for_reading(index / ROWS_PER_CHUNK) else {
+            return read(None);
+        };
+        let _borrow = RowBorrow::shared(chunk, index % ROWS_PER_CHUNK);
+        // SAFETY: As in `ChunkTable::with_row`.
+        read(Some(unsafe { &*chunk.rows[index % ROWS_PER_CHUNK].get() }))
+    }
+
+    #[inline]
+    fn with_row_mut<R>(&self, index: usize, write: impl FnOnce(&mut T) -> R) -> R {
+        if self.rows_are_slots {
+            super::parallel_layout::check_row_reached_by_forked_task(index, true);
+        }
+        let chunk_index = index / ROWS_PER_CHUNK;
+        let slot = &self.page_for_writing(chunk_index).0[chunk_index % CHUNKS_PER_PAGE].pointer;
+        let chunk = slot.load(Ordering::Acquire);
+        // SAFETY: As in `ChunkTable::chunk_for_reading`.
+        let chunk = unsafe { chunk.as_ref() }.unwrap_or_else(|| make_chunk(slot));
+        let _borrow = RowBorrow::exclusive(chunk, index % ROWS_PER_CHUNK);
+        // SAFETY: As in `ChunkTable::with_row_mut`.
+        write(unsafe { &mut *chunk.rows[index % ROWS_PER_CHUNK].get() })
+    }
+
+    fn row_mut(&mut self, index: usize) -> Option<&mut T> {
+        let chunk = self.chunk_for_reading(index / ROWS_PER_CHUNK)?;
+        // SAFETY: `&mut self` rules out any other reference into the rows.
+        Some(unsafe { &mut *chunk.rows[index % ROWS_PER_CHUNK].get() })
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct PassFlags {
     flags: PassColumn<bool>,
@@ -262,22 +370,6 @@ impl PassFlags {
             }
             *chunk_holds_raised_flags.get_mut() = holds_raised_flags;
         }
-    }
-
-    pub(crate) fn copy(&self) -> Self {
-        let mut copy = Self::default();
-        copy.cover_slots(self.flags.covered_rows());
-        for (chunk_index, chunk_holds_raised_flags) in self.chunks_holding_raised_flags.iter().enumerate() {
-            if !chunk_holds_raised_flags.load(std::sync::atomic::Ordering::Relaxed) {
-                continue;
-            }
-            for index in chunk_index * ROWS_PER_CHUNK..(chunk_index + 1) * ROWS_PER_CHUNK {
-                if self.flags.with_row(index, |flag| flag.is_some_and(|flag| *flag)) {
-                    copy.raise(index);
-                }
-            }
-        }
-        copy
     }
 }
 
@@ -332,7 +424,7 @@ unsafe impl<T: Send + Sync> Sync for HostRows<T> {}
 struct RowsSavedForFork<T> {
     generation: u32,
     rows_the_host_held_at_fork: usize,
-    rows: PassColumn<Option<T>>,
+    rows: SparseRows<Option<T>>,
 }
 
 // SAFETY: The host writes these rows and its fork reads them, never at once, as for `HostRows`.
@@ -340,7 +432,7 @@ unsafe impl<T: Send + Sync> Sync for RowsSavedForFork<T> {}
 
 struct ForkSide<T> {
     rows_saved_by_host: std::sync::Arc<RowsSavedForFork<T>>,
-    own_rows: PassColumn<Option<T>>,
+    own_rows: SparseRows<Option<T>>,
     reads_host_rows: bool,
 }
 
@@ -410,12 +502,11 @@ impl<T: Clone + Default> ForkSharedRows<T> {
             *handed_out += 1;
             *handed_out
         };
-        let mut rows = self.host_rows().empty_like();
-        rows.cover_slots(rows_the_host_held_at_fork);
+        let rows_are_slots = self.host_rows().rows_are_slots();
         let rows_saved_by_host = std::sync::Arc::new(RowsSavedForFork {
             generation,
             rows_the_host_held_at_fork,
-            rows,
+            rows: SparseRows::new(rows_are_slots),
         });
         // SAFETY: As above.
         unsafe {
@@ -426,7 +517,7 @@ impl<T: Clone + Default> ForkSharedRows<T> {
             chunk_table_of_the_host: ChunkTableOfTheHost::of_a_fork(),
             fork_side: Some(ForkSide {
                 rows_saved_by_host,
-                own_rows: self.host_rows().empty_like(),
+                own_rows: SparseRows::new(rows_are_slots),
                 reads_host_rows: true,
             }),
         }
@@ -450,7 +541,6 @@ impl<T: Clone + Default> ForkSharedRows<T> {
                 self.chunk_table_of_the_host = ChunkTableOfTheHost::of(self.host_rows());
             }
             Some(fork_side) => {
-                fork_side.own_rows.cover_slots(slot_count);
                 // SAFETY: The fork covers its rows between its passes, while the host does not lay out.
                 let live_fork = unsafe { &*self.host_rows.live_fork.get() };
                 if !live_fork
