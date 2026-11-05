@@ -67,6 +67,14 @@ void ReportSubmission::Contents::add_text(StringView key, StringView type, Strin
         add(key, type, to_string(value));
 }
 
+void ReportSubmission::Contents::add_build_information(StringView platform, StringView architecture, StringView git_commit, StringView build_configuration)
+{
+    add_text("platform"sv, "text"sv, platform);
+    add_text("architecture"sv, "text"sv, architecture);
+    add_text("git_commit"sv, "text"sv, git_commit);
+    add_text("build_configuration"sv, "text"sv, build_configuration);
+}
+
 ByteString ReportSubmission::build_manifest(Contents const& contents, ReadonlySpan<Attachment> attachments)
 {
     JsonArray fields;

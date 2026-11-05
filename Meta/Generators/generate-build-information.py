@@ -106,6 +106,8 @@ def generate(source, build, compiler):
 
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
+#include <LibCore/BrowserVersion.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/ProcessType.h>
 
 namespace WebView {{
@@ -114,6 +116,8 @@ constexpr inline auto LADYBIRD_COMMIT = {json.dumps(revision)}sv;
 
 inline void append_build_information_for_process(StringBuilder& builder, ProcessType type)
 {{
+    builder.appendff("Version: {{}}\\nPlatform: {{}}\\nArchitecture: {{}}\\n", BROWSER_VERSION, OS_STRING, CPU_STRING);
+    builder.appendff("Build configuration: {{}}\\n", BROWSER_BUILD_CONFIGURATION);
     builder.appendff("Git commit: {{}}\\n", LADYBIRD_COMMIT);
     builder.appendff("Tracked source state: {{}}\\n", {json.dumps(state)}sv);
     builder.appendff("C++ compiler: {{}}\\n", {json.dumps(compiler)}sv);

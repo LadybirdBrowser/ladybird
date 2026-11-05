@@ -61,6 +61,7 @@ public:
     struct Contents {
         void add(StringView key, StringView type, JsonValue value);
         void add_text(StringView key, StringView type, StringView value);
+        void add_build_information(StringView platform, StringView architecture, StringView git_commit, StringView build_configuration);
 
         StringView kind;
         ByteString client_version;

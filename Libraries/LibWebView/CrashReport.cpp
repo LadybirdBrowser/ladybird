@@ -7,11 +7,9 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Hex.h>
 #include <AK/StringBuilder.h>
-#include <LibCore/BrowserVersion.h>
 #include <LibCore/CrashReportData.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
-#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/BuildInformation.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/CrashReportStore.h>
@@ -84,15 +82,8 @@ static StringView signal_name(int signal)
     }
 }
 
-static void append_build_description(StringBuilder& builder, ProcessType process_type)
-{
-    builder.appendff("Version: {}\nPlatform: {}\nArchitecture: {}\n", BROWSER_VERSION, OS_STRING, CPU_STRING);
-    append_build_information_for_process(builder, process_type);
-}
-
 static void append_system_description(StringBuilder& builder)
 {
-    builder.appendff("Build configuration: {}\n", BROWSER_BUILD_CONFIGURATION);
     utsname system {};
     if (uname(&system) == 0) {
         // Only the numeric release, never nodename or custom kernel build text.
@@ -107,7 +98,7 @@ static void append_system_description(StringBuilder& builder)
 ByteString CrashReport::describe_current_build(ProcessType process_type)
 {
     StringBuilder builder;
-    append_build_description(builder, process_type);
+    append_build_information_for_process(builder, process_type);
     append_system_description(builder);
     return builder.to_byte_string();
 }
@@ -173,7 +164,7 @@ ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path, Optiona
         else
             builder.append("Build information: unavailable, the browser that crashed did not record it\n"sv);
     } else {
-        append_build_description(builder, m_process_type);
+        append_build_information_for_process(builder, m_process_type);
         builder.appendff("Process uptime (seconds): {}\n", (MonotonicTime::now() - m_started_at).to_seconds());
         append_system_description(builder);
     }
