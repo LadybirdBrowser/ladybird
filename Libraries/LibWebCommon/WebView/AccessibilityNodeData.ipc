@@ -85,3 +85,9 @@ struct WebView::AccessibilityNodeData {
     Vector<i32> line_break_character_offsets;
     Vector<i32> line_heights;
 }
+
+[ExistingCpp]
+struct WebView::AccessibilityTreeDelta {
+    Vector<WebView::AccessibilityNodeData> changed_nodes;
+    Vector<i64> removed_ids;
+}

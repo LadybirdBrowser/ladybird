@@ -302,10 +302,15 @@ private:
     friend class WebContentViewAccessible;
 #endif
 
+    // Takes the steps that follow each tree update: after a change, with the IDs of the nodes it removed.
+    void did_update_accessibility_tree(Optional<Vector<i64>> removed_ids);
+
     OwnPtr<WebView::AccessibilityTreeManager> m_accessibility_manager;
     bool m_posted_initial_accessibility_focus { false };
     // Set once this view has asked WebContent for the tree; from then on, WebContent pushes every change on its own.
     bool m_requested_accessibility_tree { false };
+    // Set while the whole tree is on its way, after a change this view couldn't apply.
+    bool m_accessibility_whole_tree_pending { false };
 #if !defined(Q_OS_WIN)
     // Set when an assistive technology turns up mid-page: The next tree to arrive reports the focus to it.
     bool m_report_accessibility_focus_with_next_tree { false };

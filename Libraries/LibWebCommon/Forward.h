@@ -119,6 +119,7 @@ struct StorageEndpoint;
 namespace WebView {
 
 struct AccessibilityNodeData;
+struct AccessibilityTreeDelta;
 struct Attribute;
 struct ConsoleOutput;
 struct DOMNodeProperties;

@@ -77,6 +77,7 @@ set(SOURCES
     WebDriver/Response.cpp
     WebDriver/TimeoutsConfiguration.cpp
     WebDriver/UserPrompt.cpp
+    WebView/AccessibilityTreePublisher.cpp
     WebView/Attribute.cpp
     WebView/BrowsingBehavior.cpp
     WebView/ConsoleOutput.cpp

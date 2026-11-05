@@ -33,6 +33,7 @@
 #include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Response.h>
 #include <LibWebCommon/WebDriver/UserPrompt.h>
+#include <LibWebCommon/WebView/AccessibilityTreePublisher.h>
 #include <LibWebCommon/WebView/ConsoleOutputBuffer.h>
 #include <LibWebCommon/WebView/Geolocation.h>
 #include <LibWebCommon/WebView/Mutation.h>
@@ -169,6 +170,8 @@ public:
     void did_delete_all_cookies(u64 request_id);
 
     void schedule_accessibility_tree_update();
+    // Sends the UI process what changed in the accessibility tree since the last tree sent, or the whole tree.
+    void publish_accessibility_tree(bool whole_tree_requested);
 
 private:
     struct PendingDOMMutation {
@@ -488,6 +491,7 @@ private:
     Optional<Web::HTML::CrossProcessId> m_pending_root_navigable_id;
 
     RefPtr<Core::Timer> m_accessibility_update_timer;
+    WebView::AccessibilityTreePublisher m_accessibility_tree_publisher;
     RefPtr<Core::Timer> m_accessibility_focus_timer;
     Optional<i64> m_pending_accessibility_focus;
 
