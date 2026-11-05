@@ -462,6 +462,7 @@ pub(crate) enum TickPresented {
     Frame {
         output: Arc<RecordingOutput>,
         hit_test_list_changed: bool,
+        publishes: bool,
     },
     /// Nothing: the frame renders an SVG image the recording published last did not draw, which only the host renders,
     /// and the lane samples no more.
@@ -1777,8 +1778,9 @@ fn freeze_tick_frame(
         TickPresented::Frame {
             output,
             hit_test_list_changed,
+            publishes,
         } => {
-            take_in_recording(arena, output, hit_test_list_changed, true);
+            take_in_recording(arena, output, hit_test_list_changed, publishes);
         }
         TickPresented::LeftToHost => return Err(Park("the host presents the frame")),
     }
@@ -1853,6 +1855,7 @@ impl ClockRecorder {
             *presented = TickPresented::Frame {
                 output,
                 hit_test_list_changed,
+                publishes: true,
             };
         });
         self

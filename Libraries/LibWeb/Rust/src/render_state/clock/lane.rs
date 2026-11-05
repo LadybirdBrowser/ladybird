@@ -171,6 +171,7 @@ impl LaneDelivery {
             Some(output) => TickPresented::Frame {
                 output,
                 hit_test_list_changed: true,
+                publishes: true,
             },
             None => TickPresented::Nothing,
         };
