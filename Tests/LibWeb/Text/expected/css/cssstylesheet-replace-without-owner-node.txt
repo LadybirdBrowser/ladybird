@@ -1,0 +1,4 @@
+ownerNode: null
+replace() rejected: NotAllowedError
+second replace() rejected: NotAllowedError
+rules: 1

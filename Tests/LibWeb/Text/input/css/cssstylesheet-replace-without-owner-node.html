@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style id="style">a { color: red; }</style>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const sheet = style.sheet;
+        style.remove();
+        println(`ownerNode: ${sheet.ownerNode}`);
+
+        try {
+            await sheet.replace("b { color: green; }");
+            println("replace() resolved");
+        } catch (error) {
+            println(`replace() rejected: ${error.name}`);
+        }
+
+        const constructedSheet = new CSSStyleSheet();
+        const firstReplacement = constructedSheet.replace("c { color: blue; }");
+        try {
+            await constructedSheet.replace("d { color: blue; }");
+            println("second replace() resolved");
+        } catch (error) {
+            println(`second replace() rejected: ${error.name}`);
+        }
+        await firstReplacement;
+        println(`rules: ${constructedSheet.cssRules.length}`);
+        done();
+    });
+</script>

@@ -229,6 +229,18 @@ impl CSSStyleSheet {
 
     // https://drafts.csswg.org/cssom/#dom-cssstylesheet-replace
     pub(crate) fn replace(&self, _: &mut CallContext, text: UsvString) -> WebIdlResult<WebIdlPromise> {
+        // 1. Let promise be a promise.
+        // 2. If the constructed flag is not set, or the disallow modification flag is set, reject promise with a
+        //    NotAllowedError DOMException and return promise.
+        // NB: The bindings reject a new promise with what this returns, as a sheet that is not constructed may have no
+        //     owner node to find a realm through.
+        if !self.style_sheet.flag(NativeStyleSheetFlag::Constructed) {
+            return Err(not_allowed_error("Can't call replace() on non-constructed stylesheets"));
+        }
+        if self.style_sheet.flag(NativeStyleSheetFlag::DisallowModification) {
+            return Err(not_allowed_error("Can't call replace() on non-modifiable stylesheets"));
+        }
+
         let text = text.into_utf16_string().into_raw();
         // SAFETY: The cell is live, the text is handed over, and LibWeb returns a live promise.
         Ok(unsafe { promise_from_abi(web_css_sheet_state_replace(self.state(), text)) })

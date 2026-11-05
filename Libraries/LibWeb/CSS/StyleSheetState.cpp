@@ -310,22 +310,12 @@ void StyleSheetState::remove_rule(u32 index)
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-replace
 GC::Ref<WebIDL::Promise> StyleSheetState::replace(Utf16String text)
 {
-    // Constructed sheets remember the document whose realm created them. A stylesheet attached to a
-    // <style> element has no constructor document, so use its owner node's document instead.
-    auto& realm = constructed()
-        ? HTML::relevant_realm(*constructor_document())
-        : HTML::relevant_realm(owner_node()->document());
-    auto promise = constructed()
-        ? WebIDL::create_promise_for(*constructor_document())
-        : WebIDL::create_promise_for(owner_node()->document());
-    if (!constructed()) {
-        WebIDL::reject_promise(promise, WebIDL::NotAllowedError::create("Can't call replace() on non-constructed stylesheets"_utf16));
-        return promise;
-    }
-    if (disallow_modification()) {
-        WebIDL::reject_promise(promise, WebIDL::NotAllowedError::create("Can't call replace() on non-modifiable stylesheets"_utf16));
-        return promise;
-    }
+    // NB: The bindings rejected a sheet that is not constructed, or whose modification is disallowed. A constructed
+    //     sheet remembers the document whose realm created it.
+    VERIFY(constructed());
+    VERIFY(!disallow_modification());
+    auto& realm = HTML::relevant_realm(*constructor_document());
+    auto promise = WebIDL::create_promise_for(*constructor_document());
     set_disallow_modification(true);
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [sheet = GC::Ref { cssom_sheet() }, &realm, text = move(text), promise = GC::Root(promise)] {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
