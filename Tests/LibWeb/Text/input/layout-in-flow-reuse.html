@@ -27,7 +27,7 @@
                       @viewport/block RUN (cache=bypass)
                         BlockContainer<HTML>/block RUN (cache=miss)
                           BlockContainer<DIV>#list.scenario/block RUN (cache=miss)
-                            BlockContainer<DIV>.toggle/block REUSE SUBTREE
+                            ListItemBox<LI>#li2 REUSE IN-FLOW SUBTREE
                             ListItemBox<LI>#li3 REUSE IN-FLOW SUBTREE
                             ListItemBox<LI>#li4 REUSE IN-FLOW SUBTREE
                           BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
@@ -62,7 +62,7 @@
                 },
             },
             {
-                name: "a changed margin before a box makes it lay out again",
+                name: "a changed margin before a box moves it without laying it out again",
                 mutate: () => {
                     m1.style.marginBottom = "7px";
                 },
@@ -73,10 +73,12 @@
                           BlockContainer<DIV>#list.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#margins.scenario/block RUN (cache=miss)
+                            BlockContainer<DIV>#m2 REUSE IN-FLOW SUBTREE
                             BlockContainer<DIV>#m3 REUSE IN-FLOW SUBTREE
                           BlockContainer<DIV>#abspos-scenario.scenario/block REUSE SUBTREE
                 `,
                 check: equal => {
+                    equal(m2.getBoundingClientRect().top - margins.getBoundingClientRect().top, 17, "box after the margin top");
                     equal(m3.getBoundingClientRect().top - margins.getBoundingClientRect().top, 27, "last box top");
                 },
             },

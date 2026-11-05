@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; font: 10px/10px SerenitySans; }
+    .scenario { display: flow-root; width: 200px; }
+    p { margin: 12px 0; }
+</style>
+<div class="scenario" id="own"><div id="o1">first</div><div id="o2"><p id="o2p">second</p></div><div id="o3">third</div></div>
+<div class="scenario" id="joined"><div id="wrapper"><div id="j1"><p id="j1p">first</p></div><div id="j2">second</div></div></div>
+<div class="scenario" id="switch"><div id="sw"><div id="s0" style="height: 10px"></div><div id="s1"><p id="s1p">first</p></div></div></div>
+<div class="scenario" id="stretch"><div id="stretch-parent" style="height: 100px"><div id="stretched" style="margin: 25px 0; height: stretch"></div></div></div>
+<script>
+    const topIn = (box, scenario) => box.getBoundingClientRect().top - scenario.getBoundingClientRect().top;
+    layoutTest({
+        steps: [
+            {
+                name: "a changed margin before a box collapses with the margin of its first child",
+                mutate: () => {
+                    o1.style.marginBottom = "20px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#own.scenario/block RUN (cache=miss)
+                            BlockContainer<DIV>#o2 REUSE IN-FLOW SUBTREE
+                            BlockContainer<DIV>#o3 REUSE IN-FLOW SUBTREE
+                          BlockContainer<DIV>#joined.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#switch.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#stretch.scenario/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(topIn(o2, own), 30, "box top");
+                    equal(topIn(o2p, own), 30, "first child top");
+                    equal(topIn(o3, own), 52, "next box top");
+                },
+            },
+            {
+                name: "a negative margin before a box collapses with the positive margin of its first child",
+                mutate: () => {
+                    o1.style.marginBottom = "-5px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#own.scenario/block RUN (cache=miss)
+                            BlockContainer<DIV>#o2 REUSE IN-FLOW SUBTREE
+                            BlockContainer<DIV>#o3 REUSE IN-FLOW SUBTREE
+                          BlockContainer<DIV>#joined.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#switch.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#stretch.scenario/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(topIn(o2, own), 17, "box top");
+                    equal(topIn(o3, own), 39, "next box top");
+                },
+            },
+            {
+                name: "a changed margin of a parent collapses with the margin of its first child",
+                mutate: () => {
+                    wrapper.style.marginTop = "20px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#own.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#joined.scenario/block RUN (cache=miss)
+                            BlockContainer<DIV>#j1 REUSE IN-FLOW SUBTREE
+                            BlockContainer<DIV>#j2 REUSE IN-FLOW SUBTREE
+                          BlockContainer<DIV>#switch.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#stretch.scenario/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(topIn(wrapper, joined), 20, "parent top");
+                    equal(topIn(j1p, joined), 20, "first child top");
+                    equal(topIn(j2, joined), 42, "second child top");
+                },
+            },
+            {
+                name: "a box whose margins start collapsing into its parent's keeps its layout",
+                mutate: () => {
+                    s0.style.height = "";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#own.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#joined.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#switch.scenario/block RUN (cache=miss)
+                            BlockContainer<DIV>#s1 REUSE IN-FLOW SUBTREE
+                          BlockContainer<DIV>#stretch.scenario/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(topIn(sw, switchScenario()), 12, "parent top");
+                    equal(topIn(s1p, switchScenario()), 12, "first child top");
+                },
+            },
+            {
+                name: "a box whose margins stop collapsing into its parent's keeps its layout",
+                mutate: () => {
+                    s0.style.height = "10px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#own.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#joined.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#switch.scenario/block RUN (cache=miss)
+                            BlockContainer<DIV>#s1 REUSE IN-FLOW SUBTREE
+                          BlockContainer<DIV>#stretch.scenario/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(topIn(sw, switchScenario()), 0, "parent top");
+                    equal(topIn(s1p, switchScenario()), 22, "first child top");
+                },
+            },
+            {
+                name: "a block-start border of its parent makes a stretched box keep its block-start margin",
+                mutate: () => {
+                    document.getElementById("stretch-parent").style.borderTop = "5px solid";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#own.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#joined.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#switch.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#stretch.scenario/block RUN (cache=miss)
+                `,
+                check: equal => {
+                    equal(stretched.getBoundingClientRect().height, 75, "stretched height");
+                },
+            },
+            {
+                name: "a block-end border of its parent makes a stretched box keep its block-end margin",
+                mutate: () => {
+                    document.getElementById("stretch-parent").style.borderBottom = "5px solid";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<DIV>#own.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#joined.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#switch.scenario/block REUSE SUBTREE
+                          BlockContainer<DIV>#stretch.scenario/block RUN (cache=miss)
+                `,
+                check: equal => {
+                    equal(stretched.getBoundingClientRect().height, 50, "stretched height");
+                },
+            },
+        ],
+    });
+
+    function switchScenario() {
+        return document.getElementById("switch");
+    }
+</script>
