@@ -87,7 +87,7 @@ impl CSSStyleDeclaration {
     }
 
     /// The value of the property or descriptor, whose name is one the bindings know.
-    pub(crate) fn get(&self, name: &str) -> Utf16String {
+    pub(crate) fn get(&self, name: &'static str) -> Utf16String {
         // SAFETY: The cell is live, the name is lent for the call, and LibWeb hands over the string.
         unsafe {
             Utf16String::from_raw_owned(web_css_declaration_get_by_name(
@@ -99,7 +99,7 @@ impl CSSStyleDeclaration {
     }
 
     /// Sets the property or descriptor, whose name is one the bindings know.
-    pub(crate) fn set(&self, name: &str, value: Utf16String) -> WebIdlResult<()> {
+    pub(crate) fn set(&self, name: &'static str, value: Utf16String) -> WebIdlResult<()> {
         let mut error_message = 0;
         // SAFETY: The cell is live, the name is lent for the call, and the value is handed over.
         let succeeded = unsafe {
