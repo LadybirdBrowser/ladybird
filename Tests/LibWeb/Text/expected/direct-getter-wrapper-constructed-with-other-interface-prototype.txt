@@ -1,0 +1,18 @@
+Constructor
+true
+true
+TypeError
+TypeError
+true
+Subclass
+true
+true
+TypeError
+TypeError
+true
+Other realm
+true
+true
+TypeError
+TypeError
+true
