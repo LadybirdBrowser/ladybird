@@ -684,6 +684,13 @@ pub(crate) struct FloatingBox {
 }
 
 impl FloatingBox {
+    fn translated(mut self, x: CssPixels, y: CssPixels) -> Self {
+        self.margin_box_rect_in_root_coordinate_space = self.margin_box_rect_in_root_coordinate_space.translated(x, y);
+        self.containing_block_rect_in_root_coordinate_space =
+            self.containing_block_rect_in_root_coordinate_space.translated(x, y);
+        self
+    }
+
     fn margin_box_left_in_root_coordinate_space(&self) -> CssPixels {
         let containing_block_rect = self.containing_block_rect_in_root_coordinate_space;
         if self.side == FloatSide::Left {
@@ -2231,12 +2238,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             if !self.is_ancestor_of(ancestor, floating_box.box_) {
                 continue;
             }
-            floating_box.margin_box_rect_in_root_coordinate_space = floating_box
-                .margin_box_rect_in_root_coordinate_space
-                .translated(delta.x, delta.y);
-            floating_box.containing_block_rect_in_root_coordinate_space = floating_box
-                .containing_block_rect_in_root_coordinate_space
-                .translated(delta.x, delta.y);
+            *floating_box = floating_box.translated(delta.x, delta.y);
             any_float_moved = true;
         }
         if !any_float_moved {
@@ -3090,8 +3092,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         ) {
             InFlowReuse::Hit { entry, fragment } => {
                 let in_open_top_margin_group = self.margin_state().has_open_top_margin_group();
-                let (content_offset, margin_box_block_end) =
-                    self.reuse_in_flow_child(sized_child, block_container, &entry, fragment);
+                let (content_offset, margin_box_block_end) = self.reuse_in_flow_child(
+                    sized_child,
+                    block_container,
+                    &entry,
+                    fragment,
+                    containing_block_position_in_root,
+                );
                 self.note_floats_read_by_reused_contents(
                     node,
                     &entry,
@@ -3922,6 +3929,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             return floats_read.floats_in_reach.is_empty();
         }
         self.floats_in_reach_of_contents(
+            self.floating_box_count(),
             read_start_from_border_box,
             border_box_block_start,
             containing_block_position_in_root.x + entry.content_inline_offset,
@@ -3952,16 +3960,18 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
+    /// Which of the first `float_count` floats reach the contents of a box, which read floats from
+    /// `read_start_from_border_box` down, relative to the box.
     fn floats_in_reach_of_contents(
         &self,
+        float_count: usize,
         read_start_from_border_box: CssPixels,
         border_box_block_start: CssPixels,
         content_inline_start: CssPixels,
     ) -> SmallVec<[FloatInReach; 2]> {
         let read_start_in_root = border_box_block_start + read_start_from_border_box;
         let root_content_inline_size = self.root_cells.content_inline_size;
-        self.floats
-            .borrow()
+        self.floats.borrow()[..float_count]
             .iter()
             .filter_map(|floating_box| {
                 let margin_box_rect = floating_box.margin_box_rect_in_root_coordinate_space.translated(
@@ -4005,6 +4015,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_container: BlockContainer,
         entry: &in_flow_block_cache::InFlowBlockEntry,
         fragment: std::sync::Arc<fragment_tree::Fragment>,
+        containing_block_position_in_root: FfiCssPixelPoint,
     ) -> (FfiCssPixelPoint, CssPixels) {
         let node = sized_child.node;
         self.run.callbacks.layout_trace().reused_in_flow_subtree(node);
@@ -4041,6 +4052,18 @@ impl<'pass> BlockFormattingContext<'pass> {
             content_offset,
             None,
             Some(fragment_tree::RunRootFragment::propagating_nothing(fragment)),
+        );
+        self.append_floating_boxes(
+            entry
+                .floats_placed_by_contents
+                .iter()
+                .map(|floating_box| {
+                    floating_box.translated(
+                        containing_block_position_in_root.x + content_offset.x,
+                        containing_block_position_in_root.y + content_offset.y,
+                    )
+                })
+                .collect(),
         );
         self.block_offset_of_current_block_container.set(Some(
             content_offset.y
@@ -4106,7 +4129,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         // NB: A reused child tells its parent that margins do not collapse through it, which holds only for a child
         //     whose border box has a block size.
         let reusable = !placed.exports_payloads
-            && self.floating_box_count() == float_count_before_child
             && self.abspos_containing_block_info_contributions_received()
                 == abspos_containing_block_info_contributions_received
             && self.run.callbacks.host_findings_noted_so_far() == host_findings_noted_so_far
@@ -4128,6 +4150,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             read_start_from_border_box,
             floats_in_reach: read_start_from_border_box.map_or_else(SmallVec::new, |read_start_from_border_box| {
                 self.floats_in_reach_of_contents(
+                    float_count_before_child,
                     read_start_from_border_box,
                     border_box_block_start,
                     containing_block_position_in_root.x + content_offset.x,
@@ -4143,6 +4166,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             margins_left_by_contents: margins_left_by_contents
                 .expect("the contents of an in-flow child collapse their margins in a margin state of their own"),
             floats_read_by_contents,
+            floats_placed_by_contents: self.floats.borrow()[float_count_before_child..]
+                .iter()
+                .map(|floating_box| {
+                    floating_box.translated(
+                        -(containing_block_position_in_root.x + content_offset.x),
+                        -(containing_block_position_in_root.y + content_offset.y),
+                    )
+                })
+                .collect(),
             outgoing_outside_marker_line: self.outside_marker_line.get(),
             depends_on_percentage_block_size,
             fragment_identity: placed.fragment.identity,
@@ -5900,6 +5932,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else {
             block_offset
         };
+        // NB: A float that ends above this position cannot reach the float being placed, whichever edge of it the steps
+        //     below compare with.
+        self.note_float_read_from(containing_block_rect_now.y + margin_box_ceiling);
         // https://www.w3.org/TR/CSS2/visuren.html#flow-control
         // A float clears the floats of the sides its 'clear' names, whichever side it floats to itself.
         if matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START)

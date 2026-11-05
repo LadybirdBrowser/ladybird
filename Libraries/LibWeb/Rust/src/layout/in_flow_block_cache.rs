@@ -88,6 +88,8 @@ pub(super) struct InFlowBlockEntry {
     /// What the child's contents left in their margin state, with the top margin group they collapsed into.
     pub(super) margins_left_by_contents: block_formatting_context::BlockMarginState,
     pub(super) floats_read_by_contents: FloatsReadByContents,
+    /// The floats the child's contents placed, relative to the child's content box.
+    pub(super) floats_placed_by_contents: Vec<block_formatting_context::FloatingBox>,
     pub(super) outgoing_outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     pub(super) depends_on_percentage_block_size: bool,
     /// The fragment the stored layout placed. The committed subtree is reused only while it is still that fragment.

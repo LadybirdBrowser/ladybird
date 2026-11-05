@@ -9,7 +9,7 @@
 </style>
 <div class="scenario" id="below"><div class="float" style="width: 20px; height: 20px"></div><div id="below-beside">one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen</div><div id="below-spacer" style="height: 30px"></div><p id="below-last">one two three four five six seven eight nine ten</p></div>
 <div class="scenario" id="beside"><div class="float" style="width: 40px; height: 40px"></div><p id="beside-first">one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen</p><p id="beside-second">one two three four</p></div>
-<div class="scenario" id="together"><div id="together-spacer" style="height: 10px"></div><div><div class="float" style="width: 20px; height: 60px"></div><p id="together-first">one two three four five six seven eight nine ten eleven twelve</p><p id="together-last">one two three four five six seven eight nine ten eleven twelve</p></div></div>
+<div class="scenario" id="together"><div id="together-spacer" style="height: 10px"></div><div><div class="float" style="width: 20px; height: 60px"></div><p id="together-first">one two three four five six seven eight nine ten eleven twelve</p><p id="together-last">one two three four five six seven eight nine ten eleven twelve</p><p id="together-edited">one two</p></div></div>
 <div class="scenario" id="nested"><div><div><div class="float" style="width: 20px; height: 10px"></div><p id="nested-first">one two three four five six seven eight nine ten eleven twelve</p><p id="nested-edited">one two</p><p id="nested-last">one two three four</p></div></div></div>
 <div class="scenario" id="places-float"><div id="places-float-box"><div class="float" style="width: 20px; height: 30px"></div>one two three</div><p id="places-float-beside">one two three four five six seven eight nine ten eleven twelve</p><p id="places-float-edited">one two</p></div>
 <div class="scenario" id="grow"><div class="float" id="grow-float" style="width: 20px; height: 15px"></div><p id="grow-beside">one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen</p><p id="grow-below">one two three four</p></div>
@@ -32,6 +32,13 @@
 <div class="scenario" id="new-float"><div id="new-float-spacer" style="height: 30px"></div><p id="new-float-below">one two three four five six seven eight nine ten eleven twelve</p></div>
 <div class="scenario" id="read-through"><div id="read-through-box"><p id="read-through-first">one two three four five six seven eight nine ten eleven twelve</p><div id="read-through-spacer" style="height: 10px"></div></div></div>
 <div class="scenario" id="settled"><div class="float" style="width: 20px; height: 15px"></div><div id="settled-before" style="height: 20px; margin-bottom: 10px"></div><div id="settled-box" style="padding-top: 1px">one two three four five six seven eight nine ten eleven twelve</div></div>
+<div class="scenario" id="carries"><div id="carries-spacer" style="height: 10px"></div><div id="carries-box"><div class="float" style="width: 20px; height: 30px"></div>one two three</div><p id="carries-beside">one two three four five six seven eight nine ten eleven twelve</p><p id="carries-clear" style="clear: left">one two</p></div>
+<div class="scenario" id="reader"><div id="reader-box"><div class="float" style="width: 20px; height: 30px"></div><div class="float" style="float: right; width: 30px; height: 30px"></div>one two three</div><p id="reader-beside">one two</p></div>
+<div class="scenario" id="grows-root"><div class="scenario" id="grows-root-inner"><div id="grows-root-box"><div class="float" style="width: 20px; height: 60px"></div>one</div><p id="grows-root-edited">one two</p></div><p>after</p></div>
+<div class="scenario" id="right-of-root"><div style="width: 150px"><div id="right-of-root-box"><div class="float" style="float: right; width: 20px; height: 30px"></div>one</div><p id="right-of-root-beside">one two three four five six seven eight nine ten eleven twelve</p></div></div>
+<div class="scenario" id="in-reach"><div class="float" id="in-reach-float" style="width: 20px; height: 10px"></div><div id="in-reach-box" style="padding-top: 1px"><div class="float" style="width: 20px; height: 10px"></div>one</div></div>
+<div class="scenario" id="nested-floats"><div id="nested-floats-spacer" style="height: 10px"></div><div id="nested-floats-outer"><div id="nested-floats-inner"><div class="float" style="width: 20px; height: 30px"></div>one</div><div id="nested-floats-edited" style="height: 10px"></div></div><p id="nested-floats-beside">one two three four five six seven eight nine ten eleven twelve</p></div>
+<div class="scenario" id="in-margin-group"><div id="in-margin-group-outer" style="margin-top: 20px"><div id="in-margin-group-box" style="margin-top: 30px"><div class="float" style="width: 20px; height: 30px"></div>one</div></div><p id="in-margin-group-beside">one two three four five six seven eight nine ten eleven twelve</p></div>
 <script>
     function geometryOf(root) {
         const origin = root.getBoundingClientRect();
@@ -81,6 +88,7 @@
         });
         step("boxes move with their float", "together", ["together-first", "together-last"], () => {
             byId("together-spacer").style.height = "20px";
+            byId("together-edited").firstChild.data = "one three";
         });
         step("a later box in a nested flow", "nested", ["nested-first", "nested-last"], () => {
             byId("nested-edited").firstChild.data = "one three";
@@ -160,6 +168,30 @@
         });
         step("a margin before a box that reads where it settled", "settled", ["settled-box"], () => {
             byId("settled-before").style.marginBottom = "30px";
+        });
+        step("a box carries the float it placed", "carries", ["carries-box", "carries-beside", "carries-clear"], () => {
+            byId("carries-spacer").style.height = "25px";
+        });
+        step("a box read the float a reused box placed", "reader", ["reader-box", "reader-beside"], () => {
+            byId("reader-beside").firstChild.data = "one two three four five six seven eight nine ten eleven twelve";
+        });
+        step("a reused box's float sizes its root", "grows-root", ["grows-root-box"], () => {
+            byId("grows-root-edited").firstChild.data = "one three";
+        });
+        step("the root widens around a reused box with a float", "right-of-root", ["right-of-root-box"], () => {
+            byId("right-of-root").style.width = "300px";
+        });
+        step("a float reaches a box that placed one", "in-reach", ["in-reach-box"], () => {
+            byId("in-reach-float").style.height = "20px";
+        });
+        step("floats placed through a reused child", "nested-floats", ["nested-floats-outer", "nested-floats-inner"], () => {
+            byId("nested-floats-edited").style.height = "20px";
+        });
+        step("then the box holding them moves", "nested-floats", ["nested-floats-outer", "nested-floats-inner"], () => {
+            byId("nested-floats-spacer").style.height = "20px";
+        });
+        step("a float in a top margin group", "in-margin-group", ["in-margin-group-outer", "in-margin-group-box"], () => {
+            byId("in-margin-group-outer").style.marginTop = "40px";
         });
 
         for (const line of output)
