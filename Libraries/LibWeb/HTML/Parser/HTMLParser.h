@@ -83,6 +83,7 @@ public:
     HTMLTokenizer& tokenizer() { return m_tokenizer; }
     bool streaming_body_is_exhausted() const { return m_streaming_body_is_exhausted; }
     void did_exhaust_streaming_body(Badge<IncrementalDocumentParser>) { m_streaming_body_is_exhausted = true; }
+    void set_encoding_confidence(Badge<IncrementalDocumentParser>, EncodingConfidence confidence) { m_encoding_confidence = confidence; }
 
     void set_allow_declarative_shadow_roots(AllowDeclarativeShadowRoots allow) { m_allow_declarative_shadow_roots = allow; }
 

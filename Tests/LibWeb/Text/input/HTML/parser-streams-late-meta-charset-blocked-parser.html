@@ -40,8 +40,8 @@
             frame.remove();
         }
 
-        // The comment keeps the declaration past the 1024 bytes the encoding sniffing algorithm prescans, so only the
-        // parser can find it. It also exceeds the response sniffing threshold, so the first chunk can be parsed before EOF.
+        // The comment keeps the declaration past the first 1024 bytes. It also exceeds the response sniffing threshold,
+        // so the first chunk can be parsed before EOF.
         const padding = `<!--${"a".repeat(2000)}-->`;
 
         // The declaration trails a parser-blocking script, so the parser is still paused at that script when the rest
@@ -59,11 +59,12 @@
         }
 
         // The blocking script resolves during the gap between chunks, so the parser has drained the first chunk before
-        // the declaration arrives in the second.
+        // the declaration arrives in the second. The declaration comes after the head ended, so the parser can start
+        // before it arrives.
         async function runResumedCase() {
             const token = crypto.randomUUID();
             const scriptURL = await createBlockingScript("resumed");
-            const head = `<!DOCTYPE html><head><script src="${scriptURL}"><\/script>${padding}`;
+            const head = `<!DOCTYPE html><body><script src="${scriptURL}"><\/script>${padding}`;
             const body = `${head}<meta charset="UTF-8"></head><body><span id="target">©</span>`;
             await runCase(
                 "resumed",

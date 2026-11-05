@@ -4,7 +4,9 @@
 <script>
     asyncTest(async done => {
         const httpServer = httpTestServer();
-        async function runCase(name, declaration) {
+        // A declaration in the head is found before the parser starts. One that comes after the head ended, past the
+        // first 1024 bytes, is found by the parser, which changes the encoding on the fly.
+        async function runCase(name, declaration, { afterHead = false } = {}) {
             const scriptURL = await httpServer.createEcho("GET", `/parser-streams-late-meta-script-${name}`, {
                 status: 200,
                 headers: {
@@ -14,7 +16,9 @@
             });
 
             const token = crypto.randomUUID();
-            const head = `<!DOCTYPE html><head><!--${"a".repeat(2000)}-->`;
+            const head = afterHead
+                ? `<!DOCTYPE html><body>${" ".repeat(2000)}`
+                : `<!DOCTYPE html><head><!--${"a".repeat(2000)}-->`;
             const body = `${head}${declaration}<script src="${scriptURL}"><\/script></head><body><span id="target">©</span>`;
             const url = await httpServer.createEcho("GET", `/parser-streams-late-meta-${name}`, {
                 status: 200,
@@ -30,8 +34,12 @@
             });
             frame.src = `${url}?chunks=1500&chunk_unblock_tokens=${token}`;
             document.body.appendChild(frame);
-            while (!frame.contentDocument.URL.startsWith(url) || !frame.contentDocument.head)
-                await new Promise(resolve => setTimeout(resolve, 0));
+            if (afterHead) {
+                while (!frame.contentDocument.URL.startsWith(url) || !frame.contentDocument.head)
+                    await new Promise(resolve => setTimeout(resolve, 0));
+            } else {
+                while (!(await fetch(httpServer.recordedRequestHeadersURL(url))).ok) {}
+            }
             await fetch(new URL(`/unblock/${token}`, url));
             await loaded;
 
@@ -112,6 +120,7 @@
 
         await runCase("charset", `<meta charset="UTF-8">`);
         await runCase("http-equiv", `<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`);
+        await runCase("charset-after-head", `<meta charset="UTF-8">`, { afterHead: true });
         await runProgressiveCase();
         await runPostEOFCase();
         done();

@@ -82,30 +82,11 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
     if (m_parser)
         return;
 
-    // https://html.spec.whatwg.org/multipage/parsing.html#parsing-with-a-known-character-encoding
-    // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
-    Optional<StringView> standardized_encoding;
-    auto encoding_confidence = EncodingConfidence::Certain;
-    if (m_document->has_encoding()) {
-        standardized_encoding = TextCodec::get_standardized_encoding(m_document->encoding().value());
-    } else {
-        auto [encoding, confidence] = run_encoding_sniffing_algorithm(m_document, sniff_bytes, m_mime_type, m_container_document);
-        standardized_encoding = TextCodec::get_standardized_encoding(encoding);
-        encoding_confidence = confidence;
-    }
-    VERIFY(standardized_encoding.has_value());
-    dbgln_if(HTML_PARSER_DEBUG, "The incremental HTML parser selected encoding '{}'", standardized_encoding.value());
-
-    m_decoder = make<TextCodec::StreamingDecoder>(standardized_encoding.value(), TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement);
-
-    // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
-    // The document's character encoding must immediately be set to the value returned from this
-    // algorithm, at the same time as the user agent uses the returned value to select the decoder
-    // to use for the input byte stream.
-    m_document->set_encoding(utf16_string_from_standardized_encoding_label(standardized_encoding.value()));
-
     m_document->set_url(m_url);
-    m_parser = HTMLParser::create_with_open_input_stream(m_document, encoding_confidence);
+
+    // The parser exists while the prescan runs, so that aborting the document aborts it. Its encoding confidence is
+    // set along with its encoding.
+    m_parser = HTMLParser::create_with_open_input_stream(m_document, EncodingConfidence::Tentative);
     m_parser->set_change_encoding_callback(GC::create_function(GC::Heap::the(), [this](StringView encoding) {
         auto result = change_encoding(encoding);
         if (result.is_error()) {
@@ -122,7 +103,53 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
     }));
     m_parser->set_allow_declarative_shadow_roots(m_allow_declarative_shadow_roots);
 
+    // https://html.spec.whatwg.org/multipage/parsing.html#parsing-with-a-known-character-encoding
+    // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
+    if (m_document->has_encoding()) {
+        set_encoding(m_document->encoding()->to_byte_string(), EncodingConfidence::Certain);
+    } else if (auto result = sniff_encoding_before_prescan(sniff_bytes, m_mime_type); result.has_value()) {
+        set_encoding(result->encoding, result->confidence);
+    } else {
+        // The prescan can need bytes past the ones for sniffing, as far as the end of the head, so it reads them as
+        // they arrive, and the parser gets them once it's done.
+        m_sniff_bytes = MUST(ByteBuffer::copy(sniff_bytes));
+        m_prescan = make<EncodingDeclarationPrescan>(m_document->is_scripting_enabled());
+    }
+
     start_incremental_read();
+}
+
+void IncrementalDocumentParser::continue_prescan(bool input_complete)
+{
+    auto new_bytes = m_input_bytes.span().slice(m_prescanned_byte_count);
+    m_prescanned_byte_count = m_input_bytes.size();
+
+    auto result = m_prescan->scan(new_bytes, input_complete);
+    if (result == EncodingDeclarationPrescan::Result::NeedMoreInput)
+        return;
+
+    auto [encoding, confidence] = result == EncodingDeclarationPrescan::Result::Found
+        ? EncodingSniffingResult { ByteString { m_prescan->encoding() }, EncodingConfidence::Tentative }
+        : sniff_encoding_after_prescan(m_document, m_sniff_bytes, m_container_document);
+    m_prescan = nullptr;
+    m_sniff_bytes = {};
+    set_encoding(encoding, confidence);
+}
+
+void IncrementalDocumentParser::set_encoding(StringView encoding, EncodingConfidence encoding_confidence)
+{
+    auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
+    VERIFY(standardized_encoding.has_value());
+    dbgln_if(HTML_PARSER_DEBUG, "The incremental HTML parser selected encoding '{}'", standardized_encoding.value());
+
+    m_decoder = make<TextCodec::StreamingDecoder>(standardized_encoding.value(), TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement);
+
+    // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
+    // The document's character encoding must immediately be set to the value returned from this
+    // algorithm, at the same time as the user agent uses the returned value to select the decoder
+    // to use for the input byte stream.
+    m_document->set_encoding(utf16_string_from_standardized_encoding_label(standardized_encoding.value()));
+    m_parser->set_encoding_confidence({}, encoding_confidence);
 }
 
 void IncrementalDocumentParser::start_incremental_read()
@@ -188,6 +215,8 @@ void IncrementalDocumentParser::process_body_chunk(ByteBuffer bytes)
     else
         m_input_bytes.append(bytes);
 
+    if (m_prescan)
+        continue_prescan(false);
     if (!m_has_queued_task_to_feed_parser)
         feed_parser();
     process_link_headers_after_first_task();
@@ -237,6 +266,10 @@ void IncrementalDocumentParser::queue_task_to_feed_parser()
 
 void IncrementalDocumentParser::feed_parser()
 {
+    // The parser gets no bytes until the prescan has found their encoding.
+    if (m_prescan)
+        return;
+
     // NB: A document that arrives faster than we can parse it would otherwise keep the event loop for as long as that
     //     takes. The first slices are short, so that the first rendering update has little to lay out. After those,
     //     longer slices spare us laying out a document over and over while it is still growing.
@@ -309,6 +342,9 @@ void IncrementalDocumentParser::process_end_of_body()
         discard_input_bytes();
         return;
     }
+
+    if (m_prescan)
+        continue_prescan(true);
 
     // Bytes held back for a still-possible encoding declaration are fed first; the implied EOF character waits for
     // them in finish_body().
@@ -408,6 +444,10 @@ void IncrementalDocumentParser::discard_input_bytes()
 void IncrementalDocumentParser::process_body_error(JS::Value)
 {
     m_body = nullptr;
+
+    // The bytes received are all the prescan gets.
+    if (m_prescan && should_continue())
+        continue_prescan(true);
 
     // Bytes withheld while the tokenizer was behind are still part of the document. This ends the parse, so no
     // declaration can still change how they decode: feed them to the tokenizer with the encoding as it stands.

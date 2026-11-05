@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A page with non-ASCII text in a comment, and its charset declaration only past its first 1024 bytes, arriving in
+    // two pieces: the first long enough for encoding sniffing to start, ending inside the comment. The declaration
+    // counts while the page's head could still hold it, and only where the tokenizer reads it as a tag.
+    asyncTest(async (done) => {
+        const httpServer = httpTestServer();
+        const encoder = new TextEncoder();
+
+        async function load(name, slug, afterComment) {
+            const comment = `<!-- ${"padding ".repeat(95)}caf\u00e9 ${"padding ".repeat(250)}-->`;
+            const body = `<!DOCTYPE html>${comment}${afterComment}<p id="text">caf\u00e9</p><script>window.onload = () => parent.postMessage(document.characterSet + " " + document.getElementById("text").textContent, "*");<\/script>`;
+            const url = await httpServer.createEcho("GET", `/parser-streams-late-meta-charset-after-non-ascii-${slug}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/html",
+                },
+                body,
+            });
+            const split = encoder.encode(body.slice(0, body.indexOf("\u00e9"))).length + 1000;
+
+            const frame = document.createElement("iframe");
+            const message = new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+            frame.src = `${url}?chunks=${split}&chunk_delay_ms=200`;
+            document.body.appendChild(frame);
+            println(`${name}: ${await message}`);
+            frame.remove();
+        }
+
+        await load("in the head", "in-head", `<title>title</title><meta charset="utf-8">`);
+        await load("after the head ended", "after-head", `<p>text</p><meta charset="utf-8">`);
+        await load("in a script's text", "in-script", `<script>var markup = '<meta charset="utf-8">';<\/script>`);
+        done();
+    });
+</script>

@@ -1,0 +1,3 @@
+in the head: UTF-8 café
+after the head ended: windows-1252 cafÃ©
+in a script's text: windows-1252 cafÃ©
