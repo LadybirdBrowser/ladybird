@@ -30,10 +30,8 @@ static ReportSubmission::Contents describe_report(CrashReportSubmission::Options
 
     contents.add_text("stack"sv, "stack_trace"sv, diagnostics.stack);
     contents.add_text("process"sv, "text"sv, diagnostics.header("Process"sv));
-    contents.add_text("platform"sv, "text"sv, diagnostics.header("Platform"sv));
-    contents.add_text("architecture"sv, "text"sv, diagnostics.header("Architecture"sv));
-    contents.add_text("git_commit"sv, "text"sv, diagnostics.header("Git commit"sv));
-    contents.add_text("build_configuration"sv, "text"sv, diagnostics.header("Build configuration"sv));
+    contents.add_build_information(diagnostics.header("Platform"sv), diagnostics.header("Architecture"sv),
+        diagnostics.header("Git commit"sv), diagnostics.header("Build configuration"sv));
     contents.add_text("cpp_compiler"sv, "text"sv, diagnostics.header("C++ compiler"sv));
     for (auto label : { "Verification failed"sv, "Assertion failed"sv, "Rust panic"sv }) {
         auto value = diagnostics.header(label);
