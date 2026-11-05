@@ -1,20 +1,14 @@
-find_package(Qt6 QUIET COMPONENTS Core)
 if (NOT Qt6_FOUND)
     return()
 endif()
 
-find_package(Qt6 QUIET COMPONENTS Gui Widgets)
-if (Qt6_FOUND)
-    add_library(QtTestMain OBJECT
-        QtTestMain.cpp
-        "${LADYBIRD_SOURCE_DIR}/Libraries/LibTest/AssertionHandler.cpp"
-    )
-    target_link_libraries(QtTestMain PRIVATE AK LibCore LibTest Qt::Core Qt::Gui Qt::Widgets)
-    ladybird_test_suite(UI/Qt NO_TEST CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>")
-    target_link_libraries(TestUIQt PRIVATE LibCore LibFileSystem LibGfx LibIPC LibURL LibWeb LibWebCommon LibWebView ladybird_impl)
-else()
-    ladybird_test_suite(UI/Qt)
-endif()
+add_library(QtTestMain OBJECT
+    QtTestMain.cpp
+    "${LADYBIRD_SOURCE_DIR}/Libraries/LibTest/AssertionHandler.cpp"
+)
+target_link_libraries(QtTestMain PRIVATE AK LibCore LibTest Qt::Core Qt::Gui Qt::Widgets)
+ladybird_test_suite(UI/Qt NO_TEST CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>")
+target_link_libraries(TestUIQt PRIVATE LibCore LibFileSystem LibGfx LibIPC LibURL LibWeb LibWebCommon LibWebView ladybird_impl)
 
 add_library(QtEventLoopTestMain OBJECT
     QtEventLoopTestMain.cpp
@@ -31,10 +25,6 @@ ladybird_test("TestFullscreenDebounce.cpp" UI/Qt
     CUSTOM_MAIN "$<TARGET_OBJECTS:QtEventLoopTestMain>"
     LIBS LibThreading ladybird_impl
 )
-
-if (NOT Qt6_FOUND)
-    return()
-endif()
 
 set(TEST_SOURCES
     TestBackingStoreRelease.cpp

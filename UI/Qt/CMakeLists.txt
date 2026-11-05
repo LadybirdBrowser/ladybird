@@ -2,19 +2,6 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 6.10 REQUIRED COMPONENTS Core Widgets)
-
-if (NOT APPLE)
-    find_package(Qt6 6.10 REQUIRED COMPONENTS Positioning)
-endif()
-
-if (APPLE OR (LINUX AND NOT ANDROID) OR HAS_DIRECTX)
-    # The native presentation paths use platform GPU buffer handles directly instead of copying frames through CPU memory.
-    # Wayland activation also uses Qt platform APIs.
-    set(QT_NO_PRIVATE_MODULE_WARNING ON)
-    find_package(Qt6 6.10 REQUIRED COMPONENTS GuiPrivate)
-endif()
-
 if (LINUX AND NOT ANDROID)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)

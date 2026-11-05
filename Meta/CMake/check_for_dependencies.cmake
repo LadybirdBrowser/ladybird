@@ -146,3 +146,19 @@ if (WIN32)
 else()
     set(HAS_DIRECTX OFF CACHE BOOL "" FORCE)
 endif()
+
+if (ENABLE_GUI_TARGETS AND NOT (ANDROID OR VCPKG_TARGET_ANDROID))
+    set(LADYBIRD_QT_COMPONENTS Core Gui Widgets)
+    if (NOT APPLE)
+        list(APPEND LADYBIRD_QT_COMPONENTS Positioning)
+    endif()
+
+    if (APPLE OR (LINUX AND NOT ANDROID) OR HAS_DIRECTX)
+        # The native presentation paths use platform GPU buffer handles directly instead of copying frames through CPU
+        # memory. Wayland activation also uses Qt platform APIs.
+        list(APPEND LADYBIRD_QT_COMPONENTS GuiPrivate)
+        set(QT_NO_PRIVATE_MODULE_WARNING ON)
+    endif()
+
+    find_package(Qt6 6.10 REQUIRED COMPONENTS ${LADYBIRD_QT_COMPONENTS})
+endif()
