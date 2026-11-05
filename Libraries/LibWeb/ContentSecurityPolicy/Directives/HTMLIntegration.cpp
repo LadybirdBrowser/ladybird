@@ -132,7 +132,7 @@ Nonceable is_element_nonceable(GC::Ptr<DOM::Element const> element)
 
     // 2. If element is a script element, then for each attribute of element’s attribute list:
     // FIXME: File spec issue to ask if this should include SVGScriptElement.
-    if (is<HTML::HTMLScriptElement>(element.ptr())) {
+    if (is<HTML::HTMLScriptElement>(element.ptr()) || is<SVG::SVGScriptElement>(element.ptr())) {
         for (size_t attribute_index = 0; attribute_index < element->attributes()->length(); ++attribute_index) {
             auto attribute = element->attributes()->item(attribute_index);
             VERIFY(attribute);
