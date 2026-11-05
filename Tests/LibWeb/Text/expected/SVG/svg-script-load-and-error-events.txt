@@ -1,0 +1,2 @@
+SVG script with a script URL fired: load
+SVG script with an empty href fired: error

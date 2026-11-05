@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Pass	Untrusted SVGScriptElement with classic type uses the source text returned by the default policy.
+Pass	Untrusted SVGScriptElement of importmap type uses the source text returned by the default policy.
+Pass	Untrusted SVGScriptElement of module type uses the source text returned by the default policy.
+Fail	Untrusted SVGScriptElement of two importmap type use the source text returned by the default policy.

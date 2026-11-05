@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Changing script's type from classic to module in the default policy works.
+Pass	Changing script's type from module to classic in the default policy works.

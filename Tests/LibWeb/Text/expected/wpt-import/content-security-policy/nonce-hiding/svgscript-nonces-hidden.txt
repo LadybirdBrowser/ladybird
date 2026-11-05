@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Reading 'nonce' content attribute and IDL attribute.
+Pass	Cloned node retains nonce.
+Pass	Cloned node retains nonce when inserted.
+Pass	Writing 'nonce' content attribute.
+Pass	Writing 'nonce' IDL attribute.
+Pass	Document-written script executes.
+Pass	Document-written script's nonce value.
+Pass	createElement.nonce.
+Pass	createElement.setAttribute.

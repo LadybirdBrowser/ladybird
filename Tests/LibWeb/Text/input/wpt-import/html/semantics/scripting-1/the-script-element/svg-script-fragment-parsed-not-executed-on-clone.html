@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Fragment-parsed SVG script elements are "already started" and do not run when cloned</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/scripting.html#already-started">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-node-clone">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+"use strict";
+
+// A <script> parsed via the fragment parsing algorithm (e.g. innerHTML) is
+// "already started" and never runs, even if later cloned into a document.
+// The same is expected for an SVG <script> in foreign content.
+function makeContainerFromInnerHTML(markup) {
+  const container = document.createElement("div");
+  container.innerHTML = markup;
+  return container;
+}
+
+test(() => {
+  window.svgRan = undefined;
+  const svgNS = "http://www.w3.org/2000/svg";
+  const script = document.createElementNS(svgNS, "script");
+  script.textContent = "window.svgRan = true;";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.appendChild(script);
+  document.body.appendChild(svg);
+
+  assert_true(window.svgRan,
+      "A normally-created, connected SVG script should run");
+}, "Sanity check: a normally-created SVG <script> runs when inserted");
+
+test(() => {
+  window.svgClonePrimitive = undefined;
+  const container = makeContainerFromInnerHTML(
+      '<svg><script>window.svgClonePrimitive = true;<\/script></svg>');
+
+  assert_equals(window.svgClonePrimitive, undefined,
+      "SVG script must not run when inserted via innerHTML");
+
+  const svgScript = container.querySelector("script");
+  assert_true(!!svgScript, "SVG script element should exist in the fragment");
+
+  // Deep-clone the SVG script and insert it into the connected document.
+  const clone = svgScript.cloneNode(true);
+  document.body.appendChild(clone);
+
+  assert_equals(window.svgClonePrimitive, undefined,
+      "Cloned fragment-parsed SVG script must not execute when inserted");
+}, "A fragment-parsed SVG <script> does not execute when cloned into the document");
+
+test(() => {
+  window.svgCloneNested = undefined;
+  // Nested SVG <script> inside richer innerHTML markup, then deep-cloned.
+  const container = makeContainerFromInnerHTML(
+      '<span class="label">' +
+      '<svg><script>window.svgCloneNested = true;<\/script></svg>' +
+      ' Category</span>');
+
+  assert_equals(window.svgCloneNested, undefined,
+      "Nested SVG script must not run when inserted via innerHTML");
+
+  const clone = container.firstElementChild.cloneNode(true);
+  document.body.appendChild(clone);
+
+  assert_equals(window.svgCloneNested, undefined,
+      "Deep-cloned subtree containing a fragment-parsed SVG script must not execute");
+}, "Deep-cloning a subtree containing a fragment-parsed SVG <script> does not execute it");
+
+test(() => {
+  window.htmlCloneControl = undefined;
+  const container = makeContainerFromInnerHTML(
+      '<script>window.htmlCloneControl = true;<\/script>');
+
+  assert_equals(window.htmlCloneControl, undefined,
+      "HTML script must not run when inserted via innerHTML");
+
+  const htmlScript = container.querySelector("script");
+  const clone = htmlScript.cloneNode(true);
+  document.body.appendChild(clone);
+
+  assert_equals(window.htmlCloneControl, undefined,
+      "Cloned fragment-parsed HTML script must not execute when inserted");
+}, "Control: a fragment-parsed HTML <script> does not execute when cloned into the document");
+</script>
+</body>

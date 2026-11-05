@@ -1,0 +1,1 @@
+External script of an SVG document before the following script: ran

@@ -1,0 +1,3 @@
+PASS: inline SVG script with a nonce executed
+PASS: inline SVG script without a nonce blocked
+PASS: inserted SVG script without a nonce blocked

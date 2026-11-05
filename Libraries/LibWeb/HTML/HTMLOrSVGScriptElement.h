@@ -180,7 +180,7 @@ private:
 namespace Web::DOM {
 
 template<>
-inline bool Node::fast_is<HTML::HTMLOrSVGScriptElement>() const { return is_html_script_element(); }
+inline bool Node::fast_is<HTML::HTMLOrSVGScriptElement>() const { return is_html_script_element() || is_svg_script_element(); }
 
 template<>
 WEB_API HTML::HTMLOrSVGScriptElement* Node::fast_as<HTML::HTMLOrSVGScriptElement>();

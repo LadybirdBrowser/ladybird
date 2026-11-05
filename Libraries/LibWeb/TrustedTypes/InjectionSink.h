@@ -47,6 +47,7 @@ namespace Web::TrustedTypes {
     __ENUMERATE_INJECTION_SINKS(ShadowRoot_setHTMLUnsafe, "ShadowRoot setHTMLUnsafe")               \
     __ENUMERATE_INJECTION_SINKS(SharedWorker_constructor, "SharedWorker constructor")               \
     __ENUMERATE_INJECTION_SINKS(SVGScriptElement_href, "SVGScriptElement href")                     \
+    __ENUMERATE_INJECTION_SINKS(SVGScriptElement_text, "SVGScriptElement text")                     \
     __ENUMERATE_INJECTION_SINKS(Window_setInterval, "Window setInterval")                           \
     __ENUMERATE_INJECTION_SINKS(Window_setTimeout, "Window setTimeout")                             \
     __ENUMERATE_INJECTION_SINKS(Worker_constructor, "Worker constructor")                           \

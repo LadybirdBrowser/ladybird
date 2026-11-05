@@ -16,7 +16,6 @@
 #include <LibWeb/HTML/Parser/Entities.h>
 #include <LibWeb/HTML/Parser/NamedCharacterReferences.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
 
@@ -137,10 +136,10 @@ void XMLDocumentBuilder::element_start(Utf16FlyString const& name, Vector<XML::L
     // When an XML parser with XML scripting support enabled creates a script element,
     // it must have its parser document set and its "force async" flag must be unset.
     // FIXME: If the parser was created as part of the XML fragment parsing algorithm, then the element must be marked as "already started" also.
-    if (m_scripting_support == XMLScriptingSupport::Enabled && node->is_html_script_element()) {
-        auto& script_element = static_cast<HTML::HTMLScriptElement&>(*node);
-        script_element.set_parser_document(Badge<XMLDocumentBuilder> {}, m_document);
-        script_element.set_force_async(Badge<XMLDocumentBuilder> {}, false);
+    // AD-HOC: SVG script elements are processed like HTML script elements, since SVG defines them as equivalent.
+    if (auto* script_element = as_if<HTML::HTMLOrSVGScriptElement>(*node); script_element && m_scripting_support == XMLScriptingSupport::Enabled) {
+        script_element->set_parser_document(Badge<XMLDocumentBuilder> {}, m_document);
+        script_element->set_force_async(Badge<XMLDocumentBuilder> {}, false);
     }
 
     // AD-HOC: Let <link> elements know which document they were originally parsed for.
@@ -204,14 +203,13 @@ void XMLDocumentBuilder::element_end(Utf16FlyString const& name)
     VERIFY(m_current_node->node_name().equals_ignoring_ascii_case(name));
     // When an XML parser with XML scripting support enabled creates a script element, [...]
     // When the element's end tag is subsequently parsed,
-    if (m_scripting_support == XMLScriptingSupport::Enabled && m_current_node->is_html_script_element()) {
+    if (auto* script_element = as_if<HTML::HTMLOrSVGScriptElement>(*m_current_node); script_element && m_scripting_support == XMLScriptingSupport::Enabled) {
         // the user agent must perform a microtask checkpoint,
         HTML::perform_a_microtask_checkpoint();
         // and then prepare the script element.
-        auto& script_element = static_cast<HTML::HTMLScriptElement&>(*m_current_node);
         // AD-HOC: Set the script text value for Trusted Types as the HTML parser does, matching other engines.
-        script_element.set_script_text_from_parser();
-        script_element.prepare_script(Badge<XMLDocumentBuilder> {});
+        script_element->set_script_text_from_parser();
+        script_element->prepare_script(Badge<XMLDocumentBuilder> {});
 
         // If this causes there to be a pending parsing-blocking script, then the user agent must run the following steps:
         if (auto pending_parsing_blocking_script = m_document->pending_parsing_blocking_script()) {
@@ -234,14 +232,7 @@ void XMLDocumentBuilder::element_end(Utf16FlyString const& name)
             // 5. Set the pending parsing-blocking script to null.
             m_document->set_pending_parsing_blocking_script(nullptr);
         }
-    } else if (m_scripting_support == XMLScriptingSupport::Enabled && m_current_node->is_svg_script_element()) {
-        // https://www.w3.org/TR/SVGMobile12/struct.html#ProgressiveRendering
-        // When an end element event occurs for a 'script' element, that element is processed according to the
-        // Script processing section of the Scripting chapter. Further parsing of the document will be blocked
-        // until processing of the 'script' is complete.
-        auto& script_element = static_cast<SVG::SVGScriptElement&>(*m_current_node);
-        script_element.process_the_script_element();
-    };
+    }
 
     (void)m_open_elements.take_last();
     if (m_open_elements.is_empty()) {
