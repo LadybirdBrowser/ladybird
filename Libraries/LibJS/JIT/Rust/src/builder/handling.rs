@@ -286,6 +286,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         O::Exp
         | O::CopyObjectExcludingProperties
         | O::ImportCall
+        | O::GetClassFieldInitializerName
         | O::GetClassProtoParent
         | O::NewClass
         | O::GetImportMeta

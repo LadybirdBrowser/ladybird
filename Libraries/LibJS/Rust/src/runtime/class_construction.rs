@@ -346,23 +346,10 @@ pub fn construct_class(
                                 .shared_function_data_index
                                 .expect("a field initializer has shared function data"),
                         );
-
-                        // Set class_field_initializer_name at runtime for computed keys.
-                        if !descriptor.is_private
-                            && matches!(
-                                shared_data.class_field_initializer_name(),
-                                ClassFieldInitializerName::Empty
-                            )
-                        {
-                            shared_data.set_class_field_initializer_name(match &element_name {
-                                ClassElementName::PropertyKey(key) => {
-                                    ClassFieldInitializerName::PropertyKey(key.clone())
-                                }
-                                ClassElementName::PrivateName(name) => {
-                                    ClassFieldInitializerName::PrivateName(name.description.clone())
-                                }
-                            });
-                        }
+                        let has_computed_name = matches!(
+                            shared_data.class_field_initializer_name(),
+                            ClassFieldInitializerName::Empty
+                        );
 
                         let function = EcmascriptFunctionObject::create_method(
                             vm,
@@ -373,6 +360,15 @@ pub fn construct_class(
                             home_object,
                             realm.function_prototype(),
                         );
+                        if has_computed_name {
+                            let ClassElementName::PropertyKey(key) = &element_name else {
+                                unreachable!("a private name is never computed");
+                            };
+                            function.set_class_field_initializer_name(
+                                vm,
+                                ClassFieldInitializerName::PropertyKey(key.clone()),
+                            );
+                        }
                         initializer = ClassFieldInitializer::Function(function);
                     }
                 }

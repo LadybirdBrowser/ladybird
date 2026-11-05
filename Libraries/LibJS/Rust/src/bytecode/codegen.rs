@@ -1377,13 +1377,34 @@ pub fn generate_statement(
 
         // === ClassFieldInitializer ===
         StatementKind::ClassFieldInitializer(data) => {
-            // Only set pending_lhs_name for compile-time-known keys (non-empty names).
-            // For computed keys, field_name is empty and the name is set at runtime.
-            if !data.field_name.is_empty() {
-                generator.pending_lhs_name = Some(generator.intern_identifier(&data.field_name));
-            }
-            let value = generate_expression_or_undefined(&data.expression, generator, None);
-            generator.pending_lhs_name = None;
+            // https://tc39.es/ecma262/#sec-runtime-semantics-evaluatebody
+            // Initializer : = AssignmentExpression
+            // 3. If IsAnonymousFunctionDefinition(AssignmentExpression) is true, then
+            //     a. Let value be ? NamedEvaluation of Initializer with argument func.[[ClassFieldInitializerName]].
+            // 4. Else,
+            //     a. Let rhs be ? Evaluation of AssignmentExpression.
+            //     b. Let value be ? GetValue(rhs).
+            let value = if let Some(field_name) = &data.field_name {
+                generator.pending_lhs_name = Some(generator.intern_identifier(field_name));
+                let value = generate_expression_or_undefined(&data.expression, generator, None);
+                generator.pending_lhs_name = None;
+                value
+            } else if is_anonymous_function_definition(generator, &data.expression) {
+                // NB: A computed key is only known once the class is defined, so the function reads it.
+                let name = generator.allocate_register();
+                generator.emit(Instruction::GetClassFieldInitializerName { dst: name.operand() });
+                if matches!(data.expression.inner, ExpressionKind::Class(_)) {
+                    generator.pending_computed_class_name = Some(name);
+                    generate_expression_or_undefined(&data.expression, generator, None)
+                } else {
+                    let value = generate_expression_or_undefined(&data.expression, generator, None);
+                    emit_set_function_name(generator, &value, &name, FunctionNamePrefix::None);
+                    value
+                }
+            } else {
+                generate_expression_or_undefined(&data.expression, generator, None)
+            };
+            // 5. Return ReturnCompletion(value).
             generator.emit(Instruction::Return { value: value.operand() });
             None
         }
@@ -7254,21 +7275,7 @@ fn generate_class_expression(
                     };
 
                     if !is_literal {
-                        // Determine field name for anonymous function naming.
-                        let arena = generator.arena.clone();
-                        let field_name = match &key.inner {
-                            ExpressionKind::Identifier(ident) => arena.name_of(*ident).clone(),
-                            ExpressionKind::StringLiteral(s) => (**s).clone(),
-                            ExpressionKind::PrivateIdentifier(p) => p.name.clone(),
-                            ExpressionKind::NumericLiteral(n) => crate::host::js_number_to_utf16(*n),
-                            ExpressionKind::BigIntLiteral(s) => {
-                                let digits = String::from_utf16_lossy(bigint_literal_digits(s));
-                                let value =
-                                    parse_bigint(&digits).expect("the lexer only produces valid BigInt literals");
-                                Utf16String(value.to_string().encode_utf16().collect())
-                            }
-                            _ => Utf16String::new(),
-                        };
+                        let field_name = class_field_literal_name(key);
 
                         // Use the ClassFieldInitializer statement directly as the
                         // synthetic function's body. compile_function_payload tolerates
@@ -7277,7 +7284,7 @@ fn generate_class_expression(
                             init_expression.range,
                             StatementKind::ClassFieldInitializer(Box::new(ClassFieldInitializerData {
                                 expression: Box::new(init_expression.as_ref().clone()),
-                                field_name,
+                                field_name: field_name.clone(),
                             })),
                         );
 
@@ -7304,16 +7311,8 @@ fn generate_class_expression(
                         });
                         let index = emit_new_function(generator, function_data, Some(utf16!("field")));
 
-                        let key_is_private = is_private_key(key);
-                        let key_name: Utf16String = match &key.inner {
-                            ExpressionKind::PrivateIdentifier(ident) => ident.name.clone(),
-                            ExpressionKind::Identifier(ident) => arena.name_of(*ident).clone(),
-                            ExpressionKind::StringLiteral(s) => (**s).clone(),
-                            ExpressionKind::NumericLiteral(n) => crate::host::js_number_to_utf16(*n),
-                            _ => Utf16String::new(),
-                        };
-                        if !key_name.is_empty() {
-                            generator.set_class_field_initializer_name(index, key_name, key_is_private);
+                        if let Some(field_name) = field_name {
+                            generator.set_class_field_initializer_name(index, field_name, is_private_key(key));
                         }
 
                         sfd_index = Some(index);
@@ -7442,6 +7441,22 @@ fn generate_class_element_key(generator: &mut Generator, key: &Expression) -> Op
         value: property_name.operand(),
     });
     Some(property_key)
+}
+
+/// The name of a class field whose key is a literal, which a computed key gets only when the class is defined.
+// https://tc39.es/ecma262/#sec-static-semantics-propname
+fn class_field_literal_name(key: &Expression) -> Option<Utf16String> {
+    match &key.inner {
+        ExpressionKind::StringLiteral(string) => Some((**string).clone()),
+        ExpressionKind::PrivateIdentifier(identifier) => Some(identifier.name.clone()),
+        ExpressionKind::NumericLiteral(number) => Some(crate::host::js_number_to_utf16(*number)),
+        ExpressionKind::BigIntLiteral(literal) => {
+            let digits = String::from_utf16_lossy(bigint_literal_digits(literal));
+            let value = parse_bigint(&digits).expect("the lexer only produces valid BigInt literals");
+            Some(Utf16String(value.to_string().encode_utf16().collect()))
+        }
+        _ => None,
+    }
 }
 
 /// Synthesize a default constructor SharedFunctionInstanceData.

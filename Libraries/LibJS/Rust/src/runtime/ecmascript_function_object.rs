@@ -61,9 +61,11 @@ use crate::utf16::to_utf16_fly_string;
 struct ClassData {
     fields: Vec<ClassFieldDefinition>,    // [[Fields]]
     private_methods: Vec<PrivateElement>, // [[PrivateMethods]]
+    /// The [[ClassFieldInitializerName]] of an initializer of a field whose key is computed.
+    class_field_initializer_name: ClassFieldInitializerName,
 }
 
-/// The parts of a class constructor that the interpreter does not read.
+/// The parts of a class constructor, or of a field initializer, that the interpreter does not read.
 #[derive(Default)]
 pub struct EcmascriptFunctionObjectStorage {
     class_data: OnceCell<Box<GcRefCell<ClassData>>>,
@@ -907,7 +909,7 @@ impl EcmascriptFunctionObject {
 
     fn class_data_to_add_to(&self) -> &GcRefCell<ClassData> {
         self.with_rare_data()
-            .expect("a class constructor has rare data")
+            .expect("a class constructor or a field initializer has rare data")
             .storage
             .class_data
             .get_or_init(Box::default)
@@ -1091,7 +1093,18 @@ impl EcmascriptFunctionObject {
     }
 
     pub fn class_field_initializer_name(&self) -> ClassFieldInitializerName {
+        // NB: The shared data has the name of a field whose key is not computed.
+        if let Some(class_data) = self.class_data() {
+            let name = class_data.borrow().class_field_initializer_name.clone();
+            if !matches!(name, ClassFieldInitializerName::Empty) {
+                return name;
+            }
+        }
         self.shared_data().class_field_initializer_name()
+    }
+
+    pub fn set_class_field_initializer_name(&self, vm: &Vm, name: ClassFieldInitializerName) {
+        self.class_data_to_add_to().borrow_mut(vm).class_field_initializer_name = name;
     }
 
     pub fn allocates_function_environment(&self) -> bool {
