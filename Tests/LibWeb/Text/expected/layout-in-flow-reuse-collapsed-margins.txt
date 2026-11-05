@@ -1,0 +1,7 @@
+PASS: a changed margin before a box collapses with the margin of its first child (work + checks)
+PASS: a negative margin before a box collapses with the positive margin of its first child (work + checks)
+PASS: a changed margin of a parent collapses with the margin of its first child (work + checks)
+PASS: a box whose margins start collapsing into its parent's keeps its layout (work + checks)
+PASS: a box whose margins stop collapsing into its parent's keeps its layout (work + checks)
+PASS: a block-start border of its parent makes a stretched box keep its block-start margin (work + checks)
+PASS: a block-end border of its parent makes a stretched box keep its block-end margin (work + checks)

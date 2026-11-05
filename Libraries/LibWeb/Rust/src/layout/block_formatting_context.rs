@@ -557,6 +557,40 @@ impl BlockMarginState {
             self.continues_enclosing_margins = false;
         }
     }
+
+    /// The block-start margin of a block container in this margin state, whose contents collapsed `group` into it.
+    fn block_start_margin_collapsing(&self, group: TopMarginGroup) -> CssPixels {
+        self.margins_since_reset
+            .collapsed_with(group.margins)
+            .collapsed_margin()
+    }
+
+    fn take_own_top_margin_group(&mut self) -> TopMarginGroup {
+        let group = self
+            .top_margin_group
+            .take()
+            .expect("the contents of a box collapse into its own top margin group");
+        debug_assert!(!group.joins_enclosing_group);
+        group
+    }
+
+    /// Makes the margins these contents collapsed into their own block-start margin join the open top margin group of
+    /// the enclosing margin state instead.
+    fn join_enclosing_top_margin_group(&mut self) {
+        self.top_margin_group
+            .as_mut()
+            .expect("the contents of a box collapse into a top margin group")
+            .joins_enclosing_group = true;
+    }
+
+    /// These contents with `own_top_margin_group`, the group they collapsed into their own block-start margin once it
+    /// was resolved, where they have one.
+    fn with_own_top_margin_group(self, own_top_margin_group: Option<TopMarginGroup>) -> Self {
+        Self {
+            top_margin_group: own_top_margin_group.or(self.top_margin_group),
+            ..self
+        }
+    }
 }
 
 /// What the probe for a stored in-flow layout found, and what storing the fresh layout needs.
@@ -569,7 +603,6 @@ enum InFlowReuse {
     Store {
         key: in_flow_block_cache::InFlowBlockKey,
         validity: fc_run_cache::FcRunCacheValidity,
-        flow_position: CssPixels,
         abspos_containing_block_info_contributions_received: u64,
         host_findings_noted_so_far: u64,
     },
@@ -1053,21 +1086,14 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// Takes out the top margin group of the innermost margin state, whose margins collapse into the block-start margin
-    /// of its block container, and returns that margin, collapsed with the margins before the container.
-    fn resolve_own_top_margin_group(&self) -> CssPixels {
+    /// of its block container, and returns it with that margin, collapsed with the margins before the container.
+    fn resolve_own_top_margin_group(&self) -> (TopMarginGroup, CssPixels) {
         let mut states = self.margin_states.borrow_mut();
         let [.., enclosing, contents] = states.as_mut_slice() else {
             panic!("a block container's contents have a margin state of their own");
         };
-        let group = contents
-            .top_margin_group
-            .take()
-            .expect("the contents of a box collapse into its own top margin group");
-        debug_assert!(!group.joins_enclosing_group);
-        enclosing
-            .margins_since_reset
-            .collapsed_with(group.margins)
-            .collapsed_margin()
+        let group = contents.take_own_top_margin_group();
+        (group, enclosing.block_start_margin_collapsing(group))
     }
 
     #[inline]
@@ -3233,6 +3259,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // NB: A child its own run laid out is placed as that run handed it back, and any other with its cells here.
         let mut child_handed_back_by_its_run = None;
         let mut laid_out_box_handed_back_by_its_run = None;
+        let mut own_top_margin_group_of_contents = None;
         if has_independent_formatting_context {
             // Margins of elements that establish new formatting contexts do not collapse with their in-flow children
             self.margin_state_mut().reset();
@@ -3366,7 +3393,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.discard_block_start_margin_of_next_child.set(false);
             }
             if box_opens_top_margin_group {
-                let resolved_margin_top = self.resolve_own_top_margin_group();
+                let (own_top_margin_group, resolved_margin_top) = self.resolve_own_top_margin_group();
+                own_top_margin_group_of_contents = Some(own_top_margin_group);
                 let final_content_block_offset = if introduced_clearance {
                     content_block_offset
                 } else {
@@ -3636,6 +3664,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             baselines_of_contents_laid_out_in_this_flow.unwrap_or_default(),
             placed.map(|placed| (content_offset, placed)),
             depends_on_percentage_block_size,
+            margins_left_by_contents.map(|margins| margins.with_own_top_margin_group(own_top_margin_group_of_contents)),
         );
         let broken_inside = broken_token_of_box.map(|token| BrokenInside {
             token,
@@ -3715,12 +3744,17 @@ impl<'pass> BlockFormattingContext<'pass> {
             return InFlowReuse::Ineligible;
         }
         let callbacks = &self.run.callbacks;
+        let stretch_fit_block_margins = sizing_context::stretch_fit_block_margins(
+            callbacks,
+            node,
+            input.containing_block_constraints.inline_basis(),
+        );
         let key = in_flow_block_cache::InFlowBlockKey::new(
             &self.run,
             input,
             block_container_inline_size,
             self.style(block_container).direction() == direction::RTL,
-            self.margin_state().clone(),
+            stretch_fit_block_margins,
             self.outside_marker_line.get(),
         );
         let validity = fc_run_cache::run_root_validity(callbacks, node);
@@ -3743,7 +3777,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         InFlowReuse::Store {
             key,
             validity,
-            flow_position: self.flow_position(),
             abspos_containing_block_info_contributions_received: self
                 .abspos_containing_block_info_contributions_received(),
             host_findings_noted_so_far: callbacks.host_findings_noted_so_far(),
@@ -3772,8 +3805,29 @@ impl<'pass> BlockFormattingContext<'pass> {
         let node = sized_child.node;
         self.run.callbacks.layout_trace().reused_in_flow_subtree(node);
         self.cells_laid_out_here(sized_child).set(entry.cells);
-        let flow_position = self.flow_position();
-        *self.margin_state_mut() = entry.outgoing_margins.clone();
+        let metrics = self.metrics_of(sized_child);
+        // NB: This collapses the margins before the child with those its contents left as laying the child out does,
+        //     where the child is not floated, has no clearance and margins do not collapse through it.
+        let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
+        let block_start_margin = {
+            let mut margin_state = self.margin_state_mut();
+            margin_state.add_margin(metrics.margin_top());
+            margin_state.update_open_top_margin_group();
+            if metrics.border_top() > CssPixels::default() || metrics.padding_top() > CssPixels::default() {
+                let margin = margin_state.pending_margin_for_next_box();
+                margin_state.reset();
+                margin
+            } else if margin_state.has_open_top_margin_group() {
+                margins_left_by_contents.join_enclosing_top_margin_group();
+                CssPixels::default()
+            } else {
+                let group = margins_left_by_contents
+                    .top_margin_group
+                    .take()
+                    .expect("the contents of a box collapse into a top margin group");
+                margin_state.block_start_margin_collapsing(group)
+            }
+        };
         self.outside_marker_line.set(entry.outgoing_outside_marker_line);
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
             self.run.state,
@@ -3783,8 +3837,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
         let insets = self.compute_inset(&self.run, node, block_container);
         let content_offset = FfiCssPixelPoint {
-            x: entry.offset_from_flow_position.x,
-            y: entry.offset_from_flow_position.y + flow_position,
+            x: entry.content_inline_offset,
+            y: self.flow_position() + block_start_margin + metrics.border_box_top(false),
         };
         formatting_context::place_child(
             &self.run,
@@ -3798,11 +3852,22 @@ impl<'pass> BlockFormattingContext<'pass> {
             None,
             Some(fragment_tree::RunRootFragment::propagating_nothing(fragment)),
         );
-        self.block_offset_of_current_block_container
-            .set(Some(flow_position + entry.flow_position_advance));
+        self.block_offset_of_current_block_container.set(Some(
+            content_offset.y
+                + metrics.content_block_size()
+                + metrics.border_box_bottom(metrics.uses_collapsing_borders_model()),
+        ));
+        self.collapse_margins_after_block_level_box(
+            Some(&margins_left_by_contents),
+            false,
+            false,
+            metrics.margin_bottom(),
+        );
         (
             content_offset,
-            flow_position + entry.margin_box_bottom_from_flow_position,
+            content_offset.y
+                + metrics.content_block_size()
+                + metrics.margin_box_bottom(metrics.uses_collapsing_borders_model()),
         )
     }
 
@@ -3813,12 +3878,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         baselines: DerivedBaselines,
         placed: Option<(FfiCssPixelPoint, fragment_tree::PlacedFragment)>,
         depends_on_percentage_block_size: bool,
+        margins_left_by_contents: Option<BlockMarginState>,
     ) {
         let node = sized_child.node;
         let InFlowReuse::Store {
             key,
             validity,
-            flow_position,
             abspos_containing_block_info_contributions_received,
             host_findings_noted_so_far,
         } = attempt
@@ -3846,17 +3911,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             validity,
             cells: self.metrics_of(sized_child),
             baselines,
-            offset_from_flow_position: FfiCssPixelPoint {
-                x: content_offset.x,
-                y: content_offset.y - flow_position,
-            },
-            flow_position_advance: self.flow_position() - flow_position,
-            outgoing_margins: self.margin_state().clone(),
+            content_inline_offset: content_offset.x,
+            margins_left_by_contents: margins_left_by_contents
+                .expect("the contents of an in-flow child collapse their margins in a margin state of their own"),
             outgoing_outside_marker_line: self.outside_marker_line.get(),
-            margin_box_bottom_from_flow_position: content_offset.y
-                + used.content_block_size()
-                + used.margin_box_bottom(used.uses_collapsing_borders_model())
-                - flow_position,
             depends_on_percentage_block_size,
             fragment_identity: placed.fragment.identity,
         };
