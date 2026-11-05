@@ -4123,7 +4123,7 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
     // assistive technology is consuming it. This is independent of DevTools' mutation listener and of whether any
     // MutationObserver is registered, so it runs before the observer-only bails below.
     if (page.accessibility_interested()) {
-        document.invalidate_cached_accessible_text(*this, attribute_name, added_nodes, removed_nodes);
+        document.invalidate_cached_accessibility_data(*this, attribute_name, added_nodes, removed_nodes);
         page.client().page_did_change_accessibility_tree();
     }
 

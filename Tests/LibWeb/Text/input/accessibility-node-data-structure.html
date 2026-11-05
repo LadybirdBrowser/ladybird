@@ -24,11 +24,13 @@
         const toggled = document.getElementById("toggled");
         const step = (label, change) => {
             change();
+            // Printing adds to the DOM, so read everything before printing anything.
+            const dump = internals.dumpAccessibilityNodeData(root);
+            const stale = internals.accessibilityCachedTextMismatches() + internals.accessibilityCachedRecordMismatches();
             println(`== ${label}`);
-            println(internals.dumpAccessibilityNodeData(root));
-            const stale = internals.accessibilityCachedTextMismatches();
+            println(dump);
             if (stale)
-                println(`stale cached text:\n${stale}`);
+                println(`stale cached data:\n${stale}`);
         };
         step("initial", () => {});
         step("insert a list item", () => {

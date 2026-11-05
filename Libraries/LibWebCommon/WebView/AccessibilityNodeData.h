@@ -140,6 +140,8 @@ struct WEBCOMMON_API AccessibilityNodeData {
     // Per-line height in CSS pixels (index matches line_break_character_offsets). Used to compute vertical extent of
     // per-character rectangles for wrapping text.
     Vector<i32> line_heights;
+
+    bool operator==(AccessibilityNodeData const&) const = default;
 };
 
 }

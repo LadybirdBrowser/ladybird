@@ -213,6 +213,9 @@ void HTMLInputElement::set_checked(bool checked)
         return;
 
     m_checked = checked;
+    // The accessibility tree reports this state, with nothing else about the element changing.
+    if (document().page().accessibility_interested())
+        document().invalidate_cached_accessibility_data(*this);
 
     CSS::Invalidation::invalidate_style_after_checked_state_change(*this);
 
@@ -258,6 +261,9 @@ void HTMLInputElement::set_indeterminate(bool value)
         return;
     m_indeterminateness = value;
     CSS::Invalidation::invalidate_style_after_indeterminate_state_change(*this, value);
+    // The accessibility tree reports this state, with nothing else about the element changing.
+    if (document().page().accessibility_interested())
+        document().invalidate_cached_accessibility_data(*this);
     Painting::push_form_control_paint_facts(*this);
     set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }

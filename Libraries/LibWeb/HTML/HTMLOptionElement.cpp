@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWebCommon/Infra/Strings.h>
 
@@ -163,6 +164,9 @@ void HTMLOptionElement::set_selected_internal(bool selected)
 {
     if (m_selected != selected) {
         CSS::Invalidation::invalidate_style_after_option_selected_state_change(*this, selected);
+        // The accessibility tree reports this state, with nothing else about the element changing.
+        if (document().page().accessibility_interested())
+            document().invalidate_cached_accessibility_data(*this);
         document().bump_option_selectedness_version();
         if (m_cached_nearest_select_element) {
             if (selected)

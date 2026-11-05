@@ -1257,7 +1257,17 @@ public:
     };
     CachedAccessibleText const* cached_accessible_text(Element const&) const;
     void cache_accessible_text(Element const&, CachedAccessibleText) const;
-    void invalidate_cached_accessible_text(Node const&, Optional<Utf16FlyString> const& attribute_name = {}, ReadonlySpan<GC::Ref<Node>> added_nodes = {}, ReadonlySpan<GC::Ref<Node>> removed_nodes = {});
+    void invalidate_cached_accessibility_data(Node const&, Optional<Utf16FlyString> const& attribute_name = {}, ReadonlySpan<GC::Ref<Node>> added_nodes = {}, ReadonlySpan<GC::Ref<Node>> removed_nodes = {});
+
+    // What a build of the accessibility tree keeps of each node's data for the next build, while an assistive
+    // technology consumes the tree; see AccessibilityTreeNode::serialize_tree_as_node_data().
+    WebView::AccessibilityNodeData const* cached_accessibility_record(Node const&) const;
+    void cache_accessibility_record(Node const&, WebView::AccessibilityNodeData const&) const;
+    void invalidate_cached_accessibility_records_after_style_change(Element const&);
+    // For tests: builds that compute every node's data again, without what earlier builds kept.
+    bool accessibility_caches_bypassed() const { return m_accessibility_caches_bypassed; }
+    // For tests: each node whose kept data differs from what computing it again gives.
+    Vector<String> cached_accessibility_record_mismatches();
     size_t cached_accessible_text_count() const { return m_cached_accessible_text.size(); }
     // For tests: each cached name or description that differs from what computing it again gives.
     Vector<String> cached_accessible_text_mismatches();
@@ -2049,6 +2059,9 @@ private:
     mutable HashTable<UniqueNodeID> m_cached_accessible_text_depending_on_referenced_ids;
     mutable HashTable<UniqueNodeID> m_cached_accessible_text_depending_on_any_node;
     mutable HashTable<Utf16FlyString> m_ids_referenced_by_cached_accessible_text;
+    struct AccessibilityRecordCache;
+    mutable OwnPtr<AccessibilityRecordCache> m_accessibility_record_cache;
+    bool m_accessibility_caches_bypassed { false };
 
     // https://html.spec.whatwg.org/multipage/interaction.html#autofocus-candidates
     Vector<GC::Ref<Element>> m_autofocus_candidates;

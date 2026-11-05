@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px/20px SerenitySans;
+    }
+</style>
+<!-- After each change that reaches a node's accessibility data without touching the node itself, the data reflects it:
+     a custom element's default ARIA semantics, an ancestor whose role follows from its name, a fieldset's first legend,
+     design mode, an animated color, and a manual slot assignment. -->
+<div id="root">
+    <custom-status id="custom">custom element</custom-status>
+    <span id="region-label">region label</span>
+    <div role="region" aria-labelledby="region-label"><header>section header</header></div>
+    <fieldset disabled>
+        <legend id="first-legend"></legend>
+        <legend><input type="checkbox" id="in-second-legend"></legend>
+    </fieldset>
+    <p id="editable">becomes editable</p>
+    <p id="animated">animated color</p>
+    <div role="button" id="slot-host"></div>
+</div>
+<script>
+    class CustomStatus extends HTMLElement {
+        constructor() {
+            super();
+            this.internals = this.attachInternals();
+            this.internals.role = "alert";
+        }
+    }
+    customElements.define("custom-status", CustomStatus);
+
+    test(() => {
+        internals.setAccessibilityInterested();
+        const root = document.getElementById("root");
+        const step = (label, change) => {
+            change();
+            // Printing adds to the DOM, so read everything before printing anything.
+            const dump = internals.dumpAccessibilityNodeData(root);
+            const stale = internals.accessibilityCachedTextMismatches() + internals.accessibilityCachedRecordMismatches();
+            println(`== ${label}`);
+            println(dump);
+            if (stale)
+                println(`stale cached data:\n${stale}`);
+        };
+
+        const host = document.getElementById("slot-host");
+        const shadow = host.attachShadow({ mode: "open", slotAssignment: "manual" });
+        const slot = document.createElement("slot");
+        shadow.append(slot);
+        const firstText = document.createTextNode("first slotted");
+        const secondText = document.createTextNode("second slotted");
+        host.append(firstText, secondText);
+        slot.assign(firstText);
+
+        const animation = document.getElementById("animated").animate({ color: ["rgb(255, 0, 0)", "rgb(0, 0, 255)"] }, 1000);
+        animation.pause();
+        animation.currentTime = 0;
+
+        step("initial", () => {});
+        step("ElementInternals role", () => document.getElementById("custom").internals.role = "status");
+        step("region label emptied", () => document.getElementById("region-label").textContent = "");
+        step("first legend removed", () => document.getElementById("first-legend").remove());
+        step("design mode on", () => document.designMode = "on");
+        step("design mode off", () => document.designMode = "off");
+        step("animated color sampled later", () => animation.currentTime = 999);
+        step("manual slot assignment", () => slot.assign(secondText));
+    });
+</script>
