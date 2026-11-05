@@ -227,6 +227,7 @@ public:
 
     // A history operation activated the entry. It commits the navigation it names, or with none named, the ongoing
     // navigation admitted before the operation's sequence number.
+    void apply_populated_history_entry(CanonicalSessionHistoryEntry&, Web::HTML::PendingSessionHistoryEntryDescriptor const&);
     void did_commit_navigation(CanonicalSessionHistoryEntry&, Web::HTML::HostedNavigableState, u64 operation_sequence_number, Optional<Utf16String const&> navigation_id, RefPtr<WebContentPage> host);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation

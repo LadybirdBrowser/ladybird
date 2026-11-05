@@ -70,8 +70,8 @@ public:
     void run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry_descriptor, UserNavigationInvolvement, Optional<Bindings::NavigationType>, Optional<Utf16String> finalized_navigation_id, bool ongoing_navigation_is_traversal, bool needs_population, GC::Ref<OnChangingNavigableHistoryStepJobComplete>, Optional<HistoryNavigationPopulation> = {});
     bool create_ui_history_navigation_params(CrossProcessId operation_id, NavigationPopulationRequest, bool allow_POST);
     bool resume_history_navigation_population(CrossProcessId operation_id, HistoryNavigationPopulation&&);
-    void apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryIdentity target_entry_identity, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<OnChangingNavigableContinuationApplied>);
-    void unload_displayed_document_and_apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryIdentity target_entry_identity, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<OnChangingNavigableContinuationApplied>);
+    void apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryIdentity target_entry_identity, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, bool clear_classic_history_api_state, bool clear_navigable_target_name, GC::Ref<OnChangingNavigableContinuationApplied>);
+    void unload_displayed_document_and_apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryIdentity target_entry_identity, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, bool clear_classic_history_api_state, bool clear_navigable_target_name, GC::Ref<OnChangingNavigableContinuationApplied>);
     void clear_ui_changing_navigable_ongoing_traversal(CrossProcessId operation_id, CrossProcessId navigable_id);
 
 private:
@@ -86,7 +86,7 @@ private:
         GC::Ref<ChangingNavigableContinuationState> continuation;
         GC::Ref<GC::Function<void()>> after_potential_unloads;
     };
-    Optional<DequeuedChangingNavigableContinuation> dequeue_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryIdentity target_entry_identity, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<OnChangingNavigableContinuationApplied>);
+    Optional<DequeuedChangingNavigableContinuation> dequeue_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryIdentity target_entry_identity, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, bool clear_classic_history_api_state, bool clear_navigable_target_name, GC::Ref<OnChangingNavigableContinuationApplied>);
 
     void enqueue_changing_navigable_continuation(CrossProcessId operation_id, GC::Ref<ChangingNavigableContinuationState>, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
 

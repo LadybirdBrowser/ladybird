@@ -17,7 +17,7 @@ namespace Web::HTML {
 
 using OnApplyHistoryStepComplete = GC::Function<void(HistoryStepResult)>;
 
-using OnChangingNavigableHistoryStepJobComplete = GC::Function<void(ChangingNavigableHistoryStepJobDisposition, bool update_only, Optional<CrossProcessId> target_document_id)>;
+using OnChangingNavigableHistoryStepJobComplete = GC::Function<void(ChangingNavigableHistoryStepJobDisposition, bool update_only)>;
 
 using OnChangingNavigableContinuationApplied = GC::Function<void(Optional<HostedNavigableState> activated_navigable_state, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state)>;
 

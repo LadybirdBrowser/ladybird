@@ -109,6 +109,12 @@ static NonnullRefPtr<CanonicalDocumentState> document_state_from_descriptor(Web:
     return document_state;
 }
 
+NonnullRefPtr<CanonicalDocumentState> CanonicalDocumentState::create_from_descriptor(Web::HTML::SessionHistoryDocumentStateDescriptor const& descriptor)
+{
+    CanonicalSessionHistoryEntry::DocumentStates document_states;
+    return document_state_from_descriptor(descriptor, document_states, CanonicalSessionHistoryEntry::UpdateDocumentState::Yes);
+}
+
 static void set_entry_fields_from_descriptor(CanonicalSessionHistoryEntry& entry, Web::HTML::SessionHistoryEntryDescriptor const& descriptor)
 {
     entry.step = descriptor.step;

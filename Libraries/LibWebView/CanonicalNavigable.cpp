@@ -1451,6 +1451,32 @@ bool CanonicalNavigable::active_document_is(CanonicalSessionHistoryEntry const& 
     return m_active_session_history_entry && entry.document_state->document == &active_document();
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
+// NB: The fields of entry that populating its document changed, as the UI process's population request has them. A new
+//     document state replaces entry's, which then holds the document populated for the one it replaces.
+void CanonicalNavigable::apply_populated_history_entry(CanonicalSessionHistoryEntry& entry, Web::HTML::PendingSessionHistoryEntryDescriptor const& populated_entry)
+{
+    entry.url = populated_entry.url;
+    entry.directive_state_value = populated_entry.directive_state_value;
+    entry.classic_history_api_state = populated_entry.classic_history_api_state;
+    if (populated_entry.document_state.id == entry.document_state->id) {
+        entry.document_state->resource = populated_entry.document_state.resource;
+        return;
+    }
+
+    // NB: Fetching replaces entry's document state with a new one, which has no nested histories.
+    auto document_state_descriptor = populated_entry.document_state;
+    document_state_descriptor.nested_histories.clear();
+    auto document_state = CanonicalDocumentState::create_from_descriptor(document_state_descriptor);
+    // NB: For a reload, entry is the active entry, so the new document state holds the active document until the one
+    //     populated for it is activated.
+    document_state->document = exchange(entry.document_state->document, nullptr);
+    document_state->populated_document = exchange(entry.document_state->populated_document, {});
+    if (m_document_state_populated_by_history_job == entry.document_state)
+        m_document_state_populated_by_history_job = document_state;
+    entry.document_state = move(document_state);
+}
+
 void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& entry, Web::HTML::HostedNavigableState hosted_state, u64 operation_sequence_number, Optional<Utf16String const&> navigation_id, RefPtr<WebContentPage> host)
 {
     // A navigation admitted after the operation, such as one admitted during a same-document traversal, is newer than it.

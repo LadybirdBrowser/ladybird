@@ -2198,9 +2198,9 @@ void WebContentPage::changing_navigable_history_job_reached_population(Web::HTML
     traversable().did_receive_changing_navigable_history_job_reached_population(*this, operation_id, navigable_id, move(active_document_source_snapshot_params));
 }
 
-void WebContentPage::changing_navigable_history_job_ready(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only, Optional<Web::HTML::CrossProcessId> target_document_id)
+void WebContentPage::changing_navigable_history_job_ready(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only)
 {
-    traversable().did_receive_changing_navigable_history_job_ready(*this, operation_id, navigable_id, disposition, update_only, target_document_id);
+    traversable().did_receive_changing_navigable_history_job_ready(*this, operation_id, navigable_id, disposition, update_only);
 }
 
 void WebContentPage::descendant_unload_task_complete(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)

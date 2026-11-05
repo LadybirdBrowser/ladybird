@@ -1548,7 +1548,7 @@ void CanonicalTraversable::apply_changing_navigable_history_step_continuation(Ap
     VERIFY(changing_navigable.continuation.has_value());
 
     // 10. If changingNavigableContinuation's update-only is true, or targetEntry's document is displayedDocument:
-    if (changing_navigable.update_only || changing_navigable.target_document_id == changing_navigable.displayed_document->id()) {
+    if (changing_navigable.update_only || changing_navigable.target_document(*changing_job_endpoint(changing_navigable)) == changing_navigable.displayed_document) {
         // 1. Set navigable's ongoing navigation to null.
         // NB: The canonical traversal claim is released when the continuation is applied. The queued task mirrors
         //     the null transition into the process-local projection.
@@ -1581,7 +1581,9 @@ void CanonicalTraversable::send_changing_navigable_continuation_task(HistoryOper
         operation.operation_id, changing_navigable.id, changing_navigable.target_entry->identity(),
         continuation.history_object_length_and_index.script_history_length,
         continuation.history_object_length_and_index.script_history_index,
-        move(continuation.entries_for_navigation_api));
+        move(continuation.entries_for_navigation_api),
+        changing_navigable.clears_classic_history_api_state,
+        changing_navigable.clears_navigable_target_name);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
@@ -1614,7 +1616,9 @@ void CanonicalTraversable::send_displayed_document_unload_task(HistoryOperation&
         operation.operation_id, changing_navigable.id, changing_navigable.target_entry->identity(),
         continuation.history_object_length_and_index.script_history_length,
         continuation.history_object_length_and_index.script_history_index,
-        move(continuation.entries_for_navigation_api));
+        move(continuation.entries_for_navigation_api),
+        changing_navigable.clears_classic_history_api_state,
+        changing_navigable.clears_navigable_target_name);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#deactivate-a-document-for-a-cross-document-navigation
@@ -1661,10 +1665,20 @@ void CanonicalTraversable::deactivate_a_document_for_cross_document_navigation(H
 
 // The process running a changing navigable's job activated targetEntry's document and applied the continuation's
 // remaining steps.
-void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operation, ChangingNavigable& changing_navigable, NonnullRefPtr<WebContentPage> source_page, Web::HTML::HostedNavigableState activated_navigable_state)
+void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operation, ChangingNavigable& changing_navigable, NonnullRefPtr<WebContentPage> source_page, Web::HTML::HostedNavigableState activated_navigable_state, Optional<Web::HTML::PendingSessionHistoryEntryDescriptor> populated_history_entry)
 {
     auto& navigable = changing_navigable.navigable();
     auto& target_entry = *changing_navigable.target_entry;
+
+    // AD-HOC: For a reload, targetEntry is the active entry, which navigable's active document and its URL are derived
+    //         from. So what populating targetEntry's document changed in it, and steps 2 and 3 of afterDocumentPopulated,
+    //         are applied once the document is activated. See https://github.com/whatwg/html/issues/9869.
+    if (populated_history_entry.has_value())
+        navigable.apply_populated_history_entry(target_entry, *populated_history_entry);
+    if (changing_navigable.clears_classic_history_api_state)
+        target_entry.classic_history_api_state = Web::HTML::storage_serialization_record_for_null();
+    if (changing_navigable.clears_navigable_target_name)
+        target_entry.document_state->navigable_target_name = {};
 
     Optional<Utf16String const&> navigation_id;
     if (auto navigation = finalized_navigation(operation))
@@ -1831,7 +1845,7 @@ bool CanonicalTraversable::is_handing_navigable_to_another_page(CanonicalNavigab
             && changing_navigable->continuation.has_value()
             // NB: Step 14.11 of apply the history step applies the continuation, which deactivates displayedDocument.
             && !changing_navigable->update_only
-            && changing_navigable->target_document_id != changing_navigable->displayed_document->id()
+            && changing_navigable->target_document(*changing_job_endpoint(*changing_navigable)) != changing_navigable->displayed_document
             && changing_job_endpoint(*changing_navigable) != navigable.active_document().host()) {
             return true;
         }
@@ -2867,7 +2881,42 @@ void CanonicalTraversable::did_receive_beforeunload_check_result(WebContentPage&
     dispatch_next_beforeunload_group(check_id);
 }
 
-void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only, Optional<Web::HTML::CrossProcessId> target_document_id)
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
+// 12.8. In both cases, let afterDocumentPopulated be the following steps:
+// NB: The process running the job reports whether changingNavigableContinuation is update-only: Step 4 of the job made
+//     it so, or populating targetEntry's document created none.
+void CanonicalTraversable::run_after_document_populated(ChangingNavigable& changing_navigable, bool update_only)
+{
+    // 1. If targetEntry's document is null, then set changingNavigableContinuation's update-only to true.
+    changing_navigable.update_only = update_only;
+    if (update_only || !changing_navigable.populated_document)
+        return;
+
+    auto const& target_document = *changing_navigable.populated_document;
+    auto const& old_origin = changing_navigable.target_entry->document_state->origin;
+
+    // 2. If targetEntry's document's origin is not same origin with oldOrigin, then set targetEntry's classic history
+    //    API state to StructuredSerializeForStorage(null).
+    if (target_document.origin() != old_origin)
+        changing_navigable.clears_classic_history_api_state = true;
+
+    // 3. If all of the following are true:
+    //     - navigable's parent is null;
+    //     - targetEntry's document's browsing context is not an auxiliary browsing context whose opener browsing
+    //       context is non-null; and
+    //     - targetEntry's document's origin is not same origin with oldOrigin,
+    //    then set targetEntry's document state's navigable target name to the empty string.
+    if (!changing_navigable.navigable().parent()
+        && !(target_document.browsing_context().is_auxiliary() && target_document.browsing_context().opener_browsing_context())
+        && target_document.origin() != old_origin) {
+        changing_navigable.clears_navigable_target_name = true;
+    }
+
+    // 4. Enqueue changingNavigableContinuation on changingNavigableContinuations.
+    // NB: The caller enqueues it.
+}
+
+void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only)
 {
     if (!source_page.take_owed_reply({ OwedReply::Kind::ChangingJob, operation_id, navigable_id }))
         return;
@@ -2876,10 +2925,8 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebC
     if (!changing_navigable)
         return;
 
-    if (disposition == Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready) {
-        changing_navigable->update_only = update_only;
-        changing_navigable->target_document_id = target_document_id;
-    }
+    if (disposition == Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready)
+        run_after_document_populated(*changing_navigable, update_only);
     operation->algorithm->changing_navigable_job_completed(*changing_navigable, disposition);
 }
 
@@ -2891,10 +2938,13 @@ void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(W
     if (auto* changing_navigable = operation ? operation->pending_changing_job(navigable_id) : nullptr) {
         auto& navigable = changing_navigable->navigable();
         auto document = move(changing_navigable->populated_document);
+        Optional<Web::HTML::PendingSessionHistoryEntryDescriptor> populated_history_entry;
+        if (auto population_loader = changing_navigable->population_loader())
+            populated_history_entry = population_loader->request().history_entry;
         // The job ends first, so that activating its document does not end it as one for the document it replaces.
         operation->algorithm->end_changing_navigable_job(*changing_navigable);
         if (activated_navigable_state.has_value())
-            did_activate_history_entry(*operation, *changing_navigable, source_page, activated_navigable_state.release_value());
+            did_activate_history_entry(*operation, *changing_navigable, source_page, activated_navigable_state.release_value(), move(populated_history_entry));
         else if (document)
             navigable.abandon_populated_document(changing_navigable->target_entry->document_state, *document);
         if (previous_entry_persisted_state.has_value())
