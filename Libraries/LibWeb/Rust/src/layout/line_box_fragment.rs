@@ -25,6 +25,8 @@ pub(crate) struct GlyphData {
     pub(crate) width: f32,
     /// Whether the glyphs are set upright in vertical text, one em apart along the inline axis.
     pub(crate) is_upright: bool,
+    /// Where merging more glyphs into the run last left it.
+    pub(crate) derived_placements_end: Option<libgfx_rust::text_layout::DerivedPlacementsEnd>,
 }
 
 /// The glyphs of a text item and the font they are set in, which a line merges into a fragment or makes one of.
@@ -46,6 +48,7 @@ impl ItemGlyphRun<'_> {
             text_type: self.text_type,
             width: self.width,
             is_upright: self.is_upright,
+            derived_placements_end: None,
         }
     }
 }
@@ -225,11 +228,19 @@ impl LineBoxFragmentData {
         }
 
         let insert_position = self.insert_position;
-        let existing = &mut self
-            .glyphs
-            .as_mut()
-            .expect("merged fragment must have a glyph run")
-            .glyphs;
+        let glyph_data = self.glyphs.as_mut().expect("merged fragment must have a glyph run");
+        if run_direction == direction::LTR
+            && glyph_data.glyphs.append_keeping_placements_derived(
+                &mut glyph_data.derived_placements_end,
+                &run.glyphs,
+                inline_offset,
+                text_offset,
+            )
+        {
+            self.inline_length += run_inline_size;
+            return;
+        }
+        let existing = &mut glyph_data.glyphs;
         existing.reserve(run.glyphs.len());
         match run_direction {
             direction::LTR => {

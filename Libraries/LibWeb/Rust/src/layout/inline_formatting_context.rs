@@ -308,6 +308,7 @@ fn apply_block_ellipsis(
             text_type: line_box_fragment::GLYPH_TEXT_TYPE_COMMON,
             width: ellipsis_width,
             is_upright: false,
+            derived_placements_end: None,
         }),
         line_box_fragment::FragmentBuildFacts {
             style_source,

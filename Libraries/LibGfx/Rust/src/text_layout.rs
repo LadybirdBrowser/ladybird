@@ -402,6 +402,15 @@ fn placements_follow_from_glyphs(shaped: &[ShapedGlyph], glyphs: &[DrawGlyph]) -
     })
 }
 
+/// Where the glyphs of a run that stores no placements end, as of the run having `glyph_count` glyphs. A run holds no
+/// such thing itself: only runs that grow need it, and they need not add up their advances for every piece they take.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DerivedPlacementsEnd {
+    glyph_count: usize,
+    pen: f32,
+    code_units: u32,
+}
+
 /// The glyphs of a run, and where the run places them. A run stores no placements where they follow from the glyphs,
 /// see `placements_follow_from_glyphs()`, which is what plain left to right text does.
 #[derive(Clone, Debug, Default)]
@@ -538,6 +547,48 @@ impl GlyphBuffer {
         let glyphs = self.glyphs.to_mut();
         glyphs.drain(range.end..);
         glyphs.drain(..range.start);
+    }
+
+    /// Appends the glyphs of `run` at `x_offset` and at `cluster_offset` code units into the text, if their placements
+    /// then still follow from the glyphs, and answers whether it did. `end` is what the last call that appended to this
+    /// run left there, if any.
+    pub fn append_keeping_placements_derived(
+        &mut self,
+        end: &mut Option<DerivedPlacementsEnd>,
+        run: &GlyphBuffer,
+        x_offset: f32,
+        cluster_offset: u32,
+    ) -> bool {
+        if self.placements.is_some()
+            || run.placements.is_some()
+            || self.baseline_y.to_bits() != run.baseline_y.to_bits()
+        {
+            return false;
+        }
+        let current_end = (*end)
+            .filter(|end| end.glyph_count == self.len())
+            .unwrap_or_else(|| DerivedPlacementsEnd {
+                glyph_count: self.len(),
+                pen: self
+                    .iter()
+                    .map(|glyph| glyph.advance)
+                    .fold(0.0, |pen, advance| pen + advance),
+                code_units: self.iter().map(|glyph| glyph.length_in_code_units() as u32).sum(),
+            });
+        if current_end.pen.to_bits() != x_offset.to_bits() || current_end.code_units != cluster_offset {
+            return false;
+        }
+        let Some(pen) = exact_pen_position_past(current_end.pen, run) else {
+            return false;
+        };
+        self.glyphs.to_mut().extend_from_slice(run);
+        *end = Some(DerivedPlacementsEnd {
+            glyph_count: self.len(),
+            pen,
+            code_units: current_end.code_units
+                + run.iter().map(|glyph| glyph.length_in_code_units() as u32).sum::<u32>(),
+        });
+        true
     }
 
     /// The glyphs from the one at `index` on, with that glyph at the start of the run and of the text.
@@ -1123,6 +1174,78 @@ mod glyph_buffer_tests {
         let stored = stored.remainder_from(1);
         assert!(stored.placements.is_some());
         assert_places_glyphs_as_shaped(&stored, &expected);
+    }
+
+    #[test]
+    fn appending_at_the_end_of_a_run_keeps_placements_derived() {
+        let first = plain_run();
+        let second = plain_run();
+        let mut buffer = GlyphBuffer::from_shaped(&first);
+        let appended = GlyphBuffer::from_shaped(&second);
+        let mut end = None;
+
+        assert!(buffer.append_keeping_placements_derived(&mut end, &appended, 20.75, 3));
+        assert!(buffer.append_keeping_placements_derived(&mut end, &appended, 41.5, 6));
+        assert!(buffer.placements.is_none());
+
+        let mut by_placing_glyphs = GlyphBuffer::from_shaped(&first);
+        for (x_offset, cluster_offset) in [(20.75, 3), (41.5, 6)] {
+            for placed in appended.placed() {
+                by_placing_glyphs.push_placed(PlacedGlyph {
+                    x: placed.x + x_offset,
+                    cluster_start: placed.cluster_start + cluster_offset,
+                    ..placed
+                });
+            }
+        }
+        assert!(by_placing_glyphs.placements.is_some());
+        let shaped: Vec<ShapedGlyph> = by_placing_glyphs.placed().map(ShapedGlyph::from).collect();
+        assert_places_glyphs_as_shaped(&buffer, &shaped);
+    }
+
+    #[test]
+    fn appending_anywhere_else_changes_nothing() {
+        let appended = GlyphBuffer::from_shaped(&plain_run());
+        let original = GlyphBuffer::from_shaped(&plain_run());
+        let mut buffer = original.clone();
+        let mut end = None;
+
+        assert!(!buffer.append_keeping_placements_derived(&mut end, &appended, 21.0, 3));
+        assert!(!buffer.append_keeping_placements_derived(&mut end, &appended, 20.75, 4));
+
+        let mut other_baseline = appended.clone();
+        other_baseline.shift_baseline(1.0);
+        assert!(!buffer.append_keeping_placements_derived(&mut end, &other_baseline, 20.75, 3));
+
+        let mut stored = appended.clone();
+        stored.update_positions(|_, _, _| {});
+        assert!(!buffer.append_keeping_placements_derived(&mut end, &stored, 20.75, 3));
+
+        assert!(buffer == original);
+        assert!(buffer.placements.is_none());
+
+        let mut far_along = buffer.clone();
+        far_along.truncate(0);
+        let mut huge = plain_run();
+        huge[0].glyph_width = MAX_EXACT_PEN_POSITION - 4.0;
+        huge[1].x = MAX_EXACT_PEN_POSITION - 4.0;
+        huge[2].x = MAX_EXACT_PEN_POSITION + 0.25;
+        huge.truncate(1);
+        let huge = GlyphBuffer::from_shaped(&huge);
+        assert!(huge.placements.is_none());
+        assert!(far_along.append_keeping_placements_derived(&mut end, &huge, 0.0, 0));
+        assert!(!far_along.append_keeping_placements_derived(&mut end, &appended, MAX_EXACT_PEN_POSITION - 4.0, 1));
+    }
+
+    #[test]
+    fn appending_after_the_run_shrank_adds_up_where_it_ends_now() {
+        let appended = GlyphBuffer::from_shaped(&plain_run());
+        let mut buffer = GlyphBuffer::from_shaped(&plain_run());
+        let mut end = None;
+        assert!(buffer.append_keeping_placements_derived(&mut end, &appended, 20.75, 3));
+        buffer.truncate(2);
+        assert!(buffer.append_keeping_placements_derived(&mut end, &appended, 12.75, 2));
+        assert_eq!(buffer.len(), 5);
     }
 
     #[test]
