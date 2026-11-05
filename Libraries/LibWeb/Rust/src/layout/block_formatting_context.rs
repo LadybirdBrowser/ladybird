@@ -269,6 +269,9 @@ pub(crate) struct ChildrenSummary {
     /// Whether margins do not collapse through one of the children laid out, which keeps them from collapsing through
     /// the container.
     pub(crate) has_child_whose_margins_do_not_collapse_through: bool,
+    /// Whether no content of the container closed the top margin group its children collapse into, so the margins
+    /// still pending after them collapse through the container's block-start edge.
+    pub(crate) pending_margins_collapse_through_block_start: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -3175,6 +3178,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             if let Some(outside_marker) = &outside_marker_laid_out_before_contents {
                 self.finish_contents_of_list_item(node, outside_marker, &mut children_summary);
             }
+            children_summary.pending_margins_collapse_through_block_start =
+                self.margin_state.borrow().has_open_top_margin_group();
             baselines_of_contents_laid_out_in_this_flow = Some(children_summary.baselines);
             summary_of_children_laid_out_in_this_flow = Some(children_summary);
             if is_in_flow_candidate {
@@ -5601,7 +5606,12 @@ impl<'pass> BlockFormattingContext<'pass> {
             let mut block_size = last_line.physical_vertical_end();
             if last_line.has_block_level_box {
                 let mut margin_state = self.margin_state.borrow_mut();
-                let mut margin_bottom = margin_state.current_collapsed_margin();
+                let mut margin_bottom =
+                    if children.is_some_and(|children| children.pending_margins_collapse_through_block_start) {
+                        CssPixels::default()
+                    } else {
+                        margin_state.current_collapsed_margin()
+                    };
                 let metrics = self.metrics_of(sized_child);
                 if metrics.padding_bottom() == CssPixels::default() && metrics.border_bottom() == CssPixels::default() {
                     margin_state.box_last_in_flow_child_margin_bottom_collapsed = true;
