@@ -37,22 +37,50 @@ impl TryFrom<u8> for TextType {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct DrawGlyph {
-    pub x: f32,
-    pub y: f32,
-    pub length_in_code_units: usize,
-    pub glyph_width: f32,
+    x: f32,
+    y: f32,
+    length_in_code_units: usize,
+    pub advance: f32,
     pub glyph_id: u32,
-    pub cluster_start: u32,
-    pub should_paint: bool,
-    pub is_rtl: bool,
+    cluster_start: u32,
+    should_paint: bool,
+    is_rtl: bool,
 }
 
 impl DrawGlyph {
+    #[must_use]
+    pub fn new(advance: f32, glyph_id: u32, length_in_code_units: usize, should_paint: bool) -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            length_in_code_units,
+            advance,
+            glyph_id,
+            cluster_start: 0,
+            should_paint,
+            is_rtl: false,
+        }
+    }
+
+    /// How many code units of the text the glyph stands for: none for a glyph that continues the cluster of the glyph
+    /// before it.
+    #[inline]
+    #[must_use]
+    pub fn length_in_code_units(&self) -> usize {
+        self.length_in_code_units
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn should_paint(&self) -> bool {
+        self.should_paint
+    }
+
     fn is_bitwise_equal_to(&self, other: &DrawGlyph) -> bool {
         self.x.to_bits() == other.x.to_bits()
             && self.y.to_bits() == other.y.to_bits()
             && self.length_in_code_units == other.length_in_code_units
-            && self.glyph_width.to_bits() == other.glyph_width.to_bits()
+            && self.advance.to_bits() == other.advance.to_bits()
             && self.glyph_id == other.glyph_id
             && self.cluster_start == other.cluster_start
             && self.should_paint == other.should_paint
@@ -166,6 +194,44 @@ pub fn glyph_run_glyph_intercepts(
     intercepts
 }
 
+/// A glyph of a run, with where the run places it and what it stands for in the text.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PlacedGlyph {
+    pub glyph: DrawGlyph,
+    pub x: f32,
+    pub y: f32,
+    pub cluster_start: u32,
+    pub is_rtl: bool,
+}
+
+/// The glyphs of a run in order, each with its placement.
+pub struct PlacedGlyphs<'a> {
+    glyphs: std::slice::Iter<'a, DrawGlyph>,
+}
+
+impl Iterator for PlacedGlyphs<'_> {
+    type Item = PlacedGlyph;
+
+    #[inline]
+    fn next(&mut self) -> Option<PlacedGlyph> {
+        let glyph = *self.glyphs.next()?;
+        Some(PlacedGlyph {
+            glyph,
+            x: glyph.x,
+            y: glyph.y,
+            cluster_start: glyph.cluster_start,
+            is_rtl: glyph.is_rtl,
+        })
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.glyphs.size_hint()
+    }
+}
+
+impl ExactSizeIterator for PlacedGlyphs<'_> {}
+
 #[derive(Clone, Debug)]
 pub enum GlyphBuffer {
     Shared(Arc<[DrawGlyph]>),
@@ -182,7 +248,7 @@ impl GlyphBuffer {
         }
     }
 
-    pub fn to_mut(&mut self) -> &mut Vec<DrawGlyph> {
+    fn glyphs_mut(&mut self) -> &mut Vec<DrawGlyph> {
         if let Self::Shared(shared) = self {
             *self = Self::Owned(shared.to_vec());
         }
@@ -190,6 +256,69 @@ impl GlyphBuffer {
             Self::Owned(glyphs) => glyphs,
             Self::Shared(_) => unreachable!(),
         }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn placed(&self) -> PlacedGlyphs<'_> {
+        PlacedGlyphs { glyphs: self.iter() }
+    }
+
+    pub fn reserve(&mut self, additional_glyphs: usize) {
+        self.glyphs_mut().reserve(additional_glyphs);
+    }
+
+    /// Has `update` move each glyph, given its x and y.
+    pub fn update_positions(&mut self, mut update: impl FnMut(&DrawGlyph, &mut f32, &mut f32)) {
+        for glyph in self.glyphs_mut() {
+            let record = *glyph;
+            update(&record, &mut glyph.x, &mut glyph.y);
+        }
+    }
+
+    /// Moves all glyphs along the block axis.
+    pub fn shift_baseline(&mut self, offset: f32) {
+        self.update_positions(|_, _, y| *y += offset);
+    }
+
+    pub fn push_placed(&mut self, placed: PlacedGlyph) {
+        self.glyphs_mut().push(DrawGlyph {
+            x: placed.x,
+            y: placed.y,
+            cluster_start: placed.cluster_start,
+            is_rtl: placed.is_rtl,
+            ..placed.glyph
+        });
+    }
+
+    pub fn truncate(&mut self, glyph_count: usize) {
+        self.glyphs_mut().truncate(glyph_count);
+    }
+
+    pub fn pop(&mut self) {
+        self.glyphs_mut().pop();
+    }
+
+    /// Drops all glyphs outside of `range`, leaving the placement of the others as it is.
+    pub fn keep_range(&mut self, range: std::ops::Range<usize>) {
+        let glyphs = self.glyphs_mut();
+        glyphs.drain(range.end..);
+        glyphs.drain(..range.start);
+    }
+
+    /// The glyphs from the one at `index` on, with that glyph at the start of the run and of the text.
+    #[must_use]
+    pub fn remainder_from(&self, index: usize) -> Self {
+        let first = self[index];
+        self[index..]
+            .iter()
+            .map(|glyph| DrawGlyph {
+                x: glyph.x - first.x,
+                cluster_start: glyph.cluster_start.saturating_sub(first.cluster_start),
+                ..*glyph
+            })
+            .collect::<Vec<_>>()
+            .into()
     }
 }
 
@@ -522,20 +651,10 @@ fn shape_text_uncached(
 }
 
 fn shaped_text_with_baseline_start(shape: &CachedShape, baseline_start_x: f32) -> ShapedText {
-    let glyphs = if baseline_start_x == 0.0 {
-        shape.glyphs.clone()
-    } else {
-        GlyphBuffer::Owned(
-            shape
-                .glyphs
-                .iter()
-                .map(|glyph| DrawGlyph {
-                    x: glyph.x + baseline_start_x,
-                    ..*glyph
-                })
-                .collect(),
-        )
-    };
+    let mut glyphs = shape.glyphs.clone();
+    if baseline_start_x != 0.0 {
+        glyphs.update_positions(|_, x, _| *x += baseline_start_x);
+    }
     ShapedText {
         glyphs,
         width: shape.width,

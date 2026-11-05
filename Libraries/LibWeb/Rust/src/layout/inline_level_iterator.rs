@@ -131,18 +131,18 @@ pub(crate) fn text_is_set_upright(writing_mode: u8, text_orientation: u8, code_p
 /// which runs downwards in the frame of a vertical writing mode, while keeping its own horizontal width, which painting
 /// centers it within. Invisible characters such as soft hyphens take no space.
 // FIXME: Use the vertical metrics of the font, where it has them.
-fn set_glyphs_upright(glyphs: &mut [libgfx_rust::text_layout::DrawGlyph], inline_offset: f32, advance: f32) -> f32 {
+fn set_glyphs_upright(glyphs: &mut libgfx_rust::text_layout::GlyphBuffer, inline_offset: f32, advance: f32) -> f32 {
     let mut pen = inline_offset;
     let mut count = 0usize;
-    for glyph in glyphs.iter_mut() {
-        if glyph.length_in_code_units != 0 && glyph.should_paint {
+    glyphs.update_positions(|glyph, x, _| {
+        if glyph.length_in_code_units() != 0 && glyph.should_paint() {
             if count > 0 {
                 pen += advance;
             }
             count += 1;
         }
-        glyph.x = pen;
-    }
+        *x = pen;
+    });
     advance * count as f32
 }
 
@@ -151,7 +151,7 @@ fn shape_set_upright(
     advance: f32,
 ) -> libgfx_rust::text_layout::SharedShape {
     let mut glyphs = shape.glyphs().clone();
-    let width = set_glyphs_upright(glyphs.to_mut(), 0.0, advance);
+    let width = set_glyphs_upright(&mut glyphs, 0.0, advance);
     libgfx_rust::text_layout::SharedShape::from_glyphs(
         glyphs,
         width,
@@ -382,29 +382,24 @@ impl Item {
     fn shaped_glyphs_after(&self, prepared: &PreparedInlineContent, code_units: usize) -> Option<OwnedGlyphRun> {
         let run = self.glyph_run(prepared)?;
         if run.text_type == line_box_fragment::GLYPH_TEXT_TYPE_RTL
-            || run.glyphs.iter().map(|glyph| glyph.length_in_code_units).sum::<usize>() != self.length_in_node
+            || run
+                .glyphs
+                .iter()
+                .map(|glyph| glyph.length_in_code_units())
+                .sum::<usize>()
+                != self.length_in_node
         {
             return None;
         }
         let mut consumed = 0;
         let split_glyph_index = run.glyphs.iter().position(|glyph| {
-            let at_split = consumed == code_units && glyph.length_in_code_units != 0;
-            consumed += glyph.length_in_code_units;
+            let at_split = consumed == code_units && glyph.length_in_code_units() != 0;
+            consumed += glyph.length_in_code_units();
             at_split
         })?;
-        let split_x = run.glyphs[split_glyph_index].x;
-        let split_cluster_start = run.glyphs[split_glyph_index].cluster_start;
-        let glyphs = run.glyphs[split_glyph_index..]
-            .iter()
-            .map(|glyph| libgfx_rust::text_layout::DrawGlyph {
-                x: glyph.x - split_x,
-                cluster_start: glyph.cluster_start.saturating_sub(split_cluster_start),
-                ..*glyph
-            })
-            .collect::<Vec<_>>()
-            .into();
+        let split_x = run.glyphs.placed().nth(split_glyph_index)?.x;
         Some(OwnedGlyphRun {
-            glyphs,
+            glyphs: run.glyphs.remainder_from(split_glyph_index),
             width: run.width - split_x,
             is_upright: run.is_upright,
         })
@@ -453,21 +448,21 @@ impl Item {
         if run.text_type == line_box_fragment::GLYPH_TEXT_TYPE_RTL || run.glyphs.len() < 2 {
             return None;
         }
-        let shaped_length_in_code_units: usize = run.glyphs.iter().map(|glyph| glyph.length_in_code_units).sum();
+        let shaped_length_in_code_units: usize = run.glyphs.iter().map(|glyph| glyph.length_in_code_units()).sum();
         if shaped_length_in_code_units != self.length_in_node {
             return None;
         }
 
         let leading_edge_inline_size = self.margin_start + self.border_start + self.padding_start;
         let mut split: Option<(usize, usize)> = None;
-        let mut code_units = run.glyphs[0].length_in_code_units;
-        for (glyph_index, glyph) in run.glyphs.iter().enumerate().skip(1) {
-            if glyph.length_in_code_units == 0 {
+        let mut code_units = run.glyphs[0].length_in_code_units();
+        for (glyph_index, placed) in run.glyphs.placed().enumerate().skip(1) {
+            if placed.glyph.length_in_code_units() == 0 {
                 continue;
             }
             let offset = self.offset_in_node + code_units;
             if segmenter.next_boundary(offset, true) == Some(offset) {
-                let prefix_inline_size = CssPixels::nearest_value_for_f32(glyph.x);
+                let prefix_inline_size = CssPixels::nearest_value_for_f32(placed.x);
                 if leading_edge_inline_size + prefix_inline_size > max_border_box_inline_size {
                     if split.is_none() && take_first_grapheme_when_none_fits {
                         split = Some((glyph_index, code_units));
@@ -476,20 +471,16 @@ impl Item {
                 }
                 split = Some((glyph_index, code_units));
             }
-            code_units += glyph.length_in_code_units;
+            code_units += placed.glyph.length_in_code_units();
         }
         let (split_glyph_index, split_code_units) = split?;
 
         let mut prefix = self.take_owned_glyph_run(prepared);
-        let split_x = prefix.glyphs[split_glyph_index].x;
-        let split_cluster_start = prefix.glyphs[split_glyph_index].cluster_start;
-        let mut remainder_glyphs = prefix.glyphs.to_mut().split_off(split_glyph_index);
-        for glyph in &mut remainder_glyphs {
-            glyph.x -= split_x;
-            glyph.cluster_start = glyph.cluster_start.saturating_sub(split_cluster_start);
-        }
+        let split_x = prefix.glyphs.placed().nth(split_glyph_index)?.x;
+        let remainder_glyphs = prefix.glyphs.remainder_from(split_glyph_index);
+        prefix.glyphs.truncate(split_glyph_index);
         let remainder = OwnedGlyphRun {
-            glyphs: remainder_glyphs.into(),
+            glyphs: remainder_glyphs,
             width: prefix.width - split_x,
             is_upright: prefix.is_upright,
         };
@@ -574,9 +565,9 @@ impl Item {
         if run.text_type != line_box_fragment::GLYPH_TEXT_TYPE_RTL
             && let Some(first_glyph) = run.glyphs.first()
         {
-            let mut code_units = first_glyph.length_in_code_units;
-            for glyph in run.glyphs.iter().skip(1) {
-                if glyph.length_in_code_units == 0 {
+            let mut code_units = first_glyph.length_in_code_units();
+            for placed in run.glyphs.placed().skip(1) {
+                if placed.glyph.length_in_code_units() == 0 {
                     continue;
                 }
                 let offset = start + code_units;
@@ -584,9 +575,9 @@ impl Item {
                     break;
                 }
                 if segmenter.next_boundary(offset, true) == Some(offset) {
-                    return Some(CssPixels::nearest_value_for_f32(glyph.x));
+                    return Some(CssPixels::nearest_value_for_f32(placed.x));
                 }
-                code_units += glyph.length_in_code_units;
+                code_units += placed.glyph.length_in_code_units();
             }
         }
         let boundary = segmenter
@@ -1592,7 +1583,7 @@ impl<'context> RunItemResolver<'_, 'context> {
         if inline_offset != 0.0 || upright_advance_after_tabs.is_some() {
             let mut glyphs = shaped_glyphs_from(shape, inline_offset);
             if let Some(advance) = upright_advance_after_tabs {
-                width = set_glyphs_upright(glyphs.to_mut(), inline_offset, advance);
+                width = set_glyphs_upright(&mut glyphs, inline_offset, advance);
             }
             owned_glyph_run = Some(Box::new(OwnedGlyphRun {
                 glyphs,

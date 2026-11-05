@@ -62,10 +62,10 @@ pub(crate) fn shape_text(
         let width = shaped.width();
         let mut glyphs = shaped.into_glyphs();
         if last_position.x != 0.0 || last_position.y != 0.0 {
-            for glyph in glyphs.to_mut() {
-                glyph.x += last_position.x;
-                glyph.y += last_position.y;
-            }
+            glyphs.update_positions(|_, x, y| {
+                *x += last_position.x;
+                *y += last_position.y;
+            });
         }
         last_position.x += width;
         runs.push(ShapedRun {

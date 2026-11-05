@@ -270,7 +270,7 @@ impl Path {
             let ascent = run.font.facts().ascent;
             let transforms: Vec<_> = run
                 .glyphs
-                .iter()
+                .placed()
                 .map(|glyph| AffineTransform {
                     values: [1.0, 0.0, 0.0, 1.0, glyph.x, glyph.y + ascent],
                 })
@@ -295,9 +295,9 @@ impl Path {
                 continue;
             }
             let mut transforms = Vec::with_capacity(run.glyphs.len());
-            for glyph in run.glyphs.iter() {
+            for glyph in run.glyphs.placed() {
                 let glyph_distance = offset + glyph.x;
-                if glyph_distance + (glyph.glyph_width / 2.0) > path_length {
+                if glyph_distance + (glyph.glyph.advance / 2.0) > path_length {
                     break;
                 }
                 let (point, tangent) = contour.position_and_tangent(glyph_distance);

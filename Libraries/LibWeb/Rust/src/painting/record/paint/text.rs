@@ -17,7 +17,6 @@ use crate::painting::record::PaintRecorder;
 use crate::painting::record::inputs::CaretTarget;
 use crate::painting::selection::{HighlightPseudoElement, SelectionRange};
 use crate::painting::text_fragment::{self, SelectionOffsets};
-use libgfx_rust::text_layout::DrawGlyph;
 use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, Orientation};
 use std::sync::Arc;
 
@@ -542,7 +541,7 @@ fn paint_text_shadow<O: Observer>(
     } = glyph_run_emission(fragment, run, fragment_absolute_rect, fragment_device_rect, scale);
 
     // If this is a partial span, slice the glyph run to only include the relevant glyphs.
-    let mut span_glyphs: &[DrawGlyph] = &run.glyphs;
+    let mut span_glyphs = 0..run.glyphs.len();
     if span.start_code_unit != 0 || span.end_code_unit != fragment.length_in_code_units {
         let mut start_glyph = 0usize;
         let mut glyph_count = 0usize;
@@ -551,14 +550,14 @@ fn paint_text_shadow<O: Observer>(
             if code_unit_offset == span.start_code_unit {
                 start_glyph = i;
             }
-            code_unit_offset += glyph.length_in_code_units;
+            code_unit_offset += glyph.length_in_code_units();
             if code_unit_offset == span.end_code_unit {
                 glyph_count = i - start_glyph + 1;
                 break;
             }
         }
         if glyph_count > 0 {
-            span_glyphs = &run.glyphs[start_glyph..start_glyph + glyph_count];
+            span_glyphs = start_glyph..start_glyph + glyph_count;
         }
     }
 
@@ -610,7 +609,12 @@ fn paint_text_shadow<O: Observer>(
                 .inherited_text()
                 .font_smoothing,
             font_id: FontResourceId(font_id),
-            glyphs: span_glyphs.iter().map(DisplayListGlyph::from),
+            glyphs: run
+                .glyphs
+                .placed()
+                .skip(span_glyphs.start)
+                .take(span_glyphs.len())
+                .map(DisplayListGlyph::from),
         },
         scale,
         orientation,
@@ -680,7 +684,7 @@ fn paint_text_fragment<O: Observer>(
             .inherited_text()
             .font_smoothing,
         font_id: FontResourceId(font_id),
-        glyphs: run.glyphs.iter().map(DisplayListGlyph::from),
+        glyphs: run.glyphs.placed().map(DisplayListGlyph::from),
     };
 
     // Paint text, clipped to span range if not full fragment.
