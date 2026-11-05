@@ -9,10 +9,12 @@
 #include <LibGC/ConservativeHashTable.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/HTMLSlotElement.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
 
@@ -115,6 +117,10 @@ void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
 {
     // AD-HOC: Assigned nodes are recomputed lazily.
     assign_slottables_if_needed();
+
+    // A name that comes from content can come from the nodes assigned to a slot.
+    if (document().page().accessibility_interested())
+        document().invalidate_cached_accessibility_data(*this);
 
     // 1. For each node of this's manually assigned nodes, set node's manual slot assignment to null.
     for (auto& node : m_manually_assigned_nodes) {

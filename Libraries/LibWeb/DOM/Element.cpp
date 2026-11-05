@@ -1956,6 +1956,9 @@ void Element::swap_in_style_record(Layout::BegunRead const& read, Optional<CSS::
     ++m_animation_style_generation;
     VERIFY(record);
     m_installed_style = CSS::InstalledStyle { record };
+    // A new style can change the states and the text formatting the accessibility tree reports for the element.
+    if (document().page().accessibility_interested())
+        document().invalidate_cached_accessibility_records_after_style_change(*this);
     auto const style_record = m_installed_style.record();
     // NB: The render side installed the record in a box it styles itself, which the box adopts.
     if (auto* layout_node = unsafe_layout_node(read))
@@ -2059,7 +2062,7 @@ void Element::apply_style_main_effects(Layout::BegunRead const& read, CSS::MainE
     // Content that isn't visible is left out of a name that comes from content.
     auto visibility_changed = old_values && old_values->visibility() != new_computed_values->visibility();
     if ((invalidation.needs_relayout() || visibility_changed) && document().page().accessibility_interested())
-        document().invalidate_cached_accessible_text(*this);
+        document().invalidate_cached_accessibility_data(*this);
 
     // The environment the record was published with: what the element inherits, or what the engine resolved its own
     // custom declarations to over that, and those of the pseudo-elements over the element's.
@@ -5370,6 +5373,10 @@ void Element::replace_installed_style(Layout::BegunRead const& read, CSS::Instal
     if (m_installed_style.record() == style_record_identity)
         return;
     auto held_before = exchange(m_installed_style, move(style));
+    // Every new style, an animation's included, can change the states and the text formatting the accessibility tree
+    // reports for the element.
+    if (document().page().accessibility_interested())
+        document().invalidate_cached_accessibility_records_after_style_change(*this);
     // The element holds the record it installed before until the engine takes the new one in, so the layout node reads
     // what it moves from, and everything below that compares against the old record is read from it, before the
     // element lets go of it. The engine keeps the old record until it takes the new one in.

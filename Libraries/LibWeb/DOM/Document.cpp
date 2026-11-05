@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Bitmap.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
@@ -165,6 +166,7 @@
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLEmbedElement.h>
+#include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLFrameSetElement.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
@@ -174,12 +176,19 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLInsertion.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
+#include <LibWeb/HTML/HTMLLegendElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
+#include <LibWeb/HTML/HTMLTableCaptionElement.h>
+#include <LibWeb/HTML/HTMLTableCellElement.h>
+#include <LibWeb/HTML/HTMLTableColElement.h>
+#include <LibWeb/HTML/HTMLTableElement.h>
+#include <LibWeb/HTML/HTMLTableRowElement.h>
+#include <LibWeb/HTML/HTMLTableSectionElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLTitleElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
@@ -291,6 +300,11 @@
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
 
 namespace Web::DOM {
+
+struct Document::AccessibilityRecordCache {
+    AK_ALLOC_WITH_KMALLOC;
+    HashMap<UniqueNodeID, WebView::AccessibilityNodeData> records;
+};
 
 static CSS::ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
 {
@@ -2177,6 +2191,9 @@ void Document::set_id(HTML::CrossProcessId id)
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#set-the-url
 void Document::set_url(URL::URL const& url)
 {
+    // Link URLs resolve against the document's URL.
+    if (m_accessibility_record_cache)
+        m_accessibility_record_cache->records.clear();
     // OPTIMIZATION: Avoid unnecessary work if the URL is already set.
     if (m_url == url)
         return;
@@ -7330,13 +7347,60 @@ void Document::cache_accessible_text(Element const& element, CachedAccessibleTex
         m_cached_accessible_text_depending_on_any_node.set(id);
 }
 
-void Document::invalidate_cached_accessible_text(Node const& node, Optional<Utf16FlyString> const& attribute_name, ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes)
+WebView::AccessibilityNodeData const* Document::cached_accessibility_record(Node const& node) const
 {
-    if (m_cached_accessible_text.is_empty())
+    if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
+        return nullptr;
+    return m_accessibility_record_cache->records.get(node.unique_id()).map([](auto& record) { return &record; }).value_or(nullptr);
+}
+
+void Document::cache_accessibility_record(Node const& node, WebView::AccessibilityNodeData const& record) const
+{
+    if (m_accessibility_caches_bypassed)
         return;
+    if (!m_accessibility_record_cache)
+        m_accessibility_record_cache = make<AccessibilityRecordCache>();
+    // Leave out what every build computes again anyway, so it isn't kept, and copied out, for nothing.
+    auto kept = record;
+    kept.bounds = {};
+    kept.is_focused = false;
+    kept.character_offsets.clear();
+    kept.line_break_character_offsets.clear();
+    kept.line_heights.clear();
+    m_accessibility_record_cache->records.set(node.unique_id(), move(kept));
+}
+
+static bool is_table_structure(Element const& element)
+{
+    return is<HTML::HTMLTableElement>(element) || is<HTML::HTMLTableSectionElement>(element)
+        || is<HTML::HTMLTableRowElement>(element) || is<HTML::HTMLTableCellElement>(element)
+        || is<HTML::HTMLTableCaptionElement>(element) || is<HTML::HTMLTableColElement>(element);
+}
+
+void Document::invalidate_cached_accessibility_data(Node const& node, Optional<Utf16FlyString> const& attribute_name, ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes)
+{
+    auto* records = m_accessibility_record_cache ? &m_accessibility_record_cache->records : nullptr;
+    if (m_cached_accessible_text.is_empty() && (!records || records->is_empty()))
+        return;
+    auto drop_text_and_record = [&](UniqueNodeID id) {
+        m_cached_accessible_text.remove(id);
+        if (records)
+            records->remove(id);
+    };
+    auto drop_records_of_subtree = [&](Node const& root) {
+        if (!records || records->is_empty())
+            return;
+        const_cast<Node&>(root).for_each_shadow_including_inclusive_descendant([&](Node const& descendant) {
+            records->remove(descendant.unique_id());
+            return TraversalDecision::Continue;
+        });
+    };
 
     auto touches_labels = false;
     auto touches_referenced_ids = false;
+    auto touches_table_structure = false;
+    auto touches_base_url = false;
+    auto touches_legend = false;
     auto note_element = [&](Element const& element) {
         if (is<HTML::HTMLLabelElement>(element))
             touches_labels = true;
@@ -7344,13 +7408,19 @@ void Document::invalidate_cached_accessible_text(Node const& node, Optional<Utf1
             touches_labels = true;
         if (auto const& id = element.id(); id.has_value() && m_ids_referenced_by_cached_accessible_text.contains(*id))
             touches_referenced_ids = true;
+        if (is_table_structure(element))
+            touches_table_structure = true;
+        if (is<HTML::HTMLBaseElement>(element))
+            touches_base_url = true;
+        if (is<HTML::HTMLLegendElement>(element))
+            touches_legend = true;
     };
 
     // An element's name can come from its content, so a change to a node can change the name of every element that
     // contains it, across shadow roots too. And so can the names that come from the label elements and the elements
     // referenced by ID that contain it.
     for (auto const* ancestor = &node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        m_cached_accessible_text.remove(ancestor->unique_id());
+        drop_text_and_record(ancestor->unique_id());
         if (auto const* element = as_if<Element>(*ancestor)) {
             if (is<HTML::HTMLLabelElement>(*element))
                 touches_labels = true;
@@ -7359,10 +7429,28 @@ void Document::invalidate_cached_accessible_text(Node const& node, Optional<Utf1
         }
     }
 
-    // Changing an ID or a label's for attribute can change which element a label or a reference goes to.
-    if (attribute_name.has_value() && (*attribute_name == HTML::AttributeNames::id || *attribute_name == HTML::AttributeNames::for_)) {
-        touches_labels = true;
-        touches_referenced_ids = true;
+    if (attribute_name.has_value()) {
+        // Changing an ID or a label's for attribute can change which element a label or a reference goes to.
+        if (*attribute_name == HTML::AttributeNames::id || *attribute_name == HTML::AttributeNames::for_) {
+            touches_labels = true;
+            touches_referenced_ids = true;
+        }
+        // Some of an element's attributes can change the data of its descendants too: their roles (which can follow
+        // the element's role, and its name), whether they're disabled, whether they're editable, and a details
+        // element's summary's expanded state.
+        auto const& name = *attribute_name;
+        auto reaches_descendants = name == ARIA::AttributeNames::role || name == HTML::AttributeNames::disabled
+            || name == HTML::AttributeNames::contenteditable || name == ARIA::AttributeNames::aria_label
+            || name == ARIA::AttributeNames::aria_labelled_by || name == HTML::AttributeNames::title
+            || name == HTML::AttributeNames::open || name == HTML::AttributeNames::inert;
+        if (reaches_descendants)
+            drop_records_of_subtree(node);
+        if (*attribute_name == HTML::AttributeNames::colspan || *attribute_name == HTML::AttributeNames::rowspan
+            || *attribute_name == HTML::AttributeNames::headers || *attribute_name == HTML::AttributeNames::scope
+            || *attribute_name == HTML::AttributeNames::span)
+            touches_table_structure = true;
+        if (is<HTML::HTMLBaseElement>(node) && *attribute_name == HTML::AttributeNames::href)
+            touches_base_url = true;
     }
 
     // And so can inserting or removing a label, a labelable element, or an element with a referenced ID.
@@ -7374,9 +7462,9 @@ void Document::invalidate_cached_accessible_text(Node const& node, Optional<Utf1
         });
     }
     for (auto const& removed : removed_nodes) {
-        // The text of a removed node is never asked for again (until it's inserted somewhere, as if new), so drop it.
+        // The data of a removed node is never asked for again (until it's inserted somewhere, as if new), so drop it.
         removed->for_each_shadow_including_inclusive_descendant([&](Node const& descendant) {
-            m_cached_accessible_text.remove(descendant.unique_id());
+            drop_text_and_record(descendant.unique_id());
             m_cached_accessible_text_depending_on_labels.remove(descendant.unique_id());
             m_cached_accessible_text_depending_on_referenced_ids.remove(descendant.unique_id());
             m_cached_accessible_text_depending_on_any_node.remove(descendant.unique_id());
@@ -7386,9 +7474,14 @@ void Document::invalidate_cached_accessible_text(Node const& node, Optional<Utf1
         });
     }
 
+    // A dependent element's name can decide its role (a region needs one), and its descendants' roles can follow its
+    // role (a header inside a region isn't a banner), so their records go too.
     auto drop = [&](HashTable<UniqueNodeID>& ids) {
-        for (auto id : ids)
-            m_cached_accessible_text.remove(id);
+        for (auto id : ids) {
+            drop_text_and_record(id);
+            if (auto* dependent = Node::from_unique_id(id))
+                drop_records_of_subtree(*dependent);
+        }
         ids.clear();
     };
     if (touches_labels)
@@ -7398,6 +7491,88 @@ void Document::invalidate_cached_accessible_text(Node const& node, Optional<Utf1
         m_ids_referenced_by_cached_accessible_text.clear();
     }
     drop(m_cached_accessible_text_depending_on_any_node);
+
+    // A cell's place in its table, and the headers it reports, come from the rows and cells around it.
+    if (touches_table_structure) {
+        for (auto const* ancestor = &node; ancestor; ancestor = ancestor->parent()) {
+            if (is<HTML::HTMLTableElement>(*ancestor)) {
+                drop_records_of_subtree(*ancestor);
+                break;
+            }
+        }
+    }
+
+    // Whether a fieldset disables a control can depend on which of its legends is first.
+    if (touches_legend) {
+        for (auto const* ancestor = &node; ancestor; ancestor = ancestor->parent()) {
+            if (is<HTML::HTMLFieldSetElement>(*ancestor)) {
+                drop_records_of_subtree(*ancestor);
+                break;
+            }
+        }
+    }
+
+    // Link URLs resolve against the document's base URL.
+    if (touches_base_url && records)
+        records->clear();
+}
+
+void Document::invalidate_cached_accessibility_records_after_style_change(Element const& element)
+{
+    if (!m_accessibility_record_cache)
+        return;
+    auto& records = m_accessibility_record_cache->records;
+
+    // A style change can change the states an element reports (the ones its style follows through pseudo-classes, like
+    // :checked), and the formatting its text reports.
+    records.remove(element.unique_id());
+    for (auto const* child = element.first_child(); child; child = child->next_sibling()) {
+        if (child->is_text())
+            records.remove(child->unique_id());
+    }
+
+    // And an element in a shadow tree can be part of how its host presents its value (a range input's slider, e.g.).
+    for (auto const* shadow_root = as_if<ShadowRoot>(element.root()); shadow_root && shadow_root->host(); shadow_root = as_if<ShadowRoot>(shadow_root->host()->root()))
+        records.remove(shadow_root->host()->unique_id());
+}
+
+Vector<String> Document::cached_accessibility_record_mismatches()
+{
+    update_layout(UpdateLayoutReason::InspectAccessibilityTree);
+    if (!m_accessibility_record_cache)
+        return {};
+
+    // Leave out what every build computes again anyway.
+    auto kept_part = [](WebView::AccessibilityNodeData data) {
+        data.parent_id = -1;
+        data.child_ids.clear();
+        data.bounds = {};
+        data.is_focused = false;
+        data.character_offsets.clear();
+        data.line_break_character_offsets.clear();
+        data.line_heights.clear();
+        data.caret_offset = -1;
+        data.selection_start = -1;
+        data.selection_end = -1;
+        return data;
+    };
+
+    m_accessibility_caches_bypassed = true;
+    auto fresh = build_accessibility_node_data();
+    m_accessibility_caches_bypassed = false;
+
+    Vector<String> mismatches;
+    for (auto const& data : fresh) {
+        auto cached = m_accessibility_record_cache->records.get(UniqueNodeID { data.id });
+        if (!cached.has_value() || kept_part(*cached) == kept_part(data))
+            continue;
+        auto* node = Node::from_unique_id(UniqueNodeID { data.id });
+        auto const* element = as_if<Element>(node);
+        mismatches.append(MUST(String::formatted("{} \"{}\" (role {}): the kept data differs from computing it again",
+            element ? element->local_name().to_utf16_string().to_utf8() : "#text"_string, data.name, data.role)));
+    }
+    quick_sort(mismatches);
+    return mismatches;
 }
 
 Vector<String> Document::cached_accessible_text_mismatches()
@@ -10153,6 +10328,10 @@ void Document::set_design_mode_enabled_state(bool design_mode_enabled)
 {
     if (m_design_mode_enabled == design_mode_enabled)
         return;
+
+    // Design mode makes the whole document editable.
+    if (m_accessibility_record_cache)
+        m_accessibility_record_cache->records.clear();
 
     struct PreviousReadWriteState {
         GC::Ptr<Element> element;

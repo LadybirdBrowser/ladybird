@@ -1,0 +1,146 @@
+== initial
+n0 generic bounds=8,8 784x191
+  n1 alert bounds=8,10 124x16 live=assertive
+    n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
+  n3 generic bounds=140,10 93x16
+    n4 text leaf name="region label" bounds=140,10 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 25,0 29,0 40,0 49,0 57,0 61,0 71,0 80,0 89,0 lines=0@16
+  n5 region name="region label" bounds=8,28 784x20
+    n6 sectionheader bounds=8,28 784x20
+      n7 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
+  n8 group bounds=10,48 780x43 disabled
+    n9 checkbox bounds=30,58 13x13 disabled checked=false
+  n10 paragraph bounds=8,107 784x20
+    n11 text leaf name="becomes editable" bounds=8,109 135x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 27,0 37,0 49,0 58,0 67,0 75,0 84,0 92,0 96,0 103,0 113,0 122,0 126,0 lines=0@16
+  n12 paragraph bounds=8,143 784x20
+    n13 text leaf name="animated color" bounds=8,145 119x16 font="SerenitySans" 16 400 normal color=#ff0000 characters=0,0 9,0 18,0 23,0 35,0 45,0 51,0 60,0 68,0 76,0 85,0 95,0 99,0 110,0 lines=0@16
+  n14 button name="first slotted" bounds=8,179 784x20
+    n15 text leaf name="first slotted" bounds=8,181 98x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 53,0 57,0 67,0 74,0 81,0 90,0 lines=0@16
+    n16 text leaf name="second slotted" bounds=8,179 784x20 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 37,0 46,0 54,0 62,0 72,0 76,0 86,0 93,0 100,0 109,0 lines=0@20
+
+== ElementInternals role
+n0 generic bounds=8,8 784x191
+  n1 status bounds=8,10 124x16 live=polite
+    n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
+  n3 generic bounds=140,10 93x16
+    n4 text leaf name="region label" bounds=140,10 93x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 25,0 29,0 40,0 49,0 57,0 61,0 71,0 80,0 89,0 lines=0@16
+  n5 region name="region label" bounds=8,28 784x20
+    n6 sectionheader bounds=8,28 784x20
+      n7 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
+  n8 group bounds=10,48 780x43 disabled
+    n9 checkbox bounds=30,58 13x13 disabled checked=false
+  n10 paragraph bounds=8,107 784x20
+    n11 text leaf name="becomes editable" bounds=8,109 135x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 27,0 37,0 49,0 58,0 67,0 75,0 84,0 92,0 96,0 103,0 113,0 122,0 126,0 lines=0@16
+  n12 paragraph bounds=8,143 784x20
+    n13 text leaf name="animated color" bounds=8,145 119x16 font="SerenitySans" 16 400 normal color=#ff0000 characters=0,0 9,0 18,0 23,0 35,0 45,0 51,0 60,0 68,0 76,0 85,0 95,0 99,0 110,0 lines=0@16
+  n14 button name="first slotted" bounds=8,179 784x20
+    n15 text leaf name="first slotted" bounds=8,181 98x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 53,0 57,0 67,0 74,0 81,0 90,0 lines=0@16
+    n16 text leaf name="second slotted" bounds=8,179 784x20 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 37,0 46,0 54,0 62,0 72,0 76,0 86,0 93,0 100,0 109,0 lines=0@20
+
+== region label emptied
+n0 generic bounds=8,8 784x191
+  n1 status bounds=8,10 124x16 live=polite
+    n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
+  n3 generic bounds=8,8 0x20
+  n4 generic bounds=8,28 784x20
+    n5 banner bounds=8,28 784x20
+      n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
+  n7 group bounds=10,48 780x43 disabled
+    n8 checkbox bounds=30,58 13x13 disabled checked=false
+  n9 paragraph bounds=8,107 784x20
+    n10 text leaf name="becomes editable" bounds=8,109 135x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 27,0 37,0 49,0 58,0 67,0 75,0 84,0 92,0 96,0 103,0 113,0 122,0 126,0 lines=0@16
+  n11 paragraph bounds=8,143 784x20
+    n12 text leaf name="animated color" bounds=8,145 119x16 font="SerenitySans" 16 400 normal color=#ff0000 characters=0,0 9,0 18,0 23,0 35,0 45,0 51,0 60,0 68,0 76,0 85,0 95,0 99,0 110,0 lines=0@16
+  n13 button name="first slotted" bounds=8,179 784x20
+    n14 text leaf name="first slotted" bounds=8,181 98x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 53,0 57,0 67,0 74,0 81,0 90,0 lines=0@16
+    n15 text leaf name="second slotted" bounds=8,179 784x20 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 37,0 46,0 54,0 62,0 72,0 76,0 86,0 93,0 100,0 109,0 lines=0@20
+
+== first legend removed
+n0 generic bounds=8,8 784x189
+  n1 status bounds=8,10 124x16 live=polite
+    n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
+  n3 generic bounds=8,8 0x20
+  n4 generic bounds=8,28 784x20
+    n5 banner bounds=8,28 784x20
+      n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
+  n7 group bounds=10,48 780x41 disabled
+    n8 checkbox bounds=30,51 13x13 checked=false
+  n9 paragraph bounds=8,105 784x20
+    n10 text leaf name="becomes editable" bounds=8,107 135x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 27,0 37,0 49,0 58,0 67,0 75,0 84,0 92,0 96,0 103,0 113,0 122,0 126,0 lines=0@16
+  n11 paragraph bounds=8,141 784x20
+    n12 text leaf name="animated color" bounds=8,143 119x16 font="SerenitySans" 16 400 normal color=#ff0000 characters=0,0 9,0 18,0 23,0 35,0 45,0 51,0 60,0 68,0 76,0 85,0 95,0 99,0 110,0 lines=0@16
+  n13 button name="first slotted" bounds=8,177 784x20
+    n14 text leaf name="first slotted" bounds=8,179 98x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 53,0 57,0 67,0 74,0 81,0 90,0 lines=0@16
+    n15 text leaf name="second slotted" bounds=8,177 784x20 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 37,0 46,0 54,0 62,0 72,0 76,0 86,0 93,0 100,0 109,0 lines=0@20
+
+== design mode on
+n0 generic bounds=8,8 784x189 editable multi_line
+  n1 status bounds=8,10 124x16 live=polite editable multi_line
+    n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
+  n3 generic bounds=8,8 0x20 editable multi_line
+  n4 generic bounds=8,28 784x20 editable multi_line
+    n5 banner bounds=8,28 784x20 editable multi_line
+      n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
+  n7 group bounds=10,48 780x41 disabled multi_line
+    n8 checkbox bounds=30,51 13x13 checked=false
+  n9 paragraph bounds=8,105 784x20 editable multi_line
+    n10 text leaf name="becomes editable" bounds=8,107 135x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 27,0 37,0 49,0 58,0 67,0 75,0 84,0 92,0 96,0 103,0 113,0 122,0 126,0 lines=0@16
+  n11 paragraph bounds=8,141 784x20 editable multi_line
+    n12 text leaf name="animated color" bounds=8,143 119x16 font="SerenitySans" 16 400 normal color=#ff0000 characters=0,0 9,0 18,0 23,0 35,0 45,0 51,0 60,0 68,0 76,0 85,0 95,0 99,0 110,0 lines=0@16
+  n13 button name="first slotted" bounds=8,177 784x20 editable multi_line
+    n14 text leaf name="first slotted" bounds=8,179 98x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 53,0 57,0 67,0 74,0 81,0 90,0 lines=0@16
+    n15 text leaf name="second slotted" bounds=8,177 784x20 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 37,0 46,0 54,0 62,0 72,0 76,0 86,0 93,0 100,0 109,0 lines=0@20
+
+== design mode off
+n0 generic bounds=8,8 784x189
+  n1 status bounds=8,10 124x16 live=polite
+    n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
+  n3 generic bounds=8,8 0x20
+  n4 generic bounds=8,28 784x20
+    n5 banner bounds=8,28 784x20
+      n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
+  n7 group bounds=10,48 780x41 disabled
+    n8 checkbox bounds=30,51 13x13 checked=false
+  n9 paragraph bounds=8,105 784x20
+    n10 text leaf name="becomes editable" bounds=8,107 135x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 27,0 37,0 49,0 58,0 67,0 75,0 84,0 92,0 96,0 103,0 113,0 122,0 126,0 lines=0@16
+  n11 paragraph bounds=8,141 784x20
+    n12 text leaf name="animated color" bounds=8,143 119x16 font="SerenitySans" 16 400 normal color=#ff0000 characters=0,0 9,0 18,0 23,0 35,0 45,0 51,0 60,0 68,0 76,0 85,0 95,0 99,0 110,0 lines=0@16
+  n13 button name="first slotted" bounds=8,177 784x20
+    n14 text leaf name="first slotted" bounds=8,179 98x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 53,0 57,0 67,0 74,0 81,0 90,0 lines=0@16
+    n15 text leaf name="second slotted" bounds=8,177 784x20 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 37,0 46,0 54,0 62,0 72,0 76,0 86,0 93,0 100,0 109,0 lines=0@20
+
+== animated color sampled later
+n0 generic bounds=8,8 784x189
+  n1 status bounds=8,10 124x16 live=polite
+    n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
+  n3 generic bounds=8,8 0x20
+  n4 generic bounds=8,28 784x20
+    n5 banner bounds=8,28 784x20
+      n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
+  n7 group bounds=10,48 780x41 disabled
+    n8 checkbox bounds=30,51 13x13 checked=false
+  n9 paragraph bounds=8,105 784x20
+    n10 text leaf name="becomes editable" bounds=8,107 135x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 27,0 37,0 49,0 58,0 67,0 75,0 84,0 92,0 96,0 103,0 113,0 122,0 126,0 lines=0@16
+  n11 paragraph bounds=8,141 784x20
+    n12 text leaf name="animated color" bounds=8,143 119x16 font="SerenitySans" 16 400 normal color=#0000ff characters=0,0 9,0 18,0 23,0 35,0 45,0 51,0 60,0 68,0 76,0 85,0 95,0 99,0 110,0 lines=0@16
+  n13 button name="first slotted" bounds=8,177 784x20
+    n14 text leaf name="first slotted" bounds=8,179 98x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 53,0 57,0 67,0 74,0 81,0 90,0 lines=0@16
+    n15 text leaf name="second slotted" bounds=8,177 784x20 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 37,0 46,0 54,0 62,0 72,0 76,0 86,0 93,0 100,0 109,0 lines=0@20
+
+== manual slot assignment
+n0 generic bounds=8,8 784x189
+  n1 status bounds=8,10 124x16 live=polite
+    n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
+  n3 generic bounds=8,8 0x20
+  n4 generic bounds=8,28 784x20
+    n5 banner bounds=8,28 784x20
+      n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
+  n7 group bounds=10,48 780x41 disabled
+    n8 checkbox bounds=30,51 13x13 checked=false
+  n9 paragraph bounds=8,105 784x20
+    n10 text leaf name="becomes editable" bounds=8,107 135x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 27,0 37,0 49,0 58,0 67,0 75,0 84,0 92,0 96,0 103,0 113,0 122,0 126,0 lines=0@16
+  n11 paragraph bounds=8,141 784x20
+    n12 text leaf name="animated color" bounds=8,143 119x16 font="SerenitySans" 16 400 normal color=#0000ff characters=0,0 9,0 18,0 23,0 35,0 45,0 51,0 60,0 68,0 76,0 85,0 95,0 99,0 110,0 lines=0@16
+  n13 button name="second slotted" bounds=8,177 784x20
+    n14 text leaf name="first slotted" bounds=8,177 784x20 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 6,0 11,0 19,0 29,0 36,0 44,0 53,0 57,0 67,0 74,0 81,0 90,0 lines=0@20
+    n15 text leaf name="second slotted" bounds=8,179 117x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 37,0 46,0 54,0 62,0 72,0 76,0 86,0 93,0 100,0 109,0 lines=0@16
+

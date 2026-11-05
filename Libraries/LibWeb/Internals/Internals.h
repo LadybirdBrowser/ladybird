@@ -229,6 +229,7 @@ public:
     String accessibility_character_offsets(GC::Ref<DOM::Node>);
     String dump_accessibility_node_data(GC::Ref<DOM::Node>);
     String accessibility_cached_text_mismatches();
+    String accessibility_cached_record_mismatches();
     Utf16String dump_layout_tree(GC::Ref<DOM::Node>);
     Utf16String dump_stacking_context_tree();
     Utf16String stacking_context_structure_verification_report();

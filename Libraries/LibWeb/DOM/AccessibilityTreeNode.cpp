@@ -235,560 +235,610 @@ Document::CachedAccessibleText AccessibilityTreeNode::compute_accessible_text(El
     return text;
 }
 
+// Fills in where each character of a text leaf renders, relative to the text's own top-left; where its lines break and
+// how tall they are; and, once its lines are known, its bounds. Any layout can change all of that, with nothing changing
+// in the text node itself, so it's computed again on every build of the tree.
+static void fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::Text const& text_node, Gfx::Font const* font, Document const& document, Layout::BegunRead const& read)
+{
+    // Compute per-character (x, y) offsets and line-break positions. Visual lines give the DOM offsets
+    // of each rendered line of this text node; the caret rect at a line's first offset gives that line's
+    // origin and height. Text that renders no lines falls back to a single-line font-metrics computation.
+    auto utf8 = node_data.name.bytes_as_string_view();
+    Utf8View view { utf8 };
+
+    auto* layout = text_node.layout_node(read);
+
+    // The caret rect at a DOM offset is document-absolute and spans the height of the line the offset
+    // renders on, which is what a line's geometry is read from here.
+    auto line_rect_at_offset = [&](size_t offset) -> Optional<CSSPixelRect> {
+        if (!layout)
+            return {};
+        Layout::RustFFI::FfiOptionalCssPixelRect result;
+        Layout::RustFFI::layout_script_text_caret_rect_in_dom_range(
+            layout->document_host(), Layout::Node::slot_id(layout), offset, &result);
+        if (!result.has_value)
+            return {};
+        return result.rect;
+    };
+
+    struct RenderedLine {
+        VisualLine line;
+        CSSPixelRect rect;
+    };
+    Vector<RenderedLine> rendered_lines;
+    for (auto const& line : collect_visual_lines(read, text_node)) {
+        if (!line.has_fragments)
+            continue;
+        if (auto rect = line_rect_at_offset(line.start_offset); rect.has_value())
+            rendered_lines.append({ line, *rect });
+    }
+
+    if (!rendered_lines.is_empty()) {
+        if (auto own_box = text_bounding_client_rect(document, *layout); own_box.has_value())
+            node_data.bounds = own_box->to_type<int>();
+
+        // Report positions relative to the text's own top-left (its leftmost line's left edge and its
+        // topmost line's top): Caret rects are document-absolute, so the offsets don't move with scrolling,
+        // and node_data.bounds' top-left is that same point in viewport space — so bounds' top-left plus an
+        // offset is where the character is on screen.
+        auto text_origin = rendered_lines.first().rect.top_left();
+        for (auto const& rendered : rendered_lines) {
+            text_origin.set_x(min(text_origin.x(), rendered.rect.x()));
+            text_origin.set_y(min(text_origin.y(), rendered.rect.y()));
+        }
+        auto text_utf16 = text_node.data().utf16_view();
+
+        // The document-absolute x where each DOM offset's character starts, and where each fragment's text
+        // ends, from the glyph runs layout shaped the text into.
+        struct CharacterXPositions {
+            Vector<Optional<float>> start_x;
+            Vector<Optional<float>> fragment_end_x;
+        };
+        CharacterXPositions x_positions;
+        x_positions.start_x.resize(text_utf16.length_in_code_units() + 1);
+        x_positions.fragment_end_x.resize(text_utf16.length_in_code_units() + 1);
+        Layout::RustFFI::layout_script_text_character_x_positions(
+            layout->document_host(), Layout::Node::slot_id(layout), &x_positions,
+            [](void* context, size_t offset, float x, bool is_fragment_end) {
+                auto& positions = *static_cast<CharacterXPositions*>(context);
+                auto& list = is_fragment_end ? positions.fragment_end_x : positions.start_x;
+                if (offset < list.size())
+                    list[offset] = x;
+            });
+        auto origin_x = text_origin.x().to_float();
+        auto known_x = [&](Vector<Optional<float>> const& list, size_t offset) -> Optional<float> {
+            if (offset >= list.size() || !list[offset].has_value())
+                return {};
+            return *list[offset] - origin_x;
+        };
+
+        // Where the rendered text last reached: the position of the characters no line renders.
+        Optional<Gfx::IntPoint> rendered_end;
+        for (auto const& [line, line_rect] : rendered_lines) {
+            auto line_top_y = static_cast<i32>(line_rect.y().to_int() - text_origin.y().to_int());
+            auto line_left_x = static_cast<i32>(line_rect.x().to_int() - text_origin.x().to_int());
+            auto line_height = static_cast<i32>(line_rect.height().to_int());
+            // A visual line's offsets index the DOM data(), which is what node_data.name and text_utf16
+            // hold. Collapsed whitespace renders on no line: a line starts past any leading run, and its
+            // end_offset excludes the run hanging at a soft wrap.
+            auto line_character_start = text_utf16.code_point_offset_of(line.start_offset);
+            auto line_character_end = text_utf16.code_point_offset_of(line.end_offset);
+            // Entry N is character N's position, so the characters no line renders take the position the
+            // rendered text last reached (a leading run: the first line's start), and the first line starts
+            // at character 0, leading run included.
+            auto gap_position = rendered_end.value_or(Gfx::IntPoint { line_left_x, line_top_y });
+            while (node_data.character_offsets.size() < line_character_start)
+                node_data.character_offsets.append(gap_position);
+            node_data.line_break_character_offsets.append(node_data.line_break_character_offsets.is_empty() ? 0 : static_cast<i32>(line_character_start));
+            node_data.line_heights.append(line_height);
+            // Each character's x is where layout's glyph run puts it. A character layout gives no position
+            // to (whitespace that collapsed away) takes no width: It sits where the next positioned character
+            // on the line starts, or where the line ends. Only a line layout positions nothing on (e.g. vertical
+            // text) falls back to advancing each character by its own width, shaped on its own.
+            auto utf8_start = view.byte_offset_of(line_character_start);
+            auto utf8_end = view.byte_offset_of(line_character_end);
+            Utf8View line_view { utf8.substring_view(utf8_start, utf8_end - utf8_start) };
+            Vector<u32> line_code_points;
+            Vector<Optional<float>> line_x;
+            size_t code_unit_offset = line.start_offset;
+            for (u32 code_point : line_view) {
+                line_code_points.append(code_point);
+                line_x.append(known_x(x_positions.start_x, code_unit_offset));
+                code_unit_offset += code_point > 0xFFFF ? 2 : 1;
+            }
+            auto line_end_x = known_x(x_positions.fragment_end_x, line.end_offset);
+            bool layout_positions_line = line_end_x.has_value() || any_of(line_x, [](auto const& x) { return x.has_value(); });
+
+            float end_x = static_cast<float>(line_left_x);
+            if (layout_positions_line) {
+                Optional<float> next_x = line_end_x;
+                for (size_t i = line_x.size(); i-- > 0;) {
+                    if (line_x[i].has_value())
+                        next_x = line_x[i];
+                    else
+                        line_x[i] = next_x;
+                }
+                Optional<float> previous_x;
+                for (auto& x : line_x) {
+                    if (!x.has_value())
+                        x = previous_x.value_or(static_cast<float>(line_left_x));
+                    previous_x = x;
+                }
+                end_x = line_end_x.value_or(previous_x.value_or(static_cast<float>(line_left_x)));
+            } else {
+                for (size_t i = 0; i < line_x.size(); ++i) {
+                    line_x[i] = end_x;
+                    end_x += font ? glyph_advance(*font, line_code_points[i]) : 0.0f;
+                }
+            }
+            for (auto const& x : line_x)
+                node_data.character_offsets.append(Gfx::IntPoint { static_cast<i32>(*x), line_top_y });
+            rendered_end = Gfx::IntPoint { static_cast<i32>(end_x), line_top_y };
+        }
+        // A trailing run that renders on no line, likewise.
+        while (rendered_end.has_value() && node_data.character_offsets.size() < view.length())
+            node_data.character_offsets.append(*rendered_end);
+    } else if (font) {
+        // Fallback: single-line font-metrics computation.
+        node_data.line_break_character_offsets.append(0);
+        node_data.line_heights.append(node_data.bounds.height());
+        float cumulative = 0;
+        for (u32 code_point : view) {
+            node_data.character_offsets.append(Gfx::IntPoint { static_cast<i32>(cumulative), 0 });
+            cumulative += glyph_advance(*font, code_point);
+        }
+    }
+}
+
+// The fields that can change with nothing changing in the node itself or its style: its bounds and text geometry,
+// which any layout can move, and whether it has the focus. They're computed again even for a node whose other fields
+// are kept from the last build.
+static void fill_volatile_fields(WebView::AccessibilityNodeData& node_data, DOM::Node const& node, Document const& document, Layout::BegunRead const& read)
+{
+    node_data.bounds = {};
+    node_data.is_focused = false;
+    node_data.character_offsets.clear();
+    node_data.line_break_character_offsets.clear();
+    node_data.line_heights.clear();
+    if (auto const* element = as_if<DOM::Element>(node)) {
+        node_data.bounds = accessibility_bounds(read, *element);
+        node_data.is_focused = element->is_focused();
+        return;
+    }
+    auto const* text_node = as_if<DOM::Text>(node);
+    if (!text_node)
+        return;
+    auto parent = text_node->parent_element();
+    if (!parent)
+        return;
+    node_data.bounds = accessibility_bounds(read, *parent);
+    if (!parent->style_group<CSS::ComputedValues::FontValues>() || !parent->style_group<CSS::ComputedValues::InheritedTextValues>())
+        return;
+    Gfx::Font const* font = nullptr;
+    if (auto layout = parent->layout_node(read))
+        font = &layout->first_available_font();
+    fill_text_geometry(node_data, *text_node, font, document, read);
+}
+
 void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const& document, Layout::BegunRead const& read, i64 parent_id) const
 {
     WebView::AccessibilityNodeData node_data;
     node_data.parent_id = parent_id;
 
-    if (value()->is_element()) {
-        auto const& element = static_cast<DOM::Element const&>(*value());
+    // While an assistive technology consumes the tree, it's rebuilt after every change to the page. So keep what each
+    // node's data holds from one build to the next until a change to the node or its style could alter it, and compute
+    // again just the fields that can change without one.
+    auto keeps_records = document.page().accessibility_interested();
+    if (auto const* record = keeps_records ? document.cached_accessibility_record(*value()) : nullptr) {
+        node_data = *record;
+        fill_volatile_fields(node_data, *value(), document, read);
+    } else {
+        if (value()->is_element()) {
+            auto const& element = static_cast<DOM::Element const&>(*value());
 
-        node_data.id = static_cast<i64>(element.unique_id().value());
-        // role_or_default() already applies the presentational-role conflict rules: a none/presentation role on an
-        // element that's focusable or carries a global ARIA attribute is ignored, and the implicit role comes back in
-        // its place — as Blink/WebKit/Gecko do in AXObject::DetermineAriaRole() / AccessibilityNodeObject::
-        // determineAriaRoleAttribute() / nsAccessibilityService::CreateAccessible() before they fall back to the
-        // element's own implicit role.
-        auto role = element.role_or_default();
-        if (role.has_value() && !ARIA::is_abstract_role(*role))
-            node_data.role = ARIA::role_name(*role).to_utf8();
-        else if (is_frame_element(element))
-            node_data.role = "iframe"_string;
+            node_data.id = static_cast<i64>(element.unique_id().value());
+            // role_or_default() already applies the presentational-role conflict rules: a none/presentation role on an
+            // element that's focusable or carries a global ARIA attribute is ignored, and the implicit role comes back in
+            // its place — as Blink/WebKit/Gecko do in AXObject::DetermineAriaRole() / AccessibilityNodeObject::
+            // determineAriaRoleAttribute() / nsAccessibilityService::CreateAccessible() before they fall back to the
+            // element's own implicit role.
+            auto role = element.role_or_default();
+            if (role.has_value() && !ARIA::is_abstract_role(*role))
+                node_data.role = ARIA::role_name(*role).to_utf8();
+            else if (is_frame_element(element))
+                node_data.role = "iframe"_string;
 
-        // While an assistive technology consumes the tree, it's rebuilt after every change to the page, so keep each
-        // element's name and description from one build to the next until a change could alter them.
-        Document::CachedAccessibleText text;
-        if (!document.page().accessibility_interested()) {
-            text = compute_accessible_text(element, document);
-        } else if (auto const* cached = document.cached_accessible_text(element)) {
-            text = *cached;
-        } else {
-            text = compute_accessible_text(element, document);
-            document.cache_accessible_text(element, text);
-        }
-        node_data.name = move(text.name);
-        node_data.description = move(text.description);
-        node_data.bounds = accessibility_bounds(read, element);
-
-        // aria-level is a heading's level only on a heading. On a treeitem, row or listitem it's the item's depth,
-        // which the bridges expose as a hierarchical level (the ATK "level" object attribute, AXDisclosureLevel) and
-        // never as the node's value — the split WebKit (AccessibilityNodeObject::headingLevel() vs. AXCoreObject::
-        // hierarchicalLevel()), Blink (AXNodeObject::HeadingLevel() vs. AXNodeObject::HierarchicalLevel()) and Gecko
-        // (HTMLHeadingAccessible vs. GroupPosition().level) all make. On any other role aria-level is an author error
-        // and is ignored. A treeitem's depth isn't computed from its nesting yet, as Blink's HierarchicalLevel() does.
-        if (auto level = element.aria_level(); level.has_value() && role.has_value()) {
-            if (auto parsed = level->to_number<i32>(); parsed.has_value() && *parsed >= 1) {
-                if (*role == ARIA::Role::heading)
-                    node_data.heading_level = *parsed;
-                else if (*role == ARIA::Role::treeitem || *role == ARIA::Role::row || *role == ARIA::Role::listitem)
-                    node_data.hierarchical_level = *parsed;
+            // While an assistive technology consumes the tree, it's rebuilt after every change to the page, so keep each
+            // element's name and description from one build to the next until a change could alter them.
+            Document::CachedAccessibleText text;
+            if (!document.page().accessibility_interested() || document.accessibility_caches_bypassed()) {
+                text = compute_accessible_text(element, document);
+            } else if (auto const* cached = document.cached_accessible_text(element)) {
+                text = *cached;
+            } else {
+                text = compute_accessible_text(element, document);
+                document.cache_accessible_text(element, text);
             }
-        }
+            node_data.name = move(text.name);
+            node_data.description = move(text.description);
+            node_data.bounds = accessibility_bounds(read, element);
 
-        // https://www.w3.org/TR/wai-aria-1.2/#aria-live
-        // Only assertive, polite, and off are aria-live values. Any other value is ignored and the property treated as
-        // not present (ARIA 1.2, Handling Author Errors), so the role's implicit value applies. WebKit does the same
-        // (defaultLiveRegionStatusForRole(), with liveRegionStatusIsEnabled() admitting only polite and assertive);
-        // Blink and Gecko instead pass an unknown value through as the platform's live attribute for the AT to judge
-        // (AXObject::LiveRegionStatus(), nsAccUtils::SetLiveContainerAttributes()) — an attribute our bridges don't
-        // expose. Here the value only decides whether a change is announced, and at which priority.
-        auto live = ARIA::AriaData::parse_aria_live(element.aria_live());
-        if (!live.has_value() && role.has_value())
-            live = ARIA::implicit_aria_live_for_role(*role);
-        if (live.has_value())
-            node_data.live = aria_live_name(*live);
-
-        // https://www.w3.org/TR/wai-aria-1.2/#aria-disabled
-        auto aria_disabled = element.get_attribute(ARIA::AttributeNames::aria_disabled);
-        if (element.is_actually_disabled() || (aria_disabled.has_value() && aria_disabled.value() == "true"sv))
-            node_data.is_disabled = true;
-
-        if (auto const* cell = as_if<HTML::HTMLTableCellElement>(element)) {
-            node_data.column_span = static_cast<i32>(cell->col_span());
-            node_data.row_span = static_cast<i32>(cell->row_span());
-
-            // The cell's column index: the col_span sum of the cells before it in its row. Its row index isn't
-            // serialized — both bridges derive it from the row's position in the tree.
-            auto row_result = cell->closest("tr"sv);
-            if (!row_result.is_exception() && row_result.value()) {
-                auto const* row = row_result.value();
-                i32 col_index = 0;
-                for (auto const* prev = row->first_child(); prev && prev != cell; prev = prev->next_sibling()) {
-                    if (auto const* prev_cell = as_if<HTML::HTMLTableCellElement>(prev))
-                        col_index += static_cast<i32>(prev_cell->col_span());
-                }
-                node_data.cell_column_index = col_index;
-            }
-        }
-
-        if (auto const* table = as_if<HTML::HTMLTableElement>(element)) {
-            auto rows = table->rows();
-            node_data.table_row_count = static_cast<i32>(rows->length());
-            // Column count: maximum over all rows of summed col_span.
-            i32 max_cols = 0;
-            for (u32 i = 0; i < rows->length(); ++i) {
-                auto* row = rows->item(i);
-                if (!row)
-                    continue;
-                i32 cols = 0;
-                for (auto const* c = row->first_child(); c; c = c->next_sibling()) {
-                    if (auto const* cell = as_if<HTML::HTMLTableCellElement>(c))
-                        cols += static_cast<i32>(cell->col_span());
-                }
-                max_cols = max(max_cols, cols);
-            }
-            node_data.table_column_count = max_cols;
-
-            for (auto const* c = table->first_child(); c; c = c->next_sibling()) {
-                if (c->is_element()
-                    && static_cast<DOM::Element const&>(*c).tag_name().equals_ignoring_ascii_case("caption"sv)) {
-                    node_data.table_caption_id = static_cast<i64>(c->unique_id().value());
-                    break;
+            // aria-level is a heading's level only on a heading. On a treeitem, row or listitem it's the item's depth,
+            // which the bridges expose as a hierarchical level (the ATK "level" object attribute, AXDisclosureLevel) and
+            // never as the node's value — the split WebKit (AccessibilityNodeObject::headingLevel() vs. AXCoreObject::
+            // hierarchicalLevel()), Blink (AXNodeObject::HeadingLevel() vs. AXNodeObject::HierarchicalLevel()) and Gecko
+            // (HTMLHeadingAccessible vs. GroupPosition().level) all make. On any other role aria-level is an author error
+            // and is ignored. A treeitem's depth isn't computed from its nesting yet, as Blink's HierarchicalLevel() does.
+            if (auto level = element.aria_level(); level.has_value() && role.has_value()) {
+                if (auto parsed = level->to_number<i32>(); parsed.has_value() && *parsed >= 1) {
+                    if (*role == ARIA::Role::heading)
+                        node_data.heading_level = *parsed;
+                    else if (*role == ARIA::Role::treeitem || *role == ARIA::Role::row || *role == ARIA::Role::listitem)
+                        node_data.hierarchical_level = *parsed;
                 }
             }
 
-            if (auto summary = table->get_attribute(HTML::AttributeNames::summary); summary.has_value())
-                node_data.table_summary = summary.release_value().to_utf8();
+            // https://www.w3.org/TR/wai-aria-1.2/#aria-live
+            // Only assertive, polite, and off are aria-live values. Any other value is ignored and the property treated as
+            // not present (ARIA 1.2, Handling Author Errors), so the role's implicit value applies. WebKit does the same
+            // (defaultLiveRegionStatusForRole(), with liveRegionStatusIsEnabled() admitting only polite and assertive);
+            // Blink and Gecko instead pass an unknown value through as the platform's live attribute for the AT to judge
+            // (AXObject::LiveRegionStatus(), nsAccUtils::SetLiveContainerAttributes()) — an attribute our bridges don't
+            // expose. Here the value only decides whether a change is announced, and at which priority.
+            auto live = ARIA::AriaData::parse_aria_live(element.aria_live());
+            if (!live.has_value() && role.has_value())
+                live = ARIA::implicit_aria_live_for_role(*role);
+            if (live.has_value())
+                node_data.live = aria_live_name(*live);
 
-            // Column headers: first row's th cells (or any row with explicit scope=col). Row headers: first th cell in
-            // each row (or any cell with scope=row).
-            node_data.column_header_ids.resize(max_cols, true);
-            for (i32 c = 0; c < max_cols; ++c)
-                node_data.column_header_ids[c] = -1;
-            node_data.row_header_ids.resize(rows->length(), true);
-            for (u32 r = 0; r < rows->length(); ++r)
-                node_data.row_header_ids[r] = -1;
+            // https://www.w3.org/TR/wai-aria-1.2/#aria-disabled
+            auto aria_disabled = element.get_attribute(ARIA::AttributeNames::aria_disabled);
+            if (element.is_actually_disabled() || (aria_disabled.has_value() && aria_disabled.value() == "true"sv))
+                node_data.is_disabled = true;
 
-            for (u32 row_index = 0; row_index < rows->length(); ++row_index) {
-                auto* row = rows->item(row_index);
-                if (!row)
-                    continue;
-                i32 col_index = 0;
-                for (auto const* c = row->first_child(); c; c = c->next_sibling()) {
-                    auto const* cell = as_if<HTML::HTMLTableCellElement>(c);
-                    if (!cell)
+            if (auto const* cell = as_if<HTML::HTMLTableCellElement>(element)) {
+                node_data.column_span = static_cast<i32>(cell->col_span());
+                node_data.row_span = static_cast<i32>(cell->row_span());
+
+                // The cell's column index: the col_span sum of the cells before it in its row. Its row index isn't
+                // serialized — both bridges derive it from the row's position in the tree.
+                auto row_result = cell->closest("tr"sv);
+                if (!row_result.is_exception() && row_result.value()) {
+                    auto const* row = row_result.value();
+                    i32 col_index = 0;
+                    for (auto const* prev = row->first_child(); prev && prev != cell; prev = prev->next_sibling()) {
+                        if (auto const* prev_cell = as_if<HTML::HTMLTableCellElement>(prev))
+                            col_index += static_cast<i32>(prev_cell->col_span());
+                    }
+                    node_data.cell_column_index = col_index;
+                }
+            }
+
+            if (auto const* table = as_if<HTML::HTMLTableElement>(element)) {
+                auto rows = table->rows();
+                node_data.table_row_count = static_cast<i32>(rows->length());
+                // Column count: maximum over all rows of summed col_span.
+                i32 max_cols = 0;
+                for (u32 i = 0; i < rows->length(); ++i) {
+                    auto* row = rows->item(i);
+                    if (!row)
                         continue;
-                    auto cell_id = static_cast<i64>(cell->unique_id().value());
-                    auto tag = cell->tag_name();
-                    auto scope_attr = cell->get_attribute(HTML::AttributeNames::scope).value_or({});
-                    auto scope = scope_attr.utf16_view();
-                    bool is_th = tag.equals_ignoring_ascii_case("th"sv);
-                    if (is_th && (scope == "col"sv || (scope.is_empty() && row_index == 0))) {
-                        if (col_index < max_cols)
-                            node_data.column_header_ids[col_index] = cell_id;
+                    i32 cols = 0;
+                    for (auto const* c = row->first_child(); c; c = c->next_sibling()) {
+                        if (auto const* cell = as_if<HTML::HTMLTableCellElement>(c))
+                            cols += static_cast<i32>(cell->col_span());
                     }
-                    if (is_th && (scope == "row"sv || (scope.is_empty() && col_index == 0))) {
-                        if (row_index < node_data.row_header_ids.size())
-                            node_data.row_header_ids[row_index] = cell_id;
+                    max_cols = max(max_cols, cols);
+                }
+                node_data.table_column_count = max_cols;
+
+                for (auto const* c = table->first_child(); c; c = c->next_sibling()) {
+                    if (c->is_element()
+                        && static_cast<DOM::Element const&>(*c).tag_name().equals_ignoring_ascii_case("caption"sv)) {
+                        node_data.table_caption_id = static_cast<i64>(c->unique_id().value());
+                        break;
                     }
-                    col_index += static_cast<i32>(cell->col_span());
+                }
+
+                if (auto summary = table->get_attribute(HTML::AttributeNames::summary); summary.has_value())
+                    node_data.table_summary = summary.release_value().to_utf8();
+
+                // Column headers: first row's th cells (or any row with explicit scope=col). Row headers: first th cell in
+                // each row (or any cell with scope=row).
+                node_data.column_header_ids.resize(max_cols, true);
+                for (i32 c = 0; c < max_cols; ++c)
+                    node_data.column_header_ids[c] = -1;
+                node_data.row_header_ids.resize(rows->length(), true);
+                for (u32 r = 0; r < rows->length(); ++r)
+                    node_data.row_header_ids[r] = -1;
+
+                for (u32 row_index = 0; row_index < rows->length(); ++row_index) {
+                    auto* row = rows->item(row_index);
+                    if (!row)
+                        continue;
+                    i32 col_index = 0;
+                    for (auto const* c = row->first_child(); c; c = c->next_sibling()) {
+                        auto const* cell = as_if<HTML::HTMLTableCellElement>(c);
+                        if (!cell)
+                            continue;
+                        auto cell_id = static_cast<i64>(cell->unique_id().value());
+                        auto tag = cell->tag_name();
+                        auto scope_attr = cell->get_attribute(HTML::AttributeNames::scope).value_or({});
+                        auto scope = scope_attr.utf16_view();
+                        bool is_th = tag.equals_ignoring_ascii_case("th"sv);
+                        if (is_th && (scope == "col"sv || (scope.is_empty() && row_index == 0))) {
+                            if (col_index < max_cols)
+                                node_data.column_header_ids[col_index] = cell_id;
+                        }
+                        if (is_th && (scope == "row"sv || (scope.is_empty() && col_index == 0))) {
+                            if (row_index < node_data.row_header_ids.size())
+                                node_data.row_header_ids[row_index] = cell_id;
+                        }
+                        col_index += static_cast<i32>(cell->col_span());
+                    }
                 }
             }
-        }
 
-        // The text a control now holds, which AT reads back as its value. A password field's is the mask the field
-        // renders — one U+25CF BLACK CIRCLE per code point, as text_transform.rs draws it — never the text typed,
-        // so an AT's caret and selection offsets stay valid without the password reaching every AT client. That's
-        // the rendered text WebKit (AccessibilityRenderObject::secureFieldValue()) and Blink (AXNodeObject::
-        // GetValueForControl() masks with the text-security character) hand out; Gecko (HTMLTextFieldAccessible::
-        // Value()) exposes no value for a password field at all.
-        if (auto const* input = as_if<HTML::HTMLInputElement>(element)) {
-            using TAS = HTML::HTMLInputElement::TypeAttributeState;
-            auto type = input->type_state();
-            if (type == TAS::Text || type == TAS::Search || type == TAS::Email || type == TAS::Telephone
-                || type == TAS::URL) {
-                node_data.value = input->value().to_utf8();
-            } else if (type == TAS::Password) {
-                node_data.is_password = true;
-                node_data.value = MUST(String::repeated(0x25CF, input->value().length_in_code_points()));
+            // The text a control now holds, which AT reads back as its value. A password field's is the mask the field
+            // renders — one U+25CF BLACK CIRCLE per code point, as text_transform.rs draws it — never the text typed,
+            // so an AT's caret and selection offsets stay valid without the password reaching every AT client. That's
+            // the rendered text WebKit (AccessibilityRenderObject::secureFieldValue()) and Blink (AXNodeObject::
+            // GetValueForControl() masks with the text-security character) hand out; Gecko (HTMLTextFieldAccessible::
+            // Value()) exposes no value for a password field at all.
+            if (auto const* input = as_if<HTML::HTMLInputElement>(element)) {
+                using TAS = HTML::HTMLInputElement::TypeAttributeState;
+                auto type = input->type_state();
+                if (type == TAS::Text || type == TAS::Search || type == TAS::Email || type == TAS::Telephone
+                    || type == TAS::URL) {
+                    node_data.value = input->value().to_utf8();
+                } else if (type == TAS::Password) {
+                    node_data.is_password = true;
+                    node_data.value = MUST(String::repeated(0x25CF, input->value().length_in_code_points()));
+                }
+            } else if (auto const* text_area = as_if<HTML::HTMLTextAreaElement>(element)) {
+                node_data.value = text_area->value().to_utf8();
             }
-        } else if (auto const* text_area = as_if<HTML::HTMLTextAreaElement>(element)) {
-            node_data.value = text_area->value().to_utf8();
-        }
 
-        // AtkValue fields for numeric-value elements.
-        if (auto const* progress = as_if<HTML::HTMLProgressElement>(element)) {
-            node_data.value_numeric = progress->value();
-            node_data.value_minimum = 0.0;
-            node_data.value_maximum = progress->max();
-        } else if (auto const* meter = as_if<HTML::HTMLMeterElement>(element)) {
-            node_data.value_numeric = meter->value();
-            node_data.value_minimum = meter->min();
-            node_data.value_maximum = meter->max();
-        } else if (auto const* input = as_if<HTML::HTMLInputElement>(element)) {
-            if (input->value_as_number_applies()) {
-                // NB: An input whose value is not a number, such as an empty one, has a NaN valueAsNumber.
-                if (auto number = input->value_as_number(); !isnan(number))
-                    node_data.value_numeric = number;
-                if (auto min_attr = input->get_attribute(HTML::AttributeNames::min); min_attr.has_value()) {
-                    if (auto parsed = min_attr->to_number<double>(); parsed.has_value())
-                        node_data.value_minimum = *parsed;
-                }
-                if (auto max_attr = input->get_attribute(HTML::AttributeNames::max); max_attr.has_value()) {
-                    if (auto parsed = max_attr->to_number<double>(); parsed.has_value())
-                        node_data.value_maximum = *parsed;
-                }
-                if (auto step_attr = input->get_attribute(HTML::AttributeNames::step); step_attr.has_value()) {
-                    if (auto parsed = step_attr->to_number<double>(); parsed.has_value())
-                        node_data.value_step = *parsed;
+            // AtkValue fields for numeric-value elements.
+            if (auto const* progress = as_if<HTML::HTMLProgressElement>(element)) {
+                node_data.value_numeric = progress->value();
+                node_data.value_minimum = 0.0;
+                node_data.value_maximum = progress->max();
+            } else if (auto const* meter = as_if<HTML::HTMLMeterElement>(element)) {
+                node_data.value_numeric = meter->value();
+                node_data.value_minimum = meter->min();
+                node_data.value_maximum = meter->max();
+            } else if (auto const* input = as_if<HTML::HTMLInputElement>(element)) {
+                if (input->value_as_number_applies()) {
+                    // NB: An input whose value is not a number, such as an empty one, has a NaN valueAsNumber.
+                    if (auto number = input->value_as_number(); !isnan(number))
+                        node_data.value_numeric = number;
+                    if (auto min_attr = input->get_attribute(HTML::AttributeNames::min); min_attr.has_value()) {
+                        if (auto parsed = min_attr->to_number<double>(); parsed.has_value())
+                            node_data.value_minimum = *parsed;
+                    }
+                    if (auto max_attr = input->get_attribute(HTML::AttributeNames::max); max_attr.has_value()) {
+                        if (auto parsed = max_attr->to_number<double>(); parsed.has_value())
+                            node_data.value_maximum = *parsed;
+                    }
+                    if (auto step_attr = input->get_attribute(HTML::AttributeNames::step); step_attr.has_value()) {
+                        if (auto parsed = step_attr->to_number<double>(); parsed.has_value())
+                            node_data.value_step = *parsed;
+                    }
                 }
             }
-        }
 
-        // AtkSelection state. An <option> carries the state in the host language; anything else, such as a
-        // role="option" element, carries it in aria-selected.
-        // https://www.w3.org/TR/wai-aria-1.2/#aria-selected
-        if (auto const* option = as_if<HTML::HTMLOptionElement>(element)) {
-            node_data.is_selected = option->selected();
-        } else if (auto aria_selected = element.get_attribute(ARIA::AttributeNames::aria_selected); aria_selected.has_value()) {
-            node_data.is_selected = aria_selected.value() == "true"sv;
-        }
+            // AtkSelection state. An <option> carries the state in the host language; anything else, such as a
+            // role="option" element, carries it in aria-selected.
+            // https://www.w3.org/TR/wai-aria-1.2/#aria-selected
+            if (auto const* option = as_if<HTML::HTMLOptionElement>(element)) {
+                node_data.is_selected = option->selected();
+            } else if (auto aria_selected = element.get_attribute(ARIA::AttributeNames::aria_selected); aria_selected.has_value()) {
+                node_data.is_selected = aria_selected.value() == "true"sv;
+            }
 
-        // A checkbox or radio button carries the state in the host language, which wins over aria-checked. Any other
-        // element (including an input whose role's been overridden to one that's checkable) takes it from aria-checked.
-        if (auto const* input = as_if<HTML::HTMLInputElement>(element);
-            input && (input->type_state() == HTML::HTMLInputElement::TypeAttributeState::Checkbox || input->type_state() == HTML::HTMLInputElement::TypeAttributeState::RadioButton)) {
-            if (input->indeterminate())
-                node_data.checked_state = WebView::AccessibilityNodeData::CheckedState::Mixed;
-            else
-                node_data.checked_state = input->checked()
-                    ? WebView::AccessibilityNodeData::CheckedState::Checked
-                    : WebView::AccessibilityNodeData::CheckedState::Unchecked;
-        } else if (auto aria_checked = element.get_attribute(ARIA::AttributeNames::aria_checked); aria_checked.has_value()) {
-            auto value = aria_checked.value();
-            if (value == "true"sv)
-                node_data.checked_state = WebView::AccessibilityNodeData::CheckedState::Checked;
-            else if (value == "false"sv)
-                node_data.checked_state = WebView::AccessibilityNodeData::CheckedState::Unchecked;
-            else if (value == "mixed"sv)
-                node_data.checked_state = WebView::AccessibilityNodeData::CheckedState::Mixed;
-        }
+            // A checkbox or radio button carries the state in the host language, which wins over aria-checked. Any other
+            // element (including an input whose role's been overridden to one that's checkable) takes it from aria-checked.
+            if (auto const* input = as_if<HTML::HTMLInputElement>(element);
+                input && (input->type_state() == HTML::HTMLInputElement::TypeAttributeState::Checkbox || input->type_state() == HTML::HTMLInputElement::TypeAttributeState::RadioButton)) {
+                if (input->indeterminate())
+                    node_data.checked_state = WebView::AccessibilityNodeData::CheckedState::Mixed;
+                else
+                    node_data.checked_state = input->checked()
+                        ? WebView::AccessibilityNodeData::CheckedState::Checked
+                        : WebView::AccessibilityNodeData::CheckedState::Unchecked;
+            } else if (auto aria_checked = element.get_attribute(ARIA::AttributeNames::aria_checked); aria_checked.has_value()) {
+                auto value = aria_checked.value();
+                if (value == "true"sv)
+                    node_data.checked_state = WebView::AccessibilityNodeData::CheckedState::Checked;
+                else if (value == "false"sv)
+                    node_data.checked_state = WebView::AccessibilityNodeData::CheckedState::Unchecked;
+                else if (value == "mixed"sv)
+                    node_data.checked_state = WebView::AccessibilityNodeData::CheckedState::Mixed;
+            }
 
-        if (auto const* details = as_if<HTML::HTMLDetailsElement>(element)) {
-            node_data.expanded_state = details->has_attribute(HTML::AttributeNames::open)
-                ? WebView::AccessibilityNodeData::ExpandedState::Expanded
-                : WebView::AccessibilityNodeData::ExpandedState::Collapsed;
-        } else if (auto aria_expanded = element.get_attribute(ARIA::AttributeNames::aria_expanded);
-            aria_expanded.has_value()) {
-            auto value = aria_expanded.value();
-            if (value == "true"sv)
-                node_data.expanded_state = WebView::AccessibilityNodeData::ExpandedState::Expanded;
-            else if (value == "false"sv)
-                node_data.expanded_state = WebView::AccessibilityNodeData::ExpandedState::Collapsed;
-        }
+            if (auto const* details = as_if<HTML::HTMLDetailsElement>(element)) {
+                node_data.expanded_state = details->has_attribute(HTML::AttributeNames::open)
+                    ? WebView::AccessibilityNodeData::ExpandedState::Expanded
+                    : WebView::AccessibilityNodeData::ExpandedState::Collapsed;
+            } else if (auto aria_expanded = element.get_attribute(ARIA::AttributeNames::aria_expanded);
+                aria_expanded.has_value()) {
+                auto value = aria_expanded.value();
+                if (value == "true"sv)
+                    node_data.expanded_state = WebView::AccessibilityNodeData::ExpandedState::Expanded;
+                else if (value == "false"sv)
+                    node_data.expanded_state = WebView::AccessibilityNodeData::ExpandedState::Collapsed;
+            }
 
-        // Editable/multi-line/read-only for text inputs and textareas and contenteditable.
-        auto is_readonly_attr = element.has_attribute(HTML::AttributeNames::readonly);
-        auto is_required_attr = element.has_attribute(HTML::AttributeNames::required);
-        if (auto const* input = as_if<HTML::HTMLInputElement>(element)) {
-            // Only text-like inputs are "editable"; checkbox/radio/button/submit, etc., are form controls but not
-            // text-editable. AT-SPI2's EDITABLE state refers specifically to text editing.
-            using TAS = HTML::HTMLInputElement::TypeAttributeState;
-            auto type = input->type_state();
-            bool is_text_type = type == TAS::Text || type == TAS::Search || type == TAS::Email
-                || type == TAS::Password || type == TAS::Telephone || type == TAS::URL || type == TAS::Number;
-            if (is_text_type && !is_readonly_attr)
+            // Editable/multi-line/read-only for text inputs and textareas and contenteditable.
+            auto is_readonly_attr = element.has_attribute(HTML::AttributeNames::readonly);
+            auto is_required_attr = element.has_attribute(HTML::AttributeNames::required);
+            if (auto const* input = as_if<HTML::HTMLInputElement>(element)) {
+                // Only text-like inputs are "editable"; checkbox/radio/button/submit, etc., are form controls but not
+                // text-editable. AT-SPI2's EDITABLE state refers specifically to text editing.
+                using TAS = HTML::HTMLInputElement::TypeAttributeState;
+                auto type = input->type_state();
+                bool is_text_type = type == TAS::Text || type == TAS::Search || type == TAS::Email
+                    || type == TAS::Password || type == TAS::Telephone || type == TAS::URL || type == TAS::Number;
+                if (is_text_type && !is_readonly_attr)
+                    node_data.is_editable = true;
+                if (is_text_type && is_readonly_attr)
+                    node_data.is_read_only = true;
+                if (is_required_attr)
+                    node_data.is_required = true;
+            } else if (is<HTML::HTMLTextAreaElement>(element)) {
+                if (!is_readonly_attr)
+                    node_data.is_editable = true;
+                if (is_readonly_attr)
+                    node_data.is_read_only = true;
+                if (is_required_attr)
+                    node_data.is_required = true;
+                node_data.is_multi_line = true;
+            } else if (element.is_editable_or_editing_host()) {
                 node_data.is_editable = true;
-            if (is_text_type && is_readonly_attr)
+                node_data.is_multi_line = true; // contenteditable elements default to multi-line.
+            }
+
+            // A disabled control cannot be edited, whichever branch above decided it was editable.
+            if (node_data.is_disabled)
+                node_data.is_editable = false;
+
+            // aria-* overrides.
+            if (auto ro = element.get_attribute(ARIA::AttributeNames::aria_read_only);
+                ro.has_value() && ro.value() == "true"sv) {
                 node_data.is_read_only = true;
-            if (is_required_attr)
+                node_data.is_editable = false;
+            }
+            if (auto req = element.get_attribute(ARIA::AttributeNames::aria_required);
+                req.has_value() && req.value() == "true"sv)
                 node_data.is_required = true;
-        } else if (is<HTML::HTMLTextAreaElement>(element)) {
-            if (!is_readonly_attr)
-                node_data.is_editable = true;
-            if (is_readonly_attr)
-                node_data.is_read_only = true;
-            if (is_required_attr)
-                node_data.is_required = true;
-            node_data.is_multi_line = true;
-        } else if (element.is_editable_or_editing_host()) {
-            node_data.is_editable = true;
-            node_data.is_multi_line = true; // contenteditable elements default to multi-line.
-        }
+            if (auto ml = element.get_attribute(ARIA::AttributeNames::aria_multi_line);
+                ml.has_value() && ml.value() == "true"sv)
+                node_data.is_multi_line = true;
 
-        // A disabled control cannot be edited, whichever branch above decided it was editable.
-        if (node_data.is_disabled)
-            node_data.is_editable = false;
+            if (auto invalid = element.get_attribute(ARIA::AttributeNames::aria_invalid);
+                invalid.has_value() && invalid.value() != "false"sv
+                && !invalid.value().is_empty())
+                node_data.is_invalid = true;
 
-        // aria-* overrides.
-        if (auto ro = element.get_attribute(ARIA::AttributeNames::aria_read_only);
-            ro.has_value() && ro.value() == "true"sv) {
-            node_data.is_read_only = true;
-            node_data.is_editable = false;
-        }
-        if (auto req = element.get_attribute(ARIA::AttributeNames::aria_required);
-            req.has_value() && req.value() == "true"sv)
-            node_data.is_required = true;
-        if (auto ml = element.get_attribute(ARIA::AttributeNames::aria_multi_line);
-            ml.has_value() && ml.value() == "true"sv)
-            node_data.is_multi_line = true;
-
-        if (auto invalid = element.get_attribute(ARIA::AttributeNames::aria_invalid);
-            invalid.has_value() && invalid.value() != "false"sv
-            && !invalid.value().is_empty())
-            node_data.is_invalid = true;
-
-        if (auto const* select = as_if<HTML::HTMLSelectElement>(element)) {
-            if (select->has_attribute(HTML::AttributeNames::multiple))
+            if (auto const* select = as_if<HTML::HTMLSelectElement>(element)) {
+                if (select->has_attribute(HTML::AttributeNames::multiple))
+                    node_data.is_multi_selectable = true;
+            }
+            if (auto ms = element.get_attribute(ARIA::AttributeNames::aria_multi_selectable);
+                ms.has_value() && ms.value() == "true"sv)
                 node_data.is_multi_selectable = true;
-        }
-        if (auto ms = element.get_attribute(ARIA::AttributeNames::aria_multi_selectable);
-            ms.has_value() && ms.value() == "true"sv)
-            node_data.is_multi_selectable = true;
 
-        if (auto aria_pressed = element.get_attribute(ARIA::AttributeNames::aria_pressed); aria_pressed.has_value()) {
-            auto value = aria_pressed.value();
-            if (value == "true"sv)
-                node_data.pressed_state = WebView::AccessibilityNodeData::PressedState::Pressed;
-            else if (value == "false"sv)
-                node_data.pressed_state = WebView::AccessibilityNodeData::PressedState::NotPressed;
-            else if (value == "mixed"sv)
-                node_data.pressed_state = WebView::AccessibilityNodeData::PressedState::Mixed;
-        }
+            if (auto aria_pressed = element.get_attribute(ARIA::AttributeNames::aria_pressed); aria_pressed.has_value()) {
+                auto value = aria_pressed.value();
+                if (value == "true"sv)
+                    node_data.pressed_state = WebView::AccessibilityNodeData::PressedState::Pressed;
+                else if (value == "false"sv)
+                    node_data.pressed_state = WebView::AccessibilityNodeData::PressedState::NotPressed;
+                else if (value == "mixed"sv)
+                    node_data.pressed_state = WebView::AccessibilityNodeData::PressedState::Mixed;
+            }
 
-        // Visited links.
-        if (auto const* anchor = as_if<HTML::HTMLAnchorElement>(element)) {
-            (void)anchor;
-        }
+            // Visited links.
+            if (auto const* anchor = as_if<HTML::HTMLAnchorElement>(element)) {
+                (void)anchor;
+            }
 
-        if (auto accesskey = element.get_attribute(HTML::AttributeNames::accesskey); accesskey.has_value())
-            node_data.keybinding = accesskey.release_value().to_utf8();
+            if (auto accesskey = element.get_attribute(HTML::AttributeNames::accesskey); accesskey.has_value())
+                node_data.keybinding = accesskey.release_value().to_utf8();
 
-        if (auto const* anchor = as_if<HTML::HTMLAnchorElement>(element))
-            node_data.url = anchor->href().to_utf8();
-        else if (auto const* area = as_if<HTML::HTMLAreaElement>(element))
-            node_data.url = area->href().to_utf8();
+            if (auto const* anchor = as_if<HTML::HTMLAnchorElement>(element))
+                node_data.url = anchor->href().to_utf8();
+            else if (auto const* area = as_if<HTML::HTMLAreaElement>(element))
+                node_data.url = area->href().to_utf8();
 
-        if (auto const* html_element = as_if<HTML::HTMLHtmlElement>(element)) {
-            if (auto lang = html_element->get_attribute(HTML::AttributeNames::lang); lang.has_value())
-                node_data.language = lang.release_value().to_utf8();
-        }
+            if (auto const* html_element = as_if<HTML::HTMLHtmlElement>(element)) {
+                if (auto lang = html_element->get_attribute(HTML::AttributeNames::lang); lang.has_value())
+                    node_data.language = lang.release_value().to_utf8();
+            }
 
-        // Only the element that has the focus is focused — not the body that activeElement falls back to when nothing
-        // does. Focus is on the document then, and the bridges hand the AT the document root, as Gecko, WebKit, and
-        // Blink do (FocusManager::FocusedDOMNode() / AccessibilityNodeObject::isFocused() / AXNodeObject::IsFocused()).
-        node_data.is_focused = element.is_focused();
-    } else if (value()->is_text()) {
-        auto const& text_node = static_cast<DOM::Text const&>(*value());
-        node_data.id = static_cast<i64>(text_node.unique_id().value());
-        node_data.role = "text leaf"_string;
-        node_data.name = text_node.data().to_utf8();
+            // Only the element that has the focus is focused — not the body that activeElement falls back to when nothing
+            // does. Focus is on the document then, and the bridges hand the AT the document root, as Gecko, WebKit, and
+            // Blink do (FocusManager::FocusedDOMNode() / AccessibilityNodeObject::isFocused() / AXNodeObject::IsFocused()).
+            node_data.is_focused = element.is_focused();
+        } else if (value()->is_text()) {
+            auto const& text_node = static_cast<DOM::Text const&>(*value());
+            node_data.id = static_cast<i64>(text_node.unique_id().value());
+            node_data.role = "text leaf"_string;
+            node_data.name = text_node.data().to_utf8();
 
-        // A text leaf's box is the union of its rendered lines, set below once those are known. Until then — and for
-        // good when the text renders no line — the parent element's box stands in.
-        if (auto parent = text_node.parent_element()) {
-            node_data.bounds = accessibility_bounds(read, *parent);
+            // A text leaf's box is the union of its rendered lines, set below once those are known. Until then — and for
+            // good when the text renders no line — the parent element's box stands in.
+            if (auto parent = text_node.parent_element()) {
+                node_data.bounds = accessibility_bounds(read, *parent);
 
-            // Read text formatting from the parent element's computed style. Text leaves inherit all their formatting
-            // from their containing element. So this covers the common case: mixed inline text and formatting changes.
-            // <p>Hello <b>world</b>: "Hello " and "world" are separate text leaves with different computed_properties.
-            auto const* font_values = parent->style_group<CSS::ComputedValues::FontValues>();
-            auto const* text_values = parent->style_group<CSS::ComputedValues::InheritedTextValues>();
-            auto const* text_reset_values = parent->style_group<CSS::ComputedValues::TextResetValues>();
-            auto const* background_values = parent->style_group<CSS::ComputedValues::BackgroundValues>();
-            if (font_values && text_values) {
-                Gfx::Font const* font = nullptr;
-                if (auto layout = parent->layout_node(read)) {
-                    font = &layout->first_available_font();
-                    node_data.font_family = font->family().to_string();
-                }
-                node_data.font_size = MUST(String::formatted("{}", font_values->font_size.to_double()));
-                node_data.font_weight = MUST(String::formatted("{}", font_values->font_weight));
+                // Read text formatting from the parent element's computed style. Text leaves inherit all their formatting
+                // from their containing element. So this covers the common case: mixed inline text and formatting changes.
+                // <p>Hello <b>world</b>: "Hello " and "world" are separate text leaves with different computed_properties.
+                auto const* font_values = parent->style_group<CSS::ComputedValues::FontValues>();
+                auto const* text_values = parent->style_group<CSS::ComputedValues::InheritedTextValues>();
+                auto const* text_reset_values = parent->style_group<CSS::ComputedValues::TextResetValues>();
+                auto const* background_values = parent->style_group<CSS::ComputedValues::BackgroundValues>();
+                if (font_values && text_values) {
+                    Gfx::Font const* font = nullptr;
+                    if (auto layout = parent->layout_node(read)) {
+                        font = &layout->first_available_font();
+                        node_data.font_family = font->family().to_string();
+                    }
+                    node_data.font_size = MUST(String::formatted("{}", font_values->font_size.to_double()));
+                    node_data.font_weight = MUST(String::formatted("{}", font_values->font_weight));
 
-                switch (font_values->font_style_keyword()) {
-                case CSS::FontStyleKeyword::Italic:
-                    node_data.font_style = "italic"_string;
-                    break;
-                case CSS::FontStyleKeyword::Oblique:
-                    node_data.font_style = "oblique"_string;
-                    break;
-                default:
-                    node_data.font_style = "normal"_string;
-                    break;
-                }
-
-                StringBuilder decoration_builder;
-                for (auto line : text_reset_values ? text_reset_values->decoration_lines() : ReadonlySpan<CSS::TextDecorationLine> {}) {
-                    if (!decoration_builder.is_empty())
-                        decoration_builder.append(' ');
-                    switch (line) {
-                    case CSS::TextDecorationLine::Underline:
-                        decoration_builder.append("underline"sv);
+                    switch (font_values->font_style_keyword()) {
+                    case CSS::FontStyleKeyword::Italic:
+                        node_data.font_style = "italic"_string;
                         break;
-                    case CSS::TextDecorationLine::LineThrough:
-                        decoration_builder.append("line-through"sv);
-                        break;
-                    case CSS::TextDecorationLine::Overline:
-                        decoration_builder.append("overline"sv);
-                        break;
-                    case CSS::TextDecorationLine::Blink:
-                        decoration_builder.append("blink"sv);
+                    case CSS::FontStyleKeyword::Oblique:
+                        node_data.font_style = "oblique"_string;
                         break;
                     default:
+                        node_data.font_style = "normal"_string;
                         break;
                     }
-                }
-                node_data.text_decoration = decoration_builder.is_empty()
-                    ? "none"_string
-                    : MUST(decoration_builder.to_string());
 
-                auto fg = text_values->color_value();
-                node_data.color = MUST(String::from_byte_string(fg.to_byte_string_without_alpha()));
-                auto bg = background_values ? background_values->background_color_value(fg) : Color::Transparent;
-                if (bg.alpha() > 0)
-                    node_data.background_color = MUST(String::from_byte_string(bg.to_byte_string_without_alpha()));
-
-                // Compute per-character (x, y) offsets and line-break positions. Visual lines give the DOM offsets
-                // of each rendered line of this text node; the caret rect at a line's first offset gives that line's
-                // origin and height. Text that renders no lines falls back to a single-line font-metrics computation.
-                auto utf8 = node_data.name.bytes_as_string_view();
-                Utf8View view { utf8 };
-
-                auto* layout = text_node.layout_node(read);
-
-                // The caret rect at a DOM offset is document-absolute and spans the height of the line the offset
-                // renders on, which is what a line's geometry is read from here.
-                auto line_rect_at_offset = [&](size_t offset) -> Optional<CSSPixelRect> {
-                    if (!layout)
-                        return {};
-                    Layout::RustFFI::FfiOptionalCssPixelRect result;
-                    Layout::RustFFI::layout_script_text_caret_rect_in_dom_range(
-                        layout->document_host(), Layout::Node::slot_id(layout), offset, &result);
-                    if (!result.has_value)
-                        return {};
-                    return result.rect;
-                };
-
-                struct RenderedLine {
-                    VisualLine line;
-                    CSSPixelRect rect;
-                };
-                Vector<RenderedLine> rendered_lines;
-                for (auto const& line : collect_visual_lines(read, text_node)) {
-                    if (!line.has_fragments)
-                        continue;
-                    if (auto rect = line_rect_at_offset(line.start_offset); rect.has_value())
-                        rendered_lines.append({ line, *rect });
-                }
-
-                if (!rendered_lines.is_empty()) {
-                    if (auto own_box = text_bounding_client_rect(document, *layout); own_box.has_value())
-                        node_data.bounds = own_box->to_type<int>();
-
-                    // Report positions relative to the text's own top-left (its leftmost line's left edge and its
-                    // topmost line's top): Caret rects are document-absolute, so the offsets don't move with scrolling,
-                    // and node_data.bounds' top-left is that same point in viewport space — so bounds' top-left plus an
-                    // offset is where the character is on screen.
-                    auto text_origin = rendered_lines.first().rect.top_left();
-                    for (auto const& rendered : rendered_lines) {
-                        text_origin.set_x(min(text_origin.x(), rendered.rect.x()));
-                        text_origin.set_y(min(text_origin.y(), rendered.rect.y()));
-                    }
-                    auto text_utf16 = text_node.data().utf16_view();
-
-                    // The document-absolute x where each DOM offset's character starts, and where each fragment's text
-                    // ends, from the glyph runs layout shaped the text into.
-                    struct CharacterXPositions {
-                        Vector<Optional<float>> start_x;
-                        Vector<Optional<float>> fragment_end_x;
-                    };
-                    CharacterXPositions x_positions;
-                    x_positions.start_x.resize(text_utf16.length_in_code_units() + 1);
-                    x_positions.fragment_end_x.resize(text_utf16.length_in_code_units() + 1);
-                    Layout::RustFFI::layout_script_text_character_x_positions(
-                        layout->document_host(), Layout::Node::slot_id(layout), &x_positions,
-                        [](void* context, size_t offset, float x, bool is_fragment_end) {
-                            auto& positions = *static_cast<CharacterXPositions*>(context);
-                            auto& list = is_fragment_end ? positions.fragment_end_x : positions.start_x;
-                            if (offset < list.size())
-                                list[offset] = x;
-                        });
-                    auto origin_x = text_origin.x().to_float();
-                    auto known_x = [&](Vector<Optional<float>> const& list, size_t offset) -> Optional<float> {
-                        if (offset >= list.size() || !list[offset].has_value())
-                            return {};
-                        return *list[offset] - origin_x;
-                    };
-
-                    // Where the rendered text last reached: the position of the characters no line renders.
-                    Optional<Gfx::IntPoint> rendered_end;
-                    for (auto const& [line, line_rect] : rendered_lines) {
-                        auto line_top_y = static_cast<i32>(line_rect.y().to_int() - text_origin.y().to_int());
-                        auto line_left_x = static_cast<i32>(line_rect.x().to_int() - text_origin.x().to_int());
-                        auto line_height = static_cast<i32>(line_rect.height().to_int());
-                        // A visual line's offsets index the DOM data(), which is what node_data.name and text_utf16
-                        // hold. Collapsed whitespace renders on no line: a line starts past any leading run, and its
-                        // end_offset excludes the run hanging at a soft wrap.
-                        auto line_character_start = text_utf16.code_point_offset_of(line.start_offset);
-                        auto line_character_end = text_utf16.code_point_offset_of(line.end_offset);
-                        // Entry N is character N's position, so the characters no line renders take the position the
-                        // rendered text last reached (a leading run: the first line's start), and the first line starts
-                        // at character 0, leading run included.
-                        auto gap_position = rendered_end.value_or(Gfx::IntPoint { line_left_x, line_top_y });
-                        while (node_data.character_offsets.size() < line_character_start)
-                            node_data.character_offsets.append(gap_position);
-                        node_data.line_break_character_offsets.append(node_data.line_break_character_offsets.is_empty() ? 0 : static_cast<i32>(line_character_start));
-                        node_data.line_heights.append(line_height);
-                        // Each character's x is where layout's glyph run puts it. A character layout gives no position
-                        // to (whitespace that collapsed away) takes no width: It sits where the next positioned character
-                        // on the line starts, or where the line ends. Only a line layout positions nothing on (e.g. vertical
-                        // text) falls back to advancing each character by its own width, shaped on its own.
-                        auto utf8_start = view.byte_offset_of(line_character_start);
-                        auto utf8_end = view.byte_offset_of(line_character_end);
-                        Utf8View line_view { utf8.substring_view(utf8_start, utf8_end - utf8_start) };
-                        Vector<u32> line_code_points;
-                        Vector<Optional<float>> line_x;
-                        size_t code_unit_offset = line.start_offset;
-                        for (u32 code_point : line_view) {
-                            line_code_points.append(code_point);
-                            line_x.append(known_x(x_positions.start_x, code_unit_offset));
-                            code_unit_offset += code_point > 0xFFFF ? 2 : 1;
+                    StringBuilder decoration_builder;
+                    for (auto line : text_reset_values ? text_reset_values->decoration_lines() : ReadonlySpan<CSS::TextDecorationLine> {}) {
+                        if (!decoration_builder.is_empty())
+                            decoration_builder.append(' ');
+                        switch (line) {
+                        case CSS::TextDecorationLine::Underline:
+                            decoration_builder.append("underline"sv);
+                            break;
+                        case CSS::TextDecorationLine::LineThrough:
+                            decoration_builder.append("line-through"sv);
+                            break;
+                        case CSS::TextDecorationLine::Overline:
+                            decoration_builder.append("overline"sv);
+                            break;
+                        case CSS::TextDecorationLine::Blink:
+                            decoration_builder.append("blink"sv);
+                            break;
+                        default:
+                            break;
                         }
-                        auto line_end_x = known_x(x_positions.fragment_end_x, line.end_offset);
-                        bool layout_positions_line = line_end_x.has_value() || any_of(line_x, [](auto const& x) { return x.has_value(); });
+                    }
+                    node_data.text_decoration = decoration_builder.is_empty()
+                        ? "none"_string
+                        : MUST(decoration_builder.to_string());
 
-                        float end_x = static_cast<float>(line_left_x);
-                        if (layout_positions_line) {
-                            Optional<float> next_x = line_end_x;
-                            for (size_t i = line_x.size(); i-- > 0;) {
-                                if (line_x[i].has_value())
-                                    next_x = line_x[i];
-                                else
-                                    line_x[i] = next_x;
-                            }
-                            Optional<float> previous_x;
-                            for (auto& x : line_x) {
-                                if (!x.has_value())
-                                    x = previous_x.value_or(static_cast<float>(line_left_x));
-                                previous_x = x;
-                            }
-                            end_x = line_end_x.value_or(previous_x.value_or(static_cast<float>(line_left_x)));
-                        } else {
-                            for (size_t i = 0; i < line_x.size(); ++i) {
-                                line_x[i] = end_x;
-                                end_x += font ? glyph_advance(*font, line_code_points[i]) : 0.0f;
-                            }
-                        }
-                        for (auto const& x : line_x)
-                            node_data.character_offsets.append(Gfx::IntPoint { static_cast<i32>(*x), line_top_y });
-                        rendered_end = Gfx::IntPoint { static_cast<i32>(end_x), line_top_y };
-                    }
-                    // A trailing run that renders on no line, likewise.
-                    while (rendered_end.has_value() && node_data.character_offsets.size() < view.length())
-                        node_data.character_offsets.append(*rendered_end);
-                } else if (font) {
-                    // Fallback: single-line font-metrics computation.
-                    node_data.line_break_character_offsets.append(0);
-                    node_data.line_heights.append(node_data.bounds.height());
-                    float cumulative = 0;
-                    for (u32 code_point : view) {
-                        node_data.character_offsets.append(Gfx::IntPoint { static_cast<i32>(cumulative), 0 });
-                        cumulative += glyph_advance(*font, code_point);
-                    }
+                    auto fg = text_values->color_value();
+                    node_data.color = MUST(String::from_byte_string(fg.to_byte_string_without_alpha()));
+                    auto bg = background_values ? background_values->background_color_value(fg) : Color::Transparent;
+                    if (bg.alpha() > 0)
+                        node_data.background_color = MUST(String::from_byte_string(bg.to_byte_string_without_alpha()));
+
+                    fill_text_geometry(node_data, text_node, font, document, read);
                 }
             }
         }
+        if (keeps_records)
+            document.cache_accessibility_record(*value(), node_data);
     }
+    node_data.parent_id = parent_id;
 
     // Populate caret offset and selection range from the DOM Selection — for any node (element or text) that contains
     // it. This is what AtkText::get_caret_offset and get_n_selections report.

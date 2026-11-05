@@ -305,8 +305,11 @@ void ElementInternals::remove_attribute(Utf16FlyString const& content_attribute)
 void ElementInternals::did_change_default_aria_semantics()
 {
     auto& page = m_target_element->document().page();
-    if (page.accessibility_interested())
+    if (page.accessibility_interested()) {
+        // Default ARIA semantics can change the element's role, and so its descendants' roles, as its role attribute can.
+        m_target_element->document().invalidate_cached_accessibility_data(*m_target_element, ARIA::AttributeNames::role);
         page.client().page_did_change_accessibility_tree();
+    }
 }
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)                       \
