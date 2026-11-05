@@ -4603,11 +4603,7 @@ fn generate_assignment_expression(
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     generator.pending_lhs_name = None;
                     // Allocate dst after RHS evaluation.
-                    let dst = if lhs_val.operand().is_local() {
-                        lhs_val.clone()
-                    } else {
-                        choose_dst(generator, preferred_dst)
-                    };
+                    let dst = choose_dst(generator, preferred_dst);
                     generator.emit_mov(&dst, &rhs_val);
                     emit_set_variable_or_resolved_binding(generator, id, &dst, resolved_binding.as_ref());
                     generator.emit(Instruction::Jump { target: end_block });
@@ -4621,12 +4617,7 @@ fn generate_assignment_expression(
 
                 // Regular compound assignment (+=, -=, etc.)
                 let rhs_val = generate_expression(rhs, generator, None)?;
-                // OPTIMIZATION: If LHS is a local, write directly into it.
-                let dst = if lhs_val.operand().is_local() {
-                    lhs_val.clone()
-                } else {
-                    choose_dst(generator, preferred_dst)
-                };
+                let dst = choose_dst(generator, preferred_dst);
                 emit_compound_assignment(generator, op, &dst, &lhs_val, &rhs_val);
                 emit_set_variable_or_resolved_binding(generator, id, &dst, resolved_binding.as_ref());
                 return Some(dst);
