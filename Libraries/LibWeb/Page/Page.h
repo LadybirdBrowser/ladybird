@@ -712,7 +712,8 @@ public:
     virtual void request_window_focus_of_remote_navigable(HTML::RemoteNavigable&) { VERIFY_NOT_REACHED(); }
     virtual void request_set_opener_of_remote_navigable(HTML::RemoteNavigable&, HTML::Navigable const&) { VERIFY_NOT_REACHED(); }
     virtual void navigation_params_creation_finished(HTML::LocalNavigable&, HTML::NavigationPopulationRequest, HTML::NavigationPopulationResult);
-    virtual void history_navigation_params_creation_finished(HTML::CrossProcessId operation_id, HTML::HistoryNavigationPopulation);
+    virtual void changing_navigable_history_job_reached_population(HTML::CrossProcessId operation_id, HTML::CrossProcessId navigable_id, HTML::NavigationSourceSnapshot);
+    virtual void history_navigation_params_creation_finished(HTML::CrossProcessId operation_id, HTML::CrossProcessId navigable_id, HTML::NavigationPopulationResult);
     virtual void navigation_population_failed(HTML::CrossProcessId, Utf16String const&) { }
     virtual void page_did_create_populated_document_with_an_origin_of_its_own(HTML::CrossProcessId, HTML::CrossProcessId, HTML::PopulatedDocumentOrigin, HTML::EnvironmentId const&) { }
     virtual void page_did_create_child_frame(HTML::CrossProcessId, DOM::Document const&, HTML::CrossProcessId, HTML::HostedNavigableState const&, HTML::PendingSessionHistoryEntryDescriptor const&, URL::Origin const&, HTML::EnvironmentId const&, HTML::CrossProcessId) { }

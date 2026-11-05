@@ -204,8 +204,9 @@ void ApplyHistoryStep::end_changing_navigable_job(ChangingNavigable& changing_na
 {
     auto& navigable = changing_navigable.navigable();
     changing_navigable.job_ended = true;
-    if (auto population_loader = move(changing_navigable.population_loader))
+    if (auto population_loader = changing_navigable.population_loader())
         population_loader->reclaim_response_body_after_failed_handoff();
+    changing_navigable.population = Empty {};
     if (auto document = move(changing_navigable.populated_document))
         navigable.abandon_populated_document(changing_navigable.target_entry->document_state, *document);
     navigable.clear_ongoing_navigation_traversal(m_operation_id);
@@ -441,6 +442,24 @@ void ApplyHistoryStep::abandon()
 void ApplyHistoryStep::return_result(Web::HTML::HistoryStepResult result)
 {
     m_traversable.finish_history_operation(m_operation_id, result);
+}
+
+// The document the job populated, or the one targetEntry's document state holds if the job's process hosts it.
+RefPtr<CanonicalDocument> ChangingNavigable::target_document(WebContentPage const& job_page) const
+{
+    if (populated_document)
+        return populated_document;
+    if (auto const& document = target_entry->document_state->document; document && document->host().ptr() == &job_page)
+        return document;
+    return {};
+}
+
+RefPtr<NavigationLoader> ChangingNavigable::population_loader() const
+{
+    return population.visit(
+        [](Empty) -> RefPtr<NavigationLoader> { return {}; },
+        [](AwaitingPopulation) -> RefPtr<NavigationLoader> { return {}; },
+        [](auto const& state) -> RefPtr<NavigationLoader> { return state.loader; });
 }
 
 Web::HTML::SessionHistoryEntryDescriptor ChangingNavigable::target_entry_descriptor() const

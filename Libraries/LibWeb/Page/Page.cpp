@@ -2607,7 +2607,12 @@ void PageClient::navigation_params_creation_finished(HTML::LocalNavigable&, HTML
     VERIFY_NOT_REACHED();
 }
 
-void PageClient::history_navigation_params_creation_finished(HTML::CrossProcessId, HTML::HistoryNavigationPopulation)
+void PageClient::changing_navigable_history_job_reached_population(HTML::CrossProcessId, HTML::CrossProcessId, HTML::NavigationSourceSnapshot)
+{
+    VERIFY_NOT_REACHED();
+}
+
+void PageClient::history_navigation_params_creation_finished(HTML::CrossProcessId, HTML::CrossProcessId, HTML::NavigationPopulationResult)
 {
     VERIFY_NOT_REACHED();
 }

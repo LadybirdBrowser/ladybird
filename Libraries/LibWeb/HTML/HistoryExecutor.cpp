@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/DocumentState.h>
@@ -21,10 +20,8 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/HTML/TargetSnapshotParams.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::HTML {
 
@@ -297,7 +294,7 @@ void HistoryExecutor::enqueue_changing_navigable_continuation(CrossProcessId ope
     on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Ready, continuation->update_only, target_document_id);
 }
 
-void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry_descriptor, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, Optional<Utf16String> finalized_navigation_id, bool ongoing_navigation_is_traversal, Optional<NavigationSourceSnapshot> navigation_source_snapshot, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
+void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry_descriptor, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, Optional<Utf16String> finalized_navigation_id, bool ongoing_navigation_is_traversal, bool needs_population, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
 {
     auto& operation = ensure_history_operation(operation_id);
     // The job for the navigation this process finalizes claims the entry it created, with the document it populated.
@@ -324,10 +321,6 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
     } else {
         local_target_entry = navigable->resolve_local_session_history_entry(move(target_entry_descriptor));
     }
-
-    GC::Ptr<SourceSnapshotParams> source_snapshot_params;
-    if (navigation_source_snapshot.has_value())
-        source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(relevant_realm(*navigable->active_window()), *navigation_source_snapshot);
 
     // 8.1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
     // NB: The UI coordinator already ran that step against canonical history and sent the selected entry with this
@@ -359,7 +352,7 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
 
     operation.changing_navigable_jobs.ensure(navigable_id);
 
-    queue_apply_history_step_task(*navigable, GC::create_function(heap(), [this, operation_id, navigation_type, finalized_navigation_id, user_involvement, population = move(population), source_snapshot_params, pending_document, claimed_target_entry = move(claimed_target_entry), navigable, on_complete]() mutable {
+    queue_apply_history_step_task(*navigable, GC::create_function(heap(), [this, operation_id, navigation_type, user_involvement, population = move(population), needs_population, pending_document, claimed_target_entry = move(claimed_target_entry), navigable, on_complete]() mutable {
         // 1. Let displayedEntry be navigable's active session history entry.
         auto displayed_entry = navigable->active_session_history_entry();
 
@@ -478,8 +471,8 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
         });
 
         // 8. If targetEntry's document is null, or targetEntry's document state's reload pending is true, then:
-        bool needs_population = !changing_navigable_continuation->target_document || target_entry->document_state()->reload_pending();
-        if (needs_population) {
+        // NB: The UI process decides this, and runs the substeps but for step 4's snapshot of navigable's active document.
+        if (population.has_value() || needs_population) {
             auto continue_population = GC::create_function(heap(), [this, navigable, after_document_populated](HistoryNavigationPopulation population) {
                 if (navigable->has_been_destroyed() || !navigable->active_window()) {
                     after_document_populated->function()(nullptr);
@@ -527,63 +520,39 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
                 return;
             operation->changing_navigable_jobs.ensure(navigable->id()).continue_population = continue_population;
 
-            // FIXME: 1. Let navTimingType be "back_forward" if targetEntry's document is null; otherwise "reload".
-
-            // 2. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
-            auto target_snapshot_params = snapshot_target_snapshot_params(*navigable);
-
-            // 3. Let potentiallyTargetSpecificSourceSnapshotParams be sourceSnapshotParams.
-            auto potentially_target_specific_source_snapshot_params = source_snapshot_params;
-
             // 4. If potentiallyTargetSpecificSourceSnapshotParams is null, then set it to the result of snapshotting source snapshot params given navigable's active document.
-            if (!potentially_target_specific_source_snapshot_params)
-                potentially_target_specific_source_snapshot_params = snapshot_source_snapshot_params(navigable->active_document());
+            // NB: The UI process holds sourceSnapshotParams, and takes this snapshot if that is null.
+            auto active_document_source_snapshot_params = snapshot_source_snapshot_params(navigable->active_document());
 
             // 5. Set targetEntry's document state's reload pending to false.
-            // AD-HOC: Preserve reload pending for steps 6 and 7 before step 5 clears it.
-            // See https://github.com/whatwg/html/issues/12760.
-            auto input_reload_pending = target_entry->document_state()->reload_pending();
-            auto input_reload_bypasses_cache = target_entry->document_state()->reload_bypasses_cache();
+            // NB: This process's copy of targetEntry, which the UI process clears in its session history.
             target_entry->document_state()->set_reload_pending(false);
             target_entry->document_state()->set_reload_bypasses_cache(false);
-            m_page->client().page_did_set_session_history_entry_document_state_reload_pending(
-                navigable->id(), target_entry->navigation_api_key(), false);
 
-            // 6. Let allowPOST be targetEntry's document state's reload pending.
-            // AD-HOC: A document another page displayed, or a crashed process lost, is loaded again with its POST
-            //         resource, as the process that displayed it would have kept it.
-            auto allow_POST = input_reload_pending || navigable->is_provisional();
-
-            // NB: Population runs in a deferred task, during which sync navigations can change targetEntry. The request
-            //     holds the entry as it is now. See https://github.com/whatwg/html/issues/9869.
-            auto request = NavigationPopulationRequest {
-                .navigable_id = navigable->id(),
-                .history_entry = create_pending_session_history_entry_descriptor(create_session_history_entry_descriptor(*target_entry)),
-                .source_snapshot_params = create_navigation_source_snapshot(*potentially_target_specific_source_snapshot_params),
-                .target_snapshot_params = target_snapshot_params,
-                .csp_navigation_type = ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
-                .history_handling = Bindings::NavigationHistoryBehavior::Replace,
-                .user_involvement = user_involvement,
-                .navigation_id = finalized_navigation_id.value_or(Utf16String {}),
-            };
-            request.history_entry.document_state.reload_pending = input_reload_pending;
-            request.history_entry.document_state.reload_bypasses_cache = input_reload_bypasses_cache;
-
-            // 7. In parallel, attempt to populate the history entry's document for targetEntry, given navigable, potentiallyTargetSpecificSourceSnapshotParams,
-            //    targetSnapshotParams, userInvolvement, with allowPOST set to allowPOST and completionSteps set to
-            //    queue a global task on the navigation and traversal task source given navigable's active window to
-            //    run afterDocumentPopulated.
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, operation_id, request = move(request), potentially_target_specific_source_snapshot_params, allow_POST, navigable] {
-                navigable->populate_session_history_entry_document(request, *potentially_target_specific_source_snapshot_params, allow_POST, GC::create_function(heap(), [this, operation_id, request](NavigationPopulationResult result) mutable {
-                    m_page->client().history_navigation_params_creation_finished(operation_id, { move(request), move(result) });
-                }));
-            }));
+            m_page->client().changing_navigable_history_job_reached_population(operation_id, navigable->id(), create_navigation_source_snapshot(*active_document_source_snapshot_params));
         }
         // Otherwise, run afterDocumentPopulated immediately.
         else {
             after_document_populated->function()(nullptr);
         }
     }));
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
+// NB: For step 8.7 of a changing navigable's history step job, which the UI process runs, this process creates
+//     navigationParams given the request.
+bool HistoryExecutor::create_ui_history_navigation_params(CrossProcessId operation_id, NavigationPopulationRequest request, bool allow_POST)
+{
+    auto* operation = find_history_operation(operation_id);
+    auto navigable = local_navigable_with_id(request.navigable_id);
+    if (!operation || !operation->changing_navigable_jobs.contains(request.navigable_id) || !navigable || navigable->has_been_destroyed() || !navigable->active_window())
+        return false;
+
+    auto source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(relevant_realm(*navigable->active_window()), request.source_snapshot_params);
+    navigable->populate_session_history_entry_document(request, source_snapshot_params, allow_POST, GC::create_function(heap(), [this, operation_id, navigable_id = request.navigable_id](NavigationPopulationResult result) {
+        m_page->client().history_navigation_params_creation_finished(operation_id, navigable_id, move(result));
+    }));
+    return true;
 }
 
 // Step 5.2 of deactivate a document for a cross-document navigation: set navigable's ongoing navigation to null.
