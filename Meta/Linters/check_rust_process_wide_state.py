@@ -107,6 +107,7 @@ RENDER_STATE_ALLOWED = {
     **render_state_entries(
         IDENTITY,
         [
+            "cow_column.rs:NEXT",
             "css/declaration_block.rs:NEXT_DECLARATION_BLOCK_IDENTITY",
             "css/rule.rs:NEXT_RULE_IDENTITY",
             "css/style_sheet.rs:NEXT_SHEET_IDENTITY",
