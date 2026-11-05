@@ -4804,8 +4804,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) -> Option<ChildJobAhead> {
         let callbacks = &self.run.callbacks;
         let facts = self.facts(child);
-        if parallel_layout::forks_in_flow_children()
-            && facts.is_box()
+        if facts.is_box()
             && !facts.is_floating_or_absolutely_positioned()
             && !facts.is_list_item_marker_box()
             && self.in_flow_child_depends_only_on_its_key_and_floats(child, block_container.node, None)

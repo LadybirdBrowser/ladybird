@@ -44,12 +44,6 @@ const BOXES_COUNTED_PER_JOB: usize = 16;
 const MINIMUM_BOXES_FORKED_FROM_A_STYLE_LAYOUT_THREAD: usize = 64;
 const MINIMUM_BOXES_FORKED_ONTO_STYLE_LAYOUT_THREADS: usize = 128;
 
-/// Whether in-flow block children are laid out ahead of the walks over them, which only the verification of forks asks
-/// for so far.
-pub(crate) fn forks_in_flow_children() -> bool {
-    FORK_SETTINGS.forces_forks
-}
-
 pub(crate) fn fork_candidates<T: Copy>(
     pass: &LayoutPass<'_>,
     items: impl IntoIterator<Item = T>,
