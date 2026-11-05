@@ -3313,11 +3313,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> Internals::image_animation_state_for_ur
 
     auto object = JS::Object::create(window().principal_realm(), nullptr);
 
-    object->define_direct_property("timerActive"_utf16_fly_string, JS::Value(animated_bitmap_data->m_animation_timer->is_active()), JS::default_attributes);
+    auto state = animated_bitmap_data->state_for_testing();
+    object->define_direct_property("isAnimating"_utf16_fly_string, JS::Value(state.is_animating), JS::default_attributes);
     object->define_direct_property("sessionID"_utf16_fly_string, JS::Value(static_cast<double>(animated_bitmap_data->m_session_id)), JS::default_attributes);
-    object->define_direct_property("frameIndex"_utf16_fly_string, JS::Value(animated_bitmap_data->m_current_frame_index), JS::default_attributes);
+    object->define_direct_property("frameIndex"_utf16_fly_string, JS::Value(state.frame_index), JS::default_attributes);
+    object->define_direct_property("shownFrameIndex"_utf16_fly_string, JS::Value(state.shown_frame_index), JS::default_attributes);
     object->define_direct_property("frameCount"_utf16_fly_string, JS::Value(animated_bitmap_data->m_frame_count), JS::default_attributes);
-    object->define_direct_property("loopsCompleted"_utf16_fly_string, JS::Value(animated_bitmap_data->m_loops_completed), JS::default_attributes);
+    object->define_direct_property("loopsCompleted"_utf16_fly_string, JS::Value(state.loops_completed), JS::default_attributes);
     object->define_direct_property("loopCount"_utf16_fly_string, JS::Value(animated_bitmap_data->m_loop_count), JS::default_attributes);
     object->define_direct_property("clientCount"_utf16_fly_string, JS::Value(image_data->m_clients.size()), JS::default_attributes);
 

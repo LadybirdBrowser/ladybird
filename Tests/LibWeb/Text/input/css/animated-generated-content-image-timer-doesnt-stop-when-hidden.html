@@ -13,11 +13,11 @@
         await new Promise(resolve => window.addEventListener("load", resolve));
 
         internals.dumpLayoutTree(document);
-        println(`timer active before hiding: ${internals.imageAnimationStateForURL(imageURL).timerActive}`);
+        println(`timer active before hiding: ${internals.imageAnimationStateForURL(imageURL).isAnimating}`);
 
         target.style.display = "none";
         internals.dumpLayoutTree(document);
 
-        println(`timer active after hiding: ${internals.imageAnimationStateForURL(imageURL).timerActive}`);
+        println(`timer active after hiding: ${internals.imageAnimationStateForURL(imageURL).isAnimating}`);
     });
 </script>

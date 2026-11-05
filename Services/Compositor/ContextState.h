@@ -190,6 +190,9 @@ public:
     void update_scroll_state(Compositing::ScrollStateSnapshot&&, Compositing::KeyboardScrollState);
     void set_video_sink(Compositing::VideoSinkResourceId, RefPtr<Media::DisplayingVideoSink>);
     HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_scene.video_sink_handles(); }
+    bool has_image_frame(Compositing::ImageFrameResourceId id) { return m_scene.resource_storage().has_image_frame(id); }
+    Gfx::DecodedImageFrame const& image_frame(Compositing::ImageFrameResourceId id) { return m_scene.resource_storage().image_frame(id); }
+    void replace_image_frame_pixels(Compositing::ImageFrameResourceId id, Gfx::DecodedImageFrame frame) { m_scene.resource_storage().replace_image_frame_pixels(id, move(frame)); }
 
     void invalidate_wheel_event_listener_state(u64 generation);
     void invalidate_keyboard_scroll_state(u64 generation);

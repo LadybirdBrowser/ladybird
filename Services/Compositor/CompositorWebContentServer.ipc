@@ -29,6 +29,15 @@ endpoint CompositorWebContentServer
     release_video_frame_hold(Media::VideoSinkHandle video_sink_handle, u64 generation) =|
     set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick) =|
 
+    // A channel to the image decoder of this WebContent, which the frames of its animated images come through.
+    connect_to_image_decoder(IPC::TransportHandle handle) =|
+    // The image frame with the id shows the frames of the image decoder's session, once the image is started.
+    add_animated_image(u64 frame_id, i64 session_id, Gfx::IntSize size, Gfx::ColorSpace color_space, Vector<u32> frame_durations_in_milliseconds, u32 loop_count) =|
+    remove_animated_image(u64 frame_id) =|
+    start_animated_image(u64 frame_id) =|
+    stop_animated_image(u64 frame_id) =|
+    animated_image_state_for_testing(u64 frame_id) => (bool is_animating, u32 frame_index, u32 shown_frame_index, u32 loops_completed)
+
     set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id) =|
     stop_presenting_to_client(Web::CompositorContextId context_id) =|
     destroy_context(Web::CompositorContextId context_id) =|

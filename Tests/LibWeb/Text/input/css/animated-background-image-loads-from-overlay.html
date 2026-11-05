@@ -8,7 +8,7 @@
     promiseTest(async () => {
         target.animate({ backgroundImage: [`url("${imageURL}")`, `url("${imageURL}")`] }, { duration: 1000000 });
         internals.dumpLayoutTree(document);
-        const state = await waitForImageAnimationState(imageURL, state => state.timerActive);
-        println(`animated image loaded: ${state.timerActive}`);
+        const state = await waitForImageAnimationState(imageURL, state => state.isAnimating);
+        println(`animated image loaded: ${state.isAnimating}`);
     });
 </script>

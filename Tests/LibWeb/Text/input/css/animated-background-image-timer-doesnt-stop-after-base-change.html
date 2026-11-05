@@ -15,9 +15,9 @@
         await new Promise(resolve => window.addEventListener("load", resolve));
 
         internals.dumpLayoutTree(document);
-        const timerActiveBeforeBaseChange = internals.imageAnimationStateForURL(imageURL).timerActive;
+        const isAnimatingBeforeBaseChange = internals.imageAnimationStateForURL(imageURL).isAnimating;
         println(
-            `timer active before base change: ${timerActiveBeforeBaseChange}`
+            `timer active before base change: ${isAnimatingBeforeBaseChange}`
         );
 
         const base = document.createElement("base");
@@ -26,7 +26,7 @@
 
         target.remove();
         internals.dumpLayoutTree(document);
-        const timerActiveAfterRemoval = internals.imageAnimationStateForURL(imageURL).timerActive;
-        println(`timer active after removal: ${timerActiveAfterRemoval}`);
+        const isAnimatingAfterRemoval = internals.imageAnimationStateForURL(imageURL).isAnimating;
+        println(`timer active after removal: ${isAnimatingAfterRemoval}`);
     });
 </script>

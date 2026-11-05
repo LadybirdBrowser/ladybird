@@ -16,14 +16,14 @@
         await new Promise(resolve => window.addEventListener("load", resolve));
 
         internals.dumpLayoutTree(document);
-        println(`timer active before teardown: ${internals.imageAnimationStateForURL(imageURL).timerActive}`);
+        println(`timer active before teardown: ${internals.imageAnimationStateForURL(imageURL).isAnimating}`);
 
         dialog.showModal();
         internals.dumpLayoutTree(document);
-        println(`timer active after teardown: ${internals.imageAnimationStateForURL(imageURL).timerActive}`);
+        println(`timer active after teardown: ${internals.imageAnimationStateForURL(imageURL).isAnimating}`);
 
         target.style.display = "none";
         internals.dumpLayoutTree(document);
-        println(`timer active after hiding: ${internals.imageAnimationStateForURL(imageURL).timerActive}`);
+        println(`timer active after hiding: ${internals.imageAnimationStateForURL(imageURL).isAnimating}`);
     });
 </script>

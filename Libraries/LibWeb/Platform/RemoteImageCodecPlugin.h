@@ -25,8 +25,9 @@ public:
 
     virtual ErrorOr<DecodedFirstFrame> decode_first_frame_synchronously(ReadonlyBytes) override;
 
-    virtual void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) override;
     virtual void stop_animation_decode(i64 session_id) override;
+    virtual void connect_frame_client(IPC::TransportHandle) override;
+    virtual u64 client_generation() const override { return m_client_generation; }
 
     void set_client(NonnullRefPtr<ImageDecoderClient::Client>);
 
@@ -34,6 +35,7 @@ private:
     void setup_client_callbacks();
 
     RefPtr<ImageDecoderClient::Client> m_client;
+    u64 m_client_generation { 0 };
 };
 
 }

@@ -51,6 +51,11 @@ public:
     void destroy_context(Web::CompositorContextId);
     // Has the Paint thread present frames through this connection from now on.
     void hand_frame_sink_to_paint_thread();
+    void add_animated_image(u64 frame_id, AnimatedImageRegistration const&);
+    void remove_animated_image(u64 frame_id);
+    void start_animated_image(u64 frame_id);
+    void stop_animated_image(u64 frame_id);
+    AnimatedImageState animated_image_state_for_testing(u64 frame_id);
     void add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
     void remove_video_sink(Media::VideoSinkHandle);
     void release_video_frame_hold(Media::VideoSinkHandle, u64 generation);
@@ -93,6 +98,7 @@ public:
     bool read_webgl_buffer_sub_data(Compositing::CanvasId, Compositing::WebGL::GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer const& data);
 
     void ensure_video_presentation_channel();
+    void ensure_image_decoder_channel();
     // Takes up the render clock channel the Browser made between this process and the Compositor, which delivers
     // display ticks over it from then on.
     void attach_render_clock(IPC::TransportHandle);
@@ -142,6 +148,7 @@ private:
     bool m_has_lost_compositor { false };
     // The media server whose presentation channel the Compositor holds; a replacement server needs a new channel.
     Optional<u64> m_video_presentation_channel_media_client_generation;
+    Optional<u64> m_image_decoder_channel_client_generation;
 };
 
 }

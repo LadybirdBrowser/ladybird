@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<img id="image" src="../../data/animated-image-loops-forever.gif">
+<script>
+    const imageURL = "../../data/animated-image-loops-forever.gif";
+
+    promiseTest(async () => {
+        await waitForImageAnimationState(imageURL, state => state.isAnimating);
+        await animationFrame();
+        await animationFrame();
+
+        // This script does not yield to the event loop, so nothing but the compositor can show the next frame.
+        const shownFrameIndex = internals.imageAnimationStateForURL(imageURL).shownFrameIndex;
+        while (internals.imageAnimationStateForURL(imageURL).shownFrameIndex === shownFrameIndex) { }
+
+        println("image advanced while the main thread was busy");
+    });
+</script>

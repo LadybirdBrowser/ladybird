@@ -321,23 +321,13 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
     auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this), image_data_is_cors_cross_origin, encoded_data = move(encoded_data)](Web::Platform::DecodedImage& result) mutable -> ErrorOr<void> {
         if (result.session_id != 0) {
             // Streaming animated decode: create AnimatedBitmapDecodedImageData.
-            Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps;
-            initial_bitmaps.ensure_capacity(result.frames.size());
-            for (auto& frame : result.frames)
-                initial_bitmaps.unchecked_append(*frame.bitmap);
-
-            auto first_bitmap = result.frames.first().bitmap;
-            auto size = first_bitmap->size();
-
             strong_this->m_image_data = AnimatedBitmapDecodedImageData::create(
                 *strong_this->m_document,
                 result.session_id,
-                result.frame_count,
                 result.loop_count,
-                size,
                 move(result.color_space),
                 move(result.all_durations),
-                move(initial_bitmaps));
+                *result.frames.first().bitmap);
         } else {
             // Single-shot decode: create BitmapDecodedImageData as before.
             Vector<BitmapDecodedImageData::Frame> frames;

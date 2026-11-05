@@ -30,6 +30,6 @@
         }
 
         println(`top document has animation state: ${topDocumentHasAnimationState}`);
-        println(`iframe document timer active: ${iframe.contentWindow.internals.imageAnimationStateForURL(imageURL).timerActive}`);
+        println(`iframe document timer active: ${iframe.contentWindow.internals.imageAnimationStateForURL(imageURL).isAnimating}`);
     });
 </script>
