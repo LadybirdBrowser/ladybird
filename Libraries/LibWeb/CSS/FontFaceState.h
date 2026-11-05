@@ -124,6 +124,7 @@ private:
     JS::Object& task_global_object() const;
     void reject_status_promise(WebIDL::Exception);
     void did_load(RefPtr<Gfx::Typeface const>);
+    void did_finish_loading_in_containing_sets(bool succeeded);
     void set_parsed_font(RefPtr<Gfx::Typeface const>);
 
     Optional<FontComputer&> font_computer() const;

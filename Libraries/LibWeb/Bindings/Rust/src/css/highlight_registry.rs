@@ -67,6 +67,12 @@ fn set_map_entry(cx: &CallContext, map: Gc<Map>, name: &Utf16String, highlight: 
 }
 
 impl HighlightRegistry {
+    fn registered_highlights<'vm>(&self, vm: &'vm Vm) -> MarkedVec<'vm, RegisteredHighlight> {
+        let highlights = MarkedVec::new(vm);
+        highlights.extend_from_slice(&self.highlights.borrow());
+        highlights
+    }
+
     pub(crate) fn create(vm: &Vm, document: CppCell) -> Ref<Self> {
         allocate(vm, |_| Self {
             document,
@@ -119,14 +125,14 @@ impl HighlightRegistry {
         let mut sort_keys: Vec<(i32, usize)> = Vec::new();
 
         // 3. For each Highlight highlight in this HighlightRegistry:
-        for (registration_index, entry) in self.highlights.borrow().clone().into_iter().enumerate() {
+        for (registration_index, entry) in self.registered_highlights(vm).values().iter().enumerate() {
             let highlight = entry.highlight;
 
             // 1. Let result be a new HighlightHitResult with highlight set to highlight.
             let ranges = MarkedVec::new(vm);
 
             // 2. For each AbstractRange abstractRange in highlight:
-            for abstract_range in highlight.ranges() {
+            for abstract_range in highlight.ranges(vm).values().iter() {
                 // 1. If abstractRange is an invalid StaticRange, then continue.
                 // 2. Let range be a new Range whose start node and end node are set to abstractRange’s start node and
                 //    end node respectively, and start offset and end offset are set to abstractRange’s start offset
@@ -135,7 +141,7 @@ impl HighlightRegistry {
                 //    getClientRects() on range, then append abstractRange to result.ranges.
                 // SAFETY: The range is live.
                 if unsafe { web_css_highlight_registry_range_is_hit(abstract_range.as_ptr(), x, y) } {
-                    ranges.push(wrap_cpp_cell(cx, &abstract_range));
+                    ranges.push(wrap_cpp_cell(cx, abstract_range));
                 }
             }
 
@@ -170,7 +176,7 @@ impl Maplike for HighlightRegistry {
     fn map_entries(&self, cx: &CallContext) -> Gc<Map> {
         self.map_entries.get_or_create(cx, || {
             let map = Map::create(cx.vm(), cx.realm());
-            for entry in self.highlights.borrow().clone() {
+            for entry in self.registered_highlights(cx.vm()).values().iter() {
                 set_map_entry(cx, map, &entry.name, entry.highlight);
             }
             map
@@ -194,9 +200,9 @@ impl WritableMaplike for HighlightRegistry {
                 }),
             }
         }
-        for map in self.map_entries.live() {
+        self.map_entries.for_each_live(cx.vm(), |map| {
             set_map_entry(&context_of_map(cx, map), map, &key, highlight);
-        }
+        });
     }
 
     fn map_remove(&self, cx: &CallContext, key: &Utf16String) -> bool {
@@ -205,17 +211,17 @@ impl WritableMaplike for HighlightRegistry {
             return false;
         };
         self.highlights.borrow_mut(cx.vm()).remove(position);
-        for map in self.map_entries.live() {
+        self.map_entries.for_each_live(cx.vm(), |map| {
             let key = key.clone().to_js(cx).expect("a string converts to a JS value");
             map.map_remove(cx.vm(), key);
-        }
+        });
         true
     }
 
     fn map_clear(&self, cx: &CallContext) {
         self.highlights.borrow_mut(cx.vm()).clear();
-        for map in self.map_entries.live() {
+        self.map_entries.for_each_live(cx.vm(), |map| {
             map.map_clear(cx.vm());
-        }
+        });
     }
 }

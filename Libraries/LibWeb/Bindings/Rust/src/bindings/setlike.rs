@@ -9,7 +9,7 @@
 use core::cell::RefCell;
 
 use libjs_rust::api::{
-    Attribute, ErrorKind, ErrorType, Gc, GcWeak, Object, PropertyAttributes, PropertyKey, PropertyKind,
+    Attribute, ErrorKind, ErrorType, Gc, GcWeak, MarkedVec, Object, PropertyAttributes, PropertyKey, PropertyKind,
     RawNativeFunctionPointer, Realm, Set, SetIterator, ThrowCompletionOr, Trace, Value, Vm, call,
 };
 
@@ -55,13 +55,18 @@ impl<T> WorldEntries<T> {
         entries
     }
 
-    /// The live collections, which the caller updates when the object changes.
-    pub(crate) fn live(&self) -> Vec<Gc<T>> {
-        self.entries
-            .borrow()
-            .iter()
-            .filter_map(|(_, entries)| entries.get())
-            .collect()
+    /// Calls back with each live collection, for the caller to update when the object changes. The collections stay
+    /// alive through the walk, as updating one can allocate and nothing else holds the rest.
+    pub(crate) fn for_each_live(&self, vm: &Vm, mut callback: impl FnMut(Gc<T>)) {
+        let live = MarkedVec::new(vm);
+        for (_, entries) in self.entries.borrow().iter() {
+            if let Some(entries) = entries.get() {
+                live.push(entries);
+            }
+        }
+        for entries in live.values().iter() {
+            callback(*entries);
+        }
     }
 }
 
@@ -69,6 +74,13 @@ impl<T> WorldEntries<T> {
 pub(crate) trait Setlike: Interface {
     // https://webidl.spec.whatwg.org/#dfn-set-entries
     fn set_entries(&self, cx: &CallContext) -> Gc<Set>;
+
+    /// The size of the set entries, without creating them and the wrappers they hold.
+    fn set_entries_size(&self) -> usize;
+
+    /// Whether the set entries contain the value, which the bindings checked against the value type, without creating
+    /// them and the wrappers they hold.
+    fn set_entries_contain(&self, value: Value) -> bool;
 }
 
 /// What the implementation of an interface with a read-write setlike declaration implements, for the operations that
@@ -119,13 +131,12 @@ pub(crate) fn context_of_set<'vm>(cx: &CallContext<'vm>, set: Gc<Set>) -> CallCo
 // https://webidl.spec.whatwg.org/#js-set-size
 pub(crate) fn set_size<T: Setlike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "size" and type "getter".
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+    let (_, implementation, _) = this_implementation::<T>(vm)?;
 
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
-    let set = implementation.set_entries(&cx);
-
     // 3. Return set's size, converted to a JavaScript value.
-    Ok(Value::from_f64(set.set_size() as f64))
+    // OPTIMIZATION: The implementation knows the size without creating the set entries.
+    Ok(Value::from_f64(implementation.set_entries_size() as f64))
 }
 
 fn create_set_iterator<T: Setlike>(vm: &Vm, kind: PropertyKind) -> ThrowCompletionOr<Value> {
@@ -188,11 +199,9 @@ pub(crate) fn set_for_each<T: Setlike>(vm: &Vm) -> ThrowCompletionOr<Value> {
 // https://webidl.spec.whatwg.org/#js-set-has
 pub(crate) fn set_has<T: SetlikeDeclaration>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "has" and type "method".
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+    let (_, implementation, _) = this_implementation::<T>(vm)?;
 
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
-    let set = implementation.set_entries(&cx);
-
     // 3. Let valueType be the value type specified in the setlike declaration.
     // 4. Let valueArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let value be valueArg converted to an IDL value of type valueType.
@@ -200,7 +209,8 @@ pub(crate) fn set_has<T: SetlikeDeclaration>(vm: &Vm) -> ThrowCompletionOr<Value
     T::check_value(vm, value)?;
 
     // 7. If set contains value, then return true, otherwise return false.
-    Ok(Value::from_bool(set.set_has(value)))
+    // OPTIMIZATION: The implementation looks for the value without creating the set entries.
+    Ok(Value::from_bool(implementation.set_entries_contain(value)))
 }
 
 // https://webidl.spec.whatwg.org/#js-set-add

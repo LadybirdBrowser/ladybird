@@ -10,7 +10,7 @@ use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use std::collections::HashSet;
 
-use libjs_rust::api::{Gc, GcRefCell, MarkedVec, Set, Trace, Value};
+use libjs_rust::api::{Gc, GcRefCell, MarkedVec, Set, Trace, Value, Vm};
 
 use super::css_rule::wrap_cpp_cell;
 use crate::bindings::conversions::CppInterface;
@@ -81,7 +81,7 @@ impl Highlight {
         //    then run the steps for a built-in setlike add function, with highlight as the this value, and rangeArg as
         //    the argument.
         // NB: highlight has no wrapper yet, so there are no set entries in any world to update.
-        for range in initial_ranges.to_vec() {
+        for range in initial_ranges.values().iter() {
             highlight.add_range(cx, range_of_value(Value::from_object(range.wrapper())));
         }
 
@@ -113,8 +113,10 @@ impl Highlight {
     }
 
     /// The ranges of the highlight, in insertion order.
-    pub(crate) fn ranges(&self) -> Vec<CppCell> {
-        self.ranges.borrow().clone()
+    pub(crate) fn ranges<'vm>(&self, vm: &'vm Vm) -> MarkedVec<'vm, CppCell> {
+        let ranges = MarkedVec::new(vm);
+        ranges.extend_from_slice(&self.ranges.borrow());
+        ranges
     }
 
     fn add_range(&self, cx: &CallContext, range: CppCell) -> bool {
@@ -130,11 +132,21 @@ impl Setlike for Highlight {
     fn set_entries(&self, cx: &CallContext) -> Gc<Set> {
         self.set_entries.get_or_create(cx, || {
             let set = Set::create(cx.vm(), cx.realm());
-            for range in self.ranges() {
-                set.set_add(cx.vm(), range_wrapper(cx, &range));
+            for range in self.ranges(cx.vm()).values().iter() {
+                set.set_add(cx.vm(), range_wrapper(cx, range));
             }
             set
         })
+    }
+
+    fn set_entries_size(&self) -> usize {
+        self.ranges.borrow().len()
+    }
+
+    fn set_entries_contain(&self, value: Value) -> bool {
+        self.range_addresses
+            .borrow()
+            .contains(&(range_of_value(value).as_ptr() as usize))
     }
 }
 
@@ -144,9 +156,9 @@ impl WritableSetlike for Highlight {
         if !self.add_range(cx, range.clone()) {
             return;
         }
-        for set in self.set_entries.live() {
+        self.set_entries.for_each_live(cx.vm(), |set| {
             set.set_add(cx.vm(), range_wrapper(&context_of_set(cx, set), &range));
-        }
+        });
         // FIXME: https://drafts.csswg.org/css-highlight-api-1/#repaint
         //        The addition or removal of a range in a registered custom highlight must cause the user agent to
         //        reevaluate the rendering, and to repaint if appropriate. We do not paint custom highlights yet.
@@ -160,17 +172,17 @@ impl WritableSetlike for Highlight {
         self.ranges
             .borrow_mut(cx.vm())
             .retain(|existing| existing.as_ptr() != range.as_ptr());
-        for set in self.set_entries.live() {
+        self.set_entries.for_each_live(cx.vm(), |set| {
             set.set_remove(cx.vm(), range_wrapper(&context_of_set(cx, set), &range));
-        }
+        });
         true
     }
 
     fn set_clear(&self, cx: &CallContext) {
         self.range_addresses.borrow_mut().clear();
         self.ranges.borrow_mut(cx.vm()).clear();
-        for set in self.set_entries.live() {
+        self.set_entries.for_each_live(cx.vm(), |set| {
             set.set_clear(cx.vm());
-        }
+        });
     }
 }
