@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #restructures, #transformed, #animated { position: absolute; width: 100px; height: 50px; }
+    #restructures { left: 0; top: 0; }
+    #restructures:hover { transform: translateX(10px); }
+    #transformed { left: 0; top: 100px; transform: translateY(10px); cursor: cell; }
+    #animated { left: 200px; top: 0; width: 50px; }
+    #animated.active { animation: grow 10s linear infinite; }
+    @keyframes grow { from { height: 50px; } to { height: 150px; } }
+</style>
+<div id="restructures"></div>
+<div id="transformed"></div>
+<div id="animated"></div>
+<script>
+    // Every tick of a lane records from the lane's own frame, whose clean output names the visual contexts of the tree it
+    // was recorded against. A hover builds the tree with a new structure and another takes that node away again, and the
+    // frames after them still copy that output: the compositor replays them, and hit tests find what they show.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => {
+            animated.classList.add("active");
+            return animated.getAnimations()[0];
+        }, (frameTime, animation, startTime) => {
+            const lines = [];
+            internals.injectHoverPointer(50, 25, startTime + 1000);
+            lines.push(`hovering the box that takes a transform: ${internals.lastFramePresentedBy(document)}`);
+            internals.injectHoverPointer(50, 300, startTime + 2000);
+            lines.push(`hovering nothing: ${internals.lastFramePresentedBy(document)}`);
+            internals.injectClockTick(startTime + 3000);
+            lines.push(`after a tick: animated height ${internals.presentedBorderBox(animated)?.height}`);
+            internals.injectHoverPointer(50, 130, startTime + 4000);
+            lines.push(`over the transformed box: cursor ${internals.currentCursor()}`);
+            lines.push(`last frame presented by: ${internals.lastFramePresentedBy(document)}`);
+            return lines;
+        });
+        for (const line of result)
+            println(line);
+        done();
+    });
+</script>

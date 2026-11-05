@@ -1,0 +1,5 @@
+hovering the box that takes a transform: clock
+hovering nothing: clock
+after a tick: animated height 80
+over the transformed box: cursor Crosshair
+last frame presented by: clock

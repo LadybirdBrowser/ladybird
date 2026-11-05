@@ -179,7 +179,7 @@ OwnPtr<SealedPresentation> NavigablePresenter::seal_for_clock_lane(SealedPresent
     sealed->recording = Painting::DisplayListRecording {
         .visual_context_tree = *m_compositor_visual_context_tree,
         .surface_clear_color = m_compositor_display_list->surface_clear_color(),
-        .cache_mode = Painting::PaintCommandCacheMode::ReadWrite,
+        .cache_mode = Painting::PaintCommandCacheMode::ReadOnly,
         .in_flight = true,
         .async_scrolling_metadata = m_compositor_display_list->async_scrolling_metadata(),
         .paint_command_cache_source = m_compositor_display_list,
