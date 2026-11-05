@@ -738,10 +738,15 @@ TEST_CASE(a_seek_resolves_on_held_output_when_data_becomes_permanently_unavailab
     RefPtr<Media::VideoFrame> frame;
     while (frame == nullptr && MonotonicTime::now_coarse() < deadline) {
         auto output = producer->peek();
-        if (output.status == Media::PipelineStatus::HaveData)
+        if (output.status == Media::PipelineStatus::HaveData) {
             frame = output.frame;
-        else
-            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+            continue;
+        }
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        if (output.status != Media::PipelineStatus::Pending) {
+            FAIL(ByteString::formatted("Unexpected status {}", output.status));
+            return;
+        }
     }
     if (frame == nullptr)
         FAIL("The seek did not resolve on the output held by the decoder");
@@ -1415,8 +1420,12 @@ TEST_CASE(frames_held_by_the_decoder_are_delivered_when_data_becomes_permanently
 
     auto deadline = MonotonicTime::now() + AK::Duration::from_milliseconds(200);
     while (MonotonicTime::now() < deadline) {
-        EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Pending);
+        auto status = producer->peek().status;
         loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        if (status != Media::PipelineStatus::Pending) {
+            FAIL(ByteString::formatted("Unexpected status {}", status));
+            break;
+        }
     }
 
     // The drained decoder has to start over, so the next seek moves the demuxer.
