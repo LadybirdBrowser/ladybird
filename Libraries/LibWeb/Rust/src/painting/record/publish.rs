@@ -400,6 +400,8 @@ pub(crate) fn take_in_recording(
     // Read-only recordings publish nothing and must not consume the damage.
     if publishes_recording {
         arena.clear_paint_damage_consumed_by_published_recording();
+    } else {
+        arena.forget_paint_damage_rows_gone();
     }
     let paint_state = arena.paint_state_mut();
     if hit_test_list_changed {
@@ -473,6 +475,51 @@ mod tests {
                 _ => unreachable!(),
             }
         }
+    }
+
+    #[test]
+    fn a_take_in_that_publishes_nothing_leaves_damage_accumulating_and_quarantine_held() {
+        let mut arena = LayoutNodeArena::new();
+        let consumed = arena.allocate_for_test().slot;
+        let kept = arena.allocate_for_test().slot;
+        let gone = arena.allocate_for_test().slot;
+        for row in [consumed, kept, gone] {
+            arena.populate_paintable_row(row);
+        }
+        arena.push_paint_damage(consumed, PaintDamage::DRAW_FOREGROUND);
+        arena.note_publishing_paint_recording_started();
+        arena.push_paint_damage(kept, PaintDamage::DRAW_FOREGROUND);
+        let take_in = |arena: &mut LayoutNodeArena, publishes_recording| {
+            take_in_recording(arena, Arc::new(RecordingOutput::default()), true, publishes_recording);
+        };
+
+        // The published frame consumes what it recorded, and what was pushed as it recorded stays.
+        take_in(&mut arena, true);
+        assert_eq!(arena.paint_damage_of_row(consumed), PaintDamage::NONE);
+        assert_eq!(arena.paint_damage_of_row(kept), PaintDamage::DRAW_FOREGROUND);
+        assert!(arena.paint_state().visual_context.quarantined_slots_are_releasable);
+        arena.paint_state_mut().visual_context.quarantined_slots_are_releasable = false;
+
+        // A frame that publishes nothing consumes nothing, and nothing it replaced is released.
+        arena.push_paint_damage(gone, PaintDamage::DRAW_BACKGROUND);
+        take_in(&mut arena, false);
+        assert_eq!(arena.paint_damage_of_row(kept), PaintDamage::DRAW_FOREGROUND);
+        assert_eq!(arena.paint_damage_of_row(gone), PaintDamage::DRAW_BACKGROUND);
+        assert!(!arena.paint_state().visual_context.quarantined_slots_are_releasable);
+        assert_eq!(arena.damaged_paint_rows(), [kept, gone]);
+
+        // A row that went leaves the damage a later frame reads.
+        arena
+            .free_subtree(gone)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        take_in(&mut arena, false);
+        assert_eq!(arena.paint_damage_for_frame().rows().collect::<Vec<_>>(), [kept]);
+        arena
+            .free_subtree(consumed)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        arena
+            .free_subtree(kept)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]

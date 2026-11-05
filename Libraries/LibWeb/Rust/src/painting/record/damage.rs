@@ -398,6 +398,16 @@ impl LayoutNodeArena {
         *counter = counter.checked_add(1).expect("paint recording sequence overflowed");
     }
 
+    /// A recording that publishes nothing consumes no damage, so damage goes on accumulating: only the rows gone since,
+    /// and those listed again, leave the list.
+    pub(crate) fn forget_paint_damage_rows_gone(&mut self) {
+        let mut rows = std::mem::take(&mut self.paintable_rows.damage.rows);
+        rows.retain(|row| self.paintable_row_is_populated(*row));
+        rows.sort_unstable_by_key(|row| (row.slot_index(), row.generation()));
+        rows.dedup();
+        self.paintable_rows.damage.rows = rows;
+    }
+
     /// The published recording consumed everything pushed before it started. Rows pushed since
     /// stay listed, and their hints are renewed because the ancestors they hinted were cleared.
     pub(crate) fn clear_paint_damage_consumed_by_published_recording(&mut self) {
