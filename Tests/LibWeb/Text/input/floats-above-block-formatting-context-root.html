@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 10px/10px SerenitySans; }
+    .scenario { display: flow-root; position: relative; width: 200px; height: 100px; margin-top: 200px; }
+    .float { float: left; width: 20px; }
+</style>
+<div class="scenario" id="box-above-float">
+    <div class="float" style="height: 20px"></div>
+    <div id="box-above-float-probe" style="overflow: hidden; height: 0; width: 50px; margin-top: -20px"></div>
+</div>
+<div class="scenario" id="box-above-float-above-root">
+    <div style="height: 10px; margin-top: -50px"></div>
+    <div class="float" style="height: 10px"></div>
+    <div id="box-above-float-above-root-probe" style="overflow: hidden; height: 0; width: 50px; margin-top: -20px"></div>
+</div>
+<div class="scenario" id="clear-past-float-above-root">
+    <div style="height: 10px; margin-top: -50px"></div>
+    <div class="float" style="height: 10px"></div>
+    <div id="clear-past-float-above-root-probe" style="clear: left; height: 10px"></div>
+</div>
+<div class="scenario" id="clearing-float-above-root">
+    <div style="height: 10px; margin-top: -50px"></div>
+    <div class="float" style="height: 10px"></div>
+    <div id="clearing-float-above-root-probe" class="float" style="clear: left; height: 10px"></div>
+</div>
+<div class="scenario" id="clear-without-floats">
+    <div style="height: 10px; margin-top: -50px"></div>
+    <div id="clear-without-floats-probe" style="clear: left; height: 10px"></div>
+</div>
+<div class="scenario" id="clearing-float-without-floats">
+    <div style="height: 10px; margin-top: -50px"></div>
+    <div id="clearing-float-without-floats-probe" class="float" style="clear: left; height: 10px"></div>
+</div>
+<script>
+    test(() => {
+        for (const scenario of document.querySelectorAll(".scenario")) {
+            const origin = scenario.getBoundingClientRect();
+            const probe = document.getElementById(`${scenario.id}-probe`).getBoundingClientRect();
+            println(`${scenario.id}: x=${probe.left - origin.left}, y=${probe.top - origin.top}`);
+        }
+    });
+</script>

@@ -1,0 +1,6 @@
+box-above-float: x=0, y=-20
+box-above-float-above-root: x=0, y=-60
+clear-past-float-above-root: x=0, y=-30
+clearing-float-above-root: x=0, y=-30
+clear-without-floats: x=0, y=-40
+clearing-float-without-floats: x=0, y=-40
