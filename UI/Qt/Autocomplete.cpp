@@ -32,7 +32,6 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPalette>
-#include <QPixmap>
 #include <QPoint>
 #include <QStyle>
 #include <QStyleOption>
@@ -169,10 +168,10 @@ public:
             auto const& suggestion = m_suggestions[index];
             if (!suggestion.favicon_png.has_value())
                 continue;
-            QPixmap pixmap;
-            if (!pixmap.loadFromData(suggestion.favicon_png->data(), static_cast<uint>(suggestion.favicon_png->size())))
+            auto icon = icon_from_png(suggestion.favicon_png->bytes(), CELL_ICON_SIZE);
+            if (icon.isNull())
                 continue;
-            m_favicon_cache.append({ index, QIcon(pixmap) });
+            m_favicon_cache.append({ index, move(icon) });
         }
 
         endResetModel();
