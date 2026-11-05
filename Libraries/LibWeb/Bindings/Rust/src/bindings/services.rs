@@ -29,6 +29,13 @@ unsafe extern "C" {
     /// interface implemented in Rust, or null.
     pub(crate) fn web_bindings_rust_wrapper_for(realm: *mut c_void, cell: *mut c_void) -> *mut c_void;
 
+    /// Defines the unforgeable attributes of the interface implemented in C++ on the wrapper.
+    pub(crate) fn web_bindings_define_unforgeable_attributes(
+        realm: *mut c_void,
+        wrapper: *mut c_void,
+        interface_name: u16,
+    );
+
     /// Makes `wrapper` the wrapper that the world of its realm, which is not a main world, holds for the cell.
     pub(crate) fn web_bindings_set_rust_wrapper(realm: *mut c_void, cell: *mut c_void, wrapper: *mut c_void);
 
