@@ -678,7 +678,7 @@ fn paint_image_layer_in_current_space<O: Observer>(
                 y_step = image_rect.height;
                 repeat_y = false;
             } else {
-                let space = (background_positioning_area.height.to_float() % image_rect.height.to_float()) as f64;
+                let space = background_positioning_area.height.to_double() % image_rect.height.to_double();
                 y_step = image_rect.height + CssPixels::nearest_value_for(space / (whole_images - 1) as f64);
                 repeat_y = true;
                 repeat_y_has_gap = true;
