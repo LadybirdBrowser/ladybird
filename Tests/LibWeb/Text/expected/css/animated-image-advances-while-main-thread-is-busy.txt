@@ -1,0 +1,1 @@
+image advanced while the main thread was busy

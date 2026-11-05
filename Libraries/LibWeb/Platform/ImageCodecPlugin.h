@@ -12,6 +12,7 @@
 #include <LibCore/Promise.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
+#include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
 
 namespace Web::Platform {
@@ -50,11 +51,13 @@ public:
     // decoded before and has since discarded.
     virtual ErrorOr<DecodedFirstFrame> decode_first_frame_synchronously(ReadonlyBytes) = 0;
 
-    virtual void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) = 0;
     virtual void stop_animation_decode(i64 session_id) = 0;
 
-    Function<void(i64 session_id, Vector<NonnullRefPtr<Gfx::Bitmap>>)> on_animation_frames_decoded;
-    Function<void(i64 session_id)> on_animation_decode_failed;
+    // Has the decoder take the other end of the channel as a client that can ask for frames of this client's animation
+    // sessions.
+    virtual void connect_frame_client(IPC::TransportHandle) = 0;
+    // Changes when the decoder is replaced, which takes its sessions and frame clients with it.
+    virtual u64 client_generation() const = 0;
 };
 
 }

@@ -27,6 +27,7 @@ ConnectionFromWebContent::ConnectionFromWebContent(NonnullOwnPtr<IPC::Transport>
 void ConnectionFromWebContent::die()
 {
     auto protector = NonnullRefPtr { *this };
+    drop_image_decoder();
     m_compositor_state->destroy_contexts_for_web_content_client(*this);
     if (m_on_death)
         m_on_death(*this);
@@ -87,6 +88,80 @@ void ConnectionFromWebContent::pointer_rests_on_moving_content(Web::CompositorCo
 {
     if (m_render_clock_connection)
         m_render_clock_connection->async_pointer_rests_on_moving_content(context_id);
+}
+
+void ConnectionFromWebContent::drop_image_decoder()
+{
+    if (!m_image_decoder)
+        return;
+    m_image_decoder->on_death = nullptr;
+    m_image_decoder->on_animation_frames_decoded = nullptr;
+    m_image_decoder->on_animation_decode_failed = nullptr;
+    m_image_decoder = nullptr;
+}
+
+void ConnectionFromWebContent::connect_to_image_decoder(IPC::TransportHandle handle)
+{
+    // NB: A new channel means a new decoder, whose sessions the ones of the old decoder must not be confused with.
+    m_compositor_state->animated_image_decoder_lost(*this);
+    drop_image_decoder();
+
+    auto transport_or_error = handle.create_transport();
+    if (transport_or_error.is_error()) {
+        dbgln("Compositor: Could not take up an image decoder channel: {}", transport_or_error.error());
+        return;
+    }
+    m_image_decoder = make_ref_counted<ImageDecoderClient::Client>(transport_or_error.release_value());
+    m_image_decoder->on_death = [this] {
+        m_compositor_state->animated_image_decoder_lost(*this);
+        drop_image_decoder();
+    };
+    m_image_decoder->on_animation_frames_decoded = [this](i64 session_id, Vector<NonnullRefPtr<Gfx::Bitmap>> bitmaps) {
+        m_compositor_state->animated_image_frames_decoded(*this, session_id, move(bitmaps));
+    };
+    m_image_decoder->on_animation_decode_failed = [this](i64 session_id, String) {
+        m_compositor_state->animated_image_decode_failed(*this, session_id);
+    };
+}
+
+void ConnectionFromWebContent::add_animated_image(u64 frame_id, i64 session_id, Gfx::IntSize size, Gfx::ColorSpace color_space, Vector<u32> frame_durations_in_milliseconds, u32 loop_count)
+{
+    if (frame_durations_in_milliseconds.is_empty()) {
+        did_misbehave("WebContent added an animated image with no frames");
+        return;
+    }
+    m_compositor_state->add_animated_image(*this, Compositing::ImageFrameResourceId { frame_id },
+        { .session_id = session_id, .size = size, .color_space = move(color_space), .frame_durations_in_milliseconds = move(frame_durations_in_milliseconds), .loop_count = loop_count });
+}
+
+void ConnectionFromWebContent::remove_animated_image(u64 frame_id)
+{
+    m_compositor_state->remove_animated_image(*this, Compositing::ImageFrameResourceId { frame_id });
+}
+
+void ConnectionFromWebContent::start_animated_image(u64 frame_id)
+{
+    m_compositor_state->start_animated_image(*this, Compositing::ImageFrameResourceId { frame_id });
+}
+
+void ConnectionFromWebContent::stop_animated_image(u64 frame_id)
+{
+    m_compositor_state->stop_animated_image(*this, Compositing::ImageFrameResourceId { frame_id });
+}
+
+Messages::CompositorWebContentServer::AnimatedImageStateForTestingResponse ConnectionFromWebContent::animated_image_state_for_testing(u64 frame_id)
+{
+    auto const* image = m_compositor_state->animated_image(*this, Compositing::ImageFrameResourceId { frame_id });
+    if (!image)
+        return { false, 0, 0, 0 };
+    auto now = MonotonicTime::now();
+    return { image->is_animating(now), image->frame_index_at(now), image->shown_frame_index(), image->loops_completed_at(now) };
+}
+
+void ConnectionFromWebContent::request_animated_image_frames(AnimatedImage::FrameRequest const& request)
+{
+    if (m_image_decoder)
+        m_image_decoder->request_animation_frames(request.session_id, request.start_frame_index, request.count);
 }
 
 void ConnectionFromWebContent::add_video_sink(Media::VideoSinkHandle video_sink_handle, NonnullRefPtr<Compositing::VideoFramePresentationPage> presentation_page)

@@ -14,8 +14,8 @@
     asyncTest(done => {
         window.addEventListener("load", () => {
             internals.dumpLayoutTree(document);
-            const timerActiveBeforeBaseChange =
-                internals.imageAnimationStateForURL(imageURL).timerActive;
+            const isAnimatingBeforeBaseChange =
+                internals.imageAnimationStateForURL(imageURL).isAnimating;
 
             const beforeBaseChange = getComputedStyle(target).backgroundImage.replace(imageURL, "[image-url]");
             const base = document.createElement("base");
@@ -24,18 +24,18 @@
             const afterBaseChange = getComputedStyle(target).backgroundImage.replace(imageURL, "[image-url]");
 
             internals.dumpLayoutTree(document);
-            const timerActiveAfterBaseChange =
-                internals.imageAnimationStateForURL(imageURL).timerActive;
+            const isAnimatingAfterBaseChange =
+                internals.imageAnimationStateForURL(imageURL).isAnimating;
 
             println(
                 `Computed URL before base change: ${beforeBaseChange}`
             );
             println(`Computed URL after base change: ${afterBaseChange}`);
             println(
-                `timer active before base change: ${timerActiveBeforeBaseChange}`
+                `timer active before base change: ${isAnimatingBeforeBaseChange}`
             );
             println(
-                `timer active after base change: ${timerActiveAfterBaseChange}`
+                `timer active after base change: ${isAnimatingAfterBaseChange}`
             );
             done();
         });

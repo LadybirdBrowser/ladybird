@@ -6,6 +6,7 @@
  */
 
 #include <LibGfx/Bitmap.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibWeb/Platform/RemoteImageCodecPlugin.h>
 
@@ -20,6 +21,7 @@ RemoteImageCodecPlugin::RemoteImageCodecPlugin(NonnullRefPtr<ImageDecoderClient:
 void RemoteImageCodecPlugin::set_client(NonnullRefPtr<ImageDecoderClient::Client> client)
 {
     m_client = move(client);
+    ++m_client_generation;
     setup_client_callbacks();
 }
 
@@ -27,14 +29,6 @@ void RemoteImageCodecPlugin::setup_client_callbacks()
 {
     m_client->on_death = [this] {
         m_client = nullptr;
-    };
-    m_client->on_animation_frames_decoded = [this](i64 session_id, Vector<NonnullRefPtr<Gfx::Bitmap>> bitmaps) {
-        if (on_animation_frames_decoded)
-            on_animation_frames_decoded(session_id, move(bitmaps));
-    };
-    m_client->on_animation_decode_failed = [this](i64 session_id, String) {
-        if (on_animation_decode_failed)
-            on_animation_decode_failed(session_id);
     };
 }
 
@@ -85,16 +79,16 @@ ErrorOr<DecodedFirstFrame> RemoteImageCodecPlugin::decode_first_frame_synchronou
     return DecodedFirstFrame { move(result.bitmap), move(result.color_space) };
 }
 
-void RemoteImageCodecPlugin::request_animation_frames(i64 session_id, u32 start_frame_index, u32 count)
-{
-    if (m_client)
-        m_client->request_animation_frames(session_id, start_frame_index, count);
-}
-
 void RemoteImageCodecPlugin::stop_animation_decode(i64 session_id)
 {
     if (m_client)
         m_client->stop_animation_decode(session_id);
+}
+
+void RemoteImageCodecPlugin::connect_frame_client(IPC::TransportHandle handle)
+{
+    if (m_client)
+        m_client->async_connect_frame_client(handle);
 }
 
 }

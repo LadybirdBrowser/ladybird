@@ -34,8 +34,9 @@ public:
     }
 
     virtual ErrorOr<Web::Platform::DecodedFirstFrame> decode_first_frame_synchronously(ReadonlyBytes) override { VERIFY_NOT_REACHED(); }
-    virtual void request_animation_frames(i64, u32, u32) override { VERIFY_NOT_REACHED(); }
     virtual void stop_animation_decode(i64) override { VERIFY_NOT_REACHED(); }
+    virtual void connect_frame_client(IPC::TransportHandle) override { VERIFY_NOT_REACHED(); }
+    virtual u64 client_generation() const override { VERIFY_NOT_REACHED(); }
 
     size_t decode_count { 0 };
 };

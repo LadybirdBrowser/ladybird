@@ -21,7 +21,7 @@
         const stateAfterRestart = internals.imageAnimationStateForURL(imageURL);
         println(`session unchanged after restart: ${stateAfterRestart.sessionID === stateBeforeRestart.sessionID}`);
         println(
-            `animation restarted after src reset: ${stateAfterRestart.frameIndex === 0 && stateAfterRestart.loopsCompleted === 0 && stateAfterRestart.timerActive}`
+            `animation restarted after src reset: ${stateAfterRestart.frameIndex === 0 && stateAfterRestart.loopsCompleted === 0 && stateAfterRestart.isAnimating}`
         );
         println(`client count after restart: ${stateAfterRestart.clientCount}`);
     });

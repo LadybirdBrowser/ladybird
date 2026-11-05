@@ -123,6 +123,7 @@ void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWeb
     }
 
     m_video_sink_states.remove(&client);
+    m_animated_images.remove(&client);
 
     m_placeholder_canvases.remove_all_matching([&](auto canvas_id, auto const& placeholder) {
         if (placeholder.owner != &client)
@@ -289,6 +290,7 @@ void CompositorState::update_display_list(Web::CompositorContextId context_id, N
     context->apply_display_list_resource_transaction(move(resource_transaction));
     context->install_display_list_update(move(display_list), move(visual_context_tree), move(scroll_state_snapshot));
     resolve_video_sinks(*context);
+    show_animated_image_frames_in(*context);
 
     update_unpainted_video_update_scheduling();
 }
@@ -298,6 +300,7 @@ void CompositorState::update_display_list_resources(Web::CompositorContextId con
     auto* context = context_if_present(context_id);
     VERIFY(context);
     context->apply_display_list_resource_transaction(move(resource_transaction));
+    show_animated_image_frames_in(*context);
 }
 
 void CompositorState::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction)
@@ -306,6 +309,7 @@ void CompositorState::update_visual_context_tree(Web::CompositorContextId contex
     VERIFY(context);
 
     context->update_visual_context_tree(move(visual_context_tree), move(resource_transaction));
+    show_animated_image_frames_in(*context);
 }
 
 void CompositorState::update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot&& scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state)
@@ -407,6 +411,161 @@ void CompositorState::update_unpainted_video_update_scheduling()
             }
         }
     }
+}
+
+void CompositorState::add_animated_image(CompositorStateWebContentClient& client, Compositing::ImageFrameResourceId id, AnimatedImage::Description description)
+{
+    m_animated_images.ensure(&client).set(id.value(), make<AnimatedImage>(move(description)));
+}
+
+void CompositorState::remove_animated_image(CompositorStateWebContentClient& client, Compositing::ImageFrameResourceId id)
+{
+    if (auto images = m_animated_images.find(&client); images != m_animated_images.end())
+        images->value.remove(id.value());
+}
+
+AnimatedImage* CompositorState::animated_image_mutable(CompositorStateWebContentClient& client, Compositing::ImageFrameResourceId id)
+{
+    auto images = m_animated_images.find(&client);
+    if (images == m_animated_images.end())
+        return nullptr;
+    auto image = images->value.find(id.value());
+    return image == images->value.end() ? nullptr : image->value.ptr();
+}
+
+AnimatedImage const* CompositorState::animated_image(CompositorStateWebContentClient& client, Compositing::ImageFrameResourceId id) const
+{
+    return const_cast<CompositorState*>(this)->animated_image_mutable(client, id);
+}
+
+AnimatedImage* CompositorState::animated_image_with_session(CompositorStateWebContentClient& client, i64 session_id)
+{
+    auto images = m_animated_images.find(&client);
+    if (images == m_animated_images.end())
+        return nullptr;
+    for (auto& image : images->value) {
+        if (image.value->session_id() == session_id)
+            return image.value.ptr();
+    }
+    return nullptr;
+}
+
+void CompositorState::start_animated_image(CompositorStateWebContentClient& client, Compositing::ImageFrameResourceId id)
+{
+    if (auto* image = animated_image_mutable(client, id)) {
+        image->start(MonotonicTime::now());
+        schedule_animated_image_update({});
+    }
+}
+
+void CompositorState::stop_animated_image(CompositorStateWebContentClient& client, Compositing::ImageFrameResourceId id)
+{
+    if (auto* image = animated_image_mutable(client, id))
+        image->stop();
+}
+
+void CompositorState::animated_image_frames_decoded(CompositorStateWebContentClient& client, i64 session_id, Vector<NonnullRefPtr<Gfx::Bitmap>> bitmaps)
+{
+    // NB: Frames that brought nothing new must wait for the next tick, or the same request would go out again at once.
+    if (auto* image = animated_image_with_session(client, session_id); image && image->receive_frames(move(bitmaps)))
+        update_animated_images();
+}
+
+void CompositorState::animated_image_decode_failed(CompositorStateWebContentClient& client, i64 session_id)
+{
+    if (auto* image = animated_image_with_session(client, session_id))
+        image->decoding_failed();
+}
+
+void CompositorState::animated_image_decoder_lost(CompositorStateWebContentClient& client)
+{
+    if (auto images = m_animated_images.find(&client); images != m_animated_images.end()) {
+        for (auto& image : images->value)
+            image.value->lose_decoder();
+    }
+}
+
+bool CompositorState::animated_image_is_drawn(CompositorStateWebContentClient* client, Compositing::ImageFrameResourceId id)
+{
+    for (auto& context_entry : m_contexts) {
+        auto& context = *context_entry.value;
+        if (&context.web_content_client() == client && context_is_effectively_visible(context) && context.has_image_frame(id))
+            return true;
+    }
+    return false;
+}
+
+void CompositorState::show_animated_image_frame(CompositorStateWebContentClient* client, Compositing::ImageFrameResourceId id, Gfx::DecodedImageFrame const& frame)
+{
+    for (auto& context_entry : m_contexts) {
+        auto& context = *context_entry.value;
+        if (&context.web_content_client() != client || !context.has_image_frame(id))
+            continue;
+        context.replace_image_frame_pixels(id, frame);
+        if (!context_is_effectively_visible(context))
+            continue;
+        if (auto rect = context.presenter().self_present_rect(); rect.has_value())
+            schedule_present_frame(context_entry.key, context, PendingFrame::repainting_changes(*rect));
+    }
+}
+
+void CompositorState::show_animated_image_frames_in(ContextState& context)
+{
+    auto images = m_animated_images.find(&context.web_content_client());
+    if (images == m_animated_images.end())
+        return;
+    for (auto& image_entry : images->value) {
+        Compositing::ImageFrameResourceId id { image_entry.key };
+        auto const& frame = image_entry.value->shown_frame();
+        if (frame.has_value() && context.has_image_frame(id) && &context.image_frame(id).bitmap() != &frame->bitmap())
+            context.replace_image_frame_pixels(id, *frame);
+    }
+    // An image that nothing drew has been waiting for a context to draw it.
+    if (!images->value.is_empty())
+        schedule_animated_image_update({});
+}
+
+void CompositorState::update_animated_images()
+{
+    auto now = MonotonicTime::now();
+    Optional<MonotonicTime> next_update;
+    for (auto& client_entry : m_animated_images) {
+        auto* client = client_entry.key;
+        for (auto& image_entry : client_entry.value) {
+            Compositing::ImageFrameResourceId id { image_entry.key };
+            auto& image = *image_entry.value;
+
+            // An image nothing shows costs nothing. It finds its place by the clock once something shows it again.
+            if (!animated_image_is_drawn(client, id))
+                continue;
+
+            if (image.advance_to(now))
+                show_animated_image_frame(client, id, *image.shown_frame());
+
+            auto is_animating = image.is_animating(now);
+            if (is_animating || image.shown_frame_index() != image.frame_index_at(now)) {
+                if (auto request = image.take_frame_request(now); request.has_value())
+                    client->request_animated_image_frames(*request);
+            }
+            if (is_animating) {
+                auto next_frame_time = image.next_frame_time_after(now);
+                if (!next_update.has_value() || next_frame_time < *next_update)
+                    next_update = next_frame_time;
+            }
+        }
+    }
+    if (next_update.has_value())
+        schedule_animated_image_update(*next_update - now);
+}
+
+void CompositorState::schedule_animated_image_update(AK::Duration delay)
+{
+    if (!m_animated_image_update_timer) {
+        m_animated_image_update_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [this] {
+            update_animated_images();
+        });
+    }
+    m_animated_image_update_timer->restart(delay);
 }
 
 void CompositorState::present_contexts_drawing_video_sink(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
@@ -1457,6 +1616,8 @@ void CompositorState::set_context_presents_from_cpu_memory(Web::CompositorContex
 
 void CompositorState::resume_presentation_after_becoming_visible(Web::CompositorContextId root_context_id, ContextState& root_context)
 {
+    schedule_animated_image_update({});
+
     for (auto& context_entry : m_contexts) {
         auto& context = *context_entry.value;
         if (root_context_of(context) != &root_context)

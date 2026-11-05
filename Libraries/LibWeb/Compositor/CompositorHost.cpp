@@ -430,6 +430,53 @@ void CompositorHost::stop_presenting_to_client(Web::CompositorContextId context_
         connection->stop_presenting_to_client(context_id);
 }
 
+void CompositorHost::add_animated_image(u64 frame_id, AnimatedImageRegistration image)
+{
+    if (auto* connection = compositor_connection())
+        connection->add_animated_image(frame_id, image);
+    m_animated_images.set(frame_id, move(image));
+}
+
+void CompositorHost::remove_animated_image(u64 frame_id)
+{
+    m_animated_images.remove(frame_id);
+    if (auto* connection = compositor_connection())
+        connection->remove_animated_image(frame_id);
+}
+
+void CompositorHost::start_animated_image(u64 frame_id)
+{
+    m_animated_images.get(frame_id)->is_started = true;
+    if (auto* connection = compositor_connection())
+        connection->start_animated_image(frame_id);
+}
+
+void CompositorHost::stop_animated_image(u64 frame_id)
+{
+    m_animated_images.get(frame_id)->is_started = false;
+    if (auto* connection = compositor_connection())
+        connection->stop_animated_image(frame_id);
+}
+
+AnimatedImageState CompositorHost::animated_image_state_for_testing(u64 frame_id) const
+{
+    if (auto* connection = compositor_connection())
+        return connection->animated_image_state_for_testing(frame_id);
+    return {};
+}
+
+void CompositorHost::register_animated_images_with_new_compositor()
+{
+    auto* connection = compositor_connection();
+    if (!connection)
+        return;
+    for (auto const& [frame_id, image] : m_animated_images) {
+        connection->add_animated_image(frame_id, image);
+        if (image.is_started)
+            connection->start_animated_image(frame_id);
+    }
+}
+
 void CompositorHost::add_video_sink(Media::VideoSinkHandle video_sink_handle, NonnullRefPtr<Compositing::VideoFramePresentationPage> presentation_page)
 {
     if (auto* connection = compositor_connection())

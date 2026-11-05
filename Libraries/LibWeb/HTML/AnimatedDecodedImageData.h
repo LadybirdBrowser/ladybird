@@ -23,7 +23,6 @@ protected:
     AnimatedDecodedImageData(GC::Ref<DOM::DocumentObserver>);
 
     virtual void start_animation() = 0;
-    virtual void reset_animation() = 0;
     virtual void stop_animation() = 0;
 
     virtual void on_client_registered() override;

@@ -58,7 +58,6 @@ AnimatedDecodedImageData::AnimatedDecodedImageData(GC::Ref<DOM::DocumentObserver
 void AnimatedDecodedImageData::restart_animation()
 {
     stop_animation();
-    reset_animation();
     start_animation_if_needed();
 }
 

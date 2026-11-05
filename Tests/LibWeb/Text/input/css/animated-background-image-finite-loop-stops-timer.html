@@ -15,7 +15,7 @@
         console.log("A");
 
         // Wait for the animation to start.
-        await waitForImageAnimationState(imageURL, state => state.timerActive);
+        await waitForImageAnimationState(imageURL, state => state.isAnimating);
 
         console.log("B");
 
@@ -24,7 +24,7 @@
 
         console.log("C");
 
-        println(internals.imageAnimationStateForURL(imageURL).timerActive ? "FAIL" : "PASS");
+        println(internals.imageAnimationStateForURL(imageURL).isAnimating ? "FAIL" : "PASS");
 
         console.log("D");
     });

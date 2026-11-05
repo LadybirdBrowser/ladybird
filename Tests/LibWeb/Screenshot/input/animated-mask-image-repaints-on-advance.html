@@ -25,10 +25,10 @@
 
         (async () => {
             // Wait for the animation to start
-            await waitForImageAnimationState(gifURL, state => state.timerActive);
+            await waitForImageAnimationState(gifURL, state => state.isAnimating);
 
             // Wait until the next frame
-            await waitForImageAnimationState(gifURL, state => state.frameIndex > 0);
+            await waitForImageAnimationState(gifURL, state => state.shownFrameIndex > 0);
 
             // Take a screenshot - the mask image should have been invalidated and repainted.
             document.documentElement.classList.remove("reftest-wait");

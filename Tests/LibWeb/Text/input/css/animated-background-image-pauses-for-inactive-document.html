@@ -29,21 +29,21 @@
         const iframeWindow = iframe.contentWindow;
 
         // Wait the animation to progress to the second frame
-        await waitForImageAnimationState(imageURL, state => state.timerActive && state.frameIndex > 0, iframeWindow);
+        await waitForImageAnimationState(imageURL, state => state.isAnimating && state.frameIndex > 0, iframeWindow);
 
         // Make the iframe document inactive - this should stop the animation.
         iframe.remove();
 
-        const stateAfterRemoval = await waitForImageAnimationState(imageURL, state => !state.timerActive, iframeWindow);
+        const stateAfterRemoval = await waitForImageAnimationState(imageURL, state => !state.isAnimating, iframeWindow);
 
-        println(`timer stopped after iframe removal: ${!stateAfterRemoval.timerActive}`);
+        println(`timer stopped after iframe removal: ${!stateAfterRemoval.isAnimating}`);
 
         // Make the iframe document active again - this should reset the animation.
         await loadIframe(iframe);
 
         const stateAfterReattach = iframe.contentWindow.internals.imageAnimationStateForURL(imageURL);
         println(
-            `animation restarted after iframe reattach: ${stateAfterReattach.timerActive && stateAfterReattach.frameIndex === 0 && stateAfterReattach.loopsCompleted === 0}`
+            `animation restarted after iframe reattach: ${stateAfterReattach.isAnimating && stateAfterReattach.frameIndex === 0 && stateAfterReattach.loopsCompleted === 0}`
         );
     });
 </script>

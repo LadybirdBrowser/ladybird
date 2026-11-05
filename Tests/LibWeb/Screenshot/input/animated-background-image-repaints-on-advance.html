@@ -19,10 +19,10 @@
             const imageURL = "../data/red-then-green.gif";
 
             // Wait for the animation to start
-            await waitForImageAnimationState(imageURL, state => state.timerActive);
+            await waitForImageAnimationState(imageURL, state => state.isAnimating);
 
             // Wait until the next frame
-            await waitForImageAnimationState(imageURL, state => state.frameIndex > 0);
+            await waitForImageAnimationState(imageURL, state => state.shownFrameIndex > 0);
 
             // Take a screenshot - the image should have been invalidated and repainted.
             document.documentElement.classList.remove("reftest-wait");

@@ -18,7 +18,7 @@
         internals.dumpLayoutTree(document);
 
         const state = internals.imageAnimationStateForURL(imageURL);
-        println(`timer active for shared animation: ${state.timerActive}`);
+        println(`timer active for shared animation: ${state.isAnimating}`);
         println(`client count: ${state.clientCount}`);
     });
 </script>

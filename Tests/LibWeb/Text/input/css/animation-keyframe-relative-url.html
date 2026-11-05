@@ -7,7 +7,7 @@
 
     promiseTest(async () => {
         internals.dumpLayoutTree(document);
-        const state = await waitForImageAnimationState(imageURL, state => state.timerActive);
-        println(`stylesheet-relative image loaded: ${state.timerActive}`);
+        const state = await waitForImageAnimationState(imageURL, state => state.isAnimating);
+        println(`stylesheet-relative image loaded: ${state.isAnimating}`);
     });
 </script>

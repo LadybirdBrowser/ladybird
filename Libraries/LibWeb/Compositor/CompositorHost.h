@@ -7,16 +7,20 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/Types.h>
+#include <AK/Vector.h>
+#include <AK/Weakable.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/Video/VideoFrameHold.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
@@ -47,6 +51,25 @@ struct PlaceholderCanvasLink {
 struct PlaceholderCanvasPixels {
     RefPtr<Gfx::Bitmap> bitmap;
     bool origin_clean { true };
+};
+
+// What the compositor needs to animate an image: it asks the decoder's session for the frames.
+struct AnimatedImageRegistration {
+    i64 session_id { 0 };
+    Gfx::IntSize size;
+    Gfx::ColorSpace color_space;
+    Vector<u32> frame_durations_in_milliseconds;
+    u32 loop_count { 0 };
+    // The decoder the session belongs to, which may be gone by the time a new compositor hears of the image.
+    u64 image_decoder_client_generation { 0 };
+    bool is_started { false };
+};
+
+struct AnimatedImageState {
+    bool is_animating { false };
+    u32 frame_index { 0 };
+    u32 shown_frame_index { 0 };
+    u32 loops_completed { 0 };
 };
 
 class WEB_API CompositorContextHandle {
@@ -91,7 +114,7 @@ private:
     Web::CompositorContextId m_context_id;
 };
 
-class WEB_API CompositorHost {
+class WEB_API CompositorHost : public Weakable<CompositorHost> {
     AK_MAKE_NONCOPYABLE(CompositorHost);
     AK_MAKE_NONMOVABLE(CompositorHost);
 
@@ -121,6 +144,15 @@ public:
     void destroy_context(Web::CompositorContextId);
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>);
     void stop_presenting_to_client(Web::CompositorContextId);
+
+    // Has the compositor show the frames of an animated image under the image frame with the id.
+    void add_animated_image(u64 frame_id, AnimatedImageRegistration);
+    void remove_animated_image(u64 frame_id);
+    void start_animated_image(u64 frame_id);
+    void stop_animated_image(u64 frame_id);
+    AnimatedImageState animated_image_state_for_testing(u64 frame_id) const;
+    // A new compositor process has heard of none of the images.
+    void register_animated_images_with_new_compositor();
 
     void add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
     void remove_video_sink(Media::VideoSinkHandle);
@@ -152,6 +184,8 @@ protected:
 
 private:
     friend class CompositorContextHandle;
+
+    HashMap<u64, AnimatedImageRegistration> m_animated_images;
 
     // Drains the stream, but only when the message can actually be delivered.
     void send_canvas_2d_stream(Compositing::Canvas2DCommandStream&);

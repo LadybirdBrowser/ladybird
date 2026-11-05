@@ -25,7 +25,7 @@
             const imageURL = "../data/red-then-green.gif";
 
             // Wait for the animation to start.
-            await waitForImageAnimationState(imageURL, state => state.timerActive);
+            await waitForImageAnimationState(imageURL, state => state.isAnimating);
 
             // Wait for half of the first frame's duration
             await timeout(250);
@@ -36,7 +36,7 @@
             container.append(lateTarget);
 
             // Wait for the animation to advance to the second frame. Both consumers should be showing the second frame
-            await waitForImageAnimationState(imageURL, state => state.frameIndex > 0);
+            await waitForImageAnimationState(imageURL, state => state.shownFrameIndex > 0);
 
             document.documentElement.classList.remove("reftest-wait");
         })();
