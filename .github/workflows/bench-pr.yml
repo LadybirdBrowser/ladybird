@@ -1,0 +1,376 @@
+name: 'PR benchmarks'
+
+# Measures a PR against its merge-base with web-benchmarks' bench_pr.py, on the web-benchmarks runners, and adds the
+# result to the end of the PR's description. Nothing runs on its own: A maintainer either adds the "benchmark" label to
+# the PR (the run removes it again when it finishes), or dispatches this workflow with the PR's number.
+#
+# Both triggers run master's copy of this file, never the PR's. The PR's code is built and run only in the bench jobs,
+# which get a read-only token and no secrets; only the report job, which runs nothing from the PR, can write to it.
+#
+# Every run builds both arms from scratch in its own workspace, and saves nothing to the Actions cache. The one thing
+# that outlives a run is each runner's calibration record (bench_pr.py's noise floor, a few hundred bytes), which a
+# calibration run uploads as an artifact and later runs download.
+
+on:
+  pull_request_target:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'PR number (leave empty for a calibration)'
+        type: string
+        default: ''
+      calibrate:
+        description: 'Measure master against itself, to record each runner''s noise floor'
+        type: boolean
+        default: false
+      rounds:
+        description: 'Measured rounds'
+        type: string
+        default: '8'
+      focus:
+        description: 'Suites or tests the change targets, space-separated (bench_pr.py --focus)'
+        type: string
+        default: ''
+      benchmarks:
+        description: 'Suites to run, comma-separated (default: all)'
+        type: string
+        default: ''
+
+concurrency:
+  # One run per PR, so labeling a PR again replaces its run in progress. Every other label starts this workflow too,
+  # but in a group of its own — so it never cancels a benchmark run.
+  group: >-
+    ${{ github.workflow }}-${{
+      github.event_name == 'workflow_dispatch' && (inputs.calibrate && 'calibrate' || inputs.pr)
+      || github.event.label.name == 'benchmark' && github.event.pull_request.number
+      || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    if: >-
+      github.repository == 'LadybirdBrowser/ladybird'
+      && (github.event_name == 'workflow_dispatch' || github.event.label.name == 'benchmark')
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    outputs:
+      pr: ${{ steps.resolve.outputs.pr }}
+      head: ${{ steps.resolve.outputs.head }}
+      matrix: ${{ steps.resolve.outputs.matrix }}
+
+    steps:
+      - name: 'Checkout ladybird'
+        uses: actions/checkout@v7.0.1
+        with:
+          sparse-checkout: .github/workflows/ci.yml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: 'Resolve the PR, and check who asked'
+        id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          REQUESTER: ${{ github.triggering_actor }}
+          CALIBRATE: ${{ inputs.calibrate }}
+          PR_INPUT: ${{ inputs.pr }}
+          ROUNDS: ${{ inputs.rounds }}
+          LABELED_PR: ${{ github.event.pull_request.number }}
+          LABELED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          has_write_access() {
+            case "$(gh api "repos/${REPO}/collaborators/$1/permission" --jq .permission)" in
+              admin|maintain|write) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          # Adding a label takes only triage access, and a re-run counts as asking too.
+          if ! has_write_access "$REQUESTER"; then
+            echo "::error::Benchmark runs are for maintainers, and ${REQUESTER} has no write access."
+            exit 1
+          fi
+          if [ -n "${ROUNDS:-}" ] && ! [[ "$ROUNDS" =~ ^[0-9]+$ ]]; then
+            echo "::error::rounds must be a number, not '${ROUNDS}'."
+            exit 1
+          fi
+
+          if [ "$EVENT" = workflow_dispatch ] && [ "$CALIBRATE" = true ]; then
+            pr=
+            head=$(gh api "repos/${REPO}/commits/master" --jq .sha)
+          else
+            pr=${LABELED_PR:-$PR_INPUT}
+            if ! [[ "$pr" =~ ^[0-9]+$ ]]; then
+              echo "::error::Give a PR number, or ask for a calibration."
+              exit 1
+            fi
+            gh api "repos/${REPO}/pulls/${pr}" > pr.json
+            if ! jq -e '.state == "open" and .base.ref == "master"' pr.json > /dev/null; then
+              echo "::error::#${pr} isn't an open PR against master."
+              exit 1
+            fi
+            # A label run measures the head the PR had when the label went on, so a push after that can't change what
+            # gets built.
+            head=${LABELED_HEAD:-$(jq -r .head.sha pr.json)}
+          fi
+
+          image=$(grep -o 'ghcr.io/ladybirdbrowser/ladybird-ci:[0-9.]*' .github/workflows/ci.yml | head -1)
+          if [ -z "$image" ]; then
+            echo "::error::No ladybird-ci image named in ci.yml."
+            exit 1
+          fi
+          matrix=$(jq -cn --arg image "$image" '{include: [
+            {os_name: "Linux", arch: "x86_64",
+             runner_labels: (["ubuntu-24.04-internal", "web-benchmarks", "self-hosted"] | tojson),
+             container: ({image: $image, options: "--shm-size=4g"} | tojson)},
+            {os_name: "macOS", arch: "arm64",
+             runner_labels: (["macos-26", "web-benchmarks", "self-hosted"] | tojson),
+             container: "null"}
+          ]}')
+
+          {
+            echo "pr=${pr}"
+            echo "head=${head}"
+            echo "matrix=${matrix}"
+          } >> "$GITHUB_OUTPUT"
+          if [ -n "$pr" ]; then what="#${pr} at ${head}"; else what="${head} against itself"; fi
+          echo "Measuring ${what}, for ${REQUESTER}." >> "$GITHUB_STEP_SUMMARY"
+
+  bench:
+    needs: prepare
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+    runs-on: ${{ fromJSON(matrix.runner_labels) }}
+    container: ${{ fromJSON(matrix.container) }}
+    timeout-minutes: 480
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+
+    # This job builds and runs the PR's code: a read-only token, and no secrets.
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: 'Checkout ladybird'
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 'Checkout LadybirdBrowser/web-benchmarks'
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: LadybirdBrowser/web-benchmarks
+          path: web-benchmarks
+          ref: master
+          persist-credentials: false
+
+      # No caches: This job runs the PR's code, so nothing it leaves behind goes into a cache that other workflows
+      # restore.
+      - name: 'Set Up Environment'
+        uses: ./.github/actions/setup
+        with:
+          os: ${{ matrix.os_name }}
+          arch: ${{ matrix.arch }}
+          toolchain: 'Clang'
+          build_preset: 'Distribution'
+          use_caches: 'false'
+
+      # A compare run quotes the resolution of the runner's latest calibration on master, which bench_pr.py reads from
+      # its cache directory.
+      - name: 'Find the latest calibration'
+        id: calibration
+        if: ${{ !inputs.calibrate }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: bench-pr-noise-floor-${{ matrix.os_name }}-${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${NAME}&per_page=100" > artifacts.json
+          run_id=$(python3 - <<'EOF'
+          import json
+          artifacts = [a for a in json.load(open("artifacts.json"))["artifacts"]
+                       if not a["expired"] and a["workflow_run"]["head_branch"] == "master"
+                       and a["workflow_run"]["head_repository_id"] == a["workflow_run"]["repository_id"]]
+          print(max(artifacts, key=lambda a: a["created_at"])["workflow_run"]["id"] if artifacts else "")
+          EOF
+          )
+          echo "run_id=${run_id}" >> "$GITHUB_OUTPUT"
+
+      - name: 'Download the latest calibration'
+        if: ${{ steps.calibration.outputs.run_id != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: bench-pr-noise-floor-${{ matrix.os_name }}-${{ matrix.arch }}
+          run-id: ${{ steps.calibration.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: bench-state/cache/ladybird-bench
+
+      - name: 'Run bench_pr.py'
+        shell: bash
+        env:
+          HEAD_SHA: ${{ needs.prepare.outputs.head }}
+          CALIBRATE: ${{ inputs.calibrate }}
+          ROUNDS: ${{ inputs.rounds || '8' }}
+          FOCUS: ${{ inputs.focus }}
+          BENCHMARKS: ${{ inputs.benchmarks }}
+          PLATFORM: ${{ matrix.os_name }}-${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          state=$GITHUB_WORKSPACE/bench-state
+          # One directory per platform inside the artifact, so the report job finds each platform's files at the same
+          # place whether it downloads one artifact or several.
+          out=$GITHUB_WORKSPACE/bench-pr-out/$PLATFORM
+          mkdir -p "$state" "$out"
+
+          # bench_pr.py keeps its worktrees, its logs and the calibration record under XDG_CACHE_HOME. The two arms are
+          # two worktrees: Relative paths, with no hashed working directory, make one arm's objects hits for the other.
+          export XDG_CACHE_HOME=$state/cache
+          export CCACHE_DIR=$state/cache/ccache CCACHE_MAXSIZE=10G
+          export CCACHE_BASEDIR=$state/worktrees CCACHE_NOHASHDIR=true
+          export SCCACHE_DIR=$state/cache/sccache SCCACHE_CACHE_SIZE=5G
+          # Both arms build with the CI image's clang, as the master runs do.
+          [ "$RUNNER_OS" = Linux ] && export CC=clang CXX=clang++
+          trap 'cp "$XDG_CACHE_HOME"/ladybird-bench/compile-*.log "$out"/ 2> /dev/null || true' EXIT
+
+          src=$state/src
+          if [ ! -d "$src/.git" ]; then
+            git clone --quiet --filter=blob:none "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" "$src"
+          fi
+          git -C "$src" fetch --quiet origin master "$HEAD_SHA"
+          git -C "$src" checkout --quiet --detach "$HEAD_SHA"
+
+          # Each arm builds with the Rust toolchain its own tree names.
+          for sha in $(git -C "$src" merge-base "$HEAD_SHA" origin/master) "$HEAD_SHA"; do
+            toolchain_dir=$(mktemp -d)
+            git -C "$src" show "${sha}:rust-toolchain.toml" > "$toolchain_dir/rust-toolchain.toml"
+            (cd "$toolchain_dir" && rustup toolchain install)
+          done
+
+          python3 -m venv "$RUNNER_TEMP/bench-venv"
+          "$RUNNER_TEMP/bench-venv/bin/pip" install --quiet -r web-benchmarks/requirements.txt
+
+          # bench_pr.py won't start on a busy machine, and a job that just finished may still be winding down.
+          ncpu=$(getconf _NPROCESSORS_ONLN)
+          for _ in $(seq 60); do
+            if [ "$RUNNER_OS" = macOS ]; then load=$(sysctl -n vm.loadavg | awk '{ print $2 }'); else load=$(cut -d' ' -f1 /proc/loadavg); fi
+            awk -v l="$load" -v n="$ncpu" 'BEGIN { exit !(l < n / 4) }' && break
+            sleep 10
+          done
+
+          args=(--ladybird "$src" --worktree-root "$state/worktrees" --rounds "$ROUNDS" -o "$out/pr-perf-section.md")
+          [ "$CALIBRATE" = true ] && args+=(--calibrate)
+          [ -n "$BENCHMARKS" ] && args+=(--benchmarks "$BENCHMARKS")
+          if [ -n "$FOCUS" ]; then
+            read -r -a focus <<< "$FOCUS"
+            args+=(--focus "${focus[@]}")
+          fi
+          status=0
+          "$RUNNER_TEMP/bench-venv/bin/python" web-benchmarks/bench_pr.py "${args[@]}" 2>&1 | tee "$out/bench_pr.log" || status=$?
+
+          {
+            echo '```'
+            grep -E '^(baseline|branch head|A-vs-A|false movers)|BLOCKING|warning:' "$out/bench_pr.log" || true
+            echo '```'
+            [ -f "$out/pr-perf-section.md" ] && cat "$out/pr-perf-section.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Disk used by the run: $(du -sh "$state" | cut -f1)"
+          exit "$status"
+
+      - name: 'Save the calibration'
+        if: ${{ inputs.calibrate }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-pr-noise-floor-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: bench-state/cache/ladybird-bench/noise-floor.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: 'Save results as an artifact'
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-pr-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: bench-pr-out/
+          retention-days: 90
+
+  report:
+    needs: [prepare, bench]
+    if: ${{ always() && needs.prepare.result != 'skipped' }}
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+
+    # Runs nothing from the PR.
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: 'Download the results'
+        if: ${{ needs.prepare.outputs.pr != '' && contains(fromJSON('["success", "failure"]'), needs.bench.result) }}
+        uses: actions/download-artifact@v8
+        with:
+          pattern: bench-pr-*
+          path: results
+          merge-multiple: true
+
+      # The section goes between markers at the end of the description, so a later run replaces it in place.
+      - name: "Add the results to the PR's description"
+        if: ${{ needs.prepare.outputs.pr != '' && contains(fromJSON('["success", "failure"]'), needs.bench.result) }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ needs.prepare.outputs.pr }}
+          HEAD_SHA: ${{ needs.prepare.outputs.head }}
+          MATRIX: ${{ needs.prepare.outputs.matrix }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/pulls/${PR}" --jq '.body // ""' > body.md
+          python3 - <<'EOF'
+          import json, os, re
+
+          claims, details = [], []
+          for entry in json.loads(os.environ["MATRIX"])["include"]:
+              platform = f"{entry['os_name']} {entry['arch']}"
+              path = f"results/{entry['os_name']}-{entry['arch']}/pr-perf-section.md"
+              if not os.path.exists(path):
+                  claims.append(f"**{platform}:** The run didn't finish; see [its log]({os.environ['RUN_URL']}).")
+                  continue
+              # bench_pr.py's section: a heading, the claim, then one details block.
+              section = open(path, encoding="utf-8").read()
+              claim, _, rest = section.partition("<details>")
+              claims.append(f"**{platform}:** " + claim.replace("## Performance", "", 1).strip())
+              details.append("<details>" + rest.replace("<summary>Benchmark run details</summary>",
+                                                        f"<summary>{platform} run details</summary>", 1).rstrip())
+
+          block = "\n\n".join(["<!-- bench-pr -->", "## Performance", *claims, *details,
+                               f"From [a PR benchmarks run]({os.environ['RUN_URL']}) at {os.environ['HEAD_SHA'][:11]}.",
+                               "<!-- /bench-pr -->"])
+          body = open("body.md", encoding="utf-8").read().replace("\r\n", "\n")
+          body = re.sub(r"\s*<!-- bench-pr -->.*?<!-- /bench-pr -->\s*", "\n\n", body, flags=re.S).strip()
+          with open("request.json", "w", encoding="utf-8") as f:
+              json.dump({"body": (body + "\n\n" if body else "") + block + "\n"}, f)
+          EOF
+          gh api -X PATCH "repos/${REPO}/pulls/${PR}" --input request.json > /dev/null
+
+      - name: 'Remove the benchmark label'
+        # A run that a newer run for the same PR cancelled leaves the label to that newer run, which removes it whether
+        # the label or a dispatch started it.
+        if: ${{ !cancelled() && (github.event_name == 'pull_request_target' || needs.prepare.outputs.pr != '') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number || needs.prepare.outputs.pr }}
+        run: gh api -X DELETE "repos/${REPO}/issues/${PR}/labels/benchmark" > /dev/null || true
