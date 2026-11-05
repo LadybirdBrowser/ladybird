@@ -156,7 +156,13 @@ TEST_CASE(drags_go_past_the_container)
     QMimeData mime_data;
     mime_data.setUrls({ QUrl { "file:///dragged" } });
 
-    QDragEnterEvent drag_enter { QPoint { 50, 50 }, Qt::CopyAction, &mime_data, Qt::LeftButton, Qt::NoModifier };
+    // Qt 6.12 added a QPointF constructor, and deprecated the QPoint one.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 12, 0)
+    QPointF drag_position { 50, 50 };
+#else
+    QPoint drag_position { 50, 50 };
+#endif
+    QDragEnterEvent drag_enter { drag_position, Qt::CopyAction, &mime_data, Qt::LeftButton, Qt::NoModifier };
     QCoreApplication::sendEvent(widgets.window.windowHandle(), &drag_enter);
     EXPECT(recorder.received.contains_slow(QEvent::DragEnter));
 
