@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- Tiles stay on exact multiples of a fractional tile size when painting starts one tile before the origin to cover
+     the border area. The cover hides the border area, as only the phase of the tiles inside it is under test. -->
+<link rel="match" href="../../../expected/css/backgrounds/background-tile-fractional-size-phase-ref.html" />
+<style>
+    body { margin: 0; }
+    div {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 300px;
+        height: 300px;
+        border: 10px solid transparent;
+    }
+    .tiled {
+        background: linear-gradient(135deg, black 50%, white 50%) 0 0 / 33.75px 33.75px;
+    }
+    .image {
+        background: url(../../../data/smiley.png) 0 0 / 33.5px 33.5px;
+    }
+    .second {
+        left: 340px;
+    }
+    .cover {
+        border-color: white;
+    }
+</style>
+<div class="tiled"></div>
+<div class="cover"></div>
+<div class="second image"></div>
+<div class="second cover"></div>

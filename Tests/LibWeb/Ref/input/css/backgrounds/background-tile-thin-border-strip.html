@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<!-- The strips of a transparent border lie less than 1/64 of a tile away from the tile origin, and must still be
+     covered by the previous tile. -->
+<link rel="match" href="../../../expected/css/backgrounds/background-tile-thin-border-strip-ref.html" />
+<style>
+    body { margin: 0; }
+    div {
+        width: 200px;
+        height: 200px;
+        border: 2px solid transparent;
+        background: linear-gradient(green, green) 0 0 / calc(100% + 24px) calc(100% + 24px);
+    }
+</style>
+<div></div>

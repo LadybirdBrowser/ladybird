@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- A single tile covers the box, several steps away from the background position. The size of the tile is fractional,
+     and the tile has to stay where it is even though it is the only one painted. -->
+<link rel="match" href="../../../expected/css/backgrounds/background-tile-single-tile-away-from-origin-ref.html" />
+<style>
+    body { margin: 0; }
+    div {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100.5px;
+        height: 100.5px;
+    }
+    .image {
+        background: url(../../../data/smiley.png) 502.5px 0 / 100.5px 100.5px;
+    }
+    .vector {
+        left: 200px;
+        background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10' fill='green'/></svg>") 502.5px 0 / 100.5px 100.5px;
+    }
+</style>
+<div class="image"></div>
+<div class="vector"></div>
