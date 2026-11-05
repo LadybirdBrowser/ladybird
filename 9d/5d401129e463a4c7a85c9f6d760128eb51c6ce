@@ -1,0 +1,9 @@
+When the pixels of a 2D canvas can’t be allocated, Ladybird creates no
+context for it in the Compositor, so the canvas draws nothing. Blink’s
+CanvasRenderingContextHost::IsValidImageSize() refuses a canvas wider
+or taller than 65535 pixels, or over its maximum area, and such a
+canvas gets no buffer. WebKit’s CanvasBase::validateArea() refuses a
+canvas over its maximum area, and a canvas whose ImageBuffer can’t be
+created draws nothing. And when a canvas is over Gecko’s size limits,
+CanvasRenderingContext2D::EnsureTarget() puts it in an error state with
+SetErrorState(), so it draws to a shared error target.
