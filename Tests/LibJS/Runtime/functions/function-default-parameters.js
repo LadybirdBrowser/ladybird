@@ -233,3 +233,9 @@ test("variable is initialized to the value of the parameter if one with the same
 
     expect(func()).toBe(1);
 });
+
+test("default parameter can't call a later parameter", () => {
+    function func(a = b(), b) {}
+
+    expect(() => func(undefined, () => {})).toThrow(ReferenceError);
+});

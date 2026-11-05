@@ -2023,27 +2023,8 @@ fn generate_identifier(
     let arena = generator.arena.clone();
     let ident = &arena.identifiers[id];
     if ident.is_local() {
-        let local_index = ident.local_index;
-        let local = generator.resolve_local(local_index, ident.local_type.unwrap());
-        // Check TDZ for uninitialized bindings.
-        // Arguments may need TDZ during default parameter evaluation;
-        // for variable-type locals, only lexically-declared (let/const) need TDZ.
-        let needs_tdz_check = if ident.local_type == Some(LocalType::Argument) {
-            !generator.is_argument_initialized(local_index)
-        } else {
-            generator.is_local_lexically_declared(local_index) && !generator.is_local_initialized(local_index)
-        };
-        if needs_tdz_check {
-            if ident.local_type == Some(LocalType::Argument) {
-                // Arguments are initialized to undefined by default, so we
-                // need to replace the value with the empty sentinel to
-                // trigger the TDZ check.
-                let empty = generator.add_constant_empty();
-                generator.emit_mov(&local, &empty);
-            }
-            generator.emit(Instruction::ThrowIfTDZ { src: local.operand() });
-        }
-        return local;
+        emit_tdz_check_if_needed(generator, id);
+        return generator.resolve_local(ident.local_index, ident.local_type.unwrap());
     }
 
     // OPTIMIZATION: Generate builtin constants (undefined, NaN, Infinity) directly.
@@ -4089,20 +4070,7 @@ fn generate_call_expression(
                 (method, Some(obj))
             }
             ExpressionKind::Identifier(ident) if arena.identifiers[*ident].is_local() => {
-                let id_data = &arena.identifiers[*ident];
-                // Local identifier: use the local directly, with ThrowIfTDZ
-                // if not yet initialized.
-                let local = generator.resolve_local(id_data.local_index, id_data.local_type.unwrap());
-                let needs_tdz = if id_data.local_type == Some(LocalType::Argument) {
-                    !generator.is_argument_initialized(id_data.local_index)
-                } else {
-                    generator.is_local_lexically_declared(id_data.local_index)
-                        && !generator.is_local_initialized(id_data.local_index)
-                };
-                if needs_tdz {
-                    generator.emit(Instruction::ThrowIfTDZ { src: local.operand() });
-                }
-                (local, None)
+                (generate_identifier(*ident, generator, None), None)
             }
             ExpressionKind::Identifier(ident) if !arena.identifiers[*ident].is_global => {
                 // Non-local, non-global identifier: use GetCalleeAndThisFromEnvironment
@@ -5210,9 +5178,7 @@ fn emit_put_by_value(
     });
 }
 
-/// Emit a ThrowIfTDZ check for a local identifier if needed. This is used
-/// before assigning to a
-/// variable to ensure TDZ semantics for let/const bindings.
+/// Emit a ThrowIfTDZ check of a local identifier that is not known to be initialized here.
 fn emit_tdz_check_if_needed(generator: &mut Generator, id: crate::ast::IdentifierId) {
     let arena = generator.arena.clone();
     let ident = &arena.identifiers[id];
