@@ -39,6 +39,13 @@
 <div class="scenario" id="in-reach"><div class="float" id="in-reach-float" style="width: 20px; height: 10px"></div><div id="in-reach-box" style="padding-top: 1px"><div class="float" style="width: 20px; height: 10px"></div>one</div></div>
 <div class="scenario" id="nested-floats"><div id="nested-floats-spacer" style="height: 10px"></div><div id="nested-floats-outer"><div id="nested-floats-inner"><div class="float" style="width: 20px; height: 30px"></div>one</div><div id="nested-floats-edited" style="height: 10px"></div></div><p id="nested-floats-beside">one two three four five six seven eight nine ten eleven twelve</p></div>
 <div class="scenario" id="in-margin-group"><div id="in-margin-group-outer" style="margin-top: 20px"><div id="in-margin-group-box" style="margin-top: 30px"><div class="float" style="width: 20px; height: 30px"></div>one</div></div><p id="in-margin-group-beside">one two three four five six seven eight nine ten eleven twelve</p></div>
+<div class="scenario" id="clear-past"><div class="float" id="clear-past-float" style="width: 20px; height: 30px"></div><div id="clear-past-box" style="clear: left">one two three four five six seven eight nine ten eleven twelve</div></div>
+<div class="scenario" id="clear-side"><div class="float" id="clear-side-left" style="width: 20px; height: 30px"></div><div class="float" style="float: right; width: 20px; height: 60px"></div><div id="clear-side-box" style="clear: left">one two three four five six seven eight nine ten eleven twelve</div><p id="clear-side-edited">one two</p></div>
+<div class="scenario" id="clear-group"><div class="float" id="clear-group-float" style="width: 20px; height: 30px"></div><div id="clear-group-box" style="clear: left; margin-top: 10px"><p style="margin-top: 20px">one two three four five six seven eight nine ten eleven twelve</p></div><p>after</p></div>
+<div class="scenario" id="clear-gone"><div class="float" id="clear-gone-float" style="width: 20px; height: 30px"></div><div id="clear-gone-box" style="clear: left; margin-top: 10px"><p style="margin-top: 20px">one two three four five six seven eight nine ten eleven twelve</p></div><p>after</p></div>
+<div class="scenario" id="clear-comes"><div class="float" id="clear-comes-float" style="width: 20px; height: 10px"></div><div style="height: 20px"></div><div id="clear-comes-box" style="clear: left; margin-top: 10px">one two three four five six seven eight nine ten eleven twelve</div><p>after</p></div>
+<div class="scenario" id="clear-margin"><div class="float" style="width: 20px; height: 10px"></div><div id="clear-margin-before" style="height: 20px; margin-bottom: 10px"></div><div id="clear-margin-box" style="clear: left; margin-top: 5px">one two three four five six seven eight nine ten eleven twelve</div><p>after</p></div>
+<div class="scenario" id="clear-padded"><div class="float" id="clear-padded-float" style="width: 20px; height: 30px"></div><div id="clear-padded-box" style="clear: both; padding-top: 3px; margin-top: 10px">one two three four five six seven eight nine ten eleven twelve</div><p>after</p></div>
 <script>
     function geometryOf(root) {
         const origin = root.getBoundingClientRect();
@@ -192,6 +199,30 @@
         });
         step("a float in a top margin group", "in-margin-group", ["in-margin-group-outer", "in-margin-group-box"], () => {
             byId("in-margin-group-outer").style.marginTop = "40px";
+        });
+        step("clearance moves a box", "clear-past", ["clear-past-box"], () => {
+            byId("clear-past-float").style.height = "45px";
+        });
+        step("a box clears one side, beside a float", "clear-side", ["clear-side-box"], () => {
+            byId("clear-side-edited").firstChild.data = "one three";
+        });
+        step("then clearance moves it beside that float", "clear-side", ["clear-side-box"], () => {
+            byId("clear-side-left").style.height = "40px";
+        });
+        step("clearance moves contents with a top margin", "clear-group", ["clear-group-box"], () => {
+            byId("clear-group-float").style.height = "50px";
+        });
+        step("clearance goes from contents with a top margin", "clear-gone", ["clear-gone-box"], () => {
+            byId("clear-gone-float").style.height = "0";
+        });
+        step("clearance comes to a box without top margins below", "clear-comes", ["clear-comes-box"], () => {
+            byId("clear-comes-float").style.height = "50px";
+        });
+        step("a margin before a box that stays clear of floats", "clear-margin", ["clear-margin-box"], () => {
+            byId("clear-margin-before").style.marginBottom = "2px";
+        });
+        step("clearance moves a box with padding", "clear-padded", ["clear-padded-box"], () => {
+            byId("clear-padded-float").style.height = "50px";
         });
 
         for (const line of output)

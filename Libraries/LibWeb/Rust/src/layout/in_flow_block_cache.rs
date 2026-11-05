@@ -66,6 +66,7 @@ impl InFlowBlockKey {
 pub(super) struct FloatsReadByContents {
     pub(super) margins_before_box: block_formatting_context::CollapsedMargins,
     pub(super) stored_in_open_top_margin_group: bool,
+    pub(super) introduced_clearance: bool,
     /// Whether the contents read floats before their top margins settled, so that the margins before the box decide
     /// where they read them.
     pub(super) read_before_top_margins_settled: bool,
