@@ -1110,6 +1110,34 @@ impl RetainedStyleValue {
     }
 }
 
+/// The non-generic font families of a value of the font property, or None if it does not parse as one.
+pub fn font_family_names(font: &ak::Utf16String) -> Option<Vec<ak::Utf16String>> {
+    let value = parse_value_for_property(property_id::FONT, font)?;
+    let StyleValueData::Shorthand(shorthand) = value.data() else {
+        return None;
+    };
+    let index = shorthand
+        .sub_properties
+        .as_slice()
+        .iter()
+        .position(|&property| property == property_id::FONT_FAMILY)?;
+    let StyleValueData::ValueList { values, .. } = shorthand.values.as_slice()[index].data() else {
+        unreachable!("the font-family of a font shorthand is a list");
+    };
+    Some(
+        values
+            .as_slice()
+            .iter()
+            .filter_map(|family| match family.data() {
+                StyleValueData::Keyword { .. } => None,
+                StyleValueData::String { string, .. } => Some(ak::Utf16String::from_utf16(string.units())),
+                StyleValueData::CustomIdent { custom_ident } => Some(ak::Utf16String::from_utf16(custom_ident.units())),
+                _ => unreachable!("a font family is a keyword, a string or a custom identifier"),
+            })
+            .collect(),
+    )
+}
+
 /// Whether the text matches as a <supports-condition>, with no document to parse it for.
 pub fn supports_condition_matches(condition_text: &ak::Utf16String) -> bool {
     let units = condition_text.to_utf16();

@@ -71,6 +71,7 @@ pub(crate) enum TaskSource {
     Networking = 3,
     PostedMessage = 6,
     FileReading = 13,
+    FontLoading = 19,
 }
 
 // SAFETY: A task source holds no cells.

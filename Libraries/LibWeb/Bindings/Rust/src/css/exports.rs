@@ -47,7 +47,7 @@ use super::css_numeric_value::AnyCSSNumericValue;
 use super::css_page_rule::CSSPageRule;
 use super::css_position_try_rule::CSSPositionTryRule;
 use super::css_property_rule::CSSPropertyRule;
-use super::css_rule::{AnyCSSRule, wrap_cpp_cell};
+use super::css_rule::AnyCSSRule;
 use super::css_rule_list::CSSRuleList;
 use super::css_scope_rule::CSSScopeRule;
 use super::css_style_rule::CSSStyleRule;
@@ -57,7 +57,7 @@ use super::css_supports_rule::CSSSupportsRule;
 use super::css_transform_value::CSSTransformValue;
 use super::css_unit_value::CSSUnitValue;
 use super::css_unparsed_value::CSSUnparsedValue;
-use super::font_face_set_load_event::{FontFaceSetLoadEvent, FontFaceSetLoadEventInit};
+use super::font_face_set::{CppFontFaceState, FontFaceSet};
 use super::highlight_registry::HighlightRegistry;
 use super::media_list::MediaList;
 use super::media_query_list::MediaQueryList;
@@ -68,10 +68,10 @@ use super::style_sheet_list::StyleSheetList;
 use super::transition_event::{TransitionEvent, TransitionEventInit};
 use super::typed_om;
 use super::visual_viewport::VisualViewport;
+use crate::bindings::Exception;
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_if_abi, cell_into_abi, realm_arguments};
-use crate::bindings::{CallContext, Exception};
 use crate::dom::event::EventInit;
 
 /// # Safety
@@ -503,41 +503,148 @@ pub unsafe extern "C" fn web_media_query_list_evaluate_and_report_change(vm: *mu
     list.evaluate_and_report_change(vm);
 }
 
-/// A new FontFaceSetLoadEvent with the name, as the Event that C++ dispatches, whose fontfaces attribute holds the
-/// FontFace objects that C++ passes.
+/// A new FontFaceSet of the environment settings object.
 ///
 /// # Safety
 ///
-/// `vm` must be the live VM, `realm` a live realm, `name` a raw string that C++ hands over, and `font_faces` must point
-/// to `count` live FontFace objects.
+/// `vm` must be the live VM, `realm` a live realm, and `environment` a live environment settings object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_font_face_set_load_event_create(
+pub unsafe extern "C" fn web_font_face_set_create(
     vm: *mut c_void,
     realm: *mut c_void,
-    name: usize,
-    font_faces: *const *mut c_void,
-    count: usize,
+    environment: *mut c_void,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM, a live realm and a raw string that it hands over.
-    let ((vm, realm), name) = unsafe { (realm_arguments(vm, realm), Utf16String::from_raw_owned(name)) };
-    let cx = CallContext::new(vm, realm);
-    let fontfaces = MarkedVec::with_capacity(vm, count);
-    // SAFETY: The caller passes `count` live FontFace objects.
-    for font_face in unsafe { ak::slice_from_raw_parts(font_faces, count) } {
-        // SAFETY: The caller passes live FontFace objects.
-        fontfaces.push(wrap_cpp_cell(&cx, &unsafe { CppCell::from_raw(*font_face) }));
-    }
-    let event_init = FontFaceSetLoadEventInit {
-        parent: EventInit {
-            bubbles: false,
-            cancelable: false,
-            composed: false,
-        },
-        fontfaces,
+    // SAFETY: The caller passes the live VM, a live realm and a live environment settings object.
+    let (vm, realm, environment) = unsafe {
+        let (vm, realm) = realm_arguments(vm, realm);
+        (vm, realm, CppCell::from_raw(environment))
     };
-    FontFaceSetLoadEvent::create(vm, realm, &name, event_init)
-        .event()
+    cell_into_abi(FontFaceSet::create(vm, realm, environment))
+}
+
+/// # Safety
+///
+/// `set` must be a live FontFaceSet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_font_face_set_size(set: *mut c_void) -> usize {
+    // SAFETY: The caller passes a live FontFaceSet.
+    unsafe { cell_from_abi::<FontFaceSet>(set) }.size()
+}
+
+/// # Safety
+///
+/// `set` must be a live FontFaceSet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_font_face_set_relevant_settings_object(set: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes a live FontFaceSet.
+    unsafe { cell_from_abi::<FontFaceSet>(set) }
+        .relevant_settings_object()
         .as_ptr()
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, `set` a live FontFaceSet, and `font_face` a live FontFaceState.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_font_face_set_add_css_connected_font(
+    vm: *mut c_void,
+    set: *mut c_void,
+    font_face: *mut c_void,
+) {
+    // SAFETY: The caller passes the live VM, a live FontFaceSet and a live FontFaceState.
+    let (vm, set, font_face) = unsafe {
+        (
+            vm_from_abi(vm),
+            cell_from_abi::<FontFaceSet>(set),
+            CppFontFaceState::from_raw(font_face),
+        )
+    };
+    set.add_css_connected_font(vm, font_face);
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, `set` a live FontFaceSet, and `font_face` a live FontFaceState.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_font_face_set_remove_css_connected_font(
+    vm: *mut c_void,
+    set: *mut c_void,
+    font_face: *mut c_void,
+) {
+    // SAFETY: The caller passes the live VM, a live FontFaceSet and a live FontFaceState.
+    let (vm, set, font_face) = unsafe {
+        (
+            vm_from_abi(vm),
+            cell_from_abi::<FontFaceSet>(set),
+            CppFontFaceState::from_raw(font_face),
+        )
+    };
+    set.remove_css_connected_font(vm, &font_face);
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, and `set` a live FontFaceSet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_font_face_set_synchronize_css_connected_font_order(vm: *mut c_void, set: *mut c_void) {
+    // SAFETY: The caller passes the live VM and a live FontFaceSet.
+    let (vm, set) = unsafe { (vm_from_abi(vm), cell_from_abi::<FontFaceSet>(set)) };
+    set.synchronize_css_connected_font_order(vm);
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, and `set` a live FontFaceSet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_font_face_set_set_is_pending_on_the_environment(
+    vm: *mut c_void,
+    set: *mut c_void,
+    is_pending_on_the_environment: bool,
+) {
+    // SAFETY: The caller passes the live VM and a live FontFaceSet.
+    let (vm, set) = unsafe { (vm_from_abi(vm), cell_from_abi::<FontFaceSet>(set)) };
+    set.set_is_pending_on_the_environment(vm, is_pending_on_the_environment);
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, `set` a live FontFaceSet, and `font_face` a live FontFaceState.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_font_face_set_font_started_loading(
+    vm: *mut c_void,
+    set: *mut c_void,
+    font_face: *mut c_void,
+) {
+    // SAFETY: The caller passes the live VM, a live FontFaceSet and a live FontFaceState.
+    let (vm, set, font_face) = unsafe {
+        (
+            vm_from_abi(vm),
+            cell_from_abi::<FontFaceSet>(set),
+            CppFontFaceState::from_raw(font_face),
+        )
+    };
+    set.font_started_loading(vm, font_face);
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, `set` a live FontFaceSet, and `font_face` a live FontFaceState.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_font_face_set_font_finished_loading(
+    vm: *mut c_void,
+    set: *mut c_void,
+    font_face: *mut c_void,
+    succeeded: bool,
+) {
+    // SAFETY: The caller passes the live VM, a live FontFaceSet and a live FontFaceState.
+    let (vm, set, font_face) = unsafe {
+        (
+            vm_from_abi(vm),
+            cell_from_abi::<FontFaceSet>(set),
+            CppFontFaceState::from_raw(font_face),
+        )
+    };
+    set.font_finished_loading(vm, font_face, succeeded);
 }
 
 /// A new HighlightRegistry of the document.

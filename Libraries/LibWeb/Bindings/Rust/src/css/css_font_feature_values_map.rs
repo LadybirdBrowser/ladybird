@@ -8,7 +8,7 @@
 //! CSSFontFeatureValuesMap, https://drafts.csswg.org/css-fonts-4/#cssfontfeaturevaluesmap
 
 use ak::Utf16String;
-use libjs_rust::api::{Array, Gc, Map, Object, Trace, Value, Vm};
+use libjs_rust::api::{Array, Gc, Map, MarkedVec, Object, Trace, Value, Vm};
 use libweb_rust::FontFeatureValuesRuleKind;
 
 use super::css_font_feature_values_rule::CSSFontFeatureValuesRule;
@@ -23,8 +23,11 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::notifications_api::notification::VibratePattern;
 
 fn create_map_value(cx: &CallContext, values: &[u32]) -> Value {
-    let values: Vec<Value> = values.iter().map(|value| Value::from_f64(f64::from(*value))).collect();
-    Value::from_object(Array::create_from(cx.vm(), cx.realm(), &values).upcast::<Object>())
+    let list = MarkedVec::with_capacity(cx.vm(), values.len());
+    for value in values {
+        list.push(Value::from_f64(f64::from(*value)));
+    }
+    Value::from_object(Array::create_from(cx.vm(), cx.realm(), &list.values()).upcast::<Object>())
 }
 
 fn set_map_entry(cx: &CallContext, map: Gc<Map>, name: &Utf16String, values: &[u32]) {
@@ -117,9 +120,9 @@ impl CSSFontFeatureValuesMap {
             values.clone(),
         );
         self.parent_rule.clear_caches();
-        for map in self.map_entries.live() {
+        self.map_entries.for_each_live(cx.vm(), |map| {
             set_map_entry(&context_of_map(cx, map), map, &feature_value_name, &values);
-        }
+        });
         Ok(())
     }
 }
@@ -158,10 +161,10 @@ impl WritableMaplike for CSSFontFeatureValuesMap {
             .remove_font_feature_value(self.kind, &key.to_utf16());
         if removed {
             self.parent_rule.clear_caches();
-            for map in self.map_entries.live() {
+            self.map_entries.for_each_live(cx.vm(), |map| {
                 let key = key.clone().to_js(cx).expect("a string converts to a JS value");
                 map.map_remove(cx.vm(), key);
-            }
+            });
         }
         removed
     }
@@ -172,8 +175,8 @@ impl WritableMaplike for CSSFontFeatureValuesMap {
             .native_rule()
             .clear_font_feature_values(self.kind);
         self.parent_rule.clear_caches();
-        for map in self.map_entries.live() {
+        self.map_entries.for_each_live(cx.vm(), |map| {
             map.map_clear(cx.vm());
-        }
+        });
     }
 }

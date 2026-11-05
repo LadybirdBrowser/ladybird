@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        document.fonts.addEventListener("loading", event => println(`loading trusted: ${event.isTrusted}`));
+        document.fonts.addEventListener("loadingerror", event => {
+            println(`loadingerror trusted: ${event.isTrusted}`);
+            println(`fontfaces: ${event.fontfaces.length}`);
+            done();
+        });
+        const face = new FontFace("Broken", "url(does-not-exist.woff2)");
+        document.fonts.add(face);
+        face.load().catch(() => {});
+    });
+</script>

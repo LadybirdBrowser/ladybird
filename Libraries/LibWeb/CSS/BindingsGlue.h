@@ -21,23 +21,3 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
-
-namespace Web::CSS {
-
-class FontFace;
-class FontFaceState;
-class FontFaceSet;
-
-}
-
-namespace Web::Bindings {
-
-WEB_API void resolve_font_face_list_promise(JS::Realm&, WebIDL::Promise const&, Vector<NonnullRefPtr<CSS::FontFaceState>> const&);
-WEB_API void resolve_font_face_set_promise(JS::Realm&, WebIDL::Promise const&, CSS::FontFaceSet&);
-WEB_API GC::Ref<JS::Set> setlike_entries(JS::Realm&, WrapperWorld const&, CSS::FontFaceSet const&);
-WEB_API bool setlike_has(CSS::FontFaceSet const&, JS::Value);
-WEB_API void did_add_font_face(CSS::FontFaceSet const&, NonnullRefPtr<CSS::FontFaceState>);
-WEB_API void did_remove_font_face(CSS::FontFaceSet const&, NonnullRefPtr<CSS::FontFaceState>);
-WEB_API void did_reorder_font_faces(CSS::FontFaceSet const&, Vector<NonnullRefPtr<CSS::FontFaceState>> const&);
-
-}

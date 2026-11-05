@@ -1,0 +1,10 @@
+size after add: 100
+has an entry: true
+has a face that is not in the set: false
+values: 100
+size after delete: 99
+has the deleted face: false
+size after clear: 0
+has a cleared face: false
+values after clear: 0
+has with a wrong value: TypeError

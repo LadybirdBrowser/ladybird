@@ -1,7 +1,7 @@
 enum FontFaceSetLoadStatus { "loading", "loaded" };
 
 // https://drafts.csswg.org/css-font-loading/#fontfaceset
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface FontFaceSet : EventTarget {
     setlike<FontFace>;
     FontFaceSet add(FontFace font);

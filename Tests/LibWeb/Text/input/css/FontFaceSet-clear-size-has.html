@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const set = document.fonts;
+        const faces = [];
+        for (let i = 0; i < 100; ++i) {
+            const face = new FontFace(`Face${i}`, "url(about:blank)");
+            set.add(face);
+            if (i < 2)
+                faces.push(face);
+        }
+        println(`size after add: ${set.size}`);
+        println(`has an entry: ${set.has(faces[0])}`);
+        println(`has a face that is not in the set: ${set.has(new FontFace("Other", "url(about:blank)"))}`);
+        println(`values: ${[...set].length}`);
+
+        set.delete(faces[0]);
+        println(`size after delete: ${set.size}`);
+        println(`has the deleted face: ${set.has(faces[0])}`);
+
+        set.clear();
+        println(`size after clear: ${set.size}`);
+        println(`has a cleared face: ${set.has(faces[1])}`);
+        println(`values after clear: ${[...set].length}`);
+
+        try {
+            set.has({});
+        } catch (error) {
+            println(`has with a wrong value: ${error.name}`);
+        }
+    });
+</script>

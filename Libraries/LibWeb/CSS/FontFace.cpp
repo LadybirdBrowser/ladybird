@@ -314,12 +314,8 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
         // 2. For each FontFaceSet font face is in:
         for (auto& font_face_set : font_face->m_containing_sets) {
             // 1. If the FontFaceSet’s [[LoadingFonts]] list is empty, switch the FontFaceSet to loading.
-            if (font_face_set->loading_fonts().is_empty())
-                font_face_set->switch_to_loading();
-
             // 2. Append font face to the FontFaceSet’s [[LoadingFonts]] list.
-            font_face_set->loading_fonts().append(font_face);
-            font_face_set->did_change_loading_fonts();
+            font_face_set->font_started_loading(*font_face);
         }
 
         // 3. Asynchronously, attempt to parse the data in it as a font.
@@ -344,21 +340,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
                 if (auto font_computer = font->font_computer(); font_computer.has_value())
                     font_computer->register_font_face(*font);
 
-                // For each FontFaceSet font face is in:
-                for (auto& font_face_set : font->containing_sets()) {
-                    if (!font->m_containing_sets.contains(font_face_set))
-                        continue;
-
-                    // 1. Add font face to the FontFaceSet’s [[LoadedFonts]] list.
-                    font_face_set->loaded_fonts().append(font);
-
-                    // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item in
-                    //    that list (and so the list is now empty), switch the FontFaceSet to loaded.
-                    font_face_set->loading_fonts().remove_all_matching([font](auto const& entry) { return entry == font; });
-                    font_face_set->did_change_loading_fonts();
-                    if (font_face_set->loading_fonts().is_empty())
-                        font_face_set->switch_to_loaded();
-                }
+                font->did_finish_loading_in_containing_sets(true);
 
                 font->m_font_load_promise = nullptr;
             }));
@@ -373,21 +355,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
                 //    and set font face’s status attribute to "error".
                 font->reject_status_promise(WebIDL::SyntaxError::create(Utf16String::formatted("Failed to load font: {}", error)));
 
-                // For each FontFaceSet font face is in:
-                for (auto& font_face_set : font->containing_sets()) {
-                    if (!font->m_containing_sets.contains(font_face_set))
-                        continue;
-
-                    // 1. Add font face to the FontFaceSet’s [[FailedFonts]] list.
-                    font_face_set->failed_fonts().append(font);
-
-                    // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item in
-                    //    that list (and so the list is now empty), switch the FontFaceSet to loaded.
-                    font_face_set->loading_fonts().remove_all_matching([font](auto const& entry) { return entry == font; });
-                    font_face_set->did_change_loading_fonts();
-                    if (font_face_set->loading_fonts().is_empty())
-                        font_face_set->switch_to_loaded();
-                }
+                font->did_finish_loading_in_containing_sets(false);
 
                 font->m_font_load_promise = nullptr;
             }));
@@ -928,12 +896,8 @@ void FontFaceState::load_for_style()
     // Spec issue: https://github.com/w3c/csswg-drafts/issues/13235
     {
         HTML::TemporaryExecutionContext context(*m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        for (auto& font_face_set : m_containing_sets) {
-            if (font_face_set->loading_fonts().is_empty())
-                font_face_set->switch_to_loading();
-            font_face_set->loading_fonts().append(*this);
-            font_face_set->did_change_loading_fonts();
-        }
+        for (auto& font_face_set : m_containing_sets)
+            font_face_set->font_started_loading(*this);
     }
 
     // AD-HOC: The remaining steps run on the current task rather than truly async. So the fetch is observably in flight
@@ -984,21 +948,7 @@ void FontFaceState::did_load(RefPtr<Gfx::Typeface const> maybe_typeface)
         reject_status_promise(WebIDL::NetworkError::create("Failed to load font"_utf16));
         invalidate_font_display();
 
-        // For each FontFaceSet font face is in:
-        for (auto& font_face_set : containing_sets()) {
-            if (!m_containing_sets.contains(font_face_set))
-                continue;
-
-            // 1. Add font face to the FontFaceSet’s [[FailedFonts]] list.
-            font_face_set->failed_fonts().append(*this);
-
-            // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item
-            //    in that list (and so the list is now empty), switch the FontFaceSet to loaded.
-            font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == NonnullRefPtr<FontFaceState> { *this }; });
-            font_face_set->did_change_loading_fonts();
-            if (font_face_set->loading_fonts().is_empty())
-                font_face_set->switch_to_loaded();
-        }
+        did_finish_loading_in_containing_sets(false);
     }
 
     // 2. Otherwise, font face now represents the loaded font; fulfill font face’s [[FontStatusPromise]] with font face
@@ -1013,24 +963,24 @@ void FontFaceState::did_load(RefPtr<Gfx::Typeface const> maybe_typeface)
         if (auto font_computer = this->font_computer(); font_computer.has_value())
             font_computer->register_font_face(*this);
 
-        // For each FontFaceSet font face is in:
-        for (auto& font_face_set : containing_sets()) {
-            if (!m_containing_sets.contains(font_face_set))
-                continue;
-
-            // 1. Add font face to the FontFaceSet’s [[LoadedFonts]] list.
-            font_face_set->loaded_fonts().append(*this);
-
-            // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item
-            //    in that list (and so the list is now empty), switch the FontFaceSet to loaded.
-            font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == NonnullRefPtr<FontFaceState> { *this }; });
-            font_face_set->did_change_loading_fonts();
-            if (font_face_set->loading_fonts().is_empty())
-                font_face_set->switch_to_loaded();
-        }
+        did_finish_loading_in_containing_sets(true);
     }
 
     m_font_loader = nullptr;
+}
+
+void FontFaceState::did_finish_loading_in_containing_sets(bool succeeded)
+{
+    // For each FontFaceSet font face is in:
+    for (auto& font_face_set : containing_sets()) {
+        if (!m_containing_sets.contains(font_face_set))
+            continue;
+
+        // 1. Add font face to the FontFaceSet’s [[LoadedFonts]] list, or to its [[FailedFonts]] list.
+        // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item in that list
+        //    (and so the list is now empty), switch the FontFaceSet to loaded.
+        font_face_set->font_finished_loading(*this, succeeded);
+    }
 }
 
 void FontFaceState::add_to_set(FontFaceSet& set)
