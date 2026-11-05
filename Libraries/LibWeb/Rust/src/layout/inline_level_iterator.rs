@@ -62,7 +62,7 @@ const _: () = assert!(size_of::<Item>() == 96);
 
 #[derive(Clone, Debug)]
 struct OwnedGlyphRun {
-    glyphs: Vec<libgfx_rust::text_layout::DrawGlyph>,
+    glyphs: libgfx_rust::text_layout::GlyphBuffer,
     width: f32,
     is_upright: bool,
 }
@@ -79,11 +79,8 @@ struct AtomicItemMetrics {
 fn shaped_glyphs_from(
     shape: &libgfx_rust::text_layout::SharedShape,
     baseline_start_x: f32,
-) -> Vec<libgfx_rust::text_layout::DrawGlyph> {
-    match shape.with_baseline_start(baseline_start_x).into_glyphs() {
-        libgfx_rust::text_layout::GlyphBuffer::Owned(glyphs) => glyphs,
-        libgfx_rust::text_layout::GlyphBuffer::Shared(glyphs) => glyphs.to_vec(),
-    }
+) -> libgfx_rust::text_layout::GlyphBuffer {
+    shape.with_baseline_start(baseline_start_x).into_glyphs()
 }
 
 fn reshaped_glyph_run(
@@ -101,7 +98,7 @@ fn reshaped_glyph_run(
         word_spacing,
     );
     OwnedGlyphRun {
-        glyphs: shape.glyphs().to_vec(),
+        glyphs: shape.glyphs().clone(),
         width: shape.width(),
         is_upright: false,
     }
@@ -153,8 +150,8 @@ fn shape_set_upright(
     shape: &libgfx_rust::text_layout::SharedShape,
     advance: f32,
 ) -> libgfx_rust::text_layout::SharedShape {
-    let mut glyphs = shape.glyphs().to_vec();
-    let width = set_glyphs_upright(&mut glyphs, 0.0, advance);
+    let mut glyphs = shape.glyphs().clone();
+    let width = set_glyphs_upright(glyphs.to_mut(), 0.0, advance);
     libgfx_rust::text_layout::SharedShape::from_glyphs(
         glyphs,
         width,
@@ -257,14 +254,14 @@ impl Item {
         }
     }
 
-    /// The glyph run of a text item as one it owns, copying the glyphs of its prepared item's shape if it has none.
+    /// The glyph run of a text item as one it owns, sharing the glyphs of its prepared item's shape if it has none.
     fn take_owned_glyph_run(&mut self, prepared: &PreparedInlineContent) -> OwnedGlyphRun {
         if let Some(owned) = self.owned_glyph_run.take() {
             return *owned;
         }
         let prepared_item = self.prepared_item(prepared);
         OwnedGlyphRun {
-            glyphs: prepared_item.shape().glyphs().to_vec(),
+            glyphs: prepared_item.shape().glyphs().clone(),
             width: prepared_item.shape().width(),
             is_upright: prepared_item.has(PreparedItem::UPRIGHT),
         }
@@ -404,7 +401,8 @@ impl Item {
                 cluster_start: glyph.cluster_start.saturating_sub(split_cluster_start),
                 ..*glyph
             })
-            .collect();
+            .collect::<Vec<_>>()
+            .into();
         Some(OwnedGlyphRun {
             glyphs,
             width: run.width - split_x,
@@ -485,13 +483,13 @@ impl Item {
         let mut prefix = self.take_owned_glyph_run(prepared);
         let split_x = prefix.glyphs[split_glyph_index].x;
         let split_cluster_start = prefix.glyphs[split_glyph_index].cluster_start;
-        let mut remainder_glyphs = prefix.glyphs.split_off(split_glyph_index);
+        let mut remainder_glyphs = prefix.glyphs.to_mut().split_off(split_glyph_index);
         for glyph in &mut remainder_glyphs {
             glyph.x -= split_x;
             glyph.cluster_start = glyph.cluster_start.saturating_sub(split_cluster_start);
         }
         let remainder = OwnedGlyphRun {
-            glyphs: remainder_glyphs,
+            glyphs: remainder_glyphs.into(),
             width: prefix.width - split_x,
             is_upright: prefix.is_upright,
         };
@@ -1594,7 +1592,7 @@ impl<'context> RunItemResolver<'_, 'context> {
         if inline_offset != 0.0 || upright_advance_after_tabs.is_some() {
             let mut glyphs = shaped_glyphs_from(shape, inline_offset);
             if let Some(advance) = upright_advance_after_tabs {
-                width = set_glyphs_upright(&mut glyphs, inline_offset, advance);
+                width = set_glyphs_upright(glyphs.to_mut(), inline_offset, advance);
             }
             owned_glyph_run = Some(Box::new(OwnedGlyphRun {
                 glyphs,

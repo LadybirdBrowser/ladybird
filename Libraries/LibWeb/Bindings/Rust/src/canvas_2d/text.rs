@@ -9,7 +9,7 @@
 
 use libgfx_rust::font::{EmojiPresentation, FontCascadeListHandle, FontHandle};
 use libgfx_rust::path::{GlyphRun, Path};
-use libgfx_rust::text_layout::{DrawGlyph, TextType, shape_text as shape_text_in_font};
+use libgfx_rust::text_layout::{GlyphBuffer, TextType, shape_text as shape_text_in_font};
 use libgfx_rust::{AffineTransform, FloatPoint};
 
 use super::context::multiply_transforms;
@@ -19,7 +19,7 @@ use crate::html::canvas_rendering_context2d::{CanvasTextAlign, CanvasTextBaselin
 /// A run of the text that one font of the cascade shapes.
 pub(crate) struct ShapedRun {
     pub(crate) font: FontHandle,
-    pub(crate) glyphs: Vec<DrawGlyph>,
+    pub(crate) glyphs: GlyphBuffer,
     pub(crate) width: f32,
 }
 
@@ -59,18 +59,19 @@ pub(crate) fn shape_text(
     let mut last_position = baseline_start;
     let mut add_run = |text: &[u16], font: &FontHandle| {
         let shaped = shape_text_in_font(font, text, TextType::Common, 0.0, letter_spacing, word_spacing);
-        let mut glyphs = shaped.glyphs().to_vec();
+        let width = shaped.width();
+        let mut glyphs = shaped.into_glyphs();
         if last_position.x != 0.0 || last_position.y != 0.0 {
-            for glyph in &mut glyphs {
+            for glyph in glyphs.to_mut() {
                 glyph.x += last_position.x;
                 glyph.y += last_position.y;
             }
         }
-        last_position.x += shaped.width();
+        last_position.x += width;
         runs.push(ShapedRun {
             font: font.clone(),
             glyphs,
-            width: shaped.width(),
+            width,
         });
     };
 
