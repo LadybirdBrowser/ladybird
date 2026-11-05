@@ -4362,6 +4362,20 @@ fn emit_update_op(generator: &mut Generator, op: UpdateOp, prefixed: bool, value
     }
 }
 
+/// Convert a property name to the primitive that ToPropertyKey turns into a property key without observable effects,
+/// in a register of its own unless it is a constant, which is a primitive already.
+fn emit_to_primitive_property_key(generator: &mut Generator, property_name: &ScopedOperand) -> ScopedOperand {
+    if property_name.operand().is_constant() {
+        return property_name.clone();
+    }
+    let property_name = generator.copy_if_needed_to_preserve_evaluation_order(property_name);
+    generator.emit(Instruction::ToPrimitiveWithStringHint {
+        dst: property_name.operand(),
+        value: property_name.operand(),
+    });
+    property_name
+}
+
 /// Preserve the primitive key produced by GetValue so PutValue does not convert it again.
 fn emit_read_modify_write_property_key(
     generator: &mut Generator,
@@ -6287,12 +6301,7 @@ fn generate_object_expression(
         let effectively_computed = property.is_computed && !is_string_literal_key;
         let computed_key = if effectively_computed || !is_string_key {
             let key = generate_expression_or_undefined(&property.key, generator, None);
-            let key = generator.copy_if_needed_to_preserve_evaluation_order(&key);
-            generator.emit(Instruction::ToPrimitiveWithStringHint {
-                dst: key.operand(),
-                value: key.operand(),
-            });
-            Some(key)
+            Some(emit_to_primitive_property_key(generator, &key))
         } else {
             None
         };
@@ -8962,11 +8971,7 @@ fn generate_object_binding_pattern(
             }
             Some(BindingEntryName::Expression(expression)) => {
                 let property_name = generate_expression_or_undefined(expression, generator, None);
-                let property_name = generator.copy_if_needed_to_preserve_evaluation_order(&property_name);
-                generator.emit(Instruction::ToPrimitiveWithStringHint {
-                    dst: property_name.operand(),
-                    value: property_name.operand(),
-                });
+                let property_name = emit_to_primitive_property_key(generator, &property_name);
                 if has_rest {
                     excluded_names.push(property_name.clone());
                 }
