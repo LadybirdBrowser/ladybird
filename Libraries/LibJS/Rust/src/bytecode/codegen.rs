@@ -7686,19 +7686,28 @@ fn generate_for_in_statement(
     body: &Statement,
     preferred_dst: Option<&ScopedOperand>,
 ) -> Option<ScopedOperand> {
-    // B.3.5 Initializers in ForIn Statement Heads
-    // Evaluate the initializer for `for (var x = init in obj)` before the RHS.
+    // https://tc39.es/ecma262/#sec-initializers-in-forin-statement-heads
+    // ForInOfStatement : for ( var BindingIdentifier Initializer in Expression ) Statement
     if let ForInOfLhs::Declaration(statement) = lhs
         && let StatementKind::VariableDeclaration(vd) = &statement.inner
         && vd.kind == DeclarationKind::Var
         && let Some(declaration) = vd.declarations.first()
         && let (VariableDeclaratorTarget::Identifier(ident_id), Some(init)) = (&declaration.target, &declaration.init)
     {
+        // 1. Let name be the StringValue of BindingIdentifier.
+        // 2. Let lhs be ? ResolveBinding(name).
+        let resolved_binding = emit_resolve_binding_for_identifier_assignment(generator, *ident_id);
+        // 3. If IsAnonymousFunctionDefinition(Initializer) is true, then
+        //     a. Let value be ? NamedEvaluation of Initializer with argument name.
+        // 4. Else,
+        //     a. Let rhs be ? Evaluation of Initializer.
+        //     b. Let value be ? GetValue(rhs).
         let arena = generator.arena.clone();
         generator.pending_lhs_name = Some(generator.intern_identifier_id(arena.identifiers[*ident_id].name));
         let value = generate_expression_or_undefined(init, generator, None);
         generator.pending_lhs_name = None;
-        emit_set_variable(generator, *ident_id, &value);
+        // 5. Perform ? PutValue(lhs, value).
+        emit_set_variable_or_resolved_binding(generator, *ident_id, &value, resolved_binding.as_ref());
     }
 
     // Create end_block and update_block first, then nullish_block and
