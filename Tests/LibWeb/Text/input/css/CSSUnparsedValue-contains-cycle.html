@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cycle = new CSSUnparsedValue([]);
+        cycle[0] = new CSSVariableReferenceValue("--a", cycle);
+        println(`A value that contains itself: "${cycle}"`);
+
+        const outer = new CSSUnparsedValue([new CSSVariableReferenceValue("--b", cycle)]);
+        println(`A value that contains such a value: "${outer}"`);
+    });
+</script>
