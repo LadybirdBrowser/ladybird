@@ -2966,6 +2966,7 @@ fn generate_block_statement(
     // environment and its only child is a for-loop variant, skip
     // generate_scope_children and generate the child directly to avoid
     // emitting a redundant completion Mov.
+    emit_tdz_reset_of_declared_locals(generator, scope.children.iter());
     let result = if !did_create_env && scope.children.len() == 1 && is_for_loop(&scope.children[0]) {
         generate_statement(&scope.children[0], generator, preferred_dst)
     } else {
@@ -2976,6 +2977,74 @@ fn generate_block_statement(
         generator.end_variable_scope();
     }
     result
+}
+
+/// Empty the locals that a scope declares lexically where the scope starts, so that entering it again (as a loop does)
+/// starts them uninitialized. The generator drops the store for a local that no TDZ check reads.
+fn emit_tdz_reset_of_declared_locals<'a>(generator: &mut Generator, statements: impl Iterator<Item = &'a Statement>) {
+    let arena = generator.arena.clone();
+    let mut locals = Vec::new();
+    for statement in statements {
+        collect_lexically_declared_locals(statement, &arena, &mut locals);
+    }
+    for index in locals {
+        generator.emit_tdz_reset(index);
+    }
+}
+
+/// Collect the locals that a statement directly in a scope declares lexically, including in a loop head.
+fn collect_lexically_declared_locals(statement: &Statement, arena: &AstArena, locals: &mut Vec<u32>) {
+    if let Some((declarations, _)) = lexical_declarators(statement) {
+        for declaration in declarations {
+            match &declaration.target {
+                VariableDeclaratorTarget::Identifier(id) => collect_local(*id, arena, locals),
+                VariableDeclaratorTarget::BindingPattern(pattern) => {
+                    collect_pattern_locals(pattern, arena, locals);
+                }
+            }
+        }
+        return;
+    }
+    match &statement.inner {
+        StatementKind::ClassDeclaration(data) => {
+            if let Some(id) = data.name {
+                collect_local(id, arena, locals);
+            }
+        }
+        StatementKind::For(data) => {
+            if let Some(ForInit::Declaration(declaration)) = &data.init {
+                collect_lexically_declared_locals(declaration, arena, locals);
+            }
+        }
+        StatementKind::ForInOf(data) => {
+            if let ForInOfLhs::Declaration(declaration) = &data.lhs {
+                collect_lexically_declared_locals(declaration, arena, locals);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_pattern_locals(pattern: &BindingPattern, arena: &AstArena, locals: &mut Vec<u32>) {
+    for entry in &pattern.entries {
+        match &entry.alias {
+            Some(BindingEntryAlias::Identifier(id)) => collect_local(*id, arena, locals),
+            Some(BindingEntryAlias::BindingPattern(sub_pattern)) => collect_pattern_locals(sub_pattern, arena, locals),
+            Some(BindingEntryAlias::MemberExpression(_)) => {}
+            None => {
+                if let Some(BindingEntryName::Identifier(id)) = &entry.name {
+                    collect_local(*id, arena, locals);
+                }
+            }
+        }
+    }
+}
+
+fn collect_local(id: IdentifierId, arena: &AstArena, locals: &mut Vec<u32>) {
+    let identifier = &arena.identifiers[id];
+    if identifier.is_local() && identifier.local_type == Some(LocalType::Variable) {
+        locals.push(identifier.local_index);
+    }
 }
 
 /// How the resources of a scope are disposed of, if the scope has `using` or `await using` declarations.
@@ -5196,6 +5265,8 @@ fn emit_tdz_check_if_needed(generator: &mut Generator, id: crate::ast::Identifie
         if ident.local_type == Some(LocalType::Argument) {
             let empty = generator.add_constant_empty();
             generator.emit_mov(&local, &empty);
+        } else {
+            generator.mark_local_tdz_checked(local_index);
         }
         generator.emit(Instruction::ThrowIfTDZ { src: local.operand() });
     }
@@ -5963,6 +6034,13 @@ fn generate_switch_statement(
     }
 
     let initialized_locals_at_entry = generator.initialized_locals.clone();
+    let arena = generator.arena.clone();
+    emit_tdz_reset_of_declared_locals(
+        generator,
+        data.cases
+            .iter()
+            .flat_map(|case| arena.scopes[case.scope].children.iter()),
+    );
 
     // Create first test block and jump to it.
     let first_test_block = generator.make_block();

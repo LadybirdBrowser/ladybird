@@ -399,6 +399,9 @@ pub struct Generator {
     pub argument_variable_names: Vec<ak::Utf16FlyString>,
     pub initialized_locals: Vec<bool>,
     pub initialized_arguments: Vec<bool>,
+    /// Lexically declared locals with a TDZ check, for which the store that empties them where their scope starts is
+    /// kept.
+    pub tdz_checked_locals: Vec<bool>,
 
     /// When set, function/class expressions will use this as their `.name`.
     /// Set by assignment/declaration codegen, consumed by function expression codegen.
@@ -583,6 +586,7 @@ impl Generator {
             argument_variable_names: Vec::new(),
             initialized_locals: Vec::new(),
             initialized_arguments: Vec::new(),
+            tdz_checked_locals: Vec::new(),
             pending_lhs_name: None,
             current_source_start: Position {
                 line: 0,
@@ -947,6 +951,41 @@ impl Generator {
     }
 
     // --- Instruction emission ---
+
+    /// Emit the store that empties a lexically declared local where a scope declaring it starts. Until the code is
+    /// assembled, it is a move of the local to itself, which nothing else emits (see resolve_tdz_resets).
+    pub fn emit_tdz_reset(&mut self, index: u32) {
+        let local = Operand::local(index);
+        self.emit(Instruction::Mov { dst: local, src: local });
+    }
+
+    /// Make each TDZ reset of a local that a TDZ check reads store the empty value, and remove the others, which a
+    /// local only read once it is initialized does not need.
+    fn resolve_tdz_resets(&mut self) {
+        let mut empty = None;
+        for block_index in 0..self.basic_blocks.len() {
+            let mut instructions = core::mem::take(&mut self.basic_blocks[block_index].instructions);
+            instructions.retain_mut(|(instruction, _, _)| {
+                let Instruction::Mov { dst, src } = instruction else {
+                    return true;
+                };
+                if dst.operand_type() != OperandType::Local || dst != src {
+                    return true;
+                }
+                if !self
+                    .tdz_checked_locals
+                    .get(dst.index() as usize)
+                    .copied()
+                    .unwrap_or(false)
+                {
+                    return false;
+                }
+                *src = *empty.get_or_insert_with(|| self.add_constant_empty().operand());
+                true
+            });
+            self.basic_blocks[block_index].instructions = instructions;
+        }
+    }
 
     /// Emit an instruction to the current basic block.
     pub fn emit(&mut self, instruction: Instruction) {
@@ -1904,6 +1943,14 @@ impl Generator {
             .is_some_and(|v| v.is_lexically_declared)
     }
 
+    pub fn mark_local_tdz_checked(&mut self, index: u32) {
+        let index = index as usize;
+        if index >= self.tdz_checked_locals.len() {
+            self.tdz_checked_locals.resize(index + 1, false);
+        }
+        self.tdz_checked_locals[index] = true;
+    }
+
     pub fn mark_local_initialized(&mut self, index: u32) {
         let index = index as usize;
         if index >= self.initialized_locals.len() {
@@ -2000,6 +2047,8 @@ impl Generator {
                 }
             }
         }
+
+        self.resolve_tdz_resets();
 
         // If any block is unterminated, ensure the undefined constant exists
         // for the assembly-time End(undefined) fallthrough. This must happen
