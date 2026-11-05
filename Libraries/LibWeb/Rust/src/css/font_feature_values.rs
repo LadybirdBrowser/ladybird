@@ -195,8 +195,8 @@ pub unsafe extern "C" fn rust_font_feature_values_family_at(
     FfiUtf16View::from_utf16(data.families[index].units())
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_font_feature_values_set_families(
+#[cfg(test)]
+pub(crate) unsafe fn rust_font_feature_values_set_families(
     owner: &FontFeatureValuesRule,
     families: *const FfiUtf16View,
     count: usize,

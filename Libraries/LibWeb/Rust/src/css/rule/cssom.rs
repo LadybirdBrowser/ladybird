@@ -150,7 +150,7 @@ impl NativeRule {
 
     /// The memory the rule owns outside the heap.
     pub fn cssom_external_memory_size(&self) -> usize {
-        super::rust_rule_external_memory_size(self)
+        super::rule_external_memory_size(self)
     }
 
     pub fn cssom_set_selector_text(&self, text: &Utf16String, sheet_rules: Option<&NativeRuleList>) -> bool {

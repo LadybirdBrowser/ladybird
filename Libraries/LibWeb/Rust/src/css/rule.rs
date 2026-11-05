@@ -1041,8 +1041,7 @@ pub extern "C" fn rust_rule_declarations(rule: &NativeRule) -> *mut DeclarationB
         .map_or(std::ptr::null_mut(), |block| Box::into_raw(Box::new(block.clone())))
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_rule_external_memory_size(rule: &NativeRule) -> usize {
+fn rule_external_memory_size(rule: &NativeRule) -> usize {
     let payload_size = match &rule.payload {
         RulePayload::FontFace(_) | RulePayload::Page { .. } | RulePayload::FunctionDeclarations(_) => {
             size_of::<FfiDescriptorBlock>()

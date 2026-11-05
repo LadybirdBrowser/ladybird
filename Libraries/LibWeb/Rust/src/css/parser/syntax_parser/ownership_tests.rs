@@ -177,11 +177,11 @@ fn counter_style_mutation_preserves_names_and_descriptor_snapshots() {
         let data = other_descriptors.data();
         let replacement = data.descriptors[0].view();
         assert!(rust_descriptor_block_set(&mut descriptors, &replacement));
-        assert!(rust_counter_style_set_name(&rule, view(&utf16("UPPER-ROMAN"))));
+        assert!(counter_style_set_name(&rule, view(&utf16("UPPER-ROMAN"))));
         assert_eq!(retained.name().units(), utf16("upper-roman"));
         assert_eq!(shared.name().units(), utf16("初"));
-        assert!(!rust_counter_style_set_name(&rule, view(&utf16("DiSc"))));
-        assert!(!rust_counter_style_set_name(&rule, view(&utf16("NONE"))));
+        assert!(!counter_style_set_name(&rule, view(&utf16("DiSc"))));
+        assert!(!counter_style_set_name(&rule, view(&utf16("NONE"))));
         let changed = snapshot(&rule);
         assert_eq!(changed.name().units(), utf16("upper-roman"));
         assert_eq!(
@@ -199,7 +199,7 @@ fn counter_style_mutation_preserves_names_and_descriptor_snapshots() {
         ));
         assert!(retained.descriptors().descriptors.is_empty());
         assert_eq!(changed.descriptors().descriptors.len(), 1);
-        assert!(rust_counter_style_set_name(&rule, view(&utf16("名前 空白"))));
+        assert!(counter_style_set_name(&rule, view(&utf16("名前 空白"))));
         assert_eq!(retained.name().units(), utf16("名前 空白"));
         assert_eq!(changed.name().units(), utf16("upper-roman"));
     }

@@ -12,7 +12,7 @@ use crate::css::css_enums::{
     counter_style_system, keyword, keyword_from_ascii_case_insensitive, keyword_to_counter_style_name_keyword,
 };
 use crate::css::css_string::CssString;
-use crate::css::descriptor_block::{DescriptorBlockData, FfiDescriptorBlock, rust_descriptor_block_retain};
+use crate::css::descriptor_block::{DescriptorBlockData, FfiDescriptorBlock};
 use crate::css::descriptor_metadata::descriptor_metadata;
 use crate::css::ffi_support::{FfiUtf16View, ascii_lowercase};
 use crate::css::parser::descriptor_parser::resolve_descriptor_integer;
@@ -63,7 +63,7 @@ impl FfiCounterStyle {
     }
 
     pub(crate) fn set_name_text(&self, name: &[u16]) -> bool {
-        rust_counter_style_set_name(self, FfiUtf16View::from_utf16(name))
+        counter_style_set_name(self, FfiUtf16View::from_utf16(name))
     }
 
     /// The value of the `system` descriptor, if the rule has one.
@@ -82,7 +82,7 @@ impl FfiCounterStyle {
         let Some(system) = self.system() else {
             return true;
         };
-        rust_counter_style_system_accepts_symbols(
+        counter_style_system_accepts_symbols(
             Some(&system),
             additive,
             value.child_values().map_or(0, |values| values.len()),
@@ -92,7 +92,7 @@ impl FfiCounterStyle {
     /// Whether the value of the `system` descriptor would change the algorithm that the rule uses.
     pub(crate) fn system_change_alters_algorithm(&self, new: &StyleValueData) -> bool {
         self.system()
-            .is_none_or(|current| rust_counter_style_system_changes_algorithm(&current, new))
+            .is_none_or(|current| counter_style_system_changes_algorithm(&current, new))
     }
 
     pub(crate) fn set_descriptor(&self, name: &[u16], value: StyleValueArc) {
@@ -110,13 +110,12 @@ impl FfiCounterStyle {
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_counter_style_descriptors(rule: &FfiCounterStyle) -> *mut FfiDescriptorBlock {
-    rust_descriptor_block_retain(&rule.descriptors)
+#[cfg(test)]
+pub(crate) fn rust_counter_style_descriptors(rule: &FfiCounterStyle) -> *mut FfiDescriptorBlock {
+    crate::css::descriptor_block::rust_descriptor_block_retain(&rule.descriptors)
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_counter_style_set_name(rule: &FfiCounterStyle, name: FfiUtf16View) -> bool {
+pub(crate) fn counter_style_set_name(rule: &FfiCounterStyle, name: FfiUtf16View) -> bool {
     let Some(mut name) = name.to_utf16() else {
         return false;
     };
@@ -589,20 +588,14 @@ pub unsafe extern "C" fn rust_counter_styles_resolve(
 /// Whether a rule whose `system` is `system`, null when it has none, still defines a counter style
 /// once its `symbols` descriptor, or its `additive-symbols` one when `additive`, lists `count`
 /// entries.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_counter_style_system_accepts_symbols(
-    system: Option<&StyleValueData>,
-    additive: bool,
-    count: usize,
-) -> bool {
+fn counter_style_system_accepts_symbols(system: Option<&StyleValueData>, additive: bool, count: usize) -> bool {
     symbol_counts_needed(system)
         .is_some_and(|(symbols, additive_symbols)| count >= if additive { additive_symbols } else { symbols })
 }
 
 /// Whether setting a rule's `system` from `current` to `new` changes the algorithm it uses: the
 /// system itself, the first symbol of a fixed one or the style an extending one extends.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_counter_style_system_changes_algorithm(current: &StyleValueData, new: &StyleValueData) -> bool {
+fn counter_style_system_changes_algorithm(current: &StyleValueData, new: &StyleValueData) -> bool {
     let (Some(current), Some(new)) = (current.as_counter_style_system(), new.as_counter_style_system()) else {
         return true;
     };

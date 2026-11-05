@@ -4197,31 +4197,8 @@ pub extern "C" fn rust_style_value_create_ratio(
     ))))
 }
 
-/// Takes ownership of one strong reference to the number, percentage or calculated value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_opacity_value(value: *const StyleValueData) -> *const StyleValueData {
-    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::OpacityValue {
-        value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
-    }))
-}
-
-/// Takes ownership of one strong reference to the length-percentage value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_text_indent(
-    length_percentage: *const StyleValueData,
-    hanging: bool,
-    each_line: bool,
-) -> *const StyleValueData {
-    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::TextIndent {
-        length_percentage: unsafe { RetainedStyleValueData::from_retained_pointer(length_percentage) },
-        hanging,
-        each_line,
-    }))
-}
-
 /// Takes ownership of one strong reference to each track size.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_grid_track_size_list(
+pub(crate) unsafe fn style_value_create_grid_track_size_list(
     track_sizes: *const *const StyleValueData,
     length: usize,
 ) -> *const StyleValueData {
@@ -4242,8 +4219,7 @@ pub unsafe extern "C" fn rust_style_value_create_grid_track_size_list(
 
 /// The track size of a grid track size list that holds just one track size, without line names, or null. The
 /// returned value is borrowed from `data`.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_grid_track_size_list_single_size(data: &StyleValueData) -> *const StyleValueData {
+pub(crate) fn style_value_grid_track_size_list_single_size(data: &StyleValueData) -> *const StyleValueData {
     let StyleValueData::GridTrackSizeList(grid_track_size_list) = data else {
         return std::ptr::null();
     };
