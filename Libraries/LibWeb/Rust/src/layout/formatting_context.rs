@@ -1388,7 +1388,7 @@ impl<'pass> FormattingContextRun<'pass> {
     }
 }
 
-#[expect(
+#[allow(
     clippy::large_enum_variant,
     reason = "held on the stack of the run that lays out its root, where boxing would allocate for every run"
 )]
