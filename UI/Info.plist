@@ -27,6 +27,8 @@
         <string>${MACOSX_BUNDLE_BUNDLE_VERSION}</string>
         <key>LSMinimumSystemVersion</key>
         <string>${CMAKE_OSX_DEPLOYMENT_TARGET}</string>
+        <key>LSFileQuarantineEnabled</key>
+        <true/>
         <key>NSHighResolutionCapable</key>
         <string>True</string>
         <key>NSLocationUsageDescription</key>
