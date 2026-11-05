@@ -205,25 +205,59 @@ TEST_CASE(negative_stored_sizes_are_skipped_as_corrupt)
     EXPECT(!entry.has_value());
 }
 
-TEST_CASE(creation_tolerates_failed_cleanup_and_size_queries)
+// SQLite stores the root page of each b-tree in sqlite_schema. CacheIndex's table and primary-key index use separate
+// b-trees with different page layouts. Point the table's rootpage at the index's b-tree, then reload the schema with
+// writable_schema = RESET. Statements still prepare, but every statement that reads or writes the table reports
+// SQLITE_CORRUPT.
+static ErrorOr<void> corrupt_cache_index_table(Database::Database& database)
 {
-    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
-    TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database));
-
-    // SQLite stores the root page of each b-tree in sqlite_schema. CacheIndex's table and primary-key
-    // index use separate b-trees with different page layouts. Point the table's rootpage at the index's
-    // b-tree, then reload the schema with writable_schema = RESET.
-    // Statement preparation succeeds, but cleanup and size queries report SQLITE_CORRUPT.
-    TRY_OR_FAIL(database->execute_raw(R"#(
+    return database.execute_raw(R"#(
         PRAGMA writable_schema = ON;
         UPDATE sqlite_schema
         SET rootpage = (SELECT rootpage FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'CacheIndex')
         WHERE name = 'CacheIndex';
         PRAGMA writable_schema = RESET;
-    )#"sv));
+    )#"sv);
+}
+
+TEST_CASE(creation_tolerates_failed_cleanup_and_size_queries)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database));
+    TRY_OR_FAIL(corrupt_cache_index_table(*database));
 
     auto result = HTTP::CacheIndex::create(*database, cache_directory());
     EXPECT(!result.is_error());
+}
+
+TEST_CASE(failed_statements_after_creation_do_not_abort)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv } });
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
+    auto now = UnixDateTime::now();
+
+    TRY_OR_FAIL(state.index.create_entry(1, vary_key, "https://example.com/1"_string, request_headers, response_headers, 10, now, now));
+    TRY_OR_FAIL(corrupt_cache_index_table(*state.database));
+
+    // Writes report that they failed.
+    EXPECT(state.index.create_entry(2, vary_key, "https://example.com/2"_string, request_headers, response_headers, 10, now, now).is_error());
+    EXPECT(state.index.update_response_headers(1, vary_key, response_headers).is_error());
+    EXPECT(state.index.update_associated_data_size(1, vary_key, 5).is_error());
+    state.index.update_last_access_time(1, vary_key);
+
+    // Entries that can't be read are missed.
+    EXPECT(!state.index.find_entry(3, *request_headers).has_value());
+
+    // Entries that can't be removed stay, as their rows do.
+    state.index.remove_entries_accessed_before(UnixDateTime::now(), {});
+    state.index.remove_entries_accessed_since(UnixDateTime::earliest(), {});
+    EXPECT(state.index.find_entry(1, *request_headers).has_value());
+
+    state.index.remove_entry(1, vary_key);
+    EXPECT(!state.index.find_entry(1, *request_headers).has_value());
 }
 
 TEST_CASE(variants_per_cache_key_are_limited)
