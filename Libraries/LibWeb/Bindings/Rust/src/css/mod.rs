@@ -7,6 +7,8 @@
 //! The CSS Object Model, https://drafts.csswg.org/cssom/
 
 pub(crate) mod animation_event;
+#[allow(clippy::module_inception)]
+pub(crate) mod css;
 pub(crate) mod css_condition_rule;
 pub(crate) mod css_container_rule;
 pub(crate) mod css_counter_style_rule;
