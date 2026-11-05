@@ -4389,12 +4389,13 @@ fn emit_to_primitive_property_key(generator: &mut Generator, property_name: &Sco
     if property_name.operand().is_constant() {
         return property_name.clone();
     }
-    let property_name = generator.copy_if_needed_to_preserve_evaluation_order(property_name);
+    // NB: The name can be the operand of a variable or of `this`, which converting it in place would change.
+    let property_key = generator.allocate_register();
     generator.emit(Instruction::ToPrimitiveWithStringHint {
-        dst: property_name.operand(),
+        dst: property_key.operand(),
         value: property_name.operand(),
     });
-    property_name
+    property_key
 }
 
 /// Preserve the primitive key produced by GetValue so PutValue does not convert it again.
@@ -7430,17 +7431,9 @@ fn generate_class_element_key(generator: &mut Generator, key: &Expression) -> Op
     // 1. Let exprValue be ? Evaluation of AssignmentExpression.
     // 2. Let propertyName be ? GetValue(exprValue).
     let property_name = generate_class_part_expression(key, generator, None)?;
-    if property_name.operand().is_constant() {
-        return Some(property_name);
-    }
     // 3. Return ? ToPropertyKey(propertyName).
     // NB: NewClass converts the primitive this leaves to a property key, which a later key cannot observe.
-    let property_key = generator.allocate_register();
-    generator.emit(Instruction::ToPrimitiveWithStringHint {
-        dst: property_key.operand(),
-        value: property_name.operand(),
-    });
-    Some(property_key)
+    Some(emit_to_primitive_property_key(generator, &property_name))
 }
 
 /// The name of a class field whose key is a literal, which a computed key gets only when the class is defined.

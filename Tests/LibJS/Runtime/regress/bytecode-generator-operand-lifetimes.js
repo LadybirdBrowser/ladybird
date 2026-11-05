@@ -104,4 +104,33 @@ describe("bytecode generator operand lifetime regressions", () => {
         expect(read()).toBe("old");
         expect(optionalRead()).toBe("old");
     });
+
+    test("converting a computed key keeps the value of `this`", () => {
+        const receiver = {
+            toString() {
+                return "key";
+            },
+        };
+
+        function objectLiteral() {
+            const object = { [this]: 1 };
+            return [this, object.key];
+        }
+
+        function bindingPattern() {
+            const { [this]: value } = { key: 1 };
+            return [this, value];
+        }
+
+        function classElement() {
+            class C {
+                [this]() {}
+            }
+            return [this, Object.hasOwn(C.prototype, "key")];
+        }
+
+        expect(objectLiteral.call(receiver)).toEqual([receiver, 1]);
+        expect(bindingPattern.call(receiver)).toEqual([receiver, 1]);
+        expect(classElement.call(receiver)).toEqual([receiver, true]);
+    });
 });
