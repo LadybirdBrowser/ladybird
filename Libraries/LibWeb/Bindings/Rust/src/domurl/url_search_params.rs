@@ -11,14 +11,14 @@ use core::ops::Deref;
 
 use ak::{Utf16String, Utf16StringUnits};
 use encoding_rs::UTF_8;
-use libjs_rust::api::Trace;
+use libjs_rust::api::{Gc, Object, Trace};
 use liburl_rust::url::form_urlencoded;
 
 use super::url::URL;
 use super::url_input;
 use crate::bindings::conversions::UsvString;
-use crate::bindings::interface::{Ref, Wrappable};
-use crate::bindings::iterable::PairIterable;
+use crate::bindings::interface::{Ref, Wrappable, implementation_of};
+use crate::bindings::iterable::{IterationKind, PairIterable};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 /// The union (sequence<sequence<USVString>> or record<USVString, USVString> or USVString) of
@@ -274,11 +274,16 @@ impl URLSearchParams {
 impl PairIterable for URLSearchParams {
     type Key = UsvString;
     type Value = UsvString;
+    type Target = Ref<URLSearchParams>;
+
+    fn iteration_target(_: &CallContext, wrapper: Gc<Object>, _: IterationKind) -> Self::Target {
+        implementation_of(wrapper)
+    }
 
     // https://url.spec.whatwg.org/#ref-for-dfn-value-pairs-to-iterate-over
-    fn value_pairs_to_iterate_over(&self) -> impl Deref<Target = [(UsvString, UsvString)]> + '_ {
+    fn value_pairs_to_iterate_over(target: &Self::Target) -> impl Deref<Target = [(UsvString, UsvString)]> + '_ {
         // The value pairs to iterate over are this's list's tuples with the key being the name and the value being the
         // value.
-        cell::Ref::map(self.list.borrow(), Vec::as_slice)
+        cell::Ref::map(target.list.borrow(), Vec::as_slice)
     }
 }

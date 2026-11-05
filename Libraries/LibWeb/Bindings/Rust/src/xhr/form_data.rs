@@ -290,10 +290,21 @@ impl FormData {
 impl crate::bindings::iterable::PairIterable for FormData {
     type Key = UsvString;
     type Value = FormDataEntryValue;
+    type Target = Ref<FormData>;
 
-    fn value_pairs_to_iterate_over(&self) -> impl core::ops::Deref<Target = [(UsvString, FormDataEntryValue)]> + '_ {
+    fn iteration_target(
+        _: &CallContext,
+        wrapper: libjs_rust::api::Gc<libjs_rust::api::Object>,
+        _: crate::bindings::iterable::IterationKind,
+    ) -> Self::Target {
+        crate::bindings::interface::implementation_of(wrapper)
+    }
+
+    fn value_pairs_to_iterate_over(
+        target: &Self::Target,
+    ) -> impl core::ops::Deref<Target = [(UsvString, FormDataEntryValue)]> + '_ {
         // The value pairs to iterate over are this’s entry list’s entries with the key being the name and the value
         // being the value.
-        cell::Ref::map(self.entry_list.borrow(), Vec::as_slice)
+        cell::Ref::map(target.entry_list.borrow(), Vec::as_slice)
     }
 }
