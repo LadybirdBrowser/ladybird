@@ -16,8 +16,6 @@ else()
     ladybird_test_suite(UI/Qt)
 endif()
 
-target_sources(TestUIQt PRIVATE TestBackingStoreRelease.cpp)
-
 add_library(QtEventLoopTestMain OBJECT
     QtEventLoopTestMain.cpp
     "${LADYBIRD_SOURCE_DIR}/Libraries/LibTest/AssertionHandler.cpp"
@@ -39,33 +37,29 @@ if (NOT Qt6_FOUND)
 endif()
 
 set(TEST_SOURCES
+    TestBackingStoreRelease.cpp
     TestChromeIcons.cpp
     TestHiddenPageSizing.cpp
+    TestJavaScriptDialog.cpp
     TestNativeTextEditingLineEdit.cpp
+    TestNativeWindowContainerFocus.cpp
     TestPerformanceMonitorWidget.cpp
+    TestPermissionPromptPopover.cpp
     TestProcessManagerWindow.cpp
     TestScreenshotSelectionOverlay.cpp
     TestScreenshotViewer.cpp
     TestSelectDropdown.cpp
     TestSiteSettingsPopover.cpp
+    TestStringUtils.cpp
     TestWebCompatReportReview.cpp
     TestWebContentViewInputMethod.cpp
+    TestWindowCloseCoordinator.cpp
 )
 
 # Crash reports are only saved on macOS and Linux.
 if (APPLE OR LINUX)
     list(APPEND TEST_SOURCES
         TestCrashReportReviewWidget.cpp
-    )
-endif()
-
-if (LINUX)
-    list(APPEND TEST_SOURCES
-        TestJavaScriptDialog.cpp
-        TestNativeWindowContainerFocus.cpp
-        TestPermissionPromptPopover.cpp
-        TestStringUtils.cpp
-        TestWindowCloseCoordinator.cpp
     )
 endif()
 
