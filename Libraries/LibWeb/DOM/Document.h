@@ -728,14 +728,7 @@ public:
     void set_pending_parsing_blocking_script(HTML::HTMLOrSVGScriptElement*);
     HTML::HTMLOrSVGScriptElement* pending_parsing_blocking_script();
     HTML::HTMLOrSVGScriptElement& take_pending_parsing_blocking_script(Badge<HTML::HTMLParser>);
-
-    void set_pending_parsing_blocking_svg_script(SVG::SVGScriptElement*);
-    SVG::SVGScriptElement* pending_parsing_blocking_svg_script() { return m_pending_parsing_blocking_svg_script.ptr(); }
-    GC::Ref<SVG::SVGScriptElement> take_pending_parsing_blocking_svg_script(Badge<HTML::HTMLParser>);
-    bool has_pending_parsing_blocking_script() const
-    {
-        return m_pending_parsing_blocking_script.ptr() || m_pending_parsing_blocking_svg_script.ptr();
-    }
+    bool has_pending_parsing_blocking_script() const { return m_pending_parsing_blocking_script.ptr(); }
 
     void add_script_to_execute_when_parsing_has_finished(Badge<HTML::HTMLOrSVGScriptElement>, HTML::HTMLOrSVGScriptElement&);
     Vector<GC::Ref<Element>>& scripts_to_execute_when_parsing_has_finished() { return m_scripts_to_execute_when_parsing_has_finished; }
@@ -1984,7 +1977,6 @@ private:
     Utf16String m_source;
 
     GC::Ptr<Element> m_pending_parsing_blocking_script;
-    GC::Ptr<SVG::SVGScriptElement> m_pending_parsing_blocking_svg_script;
 
     Vector<GC::Ref<Element>> m_scripts_to_execute_when_parsing_has_finished;
 

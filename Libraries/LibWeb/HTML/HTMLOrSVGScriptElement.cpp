@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -72,7 +73,7 @@ WebIDL::ExceptionOr<void> HTMLOrSVGScriptElement::prepare_script_text()
     auto& element = as_element();
 
     // 1. Let sink be "HTMLScriptElement text" if script is an HTMLScriptElement; otherwise "SVGScriptElement text".
-    constexpr auto sink = TrustedTypes::InjectionSink::HTMLScriptElement_text;
+    auto sink = is<HTMLScriptElement>(element) ? TrustedTypes::InjectionSink::HTMLScriptElement_text : TrustedTypes::InjectionSink::SVGScriptElement_text;
 
     // 2. If script’s script text value is not equal to its child text content,
     //    set script’s script text to the result of executing get Trusted Type compliant string, with the following arguments:
@@ -746,6 +747,8 @@ HTML::HTMLOrSVGScriptElement* Node::fast_as<HTML::HTMLOrSVGScriptElement>()
 {
     if (auto* html_script_element = as_if<HTML::HTMLScriptElement>(*this))
         return html_script_element;
+    if (auto* svg_script_element = as_if<SVG::SVGScriptElement>(*this))
+        return svg_script_element;
     return nullptr;
 }
 

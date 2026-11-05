@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg><script async href="data:text/javascript,globalThis.asyncSVGScriptExecuted = true;"></script></svg>
+<script>
+    const executedBeforeFollowingScript = !!globalThis.asyncSVGScriptExecuted;
+
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            println(`Async SVG script ran before the following script: ${executedBeforeFollowingScript}`);
+            println(`Async SVG script ran before the load event: ${!!globalThis.asyncSVGScriptExecuted}`);
+            done();
+        });
+    });
+</script>

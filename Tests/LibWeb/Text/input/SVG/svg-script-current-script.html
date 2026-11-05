@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg><script id="svg-script">globalThis.currentScriptDuringSVGScript = document.currentScript;</script></svg>
+<script>
+    test(() => {
+        println(`document.currentScript while an SVG script runs is that script: ${globalThis.currentScriptDuringSVGScript === document.getElementById("svg-script")}`);
+    });
+</script>

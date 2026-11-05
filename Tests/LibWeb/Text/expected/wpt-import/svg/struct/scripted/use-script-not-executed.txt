@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 6 tests
 
-5 Pass
-1 Fail
-Fail	Not-yet-started svg-script cloned by a use element doesn't run
+6 Pass
+Pass	Not-yet-started svg-script cloned by a use element doesn't run
 Pass	Not-yet-started html-script cloned by a use element doesn't run
 Pass	Not-yet-started shadow-script cloned by a use element doesn't run
 Pass	Not-yet-started root-html-script cloned by a use element doesn't run

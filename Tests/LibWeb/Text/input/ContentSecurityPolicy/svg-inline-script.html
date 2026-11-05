@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<meta http-equiv="Content-Security-Policy" content="script-src 'nonce-good'">
+<svg><script nonce=good>globalThis.noncedSVGScriptExecuted = true;</script></svg>
+<svg><script>globalThis.svgScriptWithoutNonceExecuted = true;</script></svg>
+<script nonce=good>
+    const script = document.createElementNS("http://www.w3.org/2000/svg", "script");
+    script.textContent = "globalThis.insertedSVGScriptWithoutNonceExecuted = true;";
+    document.querySelector("svg").appendChild(script);
+
+    test(() => {
+        println(globalThis.noncedSVGScriptExecuted ? "PASS: inline SVG script with a nonce executed" : "FAIL: inline SVG script with a nonce blocked");
+        println(globalThis.svgScriptWithoutNonceExecuted ? "FAIL: inline SVG script without a nonce executed" : "PASS: inline SVG script without a nonce blocked");
+        println(globalThis.insertedSVGScriptWithoutNonceExecuted ? "FAIL: inserted SVG script without a nonce executed" : "PASS: inserted SVG script without a nonce blocked");
+    });
+</script>

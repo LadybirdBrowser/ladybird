@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Sanity check: a normally-created SVG <script> runs when inserted
+Pass	A fragment-parsed SVG <script> does not execute when cloned into the document
+Pass	Deep-cloning a subtree containing a fragment-parsed SVG <script> does not execute it
+Pass	Control: a fragment-parsed HTML <script> does not execute when cloned into the document

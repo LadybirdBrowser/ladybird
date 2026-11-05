@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg></svg>
+<script>
+    function insertSVGScript(href) {
+        return new Promise(resolve => {
+            const script = document.createElementNS("http://www.w3.org/2000/svg", "script");
+            script.setAttribute("href", href);
+            script.addEventListener("load", () => resolve("load"));
+            script.addEventListener("error", () => resolve("error"));
+            document.querySelector("svg").appendChild(script);
+        });
+    }
+
+    promiseTest(async () => {
+        println(`SVG script with a script URL fired: ${await insertSVGScript("data:text/javascript,")}`);
+        println(`SVG script with an empty href fired: ${await insertSVGScript("")}`);
+    });
+</script>

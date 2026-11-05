@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/namespaces.js"></script>
+<script src="support/passthroughpolicy.js"></script>
+<script src="support/script-messages.js"></script>
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#enforcement-in-scripts">
+<link rel="help" href="https://html.spec.whatwg.org/#prepare-the-script-element">
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+<div id="container"></div>
+<script>
+  let script;
+  const checkScriptType = "try { undefined = 0; window.log_message('CLASSIC'); } catch(e) { window.log_message('MODULE'); }";
+
+  // Define a default policy that change the script's type.
+  trustedTypes.createPolicy("default", {
+    createScript: (value, _, sink) => {
+      window.log_message("CREATE_SCRIPT");
+      window.log_message(sink);
+      if (script.hasAttribute("type")) {
+        script.removeAttribute("type");
+      } else {
+        script.setAttribute("type",  "module");
+      }
+      return value;
+    }
+  });
+
+  promise_test(async t => {
+    let messages = await script_messages_for(async _ => {
+      t.add_cleanup(_ => { script = null });
+      script = create_svg_script_with_untrusted_source_text(checkScriptType);
+      script.setAttribute("type", "module");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["CREATE_SCRIPT", "SVGScriptElement text", "CLASSIC"]);
+  }, "Changing script's type from classic to module in the default policy works.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(async _ => {
+      t.add_cleanup(_ => { script = null });
+      script = create_svg_script_with_untrusted_source_text(checkScriptType);
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["CREATE_SCRIPT", "SVGScriptElement text", "MODULE"]);
+  }, "Changing script's type from module to classic in the default policy works.");
+</script>

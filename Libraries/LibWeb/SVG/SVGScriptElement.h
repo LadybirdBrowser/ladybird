@@ -6,10 +6,7 @@
 
 #pragma once
 
-#include <AK/Forward.h>
-#include <LibURL/URL.h>
-#include <LibWeb/DOM/DocumentLoadEventDelayer.h>
-#include <LibWeb/HTML/Scripting/ClassicScript.h>
+#include <LibWeb/HTML/HTMLOrSVGScriptElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGURIReference.h>
 
@@ -18,25 +15,17 @@ namespace Web::SVG {
 // https://www.w3.org/TR/SVG/interact.html#InterfaceSVGScriptElement
 class SVGScriptElement
     : public SVGElement
-    , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
+    , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
+    , public HTML::HTMLOrSVGScriptElement {
     WEB_WRAPPABLE(SVGScriptElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGScriptElement);
 
 public:
-    void process_the_script_element();
-
-    bool is_parser_inserted() const { return m_parser_inserted; }
-    void set_parser_inserted(Badge<HTML::HTMLParser>) { m_parser_inserted = true; }
-
-    bool is_ready_to_be_parser_executed() const { return m_ready_to_be_parser_executed; }
-    void execute_pending_parser_blocking_script(Badge<HTML::HTMLParser>);
-    void stop_delaying_document_load_event(Badge<DOM::Document>) { m_document_load_event_delayer.clear(); }
-
-    void set_source_line_number(Badge<HTML::HTMLParser>, size_t source_line_number) { m_source_line_number = source_line_number; }
-
-    virtual void inserted() override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
+    virtual void post_connection() override;
+    virtual bool has_post_connection_steps() const override { return true; }
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
+    virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
 protected:
     SVGScriptElement(DOM::Document&, DOM::QualifiedName);
@@ -47,21 +36,18 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
-    void finish_external_script_fetch(GC::Ptr<HTML::ClassicScript>);
-    void execute_script();
-
-    // https://html.spec.whatwg.org/multipage/scripting.html#preparation-time-document
-    GC::Ptr<DOM::Document> m_preparation_time_document;
-
-    bool m_already_processed { false };
-    bool m_parser_inserted { false };
-    bool m_ready_to_be_parser_executed { false };
-
-    GC::Ptr<HTML::ClassicScript> m_script;
-
-    Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
-
-    size_t m_source_line_number { 1 };
+    // ^HTMLOrSVGScriptElement
+    virtual DOM::Element& as_element() override { return *this; }
+    virtual DOM::Element const& as_element() const override { return *this; }
+    virtual bool has_source_attribute() const override;
+    virtual Utf16String source_attribute_value() override;
+    virtual Optional<Utf16String> language_attribute_value() const override { return {}; }
+    virtual Optional<Utf16String> charset_attribute_value() const override { return {}; }
+    virtual Optional<Utf16String> event_attribute_value() const override { return {}; }
+    virtual Optional<Utf16String> for_attribute_value() const override { return {}; }
+    virtual bool has_defer_attribute() const override { return false; }
+    virtual bool has_nomodule_attribute() const override { return false; }
+    virtual HTML::ScriptElementFetchAttributes fetch_attributes() const override;
 };
 
 }

@@ -131,7 +131,6 @@ unsafe extern "C" {
     );
     fn ladybird_html_parser_remove_node(node: usize);
     fn ladybird_html_parser_handle_element_popped(element: usize);
-    fn ladybird_html_parser_prepare_svg_script(parser: *mut c_void, element: usize, source_line_number: usize);
     fn ladybird_html_parser_set_script_source_line(parser: *mut c_void, element: usize, source_line_number: usize);
     fn ladybird_html_parser_mark_script_already_started(parser: *mut c_void, element: usize);
     fn ladybird_html_parser_process_meta_element(parser: *mut c_void, element: usize);
@@ -3530,13 +3529,10 @@ impl TreeBuilder {
             &attributes.attributes,
             token.had_duplicate_attribute(),
         );
-        if local_name == tag_name!("script") {
-            let source_line_number = source_line_number_for_script_token(token);
-            if namespace_ == RustFfiHtmlNamespace::Svg {
-                self.prepare_svg_script(element, source_line_number);
-            } else if namespace_ == RustFfiHtmlNamespace::Html {
-                self.set_script_source_line(element, source_line_number);
-            }
+        if local_name == tag_name!("script")
+            && (namespace_ == RustFfiHtmlNamespace::Html || namespace_ == RustFfiHtmlNamespace::Svg)
+        {
+            self.set_script_source_line(element, source_line_number_for_script_token(token));
         }
         self.recycle_attribute_buffers(attributes);
         // 2. Insert an element at the adjusted insertion location with element.
@@ -3868,10 +3864,6 @@ impl TreeBuilder {
         if requires_element_popped_callback(node) {
             unsafe { ladybird_html_parser_handle_element_popped(node.handle) }
         }
-    }
-
-    fn prepare_svg_script(&mut self, element: usize, source_line_number: usize) {
-        unsafe { ladybird_html_parser_prepare_svg_script(self.host, element, source_line_number) }
     }
 
     fn set_script_source_line(&mut self, element: usize, source_line_number: usize) {

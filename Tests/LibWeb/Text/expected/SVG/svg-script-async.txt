@@ -1,0 +1,2 @@
+Async SVG script ran before the following script: false
+Async SVG script ran before the load event: true

@@ -1001,7 +1001,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_associated_inert_template_document);
     visitor.visit(m_appropriate_template_contents_owner_document);
     visitor.visit(m_pending_parsing_blocking_script);
-    visitor.visit(m_pending_parsing_blocking_svg_script);
     visitor.visit(m_history);
     visitor.visit(m_html_parser_end_state);
     visitor.visit(m_ongoing_navigation_fetch);
@@ -1592,12 +1591,9 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Opti
     //          delaying the replacement document's load event before removing them from the parser's queues.
     if (auto* pending_parsing_blocking_script = this->pending_parsing_blocking_script())
         pending_parsing_blocking_script->stop_delaying_document_load_event({});
-    if (m_pending_parsing_blocking_svg_script)
-        m_pending_parsing_blocking_svg_script->stop_delaying_document_load_event({});
     for (auto& script : m_scripts_to_execute_when_parsing_has_finished)
         as<HTML::HTMLOrSVGScriptElement>(*script).stop_delaying_document_load_event({});
     m_pending_parsing_blocking_script = nullptr;
-    m_pending_parsing_blocking_svg_script = nullptr;
     m_scripts_to_execute_when_parsing_has_finished.clear();
 
     // 16. Create an HTML parser whose allow declarative shadow roots is document's allow declarative shadow roots, and
@@ -4034,19 +4030,6 @@ HTML::HTMLOrSVGScriptElement& Document::take_pending_parsing_blocking_script(Bad
     auto script = m_pending_parsing_blocking_script;
     m_pending_parsing_blocking_script = nullptr;
     return as<HTML::HTMLOrSVGScriptElement>(*script);
-}
-
-void Document::set_pending_parsing_blocking_svg_script(SVG::SVGScriptElement* script)
-{
-    m_pending_parsing_blocking_svg_script = script;
-}
-
-GC::Ref<SVG::SVGScriptElement> Document::take_pending_parsing_blocking_svg_script(Badge<HTML::HTMLParser>)
-{
-    VERIFY(m_pending_parsing_blocking_svg_script);
-    auto script = m_pending_parsing_blocking_svg_script;
-    m_pending_parsing_blocking_svg_script = nullptr;
-    return *script;
 }
 
 Variant<GC::Ref<HTML::HTMLScriptElement>, GC::Ref<SVG::SVGScriptElement>, Empty> Document::current_script_for_bindings() const
