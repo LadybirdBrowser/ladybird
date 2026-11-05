@@ -292,3 +292,25 @@ test("super property base is resolved after the computed key is evaluated", () =
         }))
     ).toEqual(["second"]);
 });
+
+test("super property assignment keeps a computed key the right-hand side reassigns", () => {
+    const log = [];
+    const parent = {
+        set first(value) {
+            log.push(`first = ${value}`);
+        },
+        set second(value) {
+            log.push(`second = ${value}`);
+        },
+    };
+    const home = {
+        method() {
+            let key = "first";
+            super[key] = ((key = "second"), 1);
+        },
+    };
+    Object.setPrototypeOf(home, parent);
+    home.method();
+
+    expect(log).toEqual(["first = 1"]);
+});
