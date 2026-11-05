@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        for (const transform of ["scale3d(1, 1, 0.5)", "scaleZ(-1)", "scaleZ(0)", "scaleZ(1)", "scale(2)"]) {
+            target.style.transform = transform;
+            println(`${transform}: ${getComputedStyle(target).transform}`);
+        }
+    });
+</script>

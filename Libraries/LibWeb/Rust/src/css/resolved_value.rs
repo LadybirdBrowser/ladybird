@@ -379,8 +379,8 @@ fn is_2d_matrix(matrix: &libgfx_rust::FloatMatrix4x4) -> bool {
     [m[0][2], m[1][2], m[2][0], m[2][1], m[2][3], m[3][0], m[3][1], m[3][2]]
         .iter()
         .all(|element| element.abs() <= f32::EPSILON)
-        && m[2][2].abs() - 1.0 <= f32::EPSILON
-        && m[3][3].abs() - 1.0 <= f32::EPSILON
+        && (m[2][2] - 1.0).abs() <= f32::EPSILON
+        && (m[3][3] - 1.0).abs() <= f32::EPSILON
 }
 
 fn transformation_value(transform_function: u8, parameters: &[f32]) -> StyleValueArc {
