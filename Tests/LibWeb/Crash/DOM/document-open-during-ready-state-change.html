@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<iframe srcdoc=""></iframe>
+<script>
+    addEventListener("load", () => {
+        const frameWindow = document.querySelector("iframe").contentWindow;
+        const frameDocument = frameWindow.document;
+
+        let reopenDocument = false;
+        frameWindow.customElements.define("x-reopener", class extends frameWindow.HTMLElement {
+            constructor() {
+                super();
+                if (!reopenDocument)
+                    return;
+                reopenDocument = false;
+                frameDocument.open();
+                frameDocument.close();
+                setTimeout(() => document.documentElement.classList.remove("test-wait"));
+            }
+        });
+
+        frameDocument.open();
+        frameDocument.write('<body><script src="data:text/javascript,"><\/script>');
+        frameDocument.close();
+        frameDocument.body.innerHTML = '<svg><use href="#target"/><use href="#target"/></svg><svg id="target"><foreignObject><x-reopener></x-reopener></foreignObject><set attributeName="opacity" to="1"/></svg>';
+        reopenDocument = true;
+    });
+</script>
