@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<canvas id="placeholder" width="1" height="1"></canvas>
+<script>
+    const redPng =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+
+    promiseTest(async () => {
+        const imageURL = await httpTestServer().createEcho("GET", "/tex-image-source-tainted-placeholder-canvas.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body_encoding: "base64",
+            body: redPng,
+        });
+        const image = new Image();
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+            image.src = imageURL;
+        });
+
+        placeholder.transferControlToOffscreen().getContext("2d").drawImage(image, 0, 0);
+
+        await animationFrame();
+        const channel = new MessageChannel();
+        await new Promise(resolve => {
+            channel.port1.onmessage = resolve;
+            channel.port2.postMessage(null);
+        });
+
+        const gl = document.createElement("canvas").getContext("webgl");
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, gl.createFramebuffer());
+        try {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, placeholder);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+            const pixel = new Uint8Array(4);
+            gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+            const readBack = pixel.join(",") === "255,0,0,255";
+            println(`texImage2D() of a placeholder canvas right after its frame was committed read back cross-origin pixels: ${readBack}`);
+        } catch (error) {
+            println(`texImage2D() of a placeholder canvas right after its frame was committed: ${error.name}`);
+        }
+    });
+</script>

@@ -1,0 +1,1 @@
+texImage2D() of a placeholder canvas right after its frame was committed: SecurityError

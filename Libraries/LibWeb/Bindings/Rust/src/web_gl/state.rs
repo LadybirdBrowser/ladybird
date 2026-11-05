@@ -379,6 +379,12 @@ impl ContextState {
                 read_tex_image_source(object, TexImageSourceKind::OffscreenCanvas, format, r#type)
             }
         };
+        if tex_image_source_is_not_origin_clean(source) {
+            return Err(Exception::Dom(
+                "SecurityError",
+                Utf16String::from_ascii(b"Cannot upload a texture source that is not origin-clean"),
+            ));
+        }
         let frame = match source_frame {
             TexImageSourceFrame::Frame(frame) => frame,
             TexImageSourceFrame::NoFrame => return Ok(None),
