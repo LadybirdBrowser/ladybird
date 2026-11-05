@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The renderer labels its capture streams, so a stream labelled for none of its pages still shows on every page of
+    // the process that may capture.
+    asyncTest(async done => {
+        internals.reportAudioCaptureOfUnknownPage(true);
+        println(`without the permission: ${internals.tabIsCapturingAudio()}`);
+
+        await internals.setPermission("microphone", "granted");
+        println(`with the permission: ${internals.tabIsCapturingAudio()}`);
+
+        internals.reportAudioCaptureOfUnknownPage(false);
+        println(`once the stream is gone: ${internals.tabIsCapturingAudio()}`);
+        done();
+    });
+</script>

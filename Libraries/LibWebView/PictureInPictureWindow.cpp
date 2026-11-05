@@ -77,6 +77,18 @@ void PictureInPictureWindow::close_page()
         page.async_request_close_without_prompting();
 }
 
+void PictureInPictureWindow::act_for_document(CanonicalDocument const& document)
+{
+    if (m_page_view)
+        m_page_view->set_owner_document({}, document);
+}
+
+void PictureInPictureWindow::leave_owners_tab()
+{
+    if (m_page_view)
+        m_page_view->did_leave_owners_tab({});
+}
+
 void PictureInPictureWindow::report_page_close_of(ViewImplementation& view)
 {
     m_page_view = &view;

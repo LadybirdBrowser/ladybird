@@ -48,6 +48,7 @@ public:
     static ErrorOr<NonnullRefPtr<ClientConnection>> acquire();
     // Whether a capture waits on the server for its device, which another capture of the same device would join.
     static bool capture_is_pending_for_testing();
+    static size_t capture_stream_count_for_testing();
 
     explicit ClientConnection(NonnullOwnPtr<IPC::Transport>);
     virtual ~ClientConnection() override;

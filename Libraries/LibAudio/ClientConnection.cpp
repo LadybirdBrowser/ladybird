@@ -51,6 +51,18 @@ bool ClientConnection::capture_is_pending_for_testing()
     return any_of(connection->m_capture_sources, [](auto const& entry) { return !entry.value.specification.has_value(); });
 }
 
+size_t ClientConnection::capture_stream_count_for_testing()
+{
+    auto const& connection = *s_connection;
+    if (!connection)
+        return 0;
+
+    size_t stream_count = 0;
+    for (auto const& [stream_id, source] : connection->m_capture_sources)
+        stream_count += source.stream_count;
+    return stream_count;
+}
+
 ClientConnection::ClientConnection(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<AudioClientEndpoint, AudioServerEndpoint>(*this, move(transport))
     , m_event_loop(Core::EventLoop::current())

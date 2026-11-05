@@ -41,6 +41,7 @@ String PictureInPictureManager::open_window(WebContentPage& requesting_page, Can
     auto window = Application::the().create_picture_in_picture_window(requesting_page, traversable, video_size);
     if (!window)
         return {};
+    window->act_for_document(requesting_navigable.active_document());
 
     window->on_resize = [this, window = window.ptr()](Gfx::IntSize size) {
         if (auto index = index_of(*window); index.has_value() && m_windows[*index].page->is_open())
@@ -122,11 +123,12 @@ Optional<size_t> PictureInPictureManager::index_of(PictureInPictureWindow const&
 }
 
 // The page that a window shows outlives the window's place as another page's window, so a retired window stays hidden
-// until the page that it shows has closed.
+// until the page that it shows has closed. Its process decides when that is, so the window leaves the tab now.
 void PictureInPictureManager::retire_window(size_t index)
 {
     auto window = m_windows.take(index).window;
     window->hide();
+    window->leave_owners_tab();
     m_retired_windows.append(move(window));
 }
 

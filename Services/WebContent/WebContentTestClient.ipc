@@ -32,6 +32,10 @@ endpoint WebContentTestClient routed by Web::PageId page_id
     [NotRouted] did_request_site_isolation_process_tree_for_testing(Web::PageId page_id) => (String process_tree)
     [NotRouted] did_request_tab_is_playing_audio_for_testing(Web::PageId page_id) => (bool is_playing_audio)
     [NotRouted] did_request_tab_is_heard_playing_audio_for_testing(Web::PageId page_id) => (bool is_heard_playing_audio)
+    [NotRouted] did_request_tab_is_using_microphone_for_testing(Web::PageId page_id) => (bool is_using_microphone)
+    [NotRouted] did_request_tab_is_capturing_audio_for_testing(Web::PageId page_id) => (bool is_capturing_audio)
+    [NotRouted] report_audio_capture_for_testing(Web::PageId page_id, Web::PageId labelled_page_id, bool capturing) => ()
+    [NotRouted] retire_picture_in_picture_window_for_testing(Web::PageId page_id) => ()
     [NotRouted] did_request_tab_audibility_change_count_for_testing(Web::PageId page_id) => (u64 change_count)
     [NotRouted] did_request_has_populated_document_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) => (bool has_populated_document)
     did_request_crash_of_remote_frame_processes_for_testing(Web::PageId page_id) =|

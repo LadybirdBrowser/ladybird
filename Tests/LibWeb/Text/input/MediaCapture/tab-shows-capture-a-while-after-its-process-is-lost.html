@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        internals.setTestTimeout(30_000);
+        // The tab can still be remembered as using the microphone for a previous test.
+        await waitForCondition(() => !internals.tabIsUsingMicrophone());
+
+        // The tab's grant is what reaches the iframe.
+        await internals.setPermission("microphone", "granted");
+
+        const url = new URL(
+            await httpTestServer().createEcho("GET", "/tab-shows-capture-a-while-after-its-process-is-lost", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    // getUserMedia() waits for its document to have focus.
+                    window.focus();
+                    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => window.stream = stream);
+                <\/script>`,
+            })
+        );
+        url.hostname = uniqueLocalhostHostname("tab-shows-capture-a-while-after-its-process-is-lost");
+
+        const iframe = document.createElement("iframe");
+        iframe.allow = "microphone";
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        println(`captures in the isolated iframe: ${await waitForCondition(() => internals.tabIsCapturingAudio())}`);
+
+        // A page lost along with its process stops capturing at once, and the tab goes on showing it for a while, as it
+        // does however capture stops.
+        const crashedAt = performance.now();
+        internals.crashRemoteFrameProcesses();
+        println(`stops capturing once the iframe's process is gone: ${await waitForCondition(() => !internals.tabIsCapturingAudio())}`);
+        println(`stops showing it a while later: ${await waitForCondition(() => !internals.tabIsUsingMicrophone())}`);
+        println(`went on showing it for at least two and a half seconds after the crash: ${performance.now() - crashedAt >= 2500}`);
+    });
+</script>

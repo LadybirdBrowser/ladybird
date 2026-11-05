@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        internals.setTestTimeout(30_000);
+        const httpServer = httpTestServer();
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const echo = async (name, body) => httpServer.createEcho("GET", `/${name}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>${body}<\/script>`,
+        });
+
+        // The popup's document captures in another process, and says so once its tab shows it.
+        const crossSiteUrl = new URL(await echo("tab-shows-capture-cross-site", `
+            (async () => {
+                window.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                while (!internals.tabIsCapturingAudio())
+                    await new Promise(resolve => setTimeout(resolve, 25));
+                opener.postMessage("capturing", "*");
+            })();
+        `));
+        crossSiteUrl.hostname = uniqueLocalhostHostname("tab-shows-capture-cross-site");
+        const sameSiteUrl = await echo("tab-shows-capture-same-site", `opener.postMessage("arrived", "*");`);
+
+        const capturing = nextMessage();
+        const popup = window.open(crossSiteUrl.href);
+        await capturing;
+        println("the popup's tab shows capture in another process");
+
+        // The popup's page leaves its tab while it captures, as the popup's next document is displayed by this process.
+        const arrived = nextMessage();
+        const navigatedAt = performance.now();
+        popup.location.href = sameSiteUrl;
+        await arrived;
+        println(`stops showing it a while later: ${await waitForCondition(() => !popup.internals.tabIsUsingMicrophone())}`);
+        const shownFor = performance.now() - navigatedAt;
+        println(`went on showing it for at least two and a half seconds after navigating: ${shownFor >= 2500}`);
+        popup.close();
+    });
+</script>

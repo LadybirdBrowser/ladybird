@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // The tab can still be remembered as using the microphone for a previous test.
+        await waitForCondition(() => !internals.tabIsUsingMicrophone());
+        println(`before: ${internals.tabIsCapturingAudio()}`);
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        println(`capturing while the track lives, unconsumed: ${await waitForCondition(() => internals.tabIsCapturingAudio())}`);
+
+        // Each track holds a stream of the source, which stays open for the clone once the original stops. An earlier
+        // test's tracks can hold streams in this process too.
+        const streamsBefore = internals.audioCaptureStreamCount();
+        const clone = stream.clone().getTracks()[0];
+        println(`the clone holds a stream: ${internals.audioCaptureStreamCount() === streamsBefore + 1}`);
+        stream.getTracks()[0].stop();
+        println(`the clone's stream outlives the original's: ${await waitForCondition(() => internals.audioCaptureStreamCount() === streamsBefore)}`);
+        println(`capturing after the original stops: ${internals.tabIsCapturingAudio()}`);
+
+        const stoppedAt = performance.now();
+        clone.stop();
+        println(`stops capturing once the clone stops: ${await waitForCondition(() => !internals.tabIsCapturingAudio())}`);
+        println(`stops showing it a while later: ${await waitForCondition(() => !internals.tabIsUsingMicrophone())}`);
+        println(`went on showing it for at least two and a half seconds: ${performance.now() - stoppedAt >= 2500}`);
+        done();
+    });
+</script>

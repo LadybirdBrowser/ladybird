@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A Picture-in-Picture window acts for the document that opened it, so an isolated iframe that the top-level document
+    // doesn't allow the microphone can't reach the tab's grant by opening a window.
+    asyncTest(async done => {
+        await internals.setPermission("microphone", "granted");
+
+        const videoUrl = new URL("../../../Assets/test-webm.webm", location.href).href;
+        const url = new URL(
+            await httpTestServer().createEcho("GET", `/picture-in-picture-opener-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><video src="${videoUrl}"></video><script>
+                    (async () => {
+                        const video = document.querySelector("video");
+                        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+                            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+                        internals.grantTransientActivation();
+                        await video.requestPictureInPicture();
+
+                        const windowPageId = internals.pictureInPictureWindowPageId();
+                        internals.reportAudioCaptureOfPage(windowPageId, true);
+                        const capturing = internals.tabIsCapturingAudio();
+                        internals.reportAudioCaptureOfPage(windowPageId, false);
+                        await document.exitPictureInPicture();
+                        parent.postMessage(capturing, "*");
+                    })();
+                <\/script>`,
+            })
+        );
+        url.hostname = uniqueLocalhostHostname("picture-in-picture-opener");
+
+        const capturesInIframe = async allow => {
+            const iframe = document.createElement("iframe");
+            iframe.allow = allow;
+            iframe.src = url;
+            const capturing = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+            document.body.appendChild(iframe);
+            const result = await capturing;
+            iframe.remove();
+            return result;
+        };
+
+        println(`opened by an iframe allowed the microphone: ${await capturesInIframe("microphone")}`);
+        println(`opened by an iframe not allowed the microphone: ${await capturesInIframe("")}`);
+        done();
+    });
+</script>

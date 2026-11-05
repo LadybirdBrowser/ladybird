@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    // A Picture-in-Picture window is part of its tab, so a stream labelled for it shows on that tab and no other. Once the
+    // window is retired it's part of no tab, even while its process keeps its page open, so the label counts for nothing.
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        await internals.setPermission("microphone", "granted");
+        const otherTab = window.open("about:blank");
+
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+        const windowPageId = internals.pictureInPictureWindowPageId();
+
+        internals.reportAudioCaptureOfPage(windowPageId, true);
+        println(`labelled for the window, this tab: ${internals.tabIsCapturingAudio()}`);
+        println(`labelled for the window, the other tab: ${otherTab.internals.tabIsCapturingAudio()}`);
+
+        internals.reportAudioCaptureOfPage(windowPageId, false);
+        println(`stream gone, this tab: ${internals.tabIsCapturingAudio()}`);
+
+        internals.reportAudioCaptureOfPage(windowPageId, true);
+        internals.retirePictureInPictureWindow();
+        println(`window retired, this tab: ${internals.tabIsCapturingAudio()}`);
+        println(`window retired, the other tab: ${otherTab.internals.tabIsCapturingAudio()}`);
+
+        internals.reportAudioCaptureOfPage(windowPageId, false);
+        otherTab.close();
+        await document.exitPictureInPicture();
+        done();
+    });
+</script>

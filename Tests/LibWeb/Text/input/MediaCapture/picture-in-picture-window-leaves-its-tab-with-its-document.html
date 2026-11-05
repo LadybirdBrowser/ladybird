@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A Picture-in-Picture window goes when the tab it's part of closes or navigates, and a stream that was labelled for
+    // it then counts for no page, so it shows on the tabs that remain.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        await internals.setPermission("microphone", "granted");
+
+        const openWindowInTab = async () => {
+            const tab = window.open("about:blank");
+            const video = tab.document.createElement("video");
+            video.src = new URL("../../../Assets/test-webm.webm", location.href).href;
+            const loaded = new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+            tab.document.body.appendChild(video);
+            await loaded;
+
+            tab.internals.grantTransientActivation();
+            await video.requestPictureInPicture();
+            const windowPageId = tab.internals.pictureInPictureWindowPageId();
+            tab.internals.reportAudioCaptureOfPage(windowPageId, true);
+            println(`labelled for the window, its tab: ${tab.internals.tabIsCapturingAudio()}`);
+            println(`labelled for the window, this tab: ${internals.tabIsCapturingAudio()}`);
+            return { tab, windowPageId };
+        };
+
+        const first = await openWindowInTab();
+        first.tab.close();
+        println(`its tab closed, this tab: ${await waitForCondition(() => internals.tabIsCapturingAudio())}`);
+        internals.reportAudioCaptureOfPage(first.windowPageId, false);
+        println(`stream gone: ${internals.tabIsCapturingAudio()}`);
+
+        const second = await openWindowInTab();
+        second.tab.location.href = await httpServer.createEcho("GET", `/next-document-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html>",
+        });
+        println(`its tab navigated, this tab: ${await waitForCondition(() => internals.tabIsCapturingAudio())}`);
+        internals.reportAudioCaptureOfPage(second.windowPageId, false);
+        println(`stream gone: ${internals.tabIsCapturingAudio()}`);
+
+        second.tab.close();
+        done();
+    });
+</script>

@@ -2675,6 +2675,43 @@ bool Internals::tab_is_heard_playing_audio()
     return window().associated_document().page().client().page_did_request_tab_is_heard_playing_audio_for_testing();
 }
 
+bool Internals::tab_is_using_microphone()
+{
+    return window().associated_document().page().client().page_did_request_tab_is_using_microphone_for_testing();
+}
+
+bool Internals::tab_is_capturing_audio()
+{
+    return window().associated_document().page().client().page_did_request_tab_is_capturing_audio_for_testing();
+}
+
+void Internals::report_audio_capture_of_unknown_page(bool capturing)
+{
+    report_audio_capture_of_page(NumericLimits<u64>::max(), capturing);
+}
+
+WebIDL::UnsignedLongLong Internals::picture_in_picture_window_page_id()
+{
+    auto window = page().picture_in_picture_controller().open_window();
+    VERIFY(window);
+    return window->traversable().active_document()->page().client().id().value();
+}
+
+void Internals::report_audio_capture_of_page(WebIDL::UnsignedLongLong page_id, bool capturing)
+{
+    page().client().page_did_report_audio_capture_for_testing(Web::PageId { page_id }, capturing);
+}
+
+void Internals::retire_picture_in_picture_window()
+{
+    page().client().page_did_retire_picture_in_picture_window_for_testing();
+}
+
+WebIDL::UnsignedLongLong Internals::audio_capture_stream_count()
+{
+    return Audio::ClientConnection::capture_stream_count_for_testing();
+}
+
 WebIDL::UnsignedLongLong Internals::tab_audibility_change_count()
 {
     return window().associated_document().page().client().page_did_request_tab_audibility_change_count_for_testing();

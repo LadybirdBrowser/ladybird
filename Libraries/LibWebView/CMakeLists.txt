@@ -2,7 +2,7 @@ set(SOURCES
     AccessibilityTreeManager.cpp
     Application.cpp
     ApplyHistoryStep.cpp
-    AudioServerAudibility.cpp
+    AudioServerActivity.cpp
     AudioServerControlClient.cpp
     Autocomplete.cpp
     AutocompleteMuxer.cpp

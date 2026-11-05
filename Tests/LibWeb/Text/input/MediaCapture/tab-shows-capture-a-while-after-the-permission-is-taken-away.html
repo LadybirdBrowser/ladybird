@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Taking the permission away ends the capture, and the tab goes on showing it for the linger, as after any other end.
+    asyncTest(async done => {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        println(`capturing: ${await waitForCondition(() => internals.tabIsCapturingAudio())}`);
+
+        const takenAwayAt = performance.now();
+        await internals.setPermission("microphone", "denied");
+        println(`stops capturing once the permission is taken away: ${await waitForCondition(() => !internals.tabIsCapturingAudio())}`);
+        println(`stops showing it a while later: ${await waitForCondition(() => !internals.tabIsUsingMicrophone())}`);
+        println(`went on showing it for at least two and a half seconds: ${performance.now() - takenAwayAt >= 2500}`);
+        println(`the track ended: ${stream.getTracks()[0].readyState}`);
+        done();
+    });
+</script>
