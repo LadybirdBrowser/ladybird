@@ -148,10 +148,8 @@ if (APPLE)
         LIBS LibWebCommon Qt::Widgets "-framework AppKit"
     )
     foreach(mode default custom)
-        add_test(NAME TestNativeTextEditingBindings-${mode}
-            COMMAND ${Python3_EXECUTABLE}
-                ${CMAKE_CURRENT_SOURCE_DIR}/run-native-text-editing-tests.py
-                $<TARGET_FILE:TestNativeTextEditingBindings> ${mode}
-        )
+        ladybird_python_test(run-native-text-editing-tests.py
+            NAME TestNativeTextEditingBindings-${mode}
+            ARGS $<TARGET_FILE:TestNativeTextEditingBindings> ${mode})
     endforeach()
 endif()

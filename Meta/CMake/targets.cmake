@@ -205,6 +205,28 @@ function(ladybird_test test_src sub_dir)
     endif()
 endfunction()
 
+function(ladybird_python_test test_src)
+    cmake_parse_arguments(PARSE_ARGV 1 LADYBIRD_TEST "" "NAME;TIMEOUT" "ARGS;ENVIRONMENT")
+    if (NOT LADYBIRD_TEST_NAME)
+        get_filename_component(LADYBIRD_TEST_NAME ${test_src} NAME_WE)
+    endif()
+    if (NOT DEFINED LADYBIRD_TEST_TIMEOUT)
+        set(LADYBIRD_TEST_TIMEOUT 120)
+    endif()
+    list(PREPEND LADYBIRD_TEST_ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}")
+
+    get_filename_component(test_src "${test_src}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+
+    add_test(
+        NAME ${LADYBIRD_TEST_NAME}
+        COMMAND ${Python3_EXECUTABLE} "${test_src}" ${LADYBIRD_TEST_ARGS}
+    )
+    set_tests_properties(${LADYBIRD_TEST_NAME} PROPERTIES
+        TIMEOUT "${LADYBIRD_TEST_TIMEOUT}"
+        ENVIRONMENT "${LADYBIRD_TEST_ENVIRONMENT}"
+    )
+endfunction()
+
 # Each library's sources are added directly to its test executable.
 function(ladybird_test_suite sub_dir)
     string(REPLACE "/" "" suite_name "Test${sub_dir}")

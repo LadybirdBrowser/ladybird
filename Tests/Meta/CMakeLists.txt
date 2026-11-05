@@ -1,37 +1,6 @@
 if (NOT WIN32)
-    add_custom_target(test-xctrace-time-profile ALL DEPENDS "${CMAKE_BINARY_DIR}/bin/test-xctrace-time-profile.py")
-    add_custom_command(
-        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-xctrace-time-profile.py"
-        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/Meta/test-xctrace-time-profile.py" "${CMAKE_BINARY_DIR}/bin/test-xctrace-time-profile.py"
-        DEPENDS "${ladybird_SOURCE_DIR}/Tests/Meta/test-xctrace-time-profile.py"
-    )
-    add_test(NAME test-xctrace-time-profile COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-xctrace-time-profile.py")
-    set_tests_properties(test-xctrace-time-profile PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_custom_target(test-lint-environment ALL DEPENDS "${CMAKE_BINARY_DIR}/bin/test-lint-environment.py")
-    add_custom_command(
-        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-lint-environment.py"
-        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/Meta/test-lint-environment.py" "${CMAKE_BINARY_DIR}/bin/test-lint-environment.py"
-        DEPENDS "${ladybird_SOURCE_DIR}/Tests/Meta/test-lint-environment.py"
-    )
-    add_test(NAME test-lint-environment COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-lint-environment.py")
-    set_tests_properties(test-lint-environment PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_custom_target(test-ipc-generator ALL DEPENDS "${CMAKE_BINARY_DIR}/bin/test-ipc-generator.py")
-    add_custom_command(
-        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-ipc-generator.py"
-        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/Meta/test-ipc-generator.py" "${CMAKE_BINARY_DIR}/bin/test-ipc-generator.py"
-        DEPENDS "${ladybird_SOURCE_DIR}/Tests/Meta/test-ipc-generator.py"
-    )
-    add_test(NAME test-ipc-generator COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-ipc-generator.py")
-    set_tests_properties(test-ipc-generator PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_custom_target(test-js-runner ALL DEPENDS "${CMAKE_BINARY_DIR}/bin/test-js-runner.py")
-    add_custom_command(
-        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-js-runner.py"
-        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/Meta/test-js-runner.py" "${CMAKE_BINARY_DIR}/bin/test-js-runner.py"
-        DEPENDS "${ladybird_SOURCE_DIR}/Tests/Meta/test-js-runner.py"
-    )
-    add_test(NAME test-js-runner COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-js-runner.py")
-    set_tests_properties(test-js-runner PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
+    ladybird_python_test(test-ipc-generator.py)
+    ladybird_python_test(test-js-runner.py)
+    ladybird_python_test(test-lint-environment.py)
+    ladybird_python_test(test-xctrace-time-profile.py)
 endif()
