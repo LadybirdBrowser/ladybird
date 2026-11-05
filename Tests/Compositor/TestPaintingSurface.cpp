@@ -143,3 +143,9 @@ TEST_CASE(flush_surface_skia_allocated)
     surface->read_into_bitmap(*bitmap);
     EXPECT_EQ(count_red_pixels(*bitmap, { {}, size }), size.width() * size.height());
 }
+
+TEST_CASE(surface_too_wide_for_a_bitmap_is_an_error)
+{
+    auto surface = Gfx::PaintingSurface::try_create_with_size({ 70000, 1 }, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+    EXPECT(surface.is_error());
+}

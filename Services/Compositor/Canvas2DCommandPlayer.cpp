@@ -25,9 +25,15 @@ namespace Compositor {
 
 using namespace Compositing;
 
-Canvas2DCommandPlayer::Canvas2DCommandPlayer(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Gfx::IntSize size, Gfx::BitmapFormat format, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space, Resolvers resolvers)
+ErrorOr<NonnullOwnPtr<Canvas2DCommandPlayer>> Canvas2DCommandPlayer::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Gfx::IntSize size, Gfx::BitmapFormat format, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space, Resolvers resolvers)
+{
+    auto surface = TRY(Gfx::PaintingSurface::try_create_with_size(size, format, alpha_type, move(skia_backend_context), color_space));
+    return make<Canvas2DCommandPlayer>(move(surface), color_space, move(resolvers));
+}
+
+Canvas2DCommandPlayer::Canvas2DCommandPlayer(NonnullRefPtr<Gfx::PaintingSurface> surface, Gfx::ColorSpace const& color_space, Resolvers resolvers)
     : m_color_space(color_space)
-    , m_surface(Gfx::PaintingSurface::create_with_size(size, format, alpha_type, move(skia_backend_context), m_color_space))
+    , m_surface(move(surface))
     , m_painter(make<Gfx::PainterSkia>(*m_surface))
     , m_resolvers(move(resolvers))
 {

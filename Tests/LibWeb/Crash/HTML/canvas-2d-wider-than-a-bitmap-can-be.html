@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<canvas id="canvas" width="70000" height="1"></canvas>
+<script>
+    // The canvas is within the area a 2D context allows, but wider than a bitmap can be.
+    const context = document.getElementById("canvas").getContext("2d");
+    context.fillStyle = "green";
+    context.fillRect(0, 0, 10, 1);
+    context.getImageData(0, 0, 1, 1);
+</script>

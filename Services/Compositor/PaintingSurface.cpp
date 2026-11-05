@@ -140,6 +140,11 @@ static sk_sp<SkColorSpace> skia_color_space_of_pixels(ColorSpace const& color_sp
 
 NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> context, ColorSpace const& color_space)
 {
+    return MUST(try_create_with_size(size, color_type, alpha_type, move(context), color_space));
+}
+
+ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::try_create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> context, ColorSpace const& color_space)
+{
     auto sk_color_type = to_skia_color_type(color_type);
     auto sk_alpha_type = to_skia_alpha_type(color_type, alpha_type);
     auto image_info = SkImageInfo::Make(size.width(), size.height(), sk_color_type, sk_alpha_type, skia_color_space_of_pixels(color_space));
@@ -155,9 +160,10 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, B
         context = nullptr;
     }
 
-    auto bitmap = Bitmap::create(color_type, alpha_type, size).value();
+    auto bitmap = TRY(Bitmap::create(color_type, alpha_type, size));
     auto surface = SkSurfaces::WrapPixels(image_info, bitmap->begin(), bitmap->pitch());
-    VERIFY(surface);
+    if (!surface)
+        return Error::from_string_literal("Unable to create a surface for the bitmap");
     return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, bitmap)));
 }
 
