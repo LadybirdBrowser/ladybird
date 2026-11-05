@@ -33,19 +33,20 @@ def main():
             shutil.copyfile(source / "Tests/LibWeb" / file, root / file)
         (root / "Text/input/wpt-import").mkdir()
         shutil.copyfile(source / "Tests/LibWeb/Text/input/include.js", root / "Text/input/include.js")
-        # More history updates than a navigable may make in one rate-limit window. The UI process applies the accepted
-        # ones one at a time, after the page's script has finished, so wait for that before ending the test: Otherwise
-        # the next test's load waits behind them, and on a slow runner can time out before they're done.
-        (root / "Text/input/flood.html").write_text(
-            '<!doctype html><script src="include.js"></script><script>asyncTest(async done => {'
-            'console.log("HISTORY_RESET_FLOOD");'
-            'for (let i = 0; i < 250; ++i) history.pushState(null, "", "#" + i);'
-            "await internals.flushSessionHistoryTraversalQueue();"
-            'println("flooded"); done();'
+        # Leaves the view's navigable at its rate limit, held there until the reset between tests. Using the limit up
+        # directly, rather than with as many real history updates, leaves no backlog of them for the next test's load
+        # to wait behind.
+        (root / "Text/input/exhaust.html").write_text(
+            '<!doctype html><script src="include.js"></script><script>test(() => {'
+            'console.log("HISTORY_RESET_EXHAUST");'
+            "internals.exhaustNavigationRateLimit();"
+            "const length = history.length;"
+            'history.pushState(null, "", "#blocked");'
+            "println(`history update blocked: ${history.length === length}`);"
             "});</script>"
         )
-        with (root / "Text/expected/flood.txt").open("w", newline="\n") as file:
-            file.write("flooded\n")
+        with (root / "Text/expected/exhaust.txt").open("w", newline="\n") as file:
+            file.write("history update blocked: true\n")
         # Text tests precede reference tests. At -j1 these two files use the same view, without relying on directory
         # order. The page turns green only if its own history update goes through.
         (root / "Ref/input/consumer.html").write_text(
@@ -96,8 +97,8 @@ def main():
             line.split(": ", 1) for line in (results / "harness-status.txt").read_text().splitlines() if ": " in line
         )
         assert status["completed"] == "2/2" and status["pass"] == "2", status
-        processes = re.findall(r"WebContent\((\d+)\).*HISTORY_RESET_(FLOOD|CONSUMER)", process.stdout)
-        assert len(processes) == 2 and processes[0][1] == "FLOOD" and processes[1][1] == "CONSUMER", processes
+        processes = re.findall(r"WebContent\((\d+)\).*HISTORY_RESET_(EXHAUST|CONSUMER)", process.stdout)
+        assert len(processes) == 2 and processes[0][1] == "EXHAUST" and processes[1][1] == "CONSUMER", processes
         assert processes[0][0] == processes[1][0], f"WebContent was not reused: {processes}"
 
 

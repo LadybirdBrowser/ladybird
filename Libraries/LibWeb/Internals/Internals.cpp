@@ -2336,6 +2336,12 @@ GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
     return promise;
 }
 
+void Internals::exhaust_navigation_rate_limit()
+{
+    if (auto navigable = window().associated_document().navigable())
+        navigable->exhaust_navigation_or_history_update_rate_limit_for_testing();
+}
+
 bool Internals::has_shadow_root(GC::Ref<DOM::Element> element)
 {
     return element->shadow_root() != nullptr;

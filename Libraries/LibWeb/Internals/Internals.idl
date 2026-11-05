@@ -263,6 +263,9 @@ interface Internals {
     // Traverses the history by a delta as the browser's Back and Forward buttons do, with no source document.
     undefined traverseHistoryThroughUIProcess(long delta);
     Promise<undefined> flushSessionHistoryTraversalQueue();
+    // Uses up this navigable's navigations and history updates until the state reset between tests, as if the page had
+    // just made as many as the rate limit allows.
+    undefined exhaustNavigationRateLimit();
 
     boolean hasHTMLParserEndState(Document document);
     boolean htmlParserBodyIsExhausted(Document document);
