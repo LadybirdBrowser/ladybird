@@ -346,6 +346,10 @@ private:
     virtual bool page_did_request_has_populated_document_for_testing(Web::HTML::CrossProcessId navigable_id) override;
     virtual bool page_did_request_tab_is_playing_audio_for_testing() override;
     virtual bool page_did_request_tab_is_heard_playing_audio_for_testing() override;
+    virtual bool page_did_request_tab_is_using_microphone_for_testing() override;
+    virtual bool page_did_request_tab_is_capturing_audio_for_testing() override;
+    virtual void page_did_report_audio_capture_for_testing(Web::PageId labelled_page_id, bool capturing) override;
+    virtual void page_did_retire_picture_in_picture_window_for_testing() override;
     virtual u64 page_did_request_tab_audibility_change_count_for_testing() override;
     virtual bool page_did_request_capture_session_history_snapshot_for_testing() override;
     virtual bool page_did_request_restore_session_history_snapshot_for_testing() override;

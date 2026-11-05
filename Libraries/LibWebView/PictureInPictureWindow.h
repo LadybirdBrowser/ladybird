@@ -35,6 +35,8 @@ public:
     virtual void set_video_size(Gfx::IntSize) = 0;
 
     void close_page();
+    void act_for_document(CanonicalDocument const&);
+    void leave_owners_tab();
 
     // The user closes the window to stop watching its video, or to go back to the video's tab and watch it there.
     enum class VideoKeepsPlaying : bool {

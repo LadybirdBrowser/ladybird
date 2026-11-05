@@ -87,6 +87,25 @@ Optional<ViewImplementation&> ViewImplementation::find_view_by_id(u64 id)
     return {};
 }
 
+Optional<ViewImplementation&> ViewImplementation::tab_view()
+{
+    if (!m_owner_view_id.has_value())
+        return *this;
+    if (!m_owner_document)
+        return {};
+    return find_view_by_id(*m_owner_view_id);
+}
+
+void ViewImplementation::did_leave_owners_tab(Badge<PictureInPictureWindow>)
+{
+    m_owner_document = nullptr;
+
+    // Whether a process may capture audio depends on the tabs its pages are part of.
+    traversable().for_each_hosting_page([](WebContentPage& page) {
+        page.client().update_audio_capture_permission();
+    });
+}
+
 ViewImplementation::ViewImplementation(IsPrivate is_private)
     : m_is_private(is_private)
     , m_session(Application::session_for_new_view(is_private))
@@ -115,8 +134,8 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
 ViewImplementation::~ViewImplementation()
 {
     // The frontend may be torn down already, so clearing the ongoing navigation must not report a URL change to it, nor
-    // cancelling the view's location requests or closing the view's page (which revokes its audio playback) a change
-    // in what the tab shows.
+    // cancelling the view's location requests or closing the view's page (which revokes its audio playback and capture)
+    // a change in what the tab shows.
     on_url_change = nullptr;
     on_tab_indicator_change = nullptr;
     answer_pending_console_input_completions();
@@ -2975,9 +2994,42 @@ void ViewImplementation::update_audibility()
     m_tab_indicators.set_active(TabIndicator::PlayingAudio, audible, MonotonicTime::now());
 }
 
+void ViewImplementation::update_microphone_capture()
+{
+    // An owned view has no tab of its own, so its capture shows on its owner's, with one linger for them all.
+    if (m_owner_view_id.has_value()) {
+        if (auto owner = find_view_by_id(*m_owner_view_id); owner.has_value())
+            owner->update_microphone_capture();
+        return;
+    }
+
+    auto capturing = false;
+    auto check_pages_of = [&](ViewImplementation const& view) {
+        view.traversable().for_each_hosting_page([&](WebContentPage& page) {
+            if (page.is_capturing_audio())
+                capturing = true;
+        });
+    };
+
+    check_pages_of(*this);
+    for_each_view([&](ViewImplementation& view) {
+        if (view.m_owner_view_id == m_view_id && view.has_traversable())
+            check_pages_of(view);
+        return IterationDecision::Continue;
+    });
+    m_tab_indicators.set_active(TabIndicator::UsingMicrophone, capturing, MonotonicTime::now());
+}
+
+void ViewImplementation::did_release_page(Badge<CanonicalTraversable>)
+{
+    update_audibility();
+    update_microphone_capture();
+}
+
 void ViewImplementation::reset_page_media_state()
 {
     update_audibility();
+    update_microphone_capture();
 
     if (m_screen_wake_lock_state != Web::ScreenWakeLockState::Released) {
         m_screen_wake_lock_state = Web::ScreenWakeLockState::Released;

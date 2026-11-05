@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    // A Picture-in-Picture window has the grant of the tab it's part of, for as long as the tab has it. The other tab tells
+    // whether the window counted, as a stream labelled for a page that doesn't shows on every page that may capture.
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        const otherTab = window.open("about:blank");
+
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+        const windowPageId = internals.pictureInPictureWindowPageId();
+
+        internals.reportAudioCaptureOfPage(windowPageId, true);
+        println(`without the grant, this tab: ${internals.tabIsCapturingAudio()}`);
+
+        await internals.setPermission("microphone", "granted");
+        println(`with the grant, this tab: ${internals.tabIsCapturingAudio()}`);
+        println(`with the grant, the other tab: ${otherTab.internals.tabIsCapturingAudio()}`);
+
+        await internals.setPermission("microphone", "denied");
+        println(`once it's taken away, this tab: ${internals.tabIsCapturingAudio()}`);
+
+        internals.reportAudioCaptureOfPage(windowPageId, false);
+        otherTab.close();
+        await document.exitPictureInPicture();
+        done();
+    });
+</script>

@@ -378,6 +378,13 @@ public:
     bool document_is_playing_audio(DOM::Document&);
     bool tab_is_playing_audio();
     bool tab_is_heard_playing_audio();
+    bool tab_is_using_microphone();
+    bool tab_is_capturing_audio();
+    void report_audio_capture_of_unknown_page(bool capturing);
+    WebIDL::UnsignedLongLong picture_in_picture_window_page_id();
+    void report_audio_capture_of_page(WebIDL::UnsignedLongLong page_id, bool capturing);
+    void retire_picture_in_picture_window();
+    WebIDL::UnsignedLongLong audio_capture_stream_count();
     WebIDL::UnsignedLongLong tab_audibility_change_count();
     bool media_element_video_sink_is_ticking(HTML::HTMLMediaElement&);
     void set_media_element_ready_state(HTML::HTMLMediaElement&, u16 ready_state);

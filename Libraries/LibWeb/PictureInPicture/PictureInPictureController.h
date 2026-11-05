@@ -39,6 +39,7 @@ public:
 
     bool is_waiting_for_window_to_open() const { return m_window_awaiting_open.has_value(); }
     bool has_open_window() const { return m_open_window != nullptr; }
+    GC::Ptr<PictureInPictureWindow> open_window() const { return m_open_window; }
 
 private:
     explicit PictureInPictureController(Page&);

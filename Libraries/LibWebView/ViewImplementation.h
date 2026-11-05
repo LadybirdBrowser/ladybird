@@ -192,6 +192,12 @@ public:
     // A view that shows a page on behalf of another view, such as a Picture-in-Picture window, is part of that view's
     // tab rather than a tab or window of its own.
     Optional<u64> owner_view_id() const { return m_owner_view_id; }
+    // The view whose tab this view is part of, which is none for a view whose owner is gone or that has left its tab.
+    Optional<ViewImplementation&> tab_view();
+    // The owner's document that this view acts for, which limits what the view is allowed, until it leaves the tab.
+    CanonicalDocument const* owner_document() const { return m_owner_document.ptr(); }
+    void set_owner_document(Badge<PictureInPictureWindow>, CanonicalDocument const& document) { m_owner_document = document; }
+    void did_leave_owners_tab(Badge<PictureInPictureWindow>);
 
     CanonicalTraversable& traversable() const;
     bool has_traversable() const { return m_top_level_traversable != nullptr; }
@@ -512,8 +518,12 @@ public:
 
     // The tab plays audio while the AudioServer has recently heard any page of it.
     void update_audibility(Badge<WebContentPage>) { update_audibility(); }
-    void did_release_page(Badge<CanonicalTraversable>) { update_audibility(); }
+    void did_release_page(Badge<CanonicalTraversable>);
     bool is_playing_audio() const { return m_tab_indicators.is_active(TabIndicator::PlayingAudio); }
+
+    // The tab captures while the AudioServer holds a capture stream for any page of it.
+    void update_microphone_capture(Badge<WebContentPage>) { update_microphone_capture(); }
+    bool is_capturing_audio() const { return m_tab_indicators.is_active(TabIndicator::UsingMicrophone); }
 
     bool tab_indicator_visible(TabIndicator indicator) const { return m_tab_indicators.is_visible(indicator); }
     u64 playing_audio_indicator_change_count() const { return m_playing_audio_indicator_change_count; }
@@ -824,6 +834,7 @@ protected:
     WebContentPage& focused_navigable_host() const;
     void reset_page_media_state();
     void update_audibility();
+    void update_microphone_capture();
 
     // A navigation to make again on reload: one the user stopped before its document was activated, or one a crash cut
     // short. It's made again from the source it was first made from, when it has one (a javascript: URL has none).
@@ -1222,6 +1233,7 @@ protected:
     //        is required to be globally unique for Firefox DevTools.
     u64 m_view_id { 0 };
     Optional<u64> m_owner_view_id;
+    WeakPtr<CanonicalDocument const> m_owner_document;
 
     HashMap<u64, NavigationListener> m_navigation_listeners;
     u64 m_next_navigation_listener_id { 1 };

@@ -1,0 +1,8 @@
+labelled for the window, its tab: true
+labelled for the window, this tab: false
+its tab closed, this tab: true
+stream gone: false
+labelled for the window, its tab: true
+labelled for the window, this tab: false
+its tab navigated, this tab: true
+stream gone: false

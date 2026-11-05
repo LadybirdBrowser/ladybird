@@ -1956,6 +1956,32 @@ bool PageClient::page_did_request_tab_is_heard_playing_audio_for_testing()
     return false;
 }
 
+bool PageClient::page_did_request_tab_is_using_microphone_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_tab_is_using_microphone_for_testing(m_id);
+    return false;
+}
+
+bool PageClient::page_did_request_tab_is_capturing_audio_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_tab_is_capturing_audio_for_testing(m_id);
+    return false;
+}
+
+void PageClient::page_did_report_audio_capture_for_testing(Web::PageId labelled_page_id, bool capturing)
+{
+    if (auto* test_connection = client().test_connection())
+        (void)test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::ReportAudioCaptureForTesting>(m_id, labelled_page_id, capturing);
+}
+
+void PageClient::page_did_retire_picture_in_picture_window_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        (void)test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::RetirePictureInPictureWindowForTesting>(m_id);
+}
+
 u64 PageClient::page_did_request_tab_audibility_change_count_for_testing()
 {
     if (auto* test_connection = client().test_connection())

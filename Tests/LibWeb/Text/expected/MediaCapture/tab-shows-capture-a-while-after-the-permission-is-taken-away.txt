@@ -1,0 +1,5 @@
+capturing: true
+stops capturing once the permission is taken away: true
+stops showing it a while later: true
+went on showing it for at least two and a half seconds: true
+the track ended: ended

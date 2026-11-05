@@ -8,7 +8,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Transport.h>
 #include <LibTest/TestCase.h>
-#include <LibWebView/AudioServerAudibility.h>
+#include <LibWebView/AudioServerActivity.h>
 #include <LibWebView/AudioServerControlClient.h>
 
 static constexpr u64 TAB_ID = 1;
@@ -40,25 +40,35 @@ struct Controller {
         EXPECT(!stub.handle(make<Messages::AudioServerControlClient::PlaybackGroupAudibilityChanged>(TAB_ID, group, audibility)).is_error());
     }
 
+    void report_capture(Audio::PlaybackGroupId group, bool capturing, u64 tab_id = TAB_ID)
+    {
+        auto& stub = static_cast<AudioServerControlClientStub&>(*client);
+        EXPECT(!stub.handle(make<Messages::AudioServerControlClient::CaptureActivityChanged>(tab_id, group, capturing)).is_error());
+    }
+
     void die() { client->shutdown(); }
 };
 
-struct AudibilityFixture {
+struct ActivityFixture {
     Core::EventLoop loop;
     Vector<Change> changes;
-    WebView::AudioServerAudibility audibility { [this](Audio::PlaybackGroupId group, Audio::Audibility audibility) {
-        changes.append({ group, audibility });
-    } };
+    size_t capture_changes { 0 };
+    WebView::AudioServerActivity activity;
+
+    ActivityFixture()
+        : activity([this](Audio::PlaybackGroupId group, Audio::Audibility audibility) { changes.append({ group, audibility }); }, [this] { ++capture_changes; })
+    {
+    }
 
     void watch(Controller& controller)
     {
-        audibility.watch(*controller.client, [](u64, Audio::PlaybackGroupId, Audio::Audibility) { return true; });
+        activity.watch(*controller.client, [](u64, Audio::PlaybackGroupId, Audio::Audibility) { return true; }, [](u64 tab_id) { return tab_id == TAB_ID; });
     }
 };
 
 TEST_CASE(a_replaced_audio_server_is_forgotten_at_once_and_heard_from_no_more)
 {
-    AudibilityFixture fixture;
+    ActivityFixture fixture;
     auto replaced = Controller::create();
     fixture.watch(replaced);
     replaced.report(GROUP, AUDIBLE);
@@ -80,7 +90,7 @@ TEST_CASE(a_replaced_audio_server_is_forgotten_at_once_and_heard_from_no_more)
 
 TEST_CASE(a_dead_audio_servers_late_reports_are_ignored)
 {
-    AudibilityFixture fixture;
+    ActivityFixture fixture;
     auto controller = Controller::create();
     fixture.watch(controller);
     controller.report(GROUP, AUDIBLE);
@@ -94,12 +104,12 @@ TEST_CASE(a_dead_audio_servers_late_reports_are_ignored)
 
 TEST_CASE(a_forgotten_group_is_inaudible_until_reported_audible_again)
 {
-    AudibilityFixture fixture;
+    ActivityFixture fixture;
     auto controller = Controller::create();
     fixture.watch(controller);
     controller.report(GROUP, AUDIBLE);
-    fixture.audibility.forget(GROUP);
-    fixture.audibility.forget(GROUP);
+    fixture.activity.forget_audibility(GROUP);
+    fixture.activity.forget_audibility(GROUP);
     EXPECT(fixture.changes == (Vector<Change> { { GROUP, AUDIBLE }, { GROUP, INAUDIBLE } }));
 
     controller.report(GROUP, AUDIBLE);
@@ -108,10 +118,43 @@ TEST_CASE(a_forgotten_group_is_inaudible_until_reported_audible_again)
 
 TEST_CASE(reports_the_filter_turns_away_are_not_heard)
 {
-    AudibilityFixture fixture;
+    ActivityFixture fixture;
     auto controller = Controller::create();
-    fixture.audibility.watch(*controller.client, [](u64, Audio::PlaybackGroupId group, Audio::Audibility) { return group == GROUP; });
+    fixture.activity.watch(*controller.client, [](u64, Audio::PlaybackGroupId group, Audio::Audibility) { return group == GROUP; }, [](u64) { return true; });
     controller.report(OTHER_GROUP, AUDIBLE);
     controller.report(GROUP, AUDIBLE);
     EXPECT(fixture.changes == Vector<Change> { { GROUP, AUDIBLE } });
+}
+
+TEST_CASE(capturing_groups_follow_the_reports_of_the_watched_tab)
+{
+    ActivityFixture fixture;
+    auto controller = Controller::create();
+    fixture.watch(controller);
+    controller.report_capture(GROUP, true);
+    controller.report_capture(GROUP, true);
+    controller.report_capture(OTHER_GROUP, true, TAB_ID + 1);
+    EXPECT(fixture.activity.capturing_groups().contains(GROUP));
+    EXPECT_EQ(fixture.activity.capturing_groups().size(), 1u);
+    EXPECT_EQ(fixture.capture_changes, 1u);
+
+    controller.report_capture(GROUP, false);
+    EXPECT(fixture.activity.capturing_groups().is_empty());
+    EXPECT_EQ(fixture.capture_changes, 2u);
+}
+
+TEST_CASE(capture_goes_with_the_audio_server_but_not_with_a_forgotten_sound)
+{
+    ActivityFixture fixture;
+    auto controller = Controller::create();
+    fixture.watch(controller);
+    controller.report_capture(GROUP, true);
+    fixture.activity.forget_audibility(GROUP);
+    EXPECT(fixture.activity.capturing_groups().contains(GROUP));
+
+    controller.die();
+    EXPECT(fixture.activity.capturing_groups().is_empty());
+    EXPECT_EQ(fixture.capture_changes, 2u);
+    controller.report_capture(GROUP, true);
+    EXPECT(fixture.activity.capturing_groups().is_empty());
 }

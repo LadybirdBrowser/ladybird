@@ -1,0 +1,2 @@
+opened by an iframe allowed the microphone: true
+opened by an iframe not allowed the microphone: false

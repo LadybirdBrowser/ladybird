@@ -1,0 +1,8 @@
+before the window closes, this tab: true
+before the window closes, the other tab: false
+the window closed: none
+once the window closed, this tab: true
+once the window closed, the other tab: true
+stops capturing: true
+stops showing it a while later: true
+went on showing it for at least two and a half seconds: true

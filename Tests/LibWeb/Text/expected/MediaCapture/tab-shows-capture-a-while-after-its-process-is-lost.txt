@@ -1,0 +1,4 @@
+captures in the isolated iframe: true
+stops capturing once the iframe's process is gone: true
+stops showing it a while later: true
+went on showing it for at least two and a half seconds after the crash: true

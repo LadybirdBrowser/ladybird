@@ -21,6 +21,7 @@ namespace WebView {
 enum class TabIndicator : u8 {
     PlayingAudio,
     UsingLocation,
+    UsingMicrophone,
 };
 
 // Each indicator lingers on a deadline of its own once what it shows stops, however it stopped.
@@ -54,9 +55,10 @@ private:
     Entry& entry(TabIndicator);
     Entry const& entry(TabIndicator indicator) const { return const_cast<TabIndicators&>(*this).entry(indicator); }
 
-    Array<Entry, 2> m_entries {
+    Array<Entry, 3> m_entries {
         Entry { .indicator = TabIndicator::PlayingAudio },
         Entry { .indicator = TabIndicator::UsingLocation },
+        Entry { .indicator = TabIndicator::UsingMicrophone },
     };
     NonnullRefPtr<Core::Timer> m_timer;
 };

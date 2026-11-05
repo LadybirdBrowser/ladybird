@@ -1,0 +1,8 @@
+before: false
+capturing while the track lives, unconsumed: true
+the clone holds a stream: true
+the clone's stream outlives the original's: true
+capturing after the original stops: true
+stops capturing once the clone stops: true
+stops showing it a while later: true
+went on showing it for at least two and a half seconds: true

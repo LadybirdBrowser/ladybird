@@ -6,6 +6,7 @@
     promiseTest(async () => {
         internals.setTestTimeout(30_000);
         await internals.setPermission("microphone", "granted");
+        const streamsBefore = internals.audioCaptureStreamCount();
 
         const url = new URL(
             await httpTestServer().createEcho("GET", "/getUserMedia-revoked-while-the-system-asks", {
@@ -31,6 +32,7 @@
         await internals.setPermission("microphone", "denied");
         internals.releaseSystemMicrophoneAnswer();
         println(`the request settles with: ${await request.then(stream => "a live stream", error => error.name)}`);
+        println(`no stream of it stays behind: ${await waitForCondition(() => internals.audioCaptureStreamCount() === streamsBefore)}`);
         popup.close();
     });
 </script>

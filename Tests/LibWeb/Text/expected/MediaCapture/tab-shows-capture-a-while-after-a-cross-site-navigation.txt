@@ -1,0 +1,3 @@
+the popup's tab shows capture in another process
+stops showing it a while later: true
+went on showing it for at least two and a half seconds after navigating: true

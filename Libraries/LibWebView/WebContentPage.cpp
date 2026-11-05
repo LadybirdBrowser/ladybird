@@ -2126,6 +2126,17 @@ void WebContentPage::set_audibility(Audio::Audibility audibility)
     }
 }
 
+void WebContentPage::set_capturing_audio(bool capturing)
+{
+    if (m_capturing_audio == capturing)
+        return;
+    m_capturing_audio = capturing;
+    if (m_traversable) {
+        if (auto view = m_traversable->view(); view.has_value())
+            view->update_microphone_capture({});
+    }
+}
+
 void WebContentPage::did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)
 {
     if (displays_tab())
@@ -3426,6 +3437,28 @@ Messages::WebContentTestClient::DidRequestTabIsHeardPlayingAudioForTestingRespon
 {
     auto view = traversable().view();
     return view.has_value() && view->is_playing_audio();
+}
+
+Messages::WebContentTestClient::DidRequestTabIsUsingMicrophoneForTestingResponse WebContentPage::did_request_tab_is_using_microphone_for_testing()
+{
+    auto view = traversable().view();
+    return view.has_value() && view->tab_indicator_visible(TabIndicator::UsingMicrophone);
+}
+
+Messages::WebContentTestClient::DidRequestTabIsCapturingAudioForTestingResponse WebContentPage::did_request_tab_is_capturing_audio_for_testing()
+{
+    auto view = traversable().view();
+    return view.has_value() && view->is_capturing_audio();
+}
+
+void WebContentPage::report_audio_capture_for_testing(Web::PageId labelled_page_id, bool capturing)
+{
+    client().report_audio_capture_for_testing(labelled_page_id, capturing);
+}
+
+void WebContentPage::retire_picture_in_picture_window_for_testing()
+{
+    PictureInPictureManager::the().close_window(*this);
 }
 
 Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse WebContentPage::did_request_tab_audibility_change_count_for_testing()

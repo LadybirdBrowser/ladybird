@@ -1,0 +1,4 @@
+labelled for the first window, the other tab: false
+first window replaced, the other tab: true
+labelled for the second window, this tab: true
+labelled for the second window, the other tab: false

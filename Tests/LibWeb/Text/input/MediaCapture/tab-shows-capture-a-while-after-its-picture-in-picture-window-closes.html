@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    // A stream labelled for a Picture-in-Picture window outlives the window in the AudioServer's report. Its label then
+    // names no page, so it shows on every tab of the process that may capture until it ends, and for one linger after.
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        await internals.setPermission("microphone", "granted");
+        const otherTab = window.open("about:blank");
+
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+        const windowPageId = internals.pictureInPictureWindowPageId();
+
+        internals.reportAudioCaptureOfPage(windowPageId, true);
+        println(`before the window closes, this tab: ${internals.tabIsCapturingAudio()}`);
+        println(`before the window closes, the other tab: ${otherTab.internals.tabIsCapturingAudio()}`);
+
+        await document.exitPictureInPicture();
+        println(`the window closed: ${internals.pictureInPictureWindowState}`);
+        println(`once the window closed, this tab: ${internals.tabIsCapturingAudio()}`);
+        println(`once the window closed, the other tab: ${await waitForCondition(() => otherTab.internals.tabIsCapturingAudio())}`);
+
+        const endedAt = performance.now();
+        internals.reportAudioCaptureOfPage(windowPageId, false);
+        otherTab.close();
+        println(`stops capturing: ${await waitForCondition(() => !internals.tabIsCapturingAudio())}`);
+        println(`stops showing it a while later: ${await waitForCondition(() => !internals.tabIsUsingMicrophone())}`);
+        println(`went on showing it for at least two and a half seconds: ${performance.now() - endedAt >= 2500}`);
+        done();
+    });
+</script>

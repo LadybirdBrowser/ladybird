@@ -980,13 +980,19 @@ ErrorOr<void> WebContentClient::initialize_audio_server_controller()
         if (self && tab_id == self->m_audio_tab_id)
             self->decide_audio_capture_request(request_id, group);
     };
-    m_audio_server_audibility.watch(*m_audio_server_client, [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, Audio::PlaybackGroupId group, Audio::Audibility audibility) {
-        auto self = weak_self.strong_ref();
-        if (!self || tab_id != self->m_audio_tab_id)
-            return false;
-        // A report of sound can trail the revocation of the page's authorization.
-        return audibility == Audio::Audibility::Inaudible || self->m_authorized_audio_playback_groups.contains(group);
-    });
+    m_audio_server_activity.watch(
+        *m_audio_server_client,
+        [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, Audio::PlaybackGroupId group, Audio::Audibility audibility) {
+            auto self = weak_self.strong_ref();
+            if (!self || tab_id != self->m_audio_tab_id)
+                return false;
+            // A report of sound can trail the revocation of the page's authorization.
+            return audibility == Audio::Audibility::Inaudible || self->m_authorized_audio_playback_groups.contains(group);
+        },
+        [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id) {
+            auto self = weak_self.strong_ref();
+            return self && tab_id == self->m_audio_tab_id;
+        });
     if (m_audio_capture_permitted)
         TRY(tell_audio_server_of_capture_permission());
     // A muted group is never heard: the mutes land before the authorizations.
@@ -1017,6 +1023,9 @@ ErrorOr<void> WebContentClient::grant_audio_capture_to_file(URL::URL const& url)
 
 void WebContentClient::update_audio_capture_permission()
 {
+    // A page that comes to permit capture, or stops, can take over a stream labelled for no permitting page.
+    update_audio_capture_indicators();
+
     auto permitted = audio_capture_permitted();
     if (permitted == m_audio_capture_permitted)
         return;
@@ -1052,22 +1061,39 @@ Messages::WebContentClient::DidRequestPermissionSnapshotResponse WebContentClien
 
 bool WebContentClient::page_may_capture_audio(WebContentPage const& page) const
 {
+    // A new page has no view until the chrome makes one, and replacing a window can get here before that.
+    auto view = page.traversable().view();
+    if (!view.has_value())
+        return false;
+
+    // A window that is part of a tab has the tab's grant, whichever document its process has it show.
+    auto tab_view = view->tab_view();
+    if (!tab_view.has_value())
+        return false;
+
     // The top-level document's origin, which a popup on about:blank has from its opener; only a file page is left with
     // an opaque one, and reads its own grant by URL.
-    auto origin = page.view().permission_origin();
+    auto origin = tab_view->permission_origin();
     if (origin.is_opaque()) {
         // NB: The global default binds a file: page too; its own grant only matters while sites may ask.
         if (session().permission_manager->global_default(Web::Permissions::PermissionName::Microphone) == Web::Permissions::EffectiveState::Denied)
             return false;
-        return m_audio_capture_grants.contains(audio_capture_permission_key(page.view().url()));
+        return m_audio_capture_grants.contains(audio_capture_permission_key(tab_view->url()));
     }
     return session().permission_manager->effective_state(Web::Permissions::PermissionName::Microphone, origin) == Web::Permissions::EffectiveState::Granted;
 }
 
-// A tab's grant reaches only the documents whose permissions policy allows them the microphone.
+// A tab's grant reaches only the documents whose permissions policy allows them the microphone. A window that is part of
+// the tab is held to the document it acts for too, or an iframe could get past its policy by opening a window.
 bool WebContentClient::page_permits_audio_capture(WebContentPage const& page) const
 {
-    return page.is_open() && page_may_capture_audio(page) && page.hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature::Microphone);
+    if (!page.is_open() || !page_may_capture_audio(page))
+        return false;
+
+    auto microphone = Web::PermissionsPolicy::PolicyControlledFeature::Microphone;
+    if (auto const* owner_document = page.view().owner_document(); owner_document && !owner_document->is_allowed_to_use(microphone))
+        return false;
+    return page.hosts_a_document_allowed_to_use(microphone);
 }
 
 // The process may capture if it hosts a page that permits it, as it can act for any document it hosts.
@@ -1104,8 +1130,11 @@ void WebContentClient::decide_audio_capture_request(u64 request_id, Audio::Playb
     if (auto* named_page = this->page(page_id_of_audio_playback_group(group)); named_page && page_permits_audio_capture(*named_page))
         page = named_page;
 
+    // A page that permits capture is part of a tab, which is where the user hears of the answer.
+    auto tab_view = page->view().tab_view();
+
     // Only a site the user allowed gets the system to ask the user, if it never has.
-    page->view().ensure_microphone_authorization([weak_self = make_weak_ptr<WebContentClient>(), request_id](bool authorized) {
+    tab_view->ensure_microphone_authorization([weak_self = make_weak_ptr<WebContentClient>(), request_id](bool authorized) {
         auto self = weak_self.strong_ref();
         if (!self || !self->m_audio_server_client || !self->m_audio_server_client->is_open())
             return;
@@ -1120,6 +1149,31 @@ void WebContentClient::send_audio_capture_decision(u64 request_id, bool allowed)
     if (!allowed)
         ++m_audio_capture_refusal_count;
     m_audio_server_client->async_capture_decided(request_id, allowed);
+}
+
+// The AudioServer counts every capture stream of the process, but the renderer labels them, so a label counts only for a
+// page that permits capture. A stream with any other label is shown on every such page, as the process could be
+// capturing for any of them.
+void WebContentClient::update_audio_capture_indicators()
+{
+    HashTable<Web::PageId> labelled_pages;
+    auto shown_on_every_permitting_page = false;
+    for (auto group : m_audio_server_activity.capturing_groups()) {
+        if (auto* page = this->page(page_id_of_audio_playback_group(group)); page && page_permits_audio_capture(*page))
+            labelled_pages.set(page->id());
+        else
+            shown_on_every_permitting_page = true;
+    }
+
+    for (auto const& [page_id, page] : m_pages) {
+        auto capturing = labelled_pages.contains(page_id) || (shown_on_every_permitting_page && page_permits_audio_capture(*page));
+        page->set_capturing_audio(capturing);
+    }
+}
+
+void WebContentClient::report_audio_capture_for_testing(Web::PageId labelled_page_id, bool capturing)
+{
+    m_audio_server_activity.set_capturing_for_testing(audio_playback_group(labelled_page_id), capturing);
 }
 
 ErrorOr<void> WebContentClient::tell_audio_server_of_capture_permission()
@@ -1155,7 +1209,7 @@ void WebContentClient::revoke_audio_playback(Web::PageId page_id)
         return;
     if (m_audio_server_client && m_audio_server_client->is_open())
         m_audio_server_client->async_revoke_playback_group(m_audio_tab_id, group);
-    m_audio_server_audibility.forget(group);
+    m_audio_server_activity.forget_audibility(group);
 }
 
 void WebContentClient::set_audio_playback_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state)

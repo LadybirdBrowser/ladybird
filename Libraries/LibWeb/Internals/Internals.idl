@@ -508,6 +508,21 @@ interface Internals {
     boolean tabIsPlayingAudio();
     // Whether the AudioServer has recently heard this window's tab, whatever the tab shows.
     boolean tabIsHeardPlayingAudio();
+    // Whether the UI process shows this window's tab as using the microphone: while the AudioServer holds a capture stream
+    // for the tab, and for a while after.
+    boolean tabIsUsingMicrophone();
+    // Whether the AudioServer holds a capture stream for this window's tab, whatever the tab shows.
+    boolean tabIsCapturingAudio();
+    // Has the UI process hear of a capture stream of this process whose label names none of its pages.
+    undefined reportAudioCaptureOfUnknownPage(boolean capturing);
+    // The ID of the page that shows this page's Picture-in-Picture window.
+    unsigned long long pictureInPictureWindowPageId();
+    // Has the UI process hear of a capture stream of this process labelled for the page, as this process chose to.
+    undefined reportAudioCaptureOfPage(unsigned long long pageId, boolean capturing);
+    // Has the UI process retire this page's Picture-in-Picture window, as if this process went on to ignore that.
+    undefined retirePictureInPictureWindow();
+    // How many streams this process's tracks hold of the capture sources it has open.
+    unsigned long long audioCaptureStreamCount();
     // How many times the UI process has changed whether this window's tab is shown as playing audio.
     unsigned long long tabAudibilityChangeCount();
     boolean mediaElementVideoSinkIsTicking(HTMLMediaElement element);

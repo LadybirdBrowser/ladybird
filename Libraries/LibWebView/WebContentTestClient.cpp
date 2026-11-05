@@ -137,6 +137,34 @@ Messages::WebContentTestClient::DidRequestTabIsHeardPlayingAudioForTestingRespon
     return false;
 }
 
+Messages::WebContentTestClient::DidRequestTabIsUsingMicrophoneForTestingResponse WebContentTestClient::did_request_tab_is_using_microphone_for_testing(Web::PageId page_id)
+{
+    if (auto* page = m_client.page(page_id))
+        return page->did_request_tab_is_using_microphone_for_testing();
+
+    return false;
+}
+
+Messages::WebContentTestClient::DidRequestTabIsCapturingAudioForTestingResponse WebContentTestClient::did_request_tab_is_capturing_audio_for_testing(Web::PageId page_id)
+{
+    if (auto* page = m_client.page(page_id))
+        return page->did_request_tab_is_capturing_audio_for_testing();
+
+    return false;
+}
+
+void WebContentTestClient::report_audio_capture_for_testing(Web::PageId page_id, Web::PageId labelled_page_id, bool capturing)
+{
+    if (auto* page = m_client.page(page_id))
+        page->report_audio_capture_for_testing(labelled_page_id, capturing);
+}
+
+void WebContentTestClient::retire_picture_in_picture_window_for_testing(Web::PageId page_id)
+{
+    if (auto* page = m_client.page(page_id))
+        page->retire_picture_in_picture_window_for_testing();
+}
+
 Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse WebContentTestClient::did_request_tab_audibility_change_count_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))

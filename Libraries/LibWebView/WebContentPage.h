@@ -111,6 +111,9 @@ public:
     // Whether the AudioServer has recently heard the page, muted or not.
     Audio::Audibility audibility() const { return m_audibility; }
     void set_audibility(Audio::Audibility);
+    // Whether the AudioServer holds a capture stream for the page.
+    bool is_capturing_audio() const { return m_capturing_audio; }
+    void set_capturing_audio(bool);
 
     // The channel to the WebUI this page shows, if it shows one. Each page has its own, so two WebUI pages in one
     // process each keep theirs.
@@ -404,6 +407,10 @@ private:
     Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing();
     Messages::WebContentTestClient::DidRequestTabIsPlayingAudioForTestingResponse did_request_tab_is_playing_audio_for_testing();
     Messages::WebContentTestClient::DidRequestTabIsHeardPlayingAudioForTestingResponse did_request_tab_is_heard_playing_audio_for_testing();
+    Messages::WebContentTestClient::DidRequestTabIsUsingMicrophoneForTestingResponse did_request_tab_is_using_microphone_for_testing();
+    Messages::WebContentTestClient::DidRequestTabIsCapturingAudioForTestingResponse did_request_tab_is_capturing_audio_for_testing();
+    void report_audio_capture_for_testing(Web::PageId labelled_page_id, bool capturing);
+    void retire_picture_in_picture_window_for_testing();
     Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse did_request_tab_audibility_change_count_for_testing();
     virtual void did_request_crash_of_remote_frame_processes_for_testing() override;
     virtual void did_request_close_tab_for_testing() override;
@@ -424,6 +431,7 @@ private:
     bool m_is_open { true };
     RefPtr<WebUI> m_web_ui;
     Audio::Audibility m_audibility { Audio::Audibility::Inaudible };
+    bool m_capturing_audio { false };
     Optional<PresentedBackingStores> m_presented_backing_stores;
     bool m_needs_beforeunload_check { true };
     bool m_detached_close_pending { false };

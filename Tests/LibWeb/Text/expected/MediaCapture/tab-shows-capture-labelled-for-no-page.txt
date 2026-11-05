@@ -1,0 +1,3 @@
+without the permission: false
+with the permission: true
+once the stream is gone: false

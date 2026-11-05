@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video src="../../../Assets/test-webm.webm"></video>
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    // A window that replaces another has the page's next stream labelled for it, while the replaced window leaves the tab
+    // at a point where the new window's page has no view yet.
+    asyncTest(async done => {
+        const [firstVideo, secondVideo] = document.querySelectorAll("video");
+        for (const video of [firstVideo, secondVideo]) {
+            if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+                await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+        }
+
+        await internals.setPermission("microphone", "granted");
+        const otherTab = window.open("about:blank");
+
+        internals.grantTransientActivation();
+        await firstVideo.requestPictureInPicture();
+        const firstWindowPageId = internals.pictureInPictureWindowPageId();
+        internals.reportAudioCaptureOfPage(firstWindowPageId, true);
+        println(`labelled for the first window, the other tab: ${otherTab.internals.tabIsCapturingAudio()}`);
+
+        internals.grantTransientActivation();
+        await secondVideo.requestPictureInPicture();
+        println(`first window replaced, the other tab: ${await waitForCondition(() => otherTab.internals.tabIsCapturingAudio())}`);
+        internals.reportAudioCaptureOfPage(firstWindowPageId, false);
+
+        const secondWindowPageId = internals.pictureInPictureWindowPageId();
+        internals.reportAudioCaptureOfPage(secondWindowPageId, true);
+        println(`labelled for the second window, this tab: ${internals.tabIsCapturingAudio()}`);
+        println(`labelled for the second window, the other tab: ${otherTab.internals.tabIsCapturingAudio()}`);
+
+        internals.reportAudioCaptureOfPage(secondWindowPageId, false);
+        otherTab.close();
+        await document.exitPictureInPicture();
+        done();
+    });
+</script>

@@ -1,0 +1,5 @@
+labelled for the window, this tab: true
+labelled for the window, the other tab: false
+stream gone, this tab: false
+window retired, this tab: true
+window retired, the other tab: true
