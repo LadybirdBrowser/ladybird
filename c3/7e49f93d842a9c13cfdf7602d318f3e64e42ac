@@ -1,0 +1,9 @@
+When a table cell has a definite max-width, Ladybird caps the
+min-content width of the cell at it, in both its outer min-content and
+outer max-content widths, and lets a min-width win over both. Gecko’s
+GetISizeInfo(), in BasicTableLayoutStrategy, does the same: It lowers
+minCoord and prefCoord to a definite max inline size, then applies the
+min inline size. Blink’s TableTypes::CreateCellInlineConstraint() also
+lowers the cell’s resolved minimum and its content maximum to the
+max-width, but applies the max-width after the min-width, so there the
+max-width wins when the two conflict.
