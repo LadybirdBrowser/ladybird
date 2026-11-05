@@ -151,6 +151,7 @@ void XMLDocumentBuilder::element_start(Utf16FlyString const& name, Vector<XML::L
         link_element->set_was_enabled_when_created_by_parser(Badge<XMLDocumentBuilder> {}, !has_disabled_attribute);
     }
 
+    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *m_current_node };
     if (m_current_node->is_html_template_element()) {
         // When an XML parser would append a node to a template element, it must instead append it to the template element's template contents (a DocumentFragment node).
         MUST(static_cast<HTML::HTMLTemplateElement&>(*m_current_node).content()->append_child(node));
@@ -208,6 +209,8 @@ void XMLDocumentBuilder::element_end(Utf16FlyString const& name)
         HTML::perform_a_microtask_checkpoint();
         // and then prepare the script element.
         auto& script_element = static_cast<HTML::HTMLScriptElement&>(*m_current_node);
+        // AD-HOC: Set the script text value for Trusted Types as the HTML parser does, matching other engines.
+        script_element.set_script_text_from_parser();
         script_element.prepare_script(Badge<XMLDocumentBuilder> {});
 
         // If this causes there to be a pending parsing-blocking script, then the user agent must run the following steps:
@@ -253,6 +256,7 @@ void XMLDocumentBuilder::text(StringView data)
     if (m_has_error)
         return;
 
+    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *m_current_node };
     if (auto* last = m_current_node->last_child(); last && last->is_text()) {
         auto& text_node = static_cast<DOM::Text&>(*last);
         m_text_builder.append(text_node.data());
@@ -270,6 +274,7 @@ void XMLDocumentBuilder::comment(StringView data)
     if (m_has_error || !m_current_node)
         return;
 
+    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *m_current_node };
     MUST(m_current_node->append_child(m_document->create_comment(Utf16String::from_utf8(data))));
 }
 
@@ -279,6 +284,7 @@ void XMLDocumentBuilder::cdata_section(StringView data)
         return;
 
     auto section = MUST(m_document->create_cdata_section(Utf16String::from_utf8(data)));
+    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *m_current_node };
     MUST(m_current_node->append_child(section));
 }
 
@@ -288,6 +294,7 @@ void XMLDocumentBuilder::processing_instruction(Utf16FlyString const& target, Ut
         return;
 
     auto processing_instruction = MUST(m_document->create_processing_instruction(target, data));
+    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *m_current_node };
     MUST(m_current_node->append_child(processing_instruction));
 }
 

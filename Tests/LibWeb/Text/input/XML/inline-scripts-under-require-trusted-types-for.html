@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const observerURL = await server.createEcho("GET", "/inline-scripts-under-require-trusted-types-for-observer.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `new MutationObserver((records, observer) => {
+                const script = document.getElementById("target");
+                if (script && script.firstChild) {
+                    observer.disconnect();
+                    script.firstChild.data = 'parent.postMessage("replaced", "*");';
+                }
+            }).observe(document.documentElement, { subtree: true, childList: true });`,
+        });
+        const listenerURL = await server.createEcho("GET", "/inline-scripts-under-require-trusted-types-for-listener.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `document.addEventListener("load", event => {
+                if (event.target.localName === "iframe")
+                    document.getElementById("iframe-target").firstChild.data = 'parent.postMessage("replaced by a load event listener", "*");';
+            }, true);`,
+        });
+        const doneURL = await server.createEcho("GET", "/inline-scripts-under-require-trusted-types-for-done.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `parent.postMessage("done", "*");`,
+        });
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const documentURL = await server.createEcho("GET", "/inline-scripts-under-require-trusted-types-for.xhtml", {
+            status: 200,
+            headers: {
+                "Content-Type": "application/xhtml+xml",
+                "Content-Security-Policy": "require-trusted-types-for 'script'",
+            },
+            body: `<html xmlns="http://www.w3.org/1999/xhtml"><body>
+                ${scriptStartTag}>parent.postMessage("HTML script", "*");${scriptEndTag}
+                <svg xmlns="http://www.w3.org/2000/svg">${scriptStartTag}>parent.postMessage("SVG script", "*");${scriptEndTag}</svg>
+                ${scriptStartTag} src="${observerURL}">${scriptEndTag}
+                ${scriptStartTag} id="target">parent.postMessage("original", "*");${scriptEndTag}
+                ${scriptStartTag} src="${listenerURL}">${scriptEndTag}
+                ${scriptStartTag} id="iframe-target">parent.postMessage("original", "*");<iframe/>${scriptEndTag}
+                ${scriptStartTag} src="${doneURL}">${scriptEndTag}
+            </body></html>`,
+        });
+
+        const received = [];
+        const finished = new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.data === "done") {
+                    resolve();
+                } else {
+                    received.push(event.data);
+                }
+            });
+        });
+        const frame = document.createElement("iframe");
+        frame.src = documentURL;
+        document.body.appendChild(frame);
+        await finished;
+
+        for (const label of ["HTML script", "SVG script"]) {
+            const result = received.includes(label) ? "ran" : "blocked";
+            println(`Inline ${label} of an XHTML document under require-trusted-types-for: ${result}`);
+        }
+        const replaced = received.includes("replaced") ? "ran" : "blocked";
+        println(`Inline script whose text a mutation observer replaced while parsing an XHTML document: ${replaced}`);
+        const replacedByListener = received.includes("replaced by a load event listener") ? "ran" : "blocked";
+        println(`Inline script whose text a load event listener replaced while the XML parser inserted its child: ${replacedByListener}`);
+    });
+</script>

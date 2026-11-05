@@ -667,7 +667,7 @@ void HTMLOrSVGScriptElement::ParserChildrenChangeScope::begin_changing_children(
 // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:children-changed-steps
 void HTMLOrSVGScriptElement::script_element_children_changed(DOM::Node::ChildrenChangedMetadata const& metadata)
 {
-    if (!m_parser_is_changing_children)
+    if (!exchange(m_parser_is_changing_children, false))
         m_children_changed_by_api = true;
 
     // AD-HOC: Avoid running script on child removal, matching the behaviour of other browsers.
