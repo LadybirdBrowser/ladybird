@@ -1803,6 +1803,13 @@ fn freeze_tick_frame(
         return Err(Park("a trace reads the recording"));
     }
     let visual_contexts = prepare_for_clock_tick(arena, viewport)?;
+    // A tick's frame copies from the lane's own, and its damage stays: the whole document would record again on every tick.
+    if arena.paint_damage_covers_everything()
+        || arena.scroll_metadata_damaged_everywhere()
+        || recorder.published_recording.is_none()
+    {
+        return Err(Park("the whole document records again"));
+    }
     let inputs = recorder
         .published_inputs
         .take()

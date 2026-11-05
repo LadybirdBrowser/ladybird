@@ -1,0 +1,2 @@
+before the box scrolls: presented height 60, ticking, presented by clock
+as the box starts to scroll: presented height 60, parked
