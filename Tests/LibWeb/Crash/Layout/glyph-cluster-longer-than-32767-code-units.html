@@ -1,0 +1,40 @@
+<!doctype html>
+<style>
+    #wrapped {
+        width: 50px;
+        overflow-wrap: anywhere;
+    }
+    #truncated {
+        width: 50px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-shadow: 1px 1px red;
+    }
+</style>
+<div id="wrapped"></div>
+<div id="truncated"></div>
+<svg width="100" height="50"><text id="svg" y="20"></text></svg>
+<script>
+    const longCluster = "x" + "́".repeat(32768);
+    const text = `${longCluster}y ${longCluster}`;
+    for (const id of ["wrapped", "truncated", "svg"]) {
+        const element = document.getElementById(id);
+        element.textContent = text;
+        document.body.offsetWidth;
+
+        const textNode = element.firstChild;
+        const range = document.createRange();
+        range.setStart(textNode, 1);
+        range.setEnd(textNode, 40000);
+        range.getClientRects();
+
+        const selection = getSelection();
+        selection.setBaseAndExtent(textNode, 100, textNode, 40000);
+        selection.collapse(textNode, 40000);
+    }
+    const svgText = document.getElementById("svg");
+    svgText.getSubStringLength(0, 40000);
+    svgText.getStartPositionOfChar(40000);
+    document.caretPositionFromPoint(10, 10);
+</script>

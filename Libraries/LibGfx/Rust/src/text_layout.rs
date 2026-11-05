@@ -34,31 +34,58 @@ impl TryFrom<u8> for TextType {
     }
 }
 
+/// A glyph as shaping makes it and as the glyph run readers in C++ read it.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
-pub struct DrawGlyph {
+pub struct ShapedGlyph {
     x: f32,
     y: f32,
     length_in_code_units: usize,
-    pub advance: f32,
-    pub glyph_id: u32,
+    glyph_width: f32,
+    glyph_id: u32,
     cluster_start: u32,
     should_paint: bool,
     is_rtl: bool,
 }
 
+impl From<PlacedGlyph> for ShapedGlyph {
+    fn from(placed: PlacedGlyph) -> Self {
+        Self {
+            x: placed.x,
+            y: placed.y,
+            length_in_code_units: placed.glyph.length_in_code_units(),
+            glyph_width: placed.glyph.advance,
+            glyph_id: u32::from(placed.glyph.glyph_id),
+            cluster_start: placed.cluster_start,
+            should_paint: placed.glyph.should_paint(),
+            is_rtl: placed.is_rtl,
+        }
+    }
+}
+
+const GLYPH_SHOULD_PAINT_BIT: u16 = 1 << 15;
+const GLYPH_MAX_LENGTH_IN_CODE_UNITS: usize = (GLYPH_SHOULD_PAINT_BIT - 1) as usize;
+
+/// A glyph of a run: what it draws and how far it moves the pen. Where it sits is up to the run that holds it.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct DrawGlyph {
+    pub advance: f32,
+    pub glyph_id: u16,
+    length_and_should_paint: u16,
+}
+
+const _: () = assert!(size_of::<DrawGlyph>() == 8);
+
 impl DrawGlyph {
+    /// A cluster longer than the glyph can record counts as being as long as it can record.
     #[must_use]
     pub fn new(advance: f32, glyph_id: u32, length_in_code_units: usize, should_paint: bool) -> Self {
+        let length = length_in_code_units.min(GLYPH_MAX_LENGTH_IN_CODE_UNITS) as u16;
         Self {
-            x: 0.0,
-            y: 0.0,
-            length_in_code_units,
             advance,
-            glyph_id,
-            cluster_start: 0,
-            should_paint,
-            is_rtl: false,
+            glyph_id: glyph_id as u16,
+            length_and_should_paint: length | if should_paint { GLYPH_SHOULD_PAINT_BIT } else { 0 },
         }
     }
 
@@ -67,24 +94,52 @@ impl DrawGlyph {
     #[inline]
     #[must_use]
     pub fn length_in_code_units(&self) -> usize {
-        self.length_in_code_units
+        usize::from(self.length_and_should_paint & !GLYPH_SHOULD_PAINT_BIT)
     }
 
     #[inline]
     #[must_use]
     pub fn should_paint(&self) -> bool {
-        self.should_paint
+        self.length_and_should_paint & GLYPH_SHOULD_PAINT_BIT != 0
     }
 
     fn is_bitwise_equal_to(&self, other: &DrawGlyph) -> bool {
-        self.x.to_bits() == other.x.to_bits()
-            && self.y.to_bits() == other.y.to_bits()
-            && self.length_in_code_units == other.length_in_code_units
-            && self.advance.to_bits() == other.advance.to_bits()
+        self.advance.to_bits() == other.advance.to_bits()
             && self.glyph_id == other.glyph_id
-            && self.cluster_start == other.cluster_start
-            && self.should_paint == other.should_paint
-            && self.is_rtl == other.is_rtl
+            && self.length_and_should_paint == other.length_and_should_paint
+    }
+}
+
+const PLACEMENT_IS_RTL_BIT: u32 = 1 << 31;
+
+/// Where a run places a glyph, and what the glyph stands for in the text.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct GlyphPlacement {
+    x: f32,
+    y: f32,
+    cluster_start_and_is_rtl: u32,
+}
+
+const _: () = assert!(size_of::<GlyphPlacement>() == 12);
+
+impl GlyphPlacement {
+    fn new(x: f32, y: f32, cluster_start: u32, is_rtl: bool) -> Self {
+        assert!(cluster_start < PLACEMENT_IS_RTL_BIT);
+        Self {
+            x,
+            y,
+            cluster_start_and_is_rtl: cluster_start | if is_rtl { PLACEMENT_IS_RTL_BIT } else { 0 },
+        }
+    }
+
+    #[inline]
+    fn cluster_start(&self) -> u32 {
+        self.cluster_start_and_is_rtl & !PLACEMENT_IS_RTL_BIT
+    }
+
+    #[inline]
+    fn is_rtl(&self) -> bool {
+        self.cluster_start_and_is_rtl & PLACEMENT_IS_RTL_BIT != 0
     }
 }
 
@@ -97,12 +152,12 @@ unsafe extern "C" {
         letter_spacing: f32,
         word_spacing: f32,
         sink: *mut c_void,
-        emit: unsafe extern "C" fn(*mut c_void, *const DrawGlyph, usize, f32, usize, f32),
+        emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32),
     );
 
     fn ladybird_gfx_glyph_run_bounding_box(
         font: *const c_void,
-        glyphs: *const DrawGlyph,
+        glyphs: *const ShapedGlyph,
         glyph_count: usize,
         scale: f32,
         out_rect: *mut f32,
@@ -110,7 +165,7 @@ unsafe extern "C" {
 
     fn ladybird_gfx_glyph_run_ink_bounding_box(
         font: *const c_void,
-        glyphs: *const DrawGlyph,
+        glyphs: *const ShapedGlyph,
         glyph_count: usize,
         scale: f32,
         out_rect: *mut f32,
@@ -118,7 +173,7 @@ unsafe extern "C" {
 
     fn ladybird_gfx_glyph_run_glyph_intercepts(
         font: *const c_void,
-        glyphs: *const DrawGlyph,
+        glyphs: *const ShapedGlyph,
         glyph_count: usize,
         scale: f32,
         y_top: f32,
@@ -128,8 +183,14 @@ unsafe extern "C" {
     );
 }
 
+/// The glyphs of the run in the form that the glyph run readers in C++ read them.
+fn shaped_glyphs_of(glyphs: &GlyphBuffer) -> Vec<ShapedGlyph> {
+    glyphs.placed().map(ShapedGlyph::from).collect()
+}
+
 #[must_use]
-pub fn glyph_run_bounding_box(font: &FontHandle, glyphs: &[DrawGlyph], scale: f32) -> [f32; 4] {
+pub fn glyph_run_bounding_box(font: &FontHandle, glyphs: &GlyphBuffer, scale: f32) -> [f32; 4] {
+    let glyphs = shaped_glyphs_of(glyphs);
     let mut out_rect = [0.0f32; 4];
     // SAFETY: The handle keeps the font live and the glyph slice stays valid
     // for the synchronous call, which fills the four floats out_rect points at.
@@ -148,7 +209,8 @@ pub fn glyph_run_bounding_box(font: &FontHandle, glyphs: &[DrawGlyph], scale: f3
 /// Tight bounds of the ink of the painted glyphs, from their own extents, in the coordinates of
 /// `glyph_run_bounding_box()`, as x, y, width and height. Empty if no painted glyph has ink.
 #[must_use]
-pub fn glyph_run_ink_bounding_box(font: &FontHandle, glyphs: &[DrawGlyph], scale: f32) -> [f32; 4] {
+pub fn glyph_run_ink_bounding_box(font: &FontHandle, glyphs: &GlyphBuffer, scale: f32) -> [f32; 4] {
+    let glyphs = shaped_glyphs_of(glyphs);
     let mut out_rect = [0.0f32; 4];
     // SAFETY: The handle keeps the font live and the glyph slice stays valid
     // for the synchronous call, which fills the four floats out_rect points at.
@@ -167,7 +229,7 @@ pub fn glyph_run_ink_bounding_box(font: &FontHandle, glyphs: &[DrawGlyph], scale
 #[must_use]
 pub fn glyph_run_glyph_intercepts(
     font: &FontHandle,
-    glyphs: &[DrawGlyph],
+    glyphs: &GlyphBuffer,
     scale: f32,
     y_top: f32,
     y_bottom: f32,
@@ -176,6 +238,7 @@ pub fn glyph_run_glyph_intercepts(
         // SAFETY: `sink` is the Vec passed below, live for the synchronous call.
         unsafe { (*sink.cast::<Vec<f32>>()).push(value) };
     }
+    let glyphs = shaped_glyphs_of(glyphs);
     let mut intercepts: Vec<f32> = Vec::new();
     // SAFETY: The handle keeps the font live and the glyph slice stays valid
     // for the synchronous call; the push callback runs against the local Vec.
@@ -204,9 +267,20 @@ pub struct PlacedGlyph {
     pub is_rtl: bool,
 }
 
+impl PlacedGlyph {
+    fn is_bitwise_equal_to(&self, other: &PlacedGlyph) -> bool {
+        self.glyph.is_bitwise_equal_to(&other.glyph)
+            && self.x.to_bits() == other.x.to_bits()
+            && self.y.to_bits() == other.y.to_bits()
+            && self.cluster_start == other.cluster_start
+            && self.is_rtl == other.is_rtl
+    }
+}
+
 /// The glyphs of a run in order, each with its placement.
 pub struct PlacedGlyphs<'a> {
     glyphs: std::slice::Iter<'a, DrawGlyph>,
+    placements: std::slice::Iter<'a, GlyphPlacement>,
 }
 
 impl Iterator for PlacedGlyphs<'_> {
@@ -215,12 +289,13 @@ impl Iterator for PlacedGlyphs<'_> {
     #[inline]
     fn next(&mut self) -> Option<PlacedGlyph> {
         let glyph = *self.glyphs.next()?;
+        let placement = self.placements.next()?;
         Some(PlacedGlyph {
             glyph,
-            x: glyph.x,
-            y: glyph.y,
-            cluster_start: glyph.cluster_start,
-            is_rtl: glyph.is_rtl,
+            x: placement.x,
+            y: placement.y,
+            cluster_start: placement.cluster_start(),
+            is_rtl: placement.is_rtl(),
         })
     }
 
@@ -233,46 +308,104 @@ impl Iterator for PlacedGlyphs<'_> {
 impl ExactSizeIterator for PlacedGlyphs<'_> {}
 
 #[derive(Clone, Debug)]
-pub enum GlyphBuffer {
-    Shared(Arc<[DrawGlyph]>),
-    Owned(Vec<DrawGlyph>),
+enum GlyphStorage<T> {
+    Shared(Arc<[T]>),
+    Owned(Vec<T>),
 }
 
-impl GlyphBuffer {
-    /// The same glyphs in the form that clones without copying them.
-    #[must_use]
-    pub fn into_shared(self) -> Self {
+impl<T> Default for GlyphStorage<T> {
+    fn default() -> Self {
+        Self::Owned(Vec::new())
+    }
+}
+
+impl<T: Clone> GlyphStorage<T> {
+    #[inline]
+    fn as_slice(&self) -> &[T] {
         match self {
-            Self::Owned(glyphs) => Self::Shared(Arc::from(glyphs)),
+            Self::Shared(items) => items,
+            Self::Owned(items) => items,
+        }
+    }
+
+    fn into_shared(self) -> Self {
+        match self {
+            Self::Owned(items) => Self::Shared(Arc::from(items)),
             shared @ Self::Shared(_) => shared,
         }
     }
 
-    fn glyphs_mut(&mut self) -> &mut Vec<DrawGlyph> {
+    fn to_mut(&mut self) -> &mut Vec<T> {
         if let Self::Shared(shared) = self {
             *self = Self::Owned(shared.to_vec());
         }
         match self {
-            Self::Owned(glyphs) => glyphs,
+            Self::Owned(items) => items,
             Self::Shared(_) => unreachable!(),
+        }
+    }
+}
+
+/// The glyphs of a run, and where the run places them.
+#[derive(Clone, Debug, Default)]
+pub struct GlyphBuffer {
+    glyphs: GlyphStorage<DrawGlyph>,
+    placements: GlyphStorage<GlyphPlacement>,
+}
+
+impl GlyphBuffer {
+    fn from_shaped(shaped: &[ShapedGlyph]) -> Self {
+        Self {
+            glyphs: GlyphStorage::Shared(
+                shaped
+                    .iter()
+                    .map(|glyph| {
+                        DrawGlyph::new(
+                            glyph.glyph_width,
+                            glyph.glyph_id,
+                            glyph.length_in_code_units,
+                            glyph.should_paint,
+                        )
+                    })
+                    .collect(),
+            ),
+            placements: GlyphStorage::Shared(
+                shaped
+                    .iter()
+                    .map(|glyph| GlyphPlacement::new(glyph.x, glyph.y, glyph.cluster_start, glyph.is_rtl))
+                    .collect(),
+            ),
+        }
+    }
+
+    /// The same glyphs in the form that clones without copying them.
+    #[must_use]
+    pub fn into_shared(self) -> Self {
+        Self {
+            glyphs: self.glyphs.into_shared(),
+            placements: self.placements.into_shared(),
         }
     }
 
     #[inline]
     #[must_use]
     pub fn placed(&self) -> PlacedGlyphs<'_> {
-        PlacedGlyphs { glyphs: self.iter() }
+        PlacedGlyphs {
+            glyphs: self.glyphs.as_slice().iter(),
+            placements: self.placements.as_slice().iter(),
+        }
     }
 
     pub fn reserve(&mut self, additional_glyphs: usize) {
-        self.glyphs_mut().reserve(additional_glyphs);
+        self.glyphs.to_mut().reserve(additional_glyphs);
+        self.placements.to_mut().reserve(additional_glyphs);
     }
 
     /// Has `update` move each glyph, given its x and y.
     pub fn update_positions(&mut self, mut update: impl FnMut(&DrawGlyph, &mut f32, &mut f32)) {
-        for glyph in self.glyphs_mut() {
-            let record = *glyph;
-            update(&record, &mut glyph.x, &mut glyph.y);
+        let placements = self.placements.to_mut();
+        for (glyph, placement) in std::iter::zip(self.glyphs.as_slice(), placements) {
+            update(glyph, &mut placement.x, &mut placement.y);
         }
     }
 
@@ -282,72 +415,70 @@ impl GlyphBuffer {
     }
 
     pub fn push_placed(&mut self, placed: PlacedGlyph) {
-        self.glyphs_mut().push(DrawGlyph {
-            x: placed.x,
-            y: placed.y,
-            cluster_start: placed.cluster_start,
-            is_rtl: placed.is_rtl,
-            ..placed.glyph
-        });
+        self.glyphs.to_mut().push(placed.glyph);
+        self.placements.to_mut().push(GlyphPlacement::new(
+            placed.x,
+            placed.y,
+            placed.cluster_start,
+            placed.is_rtl,
+        ));
     }
 
     pub fn truncate(&mut self, glyph_count: usize) {
-        self.glyphs_mut().truncate(glyph_count);
+        self.glyphs.to_mut().truncate(glyph_count);
+        self.placements.to_mut().truncate(glyph_count);
     }
 
     pub fn pop(&mut self) {
-        self.glyphs_mut().pop();
+        self.glyphs.to_mut().pop();
+        self.placements.to_mut().pop();
     }
 
     /// Drops all glyphs outside of `range`, leaving the placement of the others as it is.
     pub fn keep_range(&mut self, range: std::ops::Range<usize>) {
-        let glyphs = self.glyphs_mut();
+        let glyphs = self.glyphs.to_mut();
         glyphs.drain(range.end..);
         glyphs.drain(..range.start);
+        let placements = self.placements.to_mut();
+        placements.drain(range.end..);
+        placements.drain(..range.start);
     }
 
     /// The glyphs from the one at `index` on, with that glyph at the start of the run and of the text.
     #[must_use]
     pub fn remainder_from(&self, index: usize) -> Self {
-        let first = self[index];
-        self[index..]
-            .iter()
-            .map(|glyph| DrawGlyph {
-                x: glyph.x - first.x,
-                cluster_start: glyph.cluster_start.saturating_sub(first.cluster_start),
-                ..*glyph
-            })
-            .collect::<Vec<_>>()
-            .into()
-    }
-}
-
-impl Default for GlyphBuffer {
-    fn default() -> Self {
-        Self::Owned(Vec::new())
-    }
-}
-
-impl From<Vec<DrawGlyph>> for GlyphBuffer {
-    fn from(glyphs: Vec<DrawGlyph>) -> Self {
-        Self::Owned(glyphs)
+        let first = self.placements.as_slice()[index];
+        Self {
+            glyphs: GlyphStorage::Owned(self.glyphs.as_slice()[index..].to_vec()),
+            placements: GlyphStorage::Owned(
+                self.placements.as_slice()[index..]
+                    .iter()
+                    .map(|placement| {
+                        GlyphPlacement::new(
+                            placement.x - first.x,
+                            placement.y,
+                            placement.cluster_start().saturating_sub(first.cluster_start()),
+                            placement.is_rtl(),
+                        )
+                    })
+                    .collect(),
+            ),
+        }
     }
 }
 
 impl std::ops::Deref for GlyphBuffer {
     type Target = [DrawGlyph];
 
+    #[inline]
     fn deref(&self) -> &[DrawGlyph] {
-        match self {
-            Self::Shared(glyphs) => glyphs,
-            Self::Owned(glyphs) => glyphs,
-        }
+        self.glyphs.as_slice()
     }
 }
 
 impl PartialEq for GlyphBuffer {
     fn eq(&self, other: &Self) -> bool {
-        **self == **other
+        self.placed().eq(other.placed())
     }
 }
 
@@ -421,8 +552,8 @@ impl CachedShape {
             && self.trailing_whitespace_length_in_code_units == other.trailing_whitespace_length_in_code_units
             && self.trailing_whitespace_advance.to_bits() == other.trailing_whitespace_advance.to_bits()
             && self.glyphs.len() == other.glyphs.len()
-            && std::iter::zip(self.glyphs.iter(), other.glyphs.iter())
-                .all(|(glyph, other_glyph)| glyph.is_bitwise_equal_to(other_glyph))
+            && std::iter::zip(self.glyphs.placed(), other.glyphs.placed())
+                .all(|(glyph, other_glyph)| glyph.is_bitwise_equal_to(&other_glyph))
     }
 }
 
@@ -606,7 +737,7 @@ fn shape_text_uncached(
 ) -> CachedShape {
     unsafe extern "C" fn emit(
         sink: *mut c_void,
-        glyphs: *const DrawGlyph,
+        glyphs: *const ShapedGlyph,
         glyph_count: usize,
         width: f32,
         trailing_whitespace_length_in_code_units: usize,
@@ -616,13 +747,13 @@ fn shape_text_uncached(
         // glyph pointer stays valid for this synchronous callback.
         let shape = unsafe { &mut *sink.cast::<Option<CachedShape>>() };
         assert!(glyph_count == 0 || !glyphs.is_null());
-        let glyphs = GlyphBuffer::Shared(if glyph_count == 0 {
-            Arc::from([])
+        let glyphs = if glyph_count == 0 {
+            GlyphBuffer::from_shaped(&[])
         } else {
             // SAFETY: The C++ side hands a pointer to glyph_count glyphs that
             // outlive the callback.
-            Arc::from(unsafe { ak::slice_from_raw_parts(glyphs, glyph_count) })
-        });
+            GlyphBuffer::from_shaped(unsafe { ak::slice_from_raw_parts(glyphs, glyph_count) })
+        };
         *shape = Some(CachedShape {
             glyphs,
             width,
@@ -724,7 +855,7 @@ mod shaping_cache_tests {
 
     fn shape_with_glyph_count(glyph_count: usize) -> CachedShape {
         CachedShape {
-            glyphs: GlyphBuffer::Shared(Arc::from(vec![DrawGlyph::default(); glyph_count])),
+            glyphs: GlyphBuffer::from_shaped(&vec![ShapedGlyph::default(); glyph_count]),
             width: glyph_count as f32,
             trailing_whitespace_length_in_code_units: 0,
             trailing_whitespace_advance: 0.0,

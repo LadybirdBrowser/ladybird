@@ -7,7 +7,7 @@
 //! Stand-ins for the LibGfx font, shaping and path entry points, which a unit test links through a document's render
 //! state, without the C++ runtime, but never reaches.
 
-use libgfx_rust::text_layout::{DrawGlyph, TextType};
+use libgfx_rust::text_layout::{DrawGlyph, ShapedGlyph, TextType};
 use std::ffi::c_void;
 
 #[unsafe(no_mangle)]
@@ -117,7 +117,7 @@ extern "C" fn ladybird_gfx_shape_text_uncached(
     _letter_spacing: f32,
     _word_spacing: f32,
     _sink: *mut c_void,
-    _emit: unsafe extern "C" fn(*mut c_void, *const DrawGlyph, usize, f32, usize, f32),
+    _emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32),
 ) {
     unreachable!("no unit test shapes text");
 }
@@ -125,7 +125,7 @@ extern "C" fn ladybird_gfx_shape_text_uncached(
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_glyph_run_bounding_box(
     _font: *const c_void,
-    _glyphs: *const DrawGlyph,
+    _glyphs: *const ShapedGlyph,
     _glyph_count: usize,
     _scale: f32,
     _out_rect: *mut f32,
@@ -137,7 +137,7 @@ extern "C" fn ladybird_gfx_glyph_run_bounding_box(
 #[allow(clippy::too_many_arguments)]
 extern "C" fn ladybird_gfx_glyph_run_glyph_intercepts(
     _font: *const c_void,
-    _glyphs: *const DrawGlyph,
+    _glyphs: *const ShapedGlyph,
     _glyph_count: usize,
     _scale: f32,
     _y_top: f32,
