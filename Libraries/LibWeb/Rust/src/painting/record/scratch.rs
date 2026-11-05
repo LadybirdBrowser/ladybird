@@ -7,6 +7,7 @@
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::SpatialNodeIndex;
 use crate::painting::record::hit_test_items::HitTestFacts;
+use crate::painting::record::order_tree::ScopeMarks;
 use crate::painting::record::paint::text::SelectionStyleAnswer;
 use crate::painting::record::{BasePaintFacts, PatternTileKey};
 use std::collections::HashMap;
@@ -36,6 +37,7 @@ pub(crate) struct RecordingScratch {
     recording_stamp: u32,
     base_paint_facts: Vec<StampedEntry<BasePaintFacts>>,
     hit_test_facts: Vec<StampedEntry<HitTestFacts>>,
+    pub(super) scope_marks: ScopeMarks,
     pub(super) pattern_tile_records: HashMap<PatternTileKey, Arc<Vec<u8>>>,
     pub(super) selection_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
     pub(super) search_text_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,

@@ -156,14 +156,17 @@ fn record_display_list_impl<O: Observer>(
         }
         None => {
             let source_prologue_bytes = recorder.source_recording.as_ref().map(|frame| frame.prologue_bytes);
+            let mut marks = std::mem::take(&mut recorder.scratch.scope_marks);
             Assembler::new(
                 &mut recorder,
                 tree,
+                &mut marks,
                 source_prologue_bytes,
                 inputs.publishes_recording,
                 window_focus_changed,
             )
             .assemble_root(root_scope);
+            recorder.scratch.scope_marks = marks;
             if has_inspector_overlays {
                 recorder.trace_paint(
                     Operation::Named(None, "inspector-overlays"),

@@ -10,7 +10,7 @@
 //! way: when assembly starts, the damage set is complete by construction.
 
 use super::PaintPhase;
-use super::order_tree::{ChildEntry, ChildKey, OutputSize, PaintOrderTree, ProducerKind, ScopeId};
+use super::order_tree::{ChildEntry, ChildKey, OutputSize, PaintOrderTree, ProducerKind, ScopeId, ScopeMarks};
 use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_order_plan::{PaintOrderItem, PaintProducer, PaintScope, PaintScopeKind};
@@ -141,6 +141,7 @@ pub(crate) fn frame_is_unchanged(tree: &PaintOrderTree, has_damage: bool, window
 pub(crate) struct Assembler<'a, H: AssemblyHost> {
     host: &'a mut H,
     tree: &'a mut PaintOrderTree,
+    marks: &'a mut ScopeMarks,
     // The byte offset of the published root scope, when a published recording can be copied from.
     source_prologue_bytes: Option<u32>,
     // Off for a frame that publishes nothing: it still marks damaged paths, but the tree's
@@ -155,6 +156,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
     pub(crate) fn new(
         host: &'a mut H,
         tree: &'a mut PaintOrderTree,
+        marks: &'a mut ScopeMarks,
         source_prologue_bytes: Option<u32>,
         rewrites_tree: bool,
         window_focus_changed: bool,
@@ -162,6 +164,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         Self {
             host,
             tree,
+            marks,
             source_prologue_bytes,
             rewrites_tree,
             window_focus_changed,
@@ -179,13 +182,13 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
     /// rewrites the tree leaves the assembled structure there as pending changes for the caller
     /// to publish or discard.
     pub(crate) fn assemble_root(mut self, root_scope: PaintScope) -> OutputSize {
-        self.tree.begin_recording();
+        self.marks.begin_recording();
         // Damage only steers what a frame copies; a frame without a published recording to copy
         // from records everything and never consults it.
         if self.source_prologue_bytes.is_some() {
             for row in self.host.damaged_rows() {
                 for scope in self.tree.scopes_owned_by(row) {
-                    self.tree.mark_path_to_root_damaged(scope);
+                    self.tree.mark_path_to_root_damaged(scope, self.marks);
                 }
             }
         }
@@ -240,7 +243,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             let published_output = entry.output();
             let assembled = match entry.key() {
                 ChildKey::Scope(child) => {
-                    if self.tree.is_on_damaged_path(child) || self.records_again(&entry) {
+                    if self.marks.is_on_damaged_path(child) || self.records_again(&entry) {
                         self.assemble_scope(child, child_cursor)
                     } else {
                         self.copy(child_cursor, published_output);
@@ -348,7 +351,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                     let assembled = match found {
                         Some((child, index)) => {
                             matched[index] = true;
-                            if self.tree.is_on_damaged_path(child) || self.records_again(&published[index]) {
+                            if self.marks.is_on_damaged_path(child) || self.records_again(&published[index]) {
                                 self.assemble_scope(child, published_cursors[index])
                             } else {
                                 self.copy(published_cursors[index], published[index].output());
@@ -769,8 +772,9 @@ mod tests {
         );
         let prologue_bytes = host.output.recorder.byte_size() as u32;
         let source_prologue_bytes = host.source.as_ref().map(|frame| frame.prologue_bytes);
-        let root_output =
-            Assembler::new(host, tree, source_prologue_bytes, rewrites_tree, false).assemble_root(context(row(0)));
+        let mut marks = ScopeMarks::default();
+        let root_output = Assembler::new(host, tree, &mut marks, source_prologue_bytes, rewrites_tree, false)
+            .assemble_root(context(row(0)));
         let output = std::mem::replace(&mut host.output, new_output());
         let hit_test_items = std::sync::Arc::try_unwrap(output.hit_test_list.items).expect("items are unshared");
         Frame {
