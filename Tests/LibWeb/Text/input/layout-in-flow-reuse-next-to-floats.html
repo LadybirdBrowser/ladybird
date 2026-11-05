@@ -29,6 +29,9 @@
 <div class="scenario" id="inline-float"><span id="inline-float-span" style="float: left; clear: left">one</span>two</div>
 <div class="scenario" id="root-width-wrapped"><div style="width: 150px"><div class="float" style="float: right; width: 20px; height: 40px"></div><p>one two three four five six seven eight nine ten eleven twelve</p><p id="root-width-wrapped-last">one two three four five six seven eight nine ten eleven twelve</p></div></div>
 <div class="scenario" id="root-width"><div class="float" style="float: right; width: 20px; height: 40px"></div><p id="root-width-beside">one two three four five six seven eight nine ten eleven twelve</p></div>
+<div class="scenario" id="new-float"><div id="new-float-spacer" style="height: 30px"></div><p id="new-float-below">one two three four five six seven eight nine ten eleven twelve</p></div>
+<div class="scenario" id="read-through"><div id="read-through-box"><p id="read-through-first">one two three four five six seven eight nine ten eleven twelve</p><div id="read-through-spacer" style="height: 10px"></div></div></div>
+<div class="scenario" id="settled"><div class="float" style="width: 20px; height: 15px"></div><div id="settled-before" style="height: 20px; margin-bottom: 10px"></div><div id="settled-box" style="padding-top: 1px">one two three four five six seven eight nine ten eleven twelve</div></div>
 <script>
     function geometryOf(root) {
         const origin = root.getBoundingClientRect();
@@ -138,6 +141,25 @@
         });
         step("the root widens around a float in it", "root-width", ["root-width-beside"], () => {
             byId("root-width").style.width = "300px";
+        });
+        const newFloatBefore = (sibling, height) => {
+            const float = document.createElement("div");
+            float.className = "float";
+            float.style.width = "20px";
+            float.style.height = height;
+            sibling.before(float);
+        };
+        step("a box stored without floats, below a new float", "new-float", ["new-float-below"], () => {
+            newFloatBefore(byId("new-float-spacer"), "20px");
+        });
+        step("a box reused without floats", "read-through", ["read-through-box", "read-through-first"], () => {
+            byId("read-through-spacer").style.height = "20px";
+        });
+        step("then a new float reaches it", "read-through", ["read-through-box", "read-through-first"], () => {
+            newFloatBefore(byId("read-through-box"), "40px");
+        });
+        step("a margin before a box that reads where it settled", "settled", ["settled-box"], () => {
+            byId("settled-before").style.marginBottom = "30px";
         });
 
         for (const line of output)
