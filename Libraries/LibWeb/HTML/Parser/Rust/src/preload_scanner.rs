@@ -210,7 +210,7 @@ fn process_end_tag(token: &Token, template_depth: &mut u64, foreign_depth: &mut 
     }
 }
 
-fn tokenizer_state_after_start_tag(tag_name: &HtmlName, scripting_enabled: bool) -> Option<State> {
+pub(crate) fn tokenizer_state_after_start_tag(tag_name: &HtmlName, scripting_enabled: bool) -> Option<State> {
     if *tag_name == tag_name!("script") {
         Some(State::ScriptData)
     } else if *tag_name == tag_name!("title") || *tag_name == tag_name!("textarea") {

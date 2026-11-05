@@ -6,6 +6,7 @@
 
 pub mod entities;
 mod known_names;
+pub mod meta_charset_scanner;
 pub mod parser;
 pub mod preload_scanner;
 pub mod token;
