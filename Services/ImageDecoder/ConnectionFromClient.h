@@ -69,13 +69,12 @@ private:
     virtual void cancel_decoding(i64 request_id) override;
     virtual void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) override;
     virtual void stop_animation_decode(i64 session_id) override;
+    virtual void connect_frame_client(IPC::TransportHandle) override;
 
     NonnullRefPtr<PendingJob> start_decode_image_job(i64 request_id, Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type);
     NonnullRefPtr<PendingJob> start_frame_decode_job(i64 session_id, NonnullRefPtr<AnimationSession>, u32 start_frame_index, u32 end_index);
 
-    i64 m_next_session_id { 1 };
     HashMap<i64, NonnullRefPtr<PendingJob>> m_pending_jobs;
-    HashMap<i64, NonnullRefPtr<AnimationSession>> m_animation_sessions;
     HashMap<i64, NonnullRefPtr<PendingJob>> m_pending_frame_jobs;
 };
 

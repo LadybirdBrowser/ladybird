@@ -22,6 +22,10 @@ namespace ImageDecoder {
 static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
 static IDAllocator s_client_ids;
 
+// NB: The process decodes for one client and whoever that client connects, so they all share its sessions.
+static HashMap<i64, NonnullRefPtr<ConnectionFromClient::AnimationSession>> s_animation_sessions;
+static i64 s_next_session_id { 1 };
+
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(transport), s_client_ids.allocate())
 {
@@ -37,7 +41,6 @@ void ConnectionFromClient::die()
     for (auto& [_, job] : m_pending_frame_jobs)
         job->cancel();
     m_pending_frame_jobs.clear();
-    m_animation_sessions.clear();
 
     auto client_id = this->client_id();
     s_connections.remove(client_id);
@@ -170,12 +173,12 @@ NonnullRefPtr<ConnectionFromClient::PendingJob> ConnectionFromClient::start_deco
 
                 if (result_value.decoder) {
                     // This is a streaming animated decode. Create a session.
-                    session_id = strong_this->m_next_session_id++;
+                    session_id = s_next_session_id++;
                     auto session = make_ref_counted<AnimationSession>();
                     session->encoded_data = move(result_value.encoded_data);
                     session->decoder = move(result_value.decoder);
                     session->frame_count = result_value.frame_count;
-                    strong_this->m_animation_sessions.set(session_id, move(session));
+                    s_animation_sessions.set(session_id, move(session));
                 }
 
                 strong_this->async_did_decode_image(request_id, result_value.is_animated, result_value.loop_count, move(result_value.bitmaps), move(result_value.durations), result_value.scale, move(result_value.color_profile), session_id);
@@ -239,8 +242,8 @@ void ConnectionFromClient::cancel_decoding(i64 request_id)
 
 void ConnectionFromClient::request_animation_frames(i64 session_id, u32 start_frame_index, u32 count)
 {
-    auto it = m_animation_sessions.find(session_id);
-    if (it == m_animation_sessions.end())
+    auto it = s_animation_sessions.find(session_id);
+    if (it == s_animation_sessions.end())
         return;
 
     auto session = it->value;
@@ -322,9 +325,23 @@ NonnullRefPtr<ConnectionFromClient::PendingJob> ConnectionFromClient::start_fram
 
 void ConnectionFromClient::stop_animation_decode(i64 session_id)
 {
-    if (auto job = m_pending_frame_jobs.take(session_id); job.has_value())
-        job.value()->cancel();
-    m_animation_sessions.remove(session_id);
+    // NB: The job belongs to whichever of the clients sharing the session asked for the frames.
+    for (auto& [_, connection] : s_connections) {
+        if (auto job = connection->m_pending_frame_jobs.take(session_id); job.has_value())
+            job.value()->cancel();
+    }
+    s_animation_sessions.remove(session_id);
+}
+
+void ConnectionFromClient::connect_frame_client(IPC::TransportHandle handle)
+{
+    auto transport_or_error = handle.create_transport();
+    if (transport_or_error.is_error()) {
+        dbgln("ImageDecoder: Could not take up a frame client: {}", transport_or_error.error());
+        return;
+    }
+    // NB: The new connection keeps itself alive in s_connections until it dies.
+    (void)ConnectionFromClient::construct(transport_or_error.release_value());
 }
 
 }
