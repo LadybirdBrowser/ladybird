@@ -32,6 +32,7 @@
 #include <LibWebView/RequestServerManager.h>
 
 #if defined(AK_OS_MACOS)
+#    include <LibWebView/QuarantineMacOS.h>
 #    include <sys/xattr.h>
 #endif
 
@@ -167,10 +168,16 @@ FileDownloader::~FileDownloader() = default;
 
 // The operating system checks a downloaded file before it is first opened, as long as the file carries the mark that
 // browsers give their downloads.
-static void mark_as_downloaded([[maybe_unused]] Core::File& file)
+static void mark_as_downloaded([[maybe_unused]] Core::File& file, [[maybe_unused]] LexicalPath const& path, [[maybe_unused]] IsPrivate is_private)
 {
 #if defined(AK_OS_MACOS)
-    // NB: These are the quarantine flags other browsers set, and the time of the download in hexadecimal seconds.
+    // The quarantine event of a web download stays in a system log after the file is gone, which a private download must
+    // not leave behind.
+    if (is_private == IsPrivate::No && mark_as_web_download(path.string()))
+        return;
+
+    // Without a quarantine event the system tells the user that we created the file, but it does check the file. These
+    // are the quarantine flags of a download, and the time of the download in hexadecimal seconds.
     auto quarantine = ByteString::formatted("0083;{:08x};Ladybird;", UnixDateTime::now().seconds_since_epoch());
     if (::fsetxattr(file.fd(), "com.apple.quarantine", quarantine.characters(), quarantine.length(), 0, 0) < 0)
         dbgln("Unable to quarantine a download: {}", Error::from_errno(errno));
@@ -963,7 +970,7 @@ u64 FileDownloader::start_download(IsPrivate is_private, URL::URL const& url, Le
         return download_id;
     }
     auto file = file_or_error.release_value();
-    mark_as_downloaded(*file);
+    mark_as_downloaded(*file, temporary_destination, is_private);
 
     auto active = make<ActiveDownload>(move(file), temporary_destination);
     active->may_replace_destination = may_replace_destination == MayReplaceDestination::Yes;
@@ -1239,7 +1246,7 @@ void FileDownloader::resume_download(u64 id)
 
         active->file = file_or_error.release_value();
         // NB: The file may come from a build that did not mark downloads, or have been created anew by opening it.
-        mark_as_downloaded(*active->file);
+        mark_as_downloaded(*active->file, active->temporary_destination, download->is_private);
         active->file_offset = {};
     }
 

@@ -5,6 +5,7 @@
  */
 
 #include "HeadlessTest.h"
+#include <AK/Array.h>
 #include <AK/ByteString.h>
 #include <AK/Mutex.h>
 #include <AK/ScopeGuard.h>
@@ -24,6 +25,10 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+
+#if defined(AK_OS_MACOS)
+#    include <sys/xattr.h>
+#endif
 
 namespace {
 
@@ -337,7 +342,7 @@ ByteBuffer make_body(size_t size)
     return body;
 }
 
-ByteString run_download(TestHttpServer& server, StringView destination_directory, StringView file_name, Function<void(u64, DownloadWatcher&)> during_download = {})
+ByteString run_download(TestHttpServer& server, StringView destination_directory, StringView file_name, Function<void(u64, DownloadWatcher&)> during_download = {}, WebView::IsPrivate is_private = WebView::IsPrivate::No)
 {
     auto& downloader = WebView::Application::the().file_downloader();
 
@@ -346,7 +351,7 @@ ByteString run_download(TestHttpServer& server, StringView destination_directory
     auto url = URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/file", server.port()));
     VERIFY(url.has_value());
 
-    auto download_id = downloader.download_file(WebView::IsPrivate::No, *url, destination);
+    auto download_id = downloader.download_file(is_private, *url, destination);
     watcher.watch(download_id);
 
     if (during_download)
@@ -368,6 +373,26 @@ void expect_file_matches(StringView path, ReadonlyBytes expected)
     VERIFY(contents.size() == expected.size());
     VERIFY(contents.bytes() == expected);
 }
+
+#if defined(AK_OS_MACOS)
+enum class QuarantineEvent : u8 {
+    No,
+    Yes,
+};
+
+void expect_file_is_quarantined(ByteString const& path, QuarantineEvent event)
+{
+    Array<char, 256> value {};
+    auto size = getxattr(path.characters(), "com.apple.quarantine", value.data(), value.size(), 0, 0);
+    VERIFY(size > 0);
+
+    // The fields are the flags, the time, the agent and the identifier of the quarantine event.
+    auto fields = StringView { value.data(), static_cast<size_t>(size) }.split_view(';', SplitBehavior::KeepEmpty);
+    VERIFY(fields.size() == 4);
+    VERIFY(fields[2] == "Ladybird"sv);
+    VERIFY(fields[3].is_empty() == (event == QuarantineEvent::No));
+}
+#endif
 
 void expect_request_can_be_released_from_finish_callback(TestHttpServer& server, size_t expected_body_size)
 {
@@ -543,6 +568,20 @@ TEST_CASE(file_downloader)
         expect_request_can_be_released_from_finish_callback(server, response_body.size());
         outln("release request from finish callback");
     }
+
+#if defined(AK_OS_MACOS)
+    {
+        auto response_body = make_body(4 * KiB);
+        TestHttpServer server { response_body, RangeSupport::No };
+
+        expect_file_is_quarantined(run_download(server, test_directory, "quarantined.bin"sv), QuarantineEvent::Yes);
+        outln("quarantine as web download");
+
+        auto private_path = run_download(server, test_directory, "quarantined-private.bin"sv, {}, WebView::IsPrivate::Yes);
+        expect_file_is_quarantined(private_path, QuarantineEvent::No);
+        outln("quarantine private download without an event");
+    }
+#endif
 
     {
         auto response_body = make_body(4 * KiB);
