@@ -247,6 +247,7 @@ public:
     void reload_bypassing_cache_through_ui_process();
     void traverse_history_through_ui_process(i32 delta);
     GC::Ref<WebIDL::Promise> flush_session_history_traversal_queue();
+    void exhaust_navigation_rate_limit();
     bool html_parser_body_is_exhausted(DOM::Document&);
     bool has_html_parser_end_state(DOM::Document& document) { return document.has_html_parser_end_state(); }
 

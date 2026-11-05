@@ -1673,6 +1673,9 @@ void LocalNavigable::set_active_document(GC::Ptr<DOM::Document> document)
     m_active_session_history_entry->document_state()->set_document_id(document_id);
 }
 
+static constexpr u32 max_navigation_or_history_updates_in_rate_limit_window = 200;
+static constexpr auto navigation_or_history_update_rate_limit_window_duration = AK::Duration::from_seconds(10);
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#allowed-to-perform-a-navigation-or-history-update
 LocalNavigable::NavigationOrHistoryUpdatePermission LocalNavigable::allowed_to_perform_a_navigation_or_history_update()
 {
@@ -1680,24 +1683,30 @@ LocalNavigable::NavigationOrHistoryUpdatePermission LocalNavigable::allowed_to_p
     // either allowed or blocked.
     // NB: We block a navigable's navigations and history updates after it has done too many of them within a short
     //     timespan, so a page cannot flood the session history or keep the event loop busy navigating.
-    static constexpr u32 max_updates_in_rate_limit_window = 200;
-    static constexpr auto rate_limit_window_duration = AK::Duration::from_seconds(10);
-
     auto now = MonotonicTime::now_coarse();
-    if (now - m_navigation_or_history_update_rate_limit_window_start > rate_limit_window_duration) {
+    if (!m_navigation_or_history_update_rate_limit_held_for_testing
+        && now - m_navigation_or_history_update_rate_limit_window_start > navigation_or_history_update_rate_limit_window_duration) {
         m_navigation_or_history_update_rate_limit_window_start = now;
         m_navigation_or_history_updates_in_rate_limit_window = 0;
     }
 
-    if (m_navigation_or_history_updates_in_rate_limit_window >= max_updates_in_rate_limit_window)
+    if (m_navigation_or_history_updates_in_rate_limit_window >= max_navigation_or_history_updates_in_rate_limit_window)
         return NavigationOrHistoryUpdatePermission::Blocked;
 
     ++m_navigation_or_history_updates_in_rate_limit_window;
     return NavigationOrHistoryUpdatePermission::Allowed;
 }
 
+void LocalNavigable::exhaust_navigation_or_history_update_rate_limit_for_testing()
+{
+    // The hold keeps the window from expiring with time, so only the reset between tests lifts the limit again.
+    m_navigation_or_history_update_rate_limit_held_for_testing = true;
+    m_navigation_or_history_updates_in_rate_limit_window = max_navigation_or_history_updates_in_rate_limit_window;
+}
+
 void LocalNavigable::reset_navigation_or_history_update_rate_limit_for_testing()
 {
+    m_navigation_or_history_update_rate_limit_held_for_testing = false;
     m_navigation_or_history_update_rate_limit_window_start = MonotonicTime::now_coarse();
     m_navigation_or_history_updates_in_rate_limit_window = 0;
 }

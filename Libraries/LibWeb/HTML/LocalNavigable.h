@@ -235,6 +235,7 @@ public:
         Blocked,
     };
     NavigationOrHistoryUpdatePermission allowed_to_perform_a_navigation_or_history_update();
+    void exhaust_navigation_or_history_update_rate_limit_for_testing();
     void reset_navigation_or_history_update_rate_limit_for_testing();
 
     virtual bool is_local_navigable() const override { return true; }
@@ -635,6 +636,7 @@ private:
 
     MonotonicTime m_navigation_or_history_update_rate_limit_window_start { MonotonicTime::now_coarse() };
     u32 m_navigation_or_history_updates_in_rate_limit_window { 0 };
+    bool m_navigation_or_history_update_rate_limit_held_for_testing { false };
     GC::Ptr<WindowProxy> m_window_proxy_after_unload;
     GC::Ptr<RemoteNavigable> m_provisional_for;
 
