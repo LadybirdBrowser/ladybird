@@ -39,6 +39,7 @@ add_library(ladybird_impl STATIC
     PerformanceMonitorWidget.cpp
     PermissionPromptPopover.cpp
     PictureInPictureWindow.cpp
+    PlainText.cpp
     Popover.cpp
     ProcessManagerWindow.cpp
     ReportReview.cpp

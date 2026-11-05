@@ -47,6 +47,7 @@
 #endif
 #include <UI/Qt/InputMethodUtils.h>
 #include <UI/Qt/Menu.h>
+#include <UI/Qt/PlainText.h>
 #include <UI/Qt/SelectDropdown.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/SystemAppearance.h>
@@ -87,7 +88,6 @@
 #include <QStyleHints>
 #include <QTextEdit>
 #include <QTimer>
-#include <QToolTip>
 #include <QVBoxLayout>
 #include <QWheelEvent>
 #include <QWindow>
@@ -199,10 +199,7 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
 
     QObject::connect(&m_tooltip_hover_timer, &QTimer::timeout, this, [this] {
         if (m_tooltip_text.has_value())
-            QToolTip::showText(
-                QCursor::pos(),
-                qstring_from_ak_string(m_tooltip_text.value()),
-                this);
+            show_tooltip(QCursor::pos(), qstring_from_ak_string(m_tooltip_text.value()), *this);
     });
 
     if (initial_state.owner_view)
@@ -382,13 +379,7 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
         if (m_tooltip_hover_timer.isActive())
             m_tooltip_hover_timer.stop();
 
-        auto tooltip_without_carriage_return = tooltip.contains("\r"sv)
-            ? tooltip.replace("\r\n"sv, "\n"sv, ReplaceMode::All).replace("\r"sv, "\n"sv, ReplaceMode::All)
-            : tooltip;
-        QToolTip::showText(
-            mapToGlobal(QPoint(position.x(), position.y())),
-            qstring_from_ak_string(tooltip_without_carriage_return),
-            this);
+        show_tooltip(mapToGlobal(QPoint(position.x(), position.y())), qstring_from_ak_string(tooltip), *this);
     };
 
     on_stop_tooltip_override = [this]() {
@@ -396,9 +387,7 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
     };
 
     on_enter_tooltip_area = [this](auto const& tooltip) {
-        m_tooltip_text = tooltip.contains("\r"sv)
-            ? tooltip.replace("\r\n"sv, "\n"sv, ReplaceMode::All).replace("\r"sv, "\n"sv, ReplaceMode::All)
-            : tooltip;
+        m_tooltip_text = tooltip;
     };
 
     on_leave_tooltip_area = [this]() {
@@ -945,8 +934,7 @@ void WebContentView::mouseMoveEvent(QMouseEvent* event)
     }
 
     if (!m_tooltip_override) {
-        if (QToolTip::isVisible())
-            QToolTip::hideText();
+        hide_tooltip();
         m_tooltip_hover_timer.start(600);
     }
 
