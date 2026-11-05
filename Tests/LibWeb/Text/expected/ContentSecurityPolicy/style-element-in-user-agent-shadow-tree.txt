@@ -1,0 +1,3 @@
+Blocked style in VIDEO
+Blocked style in DETAILS
+Blocked style in STYLE

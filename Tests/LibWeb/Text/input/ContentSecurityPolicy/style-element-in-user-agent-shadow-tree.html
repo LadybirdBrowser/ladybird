@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const video = document.createElement("video");
+        video.controls = true;
+        const details = document.createElement("details");
+        const pageStyle = document.createElement("style");
+        pageStyle.textContent = "body { color: green; }";
+
+        // NB: Violations are reported in order, so the one for the page's style element comes last.
+        await new Promise(resolve => {
+            document.addEventListener("securitypolicyviolation", event => {
+                println(`Blocked style in ${event.target.nodeName}`);
+                if (event.target === pageStyle)
+                    resolve();
+            });
+            document.body.append(video, details, pageStyle);
+        });
+    });
+</script>
