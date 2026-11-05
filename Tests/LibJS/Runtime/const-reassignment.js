@@ -72,6 +72,20 @@ test("reassignment to const should run valueOf", () => {
     expect(valueOfExecuted).toBeTrue();
 });
 
+test("update expression on const keeps its value", () => {
+    function localConstant() {
+        const value = 1;
+        try {
+            ++value;
+        } catch {}
+        try {
+            value--;
+        } catch {}
+        return value;
+    }
+    expect(localConstant()).toBe(1);
+});
+
 test("const creation in inner scope", () => {
     const constantValue = 1;
     do {
