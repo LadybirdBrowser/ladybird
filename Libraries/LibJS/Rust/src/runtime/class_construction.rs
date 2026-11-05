@@ -132,7 +132,7 @@ pub fn construct_class(
     heritage: Option<ClassHeritage>,
     element_keys: &[Value],
     binding_name: Option<&Utf16FlyString>,
-    class_name: &Utf16FlyString,
+    class_name: &ClassElementName,
 ) -> ThrowCompletionOr<Gc<EcmascriptFunctionObject>> {
     let realm = vm.current_realm().expect("there is a current realm");
 
@@ -175,7 +175,7 @@ pub fn construct_class(
         running_execution_context(vm).private_environment.get(),
     );
 
-    class_constructor.set_name(vm, class_name);
+    class_constructor.set_inferred_name(vm, class_name, None);
     class_constructor.set_home_object_of_class_constructor(prototype);
     class_constructor.define_direct_property(
         vm,

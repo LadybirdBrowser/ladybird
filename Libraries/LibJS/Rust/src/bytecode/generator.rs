@@ -406,6 +406,9 @@ pub struct Generator {
     /// When set, function/class expressions will use this as their `.name`.
     /// Set by assignment/declaration codegen, consumed by function expression codegen.
     pub pending_lhs_name: Option<IdentifierTableIndex>,
+    /// A property key that the next anonymous class expression is named with, as NamedEvaluation of a value whose
+    /// property name is computed.
+    pub pending_computed_class_name: Option<ScopedOperand>,
 
     // Source location tracking
     pub current_source_start: Position,
@@ -588,6 +591,7 @@ impl Generator {
             initialized_arguments: Vec::new(),
             tdz_checked_locals: Vec::new(),
             pending_lhs_name: None,
+            pending_computed_class_name: None,
             current_source_start: Position {
                 line: 0,
                 column: 0,

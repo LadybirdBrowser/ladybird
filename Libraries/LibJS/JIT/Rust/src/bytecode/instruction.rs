@@ -396,6 +396,7 @@ mod tests {
                 class_environment: operand(7),
                 class_blueprint_index: 1,
                 lhs_name: Some(IdentifierTableIndex(4)),
+                computed_name: None,
                 element_keys_count: 3,
                 element_keys: vec![Some(operand(8)), None, Some(operand(9))],
             },

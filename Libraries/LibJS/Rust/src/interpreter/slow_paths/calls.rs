@@ -197,10 +197,12 @@ pub fn new_class(
     if !blueprint.has_name
         && let Some(lhs_name) = instruction.lhs_name.get()
     {
-        class_name = executable.get_identifier(lhs_name).clone();
+        class_name = ClassElementName::PropertyKey(PropertyKey::from(executable.get_identifier(lhs_name).clone()));
+    } else if !blueprint.has_name && instruction.computed_name.get().is_some() {
+        class_name = ClassElementName::PropertyKey(asm_try!(vm, pc, values.computed_name.to_property_key(vm)));
     } else {
-        class_name = blueprint.name.clone();
-        binding_name = Some(class_name.clone());
+        class_name = ClassElementName::PropertyKey(PropertyKey::from(blueprint.name.clone()));
+        binding_name = Some(blueprint.name.clone());
     }
 
     let retval = asm_try!(
