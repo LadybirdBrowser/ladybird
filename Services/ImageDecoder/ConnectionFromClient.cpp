@@ -69,8 +69,6 @@ static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder
     }
 }
 
-static constexpr u32 STREAMING_BATCH_SIZE = 4;
-
 static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> const& known_mime_type)
 {
     auto decoder = TRY(Gfx::ImageDecoder::try_create_for_raw_bytes(ReadonlyBytes { encoded_buffer.data<u8>(), encoded_buffer.size() }, known_mime_type));
@@ -108,25 +106,15 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
     bool const use_streaming = result.is_animated && result.frame_count > 1;
 
     if (use_streaming) {
-        // Collect all durations cheaply (via frame_duration(), no pixel decode for GIF).
+        // Clients take the first frame from here and ask for the others when they need them.
+        auto first_frame = TRY(decoder->frame(0, ideal_size));
+        first_frame.image->set_alpha_type_destructive(Gfx::AlphaType::Premultiplied);
+        bitmaps.append(first_frame.image);
+
+        // NB: Some decoders only know their durations once they have decoded, so this must come after the first frame.
         result.durations.ensure_capacity(result.frame_count);
         for (u32 i = 0; i < result.frame_count; ++i)
             result.durations.unchecked_append(decoder->frame_duration(i));
-
-        // Decode only the first batch of frames.
-        u32 const batch_size = min(STREAMING_BATCH_SIZE, result.frame_count);
-        bitmaps.ensure_capacity(batch_size);
-        for (u32 i = 0; i < batch_size; ++i) {
-            auto frame_or_error = decoder->frame(i, ideal_size);
-            if (frame_or_error.is_error())
-                break;
-            auto frame = frame_or_error.release_value();
-            frame.image->set_alpha_type_destructive(Gfx::AlphaType::Premultiplied);
-            bitmaps.unchecked_append(frame.image);
-            // If frame_duration() returned 0, use the actual decoded duration.
-            if (result.durations[i] == 0)
-                result.durations[i] = frame.duration;
-        }
 
         // Keep decoder alive for future frame requests.
         result.decoder = decoder;
