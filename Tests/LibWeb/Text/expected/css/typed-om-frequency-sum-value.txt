@@ -1,0 +1,8 @@
+hz
+khz
+calc(1hz + 1khz)
+1000hz
+TypeError
+TypeError
+2000hz
+false

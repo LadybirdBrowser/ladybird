@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function report(callback) {
+        try {
+            println(callback());
+        } catch (error) {
+            println(error.name);
+        }
+    }
+
+    test(() => {
+        report(() => CSS.Hz(1).unit);
+        report(() => CSS.kHz(1).unit);
+        report(() => CSS.Hz(1).add(CSS.kHz(1)).toString());
+        report(() => CSS.kHz(1).to("hz").toString());
+        report(() => CSS.Hz(1).add(CSS.kHz(1)).to("hz").toString());
+        report(() => CSS.Hz(1).add(CSS.kHz(1)).to("khz").toString());
+        report(() => CSS.kHz(1).add(CSS.kHz(1)).to("hz").toString());
+        report(() => CSS.kHz(1).equals(CSS.Hz(1000)));
+    });
+</script>
