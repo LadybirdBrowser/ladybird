@@ -3182,30 +3182,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             .expect("a block container flow cursor is active");
 
         let style = self.style(node);
-        let box_is_html_element_in_quirks_mode = facts.document_in_quirks_mode()
-            && facts.is_html_html_element()
-            && crate::layout::sizing_context::is_plain_auto(style.height());
-        let block_size_is_definite_from_aspect_ratio = self.metrics_of(sized_child).has_definite_inline_size()
-            && facts.has_preferred_aspect_ratio()
-            && self.sizing().box_is_sized_as_replaced_element(
-                sizing_context::SizedBox::new(node, &self.metrics_of(sized_child)),
-                available_space,
-                input.containing_block_constraints,
-            );
-
-        // NOTE: In quirks mode, the html element's block size matches the viewport so it can be treated as definite.
-        if self.metrics_of(sized_child).has_definite_block_size()
-            || box_is_html_element_in_quirks_mode
-            || block_size_is_definite_from_aspect_ratio
-        {
-            self.resolve_used_block_size_if_treated_as_auto(
-                sized_child,
-                available_space,
-                input.containing_block_constraints,
-                None,
-                None,
-            );
-        }
+        let block_size_is_definite_from_aspect_ratio =
+            self.resolve_block_size_known_ahead_of_contents(sized_child, &input);
 
         let independent_type = formatting_context::formatting_context_type_created_by_box(facts);
         let has_independent_formatting_context = independent_type.is_some();
@@ -3834,6 +3812,38 @@ impl<'pass> BlockFormattingContext<'pass> {
         })
     }
 
+    /// Resolves the block size of a block-level box where it follows without laying out its contents, and returns
+    /// whether it follows from the aspect ratio of the box.
+    fn resolve_block_size_known_ahead_of_contents(&self, sized_child: ChildSizedHere<'_>, input: &LayoutInput) -> bool {
+        let node = sized_child.node;
+        let facts = self.facts(node);
+        let box_is_html_element_in_quirks_mode = facts.document_in_quirks_mode()
+            && facts.is_html_html_element()
+            && crate::layout::sizing_context::is_plain_auto(self.style(node).height());
+        let block_size_is_definite_from_aspect_ratio = self.metrics_of(sized_child).has_definite_inline_size()
+            && facts.has_preferred_aspect_ratio()
+            && self.sizing().box_is_sized_as_replaced_element(
+                sizing_context::SizedBox::new(node, &self.metrics_of(sized_child)),
+                input.available_space,
+                input.containing_block_constraints,
+            );
+
+        // NOTE: In quirks mode, the html element's block size matches the viewport so it can be treated as definite.
+        if self.metrics_of(sized_child).has_definite_block_size()
+            || box_is_html_element_in_quirks_mode
+            || block_size_is_definite_from_aspect_ratio
+        {
+            self.resolve_used_block_size_if_treated_as_auto(
+                sized_child,
+                input.available_space,
+                input.containing_block_constraints,
+                None,
+                None,
+            );
+        }
+        block_size_is_definite_from_aspect_ratio
+    }
+
     /// The box `child` as this flow laid it out in cells its layout owns, with the `baselines` of its contents.
     fn laid_out_box_of_box_laid_out_here(
         child: ChildSizedHere<'_>,
@@ -4258,6 +4268,144 @@ impl<'pass> BlockFormattingContext<'pass> {
         parallel_layout::prepare_inline_content_ahead(&callbacks, children);
     }
 
+    /// Whether a float placed so far reaches below `block_offset` in `block_container`.
+    fn float_reaches_below(
+        &self,
+        block_container: Node,
+        block_offset: CssPixels,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> bool {
+        if !self.has_floating_boxes() {
+            return false;
+        }
+        self.rebuild_float_bands();
+        let block_position_in_root = containing_block_position_in_root.y
+            + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container)
+            + block_offset;
+        self.lowest_left_margin_edge
+            .get()
+            .max(self.lowest_right_margin_edge.get())
+            .is_some_and(|edge| edge > block_position_in_root)
+    }
+
+    /// The run `child` will have if no float narrows it, where it is a float or a block-level box with a formatting
+    /// context of its own. Laying it out ahead keeps its result for that run. Should a float narrow it, that run misses
+    /// and lays it out at the size it finds.
+    fn run_shape_of_child_ahead(
+        &self,
+        child: Node,
+        block_container: BlockContainer,
+        child_input: &LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> Option<formatting_context::ChildRunShape> {
+        let facts = self.facts(child);
+        if !facts.is_box()
+            || facts.is_absolutely_positioned()
+            || facts.is_list_item_marker_box()
+            || facts.is_svg_mask_box()
+            || facts.is_svg_clip_box()
+            || facts.is_anonymous_button_content_wrapper()
+            || facts.is_table_wrapper()
+        {
+            return None;
+        }
+        let fc_type = formatting_context::formatting_context_type_created_by_box(facts)?;
+        if fc_type == formatting_context::FormattingContextType::Table {
+            return None;
+        }
+        let constraints = child_input.containing_block_constraints;
+        let cells = Cell::new(used_values::cells_before_sizing(
+            &self.run.callbacks,
+            child,
+            constraints,
+        ));
+        let sized_child = ChildSizedHere::ahead_of_its_run(child, &cells);
+        self.resolve_vertical_box_model_metrics(sized_child, block_container.cells.content_inline_size, constraints);
+        let input = if facts.is_floating() {
+            self.size_float_for_its_run(
+                sized_child,
+                block_container,
+                child_input,
+                containing_block_position_in_root,
+            )
+        } else {
+            self.resolve_block_size_known_ahead_of_contents(sized_child, child_input);
+            let available_space = child_input.available_space;
+            let opportunity_beside_no_floats = (matches!(available_space.inline_size, AvailableSize::Definite(_))
+                && self.box_should_avoid_floats_because_it_establishes_fc(child))
+            .then(|| available_space.inline_size.to_px_or_zero());
+            if let Some(content_inline_size) = self.resolve_root_inline_metrics_and_content_size(
+                sized_child,
+                available_space,
+                constraints,
+                opportunity_beside_no_floats,
+            ) {
+                self.update_cells_of(sized_child, |cells| cells.set_content_inline_size(content_inline_size));
+            }
+            LayoutInput {
+                available_space,
+                containing_block_constraints: constraints,
+                sizing: RootSizingDirectives::default(),
+                participation: ParticipationInParentFormattingContext::BlockLevel,
+            }
+        };
+        let plan = formatting_context::child_run_plan(
+            &self.run,
+            child,
+            Some(fc_type),
+            input,
+            false,
+            block_container.percentage_block_insets_have_definite_basis,
+        );
+        Some(formatting_context::ChildRunShape {
+            node: child,
+            fc_type: plan.fc_type,
+            input: plan.input,
+            root_cells: cells.get(),
+            root_containing_block: plan.root_containing_block,
+        })
+    }
+
+    fn lay_out_children_with_formatting_contexts_ahead(
+        &self,
+        block_container: BlockContainer,
+        child_input: &LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) {
+        let callbacks = self.run.callbacks;
+        if callbacks.lays_out_with_position_option()
+            || self.run.fragments.is_none()
+            || self.run.should_collect_devtools_layout_data
+            || self.is_line_clamp_container
+            || self.max_lines.get().is_some()
+            || self.facts(block_container.node).is_fieldset_box()
+            || self.float_reaches_below(
+                block_container.node,
+                CssPixels::default(),
+                containing_block_position_in_root,
+            )
+        {
+            return;
+        }
+        // NB: Sizing a child ahead reads floats only to be repeated when the child is laid out in this flow.
+        let float_reads = self.float_reads.get();
+        let shapes =
+            parallel_layout::fork_candidates(&callbacks, callbacks.children(block_container.node), |child| child)
+                .into_iter()
+                .filter_map(|child| {
+                    self.run_shape_of_child_ahead(
+                        child,
+                        block_container,
+                        child_input,
+                        containing_block_position_in_root,
+                    )
+                })
+                .filter(|shape| !formatting_context::shape_would_reuse_stored_run(&callbacks, shape))
+                .collect();
+        self.float_reads.set(float_reads);
+        parallel_layout::lay_out_shapes_ahead(&callbacks, shapes);
+    }
+
     fn layout_block_level_children(
         &self,
         run: &FormattingContextRun<'pass>,
@@ -4302,6 +4450,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         if fragmentainer.is_none() {
             self.prepare_inline_content_of_children_ahead(block_container.node);
+            self.lay_out_children_with_formatting_contexts_ahead(
+                block_container,
+                &child_input,
+                containing_block_position_in_root,
+            );
         }
         let mut summary = ChildrenSummary::default();
         for child in self
@@ -5760,15 +5913,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         )
     }
 
-    /// Lays out the contents of a float, which does not depend on where the float goes.
-    pub(crate) fn lay_out_float_ahead_of_its_position(
+    /// Sizes a float in the cells of `sized_float`, and returns the input of its run.
+    fn size_float_for_its_run(
         &self,
-        run: &FormattingContextRun<'pass>,
         sized_float: ChildSizedHere<'_>,
         block_container: BlockContainer,
-        input: LayoutInput,
+        input: &LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
-    ) -> FloatLaidOutAheadOfItsPosition {
+    ) -> LayoutInput {
         let node = sized_float.node;
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
@@ -5792,6 +5944,21 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
         };
         self.dimension_float_root_inline_size(sized_float, block_container, &float_input);
+        float_input
+    }
+
+    /// Lays out the contents of a float, which does not depend on where the float goes.
+    pub(crate) fn lay_out_float_ahead_of_its_position(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        sized_float: ChildSizedHere<'_>,
+        block_container: BlockContainer,
+        input: LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> FloatLaidOutAheadOfItsPosition {
+        let node = sized_float.node;
+        let float_input =
+            self.size_float_for_its_run(sized_float, block_container, &input, containing_block_position_in_root);
         let (float_layout, fragment_arrival, float_box) =
             self.layout_inside(run, sized_float, block_container, float_input, false);
         FloatLaidOutAheadOfItsPosition {
