@@ -4627,7 +4627,8 @@ fn generate_assignment_expression(
 
                     if op == AssignmentOp::Assignment {
                         let computed_key = if member_data.computed {
-                            Some(generate_expression_or_undefined(&member_data.property, generator, None))
+                            let key = generate_expression_or_undefined(&member_data.property, generator, None);
+                            Some(copy_if_reassignable_by(generator, key, [rhs]))
                         } else {
                             None
                         };
