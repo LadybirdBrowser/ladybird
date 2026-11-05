@@ -45,6 +45,7 @@ public:
     Utf16String const& current_url() const { return m_current_url; }
     void set_current_url(DOM::Document&, String, CORSSettingAttribute);
     void set_current_url(DOM::Document&, Utf16String, CORSSettingAttribute);
+    void set_current_url(Utf16String, GC::Ref<SharedResourceRequest>);
 
     [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
     void set_image_data(GC::Ptr<DecodedImageData>);

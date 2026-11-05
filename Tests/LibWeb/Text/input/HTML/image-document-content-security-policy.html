@@ -15,13 +15,14 @@
         println(`Root background: ${getComputedStyle(imageDocument.documentElement).backgroundColor}`);
         println(`Image position: ${getComputedStyle(image).position}`);
 
-        const otherImage = imageDocument.createElement("img");
-        const otherImageResult = await new Promise(resolve => {
-            imageDocument.addEventListener("securitypolicyviolation", event => resolve(`blocked by ${event.effectiveDirective}`));
-            otherImage.onload = () => resolve("loaded");
-            otherImage.src = "../../Assets/120.png";
-            imageDocument.body.appendChild(otherImage);
+        const loadImage = url => new Promise(resolve => {
+            imageDocument.addEventListener("securitypolicyviolation", event => resolve(`blocked by ${event.effectiveDirective}`), { once: true });
+            const newImage = imageDocument.createElement("img");
+            newImage.onload = () => resolve("loaded");
+            newImage.src = url;
+            imageDocument.body.appendChild(newImage);
         });
-        println(`Other image: ${otherImageResult}`);
+        println(`Other image: ${await loadImage("../../Assets/120.png")}`);
+        println(`Same image: ${await loadImage(imageDocument.URL)}`);
     });
 </script>

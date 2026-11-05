@@ -82,6 +82,13 @@ void ImageRequest::set_current_url(DOM::Document& document, Utf16String url, COR
     set_current_url(document, url.to_utf8(), cors_setting);
 }
 
+void ImageRequest::set_current_url(Utf16String url, GC::Ref<SharedResourceRequest> shared_resource_request)
+{
+    m_current_url = move(url);
+    stop_waiting_for_fetch();
+    m_shared_resource_request = shared_resource_request;
+}
+
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request
 void abort_the_image_request(GC::Ptr<ImageRequest> image_request)
 {

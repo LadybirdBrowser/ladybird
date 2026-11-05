@@ -63,6 +63,32 @@ GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(DOM::Documen
     return get_or_create(document, { request.url(), cors_setting, request.integrity_metadata(), request.referrer_policy() });
 }
 
+GC::Ref<SharedResourceRequest> SharedResourceRequest::create_from_navigation_response_body(DOM::Document& document, Fetch::Infrastructure::Body const& body, GC::Ref<GC::Function<void()>> on_body_read)
+{
+    auto request = GC::Heap::the().allocate<SharedResourceRequest>(document.page(), Key { document.url(), CORSSettingAttribute::NoCORS, {}, ReferrerPolicy::ReferrerPolicy::EmptyString }, document);
+    request->m_can_be_shared = false;
+    request->m_state = State::Fetching;
+    // NB: The element that presents the image may start to wait for it only after the body has been read.
+    request->m_load_event_delayer.emplace(document);
+
+    GC::Weak weak_request { *request };
+    auto process_body = GC::create_function(GC::Heap::the(), [weak_request, on_body_read](ByteBuffer data) {
+        // NB: A document for an SVG image is an XML document, so this is never an SVG image.
+        if (auto request = weak_request.ptr())
+            request->handle_successful_fetch(request->url(), IsSVGImage::No, move(data), false);
+        on_body_read->function()();
+    });
+    auto process_body_error = GC::create_function(GC::Heap::the(), [weak_request, on_body_read](JS::Value) {
+        if (auto request = weak_request.ptr())
+            request->handle_failed_fetch();
+        on_body_read->function()();
+    });
+
+    auto& realm = HTML::relevant_realm(document);
+    body.fully_read(realm, process_body, process_body_error, GC::Ref { realm.global_object() });
+    return request;
+}
+
 SharedResourceRequest::SharedResourceRequest(GC::Ref<Page> page, Key key, GC::Ref<DOM::Document> document)
     : m_page(page)
     , m_key(move(key))
