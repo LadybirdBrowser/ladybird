@@ -5,7 +5,6 @@
  */
 
 use super::BoxVisualContextNodeHandles;
-use crate::fast_hash::FastMap as HashMap;
 use crate::layout::node_data::NodeSlotId;
 pub use crate::painting::host::VisualContextUpdateScope;
 
@@ -71,7 +70,7 @@ pub struct RemovedBoxBlocks {
 
 #[derive(Clone, Default)]
 pub struct VisualContextDirtySet {
-    pub boxes: HashMap<NodeSlotId, BoxDirtyBits>,
+    pub boxes: crate::fork::ForkShared<crate::fast_hash::FastMap<NodeSlotId, BoxDirtyBits>>,
     pub removed: Vec<RemovedBoxBlocks>,
     pub scope: VisualContextUpdateScope,
 }
@@ -101,7 +100,15 @@ impl VisualContextDirtySet {
 
     pub fn request_full_rebuild(&mut self, scope: VisualContextUpdateScope) {
         self.scope = self.scope.max(scope);
-        self.boxes.clear();
+        self.forget_boxes();
+    }
+
+    /// Forgets the boxes, keeping the map's room where no fork shares it.
+    fn forget_boxes(&mut self) {
+        match self.boxes.unshared_mut() {
+            Some(boxes) => boxes.clear(),
+            None => self.boxes.assign(Default::default()),
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -116,7 +123,7 @@ impl VisualContextDirtySet {
     }
 
     pub fn clear(&mut self) {
-        self.boxes.clear();
+        self.forget_boxes();
         self.removed.clear();
         self.scope = VisualContextUpdateScope::DirtyPath;
     }

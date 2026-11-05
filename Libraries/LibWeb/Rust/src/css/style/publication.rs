@@ -605,10 +605,6 @@ impl RetainedState {
     }
 
     pub(crate) fn take_released_animation_overlay_records(&mut self) -> computed::ReleasedAnimationOverlayRecords {
-        // Even an empty take copies the sets while a fork shares them.
-        if !self.computed_group_sets.has_released_animation_overlay_records() {
-            return computed::ReleasedAnimationOverlayRecords::default();
-        }
         self.computed_group_sets.take_released_animation_overlay_records()
     }
 

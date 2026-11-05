@@ -572,7 +572,7 @@ type AnimationEffectList = (AnimationSlot, Box<[PublishedEffect]>);
 pub(crate) struct AnimationEffectDescriptions {
     /// Holding an animation is rare, so only the elements that do have a row, and a row holds only
     /// the lists that are not empty.
-    rows: HashMap<StyleNodeID, Vec<AnimationEffectList>>,
+    rows: crate::cow_map::CowMap<StyleNodeID, Vec<AnimationEffectList>>,
     /// The keyframes the effects describe, by content, which an effect describing equal ones shares.
     keyframes: WeakPool<PublishedKeyframes>,
 }
@@ -596,7 +596,7 @@ impl AnimationEffectDescriptions {
                 });
                 keyframes + interval_values
             };
-        let mut bytes = map_bytes(&self.rows);
+        let mut bytes = self.rows.heap_size();
         for lists in self.rows.values() {
             bytes += vec_bytes(lists);
             for (_, effects) in lists {
@@ -614,18 +614,22 @@ impl AnimationEffectDescriptions {
         previous: &CustomPropertyRegistry,
         registry: &CustomPropertyRegistry,
     ) {
-        for (_, effects) in self.rows.values_mut().flatten() {
-            for effect in effects {
-                let Some(interval_values) = &effect.custom_property_interval_values else {
-                    continue;
-                };
-                let mut retained_values = interval_values.lock().unwrap().clone();
-                retained_values.retain(|declaration_indices, _| {
-                    let name = &effect.custom_declaration_at(declaration_indices[0]).name;
-                    registry.registration_matches(previous, &name.to_utf16())
-                });
-                // Leave values held by older style snapshots intact.
-                effect.custom_property_interval_values = Some(Arc::new(Mutex::new(retained_values)));
+        let nodes: Vec<StyleNodeID> = self.rows.keys().copied().collect();
+        for node in nodes {
+            let lists = self.rows.get_mut(&node).expect("the node was just listed");
+            for (_, effects) in lists.iter_mut() {
+                for effect in effects {
+                    let Some(interval_values) = &effect.custom_property_interval_values else {
+                        continue;
+                    };
+                    let mut retained_values = interval_values.lock().unwrap().clone();
+                    retained_values.retain(|declaration_indices, _| {
+                        let name = &effect.custom_declaration_at(declaration_indices[0]).name;
+                        registry.registration_matches(previous, &name.to_utf16())
+                    });
+                    // Leave values held by older style snapshots intact.
+                    effect.custom_property_interval_values = Some(Arc::new(Mutex::new(retained_values)));
+                }
             }
         }
     }

@@ -28,7 +28,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 /// The slot of an installed record.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub(crate) struct InstalledRecordSlot(u32);
 
 impl InstalledRecordSlot {
@@ -97,13 +97,13 @@ impl InstalledRecord {
 /// The slots of the installed records.
 #[derive(Clone, Default)]
 pub(super) struct InstalledRecords {
-    slots: Vec<Option<InstalledRecord>>,
-    generations: Vec<u32>,
-    free: Vec<InstalledRecordSlot>,
+    slots: crate::fork_vec::ForkVec<Option<InstalledRecord>>,
+    generations: crate::fork_vec::ForkVec<u32>,
+    free: crate::fork_vec::ForkVec<InstalledRecordSlot>,
     /// The slots of the records derived for what no element is, by the key of what they hold.
-    derived_by_content: hashbrown::HashTable<InstalledRecordSlot>,
+    derived_by_content: crate::cow_map::CowMap<u64, InstalledRecordSlot>,
     /// The records whose last holder let go, which the next sweep frees unless one took them again.
-    released: Vec<InstalledRecordID>,
+    released: crate::fork::ForkShared<Vec<InstalledRecordID>>,
     /// How many leases on the records held as they are taken were taken.
     lease_epoch: u32,
 }
@@ -118,13 +118,10 @@ impl InstalledRecords {
         }
         report.add(
             super::memory_report::MemoryOwner::Installed,
-            vec_bytes(&self.slots)
-                + vec_bytes(&self.generations)
-                + vec_bytes(&self.free)
-                + crate::heap_size::hash_table_bytes(
-                    self.derived_by_content.capacity(),
-                    size_of::<InstalledRecordSlot>(),
-                )
+            self.slots.row_bytes()
+                + self.generations.row_bytes()
+                + self.free.row_bytes()
+                + self.derived_by_content.heap_size()
                 + vec_bytes(&self.released),
         );
     }
@@ -189,27 +186,23 @@ impl InstalledRecords {
         if let Some(id) = self.named_by(record) {
             return id;
         }
-        let content_key = Self::content_key(record);
-        if let Some(&slot) = self.derived_by_content.find(content_key, |&slot| {
-            self.slots[slot.index()]
+        // NB: The key reads a few longhands, so records that differ in others share it: each takes the next key free. A
+        //     sweep can open a gap in such a run, which costs a record past it no more than a slot of its own.
+        let mut content_key = Self::content_key(record);
+        while let Some(&slot) = self.derived_by_content.get(&content_key) {
+            if self.slots[slot.index()]
                 .as_ref()
                 .is_some_and(|entry| entry.record().holds_the_same_as(record))
-        }) {
-            return InstalledRecordID {
-                slot,
-                generation: self.generations[slot.index()],
-            };
+            {
+                return InstalledRecordID {
+                    slot,
+                    generation: self.generations[slot.index()],
+                };
+            }
+            content_key = content_key.wrapping_add(1);
         }
         let id = self.install(record, dependency_flags);
-        let slots = &self.slots;
-        self.derived_by_content.insert_unique(content_key, id.slot, |slot| {
-            Self::content_key(
-                slots[slot.index()]
-                    .as_ref()
-                    .expect("an indexed slot holds its record")
-                    .record(),
-            )
-        });
+        self.derived_by_content.insert(content_key, id.slot);
         id
     }
 
@@ -305,9 +298,10 @@ impl InstalledRecords {
             {
                 return false;
             }
-            // NB: A record the host or a reader still holds a reference to keeps its slot, so that
+            // NB: A record the host, a reader or a fork sharing the slot still holds a reference to keeps its slot, so that
             //     its identity keeps naming it until the last reference beside the slot's goes.
             if kept.contains(&id)
+                || self.slots.shares_row(index)
                 || self.slots[index].as_ref().is_some_and(|entry| {
                     Arc::strong_count(entry.record()) > 1
                         || oldest_lease.is_some_and(|epoch| entry.released_in >= epoch)
@@ -328,7 +322,7 @@ impl InstalledRecords {
         self.released = released;
         if freed != 0 {
             let slots = &self.slots;
-            self.derived_by_content.retain(|slot| slots[slot.index()].is_some());
+            self.derived_by_content.retain(|_, slot| slots[slot.index()].is_some());
         }
         freed
     }
@@ -352,6 +346,17 @@ mod tests {
 
     fn holder_of(records: &InstalledRecords, id: InstalledRecordID) -> &Arc<Record> {
         records.get(id).expect("the slot holds a record").record()
+    }
+
+    #[test]
+    fn derived_records_whose_content_shares_a_key_each_keep_a_slot() {
+        let mut records = InstalledRecords::default();
+        let first = records.install_derived(&record(1), || 0);
+        let second = records.install_derived(&record(2), || 0);
+
+        assert_ne!(first, second);
+        assert_eq!(records.install_derived(&record(1), || 0), first);
+        assert_eq!(records.install_derived(&record(2), || 0), second);
     }
 
     #[test]

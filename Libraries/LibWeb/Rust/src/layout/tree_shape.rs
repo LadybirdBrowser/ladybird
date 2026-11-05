@@ -20,6 +20,7 @@ use super::layout_node_arena::SLOTS_PER_CHUNK;
 use super::node_data::{LayoutStyleRef, NodeData, NodeFlag, NodeKind, NodeSlotId, PaintNode};
 use crate::cow_column::{ColumnSnapshot, CowColumn};
 use crate::css::style::tree::StyleNodeID;
+use crate::fork_vec::ForkVec;
 use std::ops::Deref;
 
 /// A field of a node the paint side reads. It reads like a plain field, and is written through a
@@ -56,7 +57,7 @@ pub(crate) struct ShapeWrites {
     identity: u64,
     style: u64,
     /// One bit per chunk holding a node marked since the last publication, so that publishing visits those alone.
-    written_chunks: Vec<u64>,
+    written_chunks: ForkVec<u64>,
 }
 
 impl ShapeWrites {
@@ -94,7 +95,7 @@ impl ShapeWrites {
 
     /// Makes room for the chunk at `chunk_index`, whose nodes are all marked as it is made.
     pub(crate) fn add_chunk(&mut self, chunk_index: usize) {
-        self.written_chunks.resize(chunk_index / 64 + 1, 0);
+        self.written_chunks.resize_with_default(chunk_index / 64 + 1);
         self.note_chunk_written(chunk_index);
     }
 
@@ -103,20 +104,18 @@ impl ShapeWrites {
     }
 
     /// The chunks holding a node marked since the last publication, which it forgets.
-    fn take_written_chunks(&mut self) -> impl Iterator<Item = usize> + '_ {
-        self.written_chunks
-            .iter_mut()
-            .enumerate()
-            .flat_map(|(word_index, word)| {
-                let mut chunks = std::mem::take(word);
-                std::iter::from_fn(move || {
-                    (chunks != 0).then(|| {
-                        let chunk = chunks.trailing_zeros() as usize;
-                        chunks &= chunks - 1;
-                        word_index * 64 + chunk
-                    })
+    fn take_written_chunks(&mut self) -> impl Iterator<Item = usize> + use<> {
+        let words = self.written_chunks.take_rows();
+        self.written_chunks.resize_with_default(words.len());
+        words.into_iter().enumerate().flat_map(|(word_index, mut chunks)| {
+            std::iter::from_fn(move || {
+                (chunks != 0).then(|| {
+                    let chunk = chunks.trailing_zeros() as usize;
+                    chunks &= chunks - 1;
+                    word_index * 64 + chunk
                 })
             })
+        })
     }
 }
 
@@ -237,22 +236,16 @@ pub(crate) struct Chunk {
     written_rows: [u64; SLOTS_PER_CHUNK / 64],
 }
 
-impl Chunk {
-    pub(crate) fn new() -> Box<Self> {
-        // SAFETY: Every slot is written with NodeData::default() and every mark word with all bits
-        // set before the chunk is exposed. The chunk is built in place on the heap because it is
-        // far too large for the stack.
-        unsafe {
-            let mut chunk = Box::<Self>::new_uninit();
-            let slots = &raw mut (*chunk.as_mut_ptr()).slots;
-            for offset in 0..SLOTS_PER_CHUNK {
-                (&raw mut (*slots)[offset]).write(NodeData::default());
-            }
-            (&raw mut (*chunk.as_mut_ptr()).written_rows).write([u64::MAX; SLOTS_PER_CHUNK / 64]);
-            chunk.assume_init()
+impl Default for Chunk {
+    fn default() -> Self {
+        Self {
+            slots: std::array::from_fn(|_| NodeData::default()),
+            written_rows: [u64::MAX; SLOTS_PER_CHUNK / 64],
         }
     }
+}
 
+impl Chunk {
     #[inline]
     pub(crate) fn slot(&self, offset: usize) -> &NodeData {
         &self.slots[offset]
@@ -318,9 +311,9 @@ impl TreeShape {
     /// publication shares is copied only for a change.
     pub(crate) fn publish(
         &mut self,
-        chunks: &mut [Box<Chunk>],
-        style_records: &[u64],
-        style_nodes: &[Option<StyleNodeID>],
+        chunks: &mut ForkVec<Box<Chunk>>,
+        style_records: &ForkVec<u64>,
+        style_nodes: &ForkVec<Option<StyleNodeID>>,
         style_is_derived: impl Fn(usize) -> bool,
         writes: &mut ShapeWrites,
     ) -> ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
@@ -359,9 +352,27 @@ const _: () = {
 mod tests {
     use super::*;
 
+    fn clone_bytes_of_arena_with_rows(rows: usize) -> i64 {
+        let mut arena = crate::layout::LayoutNodeArena::new();
+        for _ in 0..rows {
+            arena.allocate_unbound();
+        }
+        let (clone, bytes) = crate::css::style::pipeline::allocation_count::count_live_bytes(|| arena.clone());
+        drop(clone);
+        bytes
+    }
+
+    #[test]
+    fn forking_the_arena_allocates_the_same_however_many_rows_it_holds() {
+        assert_eq!(
+            clone_bytes_of_arena_with_rows(1_000),
+            clone_bytes_of_arena_with_rows(200_000)
+        );
+    }
+
     #[test]
     fn a_write_that_changes_a_node_marks_it_and_one_that_does_not_leaves_it_unmarked() {
-        let mut chunk = Chunk::new();
+        let mut chunk = Box::<Chunk>::default();
         let mut writes = ShapeWrites::default();
         writes.add_chunk(0);
         assert!(chunk.is_marked(0), "a new chunk's nodes are all marked");
@@ -390,7 +401,7 @@ mod tests {
 
     #[test]
     fn only_a_write_of_what_a_row_is_counts_as_an_identity_write() {
-        let mut chunk = Chunk::new();
+        let mut chunk = Box::<Chunk>::default();
         let mut writes = ShapeWrites::default();
         writes.add_chunk(0);
         let mut shape = chunk.write_shape(0, 3, &mut writes);
@@ -410,7 +421,7 @@ mod tests {
 
     #[test]
     fn a_publication_visits_only_the_chunks_holding_a_marked_node() {
-        let mut chunk = Chunk::new();
+        let mut chunk = Box::<Chunk>::default();
         let mut writes = ShapeWrites::default();
         for chunk_index in [0, 1, 70] {
             writes.add_chunk(chunk_index);

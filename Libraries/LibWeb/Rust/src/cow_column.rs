@@ -505,6 +505,11 @@ impl<T: Clone + Default, const CHUNK: usize> CowVec<T, CHUNK> {
         self.column.heap_size(sizer, row_heap)
     }
 
+    /// The bytes of the rows themselves, without what they hold on the heap.
+    pub(crate) fn row_bytes(&self) -> usize {
+        self.column.len() * size_of::<T>()
+    }
+
     /// Every row, in order.
     pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
         (0..self.len).filter_map(|index| self.column.get(index))
@@ -533,6 +538,13 @@ impl<T: Clone + Default, const CHUNK: usize> CowVec<T, CHUNK> {
         self[index] = value;
     }
 
+    /// Empties the vector, answering its rows in order.
+    pub(crate) fn take_rows(&mut self) -> Vec<T> {
+        let rows = self.iter().cloned().collect();
+        *self = Self::default();
+        rows
+    }
+
     /// Grows the vector to `len` rows, the new ones default, or truncates it to them.
     pub(crate) fn resize_with_default(&mut self, len: usize) {
         if len < self.len {
@@ -544,6 +556,16 @@ impl<T: Clone + Default, const CHUNK: usize> CowVec<T, CHUNK> {
         }
         self.column.grow_to(len);
         self.len = len;
+    }
+}
+
+impl<T: Clone + Default, const CHUNK: usize> FromIterator<T> for CowVec<T, CHUNK> {
+    fn from_iter<I: IntoIterator<Item = T>>(rows: I) -> Self {
+        let mut vector = Self::default();
+        for row in rows {
+            vector.push(row);
+        }
+        vector
     }
 }
 

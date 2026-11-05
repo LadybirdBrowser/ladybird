@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -119,7 +118,7 @@ impl SvgPaintResourceRow {
 
 /// Each enrolled row's published SVG paint resources. A publication shares the table, so a write
 /// copies it only while a publication still holds it.
-pub(crate) type SvgPaintResourceRows = HashMap<NodeSlotId, SvgPaintResourceRow>;
+pub(crate) type SvgPaintResourceRows = crate::cow_map::CowMap<NodeSlotId, SvgPaintResourceRow>;
 
 #[derive(Clone, Default)]
 pub(crate) struct SvgPaintResources {

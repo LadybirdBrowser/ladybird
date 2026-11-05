@@ -1563,7 +1563,7 @@ impl StyleEngine {
                 counters: Counters::new(),
 
                 highlight_observers: Default::default(),
-                tree: crate::fork::ForkShared::new(tree),
+                tree,
                 deepest_element: Arc::default(),
                 rules: crate::fork::ForkShared::new(RuleStore::new()),
                 process_style: Arc::clone(&process_style),

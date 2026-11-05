@@ -31,21 +31,25 @@ struct SlotNotes {
     generation: u8,
 }
 
+const NOTES_PER_PAGE: usize = 256;
+
 /// The notes of each box the arena wrote since the stage last applied them, in the order the boxes were first noted.
 #[derive(Clone, Default)]
 pub(crate) struct MemoInvalidations {
-    slots: Vec<SlotNotes>,
+    /// Each page holds the notes of `NOTES_PER_PAGE` slots, and comes to be with the first of them noted, so that a copy
+    /// of the notes costs what was noted.
+    pages: Vec<Option<Box<[SlotNotes; NOTES_PER_PAGE]>>>,
     noted_slots: Vec<u32>,
     dropped_text_states: Vec<u32>,
 }
 
 impl MemoInvalidations {
     fn notes_of(&mut self, slot: u32) -> &mut SlotNotes {
-        let index = slot as usize;
-        if self.slots.len() <= index {
-            self.slots.resize_with(index + 1, SlotNotes::default);
+        let (page, row) = (slot as usize / NOTES_PER_PAGE, slot as usize % NOTES_PER_PAGE);
+        if self.pages.len() <= page {
+            self.pages.resize_with(page + 1, || None);
         }
-        let notes = &mut self.slots[index];
+        let notes = &mut self.pages[page].get_or_insert_with(|| Box::new([SlotNotes::default(); NOTES_PER_PAGE]))[row];
         if !notes.noted {
             notes.noted = true;
             self.noted_slots.push(slot);
@@ -115,7 +119,9 @@ impl MemoInvalidations {
             text_memos.forget(text_state);
         }
         for slot in self.noted_slots {
-            let notes = self.slots[slot as usize];
+            let notes = self.pages[slot as usize / NOTES_PER_PAGE]
+                .as_ref()
+                .expect("a noted slot has its page")[slot as usize % NOTES_PER_PAGE];
             if notes.run_cache_entries_dropped {
                 run_cache.remove_entry(slot);
             } else if notes.structural_inline_changes > 0 || notes.fragment_cache_epoch_bumped {

@@ -133,7 +133,7 @@ pub(crate) type SelectorAttributeNames = Arc<HashSet<StyleAtomID>>;
 
 /// The style record each pseudo-element of an element holds.
 type HeldPseudoStyleRecords =
-    crate::fork::ForkShared<HashMap<StyleNodeID, smallvec::SmallVec<[(pipeline::PseudoElementTarget, u64); 1]>>>;
+    crate::cow_map::CowMap<StyleNodeID, smallvec::SmallVec<[(pipeline::PseudoElementTarget, u64); 1]>>;
 
 /// What an element's arrival has to carry to reach the anchor of a `:has()` argument: a name whose raw identity is
 /// among `names` as its tag, ID, class or attribute name, or a state among `states`. Where an argument can be reached
@@ -210,7 +210,7 @@ pub struct RetainedState {
     counters: Counters,
     /// The elements the host shows each kind of highlight in.
     highlight_observers: pipeline::highlight_observers::HighlightObservers,
-    tree: crate::fork::ForkShared<HostTree>,
+    tree: HostTree,
     /// The depth of the deepest element the tree ever held, which the document's host reads.
     deepest_element: Arc<std::sync::atomic::AtomicU32>,
     /// Where the hover is.
@@ -245,22 +245,22 @@ pub struct RetainedState {
     /// The shared computed-group payload tuple last published for each live element. This is the
     /// computed half of the eventual base style record; custom properties and metadata remain
     /// separate inputs until that record is complete.
-    computed_group_sets: crate::fork::ForkShared<ComputedGroupSets>,
+    computed_group_sets: ComputedGroupSets,
     /// How many epochs of style record views the host has open. No computed record is reclaimed while one is.
     style_record_view_epoch_depth: u32,
     /// The stores behind the custom-property environments live records are published with.
     custom_property_environments: crate::fork::ForkShared<custom_property_environments::CustomPropertyEnvironments>,
     /// The custom-property environment each element holds, for the elements that hold one. This is
     /// the only copy: the element reads its environment from here.
-    element_custom_property_data: crate::fork::ForkShared<HashMap<StyleNodeID, inputs::HeldCustomPropertyEnvironment>>,
+    element_custom_property_data: crate::cow_map::CowMap<StyleNodeID, inputs::HeldCustomPropertyEnvironment>,
     /// The custom-property environments of each element's synthetic pseudo-elements, by
     /// pseudo-element kind, for the elements with a pseudo-element that holds one.
     pseudo_element_custom_property_data:
-        crate::fork::ForkShared<HashMap<StyleNodeID, Vec<(u8, inputs::HeldCustomPropertyEnvironment)>>>,
+        crate::cow_map::CowMap<StyleNodeID, Vec<(u8, inputs::HeldCustomPropertyEnvironment)>>,
     /// The elements whose animations' keyframes say `inherit` for a property that does not
     /// inherit, as the host last sampled them: they read their parent's values of properties that
     /// do not inherit, whether or not their records do.
-    keyframes_reading_parent_reset_values: crate::fork::ForkShared<HashSet<StyleNodeID>>,
+    keyframes_reading_parent_reset_values: crate::cow_map::CowSet<StyleNodeID>,
     /// What the container conditions of the rows the engine answered read of their containers,
     /// per element, taken when the host installs the element's record.
     container_effects_for_host: container_queries::ContainerEffectsForHost,
@@ -273,7 +273,7 @@ pub struct RetainedState {
     /// The counter-style registry each tree scope's style scope has, as one identity per scope:
     /// what a record whose `list-style-type` names a counter style the registry may define names,
     /// so that an edit to `@counter-style` moves it.
-    counter_style_environment_identities: crate::fork::ForkShared<HashMap<TreeScopeID, u64>>,
+    counter_style_environment_identities: crate::cow_map::CowMap<TreeScopeID, u64>,
     /// The style record each element holds, for the elements that hold one, as the host reports
     /// every record it installs or clears.
     /// Copied on write in chunks of its own, which a fork shares.
@@ -287,7 +287,7 @@ pub struct RetainedState {
     /// Per shadow host, the elements of its shadow tree that stood for one of its element-backed
     /// pseudo-elements when the host published them; [`RetainedState::backing_elements`] reads the
     /// ones that still do.
-    backing_elements: crate::fork::ForkShared<HashMap<StyleNodeID, SmallVec<[StyleNodeID; 2]>>>,
+    backing_elements: crate::cow_map::CowMap<StyleNodeID, SmallVec<[StyleNodeID; 2]>>,
     /// The names of the CSS animations the host holds for each element, which the computation of
     /// its animation definitions matches them against.
     css_defined_animations: crate::fork::ForkShared<animations::CssDefinedAnimations>,
@@ -307,7 +307,7 @@ pub struct RetainedState {
     random_base_values: random_bases::RandomBaseValues,
     /// What each element that has replaced content gives its natural size, which layout resolves
     /// against the style of the element's box.
-    replaced_content_inputs: crate::fork::ForkShared<HashMap<StyleNodeID, inputs::ReplacedContentInput>>,
+    replaced_content_inputs: crate::cow_map::CowMap<StyleNodeID, inputs::ReplacedContentInput>,
     /// The before-change style each transition target's transitions are decided against for the
     /// rest of the style stabilization epoch, pinned until the epoch commits.
     transition_baselines: transition_baselines::TransitionBaselines,
@@ -317,7 +317,7 @@ pub struct RetainedState {
     custom_property_registrations_changed: bool,
     /// The record a private demand last answered for each target it was asked about, pinned for
     /// the host to read: no node holds it.
-    demand_records: crate::fork::ForkShared<HashMap<computed::ComputedStyleTarget, computed::FinalStyleRecordID>>,
+    demand_records: crate::cow_map::CowMap<computed::ComputedStyleTarget, computed::FinalStyleRecordID>,
 
     /// The places of the children of parents with many of them, which sibling-counting functions
     /// read, kept while the tree's DOM order stands.
@@ -344,7 +344,7 @@ pub struct RetainedState {
     /// The longhand properties each element declares itself, by the kind of declaration they came
     /// from. An element-attached declaration beats every rule in its context, so the cascade needs
     /// to know which properties one covers just as it does for a rule.
-    element_declarations: crate::fork::ForkShared<element_declarations::ElementDeclarationStore>,
+    element_declarations: element_declarations::ElementDeclarationStore,
     /// The document as the engine reads it: every element fact and link the host publishes.
     projection: pipeline::projection::Projection,
     /// The attribute names whose value text a selector reads, which the host holds a copy of between jobs.

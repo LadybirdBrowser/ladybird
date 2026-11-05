@@ -15,8 +15,10 @@ mod rust_demangle;
 mod rust_panic;
 
 pub(crate) mod cow_column;
+pub(crate) mod cow_map;
 mod encoding_detection;
 pub(crate) mod fork;
+pub(crate) mod fork_vec;
 #[cfg(test)]
 mod gfx_test_stubs;
 pub(crate) mod heap_size;

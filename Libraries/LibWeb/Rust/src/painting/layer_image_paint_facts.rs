@@ -41,7 +41,7 @@ impl LayerImagePaintFacts {
 /// Each row's layer image paint facts. A publication shares the table, so a write copies it only
 /// while a publication still holds it.
 pub(crate) type LayerImagePaintFactsTable =
-    crate::css::style::fast_hash::FastMap<crate::layout::node_data::NodeSlotId, Vec<LayerImagePaintFactsEntry>>;
+    crate::cow_map::CowMap<crate::layout::node_data::NodeSlotId, Vec<LayerImagePaintFactsEntry>>;
 
 /// The layer image paint facts of one image layer of a row of `table`.
 pub(crate) fn layer_image_paint_facts_in(
