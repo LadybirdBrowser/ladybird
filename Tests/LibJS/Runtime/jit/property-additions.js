@@ -84,3 +84,73 @@ describe("property additions to allocated objects", () => {
         expect(build(4, object => object)).toEqual({ even: 4, extra: 0, flag: true });
     });
 });
+
+describe("property additions after preventing extensions", () => {
+    const lockers = {
+        preventExtensions: object => Object.preventExtensions(object),
+        reflectPreventExtensions: object => Reflect.preventExtensions(object),
+        seal: object => Object.seal(object),
+        freeze: object => Object.freeze(object),
+    };
+    function gatedLockers(lock) {
+        const state = { armed: false };
+        // Keep the call polymorphic so it is not inlined and its cold locking branch cannot exit the caller.
+        const callbacks = [
+            object => {
+                if (state.armed) lock(object);
+            },
+            object => {
+                if (state.armed) lock(object);
+            },
+        ];
+        return { state, callbacks };
+    }
+
+    for (const [name, lock] of Object.entries(lockers)) {
+        for (const strict of [false, true]) {
+            const directive = strict ? "'use strict';" : "";
+            const mode = strict ? "strict" : "sloppy";
+
+            test(`${mode} object literal: ${name}`, () => {
+                const { state, callbacks } = gatedLockers(lock);
+                const make = new Function(
+                    "lock",
+                    "p",
+                    `${directive} const object = {}; if (p) lock(object); object.x = 1; return object;`
+                );
+                jit.prepare(make);
+                for (let i = 0; i < 50; ++i) make(callbacks[i % 2], true);
+                expect(jit.compile(make)).toBe(jit.enabled);
+
+                state.armed = true;
+                if (strict) {
+                    expect(() => make(callbacks[0], true)).toThrow(TypeError);
+                } else {
+                    const object = make(callbacks[0], true);
+                    expect(Object.hasOwn(object, "x")).toBeFalse();
+                    expect(Object.isExtensible(object)).toBeFalse();
+                }
+                expect(make(lock, false).x).toBe(1);
+            });
+
+            test(`${mode} inlined constructor: ${name}`, () => {
+                const { state, callbacks } = gatedLockers(lock);
+                const Constructor = new Function("lock", "p", `${directive} if (p) lock(this); this.x = 1;`);
+                const make = new Function("Constructor", "lock", "p", "return new Constructor(lock, p);");
+                jit.prepare(make);
+                for (let i = 0; i < 50; ++i) make(Constructor, callbacks[i % 2], true);
+                expect(jit.compile(make)).toBe(jit.enabled);
+
+                state.armed = true;
+                if (strict) {
+                    expect(() => make(Constructor, callbacks[0], true)).toThrow(TypeError);
+                } else {
+                    const object = make(Constructor, callbacks[0], true);
+                    expect(Object.hasOwn(object, "x")).toBeFalse();
+                    expect(Object.isExtensible(object)).toBeFalse();
+                }
+                expect(make(Constructor, lock, false).x).toBe(1);
+            });
+        }
+    }
+});
