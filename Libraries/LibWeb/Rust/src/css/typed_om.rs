@@ -39,7 +39,7 @@ use crate::css::serialize::{SerializationMode, TextSink, serialize_style_value};
 use crate::css::style_compute::{
     LENGTH_UNIT_CANONICAL_PX_RATIOS, LENGTH_UNIT_NAMES, rust_style_value_is_computationally_independent,
 };
-use crate::css::style_value::rust_style_value_create_grid_track_size_list;
+use crate::css::style_value::style_value_create_grid_track_size_list;
 pub use crate::css::style_value::{ReifiedUnresolvedSegment, RetainedStyleValueData as RetainedStyleValue};
 use crate::css::style_value::{
     RetainedNumericRangeByType, StyleValueData, rust_style_value_create_calculated, rust_style_value_create_value_list,
@@ -445,7 +445,7 @@ impl RetainedStyleValue {
         let pointers: Vec<_> = track_sizes.into_iter().map(|size| size.into_raw().cast()).collect();
         // SAFETY: This hands over strong references to the track sizes, and takes over the one that the call returns.
         unsafe {
-            RetainedStyleValue::from_retained_pointer(rust_style_value_create_grid_track_size_list(
+            RetainedStyleValue::from_retained_pointer(style_value_create_grid_track_size_list(
                 pointers.as_ptr(),
                 pointers.len(),
             ))
@@ -569,7 +569,7 @@ pub fn reification_of(value: &RetainedStyleValue) -> Reification {
         StyleValueData::OpacityValue { value } => return Reification::Value(value.clone()),
         StyleValueData::GridTrackSizeList(_) => {
             // NB: A track list that is just one track size, as for `grid-auto-columns: 10px`, is that track size.
-            let track_size = crate::css::style_value::rust_style_value_grid_track_size_list_single_size(value.data());
+            let track_size = crate::css::style_value::style_value_grid_track_size_list_single_size(value.data());
             if !track_size.is_null() {
                 // SAFETY: The value holds the track size alive, and this takes its own strong reference.
                 return Reification::Value(unsafe {

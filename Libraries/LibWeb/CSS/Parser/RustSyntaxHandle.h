@@ -53,7 +53,6 @@ public:
     }
 
     bool is_universal() const { return ValueParserFFI::rust_syntax_is_universal(m_syntax); }
-    bool is_single_component() const { return ValueParserFFI::rust_syntax_is_single_component(m_syntax); }
     Utf16String serialize() const { return Utf16String::adopt_raw(ValueParserFFI::rust_syntax_serialize(m_syntax)); }
     bool operator==(RustSyntaxHandle const& other) const
     {

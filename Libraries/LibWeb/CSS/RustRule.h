@@ -58,7 +58,6 @@ public:
             return RustDeclarationBlock { declarations };
         return {};
     }
-    size_t external_memory_size() const { return Parser::ValueParserFFI::rust_rule_external_memory_size(m_rule); }
     Parser::ValueParserFFI::NativeRule const* handle() const { return m_rule; }
 
 private:

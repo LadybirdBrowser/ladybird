@@ -206,8 +206,8 @@ pub extern "C" fn rust_media_list_retain(list: &MediaList) -> *mut MediaList {
     Box::into_raw(Box::new(list.clone()))
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_media_list_share(list: &MediaList) -> *mut MediaList {
+#[cfg(test)]
+pub(crate) fn rust_media_list_share(list: &MediaList) -> *mut MediaList {
     Box::into_raw(Box::new(list.share()))
 }
 

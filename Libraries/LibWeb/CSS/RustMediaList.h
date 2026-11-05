@@ -81,7 +81,6 @@ public:
     }
 
     RustMediaList retain() const { return RustMediaList { Parser::ValueParserFFI::rust_media_list_retain(m_list) }; }
-    RustMediaList share() const { return RustMediaList { Parser::ValueParserFFI::rust_media_list_share(m_list) }; }
     size_t length() const { return Parser::ValueParserFFI::rust_media_list_length(m_list); }
     bool matches() const { return Parser::ValueParserFFI::rust_media_list_matches(m_list); }
     bool evaluate(DOM::Document const& document) const

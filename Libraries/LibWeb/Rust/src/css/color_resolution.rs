@@ -1604,57 +1604,6 @@ pub(crate) fn relative_color_computed_value_form(value: StyleValueData) -> Style
     }))
 }
 
-/// The resolved value of a relative color function against a style: its relative form in its
-/// computed value form. Returns one strong reference, or null when the origin color does not
-/// resolve.
-///
-/// # Safety
-/// `style` must be null or point at a style whose group payloads outlive the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_relative_color_resolved_value(
-    value: &StyleValueData,
-    style: *const FfiColorResolutionStyle,
-) -> *const StyleValueData {
-    // SAFETY: Guaranteed by the caller.
-    let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
-    match resolve_relative_form(value, &resolution_input) {
-        Some(resolved) => StyleValueArc::into_raw(StyleValueArc::new(relative_color_computed_value_form(resolved))),
-        None => core::ptr::null(),
-    }
-}
-
-/// The resolved value of a `color-mix()` against a style: the color it mixes, in the form a mix whose colors are all
-/// known computes to. A computed mix stays a mix only where it reads `currentcolor`, which the style names. Returns
-/// one strong reference, or null when the value is no mix or does not resolve.
-///
-/// # Safety
-/// `style` must be null or point at a style whose group payloads outlive the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_color_mix_resolved_value(
-    value: &StyleValueData,
-    style: *const FfiColorResolutionStyle,
-) -> *const StyleValueData {
-    if !matches!(value, StyleValueData::ColorMix { .. }) {
-        return core::ptr::null();
-    }
-    // SAFETY: Guaranteed by the caller.
-    let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
-    match resolve_color_mix(value, &resolution_input) {
-        Some(resolved) => StyleValueArc::into_raw(StyleValueArc::new(resolved)),
-        None => core::ptr::null(),
-    }
-}
-
-/// Whether a color function value has a missing color component, which its resolved value keeps.
-///
-/// # Safety
-/// `value` must point at live style value data.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_color_function_has_missing_component(value: *const core::ffi::c_void) -> bool {
-    let value = unsafe { &*value.cast::<StyleValueData>() };
-    crate::css::serialize::color_function_has_missing_component(value)
-}
-
 /// Port of ColorStyleValue::extract_channels_in_color_space().
 ///
 /// NB: The C++ code computes linear sRGB with the direct transfer function; that function is

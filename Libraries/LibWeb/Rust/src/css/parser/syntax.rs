@@ -457,11 +457,6 @@ pub extern "C" fn rust_syntax_is_universal(syntax: &SyntaxNode) -> bool {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_syntax_is_single_component(syntax: &SyntaxNode) -> bool {
-    is_single_syntax_component(syntax)
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn rust_syntax_value_is_list(syntax: &SyntaxNode, value: &StyleValueData) -> bool {
     match syntax {
         SyntaxNode::Multiplier { .. } => true,
@@ -524,7 +519,7 @@ impl SyntaxNode {
     }
 
     pub(crate) fn is_single_component(&self) -> bool {
-        rust_syntax_is_single_component(self)
+        is_single_syntax_component(self)
     }
 
     pub(crate) fn serialize_to(&self, sink: &mut TextSink) {

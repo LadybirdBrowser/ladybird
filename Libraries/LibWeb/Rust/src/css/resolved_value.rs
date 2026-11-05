@@ -356,7 +356,7 @@ fn style_value_for_transform_origin(
 fn resolve_unresolvable_anchor_functions(property: u16, computed_value: StyleValueArc) -> StyleValueArc {
     let mut is_invalid = false;
     let substituted =
-        crate::css::calc::rust_style_value_with_unresolvable_anchor_functions(&computed_value, &mut is_invalid);
+        crate::css::calc::style_value_with_unresolvable_anchor_functions(&computed_value, &mut is_invalid);
     if !substituted.is_null() {
         // SAFETY: The call hands over one strong reference.
         return unsafe { StyleValueArc::from_raw(substituted) };
