@@ -1,0 +1,61 @@
+== initial
+n0 generic bounds=8,8 784x76
+  n1 generic bounds=8,8 784x20
+    n2 text leaf name="above" bounds=8,10 46x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 lines=0@16
+  n3 generic bounds=8,44 400x40
+    n4 paragraph bounds=8,44 400x40
+      n5 generic bounds=8,46 44x16
+        n6 text leaf name="short" bounds=8,46 44x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 lines=0@16
+      n7 text leaf name=" " bounds=52,46 8x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 lines=0@16
+      n8 generic bounds=8,46 390x36
+        n9 text leaf name="the text that follows it on the same line, long enough to wrap" bounds=8,46 398x36 font="SerenitySans" 16 400 normal color=#000000 characters=52,0 59,0 68,0 77,0 85,0 92,0 101,0 110,0 117,0 125,0 132,0 141,0 151,0 158,0 166,0 172,0 182,0 187,0 191,0 201,0 212,0 222,0 230,0 234,0 241,0 249,0 260,0 269,0 277,0 284,0 293,0 302,0 310,0 319,0 329,0 341,0 350,0 358,0 362,0 366,0 376,0 385,0 390,0 0,20 4,20 14,20 24,20 31,20 39,20 48,20 58,20 68,20 78,20 85,20 95,20 103,20 109,20 120,20 128,20 139,20 148,20 157,20 lines=0@16 43@16
+
+== unchanged
+n0 generic bounds=8,8 784x76
+  n1 generic bounds=8,8 784x20
+    n2 text leaf name="above" bounds=8,10 46x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 lines=0@16
+  n3 generic bounds=8,44 400x40
+    n4 paragraph bounds=8,44 400x40
+      n5 generic bounds=8,46 44x16
+        n6 text leaf name="short" bounds=8,46 44x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 lines=0@16
+      n7 text leaf name=" " bounds=52,46 8x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 lines=0@16
+      n8 generic bounds=8,46 390x36
+        n9 text leaf name="the text that follows it on the same line, long enough to wrap" bounds=8,46 398x36 font="SerenitySans" 16 400 normal color=#000000 characters=52,0 59,0 68,0 77,0 85,0 92,0 101,0 110,0 117,0 125,0 132,0 141,0 151,0 158,0 166,0 172,0 182,0 187,0 191,0 201,0 212,0 222,0 230,0 234,0 241,0 249,0 260,0 269,0 277,0 284,0 293,0 302,0 310,0 319,0 329,0 341,0 350,0 358,0 362,0 366,0 376,0 385,0 390,0 0,20 4,20 14,20 24,20 31,20 39,20 48,20 58,20 68,20 78,20 85,20 95,20 103,20 109,20 120,20 128,20 139,20 148,20 157,20 lines=0@16 43@16
+
+== container narrowed
+n0 generic bounds=8,8 784x96
+  n1 generic bounds=8,8 784x20
+    n2 text leaf name="above" bounds=8,10 46x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 lines=0@16
+  n3 generic bounds=8,44 250x60
+    n4 paragraph bounds=8,44 250x60
+      n5 generic bounds=8,46 44x16
+        n6 text leaf name="short" bounds=8,46 44x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 lines=0@16
+      n7 text leaf name=" " bounds=52,46 8x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 lines=0@16
+      n8 generic bounds=8,46 243x56
+        n9 text leaf name="the text that follows it on the same line, long enough to wrap" bounds=8,46 251x56 font="SerenitySans" 16 400 normal color=#000000 characters=52,0 59,0 68,0 77,0 85,0 92,0 101,0 110,0 117,0 125,0 132,0 141,0 151,0 158,0 166,0 172,0 182,0 187,0 191,0 201,0 212,0 222,0 230,0 234,0 241,0 0,20 10,20 19,20 27,20 34,20 44,20 52,20 60,20 70,20 79,20 91,20 100,20 108,20 112,20 117,20 126,20 135,20 140,20 148,20 152,20 163,20 172,20 180,20 188,20 197,20 206,20 217,20 226,20 234,20 243,20 0,40 6,40 17,40 25,40 36,40 45,40 54,40 lines=0@16 25@16 55@16
+
+== earlier text on the line grew
+n0 generic bounds=8,8 784x116
+  n1 generic bounds=8,8 784x20
+    n2 text leaf name="above" bounds=8,10 46x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 lines=0@16
+  n3 generic bounds=8,44 250x80
+    n4 paragraph bounds=8,44 250x80
+      n5 generic bounds=8,46 201x16
+        n6 text leaf name="much longer than before" bounds=8,46 201x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 21,0 30,0 40,0 48,0 52,0 62,0 72,0 79,0 88,0 97,0 105,0 112,0 121,0 130,0 140,0 148,0 158,0 166,0 173,0 183,0 192,0 lines=0@16
+      n7 text leaf name=" " bounds=209,46 8x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 lines=0@16
+      n8 generic bounds=8,46 233x76
+        n9 text leaf name="the text that follows it on the same line, long enough to wrap" bounds=8,46 241x76 font="SerenitySans" 16 400 normal color=#000000 characters=209,0 215,0 225,0 233,0 0,20 6,20 15,20 25,20 32,20 40,20 47,20 56,20 65,20 72,20 80,20 86,20 97,20 101,20 105,20 116,20 127,20 136,20 144,20 149,20 156,20 164,20 174,20 184,20 192,20 198,20 208,20 216,20 0,40 9,40 18,40 30,40 39,40 47,40 51,40 56,40 66,40 74,40 79,40 87,40 92,40 102,40 111,40 119,40 127,40 136,40 145,40 156,40 166,40 173,40 182,40 190,40 197,40 208,40 0,60 11,60 20,60 29,60 lines=0@16 4@16 32@16 58@16
+
+== content above grew
+n0 generic bounds=8,8 784x136
+  n1 generic bounds=8,8 784x40
+    n2 text leaf name="above" bounds=8,10 46x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 lines=0@16
+    n3 text leaf name="and more" bounds=8,30 74x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 34,0 47,0 57,0 66,0 lines=0@16
+  n4 generic bounds=8,64 250x80
+    n5 paragraph bounds=8,64 250x80
+      n6 generic bounds=8,66 201x16
+        n7 text leaf name="much longer than before" bounds=8,66 201x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 12,0 21,0 30,0 40,0 48,0 52,0 62,0 72,0 79,0 88,0 97,0 105,0 112,0 121,0 130,0 140,0 148,0 158,0 166,0 173,0 183,0 192,0 lines=0@16
+      n8 text leaf name=" " bounds=209,66 8x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 lines=0@16
+      n9 generic bounds=8,66 233x76
+        n10 text leaf name="the text that follows it on the same line, long enough to wrap" bounds=8,66 241x76 font="SerenitySans" 16 400 normal color=#000000 characters=209,0 215,0 225,0 233,0 0,20 6,20 15,20 25,20 32,20 40,20 47,20 56,20 65,20 72,20 80,20 86,20 97,20 101,20 105,20 116,20 127,20 136,20 144,20 149,20 156,20 164,20 174,20 184,20 192,20 198,20 208,20 216,20 0,40 9,40 18,40 30,40 39,40 47,40 51,40 56,40 66,40 74,40 79,40 87,40 92,40 102,40 111,40 119,40 127,40 136,40 145,40 156,40 166,40 173,40 182,40 190,40 197,40 208,40 0,60 11,60 20,60 29,60 lines=0@16 4@16 32@16 58@16
+

@@ -237,6 +237,7 @@ interface Internals {
     // Each node whose accessibility data kept between builds of the tree differs from what computing it again gives,
     // one per line. Empty when all of it is current.
     DOMString accessibilityCachedRecordMismatches();
+    DOMString accessibilityCachedGeometryMismatches();
     DOMString dumpLayoutTree(Node node);
     DOMString dumpStackingContextTree();
     DOMString stackingContextStructureVerificationReport();

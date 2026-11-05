@@ -223,6 +223,63 @@ pub extern "C" fn layout_script_text_caret_rect_in_dom_range(
     });
 }
 
+/// Calls `push_source` with what the character geometry of the text node `primary` is computed from: for each of its
+/// layout nodes, a retained reference to its containing block's line content, and the raw document-absolute position
+/// of that block. The same references at the same positions mean the same geometry. The consumer owns every reference
+/// pushed, and releases each one with layout_release_inline_content(). Returns false when the geometry depends on more
+/// than this: when a block is fragmented, or holds no line content.
+///
+/// # Safety
+///
+/// The callback must be sound to call with `context`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_script_text_geometry_sources(
+    host: &DocumentHost,
+    primary: NodeSlotId,
+    context: *mut c_void,
+    push_source: unsafe extern "C" fn(*mut c_void, *const c_void, i32, i32),
+) -> bool {
+    read_rows(host, |arena| {
+        let fragments = arena.text_fragments(primary);
+        let node_slots = fragments.as_slice();
+        if node_slots.is_empty() {
+            return false;
+        }
+        for &node in node_slots {
+            let Some(block) = crate::painting::text_fragment::containing_block_paintable_of_node(arena, node) else {
+                return false;
+            };
+            let side_data = arena.committed_side_data(block);
+            let Some(content) = side_data.inline_content.as_ref() else {
+                return false;
+            };
+            // Lines in different fragments of a block can each move on their own.
+            if side_data.box_fragments().len() > 1 {
+                return false;
+            }
+            let position = crate::painting::paintable_geometry::absolute_line_root_position(arena, block, 0);
+            let retained = std::sync::Arc::into_raw(content.clone()).cast::<c_void>();
+            // SAFETY: The consumer takes ownership of the reference, and copies the position synchronously.
+            unsafe { push_source(context, retained, position.x.raw_value(), position.y.raw_value()) };
+        }
+        true
+    })
+}
+
+/// Releases a reference to line content that layout_script_text_geometry_sources() handed out.
+///
+/// # Safety
+///
+/// `content` must be a reference layout_script_text_geometry_sources() pushed, released only once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_release_inline_content(content: *const c_void) {
+    if content.is_null() {
+        return;
+    }
+    // SAFETY: The caller passes a reference from Arc::into_raw() in layout_script_text_geometry_sources(), once.
+    drop(unsafe { std::sync::Arc::from_raw(content.cast::<crate::layout::inline_content::InlineContent>()) });
+}
+
 /// Calls `push_position` with each DOM offset (in UTF-16 code units) of the text node `primary` that one of its
 /// horizontal fragments renders, along with the document-absolute x coordinate where that offset's character starts,
 /// read from the fragment's shaped glyph run. `is_fragment_end` marks the offset one past a fragment's last character,

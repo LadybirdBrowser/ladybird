@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px/20px SerenitySans;
+    }
+</style>
+<!-- After each change that moves or rewraps text without touching the text node or its parent's style, the text's
+     geometry reflects it: a narrower container, earlier text on the same line growing, and content above it growing. -->
+<div id="root">
+    <div id="above">above</div>
+    <div id="container" style="width: 400px">
+        <p><span id="first">short</span> <span>the text that follows it on the same line, long enough to wrap</span></p>
+    </div>
+</div>
+<script>
+    test(() => {
+        internals.setAccessibilityInterested();
+        const root = document.getElementById("root");
+        const step = (label, change) => {
+            change();
+            // Printing adds to the DOM, so read everything before printing anything.
+            const dump = internals.dumpAccessibilityNodeData(root);
+            const stale = internals.accessibilityCachedTextMismatches() + internals.accessibilityCachedRecordMismatches() + internals.accessibilityCachedGeometryMismatches();
+            println(`== ${label}`);
+            println(dump);
+            if (stale)
+                println(`stale cached data:\n${stale}`);
+        };
+
+        step("initial", () => {});
+        step("unchanged", () => {});
+        step("container narrowed", () => document.getElementById("container").style.width = "250px");
+        step("earlier text on the line grew", () => document.getElementById("first").firstChild.data = "much longer than before");
+        step("content above grew", () => document.getElementById("above").append(document.createElement("br"), "and more"));
+    });
+</script>

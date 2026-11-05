@@ -303,8 +303,36 @@ namespace Web::DOM {
 
 struct Document::AccessibilityRecordCache {
     AK_ALLOC_WITH_KMALLOC;
-    HashMap<UniqueNodeID, WebView::AccessibilityNodeData> records;
+    struct Record {
+        WebView::AccessibilityNodeData data;
+        Optional<CachedTextGeometry> text_geometry;
+    };
+    HashMap<UniqueNodeID, Record> records;
 };
+
+static void release_text_geometry_sources(Vector<Document::CachedTextGeometry::Source>& sources)
+{
+    for (auto const& source : sources)
+        Layout::RustFFI::layout_release_inline_content(source.line_content);
+    sources.clear();
+}
+
+Document::CachedTextGeometry& Document::CachedTextGeometry::operator=(CachedTextGeometry&& other)
+{
+    if (this == &other)
+        return *this;
+    release_text_geometry_sources(sources);
+    sources = move(other.sources);
+    character_offsets = move(other.character_offsets);
+    line_break_character_offsets = move(other.line_break_character_offsets);
+    line_heights = move(other.line_heights);
+    return *this;
+}
+
+Document::CachedTextGeometry::~CachedTextGeometry()
+{
+    release_text_geometry_sources(sources);
+}
 
 static CSS::ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
 {
@@ -7351,7 +7379,8 @@ WebView::AccessibilityNodeData const* Document::cached_accessibility_record(Node
 {
     if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
         return nullptr;
-    return m_accessibility_record_cache->records.get(node.unique_id()).map([](auto& record) { return &record; }).value_or(nullptr);
+    auto it = m_accessibility_record_cache->records.find(node.unique_id());
+    return it == m_accessibility_record_cache->records.end() ? nullptr : &it->value.data;
 }
 
 void Document::cache_accessibility_record(Node const& node, WebView::AccessibilityNodeData const& record) const
@@ -7367,7 +7396,27 @@ void Document::cache_accessibility_record(Node const& node, WebView::Accessibili
     kept.character_offsets.clear();
     kept.line_break_character_offsets.clear();
     kept.line_heights.clear();
-    m_accessibility_record_cache->records.set(node.unique_id(), move(kept));
+    m_accessibility_record_cache->records.set(node.unique_id(), { move(kept), {} });
+}
+
+Document::CachedTextGeometry const* Document::cached_text_geometry(Node const& node) const
+{
+    if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
+        return nullptr;
+    auto it = m_accessibility_record_cache->records.find(node.unique_id());
+    if (it == m_accessibility_record_cache->records.end() || !it->value.text_geometry.has_value())
+        return nullptr;
+    return &*it->value.text_geometry;
+}
+
+void Document::cache_text_geometry(Node const& node, CachedTextGeometry geometry) const
+{
+    // The geometry goes with the node's record, so whatever drops the record drops the geometry too.
+    if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
+        return;
+    auto it = m_accessibility_record_cache->records.find(node.unique_id());
+    if (it != m_accessibility_record_cache->records.end())
+        it->value.text_geometry = move(geometry);
 }
 
 static bool is_table_structure(Element const& element)
@@ -7563,13 +7612,43 @@ Vector<String> Document::cached_accessibility_record_mismatches()
 
     Vector<String> mismatches;
     for (auto const& data : fresh) {
-        auto cached = m_accessibility_record_cache->records.get(UniqueNodeID { data.id });
-        if (!cached.has_value() || kept_part(*cached) == kept_part(data))
+        auto cached = m_accessibility_record_cache->records.find(UniqueNodeID { data.id });
+        if (cached == m_accessibility_record_cache->records.end() || kept_part(cached->value.data) == kept_part(data))
             continue;
         auto* node = Node::from_unique_id(UniqueNodeID { data.id });
         auto const* element = as_if<Element>(node);
         mismatches.append(MUST(String::formatted("{} \"{}\" (role {}): the kept data differs from computing it again",
             element ? element->local_name().to_utf16_string().to_utf8() : "#text"_string, data.name, data.role)));
+    }
+    quick_sort(mismatches);
+    return mismatches;
+}
+
+Vector<String> Document::cached_text_geometry_mismatches()
+{
+    update_layout(UpdateLayoutReason::InspectAccessibilityTree);
+    if (!m_accessibility_record_cache)
+        return {};
+
+    // A build that reuses the kept geometry wherever it's still good, against one that computes all of it again.
+    auto kept = build_accessibility_node_data();
+    m_accessibility_caches_bypassed = true;
+    auto fresh = build_accessibility_node_data();
+    m_accessibility_caches_bypassed = false;
+
+    HashMap<i64, WebView::AccessibilityNodeData const*> fresh_by_id;
+    for (auto const& data : fresh)
+        fresh_by_id.set(data.id, &data);
+    Vector<String> mismatches;
+    for (auto const& data : kept) {
+        auto fresh_data = fresh_by_id.get(data.id);
+        if (!fresh_data.has_value())
+            continue;
+        auto const& computed = **fresh_data;
+        if (data.bounds == computed.bounds && data.character_offsets == computed.character_offsets
+            && data.line_break_character_offsets == computed.line_break_character_offsets && data.line_heights == computed.line_heights)
+            continue;
+        mismatches.append(MUST(String::formatted("#text \"{}\": the kept geometry differs from computing it again", data.name)));
     }
     quick_sort(mismatches);
     return mismatches;
