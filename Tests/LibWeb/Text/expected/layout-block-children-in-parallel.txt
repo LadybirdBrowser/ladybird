@@ -1,0 +1,9 @@
+243 boxes
+first layout: 500x2628, digest 139338028
+narrower root: 420x2868, digest 706463386
+a float reaches further: 420x3028, digest 20884856
+a float is removed: 420x3024, digest 128798492
+one paragraph grows: 420x3054, digest 223581328
+a margin before everything grows: 420x3086, digest 779011473
+a new float comes in: 420x3086, digest 964357296
+clearance goes: 420x2952, digest 862327399

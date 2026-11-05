@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 10px/10px SerenitySans; }
+    #root { display: flow-root; position: relative; width: 500px; }
+    p { margin: 6px 0; }
+    li { margin: 2px 0 2px 20px; }
+    .left { float: left; width: 40px; height: 25px; }
+    .right { float: right; width: 30px; height: 15px; }
+    .tall { float: right; width: 60px; height: 140px; }
+</style>
+<div id="root"></div>
+<script>
+    function words(count) {
+        return "word ".repeat(count);
+    }
+
+    function element(tag, style, ...children) {
+        const result = document.createElement(tag);
+        if (style) result.style.cssText = style;
+        for (const child of children) result.append(child);
+        return result;
+    }
+
+    function paragraphs(count, length) {
+        const list = [];
+        for (let index = 0; index < count; ++index) list.push(element("p", "", words(length + index)));
+        return list;
+    }
+
+    function floated(className, ...children) {
+        const result = element("div", "", ...children);
+        result.className = className;
+        return result;
+    }
+
+    const sectionMakers = [
+        // In-flow blocks whose top margins collapse through several levels.
+        index => element("section", `margin-top: ${5 + index}px`, element("div", "margin-top: 8px", element("div", "", ...paragraphs(4, 20)))),
+        // A box that establishes a formatting context, which floats narrow when they reach it.
+        () => element("section", "overflow: hidden", ...paragraphs(4, 15)),
+        // A float inside an in-flow box that the next box stays clear of.
+        () => element("section", "", floated("left", words(3)), ...paragraphs(3, 25), element("div", "clear: both; height: 3px")),
+        // A float that hangs out of its box over the sections after it.
+        () => element("section", "", floated("tall", ...paragraphs(2, 4)), ...paragraphs(2, 10)),
+        // A flex container, whose items are laid out in runs of their own.
+        () => element("section", "display: flex", element("div", "flex: 1", ...paragraphs(3, 12)), element("div", "flex: 1", ...paragraphs(3, 9))),
+        // A box that clears, with a top margin among its contents.
+        () => element("section", "clear: both; margin-top: 12px", element("div", "margin-top: 20px", ...paragraphs(3, 18))),
+        // Absolutely positioned boxes in and past their in-flow box.
+        () => element("section", "position: relative; padding-left: 3px", element("div", "position: absolute; right: 0; top: 0; width: 10px; height: 10px"), element("div", "", element("div", "position: absolute; width: 7px; height: 7px"), ...paragraphs(3, 14))),
+        // List items with outside markers.
+        () => element("ul", "padding: 0; margin: 4px 0", ...paragraphs(4, 6).map(line => element("li", "", line))),
+        // A float with a run of its own among blocks, and a float that shrinks to fit.
+        () => element("section", "", element("div", "float: left; width: 80px", ...paragraphs(3, 3)), element("div", "float: left", words(2)), ...paragraphs(3, 20)),
+        // A table, which stays in the flow of its parent.
+        () => element("section", "", element("table", "", element("tr", "", element("td", "", words(4)), element("td", "", words(4)))), ...paragraphs(2, 8)),
+        // Lines interrupted by a block, with floats among them.
+        () => element("section", "", element("span", "", words(4), element("div", "margin: 3px 0", words(5)), words(4)), floated("right", words(1)), ...paragraphs(2, 16)),
+        // A negative margin that pulls contents above their box, beside a float before it.
+        () => element("section", "padding-top: 1px", element("div", "margin-top: -6px", ...paragraphs(3, 13))),
+    ];
+
+    function digestOf(root) {
+        let digest = 0;
+        const mix = rect => {
+            const mixed = Math.round((rect.x + rect.y * 3 + rect.width * 5 + rect.height * 7) * 64);
+            digest = (digest * 31 + mixed) % 1000000007;
+        };
+        for (const box of root.querySelectorAll("*")) mix(box.getBoundingClientRect());
+        const textNodes = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        while (textNodes.nextNode()) {
+            const range = document.createRange();
+            range.selectNodeContents(textNodes.currentNode);
+            for (const rect of range.getClientRects()) mix(rect);
+        }
+        const rect = root.getBoundingClientRect();
+        return `${rect.width}x${rect.height}, digest ${digest}`;
+    }
+
+    test(() => {
+        const root = document.getElementById("root");
+        for (let index = 0; index < sectionMakers.length * 3; ++index)
+            root.append(sectionMakers[index % sectionMakers.length](index));
+        println(`${root.querySelectorAll("*").length} boxes`);
+        println(`first layout: ${digestOf(root)}`);
+
+        root.style.width = "420px";
+        println(`narrower root: ${digestOf(root)}`);
+
+        const talls = root.querySelectorAll(".tall");
+        talls[0].style.height = "300px";
+        println(`a float reaches further: ${digestOf(root)}`);
+
+        talls[1].remove();
+        println(`a float is removed: ${digestOf(root)}`);
+
+        root.querySelector("section:nth-of-type(3) p").firstChild.data = words(60);
+        println(`one paragraph grows: ${digestOf(root)}`);
+
+        root.children[0].style.marginTop = "40px";
+        println(`a margin before everything grows: ${digestOf(root)}`);
+
+        root.insertBefore(floated("tall"), root.children[1]);
+        println(`a new float comes in: ${digestOf(root)}`);
+
+        for (const section of root.querySelectorAll("section:nth-of-type(6n)")) section.style.clear = "none";
+        println(`clearance goes: ${digestOf(root)}`);
+    });
+</script>
