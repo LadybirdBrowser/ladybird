@@ -16,8 +16,8 @@ use crate::display_list::commands::{
     CanvasId, ClipMode, ClipNodeIndex, CompositorScrollbar, ContextRef, DeclareMaskContent, DisplayListCommandHeader,
     DisplayListCommandRun, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
     DisplayListPaintStyleType, DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex, FillPath, FillRect,
-    INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect, PaintScrollBar, PaintTextShadow, PathPaintKind,
-    SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkResourceId,
+    INLINE_CLIP_ENTRY_SIZE, ImageFrameResourceId, OptionalColor, OptionalFloatRect, PaintScrollBar, PaintTextShadow,
+    PathPaintKind, SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkResourceId,
 };
 use crate::fast_hash::FastMap;
 use crate::host::FfiAnimatedContentViewportEffect;
@@ -1462,25 +1462,27 @@ pub struct DisplayListFrame<'a> {
     pub scroll_offsets: &'a [FloatPoint],
 }
 
-// The canvases and video sinks whose pixels changed since the old frame. The lists draw them with
-// commands that stay the same, so the diff cannot see the change.
+// The canvases, video sinks and image frames whose pixels changed since the old frame. The lists draw
+// them with commands that stay the same, so the diff cannot see the change.
 #[derive(Clone, Copy, Default)]
 pub struct LiveContentChanges<'a> {
     pub canvases: &'a [CanvasId],
     pub video_sinks: &'a [VideoSinkResourceId],
+    pub image_frames: &'a [ImageFrameResourceId],
     /// What the compositor repaints whatever the lists hold, such as a blinking caret.
     pub forced_damage_rect: IntRect,
 }
 
 impl LiveContentChanges<'_> {
     fn is_empty(&self) -> bool {
-        self.canvases.is_empty() && self.video_sinks.is_empty()
+        self.canvases.is_empty() && self.video_sinks.is_empty() && self.image_frames.is_empty()
     }
 
     fn includes(&self, content: LiveContent) -> bool {
         match content {
             LiveContent::Canvas(canvas_id) => self.canvases.contains(&canvas_id),
             LiveContent::VideoFrame(video_sink_id) => self.video_sinks.contains(&video_sink_id),
+            LiveContent::ImageFrame(image_frame_id) => self.image_frames.contains(&image_frame_id),
         }
     }
 }
@@ -1682,8 +1684,7 @@ mod tests {
     use crate::display_list::builder::{HEADER_SIZE, note_command};
     use crate::display_list::commands::{
         BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
-        DrawCanvas, DrawIsolatedGroup, DrawVideoFrame, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind,
-        TextShadowLayer,
+        DrawCanvas, DrawIsolatedGroup, DrawVideoFrame, FillRect, FontResourceId, InlineClipKind, TextShadowLayer,
     };
     use crate::display_list::ffi_bytes::FfiBytes;
     use crate::node_slot_id::NodeSlotId;
@@ -2116,6 +2117,32 @@ mod tests {
         );
         assert_eq!(
             damage_for_live_content_changes(&video, &tree, changed_canvas),
+            Some(IntRect::default())
+        );
+
+        let image = command_bytes(
+            &DrawScaledDecodedImageFrame {
+                dst_rect: FloatRect::new(10.0, 10.0, 20.0, 20.0),
+                src_rect: OptionalFloatRect::default(),
+                frame_id: ImageFrameResourceId(1),
+                scaling_mode: ScalingMode::NearestNeighbor,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                isolated_backdrop_color: OptionalColor::default(),
+                apply_force_dark: false,
+            },
+            Some(rect),
+            ContextRef::default(),
+        );
+        let changed_image = LiveContentChanges {
+            image_frames: &[ImageFrameResourceId(1)],
+            ..LiveContentChanges::default()
+        };
+        assert_eq!(
+            damage_for_live_content_changes(&image, &tree, changed_image),
+            Some(IntRect::new(9, 9, 22, 22))
+        );
+        assert_eq!(
+            damage_for_live_content_changes(&image, &tree, changed_video),
             Some(IntRect::default())
         );
     }

@@ -61,6 +61,8 @@ pub unsafe extern "C" fn display_list_compute_damage(
     canvases_with_new_content_len: usize,
     video_sinks_with_new_frames: *const crate::display_list::commands::VideoSinkResourceId,
     video_sinks_with_new_frames_len: usize,
+    image_frames_with_new_pixels: *const crate::display_list::commands::ImageFrameResourceId,
+    image_frames_with_new_pixels_len: usize,
     forced_damage_rect: libgfx_rust::IntRect,
     out_damage_rect: *mut libgfx_rust::IntRect,
 ) -> bool {
@@ -80,6 +82,7 @@ pub unsafe extern "C" fn display_list_compute_damage(
         crate::display_list::damage::LiveContentChanges {
             canvases: ak::slice_from_raw_parts(canvases_with_new_content, canvases_with_new_content_len),
             video_sinks: ak::slice_from_raw_parts(video_sinks_with_new_frames, video_sinks_with_new_frames_len),
+            image_frames: ak::slice_from_raw_parts(image_frames_with_new_pixels, image_frames_with_new_pixels_len),
             forced_damage_rect,
         }
     };

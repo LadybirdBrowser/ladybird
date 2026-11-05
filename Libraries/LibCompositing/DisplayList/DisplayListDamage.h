@@ -19,11 +19,12 @@ namespace Compositing {
 class AccumulatedVisualContextTree;
 class ScrollStateSnapshot;
 
-// The canvases and video sinks whose pixels changed since the old list was rasterized. The lists draw
-// them with commands that stay the same, so comparing the lists cannot see the change.
+// The canvases, video sinks and image frames whose pixels changed since the old list was rasterized. The lists
+// draw them with commands that stay the same, so comparing the lists cannot see the change.
 struct LiveContentChanges {
     ReadonlySpan<CanvasId> canvases;
     ReadonlySpan<VideoSinkResourceId> video_sinks;
+    ReadonlySpan<ImageFrameResourceId> image_frames;
     // What the compositor repaints whatever the lists hold, such as a blinking caret.
     Gfx::IntRect forced_damage_rect;
 };

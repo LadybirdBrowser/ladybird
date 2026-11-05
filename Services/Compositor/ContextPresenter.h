@@ -129,6 +129,7 @@ private:
         Gfx::IntSize viewport_size;
         HashMap<Compositing::CanvasId, u64> canvas_content_generations;
         HashMap<Compositing::VideoSinkResourceId, Optional<u64>> video_frame_ids;
+        HashMap<u64, u64> image_frame_pixel_generations;
     };
 
     enum class PaintUIOverlay : u8 {
