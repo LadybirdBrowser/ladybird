@@ -122,11 +122,6 @@ pub(crate) fn comma_separated_style_value_list(values: Vec<RetainedStyleValue>) 
     typed_om::style_value_list(values, true)
 }
 
-/// The first of the numeric types that the text parses as, https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse
-pub(crate) fn parse_a_numeric_value(css_text: &Utf16String) -> Option<RetainedStyleValue> {
-    typed_om::parse_a_numeric_value(css_text)
-}
-
 pub(crate) unsafe extern "C" fn append_style_value(values: *mut c_void, value: *const c_void) {
     // SAFETY: The context is the Vec of parse_a_css_style_value(), and C++ hands over a strong reference.
     unsafe { (*values.cast::<Vec<RetainedStyleValue>>()).push(RetainedStyleValue::from_raw(value)) };

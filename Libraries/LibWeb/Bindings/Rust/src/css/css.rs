@@ -47,7 +47,7 @@ pub(crate) struct PropertyDefinition {
 }
 
 fn syntax_error(message: &str) -> Exception {
-    Exception::Dom("SyntaxError", Utf16String::from_utf8(message))
+    Exception::syntax_error(Utf16String::from_utf8(message))
 }
 
 fn optional_style_value(pointer: *const c_void) -> Option<RetainedStyleValue> {
