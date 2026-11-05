@@ -504,11 +504,13 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
         return !Unicode::code_point_has_default_ignorable_code_point_property(string.code_point_at(starting_offset));
     };
 
+    // NB: HarfBuzz positions glyphs in font space, where y grows upward, so its y offsets and advances are negated
+    //     for our coordinates, where y grows downward.
     for (size_t i = 0; i < glyph_count; ++i) {
         bool should_paint = should_paint_glyph(i);
         auto position = point
             - FloatPoint { 0, metrics.ascent }
-            + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
+            + FloatPoint { positions[i].x_offset, -positions[i].y_offset } / text_shaping_resolution;
 
         auto extra_advance = letter_spacing;
         if (auto starting_offset = glyph_info[i].cluster; starting_offset < string.length_in_code_units()
@@ -528,7 +530,7 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
         if (!should_paint)
             continue;
 
-        point += FloatPoint { positions[i].x_advance, positions[i].y_advance } / text_shaping_resolution;
+        point += FloatPoint { positions[i].x_advance, -positions[i].y_advance } / text_shaping_resolution;
 
         // NOTE: The spec says that we "really should not" apply letter-spacing to the trailing edge of a line but
         //       other browsers do so we will as well. https://drafts.csswg.org/css-text/#example-7880704e

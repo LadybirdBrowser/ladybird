@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // In this font, the yeh is the dotless yeh followed by a mark for its two dots, which shaping offsets 0.232em
+        // down, so they hang 0.434em below the baseline, where the dotless yeh's ink stops 0.232em below it.
+        const face = new FontFace("YehSubset", 'url("../../../Assets/NotoSansArabic-yeh-subset.ttf")');
+        document.fonts.add(face);
+        await face.load();
+
+        const context = document.createElement("canvas").getContext("2d");
+        context.font = "100px YehSubset";
+        for (const [name, text] of [["yeh", "ي"], ["dotless yeh", "ى"]])
+            println(`${name}: descent ${Math.round(context.measureText(text).actualBoundingBoxDescent)}`);
+    });
+</script>
