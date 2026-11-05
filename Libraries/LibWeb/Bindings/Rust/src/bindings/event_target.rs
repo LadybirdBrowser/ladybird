@@ -225,7 +225,7 @@ pub(crate) struct CppEvent(CppCell);
 impl CppEvent {
     pub(crate) fn create(realm: Gc<Realm>, r#type: &str, bubbles: bool, cancelable: bool, composed: bool) -> Self {
         // SAFETY: The realm is live, the type is lent for the call, and LibWeb returns a live event.
-        Self(unsafe {
+        let event = Self(unsafe {
             CppCell::from_raw(web_bindings_create_event(
                 realm.as_ptr().cast(),
                 ak::Span::new(r#type.as_bytes()),
@@ -233,7 +233,10 @@ impl CppEvent {
                 cancelable,
                 composed,
             ))
-        })
+        });
+        // NB: Only the implementation creates events this way, to fire them.
+        event.set_is_trusted(true);
+        event
     }
 
     pub(crate) fn create_for_owner(
