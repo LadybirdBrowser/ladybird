@@ -232,7 +232,7 @@ pub fn in_canonical_unit(value: f64, unit: &str) -> (f64, String) {
     if code == canonical_unit {
         return (value, unit.to_owned());
     }
-    (value * ratio, dimension.unit_name(canonical_unit).to_owned())
+    (value * ratio, dimension.unit_name(canonical_unit).to_ascii_lowercase())
 }
 
 /// The ratio that converts a value in the unit `from` to the unit `to`, if they are compatible.
