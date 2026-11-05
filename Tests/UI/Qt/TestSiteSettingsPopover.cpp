@@ -12,20 +12,12 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
 #include <LibWebView/Settings.h>
-#include <UI/Qt/MacWindow.h>
 #include <UI/Qt/SiteSettingsPopover.h>
 
 #include <QCheckBox>
 #include <QMenu>
 #include <QPushButton>
 #include <QTimer>
-
-#if defined(AK_OS_MACOS)
-// The offscreen platform has no AppKit window to animate.
-void Ladybird::disable_appkit_window_animations(QWidget&)
-{
-}
-#endif
 
 static ByteString settings_path()
 {

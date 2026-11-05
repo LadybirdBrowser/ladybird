@@ -494,6 +494,8 @@ void keep_appkit_window_visible_while_inactive(QWidget& widget)
 
 void disable_appkit_window_animations(QWidget& widget)
 {
+    if (QGuiApplication::platformName() != "cocoa")
+        return;
     auto* view = reinterpret_cast<NSView*>(widget.winId());
     if (!view || !view.window)
         return;
