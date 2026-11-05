@@ -3,9 +3,11 @@
 <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-good'">
 <script nonce=good src="data:text/javascript,globalThis.externalScriptExecuted = true;"></script>
 <script nonce=good data="<script" src="data:text/javascript,globalThis.danglingMarkupScriptExecuted = true;"></script>
+<svg><script nonce=good data="<script" href="data:text/javascript,globalThis.danglingMarkupSVGScriptExecuted = true;"></script></svg>
 <script nonce=good>
     test(() => {
         println(globalThis.externalScriptExecuted ? "PASS: external script with a nonce executed" : "FAIL: external script with a nonce blocked");
         println(globalThis.danglingMarkupScriptExecuted ? "FAIL: external script with markup in an attribute executed" : "PASS: external script with markup in an attribute blocked");
+        println(globalThis.danglingMarkupSVGScriptExecuted ? "FAIL: external SVG script with markup in an attribute executed" : "PASS: external SVG script with markup in an attribute blocked");
     });
 </script>
