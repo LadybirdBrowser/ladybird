@@ -37,7 +37,7 @@ unsafe extern "C" {
 /// A shaped run of glyphs in one font, as the path operations below take one.
 pub struct GlyphRun {
     pub font: crate::font::FontHandle,
-    pub glyphs: Vec<crate::text_layout::DrawGlyph>,
+    pub glyphs: crate::text_layout::GlyphBuffer,
 }
 
 struct GlyphOutlineSink<'a> {
@@ -295,7 +295,7 @@ impl Path {
                 continue;
             }
             let mut transforms = Vec::with_capacity(run.glyphs.len());
-            for glyph in &run.glyphs {
+            for glyph in run.glyphs.iter() {
                 let glyph_distance = offset + glyph.x;
                 if glyph_distance + (glyph.glyph_width / 2.0) > path_length {
                     break;

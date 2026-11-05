@@ -173,6 +173,15 @@ pub enum GlyphBuffer {
 }
 
 impl GlyphBuffer {
+    /// The same glyphs in the form that clones without copying them.
+    #[must_use]
+    pub fn into_shared(self) -> Self {
+        match self {
+            Self::Owned(glyphs) => Self::Shared(Arc::from(glyphs)),
+            shared @ Self::Shared(_) => shared,
+        }
+    }
+
     pub fn to_mut(&mut self) -> &mut Vec<DrawGlyph> {
         if let Self::Shared(shared) = self {
             *self = Self::Owned(shared.to_vec());
@@ -223,7 +232,7 @@ pub struct ShapedText {
 
 impl ShapedText {
     #[inline]
-    pub fn glyphs(&self) -> &[DrawGlyph] {
+    pub fn glyphs(&self) -> &GlyphBuffer {
         &self.glyphs
     }
 
@@ -271,7 +280,7 @@ impl ShapeParams {
 
 #[derive(Debug)]
 struct CachedShape {
-    glyphs: Arc<[DrawGlyph]>,
+    glyphs: GlyphBuffer,
     width: f32,
     trailing_whitespace_length_in_code_units: usize,
     trailing_whitespace_advance: f32,
@@ -293,13 +302,13 @@ pub struct SharedShape(Arc<CachedShape>);
 
 impl SharedShape {
     pub fn from_glyphs(
-        glyphs: Vec<DrawGlyph>,
+        glyphs: GlyphBuffer,
         width: f32,
         trailing_whitespace_length_in_code_units: usize,
         trailing_whitespace_advance: f32,
     ) -> Self {
         Self(Arc::new(CachedShape {
-            glyphs: Arc::from(glyphs),
+            glyphs: glyphs.into_shared(),
             width,
             trailing_whitespace_length_in_code_units,
             trailing_whitespace_advance,
@@ -307,7 +316,7 @@ impl SharedShape {
     }
 
     #[inline]
-    pub fn glyphs(&self) -> &Arc<[DrawGlyph]> {
+    pub fn glyphs(&self) -> &GlyphBuffer {
         &self.0.glyphs
     }
 
@@ -478,13 +487,13 @@ fn shape_text_uncached(
         // glyph pointer stays valid for this synchronous callback.
         let shape = unsafe { &mut *sink.cast::<Option<CachedShape>>() };
         assert!(glyph_count == 0 || !glyphs.is_null());
-        let glyphs = if glyph_count == 0 {
+        let glyphs = GlyphBuffer::Shared(if glyph_count == 0 {
             Arc::from([])
         } else {
             // SAFETY: The C++ side hands a pointer to glyph_count glyphs that
             // outlive the callback.
             Arc::from(unsafe { ak::slice_from_raw_parts(glyphs, glyph_count) })
-        };
+        });
         *shape = Some(CachedShape {
             glyphs,
             width,
@@ -514,7 +523,7 @@ fn shape_text_uncached(
 
 fn shaped_text_with_baseline_start(shape: &CachedShape, baseline_start_x: f32) -> ShapedText {
     let glyphs = if baseline_start_x == 0.0 {
-        GlyphBuffer::Shared(shape.glyphs.clone())
+        shape.glyphs.clone()
     } else {
         GlyphBuffer::Owned(
             shape
@@ -596,7 +605,7 @@ mod shaping_cache_tests {
 
     fn shape_with_glyph_count(glyph_count: usize) -> CachedShape {
         CachedShape {
-            glyphs: Arc::from(vec![DrawGlyph::default(); glyph_count]),
+            glyphs: GlyphBuffer::Shared(Arc::from(vec![DrawGlyph::default(); glyph_count])),
             width: glyph_count as f32,
             trailing_whitespace_length_in_code_units: 0,
             trailing_whitespace_advance: 0.0,

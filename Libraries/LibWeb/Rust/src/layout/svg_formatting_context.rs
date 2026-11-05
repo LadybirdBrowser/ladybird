@@ -1468,16 +1468,15 @@ impl<'pass> SvgFormattingContext<'pass> {
                 cell_height,
             );
             shaped_text.advance += shaped.width();
-            let mut glyph_buffer = shaped.into_glyphs();
-            let glyphs = glyph_buffer.to_mut();
+            let mut glyphs = shaped.into_glyphs();
             if baseline_start.y != 0.0 {
-                for glyph in glyphs.iter_mut() {
+                for glyph in glyphs.to_mut().iter_mut() {
                     glyph.y += baseline_start.y;
                 }
             }
             shaped_text.runs.push(libgfx_rust::path::GlyphRun {
                 font: font.clone(),
-                glyphs: std::mem::take(glyphs),
+                glyphs,
             });
         });
         shaped_text

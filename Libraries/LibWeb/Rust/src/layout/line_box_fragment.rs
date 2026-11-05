@@ -29,7 +29,7 @@ pub(crate) struct GlyphData {
 
 /// The glyphs of a text item and the font they are set in, which a line merges into a fragment or makes one of.
 pub(crate) struct ItemGlyphRun<'run> {
-    pub(crate) glyphs: std::borrow::Cow<'run, [libgfx_rust::text_layout::DrawGlyph]>,
+    pub(crate) glyphs: std::borrow::Cow<'run, libgfx_rust::text_layout::GlyphBuffer>,
     pub(crate) font: &'run libgfx_rust::font::FontHandle,
     pub(crate) text_type: u8,
     pub(crate) width: f32,
@@ -37,10 +37,11 @@ pub(crate) struct ItemGlyphRun<'run> {
 }
 
 impl ItemGlyphRun<'_> {
-    /// The glyph run of a fragment made of these glyphs alone. It owns its glyphs, which merging more into it changes.
+    /// The glyph run of a fragment made of these glyphs alone, which shares them with the shape they came from until
+    /// merging more into it changes them.
     pub(crate) fn into_glyph_data(self) -> GlyphData {
         GlyphData {
-            glyphs: self.glyphs.into_owned().into(),
+            glyphs: self.glyphs.into_owned(),
             font: self.font.clone(),
             text_type: self.text_type,
             width: self.width,
