@@ -5808,9 +5808,9 @@ fn generate_template_literal(
 
     if segments.len() == 1 {
         let val = generate_expression(segments[0], generator, None)?;
-        // If it's a constant, return directly.
-        if val.operand().is_constant() {
-            return Some(val);
+        // OPTIMIZATION: Convert a constant at compile time.
+        if let Some(string) = generator.get_constant(&val).and_then(constant_to_string) {
+            return Some(generator.add_constant_string(string));
         }
         // Otherwise, emit ToString.
         generator.emit(Instruction::ToString {

@@ -22,6 +22,14 @@ test("literals in expressions", () => {
     expect(`foo ${"bar"}`).toBe("foo bar");
 });
 
+test("a single literal substitution becomes a string", () => {
+    expect(`${1}`).toBe("1");
+    expect(`${null}`).toBe("null");
+    expect(`${undefined}`).toBe("undefined");
+    expect(`${true}`).toBe("true");
+    expect(`${10n}`).toBe("10");
+});
+
 test("objects in expressions", () => {
     expect(`foo ${{}}`).toBe("foo [object Object]");
     expect(`foo ${{ bar: { baz: "qux" } }}`).toBe("foo [object Object]");
