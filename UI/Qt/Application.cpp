@@ -1523,16 +1523,23 @@ NonnullRefPtr<Core::Promise<ByteString>> Application::ask_user_for_download_path
     return promise;
 }
 
+static QMessageBox* create_message_box(QMessageBox::Icon icon, StringView text, QWidget* parent)
+{
+    auto* dialog = new QMessageBox(parent);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowTitle("Ladybird");
+    dialog->setIcon(icon);
+    dialog->setTextFormat(Qt::PlainText);
+    dialog->setText(qstring_from_ak_string(text));
+    dialog->addButton(QMessageBox::Ok);
+    return dialog;
+}
+
 void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const
 {
     auto message = MUST(String::formatted("{} saved to: {}", download_name, path));
 
-    auto* dialog = new QMessageBox(active_window_if_any());
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowTitle("Ladybird");
-    dialog->setIcon(QMessageBox::Information);
-    dialog->setText(qstring_from_ak_string(message));
-    dialog->addButton(QMessageBox::Ok);
+    auto* dialog = create_message_box(QMessageBox::Information, message, active_window_if_any());
 
     auto* open_folder_button = dialog->addButton(QMessageBox::Open);
     open_folder_button->setText("Open folder");
@@ -1550,9 +1557,7 @@ void Application::display_error_dialog(StringView error_message) const
         return;
     }
 
-    auto* dialog = new QMessageBox(QMessageBox::Warning, "Ladybird", qstring_from_ak_string(error_message), QMessageBox::Ok, active_window_if_any());
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->open();
+    create_message_box(QMessageBox::Warning, error_message, active_window_if_any())->open();
 }
 
 void Application::open_download(WebView::FileDownloader::Download const& download) const
