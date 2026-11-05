@@ -264,7 +264,7 @@ ErrorOr<bool> DiskCache::create_synthetic_entry(Utf16String const& partition, UR
     TRY(m_index.create_entry(cache_key, synthetic_vary_key, serialized_url, request_headers, response_headers, 0, now, now));
 
     // Include associated data already on disk in the size limit.
-    TRY(m_index.update_associated_data_size(cache_key, synthetic_vary_key, TRY(compute_associated_data_size(m_cache_directory, cache_key, synthetic_vary_key))));
+    TRY(count_associated_data_or_remove_entry(cache_key, synthetic_vary_key));
     remove_entries_exceeding_cache_limit();
     return m_index.has_entry(cache_key, synthetic_vary_key);
 }
@@ -320,7 +320,7 @@ ErrorOr<Optional<CacheEntryBodyFile>> DiskCache::store_associated_data(Utf16Stri
 
     TRY(FileSystem::move_file(path.string(), temporary_path.string()));
     remove_temporary_file.disarm();
-    TRY(m_index.update_associated_data_size(cache_key, *vary_key, TRY(compute_associated_data_size(m_cache_directory, cache_key, *vary_key))));
+    TRY(count_associated_data_or_remove_entry(cache_key, *vary_key));
     remove_entries_exceeding_cache_limit();
     if (!m_index.has_entry(cache_key, *vary_key))
         return Optional<CacheEntryBodyFile> {};
@@ -546,6 +546,21 @@ void DiskCache::close_entry(CacheEntry const& cache_entry)
             }
         });
     }
+}
+
+// Counts the associated data on disk for an entry toward the size limit. An entry whose files the index can't count
+// would escape that limit, so when counting fails, the entry leaves the index, and its files are deleted.
+ErrorOr<void> DiskCache::count_associated_data_or_remove_entry(u64 cache_key, u64 vary_key)
+{
+    auto result = [&]() -> ErrorOr<void> {
+        auto associated_data_size = TRY(compute_associated_data_size(m_cache_directory, cache_key, vary_key));
+        return m_index.update_associated_data_size(cache_key, vary_key, associated_data_size);
+    }();
+    if (result.is_error()) {
+        m_index.remove_entry(cache_key, vary_key);
+        delete_entry(cache_key, vary_key);
+    }
+    return result;
 }
 
 void DiskCache::delete_entry(u64 cache_key, u64 vary_key)

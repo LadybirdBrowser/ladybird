@@ -96,6 +96,7 @@ private:
     bool check_if_cache_has_open_entry(CacheRequest&, u64 cache_key, URL::URL const&, CheckReaderEntries);
 
     void close_entry(CacheEntry const&);
+    ErrorOr<void> count_associated_data_or_remove_entry(u64 cache_key, u64 vary_key);
     void delete_entry(u64 cache_key, u64 vary_key);
     void remove_entry_files(u64 cache_key, u64 vary_key);
 
