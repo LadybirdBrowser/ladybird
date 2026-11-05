@@ -82,6 +82,17 @@ test("var initializer keeps the resolved with binding through initializer side e
     expect(test262id).toBeUndefined();
 });
 
+test("for-in var initializer keeps the resolved with binding through initializer side effects", () => {
+    const object = { forInId: 1 };
+
+    with (object) {
+        for (var forInId = (delete object.forInId) in {});
+    }
+
+    expect(object.forInId).toBe(true);
+    expect(forInId).toBeUndefined();
+});
+
 test("with statement updates empty abrupt completions to undefined", () => {
     expect(eval("1; do { 2; with ({}) { 3; break; } 4; } while (false);")).toBe(3);
     expect(eval("5; do { 6; with ({}) { break; } 7; } while (false);")).toBeUndefined();
