@@ -392,6 +392,7 @@ mod tests {
             Instruction::NewClass {
                 dst: operand(6),
                 super_class: None,
+                proto_parent: None,
                 class_environment: operand(7),
                 class_blueprint_index: 1,
                 lhs_name: Some(IdentifierTableIndex(4)),

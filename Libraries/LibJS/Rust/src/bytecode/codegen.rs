@@ -7115,11 +7115,22 @@ fn generate_class_expression(
     }
 
     // Evaluate super class if present
+    // NB: NewClass reads the superclass after the class elements, which can reassign the local it was read from.
     let super_class = if let Some(super_expression) = &data.super_class {
         generate_class_part_expression(super_expression, generator, None)
+            .map(|super_class| generator.copy_if_needed_to_preserve_evaluation_order(&super_class))
     } else {
         None
     };
+    // NB: The heritage is checked before any class element is evaluated.
+    let proto_parent = super_class.as_ref().map(|super_class| {
+        let proto_parent = generator.allocate_register();
+        generator.emit(Instruction::GetClassProtoParent {
+            dst: proto_parent.operand(),
+            super_class: super_class.operand(),
+        });
+        proto_parent
+    });
 
     // Create private environment for private class elements.
     let mut has_private_env = false;
@@ -7420,6 +7431,7 @@ fn generate_class_expression(
     generator.emit(Instruction::NewClass {
         dst: dst.operand(),
         super_class: super_class.as_ref().map(|s| s.operand()),
+        proto_parent: proto_parent.as_ref().map(|p| p.operand()),
         class_environment: class_env.operand(),
         class_blueprint_index: blueprint_index,
         lhs_name,

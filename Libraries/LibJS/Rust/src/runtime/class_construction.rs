@@ -78,6 +78,43 @@ fn resolve_element_key(
     Ok(ClassElementName::PropertyKey(key))
 }
 
+/// The values of the class heritage of a class being defined.
+pub struct ClassHeritage {
+    pub super_class: Value,
+    pub proto_parent: Value,
+}
+
+/// https://tc39.es/ecma262/#sec-runtime-semantics-classdefinitionevaluation
+pub fn class_proto_parent(vm: &Vm, super_class: Value) -> ThrowCompletionOr<Value> {
+    // 8. Else,
+    // f. If superclass is null, then
+    if super_class.is_null() {
+        // i. Let protoParent be null.
+        return Ok(Value::NULL);
+    }
+    // g. Else if IsConstructor(superclass) is false, then
+    if !super_class.is_constructor() {
+        // i. Throw a TypeError exception.
+        return vm.throw_completion(
+            ErrorKind::TypeError,
+            ErrorType::ClassExtendsValueNotAConstructorOrNull,
+            &[&super_class],
+        );
+    }
+    // h. Else,
+    // i. Let protoParent be ? Get(superclass, "prototype").
+    let proto_parent = super_class.get(vm, &vm.names.prototype)?;
+    // ii. If protoParent is not an Object and protoParent is not null, throw a TypeError exception.
+    if !proto_parent.is_object() && !proto_parent.is_null() {
+        return vm.throw_completion(
+            ErrorKind::TypeError,
+            ErrorType::ClassExtendsValueInvalidPrototype,
+            &[&proto_parent],
+        );
+    }
+    Ok(proto_parent)
+}
+
 #[derive(Clone, Trace)]
 enum StaticElement {
     Field(ClassFieldDefinition),
@@ -92,7 +129,7 @@ pub fn construct_class(
     executable: Gc<Executable>,
     class_environment: Option<Gc<Environment>>,
     outer_environment: Option<Gc<Environment>>,
-    super_class: Value,
+    heritage: Option<ClassHeritage>,
     element_keys: &[Value],
     binding_name: Option<&Utf16FlyString>,
     class_name: &Utf16FlyString,
@@ -112,32 +149,16 @@ pub fn construct_class(
     let mut proto_parent = Some(realm.object_prototype());
     let mut constructor_parent = realm.function_prototype();
 
-    if blueprint.has_super_class {
-        if super_class.is_null() {
+    assert_eq!(heritage.is_some(), blueprint.has_super_class);
+    if let Some(heritage) = heritage {
+        // NB: The bytecode performs the steps that check the heritage, before evaluating the class elements.
+        if heritage.proto_parent.is_null() {
             proto_parent = None;
-        } else if !super_class.is_constructor() {
-            return vm.throw_completion(
-                ErrorKind::TypeError,
-                ErrorType::ClassExtendsValueNotAConstructorOrNull,
-                &[&super_class],
-            );
         } else {
-            let super_class_prototype = super_class.get(vm, &vm.names.prototype)?;
-            if !super_class_prototype.is_null() && !super_class_prototype.is_object() {
-                return vm.throw_completion(
-                    ErrorKind::TypeError,
-                    ErrorType::ClassExtendsValueInvalidPrototype,
-                    &[&super_class_prototype],
-                );
-            }
-
-            if super_class_prototype.is_null() {
-                proto_parent = None;
-            } else {
-                proto_parent = Some(super_class_prototype.as_object());
-            }
-
-            constructor_parent = super_class.as_object();
+            proto_parent = Some(heritage.proto_parent.as_object());
+        }
+        if !heritage.super_class.is_null() {
+            constructor_parent = heritage.super_class.as_object();
         }
     }
 

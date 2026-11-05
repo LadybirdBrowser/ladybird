@@ -31,4 +31,49 @@ describe("class definition evaluation order", () => {
         expect(Object.getOwnPropertyNames(C.prototype)).toEqual(["constructor", "first"]);
         expect(C.second).toBe(1);
     });
+
+    test("the superclass is the value the heritage evaluated to", () => {
+        function reassignToNonConstructor() {
+            let Base = class {};
+            const Original = Base;
+            const C = class extends Base {
+                [((Base = 1), "m")]() {}
+            };
+            return Object.getPrototypeOf(C) === Original;
+        }
+
+        function reassignToOtherConstructor() {
+            class First {}
+            class Second {}
+            let Base = First;
+            const C = class extends Base {
+                [((Base = Second), "m")]() {}
+            };
+            return [Object.getPrototypeOf(C) === First, Object.getPrototypeOf(C.prototype) === First.prototype];
+        }
+
+        expect(reassignToNonConstructor()).toBeTrue();
+        expect(reassignToOtherConstructor()).toEqual([true, true]);
+    });
+
+    test("the heritage is checked before computed keys are evaluated", () => {
+        const log = [];
+        expect(() => {
+            class C extends (0, 1) {
+                [(log.push("key"), "m")]() {}
+            }
+        }).toThrowWithMessage(TypeError, "Class extends value 1 is not a constructor or null");
+        expect(log).toEqual([]);
+
+        const Base = new Proxy(function () {}, {
+            get(target, property) {
+                log.push(`get ${String(property)}`);
+                return target[property];
+            },
+        });
+        class D extends Base {
+            [(log.push("key"), "m")]() {}
+        }
+        expect(log).toEqual(["get prototype", "key"]);
+    });
 });

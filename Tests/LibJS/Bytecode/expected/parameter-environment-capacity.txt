@@ -1,4 +1,4 @@
-$83182f31 parameter-environment-capacity.js:10:1
+$0cc5fae9 parameter-environment-capacity.js:10:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -12,14 +12,14 @@ block0:
   [  28] CreateVariable `Strict`, is_immutable:true, is_global:false, is_strict:true
   [  38] SetLexicalEnvironment environment:reg4
   [  40] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
-  [  68] DynamicInitializeLexicalBinding `Strict`, src:reg6
-  [  78] GetGlobal value_feedback:0, dst:reg5, `sloppy`
-  [  88] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg5, this_value:Undefined, sloppy
-  [  a8] GetGlobal value_feedback:2, dst:reg8, `Strict`
-  [  b8] CallConstruct value_feedback:3, call_feedback:1, dst:reg7, callee:reg8, Strict
-  [  d8] GetById value_feedback:4, dst:reg8, base:reg7, `method`
-  [  f0] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg8, this_value:reg7, <object>.method
-  [ 110] End value:reg5
+  [  70] DynamicInitializeLexicalBinding `Strict`, src:reg6
+  [  80] GetGlobal value_feedback:0, dst:reg5, `sloppy`
+  [  90] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg5, this_value:Undefined, sloppy
+  [  b0] GetGlobal value_feedback:2, dst:reg8, `Strict`
+  [  c0] CallConstruct value_feedback:3, call_feedback:1, dst:reg7, callee:reg8, Strict
+  [  e0] GetById value_feedback:4, dst:reg8, base:reg7, `method`
+  [  f8] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg8, this_value:reg7, <object>.method
+  [ 118] End value:reg5
 
 
 sloppy$b222ab46 parameter-environment-capacity.js:7:5

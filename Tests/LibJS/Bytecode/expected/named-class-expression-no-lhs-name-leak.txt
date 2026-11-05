@@ -1,4 +1,4 @@
-$f3cbcd2f named-class-expression-no-lhs-name-leak.js:1:1
+$752dc5b7 named-class-expression-no-lhs-name-leak.js:1:1
   Registers: 15
   Blocks:    18
   Constants:
@@ -43,41 +43,41 @@ block7:
   [  f8] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
   [ 108] SetLexicalEnvironment environment:reg4
   [ 110] NewClass dst:reg14, class_environment:reg13, class_blueprint_index:0
-  [ 130] Mov dst:reg12, src:reg14
+  [ 138] Mov dst:reg12, src:reg14
 
 block8:
-  [ 140] SetGlobal `C`, src:reg12
+  [ 148] SetGlobal `C`, src:reg12
 
 block9:
-  [ 150] JumpFalse condition:reg9, target:block11
+  [ 158] JumpFalse condition:reg9, target:block11
 
 block10:
-  [ 160] JumpLoop target:block2
+  [ 168] JumpLoop target:block2
 
 block11:
-  [ 168] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 188] JumpLoop target:block10
+  [ 170] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 190] JumpLoop target:block10
 
 block12:
-  [ 190] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block14, false_target:block15
+  [ 198] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block14, false_target:block15
 
 block13:
-  [ 1a8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block16, false_target:block17
+  [ 1b0] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block16, false_target:block17
 
 block14:
-  [ 1c0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
-  [ 1e0] Throw src:reg11
+  [ 1c8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
+  [ 1e8] Throw src:reg11
 
 block15:
-  [ 1e8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 208] JumpLoop target:block13
+  [ 1f0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 210] JumpLoop target:block13
 
 block16:
-  [ 210] Return value:reg11
+  [ 218] Return value:reg11
 
 block17:
-  [ 218] Throw src:reg11
+  [ 220] Throw src:reg11
 
 Exception handlers:
   [  90 ..   a8] => handler block1
-  [  d0 ..  150] => handler block1
+  [  d0 ..  158] => handler block1

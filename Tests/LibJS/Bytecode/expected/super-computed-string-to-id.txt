@@ -1,5 +1,5 @@
-$0656c3bd super-computed-string-to-id.js:1:1
-  Registers: 8
+$745d24d5 super-computed-string-to-id.js:1:1
+  Registers: 9
   Blocks:    1
   Constants:
     [0] = Undefined
@@ -10,12 +10,13 @@ block0:
   [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
   [  38] GetGlobal value_feedback:0, dst:reg6, `Object`
-  [  48] SetLexicalEnvironment environment:reg4
-  [  50] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
-  [  70] DynamicInitializeLexicalBinding `C`, src:reg7
-  [  80] GetGlobal value_feedback:1, dst:reg5, `C`
-  [  90] CallConstruct value_feedback:2, call_feedback:0, dst:reg7, callee:reg5, C
-  [  b0] End value:reg7
+  [  48] GetClassProtoParent dst:reg7, super_class:reg6
+  [  58] SetLexicalEnvironment environment:reg4
+  [  60] NewClass dst:reg8, super_class:reg6, proto_parent:reg7, class_environment:reg5, class_blueprint_index:0
+  [  88] DynamicInitializeLexicalBinding `C`, src:reg8
+  [  98] GetGlobal value_feedback:1, dst:reg5, `C`
+  [  a8] CallConstruct value_feedback:2, call_feedback:0, dst:reg8, callee:reg5, C
+  [  c8] End value:reg8
 
 
 C$3a34c93b super-computed-string-to-id.js:3:14

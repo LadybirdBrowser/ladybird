@@ -1155,6 +1155,15 @@ impl RuntimeFunctions for Runtime {
         calls::get_super_constructor(vm, pc, values)
     }
 
+    fn get_class_proto_parent(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::GetClassProtoParent,
+        values: &mut op::GetClassProtoParentValues,
+    ) -> SlowPathControl {
+        calls::get_class_proto_parent(vm, pc, values)
+    }
+
     fn new_class(
         vm: &Vm,
         pc: u32,

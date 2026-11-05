@@ -1515,10 +1515,16 @@ handler ImportCall(
     options: Operand
 ) @cold = call_slow_path(import_call);
 
+handler GetClassProtoParent(
+    dst: out Operand,
+    super_class: Operand
+) @cold = call_slow_path(get_class_proto_parent);
+
 handler NewClass(
     length: u32,
     dst: out Operand,
     super_class: Optional<Operand>,
+    proto_parent: Optional<Operand>,
     class_environment: Operand,
     class_blueprint_index: u32,
     lhs_name: Optional<IdentifierTableIndex>,

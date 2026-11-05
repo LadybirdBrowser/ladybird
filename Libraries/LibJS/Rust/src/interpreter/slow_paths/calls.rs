@@ -27,6 +27,8 @@ use crate::runtime::abstract_operations::{
 };
 use crate::runtime::array::Array;
 use crate::runtime::bound_function::BoundFunction;
+use crate::runtime::class_construction::ClassHeritage;
+use crate::runtime::class_construction::class_proto_parent;
 use crate::runtime::class_construction::construct_class;
 use crate::runtime::class_field_definition::ClassElementName;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
@@ -156,6 +158,11 @@ fn element_key_operands(instruction: &op::NewClass) -> &[OptionalOperand] {
     instruction.element_keys()
 }
 
+pub fn get_class_proto_parent(vm: &Vm, pc: u32, values: &mut op::GetClassProtoParentValues) -> SlowPathControl {
+    values.dst = asm_try!(vm, pc, class_proto_parent(vm, values.super_class));
+    SlowPathControl::continue_at(pc + op::GetClassProtoParent::LENGTH)
+}
+
 pub fn new_class(
     vm: &Vm,
     pc: u32,
@@ -163,9 +170,13 @@ pub fn new_class(
     values: &mut op::NewClassValues,
     element_keys: &mut [Value],
 ) -> SlowPathControl {
-    let mut super_class = Value::UNDEFINED;
+    let mut heritage = None;
     if instruction.super_class.get().is_some() {
-        super_class = values.super_class;
+        assert!(instruction.proto_parent.get().is_some());
+        heritage = Some(ClassHeritage {
+            super_class: values.super_class,
+            proto_parent: values.proto_parent,
+        });
     }
     // NB: The element keys stay in the operand record the interpreter passed, which lives on its stack, so the keys
     //     of elements without one become undefined in place.
@@ -201,7 +212,7 @@ pub fn new_class(
             executable,
             Some(class_environment),
             outer_environment,
-            super_class,
+            heritage,
             element_keys,
             binding_name.as_ref(),
             &class_name,
