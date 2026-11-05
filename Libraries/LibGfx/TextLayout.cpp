@@ -26,7 +26,7 @@ namespace Gfx {
 
 // Tight bounds of the ink of the painted glyphs, from their own extents, in the coordinates of glyph_run_bounding_box().
 // Empty if no painted glyph has ink.
-static FloatRect glyph_run_ink_bounding_box(Font const& font, ReadonlySpan<DrawGlyph> glyphs, float scale)
+static FloatRect glyph_run_ink_bounding_box(Font const& font, ReadonlySpan<ShapedGlyph> glyphs, float scale)
 {
     auto font_ascent = font.pixel_metrics().ascent;
     auto* hb_font = font.harfbuzz_font();
@@ -59,7 +59,7 @@ static FloatRect glyph_run_ink_bounding_box(Font const& font, ReadonlySpan<DrawG
     return bounds;
 }
 
-FloatRect glyph_run_bounding_box(Font const& font, ReadonlySpan<DrawGlyph> glyphs, float scale)
+FloatRect glyph_run_bounding_box(Font const& font, ReadonlySpan<ShapedGlyph> glyphs, float scale)
 {
     auto font_ascent = font.pixel_metrics().ascent;
 
@@ -329,7 +329,7 @@ hb_draw_funcs_t* ink_extent_draw_funcs()
 
 }
 
-Vector<float> glyph_run_glyph_intercepts(Font const& font, ReadonlySpan<DrawGlyph> glyphs, float scale, float y_top, float y_bottom)
+Vector<float> glyph_run_glyph_intercepts(Font const& font, ReadonlySpan<ShapedGlyph> glyphs, float scale, float y_top, float y_bottom)
 {
     if (!(scale > 0) || !__builtin_isfinite(scale))
         return {};
@@ -454,7 +454,7 @@ struct TrailingWhitespace {
 };
 
 struct ShapedGlyphs {
-    Vector<DrawGlyph> glyphs;
+    Vector<ShapedGlyph> glyphs;
     float width { 0 };
     TrailingWhitespace trailing_whitespace;
 };
@@ -468,7 +468,7 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
     auto const* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
     auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
 
-    Vector<DrawGlyph> glyphs;
+    Vector<ShapedGlyph> glyphs;
     glyphs.ensure_capacity(glyph_count);
     FloatPoint point;
 
@@ -560,24 +560,24 @@ float measure_text_width(Utf16View const& string, Font const& font, float letter
 
 }
 
-static_assert(sizeof(Gfx::FFI::DrawGlyph) == sizeof(Gfx::DrawGlyph));
-static_assert(alignof(Gfx::FFI::DrawGlyph) == alignof(Gfx::DrawGlyph));
-static_assert(IsTriviallyCopyable<Gfx::FFI::DrawGlyph>);
-static_assert(IsTriviallyCopyable<Gfx::DrawGlyph>);
+static_assert(sizeof(Gfx::FFI::ShapedGlyph) == sizeof(Gfx::ShapedGlyph));
+static_assert(alignof(Gfx::FFI::ShapedGlyph) == alignof(Gfx::ShapedGlyph));
+static_assert(IsTriviallyCopyable<Gfx::FFI::ShapedGlyph>);
+static_assert(IsTriviallyCopyable<Gfx::ShapedGlyph>);
 static_assert(sizeof(Gfx::FloatPoint) == 2 * sizeof(float));
-static_assert(offsetof(Gfx::FFI::DrawGlyph, x) == offsetof(Gfx::DrawGlyph, position));
-static_assert(offsetof(Gfx::FFI::DrawGlyph, y) == offsetof(Gfx::DrawGlyph, position) + sizeof(float));
-static_assert(offsetof(Gfx::FFI::DrawGlyph, length_in_code_units) == offsetof(Gfx::DrawGlyph, length_in_code_units));
-static_assert(offsetof(Gfx::FFI::DrawGlyph, advance) == offsetof(Gfx::DrawGlyph, glyph_width));
-static_assert(offsetof(Gfx::FFI::DrawGlyph, glyph_id) == offsetof(Gfx::DrawGlyph, glyph_id));
-static_assert(offsetof(Gfx::FFI::DrawGlyph, should_paint) == offsetof(Gfx::DrawGlyph, should_paint));
+static_assert(offsetof(Gfx::FFI::ShapedGlyph, x) == offsetof(Gfx::ShapedGlyph, position));
+static_assert(offsetof(Gfx::FFI::ShapedGlyph, y) == offsetof(Gfx::ShapedGlyph, position) + sizeof(float));
+static_assert(offsetof(Gfx::FFI::ShapedGlyph, length_in_code_units) == offsetof(Gfx::ShapedGlyph, length_in_code_units));
+static_assert(offsetof(Gfx::FFI::ShapedGlyph, glyph_width) == offsetof(Gfx::ShapedGlyph, glyph_width));
+static_assert(offsetof(Gfx::FFI::ShapedGlyph, glyph_id) == offsetof(Gfx::ShapedGlyph, glyph_id));
+static_assert(offsetof(Gfx::FFI::ShapedGlyph, should_paint) == offsetof(Gfx::ShapedGlyph, should_paint));
 
 extern "C" {
-void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, void*, void (*)(void*, Gfx::FFI::DrawGlyph const*, size_t, float, size_t, float));
+void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, void*, void (*)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float));
 float ladybird_gfx_font_measure_text_width(void const*, u16 const*, size_t);
-void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::DrawGlyph const*, size_t, float, float*);
-void ladybird_gfx_glyph_run_ink_bounding_box(void const*, Gfx::FFI::DrawGlyph const*, size_t, float, float*);
-void ladybird_gfx_glyph_run_glyph_intercepts(void const*, Gfx::FFI::DrawGlyph const*, size_t, float, float, float, void*, void (*)(void*, float));
+void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
+void ladybird_gfx_glyph_run_ink_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
+void ladybird_gfx_glyph_run_glyph_intercepts(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float, float, void*, void (*)(void*, float));
 }
 
 extern "C" void ladybird_gfx_shape_text_uncached(
@@ -588,7 +588,7 @@ extern "C" void ladybird_gfx_shape_text_uncached(
     float letter_spacing,
     float word_spacing,
     void* sink,
-    void (*emit)(void*, Gfx::FFI::DrawGlyph const*, size_t, float, size_t, float))
+    void (*emit)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float))
 {
     VERIFY(font);
     VERIFY(text_utf16 || length_in_code_units == 0);
@@ -604,7 +604,7 @@ extern "C" void ladybird_gfx_shape_text_uncached(
         word_spacing);
     emit(
         sink,
-        reinterpret_cast<Gfx::FFI::DrawGlyph const*>(shape.glyphs.data()),
+        reinterpret_cast<Gfx::FFI::ShapedGlyph const*>(shape.glyphs.data()),
         shape.glyphs.size(),
         shape.width,
         shape.trailing_whitespace.length_in_code_units,
@@ -626,7 +626,7 @@ extern "C" float ladybird_gfx_font_measure_text_width(
 
 extern "C" void ladybird_gfx_glyph_run_bounding_box(
     void const* font,
-    Gfx::FFI::DrawGlyph const* glyphs,
+    Gfx::FFI::ShapedGlyph const* glyphs,
     size_t glyph_count,
     float scale,
     float* out_rect)
@@ -636,7 +636,7 @@ extern "C" void ladybird_gfx_glyph_run_bounding_box(
     VERIFY(out_rect);
     auto bounds = Gfx::glyph_run_bounding_box(
         *static_cast<Gfx::Font const*>(font),
-        { reinterpret_cast<Gfx::DrawGlyph const*>(glyphs), glyph_count },
+        { reinterpret_cast<Gfx::ShapedGlyph const*>(glyphs), glyph_count },
         scale);
     out_rect[0] = bounds.x();
     out_rect[1] = bounds.y();
@@ -646,7 +646,7 @@ extern "C" void ladybird_gfx_glyph_run_bounding_box(
 
 extern "C" void ladybird_gfx_glyph_run_ink_bounding_box(
     void const* font,
-    Gfx::FFI::DrawGlyph const* glyphs,
+    Gfx::FFI::ShapedGlyph const* glyphs,
     size_t glyph_count,
     float scale,
     float* out_rect)
@@ -656,7 +656,7 @@ extern "C" void ladybird_gfx_glyph_run_ink_bounding_box(
     VERIFY(out_rect);
     auto bounds = Gfx::glyph_run_ink_bounding_box(
         *static_cast<Gfx::Font const*>(font),
-        { reinterpret_cast<Gfx::DrawGlyph const*>(glyphs), glyph_count },
+        { reinterpret_cast<Gfx::ShapedGlyph const*>(glyphs), glyph_count },
         scale);
     out_rect[0] = bounds.x();
     out_rect[1] = bounds.y();
@@ -666,7 +666,7 @@ extern "C" void ladybird_gfx_glyph_run_ink_bounding_box(
 
 extern "C" void ladybird_gfx_glyph_run_glyph_intercepts(
     void const* font,
-    Gfx::FFI::DrawGlyph const* glyphs,
+    Gfx::FFI::ShapedGlyph const* glyphs,
     size_t glyph_count,
     float scale,
     float y_top,
@@ -679,12 +679,12 @@ extern "C" void ladybird_gfx_glyph_run_glyph_intercepts(
     VERIFY(push);
     auto intercepts = Gfx::glyph_run_glyph_intercepts(
         *static_cast<Gfx::Font const*>(font),
-        { reinterpret_cast<Gfx::DrawGlyph const*>(glyphs), glyph_count },
+        { reinterpret_cast<Gfx::ShapedGlyph const*>(glyphs), glyph_count },
         scale,
         y_top,
         y_bottom);
     for (auto value : intercepts)
         push(sink, value);
 }
-static_assert(offsetof(Gfx::FFI::DrawGlyph, cluster_start) == offsetof(Gfx::DrawGlyph, cluster_start));
-static_assert(offsetof(Gfx::FFI::DrawGlyph, is_rtl) == offsetof(Gfx::DrawGlyph, is_rtl));
+static_assert(offsetof(Gfx::FFI::ShapedGlyph, cluster_start) == offsetof(Gfx::ShapedGlyph, cluster_start));
+static_assert(offsetof(Gfx::FFI::ShapedGlyph, is_rtl) == offsetof(Gfx::ShapedGlyph, is_rtl));

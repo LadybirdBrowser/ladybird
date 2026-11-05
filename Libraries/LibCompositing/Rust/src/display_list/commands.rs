@@ -574,7 +574,7 @@ impl From<text_layout::PlacedGlyph> for DisplayListGlyph {
                 x: placed.x,
                 y: placed.y,
             },
-            glyph_id: placed.glyph.glyph_id,
+            glyph_id: u32::from(placed.glyph.glyph_id),
         }
     }
 }
