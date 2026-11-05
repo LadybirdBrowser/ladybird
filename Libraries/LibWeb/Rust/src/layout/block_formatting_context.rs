@@ -449,14 +449,19 @@ pub(crate) struct BlockMarginState {
 }
 
 /// Collapses the block-start margin of a reused child whose contents left `margins_left_by_contents` with the margins in
-/// `margin_state`, as laying the child out does where it is not floated, has no clearance and margins do not collapse
-/// through it, and returns what separates its border box from the flow position.
+/// `margin_state`, as laying the child out does where it is not floated and margins do not collapse through it, and
+/// returns what separates its border box from the flow position. A child with clearance sits at the position clearance
+/// gave it, which its contents collapse no margin past.
 fn collapse_block_start_margin_of_reused_child(
     margin_state: &mut BlockMarginState,
     cells: &used_values::RootInputCells,
     margins_left_by_contents: &mut BlockMarginState,
+    introduces_clearance: bool,
 ) -> CssPixels {
     margin_state.add_margin(cells.margin_top());
+    if introduces_clearance {
+        margin_state.reset();
+    }
     margin_state.update_open_top_margin_group();
     if cells.border_top() > CssPixels::default() || cells.padding_top() > CssPixels::default() {
         let margin = margin_state.pending_margin_for_next_box();
@@ -470,7 +475,11 @@ fn collapse_block_start_margin_of_reused_child(
             .top_margin_group
             .take()
             .expect("the contents of a box collapse into a top margin group");
-        margin_state.block_start_margin_collapsing(group)
+        if introduces_clearance {
+            CssPixels::default()
+        } else {
+            margin_state.block_start_margin_collapsing(group)
+        }
     }
 }
 
@@ -635,6 +644,7 @@ enum InFlowReuse {
         float_count_before_child: usize,
         margins_before_box: CollapsedMargins,
         in_open_top_margin_group: bool,
+        introduced_clearance: bool,
         containing_block_position_in_root: FfiCssPixelPoint,
     },
 }
@@ -646,6 +656,18 @@ struct FloatReads {
     /// Whether a read came while the margins of the block container it was made for could still grow, which places the
     /// read relative to the box by the margins before the box.
     before_top_margins_settled: bool,
+}
+
+impl FloatReads {
+    fn including(self, other: Self) -> Self {
+        Self {
+            block_start_in_root: match (self.block_start_in_root, other.block_start_in_root) {
+                (Some(own), Some(other)) => Some(own.min(other)),
+                (own, other) => own.or(other),
+            },
+            before_top_margins_settled: self.before_top_margins_settled || other.before_top_margins_settled,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2498,20 +2520,43 @@ impl<'pass> BlockFormattingContext<'pass> {
         inline_context: Option<&inline_formatting_context::InlineFormattingContext>,
         containing_block_position_in_root: FfiCssPixelPoint,
     ) -> bool {
-        let style = self.style(node);
-        if style.clear() != clear::NONE {
-            let lowest_flow_position = match inline_context {
-                Some(_) => CssPixels::default(),
-                None => self.flow_position().min(CssPixels::default()),
-            };
-            self.note_float_read_from(
-                containing_block_position_in_root.y
-                    + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
-                    + lowest_flow_position,
-            );
+        if self.style(node).clear() == clear::NONE {
+            return false;
         }
-        let mut result = false;
-        let clear_to = |lowest_margin_edge_in_root: Option<CssPixels>, result: &mut bool| {
+        let lowest_flow_position = match inline_context {
+            Some(_) => CssPixels::default(),
+            None => self.flow_position().min(CssPixels::default()),
+        };
+        self.note_float_read_from(
+            containing_block_position_in_root.y
+                + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
+                + lowest_flow_position,
+        );
+        let flow_position =
+            inline_context.map_or_else(|| self.flow_position(), |context| context.block_axis_float_clearance());
+        let Some(clearance) =
+            self.flow_position_past_floats_cleared_by(node, flow_position, containing_block_position_in_root)
+        else {
+            return false;
+        };
+        match inline_context {
+            Some(inline_context) => inline_context.set_block_axis_float_clearance(clearance),
+            None => self.block_offset_of_current_block_container.set(Some(clearance)),
+        }
+        true
+    }
+
+    /// Where the flow goes from `flow_position` to place `node` past the floats its `clear` names, if they reach below
+    /// that position.
+    fn flow_position_past_floats_cleared_by(
+        &self,
+        node: Node,
+        flow_position: CssPixels,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> Option<CssPixels> {
+        let style = self.style(node);
+        let mut position_past_floats = None;
+        let mut clear_to = |lowest_margin_edge_in_root: Option<CssPixels>| {
             let Some(clearance_block_offset_in_root) = lowest_margin_edge_in_root else {
                 return;
             };
@@ -2523,30 +2568,19 @@ impl<'pass> BlockFormattingContext<'pass> {
             let clearance = clearance_block_offset_in_root
                 - containing_block_position_in_root.y
                 - self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node);
-            if let Some(inline_context) = inline_context {
-                if clearance > inline_context.block_axis_float_clearance() {
-                    *result = true;
-                    inline_context.set_block_axis_float_clearance(clearance);
-                }
-            } else if clearance
-                > self
-                    .block_offset_of_current_block_container
-                    .get()
-                    .expect("a block container flow cursor is active")
-            {
-                *result = true;
-                self.block_offset_of_current_block_container.set(Some(clearance));
+            if clearance > position_past_floats.unwrap_or(flow_position) {
+                position_past_floats = Some(clearance);
             }
         };
 
         // FIXME: Honor writing-mode, direction and text-orientation.
         if matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START) {
-            clear_to(self.lowest_left_margin_edge.get(), &mut result);
+            clear_to(self.lowest_left_margin_edge.get());
         }
         if matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END) {
-            clear_to(self.lowest_right_margin_edge.get(), &mut result);
+            clear_to(self.lowest_right_margin_edge.get());
         }
-        result
+        position_past_floats
     }
 
     fn compute_normal_flow_inline_offset(
@@ -3082,7 +3116,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             });
         }
 
-        let in_flow_reuse = match self.probe_in_flow_reuse(
+        let mut in_flow_reuse = match self.probe_in_flow_reuse(
             node,
             block_container.node,
             block_container_inline_size,
@@ -3128,6 +3162,17 @@ impl<'pass> BlockFormattingContext<'pass> {
         let introduced_clearance = self.clear_floating_boxes(node, None, containing_block_position_in_root);
         if introduced_clearance {
             self.margin_state_mut().reset();
+        }
+        // NB: What the box reads to clear floats decides where it goes, which reuse finds out anew, and not what its
+        //     contents do. So it belongs to the reads of the flow the box is in.
+        if let InFlowReuse::Store {
+            float_reads_before_child,
+            introduced_clearance: clearance_of_stored_layout,
+            ..
+        } = &mut in_flow_reuse
+        {
+            *float_reads_before_child = float_reads_before_child.including(self.float_reads.take());
+            *clearance_of_stored_layout = introduced_clearance;
         }
         self.margin_state_mut().update_open_top_margin_group();
 
@@ -3827,7 +3872,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             && facts.is_block_container()
             && !facts.is_anonymous_button_content_wrapper()
             && !facts.has_preferred_aspect_ratio()
-            && self.style(node).clear() == clear::NONE
             && !container_facts.is_fieldset_box()
             && !container_facts.is_table_wrapper()
     }
@@ -3888,6 +3932,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             float_count_before_child: self.floating_box_count(),
             margins_before_box: self.margin_state().margins_since_reset,
             in_open_top_margin_group: self.margin_state().has_open_top_margin_group(),
+            introduced_clearance: false,
             containing_block_position_in_root,
         }
     }
@@ -3902,24 +3947,33 @@ impl<'pass> BlockFormattingContext<'pass> {
         if self.floats.borrow().is_empty() {
             return floats_read.floats_in_reach.is_empty();
         }
+        self.rebuild_float_bands();
+        let flow_position = self.flow_position();
+        let position_past_floats =
+            self.flow_position_past_floats_cleared_by(node, flow_position, containing_block_position_in_root);
         if floats_read.read_before_top_margins_settled
             && (floats_read.stored_in_open_top_margin_group
-                || floats_read.margins_before_box != self.margin_state().margins_since_reset)
+                || floats_read.margins_before_box != self.margin_state().margins_since_reset
+                || floats_read.introduced_clearance != position_past_floats.is_some())
         {
             return false;
         }
-        self.rebuild_float_bands();
         let Some(read_start_from_border_box) = floats_read.read_start_from_border_box else {
             return true;
         };
         let block_start_margin = {
             let mut margin_state = self.margin_state().clone();
             let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
-            collapse_block_start_margin_of_reused_child(&mut margin_state, &entry.cells, &mut margins_left_by_contents)
+            collapse_block_start_margin_of_reused_child(
+                &mut margin_state,
+                &entry.cells,
+                &mut margins_left_by_contents,
+                position_past_floats.is_some(),
+            )
         };
         let border_box_block_start = containing_block_position_in_root.y
             + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
-            + self.flow_position()
+            + position_past_floats.unwrap_or(flow_position)
             + block_start_margin;
         let lowest_margin_edge = self
             .lowest_left_margin_edge
@@ -4021,13 +4075,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.run.callbacks.layout_trace().reused_in_flow_subtree(node);
         self.cells_laid_out_here(sized_child).set(entry.cells);
         let metrics = self.metrics_of(sized_child);
-        // NB: This collapses the margins before the child with those its contents left as laying the child out does,
-        //     where the child is not floated, has no clearance and margins do not collapse through it.
+        let introduces_clearance = self.clear_floating_boxes(node, None, containing_block_position_in_root);
         let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
         let block_start_margin = collapse_block_start_margin_of_reused_child(
             &mut self.margin_state_mut(),
             &metrics,
             &mut margins_left_by_contents,
+            introduces_clearance,
         );
         self.outside_marker_line.set(entry.outgoing_outside_marker_line);
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
@@ -4103,6 +4157,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             float_count_before_child,
             margins_before_box,
             in_open_top_margin_group,
+            introduced_clearance,
             containing_block_position_in_root,
         } = attempt
         else {
@@ -4110,17 +4165,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
         let float_reads_of_contents = self.float_reads.get();
         // NB: Margins after a closed top margin group stay among the contents of the container whose flow this is.
-        self.float_reads.set(FloatReads {
-            block_start_in_root: match (
-                float_reads_before_child.block_start_in_root,
-                float_reads_of_contents.block_start_in_root,
-            ) {
-                (Some(before), Some(contents)) => Some(before.min(contents)),
-                (before, contents) => before.or(contents),
-            },
-            before_top_margins_settled: float_reads_before_child.before_top_margins_settled
-                || (in_open_top_margin_group && float_reads_of_contents.before_top_margins_settled),
-        });
+        self.float_reads.set(float_reads_before_child.including(FloatReads {
+            before_top_margins_settled: in_open_top_margin_group && float_reads_of_contents.before_top_margins_settled,
+            ..float_reads_of_contents
+        }));
         let arena = self.run.callbacks.arena();
         let Some((content_offset, placed)) = placed else {
             return;
@@ -4146,6 +4194,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let floats_read_by_contents = in_flow_block_cache::FloatsReadByContents {
             margins_before_box,
             stored_in_open_top_margin_group: in_open_top_margin_group,
+            introduced_clearance,
             read_before_top_margins_settled: float_reads_of_contents.before_top_margins_settled,
             read_start_from_border_box,
             floats_in_reach: read_start_from_border_box.map_or_else(SmallVec::new, |read_start_from_border_box| {
