@@ -177,7 +177,7 @@ impl CSSRuleList {
         self.objects.borrow_mut(vm).0.remove(&identity);
 
         // 6. Set old rule’s parent CSS rule and parent CSS style sheet to null.
-        // NOTE: We set the parent stylesheet to null within set_parent_rule.
+        // NB: We set the parent stylesheet to null within set_parent_rule.
         if let Some(old_object) = old_object {
             old_object.set_parent_rule(vm, None);
         }
