@@ -2,7 +2,7 @@ a box below every float moves: reused [below-beside below-last], laid out again 
 a box beside an unchanged float stays: reused [beside-first], laid out again [beside-second], matches a fresh layout
 boxes move with their float: reused [together-last], laid out again [together-first], matches a fresh layout
 a later box in a nested flow: reused [nested-last], laid out again [nested-first], matches a fresh layout
-a box that places a float: reused [places-float-beside], laid out again [places-float-box], matches a fresh layout
+a box that places a float: reused [places-float-box places-float-beside], laid out again [], matches a fresh layout
 a float grows: reused [], laid out again [grow-beside grow-below], matches a fresh layout
 a float is removed: reused [], laid out again [removed-beside], matches a fresh layout
 a box moves into the reach of a float: reused [], laid out again [into-reach-box], matches a fresh layout
@@ -25,3 +25,11 @@ a box stored without floats, below a new float: reused [new-float-below], laid o
 a box reused without floats: reused [read-through-first], laid out again [read-through-box], matches a fresh layout
 then a new float reaches it: reused [], laid out again [read-through-box read-through-first], matches a fresh layout
 a margin before a box that reads where it settled: reused [settled-box], laid out again [], matches a fresh layout
+a box carries the float it placed: reused [carries-box carries-beside], laid out again [carries-clear], matches a fresh layout
+a box read the float a reused box placed: reused [reader-box], laid out again [reader-beside], matches a fresh layout
+a reused box's float sizes its root: reused [grows-root-box], laid out again [], matches a fresh layout
+the root widens around a reused box with a float: reused [right-of-root-box], laid out again [], matches a fresh layout
+a float reaches a box that placed one: reused [], laid out again [in-reach-box], matches a fresh layout
+floats placed through a reused child: reused [nested-floats-inner], laid out again [nested-floats-outer], matches a fresh layout
+then the box holding them moves: reused [nested-floats-outer], laid out again [nested-floats-inner], matches a fresh layout
+a float in a top margin group: reused [in-margin-group-box], laid out again [in-margin-group-outer], matches a fresh layout
