@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="sheet">
+    @page { margin: 1px 2px 3px 4px; }
+</style>
+<script>
+    test(() => {
+        const rule = document.getElementById("sheet").sheet.cssRules[0];
+        println(rule.cssText);
+        println(`length: ${rule.style.length}`);
+        for (let i = 0; i < rule.style.length; ++i)
+            println(`${rule.style[i]}: ${rule.style.getPropertyValue(rule.style[i])}`);
+
+        // What the rule serializes to must parse back to the same margins.
+        const reparsed = new CSSStyleSheet();
+        reparsed.replaceSync(rule.cssText);
+        println(reparsed.cssRules[0].cssText);
+    });
+</script>
