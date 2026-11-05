@@ -1,0 +1,4 @@
+Image size: 0x0
+Root background: rgba(0, 0, 0, 0)
+Image position: static
+Other image: blocked by img-src

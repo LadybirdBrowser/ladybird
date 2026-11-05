@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.src = "../../data/image-document-default-src-none.png";
+        await new Promise(resolve => {
+            iframe.onload = resolve;
+            document.body.appendChild(iframe);
+        });
+
+        const imageDocument = iframe.contentDocument;
+        const image = imageDocument.images[0];
+        println(`Image size: ${image.naturalWidth}x${image.naturalHeight}`);
+        println(`Root background: ${getComputedStyle(imageDocument.documentElement).backgroundColor}`);
+        println(`Image position: ${getComputedStyle(image).position}`);
+
+        const otherImage = imageDocument.createElement("img");
+        const otherImageResult = await new Promise(resolve => {
+            imageDocument.addEventListener("securitypolicyviolation", event => resolve(`blocked by ${event.effectiveDirective}`));
+            otherImage.onload = () => resolve("loaded");
+            otherImage.src = "../../Assets/120.png";
+            imageDocument.body.appendChild(otherImage);
+        });
+        println(`Other image: ${otherImageResult}`);
+    });
+</script>
