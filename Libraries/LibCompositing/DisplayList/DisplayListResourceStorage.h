@@ -121,6 +121,11 @@ public:
     DisplayListResourceSet retain_only(DisplayListResourceSet const&);
     bool has_resources_added_since_last_retain() const { return m_has_resources_added_since_last_retain; }
     void set_video_sink(VideoSinkResourceId, RefPtr<Media::DisplayingVideoSink>);
+    // Shows other pixels under an id the display lists keep drawing, as an animated image moves to its next frame.
+    void replace_image_frame_pixels(ImageFrameResourceId, Gfx::DecodedImageFrame);
+    // A stamp for each image frame that has had its pixels replaced. No two replacements share a stamp, even across the
+    // removal of a frame, so an equal stamp always means the same pixels.
+    HashMap<u64, u64> const& image_frame_pixel_generations() const { return m_image_frame_pixel_generations; }
 
     bool has_font(FontResourceId id) const { return m_fonts.contains(id.value()); }
     bool has_image_frame(ImageFrameResourceId id) const { return m_image_frames.contains(id.value()); }
@@ -148,6 +153,8 @@ private:
     bool m_has_resources_added_since_last_retain { false };
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
     HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_image_frames;
+    HashMap<u64, u64> m_image_frame_pixel_generations;
+    u64 m_next_image_frame_pixel_generation { 1 };
     HashMap<u64, Media::VideoSinkHandle> m_video_sink_handles;
     HashMap<u64, NonnullOwnPtr<DisplayListStoredVideoSinkResource>> m_video_sinks;
     HashMap<u64, DisplayListResource> m_display_lists;

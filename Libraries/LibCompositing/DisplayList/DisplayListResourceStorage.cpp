@@ -179,6 +179,16 @@ void DisplayListResourceStorage::set_image_frame(ImageFrameResourceId id, Gfx::D
     m_image_frames.set(id.value(), make<DisplayListStoredImageFrameResource>(move(frame)));
 }
 
+void DisplayListResourceStorage::replace_image_frame_pixels(ImageFrameResourceId id, Gfx::DecodedImageFrame frame)
+{
+    auto stored = m_image_frames.get(id.value());
+    VERIFY(stored.has_value());
+    // NB: Whether force-dark filters the image stays as it was, so that it does not flip between the frames of one
+    //     image.
+    stored.value()->frame = move(frame);
+    m_image_frame_pixel_generations.set(id.value(), m_next_image_frame_pixel_generation++);
+}
+
 Gfx::DecodedImageFrame const& DisplayListResourceStorage::image_frame(ImageFrameResourceId id) const
 {
     return m_image_frames.get(id.value()).value()->frame;
@@ -384,6 +394,7 @@ DisplayListResourceSet DisplayListResourceStorage::apply_transaction(DisplayList
             removed_resources.fonts.set(id);
     }
     for (auto id : transaction.image_frame_ids_to_remove) {
+        m_image_frame_pixel_generations.remove(id.value());
         if (m_image_frames.remove(id.value()))
             removed_resources.image_frames.set(id);
     }
@@ -413,6 +424,7 @@ DisplayListResourceSet DisplayListResourceStorage::retain_only(DisplayListResour
     m_image_frames.remove_all_matching([&](auto id, auto const&) {
         if (resource_set.image_frames.contains(ImageFrameResourceId { id }))
             return false;
+        m_image_frame_pixel_generations.remove(id);
         removed_resources.image_frames.set(ImageFrameResourceId { id });
         return true;
     });

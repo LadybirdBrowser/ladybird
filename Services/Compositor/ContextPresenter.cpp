@@ -459,6 +459,16 @@ Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_si
             return viewport_rect;
         video_sinks_with_new_frames.append(video_sink_id);
     }
+    Vector<Compositing::ImageFrameResourceId> image_frames_with_new_pixels;
+    auto image_frames_drawn_by_list = m_scene.display_list()->referenced_resource_ids().image_frames;
+    for (auto const& [image_frame_id, generation] : m_scene.resource_storage().image_frame_pixel_generations()) {
+        if (last_frame.image_frame_pixel_generations.get(image_frame_id) == generation)
+            continue;
+        // An image drawn only by a nested display list, such as an SVG image's, has no command in this list to damage.
+        if (!image_frames_drawn_by_list.contains_slow(image_frame_id))
+            return viewport_rect;
+        image_frames_with_new_pixels.append(Compositing::ImageFrameResourceId { image_frame_id });
+    }
     for (auto const& scrollbar : frame_content.scrollbar_controller.scrollbars()) {
         if (!scrollbar.is_painted_by_compositor)
             continue;
@@ -474,7 +484,7 @@ Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_si
         m_scene.visual_context_tree_for_compositing(),
         presented_scroll_state_snapshot,
         viewport_rect,
-        { .canvases = canvases_with_new_content, .video_sinks = video_sinks_with_new_frames, .forced_damage_rect = forced_damage_rect });
+        { .canvases = canvases_with_new_content, .video_sinks = video_sinks_with_new_frames, .image_frames = image_frames_with_new_pixels, .forced_damage_rect = forced_damage_rect });
     if (!display_list_damage.has_value())
         return viewport_rect;
     return display_list_damage->intersected(viewport_rect);
@@ -500,6 +510,7 @@ void ContextPresenter::remember_rasterized_frame(Gfx::IntSize viewport_size, Com
         .viewport_size = viewport_size,
         .canvas_content_generations = move(canvas_content_generations),
         .video_frame_ids = move(video_frame_ids),
+        .image_frame_pixel_generations = m_scene.resource_storage().image_frame_pixel_generations(),
     };
 }
 
