@@ -13,8 +13,9 @@
 //! the spine, the row's group and the row's chunk only where a snapshot still shares them, so the
 //! cost of a generation follows the chunks written after it was published rather than the size of
 //! the column. Neither is deep-copied: a snapshot's clone shares its spine, and so does a column's
-//! clone, its fork. Both are `Send` and `Sync` when the row type is: the column is written through
-//! `&mut`, and a snapshot never changes.
+//! clone, its fork. Publishing and forking take the same time however many rows the column holds:
+//! nothing in them walks the chunks. Both are `Send` and `Sync` when the row type is: the column is
+//! written through `&mut`, and a snapshot never changes.
 //!
 //! A column is written only through [`CowColumn::set`] and [`RowMut`], and both compare the row
 //! they write with the row a snapshot shares before copying the chunk. So a write that leaves a row
@@ -22,6 +23,7 @@
 
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// A chunk starts on a cache line of its own, so rows do not share a line with the reference
 /// counts or with another chunk.
@@ -33,48 +35,72 @@ struct Chunk<T, const CHUNK: usize>([T; CHUNK]);
 const GROUP: usize = 64;
 
 /// The chunks of a group, the column's last group holding fewer than it has room for.
-struct Group<T, const CHUNK: usize>([Option<Arc<Chunk<T, CHUNK>>>; GROUP]);
+struct Group<T, const CHUNK: usize> {
+    chunks: [Option<Arc<Chunk<T, CHUNK>>>; GROUP],
+    /// The edit token of the column that last made each chunk its own. See [`CowColumn::edit_token`].
+    owners: [u64; GROUP],
+}
+
+impl<T, const CHUNK: usize> Group<T, CHUNK> {
+    fn new() -> Self {
+        Self {
+            chunks: std::array::from_fn(|_| None),
+            owners: [0; GROUP],
+        }
+    }
+}
 
 impl<T, const CHUNK: usize> Clone for Group<T, CHUNK> {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self {
+            chunks: self.chunks.clone(),
+            owners: self.owners,
+        }
     }
+}
+
+/// An edit token no column held before, and no chunk names yet.
+fn new_edit_token() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
 }
 
 type Spine<T, const CHUNK: usize> = Arc<[Arc<Group<T, CHUNK>>]>;
 
+#[inline]
 fn chunk_of<T, const CHUNK: usize>(spine: &Spine<T, CHUNK>, chunk_index: usize) -> Option<&Arc<Chunk<T, CHUNK>>> {
-    spine.get(chunk_index / GROUP)?.0[chunk_index % GROUP].as_ref()
+    spine.get(chunk_index / GROUP)?.chunks[chunk_index % GROUP].as_ref()
 }
 
+#[inline]
 fn row_of<T, const CHUNK: usize>(spine: &Spine<T, CHUNK>, index: usize) -> Option<&T> {
     Some(&chunk_of(spine, index / CHUNK)?.0[index % CHUNK])
 }
 
-/// The chunk at `chunk_index` of `spine`, for the caller to make its own.
-fn chunk_slot_mut<T, const CHUNK: usize>(
-    spine: &mut Spine<T, CHUNK>,
-    chunk_index: usize,
-) -> &mut Option<Arc<Chunk<T, CHUNK>>> {
-    let group = Arc::make_mut(&mut Arc::make_mut(spine)[chunk_index / GROUP]);
-    &mut group.0[chunk_index % GROUP]
+/// The group of the chunk at `chunk_index` of `spine`, made the spine's own, for the caller to make the chunk its own.
+fn group_mut<T, const CHUNK: usize>(spine: &mut Spine<T, CHUNK>, chunk_index: usize) -> &mut Group<T, CHUNK> {
+    Arc::make_mut(&mut Arc::make_mut(spine)[chunk_index / GROUP])
 }
 
 pub(crate) struct CowColumn<T, const CHUNK: usize> {
     spine: Spine<T, CHUNK>,
-    /// The chunk the spine holds at each index, so that reaching a row does not walk the spine
-    /// and the chunk's group. The spine keeps each alive, and whatever puts another chunk in a
-    /// slot of the spine (`grow_to`, and `owned_row` copying one a snapshot shares) updates it.
-    chunks: Vec<*mut Chunk<T, CHUNK>>,
-    /// Whether each chunk is known to be unshared, with its group and the spine: the column made
-    /// them writable after it last published, and nothing but publishing shares them.
-    unshared: Vec<std::sync::atomic::AtomicBool>,
+    /// How many chunks the column holds.
+    chunk_count: usize,
+    /// The chunk the spine holds at each index, so that reaching a row does not walk the spine and the chunk's group. The
+    /// spine keeps each alive, and whatever puts another chunk in a slot of the spine updates it. A fork starts without
+    /// the table, which would make forking cost a pointer per chunk, and walks the spine instead: only the column a fork
+    /// was made from reads at full speed.
+    chunks: Vec<*const Chunk<T, CHUNK>>,
+    /// What a chunk's group names it by once the column made it its own. A chunk that names this token is unshared, with
+    /// its group and the spine, as only sharing the column shares them, and sharing it takes a new token. So what the
+    /// column owns is forgotten at once, however many chunks it holds. Atomic because a fork takes `&self`.
+    edit_token: AtomicU64,
     /// Advanced as the column is written. See [`Self::version`].
     version: u64,
 }
 
-// SAFETY: `chunks` points only into what `spine` holds, and the column hands out its rows only
-// through `&self` and `&mut self`, as the spine alone would.
+// SAFETY: `chunks` points only into what `spine` holds, and the column hands out its rows only through `&self` and
+// `&mut self`, as the spine alone would.
 unsafe impl<T: Send + Sync, const CHUNK: usize> Send for CowColumn<T, CHUNK> {}
 // SAFETY: As above.
 unsafe impl<T: Send + Sync, const CHUNK: usize> Sync for CowColumn<T, CHUNK> {}
@@ -88,8 +114,9 @@ impl<T, const CHUNK: usize> Default for CowColumn<T, CHUNK> {
     fn default() -> Self {
         Self {
             spine: Arc::new([]),
+            chunk_count: 0,
             chunks: Vec::new(),
-            unshared: Vec::new(),
+            edit_token: AtomicU64::new(new_edit_token()),
             version: 0,
         }
     }
@@ -126,7 +153,7 @@ fn spine_heap_size<T, const CHUNK: usize>(
             continue;
         }
         bytes += ARC_HEADER_BYTES + size_of::<Group<T, CHUNK>>();
-        for chunk in group.0.iter().flatten() {
+        for chunk in group.chunks.iter().flatten() {
             if !sizer.first_sight(Arc::as_ptr(chunk)) {
                 continue;
             }
@@ -147,50 +174,79 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
         sizer: &mut crate::heap_size::HeapSizer,
         mut row_heap: impl FnMut(&T, &mut crate::heap_size::HeapSizer) -> usize,
     ) -> usize {
-        crate::heap_size::vec_bytes(&self.chunks)
-            + crate::heap_size::vec_bytes(&self.unshared)
-            + spine_heap_size(&self.spine, sizer, &mut row_heap)
+        crate::heap_size::vec_bytes(&self.chunks) + spine_heap_size(&self.spine, sizer, &mut row_heap)
     }
 
     const CHUNK_IS_NOT_EMPTY: () = assert!(CHUNK > 0);
 
     #[inline]
     pub(crate) fn get(&self, index: usize) -> Option<&T> {
-        let chunk = *self.chunks.get(index / CHUNK)?;
-        // SAFETY: The spine holds the chunk, and nothing writes it while `&self` is borrowed.
-        Some(unsafe { &(*chunk).0[index % CHUNK] })
+        match self.chunks.get(index / CHUNK) {
+            // SAFETY: The spine holds the chunk, and nothing writes it while `&self` is borrowed.
+            Some(&chunk) => Some(unsafe { &(*chunk).0[index % CHUNK] }),
+            None => row_of(&self.spine, index),
+        }
+    }
+
+    /// Whether the chunk is known to be unshared, with its group and the spine.
+    #[inline]
+    fn names_chunk(&self, chunk_index: usize) -> bool {
+        self.spine[chunk_index / GROUP].owners[chunk_index % GROUP] == self.edit_token.load(Ordering::Relaxed)
     }
 
     /// The row at `index` in a chunk made the column's own, copying the spine, the chunk's group
     /// and the chunk where a snapshot shares them.
+    #[inline]
     fn owned_row(&mut self, index: usize) -> Option<&mut T> {
         let chunk_index = index / CHUNK;
-        let unshared = self.unshared.get_mut(chunk_index)?.get_mut();
-        self.version += 1;
-        if !*unshared {
-            let chunk = chunk_slot_mut(&mut self.spine, chunk_index).as_mut()?;
-            Arc::make_mut(chunk);
-            self.chunks[chunk_index] = Arc::as_ptr(chunk).cast_mut();
-            *unshared = true;
+        if chunk_index >= self.chunk_count {
+            return None;
         }
-        // SAFETY: The chunk, its group and the spine have not been shared since `make_mut` above
-        // made them unique: only `publish` shares them, and it forgets which chunks are unshared.
-        // `&mut self` keeps any other reference into the column from being live.
-        Some(unsafe { &mut (*self.chunks[chunk_index]).0[index % CHUNK] })
+        self.version += 1;
+        if !self.names_chunk(chunk_index) {
+            self.make_chunk_own(chunk_index)?;
+        }
+        let chunk = self.spine[chunk_index / GROUP].chunks[chunk_index % GROUP].as_ref()?;
+        // SAFETY: The chunk, its group and the spine have not been shared since they were made unique: the chunk names the
+        // column's token, and sharing the column takes a new one. `&mut self` keeps any other reference into the column
+        // from being live.
+        Some(unsafe { &mut (*Arc::as_ptr(chunk).cast_mut()).0[index % CHUNK] })
+    }
+
+    /// Makes the chunk the column's own, copying the spine, its group and the chunk where a snapshot shares them.
+    #[cold]
+    fn make_chunk_own(&mut self, chunk_index: usize) -> Option<()> {
+        let edit_token = *self.edit_token.get_mut();
+        let group = group_mut(&mut self.spine, chunk_index);
+        let chunk = group.chunks[chunk_index % GROUP].as_mut()?;
+        Arc::make_mut(chunk);
+        let chunk = Arc::as_ptr(chunk);
+        group.owners[chunk_index % GROUP] = edit_token;
+        if let Some(entry) = self.chunks.get_mut(chunk_index) {
+            *entry = chunk;
+        }
+        Some(())
     }
 
     /// Whether the row at `index` is in a chunk no snapshot shares, marking the chunk so if it is.
     fn owns_chunk_of(&mut self, index: usize) -> bool {
         let chunk_index = index / CHUNK;
-        if *self.unshared[chunk_index].get_mut() {
+        if self.names_chunk(chunk_index) {
             return true;
         }
+        let edit_token = *self.edit_token.get_mut();
         let owned = Arc::get_mut(&mut self.spine)
             .and_then(|spine| Arc::get_mut(&mut spine[chunk_index / GROUP]))
-            .and_then(|group| Arc::get_mut(group.0[chunk_index % GROUP].as_mut()?))
-            .is_some();
+            .is_some_and(|group| {
+                let unique = group.chunks[chunk_index % GROUP]
+                    .as_mut()
+                    .is_some_and(|chunk| Arc::get_mut(chunk).is_some());
+                if unique {
+                    group.owners[chunk_index % GROUP] = edit_token;
+                }
+                unique
+            });
         if owned {
-            *self.unshared[chunk_index].get_mut() = true;
             self.version += 1;
         }
         owned
@@ -200,23 +256,28 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
     /// shrinks: rows are reset in place instead.
     pub(crate) fn grow_to(&mut self, len: usize) {
         let () = Self::CHUNK_IS_NOT_EMPTY;
-        while self.unshared.len() * CHUNK < len {
-            let chunk_index = self.unshared.len();
+        let edit_token = *self.edit_token.get_mut();
+        while self.chunk_count * CHUNK < len {
+            let chunk_index = self.chunk_count;
             if chunk_index.is_multiple_of(GROUP) {
-                let group = Arc::new(Group(std::array::from_fn(|_| None)));
+                let group = Arc::new(Group::new());
                 self.spine = self.spine.iter().cloned().chain([group]).collect();
             }
             let chunk = Arc::new(Chunk(std::array::from_fn(|_| T::default())));
-            self.chunks.push(Arc::as_ptr(&chunk).cast_mut());
-            *chunk_slot_mut(&mut self.spine, chunk_index) = Some(chunk);
-            self.unshared.push(std::sync::atomic::AtomicBool::new(true));
+            if self.chunks.len() == chunk_index {
+                self.chunks.push(Arc::as_ptr(&chunk));
+            }
+            let group = group_mut(&mut self.spine, chunk_index);
+            group.chunks[chunk_index % GROUP] = Some(chunk);
+            group.owners[chunk_index % GROUP] = edit_token;
+            self.chunk_count += 1;
             self.version += 1;
         }
     }
 
     /// How many rows the column holds: whole chunks, the rows it was never asked for reading as the default.
     pub(crate) fn len(&self) -> usize {
-        self.chunks.len() * CHUNK
+        self.chunk_count * CHUNK
     }
 
     /// How far the column has been written. A snapshot reads as the column does for as long as the version stays what
@@ -226,16 +287,9 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
         self.version
     }
 
-    /// Forgets which chunks the column owns, once something else shares them.
-    fn forget_unshared(&self) {
-        for unshared in &self.unshared {
-            unshared.store(false, std::sync::atomic::Ordering::Relaxed);
-        }
-    }
-
     /// This generation of the column, sharing all of it with the column until the column writes.
     pub(crate) fn publish(&mut self) -> ColumnSnapshot<T, CHUNK> {
-        self.forget_unshared();
+        *self.edit_token.get_mut() = new_edit_token();
         ColumnSnapshot {
             spine: Arc::clone(&self.spine),
         }
@@ -246,15 +300,12 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
 /// reference count, and each side copies a chunk the other shares the first time it writes there.
 impl<T: Clone + Default, const CHUNK: usize> Clone for CowColumn<T, CHUNK> {
     fn clone(&self) -> Self {
-        self.forget_unshared();
+        self.edit_token.store(new_edit_token(), Ordering::Relaxed);
         Self {
             spine: Arc::clone(&self.spine),
-            chunks: self.chunks.clone(),
-            unshared: self
-                .unshared
-                .iter()
-                .map(|_| std::sync::atomic::AtomicBool::new(false))
-                .collect(),
+            chunk_count: self.chunk_count,
+            chunks: Vec::new(),
+            edit_token: AtomicU64::new(new_edit_token()),
             version: self.version,
         }
     }
@@ -383,7 +434,7 @@ impl<T, const CHUNK: usize> ColumnSnapshot<T, CHUNK> {
     /// How many rows the snapshot has room for: every row index below it may be read.
     pub(crate) fn slot_capacity(&self) -> usize {
         self.spine.last().map_or(0, |last| {
-            let in_last = last.0.iter().take_while(|chunk| chunk.is_some()).count();
+            let in_last = last.chunks.iter().take_while(|chunk| chunk.is_some()).count();
             ((self.spine.len() - 1) * GROUP + in_last) * CHUNK
         })
     }
@@ -414,8 +465,8 @@ const _: () = {
     assert_send_and_sync::<ColumnSnapshot<u64, 64>>();
 };
 
-/// A vector whose fork shares its storage, as a [`CowColumn`]'s does: cloning it costs a reference count per chunk,
-/// and each side copies a chunk the other shares the first time it writes there. Rows past `len` read as the default
+/// A vector whose fork shares its storage, as a [`CowColumn`]'s does: cloning it costs one reference count, and each
+/// side copies a chunk the other shares the first time it writes there. Rows past `len` read as the default
 /// and are reset to it before the vector grows over them again.
 pub(crate) struct CowVec<T, const CHUNK: usize> {
     column: CowColumn<T, CHUNK>,
@@ -611,6 +662,47 @@ mod tests {
         assert_eq!(snapshot.slot_capacity(), 4 * GROUP + 4);
         assert_eq!(snapshot.get(4 * GROUP), Some(&1));
         assert_eq!(column.publish().get(4 * GROUP), Some(&2));
+    }
+
+    #[test]
+    fn a_fork_shares_the_spine_and_each_side_copies_what_it_writes() {
+        let mut column = column_of(&[1; 4 * GROUP + 4]);
+        let mut fork = column.clone();
+        assert!(Arc::ptr_eq(&column.spine, &fork.spine));
+        assert_eq!(fork.len(), column.len());
+        set(&mut fork, 0, 2);
+        set(&mut column, 1, 3);
+        assert_eq!((column.get(0), column.get(1)), (Some(&1), Some(&3)));
+        assert_eq!((fork.get(0), fork.get(1)), (Some(&2), Some(&1)));
+        assert!(Arc::ptr_eq(chunk(&column.spine, 1), chunk(&fork.spine, 1)));
+        assert!(!Arc::ptr_eq(chunk(&column.spine, 0), chunk(&fork.spine, 0)));
+    }
+
+    #[test]
+    fn a_fork_reads_and_grows_without_the_chunk_table() {
+        let mut column = column_of(&[1, 2, 3, 4, 5, 6]);
+        let mut fork = column.clone();
+        assert!(fork.chunks.is_empty());
+        assert_eq!(fork.get(5), Some(&6));
+        fork.grow_to(12);
+        assert!(fork.chunks.is_empty());
+        set(&mut fork, 9, 10);
+        set(&mut column, 5, 60);
+        assert_eq!((fork.get(5), fork.get(9)), (Some(&6), Some(&10)));
+        assert_eq!((column.get(5), column.get(9)), (Some(&60), None));
+    }
+
+    #[test]
+    fn publishing_takes_back_what_the_column_owned() {
+        let mut column = column_of(&[1, 2, 3, 4]);
+        set(&mut column, 0, 10);
+        let first = column.publish();
+        set(&mut column, 0, 20);
+        let second = column.publish();
+        set(&mut column, 0, 30);
+        assert_eq!(first.get(0), Some(&10));
+        assert_eq!(second.get(0), Some(&20));
+        assert_eq!(column.get(0), Some(&30));
     }
 
     #[test]
