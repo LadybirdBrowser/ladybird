@@ -396,10 +396,12 @@ impl Item {
             at_split
         })?;
         let split_x = run.glyphs[split_glyph_index].x;
+        let split_cluster_start = run.glyphs[split_glyph_index].cluster_start;
         let glyphs = run.glyphs[split_glyph_index..]
             .iter()
             .map(|glyph| libgfx_rust::text_layout::DrawGlyph {
                 x: glyph.x - split_x,
+                cluster_start: glyph.cluster_start.saturating_sub(split_cluster_start),
                 ..*glyph
             })
             .collect();
@@ -482,9 +484,11 @@ impl Item {
 
         let mut prefix = self.take_owned_glyph_run(prepared);
         let split_x = prefix.glyphs[split_glyph_index].x;
+        let split_cluster_start = prefix.glyphs[split_glyph_index].cluster_start;
         let mut remainder_glyphs = prefix.glyphs.split_off(split_glyph_index);
         for glyph in &mut remainder_glyphs {
             glyph.x -= split_x;
+            glyph.cluster_start = glyph.cluster_start.saturating_sub(split_cluster_start);
         }
         let remainder = OwnedGlyphRun {
             glyphs: remainder_glyphs,

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #editor {
+        font: 20px monospace;
+        width: 5ch;
+        overflow-wrap: anywhere;
+    }
+</style>
+<div id="editor" contenteditable="true">abcdefghijklmnopqrstuvwxyz</div>
+<script>
+    test(() => {
+        const editor = document.getElementById("editor");
+        const text = editor.firstChild;
+        const selection = getSelection();
+        editor.focus();
+
+        const rectOfCharacter = index => {
+            const range = document.createRange();
+            range.setStart(text, index);
+            range.setEnd(text, index + 1);
+            return range.getBoundingClientRect();
+        };
+
+        const offsetsWithMisplacedCaret = [];
+        for (let offset = 0; offset < text.length; ++offset) {
+            selection.setBaseAndExtent(text, offset, text, offset);
+            const caret = internals.currentCaretRect();
+            const character = rectOfCharacter(offset);
+            if (caret.left !== character.left || caret.top !== character.top)
+                offsetsWithMisplacedCaret.push(offset);
+        }
+
+        println(`Lines: ${new Set([...text.data].map((_, index) => rectOfCharacter(index).top)).size > 1 ? "several" : "one"}`);
+        println(`Offsets with a misplaced caret: ${offsetsWithMisplacedCaret.join(", ") || "none"}`);
+    });
+</script>

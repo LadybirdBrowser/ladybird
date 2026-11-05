@@ -1,0 +1,2 @@
+Lines: several
+Offsets with a misplaced caret: none
