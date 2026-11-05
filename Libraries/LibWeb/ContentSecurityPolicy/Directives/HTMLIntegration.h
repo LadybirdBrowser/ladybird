@@ -16,6 +16,13 @@
 
 namespace Web::ContentSecurityPolicy::Directives {
 
+enum class Nonceable {
+    No,
+    Yes,
+};
+
+[[nodiscard]] Nonceable is_element_nonceable(GC::Ptr<DOM::Element const>);
+
 // https://w3c.github.io/webappsec-csp/#effective-directive-for-inline-check
 [[nodiscard]] Utf16FlyString get_the_effective_directive_for_inline_checks(Directive::InlineType);
 

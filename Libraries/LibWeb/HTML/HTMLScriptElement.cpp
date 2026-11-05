@@ -9,6 +9,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/HTMLIntegration.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -215,26 +216,30 @@ void HTMLScriptElement::execute_script()
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#prepare-the-script-element
-ScriptFetchOptions script_element_fetch_options(ScriptElementFetchAttributes const& element)
+ScriptFetchOptions script_element_fetch_options(DOM::Element const& element, ScriptElementFetchAttributes const& attributes)
 {
     // 25. Let module script credentials mode be the CORS settings attribute credentials mode for el's crossorigin content attribute.
-    auto module_script_credential_mode = cors_settings_attribute_credentials_mode(element.crossorigin);
+    auto module_script_credential_mode = cors_settings_attribute_credentials_mode(attributes.crossorigin);
 
     // 26. Let cryptographic nonce be el's [[CryptographicNonce]] internal slot's value.
-    auto cryptographic_nonce = element.cryptographic_nonce;
+    // AD-HOC: A script element that is not nonceable gets no nonce. Content Security Policy only checks this for inline
+    //         scripts, which lets dangling markup take the nonce of a following element to load an external script.
+    auto cryptographic_nonce = ContentSecurityPolicy::Directives::is_element_nonceable(element) == ContentSecurityPolicy::Directives::Nonceable::Yes
+        ? attributes.cryptographic_nonce
+        : Utf16String {};
 
     // 27. If el has an integrity attribute, then let integrity metadata be that attribute's value.
     //     Otherwise, let integrity metadata be the empty string.
-    auto integrity_metadata = element.integrity.value_or({});
+    auto integrity_metadata = attributes.integrity.value_or({});
 
     // 28. Let referrer policy be the current state of el's referrerpolicy content attribute.
-    auto referrer_policy = element.referrer_policy;
+    auto referrer_policy = attributes.referrer_policy;
 
     // 29. Let fetch priority be the current state of el's fetchpriority content attribute.
-    auto fetch_priority = element.fetch_priority;
+    auto fetch_priority = attributes.fetch_priority;
 
     // 30. Let parser metadata be "parser-inserted" if el is parser-inserted, and "not-parser-inserted" otherwise.
-    auto parser_metadata = element.parser_inserted
+    auto parser_metadata = attributes.parser_inserted
         ? Fetch::Infrastructure::Request::ParserMetadata::ParserInserted
         : Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted;
 
@@ -426,14 +431,15 @@ void HTMLScriptElement::prepare_script()
 
     // 25-31. Let options be a script fetch options for el.
     auto fetch_priority = Fetch::Infrastructure::request_priority_from_string(attribute(HTML::AttributeNames::fetchpriority).value_or({})).value_or(Fetch::Infrastructure::Request::Priority::Auto);
-    auto options = script_element_fetch_options({
+    ScriptElementFetchAttributes fetch_attributes {
         .crossorigin = m_crossorigin,
         .cryptographic_nonce = nonce(),
         .integrity = get_attribute_ns({}, HTML::AttributeNames::integrity),
         .referrer_policy = m_referrer_policy,
         .fetch_priority = fetch_priority,
         .parser_inserted = is_parser_inserted(),
-    });
+    };
+    auto options = script_element_fetch_options(*this, fetch_attributes);
 
     // 32. Let settings object be el's node document's relevant settings object.
     auto& settings_object = document().relevant_settings_object();

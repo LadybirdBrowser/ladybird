@@ -1,0 +1,2 @@
+PASS: external script with a nonce executed
+PASS: external script with markup in an attribute blocked

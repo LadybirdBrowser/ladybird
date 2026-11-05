@@ -172,7 +172,7 @@ struct ScriptElementFetchAttributes {
     bool parser_inserted { false };
 };
 
-ScriptFetchOptions script_element_fetch_options(ScriptElementFetchAttributes const&);
+ScriptFetchOptions script_element_fetch_options(DOM::Element const&, ScriptElementFetchAttributes const&);
 
 }
 

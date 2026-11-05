@@ -128,12 +128,13 @@ void SVGScriptElement::process_the_script_element()
         // NB: An SVG script element has no integrity or fetchpriority attribute.
         auto referrer_policy_attribute = get_attribute(HTML::AttributeNames::referrerpolicy).value_or({});
         auto referrer_policy = ReferrerPolicy::from_string(referrer_policy_attribute).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
-        auto options = HTML::script_element_fetch_options({
+        HTML::ScriptElementFetchAttributes fetch_attributes {
             .crossorigin = cors_setting,
             .cryptographic_nonce = nonce(),
             .referrer_policy = referrer_policy,
             .parser_inserted = is_parser_inserted(),
-        });
+        };
+        auto options = HTML::script_element_fetch_options(*this, fetch_attributes);
 
         // 32. Let settings object be el's node document's relevant settings object.
         auto& settings_object = document().relevant_settings_object();
