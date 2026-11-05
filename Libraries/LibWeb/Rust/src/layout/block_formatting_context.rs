@@ -190,8 +190,8 @@ impl LaidOutBlockLevelBox {
 pub(crate) struct StateBeforeFindingLineBreaks {
     float_count: usize,
     bands: SmallVec<[FloatBand; 4]>,
-    lowest_left_margin_edge: CssPixels,
-    lowest_right_margin_edge: CssPixels,
+    lowest_left_margin_edge: Option<CssPixels>,
+    lowest_right_margin_edge: Option<CssPixels>,
     margin_state: BlockMarginState,
 }
 
@@ -679,6 +679,17 @@ pub(crate) struct FloatBand {
     pub(crate) right_intrusion: Option<CssPixels>,
 }
 
+impl FloatBand {
+    /// The first band of a flow, which starts above every position in the flow and which no float touches until one is
+    /// placed at its start.
+    fn above_every_float() -> Self {
+        Self {
+            block_start: CssPixels::from_raw(i32::MIN),
+            ..Self::default()
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct FloatPlacement {
     block_start: CssPixels,
@@ -746,8 +757,8 @@ pub(crate) struct BlockFormattingContext<'pass> {
     outside_marker_line_box_block_size_of_root: Cell<Option<CssPixels>>,
     floats: RefCell<Vec<FloatingBox>>,
     bands: RefCell<SmallVec<[FloatBand; 4]>>,
-    lowest_left_margin_edge: Cell<CssPixels>,
-    lowest_right_margin_edge: Cell<CssPixels>,
+    lowest_left_margin_edge: Cell<Option<CssPixels>>,
+    lowest_right_margin_edge: Cell<Option<CssPixels>>,
     lowest_floating_descendant_bottom_margin_edge: Cell<Option<CssPixels>>,
     block_start_of_float_reads_in_root: Cell<Option<CssPixels>>,
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
@@ -907,9 +918,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             outside_marker_line: Cell::new(None),
             outside_marker_line_box_block_size_of_root: Cell::new(None),
             floats: RefCell::new(Vec::new()),
-            bands: RefCell::new(smallvec![FloatBand::default()]),
-            lowest_left_margin_edge: Cell::new(CssPixels::default()),
-            lowest_right_margin_edge: Cell::new(CssPixels::default()),
+            bands: RefCell::new(smallvec![FloatBand::above_every_float()]),
+            lowest_left_margin_edge: Cell::new(None),
+            lowest_right_margin_edge: Cell::new(None),
             lowest_floating_descendant_bottom_margin_edge: Cell::new(None),
             block_start_of_float_reads_in_root: Cell::new(None),
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
@@ -1982,12 +1993,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_size_is_unresolved: bool,
     ) -> FloatBand {
         let mut band = self.merged_band(border_box_block_start_in_root, border_box_block_end_in_root);
-        // NB: A content edge above the first band has no floats at it; a query there would return the first band.
-        let first_band_block_start = self.bands.borrow().first().map(|band| band.block_start);
-        if !block_size_is_unresolved
-            || border_box_block_end_in_root > content_block_start_in_root
-            || first_band_block_start.is_some_and(|block_start| content_block_start_in_root < block_start)
-        {
+        if !block_size_is_unresolved || border_box_block_end_in_root > content_block_start_in_root {
             return band;
         }
         let at_content_edge = self.merged_band(content_block_start_in_root, content_block_start_in_root);
@@ -2096,11 +2102,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 return;
             }
             if bands[index].block_start > block_start {
-                let mut band = if index == 0 {
-                    FloatBand::default()
-                } else {
-                    bands[index - 1]
-                };
+                let mut band = bands[index - 1];
                 band.block_start = block_start;
                 bands.insert(index, band);
                 return;
@@ -2121,10 +2123,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         let block_end = margin_box_rect.bottom();
         if floating_box.side == FloatSide::Left {
             self.lowest_left_margin_edge
-                .set(self.lowest_left_margin_edge.get().max(block_end));
+                .set(self.lowest_left_margin_edge.get().max(Some(block_end)));
         } else {
             self.lowest_right_margin_edge
-                .set(self.lowest_right_margin_edge.get().max(block_end));
+                .set(self.lowest_right_margin_edge.get().max(Some(block_end)));
         }
         if block_end <= block_start {
             return;
@@ -2156,10 +2158,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         {
             let mut bands = self.bands.borrow_mut();
             bands.clear();
-            bands.push(FloatBand::default());
+            bands.push(FloatBand::above_every_float());
         }
-        self.lowest_left_margin_edge.set(CssPixels::default());
-        self.lowest_right_margin_edge.set(CssPixels::default());
+        self.lowest_left_margin_edge.set(None);
+        self.lowest_right_margin_edge.set(None);
         let floats = self.floats.borrow();
         for &floating_box in floats.iter() {
             self.add_float_to_bands(floating_box);
@@ -2463,10 +2465,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         }
         let mut result = false;
-        let clear_to = |clearance_block_offset_in_root: CssPixels, result: &mut bool| {
-            if clearance_block_offset_in_root == CssPixels::default() {
+        let clear_to = |lowest_margin_edge_in_root: Option<CssPixels>, result: &mut bool| {
+            let Some(clearance_block_offset_in_root) = lowest_margin_edge_in_root else {
                 return;
-            }
+            };
             // NOTE: Floating boxes are globally relevant within this BFC, *but* their offset coordinates
             //       are relative to their containing block.
             //       This means that we have to first convert to a root-space block offset before clearing,
@@ -3867,15 +3869,14 @@ impl<'pass> BlockFormattingContext<'pass> {
             .lowest_left_margin_edge
             .get()
             .max(self.lowest_right_margin_edge.get());
-        if lowest_margin_edge <= border_box_block_start + read_start_from_border_box {
+        if lowest_margin_edge.is_none_or(|edge| edge <= border_box_block_start + read_start_from_border_box) {
             return floats_read.floats_in_reach.is_empty();
         }
-        self.floats_in_reach_of_contents_unless_above_root(
+        self.floats_in_reach_of_contents(
             read_start_from_border_box,
             border_box_block_start,
             containing_block_position_in_root.x + entry.content_inline_offset,
-        )
-        .is_some_and(|floats_in_reach| floats_in_reach == floats_read.floats_in_reach)
+        ) == floats_read.floats_in_reach
     }
 
     fn note_floats_read_by_reused_contents(
@@ -3899,16 +3900,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    fn floats_in_reach_of_contents_unless_above_root(
+    fn floats_in_reach_of_contents(
         &self,
         read_start_from_border_box: CssPixels,
         border_box_block_start: CssPixels,
         content_inline_start: CssPixels,
-    ) -> Option<SmallVec<[FloatInReach; 2]>> {
+    ) -> SmallVec<[FloatInReach; 2]> {
         let read_start_in_root = border_box_block_start + read_start_from_border_box;
         let root_content_inline_size = self.root_cells.content_inline_size;
-        let floats_in_reach: SmallVec<[FloatInReach; 2]> = self
-            .floats
+        self.floats
             .borrow()
             .iter()
             .filter_map(|floating_box| {
@@ -3932,11 +3932,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                         - edge_of_box_from_root_edge,
                 })
             })
-            .collect();
-        if !floats_in_reach.is_empty() && read_start_in_root < CssPixels::default() {
-            return None;
-        }
-        Some(floats_in_reach)
+            .collect()
     }
 
     fn flow_position(&self) -> CssPixels {
@@ -4082,19 +4078,13 @@ impl<'pass> BlockFormattingContext<'pass> {
                 + border_box_offset_from_flow_position;
             let read_start_from_border_box = block_start_of_float_reads_of_contents
                 .map(|block_start_of_reads| block_start_of_reads - border_box_block_start);
-            let floats_in_reach = match read_start_from_border_box {
-                Some(read_start_from_border_box) => {
-                    let Some(floats_in_reach) = self.floats_in_reach_of_contents_unless_above_root(
-                        read_start_from_border_box,
-                        border_box_block_start,
-                        containing_block_position_in_root.x + content_offset.x,
-                    ) else {
-                        return;
-                    };
-                    floats_in_reach
-                }
-                None => SmallVec::new(),
-            };
+            let floats_in_reach = read_start_from_border_box.map_or_else(SmallVec::new, |read_start_from_border_box| {
+                self.floats_in_reach_of_contents(
+                    read_start_from_border_box,
+                    border_box_block_start,
+                    containing_block_position_in_root.x + content_offset.x,
+                )
+            });
             Some(in_flow_block_cache::FloatsReadByContents {
                 margins_before_box,
                 border_box_offset_from_flow_position,
@@ -5870,13 +5860,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
         // https://www.w3.org/TR/CSS2/visuren.html#flow-control
         // A float clears the floats of the sides its 'clear' names, whichever side it floats to itself.
-        if matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START) {
-            margin_box_ceiling =
-                margin_box_ceiling.max(self.lowest_left_margin_edge.get() - containing_block_rect_now.y);
+        if matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START)
+            && let Some(lowest_left_margin_edge) = self.lowest_left_margin_edge.get()
+        {
+            margin_box_ceiling = margin_box_ceiling.max(lowest_left_margin_edge - containing_block_rect_now.y);
         }
-        if matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END) {
-            margin_box_ceiling =
-                margin_box_ceiling.max(self.lowest_right_margin_edge.get() - containing_block_rect_now.y);
+        if matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END)
+            && let Some(lowest_right_margin_edge) = self.lowest_right_margin_edge.get()
+        {
+            margin_box_ceiling = margin_box_ceiling.max(lowest_right_margin_edge - containing_block_rect_now.y);
         }
         let mut ceiling_in_root = containing_block_rect_now.y + margin_box_ceiling;
         if let Some(last) = self.floats.borrow().last().copied() {

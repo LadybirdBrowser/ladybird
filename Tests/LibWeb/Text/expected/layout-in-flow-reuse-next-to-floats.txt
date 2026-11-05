@@ -12,7 +12,7 @@ clearance after a negative flow offset: reused [], laid out again [negative-flow
 clearance past a float without inline size: reused [], laid out again [zero-width-box], matches a fresh layout
 a margin before a box whose contents clear: reused [], laid out again [margin-clear-box], matches a fresh layout
 a margin before a list item: reused [], laid out again [margin-marker-box], matches a fresh layout
-floats move above the root: reused [], laid out again [negative-root-box], matches a fresh layout
+floats move above the root: reused [negative-root-box], laid out again [], matches a fresh layout
 a box not stored still reads for its parent: reused [], laid out again [not-stored-box], matches a fresh layout
 a reused box inside a box laid out again: reused [replay-reused], laid out again [replay-box], matches a fresh layout
 then a float grows into the reused box: reused [], laid out again [replay-box replay-reused], matches a fresh layout
