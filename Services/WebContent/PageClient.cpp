@@ -330,9 +330,14 @@ void PageClient::navigation_params_creation_finished(Web::HTML::LocalNavigable& 
     client().async_did_finish_navigation_params_creation(m_id, navigable.id(), request.navigation_id, move(result));
 }
 
-void PageClient::history_navigation_params_creation_finished(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation population)
+void PageClient::changing_navigable_history_job_reached_population(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::NavigationSourceSnapshot active_document_source_snapshot_params)
 {
-    client().async_did_finish_history_navigation_params_creation(m_id, operation_id, move(population));
+    client().async_changing_navigable_history_job_reached_population(m_id, operation_id, navigable_id, move(active_document_source_snapshot_params));
+}
+
+void PageClient::history_navigation_params_creation_finished(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::NavigationPopulationResult result)
+{
+    client().async_did_finish_history_navigation_params_creation(m_id, operation_id, navigable_id, move(result));
 }
 
 void PageClient::navigation_population_failed(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)

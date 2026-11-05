@@ -79,7 +79,22 @@ struct WEBVIEW_API ChangingNavigable {
     // targetEntry's document, as the job left it.
     Optional<Web::HTML::CrossProcessId> target_document_id;
 
-    RefPtr<NavigationLoader> population_loader;
+    // targetEntry's document, as the job's process has it.
+    RefPtr<CanonicalDocument> target_document(WebContentPage const& job_page) const;
+
+    // Step 8 of the job, populating targetEntry's document, as its parts run across processes.
+    struct AwaitingPopulation { };
+    struct CreatingNavigationParams {
+        NonnullRefPtr<NavigationLoader> loader;
+    };
+    struct AcquiringResponseBody {
+        NonnullRefPtr<NavigationLoader> loader;
+    };
+    struct Populating {
+        NonnullRefPtr<NavigationLoader> loader;
+    };
+    Variant<Empty, AwaitingPopulation, CreatingNavigationParams, AcquiringResponseBody, Populating> population;
+    RefPtr<NavigationLoader> population_loader() const;
     RefPtr<CanonicalDocument> populated_document;
 
 private:
