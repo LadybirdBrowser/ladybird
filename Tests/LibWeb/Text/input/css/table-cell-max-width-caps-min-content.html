@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    table {
+        width: 300px;
+        border-collapse: collapse;
+        font: 16px/1 serif;
+    }
+    td {
+        padding: 0;
+    }
+    .row {
+        display: flex;
+        overflow: hidden;
+    }
+    .summary {
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+</style>
+<table id="capped"><tr>
+    <td style="max-width: 100px"><div class="row"><span class="summary">A commit message far too long to fit in its table cell, on one line</span></div></td>
+    <td>age</td>
+</tr></table>
+<table id="uncapped"><tr>
+    <td><div class="row"><span class="summary">A commit message far too long to fit in its table cell, on one line</span></div></td>
+    <td>age</td>
+</tr></table>
+<table id="min-width-wins" style="width: 100px"><tr>
+    <td style="max-width: 100px; min-width: 150px"><div class="row"><span class="summary">A commit message far too long to fit in its table cell, on one line</span></div></td>
+    <td>age</td>
+</tr></table>
+<script>
+    test(() => {
+        // A cell's max-width caps the width its unbreakable content asks for, so the table keeps its width.
+        for (const id of ["capped", "uncapped"]) {
+            const table = document.getElementById(id);
+            println(`${id}: table keeps its width: ${table.getBoundingClientRect().width === 300}`);
+        }
+
+        // A min-width still wins over the max-width, and widens the table past its width.
+        const table = document.getElementById("min-width-wins");
+        const cell = table.querySelector("td");
+        println(`min-width-wins: first cell is 150px wide: ${cell.getBoundingClientRect().width === 150}, table is wider than 100px: ${table.getBoundingClientRect().width > 100}`);
+    });
+</script>

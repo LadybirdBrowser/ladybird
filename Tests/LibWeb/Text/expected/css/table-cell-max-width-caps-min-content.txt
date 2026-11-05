@@ -1,0 +1,3 @@
+capped: table keeps its width: true
+uncapped: table keeps its width: false
+min-width-wins: first cell is 150px wide: true, table is wider than 100px: true
