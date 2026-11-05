@@ -228,7 +228,8 @@ pub(crate) fn reify(vm: &Vm, value: &RetainedStyleValue, property: &Utf16String)
         Reification::List(values) => {
             // NB: <transform-list> is a StyleValueList that contains TransformStyleValues. If that's what we are,
             //     follow the steps for reifying that.
-            if values.iter().all(RetainedStyleValue::is_transformation)
+            if !values.is_empty()
+                && values.iter().all(RetainedStyleValue::is_transformation)
                 && let Some(transform_list) = reify_a_transform_list(vm, &values)
             {
                 return AnyCSSStyleValue::CSSTransformValue(transform_list);
