@@ -280,7 +280,10 @@ impl PlacedGlyph {
 /// The glyphs of a run in order, each with its placement.
 pub struct PlacedGlyphs<'a> {
     glyphs: std::slice::Iter<'a, DrawGlyph>,
-    placements: std::slice::Iter<'a, GlyphPlacement>,
+    placements: Option<std::slice::Iter<'a, GlyphPlacement>>,
+    pen: f32,
+    next_cluster_start: u32,
+    baseline_y: f32,
 }
 
 impl Iterator for PlacedGlyphs<'_> {
@@ -289,14 +292,26 @@ impl Iterator for PlacedGlyphs<'_> {
     #[inline]
     fn next(&mut self) -> Option<PlacedGlyph> {
         let glyph = *self.glyphs.next()?;
-        let placement = self.placements.next()?;
-        Some(PlacedGlyph {
+        if let Some(placements) = &mut self.placements {
+            let placement = placements.next()?;
+            return Some(PlacedGlyph {
+                glyph,
+                x: placement.x,
+                y: placement.y,
+                cluster_start: placement.cluster_start(),
+                is_rtl: placement.is_rtl(),
+            });
+        }
+        let placed = PlacedGlyph {
             glyph,
-            x: placement.x,
-            y: placement.y,
-            cluster_start: placement.cluster_start(),
-            is_rtl: placement.is_rtl(),
-        })
+            x: self.pen,
+            y: self.baseline_y,
+            cluster_start: self.next_cluster_start,
+            is_rtl: false,
+        };
+        self.pen += glyph.advance;
+        self.next_cluster_start += glyph.length_in_code_units() as u32;
+        Some(placed)
     }
 
     #[inline]
@@ -346,35 +361,85 @@ impl<T: Clone> GlyphStorage<T> {
     }
 }
 
-/// The glyphs of a run, and where the run places them.
+/// Shaping gives advances in 1/64ths of a pixel, which an f32 adds up exactly below this.
+const MAX_EXACT_PEN_POSITION: f32 = (1u32 << 18) as f32;
+
+/// Where the pen ends up past the glyphs, starting at `pen`, as long as adding up their advances does not round. Any
+/// sum of such advances is then exact too, so positions do not depend on the order they were added up in.
+fn exact_pen_position_past(mut pen: f32, glyphs: &[DrawGlyph]) -> Option<f32> {
+    for glyph in glyphs {
+        if (glyph.advance * 64.0).fract() != 0.0 {
+            return None;
+        }
+        pen += glyph.advance;
+        if pen.abs() >= MAX_EXACT_PEN_POSITION {
+            return None;
+        }
+    }
+    Some(pen)
+}
+
+/// Whether the placements of the shaped glyphs follow from the glyphs: each glyph starts where the advances of the
+/// glyphs before it end, on one baseline, at the code unit where the lengths of the glyphs before it end, in a left to
+/// right run. Adding up the advances gives the bits of each position, as `PlacedGlyphs` adds them up.
+fn placements_follow_from_glyphs(shaped: &[ShapedGlyph], glyphs: &[DrawGlyph]) -> bool {
+    if exact_pen_position_past(0.0, glyphs).is_none() {
+        return false;
+    }
+    let Some(first) = shaped.first() else {
+        return true;
+    };
+    let mut pen = 0.0f32;
+    let mut next_cluster_start = 0u32;
+    std::iter::zip(shaped, glyphs).all(|(shaped_glyph, glyph)| {
+        let is_derivable = !shaped_glyph.is_rtl
+            && shaped_glyph.x.to_bits() == pen.to_bits()
+            && shaped_glyph.y.to_bits() == first.y.to_bits()
+            && shaped_glyph.cluster_start == next_cluster_start;
+        pen += glyph.advance;
+        next_cluster_start += glyph.length_in_code_units() as u32;
+        is_derivable
+    })
+}
+
+/// The glyphs of a run, and where the run places them. A run stores no placements where they follow from the glyphs,
+/// see `placements_follow_from_glyphs()`, which is what plain left to right text does.
 #[derive(Clone, Debug, Default)]
 pub struct GlyphBuffer {
     glyphs: GlyphStorage<DrawGlyph>,
-    placements: GlyphStorage<GlyphPlacement>,
+    placements: Option<Box<GlyphStorage<GlyphPlacement>>>,
+    baseline_y: f32,
 }
+
+const _: () = assert!(size_of::<GlyphBuffer>() == 40);
 
 impl GlyphBuffer {
     fn from_shaped(shaped: &[ShapedGlyph]) -> Self {
-        Self {
-            glyphs: GlyphStorage::Shared(
-                shaped
-                    .iter()
-                    .map(|glyph| {
-                        DrawGlyph::new(
-                            glyph.glyph_width,
-                            glyph.glyph_id,
-                            glyph.length_in_code_units,
-                            glyph.should_paint,
-                        )
-                    })
-                    .collect(),
-            ),
-            placements: GlyphStorage::Shared(
+        let glyphs: Arc<[DrawGlyph]> = shaped
+            .iter()
+            .map(|glyph| {
+                DrawGlyph::new(
+                    glyph.glyph_width,
+                    glyph.glyph_id,
+                    glyph.length_in_code_units,
+                    glyph.should_paint,
+                )
+            })
+            .collect();
+        let placements = if placements_follow_from_glyphs(shaped, &glyphs) {
+            None
+        } else {
+            Some(Box::new(GlyphStorage::Shared(
                 shaped
                     .iter()
                     .map(|glyph| GlyphPlacement::new(glyph.x, glyph.y, glyph.cluster_start, glyph.is_rtl))
                     .collect(),
-            ),
+            )))
+        };
+        Self {
+            glyphs: GlyphStorage::Shared(glyphs),
+            baseline_y: shaped.first().map_or(0.0, |glyph| glyph.y),
+            placements,
         }
     }
 
@@ -383,7 +448,8 @@ impl GlyphBuffer {
     pub fn into_shared(self) -> Self {
         Self {
             glyphs: self.glyphs.into_shared(),
-            placements: self.placements.into_shared(),
+            placements: self.placements.map(|placements| Box::new(placements.into_shared())),
+            baseline_y: self.baseline_y,
         }
     }
 
@@ -392,18 +458,39 @@ impl GlyphBuffer {
     pub fn placed(&self) -> PlacedGlyphs<'_> {
         PlacedGlyphs {
             glyphs: self.glyphs.as_slice().iter(),
-            placements: self.placements.as_slice().iter(),
+            placements: self.placements.as_ref().map(|placements| placements.as_slice().iter()),
+            pen: 0.0,
+            next_cluster_start: 0,
+            baseline_y: self.baseline_y,
         }
+    }
+
+    /// The placements of the glyphs, stored from now on.
+    fn placements_mut(&mut self) -> &mut Vec<GlyphPlacement> {
+        if self.placements.is_none() {
+            let placements = self
+                .placed()
+                .map(|placed| GlyphPlacement::new(placed.x, placed.y, placed.cluster_start, placed.is_rtl))
+                .collect();
+            self.placements = Some(Box::new(GlyphStorage::Owned(placements)));
+        }
+        self.placements
+            .as_mut()
+            .expect("the placements were stored above")
+            .to_mut()
     }
 
     pub fn reserve(&mut self, additional_glyphs: usize) {
         self.glyphs.to_mut().reserve(additional_glyphs);
-        self.placements.to_mut().reserve(additional_glyphs);
+        if let Some(placements) = &mut self.placements {
+            placements.to_mut().reserve(additional_glyphs);
+        }
     }
 
     /// Has `update` move each glyph, given its x and y.
     pub fn update_positions(&mut self, mut update: impl FnMut(&DrawGlyph, &mut f32, &mut f32)) {
-        let placements = self.placements.to_mut();
+        self.placements_mut();
+        let placements = self.placements.as_mut().expect("the placements are stored").to_mut();
         for (glyph, placement) in std::iter::zip(self.glyphs.as_slice(), placements) {
             update(glyph, &mut placement.x, &mut placement.y);
         }
@@ -411,58 +498,77 @@ impl GlyphBuffer {
 
     /// Moves all glyphs along the block axis.
     pub fn shift_baseline(&mut self, offset: f32) {
-        self.update_positions(|_, _, y| *y += offset);
+        self.baseline_y += offset;
+        if let Some(placements) = &mut self.placements {
+            for placement in placements.to_mut() {
+                placement.y += offset;
+            }
+        }
     }
 
     pub fn push_placed(&mut self, placed: PlacedGlyph) {
-        self.glyphs.to_mut().push(placed.glyph);
-        self.placements.to_mut().push(GlyphPlacement::new(
+        self.placements_mut().push(GlyphPlacement::new(
             placed.x,
             placed.y,
             placed.cluster_start,
             placed.is_rtl,
         ));
+        self.glyphs.to_mut().push(placed.glyph);
     }
 
     pub fn truncate(&mut self, glyph_count: usize) {
         self.glyphs.to_mut().truncate(glyph_count);
-        self.placements.to_mut().truncate(glyph_count);
+        if let Some(placements) = &mut self.placements {
+            placements.to_mut().truncate(glyph_count);
+        }
     }
 
     pub fn pop(&mut self) {
         self.glyphs.to_mut().pop();
-        self.placements.to_mut().pop();
+        if let Some(placements) = &mut self.placements {
+            placements.to_mut().pop();
+        }
     }
 
     /// Drops all glyphs outside of `range`, leaving the placement of the others as it is.
     pub fn keep_range(&mut self, range: std::ops::Range<usize>) {
+        let placements = self.placements_mut();
+        placements.drain(range.end..);
+        placements.drain(..range.start);
         let glyphs = self.glyphs.to_mut();
         glyphs.drain(range.end..);
         glyphs.drain(..range.start);
-        let placements = self.placements.to_mut();
-        placements.drain(range.end..);
-        placements.drain(..range.start);
     }
 
     /// The glyphs from the one at `index` on, with that glyph at the start of the run and of the text.
     #[must_use]
     pub fn remainder_from(&self, index: usize) -> Self {
-        let first = self.placements.as_slice()[index];
-        Self {
-            glyphs: GlyphStorage::Owned(self.glyphs.as_slice()[index..].to_vec()),
-            placements: GlyphStorage::Owned(
-                self.placements.as_slice()[index..]
-                    .iter()
-                    .map(|placement| {
+        let glyphs = self.glyphs.as_slice()[index..].to_vec();
+        let placements = if self.placements.is_none() && exact_pen_position_past(0.0, &glyphs).is_some() {
+            None
+        } else {
+            let first = self
+                .placed()
+                .nth(index)
+                .expect("the remainder starts at a glyph of the run");
+            Some(Box::new(GlyphStorage::Owned(
+                self.placed()
+                    .skip(index)
+                    .map(|placed| {
                         GlyphPlacement::new(
-                            placement.x - first.x,
-                            placement.y,
-                            placement.cluster_start().saturating_sub(first.cluster_start()),
-                            placement.is_rtl(),
+                            placed.x - first.x,
+                            placed.y,
+                            placed.cluster_start.saturating_sub(first.cluster_start),
+                            placed.is_rtl,
                         )
                     })
                     .collect(),
-            ),
+            )))
+        };
+        Self {
+            glyphs: GlyphStorage::Owned(glyphs),
+            placements,
+            baseline_y: self.baseline_y,
         }
     }
 }
@@ -847,6 +953,188 @@ pub fn shape_text(
     with_cached_shape(font, text, text_type, letter_spacing, word_spacing, |shape| {
         shaped_text_with_baseline_start(shape, baseline_start_x)
     })
+}
+
+#[cfg(test)]
+mod glyph_buffer_tests {
+    use super::*;
+
+    const ASCENT: f32 = 12.0;
+
+    fn left_to_right_glyph(x: f32, advance: f32, cluster_start: u32) -> ShapedGlyph {
+        ShapedGlyph {
+            x,
+            y: -ASCENT,
+            length_in_code_units: 1,
+            glyph_width: advance,
+            glyph_id: 7,
+            cluster_start,
+            should_paint: true,
+            is_rtl: false,
+        }
+    }
+
+    fn plain_run() -> Vec<ShapedGlyph> {
+        vec![
+            left_to_right_glyph(0.0, 8.5, 0),
+            left_to_right_glyph(8.5, 4.25, 1),
+            left_to_right_glyph(12.75, 8.0, 2),
+        ]
+    }
+
+    fn assert_places_glyphs_as_shaped(buffer: &GlyphBuffer, shaped: &[ShapedGlyph]) {
+        let placed: Vec<ShapedGlyph> = buffer.placed().map(ShapedGlyph::from).collect();
+        assert_eq!(placed.len(), shaped.len());
+        for (placed, shaped) in std::iter::zip(placed, shaped) {
+            assert_eq!(placed.x.to_bits(), shaped.x.to_bits());
+            assert_eq!(placed.y.to_bits(), shaped.y.to_bits());
+            assert_eq!(placed, *shaped);
+        }
+    }
+
+    fn assert_stores_placements(shaped: &[ShapedGlyph], expected: bool) {
+        let buffer = GlyphBuffer::from_shaped(shaped);
+        assert_eq!(buffer.placements.is_some(), expected);
+        assert_places_glyphs_as_shaped(&buffer, shaped);
+    }
+
+    #[test]
+    fn plain_left_to_right_text_stores_no_placements() {
+        assert_stores_placements(&plain_run(), false);
+        assert_stores_placements(&[], false);
+    }
+
+    #[test]
+    fn a_glyph_that_paints_nothing_stays_derivable() {
+        let mut shaped = plain_run();
+        shaped.insert(
+            1,
+            ShapedGlyph {
+                should_paint: false,
+                glyph_width: 0.0,
+                ..left_to_right_glyph(8.5, 0.0, 1)
+            },
+        );
+        shaped[2].cluster_start = 2;
+        shaped[3].cluster_start = 3;
+        assert_stores_placements(&shaped, false);
+    }
+
+    #[test]
+    fn a_cluster_of_several_glyphs_stores_placements() {
+        let mut shaped = plain_run();
+        shaped[1].length_in_code_units = 0;
+        shaped[1].cluster_start = 0;
+        shaped[2].cluster_start = 1;
+        assert_stores_placements(&shaped, true);
+    }
+
+    #[test]
+    fn offsets_store_placements() {
+        let mut shaped = plain_run();
+        shaped[1].x += 0.5;
+        assert_stores_placements(&shaped, true);
+
+        let mut shaped = plain_run();
+        shaped[1].y += 0.5;
+        assert_stores_placements(&shaped, true);
+    }
+
+    #[test]
+    fn right_to_left_text_stores_placements() {
+        let mut shaped = vec![left_to_right_glyph(0.0, 8.0, 0)];
+        shaped[0].is_rtl = true;
+        assert_stores_placements(&shaped, true);
+    }
+
+    #[test]
+    fn clusters_that_do_not_add_up_store_placements() {
+        let mut shaped = plain_run();
+        shaped[2].cluster_start = 5;
+        assert_stores_placements(&shaped, true);
+
+        let mut shaped = plain_run();
+        shaped[0].length_in_code_units = GLYPH_MAX_LENGTH_IN_CODE_UNITS + 1;
+        shaped[1].cluster_start = shaped[0].length_in_code_units as u32;
+        shaped[2].cluster_start = shaped[1].cluster_start + 1;
+        let buffer = GlyphBuffer::from_shaped(&shaped);
+        assert!(buffer.placements.is_some());
+        assert_eq!(buffer.placed().nth(2).unwrap().cluster_start, shaped[2].cluster_start);
+    }
+
+    #[test]
+    fn advances_that_could_round_store_placements() {
+        let mut shaped = plain_run();
+        shaped[0].glyph_width = 0.1;
+        shaped[1].x = 0.1;
+        shaped[2].x = 0.1 + 4.25;
+        assert_stores_placements(&shaped, true);
+
+        let mut shaped = plain_run();
+        shaped[0].glyph_width = MAX_EXACT_PEN_POSITION;
+        shaped[1].x = MAX_EXACT_PEN_POSITION;
+        shaped[2].x = MAX_EXACT_PEN_POSITION + 4.25;
+        assert_stores_placements(&shaped, true);
+    }
+
+    #[test]
+    fn negative_zero_positions_store_placements() {
+        let mut shaped = plain_run();
+        shaped[0].y = -0.0;
+        shaped[1].y = 0.0;
+        shaped[2].y = 0.0;
+        assert_stores_placements(&shaped, true);
+    }
+
+    #[test]
+    fn truncating_and_shifting_the_baseline_keep_placements_derived() {
+        let shaped = plain_run();
+        let mut buffer = GlyphBuffer::from_shaped(&shaped);
+        buffer.truncate(2);
+        buffer.shift_baseline(3.0);
+        assert!(buffer.placements.is_none());
+        let mut expected = shaped[..2].to_vec();
+        for glyph in &mut expected {
+            glyph.y += 3.0;
+        }
+        assert_places_glyphs_as_shaped(&buffer, &expected);
+    }
+
+    #[test]
+    fn moving_a_glyph_stores_placements_as_they_were() {
+        let shaped = plain_run();
+        let mut buffer = GlyphBuffer::from_shaped(&shaped);
+        buffer.update_positions(|_, _, _| {});
+        assert!(buffer.placements.is_some());
+        assert_places_glyphs_as_shaped(&buffer, &shaped);
+    }
+
+    #[test]
+    fn a_remainder_starts_at_the_start_of_the_run_and_of_the_text() {
+        let shaped = plain_run();
+        let expected = [left_to_right_glyph(0.0, 4.25, 0), left_to_right_glyph(4.25, 8.0, 1)];
+
+        let derived = GlyphBuffer::from_shaped(&shaped).remainder_from(1);
+        assert!(derived.placements.is_none());
+        assert_places_glyphs_as_shaped(&derived, &expected);
+
+        let mut stored = GlyphBuffer::from_shaped(&shaped);
+        stored.update_positions(|_, _, _| {});
+        let stored = stored.remainder_from(1);
+        assert!(stored.placements.is_some());
+        assert_places_glyphs_as_shaped(&stored, &expected);
+    }
+
+    #[test]
+    fn runs_compare_by_where_they_place_glyphs_however_they_store_it() {
+        let shaped = plain_run();
+        let derived = GlyphBuffer::from_shaped(&shaped);
+        let mut stored = derived.clone();
+        stored.update_positions(|_, _, _| {});
+        assert!(derived == stored);
+        stored.update_positions(|_, x, _| *x += 1.0);
+        assert!(derived != stored);
+    }
 }
 
 #[cfg(test)]
