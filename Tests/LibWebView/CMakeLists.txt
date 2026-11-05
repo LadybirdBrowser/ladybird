@@ -1,165 +1,45 @@
 if (BUILD_TESTING AND NOT WIN32)
     if (APPLE OR LINUX)
-        add_test(
-            NAME TestWebDriverCrashReport
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-crash-report.py $<TARGET_FILE:WebDriver>
-        )
-        set_tests_properties(TestWebDriverCrashReport PROPERTIES TIMEOUT 120)
-        add_test(
-            NAME TestWebDriverBrowserCrashRecovery
-            COMMAND ${Python3_EXECUTABLE}
-                ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-browser-crash-recovery.py
-                $<TARGET_FILE:WebDriver>
-        )
-        set_tests_properties(TestWebDriverBrowserCrashRecovery PROPERTIES TIMEOUT 120)
-        set(crash_report_helpers WebWorker RequestServer ImageDecoder Compositor)
-        foreach(helper IN LISTS crash_report_helpers)
-            add_test(
+        ladybird_python_test(test-bytecode-cache-blob-is-file-backed.py ARGS $<TARGET_FILE:WebDriver>)
+        ladybird_python_test(test-devtools-catch-up-layout.py ARGS $<TARGET_FILE:ladybird>)
+        ladybird_python_test(test-devtools-client-follows-the-tab.py ARGS $<TARGET_FILE:ladybird>)
+        ladybird_python_test(test-iframe-console.py ARGS $<TARGET_FILE:ladybird>)
+        ladybird_python_test(test-message-port-collection.py ARGS $<TARGET_FILE:WebDriver>)
+        ladybird_python_test(test-shared-stylesheet-memory.py ARGS $<TARGET_FILE:WebDriver> TIMEOUT 180)
+        ladybird_python_test(test-user-agent-preset-reaches-child-frames.py ARGS $<TARGET_FILE:ladybird>)
+        ladybird_python_test(test-webdriver-browser-crash-recovery.py ARGS $<TARGET_FILE:WebDriver>)
+        ladybird_python_test(test-webdriver-compositor-reconnect.py ARGS $<TARGET_FILE:WebDriver>)
+        ladybird_python_test(test-webdriver-crash-report.py ARGS $<TARGET_FILE:WebDriver>)
+        ladybird_python_test(test-webdriver-worker-terminated-while-starting.py ARGS $<TARGET_FILE:WebDriver>)
+        ladybird_python_test(test-window-size-reaches-every-page.py ARGS $<TARGET_FILE:ladybird>)
+        ladybird_python_test(test-worker-error-console.py ARGS $<TARGET_FILE:ladybird>)
+
+        foreach(helper IN ITEMS Compositor ImageDecoder RequestServer WebWorker)
+            ladybird_python_test(test-webdriver-crash-report.py
                 NAME Test${helper}CrashReport
-                COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-crash-report.py $<TARGET_FILE:WebDriver> --process ${helper}
+                ARGS $<TARGET_FILE:WebDriver> --process ${helper}
             )
-            set_tests_properties(Test${helper}CrashReport PROPERTIES TIMEOUT 120)
         endforeach()
-        add_test(
-            NAME TestWebDriverWorkerTerminatedWhileStarting
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-worker-terminated-while-starting.py $<TARGET_FILE:WebDriver>
-        )
-        set_tests_properties(TestWebDriverWorkerTerminatedWhileStarting PROPERTIES TIMEOUT 120)
-        add_test(
-            NAME TestWebDriverCompositorReconnect
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-compositor-reconnect.py $<TARGET_FILE:WebDriver>
-        )
-        set_tests_properties(TestWebDriverCompositorReconnect PROPERTIES TIMEOUT 120)
-        add_test(
-            NAME TestDevToolsClientFollowsTheTab
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-devtools-client-follows-the-tab.py $<TARGET_FILE:ladybird>
-        )
-        set_tests_properties(TestDevToolsClientFollowsTheTab PROPERTIES TIMEOUT 120)
-        add_test(
-            NAME TestDevToolsCatchUpLayout
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-devtools-catch-up-layout.py $<TARGET_FILE:ladybird>
-        )
-        set_tests_properties(TestDevToolsCatchUpLayout PROPERTIES TIMEOUT 120)
-        add_test(
-            NAME TestWorkerErrorConsole
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-worker-error-console.py $<TARGET_FILE:ladybird>
-        )
-        set_tests_properties(TestWorkerErrorConsole PROPERTIES TIMEOUT 120)
-        add_test(
-            NAME TestIframeConsole
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-iframe-console.py $<TARGET_FILE:ladybird>
-        )
-        set_tests_properties(TestIframeConsole PROPERTIES TIMEOUT 120)
-        add_test(
-            NAME TestWindowSizeReachesEveryPage
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-window-size-reaches-every-page.py $<TARGET_FILE:ladybird>
-        )
-        set_tests_properties(TestWindowSizeReachesEveryPage PROPERTIES TIMEOUT 120)
-        add_test(
-            NAME TestUserAgentPresetReachesChildFrames
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-user-agent-preset-reaches-child-frames.py $<TARGET_FILE:ladybird>
-        )
-        set_tests_properties(TestUserAgentPresetReachesChildFrames PROPERTIES TIMEOUT 120)
-        add_test(
-            NAME TestMessagePortCollection
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-message-port-collection.py $<TARGET_FILE:WebDriver>
-        )
-        set_tests_properties(TestMessagePortCollection PROPERTIES TIMEOUT 120)
-        add_test(
-            NAME TestSharedStyleSheetMemory
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-shared-stylesheet-memory.py $<TARGET_FILE:WebDriver>
-        )
-        set_tests_properties(TestSharedStyleSheetMemory PROPERTIES TIMEOUT 180)
-        add_test(
-            NAME TestBytecodeCacheBlobIsFileBacked
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-bytecode-cache-blob-is-file-backed.py $<TARGET_FILE:WebDriver>
-        )
-        set_tests_properties(TestBytecodeCacheBlobIsFileBacked PROPERTIES TIMEOUT 120)
     endif()
 
-    add_test(
-        NAME TestWebDriverDeleteSession
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-delete-session.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverDeleteSession PROPERTIES TIMEOUT 120)
+    ladybird_python_test(test-webdriver-bidi.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-content-blockers.py ARGS $<TARGET_FILE:WebDriver> TIMEOUT 180)
+    ladybird_python_test(test-webdriver-delete-session.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-error-keep-alive.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-force-dark.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-location-policy.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-notifications-policy.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-permissions-settings.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-search-engine-settings.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-set-permission.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-settings-changes.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-site-zoom.py ARGS $<TARGET_FILE:WebDriver>)
+    ladybird_python_test(test-webdriver-web-ui-pages-share-a-process.py ARGS $<TARGET_FILE:WebDriver>)
 
-    add_test(
-        NAME TestWebDriverContentBlockers
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-content-blockers.py $<TARGET_FILE:WebDriver>
+    ladybird_python_test(test-webdriver-session-history.py
+        ARGS $<TARGET_FILE:WebDriver>
+        ENVIRONMENT "XDG_DATA_HOME=${CMAKE_CURRENT_BINARY_DIR}/session-history-data"
     )
-    set_tests_properties(TestWebDriverContentBlockers PROPERTIES TIMEOUT 180)
-
-    add_test(
-        NAME TestWebDriverLocationPolicy
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-location-policy.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverLocationPolicy PROPERTIES TIMEOUT 120)
-
-    add_test(
-        NAME TestWebDriverNotificationsPolicy
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-notifications-policy.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverNotificationsPolicy PROPERTIES TIMEOUT 120)
-
-    add_test(
-        NAME TestWebDriverPermissionsSettings
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-permissions-settings.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverPermissionsSettings PROPERTIES TIMEOUT 120)
-
-    add_test(
-        NAME TestWebDriverSetPermission
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-set-permission.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverSetPermission PROPERTIES TIMEOUT 120)
-
-    add_test(
-        NAME TestWebDriverSearchEngineSettings
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-search-engine-settings.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverSearchEngineSettings PROPERTIES TIMEOUT 120)
-
-    add_test(
-        NAME TestWebDriverSettingsChanges
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-settings-changes.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverSettingsChanges PROPERTIES TIMEOUT 120)
-
-    add_test(
-        NAME TestWebDriverWebUIPagesShareAProcess
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-web-ui-pages-share-a-process.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverWebUIPagesShareAProcess PROPERTIES TIMEOUT 120)
-
-    add_test(
-        NAME TestWebDriverSessionHistory
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-session-history.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverSessionHistory PROPERTIES TIMEOUT 120 ENVIRONMENT "XDG_DATA_HOME=${CMAKE_CURRENT_BINARY_DIR}/session-history-data")
-
-    add_test(
-        NAME TestWebDriverSiteZoom
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-site-zoom.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverSiteZoom PROPERTIES TIMEOUT 120)
-
-    add_test(
-        NAME TestWebDriverForceDark
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-force-dark.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverForceDark PROPERTIES TIMEOUT 120)
-
-    add_test(
-        NAME TestWebDriverBiDi
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-bidi.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverBiDi PROPERTIES TIMEOUT 120)
-
-    add_test(
-        NAME TestWebDriverErrorKeepAlive
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-error-keep-alive.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverErrorKeepAlive PROPERTIES TIMEOUT 120)
 endif()
 
 if (BUILD_BROWSER_TESTS_ONLY)
@@ -344,10 +224,6 @@ if (NOT WIN32)
 endif()
 
 if (BUILD_TESTING AND NOT WIN32)
-    add_test(NAME TestBuildInformation COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-build-information.py)
-    add_test(
-        NAME TestWebDriverBiDiCleanup
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-bidi-cleanup.py
-    )
-    set_tests_properties(TestWebDriverBiDiCleanup PROPERTIES TIMEOUT 30)
+    ladybird_python_test(test-build-information.py)
+    ladybird_python_test(test-webdriver-bidi-cleanup.py TIMEOUT 30)
 endif()

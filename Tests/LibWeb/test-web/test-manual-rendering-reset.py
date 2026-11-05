@@ -48,7 +48,6 @@ def run_case(binary, source, root, name, manual, timeout):
     (root / "Ref/expected/green.html").write_text("<!doctype html><style>html,body{margin:0;background:green}</style>")
     results = root / "results"
     env = os.environ.copy()
-    env["LADYBIRD_SOURCE_DIR"] = str(source)
     # The echo server imports its vendored tools even though these fixtures use only file URLs. Keep those tools
     # outside the private input tree so test discovery cannot collect their own HTML fixtures.
     wpt = source / "Tests/LibWeb/Text/input/wpt-import"
@@ -91,13 +90,13 @@ def run_case(binary, source, root, name, manual, timeout):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("test_web", type=Path)
-    parser.add_argument("source", type=Path)
     args = parser.parse_args()
+    source = Path(os.environ["LADYBIRD_SOURCE_DIR"]).resolve()
     with tempfile.TemporaryDirectory(prefix="test-web-manual-reset-") as temporary:
         root = Path(temporary)
-        run_case(args.test_web.resolve(), args.source.resolve(), root, "control", False, False)
-        run_case(args.test_web.resolve(), args.source.resolve(), root, "normal-completion", True, False)
-        run_case(args.test_web.resolve(), args.source.resolve(), root, "timeout", True, True)
+        run_case(args.test_web.resolve(), source, root, "control", False, False)
+        run_case(args.test_web.resolve(), source, root, "normal-completion", True, False)
+        run_case(args.test_web.resolve(), source, root, "timeout", True, True)
 
 
 if __name__ == "__main__":

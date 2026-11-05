@@ -1,11 +1,7 @@
 add_subdirectory("test-web")
 
 if (BUILD_TESTING AND NOT WIN32)
-    add_test(
-        NAME TestWebDriverHTTPErrorResponses
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-http-error-responses.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverHTTPErrorResponses PROPERTIES TIMEOUT 120)
+    ladybird_python_test(test-webdriver-http-error-responses.py ARGS $<TARGET_FILE:WebDriver>)
 endif()
 
 if (BUILD_BROWSER_TESTS_ONLY)
@@ -87,15 +83,14 @@ target_link_libraries(TestLibWeb PRIVATE LibCompositing LibCrypto LibGC LibGfx L
 # The check reads the symbols of the build's objects with nm, which can't see into an LTO build's bitcode objects and
 # isn't the toolchain's symbol reader on Windows.
 if (BUILD_TESTING AND NOT WIN32 AND NOT CMAKE_INTERPROCEDURAL_OPTIMIZATION)
-    add_test(
+    ladybird_python_test("${LADYBIRD_SOURCE_DIR}/Meta/check-dead-rust-exports.py"
         NAME TestDeadRustExports
-        COMMAND ${Python3_EXECUTABLE} ${LADYBIRD_SOURCE_DIR}/Meta/check-dead-rust-exports.py
+        ARGS
             --nm ${CMAKE_NM}
             --compile-commands ${CMAKE_BINARY_DIR}/compile_commands.json
             --source-root ${LADYBIRD_SOURCE_DIR}
             $<TARGET_FILE:libweb_bindings_rust>
-            $<TARGET_FILE:libweb_content_blocker_rust>
-    )
+            $<TARGET_FILE:libweb_content_blocker_rust>)
 endif()
 
 

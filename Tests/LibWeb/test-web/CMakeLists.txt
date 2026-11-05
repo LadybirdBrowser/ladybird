@@ -26,19 +26,8 @@ elseif (WIN32)
 endif()
 
 if (BUILD_TESTING)
-    add_test(
-        NAME LibWebManualRenderingReset
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-manual-rendering-reset.py
-            $<TARGET_FILE:test-web> ${LADYBIRD_SOURCE_DIR}
-    )
-    set_tests_properties(LibWebManualRenderingReset PROPERTIES TIMEOUT 240)
-
-    add_test(
-        NAME LibWebHistoryRateLimitReset
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-history-rate-limit-reset.py
-            $<TARGET_FILE:test-web> ${LADYBIRD_SOURCE_DIR}
-    )
-    set_tests_properties(LibWebHistoryRateLimitReset PROPERTIES TIMEOUT 120)
+    ladybird_python_test(test-history-rate-limit-reset.py ARGS $<TARGET_FILE:test-web>)
+    ladybird_python_test(test-manual-rendering-reset.py ARGS $<TARGET_FILE:test-web> TIMEOUT 240)
 
     add_test(
         NAME LibWeb
