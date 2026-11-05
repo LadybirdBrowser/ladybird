@@ -805,7 +805,7 @@ void HTMLParserEndState::check_progress()
     case Phase::WaitingForDeferredScripts:
         // 5. While the list of scripts that will execute when the document has finished parsing is not empty:
         while (!m_document->scripts_to_execute_when_parsing_has_finished().is_empty()) {
-            auto& first_script = *m_document->scripts_to_execute_when_parsing_has_finished().first();
+            auto& first_script = as<HTMLOrSVGScriptElement>(*m_document->scripts_to_execute_when_parsing_has_finished().first());
 
             // 1. Spin the event loop until the first script in the list of scripts that will execute when the document has finished parsing
             //    has its "ready to be parser-executed" flag set and the parser's Document has no style sheet that is blocking scripts.
@@ -1366,7 +1366,7 @@ void HTMLParser::resume_after_parser_blocking_script()
     // 2. Set the pending parsing-blocking script to null.
     // 11. Execute the script element the script.
     if (pending)
-        document().take_pending_parsing_blocking_script({})->execute_script();
+        document().take_pending_parsing_blocking_script({}).execute_script();
     else
         document().take_pending_parsing_blocking_svg_script({})->execute_pending_parser_blocking_script({});
 

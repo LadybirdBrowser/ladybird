@@ -725,9 +725,9 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Event>> create_event(Utf16FlyString const& interface);
     GC::Ref<Range> create_range();
 
-    void set_pending_parsing_blocking_script(HTML::HTMLScriptElement*);
-    HTML::HTMLScriptElement* pending_parsing_blocking_script() { return m_pending_parsing_blocking_script.ptr(); }
-    GC::Ref<HTML::HTMLScriptElement> take_pending_parsing_blocking_script(Badge<HTML::HTMLParser>);
+    void set_pending_parsing_blocking_script(HTML::HTMLOrSVGScriptElement*);
+    HTML::HTMLOrSVGScriptElement* pending_parsing_blocking_script();
+    HTML::HTMLOrSVGScriptElement& take_pending_parsing_blocking_script(Badge<HTML::HTMLParser>);
 
     void set_pending_parsing_blocking_svg_script(SVG::SVGScriptElement*);
     SVG::SVGScriptElement* pending_parsing_blocking_svg_script() { return m_pending_parsing_blocking_svg_script.ptr(); }
@@ -737,12 +737,12 @@ public:
         return m_pending_parsing_blocking_script.ptr() || m_pending_parsing_blocking_svg_script.ptr();
     }
 
-    void add_script_to_execute_when_parsing_has_finished(Badge<HTML::HTMLScriptElement>, HTML::HTMLScriptElement&);
-    Vector<GC::Ref<HTML::HTMLScriptElement>>& scripts_to_execute_when_parsing_has_finished() { return m_scripts_to_execute_when_parsing_has_finished; }
+    void add_script_to_execute_when_parsing_has_finished(Badge<HTML::HTMLOrSVGScriptElement>, HTML::HTMLOrSVGScriptElement&);
+    Vector<GC::Ref<Element>>& scripts_to_execute_when_parsing_has_finished() { return m_scripts_to_execute_when_parsing_has_finished; }
 
-    Vector<GC::Ref<HTML::HTMLScriptElement>>& scripts_to_execute_as_soon_as_possible() { return m_scripts_to_execute_as_soon_as_possible; }
+    Vector<GC::Ref<Element>>& scripts_to_execute_as_soon_as_possible() { return m_scripts_to_execute_as_soon_as_possible; }
 
-    Vector<GC::Ref<HTML::HTMLScriptElement>>& scripts_to_execute_in_order_as_soon_as_possible() { return m_scripts_to_execute_in_order_as_soon_as_possible; }
+    Vector<GC::Ref<Element>>& scripts_to_execute_in_order_as_soon_as_possible() { return m_scripts_to_execute_in_order_as_soon_as_possible; }
 
     HTML::ScriptRegistry& script_registry() { return m_script_registry; }
     HTML::ScriptRegistry const& script_registry() const { return m_script_registry; }
@@ -936,8 +936,9 @@ public:
     //         has completely loaded, the requests it makes without a cache mode of their own bypass the cache too.
     bool is_loading_bypassing_cache() const { return m_navigation_bypassed_cache && !is_completely_loaded(); }
 
-    GC::Ptr<HTML::HTMLScriptElement> current_script() const { return m_current_script.ptr(); }
-    void set_current_script(Badge<HTML::HTMLScriptElement>, GC::Ptr<HTML::HTMLScriptElement> script) { m_current_script = move(script); }
+    GC::Ptr<Element> current_script() const { return m_current_script; }
+    Variant<GC::Ref<HTML::HTMLScriptElement>, GC::Ref<SVG::SVGScriptElement>, Empty> current_script_for_bindings() const;
+    void set_current_script(Badge<HTML::HTMLOrSVGScriptElement>, GC::Ptr<Element> script) { m_current_script = move(script); }
     static constexpr size_t current_script_offset() { return offsetof(Document, m_current_script); }
 
     u32 ignore_destructive_writes_counter() const { return m_ignore_destructive_writes_counter; }
@@ -1982,16 +1983,16 @@ private:
 
     Utf16String m_source;
 
-    GC::Ptr<HTML::HTMLScriptElement> m_pending_parsing_blocking_script;
+    GC::Ptr<Element> m_pending_parsing_blocking_script;
     GC::Ptr<SVG::SVGScriptElement> m_pending_parsing_blocking_svg_script;
 
-    Vector<GC::Ref<HTML::HTMLScriptElement>> m_scripts_to_execute_when_parsing_has_finished;
+    Vector<GC::Ref<Element>> m_scripts_to_execute_when_parsing_has_finished;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#list-of-scripts-that-will-execute-in-order-as-soon-as-possible
-    Vector<GC::Ref<HTML::HTMLScriptElement>> m_scripts_to_execute_in_order_as_soon_as_possible;
+    Vector<GC::Ref<Element>> m_scripts_to_execute_in_order_as_soon_as_possible;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#set-of-scripts-that-will-execute-as-soon-as-possible
-    Vector<GC::Ref<HTML::HTMLScriptElement>> m_scripts_to_execute_as_soon_as_possible;
+    Vector<GC::Ref<Element>> m_scripts_to_execute_as_soon_as_possible;
 
     HTML::ScriptRegistry m_script_registry;
 
@@ -2074,7 +2075,7 @@ private:
     bool m_text_directive_user_activation { false };
     bool m_browsing_context_group_has_remote_contexts { false };
     bool m_navigation_bypassed_cache { false };
-    GC::Ptr<HTML::HTMLScriptElement> m_current_script;
+    GC::Ptr<Element> m_current_script;
 
     u32 m_ignore_destructive_writes_counter { 0 };
 
