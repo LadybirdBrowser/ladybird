@@ -92,11 +92,7 @@ static void append_build_description(StringBuilder& builder, ProcessType process
 
 static void append_system_description(StringBuilder& builder)
 {
-#    ifdef NDEBUG
-    builder.append("Build configuration: release\n"sv);
-#    else
-    builder.append("Build configuration: debug\n"sv);
-#    endif
+    builder.appendff("Build configuration: {}\n", BROWSER_BUILD_CONFIGURATION);
     utsname system {};
     if (uname(&system) == 0) {
         // Only the numeric release, never nodename or custom kernel build text.
