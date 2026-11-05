@@ -7150,23 +7150,10 @@ fn generate_class_expression(
     let mut element_keys: Vec<Option<ScopedOperand>> = Vec::with_capacity(data.elements.len());
     for element_node in &data.elements {
         match &element_node.inner {
-            ClassElement::Method { key, .. } => {
-                if !is_private_key(key) {
-                    let key_val = generate_class_part_expression(key, generator, None);
-                    element_keys.push(key_val);
-                } else {
-                    element_keys.push(None);
-                }
+            ClassElement::Method { key, .. } | ClassElement::Field { key, .. } if !is_private_key(key) => {
+                element_keys.push(generate_class_element_key(generator, key));
             }
-            ClassElement::Field { key, .. } => {
-                if !is_private_key(key) {
-                    let key_val = generate_class_part_expression(key, generator, None);
-                    element_keys.push(key_val);
-                } else {
-                    element_keys.push(None);
-                }
-            }
-            ClassElement::StaticInitializer { .. } => {
+            ClassElement::Method { .. } | ClassElement::Field { .. } | ClassElement::StaticInitializer { .. } => {
                 element_keys.push(None);
             }
         }
@@ -7445,6 +7432,25 @@ fn generate_class_expression(
     }
 
     dst
+}
+
+// https://tc39.es/ecma262/#sec-object-initializer-runtime-semantics-evaluation
+// ComputedPropertyName : [ AssignmentExpression ]
+fn generate_class_element_key(generator: &mut Generator, key: &Expression) -> Option<ScopedOperand> {
+    // 1. Let exprValue be ? Evaluation of AssignmentExpression.
+    // 2. Let propertyName be ? GetValue(exprValue).
+    let property_name = generate_class_part_expression(key, generator, None)?;
+    if property_name.operand().is_constant() {
+        return Some(property_name);
+    }
+    // 3. Return ? ToPropertyKey(propertyName).
+    // NB: NewClass converts the primitive this leaves to a property key, which a later key cannot observe.
+    let property_key = generator.allocate_register();
+    generator.emit(Instruction::ToPrimitiveWithStringHint {
+        dst: property_key.operand(),
+        value: property_name.operand(),
+    });
+    Some(property_key)
 }
 
 /// Synthesize a default constructor SharedFunctionInstanceData.
