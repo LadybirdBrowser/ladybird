@@ -437,6 +437,7 @@ fn generate_expression_inner(
         // === ImportCall ===
         ExpressionKind::ImportCall(ic_data) => {
             let spec = generate_expression(&ic_data.specifier, generator, None)?;
+            let spec = copy_if_reassignable_by(generator, spec, ic_data.options.as_deref());
             let opts = match &ic_data.options {
                 Some(o) => generate_expression(o, generator, None)?,
                 None => generator.add_constant_undefined(),
