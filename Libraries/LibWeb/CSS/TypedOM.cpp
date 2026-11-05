@@ -9,7 +9,6 @@
 #include <LibWeb/CSS/CSSKeywordValue.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
-#include <LibWeb/CSS/PropertyNameAndID.h>
 
 // What LibWeb's C++ code asks of the Rust implementation of the CSS Typed OM (Libraries/LibWeb/Bindings/Rust/src/css).
 
@@ -24,9 +23,7 @@ extern "C" {
 // Defined in Bindings/Rust/src/css/exports.rs.
 void* web_css_style_value_create(JSVM*, FlatPtr associated_property, StyleValueData const*, u8 serialization_mode);
 void* web_css_style_value_reify(JSVM*, StyleValueData const*, FlatPtr associated_property);
-void* web_css_style_value_parse(JSVM*, FlatPtr property, FlatPtr css_text, FlatPtr* error);
 bool web_css_style_value_associated_property(void* value, FlatPtr* associated_property);
-StyleValueData const* web_css_style_value_create_an_internal_representation(JSVM*, void* value, u16 property_id, FlatPtr property_name, bool perform_type_check, FlatPtr* error);
 u8 web_css_style_value_kind(void* value);
 void* web_css_numeric_value_create_sum(JSVM*, void* first, void* second);
 FfiNumericType web_css_numeric_value_type(void* value);
@@ -68,30 +65,12 @@ GC::Ref<CSSStyleValue> CSSStyleValue::reify(StyleValue const& value, Utf16FlyStr
     return GC::Ref { *static_cast<CSSStyleValue*>(reified_value) };
 }
 
-WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse_a_css_style_value(Utf16FlyString const& property, Utf16View css_text)
-{
-    FlatPtr error = 0;
-    auto* value = web_css_style_value_parse(vm_abi(), property.to_utf16_string().into_raw(), Utf16String::from_utf16(css_text).into_raw(), &error);
-    if (!value)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::adopt_raw(error) };
-    return GC::Ref { *static_cast<CSSStyleValue*>(value) };
-}
-
 Optional<Utf16FlyString> CSSStyleValue::associated_property() const
 {
     FlatPtr associated_property = 0;
     if (!web_css_style_value_associated_property(const_cast<CSSStyleValue*>(this), &associated_property))
         return {};
     return Utf16FlyString { Utf16String::adopt_raw(associated_property) };
-}
-
-WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSStyleValue::create_an_internal_representation(PropertyNameAndID const& property, PerformTypeCheck perform_type_check) const
-{
-    FlatPtr error = 0;
-    auto const* value = web_css_style_value_create_an_internal_representation(vm_abi(), const_cast<CSSStyleValue*>(this), to_underlying(property.id()), property.name().to_utf16_string().into_raw(), perform_type_check == PerformTypeCheck::Yes, &error);
-    if (!value)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::adopt_raw(error) };
-    return NonnullRefPtr<StyleValue const> { *StyleValue::adopt_rust_style_value_data(value) };
 }
 
 bool CSSStyleValue::is_numeric_value() const

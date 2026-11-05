@@ -16,7 +16,6 @@
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
@@ -27,23 +26,12 @@ class WEB_API CSSStyleValue : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(CSSStyleValue, css_style_value)
 
 public:
-    enum class PerformTypeCheck : u8 {
-        No,
-        Yes,
-    };
-
     static GC::Ref<CSSStyleValue> create(Utf16FlyString associated_property, StyleValue const&, SerializationMode = SerializationMode::Normal);
 
     // https://drafts.css-houdini.org/css-typed-om-1/#reify-stylevalue
     static GC::Ref<CSSStyleValue> reify(StyleValue const&, Utf16FlyString const& associated_property);
 
-    // https://drafts.css-houdini.org/css-typed-om-1/#parse-a-cssstylevalue, with parseMultiple set to false.
-    static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse_a_css_style_value(Utf16FlyString const& property, Utf16View css_text);
-
     Optional<Utf16FlyString> associated_property() const;
-
-    // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
-    WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const;
 
     bool is_unparsed_value() const;
 
