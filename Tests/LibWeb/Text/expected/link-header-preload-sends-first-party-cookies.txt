@@ -1,0 +1,2 @@
+Stylesheet only the Link header names: session=1
+Script the document loads: session=1

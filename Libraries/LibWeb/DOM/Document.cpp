@@ -502,6 +502,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_content_type = move(content_type);
     document->set_origin(navigation_params.origin);
     document->set_browsing_context(browsing_context);
+    document->m_navigable_awaiting_activation = navigation_params.navigable.ptr();
     document->m_policy_container = navigation_params.policy_container;
     document->set_opener_policy(navigation_params.opener_policy);
     document->m_permissions_policy = permissions_policy.release_value();
@@ -11402,6 +11403,8 @@ void Document::set_navigable(GC::Ptr<HTML::LocalNavigable> navigable)
 
     GC::Ptr<Page> previous_page = m_navigable ? &m_navigable->page() : nullptr;
     m_navigable = navigable.ptr();
+    if (navigable)
+        m_navigable_awaiting_activation = nullptr;
     invalidate_full_activity();
     HTML::main_thread_event_loop().document_navigable_did_change({});
     rendering_pending_document_changed(*this);

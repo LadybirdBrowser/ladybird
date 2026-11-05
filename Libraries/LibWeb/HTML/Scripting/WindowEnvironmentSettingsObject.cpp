@@ -114,9 +114,16 @@ URL::Origin WindowEnvironmentSettingsObject::origin() const
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-settings-for-window-objects:concept-settings-object-has-cross-site-ancestor
 bool WindowEnvironmentSettingsObject::has_cross_site_ancestor() const
 {
+    auto navigable = m_window->navigable();
+
+    // AD-HOC: A document created for a navigation is not its navigable's active document yet when it processes the
+    //         preloads of its Link headers, so its window has no navigable. Answer for the navigable it is created in,
+    //         as its own fetches are answered once it is active.
+    if (!navigable)
+        navigable = m_window->associated_document().navigable_awaiting_activation();
+
     // NB: A fetch can outlive its document's navigable, for example when following a redirect after an iframe is
     //     removed. Without its ancestors, conservatively treat the environment as a third-party context.
-    auto navigable = m_window->navigable();
     if (!navigable)
         return true;
 
