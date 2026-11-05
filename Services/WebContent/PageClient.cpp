@@ -1206,15 +1206,16 @@ void PageClient::publish_accessibility_tree(bool whole_tree_requested)
         return;
     document->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
 
-    auto update = m_accessibility_tree_publisher.publish(static_cast<i64>(document->unique_id().value()), document->build_accessibility_node_data(), whole_tree_requested);
-    update.visit(
-        [](WebView::AccessibilityTreePublisher::NothingChanged) { },
-        [&](WebView::AccessibilityTreePublisher::WholeTree& tree) {
-            client().async_did_get_accessibility_tree(m_id, tree.sequence, move(tree.nodes));
-        },
-        [&](WebView::AccessibilityTreePublisher::Change& change) {
-            client().async_did_change_accessibility_tree(m_id, change.base_sequence, change.sequence, move(change.delta));
-        });
+    auto change = document->build_accessibility_tree_change(m_accessibility_change_tracker, whole_tree_requested);
+    if (change.is_whole_tree) {
+        client().async_did_get_accessibility_tree(m_id, ++m_accessibility_tree_sequence, move(change.nodes));
+        return;
+    }
+    if (change.nodes.is_empty() && change.removed_ids.is_empty())
+        return;
+    auto base_sequence = m_accessibility_tree_sequence++;
+    client().async_did_change_accessibility_tree(m_id, base_sequence, m_accessibility_tree_sequence,
+        WebView::AccessibilityTreeDelta { move(change.nodes), move(change.removed_ids) });
 }
 
 void PageClient::page_did_finish_test(Utf16String const& text)

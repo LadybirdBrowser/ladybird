@@ -2085,6 +2085,41 @@ String Internals::accessibility_cached_record_mismatches()
     return builder.to_string_without_validation();
 }
 
+String Internals::accessibility_change_tracking_mismatches()
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::InspectAccessibilityTree);
+
+    // Apply what changed since the last call to the tree as it stood then, as the UI process does with what WebContent
+    // sends it, and compare the result with the whole tree built again.
+    auto change = document.build_accessibility_tree_change(m_accessibility_change_tracker, false);
+    m_last_accessibility_change_size = change.is_whole_tree
+        ? MUST(String::formatted("whole tree of {} nodes", change.nodes.size()))
+        : MUST(String::formatted("{} nodes changed, {} removed", change.nodes.size(), change.removed_ids.size()));
+    if (change.is_whole_tree)
+        m_accessibility_tracked_tree.clear();
+    for (auto id : change.removed_ids)
+        m_accessibility_tracked_tree.remove(id);
+    for (auto& node : change.nodes)
+        m_accessibility_tracked_tree.set(node.id, move(node));
+
+    StringBuilder builder;
+    HashTable<i64> built_ids;
+    for (auto const& node : document.build_accessibility_node_data()) {
+        built_ids.set(node.id);
+        auto tracked = m_accessibility_tracked_tree.find(node.id);
+        if (tracked == m_accessibility_tracked_tree.end())
+            builder.appendff("{} \"{}\": missing from the tree built from changes\n", node.role, node.name);
+        else if (tracked->value != node)
+            builder.appendff("{} \"{}\": differs in the tree built from changes\n", node.role, node.name);
+    }
+    for (auto const& [id, node] : m_accessibility_tracked_tree) {
+        if (!built_ids.contains(id))
+            builder.appendff("{} \"{}\": still in the tree built from changes\n", node.role, node.name);
+    }
+    return builder.to_string_without_validation();
+}
+
 String Internals::accessibility_cached_geometry_mismatches()
 {
     StringBuilder builder;

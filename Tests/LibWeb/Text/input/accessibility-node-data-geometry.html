@@ -17,15 +17,20 @@
     test(() => {
         internals.setAccessibilityInterested();
         const root = document.getElementById("root");
+        // Printing adds to the DOM, so the output waits until the last step: Otherwise, each step's change would include
+        // the previous step's output.
+        const output = [];
         const step = (label, change) => {
             change();
-            // Printing adds to the DOM, so read everything before printing anything.
+            // The change tracker comes first, so that it builds the tree the way publishing does: before anything else
+            // keeps what changed.
+            const tracking = internals.accessibilityChangeTrackingMismatches();
+            const changeSize = internals.accessibilityLastChangeSize();
             const dump = internals.dumpAccessibilityNodeData(root);
-            const stale = internals.accessibilityCachedTextMismatches() + internals.accessibilityCachedRecordMismatches() + internals.accessibilityCachedGeometryMismatches();
-            println(`== ${label}`);
-            println(dump);
+            const stale = internals.accessibilityCachedTextMismatches() + internals.accessibilityCachedRecordMismatches() + internals.accessibilityCachedGeometryMismatches() + tracking;
+            output.push(`== ${label} (${changeSize})`, dump);
             if (stale)
-                println(`stale cached data:\n${stale}`);
+                output.push(`stale cached data:\n${stale}`);
         };
 
         step("initial", () => {});
@@ -33,5 +38,7 @@
         step("container narrowed", () => document.getElementById("container").style.width = "250px");
         step("earlier text on the line grew", () => document.getElementById("first").firstChild.data = "much longer than before");
         step("content above grew", () => document.getElementById("above").append(document.createElement("br"), "and more"));
+        for (const line of output)
+            println(line);
     });
 </script>

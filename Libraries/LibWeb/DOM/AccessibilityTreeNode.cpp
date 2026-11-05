@@ -408,10 +408,22 @@ static Optional<Document::CachedTextGeometry> text_geometry_sources(Layout::Node
     return geometry;
 }
 
+// Keeps the geometry just computed into the node's data, with what layout computed it from, and returns the version it
+// gets: or nothing, when it can't be kept.
+static Optional<u64> keep_text_geometry(WebView::AccessibilityNodeData const& node_data, DOM::Text const& text_node, Document const& document, Document::CachedTextGeometry geometry)
+{
+    geometry.character_offsets = node_data.character_offsets;
+    geometry.line_break_character_offsets = node_data.line_break_character_offsets;
+    geometry.line_heights = node_data.line_heights;
+    if (auto version = document.cache_text_geometry(text_node, move(geometry)))
+        return version;
+    return {};
+}
+
 // The fields that can change with nothing changing in the node itself or its style: its bounds and text geometry,
 // which any layout can move, and whether it has the focus. They're computed again even for a node whose other fields
 // are kept from the last build.
-static void fill_volatile_fields(WebView::AccessibilityNodeData& node_data, DOM::Node const& node, Document const& document, Layout::BegunRead const& read)
+static Optional<u64> fill_volatile_fields(WebView::AccessibilityNodeData& node_data, DOM::Node const& node, Document const& document, Layout::BegunRead const& read)
 {
     node_data.bounds = {};
     node_data.is_focused = false;
@@ -421,17 +433,17 @@ static void fill_volatile_fields(WebView::AccessibilityNodeData& node_data, DOM:
     if (auto const* element = as_if<DOM::Element>(node)) {
         node_data.bounds = accessibility_bounds(read, *element);
         node_data.is_focused = element->is_focused();
-        return;
+        return 0;
     }
     auto const* text_node = as_if<DOM::Text>(node);
     if (!text_node)
-        return;
+        return 0;
     auto parent = text_node->parent_element();
     if (!parent)
-        return;
+        return 0;
     node_data.bounds = accessibility_bounds(read, *parent);
     if (!parent->style_group<CSS::ComputedValues::FontValues>() || !parent->style_group<CSS::ComputedValues::InheritedTextValues>())
-        return;
+        return 0;
     Gfx::Font const* font = nullptr;
     if (auto layout = parent->layout_node(read))
         font = &layout->first_available_font();
@@ -447,18 +459,15 @@ static void fill_volatile_fields(WebView::AccessibilityNodeData& node_data, DOM:
             node_data.character_offsets = kept->character_offsets;
             node_data.line_break_character_offsets = kept->line_break_character_offsets;
             node_data.line_heights = kept->line_heights;
-            return;
+            return kept->version;
         }
     }
     if (!fill_text_geometry(node_data, *text_node, font, document, read) || !geometry.has_value())
-        return;
-    geometry->character_offsets = node_data.character_offsets;
-    geometry->line_break_character_offsets = node_data.line_break_character_offsets;
-    geometry->line_heights = node_data.line_heights;
-    document.cache_text_geometry(*text_node, geometry.release_value());
+        return {};
+    return keep_text_geometry(node_data, *text_node, document, geometry.release_value());
 }
 
-void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const& document, Layout::BegunRead const& read, i64 parent_id) const
+void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const& document, Layout::BegunRead const& read, i64 parent_id, AccessibilityChangeTracker* tracker) const
 {
     WebView::AccessibilityNodeData node_data;
     node_data.parent_id = parent_id;
@@ -467,10 +476,17 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
     // node's data holds from one build to the next until a change to the node or its style could alter it, and compute
     // again just the fields that can change without one.
     auto keeps_records = document.page().accessibility_interested();
-    if (auto const* record = keeps_records ? document.cached_accessibility_record(*value()) : nullptr) {
-        node_data = *record;
-        fill_volatile_fields(node_data, *value(), document, read);
+    // What a change tracker tells this build of the node from the last one by: see AccessibilityChangeTracker::note().
+    u64 record_version = 0;
+    Optional<u64> geometry_version;
+    if (auto kept = keeps_records ? document.kept_accessibility_record(*value()) : Document::KeptAccessibilityRecord {}; kept.data) {
+        node_data = *kept.data;
+        record_version = kept.version;
+        geometry_version = fill_volatile_fields(node_data, *value(), document, read);
     } else {
+        if (!value()->is_text())
+            geometry_version = 0;
+        bool text_geometry_from_lines = false;
         if (value()->is_element()) {
             auto const& element = static_cast<DOM::Element const&>(*value());
 
@@ -869,12 +885,22 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
                     if (bg.alpha() > 0)
                         node_data.background_color = MUST(String::from_byte_string(bg.to_byte_string_without_alpha()));
 
-                    fill_text_geometry(node_data, text_node, font, document, read);
+                    text_geometry_from_lines = fill_text_geometry(node_data, text_node, font, document, read);
                 }
             }
         }
-        if (keeps_records)
-            document.cache_accessibility_record(*value(), node_data);
+        if (keeps_records) {
+            record_version = document.cache_accessibility_record(*value(), node_data);
+            // Keep the text's geometry with its record right away, so the next build reuses it rather than computing it
+            // again.
+            if (text_geometry_from_lines) {
+                auto const& text_node = static_cast<DOM::Text const&>(*value());
+                if (auto* text_layout = text_node.layout_node(read)) {
+                    if (auto sources = text_geometry_sources(*text_layout); sources.has_value())
+                        geometry_version = keep_text_geometry(node_data, text_node, document, sources.release_value());
+                }
+            }
+        }
     }
     node_data.parent_id = parent_id;
 
@@ -922,12 +948,13 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
         node_data.child_ids.append(static_cast<i64>(child->value()->unique_id().value()));
     }
 
-    out.append(move(node_data));
+    if (!tracker || tracker->note(node_data, record_version, geometry_version))
+        out.append(move(node_data));
 
     for (auto const& child : children()) {
         if (should_skip_child(*child))
             continue;
-        child->serialize_tree_as_node_data(out, document, read, my_id);
+        child->serialize_tree_as_node_data(out, document, read, my_id, tracker);
     }
 }
 

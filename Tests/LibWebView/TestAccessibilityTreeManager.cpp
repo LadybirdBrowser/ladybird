@@ -5,8 +5,8 @@
  */
 
 #include <AK/HashTable.h>
+#include <AK/Variant.h>
 #include <LibTest/TestCase.h>
-#include <LibWebCommon/WebView/AccessibilityTreePublisher.h>
 #include <LibWebView/AccessibilityTreeManager.h>
 
 namespace {
@@ -516,7 +516,86 @@ TEST_CASE(delta_announces_live_region_changes)
 
 namespace {
 
-using Publisher = WebView::AccessibilityTreePublisher;
+// A stand-in for WebContent that sends each whole tree once, and then only what changed in it, found by comparing it
+// with the last tree sent: what the manager has to apply.
+class Publisher {
+public:
+    struct WholeTree {
+        u64 sequence { 0 };
+        Vector<WebView::AccessibilityNodeData> nodes;
+    };
+    struct Change {
+        u64 base_sequence { 0 };
+        u64 sequence { 0 };
+        WebView::AccessibilityTreeDelta delta;
+    };
+    struct NothingChanged { };
+    using Update = Variant<NothingChanged, WholeTree, Change>;
+
+    Update publish(i64 document_id, Vector<WebView::AccessibilityNodeData> nodes, bool whole_tree_requested)
+    {
+        auto remember = [&](Vector<WebView::AccessibilityNodeData> const& published) {
+            m_document_id = document_id;
+            m_published_nodes.clear();
+            m_published_nodes.ensure_capacity(published.size());
+            for (auto const& node : published)
+                m_published_nodes.set(node.id, node);
+        };
+
+        if (whole_tree_requested || m_document_id != document_id) {
+            remember(nodes);
+            return WholeTree { ++m_sequence, move(nodes) };
+        }
+
+        // Every node that's new or whose data changed goes in the change, in tree order. A node whose children changed
+        // is among them, so a node that moved is listed by its new parent, and dropped by its old one.
+        WebView::AccessibilityTreeDelta delta;
+        Vector<size_t> new_node_indices;
+        size_t surviving_count = 0;
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            auto& node = nodes[i];
+            auto published = m_published_nodes.find(node.id);
+            if (published == m_published_nodes.end()) {
+                delta.changed_nodes.append(node);
+                new_node_indices.append(i);
+                continue;
+            }
+            ++surviving_count;
+            if (published->value == node)
+                continue;
+            delta.changed_nodes.append(node);
+            published->value = move(node);
+        }
+
+        // Only when fewer nodes of the tree sent survive than it had are any of them gone. (A node moved from still has
+        // its ID: Moving an integer copies it.)
+        if (surviving_count < m_published_nodes.size()) {
+            HashTable<i64> current_ids;
+            current_ids.ensure_capacity(nodes.size());
+            for (auto const& node : nodes)
+                current_ids.set(node.id);
+            for (auto const& [id, node] : m_published_nodes) {
+                if (!current_ids.contains(id))
+                    delta.removed_ids.append(id);
+            }
+            for (auto id : delta.removed_ids)
+                m_published_nodes.remove(id);
+        }
+        for (auto i : new_node_indices)
+            m_published_nodes.set(nodes[i].id, move(nodes[i]));
+
+        if (delta.changed_nodes.is_empty() && delta.removed_ids.is_empty())
+            return NothingChanged {};
+
+        auto base_sequence = m_sequence;
+        return Change { base_sequence, ++m_sequence, move(delta) };
+    }
+
+private:
+    Optional<i64> m_document_id;
+    HashMap<i64, WebView::AccessibilityNodeData> m_published_nodes;
+    u64 m_sequence { 0 };
+};
 
 Vector<WebView::AccessibilityNodeData> base_tree_nodes()
 {
@@ -542,41 +621,6 @@ bool deliver(WebView::AccessibilityTreeManager& manager, Publisher::Update updat
         });
 }
 
-}
-
-TEST_CASE(publisher_sends_the_whole_tree_only_when_it_has_to)
-{
-    Publisher publisher;
-
-    auto first = publisher.publish(7, base_tree_nodes(), false);
-    EXPECT(first.has<Publisher::WholeTree>());
-    EXPECT_EQ(first.get<Publisher::WholeTree>().sequence, 1u);
-    EXPECT_EQ(first.get<Publisher::WholeTree>().nodes.size(), 4u);
-
-    EXPECT(publisher.publish(7, base_tree_nodes(), false).has<Publisher::NothingChanged>());
-
-    // Rename 3 and remove 2: The change holds just 3 and the root, whose children changed, and names 2 as removed.
-    auto nodes = base_tree_nodes();
-    nodes[0].child_ids = { 1 };
-    nodes.remove(2);
-    nodes[2].name = "renamed"_string;
-    auto second = publisher.publish(7, nodes, false);
-    EXPECT(second.has<Publisher::Change>());
-    auto const& change = second.get<Publisher::Change>();
-    EXPECT_EQ(change.base_sequence, 1u);
-    EXPECT_EQ(change.sequence, 2u);
-    EXPECT_EQ(change.delta.changed_nodes.size(), 2u);
-    EXPECT_EQ(change.delta.changed_nodes[0].id, 0);
-    EXPECT_EQ(change.delta.changed_nodes[1].id, 3);
-    EXPECT_EQ(change.delta.removed_ids, Vector<i64> { 2 });
-
-    // The whole tree goes out when the UI process asks for it, and for a new document.
-    auto requested = publisher.publish(7, nodes, true);
-    EXPECT(requested.has<Publisher::WholeTree>());
-    EXPECT_EQ(requested.get<Publisher::WholeTree>().sequence, 3u);
-    auto new_document = publisher.publish(8, nodes, false);
-    EXPECT(new_document.has<Publisher::WholeTree>());
-    EXPECT_EQ(new_document.get<Publisher::WholeTree>().sequence, 4u);
 }
 
 TEST_CASE(change_to_a_tree_the_manager_does_not_hold_is_rejected)

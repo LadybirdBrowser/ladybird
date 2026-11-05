@@ -305,9 +305,11 @@ struct Document::AccessibilityRecordCache {
     AK_ALLOC_WITH_KMALLOC;
     struct Record {
         WebView::AccessibilityNodeData data;
+        u64 version { 0 };
         Optional<CachedTextGeometry> text_geometry;
     };
     HashMap<UniqueNodeID, Record> records;
+    u64 next_version { 1 };
 };
 
 static void release_text_geometry_sources(Vector<Document::CachedTextGeometry::Source>& sources)
@@ -323,6 +325,7 @@ Document::CachedTextGeometry& Document::CachedTextGeometry::operator=(CachedText
         return *this;
     release_text_geometry_sources(sources);
     sources = move(other.sources);
+    version = other.version;
     character_offsets = move(other.character_offsets);
     line_break_character_offsets = move(other.line_break_character_offsets);
     line_heights = move(other.line_heights);
@@ -7311,6 +7314,29 @@ Utf16String Document::dump_accessibility_tree_as_json()
     return builder.to_string();
 }
 
+AccessibilityChangeTracker::Change Document::build_accessibility_tree_change(AccessibilityChangeTracker& tracker, bool whole_tree)
+{
+    auto document_id = static_cast<i64>(unique_id().value());
+    AccessibilityChangeTracker::Change change;
+    change.is_whole_tree = whole_tree || tracker.needs_whole_tree(document_id);
+    tracker.begin(document_id, change.is_whole_tree);
+    auto accessibility_tree = AccessibilityTreeNode::create(nullptr);
+    build_accessibility_tree(*&accessibility_tree);
+    if (accessibility_tree->value()) {
+        // The tree reads what renders, as the caller's own read of the render state.
+        Layout::ForcedReadScope read { *this };
+        accessibility_tree->serialize_tree_as_node_data(change.nodes, *this, read, -1, &tracker);
+    } else {
+        WebView::AccessibilityNodeData root;
+        root.id = static_cast<i64>(unique_id().value());
+        root.role = "document"_string;
+        if (tracker.note(root, 0, 0))
+            change.nodes.append(move(root));
+    }
+    change.removed_ids = tracker.end();
+    return change;
+}
+
 Vector<WebView::AccessibilityNodeData> Document::build_accessibility_node_data()
 {
     Vector<WebView::AccessibilityNodeData> nodes;
@@ -7383,10 +7409,20 @@ WebView::AccessibilityNodeData const* Document::cached_accessibility_record(Node
     return it == m_accessibility_record_cache->records.end() ? nullptr : &it->value.data;
 }
 
-void Document::cache_accessibility_record(Node const& node, WebView::AccessibilityNodeData const& record) const
+Document::KeptAccessibilityRecord Document::kept_accessibility_record(Node const& node) const
+{
+    if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
+        return {};
+    auto it = m_accessibility_record_cache->records.find(node.unique_id());
+    if (it == m_accessibility_record_cache->records.end())
+        return {};
+    return { &it->value.data, it->value.version };
+}
+
+u64 Document::cache_accessibility_record(Node const& node, WebView::AccessibilityNodeData const& record) const
 {
     if (m_accessibility_caches_bypassed)
-        return;
+        return 0;
     if (!m_accessibility_record_cache)
         m_accessibility_record_cache = make<AccessibilityRecordCache>();
     // Leave out what every build computes again anyway, so it isn't kept, and copied out, for nothing.
@@ -7396,7 +7432,9 @@ void Document::cache_accessibility_record(Node const& node, WebView::Accessibili
     kept.character_offsets.clear();
     kept.line_break_character_offsets.clear();
     kept.line_heights.clear();
-    m_accessibility_record_cache->records.set(node.unique_id(), { move(kept), {} });
+    auto version = m_accessibility_record_cache->next_version++;
+    m_accessibility_record_cache->records.set(node.unique_id(), { move(kept), version, {} });
+    return version;
 }
 
 Document::CachedTextGeometry const* Document::cached_text_geometry(Node const& node) const
@@ -7409,14 +7447,18 @@ Document::CachedTextGeometry const* Document::cached_text_geometry(Node const& n
     return &*it->value.text_geometry;
 }
 
-void Document::cache_text_geometry(Node const& node, CachedTextGeometry geometry) const
+u64 Document::cache_text_geometry(Node const& node, CachedTextGeometry geometry) const
 {
     // The geometry goes with the node's record, so whatever drops the record drops the geometry too.
     if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
-        return;
+        return 0;
     auto it = m_accessibility_record_cache->records.find(node.unique_id());
-    if (it != m_accessibility_record_cache->records.end())
-        it->value.text_geometry = move(geometry);
+    if (it == m_accessibility_record_cache->records.end())
+        return 0;
+    geometry.version = m_accessibility_record_cache->next_version++;
+    auto version = geometry.version;
+    it->value.text_geometry = move(geometry);
+    return version;
 }
 
 static bool is_table_structure(Element const& element)
