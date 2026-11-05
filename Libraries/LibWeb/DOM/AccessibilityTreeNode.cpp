@@ -238,7 +238,8 @@ Document::CachedAccessibleText AccessibilityTreeNode::compute_accessible_text(El
 // Fills in where each character of a text leaf renders, relative to the text's own top-left; where its lines break and
 // how tall they are; and, once its lines are known, its bounds. Any layout can change all of that, with nothing changing
 // in the text node itself, so it's computed again on every build of the tree.
-static void fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::Text const& text_node, Gfx::Font const* font, Document const& document, Layout::BegunRead const& read)
+// Returns whether the geometry came from the lines layout rendered the text on, rather than from font metrics alone.
+static bool fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::Text const& text_node, Gfx::Font const* font, Document const& document, Layout::BegunRead const& read)
 {
     // Compute per-character (x, y) offsets and line-break positions. Visual lines give the DOM offsets
     // of each rendered line of this text node; the caret rect at a line's first offset gives that line's
@@ -378,7 +379,9 @@ static void fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
         // A trailing run that renders on no line, likewise.
         while (rendered_end.has_value() && node_data.character_offsets.size() < view.length())
             node_data.character_offsets.append(*rendered_end);
-    } else if (font) {
+        return true;
+    }
+    if (font) {
         // Fallback: single-line font-metrics computation.
         node_data.line_break_character_offsets.append(0);
         node_data.line_heights.append(node_data.bounds.height());
@@ -388,6 +391,21 @@ static void fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
             cumulative += glyph_advance(*font, code_point);
         }
     }
+    return false;
+}
+
+// What layout computes a text node's character geometry from, or nothing when that can't be told.
+static Optional<Document::CachedTextGeometry> text_geometry_sources(Layout::Node const& layout)
+{
+    Document::CachedTextGeometry geometry;
+    auto known = Layout::RustFFI::layout_script_text_geometry_sources(
+        layout.document_host(), Layout::Node::slot_id(&layout), &geometry,
+        [](void* context, void const* line_content, i32 x, i32 y) {
+            static_cast<Document::CachedTextGeometry*>(context)->sources.append({ line_content, x, y });
+        });
+    if (!known)
+        return {};
+    return geometry;
 }
 
 // The fields that can change with nothing changing in the node itself or its style: its bounds and text geometry,
@@ -417,7 +435,27 @@ static void fill_volatile_fields(WebView::AccessibilityNodeData& node_data, DOM:
     Gfx::Font const* font = nullptr;
     if (auto layout = parent->layout_node(read))
         font = &layout->first_available_font();
-    fill_text_geometry(node_data, *text_node, font, document, read);
+
+    // Text geometry is the costliest part of a build, so keep it for as long as the lines it came from stay the same.
+    // Only its bounds are read again: They're viewport-relative, so scrolling moves them.
+    auto* text_layout = text_node->layout_node(read);
+    auto geometry = text_layout ? text_geometry_sources(*text_layout) : Optional<Document::CachedTextGeometry> {};
+    if (geometry.has_value()) {
+        if (auto const* kept = document.cached_text_geometry(*text_node); kept && kept->sources == geometry->sources) {
+            if (auto own_box = text_bounding_client_rect(document, *text_layout); own_box.has_value())
+                node_data.bounds = own_box->to_type<int>();
+            node_data.character_offsets = kept->character_offsets;
+            node_data.line_break_character_offsets = kept->line_break_character_offsets;
+            node_data.line_heights = kept->line_heights;
+            return;
+        }
+    }
+    if (!fill_text_geometry(node_data, *text_node, font, document, read) || !geometry.has_value())
+        return;
+    geometry->character_offsets = node_data.character_offsets;
+    geometry->line_break_character_offsets = node_data.line_break_character_offsets;
+    geometry->line_heights = node_data.line_heights;
+    document.cache_text_geometry(*text_node, geometry.release_value());
 }
 
 void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const& document, Layout::BegunRead const& read, i64 parent_id) const

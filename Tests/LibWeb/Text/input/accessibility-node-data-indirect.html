@@ -37,7 +37,7 @@
             change();
             // Printing adds to the DOM, so read everything before printing anything.
             const dump = internals.dumpAccessibilityNodeData(root);
-            const stale = internals.accessibilityCachedTextMismatches() + internals.accessibilityCachedRecordMismatches();
+            const stale = internals.accessibilityCachedTextMismatches() + internals.accessibilityCachedRecordMismatches() + internals.accessibilityCachedGeometryMismatches();
             println(`== ${label}`);
             println(dump);
             if (stale)

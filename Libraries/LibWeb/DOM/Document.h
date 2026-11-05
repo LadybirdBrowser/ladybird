@@ -28,6 +28,7 @@
 #include <LibCore/Forward.h>
 #include <LibCore/SharedVersion.h>
 #include <LibGC/WeakHashSet.h>
+#include <LibGfx/Point.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -1272,6 +1273,38 @@ public:
     WebView::AccessibilityNodeData const* cached_accessibility_record(Node const&) const;
     void cache_accessibility_record(Node const&, WebView::AccessibilityNodeData const&) const;
     void invalidate_cached_accessibility_records_after_style_change(Element const&);
+
+    // A text node's character geometry, kept with its record from one build to the next along with what layout
+    // computed it from: The same line content at the same positions gives the same geometry, so it's computed again
+    // only when one of them changes.
+    struct CachedTextGeometry {
+        AK_MAKE_NONCOPYABLE(CachedTextGeometry);
+
+    public:
+        CachedTextGeometry() = default;
+        CachedTextGeometry(CachedTextGeometry&&) = default;
+        // Releases the references this held, before taking the other's.
+        CachedTextGeometry& operator=(CachedTextGeometry&&);
+        ~CachedTextGeometry();
+
+        // A containing block's line content, which each source holds a reference to, and that block's raw
+        // document-absolute position.
+        struct Source {
+            void const* line_content { nullptr };
+            i32 x { 0 };
+            i32 y { 0 };
+            bool operator==(Source const&) const = default;
+        };
+        Vector<Source> sources;
+        Vector<Gfx::IntPoint> character_offsets;
+        Vector<i32> line_break_character_offsets;
+        Vector<i32> line_heights;
+    };
+    CachedTextGeometry const* cached_text_geometry(Node const&) const;
+    void cache_text_geometry(Node const&, CachedTextGeometry) const;
+    // For tests: each text node whose kept geometry differs from what computing it again gives.
+    Vector<String> cached_text_geometry_mismatches();
+
     // For tests: builds that compute every node's data again, without what earlier builds kept.
     bool accessibility_caches_bypassed() const { return m_accessibility_caches_bypassed; }
     // For tests: each node whose kept data differs from what computing it again gives.
