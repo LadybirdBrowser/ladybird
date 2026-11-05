@@ -74,11 +74,11 @@ Do not use AI-generated descriptions or summaries as a substitute for understand
 The repository contains a file called `.pre-commit-config.yaml` that defines several commit hooks that can be run automatically just before and after creating a new commit. These hooks lint your commit message, and the changes it contains to ensure they will pass the automated CI checks.
 
 The Python and workflow lint scripts use the versions pinned in
-`Meta/Linters/requirements.txt`, including when called by commit hooks or CI.
-They prepare a virtual environment under `Build/linters` on first use and reuse
-it afterward. Python with `venv` and `pip` support is required; the first setup
-downloads the pinned tools. Changing the requirements or Python interpreter
-selects a fresh environment. Concurrent invocations share a setup lock.
+`requirements.txt` at the repository root, including when called by commit hooks
+or CI. They share a virtual environment under `Build/venv` with `test-web`.
+Python with `venv` and `pip` support is required; the first setup downloads the
+pinned packages. Changing the requirements or Python interpreter selects a fresh
+environment. Concurrent invocations share a setup lock.
 
 To prepare the environment in advance or run a pinned tool directly:
 
@@ -89,7 +89,8 @@ python3 Meta/Linters/run.py ruff check Meta/ladybird.py
 ```
 
 Once prepared, the environment can be reused without downloading the packages
-again. Delete `Build/linters` to clear the cache when no linters are running.
+again. Delete `Build/venv` to clear the cache when no linters or tests are running,
+then rebuild `test-web` before running it again.
 
 To enable these hooks, first follow the installation instructions available at https://pre-commit.com/#install and then enable one or both of the following hooks:
 

@@ -5,74 +5,16 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
-import hashlib
 import os
+import pathlib
 import subprocess
 import sys
-import venv
 
-from pathlib import Path
+META_SOURCE_DIR = pathlib.Path(__file__).resolve().parent.parent
 
+sys.path.append(str(META_SOURCE_DIR))
 
-def lock_environment(lock_file):
-    if os.name == "nt":
-        import errno
-        import msvcrt
-        import time
-
-        lock_file.write(b"\0")
-        lock_file.flush()
-        lock_file.seek(0)
-        while True:
-            try:
-                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
-                return
-            except OSError as error:
-                if error.errno != errno.EACCES:
-                    raise
-                time.sleep(0.1)
-    else:
-        import fcntl
-
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
-
-
-def prepare_environment(requirements_path, cache_root):
-    requirements = requirements_path.read_bytes()
-    identity = b"\0".join((requirements, sys.version.encode(), os.fsencode(sys.executable), os.fsencode(cache_root)))
-    environment = cache_root / hashlib.sha256(identity).hexdigest()[:16]
-    binaries = environment / ("Scripts" if os.name == "nt" else "bin")
-    python = binaries / ("python.exe" if os.name == "nt" else "python")
-    ready = environment / ".ready"
-    if ready.is_file() and python.is_file():
-        return binaries
-
-    cache_root.mkdir(parents=True, exist_ok=True)
-    with (cache_root / f"{environment.name}.lock").open("a+b") as lock_file:
-        lock_environment(lock_file)
-        if not ready.is_file() or not python.is_file():
-            print(f"Preparing pinned linters in {environment}", file=sys.stderr, flush=True)
-            venv.EnvBuilder(with_pip=True, clear=True).create(environment)
-            # Install the exact snapshot used for the cache key, even if the
-            # checkout changes while pip is running.
-            snapshot = environment / "requirements.txt"
-            snapshot.write_bytes(requirements)
-            subprocess.run(
-                [
-                    str(python),
-                    "-m",
-                    "pip",
-                    "install",
-                    "--disable-pip-version-check",
-                    "--require-virtualenv",
-                    "-r",
-                    str(snapshot),
-                ],
-                check=True,
-                stdout=sys.stderr,
-            )
-            ready.touch()
-    return binaries
+from Utils.python_environment import prepare_environment  # noqa: E402
 
 
 def main():
@@ -83,8 +25,7 @@ def main():
     parser.add_argument("args", nargs=argparse.REMAINDER, help="Arguments passed through to the linter")
     args = parser.parse_args()
 
-    linters = Path(__file__).resolve().parent
-    binaries = prepare_environment(linters / "requirements.txt", linters.parent.parent / "Build/linters")
+    binaries = prepare_environment()
     if args.tool is None:
         print(binaries)
         return 0

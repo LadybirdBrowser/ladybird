@@ -877,23 +877,19 @@ class AIATLSServer(socketserver.ThreadingTCPServer):
 
 
 def _setup_tls_test_servers(http_port, ca_cert_output):
-    try:
-        from cryptography import x509  # type: ignore[import-not-found]
-        from cryptography.hazmat.primitives import hashes  # type: ignore[import-not-found]
-        from cryptography.hazmat.primitives.asymmetric import ec  # type: ignore[import-not-found]
-        from cryptography.hazmat.primitives.serialization import Encoding  # type: ignore[import-not-found]
-        from cryptography.hazmat.primitives.serialization import NoEncryption  # type: ignore[import-not-found]
-        from cryptography.hazmat.primitives.serialization import PrivateFormat  # type: ignore[import-not-found]
-        from cryptography.hazmat.primitives.serialization import pkcs7  # type: ignore[import-not-found]
-        from cryptography.x509.oid import AuthorityInformationAccessOID  # type: ignore[import-not-found]
-        from cryptography.x509.oid import ExtendedKeyUsageOID  # type: ignore[import-not-found]
-        from cryptography.x509.oid import NameOID  # type: ignore[import-not-found]
-    except ImportError as error:
-        logging.warning("TLS test setup skipped: python 'cryptography' unavailable (%s)", error)
-        return None
-
     import datetime
     import tempfile
+
+    from cryptography import x509  # type: ignore[import-not-found]
+    from cryptography.hazmat.primitives import hashes  # type: ignore[import-not-found]
+    from cryptography.hazmat.primitives.asymmetric import ec  # type: ignore[import-not-found]
+    from cryptography.hazmat.primitives.serialization import Encoding  # type: ignore[import-not-found]
+    from cryptography.hazmat.primitives.serialization import NoEncryption  # type: ignore[import-not-found]
+    from cryptography.hazmat.primitives.serialization import PrivateFormat  # type: ignore[import-not-found]
+    from cryptography.hazmat.primitives.serialization import pkcs7  # type: ignore[import-not-found]
+    from cryptography.x509.oid import AuthorityInformationAccessOID  # type: ignore[import-not-found]
+    from cryptography.x509.oid import ExtendedKeyUsageOID  # type: ignore[import-not-found]
+    from cryptography.x509.oid import NameOID  # type: ignore[import-not-found]
 
     def new_key():
         return ec.generate_private_key(ec.SECP256R1())

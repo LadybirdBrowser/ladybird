@@ -206,12 +206,15 @@ function(ladybird_test test_src sub_dir)
 endfunction()
 
 function(ladybird_python_test test_src)
-    cmake_parse_arguments(PARSE_ARGV 1 LADYBIRD_TEST "" "NAME;TIMEOUT" "ARGS;ENVIRONMENT")
+    cmake_parse_arguments(PARSE_ARGV 1 LADYBIRD_TEST "" "NAME;TIMEOUT;PYTHON_EXECUTABLE" "ARGS;ENVIRONMENT")
     if (NOT LADYBIRD_TEST_NAME)
         get_filename_component(LADYBIRD_TEST_NAME ${test_src} NAME_WE)
     endif()
     if (NOT DEFINED LADYBIRD_TEST_TIMEOUT)
         set(LADYBIRD_TEST_TIMEOUT 120)
+    endif()
+    if (NOT LADYBIRD_TEST_PYTHON_EXECUTABLE)
+        set(LADYBIRD_TEST_PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
     endif()
     list(PREPEND LADYBIRD_TEST_ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}")
 
@@ -219,7 +222,7 @@ function(ladybird_python_test test_src)
 
     add_test(
         NAME ${LADYBIRD_TEST_NAME}
-        COMMAND ${Python3_EXECUTABLE} "${test_src}" ${LADYBIRD_TEST_ARGS}
+        COMMAND "${LADYBIRD_TEST_PYTHON_EXECUTABLE}" "${test_src}" ${LADYBIRD_TEST_ARGS}
     )
     set_tests_properties(${LADYBIRD_TEST_NAME} PROPERTIES
         TIMEOUT "${LADYBIRD_TEST_TIMEOUT}"

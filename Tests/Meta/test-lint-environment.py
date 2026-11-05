@@ -18,7 +18,8 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 SCRIPT = Path(os.environ["LADYBIRD_SOURCE_DIR"]) / "Meta/Linters/run.py"
-MODULE = runpy.run_path(str(SCRIPT), run_name="lint_environment")
+LINTER = runpy.run_path(str(SCRIPT), run_name="lint_environment")
+MODULE = runpy.run_path(str(SCRIPT.parent.parent / "Utils/python_environment.py"), run_name="python_environment")
 PREPARE = MODULE["prepare_environment"]
 
 
@@ -44,8 +45,10 @@ class TestLintEnvironment(unittest.TestCase):
         (binaries / ("python.exe" if os.name == "nt" else "python")).touch()
 
     def test_reuses_environment_and_installs_requirements_snapshot(self):
-        binaries = PREPARE(self.requirements, self.cache)
-        self.assertEqual(PREPARE(self.requirements, self.cache), binaries)
+        with patch("builtins.print") as output:
+            binaries = PREPARE(self.requirements, self.cache)
+            self.assertEqual(PREPARE(self.requirements, self.cache), binaries)
+        output.assert_not_called()
         self.install.assert_called_once()
         command = self.install.call_args.args[0]
         self.assertEqual(Path(command[0]).parent, binaries)
@@ -70,6 +73,60 @@ class TestLintEnvironment(unittest.TestCase):
         self.assertTrue((binaries.parent / ".ready").is_file())
         self.assertEqual(self.builder.return_value.create.call_count, 2)
 
+    def test_missing_interpreter_is_recreated(self):
+        binaries = PREPARE(self.requirements, self.cache)
+        (binaries / ("python.exe" if os.name == "nt" else "python")).unlink()
+        self.assertEqual(PREPARE(self.requirements, self.cache), binaries)
+        self.assertEqual(self.install.call_count, 2)
+
+    def test_running_from_virtual_environment_uses_same_cache(self):
+        original = PREPARE(self.requirements, self.cache)
+        base = getattr(sys, "_base_executable", sys.executable)
+        with patch.object(sys, "executable", str(original / "python")):
+            with patch.object(sys, "_base_executable", base, create=True):
+                self.assertEqual(PREPARE(self.requirements, self.cache), original)
+        self.install.assert_called_once()
+
+    def test_interpreter_aliases_use_same_cache(self):
+        interpreter = self.root / "python"
+        interpreter.touch()
+        alias = self.root / "python3"
+        alias.symlink_to(interpreter)
+        with patch.object(sys, "_base_executable", str(interpreter), create=True):
+            original = PREPARE(self.requirements, self.cache)
+        with patch.object(sys, "_base_executable", str(alias), create=True):
+            self.assertEqual(PREPARE(self.requirements, self.cache), original)
+        self.install.assert_called_once()
+
+    def test_printing_interpreter_path_does_not_prepare_environment(self):
+        main = MODULE["main"]
+        with patch.dict(main.__globals__, {"REQUIREMENTS": self.requirements, "CACHE_ROOT": self.cache}):
+            with patch.object(sys, "argv", ["python_environment.py", "--print-python"]):
+                with patch("builtins.print") as output:
+                    main()
+        self.assertFalse(self.cache.exists())
+        self.builder.assert_not_called()
+        self.install.assert_not_called()
+        binaries = PREPARE(self.requirements, self.cache)
+        self.assertEqual(
+            output.call_args.args[0], (binaries / ("python.exe" if os.name == "nt" else "python")).as_posix()
+        )
+
+    def test_setup_is_quiet_unless_binary_directory_is_requested(self):
+        main = MODULE["main"]
+        prepare = Mock(return_value=self.root)
+        with patch.dict(main.__globals__, {"prepare_environment": prepare}):
+            with patch.object(sys, "argv", ["python_environment.py"]):
+                with patch("builtins.print") as output:
+                    main()
+            output.assert_not_called()
+            prepare.assert_called_once()
+            with patch.object(sys, "argv", ["python_environment.py", "--print-bin"]):
+                with patch("builtins.print") as output:
+                    main()
+            output.assert_called_once_with(self.root.as_posix())
+            self.assertEqual(prepare.call_count, 2)
+
     def test_concurrent_setup_installs_once(self):
         barrier = threading.Barrier(2)
         lock_environment = MODULE["lock_environment"]
@@ -86,7 +143,7 @@ class TestLintEnvironment(unittest.TestCase):
         self.install.assert_called_once()
 
     def test_tool_arguments_exit_status_and_pyright_version_overrides(self):
-        main = MODULE["main"]
+        main = LINTER["main"]
         self.install.return_value.returncode = 7
         with patch.dict(main.__globals__, {"prepare_environment": Mock(return_value=self.root)}):
             with patch.object(sys, "argv", ["run.py", "pyright", "a file.py"]):
