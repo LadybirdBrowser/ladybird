@@ -12,6 +12,7 @@ use super::tree_builder::FfiLayoutTreeBuildOutcome;
 use super::tree_shape::{Chunk, PUBLISHED_ROWS_PER_CHUNK, ShapeWriter, ShapeWrites, TreeShape};
 use super::update_layout::FfiLayoutTreeBuildStats;
 use crate::cow_column::{ColumnSnapshot, CowColumn, CowVec};
+use crate::cow_map::{CowMap, CowSet};
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::bridge::ElementBoxKind;
 use crate::css::style::bridge::{REBUILD_LEVEL, RELAYOUT_LEVEL};
@@ -22,6 +23,7 @@ use crate::css::style::{
     engine_sample::NeedsHost,
     layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle},
 };
+use crate::fork_vec::ForkVec;
 use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
 use crate::layout::node_data::{
@@ -361,11 +363,11 @@ impl Default for TextNodeSlot {
 /// one, so forking the arena does not copy every text row's state.
 #[derive(Clone, Default)]
 struct TextSlots {
-    slots: Vec<TextNodeSlot>,
+    slots: ForkVec<TextNodeSlot>,
     states: CowVec<TextNodeState, TEXT_STATES_PER_CHUNK>,
     /// The places in `states` no slot uses.
-    vacant_states: Vec<u32>,
-    released_states: Vec<u32>,
+    vacant_states: ForkVec<u32>,
+    released_states: ForkVec<u32>,
     published: CowColumn<PublishedTextSlot, SLOTS_PER_CHUNK>,
 }
 
@@ -385,7 +387,7 @@ impl TextSlots {
     fn state_mut(&mut self, id: NodeSlotId) -> TextStateMut<'_> {
         let index = id.slot_index() as usize;
         if self.slots.len() <= index {
-            self.slots.resize_with(index + 1, TextNodeSlot::default);
+            self.slots.resize_with_default(index + 1);
         }
         if self.slots[index].generation != id.generation() {
             self.release_state(index);
@@ -773,7 +775,7 @@ const BOUND_ROWS_PER_CHUNK: usize = 64;
 pub(crate) struct BoundRows {
     elements: CowColumn<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
     texts: CowColumn<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
-    pseudo_elements: Arc<HashMap<StyleNodeID, PseudoElementRows>>,
+    pseudo_elements: CowMap<StyleNodeID, PseudoElementRows>,
     viewport: NodeSlotId,
     /// Advanced by every write to the pseudo-element or viewport rows.
     writes: u64,
@@ -783,7 +785,7 @@ pub(crate) struct BoundRows {
 pub(crate) struct PublishedBoundRows {
     elements: ColumnSnapshot<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
     texts: ColumnSnapshot<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
-    pseudo_elements: Arc<HashMap<StyleNodeID, PseudoElementRows>>,
+    pseudo_elements: CowMap<StyleNodeID, PseudoElementRows>,
     viewport: NodeSlotId,
 }
 
@@ -840,17 +842,17 @@ impl BoundRows {
         let previous = self.pseudo_element_row(generator, generated_for);
         if previous != row {
             self.writes += 1;
-            let rows = Arc::make_mut(&mut self.pseudo_elements);
-            let element_rows = rows
+            let element_rows = self
+                .pseudo_elements
                 .entry(generator)
-                .or_insert(PseudoElementRows([NodeSlotId::INVALID; _]));
+                .or_insert_with(|| PseudoElementRows([NodeSlotId::INVALID; _]));
             let slot = element_rows
                 .0
                 .get_mut(usize::from(generated_for))
                 .expect("only an element's synthetic pseudo-elements are bound to rows");
             *slot = row;
             if element_rows.0.iter().all(|row| row.is_invalid()) {
-                rows.remove(&generator);
+                self.pseudo_elements.remove(&generator);
             }
         }
         previous
@@ -900,8 +902,8 @@ impl PublishedBoundRows {
 /// and text identities each cost one entry per node of their own kind.
 #[derive(Clone, Default)]
 struct RowsByStyleNode {
-    elements: Vec<NodeSlotId>,
-    texts: Vec<NodeSlotId>,
+    elements: ForkVec<NodeSlotId>,
+    texts: ForkVec<NodeSlotId>,
 }
 
 impl RowsByStyleNode {
@@ -919,7 +921,7 @@ impl RowsByStyleNode {
             None => (&mut self.elements, style_node.element_slot()),
         };
         if rows.len() <= index {
-            rows.resize(index + 1, NodeSlotId::INVALID);
+            rows.resize_with_default(index + 1);
         }
         &mut rows[index]
     }
@@ -961,26 +963,26 @@ struct StyleNodeTables {
     /// The maps are borrowed for writing only by the publication entry points, which can run while a
     /// tree build is under way: an element styled on the build's behalf replaces its style record,
     /// which republishes the resources its style names. No reader holds a borrow across a host call.
-    svg_attribute_facts: HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>,
+    svg_attribute_facts: CowMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>,
     /// The parsed MathML attributes each MathML element published, keyed by its style node.
-    math_attribute_facts: HashMap<StyleNodeID, super::math_formatting_context::FfiMathAttributeFacts>,
+    math_attribute_facts: CowMap<StyleNodeID, super::math_formatting_context::FfiMathAttributeFacts>,
     /// The `points` list each <polyline> and <polygon> published beside its facts.
-    svg_points: HashMap<StyleNodeID, std::sync::Arc<[super::svg_formatting_context::FfiFloatPoint]>>,
+    svg_points: CowMap<StyleNodeID, std::sync::Arc<[super::svg_formatting_context::FfiFloatPoint]>>,
     /// The elements carrying each anchor name, in tree order. The DOM's registry republishes a
     /// name's list whenever it changes.
-    anchor_name_elements: HashMap<ScopedAnchorName, Vec<StyleNodeID>>,
+    anchor_name_elements: CowMap<ScopedAnchorName, Vec<StyleNodeID>>,
     /// The nodes sitting in the user agent shadow tree of the focused text control, which is what
     /// a caret is painted inside. At most one control is focused, so this holds one control's
     /// shadow tree and is empty the rest of the time.
-    identities_in_focused_text_control: HashSet<StyleNodeID>,
+    identities_in_focused_text_control: CowSet<StyleNodeID>,
     /// What each element has scrolled to, held against its identity because the element's box is
     /// replaced whenever its subtree is rebuilt. The element still stores the offset it answers
     /// `scrollTop` with, and publishes it here as it changes, arrives and changes identity. Zero is
     /// the absence of an entry, which is nearly every element.
-    element_scroll_offsets: HashMap<StyleNodeID, CssPixelPoint>,
+    element_scroll_offsets: CowMap<StyleNodeID, CssPixelPoint>,
     /// What each element's pseudo-elements have scrolled to, held against the element's identity,
     /// since a pseudo-element has none of its own, and published the way the element's offset is.
-    pseudo_element_scroll_offsets: HashMap<StyleNodeID, PseudoElementScrollOffsets>,
+    pseudo_element_scroll_offsets: CowMap<StyleNodeID, PseudoElementScrollOffsets>,
     /// The writing suggestion showing after the caret, if any: at most one per document, held
     /// against the identity of the text node the caret is in.
     writing_suggestion: Option<PublishedWritingSuggestion>,
@@ -1017,8 +1019,9 @@ struct ScopedAnchorName {
 }
 
 /// Why the arena holds a pin on the style record a row names.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum ArenaStylePin {
+    #[default]
     None,
     /// The arena derived the record for the row: an anonymous box's, or a style layout adjusted.
     Derived,
@@ -1073,31 +1076,31 @@ struct CommittedLinkHolder {
 
 #[derive(Clone)]
 pub(crate) struct LayoutNodeArena {
-    chunks: Vec<Box<Chunk>>,
+    chunks: ForkVec<Box<Chunk>>,
     tree_shape: TreeShape,
     /// Advanced by every write to a node's shape, or to the style record or node kept beside it, which
     /// publication takes into the published rows.
     shape_writes: ShapeWrites,
-    slot_metadata: Vec<SlotMetadata>,
-    style_records: Vec<u64>,
+    slot_metadata: ForkVec<SlotMetadata>,
+    style_records: ForkVec<u64>,
     /// How many of `style_records` name a record other than one the engine installed.
     rows_naming_uninstalled_records: u32,
     /// The style record whose image resources the host was last owed for each row, or zero. A row whose record has not
     /// changed since holds those resources still, so a build that visits it again owes it nothing.
-    image_resources_owed_records: Vec<u64>,
-    style_record_pins: Vec<ArenaStylePin>,
+    image_resources_owed_records: ForkVec<u64>,
+    style_record_pins: ForkVec<ArenaStylePin>,
     /// The style record the host pinned for its readers of a row that outlive the row's place in
     /// the tree (a detached box is read until its row is freed), or zero. A pin is counted, so this
     /// is a pin of its own beside the arena's, and it names the record it took rather than whichever
     /// record the row holds when it goes.
-    style_records_pinned_by_host: Vec<u64>,
-    derived_styles_shown_before_host_installs: HashMap<NodeSlotId, DerivedStyleRecord>,
+    style_records_pinned_by_host: ForkVec<u64>,
+    derived_styles_shown_before_host_installs: CowMap<NodeSlotId, DerivedStyleRecord>,
     /// The StyleNodeID of the element or text node each row is bound to, or of the element it is
     /// generated for. Rows carrying one identity are chained through `next_rows_with_same_style_node`
     /// from `first_rows_by_style_node`, so retiring an identity reaches every row that carries it,
     /// bound or not, before the identity can be reused.
-    style_nodes: Vec<Option<StyleNodeID>>,
-    next_rows_with_same_style_node: Vec<NodeSlotId>,
+    style_nodes: ForkVec<Option<StyleNodeID>>,
+    next_rows_with_same_style_node: ForkVec<NodeSlotId>,
     first_rows_by_style_node: RowsByStyleNode,
     /// The row each element or text node is bound to: the row its layout node is. Carrying the
     /// identity does not make a row bound, since first-letter slices and rows awaiting a rebuild
@@ -1136,21 +1139,21 @@ pub(crate) struct LayoutNodeArena {
     /// How many layouts were committed, full and partial.
     layout_commit_count: u64,
     /// Per slot, which fragment held the box's committed link when a commit last met it.
-    committed_link_holders: Vec<CommittedLinkHolder>,
+    committed_link_holders: ForkVec<CommittedLinkHolder>,
     /// The boxes whose committed links a full commit met at the top of its pass, which no fragment holds.
     pass_level_committed_links: Vec<NodeSlotId>,
-    pub(crate) links_held_apart_from_their_containing_blocks: crate::fast_hash::FastSet<NodeSlotId>,
+    pub(crate) links_held_apart_from_their_containing_blocks: CowSet<NodeSlotId>,
     layout_tree_build_stats: FfiLayoutTreeBuildStats,
-    pre_order_labels: Vec<u64>,
+    pre_order_labels: ForkVec<u64>,
     pre_order_relabel_count: u64,
-    free_list: Vec<u32>,
+    free_list: ForkVec<u32>,
     live_count: u32,
     default_scroll_shift_anchors: Vec<DefaultScrollShiftAnchorSlot>,
     text_slots: TextSlots,
-    pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
+    pub(super) searchable_text: crate::fork::ForkReset<Option<Vec<super::text_queries::MappedText>>>,
     replaced_content_facts: CowVec<ReplacedContentFactsSlot, REPLACED_CONTENT_FACTS_PER_CHUNK>,
     /// The layout kind of each row built for a MathML element, from its tag name.
-    math_layout_kinds: HashMap<NodeSlotId, super::math_formatting_context::MathLayoutKind>,
+    math_layout_kinds: CowMap<NodeSlotId, super::math_formatting_context::MathLayoutKind>,
     replaced_paint_facts: Arc<crate::painting::replaced_paint_facts::ReplacedPaintFactsTable>,
     layer_image_paint_facts: Arc<crate::painting::layer_image_paint_facts::LayerImagePaintFactsTable>,
     svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources,
@@ -1159,7 +1162,7 @@ pub(crate) struct LayoutNodeArena {
     /// The rows built for one DOM node, chained into a ring through the rows themselves; a row that
     /// is the only one built for its node links to nothing. The chain lives on the rows rather than
     /// under a key so that it survives the node's identity being retired and re-issued.
-    next_rows_built_for_same_node: Vec<NodeSlotId>,
+    next_rows_built_for_same_node: ForkVec<NodeSlotId>,
     /// What writes since the layout stage last looked did to the boxes its run memos hold entries of.
     memo_invalidations: super::memo_invalidations::MemoInvalidations,
     pub(super) layout_trace: super::trace::TraceRecord,
@@ -1170,32 +1173,32 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
     pub(crate) partial_relayout_boundary_roots: super::partial_relayout::PartialRelayoutBoundaryRoots,
     nodes_with_layout_update_flags: Vec<NodeSlotId>,
-    layout_update_flag_node_indices: HashMap<NodeSlotId, usize>,
+    layout_update_flag_node_indices: CowMap<NodeSlotId, usize>,
     /// Boxes whose child lists gained children since the last layout tree build, held back from
     /// layout invalidation until the build shows what the new children are.
     pub(crate) deferred_child_list_insertion_parents: Vec<(NodeSlotId, NodeSlotId)>,
-    pub(super) deferred_child_list_insertion_parent_slots: HashSet<NodeSlotId>,
+    pub(super) deferred_child_list_insertion_parent_slots: CowSet<NodeSlotId>,
     pub(super) children_inserted_under_deferred_parents: Vec<(NodeSlotId, NodeSlotId)>,
     /// Layout inputs for new absolutely positioned boxes that the build confined to themselves.
     /// They stand in for the committed inputs such a box does not have yet.
-    pub(crate) confined_abspos_layout_inputs: HashMap<NodeSlotId, AbsposLayoutInputs>,
+    pub(crate) confined_abspos_layout_inputs: CowMap<NodeSlotId, AbsposLayoutInputs>,
     /// The position option each box with position options was last laid out with.
     /// https://drafts.csswg.org/css-anchor-position-1/#fallback-apply
-    position_options_in_use: HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>,
+    position_options_in_use: CowMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>,
     /// https://drafts.csswg.org/css-anchor-position-1/#last-successful-position-option
-    last_successful_position_options: HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>,
+    last_successful_position_options: CowMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>,
     /// The style record and custom property environment of the element containing the letter, as each
     /// `::first-letter` box's style was last derived from them.
-    first_letter_parent_styles: HashMap<NodeSlotId, (u64, u64)>,
+    first_letter_parent_styles: CowMap<NodeSlotId, (u64, u64)>,
     first_letter_styles_derived: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    pub(crate) inline_boxes_lifted_out_of: HashMap<NodeSlotId, NodeSlotId>,
-    pub(crate) out_of_flow_positioning_contained: HashMap<NodeSlotId, u32>,
+    pub(crate) inline_boxes_lifted_out_of: CowMap<NodeSlotId, NodeSlotId>,
+    pub(crate) out_of_flow_positioning_contained: CowMap<NodeSlotId, u32>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
     /// since the last layout pass is either attributed to a boundary in the root set above, or
     /// this escape bit is set. Partial relayout may only run while the bit is clear; a full
     /// layout pass re-derives every fact boundary qualification depends on, so it clears the bit.
     pub(crate) pending_updates_escape_partial_relayout: bool,
-    text_nodes_enrolled_for_content_sync: HashSet<NodeSlotId>,
+    text_nodes_enrolled_for_content_sync: CowSet<NodeSlotId>,
     /// The scroll containers a running tree build gave a style, which may be where scroll
     /// snapping happens once the build is over.
     built_scroll_containers: Vec<NodeSlotId>,
@@ -1203,9 +1206,9 @@ pub(crate) struct LayoutNodeArena {
     /// the builds came to owe them, until the layout update the builds ran in is over.
     image_resources_owed_to_host: Vec<(NodeSlotId, OwedImageResources)>,
     /// The image boxes among the rows that own the provider of the image they show.
-    owned_image_providers: HashMap<NodeSlotId, OwnedImageProvider>,
+    owned_image_providers: CowMap<NodeSlotId, OwnedImageProvider>,
     /// The text node that each `display: contents` text wrapper box wraps.
-    display_contents_text_wrappers: HashMap<NodeSlotId, StyleNodeID>,
+    display_contents_text_wrappers: CowMap<NodeSlotId, StyleNodeID>,
     /// Whether a row has ever been given a style with `content-visibility: auto`.
     may_have_auto_content_visibility: bool,
     /// Whether a row has ever been given a style with a scroll snap type.
@@ -1214,12 +1217,12 @@ pub(crate) struct LayoutNodeArena {
     /// The natural size of the image each image box that owns its image's provider shows
     /// (`content: url(...)`), as the provider publishes it: zero while the image is not available.
     /// Such a box shows an image of its own rather than its element's.
-    owned_image_natural_sizes: HashMap<NodeSlotId, crate::css::style::NaturalSize>,
+    owned_image_natural_sizes: CowMap<NodeSlotId, crate::css::style::NaturalSize>,
     /// The natural size layout last negotiated for the box of an `<svg>` document element, and that
     /// box. An `<object>` showing the document is sized from it.
     document_svg_root_natural_size: Option<(NodeSlotId, crate::css::style::NaturalSize)>,
     container_bases_read_by_committed_layout:
-        HashMap<NodeSlotId, Vec<(StyleNodeID, crate::css::style::ContainerUnitBases)>>,
+        CowMap<NodeSlotId, Vec<(StyleNodeID, crate::css::style::ContainerUnitBases)>>,
     /// The document element's natural size as it was last handed to the `<object>` showing the
     /// document, if it has been.
     handed_over_document_svg_root_natural_size: Option<crate::css::style::NaturalSize>,
@@ -1238,27 +1241,26 @@ pub(crate) struct LayoutNodeArena {
 impl LayoutNodeArena {
     /// The bytes of the columns that name the style record each row is built from.
     pub(crate) fn style_column_heap_size(&self) -> usize {
-        use crate::heap_size::vec_bytes;
-        vec_bytes(&self.style_records)
-            + vec_bytes(&self.image_resources_owed_records)
-            + vec_bytes(&self.style_record_pins)
-            + vec_bytes(&self.style_records_pinned_by_host)
+        self.style_records.row_bytes()
+            + self.image_resources_owed_records.row_bytes()
+            + self.style_record_pins.row_bytes()
+            + self.style_records_pinned_by_host.row_bytes()
     }
 
     pub(crate) fn new() -> Self {
         Self {
-            chunks: Vec::new(),
+            chunks: ForkVec::default(),
             tree_shape: TreeShape::default(),
             shape_writes: ShapeWrites::default(),
-            slot_metadata: Vec::new(),
-            style_records: Vec::new(),
+            slot_metadata: ForkVec::default(),
+            style_records: ForkVec::default(),
             rows_naming_uninstalled_records: 0,
-            image_resources_owed_records: Vec::new(),
-            style_record_pins: Vec::new(),
-            style_records_pinned_by_host: Vec::new(),
-            derived_styles_shown_before_host_installs: HashMap::default(),
-            style_nodes: Vec::new(),
-            next_rows_with_same_style_node: Vec::new(),
+            image_resources_owed_records: ForkVec::default(),
+            style_record_pins: ForkVec::default(),
+            style_records_pinned_by_host: ForkVec::default(),
+            derived_styles_shown_before_host_installs: Default::default(),
+            style_nodes: ForkVec::default(),
+            next_rows_with_same_style_node: ForkVec::default(),
             first_rows_by_style_node: RowsByStyleNode::default(),
             bound_rows: Default::default(),
             viewport_scroll_offset: CssPixelPoint::default(),
@@ -1275,24 +1277,24 @@ impl LayoutNodeArena {
             partial_layout_count: (0),
             full_layout_count: (0),
             layout_commit_count: 0,
-            committed_link_holders: Vec::new(),
+            committed_link_holders: ForkVec::default(),
             pass_level_committed_links: Vec::new(),
             links_held_apart_from_their_containing_blocks: Default::default(),
             layout_tree_build_stats: (FfiLayoutTreeBuildStats::default()),
-            pre_order_labels: Vec::new(),
+            pre_order_labels: ForkVec::default(),
             pre_order_relabel_count: 0,
-            free_list: Vec::new(),
+            free_list: ForkVec::default(),
             live_count: 0,
             default_scroll_shift_anchors: Vec::new(),
             text_slots: TextSlots::default(),
-            searchable_text: None,
+            searchable_text: Default::default(),
             replaced_content_facts: CowVec::default(),
             math_layout_kinds: Default::default(),
             replaced_paint_facts: Default::default(),
             layer_image_paint_facts: Default::default(),
             svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources::default(),
             paint_fact_writes: 0,
-            next_rows_built_for_same_node: Vec::new(),
+            next_rows_built_for_same_node: ForkVec::default(),
             memo_invalidations: Default::default(),
             layout_trace: super::trace::TraceRecord::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
@@ -1300,19 +1302,19 @@ impl LayoutNodeArena {
             scrollable_overflow: Default::default(),
             partial_relayout_boundary_roots: Default::default(),
             nodes_with_layout_update_flags: Vec::new(),
-            layout_update_flag_node_indices: HashMap::default(),
+            layout_update_flag_node_indices: Default::default(),
             deferred_child_list_insertion_parents: Vec::new(),
-            deferred_child_list_insertion_parent_slots: HashSet::default(),
+            deferred_child_list_insertion_parent_slots: Default::default(),
             children_inserted_under_deferred_parents: Vec::new(),
-            confined_abspos_layout_inputs: HashMap::default(),
-            position_options_in_use: (HashMap::default()),
-            last_successful_position_options: (HashMap::default()),
-            first_letter_parent_styles: HashMap::default(),
+            confined_abspos_layout_inputs: Default::default(),
+            position_options_in_use: (Default::default()),
+            last_successful_position_options: (Default::default()),
+            first_letter_parent_styles: Default::default(),
             first_letter_styles_derived: std::sync::Arc::default(),
-            inline_boxes_lifted_out_of: HashMap::default(),
-            out_of_flow_positioning_contained: HashMap::default(),
+            inline_boxes_lifted_out_of: Default::default(),
+            out_of_flow_positioning_contained: Default::default(),
             pending_updates_escape_partial_relayout: false,
-            text_nodes_enrolled_for_content_sync: HashSet::default(),
+            text_nodes_enrolled_for_content_sync: Default::default(),
             built_scroll_containers: Default::default(),
             image_resources_owed_to_host: Default::default(),
             owned_image_providers: Default::default(),
@@ -1320,9 +1322,9 @@ impl LayoutNodeArena {
             may_have_auto_content_visibility: false,
             may_have_scroll_snap_areas: false,
             nodes_enrolled_for_replaced_content_facts_sync: Vec::new(),
-            owned_image_natural_sizes: HashMap::default(),
+            owned_image_natural_sizes: Default::default(),
             document_svg_root_natural_size: None,
-            container_bases_read_by_committed_layout: HashMap::default(),
+            container_bases_read_by_committed_layout: Default::default(),
             handed_over_document_svg_root_natural_size: (None),
             layout_style_snapshot_commit: Vec::new(),
             layout_tree_update_marks: Default::default(),
@@ -1336,8 +1338,7 @@ impl LayoutNodeArena {
     pub(crate) fn note_committed_link_holder(&mut self, id: NodeSlotId, holder: NodeSlotId, commit: u32) {
         let index = id.slot_index() as usize;
         if self.committed_link_holders.len() <= index {
-            self.committed_link_holders
-                .resize(index + 1, CommittedLinkHolder::default());
+            self.committed_link_holders.resize_with_default(index + 1);
         }
         self.committed_link_holders[index] = CommittedLinkHolder {
             generation: id.generation(),
@@ -1380,7 +1381,7 @@ impl LayoutNodeArena {
 
     /// What writes did to the boxes the layout stage's run memos hold entries of since the stage last took it.
     pub(crate) fn take_memo_invalidations(&mut self) -> super::memo_invalidations::MemoInvalidations {
-        for state in self.text_slots.released_states.drain(..) {
+        for state in self.text_slots.released_states.take_rows() {
             self.memo_invalidations.note_text_state_dropped(state);
         }
         std::mem::take(&mut self.memo_invalidations)
@@ -1507,7 +1508,7 @@ impl LayoutNodeArena {
             );
             if (index as usize).is_multiple_of(SLOTS_PER_CHUNK) {
                 let chunk_index = self.chunks.len();
-                self.chunks.push(Chunk::new());
+                self.chunks.resize_with_default(chunk_index + 1);
                 self.shape_writes.add_chunk(chunk_index);
             }
             self.slot_metadata.push(SlotMetadata::default());
@@ -1604,7 +1605,7 @@ impl LayoutNodeArena {
     }
 
     fn free_unlinked_slot(&mut self, id: NodeSlotId) -> Option<crate::painting::paintable_rows::PaintableRowReset> {
-        self.searchable_text = None;
+        *self.searchable_text = None;
         let index = id.slot_index();
         let id_generation = id.generation();
         let should_reuse = {
@@ -2390,15 +2391,10 @@ impl LayoutNodeArena {
                 .expect("a derived style row holds its style"),
         };
         self.style_record_pins[index] = ArenaStylePin::None;
-        let holds_an_older_shown_style = match self.derived_styles_shown_before_host_installs.entry(slot) {
-            std::collections::hash_map::Entry::Occupied(_) => true,
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert(shown);
-                false
-            }
-        };
-        if holds_an_older_shown_style {
+        if self.derived_styles_shown_before_host_installs.contains_key(&slot) {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(shown.record));
+        } else {
+            self.derived_styles_shown_before_host_installs.insert(slot, shown);
         }
         self.install_style_record(slot, style_record, payloads, None);
     }
@@ -2892,8 +2888,8 @@ impl LayoutNodeArena {
         &mut self.svg_paint_resources
     }
 
-    /// A fork of the arena, linked to `engine`, the fork of its style engine: its chunks have addresses of their own,
-    /// and the flags the arena shares with the host are its own. See [`crate::fork`].
+    /// A fork of the arena, linked to `engine`, the fork of its style engine: the flags the arena shares with the host
+    /// are its own. See [`crate::fork`].
     pub(crate) fn fork(&self, engine: crate::css::style::StyleEngineHandle) -> Self {
         let mut fork = self.clone();
         fork.style_engine = ArenaStyleEngine(engine);
@@ -3082,7 +3078,7 @@ impl LayoutNodeArena {
             return;
         }
         let mut readers_whose_bases_moved = Vec::new();
-        for (&reader, bases_read) in &self.container_bases_read_by_committed_layout {
+        for (&reader, bases_read) in self.container_bases_read_by_committed_layout.iter() {
             if !self.slot_is_live(reader) {
                 readers_whose_bases_moved.push(reader);
                 continue;
@@ -4097,7 +4093,7 @@ impl LayoutNodeArena {
     }
 
     /// The style records the rows name.
-    pub(crate) fn style_records(&self) -> &[u64] {
+    pub(crate) fn style_records(&self) -> &ForkVec<u64> {
         &self.style_records
     }
 
@@ -5451,7 +5447,7 @@ impl LayoutNodeArena {
             .state_index(id)
             .expect("the row has the text it was just given");
         self.memo_invalidations.note_text_state_dropped(text_state);
-        self.searchable_text = None;
+        *self.searchable_text = None;
         // Publication can happen through a C++ text read before the enrolled
         // sync runs. Invalidate here so every publication invalidates layout,
         // including mapping-only changes with identical rendered code units.
@@ -5524,7 +5520,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn invalidate_searchable_text(&mut self) {
-        self.searchable_text = None;
+        *self.searchable_text = None;
     }
 
     /// Gives the row the spans its element published again, after one of the element's span

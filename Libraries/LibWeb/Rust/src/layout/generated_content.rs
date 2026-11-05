@@ -17,7 +17,6 @@ use crate::css::counter_representation::{
 };
 use crate::css::css_enums::keyword;
 use crate::css::css_string::CssString;
-use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style_value::{COUNTER_FUNCTION_COUNTER, StyleValueData};
 use crate::css::style_value::{ContentPayload, CounterPayload};
@@ -36,12 +35,12 @@ enum MarkerContent<'a> {
 #[derive(Clone, Default)]
 pub(crate) struct GeneratedContent {
     /// The text each pseudo-element's content resolved to, the way accessibility reads it.
-    accessible_texts: HashMap<CounterOwner, Vec<u16>>,
+    accessible_texts: crate::cow_map::CowMap<CounterOwner, Vec<u16>>,
     /// The counter styles the box built for a pseudo-element was rendered from, one per
     /// `counter()` or `counters()` the content names and one for the counter style a normal
     /// marker shows. A later style change compares what the pseudo-element's record names now
     /// against this to decide whether the box has to be rebuilt.
-    content_counter_styles_in_use: HashMap<CounterOwner, Vec<Option<Arc<CounterStyle>>>>,
+    content_counter_styles_in_use: crate::cow_map::CowMap<CounterOwner, Vec<Option<Arc<CounterStyle>>>>,
 }
 
 impl GeneratedContent {

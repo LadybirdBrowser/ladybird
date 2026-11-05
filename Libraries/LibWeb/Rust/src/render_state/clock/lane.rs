@@ -134,8 +134,8 @@ enum FramePlan {
     Sealed(ClockPlan),
 }
 
-/// Lets go of `lanes`, whose forks copy the document's whole render state: they are dropped once the owner no longer
-/// holds the render states, which the host may be waiting for.
+/// Lets go of `lanes`, whose forks may take long to drop: they are dropped once the owner no longer holds the render
+/// states, which the host may be waiting for.
 fn retire(lanes: Lanes) {
     owner::drop_after_hold(lanes);
 }
@@ -256,6 +256,16 @@ pub(in crate::render_state) fn note_host_write(document: DocumentId) {
             && lane.samples_nothing()
         {
             lane.state.move_on();
+            return;
+        }
+        // NB: Nor does a coming lane tick while the update holds it, and with no animations to sample, what it would show
+        //     is what the update replaces or leaves showing, as above.
+        if slot.taken_in.is_some()
+            && let Lanes::Coming { pieces, .. } = &slot.lanes
+            && matches!(&pieces.plan, FramePlan::Sealed(plan) if !plan.animates())
+            && let Some(state) = slot.lanes.newest_state()
+        {
+            state.move_on();
             return;
         }
         // A lane that follows the pointer hovers beside the next task, which may begin as soon as this job is done,

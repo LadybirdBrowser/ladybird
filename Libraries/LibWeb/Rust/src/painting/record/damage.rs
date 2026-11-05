@@ -148,7 +148,7 @@ impl RowPaintState {
 pub(crate) struct DamageSet {
     // Every row whose damage is non-empty, listed once when its first bit is pushed. Entries of
     // rows reset since are skipped by their slot generation.
-    rows: Vec<NodeSlotId>,
+    rows: crate::fork_vec::ForkVec<NodeSlotId>,
     // Zero, or the stamp the whole-document damage was pushed at.
     all: u32,
     scroll_metadata_everywhere: u32,
@@ -401,11 +401,11 @@ impl LayoutNodeArena {
     /// A recording that publishes nothing consumes no damage, so damage goes on accumulating: only the rows gone since,
     /// and those listed again, leave the list.
     pub(crate) fn forget_paint_damage_rows_gone(&mut self) {
-        let mut rows = std::mem::take(&mut self.paintable_rows.damage.rows);
+        let mut rows = self.paintable_rows.damage.rows.take_rows();
         rows.retain(|row| self.paintable_row_is_populated(*row));
         rows.sort_unstable_by_key(|row| (row.slot_index(), row.generation()));
         rows.dedup();
-        self.paintable_rows.damage.rows = rows;
+        self.paintable_rows.damage.rows = rows.into_iter().collect();
     }
 
     /// The published recording consumed everything pushed before it started. Rows pushed since
@@ -419,7 +419,7 @@ impl LayoutNodeArena {
         if set.scroll_metadata_everywhere != 0 && set.scroll_metadata_everywhere <= consumed_through {
             set.scroll_metadata_everywhere = 0;
         }
-        let listed = std::mem::take(&mut set.rows);
+        let listed = set.rows.take_rows();
         let mut kept = Vec::new();
         for row in listed {
             if !self.paintable_row_is_populated(row) {
@@ -435,7 +435,7 @@ impl LayoutNodeArena {
         // A row populated again after its push is listed again by its next push.
         kept.sort_unstable_by_key(|row| (row.slot_index(), row.generation()));
         kept.dedup();
-        self.paintable_rows.damage.rows.clone_from(&kept);
+        self.paintable_rows.damage.rows = kept.iter().copied().collect();
         for row in kept {
             let stamp = self.paintable_rows.row_paint_states[row.slot_index() as usize].damage_stamp;
             self.hint_descendant_readers_above(row, stamp);
@@ -647,7 +647,10 @@ mod tests {
 
         let mut expected = vec![root, rows[0], rows[1], rows[2]];
         expected.sort_unstable_by_key(|row| (row.slot_index(), row.generation()));
-        assert_eq!(arena.paintable_rows.damage.rows, expected);
+        assert_eq!(
+            arena.paintable_rows.damage.rows.iter().copied().collect::<Vec<_>>(),
+            expected
+        );
     }
 
     #[test]

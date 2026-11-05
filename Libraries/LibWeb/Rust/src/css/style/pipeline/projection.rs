@@ -95,7 +95,7 @@ fn clear_transaction_list<T>(list: &mut Vec<T>) {
 #[derive(Clone, Default)]
 struct WrittenRows {
     nodes: Vec<StyleNodeID>,
-    bits: Vec<u64>,
+    bits: crate::cow_column::CowVec<u64, 64>,
 }
 
 impl WrittenRows {
@@ -103,7 +103,7 @@ impl WrittenRows {
     fn insert(&mut self, node: StyleNodeID, slot: usize) -> bool {
         let (word, bit) = (slot / 64, 1_u64 << (slot % 64));
         if word >= self.bits.len() {
-            self.bits.resize(word + 1, 0);
+            self.bits.resize_with_default(word + 1);
         }
         if self.bits[word] & bit != 0 {
             return false;
@@ -767,9 +767,9 @@ pub(in crate::css::style) struct Projection {
     /// The distinct sets of host facts the rows name, as the host last published them.
     host_fact_sets: Arc<HostFactSets>,
     /// A slotted text node's slot. Text nodes have no rows, and a slotted one is rare.
-    text_assigned_slots: Arc<HashMap<StyleNodeID, StyleNodeID>>,
+    text_assigned_slots: crate::cow_map::CowMap<StyleNodeID, StyleNodeID>,
     /// The elements whose facts say they are disabled, as the host last published them.
-    disabled: Arc<HashSet<StyleNodeID>>,
+    disabled: crate::cow_map::CowSet<StyleNodeID>,
     /// The elements whose rows the host's publications wrote since the last barrier.
     written: WrittenRows,
     /// Each write since the last barrier, which whether a written row changes the committed
@@ -861,7 +861,7 @@ impl Row {
 
 impl WrittenRows {
     fn heap_size(&self) -> usize {
-        crate::heap_size::vec_bytes(&self.nodes) + crate::heap_size::vec_bytes(&self.bits)
+        crate::heap_size::vec_bytes(&self.nodes) + self.bits.row_bytes()
     }
 }
 
@@ -869,7 +869,6 @@ impl Projection {
     /// Counts the rows of every generation the projection holds, each chunk once, and its
     /// catalogs and change sets, with the live elements it holds.
     pub(in crate::css::style) fn report_memory(&self, report: &mut crate::css::style::memory_report::MemoryReport) {
-        use crate::heap_size::map_bytes;
         let owner = crate::css::style::memory_report::MemoryOwner::Projection;
         let sizer = &mut report.sizer;
         let mut bytes = self.rows.heap_size(sizer, Row::heap_size)
@@ -900,8 +899,8 @@ impl Projection {
             bytes += texts.heap_size(sizer);
             bytes += texts.values().map(|text| size_of_val::<[u16]>(text)).sum::<usize>();
         }
-        bytes += sizer.arc_shallow(&self.text_assigned_slots) + map_bytes(&self.text_assigned_slots);
-        bytes += sizer.arc_shallow(&self.disabled) + crate::heap_size::set_bytes(&self.disabled);
+        bytes += self.text_assigned_slots.heap_size();
+        bytes += self.disabled.heap_size();
         if let Some(watched_keys) = &self.watched_keys {
             bytes += sizer.arc_shallow(watched_keys) + crate::heap_size::set_bytes(&watched_keys.keys);
         }
@@ -1374,7 +1373,7 @@ impl Projection {
 
     /// The elements whose facts as written say they are disabled.
     #[must_use]
-    pub(in crate::css::style) fn written_disabled(&self) -> &HashSet<StyleNodeID> {
+    pub(in crate::css::style) fn written_disabled(&self) -> &crate::cow_map::CowSet<StyleNodeID> {
         &self.disabled
     }
 

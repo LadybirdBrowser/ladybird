@@ -1390,12 +1390,12 @@ fn empty_retained_page(length: usize) -> Arc<[RetainedSlot]> {
 /// for the others.
 ///
 /// A fork of the render state takes the records in pages it shares with the state it forked until
-/// either side writes one: forking costs a reference count per page, and the first write to a
-/// page after a fork copies the page alone.
+/// either side writes one: forking costs one reference count, and the first write to a page after
+/// a fork copies the page alone.
 #[derive(Clone, Default)]
 pub(super) struct RetainedRecords {
     /// Each page holds `RETAINED_PAGE_SIZE` slots but for the first, until the page after it exists.
-    pages: Vec<Arc<[RetainedSlot]>>,
+    pages: crate::cow_column::CowVec<Arc<[RetainedSlot]>, 64>,
     /// The root font inputs the last pass that styled the document element resolved
     /// root-relative lengths against, with that element. A record reads the metrics of its first
     /// available font through its cascade, which a load filling one of its faces in moves, so what
@@ -1407,8 +1407,8 @@ pub(super) struct RetainedRecords {
 impl RetainedRecords {
     /// Counts the pages and what their slots hold, by owner.
     pub(super) fn report_memory(&self, report: &mut MemoryReport) {
-        report.add(MemoryOwner::RetainedSlots, crate::heap_size::vec_bytes(&self.pages));
-        for page in &self.pages {
+        report.add(MemoryOwner::RetainedSlots, self.pages.row_bytes());
+        for page in self.pages.iter() {
             if !report.sizer.first_sight(page.as_ptr()) {
                 continue;
             }
@@ -1468,12 +1468,12 @@ impl RetainedRecords {
         let first_page_length = slot_count
             .next_power_of_two()
             .clamp(RETAINED_FIRST_PAGE_MIN_SIZE, RETAINED_PAGE_SIZE);
-        match self.pages.first_mut() {
+        match self.pages.get(0) {
             Some(first) if first.len() < first_page_length => {
                 let mut slots = Vec::with_capacity(first_page_length);
                 slots.extend_from_slice(first);
                 slots.resize_with(first_page_length, RetainedSlot::default);
-                *first = slots.into();
+                self.pages[0] = slots.into();
             }
             None if slot_count != 0 => self.pages.push(empty_retained_page(first_page_length)),
             _ => {}
@@ -1611,15 +1611,18 @@ impl RetainedRecords {
         // are kept until the end, so that no other list takes the place of one of them.
         let mut renumbered: HashMap<*const u32, Option<MatchList>> = HashMap::default();
         let mut originals: Vec<MatchList> = Vec::new();
-        for page in &mut self.pages {
+        for page_index in 0..self.pages.len() {
             // NB: A page holding no matches is left to the fork it may be shared with.
-            if !page
+            if !self.pages[page_index]
                 .iter()
                 .any(|slot| slot.held.as_ref().is_some_and(|held| held.matches.is_some()))
             {
                 continue;
             }
-            for held in Arc::make_mut(page).iter_mut().filter_map(|slot| slot.held.as_mut()) {
+            for held in Arc::make_mut(&mut self.pages[page_index])
+                .iter_mut()
+                .filter_map(|slot| slot.held.as_mut())
+            {
                 let Some(matches) = held.matches.take() else {
                     continue;
                 };

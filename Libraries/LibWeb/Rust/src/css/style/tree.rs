@@ -20,7 +20,6 @@
 //! with the live tree at every epoch boundary, maintained from the same tree delta that reports the
 //! mutation.
 
-use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::FastSet as HashSet;
 use smallvec::SmallVec;
 use std::num::NonZeroU32;
@@ -243,10 +242,10 @@ impl<T: Copy> SegmentedNodeColumn<T> {
 #[derive(Clone, Default)]
 struct ElementIdIndex {
     /// The name each element answers to, which is the key a change or a retirement removes under.
-    name_of_node: HashMap<StyleNodeID, StyleAtomID>,
+    name_of_node: crate::cow_map::CowMap<StyleNodeID, StyleAtomID>,
     /// The elements answering to a name, in the order they took it rather than in tree order.
     /// Nearly every name is unique, so the list that holds one stays inline.
-    nodes_by_name: HashMap<StyleAtomID, SmallVec<[StyleNodeID; 1]>>,
+    nodes_by_name: crate::cow_map::CowMap<StyleAtomID, SmallVec<[StyleNodeID; 1]>>,
     /// What the spilled candidate lists hold, carried rather than summed: every element that takes
     /// an id writes here, and walking one list per name would make a page of ids quadratic.
     candidate_bytes: usize,
@@ -325,7 +324,7 @@ pub struct HostTree {
     connected_element_count: u32,
     /// Identities retired in the current epoch. They cannot be reused until the epoch that could
     /// still observe them has retired.
-    pending_reuse: Vec<u32>,
+    pending_reuse: crate::cow_column::CowVec<u32, 1024>,
     /// The identities a test mints from, standing in for the host's.
     #[cfg(test)]
     test_identities: super::identities::StyleNodeIdAllocator,
@@ -339,15 +338,15 @@ pub struct HostTree {
     /// editable or an editing host, inside a blocking wheel event handler, or a navigable container
     /// holding a navigable. Nearly every node holds none of them, which is the absence of an entry.
     /// Element, text and document identities publish here, as each gets a row.
-    dom_paint_facts: HashMap<StyleNodeID, u8>,
+    dom_paint_facts: crate::cow_map::CowMap<StyleNodeID, u8>,
     /// The spans a table cell's or table column's attributes give it: the effective column and row
     /// span, and the column span attribute's unclamped value, which only the table formatting
     /// context's column handling reads. Every other element spans one of each, which is what the
     /// absence of an entry means.
-    table_spans: HashMap<StyleNodeID, TableSpans>,
+    table_spans: crate::cow_map::CowMap<StyleNodeID, TableSpans>,
     /// The document's top layer, in the order its members were added. The order is the order their
     /// boxes are built in and belongs to the document, so no per-element fact can carry it.
-    top_layer: Vec<StyleNodeID>,
+    top_layer: crate::fork::ForkShared<Vec<StyleNodeID>>,
 
     /// Counts the changes to the DOM child sequences, to the parents and shadow roots that place a
     /// node among its siblings, and to which nodes are live. See [`Self::dom_order_version`].
@@ -420,26 +419,26 @@ impl HostTree {
 
     /// The bytes of the tree's columns and indexes.
     pub(super) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
-        use crate::heap_size::{map_bytes, vec_bytes};
+        use crate::heap_size::vec_bytes;
         let ids = self.ids.as_ref().map_or(0, |ids| {
             size_of::<ElementIdIndex>()
-                + map_bytes(&ids.name_of_node)
-                + map_bytes(&ids.nodes_by_name)
+                + ids.name_of_node.heap_size()
+                + ids.nodes_by_name.heap_size()
                 + ids.candidate_bytes
         });
         let text = &self.text;
         let text_bytes = text.links.heap_size(sizer, |_, _| 0)
             + text.flags.heap_size(sizer, |_, _| 0)
             + text.data.heap_size(sizer, |_, _| 0)
-            + vec_bytes(&text.pending_reuse);
+            + text.pending_reuse.row_bytes();
         self.elements.heap_size(sizer, |_, _| 0)
             + self.live.heap_size()
             + self.relation_only.heap_size()
-            + vec_bytes(&self.pending_reuse)
+            + self.pending_reuse.row_bytes()
             + ids
             + text_bytes
-            + map_bytes(&self.dom_paint_facts)
-            + map_bytes(&self.table_spans)
+            + self.dom_paint_facts.heap_size()
+            + self.table_spans.heap_size()
             + vec_bytes(&self.top_layer)
     }
 
@@ -462,14 +461,14 @@ impl HostTree {
             live: BitColumn::default(),
             relation_only: BitColumn::default(),
             connected_element_count: 0,
-            pending_reuse: Vec::new(),
+            pending_reuse: Default::default(),
             #[cfg(test)]
             test_identities: Default::default(),
             ids: None,
             text: TextRows::default(),
-            dom_paint_facts: HashMap::default(),
-            table_spans: HashMap::default(),
-            top_layer: Vec::new(),
+            dom_paint_facts: Default::default(),
+            table_spans: Default::default(),
+            top_layer: Default::default(),
             dom_order_version: 0,
             dom_paint_facts_version: 0,
             #[cfg(test)]
@@ -617,12 +616,14 @@ impl HostTree {
     pub fn release_retired_identities(&mut self) -> Vec<u32> {
         let released: Vec<u32> = self
             .pending_reuse
-            .drain(..)
+            .take_rows()
+            .into_iter()
             .map(|index| StyleNodeID::element(index).raw())
             .chain(
                 self.text
                     .pending_reuse
-                    .drain(..)
+                    .take_rows()
+                    .into_iter()
                     .map(|index| StyleNodeID::text(index).raw()),
             )
             .collect();
@@ -824,7 +825,7 @@ impl HostTree {
 
     /// Replace the document's top layer.
     pub fn set_top_layer(&mut self, members: &[StyleNodeID]) {
-        members.clone_into(&mut self.top_layer);
+        self.top_layer.assign(members.to_vec());
     }
 
     /// The characters the text node holds, or none for any other identity.
@@ -1144,7 +1145,7 @@ struct TextRows {
     /// layout tree build reads them to render a text box, so they are published where the node
     /// arrives and wherever its data is replaced. Copied on write in chunks, as the flags are.
     data: CowColumn<ak::Utf16String, TEXT_DATA_PER_CHUNK>,
-    pending_reuse: Vec<u32>,
+    pending_reuse: crate::cow_column::CowVec<u32, 1024>,
 }
 
 /// How many text nodes a chunk of [`TextRows`]'s links holds.

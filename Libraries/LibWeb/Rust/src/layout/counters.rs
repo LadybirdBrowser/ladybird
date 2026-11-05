@@ -14,7 +14,6 @@ use super::node_data::{
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_string::CssString;
 use crate::css::style::RetainedState;
-use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::paint_read::PaintRead;
 use std::sync::Arc;
@@ -111,7 +110,7 @@ type CountersSet = Arc<Vec<Counter>>;
 /// Every non-empty counters set, keyed by its owner. An empty set is simply absent.
 #[derive(Clone, Default)]
 pub(crate) struct CountersSets {
-    sets: HashMap<CounterOwner, CountersSet>,
+    sets: crate::cow_map::CowMap<CounterOwner, CountersSet>,
     list_item_counter_name: Option<CssString>,
 }
 

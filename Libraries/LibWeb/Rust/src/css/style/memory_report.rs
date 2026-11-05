@@ -150,8 +150,8 @@ impl super::StyleEngine {
         report.add(MemoryOwner::CustomProperties, bytes);
         report.add(
             MemoryOwner::CustomProperties,
-            map_bytes(&state.element_custom_property_data)
-                + map_bytes(&state.pseudo_element_custom_property_data)
+            state.element_custom_property_data.heap_size()
+                + state.pseudo_element_custom_property_data.heap_size()
                 + state
                     .pseudo_element_custom_property_data
                     .values()
@@ -167,7 +167,7 @@ impl super::StyleEngine {
         report.add(
             MemoryOwner::HeldRecordMaps,
             held_style_records
-                + map_bytes(&state.held_pseudo_style_records)
+                + state.held_pseudo_style_records.heap_size()
                 + state
                     .held_pseudo_style_records
                     .values()
@@ -184,12 +184,12 @@ impl super::StyleEngine {
         report.add(MemoryOwner::AnimationEffects, bytes);
         report.add(
             MemoryOwner::OtherMaps,
-            set_bytes(&state.keyframes_reading_parent_reset_values)
+            state.keyframes_reading_parent_reset_values.heap_size()
                 + map_bytes(&state.layout_style_snapshots)
-                + map_bytes(&state.counter_style_environment_identities)
-                + map_bytes(&state.backing_elements)
-                + map_bytes(&state.replaced_content_inputs)
-                + map_bytes(&state.demand_records)
+                + state.counter_style_environment_identities.heap_size()
+                + state.backing_elements.heap_size()
+                + state.replaced_content_inputs.heap_size()
+                + state.demand_records.heap_size()
                 + state.transition_baselines.heap_size()
                 + state.scope_roots.heap_size()
                 + state.scope_by_root.heap_size()

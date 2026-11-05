@@ -54,7 +54,7 @@ impl PositionTryRuleID {
 /// The `@position-try` rules every style scope of the document defines, as each scope's rule cache resolved them.
 #[derive(Clone, Default)]
 pub(crate) struct PositionTryRules {
-    scopes: HashMap<TreeScopeID, PositionTryRow>,
+    scopes: crate::cow_map::CowMap<TreeScopeID, PositionTryRow>,
     last_id: u64,
 }
 

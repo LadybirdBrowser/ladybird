@@ -8,7 +8,6 @@
 //! The random base value each random caching key of the document has been given.
 
 use super::RetainedState;
-use super::fast_hash::FastMap as HashMap;
 use super::tree::StyleNodeID;
 use std::hash::BuildHasher;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -20,10 +19,10 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone, Default)]
 pub(crate) struct RandomBaseValues {
     /// The keys whose element is null, by name, shared with a fork until either side writes it.
-    document: crate::fork::ForkShared<HashMap<Box<[u16]>, f64>>,
+    document: crate::cow_map::CowMap<Box<[u16]>, f64>,
     /// The keys that name an element. Few elements draw, and those draw few names, so only they
     /// have a row and a row is searched in order. Shared with a fork until either side writes it.
-    elements: crate::fork::ForkShared<HashMap<StyleNodeID, Vec<NamedBaseValue>>>,
+    elements: crate::cow_map::CowMap<StyleNodeID, Vec<NamedBaseValue>>,
     /// Raised once any element has a row, and never lowered. The host watches it so that an element losing its
     /// identity asks for keys only once some element can have any.
     element_rows_exist: Arc<AtomicBool>,

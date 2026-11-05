@@ -9,7 +9,7 @@
 use super::boundary::StyleChange;
 use super::pipeline::Record;
 use super::tree::StyleNodeID;
-use super::{HashMap, RetainedState, ViewLonghands};
+use super::{RetainedState, ViewLonghands};
 use crate::css::animated_overlay::FfiAnimatedOverlayEntry;
 use crate::css::style_value::StyleValueData;
 use smallvec::SmallVec;
@@ -24,7 +24,7 @@ use std::sync::Arc;
 #[derive(Clone, Default)]
 pub(crate) struct TransitionBaselines {
     /// Shared with a fork until either side writes it.
-    baselines: crate::fork::ForkShared<HashMap<StyleNodeID, SmallVec<[TargetBaseline; 1]>>>,
+    baselines: crate::cow_map::CowMap<StyleNodeID, SmallVec<[TargetBaseline; 1]>>,
 }
 
 /// The baseline of a transition target, by its pseudo-element kind.
@@ -33,8 +33,8 @@ type TargetBaseline = (u8, Arc<Record>);
 impl TransitionBaselines {
     /// The bytes the baselines hold on the heap.
     pub(crate) fn heap_size(&self) -> usize {
-        use crate::heap_size::{map_bytes, small_vec_bytes};
-        map_bytes(&self.baselines) + self.baselines.values().map(small_vec_bytes).sum::<usize>()
+        use crate::heap_size::small_vec_bytes;
+        self.baselines.heap_size() + self.baselines.values().map(small_vec_bytes).sum::<usize>()
     }
 
     /// Keeps `record` as the target's baseline where it has none.

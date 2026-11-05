@@ -12,7 +12,6 @@
 //! actual pseudo-element kinds use sparse rows. An element's or pseudo-element's animations compose
 //! an animation overlay record over the record it is assigned, in a recyclable slot of its own.
 
-use super::fast_hash::FastMap as HashMap;
 use super::index::StyleAtomID;
 use super::installed_records::{InstalledRecord, InstalledRecordID, InstalledRecords};
 use super::tree::StyleNodeID;
@@ -527,6 +526,7 @@ impl ReleasedAnimationOverlayRecords {
         self.records.push(record);
     }
 
+    #[cfg(test)]
     fn is_empty(&self) -> bool {
         self.records.is_empty() && !self.overflowed
     }
@@ -677,7 +677,7 @@ type PseudoComputedRows = smallvec::SmallVec<[PseudoComputedRow; 1]>;
 
 /// The slot of the animation overlay composed over each element's record, by element.
 #[derive(Clone, Default)]
-struct AnimationOverlayColumn(Vec<u32>);
+struct AnimationOverlayColumn(crate::fork_vec::ForkVec<u32>);
 
 impl AnimationOverlayColumn {
     fn get(&self, index: usize) -> Option<u32> {
@@ -686,10 +686,8 @@ impl AnimationOverlayColumn {
 
     fn set(&mut self, index: usize, slot: Option<u32>) {
         if self.0.len() <= index {
-            self.0.resize(
-                index.checked_add(1).expect("animation overlay column space exhausted"),
-                0,
-            );
+            self.0
+                .resize_with_default(index.checked_add(1).expect("animation overlay column space exhausted"));
         }
         self.0[index] = slot.map_or(0, |slot| {
             slot.checked_add(1)
@@ -882,7 +880,7 @@ pub struct ComputedGroupSets {
     installed_pseudo_column:
         crate::cow_column::CowColumn<Option<std::sync::Arc<InstalledPseudoStyles>>, INSTALLED_STYLE_CHUNK>,
     /// The elements whose pseudo rows moved since the pseudo column was last published.
-    pseudo_rows_moved: Vec<StyleNodeID>,
+    pseudo_rows_moved: crate::fork::ForkShared<Vec<StyleNodeID>>,
     /// Long-lived immutable readers pin only the records they actually read. Expired readers leave weak entries
     /// that the next lease removes, so they neither block reclamation nor need to call back into the owner.
     hover_frame_leases: std::sync::Arc<std::sync::Mutex<Vec<std::sync::Weak<HoverFrameLease>>>>,
@@ -894,18 +892,18 @@ pub struct ComputedGroupSets {
     // Recyclable animation overlays are deliberately separate from the installed records above.
     // Dense element assignments and sparse pseudo assignments pin at most one slot each.
     animation_overlay_column: AnimationOverlayColumn,
-    animation_overlay_slots: animation_overlay_slots::AnimationOverlaySlots,
-    animation_overlay_slots_by_record: HashMap<FinalStyleRecordID, u32>,
+    animation_overlay_slots: crate::fork::ForkShared<animation_overlay_slots::AnimationOverlaySlots>,
+    animation_overlay_slots_by_record: crate::cow_map::CowMap<FinalStyleRecordID, u32>,
     /// The slots of overlay records nothing assigns or pins but something else holds, such as the host for the element
     /// it last applied the record to, which go once nothing does.
-    held_animation_overlay_slots: Vec<u32>,
+    held_animation_overlay_slots: crate::fork::ForkShared<Vec<u32>>,
     released_animation_overlay_records: ReleasedAnimationOverlayRecords,
     /// How many leases are held, shared with every copy of the sets: a copy holds no lease of its own.
     // NB: Either copy may be the host's, whose published frames hold their leases here.
     leases: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     live_animation_overlay_assignments: usize,
     next_animation_overlay_generation: u64,
-    pseudo_rows_by_node: crate::fork::ForkShared<HashMap<StyleNodeID, PseudoComputedRows>>,
+    pseudo_rows_by_node: crate::cow_map::CowMap<StyleNodeID, PseudoComputedRows>,
     /// How many installed records were freed since what they named was last reclaimed.
     records_freed_since_reclamation: usize,
     next_reclamation_after: usize,
@@ -917,14 +915,14 @@ impl Default for ComputedGroupSets {
             installed: InstalledRecords::default(),
             installed_column: Default::default(),
             installed_pseudo_column: Default::default(),
-            pseudo_rows_moved: Vec::new(),
+            pseudo_rows_moved: Default::default(),
             hover_frame_leases: std::sync::Arc::default(),
             released_records_reading_leases: MIN_RECORDS_RELEASED_BEFORE_READING_LEASES,
             released_records_sweeping: MIN_RECORDS_RELEASED_BEFORE_SWEEPING,
             animation_overlay_column: AnimationOverlayColumn::default(),
-            animation_overlay_slots: animation_overlay_slots::AnimationOverlaySlots::default(),
-            animation_overlay_slots_by_record: HashMap::default(),
-            held_animation_overlay_slots: Vec::new(),
+            animation_overlay_slots: Default::default(),
+            animation_overlay_slots_by_record: Default::default(),
+            held_animation_overlay_slots: Default::default(),
             released_animation_overlay_records: ReleasedAnimationOverlayRecords::default(),
             leases: std::sync::Arc::default(),
             live_animation_overlay_assignments: 0,
@@ -940,24 +938,24 @@ impl ComputedGroupSets {
     /// Counts the installed records and the columns naming them toward the installed records,
     /// and the records by owner.
     pub(super) fn report_memory(&self, report: &mut super::memory_report::MemoryReport) {
-        use crate::heap_size::{map_bytes, small_vec_bytes, vec_bytes};
+        use crate::heap_size::{small_vec_bytes, vec_bytes};
         self.installed.report_memory(report);
         for record in self.animation_overlay_slots.records() {
             super::pipeline::Record::report_memory(record, report);
         }
-        let pseudo_rows = &*self.pseudo_rows_by_node;
+        let pseudo_rows = &self.pseudo_rows_by_node;
         report.add(
             super::memory_report::MemoryOwner::Installed,
             self.installed_column.len() * size_of::<Option<InstalledStyle>>()
                 + self.installed_pseudo_column.len() * size_of::<Option<std::sync::Arc<InstalledPseudoStyles>>>()
                 + vec_bytes(&self.pseudo_rows_moved)
-                + vec_bytes(&self.animation_overlay_column.0)
+                + self.animation_overlay_column.0.row_bytes()
                 + self.animation_overlay_slots.heap_size()
-                + map_bytes(&self.animation_overlay_slots_by_record)
+                + self.animation_overlay_slots_by_record.heap_size()
                 + vec_bytes(&self.held_animation_overlay_slots)
                 + vec_bytes(&self.released_animation_overlay_records.records)
-                + map_bytes(pseudo_rows)
-                + pseudo_rows.values().map(small_vec_bytes).sum::<usize>(),
+                + pseudo_rows.heap_size()
+                + pseudo_rows.iter().map(|(_, rows)| small_vec_bytes(rows)).sum::<usize>(),
         );
     }
 
@@ -1016,7 +1014,8 @@ impl ComputedGroupSets {
         self.animation_overlay_slots.retired_records()
     }
 
-    pub(super) fn has_released_animation_overlay_records(&self) -> bool {
+    #[cfg(test)]
+    fn has_released_animation_overlay_records(&self) -> bool {
         !self.released_animation_overlay_records.is_empty()
     }
 
@@ -1063,19 +1062,16 @@ impl ComputedGroupSets {
 
     fn remove_empty_pseudo_row(&mut self, node: StyleNodeID, target: super::pipeline::PseudoElementTarget) {
         self.pseudo_rows_moved.push(node);
-        let std::collections::hash_map::Entry::Occupied(mut entry) = self.pseudo_rows_by_node.entry(node) else {
+        let Some(rows) = self.pseudo_rows_by_node.get(&node) else {
             return;
         };
-        let Some(row_index) = entry
-            .get()
-            .iter()
-            .position(|row| row.target() == target && row.is_empty())
-        else {
+        let Some(row_index) = rows.iter().position(|row| row.target() == target && row.is_empty()) else {
             return;
         };
-        entry.get_mut().remove(row_index);
-        if entry.get().is_empty() {
-            entry.remove();
+        let rows = self.pseudo_rows_by_node.get_mut(&node).expect("the node has rows");
+        rows.remove(row_index);
+        if rows.is_empty() {
+            self.pseudo_rows_by_node.remove(&node);
         }
     }
 
@@ -1193,7 +1189,7 @@ impl ComputedGroupSets {
         let mut moved = std::mem::take(&mut self.pseudo_rows_moved);
         moved.sort_unstable();
         moved.dedup();
-        for &node in &moved {
+        for &node in moved.iter() {
             let Some(index) = node.element_index().map(|index| index as usize) else {
                 continue;
             };
@@ -1450,9 +1446,10 @@ impl ComputedGroupSets {
         let mut slots = std::mem::take(&mut self.held_animation_overlay_slots);
         slots.sort_unstable();
         slots.dedup();
-        for slot in slots {
-            // NB: A slot a pin took again goes back on the list when its last pin goes.
-            let Some(record) = self.animation_overlay_slots.get(slot) else {
+        for slot in slots.iter().copied() {
+            // NB: Taken for writing so that a fork sharing the slots has a copy of its own, which counts as holding the
+            //     record. A slot a pin took again goes back on the list when its last pin goes.
+            let Some(record) = self.animation_overlay_slots.get_mut(slot) else {
                 continue;
             };
             if record.is_assigned || record.pin_count != 0 {
@@ -1531,6 +1528,12 @@ impl ComputedGroupSets {
                     record_updated: false,
                 };
             }
+            // NB: Taken for writing so that a fork sharing the slots has a copy of its own, which counts as holding the
+            //     record. Both ways on from here write the slots.
+            let current = self
+                .animation_overlay_slots
+                .get_mut(slot)
+                .expect("animation-overlay slot is live");
             if current.pin_count == 0 && !current.is_held_elsewhere() {
                 let record = self.make_animation_overlay_record(
                     base,

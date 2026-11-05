@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
 use libgfx_rust::path::Path;
 use libgfx_rust::{FloatPoint, WindingRule};
@@ -189,7 +188,7 @@ pub struct ImageMapAreaColumn {
 }
 
 /// The `<area>` elements of the image map of every image that has one, by the image's paintable row.
-pub type ImageMaps = FastMap<NodeSlotId, Arc<[PublishedImageMapArea]>>;
+pub type ImageMaps = crate::cow_map::CowMap<NodeSlotId, Arc<[PublishedImageMapArea]>>;
 
 impl ImageMapAreaColumn {
     /// Publishes the `<area>` elements of the image map an image is associated with, in tree order.

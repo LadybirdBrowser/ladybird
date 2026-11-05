@@ -67,6 +67,11 @@ impl<T: Clone> ForkShared<T> {
         Self(std::sync::Arc::new(value))
     }
 
+    /// The part, for writing, where no fork shares it.
+    pub(crate) fn unshared_mut(&mut self) -> Option<&mut T> {
+        std::sync::Arc::get_mut(&mut self.0)
+    }
+
     /// Replaces the part, in place where no fork shares it.
     pub(crate) fn assign(&mut self, value: T) {
         match std::sync::Arc::get_mut(&mut self.0) {

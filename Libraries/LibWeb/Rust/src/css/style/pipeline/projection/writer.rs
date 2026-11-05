@@ -13,8 +13,6 @@
 //! An element that left the tree is retired and forgotten here as its departure is published: the generations
 //! published before keep its facts, which is where the render owner reads what a departed element carried.
 
-use super::super::super::fast_hash::FastMap as HashMap;
-use super::super::super::fast_hash::FastSet as HashSet;
 use super::super::super::index::AttributeFact;
 use super::super::super::index::AttributeNameForms;
 use super::super::super::index::StyleAtomID;
@@ -84,9 +82,9 @@ pub(in crate::css::style) struct ProjectionWriter {
     host_fact_sets: Arc<HostFactSets>,
     recent_lists: RecentFactLists,
     /// A slotted text node's slot. Text nodes have no rows, and a slotted one is rare.
-    text_assigned_slots: Arc<HashMap<StyleNodeID, StyleNodeID>>,
+    text_assigned_slots: crate::cow_map::CowMap<StyleNodeID, StyleNodeID>,
     /// The elements whose facts say they are disabled, which only the writes of their states and their departures move.
-    disabled: Arc<HashSet<StyleNodeID>>,
+    disabled: crate::cow_map::CowSet<StyleNodeID>,
     /// The elements whose rows were written since the last publication.
     written: WrittenRows,
     /// Of those, the elements whose links were written.
@@ -113,8 +111,8 @@ pub(in crate::css::style) struct ProjectionPublication {
     pub(super) slot_count: usize,
     pub(super) catalogs: Catalogs,
     pub(super) host_fact_sets: Arc<HostFactSets>,
-    pub(super) text_assigned_slots: Arc<HashMap<StyleNodeID, StyleNodeID>>,
-    pub(super) disabled: Arc<HashSet<StyleNodeID>>,
+    pub(super) text_assigned_slots: crate::cow_map::CowMap<StyleNodeID, StyleNodeID>,
+    pub(super) disabled: crate::cow_map::CowSet<StyleNodeID>,
     pub(super) written: Vec<StyleNodeID>,
     pub(super) links_written: Vec<StyleNodeID>,
     pub(super) relations_written: Vec<StyleNodeID>,
@@ -142,7 +140,6 @@ impl ProjectionWriter {
     /// counted where they are seen first, and the lists of what it wrote. Like the generations a
     /// transaction in flight holds, how much that is depends on when the report runs.
     pub(in crate::css::style) fn report_memory(&self, report: &mut crate::css::style::memory_report::MemoryReport) {
-        use crate::heap_size::map_bytes;
         let sizer = &mut report.sizer;
         let mut bytes = self.rows.heap_size(sizer, Row::heap_size)
             + self.shadows.heap_size(sizer, |shadow, sizer| {
@@ -160,8 +157,8 @@ impl ProjectionWriter {
             bytes += texts.heap_size(sizer);
             bytes += texts.values().map(|text| size_of_val::<[u16]>(text)).sum::<usize>();
         }
-        bytes += sizer.arc_shallow(&self.text_assigned_slots) + map_bytes(&self.text_assigned_slots);
-        bytes += sizer.arc_shallow(&self.disabled) + crate::heap_size::set_bytes(&self.disabled);
+        bytes += self.text_assigned_slots.heap_size();
+        bytes += self.disabled.heap_size();
         bytes += [&self.written, &self.links_written, &self.relations_written]
             .iter()
             .map(|rows| rows.heap_size())
@@ -222,8 +219,8 @@ impl ProjectionWriter {
             slot_count: self.slot_count,
             catalogs: self.catalogs.clone(),
             host_fact_sets: Arc::clone(&self.host_fact_sets),
-            text_assigned_slots: Arc::clone(&self.text_assigned_slots),
-            disabled: Arc::clone(&self.disabled),
+            text_assigned_slots: self.text_assigned_slots.clone(),
+            disabled: self.disabled.clone(),
             written: self.written.take(),
             links_written: self.links_written.take(),
             relations_written: self.relations_written.take(),
@@ -257,7 +254,7 @@ impl ProjectionWriter {
         if self.disabled.contains(&node) == disabled {
             return;
         }
-        let elements = Arc::make_mut(&mut self.disabled);
+        let elements = &mut self.disabled;
         if disabled {
             elements.insert(node);
         } else {
@@ -460,7 +457,7 @@ impl ProjectionWriter {
         for &assigned in shadow.assigned_nodes.as_slice() {
             if assigned.text_index().is_some() {
                 if self.text_assigned_slots.get(&assigned) == Some(&node) {
-                    Arc::make_mut(&mut self.text_assigned_slots).remove(&assigned);
+                    self.text_assigned_slots.remove(&assigned);
                 }
             } else if self.row(assigned).and_then(|row| row.facts.lists.assigned_slot()) == Some(node) {
                 self.edit_lists_quietly(assigned, |lists| std::mem::take(&mut lists.assigned_slot).is_some());
@@ -477,7 +474,7 @@ impl ProjectionWriter {
     /// Retire text identities, dropping them from the slot each was assigned to.
     pub(in crate::css::style) fn retire_texts(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>) {
         for node in nodes {
-            let Some(slot) = Arc::make_mut(&mut self.text_assigned_slots).remove(&node) else {
+            let Some(slot) = self.text_assigned_slots.remove(&node) else {
                 continue;
             };
             self.remove_assigned_node(slot, node);
@@ -906,7 +903,7 @@ impl ProjectionWriter {
             return;
         }
         let previous: Vec<_> = self.assigned_nodes_of(slot).to_vec();
-        let text_slots = Arc::make_mut(&mut self.text_assigned_slots);
+        let text_slots = &mut self.text_assigned_slots;
         // A tree-wide assignment can have moved a departing text node to another slot already,
         // and this slot must not take that newer assignment away again.
         for node in &previous {

@@ -391,7 +391,7 @@ fn ensure_searchable_text(
         }
     }
     builder.flush();
-    arena.searchable_text = Some(builder.blocks);
+    *arena.searchable_text = Some(builder.blocks);
 }
 
 /// A range in the DOM text the layout rows render, between the DOM text nodes the identities
@@ -585,10 +585,10 @@ mod tests {
         let mut builder = SearchTextBuilder::default();
         builder.append(text, &arena.text_content(text).unwrap().text, false);
         builder.flush();
-        arena.searchable_text = Some(builder.blocks);
+        *arena.searchable_text = Some(builder.blocks);
         arena.set_text_content(text, TextContent::for_test("world", 0, 5, Vec::new()));
         assert!(arena.searchable_text.is_none());
-        arena.searchable_text = Some(Vec::new());
+        *arena.searchable_text = Some(Vec::new());
         arena
             .free_subtree(text)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
@@ -602,7 +602,7 @@ mod tests {
         let mut builder = SearchTextBuilder::default();
         builder.append(text, &arena.text_content(text).unwrap().text, false);
         builder.flush();
-        arena.searchable_text = Some(builder.blocks);
+        *arena.searchable_text = Some(builder.blocks);
         let query: Vec<u16> = "foo".encode_utf16().collect();
         let offsets: Vec<_> = find_matching_text(&mut arena, text, &query, true, &[])
             .iter()

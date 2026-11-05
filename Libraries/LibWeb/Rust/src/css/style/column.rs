@@ -90,15 +90,19 @@ impl<T> IntoIterator for Column<T> {
 /// A directly indexed packed boolean column.
 #[derive(Clone, Default)]
 pub(super) struct BitColumn {
-    words: Vec<u64>,
+    words: crate::cow_column::CowVec<u64, 64>,
 }
 
 impl PartialEq for BitColumn {
     fn eq(&self, other: &Self) -> bool {
-        let common_length = self.words.len().min(other.words.len());
-        self.words[..common_length] == other.words[..common_length]
-            && self.words[common_length..].iter().all(|word| *word == 0)
-            && other.words[common_length..].iter().all(|word| *word == 0)
+        let (longer, shorter) = match self.words.len() >= other.words.len() {
+            true => (&self.words, &other.words),
+            false => (&other.words, &self.words),
+        };
+        longer
+            .iter()
+            .enumerate()
+            .all(|(index, word)| shorter.get(index).copied().unwrap_or(0) == *word)
     }
 }
 
@@ -106,28 +110,30 @@ impl Eq for BitColumn {}
 
 impl BitColumn {
     pub(super) fn heap_size(&self) -> usize {
-        crate::heap_size::vec_bytes(&self.words)
+        self.words.row_bytes()
     }
 
     /// Set one bit and return whether its value changed and newly allocated bytes.
     pub(super) fn set(&mut self, index: usize, value: bool) -> (bool, u64) {
         let word_index = index / u64::BITS as usize;
-        let capacity_before = self.words.capacity();
+        let bytes_before = self.words.row_bytes();
         if self.words.len() <= word_index {
             if !value {
                 return (false, 0);
             }
-            self.words.resize(word_index + 1, 0);
+            self.words.resize_with_default(word_index + 1);
         }
-        let growth = ((self.words.capacity() - capacity_before) * size_of::<u64>()) as u64;
+        let growth = (self.words.row_bytes() - bytes_before) as u64;
         let mask = 1_u64 << (index % u64::BITS as usize);
-        let previous = self.words[word_index] & mask != 0;
+        if (self.words[word_index] & mask != 0) == value {
+            return (false, growth);
+        }
         if value {
             self.words[word_index] |= mask;
         } else {
             self.words[word_index] &= !mask;
         }
-        (previous != value, growth)
+        (true, growth)
     }
 
     pub(super) fn contains(&self, index: usize) -> bool {

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::cow_column::{CowColumn, RowMut};
+use crate::cow_column::{CowColumn, CowVec, RowMut};
 use crate::layout::LayoutNodeArena;
 use crate::layout::fragment_tree;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
@@ -198,7 +198,7 @@ impl PartialEq for CommittedFragmentLinkSlot {
 // for, so a slot that has been recycled since answers for the new row and not the old one.
 #[derive(Clone, Default)]
 pub(crate) struct UniqueNodeIdColumn {
-    ids: Vec<(NodeSlotId, i64)>,
+    ids: crate::fork_vec::ForkVec<(NodeSlotId, i64)>,
 }
 
 impl UniqueNodeIdColumn {
@@ -215,7 +215,7 @@ impl UniqueNodeIdColumn {
         }
         let index = slot.slot_index() as usize;
         if self.ids.len() <= index {
-            self.ids.resize(index + 1, (NodeSlotId::INVALID, 0));
+            self.ids.resize_with_default(index + 1);
         }
         self.ids[index] = (slot, id);
     }
@@ -225,9 +225,9 @@ impl UniqueNodeIdColumn {
 pub(crate) struct PaintableRowStore {
     rows: CowColumn<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
     /// In chunks a fork of the arena shares until either side writes one, so forking does not copy every row's.
-    side_data: crate::cow_column::CowVec<PaintableSideData, PAINTABLE_SLOTS_PER_CHUNK>,
+    side_data: CowVec<PaintableSideData, PAINTABLE_SLOTS_PER_CHUNK>,
     committed_side_data: CowColumn<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
-    pub(crate) row_paint_states: Vec<RowPaintState>,
+    pub(crate) row_paint_states: crate::fork_vec::ForkVec<RowPaintState>,
     pub(crate) damage: DamageSet,
     // NB: Boxed, as most rows have no record, and a row holds no more than a pointer for one.
     visual_context_records: CowColumn<Option<Box<PaintableVisualContextRecord>>, PAINTABLE_SLOTS_PER_CHUNK>,

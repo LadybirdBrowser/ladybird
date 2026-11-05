@@ -6,8 +6,7 @@
 
 //! What a fork of a styled document's engine allocates. The render clock and the hover lane fork
 //! the engine whenever the host moves on under them, so a fork is made per frame while the host is
-//! busy: it should copy chunk pointers and reference counts, not tables, and so allocate no more
-//! for a document twice as large.
+//! busy: it copies reference counts, not tables, and so allocates no more for a larger document.
 
 use super::super::*;
 use super::allocation_count::count_live_bytes;
@@ -17,7 +16,7 @@ use crate::css::computed_values::{BoxValues, StyleGroups};
 use crate::css::table_group_builder::group_index;
 
 /// How many elements the smaller of the two documents a test forks holds.
-const ELEMENTS: usize = 256;
+const ELEMENTS: usize = 32;
 
 /// Builds a document element with `count - 1` children, owned by the engine, as a document's
 /// host leaves it after its first frame: one query container late in tree order, every eighth
@@ -116,24 +115,16 @@ fn fork_bytes(engine: &StyleEngine) -> i64 {
     bytes
 }
 
-/// What a fork of the smaller document allocates, and how much more per element a fork of one
-/// twice as large does, at most.
-const FORK_BYTES: i64 = 5_150;
-const FORK_BYTES_PER_ELEMENT: f64 = 1.5;
+/// What a fork of a document allocates, whatever the document holds.
+const FORK_BYTES: i64 = 5_480;
 
 #[test]
-fn forking_a_styled_document_allocates_at_most_as_today() {
+fn forking_a_styled_document_allocates_the_same_however_large_it_is() {
     let small = fork_bytes(&styled_document(ELEMENTS));
-    let large = fork_bytes(&styled_document(2 * ELEMENTS));
-    let per_element = (large - small) as f64 / ELEMENTS as f64;
-    // FIXME: A fork copies chunk pointers and reference counts, not tables: drive both bounds to
-    //        what the chunks written since the fork hold.
+    let large = fork_bytes(&styled_document(4 * ELEMENTS));
     assert!(
         small <= FORK_BYTES,
         "a fork of {ELEMENTS} elements allocates {small} bytes"
     );
-    assert!(
-        per_element <= FORK_BYTES_PER_ELEMENT,
-        "a fork allocates {per_element:.1} bytes per element"
-    );
+    assert_eq!(small, large, "a fork allocates more for a larger document");
 }

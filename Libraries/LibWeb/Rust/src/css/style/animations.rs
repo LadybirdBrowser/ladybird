@@ -150,14 +150,14 @@ type CssDefinedAnimationList = (AnimationSlot, Box<[CssDefinedAnimation]>);
 pub(crate) struct CssDefinedAnimations {
     /// Owning a CSS animation is rare, so only the elements that do have a row, and a row holds
     /// only the lists that are not empty.
-    rows: HashMap<StyleNodeID, Vec<CssDefinedAnimationList>>,
+    rows: crate::cow_map::CowMap<StyleNodeID, Vec<CssDefinedAnimationList>>,
 }
 
 impl CssDefinedAnimations {
     /// The bytes the rows hold on the heap, with each name the first time `sizer` reaches it.
     pub(crate) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
-        use crate::heap_size::{map_bytes, vec_bytes};
-        let mut bytes = map_bytes(&self.rows);
+        use crate::heap_size::vec_bytes;
+        let mut bytes = self.rows.heap_size();
         for lists in self.rows.values() {
             bytes += vec_bytes(lists);
             for (_, animations) in lists {
@@ -312,7 +312,7 @@ pub(crate) type KeyframesRow = HashMap<Box<[u16]>, usize>;
 /// resolves keyframes.
 #[derive(Clone, Default)]
 pub(crate) struct AnimationKeyframes {
-    scopes: HashMap<TreeScopeID, KeyframesRow>,
+    scopes: crate::cow_map::CowMap<TreeScopeID, KeyframesRow>,
 }
 
 impl AnimationKeyframes {
