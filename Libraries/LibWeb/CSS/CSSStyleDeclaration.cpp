@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -146,9 +148,12 @@ static CSSStyleDeclaration& declaration_from_cell(void* cell)
     return *static_cast<CSSStyleDeclaration*>(static_cast<GC::Cell*>(cell));
 }
 
-static Utf16FlyString property_name_from_utf8(u8 const* name, size_t name_length)
+// NB: The bindings only pass static names, so each one is interned once.
+static Utf16FlyString property_name_from_static_utf8(u8 const* name, size_t name_length)
 {
-    return Utf16FlyString::from_utf8_without_validation(StringView { name, name_length });
+    static NeverDestroyed<HashMap<StringView, Utf16FlyString>> names;
+    StringView key { name, name_length };
+    return names->ensure(key, [&] { return Utf16FlyString::from_utf8_without_validation(key); });
 }
 
 static Utf16FlyString property_name_from_raw(FlatPtr property)
@@ -178,13 +183,13 @@ void* web_css_declaration_owner(void* declaration)
 
 FlatPtr web_css_declaration_get_by_name(void* declaration, u8 const* name, size_t name_length)
 {
-    return declaration_from_cell(declaration).get_property_value(property_name_from_utf8(name, name_length)).into_raw();
+    return declaration_from_cell(declaration).get_property_value(property_name_from_static_utf8(name, name_length)).into_raw();
 }
 
 bool web_css_declaration_set_by_name(void* declaration, u8 const* name, size_t name_length, FlatPtr value, FlatPtr* error_message)
 {
     auto text = Utf16String::adopt_raw(value);
-    return succeeded_or_store_message(declaration_from_cell(declaration).set_property(property_name_from_utf8(name, name_length), text.utf16_view(), u""sv), error_message);
+    return succeeded_or_store_message(declaration_from_cell(declaration).set_property(property_name_from_static_utf8(name, name_length), text.utf16_view(), u""sv), error_message);
 }
 
 FlatPtr web_css_declaration_css_text(void* declaration)
