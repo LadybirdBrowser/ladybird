@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Scripts call console.timeStamp(), console.profile() and console.profileEnd() as all engines provide them, so they
+    // have to exist rather than throw: Here, with no profiler, they do nothing.
+    test(() => {
+        for (const name of ["timeStamp", "profile", "profileEnd"]) {
+            const descriptor = Object.getOwnPropertyDescriptor(console, name);
+            const result = console[name]("label", 1);
+            println(`${name}: ${typeof console[name]}, length ${console[name].length}, writable ${descriptor.writable}, enumerable ${descriptor.enumerable}, configurable ${descriptor.configurable}, returns ${result}`);
+        }
+    });
+</script>

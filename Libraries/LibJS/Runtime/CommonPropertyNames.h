@@ -401,6 +401,8 @@ namespace JS {
     P(POSITIVE_INFINITY)                     \
     P(pow)                                   \
     P(preventExtensions)                     \
+    P(profile)                               \
+    P(profileEnd)                            \
     P(promise)                               \
     P(propertyIsEnumerable)                  \
     P(prototype)                             \
@@ -523,6 +525,7 @@ namespace JS {
     P(time)                                  \
     P(timeEnd)                               \
     P(timeLog)                               \
+    P(timeStamp)                             \
     P(timeStyle)                             \
     P(timeZone)                              \
     P(timeZoneId)                            \

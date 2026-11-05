@@ -1,0 +1,3 @@
+timeStamp: function, length 0, writable true, enumerable true, configurable true, returns undefined
+profile: function, length 0, writable true, enumerable true, configurable true, returns undefined
+profileEnd: function, length 0, writable true, enumerable true, configurable true, returns undefined
