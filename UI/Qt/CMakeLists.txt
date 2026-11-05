@@ -25,8 +25,7 @@ if (LINUX AND NOT ANDROID)
     pkg_check_modules(XCB_ICCCM REQUIRED IMPORTED_TARGET xcb-icccm)
 endif()
 
-qt_add_executable(ladybird main.cpp)
-target_sources(ladybird PRIVATE
+add_library(ladybird_impl STATIC
     AllTabsPopover.cpp
     Application.cpp
     Autocomplete.cpp
@@ -72,29 +71,28 @@ target_sources(ladybird PRIVATE
     WindowControlButton.cpp
     WindowScreenObserver.cpp
     WindowToolbar.cpp
-    ladybird.qrc
 )
 if (NOT APPLE AND NOT WIN32 AND NOT ANDROID)
-    target_sources(ladybird PRIVATE
+    target_sources(ladybird_impl PRIVATE
         AccessibilityInterface.cpp
     )
 endif()
 
-target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
+target_link_libraries(ladybird_impl PUBLIC Qt::Core Qt::Gui Qt::Widgets)
 
 if (TARGET Qt6::Positioning)
-    target_sources(ladybird PRIVATE GeolocationProviderQt.cpp GeolocationProviderQt.h)
-    target_link_libraries(ladybird PRIVATE Qt::Positioning)
-    target_compile_definitions(ladybird PRIVATE LADYBIRD_QT_HAVE_POSITIONING=1)
+    target_sources(ladybird_impl PRIVATE GeolocationProviderQt.cpp GeolocationProviderQt.h)
+    target_link_libraries(ladybird_impl PUBLIC Qt::Positioning)
+    target_compile_definitions(ladybird_impl PUBLIC LADYBIRD_QT_HAVE_POSITIONING=1)
 endif()
 
 if (LINUX AND NOT ANDROID)
-    target_sources(ladybird PRIVATE ExternalURLActivationToken.cpp ExternalURLHandler.cpp X11Window.cpp X11Window.h)
-    target_link_libraries(ladybird PRIVATE LibThreading PkgConfig::GIO PkgConfig::XCB_ICCCM Qt::GuiPrivate)
+    target_sources(ladybird_impl PRIVATE ExternalURLActivationToken.cpp ExternalURLHandler.cpp X11Window.cpp X11Window.h)
+    target_link_libraries(ladybird_impl PRIVATE LibThreading PkgConfig::GIO PkgConfig::XCB_ICCCM Qt::GuiPrivate)
     if (WAYLAND_CLIENT_FOUND)
-        target_sources(ladybird PRIVATE WaylandWindow.cpp WaylandWindow.h)
-        target_link_libraries(ladybird PRIVATE PkgConfig::WAYLAND_CLIENT)
-        target_compile_definitions(ladybird PRIVATE LADYBIRD_HAS_WAYLAND_CLIENT)
+        target_sources(ladybird_impl PRIVATE WaylandWindow.cpp WaylandWindow.h)
+        target_link_libraries(ladybird_impl PRIVATE PkgConfig::WAYLAND_CLIENT)
+        target_compile_definitions(ladybird_impl PUBLIC LADYBIRD_HAS_WAYLAND_CLIENT)
     endif()
     if (WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER_FOUND AND USE_VULKAN_DMABUF_IMAGES)
         pkg_get_variable(WAYLAND_SCANNER_EXECUTABLE wayland-scanner wayland_scanner)
@@ -114,9 +112,9 @@ if (LINUX AND NOT ANDROID)
                 DEPENDS "${protocol_xml}"
                 VERBATIM
             )
-            target_sources(ladybird PRIVATE "${protocol_header}" "${protocol_code}")
+            target_sources(ladybird_impl PRIVATE "${protocol_header}" "${protocol_code}")
         endforeach()
-        target_sources(ladybird PRIVATE
+        target_sources(ladybird_impl PRIVATE
             WaylandGpu.cpp
             WaylandGpu.h
             WaylandPageSurface.cpp
@@ -124,8 +122,8 @@ if (LINUX AND NOT ANDROID)
             WaylandRegistry.cpp
             WaylandRegistry.h
         )
-        target_include_directories(ladybird PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-        target_compile_definitions(ladybird PRIVATE LADYBIRD_HAS_WAYLAND_GPU_QUERY)
+        target_include_directories(ladybird_impl PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+        target_compile_definitions(ladybird_impl PUBLIC LADYBIRD_HAS_WAYLAND_GPU_QUERY)
     else()
         message(WARNING "Building without the Wayland page surface. Pages on Wayland will use a fallback that can fall "
             "behind the window as it resizes. The page surface needs the wayland-client and wayland-scanner pkg-config "
@@ -134,7 +132,7 @@ if (LINUX AND NOT ANDROID)
 endif()
 
 if (APPLE)
-    target_sources(ladybird PRIVATE
+    target_sources(ladybird_impl PRIVATE
         ApplicationIcon.mm
         Conversions.mm
         DictionaryLookup.mm
@@ -150,7 +148,7 @@ if (APPLE)
         WebContentViewAccessibility.mm
         WebContentViewMac.mm
     )
-    target_link_libraries(ladybird PRIVATE Qt::GuiPrivate "-framework ApplicationServices" "-framework Cocoa" "-framework IOSurface" "-framework QuartzCore")
+    target_link_libraries(ladybird_impl PRIVATE Qt::GuiPrivate "-framework ApplicationServices" "-framework Cocoa" "-framework IOSurface" "-framework QuartzCore")
     set_source_files_properties(
         LadybirdAccessibilityElement.mm
         SpellCheckerMac.mm
@@ -199,20 +197,23 @@ if (NOT APPLE AND USE_VULKAN_DMABUF_IMAGES)
             "${WEB_CONTENT_VIEW_LINUX_FRAG_SHADER_HEADER}"
     )
 
-    target_sources(ladybird PRIVATE
+    target_sources(ladybird_impl PRIVATE
         WebContentViewLinux.cpp
         "${WEB_CONTENT_VIEW_LINUX_VERT_SHADER_HEADER}"
         "${WEB_CONTENT_VIEW_LINUX_FRAG_SHADER_HEADER}"
     )
-    target_include_directories(ladybird PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-    target_link_libraries(ladybird PRIVATE Vulkan::Vulkan)
-    add_dependencies(ladybird generate_web_content_view_linux_shaders)
+    target_include_directories(ladybird_impl PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+    target_link_libraries(ladybird_impl PRIVATE Vulkan::Vulkan)
+    add_dependencies(ladybird_impl generate_web_content_view_linux_shaders)
 endif()
 
 if (HAS_DIRECTX)
-    target_sources(ladybird PRIVATE WebContentViewWindows.cpp)
-    target_link_libraries(ladybird PRIVATE Qt::GuiPrivate d3d11)
+    target_sources(ladybird_impl PRIVATE WebContentViewWindows.cpp)
+    target_link_libraries(ladybird_impl PRIVATE Qt::GuiPrivate d3d11)
 endif()
+
+qt_add_executable(ladybird main.cpp ladybird.qrc)
+target_link_libraries(ladybird PRIVATE ladybird_impl)
 
 create_ladybird_bundle(ladybird)
 
