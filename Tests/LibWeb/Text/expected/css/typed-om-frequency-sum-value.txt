@@ -2,7 +2,7 @@ hz
 khz
 calc(1hz + 1khz)
 1000hz
-TypeError
-TypeError
+1001hz
+1.001khz
 2000hz
 false
