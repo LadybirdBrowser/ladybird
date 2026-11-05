@@ -179,6 +179,7 @@ impl LaneDelivery {
             recorder,
             presentation,
             presented,
+            presented_hit_test_items: None,
         };
         let (ticks, frame) = (Arc::clone(&self.ticks), self.frame);
         super::super::post_to_render_side(move || {

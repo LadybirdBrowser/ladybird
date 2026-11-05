@@ -47,10 +47,10 @@ use crate::painting::presentation::Presentation;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::inputs::UnframedRecordingInputs;
 use crate::painting::record::publish::{
-    published_vector_image_display_lists, renders_vector_images, take_in_published_output, take_in_recording,
+    PresentedOutput, published_vector_image_display_lists, renders_vector_images, take_in_recording,
 };
 use crate::painting::record::recorder_state::RecorderState;
-use crate::painting::record::{RecordingInputs, RecordingOutput};
+use crate::painting::record::{PublishedHitTestItems, RecordingInputs, RecordingOutput};
 use crate::painting::recording_slot::{
     FrameInputs, FrozenFrame, RecordingAnswer, RecordingJob, freeze_recording_frame, present,
     present_with_vector_images, record_frame, wait_while_recording_is_held_for_testing,
@@ -347,6 +347,8 @@ pub(crate) struct Lane {
     /// Whether a tick left its frame to the host, after which the fork may hold what no frame the lane presented shows,
     /// such as visual contexts of another structure than the compositor has: the lane presents no other frame.
     frame_left_to_host: bool,
+    /// Whether a tick had a frame presented.
+    presented_a_tick: bool,
     /// What the lane's hover moved.
     hovered: hover::LaneHover,
     /// What the move a tick's hover made started, with the time it made it at, until the tick presents the frame that
@@ -452,6 +454,9 @@ pub(crate) struct ClockRecorder {
     pub(super) recorder: RecorderState,
     pub(super) presentation: Presentation,
     pub(super) presented: TickPresented,
+    /// The hit-test items of the frame a tick presented last. The recorder's stay those of the lane's frame, which every
+    /// tick's frame copies clean output from.
+    pub(super) presented_hit_test_items: Option<Arc<PublishedHitTestItems>>,
 }
 
 /// What the recording of a tick's frame presented.
@@ -465,7 +470,7 @@ pub(crate) enum TickPresented {
         publishes: bool,
     },
     /// Nothing: the frame renders an SVG image the recording published last did not draw, which only the host renders,
-    /// and the lane samples no more.
+    /// or a recording of the host rewrote the paint-order tree the lane reads, and the lane samples no more.
     LeftToHost,
 }
 
@@ -1306,6 +1311,7 @@ impl Lane {
             settling_frames: 0,
             parked,
             frame_left_to_host: false,
+            presented_a_tick: false,
             hovered: hover::LaneHover::default(),
             unshown_move: None,
             samples_restored: false,
@@ -1332,7 +1338,20 @@ impl Lane {
         if self.samples_nothing() && self.state.rejoin_the_state() {
             self.hovered.installs.clear();
             self.selection_focus_shown = None;
+            // The compositor shows visual contexts of what the ticks presented, which the state the lane rejoins may not
+            // have the structure of.
+            if self.presented_a_tick {
+                self.leave_frame_to_host();
+            }
         }
+    }
+
+    /// Has the lane present no other frame: the frame is the host's.
+    fn leave_frame_to_host(&mut self) {
+        self.parked = true;
+        self.frame_left_to_host = true;
+        self.hovered.park();
+        self.forget_unshown_move();
     }
 
     /// Has the lane follow no plan, as a rendering update that sealed none leaves it: it ticks nothing until the plan of
@@ -1500,10 +1519,7 @@ impl Lane {
                         if hover::logs_hover() {
                             eprintln!("{} hover lane: frame left to the host: {reason}", hover::log_time());
                         }
-                        self.parked = true;
-                        self.frame_left_to_host = true;
-                        self.hovered.park();
-                        self.forget_unshown_move();
+                        self.leave_frame_to_host();
                     }
                 }
             }
@@ -1548,10 +1564,7 @@ impl Lane {
                     if hover::logs_hover() {
                         eprintln!("{} hover lane: frame left to the host: {reason}", hover::log_time());
                     }
-                    self.parked = true;
-                    self.frame_left_to_host = true;
-                    self.hovered.park();
-                    self.forget_unshown_move();
+                    self.leave_frame_to_host();
                 }
             }
         }
@@ -1679,6 +1692,7 @@ impl Lane {
                 self.recording = TickRecording(crate::paint_stage::ride_presenting(frame, move |frame, presenting| {
                     clock_recorder.record(frame, presenting)
                 }));
+                self.presented_a_tick = true;
             }
             Err(park) => {
                 self.recording = TickRecording(Riding::landed(clock_recorder));
@@ -1796,7 +1810,7 @@ fn freeze_tick_frame(
     let frame_inputs = FrameInputs {
         viewport,
         css_viewport_rect: inputs.css_viewport_rect,
-        publishes_recording: true,
+        publishes_recording: false,
         published_root_background_canvas_rect: recorder
             .published_recording
             .as_ref()
@@ -1818,47 +1832,56 @@ impl ClockRecorder {
     /// Paint thread. Only the host renders an SVG image: the frame draws those the recording published last drew, as the
     /// host rendered them for it, and leaves the frame to the host where it draws another.
     fn record(mut self, frame: SampledFrame<RecordedFrame>, presenting: &mut Presenting) -> Self {
-        let Self {
-            recorder,
-            presentation,
-            presented,
-        } = &mut self;
+        debug_assert!(self.recorder.paint_order_tree.is_reader());
+        if !self.recorder.paint_order_tree.reads_current_tree() {
+            self.leave_frame_to_host();
+            return self;
+        }
         let SampledFrame(RecordedFrame {
             frozen,
             viewport,
             inputs,
             visual_contexts,
         }) = frame;
-        let (pending, _) = record_frame(frozen.frame, recorder, viewport, false, inputs);
+        let (pending, _) = record_frame(frozen.frame, &mut self.recorder, viewport, false, inputs);
         let vector_image_display_lists = match renders_vector_images(&pending) {
-            true => match published_vector_image_display_lists(&pending, recorder) {
+            true => match published_vector_image_display_lists(&pending, &self.recorder) {
                 Some(display_list_ids) => Some(display_list_ids),
                 None => {
-                    // The recording wrote the paint-order tree, which no longer describes the recording published last.
-                    recorder.forget_published_recording();
-                    *presented = TickPresented::LeftToHost;
+                    self.leave_frame_to_host();
                     return self;
                 }
             },
             false => None,
         };
         if let Some(visual_contexts) = visual_contexts {
-            presentation.take_visual_context_tree(visual_contexts);
+            self.presentation.take_visual_context_tree(visual_contexts);
         }
         let output = match vector_image_display_lists {
-            Some(display_list_ids) => {
-                present_with_vector_images(presentation, pending, recorder, presenting, &display_list_ids)
-            }
-            None => present(presentation, pending, recorder, presenting),
+            Some(display_list_ids) => present_with_vector_images(
+                &mut self.presentation,
+                pending,
+                &self.recorder,
+                presenting,
+                &display_list_ids,
+            ),
+            None => present(&mut self.presentation, pending, &self.recorder, presenting),
         };
-        take_in_published_output(recorder, &mut None, output, true, |output, hit_test_list_changed| {
-            *presented = TickPresented::Frame {
-                output,
-                hit_test_list_changed,
-                publishes: true,
-            };
-        });
+        let output = PresentedOutput::of(output);
+        self.presented_hit_test_items = Some(output.published_hit_test_items());
+        self.presented = TickPresented::Frame {
+            output: output.output,
+            hit_test_list_changed: true,
+            publishes: false,
+        };
         self
+    }
+
+    /// Leaves the frame to the host, which a lane that presents no other frame finds no more items to hit test.
+    fn leave_frame_to_host(&mut self) {
+        self.recorder.published_hit_test_items = None;
+        self.presented_hit_test_items = None;
+        self.presented = TickPresented::LeftToHost;
     }
 }
 

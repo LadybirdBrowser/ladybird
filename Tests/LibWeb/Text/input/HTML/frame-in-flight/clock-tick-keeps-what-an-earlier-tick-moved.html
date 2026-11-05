@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #hoverer { position: absolute; left: 0; top: 0; width: 100px; height: 50px; }
+    #moved { position: absolute; left: 200px; top: 0; width: 100px; height: 50px; cursor: pointer; }
+    #hoverer:hover #moved { top: 200px; }
+    #revealed { display: none; position: absolute; left: 400px; top: 200px; width: 100px; height: 50px; cursor: text; }
+    #hoverer:hover #revealed { display: block; }
+    #animated { position: absolute; left: 600px; top: 0; width: 50px; height: 50px; }
+    #animated.active { animation: grow 10s linear infinite; }
+    @keyframes grow { from { height: 50px; } to { height: 150px; } }
+</style>
+<div id="hoverer">
+    <div id="moved"></div>
+    <div id="revealed"></div>
+</div>
+<div id="animated"></div>
+<script>
+    // Every tick of a lane records from the lane's own frame. A hover moves one box and reveals another, and ticks that
+    // only move a third box follow. Each frame still has the first two where the hover left them, which the hit tests of
+    // the moves after those ticks find.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => {
+            animated.classList.add("active");
+            return animated.getAnimations()[0];
+        }, (frameTime, animation, startTime) => {
+            const lines = [];
+            internals.injectHoverPointer(50, 25, startTime + 1000);
+            lines.push(`after the hover: box at y ${internals.presentedBorderBox(moved)?.y}`);
+            internals.injectClockTick(startTime + 2000);
+            lines.push(`after a tick: animated height ${internals.presentedBorderBox(animated)?.height}, box at y ${internals.presentedBorderBox(moved)?.y}`);
+            internals.injectHoverPointer(250, 225, startTime + 3000);
+            lines.push(`over the moved box: cursor ${internals.currentCursor()}`);
+            internals.injectClockTick(startTime + 4000);
+            lines.push(`after a tick: animated height ${internals.presentedBorderBox(animated)?.height}`);
+            internals.injectHoverPointer(450, 225, startTime + 5000);
+            lines.push(`over the revealed box: cursor ${internals.currentCursor()}`);
+            lines.push(`last frame presented by: ${internals.lastFramePresentedBy(document)}`);
+            return lines;
+        });
+        for (const line of result)
+            println(line);
+        done();
+    });
+</script>

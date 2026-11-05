@@ -1322,9 +1322,12 @@ impl Lane {
     /// The hit-test items of the frame the lane presented last, which come back with its recording.
     fn published_hit_test_items(&mut self) -> Option<Arc<PublishedHitTestItems>> {
         let recorder = self.recording.0.take(WaitsForTickRecording(()));
-        let published = recorder.recorder.published_hit_test_items.clone();
+        let presented = recorder
+            .presented_hit_test_items
+            .clone()
+            .or_else(|| recorder.recorder.published_hit_test_items.clone());
         self.recording = TickRecording(Riding::landed(recorder));
-        published
+        presented
     }
 
     /// The hit-test items of the frame the lane presented last, with the tree of visual contexts of `state` they name as

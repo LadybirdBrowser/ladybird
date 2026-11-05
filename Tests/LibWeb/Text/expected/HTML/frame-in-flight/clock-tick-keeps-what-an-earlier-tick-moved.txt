@@ -1,0 +1,6 @@
+after the hover: box at y 200
+after a tick: animated height 70, box at y 200
+over the moved box: cursor Hand
+after a tick: animated height 90
+over the revealed box: cursor IBeam
+last frame presented by: clock
