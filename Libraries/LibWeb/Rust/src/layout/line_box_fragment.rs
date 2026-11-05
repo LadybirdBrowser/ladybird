@@ -224,32 +224,36 @@ impl LineBoxFragmentData {
             self.current_insert_direction = run_direction;
         }
 
-        let existing = self
+        let insert_position = self.insert_position;
+        let existing = &mut self
             .glyphs
             .as_mut()
             .expect("merged fragment must have a glyph run")
-            .glyphs
-            .to_mut();
+            .glyphs;
         existing.reserve(run.glyphs.len());
         match run_direction {
             direction::LTR => {
-                for mut glyph in run.glyphs.iter().copied() {
-                    glyph.x += inline_offset;
-                    glyph.cluster_start += text_offset;
-                    existing.push(glyph);
+                for placed in run.glyphs.placed() {
+                    existing.push_placed(libgfx_rust::text_layout::PlacedGlyph {
+                        x: placed.x + inline_offset,
+                        cluster_start: placed.cluster_start + text_offset,
+                        ..placed
+                    });
                 }
             }
             direction::RTL => {
                 let run_offset = run_inline_size.to_double() as f32;
-                for glyph in existing.iter_mut() {
-                    if glyph.x >= self.insert_position {
-                        glyph.x += run_offset;
+                existing.update_positions(|_, x, _| {
+                    if *x >= insert_position {
+                        *x += run_offset;
                     }
-                }
-                for mut glyph in run.glyphs.iter().copied() {
-                    glyph.x += self.insert_position;
-                    glyph.cluster_start += text_offset;
-                    existing.push(glyph);
+                });
+                for placed in run.glyphs.placed() {
+                    existing.push_placed(libgfx_rust::text_layout::PlacedGlyph {
+                        x: placed.x + insert_position,
+                        cluster_start: placed.cluster_start + text_offset,
+                        ..placed
+                    });
                 }
             }
             _ => unreachable!(),
@@ -268,35 +272,37 @@ impl LineBoxFragmentData {
             self.current_insert_direction = run_direction;
         }
 
-        let existing = self
+        let insert_position = self.insert_position;
+        let existing = &mut self
             .glyphs
             .as_mut()
             .expect("merged fragment must have a glyph run")
-            .glyphs
-            .to_mut();
+            .glyphs;
         existing.reserve(run.glyphs.len());
         match run_direction {
             direction::LTR => {
-                for glyph in existing.iter_mut() {
-                    if glyph.x >= self.insert_position {
-                        glyph.x += run_offset;
+                existing.update_positions(|_, x, _| {
+                    if *x >= insert_position {
+                        *x += run_offset;
                     }
-                }
-                for mut glyph in run.glyphs.iter().copied() {
-                    glyph.x += self.insert_position;
-                    glyph.cluster_start += text_offset;
-                    existing.push(glyph);
+                });
+                for placed in run.glyphs.placed() {
+                    existing.push_placed(libgfx_rust::text_layout::PlacedGlyph {
+                        x: placed.x + insert_position,
+                        cluster_start: placed.cluster_start + text_offset,
+                        ..placed
+                    });
                 }
             }
             direction::RTL => {
                 if run.text_type != GLYPH_TEXT_TYPE_END_PADDING {
-                    for glyph in existing.iter_mut() {
-                        glyph.x += run_offset;
-                    }
+                    existing.update_positions(|_, x, _| *x += run_offset);
                 }
-                for mut glyph in run.glyphs.iter().copied() {
-                    glyph.cluster_start += text_offset;
-                    existing.push(glyph);
+                for placed in run.glyphs.placed() {
+                    existing.push_placed(libgfx_rust::text_layout::PlacedGlyph {
+                        cluster_start: placed.cluster_start + text_offset,
+                        ..placed
+                    });
                 }
             }
             _ => unreachable!(),

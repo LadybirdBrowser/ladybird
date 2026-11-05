@@ -530,7 +530,7 @@ fn draw_label<O: Observer>(recorder: &mut PaintRecorder<'_, O>, label: &OverlayL
         GlyphRunForRecording {
             font_smoothing: crate::css::css_enums::font_smoothing::AUTO,
             font_id: FontResourceId(label.font_id),
-            glyphs: label.glyphs.iter().map(DisplayListGlyph::from),
+            glyphs: label.glyphs.placed().map(DisplayListGlyph::from),
         },
         color,
         rect,

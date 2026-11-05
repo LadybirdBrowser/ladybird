@@ -23,44 +23,43 @@ fn truncate_line_at_glyph_boundary(
         if index == 0 {
             return Some((index, fragment.inline_offset));
         }
-        fragment.glyphs.as_mut().unwrap().glyphs.to_mut().pop();
+        fragment.glyphs.as_mut().unwrap().glyphs.pop();
         fragment.has_text_overflow_ellipsis = false;
     }
     let available = available_inline_size - fragment.inline_offset;
     let Some(glyphs) = fragment.glyphs.as_mut().filter(|_| available > CssPixels::default()) else {
         return (index > 0).then_some((index, fragment.inline_offset));
     };
-    let glyph_end =
-        |glyph: &libgfx_rust::text_layout::DrawGlyph| CssPixels::nearest_value_for_f32(glyph.x + glyph.glyph_width);
+    let placed: Vec<_> = glyphs.glyphs.placed().collect();
+    let glyph_end = |placed: &libgfx_rust::text_layout::PlacedGlyph| {
+        CssPixels::nearest_value_for_f32(placed.x + placed.glyph.advance)
+    };
     let keep_from_end = fragment.current_insert_direction == direction::RTL && line_direction == direction::RTL;
     let (mut start, mut end) = if keep_from_end {
         (
-            glyphs.glyphs.partition_point(|glyph| {
-                fragment.record.inline_length - CssPixels::nearest_value_for_f32(glyph.x) > available
+            placed.partition_point(|placed| {
+                fragment.record.inline_length - CssPixels::nearest_value_for_f32(placed.x) > available
             }),
-            glyphs.glyphs.len(),
+            placed.len(),
         )
     } else {
-        (0, glyphs.glyphs.partition_point(|glyph| glyph_end(glyph) <= available))
+        (0, placed.partition_point(|placed| glyph_end(placed) <= available))
     };
-    while end > start && end < glyphs.glyphs.len() && glyphs.glyphs[end].length_in_code_units == 0 {
+    while end > start && end < placed.len() && placed[end].glyph.length_in_code_units() == 0 {
         end -= 1;
     }
-    while start < end && glyphs.glyphs[start].length_in_code_units == 0 {
+    while start < end && placed[start].glyph.length_in_code_units() == 0 {
         start += 1;
     }
     if start == end {
         return (index > 0).then_some((index, fragment.inline_offset));
     }
-    let origin = CssPixels::nearest_value_for_f32(glyphs.glyphs[start].x);
-    let inline_size = glyph_end(&glyphs.glyphs[end - 1]) - origin;
-    let kept_glyphs = glyphs.glyphs.to_mut();
-    kept_glyphs.drain(end..);
-    kept_glyphs.drain(..start);
-    for glyph in kept_glyphs.iter_mut() {
-        glyph.x -= origin.to_double() as f32;
-    }
-    let length = glyphs.glyphs.iter().map(|glyph| glyph.length_in_code_units).sum();
+    let origin = CssPixels::nearest_value_for_f32(placed[start].x);
+    let inline_size = glyph_end(&placed[end - 1]) - origin;
+    glyphs.glyphs.keep_range(start..end);
+    let origin_x = origin.to_double() as f32;
+    glyphs.glyphs.update_positions(|_, x, _| *x -= origin_x);
+    let length = glyphs.glyphs.iter().map(|glyph| glyph.length_in_code_units()).sum();
     glyphs.width = inline_size.to_double() as f32;
     if fragment.current_insert_direction == direction::RTL && !keep_from_end {
         fragment.start += fragment.length_in_code_units - length;
@@ -99,27 +98,28 @@ fn apply_text_overflow_to_line(line: &mut line_box::LineBoxData) {
         let mut keep_count = 0usize;
         let mut last_kept_end = 0.0f32;
         let mut glyph_block_offset = 0.0f32;
-        for glyph in glyphs.iter() {
-            let glyph_end = glyph.x + glyph.glyph_width;
+        for placed in glyphs.placed() {
+            let glyph_end = placed.x + placed.glyph.advance;
             if glyph_end > max_text_inline_size && (keep_count > 0 || line_has_visible_content) {
                 break;
             }
             keep_count += 1;
             last_kept_end = glyph_end;
-            glyph_block_offset = glyph.y;
+            glyph_block_offset = placed.y;
         }
 
         let glyph_data = line.fragments[index].glyphs.as_mut().unwrap();
-        let kept_glyphs = glyph_data.glyphs.to_mut();
-        kept_glyphs.truncate(keep_count);
-        kept_glyphs.push(libgfx_rust::text_layout::DrawGlyph {
+        glyph_data.glyphs.truncate(keep_count);
+        glyph_data.glyphs.push_placed(libgfx_rust::text_layout::PlacedGlyph {
+            glyph: libgfx_rust::text_layout::DrawGlyph::new(
+                ellipsis_inline_size,
+                font.glyph_id_for_code_point(ELLIPSIS_CODE_POINT),
+                1,
+                true,
+            ),
             x: last_kept_end,
             y: glyph_block_offset,
-            length_in_code_units: 1,
-            glyph_width: ellipsis_inline_size,
-            glyph_id: font.glyph_id_for_code_point(ELLIPSIS_CODE_POINT),
             cluster_start: 0,
-            should_paint: true,
             is_rtl: false,
         });
         let ellipsis_fragment_inline_length = line.fragments[index].inline_length;
@@ -198,10 +198,15 @@ fn apply_block_ellipsis(
         if last_retained_fragment.length_in_code_units > length || last_retained_fragment.has_text_overflow_ellipsis {
             let mut retained_code_units = 0usize;
             if let Some(glyphs) = &mut last_retained_fragment.glyphs {
-                glyphs.glyphs.to_mut().retain(|glyph| {
-                    retained_code_units += glyph.length_in_code_units;
-                    retained_code_units <= length
-                });
+                let retained_glyph_count = glyphs
+                    .glyphs
+                    .iter()
+                    .take_while(|glyph| {
+                        retained_code_units += glyph.length_in_code_units();
+                        retained_code_units <= length
+                    })
+                    .count();
+                glyphs.glyphs.truncate(retained_glyph_count);
                 glyphs.width = inline_size.to_double() as f32;
             }
             last_retained_fragment.length_in_code_units = length;

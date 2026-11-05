@@ -567,11 +567,14 @@ pub struct DisplayListGlyph {
 }
 ffi_bytes_fields!(DisplayListGlyph { position, glyph_id });
 
-impl From<&text_layout::DrawGlyph> for DisplayListGlyph {
-    fn from(glyph: &text_layout::DrawGlyph) -> Self {
+impl From<text_layout::PlacedGlyph> for DisplayListGlyph {
+    fn from(placed: text_layout::PlacedGlyph) -> Self {
         Self {
-            position: FloatPoint { x: glyph.x, y: glyph.y },
-            glyph_id: glyph.glyph_id,
+            position: FloatPoint {
+                x: placed.x,
+                y: placed.y,
+            },
+            glyph_id: placed.glyph.glyph_id,
         }
     }
 }

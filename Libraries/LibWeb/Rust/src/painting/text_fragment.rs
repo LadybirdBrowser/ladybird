@@ -247,16 +247,16 @@ fn for_each_cluster_in_glyph_run(
 ) {
     let mut cursor = 0usize;
     for glyph in glyphs {
-        if glyph.glyph_width == 0.0 {
+        if glyph.advance == 0.0 {
             continue;
         }
         let cluster_start = cursor;
-        let cluster_end = (cursor + glyph.length_in_code_units).min(fragment_length_in_code_units);
+        let cluster_end = (cursor + glyph.length_in_code_units()).min(fragment_length_in_code_units);
         cursor = cluster_end;
         if cluster_end <= cluster_start {
             continue;
         }
-        if !callback(cluster_start, cluster_end, glyph.glyph_width) {
+        if !callback(cluster_start, cluster_end, glyph.advance) {
             return;
         }
     }
@@ -432,20 +432,20 @@ pub(crate) fn physical_edge_offset(
     left: bool,
 ) -> Option<(usize, bool)> {
     let run = fragment.glyph_run.as_ref()?;
-    let glyph = run
+    let placed = run
         .glyphs
-        .iter()
-        .filter(|glyph| glyph.length_in_code_units > 0 && glyph.glyph_width > 0.0)
+        .placed()
+        .filter(|placed| placed.glyph.length_in_code_units() > 0 && placed.glyph.advance > 0.0)
         .min_by(|a, b| {
             if left {
                 a.x.total_cmp(&b.x)
             } else {
-                (b.x + b.glyph_width).total_cmp(&(a.x + a.glyph_width))
+                (b.x + b.glyph.advance).total_cmp(&(a.x + a.glyph.advance))
             }
         })?;
-    let boundary = glyph.cluster_start as usize
-        + if left == glyph.is_rtl {
-            glyph.length_in_code_units
+    let boundary = placed.cluster_start as usize
+        + if left == placed.is_rtl {
+            placed.glyph.length_in_code_units()
         } else {
             0
         };
@@ -455,21 +455,26 @@ pub(crate) fn physical_edge_offset(
             fragment.start + boundary,
             crate::layout::RenderedTextBoundary::End,
         ),
-        left == glyph.is_rtl,
+        left == placed.is_rtl,
     ))
 }
 
 pub(crate) fn caret_inline_offset(fragment: &FragmentRecord, offset: usize, downstream: bool) -> Option<f32> {
     let run = fragment.glyph_run.as_ref()?;
     let mut fallback = None;
-    for glyph in run.glyphs.iter().filter(|glyph| glyph.length_in_code_units > 0) {
-        let start = glyph.cluster_start as usize;
-        let end = start + glyph.length_in_code_units;
+    for placed in run
+        .glyphs
+        .placed()
+        .filter(|placed| placed.glyph.length_in_code_units() > 0)
+    {
+        let start = placed.cluster_start as usize;
+        let length = placed.glyph.length_in_code_units();
+        let end = start + length;
         if offset < start || offset > end {
             continue;
         }
-        let fraction = (offset - start) as f32 / glyph.length_in_code_units as f32;
-        let coordinate = glyph.x + glyph.glyph_width * if glyph.is_rtl { 1.0 - fraction } else { fraction };
+        let fraction = (offset - start) as f32 / length as f32;
+        let coordinate = placed.x + placed.glyph.advance * if placed.is_rtl { 1.0 - fraction } else { fraction };
         if (offset > start && offset < end) || (downstream && offset == start) || (!downstream && offset == end) {
             return Some(coordinate);
         }

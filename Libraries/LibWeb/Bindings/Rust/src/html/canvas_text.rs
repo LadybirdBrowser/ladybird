@@ -118,12 +118,9 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         }
         let glyphs: Vec<DisplayListGlyph> = run
             .glyphs
-            .iter()
-            .filter(|glyph| glyph.should_paint)
-            .map(|glyph| DisplayListGlyph {
-                position: FloatPoint { x: glyph.x, y: glyph.y },
-                glyph_id: glyph.glyph_id,
-            })
+            .placed()
+            .filter(|placed| placed.glyph.should_paint())
+            .map(DisplayListGlyph::from)
             .collect();
         let first_font = font.cascade.first();
         let state = self.drawing_state();

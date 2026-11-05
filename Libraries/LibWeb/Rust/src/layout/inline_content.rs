@@ -492,11 +492,11 @@ impl InlineContent {
                 let ascent = fragment.baseline.to_double() as f32;
                 let line_width = rect.width.to_double() as f32;
                 let mut glyphs = run.glyphs.clone();
-                for glyph in glyphs.to_mut().iter_mut() {
-                    let inline_position = glyph.x;
-                    glyph.x = (line_width - glyph.glyph_width) / 2.0;
-                    glyph.y += inline_position;
-                }
+                glyphs.update_positions(|glyph, x, y| {
+                    let inline_position = *x;
+                    *x = (line_width - glyph.advance) / 2.0;
+                    *y += inline_position;
+                });
                 let bounding_box = libgfx_rust::FloatRect::from_array(
                     libgfx_rust::text_layout::glyph_run_bounding_box(&run.font, &glyphs, 1.0),
                 );

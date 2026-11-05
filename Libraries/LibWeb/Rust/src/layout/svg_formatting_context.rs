@@ -61,26 +61,27 @@ struct ShapedSvgText {
 ///        this layout shapes.
 fn append_svg_text_character_cells(
     cells: &mut Vec<FfiSvgTextCharacterCell>,
-    glyphs: &[libgfx_rust::text_layout::DrawGlyph],
+    glyphs: &libgfx_rust::text_layout::GlyphBuffer,
     length_in_code_units: usize,
     run_end_x: f32,
     top: f32,
     height: f32,
 ) {
+    let placed: Vec<_> = glyphs.placed().collect();
     let mut covered = 0usize;
     let mut index = 0usize;
-    while index < glyphs.len() && covered < length_in_code_units {
-        let first = glyphs[index];
+    while index < placed.len() && covered < length_in_code_units {
+        let first = placed[index];
         // A glyph that maps to no code unit of its own (a combining mark's, e.g.) belongs to the
         // typographic character before it, so it extends that character's cell. One at the start
         // of the run has no character before it, so it joins the character after it instead.
         let mut next = index + 1;
-        let mut code_units = first.length_in_code_units;
-        while next < glyphs.len() && (glyphs[next].length_in_code_units == 0 || code_units == 0) {
-            code_units += glyphs[next].length_in_code_units;
+        let mut code_units = first.glyph.length_in_code_units();
+        while next < placed.len() && (placed[next].glyph.length_in_code_units() == 0 || code_units == 0) {
+            code_units += placed[next].glyph.length_in_code_units();
             next += 1;
         }
-        let end_x = glyphs.get(next).map_or(run_end_x, |glyph| glyph.x);
+        let end_x = placed.get(next).map_or(run_end_x, |glyph| glyph.x);
         let code_units = code_units.max(1).min(length_in_code_units - covered);
         let cell = FfiSvgTextCharacterCell {
             x: first.x,
@@ -1470,9 +1471,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             shaped_text.advance += shaped.width();
             let mut glyphs = shaped.into_glyphs();
             if baseline_start.y != 0.0 {
-                for glyph in glyphs.to_mut().iter_mut() {
-                    glyph.y += baseline_start.y;
-                }
+                glyphs.shift_baseline(baseline_start.y);
             }
             shaped_text.runs.push(libgfx_rust::path::GlyphRun {
                 font: font.clone(),
