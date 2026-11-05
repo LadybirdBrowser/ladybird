@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller { position: absolute; left: 0; top: 0; width: 100px; height: 100px; overflow: auto; }
+    #content { width: 50px; height: 10px; }
+    #content.active { animation: grow 10s linear infinite; }
+    @keyframes grow { from { height: 10px; } to { height: 1010px; } }
+</style>
+<div id="scroller"><div id="content"></div></div>
+<script>
+    // Every tick of a lane records from the lane's own frame, and so goes on seeing all the damage since. A box starting
+    // to scroll, the first in the document to, has the scroll metadata of every box record again: that frame and every
+    // one after it would record the whole document, so the frame is left to the host.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => {
+            content.classList.add("active");
+            return content.getAnimations()[0];
+        }, (frameTime, animation, startTime) => {
+            const lines = [];
+            internals.injectClockTick(startTime + 500);
+            lines.push(`before the box scrolls: presented height ${internals.presentedBorderBox(content)?.height}, ${internals.clockLaneState(document)}, presented by ${internals.lastFramePresentedBy(document)}`);
+            internals.injectClockTick(startTime + 2000);
+            lines.push(`as the box starts to scroll: presented height ${internals.presentedBorderBox(content)?.height}, ${internals.clockLaneState(document)}`);
+            return lines;
+        });
+        for (const line of result)
+            println(line);
+        done();
+    });
+</script>
