@@ -670,7 +670,7 @@ def implementation_method_signatures(
         key_type, value_type = pair_iterator_types(context, interface, members.pair_iterator)
         signatures.append(
             f"impl PairIterable with Key = {key_type} and Value = {value_type}: "
-            "fn value_pairs_to_iterate_over(&self) -> impl Deref<Target = [(Self::Key, Self::Value)]> + '_"
+            "fn value_pairs_to_iterate_over(target: &Self::Target) -> impl Deref<Target = [(Self::Key, Self::Value)]> + '_"
         )
     if members.async_iterator is not None:
         what = f"the asynchronously iterable declaration of {interface.name}"
