@@ -389,8 +389,12 @@ void expect_file_is_quarantined(ByteString const& path, QuarantineEvent event)
     // The fields are the flags, the time, the agent and the identifier of the quarantine event.
     auto fields = StringView { value.data(), static_cast<size_t>(size) }.split_view(';', SplitBehavior::KeepEmpty);
     VERIFY(fields.size() == 4);
-    VERIFY(fields[2] == "Ladybird"sv);
     VERIFY(fields[3].is_empty() == (event == QuarantineEvent::No));
+
+    // With a quarantine event the system picks the agent, which is the quarantine identifier of this process if it
+    // inherited one from whatever launched it.
+    if (event == QuarantineEvent::No)
+        VERIFY(fields[2] == "Ladybird"sv);
 }
 #endif
 
