@@ -637,6 +637,8 @@ void round_appkit_view_corners(QWidget& widget, qreal radius, QColor const& bord
 
 void stack_appkit_view_below(QWidget& widget, QWidget& sibling)
 {
+    if (QGuiApplication::platformName() != "cocoa")
+        return;
     auto* view = reinterpret_cast<NSView*>(widget.winId());
     auto* sibling_view = reinterpret_cast<NSView*>(sibling.winId());
     if (!view || !sibling_view || !sibling_view.superview)
@@ -646,6 +648,8 @@ void stack_appkit_view_below(QWidget& widget, QWidget& sibling)
 
 void round_appkit_view_bottom_corners(QWidget& widget, qreal radius)
 {
+    if (QGuiApplication::platformName() != "cocoa")
+        return;
     auto* view = reinterpret_cast<NSView*>(widget.winId());
     if (!view)
         return;
@@ -660,6 +664,8 @@ void round_appkit_view_bottom_corners(QWidget& widget, qreal radius)
 
 void set_appkit_view_opacity(QWidget& widget, qreal opacity)
 {
+    if (QGuiApplication::platformName() != "cocoa")
+        return;
     auto* view = reinterpret_cast<NSView*>(widget.winId());
     if (!view)
         return;
