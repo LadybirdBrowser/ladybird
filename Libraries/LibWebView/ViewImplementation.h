@@ -626,7 +626,8 @@ public:
     Function<void(Optional<JsonObject>)> on_received_current_grid;
     Function<void(Optional<JsonObject>)> on_received_current_flexbox;
     Function<void(JsonObject)> on_received_accessibility_tree;
-    Function<void(Vector<AccessibilityNodeData>)> on_accessibility_tree_received;
+    Function<void(u64 sequence, Vector<AccessibilityNodeData>)> on_accessibility_tree_received;
+    Function<void(u64 base_sequence, u64 sequence, AccessibilityTreeDelta)> on_accessibility_tree_changed;
     Function<void(i64)> on_accessibility_focus_changed;
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
     Function<void(Mutation)> on_dom_mutation_received;

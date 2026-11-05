@@ -23,9 +23,10 @@ namespace {
 // from overflowing the UI process stack.
 constexpr size_t max_accessibility_tree_depth = 1000;
 
-Vector<AccessibilityNodeData> sanitize_tree(Vector<AccessibilityNodeData> nodes, i64& out_root_id)
+Vector<AccessibilityNodeData> sanitize_tree(Vector<AccessibilityNodeData> nodes, i64& out_root_id, bool& out_repaired)
 {
     out_root_id = -1;
+    out_repaired = false;
 
     // Index nodes by id, keeping the first occurrence of any duplicated id, and take the first node that claims to be
     // the root (parent_id == -1) as the single root.
@@ -88,10 +89,16 @@ Vector<AccessibilityNodeData> sanitize_tree(Vector<AccessibilityNodeData> nodes,
         if (!visited.contains(node.id) || emitted.contains(node.id))
             continue;
         emitted.set(node.id);
-        node.parent_id = parent_of.get(node.id).value();
-        node.child_ids = move(accepted_children.find(node.id)->value);
+        auto parent_id = parent_of.get(node.id).value();
+        auto& child_ids = accepted_children.find(node.id)->value;
+        if (node.parent_id != parent_id || node.child_ids != child_ids)
+            out_repaired = true;
+        node.parent_id = parent_id;
+        node.child_ids = move(child_ids);
         result.append(move(node));
     }
+    if (result.size() != nodes.size())
+        out_repaired = true;
 
     out_root_id = root_id;
     return result;
@@ -102,7 +109,8 @@ Vector<AccessibilityNodeData> sanitize_tree(Vector<AccessibilityNodeData> nodes,
 void AccessibilityTreeManager::update_tree(Vector<AccessibilityNodeData> nodes)
 {
     i64 root_id = -1;
-    auto sanitized = sanitize_tree(move(nodes), root_id);
+    bool repaired = false;
+    auto sanitized = sanitize_tree(move(nodes), root_id, repaired);
 
     // Detect live-region content changes before replacing the tree. Needs an index of the new nodes by id — so the
     // ancestor walk below is O(depth) rather than O(N) per step. Without this, a full traversal of an N-node tree would
@@ -158,10 +166,16 @@ void AccessibilityTreeManager::update_tree(Vector<AccessibilityNodeData> nodes)
 
     m_nodes.clear();
     m_root_id = root_id;
+    m_whole_tree_was_repaired = repaired;
+    m_focus_shown_on_root = false;
+    m_focused_id_from_content = {};
     ++m_generation;
 
-    for (auto& node : sanitized)
+    for (auto& node : sanitized) {
+        if (node.is_focused)
+            m_focused_id_from_content = node.id;
         m_nodes.set(node.id, move(node));
+    }
 }
 
 Optional<Vector<i64>> AccessibilityTreeManager::apply_delta(AccessibilityTreeDelta const& delta)
@@ -361,12 +375,40 @@ Optional<Vector<i64>> AccessibilityTreeManager::apply_delta(AccessibilityTreeDel
         auto& stored = m_nodes.ensure(changed_node.id);
         stored = changed_node;
         stored.parent_id = parent_id;
+        if (changed_node.is_focused)
+            m_focused_id_from_content = changed_node.id;
+        else if (m_focused_id_from_content == changed_node.id)
+            m_focused_id_from_content = {};
+    }
+    if (m_focused_id_from_content.has_value() && !m_nodes.contains(*m_focused_id_from_content))
+        m_focused_id_from_content = {};
+    // A whole tree would have replaced the root's focus that show_focus_on_root() put there, so a change does too.
+    if (m_focus_shown_on_root) {
+        m_focus_shown_on_root = false;
+        for (auto& [id, node] : m_nodes)
+            node.is_focused = id == m_focused_id_from_content;
     }
     ++m_generation;
 
     for (size_t i = 0; i < announcement_texts.size(); ++i)
         on_live_region_changed(move(announcement_texts[i]), move(announcement_politeness[i]));
 
+    return removed_ids;
+}
+
+void AccessibilityTreeManager::update_tree(Vector<AccessibilityNodeData> nodes, u64 sequence)
+{
+    update_tree(move(nodes));
+    m_sequence = sequence;
+}
+
+Optional<Vector<i64>> AccessibilityTreeManager::apply_delta(AccessibilityTreeDelta const& delta, u64 base_sequence, u64 sequence)
+{
+    if (m_whole_tree_was_repaired || base_sequence != m_sequence)
+        return {};
+    auto removed_ids = apply_delta(delta);
+    if (removed_ids.has_value())
+        m_sequence = sequence;
     return removed_ids;
 }
 
@@ -419,8 +461,17 @@ AccessibilityNodeData const* AccessibilityTreeManager::hit_test(Gfx::IntPoint po
 
 void AccessibilityTreeManager::set_focused_node(i64 node_id)
 {
+    m_focused_id_from_content = node_id;
+    m_focus_shown_on_root = false;
     for (auto& [id, node] : m_nodes)
         node.is_focused = (id == node_id);
+}
+
+void AccessibilityTreeManager::show_focus_on_root()
+{
+    m_focus_shown_on_root = true;
+    for (auto& [id, node] : m_nodes)
+        node.is_focused = (id == m_root_id);
 }
 
 Optional<i64> AccessibilityTreeManager::focused_node_id() const

@@ -1181,14 +1181,7 @@ void PageClient::schedule_accessibility_tree_update()
         m_accessibility_update_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(200), [this] {
             if (m_is_closed)
                 return;
-            // The tab's document can move to another process before the timer fires, which leaves this page's
-            // traversable remote, with no document of its own to report.
-            if (!page().has_local_traversable())
-                return;
-            if (auto doc = page().local_traversable()->active_document()) {
-                doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
-                client().async_did_get_accessibility_tree(m_id, doc->build_accessibility_node_data());
-            }
+            publish_accessibility_tree(false);
         });
     }
 
@@ -1200,6 +1193,28 @@ void PageClient::schedule_accessibility_tree_update()
     // m_performCacheUpdateTimer only while it's inactive) and Blink (AXObjectCacheImpl::ScheduleAXUpdate) coalesce.
     if (!m_accessibility_update_timer->is_active())
         m_accessibility_update_timer->start();
+}
+
+void PageClient::publish_accessibility_tree(bool whole_tree_requested)
+{
+    // The tab's document can move to another process, which leaves this page's traversable remote, with no document of
+    // its own to report.
+    if (!page().has_local_traversable())
+        return;
+    auto document = page().local_traversable()->active_document();
+    if (!document)
+        return;
+    document->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
+
+    auto update = m_accessibility_tree_publisher.publish(static_cast<i64>(document->unique_id().value()), document->build_accessibility_node_data(), whole_tree_requested);
+    update.visit(
+        [](WebView::AccessibilityTreePublisher::NothingChanged) { },
+        [&](WebView::AccessibilityTreePublisher::WholeTree& tree) {
+            client().async_did_get_accessibility_tree(m_id, tree.sequence, move(tree.nodes));
+        },
+        [&](WebView::AccessibilityTreePublisher::Change& change) {
+            client().async_did_change_accessibility_tree(m_id, change.base_sequence, change.sequence, move(change.delta));
+        });
 }
 
 void PageClient::page_did_finish_test(Utf16String const& text)

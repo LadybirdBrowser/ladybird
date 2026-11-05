@@ -459,7 +459,7 @@ static bool view_holds_keyboard_focus(WebContentView* view, WebContentAccessibil
     return overlay.window.isKeyWindow && view->hasFocus();
 }
 
-void update_accessibility_tree(WebContentView* view, bool announce_load, bool report_focus)
+void update_accessibility_tree(WebContentView* view, bool announce_load, bool report_focus, Optional<Vector<i64>> const& removed_ids)
 {
     auto* overlay = get_overlay(view);
     if (!overlay)
@@ -472,10 +472,20 @@ void update_accessibility_tree(WebContentView* view, bool announce_load, bool re
     // assistive technology holds stay good across a mutation. Elements of nodes that are gone get invalidated before
     // they leave the cache: they hold a raw pointer into the manager, and invalidating them makes sure nothing that
     // still references one can reach it through them.
+    // After a change, those are the nodes it removed; after a whole new tree, every node no longer in it.
     NSMutableArray<NSNumber*>* stale_keys = [NSMutableArray array];
-    for (NSNumber* key in overlay.elements) {
-        if (!overlay.manager->node([key longLongValue]))
-            [stale_keys addObject:key];
+    if (removed_ids.has_value()) {
+        // A node can come back before this runs (in a whole tree asked for meanwhile, e.g.), and its element stays.
+        for (auto id : *removed_ids) {
+            NSNumber* key = @(id);
+            if (overlay.elements[key] && !overlay.manager->node(id))
+                [stale_keys addObject:key];
+        }
+    } else {
+        for (NSNumber* key in overlay.elements) {
+            if (!overlay.manager->node([key longLongValue]))
+                [stale_keys addObject:key];
+        }
     }
     for (NSNumber* key in stale_keys) {
         [overlay.elements[key] invalidate];
