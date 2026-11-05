@@ -49,6 +49,10 @@ mod shape_flag {
     /// Something relies on the value in a slot of the object of this prototype shape (see
     /// `Shape::watch_slot_for_replacements()`).
     pub const HAS_WATCHED_SLOTS: u8 = 1 << 2;
+    /// See `Shape::is_non_extensible()`.
+    pub const NON_EXTENSIBLE: u8 = 1 << 3;
+    /// The flags a shape gets from the shape it comes from.
+    pub const INHERITED: u8 = HAS_PARAMETER_MAP | NON_EXTENSIBLE;
     /// An object may have left the shape (see `Shape::is_stable()`).
     pub const UNSTABLE: u8 = 1 << 6;
     /// JIT code depends on the shape staying stable.
@@ -118,6 +122,8 @@ struct RareData {
     assign_copy: Option<AssignCopy>,
     /// The shapes that sealing and freezing objects of this shape give them, by integrity level.
     integrity_level_shapes: [Option<Gc<Shape>>; 2],
+    /// The shape that preventing extensions gives objects of this shape.
+    non_extensible_transition: Option<GcWeak<Shape>>,
     /// What is known of the replacement of the values in the slots of the object that has this prototype shape, by
     /// offset (see `Shape::watch_slot_for_replacements()`).
     watched_slots: HashMap<u32, WatchedSlot, RandomState>,
@@ -418,9 +424,7 @@ impl Shape {
         property_count_change: PropertyCountChange,
     ) -> Self {
         let shape = Self::new(defer_gc, previous_shape.realm());
-        shape
-            .flags
-            .set(previous_shape.flags.get() & shape_flag::HAS_PARAMETER_MAP);
+        shape.flags.set(previous_shape.flags.get() & shape_flag::INHERITED);
         shape.prototype.set(previous_shape.prototype());
         shape.previous.set(Some(previous_shape.as_gc()));
         let mut property_count = previous_shape.property_count();
@@ -446,9 +450,7 @@ impl Shape {
         new_prototype: Option<Gc<Object>>,
     ) -> Self {
         let shape = Self::new(defer_gc, realm);
-        shape
-            .flags
-            .set(previous_shape.flags.get() & shape_flag::HAS_PARAMETER_MAP);
+        shape.flags.set(previous_shape.flags.get() & shape_flag::INHERITED);
         shape.prototype.set(new_prototype);
         // NB: Unlike the other transitions, this one does not keep the shape it came from alive. An object that changes
         //     its prototype time and again (like a WindowProxy as its browsing context navigates) would otherwise keep
@@ -564,7 +566,7 @@ impl Shape {
         new_shape.become_dictionary_shape(vm);
         new_shape
             .flags
-            .set(new_shape.flags.get() | (self.flags.get() & shape_flag::HAS_PARAMETER_MAP));
+            .set(new_shape.flags.get() | (self.flags.get() & shape_flag::INHERITED));
         new_shape.prototype.set(self.prototype());
         self.invalidate_prototype_if_needed_for_new_prototype(vm, new_shape);
         self.copy_properties_to_dictionary_shape(vm, &new_shape);
@@ -848,6 +850,38 @@ impl Shape {
         new_shape
     }
 
+    /// The shape objects of this shape get when they stop being extensible, which has the same properties.
+    pub fn create_non_extensible_transition(&self, vm: &Vm) -> Gc<Shape> {
+        assert!(!self.is_dictionary() && !self.is_non_extensible());
+        self.mark_unstable(vm);
+        if !self.is_prototype_shape()
+            && let Some(existing_shape) = self
+                .rare_data()
+                .and_then(|rare_data| rare_data.non_extensible_transition.as_ref()?.get())
+        {
+            return existing_shape;
+        }
+        let new_shape = vm
+            .heap()
+            .allocate(|defer_gc| Self::new_from_previous_shape(defer_gc, self, PropertyCountChange::Preserve));
+        new_shape.flags.set(new_shape.flags.get() | shape_flag::NON_EXTENSIBLE);
+        new_shape.set_descriptors(self.descriptors());
+        self.invalidate_prototype_if_needed_for_new_prototype(vm, new_shape);
+        if !self.is_prototype_shape() {
+            let target = GcWeak::new(vm.heap(), new_shape);
+            self.with_rare_data(vm, |rare_data| rare_data.non_extensible_transition = Some(target));
+        }
+        new_shape
+    }
+
+    /// Like create_non_extensible_transition(), for a dictionary shape, which changes in place.
+    pub fn set_non_extensible_without_transition(&self, vm: &Vm) {
+        self.invalidate_prototype_if_needed_for_change_without_transition(vm);
+        assert!(self.is_dictionary());
+        self.flags.set(self.flags.get() | shape_flag::NON_EXTENSIBLE);
+        self.increment_dictionary_generation();
+    }
+
     fn ensure_descriptor_array(&self, vm: &Vm) {
         assert!(!self.is_dictionary());
         if self.descriptors().is_some() {
@@ -1034,7 +1068,7 @@ impl Shape {
         let new_shape = Self::create(vm, self.realm());
         new_shape
             .flags
-            .set(new_shape.flags.get() | (self.flags.get() & shape_flag::HAS_PARAMETER_MAP));
+            .set(new_shape.flags.get() | (self.flags.get() & shape_flag::INHERITED));
         new_shape.prototype.set(self.prototype());
         if self.is_dictionary() && self.property_count() > MAX_DESCRIPTOR_COUNT {
             new_shape.become_dictionary_shape(vm);
@@ -1180,6 +1214,12 @@ impl Shape {
     /// Notes that JIT code depends on the shape staying stable.
     pub fn set_has_dependent_code(&self) {
         self.flags.set(self.flags.get() | shape_flag::HAS_DEPENDENT_CODE);
+    }
+
+    /// Whether the objects of this shape are not extensible. Preventing extensions moves an object to such a shape, so
+    /// that caches of additions to objects of the shape it had no longer apply to it.
+    pub fn is_non_extensible(&self) -> bool {
+        self.flags.get() & shape_flag::NON_EXTENSIBLE != 0
     }
 
     pub fn has_parameter_map(&self) -> bool {

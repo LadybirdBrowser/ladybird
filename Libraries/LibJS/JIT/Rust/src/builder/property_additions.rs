@@ -17,8 +17,7 @@
 //! usually knows, so that one case remains. The allocation makes room for the property inline, so the addition
 //! never grows the object's storage.
 //!
-//! Plain objects compiled code allocates can always get properties: they are
-//! extensible, and nothing about them makes additions take the slow path.
+//! Preventing extensions changes an object's shape, so the shape check covers it.
 
 use super::GraphBuilder;
 use super::caches::Action;
