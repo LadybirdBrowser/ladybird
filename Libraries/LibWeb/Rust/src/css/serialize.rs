@@ -3624,6 +3624,55 @@ pub(crate) fn sink_into_raw(sink: TextSink) -> usize {
 }
 
 /// Serializes a style value into native ASCII-or-UTF-16 storage.
+fn utf16_units_of(view: crate::css::ffi_support::FfiUtf16View<'_>) -> Vec<u16> {
+    let mut units = Vec::new();
+    if let Some(input) = view.units() {
+        units.reserve(input.len());
+        input.append_to(&mut units);
+    }
+    units
+}
+
+fn raw_string_of(sink: TextSink) -> usize {
+    ak::Utf16String::from_utf16(&sink.into_utf16()).into_raw()
+}
+
+/// https://drafts.csswg.org/cssom/#serialize-an-identifier
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_serialize_an_identifier(ident: crate::css::ffi_support::FfiUtf16View<'_>) -> usize {
+    let mut sink = TextSink::new();
+    serialize_an_identifier(&mut sink, &StringUnits::Utf16(&utf16_units_of(ident)));
+    raw_string_of(sink)
+}
+
+/// https://drafts.csswg.org/cssom/#serialize-a-string
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_serialize_a_string(string: crate::css::ffi_support::FfiUtf16View<'_>) -> usize {
+    let mut sink = TextSink::new();
+    serialize_a_string(&mut sink, &StringUnits::Utf16(&utf16_units_of(string)));
+    raw_string_of(sink)
+}
+
+/// https://drafts.csswg.org/cssom/#serialize-a-url
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_serialize_a_url(url: crate::css::ffi_support::FfiUtf16View<'_>) -> usize {
+    // To serialize a URL means to create a string represented by "url(", followed by the serialization of the URL as a
+    // string, followed by ")".
+    let mut sink = TextSink::new();
+    sink.push_ascii("url(");
+    serialize_a_string(&mut sink, &StringUnits::Utf16(&utf16_units_of(url)));
+    sink.push_ascii(")");
+    raw_string_of(sink)
+}
+
+// https://drafts.csswg.org/cssom/#serialize-a-css-value
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_serialize_a_number(value: f64) -> usize {
+    let mut sink = TextSink::new();
+    serialize_a_number(&mut sink, value, SerializationMode::Normal);
+    raw_string_of(sink)
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_serialize(value: &StyleValueData, mode: u8) -> usize {
     let mut sink = TextSink::new();

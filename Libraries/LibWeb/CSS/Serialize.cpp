@@ -6,245 +6,92 @@
 
 #include <AK/StringBuilder.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWebCommon/Infra/Strings.h>
+#include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
 
-// https://www.w3.org/TR/cssom-1/#escape-a-character
-static void escape_a_character(StringBuilder& builder, u32 character)
+static StyleValueFFI::FfiUtf16View ffi_view(Utf16View view)
 {
-    builder.append('\\');
-    builder.append_code_point(character);
-}
-
-static void escape_a_character(Utf16StringBuilder& builder, u32 character)
-{
-    builder.append_ascii('\\');
-    builder.append_code_point(character);
-}
-
-// https://www.w3.org/TR/cssom-1/#escape-a-character-as-code-point
-static void escape_a_character_as_code_point(StringBuilder& builder, u32 character)
-{
-    builder.appendff("\\{:x} ", character);
-}
-
-static void escape_a_character_as_code_point(Utf16StringBuilder& builder, u32 character)
-{
-    builder.appendff("\\{:x} ", character);
-}
-
-// https://www.w3.org/TR/cssom-1/#serialize-an-identifier
-template<typename Builder>
-static void serialize_an_identifier_to_builder(Builder& builder, Utf16View ident)
-{
-    auto first_character = ident.is_empty() ? 0 : *ident.begin();
-    size_t character_index = 0;
-
-    // To serialize an identifier means to create a string represented by the concatenation of,
-    // for each character of the identifier:
-    for (auto character : ident) {
-        // If the character is NULL (U+0000), then the REPLACEMENT CHARACTER (U+FFFD).
-        if (character == 0) {
-            builder.append_code_point(0xFFFD);
-            ++character_index;
-            continue;
-        }
-        // If the character is in the range [\1-\1f] (U+0001 to U+001F) or is U+007F,
-        // then the character escaped as code point.
-        if ((character >= 0x0001 && character <= 0x001F) || (character == 0x007F)) {
-            escape_a_character_as_code_point(builder, character);
-            ++character_index;
-            continue;
-        }
-        // If the character is the first character and is in the range [0-9] (U+0030 to U+0039),
-        // then the character escaped as code point.
-        if (character_index == 0 && character >= '0' && character <= '9') {
-            escape_a_character_as_code_point(builder, character);
-            ++character_index;
-            continue;
-        }
-        // If the character is the second character and is in the range [0-9] (U+0030 to U+0039)
-        // and the first character is a "-" (U+002D), then the character escaped as code point.
-        if (character_index == 1 && first_character == '-' && character >= '0' && character <= '9') {
-            escape_a_character_as_code_point(builder, character);
-            ++character_index;
-            continue;
-        }
-        // If the character is the first character and is a "-" (U+002D), and there is no second
-        // character, then the escaped character.
-        if (character_index == 0 && character == '-' && ident.length_in_code_points() == 1) {
-            escape_a_character(builder, character);
-            ++character_index;
-            continue;
-        }
-        // If the character is not handled by one of the above rules and is greater than or equal to U+0080, is "-" (U+002D) or "_" (U+005F), or is in one of the ranges [0-9] (U+0030 to U+0039), [A-Z] (U+0041 to U+005A), or \[a-z] (U+0061 to U+007A), then the character itself.
-        if ((character >= 0x0080)
-            || (character == '-') || (character == '_')
-            || (character >= '0' && character <= '9')
-            || (character >= 'A' && character <= 'Z')
-            || (character >= 'a' && character <= 'z')) {
-            builder.append_code_point(character);
-            ++character_index;
-            continue;
-        }
-        // Otherwise, the escaped character.
-        escape_a_character(builder, character);
-        ++character_index;
-    }
-}
-
-void serialize_an_identifier(StringBuilder& builder, Utf16View ident)
-{
-    serialize_an_identifier_to_builder(builder, ident);
-}
-
-void serialize_an_identifier(Utf16StringBuilder& builder, Utf16View ident)
-{
-    serialize_an_identifier_to_builder(builder, ident);
-}
-
-// https://www.w3.org/TR/cssom-1/#serialize-a-string
-void serialize_a_string(StringBuilder& builder, Utf16View string)
-{
-    // To serialize a string means to create a string represented by '"' (U+0022), followed by the result
-    // of applying the rules below to each character of the given string, followed by '"' (U+0022):
-    builder.append('"');
-
-    for (auto character : string) {
-        // If the character is NULL (U+0000), then the REPLACEMENT CHARACTER (U+FFFD).
-        if (character == 0) {
-            builder.append_code_point(0xFFFD);
-            continue;
-        }
-        // If the character is in the range [\1-\1f] (U+0001 to U+001F) or is U+007F, the character escaped as code point.
-        if ((character >= 0x0001 && character <= 0x001F) || (character == 0x007F)) {
-            escape_a_character_as_code_point(builder, character);
-            continue;
-        }
-        // If the character is '"' (U+0022) or "\" (U+005C), the escaped character.
-        if (character == 0x0022 || character == 0x005C) {
-            escape_a_character(builder, character);
-            continue;
-        }
-        // Otherwise, the character itself.
-        builder.append_code_point(character);
-    }
-
-    builder.append('"');
-}
-
-void serialize_a_string(Utf16StringBuilder& builder, Utf16View string)
-{
-    // To serialize a string means to create a string represented by '"' (U+0022), followed by the result
-    // of applying the rules below to each character of the given string, followed by '"' (U+0022):
-    builder.append_ascii('"');
-
-    for (auto character : string) {
-        // If the character is NULL (U+0000), then the REPLACEMENT CHARACTER (U+FFFD).
-        if (character == 0) {
-            builder.append_code_point(0xFFFD);
-            continue;
-        }
-        // If the character is in the range [\1-\1f] (U+0001 to U+001F) or is U+007F, the character escaped as code point.
-        if ((character >= 0x0001 && character <= 0x001F) || (character == 0x007F)) {
-            escape_a_character_as_code_point(builder, character);
-            continue;
-        }
-        // If the character is '"' (U+0022) or "\" (U+005C), the escaped character.
-        if (character == 0x0022 || character == 0x005C) {
-            escape_a_character(builder, character);
-            continue;
-        }
-        // Otherwise, the character itself.
-        builder.append_code_point(character);
-    }
-
-    builder.append_ascii('"');
-}
-
-// https://www.w3.org/TR/cssom-1/#serialize-a-url
-void serialize_a_url(StringBuilder& builder, Utf16View url)
-{
-    // To serialize a URL means to create a string represented by "url(",
-    // followed by the serialization of the URL as a string, followed by ")".
-    builder.append("url("sv);
-    serialize_a_string(builder, url);
-    builder.append(')');
-}
-
-void serialize_a_url(Utf16StringBuilder& builder, Utf16View url)
-{
-    // To serialize a URL means to create a string represented by "url(",
-    // followed by the serialization of the URL as a string, followed by ")".
-    builder.append_ascii("url("sv);
-    serialize_a_string(builder, url);
-    builder.append_ascii(')');
-}
-
-// https://drafts.csswg.org/cssom/#serialize-a-css-value
-void serialize_a_number(StringBuilder& builder, double value)
-{
-    // -> <number>
-    //    A base-ten number using digits 0-9 (U+0030 to U+0039) in the shortest form possible, using "." to separate
-    //    decimals (if any), rounding the value if necessary to not produce more than 6 decimals, preceded by "-"
-    //    (U+002D) if it is negative.
-    // NOTE: scientific notation is not used.
-
-    // AD-HOC: If the number is small enough that it would not print any digits when rounded, serialize it as 0.
-    if (AK::abs(value) < 0.0000005) {
-        builder.append("0"sv);
-        return;
-    }
-
-    // FIXME: Prevent scientific notation for large values.
-    builder.appendff("{:.6}", value);
-}
-
-void serialize_a_number(Utf16StringBuilder& builder, double value)
-{
-    // -> <number>
-    //    A base-ten number using digits 0-9 (U+0030 to U+0039) in the shortest form possible, using "." to separate
-    //    decimals (if any), rounding the value if necessary to not produce more than 6 decimals, preceded by "-"
-    //    (U+002D) if it is negative.
-    // NOTE: scientific notation is not used.
-
-    // AD-HOC: If the number is small enough that it would not print any digits when rounded, serialize it as 0.
-    if (AK::abs(value) < 0.0000005) {
-        builder.append_ascii('0');
-        return;
-    }
-
-    // FIXME: Prevent scientific notation for large values.
-    builder.appendff("{:.6}", value);
-}
-
-String serialize_an_identifier(Utf16View ident)
-{
-    StringBuilder builder;
-    serialize_an_identifier(builder, ident);
-    return builder.to_string_without_validation();
+    return {
+        .latin1 = view.has_latin1_storage() ? view.latin1_span().data() : nullptr,
+        .utf16 = view.has_latin1_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
+        .length = view.length_in_code_units(),
+    };
 }
 
 Utf16String serialize_an_identifier_to_utf16(Utf16View ident)
 {
-    Utf16StringBuilder builder;
-    serialize_an_identifier(builder, ident);
-    return builder.to_string();
+    return Utf16String::from_raw(StyleValueFFI::rust_serialize_an_identifier(ffi_view(ident)));
+}
+
+static Utf16String serialize_a_string_to_utf16(Utf16View string)
+{
+    return Utf16String::from_raw(StyleValueFFI::rust_serialize_a_string(ffi_view(string)));
+}
+
+static Utf16String serialize_a_url_to_utf16(Utf16View url)
+{
+    return Utf16String::from_raw(StyleValueFFI::rust_serialize_a_url(ffi_view(url)));
+}
+
+static Utf16String serialize_a_number_to_utf16(double value)
+{
+    return Utf16String::from_raw(StyleValueFFI::rust_serialize_a_number(value));
+}
+
+void serialize_an_identifier(StringBuilder& builder, Utf16View ident)
+{
+    builder.append(serialize_an_identifier_to_utf16(ident));
+}
+
+void serialize_an_identifier(Utf16StringBuilder& builder, Utf16View ident)
+{
+    builder.append(serialize_an_identifier_to_utf16(ident));
+}
+
+void serialize_a_string(StringBuilder& builder, Utf16View string)
+{
+    builder.append(serialize_a_string_to_utf16(string));
+}
+
+void serialize_a_string(Utf16StringBuilder& builder, Utf16View string)
+{
+    builder.append(serialize_a_string_to_utf16(string));
+}
+
+void serialize_a_url(StringBuilder& builder, Utf16View url)
+{
+    builder.append(serialize_a_url_to_utf16(url));
+}
+
+void serialize_a_url(Utf16StringBuilder& builder, Utf16View url)
+{
+    builder.append(serialize_a_url_to_utf16(url));
+}
+
+void serialize_a_number(StringBuilder& builder, double value)
+{
+    builder.append(serialize_a_number_to_utf16(value));
+}
+
+void serialize_a_number(Utf16StringBuilder& builder, double value)
+{
+    builder.append(serialize_a_number_to_utf16(value));
+}
+
+String serialize_an_identifier(Utf16View ident)
+{
+    return serialize_an_identifier_to_utf16(ident).to_utf8();
 }
 
 String serialize_a_string(Utf16View string)
 {
-    StringBuilder builder;
-    serialize_a_string(builder, string);
-    return builder.to_string_without_validation();
+    return serialize_a_string_to_utf16(string).to_utf8();
 }
 
 String serialize_a_url(Utf16View url)
 {
-    StringBuilder builder;
-    serialize_a_url(builder, url);
-    return builder.to_string_without_validation();
+    return serialize_a_url_to_utf16(url).to_utf8();
 }
 
 }
