@@ -793,22 +793,22 @@ impl RetainedState {
         }
     }
 
-    /// Whether a descendant of `node` in the shadow-including tree that holds a style is an SVG element content can
-    /// reference, which keeps its style while hidden. An element without a style holds none below it.
+    /// Whether a descendant of `node` in the flat tree that holds a style is an SVG element content can reference,
+    /// which keeps its style while hidden. An element without a style holds none below it.
     fn has_referenceable_svg_descendant(&self, node: StyleNodeID) -> bool {
         let mut found = false;
-        self.for_each_held_shadow_including_descendant(node, |state, element| {
+        self.for_each_held_flat_tree_descendant(node, |state, element| {
             found = found || state.is_referenceable_in_display_none_subtree(element);
             !found
         });
         found
     }
 
-    /// Notes that the host cleared the styles of `node`'s descendants that hold one, in the shadow-including tree, as
-    /// it does for the descendants of a hidden element.
+    /// Notes that the host cleared the styles of `node`'s descendants that hold one, in the flat tree, as it does for
+    /// the descendants of a hidden element.
     pub(crate) fn clear_hidden_descendants(&mut self, node: StyleNodeID) {
         let mut cleared = Vec::new();
-        self.for_each_held_shadow_including_descendant(node, |_, element| {
+        self.for_each_held_flat_tree_descendant(node, |_, element| {
             cleared.push(element);
             true
         });
@@ -817,9 +817,11 @@ impl RetainedState {
         }
     }
 
-    /// Calls `callback` with each descendant of `node` in the shadow-including tree that holds a style, in no
-    /// particular order, skipping the descendants of those that hold none, until it answers false.
-    fn for_each_held_shadow_including_descendant(
+    /// Calls `callback` with each descendant of `node` in the flat tree that holds a style, in no particular order,
+    /// skipping the descendants of those that hold none, until it answers false. These are the elements the host
+    /// reaches below a hidden element, where `display: none` reaches: a slottable is below the slot it is assigned
+    /// to, and not reached from its parent.
+    fn for_each_held_flat_tree_descendant(
         &self,
         node: StyleNodeID,
         mut callback: impl FnMut(&Self, StyleNodeID) -> bool,
@@ -830,9 +832,18 @@ impl RetainedState {
             pending.extend(projection.shadow_root_of(parent));
             let mut child = projection.first_element_child(parent);
             while let Some(current) = child {
-                pending.push(current);
+                if projection.assigned_slot_of(current).is_none() {
+                    pending.push(current);
+                }
                 child = projection.next_element_sibling(current);
             }
+            pending.extend(
+                projection
+                    .assigned_nodes_of(parent)
+                    .iter()
+                    .copied()
+                    .filter(|assigned| assigned.text_index().is_none()),
+            );
         };
         push_children(&mut pending, node);
         while let Some(current) = pending.pop() {

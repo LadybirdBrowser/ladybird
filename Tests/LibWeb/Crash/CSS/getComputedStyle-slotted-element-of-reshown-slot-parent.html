@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<div id="host"><span id="item">slotted</span></div>
+<script>
+    host.attachShadow({ mode: "open" }).innerHTML = "<div id='wrapper'><slot></slot></div>";
+    const wrapper = host.shadowRoot.getElementById("wrapper");
+    // Lay out the slotted element, then hide its slot's parent and lay out again, which drops the styles of what is
+    // below the wrapper in the flat tree, the slotted element included.
+    wrapper.getBoundingClientRect();
+    wrapper.style.display = "none";
+    wrapper.getBoundingClientRect();
+    // Show the wrapper again, and read the style of the slotted element once a rendering update has built its box.
+    wrapper.style.display = "";
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            getComputedStyle(item).color;
+            document.documentElement.classList.remove("test-wait");
+        });
+    });
+</script>
+</html>
