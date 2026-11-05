@@ -153,6 +153,17 @@ jobs:
       - name: Compare Wasm results
         run: ./libjs-test262/per_file_result_diff.py -o old-libjs-data/wasm/per-file-master.json -n libjs-data/wasm/per-file-master.json
 
+      - name: Create libjs-data token
+        id: libjs-data-token
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: actions/create-github-app-token@v3.3.0
+        with:
+          client-id: ${{ vars.LIBJS_DATA_APP_CLIENT_ID }}
+          private-key: ${{ secrets.LIBJS_DATA_APP_PRIVATE_KEY }}
+          owner: LadybirdBrowser
+          repositories: libjs-data
+          permission-contents: write
+
       - name: Deploy to GitHub
         if: ${{ github.ref == 'refs/heads/master' }}
         uses: JamesIves/github-pages-deploy-action@v4.9.0
@@ -161,5 +172,5 @@ jobs:
           git-config-email: ladybirdbot@ladybird.org
           branch: master
           repository-name: LadybirdBrowser/libjs-data
-          token: ${{ secrets.LADYBIRD_BOT_TOKEN }}
+          token: ${{ steps.libjs-data-token.outputs.token }}
           folder: libjs-data
