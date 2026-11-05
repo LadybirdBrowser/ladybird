@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A top-level document preloads what its Link header names before it becomes its navigable's active document.
+    // Those preloads are first-party requests, so they carry the site's cookies, as the document's own requests do.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const site = uniqueLocalhostHostname("link-header-preload-site");
+        const onSite = url => {
+            const result = new URL(url);
+            result.hostname = site;
+            return result.href;
+        };
+        const echo = async (name, options) =>
+            onSite(await server.createEcho("GET", `/link-header-preload/${runId}/${name}`, {
+                status: 200,
+                ...options,
+                headers: { "Cache-Control": "no-store", ...options.headers },
+            }));
+
+        const setCookieURL = await echo("set-cookie", { headers: { "Set-Cookie": "session=1; Path=/" } });
+        const preloadedURL = await echo("preloaded.css", { headers: { "Content-Type": "text/css" }, body: "p { color: green; }" });
+        const scriptURL = await echo("script.js", { headers: { "Content-Type": "text/javascript" }, body: "" });
+        const pageURL = await echo("page.html", {
+            headers: { "Content-Type": "text/html", "Link": `<${preloadedURL}>; rel=preload; as=style` },
+            body: `<!DOCTYPE html><script src="${scriptURL}"><\/script>`
+                + `<script>window.onload = () => window.opener.postMessage("loaded", "*");<\/script>`,
+        });
+        const startURL = await echo("start.html", {
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>fetch(${JSON.stringify(setCookieURL)}).then(() => { location.href = ${JSON.stringify(pageURL)}; });<\/script>`,
+        });
+
+        const loaded = new Promise(resolve => window.addEventListener("message", event => event.data === "loaded" && resolve()));
+        const popup = window.open(startURL);
+        await loaded;
+        await server.waitForRequest(preloadedURL);
+        popup.close();
+
+        const cookieOf = async url => {
+            const headers = await (await fetch(server.recordedRequestHeadersURL(url))).json();
+            return (headers["Cookie"] ?? headers["cookie"] ?? ["(none)"]).join("; ");
+        };
+        println(`Stylesheet only the Link header names: ${await cookieOf(preloadedURL)}`);
+        println(`Script the document loads: ${await cookieOf(scriptURL)}`);
+        done();
+    });
+</script>

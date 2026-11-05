@@ -1618,6 +1618,9 @@ public:
     GC::Ptr<HTML::LocalNavigable> navigable() const;
     void set_navigable(GC::Ptr<HTML::LocalNavigable>);
 
+    // The navigable whose active document this document, created for a navigation, is to become, until it does.
+    GC::Ptr<HTML::LocalNavigable> navigable_awaiting_activation() const { return m_navigable_awaiting_activation.ptr(); }
+
     void set_needs_repaint(Badge<Node, Painting::BoxViewRepaintAccess, HTML::LocalNavigable, CSS::VisualViewport, Web::EventHandler>, InvalidateDisplayList should_invalidate_display_list = InvalidateDisplayList::PaintCommandsAndHitTestList)
     {
         set_needs_repaint(should_invalidate_display_list);
@@ -2521,6 +2524,7 @@ private:
 
     // NOTE: This is GC::Weak, not GC::Ptr, on purpose. We don't want the document to keep some old detached navigable alive.
     GC::Weak<HTML::LocalNavigable> m_navigable;
+    GC::Weak<HTML::LocalNavigable> m_navigable_awaiting_activation;
 
     Core::SharedVersion m_cookie_version { Core::INVALID_SHARED_VERSION };
     Optional<Core::SharedVersionIndex> m_cookie_version_index;
