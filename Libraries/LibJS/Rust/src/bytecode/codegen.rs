@@ -2923,7 +2923,9 @@ fn generate_scope_children(
         if generator.must_propagate_completion
             && let Some(ref val) = result
         {
-            last_result = result.clone();
+            // A later statement that completes empty can still reassign a local the value is read from.
+            let val = &generator.copy_if_needed_to_preserve_evaluation_order(val);
+            last_result = Some(val.clone());
             if !generator.is_current_block_terminated()
                 && let Some(ref completion_reg) = generator.current_completion_register.clone()
             {

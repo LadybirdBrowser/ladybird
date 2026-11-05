@@ -48,6 +48,13 @@ test("a for-in iterator does not leak through a labelled break", () => {
     expect(leaked).toBeUndefined();
 });
 
+test("completion value read from a local that a later declaration reassigns", () => {
+    expect(eval("{ let a = 1; a; let b = (a = 9); }")).toBe(1);
+    expect(eval("{ let a = 1; if (true) { a; let b = (a = 9); } }")).toBe(1);
+    expect(eval("{ let a = 1; L: { a; let b = (a = 9); } }")).toBe(1);
+    expect(eval("{ let a = 1, i = 0; while (i++ < 1) { a; let b = (a = 9); } }")).toBe(1);
+});
+
 test("completion value of a try statement whose catch clause runs", () => {
     expect(eval("try { class C extends null.x {} } catch (e) {}")).toBeUndefined();
     expect(eval("try { function f() {} null.x; } catch (e) { 3; } finally {}")).toBe(3);
