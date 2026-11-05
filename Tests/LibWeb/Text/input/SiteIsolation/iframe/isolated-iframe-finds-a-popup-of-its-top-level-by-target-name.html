@@ -20,6 +20,11 @@
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
                     addEventListener("message", event => {
+                        // Opening the popup made this iframe its opener, so the popup reports here.
+                        if (event.data.popup) {
+                            parent.postMessage(event.data, "*");
+                            return;
+                        }
                         const found = window.open(event.data.url, event.data.name);
                         parent.postMessage({ iframe: "opened", found: found !== null }, "*");
                     });
