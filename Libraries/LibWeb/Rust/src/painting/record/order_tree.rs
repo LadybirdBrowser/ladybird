@@ -260,16 +260,13 @@ struct ScopeNode {
     parent: ScopeId,
     children_start: u32,
     children_len: u32,
-    // Equal to the tree's assembly stamp while the node is on a damaged path of the current
-    // recording, which is what makes an ancestor recurse into it instead of copying it.
-    recursion_stamp: u32,
     kind: u8,
     flags: u8,
     generation: u8,
     _padding: u8,
 }
 
-const _: () = assert!(std::mem::size_of::<ScopeNode>() == 24);
+const _: () = assert!(std::mem::size_of::<ScopeNode>() == 20);
 
 fn scope_kind_code(kind: PaintScopeKind) -> u8 {
     match kind {
@@ -304,7 +301,39 @@ pub(crate) struct PaintOrderTree {
     duplicate_scopes: FastMap<(NodeSlotId, u8), SmallVec<[ScopeId; 2]>>,
     root: ScopeId,
     root_entry: ChildEntry,
-    assembly_stamp: u32,
+}
+
+/// The scopes on a damaged path of the current recording, which is what makes an ancestor recurse into a scope instead
+/// of copying it. A scope counts as on one while its stamp equals the current stamp.
+#[derive(Default)]
+pub(crate) struct ScopeMarks {
+    stamps: Vec<u32>,
+    stamp: u32,
+}
+
+impl ScopeMarks {
+    /// Starts a recording: the stamp advances so no scope counts as being on a damaged path yet.
+    pub(crate) fn begin_recording(&mut self) {
+        self.stamp = match self.stamp.checked_add(1) {
+            Some(stamp) => stamp,
+            None => {
+                self.stamps.clear();
+                1
+            }
+        };
+    }
+
+    /// Marks a scope, answering whether it was not marked yet.
+    fn mark(&mut self, id: ScopeId) -> bool {
+        if self.stamps.len() <= id.index() {
+            self.stamps.resize(id.index() + 1, 0);
+        }
+        std::mem::replace(&mut self.stamps[id.index()], self.stamp) != self.stamp
+    }
+
+    pub(crate) fn is_on_damaged_path(&self, id: ScopeId) -> bool {
+        self.stamps.get(id.index()) == Some(&self.stamp)
+    }
 }
 
 impl PaintOrderTree {
@@ -456,36 +485,17 @@ impl PaintOrderTree {
         }
     }
 
-    /// Starts a recording: the assembly stamp advances so no node counts as being on a damaged
-    /// path yet.
-    pub(crate) fn begin_recording(&mut self) -> u32 {
-        self.assembly_stamp = self.assembly_stamp.wrapping_add(1);
-        if self.assembly_stamp == 0 {
-            for node in &mut self.nodes {
-                node.recursion_stamp = 0;
-            }
-            self.assembly_stamp = 1;
-        }
-        self.assembly_stamp
-    }
-
     /// Marks the path from a scope to the root as damaged for this recording, stopping at the
     /// first ancestor already marked.
-    pub(crate) fn mark_path_to_root_damaged(&mut self, id: ScopeId) {
-        let stamp = self.assembly_stamp;
+    pub(crate) fn mark_path_to_root_damaged(&self, id: ScopeId, marks: &mut ScopeMarks) {
         let mut current = id;
         while !current.is_none() {
-            let node = self.node_mut(current);
-            if node.recursion_stamp == stamp {
+            let parent = self.node(current).parent;
+            if !marks.mark(current) {
                 break;
             }
-            node.recursion_stamp = stamp;
-            current = node.parent;
+            current = parent;
         }
-    }
-
-    pub(crate) fn is_on_damaged_path(&self, id: ScopeId) -> bool {
-        self.node(id).recursion_stamp == self.assembly_stamp
     }
 
     /// Allocates a scope for this recording and registers it for its owner and kind.
@@ -495,7 +505,6 @@ impl PaintOrderTree {
             parent,
             children_start: 0,
             children_len: 0,
-            recursion_stamp: self.assembly_stamp,
             kind: scope_kind_code(scope.kind),
             flags: NODE_OCCUPIED,
             generation: 1,
@@ -621,7 +630,6 @@ mod tests {
     // A root context with one foreground scope holding `leaf_count` leaf scopes of one
     // producer each, recorded as the first frame.
     fn record_first_frame(tree: &mut PaintOrderTree, leaf_count: u32) -> (ScopeId, ScopeId, Vec<ScopeId>) {
-        tree.begin_recording();
         let root = tree.allocate_scope(context_scope(row(0)), ScopeId::NONE);
         let foreground = tree.allocate_scope(foreground_scope(row(0)), root);
         let mut leaves = Vec::new();
@@ -673,24 +681,24 @@ mod tests {
     fn damaged_paths_are_marked_up_to_the_first_marked_ancestor() {
         let mut tree = PaintOrderTree::default();
         let (root, foreground, leaves) = record_first_frame(&mut tree, 2);
-        tree.begin_recording();
+        let mut marks = ScopeMarks::default();
+        marks.begin_recording();
 
-        tree.mark_path_to_root_damaged(leaves[0]);
-        assert!(tree.is_on_damaged_path(leaves[0]));
-        assert!(tree.is_on_damaged_path(foreground));
-        assert!(tree.is_on_damaged_path(root));
-        assert!(!tree.is_on_damaged_path(leaves[1]));
+        tree.mark_path_to_root_damaged(leaves[0], &mut marks);
+        assert!(marks.is_on_damaged_path(leaves[0]));
+        assert!(marks.is_on_damaged_path(foreground));
+        assert!(marks.is_on_damaged_path(root));
+        assert!(!marks.is_on_damaged_path(leaves[1]));
 
-        tree.begin_recording();
-        assert!(!tree.is_on_damaged_path(leaves[0]));
-        assert!(!tree.is_on_damaged_path(root));
+        marks.begin_recording();
+        assert!(!marks.is_on_damaged_path(leaves[0]));
+        assert!(!marks.is_on_damaged_path(root));
     }
 
     #[test]
     fn a_recording_replaces_child_lists_and_retires_detached_subtrees_at_once() {
         let mut tree = PaintOrderTree::default();
         let (root, foreground, leaves) = record_first_frame(&mut tree, 2);
-        tree.begin_recording();
 
         let added = tree.allocate_scope(foreground_scope(row(9)), foreground);
         tree.set_children(
@@ -712,7 +720,6 @@ mod tests {
         assert_eq!(tree.published_scope(foreground_scope(row(9)), foreground), Some(added));
 
         // The retired slot is reused with a new generation, so the old id can never match.
-        tree.begin_recording();
         let reused = tree.allocate_scope(foreground_scope(row(7)), foreground);
         assert_eq!(reused.index(), leaves[0].index());
         assert_ne!(reused, leaves[0]);
@@ -722,7 +729,6 @@ mod tests {
     fn a_scope_moving_to_another_parent_takes_over_the_slot_its_predecessor_leaves() {
         let mut tree = PaintOrderTree::default();
         let (root, foreground, leaves) = record_first_frame(&mut tree, 2);
-        tree.begin_recording();
 
         // Row 1's foreground scope is listed under the root now; the old one is still there.
         let moved = tree.allocate_scope(foreground_scope(row(1)), root);
@@ -744,7 +750,6 @@ mod tests {
         let mut tree = PaintOrderTree::default();
         let (root, foreground, _) = record_first_frame(&mut tree, 1);
         for round in 0..300u32 {
-            tree.begin_recording();
             for child in tree.children(foreground).to_vec() {
                 if let ChildKey::Scope(previous) = child.key() {
                     tree.detach_scope(previous);
@@ -772,7 +777,6 @@ mod tests {
         let mut tree = PaintOrderTree::default();
         let (root, foreground, leaves) = record_first_frame(&mut tree, 2);
         let capacity = tree.child_entry_capacity();
-        tree.begin_recording();
 
         let grown = output(24, 1);
         tree.set_children(leaves[0], &[ChildEntry::producer(ProducerKind::DrawForeground, grown)]);
@@ -793,7 +797,6 @@ mod tests {
         let (root, foreground, leaves) = record_first_frame(&mut tree, 8);
         let mut peak = 0;
         for round in 0..4000u32 {
-            tree.begin_recording();
             let leaf = leaves[(round % 8) as usize];
             let leaf_output = output(16 + round % 3, 1);
             // Every other round the leaf gains or loses a producer, so its list changes length.
