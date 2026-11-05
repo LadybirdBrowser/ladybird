@@ -1,5 +1,5 @@
-$27a2bc3a super-optional-call-this.js:1:1
-  Registers: 8
+$434a26da super-optional-call-this.js:1:1
+  Registers: 9
   Blocks:    1
   Constants:
     [0] = String("method")
@@ -12,18 +12,19 @@ block0:
   [  28] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:true
   [  38] SetLexicalEnvironment environment:reg4
   [  40] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
-  [  68] DynamicInitializeLexicalBinding `Base`, src:reg6
-  [  78] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
-  [  90] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
-  [  a0] GetGlobal value_feedback:0, dst:reg5, `Base`
-  [  b0] SetLexicalEnvironment environment:reg4
-  [  b8] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("method")]
-  [  e0] DynamicInitializeLexicalBinding `Foo`, src:reg7
-  [  f0] GetGlobal value_feedback:1, dst:reg5, `Foo`
-  [ 100] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg5, Foo
-  [ 120] GetById value_feedback:3, dst:reg5, base:reg6, `method`
-  [ 138] Call value_feedback:4, call_feedback:1, dst:reg7, callee:reg5, this_value:reg6, <object>.method
-  [ 158] End value:reg7
+  [  70] DynamicInitializeLexicalBinding `Base`, src:reg6
+  [  80] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
+  [  98] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
+  [  a8] GetGlobal value_feedback:0, dst:reg5, `Base`
+  [  b8] GetClassProtoParent dst:reg7, super_class:reg5
+  [  c8] SetLexicalEnvironment environment:reg4
+  [  d0] NewClass dst:reg8, super_class:reg5, proto_parent:reg7, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("method")]
+  [ 100] DynamicInitializeLexicalBinding `Foo`, src:reg8
+  [ 110] GetGlobal value_feedback:1, dst:reg5, `Foo`
+  [ 120] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg5, Foo
+  [ 140] GetById value_feedback:3, dst:reg5, base:reg6, `method`
+  [ 158] Call value_feedback:4, call_feedback:1, dst:reg8, callee:reg5, this_value:reg6, <object>.method
+  [ 178] End value:reg8
 
 
 Foo$9e411946 super-optional-call-this.js:4:1

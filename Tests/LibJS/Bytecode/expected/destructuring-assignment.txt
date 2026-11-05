@@ -15,7 +15,7 @@ block0:
   [  98] End value:reg5
 
 
-array_destructuring_with_class_default$d77d6ad0 destructuring-assignment.js:6:10
+array_destructuring_with_class_default$58df6358 destructuring-assignment.js:6:10
   Registers: 15
   Blocks:    18
   Locals:    x~0
@@ -62,44 +62,44 @@ block7:
   [ 108] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
   [ 118] SetLexicalEnvironment environment:reg4
   [ 120] NewClass dst:reg14, class_environment:reg13, class_blueprint_index:0
-  [ 140] Mov dst:reg12, src:reg14
+  [ 148] Mov dst:reg12, src:reg14
 
 block8:
-  [ 150] Mov dst:x~0, src:reg12
+  [ 158] Mov dst:x~0, src:reg12
 
 block9:
-  [ 160] JumpFalse condition:reg9, target:block11
+  [ 168] JumpFalse condition:reg9, target:block11
 
 block10:
-  [ 170] Return value:x~0
+  [ 178] Return value:x~0
 
 block11:
-  [ 178] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 198] JumpLoop target:block10
+  [ 180] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 1a0] JumpLoop target:block10
 
 block12:
-  [ 1a0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block14, false_target:block15
+  [ 1a8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block14, false_target:block15
 
 block13:
-  [ 1b8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block16, false_target:block17
+  [ 1c0] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block16, false_target:block17
 
 block14:
-  [ 1d0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
-  [ 1f0] Throw src:reg11
+  [ 1d8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
+  [ 1f8] Throw src:reg11
 
 block15:
-  [ 1f8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 218] JumpLoop target:block13
+  [ 200] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 220] JumpLoop target:block13
 
 block16:
-  [ 220] Return value:reg11
+  [ 228] Return value:reg11
 
 block17:
-  [ 228] Throw src:reg11
+  [ 230] Throw src:reg11
 
 Exception handlers:
   [  a0 ..   b8] => handler block1
-  [  e0 ..  160] => handler block1
+  [  e0 ..  168] => handler block1
 
 
 object_destructuring_with_function_default$cadc791a destructuring-assignment.js:12:12

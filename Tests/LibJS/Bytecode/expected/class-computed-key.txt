@@ -11,7 +11,7 @@ block0:
   [  38] End value:reg5
 
 
-f$8066d1e2 class-computed-key.js:4:5
+f$048cbb7a class-computed-key.js:4:5
   Registers: 8
   Blocks:    1
 
@@ -25,4 +25,4 @@ block0:
   [  60] ToPrimitiveWithStringHint dst:reg6, value:reg7
   [  70] SetLexicalEnvironment environment:reg4
   [  78] NewClass dst:reg7, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:reg6]
-  [  a0] Return value:reg7
+  [  a8] Return value:reg7
