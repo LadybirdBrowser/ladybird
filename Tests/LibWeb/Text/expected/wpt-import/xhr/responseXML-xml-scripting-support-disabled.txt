@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+2 Pass
+3 Fail
+Fail	XMLHttpRequest responseXML, svg script, appendChild
+Fail	XMLHttpRequest responseXML, svg script, append importNode result
+Fail	XMLHttpRequest responseXML, svg script, append adoptNode result
+Pass	XMLHttpRequest responseXML, xhtml script, append importNode result
+Pass	XMLHttpRequest responseXML, xhtml script, append adoptNode result

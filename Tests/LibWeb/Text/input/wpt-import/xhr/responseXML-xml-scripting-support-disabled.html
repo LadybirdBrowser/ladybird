@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<title>XMLHttpRequest: script already started</title>
+<link rel="help" href="https://xhr.spec.whatwg.org/#document-response">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+// XMLHttpRequest.responseXML creates an XML parser with
+// XML scripting support disabled. This test tests that various
+// responseXML-parsed script elements are inactive ("already started").
+//
+// See:
+//   https://xhr.spec.whatwg.org/#document-response
+//   step 6, "with the XML scripting support disabled flag set."
+test(_ => {
+  window.mark = 0;
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", "data:text/xml,<svg xmlns='http://www.w3.org/2000/svg'><script>window.mark = 1;</sc" + "ript></svg>", false);
+  xhr.send();
+  assert_not_equals(xhr.responseXML, null);
+  document.body.appendChild(xhr.responseXML.rootElement);
+  assert_equals(window.mark, 0);
+}, "XMLHttpRequest responseXML, svg script, appendChild");
+
+test(_ => {
+  window.mark = 0;
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", "data:text/xml,<svg xmlns='http://www.w3.org/2000/svg'><script>window.mark = 1;</sc" + "ript></svg>", false);
+  xhr.send();
+  assert_not_equals(xhr.responseXML, null);
+  document.body.appendChild(document.importNode(xhr.responseXML.rootElement, true));
+  assert_equals(window.mark, 0);
+}, "XMLHttpRequest responseXML, svg script, append importNode result");
+
+test(_ => {
+  window.mark = 0;
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", "data:text/xml,<svg xmlns='http://www.w3.org/2000/svg'><script>window.mark = 1;</sc" + "ript></svg>", false);
+  xhr.send();
+  assert_not_equals(xhr.responseXML, null);
+  document.body.appendChild(document.adoptNode(xhr.responseXML.rootElement));
+  assert_equals(window.mark, 0);
+}, "XMLHttpRequest responseXML, svg script, append adoptNode result");
+
+test(_ => {
+  window.mark = 0;
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", "data:application/xhtml+xml,<html xmlns='http://www.w3.org/1999/xhtml'><body><script>window.mark = 1;</sc" + "ript></body></html>", false);
+  xhr.send();
+  assert_not_equals(xhr.responseXML, null);
+  const script = xhr.responseXML.getElementsByTagNameNS("http://www.w3.org/1999/xhtml", "script")[0];
+  document.body.appendChild(document.importNode(script, true));
+  assert_equals(window.mark, 0);
+}, "XMLHttpRequest responseXML, xhtml script, append importNode result");
+
+test(_ => {
+  window.mark = 0;
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", "data:application/xhtml+xml,<html xmlns='http://www.w3.org/1999/xhtml'><body><script>window.mark = 1;</sc" + "ript></body></html>", false);
+  xhr.send();
+  assert_not_equals(xhr.responseXML, null);
+  const script = xhr.responseXML.getElementsByTagNameNS("http://www.w3.org/1999/xhtml", "script")[0];
+  document.body.appendChild(document.adoptNode(script));
+  assert_equals(window.mark, 0);
+}, "XMLHttpRequest responseXML, xhtml script, append adoptNode result");
+</script>
+</body>
+</html>

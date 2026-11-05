@@ -15,7 +15,9 @@
 
 namespace Web {
 
-bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<StringView> content_encoding);
+enum class XMLScriptingSupport;
+
+bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<StringView> content_encoding, XMLScriptingSupport);
 GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params, ReadonlyBytes sniff_bytes);
 bool can_load_document_with_type(MimeSniff::MimeType const&);
 

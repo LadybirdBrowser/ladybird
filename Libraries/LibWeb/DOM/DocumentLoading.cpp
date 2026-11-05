@@ -107,7 +107,7 @@ static StringView determine_xml_encoding(ReadonlyBytes data, Optional<StringView
     return "UTF-8"sv;
 }
 
-bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<StringView> content_encoding)
+bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<StringView> content_encoding, XMLScriptingSupport scripting_support)
 {
     auto decoder = TextCodec::decoder_for(determine_xml_encoding(data, content_encoding));
     VERIFY(decoder.has_value());
@@ -119,7 +119,7 @@ bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optiona
     }
     auto source = source_or_error.release_value();
     XML::Parser parser(source, { .resolve_named_html_entity = resolve_named_html_entity });
-    XMLDocumentBuilder builder { document };
+    XMLDocumentBuilder builder { document, scripting_support };
     auto result = parser.parse_with_listener(builder);
     return !result.is_error() && !builder.has_error();
 }

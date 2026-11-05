@@ -67,6 +67,7 @@
 #include <LibWeb/XHR/ProgressEvent.h>
 #include <LibWeb/XHR/XMLHttpRequest.h>
 #include <LibWeb/XHR/XMLHttpRequestUpload.h>
+#include <LibWeb/XML/XMLDocumentBuilder.h>
 
 namespace Web::XHR {
 
@@ -465,7 +466,7 @@ void XMLHttpRequest::set_document_response()
     // 6. Otherwise, let document be a document that represents the result of running the XML parser with XML scripting support disabled on xhr’s received bytes. If that fails (unsupported character encoding, namespace well-formedness error, etc.), then return null.
     else {
         document = DOM::XMLDocument::create(page, *m_global_object, m_response->url().value_or({}));
-        if (!Web::build_xml_document(*document, m_received_bytes, get_final_encoding())) {
+        if (!Web::build_xml_document(*document, m_received_bytes, get_final_encoding(), XMLScriptingSupport::Disabled)) {
             reset_response_object();
             return;
         }
