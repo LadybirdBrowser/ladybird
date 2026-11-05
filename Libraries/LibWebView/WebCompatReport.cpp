@@ -28,11 +28,7 @@ static constexpr auto browser_version = BROWSER_VERSION ""sv;
 static constexpr auto platform = OS_STRING ""sv;
 static constexpr auto architecture = CPU_STRING ""sv;
 
-#ifdef NDEBUG
-static constexpr auto build_configuration = "release"sv;
-#else
-static constexpr auto build_configuration = "debug"sv;
-#endif
+static constexpr auto build_configuration = BROWSER_BUILD_CONFIGURATION ""sv;
 
 static String to_string(StringView text)
 {
