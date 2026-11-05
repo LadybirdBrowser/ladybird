@@ -286,8 +286,9 @@ def test_crash_recovery(ladybird_binary, profile, server):
 
             # The headless browser restores the crashed tab into a page of a new process, and the client inspects
             # that page's document once it's active.
-            panic = "internals.panicRenderStateForTesting()"
-            client.send({"to": client.console, "type": "evaluateJSAsync", "text": panic})
+            # A target switch can remove the console before the crash request reaches it, and the server then drops
+            # the request: submit() asks the new target's console again, until one accepts it.
+            client.submit("internals.panicRenderStateForTesting()")
             # A target form for the crashed page itself can still arrive first.
             wait_until("the client inspects the restored page", lambda: client.evaluate("window.load") == 2)
         finally:
