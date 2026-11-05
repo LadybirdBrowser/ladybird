@@ -17,9 +17,13 @@ class QWidget;
 
 namespace Ladybird {
 
-// Tooltips can hold text from web pages, and QToolTip treats any text that looks like rich text as rich text. So all
-// tooltips are shown by this filter instead, as plain text in a window of ours: Widgets keep their tooltip text as it
-// is, and no widget gets to see a QEvent::ToolTip. A tooltip that isn't found here is not shown.
+// Tooltips and labels can hold text from web pages, and Qt treats any text that looks like rich text as rich text.
+//
+// So all tooltips are shown by this filter instead, as plain text in a window of ours: Widgets keep their tooltip text
+// as it is, and no widget gets to see a QEvent::ToolTip. A tooltip that isn't found here is not shown.
+//
+// Labels become Qt::PlainText as they are polished, unless they explicitly ask for another format. A label that has its
+// heightForWidth() called before it is polished has to set its format itself.
 class PlainTextEventFilter final : public QObject {
     Q_OBJECT
 

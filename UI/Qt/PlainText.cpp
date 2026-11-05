@@ -16,6 +16,7 @@
 #include <QEvent>
 #include <QHelpEvent>
 #include <QKeyEvent>
+#include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointer>
@@ -373,6 +374,14 @@ static Optional<ToolTipContent> tooltip_at(QWidget& widget, QPoint position)
 
 bool PlainTextEventFilter::eventFilter(QObject* object, QEvent* event)
 {
+    // NB: QLabel parses its text when it is first laid out or painted, and both polish the label first. This also
+    //     covers the labels inside a QMessageBox, and the label of QToolTip, were anything to still reach it.
+    if (event->type() == QEvent::Polish) {
+        if (auto* label = as_if<QLabel>(object); label && label->textFormat() == Qt::AutoText)
+            label->setTextFormat(Qt::PlainText);
+        return false;
+    }
+
     if (event->type() == QEvent::ToolTip) {
         auto* widget = as_if<QWidget>(object);
         if (!widget)
