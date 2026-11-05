@@ -64,9 +64,9 @@ public:
     virtual Media::DecoderErrorOr<Media::DemuxerSeekResult> seek_to_most_recent_keyframe(Media::Track const& track, AK::Duration timestamp, Media::DemuxerSeekOptions options) override
     {
         m_seek_is_expected.store(false);
-        m_seek_count++;
         if (has_flag(options, Media::DemuxerSeekOptions::Force))
             m_forced_seek_count++;
+        m_seek_count++;
         return m_inner->seek_to_most_recent_keyframe(track, timestamp, options);
     }
     virtual Media::DecoderErrorOr<AK::Duration> duration_of_track(Media::Track const& track) override { return m_inner->duration_of_track(track); }
