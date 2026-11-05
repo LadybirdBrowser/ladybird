@@ -1,0 +1,4 @@
+Inline HTML script of an XHTML document under require-trusted-types-for: ran
+Inline SVG script of an XHTML document under require-trusted-types-for: ran
+Inline script whose text a mutation observer replaced while parsing an XHTML document: blocked
+Inline script whose text a load event listener replaced while the XML parser inserted its child: blocked
