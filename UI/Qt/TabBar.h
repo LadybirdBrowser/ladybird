@@ -17,6 +17,7 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/BookmarksBar.h>
+#include <UI/Qt/PlainText.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/WindowToolbar.h>
 
@@ -80,6 +81,8 @@ public:
     explicit TabBar(TabWidget*);
 
     void set_available_width(int width);
+
+    Optional<ToolTipContent> tooltip_at(QPoint) const;
 
     TabWidget* tab_widget() const { return m_tab_widget; }
     TabLayout tab_layout() const { return m_tab_layout; }

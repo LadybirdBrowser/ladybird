@@ -28,6 +28,7 @@
 #include <UI/Qt/ExternalURLHandler.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/PictureInPictureWindow.h>
+#include <UI/Qt/PlainText.h>
 #include <UI/Qt/ProcessManagerWindow.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Tab.h>
@@ -236,6 +237,7 @@ public:
         install_appkit_event_capture();
 #endif
         update_chrome_style();
+        installEventFilter(&m_plain_text_event_filter);
 
         // Suppress some warnings that end up flooding the console when Orca is in use. QSpiAccessibleBridge logs both
         // (1) one-time at startup, a couple warnings for some AT-SPI2 methods it doesn't implement, and (2) for *every*
@@ -541,6 +543,8 @@ private:
     // The application actions require a QWidget owner, which we don't have at the time of creation. We use this dummy
     // widget instead, which we also can't properly parent as it would need a QWidget owner as well.
     OwnPtr<QWidget> m_application_widget { nullptr };
+
+    PlainTextEventFilter m_plain_text_event_filter;
 
 #if defined(AK_OS_MACOS)
     QMenuBar* m_menu_bar { nullptr };
