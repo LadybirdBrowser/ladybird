@@ -664,9 +664,9 @@ pub unsafe extern "C" fn web_animation_event_create(
         elapsed_time,
         pseudo_element,
     };
-    AnimationEvent::create(vm, realm, &event_name, event_init)
-        .event()
-        .as_ptr()
+    let event = AnimationEvent::create(vm, realm, &event_name, event_init);
+    event.event().set_is_trusted(true);
+    event.event().as_ptr()
 }
 
 /// A new TransitionEvent that bubbles, as the Event that C++ dispatches.
@@ -703,9 +703,9 @@ pub unsafe extern "C" fn web_transition_event_create(
         property_name,
         pseudo_element,
     };
-    TransitionEvent::create(vm, realm, &event_name, event_init)
-        .event()
-        .as_ptr()
+    let event = TransitionEvent::create(vm, realm, &event_name, event_init);
+    event.event().set_is_trusted(true);
+    event.event().as_ptr()
 }
 
 fn bubbling_event_init() -> EventInit {

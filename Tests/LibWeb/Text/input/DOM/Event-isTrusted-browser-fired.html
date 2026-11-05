@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    @keyframes fade {
+        from { opacity: 0; }
+    }
+    #animated {
+        animation: fade 1s;
+    }
+    #transitioned {
+        transition: opacity 1s;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="animated"></div>
+<div id="transitioned"></div>
+<script>
+    function eventOf(target, type) {
+        return new Promise(resolve => target.addEventListener(type, resolve, { once: true }));
+    }
+
+    asyncTest(async done => {
+        println(`animationstart: ${(await eventOf(animated, "animationstart")).isTrusted}`);
+
+        transitioned.getBoundingClientRect();
+        transitioned.style.opacity = "0";
+        println(`transitionrun: ${(await eventOf(transitioned, "transitionrun")).isTrusted}`);
+
+        const request = indexedDB.open(`Event-isTrusted-browser-fired-${Date.now()}`, 1);
+        println(`upgradeneeded: ${(await eventOf(request, "upgradeneeded")).isTrusted}`);
+        println(`success: ${(await eventOf(request, "success")).isTrusted}`);
+        request.result.close();
+
+        const reader = new FileReader();
+        reader.readAsText(new Blob(["text"]));
+        println(`load: ${(await eventOf(reader, "load")).isTrusted}`);
+        done();
+    });
+</script>

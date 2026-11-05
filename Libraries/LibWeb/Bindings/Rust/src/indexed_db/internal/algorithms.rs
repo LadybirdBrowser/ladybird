@@ -358,6 +358,7 @@ pub(crate) fn fire_a_version_change_event(
     // 1. Let event be the result of creating an event using IDBVersionChangeEvent.
     // 2. Set event’s type attribute to e.
     let event = IDBVersionChangeEvent::create(vm, realm, &Utf16String::from_utf8(event_name), &event_init);
+    event.event().set_is_trusted(true);
 
     // 6. Let legacyOutputDidListenersThrowFlag be false.
     // 7. Dispatch event at target with legacyOutputDidListenersThrowFlag.
