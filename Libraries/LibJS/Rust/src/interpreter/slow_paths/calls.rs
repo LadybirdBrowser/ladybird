@@ -45,7 +45,7 @@ use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFun
 use crate::runtime::object::{Object, StackFrameInfo};
 use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
 use crate::runtime::property_key::PropertyKey;
-use crate::runtime::shared_function_instance_data::{ConstructorKind, FunctionKind};
+use crate::runtime::shared_function_instance_data::{ClassFieldInitializerName, ConstructorKind, FunctionKind};
 use crate::utf16::Utf16Display;
 
 /// Op::CallType: how a call instruction calls its callee.
@@ -156,6 +156,24 @@ pub fn get_super_constructor(vm: &Vm, pc: u32, values: &mut op::GetSuperConstruc
 /// The element key operands NewClass stores after its fixed fields.
 fn element_key_operands(instruction: &op::NewClass) -> &[OptionalOperand] {
     instruction.element_keys()
+}
+
+/// The [[ClassFieldInitializerName]] of the running field initializer, whose field has a computed key.
+pub fn get_class_field_initializer_name(
+    vm: &Vm,
+    pc: u32,
+    values: &mut op::GetClassFieldInitializerNameValues,
+) -> SlowPathControl {
+    let function = running_execution_context(vm)
+        .function
+        .get()
+        .and_then(as_ecmascript_function_object)
+        .expect("a field initializer is an ECMAScript function");
+    let ClassFieldInitializerName::PropertyKey(name) = function.class_field_initializer_name() else {
+        unreachable!("a field with a computed key is named by a property key");
+    };
+    values.dst = name.to_value(vm);
+    SlowPathControl::continue_at(pc + op::GetClassFieldInitializerName::LENGTH)
 }
 
 pub fn get_class_proto_parent(vm: &Vm, pc: u32, values: &mut op::GetClassProtoParentValues) -> SlowPathControl {

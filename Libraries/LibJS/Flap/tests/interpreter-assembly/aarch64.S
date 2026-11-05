@@ -22,6 +22,7 @@ asm_dispatch_table:
     .quad asm_handler_ConcatString
     .quad asm_handler_CopyObjectExcludingProperties
     .quad asm_handler_ImportCall
+    .quad asm_handler_GetClassFieldInitializerName
     .quad asm_handler_GetClassProtoParent
     .quad asm_handler_NewClass
     .quad asm_handler_Jump
@@ -238,7 +239,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -569,6 +569,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_ImportCall_hot_end
     .quad asm_handler_ImportCall_cold
     .quad asm_handler_ImportCall_cold_end
+    .quad asm_handler_GetClassFieldInitializerName
+    .quad asm_handler_GetClassFieldInitializerName_hot_end
+    .quad asm_handler_GetClassFieldInitializerName_cold
+    .quad asm_handler_GetClassFieldInitializerName_cold_end
     .quad asm_handler_GetClassProtoParent
     .quad asm_handler_GetClassProtoParent_hot_end
     .quad asm_handler_GetClassProtoParent_cold
@@ -1433,10 +1437,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -9060,6 +9060,45 @@ asm_handler_ImportCall:
 asm_handler_ImportCall_hot_end:
 asm_handler_ImportCall_cold:
 asm_handler_ImportCall_cold_end:
+
+.p2align 4
+asm_handler_GetClassFieldInitializerName:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_slow_path_get_class_field_initializer_name)
+    tbnz x0, #63, .Lasm_GetClassFieldInitializerName.scalar_result_done_0
+    tbz x0, #32, .Lasm_GetClassFieldInitializerName.scalar_result_done_0
+    ldr w9, [x21, #4]
+    str x1, [x27, x9, lsl #3]
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetClassFieldInitializerName.scalar_result_done_0:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_GetClassFieldInitializerName.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetClassFieldInitializerName.slow_path_transfer_1:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #128
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_GetClassFieldInitializerName_hot_end:
+asm_handler_GetClassFieldInitializerName_cold:
+asm_handler_GetClassFieldInitializerName_cold_end:
 
 .p2align 4
 asm_handler_GetClassProtoParent:

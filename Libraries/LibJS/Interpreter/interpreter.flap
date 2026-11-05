@@ -1515,6 +1515,10 @@ handler ImportCall(
     options: Operand
 ) @cold = call_slow_path(import_call);
 
+handler GetClassFieldInitializerName(
+    dst: out Operand
+) @cold = call_slow_path(get_class_field_initializer_name);
+
 handler GetClassProtoParent(
     dst: out Operand,
     super_class: Operand

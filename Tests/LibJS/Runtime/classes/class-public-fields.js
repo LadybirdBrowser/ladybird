@@ -184,6 +184,40 @@ test("anonymous function initializer is named by a literal key", () => {
     expect(A["a string"].name).toBe("a string");
 });
 
+test("anonymous function initializer is named by a computed key", () => {
+    const key = "named";
+    const symbol = Symbol("description");
+    class A {
+        static [key] = function () {};
+        static [`${key}Class`] = class {
+            static seenName = this.name;
+        };
+        static [symbol] = () => {};
+        [key] = () => {};
+        static [(0, "notAnonymous")] = (0, function () {});
+    }
+
+    expect(A.named.name).toBe("named");
+    expect(A.namedClass.name).toBe("namedClass");
+    expect(A.namedClass.seenName).toBe("namedClass");
+    expect(A[symbol].name).toBe("[description]");
+    expect(new A().named.name).toBe("named");
+    expect(A.notAnonymous.name).toBe("");
+});
+
+test("each evaluation of a class names initializers by its own computed keys", () => {
+    function makeClass(key) {
+        return class {
+            [key] = function () {};
+        };
+    }
+
+    const First = makeClass("first");
+    const Second = makeClass("second");
+    expect(new First().first.name).toBe("first");
+    expect(new Second().second.name).toBe("second");
+});
+
 test("regex field initializer", () => {
     class A {
         pattern = /hello/;

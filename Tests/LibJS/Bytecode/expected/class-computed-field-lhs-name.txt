@@ -30,11 +30,13 @@ block0:
   [   8] End value:Undefined
 
 
-field$60576772 class-computed-field-lhs-name.js:2:15
-  Registers: 6
+field$dc317dda class-computed-field-lhs-name.js:2:15
+  Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] NewFunction dst:reg5, shared_function_data_index:0
-  [  20] Return value:reg5
+  [   8] GetClassFieldInitializerName dst:reg5
+  [  10] NewFunction dst:reg6, shared_function_data_index:0
+  [  28] SetFunctionName function:reg6, name:reg5
+  [  38] Return value:reg6

@@ -1677,7 +1677,8 @@ pub struct FunctionDeclarationData {
 #[derive(Clone, Debug)]
 pub struct ClassFieldInitializerData {
     pub expression: Box<Expression>,
-    pub field_name: Utf16String,
+    /// The name of the field, unless its key is computed.
+    pub field_name: Option<Utf16String>,
 }
 
 // =============================================================================
