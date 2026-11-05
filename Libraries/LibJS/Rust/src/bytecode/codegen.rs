@@ -7262,8 +7262,10 @@ fn generate_class_expression(
                             ExpressionKind::PrivateIdentifier(p) => p.name.clone(),
                             ExpressionKind::NumericLiteral(n) => crate::host::js_number_to_utf16(*n),
                             ExpressionKind::BigIntLiteral(s) => {
-                                let digits = bigint_literal_digits(s);
-                                Utf16String(digits.to_vec())
+                                let digits = String::from_utf16_lossy(bigint_literal_digits(s));
+                                let value =
+                                    parse_bigint(&digits).expect("the lexer only produces valid BigInt literals");
+                                Utf16String(value.to_string().encode_utf16().collect())
                             }
                             _ => Utf16String::new(),
                         };

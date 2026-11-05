@@ -172,6 +172,18 @@ test("using 'arguments' via indirect eval throws at runtime instead of parse tim
     }).toThrowWithMessage(ReferenceError, "'arguments' is not defined");
 });
 
+test("anonymous function initializer is named by a literal key", () => {
+    class A {
+        static 0x10 = function () {};
+        static 0x20n = function () {};
+        static "a string" = () => {};
+    }
+
+    expect(A[16].name).toBe("16");
+    expect(A[32].name).toBe("32");
+    expect(A["a string"].name).toBe("a string");
+});
+
 test("regex field initializer", () => {
     class A {
         pattern = /hello/;
