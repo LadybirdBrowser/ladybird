@@ -197,6 +197,7 @@ set(SOURCES
     DOM/AbortSignal.cpp
     DOM/AbstractElement.cpp
     DOM/AbstractRange.cpp
+    DOM/AccessibilityChangeTracker.cpp
     DOM/AccessibilityTreeNode.cpp
     DOM/AdoptedStyleSheets.cpp
     DOM/AnchorNameMap.cpp

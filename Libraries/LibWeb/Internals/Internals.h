@@ -232,6 +232,8 @@ public:
     String accessibility_cached_text_mismatches();
     String accessibility_cached_record_mismatches();
     String accessibility_cached_geometry_mismatches();
+    String accessibility_change_tracking_mismatches();
+    String accessibility_last_change_size() const { return m_last_accessibility_change_size; }
     Utf16String dump_layout_tree(GC::Ref<DOM::Node>);
     Utf16String dump_stacking_context_tree();
     Utf16String stacking_context_structure_verification_report();
@@ -392,6 +394,10 @@ private:
     Vector<GC::Ref<InternalGamepad>> m_gamepads;
     Optional<HTML::DevToolsObjectTable> m_devtools_object_table;
     HTML::DevToolsLoggedObjects m_devtools_logged_objects;
+    // The accessibility tree as accessibility_change_tracking_mismatches() last left it, built up from changes alone.
+    DOM::AccessibilityChangeTracker m_accessibility_change_tracker;
+    HashMap<i64, WebView::AccessibilityNodeData> m_accessibility_tracked_tree;
+    String m_last_accessibility_change_size;
 };
 
 }

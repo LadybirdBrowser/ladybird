@@ -25,8 +25,11 @@
         const step = (label, change) => {
             change();
             // Printing adds to the DOM, so read everything before printing anything.
+            // The change tracker comes first, so that it builds the tree the way publishing does: before anything else
+            // keeps what changed.
+            const tracking = internals.accessibilityChangeTrackingMismatches();
             const dump = internals.dumpAccessibilityNodeData(root);
-            const stale = internals.accessibilityCachedTextMismatches() + internals.accessibilityCachedRecordMismatches() + internals.accessibilityCachedGeometryMismatches();
+            const stale = internals.accessibilityCachedTextMismatches() + internals.accessibilityCachedRecordMismatches() + internals.accessibilityCachedGeometryMismatches() + tracking;
             println(`== ${label}`);
             println(dump);
             if (stale)

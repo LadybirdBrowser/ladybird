@@ -41,6 +41,7 @@
 #include <LibWeb/CSS/ScrollStateContainerQuery.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleUpdateInputs.h>
+#include <LibWeb/DOM/AccessibilityChangeTracker.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
 #include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -1257,6 +1258,10 @@ public:
 
     Utf16String dump_accessibility_tree_as_json();
     Vector<WebView::AccessibilityNodeData> build_accessibility_node_data();
+    // Builds the tree and hands over what changed in it since the tracker's last build: every node whose data changed,
+    // and the IDs of the nodes that are gone. Hands over the whole tree when asked to, and for the tracker's first build
+    // of this document.
+    AccessibilityChangeTracker::Change build_accessibility_tree_change(AccessibilityChangeTracker&, bool whole_tree);
 
     // The accessible name and description that the accessibility tree reports for an element, kept from one build of
     // the tree to the next while an assistive technology consumes it, and dropped whenever a change could alter them.
@@ -1271,7 +1276,15 @@ public:
     // What a build of the accessibility tree keeps of each node's data for the next build, while an assistive
     // technology consumes the tree; see AccessibilityTreeNode::serialize_tree_as_node_data().
     WebView::AccessibilityNodeData const* cached_accessibility_record(Node const&) const;
-    void cache_accessibility_record(Node const&, WebView::AccessibilityNodeData const&) const;
+    // A kept record, with the version it got when it was kept: Every record and geometry kept gets a new version, so
+    // the same version means the same data.
+    struct KeptAccessibilityRecord {
+        WebView::AccessibilityNodeData const* data { nullptr };
+        u64 version { 0 };
+    };
+    KeptAccessibilityRecord kept_accessibility_record(Node const&) const;
+    // Returns the version the record gets, or 0 when it isn't kept.
+    u64 cache_accessibility_record(Node const&, WebView::AccessibilityNodeData const&) const;
     void invalidate_cached_accessibility_records_after_style_change(Element const&);
 
     // A text node's character geometry, kept with its record from one build to the next along with what layout
@@ -1296,12 +1309,14 @@ public:
             bool operator==(Source const&) const = default;
         };
         Vector<Source> sources;
+        u64 version { 0 };
         Vector<Gfx::IntPoint> character_offsets;
         Vector<i32> line_break_character_offsets;
         Vector<i32> line_heights;
     };
     CachedTextGeometry const* cached_text_geometry(Node const&) const;
-    void cache_text_geometry(Node const&, CachedTextGeometry) const;
+    // Returns the version the geometry gets, or 0 when it isn't kept.
+    u64 cache_text_geometry(Node const&, CachedTextGeometry) const;
     // For tests: each text node whose kept geometry differs from what computing it again gives.
     Vector<String> cached_text_geometry_mismatches();
 

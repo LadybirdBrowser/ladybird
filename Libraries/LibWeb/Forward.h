@@ -442,6 +442,7 @@ class AbortController;
 class AbortSignal;
 class AbstractElement;
 class AbstractRange;
+class AccessibilityChangeTracker;
 class AccessibilityTreeNode;
 class AnchorNameMap;
 class Attr;

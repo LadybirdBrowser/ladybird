@@ -240,6 +240,8 @@ interface Internals {
     // one per line. Empty when all of it is current.
     DOMString accessibilityCachedRecordMismatches();
     DOMString accessibilityCachedGeometryMismatches();
+    DOMString accessibilityChangeTrackingMismatches();
+    DOMString accessibilityLastChangeSize();
     DOMString dumpLayoutTree(Node node);
     DOMString dumpStackingContextTree();
     DOMString stackingContextStructureVerificationReport();

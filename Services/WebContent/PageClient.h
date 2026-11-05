@@ -16,6 +16,7 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/DOM/AccessibilityChangeTracker.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/Scripting/ConsoleInputCompletion.h>
@@ -33,7 +34,6 @@
 #include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Response.h>
 #include <LibWebCommon/WebDriver/UserPrompt.h>
-#include <LibWebCommon/WebView/AccessibilityTreePublisher.h>
 #include <LibWebCommon/WebView/ConsoleOutputBuffer.h>
 #include <LibWebCommon/WebView/Geolocation.h>
 #include <LibWebCommon/WebView/Mutation.h>
@@ -490,7 +490,10 @@ private:
     Optional<Web::HTML::CrossProcessId> m_pending_root_navigable_id;
 
     RefPtr<Core::Timer> m_accessibility_update_timer;
-    WebView::AccessibilityTreePublisher m_accessibility_tree_publisher;
+    // What the UI process was last sent of the accessibility tree, and the number of the last tree sent: Each change
+    // names the number of the tree it applies to, so the UI process can tell when it doesn't hold that tree.
+    Web::DOM::AccessibilityChangeTracker m_accessibility_change_tracker;
+    u64 m_accessibility_tree_sequence { 0 };
     RefPtr<Core::Timer> m_accessibility_focus_timer;
     Optional<i64> m_pending_accessibility_focus;
 
