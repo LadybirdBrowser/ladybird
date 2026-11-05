@@ -4349,7 +4349,11 @@ fn generate_update_expression(
     match &argument.inner {
         ExpressionKind::Identifier(ident) => {
             let resolved_binding = emit_resolve_binding_for_identifier_assignment(generator, *ident);
-            let value = generate_identifier_with_resolved_binding(generator, *ident, resolved_binding.as_ref());
+            let mut value = generate_identifier_with_resolved_binding(generator, *ident, resolved_binding.as_ref());
+            // The update is made in place, but storing to a constant throws, which must leave it unchanged.
+            if is_constant_local(generator, *ident) {
+                value = generator.copy_if_needed_to_preserve_evaluation_order(&value);
+            }
             let result = emit_update_op(generator, op, prefixed, &value);
             emit_set_variable_or_resolved_binding(generator, *ident, &value, resolved_binding.as_ref());
             Some(result)
@@ -5231,16 +5235,21 @@ fn emit_tdz_check_if_needed(generator: &mut Generator, id: crate::ast::Identifie
     }
 }
 
+fn is_constant_local(generator: &Generator, id: crate::ast::IdentifierId) -> bool {
+    let ident = &generator.arena.identifiers[id];
+    ident.is_local() && ident.declaration_kind == Some(DeclarationKind::Const)
+}
+
 fn emit_set_variable(generator: &mut Generator, id: crate::ast::IdentifierId, value: &ScopedOperand) {
+    if is_constant_local(generator, id) {
+        // The caller is responsible for emitting ThrowIfTDZ before calling
+        // emit_set_variable().
+        generator.emit(Instruction::ThrowConstAssignment {});
+        return;
+    }
     let arena = generator.arena.clone();
     let ident = &arena.identifiers[id];
     if ident.is_local() {
-        if ident.declaration_kind == Some(DeclarationKind::Const) {
-            // The caller is responsible for emitting ThrowIfTDZ before calling
-            // emit_set_variable().
-            generator.emit(Instruction::ThrowConstAssignment {});
-            return;
-        }
         let local_index = ident.local_index;
         let local = generator.resolve_local(local_index, ident.local_type.unwrap());
         // Skip self-move entirely, of variables and arguments alike.
