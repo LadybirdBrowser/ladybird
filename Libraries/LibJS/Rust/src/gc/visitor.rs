@@ -157,6 +157,16 @@ unsafe impl<T: Trace> Trace for std::collections::VecDeque<T> {
     }
 }
 
+// SAFETY: Forwards to every key and value. The default RandomState hasher holds no cells.
+unsafe impl<K: Trace, V: Trace> Trace for std::collections::HashMap<K, V> {
+    fn trace(&self, visitor: &mut Visitor) {
+        for (key, value) in self {
+            key.trace(visitor);
+            value.trace(visitor);
+        }
+    }
+}
+
 // SAFETY: Forwards to the value once it exists.
 unsafe impl<T: Trace> Trace for core::cell::OnceCell<T> {
     fn trace(&self, visitor: &mut Visitor) {
