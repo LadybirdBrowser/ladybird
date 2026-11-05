@@ -52,7 +52,7 @@ use super::css_rule_list::CSSRuleList;
 use super::css_scope_rule::CSSScopeRule;
 use super::css_style_rule::CSSStyleRule;
 use super::css_style_sheet::CSSStyleSheet;
-use super::css_style_value::{AnyCSSStyleValue, CSSStyleValue, PerformTypeCheck};
+use super::css_style_value::{AnyCSSStyleValue, CSSStyleValue};
 use super::css_supports_rule::CSSSupportsRule;
 use super::css_transform_value::CSSTransformValue;
 use super::css_unit_value::CSSUnitValue;
@@ -68,7 +68,6 @@ use super::style_sheet_list::StyleSheetList;
 use super::transition_event::{TransitionEvent, TransitionEventInit};
 use super::typed_om;
 use super::visual_viewport::VisualViewport;
-use crate::bindings::Exception;
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_if_abi, cell_into_abi, realm_arguments};
@@ -189,15 +188,6 @@ unsafe fn numeric_value_from_abi(cell: *mut c_void) -> AnyCSSNumericValue {
         .expect("C++ passes the cell of a CSSNumericValue")
 }
 
-/// Hands the message of a type error to C++, which throws it, as the steps that C++ calls throw nothing else.
-fn type_error_into_abi(exception: Exception, error: *mut usize) {
-    let Exception::TypeError(message) = exception else {
-        unreachable!("the steps of the CSS Typed OM that C++ calls only throw TypeErrors");
-    };
-    // SAFETY: The caller of the export passes a place for the string.
-    unsafe { *error = message.into_raw() };
-}
-
 /// A new CSSStyleValue, given a raw string and a style value that C++ hands over.
 ///
 /// # Safety
@@ -250,40 +240,6 @@ pub unsafe extern "C" fn web_css_style_value_reify(
     typed_om::reify(vm, &value, &associated_property).cell_into_abi()
 }
 
-/// The first value of parsing a CSSStyleValue, or null with the message of the TypeError in `error`.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `property` and `css_text` raw strings that C++ hands over, and `error` a place for a raw
-/// string.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_style_value_parse(
-    vm: *mut c_void,
-    property: usize,
-    css_text: usize,
-    error: *mut usize,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    // SAFETY: The caller hands over the strings.
-    let (property, css_text) = unsafe {
-        (
-            Utf16String::from_raw_owned(property),
-            Utf16String::from_raw_owned(css_text),
-        )
-    };
-    match typed_om::parse_values(vm, property, css_text) {
-        Ok(values) => values
-            .get(0)
-            .expect("parsing results in at least one value")
-            .cell_into_abi(),
-        Err(exception) => {
-            type_error_into_abi(exception, error);
-            core::ptr::null_mut()
-        }
-    }
-}
-
 /// Whether the value has an associated property, which goes to `associated_property` as a raw string.
 ///
 /// # Safety
@@ -302,41 +258,6 @@ pub unsafe extern "C" fn web_css_style_value_associated_property(
     // SAFETY: The caller passes a place for the string.
     unsafe { *associated_property = property.clone().into_raw() };
     true
-}
-
-/// The internal representation as a strong reference, or null with the message of the TypeError in `error`.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `value` the live cell of a CSSStyleValue, `property_name` a raw string that C++ hands over,
-/// and `error` a place for a raw string.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_style_value_create_an_internal_representation(
-    vm: *mut c_void,
-    value: *mut c_void,
-    property_id: u16,
-    property_name: usize,
-    perform_type_check: bool,
-    error: *mut usize,
-) -> *const c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    // SAFETY: The caller passes a live cell.
-    let value = unsafe { style_value_from_abi(value) };
-    // SAFETY: The caller hands over the string.
-    let property_name = unsafe { Utf16String::from_raw_owned(property_name) };
-    let perform_type_check = if perform_type_check {
-        PerformTypeCheck::Yes
-    } else {
-        PerformTypeCheck::No
-    };
-    match value.create_an_internal_representation(vm, property_id, &property_name, perform_type_check) {
-        Ok(representation) => representation.into_raw(),
-        Err(exception) => {
-            type_error_into_abi(exception, error);
-            core::ptr::null()
-        }
-    }
 }
 
 /// What C++ distinguishes CSSStyleValues by, whose order is that of `enum class StyleValueKind` in
