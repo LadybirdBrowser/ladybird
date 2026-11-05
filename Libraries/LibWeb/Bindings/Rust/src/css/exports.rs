@@ -1078,7 +1078,7 @@ pub unsafe extern "C" fn web_css_import_rule_import(rule: *mut c_void) -> *mut c
 pub unsafe extern "C" fn web_css_style_rule_set_selector_text(rule: *mut c_void, text: usize) {
     // SAFETY: The caller passes a live cell of a CSSStyleRule, and hands over the string.
     let (rule, text): (Ref<CSSStyleRule>, _) = unsafe { (cell_from_abi(rule), Utf16String::from_raw_owned(text)) };
-    rule.replace_selectors(&text.to_utf16());
+    rule.replace_selectors(&text);
 }
 
 /// A new CSSStyleSheet for the cell that holds the state of the sheet.

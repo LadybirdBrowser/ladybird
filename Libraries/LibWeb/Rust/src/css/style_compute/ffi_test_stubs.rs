@@ -90,8 +90,22 @@ extern "C" fn web_css_style_inheritance_parent(
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}
 #[unsafe(no_mangle)]
-extern "C" fn ladybird_utf16_string_create_uninitialized(_length: usize, _has_latin1_storage: bool) -> usize {
-    unreachable!("no unit test makes a string the host owns");
+extern "C" fn ladybird_utf16_string_create_uninitialized(length: usize, has_latin1_storage: bool) -> usize {
+    // The unref stub above is a no-op, so this allocation lives until the test process exits.
+    let unit_size = if has_latin1_storage { 1 } else { size_of::<u16>() };
+    let bytes = size_of::<ak::Utf16StringDataHeader>() + length * unit_size;
+    let storage = Box::leak(vec![0_u64; bytes.div_ceil(size_of::<u64>())].into_boxed_slice());
+    let header = storage.as_mut_ptr().cast::<ak::Utf16StringDataHeader>();
+    unsafe {
+        header.write(ak::Utf16StringDataHeader {
+            reference_count: std::sync::atomic::AtomicU32::new(1),
+            length_in_code_units: u32::try_from(length).unwrap(),
+            length_in_code_points: std::sync::atomic::AtomicU32::new(u32::MAX),
+            hash: std::sync::atomic::AtomicU32::new(0),
+            flags: std::sync::atomic::AtomicU32::new(if has_latin1_storage { 0 } else { ak::HAS_UTF16_STORAGE }),
+        });
+    }
+    header as usize
 }
 #[unsafe(no_mangle)]
 unsafe extern "C" fn ladybird_utf16_fly_string_from_utf8(data: *const u8, length: usize) -> usize {

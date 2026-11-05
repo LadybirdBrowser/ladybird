@@ -112,7 +112,7 @@ impl CSSKeyframesRule {
         let cell = self.rule.object().cell();
         // SAFETY: The cell is that of this object, which is live.
         unsafe { web_css_keyframes_rule_will_rename(cell) };
-        native_rule.set_keyframes_name(&value.to_utf16());
+        native_rule.set_keyframes_name(&value);
         // SAFETY: The cell is that of this object, which is live.
         unsafe { web_css_keyframes_rule_renamed(cell) };
         Ok(())
@@ -160,7 +160,7 @@ impl CSSKeyframesRule {
         // The deleteRule method deletes the last declared CSSKeyframeRule matching the specified keyframe selector. If
         // no matching rule exists, the method does nothing.
         let native_rule = self.rule.native_rule();
-        let Some(index) = native_rule.find_keyframe(&select.to_utf16()) else {
+        let Some(index) = native_rule.find_keyframe(&select) else {
             return Ok(());
         };
         if let Some(rules) = self.existing_css_rules() {
@@ -183,7 +183,7 @@ impl CSSKeyframesRule {
     ) -> WebIdlResult<Option<Ref<CSSKeyframeRule>>> {
         // The findRule returns the last declared CSSKeyframeRule matching the specified keyframe selector. If no
         // matching rule exists, the method does nothing.
-        let index = self.rule.native_rule().find_keyframe(&select.to_utf16());
+        let index = self.rule.native_rule().find_keyframe(&select);
         Ok(index.and_then(|index| self.keyframe(cx.vm(), index)))
     }
 
@@ -194,10 +194,10 @@ impl CSSKeyframesRule {
         // When serialized, the value is serialized as an <ident> unless it’s a disallowed keyword, in which case
         // it’s serialized as a <string>.
         let name = self.rule.native_rule().keyframes_name();
-        if is_valid_animation_name(&name.to_utf16()) {
-            text.push(&serialize_identifier(&name.to_utf16()));
+        if is_valid_animation_name(&name) {
+            text.push(&serialize_identifier(&name));
         } else {
-            text.push(&serialize_string_value(&name.to_utf16()));
+            text.push(&serialize_string_value(&name));
         }
 
         text.push_str(" { ");

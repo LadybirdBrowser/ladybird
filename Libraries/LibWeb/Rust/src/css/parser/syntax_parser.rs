@@ -54,6 +54,7 @@ use crate::css::selector_arena::{NestingTarget, RuleOrdinal};
 use crate::css::selector_parser::{
     RustParsedSelectorList, SelectorType, StyleNestingParent, parse_selector_list_from_component_values,
 };
+use crate::css::serialize::TextSink;
 use crate::css::serialize::serialize_component_values_to_utf16;
 use crate::css::style_compute::value_is_computationally_independent;
 use crate::css::style_rule::StyleRule;
@@ -4382,18 +4383,19 @@ pub unsafe extern "C" fn rust_page_selector_list_serialize(
     visit: crate::css::parser::query_parser::VisitQuerySerialization,
 ) {
     let text = serialized_page_selectors(list);
-    unsafe { visit(context, text.as_ptr(), text.len()) };
+    let units = text.to_utf16();
+    unsafe { visit(context, units.as_ptr(), units.len()) };
 }
 
 /// The text of a list of page selectors.
-pub(crate) fn serialized_page_selectors(list: &PageSelectorList) -> Vec<u16> {
-    let mut text = Vec::new();
+pub(crate) fn serialized_page_selectors(list: &PageSelectorList) -> ak::Utf16String {
+    let mut text = TextSink::new();
     for (index, selector) in list.selectors.iter().enumerate() {
         if index != 0 {
-            text.extend([u16::from(b','), u16::from(b' ')]);
+            text.push_ascii(", ");
         }
         if let Some(name) = &selector.name {
-            text.extend_from_slice(name);
+            name.iter().for_each(|&unit| text.push_code_unit(unit));
         }
         for pseudo_class in &selector.pseudo_classes {
             let name = match pseudo_class {
@@ -4402,10 +4404,10 @@ pub(crate) fn serialized_page_selectors(list: &PageSelectorList) -> Vec<u16> {
                 PagePseudoClass::First => ":first",
                 PagePseudoClass::Blank => ":blank",
             };
-            text.extend(name.bytes().map(u16::from));
+            text.push_ascii(name);
         }
     }
-    text
+    text.into_utf16_string()
 }
 
 /// Retains a normalized declaration block from parsed block contents, ignoring rules.

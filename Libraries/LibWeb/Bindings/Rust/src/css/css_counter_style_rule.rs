@@ -53,11 +53,7 @@ impl CSSCounterStyleRule {
     }
 
     fn set_descriptor(&self, name: &str, value: &Utf16String) {
-        if self
-            .rule
-            .native_rule()
-            .set_counter_style_descriptor(name, &value.to_utf16())
-        {
+        if self.rule.native_rule().set_counter_style_descriptor(name, value) {
             self.changed();
         }
     }
@@ -69,7 +65,7 @@ impl CSSCounterStyleRule {
 
     // https://drafts.csswg.org/css-counter-styles-3/#dom-csscounterstylerule-name
     pub(crate) fn set_name(&self, _: &mut CallContext, value: Utf16String) -> WebIdlResult<()> {
-        if self.rule.native_rule().set_counter_style_name(&value.to_utf16()) {
+        if self.rule.native_rule().set_counter_style_name(&value) {
             self.changed();
         }
         Ok(())
@@ -188,7 +184,7 @@ impl CSSCounterStyleRule {
     pub(crate) fn serialized(&self, _: &Vm) -> Utf16String {
         let native_rule = self.rule.native_rule();
         let mut text = RuleText::new("@counter-style ");
-        text.push(&serialize_identifier(&native_rule.counter_style_name().to_utf16()));
+        text.push(&serialize_identifier(&native_rule.counter_style_name()));
         text.push_str(" {");
         for name in [
             "system",

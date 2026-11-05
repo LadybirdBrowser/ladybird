@@ -71,7 +71,7 @@ impl CSSMediaRule {
     }
 
     pub(crate) fn serialized_condition_text(&self) -> Utf16String {
-        Utf16String::from_utf16(&self.rule().native_rule().media_list().media_text())
+        self.rule().native_rule().media_list().media_text()
     }
 
     // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule

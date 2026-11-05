@@ -57,7 +57,7 @@ impl CSSPageRule {
         // 1. Run the parse a list of CSS page selectors algorithm on the given value.
         // 2. If the algorithm returns a non-null value replace the associated selector list with the returned value.
         // 3. Otherwise, if the algorithm returns a null value, do nothing.
-        self.rule().native_rule().set_page_selector_text(&value.to_utf16());
+        self.rule().native_rule().set_page_selector_text(&value);
         Ok(())
     }
 

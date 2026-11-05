@@ -62,14 +62,14 @@ impl CSSNamespaceRule {
         // followed by the serialization as an identifier of the prefix attribute (if any),
         let prefix = native_rule.namespace_prefix();
         if !prefix.is_empty() {
-            text.push(&serialize_identifier(&prefix.to_utf16()));
+            text.push(&serialize_identifier(&prefix));
             // followed by a single SPACE (U+0020) if there is a prefix,
             text.push_str(" ");
         }
 
         //  followed by the serialization as URL of the namespaceURI attribute,
         text.push_str("url(");
-        text.push(&serialize_string_value(&native_rule.namespace_uri().to_utf16()));
+        text.push(&serialize_string_value(&native_rule.namespace_uri()));
         text.push_str(")");
 
         // followed the character ";" (U+003B).

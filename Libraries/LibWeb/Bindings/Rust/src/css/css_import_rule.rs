@@ -194,7 +194,7 @@ impl CSSImportRule {
         let media = native_rule.media_list();
         if media.length() != 0 {
             text.push_str(" ");
-            text.push(&Utf16String::from_utf16(&media.media_text()));
+            text.push(&media.media_text());
         }
 
         // 4. The string ";", i.e., SEMICOLON (U+003B).

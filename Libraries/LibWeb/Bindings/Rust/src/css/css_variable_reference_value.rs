@@ -12,6 +12,7 @@ use ak::Utf16String;
 use libjs_rust::api::{GcRefCell, Trace, Vm};
 use libweb_rust::typed_om::is_a_custom_property_name_string;
 
+use super::css_rule::RuleText;
 use super::css_unparsed_value::CSSUnparsedValue;
 use super::typed_om;
 use crate::bindings::conversions::UsvString;
@@ -94,24 +95,24 @@ impl CSSVariableReferenceValue {
     }
 
     // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssvariablereferencevalue
-    pub(crate) fn serialize(&self, s: &mut Vec<u16>) {
+    pub(crate) fn serialize(&self, s: &mut RuleText) {
         // To serialize a CSSVariableReferenceValue this:
         // 1. Let s initially be "var(".
-        s.extend("var(".encode_utf16());
+        s.push_str("var(");
 
         // 2. Append this’s variable internal slot to s.
-        s.extend_from_slice(&self.variable.borrow().to_utf16());
+        s.push(&self.variable.borrow());
 
         // 3. If this’s fallback internal slot is not null, append ", " to s, then serialize the fallback internal slot
         //    and append it to s.
         if let Some(fallback) = self.raw_fallback() {
             // AD-HOC: Tested behaviour requires we append "," without the space.
             //         https://github.com/w3c/css-houdini-drafts/issues/1148
-            s.push(u16::from(b','));
-            s.extend_from_slice(&fallback.serialize().to_utf16());
+            s.push_str(",");
+            s.push(&fallback.serialize());
         }
 
         // 4. Append ")" to s and return s.
-        s.push(u16::from(b')'));
+        s.push_str(")");
     }
 }

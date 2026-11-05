@@ -90,9 +90,9 @@ impl CSSFontFeatureValuesRule {
             }
             let units = family.to_utf16();
             if units.iter().any(|unit| is_ascii_whitespace(*unit)) {
-                text.push(&serialize_string_value(&units));
+                text.push(&serialize_string_value(family));
             } else {
-                text.push(&serialize_identifier(&units));
+                text.push(&serialize_identifier(family));
             }
         }
         text.finish()
@@ -118,7 +118,7 @@ impl CSSFontFeatureValuesRule {
                     .iter()
                     .rposition(|unit| !is_ascii_whitespace(*unit))
                     .map_or(start, |end| end + 1);
-                family[start..end].to_vec()
+                Utf16String::from_utf16(&family[start..end])
             })
             .collect();
         self.rule.native_rule().set_font_feature_values_families(families);
