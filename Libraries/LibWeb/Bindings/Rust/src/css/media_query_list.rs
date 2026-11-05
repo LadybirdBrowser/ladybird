@@ -159,9 +159,9 @@ impl MediaQueryList {
     pub(crate) fn remove_listener(&self, _: &mut CallContext, callback: Option<CallbackInterface>) -> WebIdlResult<()> {
         // 1. Remove an event listener from the associated list of event listeners, whose type is change, callback is
         //    listener, and capture is false.
-        // NOTE: While the spec doesn't technically use remove_event_listener and instead manipulates the list directly,
-        //       every major engine uses remove_event_listener. This means if an event listener removes another event
-        //       listener that comes after it, the removed event listener will not be invoked.
+        // NB: While the spec doesn't technically use remove_event_listener and instead manipulates the list directly,
+        //     every major engine uses remove_event_listener. This means if an event listener removes another event
+        //     listener that comes after it, the removed event listener will not be invoked.
         if let Some(callback) = callback {
             self.event_target
                 .remove_event_listener_without_options(CHANGE, &callback);

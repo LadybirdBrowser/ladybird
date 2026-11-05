@@ -529,7 +529,7 @@ impl FontFaceSet {
         // 1. Parse font using the CSS value syntax of the font property. If a syntax error occurs, return a syntax
         //    error.
         // If the parsed value is a CSS-wide keyword, return a syntax error.
-        // Note: This case is already caught by font_family_names().
+        // NB: This case is already caught by font_family_names().
 
         // FIXME: Absolutize all relative lengths against the initial values of the corresponding properties. (For
         //        example, a relative font weight like bolder is evaluated against the initial value normal.)

@@ -209,8 +209,8 @@ impl CSSRule {
 
     // https://drafts.csswg.org/cssom/#dom-cssrule-type
     pub(crate) fn type_for_bindings(&self, _: &mut CallContext) -> WebIdlResult<u16> {
-        // NOTE: Types that aren't defined in the spec must return 0.
-        // To do this, we arbitrarily make non-spec ones start at 100.
+        // NB: Types that aren't defined in the spec must return 0.
+        //     To do this, we arbitrarily make non-spec ones start at 100.
         let rule_type = self.native_rule.cssom_type() as u16;
         Ok(if rule_type >= 100 { 0 } else { rule_type })
     }

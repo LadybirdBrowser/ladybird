@@ -106,7 +106,7 @@ impl CSSFontFaceRule {
         //    followed by the string "font-stretch:", followed by a single SPACE (U+0020),
         //    followed by the result of performing serialize a <'font-stretch'>,
         //    followed by the string ";", i.e., SEMICOLON (U+003B).
-        // NOTE: font-stretch is now an alias for font-width, so we use that instead.
+        // NB: font-stretch is now an alias for font-width, so we use that instead.
         self.append_descriptor(&mut text, "font-stretch", "font-width");
 
         // 8. If rule’s associated font-weight descriptor is present, a single SPACE (U+0020),
