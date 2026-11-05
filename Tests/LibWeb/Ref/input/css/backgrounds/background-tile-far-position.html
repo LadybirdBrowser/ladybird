@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<!-- Tiles keep their phase when the background position is too far away for a float to hold it exactly. Both positions
+     here are 2px away from a multiple of the tile size. -->
+<link rel="match" href="../../../expected/css/backgrounds/background-tile-far-position-ref.html" />
+<style>
+    body { margin: 0; }
+    div {
+        width: 90px;
+        height: 90px;
+        margin-bottom: 10px;
+        image-rendering: pixelated;
+    }
+    .positive { background: url(../../../data/smiley.png) 16777217px 16777217px / 3px 3px; }
+    .negative { background: url(../../../data/smiley.png) -16777216px -16777216px / 3px 3px; }
+</style>
+<div class="positive"></div>
+<div class="negative"></div>

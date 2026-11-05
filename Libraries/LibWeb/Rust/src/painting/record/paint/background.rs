@@ -628,6 +628,7 @@ fn paint_image_layer_in_current_space<O: Observer>(
 
     image_rect.x = background_positioning_area.left() + layer.position_x;
     image_rect.y = background_positioning_area.top() + layer.position_y;
+    let anchor_tile_rect = image_rect;
 
     // Repetition
     let repeat_x;
@@ -662,9 +663,8 @@ fn paint_image_layer_in_current_space<O: Observer>(
         _ => repeat_x = false,
     }
     // Move image_rect to the left-most tile position that is still visible
-    if repeat_x && image_rect.x > css_clip_rect.x {
-        let x_delta = floor_css(x_step * ceil_fraction(image_rect.x - css_clip_rect.x, x_step));
-        image_rect.x -= x_delta;
+    if repeat_x {
+        image_rect.x = first_css_tile_start(image_rect.x, css_clip_rect.x, x_step);
     }
 
     match layer.repeat_y {
@@ -691,9 +691,8 @@ fn paint_image_layer_in_current_space<O: Observer>(
         _ => repeat_y = false,
     }
     // Move image_rect to the top-most tile position that is still visible
-    if repeat_y && image_rect.y > css_clip_rect.y {
-        let y_delta = floor_css(y_step * ceil_fraction(image_rect.y - css_clip_rect.y, y_step));
-        image_rect.y -= y_delta;
+    if repeat_y {
+        image_rect.y = first_css_tile_start(image_rect.y, css_clip_rect.y, y_step);
     }
 
     let initial_image_x = image_rect.x;
@@ -792,13 +791,30 @@ fn paint_image_layer_in_current_space<O: Observer>(
         // Use a dedicated painting command for repeated images instead of recording a separate command for each
         // instance of a repeated background, so the painter has the opportunity to optimize the painting of
         // repeated images.
-        let mut dest_rect = converter.rounded_device_rect(image_rect);
+        // NB: Tiles repeat in all directions at a whole device pixel size. Round the tile at the background position to
+        //     get that size, as a tile any number of steps away can round to a different one. A lone tile has to stay
+        //     where it is: only the tile that tile_count found covers the clip, and it is the only one that we paint.
+        let mut dest_rect = converter.rounded_device_rect(if tile_count == 1.0 {
+            image_rect
+        } else {
+            anchor_tile_rect
+        });
         // If the image's dimensions were rounded to zero then they need to be restored to avoid a crash.
         if dest_rect.width == 0 {
             dest_rect.width = 1;
         }
         if dest_rect.height == 0 {
             dest_rect.height = 1;
+        }
+        // NB: Whole tile steps don't change what repeats, but the painter works in floats, which can't hold the phase
+        //     of a distant tile. Keep the origin next to the clip.
+        if tile_count != 1.0 {
+            if repeat_x {
+                dest_rect.x = first_tile_start(dest_rect.x, clip_rect.x, dest_rect.width);
+            }
+            if repeat_y {
+                dest_rect.y = first_tile_start(dest_rect.y, clip_rect.y, dest_rect.height);
+            }
         }
         if let crate::painting::image_content::ImageContent::Vector { content_identity, .. } = &facts.content {
             if clip_rect.is_empty() {
@@ -1036,15 +1052,24 @@ fn fraction_to_int(numerator: CssPixels, denominator: CssPixels) -> i32 {
     numerator.div_as_fraction(denominator).to_int()
 }
 
-fn ceil_fraction(numerator: CssPixels, denominator: CssPixels) -> CssPixels {
-    if denominator.raw_value() == 0 {
-        return CssPixels::from_raw(0);
+/// Moves a tile start by whole steps to the last position at or before the clip start. Integer math keeps this exact: a
+/// fixed point quotient truncates a gap below 1/64 of a step to zero steps.
+fn first_tile_start(tile_start: i32, clip_start: i32, step: i32) -> i32 {
+    if step <= 0 {
+        return tile_start;
     }
-    numerator.div_as_fraction(denominator).ceil()
+    let clip_start = i64::from(clip_start);
+    let clip_offset_from_tile = clip_start - i64::from(tile_start);
+    let first_start = clip_start - clip_offset_from_tile.rem_euclid(i64::from(step));
+    first_start.max(i64::from(i32::MIN)) as i32
 }
 
-fn floor_css(value: CssPixels) -> CssPixels {
-    value.floor()
+fn first_css_tile_start(tile_start: CssPixels, clip_start: CssPixels, step: CssPixels) -> CssPixels {
+    CssPixels::from_raw(first_tile_start(
+        tile_start.raw_value(),
+        clip_start.raw_value(),
+        step.raw_value(),
+    ))
 }
 
 fn source_rect_for_visible_image_part(
