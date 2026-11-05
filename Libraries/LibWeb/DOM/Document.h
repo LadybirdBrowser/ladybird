@@ -1894,13 +1894,13 @@ private:
     template<typename GetNotifier, typename... Args>
     void notify_each_document_observer(GetNotifier&& get_notifier, Args&&... args)
     {
-        ScopeGuard guard { [&]() { m_document_observers_being_notified.clear_with_capacity(); } };
-        m_document_observers_being_notified.ensure_capacity(m_document_observers.size());
+        GC::RootVector<GC::Ref<DocumentObserver>> document_observers;
+        document_observers.ensure_capacity(m_document_observers.size());
 
         for (auto observer : m_document_observers)
-            m_document_observers_being_notified.unchecked_append(observer);
+            document_observers.unchecked_append(observer);
 
-        for (auto document_observer : m_document_observers_being_notified) {
+        for (auto document_observer : document_observers) {
             if (auto notifier = get_notifier(*document_observer))
                 notifier->function()(forward<Args>(args)...);
         }
@@ -2158,7 +2158,6 @@ private:
     // Document should not visit DocumentObserver to avoid leaks.
     // It's responsibility of object that requires DocumentObserver to keep it alive.
     HashTable<GC::RawRef<DocumentObserver>> m_document_observers;
-    Vector<GC::Ref<DocumentObserver>> m_document_observers_being_notified;
 
     // Every SVG use element connected to this document's node tree, maintained by SVGUseElement on insertion and
     // removal. This lets SVG elements notify interested use elements about mutations without traversing the entire
