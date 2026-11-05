@@ -65,7 +65,10 @@ impl InFlowBlockKey {
 #[derive(Clone)]
 pub(super) struct FloatsReadByContents {
     pub(super) margins_before_box: block_formatting_context::CollapsedMargins,
-    pub(super) border_box_offset_from_flow_position: CssPixels,
+    pub(super) stored_in_open_top_margin_group: bool,
+    /// Whether the contents read floats before their top margins settled, so that the margins before the box decide
+    /// where they read them.
+    pub(super) read_before_top_margins_settled: bool,
     pub(super) read_start_from_border_box: Option<CssPixels>,
     pub(super) floats_in_reach: smallvec::SmallVec<[block_formatting_context::FloatInReach; 2]>,
 }
@@ -84,7 +87,7 @@ pub(super) struct InFlowBlockEntry {
     pub(super) content_inline_offset: CssPixels,
     /// What the child's contents left in their margin state, with the top margin group they collapsed into.
     pub(super) margins_left_by_contents: block_formatting_context::BlockMarginState,
-    pub(super) floats_read_by_contents: Option<FloatsReadByContents>,
+    pub(super) floats_read_by_contents: FloatsReadByContents,
     pub(super) outgoing_outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     pub(super) depends_on_percentage_block_size: bool,
     /// The fragment the stored layout placed. The committed subtree is reused only while it is still that fragment.

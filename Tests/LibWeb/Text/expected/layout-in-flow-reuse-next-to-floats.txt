@@ -21,3 +21,7 @@ clearance in root inline content: reused [], laid out again [], matches a fresh 
 a clearing float in root inline content: reused [], laid out again [], matches a fresh layout
 the root widens around a fixed box: reused [root-width-wrapped-last], laid out again [], matches a fresh layout
 the root widens around a float in it: reused [], laid out again [root-width-beside], matches a fresh layout
+a box stored without floats, below a new float: reused [new-float-below], laid out again [], matches a fresh layout
+a box reused without floats: reused [read-through-first], laid out again [read-through-box], matches a fresh layout
+then a new float reaches it: reused [], laid out again [read-through-box read-through-first], matches a fresh layout
+a margin before a box that reads where it settled: reused [settled-box], laid out again [], matches a fresh layout
