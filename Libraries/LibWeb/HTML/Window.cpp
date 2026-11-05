@@ -562,8 +562,9 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Utf
                 local_target_navigable->report_opener_browsing_context();
             } else {
                 // NB: That browsing context is in the process hosting targetNavigable, which the UI process asks to set
-                //     it to the one active in sourceDocument's node navigable.
-                source_document.page().client().request_set_opener_of_remote_navigable(as<RemoteNavigable>(*target_navigable), *source_document.navigable());
+                //     it to the one active in sourceDocument's node navigable. The request goes through the page holding
+                //     targetNavigable's tab, which is not sourceDocument's when the two are different tabs.
+                target_navigable->page().client().request_set_opener_of_remote_navigable(as<RemoteNavigable>(*target_navigable), *source_document.navigable());
             }
         }
     }

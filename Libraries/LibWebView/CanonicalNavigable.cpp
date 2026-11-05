@@ -1357,8 +1357,14 @@ void CanonicalNavigable::did_set_opener_browsing_context(Optional<Web::HTML::Cro
     RefPtr<CanonicalBrowsingContext> opener_browsing_context;
     if (opener_navigable_id.has_value()) {
         if (auto* opener_traversable = CanonicalTraversable::traversable_containing(*opener_navigable_id)) {
-            if (auto opener = opener_traversable->find(*opener_navigable_id); opener.has_value())
+            if (auto opener = opener_traversable->find(*opener_navigable_id); opener.has_value()) {
+                // window.open() only finds navigables in the group of the source document's top-level browsing
+                // context, so the opener it sets is one of the group's.
+                auto group = top_level_traversable().active_browsing_context().group();
+                if (!group || opener_traversable->active_browsing_context().group() != group)
+                    return;
                 opener_browsing_context = opener->active_browsing_context();
+            }
         }
     }
     active_browsing_context().set_opener_browsing_context(opener_browsing_context);
