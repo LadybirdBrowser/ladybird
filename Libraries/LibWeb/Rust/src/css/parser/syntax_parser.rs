@@ -2865,7 +2865,7 @@ fn collect_descriptors<'a>(
                     &mut descriptors,
                     DescriptorData {
                         id: longhand.descriptor_id,
-                        name: CssString::from_utf16(declaration.name.as_ref()),
+                        name: CssString::from_utf16(&longhand.name.encode_utf16().collect::<Vec<_>>()),
                         value: values.as_slice()[index].clone().into_arc(),
                     },
                 );

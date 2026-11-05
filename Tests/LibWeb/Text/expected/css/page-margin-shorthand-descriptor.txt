@@ -1,0 +1,7 @@
+@page { margin-top: 1px; margin-right: 2px; margin-bottom: 3px; margin-left: 4px; }
+length: 4
+margin-top: 1px
+margin-right: 2px
+margin-bottom: 3px
+margin-left: 4px
+@page { margin-top: 1px; margin-right: 2px; margin-bottom: 3px; margin-left: 4px; }

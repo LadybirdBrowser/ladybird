@@ -235,7 +235,7 @@ fn generate_descriptor_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(
          pub(crate) enum DescriptorValueType { CounterStyleSystem, CounterStyleAdditiveSymbols, CounterStyleName, CounterStyleNegative, CounterStylePad, CounterStyleRange, CropOrCross, FamilyName, FontSrcList, FontWeightAbsolutePair, Length, OptionalDeclarationValue, PageSize, PositivePercentage, String, Symbol, Symbols, UnicodeRangeTokens }\n\n\
          pub(crate) struct DescriptorMetadata { pub id: u8, pub syntax: &'static [DescriptorSyntax], pub allow_arbitrary_substitution_functions: bool, pub allow_css_wide_keywords: bool }\n\n\
          #[derive(Clone, Copy, Debug, PartialEq, Eq)]\n\
-         pub(crate) struct DescriptorLonghand { pub descriptor_id: u8, pub property_id: u16 }\n\n\
+         pub(crate) struct DescriptorLonghand { pub descriptor_id: u8, pub property_id: u16, pub name: &'static str }\n\n\
          fn equals(value: &[u16], expected: &[u8]) -> bool { value.len() == expected.len() && value.iter().zip(expected).all(|(&left, &right)| u8::try_from(left).is_ok_and(|left| left.eq_ignore_ascii_case(&right))) }\n\n\
          pub(crate) fn descriptor_metadata(at_rule: u8, name: &[u16]) -> Option<DescriptorMetadata> {\n    match at_rule {\n",
     );
@@ -366,16 +366,17 @@ fn generate_descriptor_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(
                 generated_longhands.push((
                     descriptor_id(longhand)?,
                     longhand.replace('-', "_").to_ascii_uppercase(),
+                    longhand,
                 ));
             }
             if generated_longhands.is_empty() {
                 continue;
             }
             write!(output, "        ({at_rule_index}, {}) => &[", descriptor_id(name)?)?;
-            for (longhand_id, property_constant) in generated_longhands {
+            for (longhand_id, property_constant, longhand_name) in generated_longhands {
                 write!(
                     output,
-                    "DescriptorLonghand {{ descriptor_id: {longhand_id}, property_id: property_id::{property_constant} }},"
+                    "DescriptorLonghand {{ descriptor_id: {longhand_id}, property_id: property_id::{property_constant}, name: \"{longhand_name}\" }},"
                 )?;
             }
             output.push_str("],\n");
