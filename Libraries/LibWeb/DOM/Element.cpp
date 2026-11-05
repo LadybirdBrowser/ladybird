@@ -3017,8 +3017,6 @@ double Element::current_css_zoom() const
 
 static bool style_attribute_is_blocked_by_content_security_policy(Element& element, Utf16View value)
 {
-    if (auto shadow_root = element.containing_shadow_root(); shadow_root && shadow_root->is_user_agent_internal())
-        return false;
     return ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(element, ContentSecurityPolicy::Directives::Directive::InlineType::StyleAttribute, value) == ContentSecurityPolicy::Directives::Directive::Result::Blocked;
 }
 

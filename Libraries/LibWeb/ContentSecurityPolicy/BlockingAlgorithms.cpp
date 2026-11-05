@@ -16,6 +16,7 @@
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
@@ -24,6 +25,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
@@ -309,6 +311,14 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
     return result;
 }
 
+// NB: The content of a user agent shadow tree belongs to the user agent, not to the document and its policies. The
+//     exception is the shadow tree of a use element, which holds clones of the document's own content.
+static bool is_in_shadow_tree_with_user_agent_content(DOM::Element& element)
+{
+    auto shadow_root = element.containing_shadow_root();
+    return shadow_root && shadow_root->is_user_agent_internal() && !is<SVG::SVGUseElement>(shadow_root->host());
+}
+
 // https://w3c.github.io/webappsec-csp/#should-block-inline
 Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by_content_security_policy(GC::Ref<DOM::Element> element, Directives::Directive::InlineType type, Utf16View source)
 {
@@ -317,6 +327,10 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
 
     // 1. Assert: element is not null.
     // NOTE: Already done by only accepting a GC::Ref.
+
+    // AD-HOC: The spec has no notion of the user agent's own content.
+    if (is_in_shadow_tree_with_user_agent_content(*element))
+        return Directives::Directive::Result::Allowed;
 
     // 2. Let result be "Allowed".
     auto result = Directives::Directive::Result::Allowed;

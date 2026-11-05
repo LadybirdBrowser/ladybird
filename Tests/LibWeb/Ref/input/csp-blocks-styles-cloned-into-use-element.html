@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/csp-blocks-styles-cloned-into-use-element-ref.html">
+<svg width="300" height="100">
+    <defs>
+        <g id="style-element">
+            <style>.green { fill: green; }</style>
+            <rect class="green" width="100" height="100" />
+        </g>
+        <g id="style-attribute">
+            <rect style="fill: green;" x="120" width="100" height="100" />
+        </g>
+    </defs>
+    <use href="#style-element" />
+    <use href="#style-attribute" />
+</svg>
