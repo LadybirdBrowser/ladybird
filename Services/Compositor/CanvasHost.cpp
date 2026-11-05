@@ -87,13 +87,19 @@ OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize 
     auto video_frame_image_resolver = [this, skia_backend_context_of_canvas](u64 video_sink_handle, u64 generation) {
         return held_video_frame_image(Media::VideoSinkHandle { video_sink_handle }, generation, skia_backend_context_of_canvas);
     };
-    auto player = make<Canvas2DCommandPlayer>(skia_backend_context_of_canvas, size, format, Gfx::AlphaType::Premultiplied, color_space,
+    auto player_or_error = Canvas2DCommandPlayer::create(skia_backend_context_of_canvas, size, format, Gfx::AlphaType::Premultiplied, color_space,
         Canvas2DCommandPlayer::Resolvers {
             .canvas_surface = move(canvas_surface_resolver),
             .font = move(font_resolver),
             .image_frame = move(image_frame_resolver),
             .video_frame_image = move(video_frame_image_resolver),
         });
+    // NB: Memory for a canvas of a size that passed the check above can still run out.
+    if (player_or_error.is_error()) {
+        dbgln("Unable to create a {}x{} 2D canvas context: {}", size.width(), size.height(), player_or_error.error());
+        return nullptr;
+    }
+    auto player = player_or_error.release_value();
 
     // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
     // "Thus, the bitmap of such a context starts off as opaque black instead of transparent black"
@@ -109,13 +115,13 @@ static void copy_surface_contents(Gfx::PaintingSurface& source, Gfx::PaintingSur
     destination.copy_from_surface(source);
 }
 
-static NonnullRefPtr<Gfx::PaintingSurface> create_presented_canvas_surface(Gfx::PaintingSurface& source, RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
+static ErrorOr<NonnullRefPtr<Gfx::PaintingSurface>> create_presented_canvas_surface(Gfx::PaintingSurface& source, RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
 {
-    auto surface = Gfx::PaintingSurface::create_with_size(
+    auto surface = TRY(Gfx::PaintingSurface::try_create_with_size(
         source.size(),
         Gfx::BitmapFormat::BGRA8888,
         Gfx::AlphaType::Premultiplied,
-        move(skia_backend_context));
+        move(skia_backend_context)));
     copy_surface_contents(source, *surface);
     return surface;
 }
@@ -135,7 +141,12 @@ bool CanvasHost::create_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize
 
     // NB: A canvas that draws in memory still presents onto the GPU, if there is one. A present then uploads it once,
     //     instead of every composited frame uploading a fresh snapshot of it.
-    auto presented_surface = create_presented_canvas_surface(command_player->surface(), m_skia_backend_context);
+    auto presented_surface_or_error = create_presented_canvas_surface(command_player->surface(), m_skia_backend_context);
+    if (presented_surface_or_error.is_error()) {
+        dbgln("Unable to create the presented surface of a {}x{} 2D canvas context: {}", size.width(), size.height(), presented_surface_or_error.error());
+        return false;
+    }
+    auto presented_surface = presented_surface_or_error.release_value();
     m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, presented_surface);
     Canvas2DContext context {
         .command_player = command_player.release_nonnull(),

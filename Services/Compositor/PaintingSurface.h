@@ -55,6 +55,8 @@ public:
 
     // A surface whose pixels are in the color space, which is sRGB unless one is given.
     static NonnullRefPtr<PaintingSurface> create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> = {}, ColorSpace const& = {});
+    // Fails when neither a GPU surface nor a bitmap of the size can be allocated.
+    static ErrorOr<NonnullRefPtr<PaintingSurface>> try_create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> = {}, ColorSpace const& = {});
     static NonnullRefPtr<PaintingSurface> wrap_bitmap(Bitmap&);
 
 #ifdef AK_OS_MACOS

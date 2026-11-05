@@ -48,8 +48,10 @@ public:
         VideoFrameImageResolver video_frame_image;
     };
 
-    // The pixels of the surface, and the colors of the commands, are in the color space.
-    Canvas2DCommandPlayer(RefPtr<Gfx::SkiaBackendContext>, Gfx::IntSize, Gfx::BitmapFormat, Gfx::AlphaType, Gfx::ColorSpace const&, Resolvers);
+    // The pixels of the surface, and the colors of the commands, are in the color space. Fails when a surface of the
+    // size can't be allocated.
+    static ErrorOr<NonnullOwnPtr<Canvas2DCommandPlayer>> create(RefPtr<Gfx::SkiaBackendContext>, Gfx::IntSize, Gfx::BitmapFormat, Gfx::AlphaType, Gfx::ColorSpace const&, Resolvers);
+    Canvas2DCommandPlayer(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::ColorSpace const&, Resolvers);
     ~Canvas2DCommandPlayer();
 
     NonnullRefPtr<Gfx::PaintingSurface> surface() const;
