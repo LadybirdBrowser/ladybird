@@ -86,12 +86,9 @@ function (generate_css_implementation)
     )
 
     invoke_py_idl_generator(
-        "GeneratedCSSNumericFactoryMethods.cpp"
         "GeneratedCSSNumericFactoryMethods.idl"
         "generate_libweb_css_numeric_factory_methods.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
-        "CSS/GeneratedCSSNumericFactoryMethods.h"
-        "CSS/GeneratedCSSNumericFactoryMethods.cpp"
         "CSS/GeneratedCSSNumericFactoryMethods.idl"
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
     )
@@ -130,7 +127,6 @@ function (generate_css_implementation)
 
     set(CSS_GENERATED_HEADERS
        "CSS/Enums.h"
-       "CSS/GeneratedCSSNumericFactoryMethods.h"
        "CSS/Keyword.h"
        "CSS/MediaFeatureID.h"
        "CSS/PropertyID.h"

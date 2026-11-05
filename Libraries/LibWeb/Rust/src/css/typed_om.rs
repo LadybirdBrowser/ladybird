@@ -23,6 +23,8 @@ use crate::css::dimension_units::{
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::arbitrary_substitution::SubstitutionFunctionsPresence;
 use crate::css::parser::arbitrary_substitution::collect_arbitrary_substitution_function_presence;
+use crate::css::parser::query_parser::{css_query_evaluate_supports, rust_parse_supports_condition};
+use crate::css::parser::syntax::{SyntaxNode, rust_parse_syntax, rust_syntax_is_universal};
 use crate::css::parser::value_parser::{
     FfiParseStatus, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, RandomFunctionIndex,
     component_values_from_source, is_css_wide_keyword, round_to_nearest_integer, rust_parse_css_value,
@@ -34,7 +36,9 @@ use crate::css::property_metadata::{
     property_numeric_ranges, property_percentages_resolve_to,
 };
 use crate::css::serialize::{SerializationMode, TextSink, serialize_style_value};
-use crate::css::style_compute::{LENGTH_UNIT_CANONICAL_PX_RATIOS, LENGTH_UNIT_NAMES};
+use crate::css::style_compute::{
+    LENGTH_UNIT_CANONICAL_PX_RATIOS, LENGTH_UNIT_NAMES, rust_style_value_is_computationally_independent,
+};
 use crate::css::style_value::rust_style_value_create_grid_track_size_list;
 pub use crate::css::style_value::{ReifiedUnresolvedSegment, RetainedStyleValueData as RetainedStyleValue};
 use crate::css::style_value::{
@@ -1007,7 +1011,11 @@ pub fn parse_a_numeric_value(css_text: &ak::Utf16String) -> Option<RetainedStyle
     if units.is_empty() {
         return None;
     }
-    let context = ParseContext::default();
+    let random_function_index = RandomFunctionIndex::new(0);
+    let context = ParseContext {
+        random_function_index: Some(&random_function_index),
+        ..Default::default()
+    };
     [
         VALUE_TYPE_NUMBER,
         VALUE_TYPE_PERCENTAGE,
@@ -1058,4 +1066,69 @@ pub fn zero_is_a_length(property: &ak::Utf16String, is_integer: bool) -> bool {
     is_integer
         || (!property_accepts_value_type(property_id, VALUE_TYPE_NUMBER)
             && !property_accepts_value_type(property_id, VALUE_TYPE_INTEGER))
+}
+
+/// A syntax definition, https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings
+pub struct RegisteredSyntax(*const core::ffi::c_void);
+
+impl RegisteredSyntax {
+    /// https://drafts.css-houdini.org/css-properties-values-api/#consume-syntax-definition
+    pub fn parse(syntax: &ak::Utf16String) -> Option<Self> {
+        let units = syntax.to_utf16();
+        let parsed = rust_parse_syntax(FfiUtf16View::from_utf16(units.as_ref()), true);
+        (!parsed.is_null()).then(|| Self(parsed))
+    }
+
+    pub fn is_universal(&self) -> bool {
+        // SAFETY: The syntax tree is live.
+        rust_syntax_is_universal(unsafe { &*self.0.cast() })
+    }
+
+    pub fn as_ptr(&self) -> *const core::ffi::c_void {
+        self.0
+    }
+
+    /// Gives up the strong reference, which the caller hands over to C++.
+    pub fn into_raw(self) -> *const core::ffi::c_void {
+        let pointer = self.0;
+        core::mem::forget(self);
+        pointer
+    }
+}
+
+impl Drop for RegisteredSyntax {
+    fn drop(&mut self) {
+        // SAFETY: This owns one strong reference to the syntax tree.
+        drop(unsafe { Arc::from_raw(self.0.cast::<SyntaxNode>()) });
+    }
+}
+
+impl RetainedStyleValue {
+    /// https://drafts.css-houdini.org/css-properties-values-api/#computationally-independent
+    pub fn is_computationally_independent(&self) -> bool {
+        rust_style_value_is_computationally_independent(self.data())
+    }
+}
+
+/// Whether the text matches as a <supports-condition>, with no document to parse it for.
+pub fn supports_condition_matches(condition_text: &ak::Utf16String) -> bool {
+    let units = condition_text.to_utf16();
+    if units.is_empty() {
+        return false;
+    }
+    let random_function_index = RandomFunctionIndex::new(0);
+    let context = ParseContext {
+        random_function_index: Some(&random_function_index),
+        ..Default::default()
+    };
+    // SAFETY: The context and the text are live through the call.
+    let handle = unsafe { rust_parse_supports_condition(FfiUtf16View::from_utf16(units.as_ref()), Some(&context)) };
+    if handle.is_null() {
+        return false;
+    }
+    // SAFETY: Parsing handed over a strong reference to a live handle.
+    let handle = unsafe { Arc::from_raw(handle) };
+    // NB: This is the C++ enumerator MatchResult::True.
+    const MATCH_RESULT_TRUE: u8 = 1;
+    css_query_evaluate_supports(Some(&handle)) == MATCH_RESULT_TRUE
 }

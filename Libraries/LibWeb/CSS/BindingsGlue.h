@@ -15,7 +15,6 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/CSS/CSS.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -32,12 +31,6 @@ class FontFaceSet;
 }
 
 namespace Web::Bindings {
-
-inline WebIDL::ExceptionOr<void> register_property(JS::Realm& realm, CSS::PropertyDefinition const& definition)
-{
-    auto& window = HTML::relevant_window(realm.global_object());
-    return CSS::register_property(window.associated_document(), definition);
-}
 
 WEB_API void resolve_font_face_list_promise(JS::Realm&, WebIDL::Promise const&, Vector<NonnullRefPtr<CSS::FontFaceState>> const&);
 WEB_API void resolve_font_face_set_promise(JS::Realm&, WebIDL::Promise const&, CSS::FontFaceSet&);

@@ -93,6 +93,7 @@ fn main() {
         .expect("the crate is in Libraries/LibWeb/Bindings/Rust");
     generate_webgl_command_recording(libraries, &out_dir);
     generate_webgl_constants(libraries, &out_dir);
+    generate_css_numeric_factories(libraries, &out_dir);
 
     println!("cargo:rustc-check-cfg=cfg(web_idl_bindings)");
     println!("cargo:rerun-if-env-changed=LIBWEB_RUST_BINDINGS");
@@ -108,4 +109,29 @@ fn main() {
     );
     println!("cargo:rustc-cfg=web_idl_bindings");
     println!("cargo:rustc-env=LIBWEB_RUST_BINDINGS={}", bindings.display());
+}
+
+/// The functions of the CSS namespace that make a CSSUnitValue of a unit, one for each unit of CSS/Units.json,
+/// https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory
+fn generate_css_numeric_factories(libraries: &Path, out_dir: &Path) {
+    let units_path = libraries.join("LibWeb/CSS/Units.json");
+    println!("cargo:rerun-if-changed={}", units_path.display());
+    let units = fs::read_to_string(&units_path).expect("CSS/Units.json is readable");
+    let dimensions: serde_json::Value = serde_json::from_str(&units).expect("CSS/Units.json is JSON");
+
+    let mut names = vec!["number".to_string(), "percent".to_string()];
+    for units in dimensions.as_object().expect("CSS/Units.json is an object").values() {
+        names.extend(units.as_object().expect("a dimension is an object").keys().cloned());
+    }
+
+    let mut output = String::from("impl CSS {\n");
+    for name in names {
+        let function = name.to_lowercase();
+        let identifier = if function == "in" { "r#in".to_string() } else { function };
+        output.push_str(&format!(
+            "    pub(crate) fn {identifier}(cx: &mut CallContext, value: f64) -> WebIdlResult<Ref<CSSUnitValue>> {{\n        Self::numeric_factory(cx, value, \"{name}\")\n    }}\n\n"
+        ));
+    }
+    output.push_str("}\n");
+    fs::write(out_dir.join("css_numeric_factories.rs"), output).expect("the output directory is writable");
 }

@@ -19,80 +19,6 @@ from Utils.utils import make_name_acceptable_cpp
 from Utils.utils import snake_casify
 
 
-def write_header_file(out: TextIO, units_data: dict) -> None:
-    out.write("""
-#pragma once
-
-#include <LibGC/Ptr.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Forward.h>
-#include <LibWebCommon/WebIDL/Types.h>
-
-// https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory
-namespace Web::CSS {
-
-GC::Ref<CSSUnitValue> number(JS::VM&, WebIDL::Double value);
-GC::Ref<CSSUnitValue> percent(JS::VM&, WebIDL::Double value);
-""")
-
-    for dimension_name, units in units_data.items():
-        dimension_acceptable_cpp = make_name_acceptable_cpp(snake_casify(dimension_name, trim_leading_underscores=True))
-        out.write(f"\n// <{dimension_acceptable_cpp}>\n")
-        for unit_name in units:
-            unit_acceptable_cpp = make_name_acceptable_cpp(unit_name.lower())
-            out.write(f"GC::Ref<CSSUnitValue> {unit_acceptable_cpp}(JS::VM&, WebIDL::Double value);\n")
-
-    out.write("""
-}
-""")
-
-
-def write_implementation_file(out: TextIO, units_data: dict) -> None:
-    out.write("""
-#include <AK/Utf16FlyString.h>
-#include <LibJS/Runtime/VM.h>
-#include <LibWeb/CSS/CSSUnitValue.h>
-#include <LibWeb/CSS/GeneratedCSSNumericFactoryMethods.h>
-
-namespace Web::CSS {
-
-// https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory
-inline GC::Ref<CSSUnitValue> numeric_factory(JS::VM&, WebIDL::Double value, Utf16FlyString unit)
-{
-    // All of the above methods must, when called with a double value, return a new CSSUnitValue whose value internal
-    // slot is set to value and whose unit internal slot is set to the name of the method as defined here.
-    return CSSUnitValue::create(value, move(unit));
-}
-
-GC::Ref<CSSUnitValue> number(JS::VM& vm, WebIDL::Double value)
-{
-    return numeric_factory(vm, value, "number"_utf16_fly_string);
-}
-
-GC::Ref<CSSUnitValue> percent(JS::VM& vm, WebIDL::Double value)
-{
-    return numeric_factory(vm, value, "percent"_utf16_fly_string);
-}
-
-""")
-
-    for dimension_name, units in units_data.items():
-        dimension_acceptable_cpp = make_name_acceptable_cpp(snake_casify(dimension_name, trim_leading_underscores=True))
-        out.write(f"\n// <{dimension_acceptable_cpp}>\n")
-        for unit_name in units:
-            unit_acceptable_cpp = make_name_acceptable_cpp(unit_name.lower())
-            out.write(f"""
-GC::Ref<CSSUnitValue> {unit_acceptable_cpp}(JS::VM& vm, WebIDL::Double value)
-{{
-    return numeric_factory(vm, value, "{unit_name}"_utf16_fly_string);
-}}
-""")
-
-    out.write("""
-}
-""")
-
-
 def write_idl_file(out: TextIO, units_data: dict) -> None:
     out.write("""
 partial namespace CSS {
@@ -118,27 +44,12 @@ partial namespace CSS {
 def main():
     parser = argparse.ArgumentParser(description="Generate CSS NumericFactoryMethods", add_help=False)
     parser.add_argument("--help", action="help", help="Show this help message and exit")
-    parser.add_argument(
-        "-h", "--header", required=True, help="Path to the CSSNumericFactoryMethods header file to generate"
-    )
-    parser.add_argument(
-        "-c",
-        "--implementation",
-        required=True,
-        help="Path to the CSSNumericFactoryMethods implementation file to generate",
-    )
     parser.add_argument("-i", "--idl", required=True, help="Path to the CSSNumericFactoryMethods IDL file to generate")
     parser.add_argument("-j", "--json", required=True, help="Path to the JSON file to read from")
     args = parser.parse_args()
 
     load_css_dimensions(args.json)
     units_data = get_css_dimensions()
-
-    with open(args.header, "w", encoding="utf-8") as output_file:
-        write_header_file(output_file, units_data)
-
-    with open(args.implementation, "w", encoding="utf-8") as output_file:
-        write_implementation_file(output_file, units_data)
 
     with open(args.idl, "w", encoding="utf-8") as output_file:
         write_idl_file(output_file, units_data)

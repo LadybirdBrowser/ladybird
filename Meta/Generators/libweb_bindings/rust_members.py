@@ -353,7 +353,7 @@ def rust_members(interface: Interface) -> RustMembers:
             return rust_identifier(member_name)
         if not RUST_METHOD_NAME.fullmatch(method):
             fail(f"[ImplementedAs={method}] of {member_name} does not name a Rust method")
-        return method
+        return rust_identifier(method)
 
     def event_handler_attribute(attribute: Attribute) -> RustAttribute:
         """An event handler IDL attribute, which the bindings get and set on the EventTarget that the object owns. The
