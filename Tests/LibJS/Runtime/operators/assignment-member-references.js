@@ -67,6 +67,41 @@ test("nullish bases are rejected before key conversion or the right-hand side", 
     }
 });
 
+test("nullish bases are rejected before the key of a store or delete is converted", () => {
+    const expressions = [
+        "base[key] = 1",
+        "'use strict'; base[key] = 1",
+        "[base[key]] = [1]",
+        "({ a: base[key] } = { a: 1 })",
+        "for (base[key] of [1]);",
+        "delete base[key]",
+    ];
+    for (const expression of expressions) {
+        for (const base of [null, undefined]) {
+            const key = {
+                toString() {
+                    throw new Error("The property key must not be converted");
+                },
+            };
+            const run = new Function("base", "key", expression);
+            expect(() => run(base, key)).toThrow(TypeError);
+        }
+    }
+
+    const key = {
+        toString() {
+            throw new Error("The property key must not be converted");
+        },
+    };
+    const home = {
+        method() {
+            super[key] = 1;
+        },
+    };
+    Object.setPrototypeOf(home, null);
+    expect(() => home.method()).toThrow(TypeError);
+});
+
 test("member bases survive changes made while evaluating the property", () => {
     for (const expression of ["base[(base = other, 'x')]++", "base[(base = other, 'x')] += 2"]) {
         const object = { x: 1 };
