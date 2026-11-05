@@ -72,7 +72,7 @@ impl MediaList {
 
     // https://drafts.csswg.org/cssom/#dom-medialist-mediatext
     pub(crate) fn media_text(&self, _: &mut CallContext) -> WebIdlResult<Utf16String> {
-        Ok(Utf16String::from_utf16(&self.media.media_text()))
+        Ok(self.media.media_text())
     }
 
     // https://drafts.csswg.org/cssom/#dom-medialist-mediatext
@@ -89,10 +89,7 @@ impl MediaList {
 
     // https://drafts.csswg.org/cssom/#dom-medialist-item
     pub(crate) fn item(&self, _: &mut CallContext, index: u32) -> WebIdlResult<Option<Utf16String>> {
-        Ok(self
-            .media
-            .item(index as usize)
-            .map(|text| Utf16String::from_utf16(&text)))
+        Ok(self.media.item(index as usize))
     }
 
     // https://drafts.csswg.org/cssom/#dom-medialist-appendmedium

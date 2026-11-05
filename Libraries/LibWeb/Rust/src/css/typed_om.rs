@@ -917,8 +917,7 @@ pub fn calculated_style_value(
 
 /// The value of the text for the property, with no document to parse it for.
 pub fn parse_value_for_property(property_id: u16, css_text: &ak::Utf16String) -> Option<RetainedStyleValue> {
-    let units = css_text.to_utf16();
-    if units.is_empty() {
+    if css_text.is_empty() {
         return None;
     }
     let value_context = FfiValueParsingContext {
@@ -939,7 +938,7 @@ pub fn parse_value_for_property(property_id: u16, css_text: &ak::Utf16String) ->
         rust_parse_css_value(
             Some(&context),
             property_id,
-            FfiUtf16View::from_utf16(units.as_ref()),
+            FfiUtf16View::from_input(css_text.as_units().into()),
             Some(&mut status),
         )
     };
@@ -1007,8 +1006,7 @@ pub fn style_value_list(values: Vec<RetainedStyleValue>, comma: bool) -> Retaine
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse
 pub fn parse_a_numeric_value(css_text: &ak::Utf16String) -> Option<RetainedStyleValue> {
-    let units = css_text.to_utf16();
-    if units.is_empty() {
+    if css_text.is_empty() {
         return None;
     }
     let random_function_index = RandomFunctionIndex::new(0);
@@ -1034,7 +1032,7 @@ pub fn parse_a_numeric_value(css_text: &ak::Utf16String) -> Option<RetainedStyle
             rust_parse_entire_css_primitive_from_source(
                 Some(&context),
                 value_type,
-                FfiUtf16View::from_utf16(units.as_ref()),
+                FfiUtf16View::from_input(css_text.as_units().into()),
                 f32::MIN as f64,
                 f32::MAX as f64,
             )
@@ -1074,8 +1072,7 @@ pub struct RegisteredSyntax(*const core::ffi::c_void);
 impl RegisteredSyntax {
     /// https://drafts.css-houdini.org/css-properties-values-api/#consume-syntax-definition
     pub fn parse(syntax: &ak::Utf16String) -> Option<Self> {
-        let units = syntax.to_utf16();
-        let parsed = rust_parse_syntax(FfiUtf16View::from_utf16(units.as_ref()), true);
+        let parsed = rust_parse_syntax(FfiUtf16View::from_input(syntax.as_units().into()), true);
         (!parsed.is_null()).then(|| Self(parsed))
     }
 
@@ -1140,8 +1137,7 @@ pub fn font_family_names(font: &ak::Utf16String) -> Option<Vec<ak::Utf16String>>
 
 /// Whether the text matches as a <supports-condition>, with no document to parse it for.
 pub fn supports_condition_matches(condition_text: &ak::Utf16String) -> bool {
-    let units = condition_text.to_utf16();
-    if units.is_empty() {
+    if condition_text.is_empty() {
         return false;
     }
     let random_function_index = RandomFunctionIndex::new(0);
@@ -1150,7 +1146,12 @@ pub fn supports_condition_matches(condition_text: &ak::Utf16String) -> bool {
         ..Default::default()
     };
     // SAFETY: The context and the text are live through the call.
-    let handle = unsafe { rust_parse_supports_condition(FfiUtf16View::from_utf16(units.as_ref()), Some(&context)) };
+    let handle = unsafe {
+        rust_parse_supports_condition(
+            FfiUtf16View::from_input(condition_text.as_units().into()),
+            Some(&context),
+        )
+    };
     if handle.is_null() {
         return false;
     }

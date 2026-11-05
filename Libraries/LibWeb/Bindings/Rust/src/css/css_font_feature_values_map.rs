@@ -68,7 +68,7 @@ impl CSSFontFeatureValuesMap {
         }
     }
 
-    fn entries(&self) -> Vec<(Vec<u16>, Vec<u32>)> {
+    fn entries(&self) -> Vec<(Utf16String, Vec<u32>)> {
         self.parent_rule
             .rule()
             .native_rule()
@@ -114,11 +114,10 @@ impl CSSFontFeatureValuesMap {
             ));
         }
 
-        self.parent_rule.rule().native_rule().set_font_feature_value(
-            self.kind,
-            &feature_value_name.to_utf16(),
-            values.clone(),
-        );
+        self.parent_rule
+            .rule()
+            .native_rule()
+            .set_font_feature_value(self.kind, &feature_value_name, values.clone());
         self.parent_rule.clear_caches();
         self.map_entries.for_each_live(cx.vm(), |map| {
             set_map_entry(&context_of_map(cx, map), map, &feature_value_name, &values);
@@ -132,7 +131,7 @@ impl Maplike for CSSFontFeatureValuesMap {
         self.map_entries.get_or_create(cx, || {
             let map = Map::create(cx.vm(), cx.realm());
             for (name, values) in self.entries() {
-                set_map_entry(cx, map, &Utf16String::from_utf16(&name), &values);
+                set_map_entry(cx, map, &name, &values);
             }
             map
         })
@@ -140,10 +139,9 @@ impl Maplike for CSSFontFeatureValuesMap {
 
     /// NB: Each get() converts the sequence of the entry to a new JS array.
     fn map_value(&self, cx: &CallContext, key: &Utf16String) -> Option<Value> {
-        let key = key.to_utf16();
         self.entries()
             .into_iter()
-            .find(|(name, _)| name.as_slice() == key.as_ref())
+            .find(|(name, _)| name == key)
             .map(|(_, values)| create_map_value(cx, &values))
     }
 }
@@ -158,7 +156,7 @@ impl WritableMaplike for CSSFontFeatureValuesMap {
             .parent_rule
             .rule()
             .native_rule()
-            .remove_font_feature_value(self.kind, &key.to_utf16());
+            .remove_font_feature_value(self.kind, key);
         if removed {
             self.parent_rule.clear_caches();
             self.map_entries.for_each_live(cx.vm(), |map| {

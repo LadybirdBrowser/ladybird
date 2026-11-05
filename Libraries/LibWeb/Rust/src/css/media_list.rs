@@ -12,6 +12,7 @@ use crate::css::parser::query_parser::{
     FfiMediaEnvironment, FfiQueryHandle, MediaEnvironment, MediaQuery, VisitQuerySerialization, invalid_media_query,
     media_query_handle, parse_media_query_list, resolve_query_feature,
 };
+use crate::css::serialize::TextSink;
 use crate::css::thin_slice::ThinSlice;
 use std::cell::RefCell;
 use std::ffi::c_void;
@@ -69,26 +70,29 @@ impl MediaList {
     }
 
     /// The serialization of the collection of media queries.
-    pub fn media_text(&self) -> Vec<u16> {
+    pub fn media_text(&self) -> ak::Utf16String {
         let state = self.owner.borrow();
-        let mut text = Vec::new();
+        let mut text = TextSink::new();
         for (index, query) in state.data.queries.iter().enumerate() {
             if index != 0 {
-                text.extend([u16::from(b','), u16::from(b' ')]);
+                text.push_ascii(", ");
             }
-            text.extend(query.media_text());
+            query
+                .media_text()
+                .into_iter()
+                .for_each(|unit| text.push_code_unit(unit));
         }
-        text
+        text.into_utf16_string()
     }
 
     /// The serialization of the media query at the index of the collection of media queries, if it has one there.
-    pub fn item(&self, index: usize) -> Option<Vec<u16>> {
+    pub fn item(&self, index: usize) -> Option<ak::Utf16String> {
         self.owner
             .borrow()
             .data
             .queries
             .get(index)
-            .map(|query| query.media_text())
+            .map(|query| ak::Utf16String::from_utf16(&query.media_text()))
     }
 
     /// Replaces the collection of media queries with the result of parsing the text.
@@ -229,7 +233,8 @@ pub unsafe extern "C" fn rust_media_list_serialize(
     visit: VisitQuerySerialization,
 ) {
     let text = list.media_text();
-    unsafe { visit(context, text.as_ptr(), text.len()) };
+    let units = text.to_utf16();
+    unsafe { visit(context, units.as_ptr(), units.len()) };
 }
 
 #[unsafe(no_mangle)]
@@ -242,7 +247,8 @@ pub unsafe extern "C" fn rust_media_list_item(
     let Some(text) = list.item(index) else {
         return false;
     };
-    unsafe { visit(context, text.as_ptr(), text.len()) };
+    let units = text.to_utf16();
+    unsafe { visit(context, units.as_ptr(), units.len()) };
     true
 }
 

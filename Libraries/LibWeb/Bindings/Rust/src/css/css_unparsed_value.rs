@@ -10,6 +10,7 @@ use ak::Utf16String;
 use libjs_rust::api::{GcRefCell, MarkedVec, Trace, Vm};
 use libweb_rust::typed_om::{RetainedStyleValue, unresolved_style_value};
 
+use super::css_rule::RuleText;
 use super::css_style_value::{AnyCSSStyleValue, CSSStyleValue};
 use super::css_variable_reference_value::CSSVariableReferenceValue;
 use crate::bindings::conversions::UsvString;
@@ -130,7 +131,7 @@ impl CSSUnparsedValue {
 
         // To serialize a CSSUnparsedValue this:
         // 1. Let s initially be the empty string.
-        let mut s = Vec::new();
+        let mut s = RuleText::default();
 
         // 2. For each item in this’s [[tokens]] internal slot:
         for item in self.tokens.borrow().iter() {
@@ -138,14 +139,14 @@ impl CSSUnparsedValue {
             //        serialize_a_series_of_component_values(). See https://github.com/w3c/css-houdini-drafts/issues/1148
             match item {
                 // 1. If item is a USVString, append it to s.
-                CSSUnparsedSegment::USVString(string) => s.extend_from_slice(&string.to_utf16()),
+                CSSUnparsedSegment::USVString(string) => s.push_units(&string.to_utf16()),
                 // 2. Otherwise, item is a CSSVariableReferenceValue. Serialize it, then append the result to s.
                 CSSUnparsedSegment::CSSVariableReferenceValue(variable) => variable.serialize(&mut s),
             }
         }
 
         // 3. Return s.
-        Utf16String::from_utf16(&s)
+        s.finish()
     }
 
     // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation

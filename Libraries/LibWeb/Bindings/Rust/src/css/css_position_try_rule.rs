@@ -46,7 +46,7 @@ impl CSSPositionTryRule {
     fn serialized_name(&self) -> Utf16String {
         // Its name attribute represents the name declared in the rule's prelude.
         // INTEROP: Other browsers return the name serialized as an identifier.
-        serialize_identifier(&self.rule.native_rule().at_rule_name().to_utf16())
+        serialize_identifier(&self.rule.native_rule().at_rule_name())
     }
 
     // https://drafts.csswg.org/css-anchor-position-1/#dom-csspositiontryrule-name

@@ -80,8 +80,11 @@ impl FontFeatureValuesRule {
             .collect()
     }
 
-    pub(crate) fn set_families_text(&self, families: Vec<Vec<u16>>) {
-        let families = families.iter().map(|family| CssString::from_utf16(family)).collect();
+    pub(crate) fn set_families_text(&self, families: Vec<ak::Utf16String>) {
+        let families = families
+            .iter()
+            .map(|family| CssString::from_utf16(&family.to_utf16()))
+            .collect();
         Arc::make_mut(&mut self.data.borrow_mut()).families = families;
     }
 
@@ -112,12 +115,12 @@ impl FontFeatureValuesRule {
         }
     }
 
-    pub(crate) fn entries_of(&self, kind: FontFeatureValuesRuleKind) -> Vec<(Vec<u16>, Vec<u32>)> {
+    pub(crate) fn entries_of(&self, kind: FontFeatureValuesRuleKind) -> Vec<(ak::Utf16String, Vec<u32>)> {
         let data = self.data.borrow();
         data.maps[kind as usize]
             .entries
             .iter()
-            .map(|entry| (entry.name.to_vec(), entry.values.clone()))
+            .map(|entry| (ak::Utf16String::from_utf16(&entry.name), entry.values.clone()))
             .collect()
     }
 

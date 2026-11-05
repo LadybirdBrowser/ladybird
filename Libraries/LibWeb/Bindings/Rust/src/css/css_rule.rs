@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 use ak::Utf16String;
 use libjs_rust::api::{Gc, GcRefCell, Object, ThrowCompletionOr, Trace, Value, Vm};
-use libweb_rust::{NativeRule, NativeRuleList, NativeRuleType};
+use libweb_rust::{NativeRule, NativeRuleList, NativeRuleType, TextSink};
 
 use super::css_condition_rule::CSSConditionRule;
 use super::css_container_rule::CSSContainerRule;
@@ -401,7 +401,7 @@ pub(crate) fn serialized_rules(vm: &Vm, rules: Ref<CSSRuleList>) -> Vec<Utf16Str
 
 /// A string that grows by what the rules serialize to.
 #[derive(Default)]
-pub(crate) struct RuleText(Vec<u16>);
+pub(crate) struct RuleText(TextSink);
 
 impl RuleText {
     pub(crate) fn new(text: &str) -> Self {
@@ -411,15 +411,19 @@ impl RuleText {
     }
 
     pub(crate) fn push_str(&mut self, text: &str) {
-        self.0.extend(text.encode_utf16());
+        text.encode_utf16().for_each(|unit| self.0.push_code_unit(unit));
     }
 
     pub(crate) fn push(&mut self, text: &Utf16String) {
-        self.0.extend_from_slice(&text.to_utf16());
+        self.0.push_string(text);
+    }
+
+    pub(crate) fn push_units(&mut self, units: &[u16]) {
+        units.iter().for_each(|&unit| self.0.push_code_unit(unit));
     }
 
     pub(crate) fn finish(self) -> Utf16String {
-        Utf16String::from_utf16(&self.0)
+        self.0.into_utf16_string()
     }
 }
 

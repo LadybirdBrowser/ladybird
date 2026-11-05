@@ -121,7 +121,7 @@ impl MediaQueryList {
                     composed: false,
                 },
                 matches: now_matches,
-                media: Utf16String::from_utf16(&self.media.media_text()),
+                media: self.media.media_text(),
             };
             let event =
                 MediaQueryListEvent::create(vm, self.realm, &Utf16String::from_ascii(CHANGE.as_bytes()), event_init);
@@ -132,7 +132,7 @@ impl MediaQueryList {
 
     // https://drafts.csswg.org/cssom-view/#dom-mediaquerylist-media
     pub(crate) fn media(&self, _: &mut CallContext) -> WebIdlResult<Utf16String> {
-        Ok(Utf16String::from_utf16(&self.media.media_text()))
+        Ok(self.media.media_text())
     }
 
     // https://drafts.csswg.org/cssom-view/#dom-mediaquerylist-matches

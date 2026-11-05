@@ -15,7 +15,7 @@ use libjs_rust::api::{Trace, Vm};
 use libweb_rust::{NativeRule, NativeRuleList, NativeRuleType, NativeStyleSheetFlag};
 
 use super::css_grouping_rule::{insertion_error, validate_rule_removal};
-use super::css_rule::AnyCSSRule;
+use super::css_rule::{AnyCSSRule, RuleText};
 use super::css_rule_list::CSSRuleList;
 use super::exports::rule_from_abi;
 use super::media_list::MediaList;
@@ -266,19 +266,20 @@ impl CSSStyleSheet {
     ) -> WebIdlResult<i32> {
         // 1. Let rule be an empty string.
         // 2. Append selector to rule.
-        let mut rule = selector.to_utf16().into_owned();
+        let mut rule = RuleText::default();
+        rule.push(&selector);
 
         // 3. Append " { " to rule.
-        rule.extend(" { ".encode_utf16());
+        rule.push_str(" { ");
 
         // 4. If block is not empty, append block, followed by a space, to rule.
         if !style.is_empty() {
-            rule.extend_from_slice(&style.to_utf16());
-            rule.extend(" ".encode_utf16());
+            rule.push(&style);
+            rule.push_str(" ");
         }
 
         // 5. Append "}" to rule
-        rule.extend("}".encode_utf16());
+        rule.push_str("}");
 
         // 6. Let index be optionalIndex if provided, or the number of CSS rules in the stylesheet otherwise.
         let index = index.unwrap_or_else(|| {
@@ -286,7 +287,7 @@ impl CSSStyleSheet {
         });
 
         // 7. Call insertRule(), with rule and index as arguments.
-        self.insert_rule(cx, Utf16String::from_utf16(&rule), index)?;
+        self.insert_rule(cx, rule.finish(), index)?;
 
         // 8. Return -1.
         Ok(-1)

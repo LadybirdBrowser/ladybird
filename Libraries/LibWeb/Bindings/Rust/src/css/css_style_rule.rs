@@ -72,12 +72,12 @@ impl CSSStyleRule {
 
     // https://drafts.csswg.org/cssom-1/#dom-cssstylerule-selectortext
     pub(crate) fn set_selector_text(&self, _: &mut CallContext, value: Utf16String) -> WebIdlResult<()> {
-        self.replace_selectors(&value.to_utf16());
+        self.replace_selectors(&value);
         Ok(())
     }
 
     // https://drafts.csswg.org/cssom-1/#dom-cssstylerule-selectortext
-    pub(crate) fn replace_selectors(&self, value: &[u16]) {
+    pub(crate) fn replace_selectors(&self, value: &Utf16String) {
         // 1. Run the parse a group of selectors algorithm on the given value.
         let sheet = self.rule().parent_sheet();
         let sheet_rules = sheet.as_ref().map(native_rules_of_sheet);

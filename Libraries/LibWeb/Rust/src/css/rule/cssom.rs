@@ -39,54 +39,57 @@ fn css_utf16(string: &CssString) -> Utf16String {
     utf16(string.units())
 }
 
-fn sink_to_string(sink: TextSink) -> Utf16String {
-    utf16(&sink.into_utf16())
+fn string_units(string: &Utf16String) -> StringUnits<'_> {
+    match string.as_units() {
+        ak::Utf16StringUnits::Ascii(bytes) | ak::Utf16StringUnits::Latin1(bytes) => StringUnits::Ascii(bytes),
+        ak::Utf16StringUnits::Utf16(units) => StringUnits::Utf16(units),
+    }
 }
 
 /// https://drafts.csswg.org/cssom/#serialize-an-identifier
-pub fn serialize_identifier(units: &[u16]) -> Utf16String {
+pub fn serialize_identifier(identifier: &Utf16String) -> Utf16String {
     let mut sink = TextSink::new();
-    serialize_an_identifier(&mut sink, &StringUnits::Utf16(units));
-    sink_to_string(sink)
+    serialize_an_identifier(&mut sink, &string_units(identifier));
+    sink.into_utf16_string()
 }
 
 /// https://drafts.csswg.org/cssom/#serialize-a-string
-pub fn serialize_string_value(units: &[u16]) -> Utf16String {
+pub fn serialize_string_value(string: &Utf16String) -> Utf16String {
     let mut sink = TextSink::new();
-    serialize_a_string(&mut sink, &StringUnits::Utf16(units));
-    sink_to_string(sink)
+    serialize_a_string(&mut sink, &string_units(string));
+    sink.into_utf16_string()
 }
 
 fn value_text(value: &StyleValueArc) -> Utf16String {
     let mut sink = TextSink::new();
     serialize_style_value(&mut sink, value, SerializationMode::Normal);
-    sink_to_string(sink)
+    sink.into_utf16_string()
 }
 
 fn syntax_text(syntax: &SyntaxNode) -> Utf16String {
-    utf16(&syntax.serialize_to_utf16())
+    let mut sink = TextSink::new();
+    syntax.serialize_to(&mut sink);
+    sink.into_utf16_string()
 }
 
 /// https://drafts.csswg.org/css-mixins-1/#serialize-a-css-type
-fn serialize_a_css_type(syntax: &SyntaxNode) -> Vec<u16> {
+fn serialize_a_css_type(sink: &mut TextSink, syntax: &SyntaxNode) {
     // To serialize a CSS type, return the concatenation of the following:
-    let text = syntax.serialize_to_utf16();
-
     // If the <css-type> consists of a single <syntax-component>, return the corresponding syntax string.
     if syntax.is_single_component() {
-        return text;
+        syntax.serialize_to(sink);
+        return;
     }
 
     // Otherwise, return the concatenation of the following:
     // The string "type(", i.e. "type" followed by a single LEFT PARENTHESIS (U+0028).
-    let mut result: Vec<u16> = "type(".encode_utf16().collect();
+    sink.push_ascii("type(");
 
     // The corresponding syntax string.
-    result.extend(text);
+    syntax.serialize_to(sink);
 
     // The string ")", i.e. a single RIGHT PARENTHESIS (U+0029).
-    result.push(u16::from(b')'));
-    result
+    sink.push_ascii(")");
 }
 
 /// The name, type and default value of a parameter of a custom function, https://drafts.csswg.org/css-mixins-1/#dictdef-functionparameter
@@ -114,8 +117,8 @@ pub const FONT_FEATURE_VALUES_KINDS: [(FontFeatureValuesRuleKind, &str); 7] = [
 ];
 
 /// Whether the name of a @keyframes rule serializes as an identifier, and not as a string.
-pub fn is_valid_animation_name(name: &[u16]) -> bool {
-    crate::css::parser::value_parser::is_valid_animation_name(TokenizerInput::from(name))
+pub fn is_valid_animation_name(name: &Utf16String) -> bool {
+    crate::css::parser::value_parser::is_valid_animation_name(name.as_units().into())
 }
 
 impl NativeRule {
@@ -150,8 +153,8 @@ impl NativeRule {
         super::rust_rule_external_memory_size(self)
     }
 
-    pub fn cssom_set_selector_text(&self, text: &[u16], sheet_rules: Option<&NativeRuleList>) -> bool {
-        self.set_selector_text(TokenizerInput::from(text), sheet_rules)
+    pub fn cssom_set_selector_text(&self, text: &Utf16String, sheet_rules: Option<&NativeRuleList>) -> bool {
+        self.set_selector_text(text.as_units().into(), sheet_rules)
     }
 
     /// Whether the rule has an empty block of declarations or descriptors.
@@ -191,16 +194,16 @@ impl NativeRule {
         css_utf16(&name.borrow())
     }
 
-    pub fn set_keyframes_name(&self, name: &[u16]) {
+    pub fn set_keyframes_name(&self, name: &Utf16String) {
         let RulePayload::Keyframes(current) = &self.payload else {
             unreachable!("expected a @keyframes rule")
         };
-        *current.borrow_mut() = CssString::from_utf16(name);
+        *current.borrow_mut() = CssString::from_utf16(&name.to_utf16());
     }
 
     /// The index of the last keyframe with the selector.
-    pub fn find_keyframe(&self, selector: &[u16]) -> Option<usize> {
-        let selectors = parse_keyframe_selector_list(TokenizerInput::from(selector))?;
+    pub fn find_keyframe(&self, selector: &Utf16String) -> Option<usize> {
+        let selectors = parse_keyframe_selector_list(selector.as_units().into())?;
         let matches = |frame: &Self| {
             let RulePayload::Keyframe(frame) = &frame.payload else {
                 unreachable!("a @keyframes rule holds keyframes")
@@ -232,15 +235,15 @@ impl NativeRule {
         let RulePayload::Page { selectors, .. } = &self.payload else {
             unreachable!("expected a @page rule")
         };
-        utf16(&serialized_page_selectors(&selectors.borrow()))
+        serialized_page_selectors(&selectors.borrow())
     }
 
     /// Replaces the selectors of a @page rule with what the text parses to, and returns whether it parsed.
-    pub fn set_page_selector_text(&self, text: &[u16]) -> bool {
+    pub fn set_page_selector_text(&self, text: &Utf16String) -> bool {
         let RulePayload::Page { selectors, .. } = &self.payload else {
             unreachable!("expected a @page rule")
         };
-        let Some(parsed) = parse_page_selector_list(TokenizerInput::from(text)) else {
+        let Some(parsed) = parse_page_selector_list(TokenizerInput::from(text.as_units())) else {
             return false;
         };
         *selectors.borrow_mut() = Arc::new(PageSelectorList::new(parsed));
@@ -372,9 +375,7 @@ impl NativeRule {
             if !parameter.syntax.is_universal() {
                 // - A single SPACE (U+0020), followed by the result of performing serialize a CSS type on that type.
                 sink.push_ascii(" ");
-                for unit in serialize_a_css_type(&parameter.syntax) {
-                    sink.push_code_unit(unit);
-                }
+                serialize_a_css_type(&mut sink, &parameter.syntax);
             }
 
             // If the function parameter has a default value:
@@ -395,11 +396,9 @@ impl NativeRule {
             sink.push_ascii(" returns ");
 
             // - The result of performing serialize a CSS type on that type.
-            for unit in serialize_a_css_type(&signature.return_type) {
-                sink.push_code_unit(unit);
-            }
+            serialize_a_css_type(&mut sink, &signature.return_type);
         }
-        sink_to_string(sink)
+        sink.into_utf16_string()
     }
 
     fn supports_handle(&self) -> &FfiQueryHandle {
@@ -410,7 +409,7 @@ impl NativeRule {
     }
 
     pub fn supports_condition_text(&self) -> Utf16String {
-        utf16(&serialized_query_condition(self.supports_handle()))
+        serialized_query_condition(self.supports_handle())
     }
 
     pub fn supports_condition_matches(&self) -> bool {
@@ -423,7 +422,7 @@ impl NativeRule {
         };
         data.supports
             .as_ref()
-            .map(|supports| utf16(&serialized_query_condition(supports)))
+            .map(|supports| serialized_query_condition(supports))
     }
 
     pub fn import_layer(&self) -> Option<Utf16String> {
@@ -444,11 +443,11 @@ impl NativeRule {
                 name: condition
                     .name
                     .as_ref()
-                    .map_or_else(|| utf16(&[]), |name| serialize_identifier(name.units())),
+                    .map_or_else(|| utf16(&[]), |name| serialize_identifier(&css_utf16(name))),
                 query: condition
                     .query
                     .as_ref()
-                    .map_or_else(|| utf16(&[]), |query| utf16(&serialized_query_condition(query))),
+                    .map_or_else(|| utf16(&[]), |query| serialized_query_condition(query)),
             })
             .collect()
     }
@@ -492,8 +491,8 @@ impl NativeRule {
     }
 
     /// Sets the name of a @counter-style rule, and returns whether the name is valid.
-    pub fn set_counter_style_name(&self, name: &[u16]) -> bool {
-        self.counter_style().set_name_text(name)
+    pub fn set_counter_style_name(&self, name: &Utf16String) -> bool {
+        self.counter_style().set_name_text(&name.to_utf16())
     }
 
     /// The descriptor of a @counter-style rule, serialized, or the empty string if the rule does not have it.
@@ -504,10 +503,10 @@ impl NativeRule {
 
     /// https://drafts.csswg.org/css-counter-styles-3/#the-csscounterstylerule-interface
     /// Sets the descriptor to the value that the text parses to, and returns whether it did.
-    pub fn set_counter_style_descriptor(&self, name: &str, text: &[u16]) -> bool {
+    pub fn set_counter_style_descriptor(&self, name: &str, text: &Utf16String) -> bool {
         // 1. parse the given value as the descriptor associated with the attribute.
         let name_units: Vec<u16> = name.encode_utf16().collect();
-        let Some(value) = parse_descriptor_text(COUNTER_STYLE_AT_RULE, &name_units, text) else {
+        let Some(value) = parse_descriptor_text(COUNTER_STYLE_AT_RULE, &name_units, &text.to_utf16()) else {
             // 2. If the result is invalid according to the given descriptor’s grammar, or would cause the
             //    @counter-style rule to not define a counter style, do nothing and abort these steps. (For example,
             //    some systems require the symbols descriptor to contain two values.)
@@ -536,7 +535,7 @@ impl NativeRule {
         self.font_feature_values().families_text()
     }
 
-    pub fn set_font_feature_values_families(&self, families: Vec<Vec<u16>>) {
+    pub fn set_font_feature_values_families(&self, families: Vec<Utf16String>) {
         self.font_feature_values().set_families_text(families);
     }
 
@@ -547,12 +546,12 @@ impl NativeRule {
         values
     }
 
-    pub fn set_font_feature_value(&self, kind: FontFeatureValuesRuleKind, name: &[u16], values: Vec<u32>) {
-        self.font_feature_values().set_value(kind, name, values);
+    pub fn set_font_feature_value(&self, kind: FontFeatureValuesRuleKind, name: &Utf16String, values: Vec<u32>) {
+        self.font_feature_values().set_value(kind, &name.to_utf16(), values);
     }
 
-    pub fn remove_font_feature_value(&self, kind: FontFeatureValuesRuleKind, name: &[u16]) -> bool {
-        self.font_feature_values().remove_value(kind, name)
+    pub fn remove_font_feature_value(&self, kind: FontFeatureValuesRuleKind, name: &Utf16String) -> bool {
+        self.font_feature_values().remove_value(kind, &name.to_utf16())
     }
 
     pub fn clear_font_feature_values(&self, kind: FontFeatureValuesRuleKind) {
@@ -560,7 +559,7 @@ impl NativeRule {
     }
 
     /// The name and the values of each feature value of the kind, in the order of the map.
-    pub fn font_feature_values_entries(&self, kind: FontFeatureValuesRuleKind) -> Vec<(Vec<u16>, Vec<u32>)> {
+    pub fn font_feature_values_entries(&self, kind: FontFeatureValuesRuleKind) -> Vec<(Utf16String, Vec<u32>)> {
         self.font_feature_values().entries_of(kind)
     }
 }

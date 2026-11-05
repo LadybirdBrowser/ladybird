@@ -102,14 +102,20 @@ pub(crate) fn for_each_code_point_utf16(units: &[u16], mut f: impl FnMut(u32)) {
 }
 
 /// An ASCII-until-proven-otherwise text accumulator with the shape AK::Utf16String wants.
-pub(crate) struct TextSink {
+pub struct TextSink {
     ascii: Vec<u8>,
     utf16: Vec<u16>,
     is_ascii: bool,
 }
 
+impl Default for TextSink {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextSink {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             ascii: Vec::new(),
             utf16: Vec::new(),
@@ -142,7 +148,7 @@ impl TextSink {
         }
     }
 
-    pub(crate) fn push_code_unit(&mut self, unit: u16) {
+    pub fn push_code_unit(&mut self, unit: u16) {
         if self.is_ascii {
             if unit < 0x80 {
                 self.ascii.push(unit as u8);
@@ -151,6 +157,23 @@ impl TextSink {
             self.promote_to_utf16();
         }
         self.utf16.push(unit);
+    }
+
+    pub fn push_string(&mut self, text: &ak::Utf16String) {
+        match text.as_units() {
+            ak::Utf16StringUnits::Ascii(bytes) | ak::Utf16StringUnits::Latin1(bytes) => {
+                bytes.iter().for_each(|&byte| self.push_code_unit(u16::from(byte)));
+            }
+            ak::Utf16StringUnits::Utf16(units) => units.iter().for_each(|&unit| self.push_code_unit(unit)),
+        }
+    }
+
+    pub fn into_utf16_string(self) -> ak::Utf16String {
+        if self.is_ascii {
+            ak::Utf16String::from_ascii(&self.ascii)
+        } else {
+            ak::Utf16String::from_utf16(&self.utf16)
+        }
     }
 
     pub(crate) fn into_utf16(self) -> Vec<u16> {
@@ -3623,25 +3646,19 @@ pub(crate) fn sink_into_raw(sink: TextSink) -> usize {
     string.into_raw()
 }
 
-/// Serializes a style value into native ASCII-or-UTF-16 storage.
-fn utf16_units_of(view: crate::css::ffi_support::FfiUtf16View<'_>) -> Vec<u16> {
-    let mut units = Vec::new();
-    if let Some(input) = view.units() {
-        units.reserve(input.len());
-        input.append_to(&mut units);
-    }
-    units
+fn with_view_units<R>(view: crate::css::ffi_support::FfiUtf16View<'_>, f: impl FnOnce(StringUnits) -> R) -> R {
+    with_fly_string_units(view.units().unwrap_or(TokenizerInput::Latin1(&[])), f)
 }
 
 fn raw_string_of(sink: TextSink) -> usize {
-    ak::Utf16String::from_utf16(&sink.into_utf16()).into_raw()
+    sink.into_utf16_string().into_raw()
 }
 
 /// https://drafts.csswg.org/cssom/#serialize-an-identifier
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_serialize_an_identifier(ident: crate::css::ffi_support::FfiUtf16View<'_>) -> usize {
     let mut sink = TextSink::new();
-    serialize_an_identifier(&mut sink, &StringUnits::Utf16(&utf16_units_of(ident)));
+    with_view_units(ident, |units| serialize_an_identifier(&mut sink, &units));
     raw_string_of(sink)
 }
 
@@ -3649,7 +3666,7 @@ pub extern "C" fn rust_serialize_an_identifier(ident: crate::css::ffi_support::F
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_serialize_a_string(string: crate::css::ffi_support::FfiUtf16View<'_>) -> usize {
     let mut sink = TextSink::new();
-    serialize_a_string(&mut sink, &StringUnits::Utf16(&utf16_units_of(string)));
+    with_view_units(string, |units| serialize_a_string(&mut sink, &units));
     raw_string_of(sink)
 }
 
@@ -3660,7 +3677,7 @@ pub extern "C" fn rust_serialize_a_url(url: crate::css::ffi_support::FfiUtf16Vie
     // string, followed by ")".
     let mut sink = TextSink::new();
     sink.push_ascii("url(");
-    serialize_a_string(&mut sink, &StringUnits::Utf16(&utf16_units_of(url)));
+    with_view_units(url, |units| serialize_a_string(&mut sink, &units));
     sink.push_ascii(")");
     raw_string_of(sink)
 }

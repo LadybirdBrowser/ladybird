@@ -45,6 +45,7 @@ pub fn css_property_names() -> impl Iterator<Item = &'static str> {
         .iter()
         .map(|(name, _)| *name)
 }
+pub use css::serialize::TextSink;
 pub use css::typed_om;
 pub use svg::gfx_path_from_path_data;
 

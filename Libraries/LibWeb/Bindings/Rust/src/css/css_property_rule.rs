@@ -71,7 +71,7 @@ impl CSSPropertyRule {
         // 1. The string "@property" followed by a single SPACE (U+0020).
         // 2. The result of performing serialize an identifier on the rule’s name, followed by a single SPACE (U+0020).
         let mut text = RuleText::new("@property ");
-        text.push(&serialize_identifier(&native_rule.property_name().to_utf16()));
+        text.push(&serialize_identifier(&native_rule.property_name()));
         text.push_str(" ");
 
         // 3. The string "{ ", i.e., a single LEFT CURLY BRACKET (U+007B), followed by a SPACE (U+0020).
@@ -81,7 +81,7 @@ impl CSSPropertyRule {
         // 5. The result of performing serialize a string on the rule’s syntax, followed by a single SEMICOLON (U+003B),
         //    followed by a SPACE (U+0020).
         text.push_str("syntax: ");
-        text.push(&serialize_string_value(&native_rule.property_syntax().to_utf16()));
+        text.push(&serialize_string_value(&native_rule.property_syntax()));
         text.push_str("; ");
 
         // 6. The string "inherits:", followed by a single SPACE (U+0020).

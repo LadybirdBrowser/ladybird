@@ -13,6 +13,7 @@ use core::ffi::c_void;
 use ak::Utf16String;
 use libweb_rust::typed_om::{self, RegisteredSyntax, RetainedStyleValue};
 
+use super::css_rule::RuleText;
 use super::css_unit_value::CSSUnitValue;
 use super::highlight_registry::HighlightRegistry;
 use crate::bindings::interface::{Ref, cell_from_abi};
@@ -95,10 +96,10 @@ impl CSS {
 
         // 2. Otherwise, If conditionText, wrapped in parentheses and then parsed and evaluated as a
         //    <supports-condition>, would return true, return true.
-        let mut wrapped_condition_text = vec![u16::from(b'(')];
-        wrapped_condition_text.extend_from_slice(condition_text.to_utf16().as_ref());
-        wrapped_condition_text.push(u16::from(b')'));
-        if typed_om::supports_condition_matches(&Utf16String::from_utf16(&wrapped_condition_text)) {
+        let mut wrapped_condition_text = RuleText::new("(");
+        wrapped_condition_text.push(&condition_text);
+        wrapped_condition_text.push_str(")");
+        if typed_om::supports_condition_matches(&wrapped_condition_text.finish()) {
             return Ok(true);
         }
 

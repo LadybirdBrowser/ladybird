@@ -527,10 +527,8 @@ impl SyntaxNode {
         rust_syntax_is_single_component(self)
     }
 
-    pub(crate) fn serialize_to_utf16(&self) -> Vec<u16> {
-        let mut sink = TextSink::new();
-        serialize_syntax(self, &mut sink);
-        sink.into_utf16()
+    pub(crate) fn serialize_to(&self, sink: &mut TextSink) {
+        serialize_syntax(self, sink);
     }
 }
 
