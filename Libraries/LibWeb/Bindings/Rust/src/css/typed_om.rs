@@ -362,8 +362,3 @@ pub(crate) fn reify_a_math_expression(vm: &Vm, calculated: &RetainedStyleValue) 
 pub(crate) fn reify_a_numeric_value(vm: &Vm, numeric_value: &RetainedStyleValue) -> Option<AnyCSSNumericValue> {
     reify(vm, numeric_value, &Utf16String::default()).as_numeric()
 }
-
-/// The reification of an argument of a transform function, which is numeric.
-pub(crate) fn reify_numeric_argument(vm: &Vm, argument: &RetainedStyleValue) -> AnyCSSNumericValue {
-    reify_a_numeric_value(vm, argument).expect("an argument of a transform function is numeric")
-}

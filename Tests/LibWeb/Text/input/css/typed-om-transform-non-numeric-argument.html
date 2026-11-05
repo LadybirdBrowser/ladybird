@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const value = CSSStyleValue.parse("transform", "scale(calc(sibling-index()))");
+        println(value.constructor.name);
+        println(value);
+    });
+</script>

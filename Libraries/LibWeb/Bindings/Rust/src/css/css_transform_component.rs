@@ -232,7 +232,8 @@ pub(crate) fn matches_number(value: &AnyCSSNumericValue) -> bool {
 pub(crate) fn reify_a_transform_function(vm: &Vm, value: &RetainedStyleValue) -> Option<AnyCSSTransformComponent> {
     let (transform_function, values) = transformation_parts(value);
 
-    let reify_numeric_argument = |index: usize| typed_om::reify_numeric_argument(vm, &values[index]);
+    // NB: An argument that does not reify to a numeric value gives up, like a function that is not reifiable.
+    let reify_numeric_argument = |index: usize| typed_om::reify_a_numeric_value(vm, &values[index]);
     let reify_unit_value =
         |value: f64, unit: &str| AnyCSSNumericValue::CSSUnitValue(CSSUnitValue::create(vm, value, unit));
     let reify_0 = || reify_unit_value(0.0, "number");
@@ -281,21 +282,21 @@ pub(crate) fn reify_a_transform_function(vm: &Vm, value: &RetainedStyleValue) ->
         TransformFunction::Translate => {
             // NB: Default y to 0px if it's not specified.
             let y = if values.len() > 1 {
-                reify_numeric_argument(1)
+                reify_numeric_argument(1)?
             } else {
                 reify_0px()
             };
-            translate(Is2D::Yes, reify_numeric_argument(0), y, reify_0px())
+            translate(Is2D::Yes, reify_numeric_argument(0)?, y, reify_0px())
         }
-        TransformFunction::TranslateX => translate(Is2D::Yes, reify_numeric_argument(0), reify_0px(), reify_0px()),
-        TransformFunction::TranslateY => translate(Is2D::Yes, reify_0px(), reify_numeric_argument(0), reify_0px()),
+        TransformFunction::TranslateX => translate(Is2D::Yes, reify_numeric_argument(0)?, reify_0px(), reify_0px()),
+        TransformFunction::TranslateY => translate(Is2D::Yes, reify_0px(), reify_numeric_argument(0)?, reify_0px()),
         TransformFunction::Translate3d => translate(
             Is2D::No,
-            reify_numeric_argument(0),
-            reify_numeric_argument(1),
-            reify_numeric_argument(2),
+            reify_numeric_argument(0)?,
+            reify_numeric_argument(1)?,
+            reify_numeric_argument(2)?,
         ),
-        TransformFunction::TranslateZ => translate(Is2D::No, reify_0px(), reify_0px(), reify_numeric_argument(0)),
+        TransformFunction::TranslateZ => translate(Is2D::No, reify_0px(), reify_0px(), reify_numeric_argument(0)?),
 
         // -> scale()
         // -> scaleX()
@@ -308,21 +309,21 @@ pub(crate) fn reify_a_transform_function(vm: &Vm, value: &RetainedStyleValue) ->
         TransformFunction::Scale => {
             // NB: Default y to a copy of x if it's not specified.
             let y = if values.len() > 1 {
-                reify_numeric_argument(1)
+                reify_numeric_argument(1)?
             } else {
-                reify_numeric_argument(0)
+                reify_numeric_argument(0)?
             };
-            scale(Is2D::Yes, reify_numeric_argument(0), y, reify_1())
+            scale(Is2D::Yes, reify_numeric_argument(0)?, y, reify_1())
         }
-        TransformFunction::ScaleX => scale(Is2D::Yes, reify_numeric_argument(0), reify_1(), reify_1()),
-        TransformFunction::ScaleY => scale(Is2D::Yes, reify_1(), reify_numeric_argument(0), reify_1()),
+        TransformFunction::ScaleX => scale(Is2D::Yes, reify_numeric_argument(0)?, reify_1(), reify_1()),
+        TransformFunction::ScaleY => scale(Is2D::Yes, reify_1(), reify_numeric_argument(0)?, reify_1()),
         TransformFunction::Scale3d => scale(
             Is2D::No,
-            reify_numeric_argument(0),
-            reify_numeric_argument(1),
-            reify_numeric_argument(2),
+            reify_numeric_argument(0)?,
+            reify_numeric_argument(1)?,
+            reify_numeric_argument(2)?,
         ),
-        TransformFunction::ScaleZ => scale(Is2D::No, reify_1(), reify_1(), reify_numeric_argument(0)),
+        TransformFunction::ScaleZ => scale(Is2D::No, reify_1(), reify_1(), reify_numeric_argument(0)?),
 
         // -> rotate()
         // -> rotate3d()
@@ -333,17 +334,17 @@ pub(crate) fn reify_a_transform_function(vm: &Vm, value: &RetainedStyleValue) ->
         //       angle, and whose x, y, and z internal slots are set to the specified rotation axis coordinates, or the
         //       implicit axis coordinates if not specified in func and whose is2D internal slot is true if func is
         //       rotate(), and false otherwise.
-        TransformFunction::Rotate => rotate(Is2D::Yes, reify_0(), reify_0(), reify_1(), reify_numeric_argument(0)),
+        TransformFunction::Rotate => rotate(Is2D::Yes, reify_0(), reify_0(), reify_1(), reify_numeric_argument(0)?),
         TransformFunction::Rotate3d => rotate(
             Is2D::No,
-            reify_numeric_argument(0),
-            reify_numeric_argument(1),
-            reify_numeric_argument(2),
-            reify_numeric_argument(3),
+            reify_numeric_argument(0)?,
+            reify_numeric_argument(1)?,
+            reify_numeric_argument(2)?,
+            reify_numeric_argument(3)?,
         ),
-        TransformFunction::RotateX => rotate(Is2D::No, reify_1(), reify_0(), reify_0(), reify_numeric_argument(0)),
-        TransformFunction::RotateY => rotate(Is2D::No, reify_0(), reify_1(), reify_0(), reify_numeric_argument(0)),
-        TransformFunction::RotateZ => rotate(Is2D::No, reify_0(), reify_0(), reify_1(), reify_numeric_argument(0)),
+        TransformFunction::RotateX => rotate(Is2D::No, reify_1(), reify_0(), reify_0(), reify_numeric_argument(0)?),
+        TransformFunction::RotateY => rotate(Is2D::No, reify_0(), reify_1(), reify_0(), reify_numeric_argument(0)?),
+        TransformFunction::RotateZ => rotate(Is2D::No, reify_0(), reify_0(), reify_1(), reify_numeric_argument(0)?),
 
         // -> skew()
         //    1. Return a new CSSSkew object, whose ax and ay internal slots are set to the reification of the specified
@@ -352,22 +353,26 @@ pub(crate) fn reify_a_transform_function(vm: &Vm, value: &RetainedStyleValue) ->
         TransformFunction::Skew => {
             // NB: Default y to 0deg if it's not specified.
             let y = if values.len() > 1 {
-                reify_numeric_argument(1)
+                reify_numeric_argument(1)?
             } else {
                 reify_0deg()
             };
-            AnyCSSTransformComponent::CSSSkew(CSSSkew::create(vm, reify_numeric_argument(0), y))
+            AnyCSSTransformComponent::CSSSkew(CSSSkew::create(vm, reify_numeric_argument(0)?, y))
         }
 
         // -> skewX()
         //    1. Return a new CSSSkewX object, whose ax internal slot is set to the reification of the specified x
         //       angle, or the reification of 0deg if not specified in func, and whose is2D internal slot is true.
-        TransformFunction::SkewX => AnyCSSTransformComponent::CSSSkewX(CSSSkewX::create(vm, reify_numeric_argument(0))),
+        TransformFunction::SkewX => {
+            AnyCSSTransformComponent::CSSSkewX(CSSSkewX::create(vm, reify_numeric_argument(0)?))
+        }
 
         // -> skewY()
         //    1. Return a new CSSSkewY object, whose ay internal slot is set to the reification of the specified y
         //       angle, or the reification of 0deg if not specified in func, and whose is2D internal slot is true.
-        TransformFunction::SkewY => AnyCSSTransformComponent::CSSSkewY(CSSSkewY::create(vm, reify_numeric_argument(0))),
+        TransformFunction::SkewY => {
+            AnyCSSTransformComponent::CSSSkewY(CSSSkewY::create(vm, reify_numeric_argument(0)?))
+        }
 
         // -> perspective()
         //    1. Return a new CSSPerspective object, whose length internal slot is set to the reification of the
@@ -378,7 +383,7 @@ pub(crate) fn reify_a_transform_function(vm: &Vm, value: &RetainedStyleValue) ->
                 Reification::Keyword(keyword) => {
                     CSSPerspectiveValueInternal::CSSKeywordValue(CSSKeywordValue::create(vm, keyword))
                 }
-                _ => CSSPerspectiveValueInternal::CSSNumericValue(reify_numeric_argument(0)),
+                _ => CSSPerspectiveValueInternal::CSSNumericValue(reify_numeric_argument(0)?),
             };
             AnyCSSTransformComponent::CSSPerspective(CSSPerspective::create(vm, length))
         }
