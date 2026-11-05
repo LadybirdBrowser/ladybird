@@ -1884,7 +1884,11 @@ impl<'pass> TableFormattingContext<'pass> {
                 (content_sizes.min, content_sizes.max)
             };
             // The outer min-content inline size of a table cell is its minimum inline size adjusted by the cell intrinsic offsets.
-            self.cells[cell_index].outer_min_inline_size = min_inline.max(min_content_inline) + inline_offsets;
+            // AD-HOC: The spec's max(min-width, min-content width) lets the min-content width override a definite max-width,
+            //         so a cell whose content can't wrap widens its column past its max-width, where pages expect the cell
+            //         to cut that content off. So cap the min-content width at the max-width; min-width still wins over both.
+            let capped_min_content_inline = min_content_inline.min(max_inline);
+            self.cells[cell_index].outer_min_inline_size = min_inline.max(capped_min_content_inline) + inline_offsets;
             self.cells[cell_index].max_content_inline_size = (!fixed).then_some(max_content_inline);
 
             if include_rows {
@@ -1961,7 +1965,8 @@ impl<'pass> TableFormattingContext<'pass> {
             } else {
                 // The outer max-content width of a table-cell in a non-constrained column is
                 // max(min-width, width, min-content width, min(max-width, max-content width)) adjusted by the cell intrinsic offsets.
-                min_inline.max(inline_size.max(min_content_inline.max(max_inline.min(max_content_inline))))
+                // AD-HOC: With the min-content width capped at a definite max-width, as for the outer min-content width.
+                min_inline.max(inline_size.max(capped_min_content_inline.max(max_inline.min(max_content_inline))))
                     + inline_offsets
             };
         }
