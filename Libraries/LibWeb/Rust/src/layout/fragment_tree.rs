@@ -1534,6 +1534,22 @@ impl RunFragmentBuilder {
             .push(ChildLeftUnplaced { root, unplaced_child });
     }
 
+    /// Whether what the run laid out rests where the placement of its root finds it, for a run whose parent places its
+    /// root. A child it left unplaced or a box beside its sealed containing block belongs at the top of the fragments of
+    /// the run its root is in, and only placing a box in this builder lays out an absolutely positioned box whose
+    /// containing block this builder placed.
+    pub(crate) fn hands_everything_to_the_placement_of_its_root(&self, callbacks: &LayoutPass<'_>) -> bool {
+        let inner = self.inner.borrow();
+        inner.children_left_unplaced.is_empty()
+            && !inner.holds_links_beside_their_sealed_containing_blocks
+            && self.with_placements(callbacks, |placements| {
+                !inner.iter_pending_abspos().any(|entry| {
+                    let containing_block = entry.containing_block();
+                    !containing_block.is_invalid() && placements.is_placed(containing_block)
+                })
+            })
+    }
+
     pub(crate) fn left_child_unplaced(&self, node: crate::layout::node_data::NodeSlotId) -> bool {
         self.inner
             .borrow()

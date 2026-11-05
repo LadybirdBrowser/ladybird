@@ -186,6 +186,36 @@ impl LaidOutBlockLevelBox {
     }
 }
 
+/// What a flow settled about a block-level box before laying it out.
+#[derive(Default)]
+struct BlockLevelBoxLayoutPrelude {
+    fragment_facts: run_state::FragmentFactsDecidedByParent,
+    continuation: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
+    continuation_inner_size_excess: CssPixels,
+    suppresses_fragmentation_inside: bool,
+    suppresses_unforced_breaks_inside: bool,
+    is_in_flow_candidate: bool,
+    discards_block_start_margin: bool,
+    introduced_clearance: bool,
+}
+
+/// A block-level box its flow laid out and has yet to place.
+struct UnplacedBlockLevelBox {
+    child_to_place: formatting_context::PlacedChild,
+    /// The offset of the content box in the containing block. A rendered legend waits for its offset instead.
+    pending_position: Option<FfiCssPixelPoint>,
+    legend_flow_position: Option<geometry::LogicalOffset>,
+    fragment_arrival_of_child_with_own_formatting_context: Option<fragment_tree::RunRootFragment>,
+    summary_of_children_laid_out_in_this_flow: Option<ChildrenSummary>,
+    baselines_of_contents_laid_out_in_this_flow: Option<DerivedBaselines>,
+    laid_out_box_handed_back_by_its_run: Option<run_state::LaidOutChildBox>,
+    own_top_margin_group_of_contents: Option<TopMarginGroup>,
+    depends_on_percentage_block_size: bool,
+    has_unbreakable_lines: bool,
+    broken_token_of_box: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
+    fragment_facts: run_state::FragmentFactsDecidedByParent,
+}
+
 /// The floats and margins of a block formatting context before finding where lines break changes them.
 pub(crate) struct StateBeforeFindingLineBreaks {
     float_count: usize,
@@ -649,6 +679,174 @@ enum InFlowReuse {
     },
 }
 
+/// An in-flow child placed from a stored layout or a layout made ahead.
+struct ReusedInFlowChild {
+    content_offset: FfiCssPixelPoint,
+    margin_box_block_end: CssPixels,
+    introduced_clearance: bool,
+    placed: Option<fragment_tree::PlacedFragment>,
+}
+
+/// What laying out a child ahead of the walk over its siblings leaves of the child, which that walk places.
+struct OutcomeOfChildLaidOutAhead {
+    geometry: fragment_tree::FragmentGeometry,
+    cells: used_values::RootInputCells,
+    content_offset: FfiCssPixelPoint,
+    baselines: DerivedBaselines,
+    margins_left_by_contents: BlockMarginState,
+    depends_on_percentage_block_size: bool,
+    outgoing_outside_marker_line: Option<OutsideMarkerLine>,
+}
+
+/// An in-flow child to lay out ahead of the walk over its siblings, with what its layout reads from outside its subtree
+/// besides floats.
+struct InFlowChildJob {
+    child: Node,
+    run_root: Node,
+    root_cells: used_values::RootInputCells,
+    block_container: BlockContainer,
+    input: LayoutInput,
+    containing_block_inline_position_in_root: CssPixels,
+    key: in_flow_block_cache::InFlowBlockKey,
+    validity: fc_run_cache::FcRunCacheValidity,
+}
+
+/// What laying out an in-flow child ahead of the walk over its siblings leaves for that walk, as if no float were
+/// placed before the child.
+struct InFlowChildLaidOutAhead {
+    node: Node,
+    entry: in_flow_block_cache::InFlowBlockEntry,
+    root: fragment_tree::RunRootFragment,
+    host_findings: Option<Box<run_state::HostFindings>>,
+}
+
+/// A child to lay out ahead of the walk over its siblings.
+enum ChildJobAhead {
+    /// A float or a block-level box with a formatting context of its own, whose run goes in the run cache.
+    Run(formatting_context::ChildRunShape),
+    InFlow(Box<InFlowChildJob>),
+}
+
+impl ChildJobAhead {
+    fn child(&self) -> Node {
+        match self {
+            Self::Run(shape) => shape.node,
+            Self::InFlow(job) => job.child,
+        }
+    }
+
+    fn lay_out(self, callbacks: LayoutPass<'_>) -> Option<InFlowChildLaidOutAhead> {
+        match self {
+            Self::Run(shape) => {
+                formatting_context::lay_out_shape_for_its_result(callbacks, shape);
+                None
+            }
+            Self::InFlow(job) => lay_out_in_flow_child_ahead(callbacks, *job),
+        }
+    }
+}
+
+/// Lays out an in-flow child in a flow of its own with no floats, at its true inline position and the block position
+/// zero, and leaves it unplaced.
+fn lay_out_in_flow_child_ahead(callbacks: LayoutPass<'_>, job: InFlowChildJob) -> Option<InFlowChildLaidOutAhead> {
+    let InFlowChildJob {
+        child,
+        run_root,
+        root_cells,
+        block_container,
+        input,
+        containing_block_inline_position_in_root,
+        key,
+        validity,
+    } = job;
+    let treat_block_axis_percentage_insets_as_auto_beyond_root =
+        key.treat_block_axis_percentage_insets_as_auto_beyond_root;
+    let fragments = fragment_tree::RunFragmentBuilder::new(&callbacks, child, Some(block_container.node));
+    RunState::with_root_building_fragments(
+        callbacks,
+        child,
+        block_container.node,
+        None,
+        Some(fragments),
+        |state, callbacks| {
+            let run = FormattingContextRun {
+                state,
+                box_: run_root,
+                callbacks,
+                should_collect_devtools_layout_data: false,
+                treat_block_axis_percentage_insets_as_auto_beyond_root,
+                fragments: state.fragments(),
+                fragmentainer: None,
+            };
+            let flow = BlockFormattingContext::new(&run, root_cells, None);
+            flow.block_offset_of_current_block_container
+                .set(Some(CssPixels::default()));
+            let containing_block_position_in_root = FfiCssPixelPoint {
+                x: containing_block_inline_position_in_root,
+                y: CssPixels::default(),
+            };
+            let outcome = flow.lay_out_child_ahead_of_its_walk(
+                &run,
+                child,
+                block_container,
+                input,
+                containing_block_position_in_root,
+            );
+            let fragments = run.fragments.expect(
+                "a child is laid out ahead of the walk over its siblings only where that walk builds fragments",
+            );
+            // NB: The walk reuses this layout as a box whose margins do not collapse through it.
+            if outcome.cells.border_box_block_size(false) == CssPixels::default()
+                || !fragments.hands_everything_to_the_placement_of_its_root(&run.callbacks)
+            {
+                return None;
+            }
+            let float_reads = flow.float_reads.get();
+            let (read_start_from_border_box, floats_in_reach) = flow.floats_in_reach_of_contents_laid_out_here(
+                child,
+                float_reads,
+                0,
+                &outcome.cells,
+                outcome.content_offset,
+                containing_block_position_in_root,
+            );
+            let root = fragments
+                .take_run_contents(&run.callbacks)
+                .into_run_root_fragment(&run.callbacks, outcome.geometry);
+            let entry = in_flow_block_cache::InFlowBlockEntry {
+                key,
+                validity,
+                cells: outcome.cells,
+                baselines: outcome.baselines,
+                content_inline_offset: outcome.content_offset.x,
+                margins_left_by_contents: outcome.margins_left_by_contents,
+                floats_read_by_contents: in_flow_block_cache::FloatsReadByContents {
+                    margins_before_box: CollapsedMargins::default(),
+                    stored_in_open_top_margin_group: false,
+                    introduced_clearance: false,
+                    read_before_top_margins_settled: float_reads.before_top_margins_settled,
+                    read_start_from_border_box,
+                    floats_in_reach,
+                },
+                floats_placed_by_contents: flow.floats_placed_by_contents_since(
+                    0,
+                    outcome.content_offset,
+                    containing_block_position_in_root,
+                ),
+                outgoing_outside_marker_line: outcome.outgoing_outside_marker_line,
+                depends_on_percentage_block_size: outcome.depends_on_percentage_block_size,
+                fragment_identity: root.fragment.identity,
+            };
+            Some(InFlowChildLaidOutAhead {
+                node: child,
+                entry,
+                root,
+                host_findings: state.take_host_findings(),
+            })
+        },
+    )
+}
+
 /// What a flow read of its floats so far.
 #[derive(Clone, Copy, Default)]
 struct FloatReads {
@@ -825,6 +1023,8 @@ pub(crate) struct BlockFormattingContext<'pass> {
     lowest_right_margin_edge: Cell<Option<CssPixels>>,
     lowest_floating_descendant_bottom_margin_edge: Cell<Option<CssPixels>>,
     float_reads: Cell<FloatReads>,
+    /// The in-flow children laid out ahead of the walks over them that are in progress, by slot.
+    in_flow_children_laid_out_ahead: RefCell<HashMap<u32, InFlowChildLaidOutAhead>>,
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
     /// The trailing collapsed margin of the run, and the index in `root_flow_children` of the child it hangs below.
     trailing_collapsed_margin: Cell<Option<(usize, CssPixels)>>,
@@ -987,6 +1187,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             lowest_right_margin_edge: Cell::new(None),
             lowest_floating_descendant_bottom_margin_edge: Cell::new(None),
             float_reads: Cell::new(FloatReads::default()),
+            in_flow_children_laid_out_ahead: RefCell::new(HashMap::default()),
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
             trailing_collapsed_margin: Cell::new(None),
             table_box_in_wrapper_border_box_inline_size: Cell::new(None),
@@ -2986,7 +3187,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_block_position_in_root: FfiCssPixelPoint,
         interrupted_inline_content: Option<InterruptedInlineContent>,
     ) -> Option<LaidOutBlockLevelBox> {
-        let available_space = input.available_space;
         let facts = self.facts(node);
         let containing_line_box_fragment = interrupted_inline_content.and_then(|interrupted| interrupted.line);
 
@@ -3116,6 +3316,14 @@ impl<'pass> BlockFormattingContext<'pass> {
             });
         }
 
+        if let Some(placed_child) = self.place_child_if_its_layout_ahead_stands(
+            sized_child,
+            block_container,
+            containing_block_position_in_root,
+            fragment_facts,
+        ) {
+            return Some(placed_child);
+        }
         let mut in_flow_reuse = match self.probe_in_flow_reuse(
             node,
             block_container.node,
@@ -3126,23 +3334,23 @@ impl<'pass> BlockFormattingContext<'pass> {
         ) {
             InFlowReuse::Hit { entry, fragment } => {
                 let in_open_top_margin_group = self.margin_state().has_open_top_margin_group();
-                let (content_offset, margin_box_block_end) = self.reuse_in_flow_child(
+                let reused = self.reuse_in_flow_child(
                     sized_child,
                     block_container,
                     &entry,
-                    fragment,
+                    fragment_tree::RunRootFragment::propagating_nothing(fragment),
                     containing_block_position_in_root,
                 );
                 self.note_floats_read_by_reused_contents(
                     node,
                     &entry,
-                    content_offset,
+                    reused.content_offset,
                     containing_block_position_in_root,
                     in_open_top_margin_group,
                 );
                 return Some(LaidOutBlockLevelBox {
-                    content_offset: Some(content_offset),
-                    margin_box_block_end: Some(margin_box_block_end),
+                    content_offset: Some(reused.content_offset),
+                    margin_box_block_end: Some(reused.margin_box_block_end),
                     ..LaidOutBlockLevelBox::of_box(
                         Self::laid_out_box_of_box_laid_out_here(sized_child, entry.baselines),
                         fragment_facts,
@@ -3176,19 +3384,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         self.margin_state_mut().update_open_top_margin_group();
 
-        let block_offset = self
-            .block_offset_of_current_block_container
-            .get()
-            .expect("a block container flow cursor is active");
-
         let style = self.style(node);
         let block_size_is_definite_from_aspect_ratio =
             self.resolve_block_size_known_ahead_of_contents(sized_child, &input);
 
-        let independent_type = formatting_context::formatting_context_type_created_by_box(facts);
-        let has_independent_formatting_context = independent_type.is_some();
-
-        if !has_independent_formatting_context && !facts.is_block_container() {
+        if formatting_context::formatting_context_type_created_by_box(facts).is_none() && !facts.is_block_container() {
             // Keep the C++ behavior: diagnose and skip this unsupported box after its
             // vertical metrics have been resolved.
             eprintln!("FIXME: Block-level box is not BlockContainer but does not create formatting context");
@@ -3206,6 +3406,69 @@ impl<'pass> BlockFormattingContext<'pass> {
                 )
             });
         }
+
+        let continuation_inner_size_excess = if continuation.is_some()
+            && (if block_size_is_definite_from_aspect_ratio && style.height().is_auto() {
+                style.box_sizing_for_aspect_ratio()
+            } else {
+                style.box_sizing()
+            }) == box_sizing::BORDER_BOX
+        {
+            continuation_padding_top
+        } else {
+            CssPixels::default()
+        };
+        let unplaced = self.lay_out_unplaced_block_level_box(
+            run,
+            sized_child,
+            block_container,
+            input,
+            containing_block_position_in_root,
+            BlockLevelBoxLayoutPrelude {
+                fragment_facts,
+                continuation,
+                continuation_inner_size_excess,
+                suppresses_fragmentation_inside,
+                suppresses_unforced_breaks_inside,
+                is_in_flow_candidate,
+                discards_block_start_margin,
+                introduced_clearance,
+            },
+        );
+        Some(self.place_laid_out_block_level_box(sized_child, unplaced, in_flow_reuse, interrupted_inline_content))
+    }
+
+    /// Lays out `sized_child` where the flow stands, and leaves placing it to the caller.
+    fn lay_out_unplaced_block_level_box(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        sized_child: ChildSizedHere<'_>,
+        block_container: BlockContainer,
+        input: LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+        prelude: BlockLevelBoxLayoutPrelude,
+    ) -> UnplacedBlockLevelBox {
+        let BlockLevelBoxLayoutPrelude {
+            mut fragment_facts,
+            continuation,
+            continuation_inner_size_excess,
+            suppresses_fragmentation_inside,
+            suppresses_unforced_breaks_inside,
+            is_in_flow_candidate,
+            discards_block_start_margin,
+            introduced_clearance,
+        } = prelude;
+        let node = sized_child.node;
+        let available_space = input.available_space;
+        let facts = self.facts(node);
+        let style = self.style(node);
+        let independent_type = formatting_context::formatting_context_type_created_by_box(facts);
+        let has_independent_formatting_context = independent_type.is_some();
+        let block_offset = self
+            .block_offset_of_current_block_container
+            .get()
+            .expect("a block container flow cursor is active");
+
         // If first child margin top will collapse with margin-top of containing block then margin-top of child is 0
         let margin_top = self.margin_state().pending_margin_for_next_box();
 
@@ -3321,17 +3584,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
-        let continuation_inner_size_excess = if continuation.is_some()
-            && (if block_size_is_definite_from_aspect_ratio && style.height().is_auto() {
-                style.box_sizing_for_aspect_ratio()
-            } else {
-                style.box_sizing()
-            }) == box_sizing::BORDER_BOX
-        {
-            continuation_padding_top
-        } else {
-            CssPixels::default()
-        };
         if continuation.is_some() && self.cells_laid_out_here(sized_child).has_definite_block_size() {
             let used = self.cells_laid_out_here(sized_child);
             used.set_content_block_size(
@@ -3709,7 +3961,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let lines_laid_out_in_this_flow = summary_of_children_laid_out_in_this_flow
             .as_mut()
             .and_then(|summary| summary.lines.take());
-        let placed_child = child_handed_back_by_its_run
+        let child_to_place = child_handed_back_by_its_run
             .unwrap_or_else(|| {
                 formatting_context::PlacedChild::laid_out_here(
                     self.metrics_of(sized_child),
@@ -3718,12 +3970,53 @@ impl<'pass> BlockFormattingContext<'pass> {
                 )
             })
             .with_in_flow_box_insets(insets)
-            .with_fragment_facts(fragment_facts)
-            .with_offset_from_relatively_positioned_inline_ancestors(
-                interrupted_inline_content.map_or(FfiCssPixelPoint::default(), |interrupted| {
-                    interrupted.offset_from_relatively_positioned_inline_ancestors
-                }),
-            );
+            .with_fragment_facts(fragment_facts);
+        UnplacedBlockLevelBox {
+            child_to_place,
+            pending_position,
+            legend_flow_position,
+            fragment_arrival_of_child_with_own_formatting_context,
+            summary_of_children_laid_out_in_this_flow,
+            baselines_of_contents_laid_out_in_this_flow,
+            laid_out_box_handed_back_by_its_run,
+            own_top_margin_group_of_contents,
+            depends_on_percentage_block_size,
+            has_unbreakable_lines,
+            broken_token_of_box,
+            fragment_facts,
+        }
+    }
+
+    /// Places `unplaced`, the layout of `sized_child`, and moves the flow past it.
+    fn place_laid_out_block_level_box(
+        &self,
+        sized_child: ChildSizedHere<'_>,
+        unplaced: UnplacedBlockLevelBox,
+        in_flow_reuse: InFlowReuse,
+        interrupted_inline_content: Option<InterruptedInlineContent>,
+    ) -> LaidOutBlockLevelBox {
+        let UnplacedBlockLevelBox {
+            child_to_place,
+            pending_position,
+            legend_flow_position,
+            fragment_arrival_of_child_with_own_formatting_context,
+            mut summary_of_children_laid_out_in_this_flow,
+            baselines_of_contents_laid_out_in_this_flow,
+            laid_out_box_handed_back_by_its_run,
+            own_top_margin_group_of_contents,
+            depends_on_percentage_block_size,
+            has_unbreakable_lines,
+            broken_token_of_box,
+            fragment_facts,
+        } = unplaced;
+        let node = sized_child.node;
+        let has_independent_formatting_context =
+            formatting_context::formatting_context_type_created_by_box(self.facts(node)).is_some();
+        let placed_child = child_to_place.with_offset_from_relatively_positioned_inline_ancestors(
+            interrupted_inline_content.map_or(FfiCssPixelPoint::default(), |interrupted| {
+                interrupted.offset_from_relatively_positioned_inline_ancestors
+            }),
+        );
         let mut deferred_legend = None;
         let mut placed = match pending_position {
             Some(position) => formatting_context::place_child(
@@ -3731,7 +4024,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 node,
                 placed_child,
                 position,
-                containing_line_box_fragment,
+                interrupted_inline_content.and_then(|interrupted| interrupted.line),
                 fragment_arrival_of_child_with_own_formatting_context,
             ),
             None => {
@@ -3780,13 +4073,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         let margin_box_block_end = content_offset.y
             + metrics.content_block_size()
             + metrics.margin_box_bottom(metrics.uses_collapsing_borders_model());
+        let margins_left_by_contents =
+            margins_left_by_contents.map(|margins| margins.with_own_top_margin_group(own_top_margin_group_of_contents));
         self.conclude_in_flow_reuse(
             in_flow_reuse,
             sized_child,
             baselines_of_contents_laid_out_in_this_flow.unwrap_or_default(),
             placed.map(|placed| (content_offset, placed)),
             depends_on_percentage_block_size,
-            margins_left_by_contents.map(|margins| margins.with_own_top_margin_group(own_top_margin_group_of_contents)),
+            margins_left_by_contents,
         );
         let broken_inside = broken_token_of_box.map(|token| BrokenInside {
             token,
@@ -3795,7 +4090,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .expect("a box breaks inside the children laid out in this flow")
                 .block_end_of_content(),
         });
-        Some(LaidOutBlockLevelBox {
+        LaidOutBlockLevelBox {
             broken_inside,
             has_unbreakable_lines,
             collapses_through,
@@ -3809,7 +4104,59 @@ impl<'pass> BlockFormattingContext<'pass> {
             content_offset: pending_position,
             margin_box_block_end: Some(margin_box_block_end),
             deferred_legend,
-        })
+        }
+    }
+
+    /// Lays out `node`, an in-flow block container and the first box of this flow, for the walk over its siblings to
+    /// place. That walk also works out what `node` clears, as no float is placed here to clear.
+    fn lay_out_child_ahead_of_its_walk(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        node: Node,
+        block_container: BlockContainer,
+        input: LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> OutcomeOfChildLaidOutAhead {
+        let cells_of_child = Cell::new(used_values::cells_before_sizing(
+            &self.run.callbacks,
+            node,
+            input.containing_block_constraints,
+        ));
+        let sized_child = ChildSizedHere::laid_out_in(node, &cells_of_child);
+        let _percentage_block_size_dependency_tracking = self
+            .run
+            .state
+            .track_percentage_block_size_dependency_while_laying_out(node);
+        self.resolve_vertical_box_model_metrics(
+            sized_child,
+            block_container.cells.content_inline_size,
+            input.containing_block_constraints,
+        );
+        self.margin_state_mut()
+            .add_margin(self.metrics_of(sized_child).margin_top());
+        self.margin_state_mut().update_open_top_margin_group();
+        self.resolve_block_size_known_ahead_of_contents(sized_child, &input);
+        let unplaced = self.lay_out_unplaced_block_level_box(
+            run,
+            sized_child,
+            block_container,
+            input,
+            containing_block_position_in_root,
+            BlockLevelBoxLayoutPrelude::default(),
+        );
+        OutcomeOfChildLaidOutAhead {
+            geometry: unplaced.child_to_place.geometry,
+            cells: self.metrics_of(sized_child),
+            content_offset: unplaced
+                .pending_position
+                .expect("only a rendered legend waits for its position, and fieldsets lay out no child ahead"),
+            baselines: unplaced.baselines_of_contents_laid_out_in_this_flow.unwrap_or_default(),
+            margins_left_by_contents: self
+                .leave_margin_state_of_contents(node)
+                .with_own_top_margin_group(unplaced.own_top_margin_group_of_contents),
+            depends_on_percentage_block_size: unplaced.depends_on_percentage_block_size,
+            outgoing_outside_marker_line: self.outside_marker_line.get(),
+        }
     }
 
     /// Resolves the block size of a block-level box where it follows without laying out its contents, and returns
@@ -3858,10 +4205,26 @@ impl<'pass> BlockFormattingContext<'pass> {
         )
     }
 
-    /// Whether the layout of an in-flow child can be stored and reused by `InFlowBlockKey`: only a block container
-    /// laid out in this run's own flow, where no line clamp can read its position in the root, and where that position
-    /// is final if floats can read it.
+    /// Whether the layout of an in-flow child can be stored and reused by `InFlowBlockKey`, and where its position in
+    /// the root is final if floats can read it.
     fn in_flow_child_may_be_reused(
+        &self,
+        node: Node,
+        block_container: Node,
+        containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
+    ) -> bool {
+        (self.floats.borrow().is_empty() || !self.margin_state().has_open_top_margin_group())
+            && self.in_flow_child_depends_only_on_its_key_and_floats(
+                node,
+                block_container,
+                containing_line_box_fragment,
+            )
+    }
+
+    /// Whether the layout of an in-flow child reads nothing from outside its subtree but its `InFlowBlockKey` and the
+    /// floats placed before it: only a block container laid out in this run's own flow, where no line clamp can read its
+    /// position in the root.
+    fn in_flow_child_depends_only_on_its_key_and_floats(
         &self,
         node: Node,
         block_container: Node,
@@ -3874,7 +4237,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             && self.run.fragments.is_some()
             && !self.run.should_collect_devtools_layout_data
             && containing_line_box_fragment.is_none()
-            && (self.floats.borrow().is_empty() || !self.margin_state().has_open_top_margin_group())
             && !self.is_line_clamp_container
             && self.max_lines.get().is_none()
             && !self.laying_out_invisible_line_clamp_content.get()
@@ -3884,6 +4246,54 @@ impl<'pass> BlockFormattingContext<'pass> {
             && !facts.has_preferred_aspect_ratio()
             && !container_facts.is_fieldset_box()
             && !container_facts.is_table_wrapper()
+    }
+
+    fn in_flow_block_key_of(
+        &self,
+        node: Node,
+        block_container: Node,
+        block_container_inline_size: CssPixels,
+        input: LayoutInput,
+    ) -> in_flow_block_cache::InFlowBlockKey {
+        let stretch_fit_block_margins = sizing_context::stretch_fit_block_margins(
+            &self.run.callbacks,
+            node,
+            input.containing_block_constraints.inline_basis(),
+        );
+        in_flow_block_cache::InFlowBlockKey::new(
+            &self.run,
+            input,
+            block_container_inline_size,
+            self.style(block_container).direction() == direction::RTL,
+            stretch_fit_block_margins,
+            self.outside_marker_line.get(),
+        )
+    }
+
+    /// The stored layout of `node` for `key` and the fragment it placed, which the committed subtree still is: only
+    /// that subtree is reused.
+    fn stored_in_flow_layout_of(
+        &self,
+        node: Node,
+        validity: fc_run_cache::FcRunCacheValidity,
+        key: &in_flow_block_cache::InFlowBlockKey,
+    ) -> Option<(
+        std::sync::Arc<in_flow_block_cache::InFlowBlockEntry>,
+        std::sync::Arc<fragment_tree::Fragment>,
+    )> {
+        let callbacks = &self.run.callbacks;
+        callbacks
+            .arena()
+            .with_current_committed_fragment(node, |fragment| fragment.clone())
+            .and_then(|fragment| {
+                let entry = callbacks.in_flow_block_cache_store().matching(
+                    node.slot_index(),
+                    validity,
+                    key,
+                    fragment.identity,
+                )?;
+                Some((entry, fragment))
+            })
     }
 
     fn probe_in_flow_reuse(
@@ -3899,33 +4309,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             return InFlowReuse::Ineligible;
         }
         let callbacks = &self.run.callbacks;
-        let stretch_fit_block_margins = sizing_context::stretch_fit_block_margins(
-            callbacks,
-            node,
-            input.containing_block_constraints.inline_basis(),
-        );
-        let key = in_flow_block_cache::InFlowBlockKey::new(
-            &self.run,
-            input,
-            block_container_inline_size,
-            self.style(block_container).direction() == direction::RTL,
-            stretch_fit_block_margins,
-            self.outside_marker_line.get(),
-        );
+        let key = self.in_flow_block_key_of(node, block_container, block_container_inline_size, input);
         let validity = fc_run_cache::run_root_validity(callbacks, node);
-        // NB: The committed subtree is reused only while it is the one the stored layout produced.
-        let hit = callbacks
-            .arena()
-            .with_current_committed_fragment(node, |fragment| fragment.clone())
-            .and_then(|fragment| {
-                let entry = callbacks.in_flow_block_cache_store().matching(
-                    node.slot_index(),
-                    validity,
-                    &key,
-                    fragment.identity,
-                )?;
-                Some((entry, fragment))
-            })
+        let hit = self
+            .stored_in_flow_layout_of(node, validity, &key)
             .filter(|(entry, _)| {
                 self.floats_read_by_contents_still_stand(node, entry, containing_block_position_in_root)
             });
@@ -4078,9 +4465,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         sized_child: ChildSizedHere<'_>,
         block_container: BlockContainer,
         entry: &in_flow_block_cache::InFlowBlockEntry,
-        fragment: std::sync::Arc<fragment_tree::Fragment>,
+        root: fragment_tree::RunRootFragment,
         containing_block_position_in_root: FfiCssPixelPoint,
-    ) -> (FfiCssPixelPoint, CssPixels) {
+    ) -> ReusedInFlowChild {
         let node = sized_child.node;
         self.run.callbacks.layout_trace().reused_in_flow_subtree(node);
         self.cells_laid_out_here(sized_child).set(entry.cells);
@@ -4105,17 +4492,18 @@ impl<'pass> BlockFormattingContext<'pass> {
             x: entry.content_inline_offset,
             y: self.flow_position() + block_start_margin + metrics.border_box_top(false),
         };
-        formatting_context::place_child(
+        // NB: A run that builds no fragments stores and reuses no in-flow layouts.
+        let placed = formatting_context::place_child(
             &self.run,
             node,
             formatting_context::PlacedChild::new(fragment_tree::FragmentGeometry {
                 cells: self.metrics_of(sized_child),
-                line_data: fragment.line_data.clone(),
+                line_data: root.fragment.line_data.clone(),
             })
             .with_in_flow_box_insets(insets),
             content_offset,
             None,
-            Some(fragment_tree::RunRootFragment::propagating_nothing(fragment)),
+            Some(root),
         );
         self.append_floating_boxes(
             entry
@@ -4140,12 +4528,63 @@ impl<'pass> BlockFormattingContext<'pass> {
             false,
             metrics.margin_bottom(),
         );
-        (
+        ReusedInFlowChild {
             content_offset,
-            content_offset.y
+            margin_box_block_end: content_offset.y
                 + metrics.content_block_size()
                 + metrics.margin_box_bottom(metrics.uses_collapsing_borders_model()),
+            introduced_clearance: introduces_clearance,
+            placed,
+        }
+    }
+
+    /// Where the contents of a box that landed at `content_offset` read floats from, relative to its border box, and
+    /// which of the first `float_count_before_box` floats reach them.
+    fn floats_in_reach_of_contents_laid_out_here(
+        &self,
+        node: Node,
+        float_reads_of_contents: FloatReads,
+        float_count_before_box: usize,
+        cells: &used_values::RootInputCells,
+        content_offset: FfiCssPixelPoint,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> (Option<CssPixels>, SmallVec<[FloatInReach; 2]>) {
+        let border_box_block_start = containing_block_position_in_root.y
+            + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
+            + content_offset.y
+            - cells.border_box_top(false);
+        let Some(block_start_of_reads) = float_reads_of_contents.block_start_in_root else {
+            return (None, SmallVec::new());
+        };
+        let read_start_from_border_box = block_start_of_reads - border_box_block_start;
+        (
+            Some(read_start_from_border_box),
+            self.floats_in_reach_of_contents(
+                float_count_before_box,
+                read_start_from_border_box,
+                border_box_block_start,
+                containing_block_position_in_root.x + content_offset.x,
+            ),
         )
+    }
+
+    /// The floats the contents of a box placed since there were `float_count_before_box`, relative to the content box
+    /// at `content_offset`.
+    fn floats_placed_by_contents_since(
+        &self,
+        float_count_before_box: usize,
+        content_offset: FfiCssPixelPoint,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> Vec<FloatingBox> {
+        self.floats.borrow()[float_count_before_box..]
+            .iter()
+            .map(|floating_box| {
+                floating_box.translated(
+                    -(containing_block_position_in_root.x + content_offset.x),
+                    -(containing_block_position_in_root.y + content_offset.y),
+                )
+            })
+            .collect()
     }
 
     fn conclude_in_flow_reuse(
@@ -4194,27 +4633,21 @@ impl<'pass> BlockFormattingContext<'pass> {
         if !reusable {
             return;
         }
-        let border_box_block_start = containing_block_position_in_root.y
-            + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
-            + content_offset.y
-            - used.border_box_top(false);
-        let read_start_from_border_box = float_reads_of_contents
-            .block_start_in_root
-            .map(|block_start_of_reads| block_start_of_reads - border_box_block_start);
+        let (read_start_from_border_box, floats_in_reach) = self.floats_in_reach_of_contents_laid_out_here(
+            node,
+            float_reads_of_contents,
+            float_count_before_child,
+            &used.get(),
+            content_offset,
+            containing_block_position_in_root,
+        );
         let floats_read_by_contents = in_flow_block_cache::FloatsReadByContents {
             margins_before_box,
             stored_in_open_top_margin_group: in_open_top_margin_group,
             introduced_clearance,
             read_before_top_margins_settled: float_reads_of_contents.before_top_margins_settled,
             read_start_from_border_box,
-            floats_in_reach: read_start_from_border_box.map_or_else(SmallVec::new, |read_start_from_border_box| {
-                self.floats_in_reach_of_contents(
-                    float_count_before_child,
-                    read_start_from_border_box,
-                    border_box_block_start,
-                    containing_block_position_in_root.x + content_offset.x,
-                )
-            }),
+            floats_in_reach,
         };
         let entry = in_flow_block_cache::InFlowBlockEntry {
             key,
@@ -4225,15 +4658,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             margins_left_by_contents: margins_left_by_contents
                 .expect("the contents of an in-flow child collapse their margins in a margin state of their own"),
             floats_read_by_contents,
-            floats_placed_by_contents: self.floats.borrow()[float_count_before_child..]
-                .iter()
-                .map(|floating_box| {
-                    floating_box.translated(
-                        -(containing_block_position_in_root.x + content_offset.x),
-                        -(containing_block_position_in_root.y + content_offset.y),
-                    )
-                })
-                .collect(),
+            floats_placed_by_contents: self.floats_placed_by_contents_since(
+                float_count_before_child,
+                content_offset,
+                containing_block_position_in_root,
+            ),
             outgoing_outside_marker_line: self.outside_marker_line.get(),
             depends_on_percentage_block_size,
             fragment_identity: placed.fragment.identity,
@@ -4366,8 +4795,52 @@ impl<'pass> BlockFormattingContext<'pass> {
         })
     }
 
-    fn lay_out_children_with_formatting_contexts_ahead(
+    fn job_of_child_ahead(
         &self,
+        child: Node,
+        block_container: BlockContainer,
+        child_input: &LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> Option<ChildJobAhead> {
+        let callbacks = &self.run.callbacks;
+        let facts = self.facts(child);
+        if parallel_layout::forks_in_flow_children()
+            && facts.is_box()
+            && !facts.is_floating_or_absolutely_positioned()
+            && !facts.is_list_item_marker_box()
+            && self.in_flow_child_depends_only_on_its_key_and_floats(child, block_container.node, None)
+        {
+            let key = self.in_flow_block_key_of(
+                child,
+                block_container.node,
+                block_container.cells.content_inline_size,
+                child_input.clone(),
+            );
+            let validity = fc_run_cache::run_root_validity(callbacks, child);
+            if self.stored_in_flow_layout_of(child, validity, &key).is_some() {
+                return None;
+            }
+            return Some(ChildJobAhead::InFlow(Box::new(InFlowChildJob {
+                child,
+                run_root: self.run.box_,
+                root_cells: self.root_cells,
+                block_container,
+                input: child_input.clone(),
+                containing_block_inline_position_in_root: containing_block_position_in_root.x,
+                key,
+                validity,
+            })));
+        }
+        let shape =
+            self.run_shape_of_child_ahead(child, block_container, child_input, containing_block_position_in_root)?;
+        (!formatting_context::shape_would_reuse_stored_run(callbacks, &shape)).then_some(ChildJobAhead::Run(shape))
+    }
+
+    /// Lays out `first_child` and the siblings after it that a block container can lay out on other threads, which the
+    /// walk over them then takes.
+    fn lay_out_children_ahead_from(
+        &self,
+        first_child: Node,
         block_container: BlockContainer,
         child_input: &LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
@@ -4379,31 +4852,171 @@ impl<'pass> BlockFormattingContext<'pass> {
             || self.is_line_clamp_container
             || self.max_lines.get().is_some()
             || self.facts(block_container.node).is_fieldset_box()
-            || self.float_reaches_below(
-                block_container.node,
-                CssPixels::default(),
-                containing_block_position_in_root,
-            )
         {
             return;
         }
         // NB: Sizing a child ahead reads floats only to be repeated when the child is laid out in this flow.
         let float_reads = self.float_reads.get();
-        let shapes =
-            parallel_layout::fork_candidates(&callbacks, callbacks.children(block_container.node), |child| child)
-                .into_iter()
-                .filter_map(|child| {
-                    self.run_shape_of_child_ahead(
-                        child,
-                        block_container,
-                        child_input,
-                        containing_block_position_in_root,
-                    )
-                })
-                .filter(|shape| !formatting_context::shape_would_reuse_stored_run(&callbacks, shape))
-                .collect();
+        let jobs = parallel_layout::fork_candidates(
+            &callbacks,
+            callbacks.siblings_from(first_child, Node::INVALID),
+            |child| child,
+        )
+        .into_iter()
+        .filter_map(|child| {
+            self.job_of_child_ahead(child, block_container, child_input, containing_block_position_in_root)
+        })
+        .collect();
         self.float_reads.set(float_reads);
-        parallel_layout::lay_out_shapes_ahead(&callbacks, shapes);
+        let Ok(tasks) =
+            parallel_layout::lay_out_in_parallel(&callbacks, jobs, ChildJobAhead::child, |callbacks, job| {
+                job.lay_out(callbacks)
+            })
+        else {
+            return;
+        };
+        self.in_flow_children_laid_out_ahead.borrow_mut().extend(
+            tasks
+                .into_iter()
+                .filter_map(|task| task.result)
+                .map(|laid_out_ahead| (laid_out_ahead.node.slot_index(), laid_out_ahead)),
+        );
+    }
+
+    /// Whether what `laid_out_ahead` read of floats, none being placed, is what it would read among the floats placed
+    /// so far: no float reaches below the position its contents first read floats from, wherever the child lands. Without
+    /// a negative margin, top margins that settle after a read keep that position at or above where it falls here, as
+    /// the margins before the child can only reduce how far later margins move the child away from it.
+    fn child_laid_out_ahead_stands(
+        &self,
+        node: Node,
+        laid_out_ahead: &InFlowChildLaidOutAhead,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> bool {
+        let entry = &laid_out_ahead.entry;
+        if self.outside_marker_line.get() != entry.key.incoming_outside_marker_line {
+            return false;
+        }
+        if !self.has_floating_boxes() {
+            return true;
+        }
+        if self.margin_state().has_open_top_margin_group() {
+            return false;
+        }
+        let floats_read = &entry.floats_read_by_contents;
+        let Some(read_start_from_border_box) = floats_read.read_start_from_border_box else {
+            return true;
+        };
+        let group_of_contents_is_negative = entry
+            .margins_left_by_contents
+            .top_margin_group
+            .is_some_and(|group| group.margins.most_negative != CssPixels::default());
+        if floats_read.read_before_top_margins_settled
+            && (group_of_contents_is_negative
+                || entry.cells.margin_top() < CssPixels::default()
+                || self.margin_state().margins_since_reset.most_negative != CssPixels::default())
+        {
+            return false;
+        }
+        self.rebuild_float_bands();
+        let flow_position = self.flow_position();
+        let position_past_floats =
+            self.flow_position_past_floats_cleared_by(node, flow_position, containing_block_position_in_root);
+        let block_start_margin = {
+            let mut margin_state = self.margin_state().clone();
+            let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
+            collapse_block_start_margin_of_reused_child(
+                &mut margin_state,
+                &entry.cells,
+                &mut margins_left_by_contents,
+                position_past_floats.is_some(),
+            )
+        };
+        let read_start_in_root = containing_block_position_in_root.y
+            + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
+            + position_past_floats.unwrap_or(flow_position)
+            + block_start_margin
+            + read_start_from_border_box;
+        self.lowest_left_margin_edge
+            .get()
+            .max(self.lowest_right_margin_edge.get())
+            .is_none_or(|edge| edge <= read_start_in_root)
+    }
+
+    /// Places a child laid out ahead of this walk, if that layout holds among the floats placed so far.
+    fn place_child_if_its_layout_ahead_stands(
+        &self,
+        sized_child: ChildSizedHere<'_>,
+        block_container: BlockContainer,
+        containing_block_position_in_root: FfiCssPixelPoint,
+        fragment_facts: run_state::FragmentFactsDecidedByParent,
+    ) -> Option<LaidOutBlockLevelBox> {
+        let node = sized_child.node;
+        let laid_out_ahead = {
+            let mut laid_out_ahead = self.in_flow_children_laid_out_ahead.borrow_mut();
+            if laid_out_ahead.is_empty() {
+                return None;
+            }
+            laid_out_ahead.remove(&node.slot_index())?
+        };
+        if !self.child_laid_out_ahead_stands(node, &laid_out_ahead, containing_block_position_in_root) {
+            return None;
+        }
+        let InFlowChildLaidOutAhead {
+            mut entry,
+            root,
+            host_findings,
+            ..
+        } = laid_out_ahead;
+        let margins_before_box = self.margin_state().margins_since_reset;
+        let in_open_top_margin_group = self.margin_state().has_open_top_margin_group();
+        let abspos_containing_block_info_contributions_received =
+            self.abspos_containing_block_info_contributions_received();
+        let host_findings_noted_so_far = self.run.callbacks.host_findings_noted_so_far();
+        self.run.callbacks.receive_host_findings(host_findings);
+        let reused = self.reuse_in_flow_child(
+            sized_child,
+            block_container,
+            &entry,
+            root,
+            containing_block_position_in_root,
+        );
+        self.note_floats_read_by_reused_contents(
+            node,
+            &entry,
+            reused.content_offset,
+            containing_block_position_in_root,
+            in_open_top_margin_group,
+        );
+        let baselines = entry.baselines;
+        // NB: Reuse hands the box nothing past its fragment, and has the host hear nothing.
+        if self.abspos_containing_block_info_contributions_received()
+            == abspos_containing_block_info_contributions_received
+            && self.run.callbacks.host_findings_noted_so_far() == host_findings_noted_so_far
+            && let Some(placed) = reused.placed.as_ref().filter(|placed| !placed.exports_payloads)
+        {
+            entry.fragment_identity = placed.fragment.identity;
+            entry.floats_read_by_contents.margins_before_box = margins_before_box;
+            entry.floats_read_by_contents.stored_in_open_top_margin_group = in_open_top_margin_group;
+            entry.floats_read_by_contents.introduced_clearance = reused.introduced_clearance;
+            let committed_identity = self
+                .run
+                .callbacks
+                .arena()
+                .with_current_committed_fragment(node, |fragment| fragment.identity);
+            self.run
+                .callbacks
+                .in_flow_block_cache_store()
+                .store(node.slot_index(), entry, committed_identity);
+        }
+        Some(LaidOutBlockLevelBox {
+            content_offset: Some(reused.content_offset),
+            margin_box_block_end: Some(reused.margin_box_block_end),
+            ..LaidOutBlockLevelBox::of_box(
+                Self::laid_out_box_of_box_laid_out_here(sized_child, baselines),
+                fragment_facts,
+            )
+        })
     }
 
     fn layout_block_level_children(
@@ -4450,12 +5063,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         if fragmentainer.is_none() {
             self.prepare_inline_content_of_children_ahead(block_container.node);
-            self.lay_out_children_with_formatting_contexts_ahead(
-                block_container,
-                &child_input,
-                containing_block_position_in_root,
-            );
         }
+        let mut lays_out_children_ahead = fragmentainer.is_none();
         let mut summary = ChildrenSummary::default();
         for child in self
             .run
@@ -4468,6 +5077,24 @@ impl<'pass> BlockFormattingContext<'pass> {
                     FragmentationStep::Stop => break,
                     FragmentationStep::LayOut => {}
                 }
+            }
+            // NB: Children reached while a float hangs below the flow or a marker waits for its line would be laid out
+            //     again, so they go one by one until neither holds.
+            if lays_out_children_ahead
+                && self.outside_marker_line.get().is_none()
+                && !self.float_reaches_below(
+                    block_container.node,
+                    self.flow_position(),
+                    containing_block_position_in_root,
+                )
+            {
+                lays_out_children_ahead = false;
+                self.lay_out_children_ahead_from(
+                    child,
+                    block_container,
+                    &child_input,
+                    containing_block_position_in_root,
+                );
             }
             let invisible = self.line_clamp_reached() && !self.facts(child).is_absolutely_positioned();
             if invisible {
