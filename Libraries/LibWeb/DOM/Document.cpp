@@ -1654,12 +1654,12 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Opti
     //          parser script runner's pending parsing-blocking and deferred scripts when replacing the parser, and
     //          Gecko cancels pending parser script loads when terminating the parser. Stop discarded scripts from
     //          delaying the replacement document's load event before removing them from the parser's queues.
-    if (m_pending_parsing_blocking_script)
-        m_pending_parsing_blocking_script->stop_delaying_document_load_event({});
+    if (auto* pending_parsing_blocking_script = this->pending_parsing_blocking_script())
+        pending_parsing_blocking_script->stop_delaying_document_load_event({});
     if (m_pending_parsing_blocking_svg_script)
         m_pending_parsing_blocking_svg_script->stop_delaying_document_load_event({});
     for (auto& script : m_scripts_to_execute_when_parsing_has_finished)
-        script->stop_delaying_document_load_event({});
+        as<HTML::HTMLOrSVGScriptElement>(*script).stop_delaying_document_load_event({});
     m_pending_parsing_blocking_script = nullptr;
     m_pending_parsing_blocking_svg_script = nullptr;
     m_scripts_to_execute_when_parsing_has_finished.clear();
@@ -4098,17 +4098,24 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(Utf16FlyString const&
     return GC::Ref(*event);
 }
 
-void Document::set_pending_parsing_blocking_script(HTML::HTMLScriptElement* script)
+void Document::set_pending_parsing_blocking_script(HTML::HTMLOrSVGScriptElement* script)
 {
-    m_pending_parsing_blocking_script = script;
+    m_pending_parsing_blocking_script = script ? &script->as_element() : nullptr;
 }
 
-GC::Ref<HTML::HTMLScriptElement> Document::take_pending_parsing_blocking_script(Badge<HTML::HTMLParser>)
+HTML::HTMLOrSVGScriptElement* Document::pending_parsing_blocking_script()
+{
+    if (!m_pending_parsing_blocking_script)
+        return nullptr;
+    return &as<HTML::HTMLOrSVGScriptElement>(*m_pending_parsing_blocking_script);
+}
+
+HTML::HTMLOrSVGScriptElement& Document::take_pending_parsing_blocking_script(Badge<HTML::HTMLParser>)
 {
     VERIFY(m_pending_parsing_blocking_script);
     auto script = m_pending_parsing_blocking_script;
     m_pending_parsing_blocking_script = nullptr;
-    return *script;
+    return as<HTML::HTMLOrSVGScriptElement>(*script);
 }
 
 void Document::set_pending_parsing_blocking_svg_script(SVG::SVGScriptElement* script)
@@ -4124,9 +4131,18 @@ GC::Ref<SVG::SVGScriptElement> Document::take_pending_parsing_blocking_svg_scrip
     return *script;
 }
 
-void Document::add_script_to_execute_when_parsing_has_finished(Badge<HTML::HTMLScriptElement>, HTML::HTMLScriptElement& script)
+Variant<GC::Ref<HTML::HTMLScriptElement>, GC::Ref<SVG::SVGScriptElement>, Empty> Document::current_script_for_bindings() const
 {
-    m_scripts_to_execute_when_parsing_has_finished.append(script);
+    if (auto* html_script_element = as_if<HTML::HTMLScriptElement>(m_current_script.ptr()))
+        return GC::Ref { *html_script_element };
+    if (auto* svg_script_element = as_if<SVG::SVGScriptElement>(m_current_script.ptr()))
+        return GC::Ref { *svg_script_element };
+    return Empty {};
+}
+
+void Document::add_script_to_execute_when_parsing_has_finished(Badge<HTML::HTMLOrSVGScriptElement>, HTML::HTMLOrSVGScriptElement& script)
+{
+    m_scripts_to_execute_when_parsing_has_finished.append(script.as_element());
 }
 
 // https://dom.spec.whatwg.org/#dom-document-importnode

@@ -67,15 +67,16 @@ def validate_direct_getter(context: GenerationContext, interface: Interface, att
 
     description = f"[DirectGetter] attribute '{attribute.name}' on '{interface.name}'"
     resolved_type = context.resolve_typedef(attribute.type)
-    target_interface = context.interface(resolved_type)
-    if target_interface is None or target_interface.is_callback_interface:
-        raise RuntimeError(f"{description} must have an interface type")
-    if target_interface.extended_attributes.get("ImplementedIn") == "Rust":
-        # NB: The engine reads the wrapper of a direct getter's object as a Wrappable keeps it, and the object of an
-        #     interface implemented in Rust is a cell that keeps its wrapper elsewhere.
-        raise RuntimeError(f"{description} cannot return {target_interface.name}, which is implemented in Rust")
-    if not cpp_type_for_idl_type_details(resolved_type, context).gc_ref_target_type:
-        raise RuntimeError(f"{description} must convert from a GC pointer")
+    for target_type in resolved_type.flattened_member_types():
+        target_interface = context.interface(target_type)
+        if target_interface is None or target_interface.is_callback_interface:
+            raise RuntimeError(f"{description} must have an interface type or a union of interface types")
+        if target_interface.extended_attributes.get("ImplementedIn") == "Rust":
+            # NB: The engine reads the wrapper of a direct getter's object as a Wrappable keeps it, and the object of an
+            #     interface implemented in Rust is a cell that keeps its wrapper elsewhere.
+            raise RuntimeError(f"{description} cannot return {target_interface.name}, which is implemented in Rust")
+        if not cpp_type_for_idl_type_details(target_type, context).gc_ref_target_type:
+            raise RuntimeError(f"{description} must convert from a GC pointer")
 
     incompatible_extended_attributes = (
         "CachedAttribute",

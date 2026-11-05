@@ -482,6 +482,7 @@ set(SOURCES
     HTML/HTMLOptionElement.cpp
     HTML/HTMLOptionsCollection.cpp
     HTML/HTMLOrSVGOrMathMLElement.cpp
+    HTML/HTMLOrSVGScriptElement.cpp
     HTML/HTMLOutputElement.cpp
     HTML/HTMLParagraphElement.cpp
     HTML/HTMLParamElement.cpp

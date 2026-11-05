@@ -723,6 +723,7 @@ class HTMLOListElement;
 class HTMLOptGroupElement;
 class HTMLOptionElement;
 class HTMLOptionsCollection;
+class HTMLOrSVGScriptElement;
 class HTMLOutputElement;
 class HTMLParagraphElement;
 class HTMLParamElement;

@@ -83,8 +83,7 @@ partial interface Document {
     [SameObject] readonly attribute HTMLCollection forms;
     [SameObject] readonly attribute HTMLCollection scripts;
     NodeList getElementsByName(DOMString elementName);
-    // FIXME: currentScript should be a HTMLOrSVGScriptElement.
-    [DirectGetter] readonly attribute HTMLScriptElement? currentScript; // classic scripts in a document tree only
+    [DirectGetter, ImplementedAs=current_script_for_bindings] readonly attribute HTMLOrSVGScriptElement? currentScript; // classic scripts in a document tree only
 
     // dynamic markup insertion
     [CEReactions] Document open(optional DOMString unused1, optional DOMString unused2); // both arguments are ignored
@@ -115,6 +114,7 @@ partial interface Document {
 
 enum DocumentReadyState { "loading", "interactive", "complete" };
 enum DocumentVisibilityState { "visible", "hidden" };
+typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#Document-partial
 partial interface Document {
