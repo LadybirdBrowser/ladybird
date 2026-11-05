@@ -284,12 +284,7 @@ pub(crate) fn wrap<T: Interface>(cx: &CallContext, object: Ref<T>) -> Gc<Object>
             .relevant_realm()
             .filter(|relevant_realm| wrapper_world_of(vm, *relevant_realm) == wrapper_world)
             .unwrap_or(realm);
-        let wrapper = create_wrapper(
-            vm,
-            wrapper_realm,
-            interface_prototype_object(wrapper_realm, T::INTERFACE_NAME),
-            object,
-        );
+        let wrapper = create_wrapper(vm, wrapper_realm, object);
         object.main_world_wrapper.set(Some(wrapper));
         return wrapper.upcast();
     }
@@ -300,7 +295,7 @@ pub(crate) fn wrap<T: Interface>(cx: &CallContext, object: Ref<T>) -> Gc<Object>
         // SAFETY: LibWeb returns a live wrapper.
         return unsafe { Gc::from_non_null(wrapper) };
     }
-    let wrapper = create_wrapper(vm, realm, interface_prototype_object(realm, T::INTERFACE_NAME), object);
+    let wrapper = create_wrapper(vm, realm, object);
     register_wrapper_outside_main_world(realm, object, wrapper);
     wrapper.upcast()
 }
@@ -318,7 +313,8 @@ pub(crate) fn construct_wrapper<T: Interface>(
         object.main_world_wrapper.get().is_none(),
         "the constructor steps create no wrapper of the new object"
     );
-    let wrapper = create_wrapper(vm, realm, prototype, object);
+    let wrapper = create_wrapper(vm, realm, object);
+    wrapper.set_prototype(vm, Some(prototype));
     if wrapper_world_of(vm, realm).is_main_world() {
         object.main_world_wrapper.set(Some(wrapper));
     } else {
@@ -334,7 +330,12 @@ fn register_wrapper_outside_main_world<T: Interface>(realm: Gc<Realm>, object: R
     }
 }
 
-fn create_wrapper<T: Interface>(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>, object: Ref<T>) -> Gc<HostObject> {
+/// A new wrapper of the object, which always starts from the interface's own prototype. Shapes do not know the class of
+/// their objects, so a wrapper created directly with the prototype of another interface would share the shape of that
+/// interface's wrappers, and a direct getter validated on those would read a field of the other interface out of this
+/// wrapper's implementation.
+fn create_wrapper<T: Interface>(vm: &Vm, realm: Gc<Realm>, object: Ref<T>) -> Gc<HostObject> {
+    let prototype = interface_prototype_object(realm, T::INTERFACE_NAME);
     // SAFETY: The wrapper class's hooks expect a wrappable exactly for an interface that inherits from an interface
     //         implemented in C++, whose objects own one, and the wrappable and the host data are live cells.
     let wrapper = unsafe {

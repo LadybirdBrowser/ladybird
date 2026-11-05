@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // Enough reads for the JIT to compile the function with the getter of the element's shape inlined.
+    const WARM_UP_READS = 10000;
+
+    function check(name, element, construct) {
+        println(name);
+
+        // NB: Each case needs a function of its own, whose cache only has seen the element.
+        const parentNodeOf = new Function("object", "return object.parentNode;");
+        const parent = element.parentNode;
+        for (let i = 0; i < WARM_UP_READS; ++i)
+            parentNodeOf(element);
+
+        const reader = construct();
+        println(Object.getPrototypeOf(reader) === Object.getPrototypeOf(element));
+
+        // Reading the target caches the wrapper as the main world wrapper of the reader's EventTarget.
+        const event = new Event("x");
+        EventTarget.prototype.dispatchEvent.call(reader, event);
+        println(event.target === reader);
+
+        for (let i = 0; i < 2; ++i) {
+            try {
+                parentNodeOf(reader);
+                println("FAIL: no exception");
+            } catch (e) {
+                println(e.name);
+            }
+        }
+        println(parentNodeOf(element) === parent);
+    }
+
+    function newTargetWithPrototype(prototype) {
+        function NewTarget() {}
+        NewTarget.prototype = prototype;
+        return NewTarget;
+    }
+
+    test(() => {
+        const element = document.createElement("div");
+        document.body.appendChild(element);
+
+        check("Constructor", element, () => {
+            return Reflect.construct(FileReader, [], newTargetWithPrototype(HTMLDivElement.prototype));
+        });
+
+        class Subclass extends FileReader {}
+        check("Subclass", element, () => {
+            return Reflect.construct(Subclass, [], newTargetWithPrototype(HTMLDivElement.prototype));
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const otherWindow = iframe.contentWindow;
+        const otherElement = otherWindow.document.createElement("div");
+        otherWindow.document.body.appendChild(otherElement);
+
+        check("Other realm", otherElement, () => {
+            const newTarget = newTargetWithPrototype(otherWindow.HTMLDivElement.prototype);
+            return Reflect.construct(otherWindow.FileReader, [], newTarget);
+        });
+    });
+</script>
