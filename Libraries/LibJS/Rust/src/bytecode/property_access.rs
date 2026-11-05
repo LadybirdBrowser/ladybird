@@ -450,7 +450,7 @@ fn throw_null_or_undefined_property_access<T>(
     vm: &Vm,
     base_value: Value,
     base_identifier: Option<Utf16FlyString>,
-    property_identifier: &PropertyKey,
+    property_identifier: &dyn Utf16Display,
 ) -> ThrowCompletionOr<T> {
     assert!(base_value.is_nullish());
 
@@ -468,6 +468,30 @@ fn throw_null_or_undefined_property_access<T>(
     )
 }
 
+/// Throw the TypeError of a put to `base` if it is null or undefined. ToObject converts the base before the key is
+/// converted to a property key, so `property_name` is the property as the error names it: a key, or the value a key
+/// has yet to be computed from.
+pub fn throw_if_nullish_put_base(
+    vm: &Vm,
+    base: Value,
+    get_base_identifier: impl FnOnce() -> Option<Utf16FlyString>,
+    property_name: &dyn Utf16Display,
+    strict: Strict,
+) -> ThrowCompletionOr<()> {
+    if !base.is_nullish() {
+        return Ok(());
+    }
+    // Better error message than to_object would give
+    if strict == Strict::Yes {
+        return vm.throw_completion(
+            ErrorKind::TypeError,
+            ErrorType::ReferenceNullishSetProperty,
+            &[property_name, &base],
+        );
+    }
+    throw_null_or_undefined_property_access(vm, base, get_base_identifier(), property_name)
+}
+
 #[allow(clippy::too_many_arguments)]
 #[inline]
 pub fn put_by_property_key(
@@ -482,19 +506,8 @@ pub fn put_by_property_key(
     caches: Option<&PropertyLookupCache>,
     cache_key: u64,
 ) -> ThrowCompletionOr<()> {
-    // Better error message than to_object would give
-    if strict == Strict::Yes && base.is_nullish() {
-        return vm.throw_completion(
-            ErrorKind::TypeError,
-            ErrorType::ReferenceNullishSetProperty,
-            &[name, &base],
-        );
-    }
-
     // a. Let baseObj be ? ToObject(V.[[Base]]).
-    if base.is_nullish() {
-        return throw_null_or_undefined_property_access(vm, base, get_base_identifier(), name);
-    }
+    throw_if_nullish_put_base(vm, base, get_base_identifier, name, strict)?;
     let object = base.to_object(vm)?;
 
     if kind == PutKind::Getter || kind == PutKind::Setter {
