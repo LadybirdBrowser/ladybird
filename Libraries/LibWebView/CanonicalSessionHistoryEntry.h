@@ -42,6 +42,7 @@ class WEBVIEW_API CanonicalDocumentState final : public RefCounted<CanonicalDocu
 public:
     static NonnullRefPtr<CanonicalDocumentState> create(Web::HTML::CrossProcessId);
     static NonnullRefPtr<CanonicalDocumentState> create(Web::HTML::CrossProcessId, NonnullRefPtr<CanonicalDocument>);
+    static NonnullRefPtr<CanonicalDocumentState> create_from_descriptor(Web::HTML::SessionHistoryDocumentStateDescriptor const&);
 
     ~CanonicalDocumentState();
 

@@ -310,7 +310,7 @@ private:
     virtual void revoke_history_operation(Web::HTML::CrossProcessId operation_id) override;
     virtual void beforeunload_check_result(Web::HTML::CrossProcessId operation_id, Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) override;
     virtual void changing_navigable_history_job_reached_population(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::NavigationSourceSnapshot active_document_source_snapshot_params) override;
-    virtual void changing_navigable_history_job_ready(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only, Optional<Web::HTML::CrossProcessId> target_document_id) override;
+    virtual void changing_navigable_history_job_ready(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only) override;
     virtual void descendant_unload_task_complete(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void request_navigable_document_abort(Web::HTML::CrossProcessId navigable_id) override;
     virtual void request_navigable_document_unfullscreen(Web::HTML::CrossProcessId navigable_id) override;

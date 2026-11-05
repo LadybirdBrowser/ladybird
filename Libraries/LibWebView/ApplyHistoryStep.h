@@ -73,11 +73,13 @@ struct WEBVIEW_API ChangingNavigable {
     Optional<Continuation> continuation;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#changing-navigable-continuation-state
-    // NB: Its target entry and navigable are the record's. The process running the job reports the rest.
+    // NB: Its target entry and navigable are the record's. The process running the job reports update-only.
     RefPtr<CanonicalDocument> displayed_document;
     bool update_only { false };
-    // targetEntry's document, as the job left it.
-    Optional<Web::HTML::CrossProcessId> target_document_id;
+
+    // Steps 2 and 3 of afterDocumentPopulated, which the continuation applies after potential unloads.
+    bool clears_classic_history_api_state { false };
+    bool clears_navigable_target_name { false };
 
     // targetEntry's document, as the job's process has it.
     RefPtr<CanonicalDocument> target_document(WebContentPage const& job_page) const;
