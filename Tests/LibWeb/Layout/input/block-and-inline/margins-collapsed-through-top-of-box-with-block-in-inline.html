@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+* { margin: 0; }
+body { font: 10px/20px SerenitySans; }
+.scenario { display: flow-root; width: 200px; margin-bottom: 100px; }
+.box { margin-top: 30px; border-bottom: 1px solid black; }
+.empty { margin: 10px 0; }
+.before { height: 10px; margin-bottom: 50px; }
+</style>
+<div class="scenario"><div class="box" id="in-inline"><span><div class="empty"></div></span></div></div>
+<div class="scenario"><div class="before"></div><div class="box" id="in-inline-after-sibling"><span><div class="empty"></div></span></div></div>
+<div class="scenario"><div class="box" id="block-child"><div class="empty"></div></div></div>

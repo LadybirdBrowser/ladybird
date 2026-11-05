@@ -1,0 +1,20 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 423 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 323 0+0+0] children: not-inline
+      BlockContainer <div.scenario> at [0,0] [0+0+0 200 0+0+600] [0+0+0 31 0+0+100] [BFC] children: not-inline
+        BlockContainer <div#in-inline.box> at [0,30] [0+0+0 200 0+0+0] [30+0+0 0 0+1+0] children: inline
+          InlineNode <span> at [0,30] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+            frag 0 from BlockContainer start: 0, length: 0, rect: [0,30 200x0] baseline: 0
+            BlockContainer <div.empty> at [0,30] [0+0+0 200 0+0+0] [10+0+0 0 0+0+10] children: not-inline
+      BlockContainer <div.scenario> at [0,131] [0+0+0 200 0+0+600] [0+0+0 61 0+0+100] [BFC] children: not-inline
+        BlockContainer <div.before> at [0,131] [0+0+0 200 0+0+0] [0+0+0 10 0+0+50] children: not-inline
+        BlockContainer <div#in-inline-after-sibling.box> at [0,191] [0+0+0 200 0+0+0] [30+0+0 0 0+1+0] children: inline
+          InlineNode <span> at [0,191] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+            frag 0 from BlockContainer start: 0, length: 0, rect: [0,191 200x0] baseline: 0
+            BlockContainer <div.empty> at [0,191] [0+0+0 200 0+0+0] [10+0+0 0 0+0+10] children: not-inline
+      BlockContainer <div.scenario> at [0,292] [0+0+0 200 0+0+600] [0+0+0 31 0+0+100] [BFC] children: not-inline
+        BlockContainer <div#block-child.box> at [0,322] [0+0+0 200 0+0+0] [30+0+0 0 0+1+0] children: not-inline
+          BlockContainer <div.empty> at [0,322] [0+0+0 200 0+0+0] [10+0+0 0 0+0+10] children: not-inline
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x423] (z-index: auto)
