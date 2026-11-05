@@ -1,0 +1,13 @@
+Ladybird makes no ::before or ::after boxes for a text input, a
+<textarea>, a range input, an input shown as a button, or a <select>,
+and keeps them for a <button>. Blink’s CanHaveGeneratedChildren() makes
+none for text controls, menu-list selects, and input buttons, though it
+does make them for a range input. WebKit’s canHaveGeneratedChildren()
+returns false for RenderTextControl, RenderMenuList, RenderSlider, and a
+RenderButton whose element is an <input>. And Gecko builds its
+InputButtonControlFrame as a leaf, and its CreateGeneratedContentItem()
+skips any element with a user-agent widget; it passes all of WPT’s
+css/css-pseudo/pseudo-replaced-elements.html, and draws nothing for a
+<textarea> or a <select> either. The engines differ on a list-box
+<select>: Blink and WebKit make its ::before and ::after, as its box is
+an ordinary block to them. Gecko makes none, and neither does Ladybird.
