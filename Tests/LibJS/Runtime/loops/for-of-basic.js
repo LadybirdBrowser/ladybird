@@ -141,6 +141,25 @@ describe("special left hand sides", () => {
         expect("'use strict'; for (f() of []);").not.toEval();
     });
 
+    test("variable in its temporal dead zone", () => {
+        function assignLet() {
+            for (value of [1]);
+            let value;
+        }
+        function assignConst() {
+            for (value of [1]);
+            const value = 0;
+        }
+        function assignInForIn() {
+            for (value in { key: 1 });
+            let value;
+        }
+
+        expect(assignLet).toThrow(ReferenceError);
+        expect(assignConst).toThrow(ReferenceError);
+        expect(assignInForIn).toThrow(ReferenceError);
+    });
+
     test("Cannot change constant declaration in body", () => {
         const vals = [];
         for (const v of [1, 2]) {

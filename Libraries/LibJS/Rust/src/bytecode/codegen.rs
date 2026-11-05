@@ -5593,6 +5593,7 @@ fn emit_store_to_evaluated_reference(generator: &mut Generator, reference: &Eval
 fn emit_store_to_reference(generator: &mut Generator, target: &Expression, value: &ScopedOperand) {
     match &target.inner {
         ExpressionKind::Identifier(ident) => {
+            emit_tdz_check_if_needed(generator, *ident);
             emit_set_variable(generator, *ident, value);
         }
         ExpressionKind::Member(data) => {
