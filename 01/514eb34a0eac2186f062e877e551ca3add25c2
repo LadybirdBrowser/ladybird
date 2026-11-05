@@ -1,0 +1,7 @@
+Ladybird sends no wheel event to a page for a step whose deltas are all
+zero, as Gecko does in WidgetEvent::IsAllowedToDispatchDOMEvent(). And
+WebKit runs only the default handling of such an event, stopping its
+propagation in Element::dispatchWheelEvent(), whose comment says some
+sites break otherwise. Blink dispatches neither the may-begin nor the
+ended or canceled phase of a touchpad gesture to the page, in
+MouseWheelEventManager::HandleWheelEvent().
