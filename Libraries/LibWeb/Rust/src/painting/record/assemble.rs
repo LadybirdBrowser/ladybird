@@ -10,7 +10,9 @@
 //! way: when assembly starts, the damage set is complete by construction.
 
 use super::PaintPhase;
-use super::order_tree::{ChildEntry, ChildKey, OutputSize, PaintOrderTree, ProducerKind, ScopeId, ScopeMarks};
+use super::order_tree::{
+    ChildEntry, ChildKey, OutputSize, PaintOrderTree, PaintOrderTreeAccess, ProducerKind, ScopeId, ScopeMarks,
+};
 use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_order_plan::{PaintOrderItem, PaintProducer, PaintScope, PaintScopeKind};
@@ -140,13 +142,12 @@ pub(crate) fn frame_is_unchanged(tree: &PaintOrderTree, has_damage: bool, window
 
 pub(crate) struct Assembler<'a, H: AssemblyHost> {
     host: &'a mut H,
-    tree: &'a mut PaintOrderTree,
+    // A frame that publishes nothing still marks damaged paths, but the tree's structure keeps
+    // describing the published recording.
+    tree: PaintOrderTreeAccess<'a>,
     marks: &'a mut ScopeMarks,
     // The byte offset of the published root scope, when a published recording can be copied from.
     source_prologue_bytes: Option<u32>,
-    // Off for a frame that publishes nothing: it still marks damaged paths, but the tree's
-    // structure keeps describing the published recording.
-    rewrites_tree: bool,
     // The published recording was made in the other window focus state.
     window_focus_changed: bool,
     pending_copy: Option<PendingCopy>,
@@ -155,10 +156,9 @@ pub(crate) struct Assembler<'a, H: AssemblyHost> {
 impl<'a, H: AssemblyHost> Assembler<'a, H> {
     pub(crate) fn new(
         host: &'a mut H,
-        tree: &'a mut PaintOrderTree,
+        tree: PaintOrderTreeAccess<'a>,
         marks: &'a mut ScopeMarks,
         source_prologue_bytes: Option<u32>,
-        rewrites_tree: bool,
         window_focus_changed: bool,
     ) -> Self {
         Self {
@@ -166,7 +166,6 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             tree,
             marks,
             source_prologue_bytes,
-            rewrites_tree,
             window_focus_changed,
             pending_copy: None,
         }
@@ -187,32 +186,36 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         // from records everything and never consults it.
         if self.source_prologue_bytes.is_some() {
             for row in self.host.damaged_rows() {
-                for scope in self.tree.scopes_owned_by(row) {
-                    self.tree.mark_path_to_root_damaged(scope, self.marks);
+                let tree = self.tree.read();
+                for scope in tree.scopes_owned_by(row) {
+                    tree.mark_path_to_root_damaged(scope, self.marks);
                 }
             }
         }
-        let published_root = self.tree.root();
+        let published_root = self.tree.read().root();
         let output = match self.source_prologue_bytes {
-            Some(prologue_bytes) if !published_root.is_none() && self.tree.scope_of(published_root) == root_scope => {
+            Some(prologue_bytes)
+                if !published_root.is_none() && self.tree.read().scope_of(published_root) == root_scope =>
+            {
                 let cursor = SourceCursor {
                     bytes: prologue_bytes,
                     hits: 0,
                 };
                 let entry = self.assemble_scope(published_root, cursor);
                 self.flush_pending_copy();
-                if self.rewrites_tree {
-                    self.tree.finish_recording(published_root, entry);
+                if let Some(tree) = self.tree.rewrites() {
+                    tree.finish_recording(published_root, entry);
                 }
                 entry.output()
             }
-            _ if self.rewrites_tree => {
+            _ if self.tree.is_rewriting() => {
+                let tree = self.rewritten_tree();
                 if !published_root.is_none() {
-                    self.tree.detach_scope(published_root);
+                    tree.detach_scope(published_root);
                 }
-                let root = self.tree.allocate_scope(root_scope, ScopeId::NONE);
+                let root = tree.allocate_scope(root_scope, ScopeId::NONE);
                 let entry = self.record_scope_fresh(root);
-                self.tree.finish_recording(root, entry);
+                self.rewritten_tree().finish_recording(root, entry);
                 entry.output()
             }
             _ => self.record_scope_outside_tree(root_scope),
@@ -221,8 +224,14 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         output
     }
 
+    fn rewritten_tree(&mut self) -> &mut PaintOrderTree {
+        self.tree
+            .rewrites()
+            .expect("only a frame that rewrites the tree records into it")
+    }
+
     fn assemble_scope(&mut self, id: ScopeId, cursor: SourceCursor) -> ChildEntry {
-        let scope = self.tree.scope_of(id);
+        let scope = self.tree.read().scope_of(id);
         let damage = self.host.effective_damage(scope.owner);
         let order_damage = match scope.kind {
             PaintScopeKind::PaintedAsStackingContext => {
@@ -235,7 +244,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         }
         self.host
             .observe(AssemblyEvent::ScopeBegin(scope, ScopeAction::Assembled));
-        let published: SmallVec<[ChildEntry; 16]> = self.tree.children(id).iter().copied().collect();
+        let published: SmallVec<[ChildEntry; 16]> = self.tree.read().children(id).iter().copied().collect();
         let mut entries: SmallVec<[ChildEntry; 16]> = SmallVec::with_capacity(published.len());
         let mut total = OutputSize::default();
         let mut child_cursor = cursor;
@@ -247,7 +256,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                         self.assemble_scope(child, child_cursor)
                     } else {
                         self.copy(child_cursor, published_output);
-                        let child_scope = self.tree.scope_of(child);
+                        let child_scope = self.tree.read().scope_of(child);
                         self.host.observe(AssemblyEvent::ScopeCopied(child_scope));
                         entry
                     }
@@ -266,8 +275,8 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             total.add(assembled.output());
             entries.push(assembled);
         }
-        if self.rewrites_tree {
-            self.tree.set_children(id, &entries);
+        if let Some(tree) = self.tree.rewrites() {
+            tree.set_children(id, &entries);
         }
         self.host.observe(AssemblyEvent::ScopeEnd(scope));
         ChildEntry::scope(id, total)
@@ -288,9 +297,9 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
     // The plan is rebuilt; published children it still lists are copied or walked from their
     // old positions, the rest are recorded, and published children it no longer lists retire.
     fn rebuild_scope(&mut self, id: ScopeId, cursor: SourceCursor, damage: PaintDamage) -> ChildEntry {
-        let scope = self.tree.scope_of(id);
+        let scope = self.tree.read().scope_of(id);
         let plan = self.host.plan_scope(scope);
-        let published: SmallVec<[ChildEntry; 16]> = self.tree.children(id).iter().copied().collect();
+        let published: SmallVec<[ChildEntry; 16]> = self.tree.read().children(id).iter().copied().collect();
         let mut published_cursors: SmallVec<[SourceCursor; 16]> = SmallVec::with_capacity(published.len());
         let mut child_cursor = cursor;
         for entry in &published {
@@ -346,6 +355,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                 PaintOrderItem::Scope(child_scope) => {
                     let found = self
                         .tree
+                        .read()
                         .published_scope(child_scope, id)
                         .and_then(|child| published_index_of(ChildKey::Scope(child)).map(|index| (child, index)));
                     let assembled = match found {
@@ -359,8 +369,8 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                                 published[index]
                             }
                         }
-                        None if self.rewrites_tree => {
-                            let child = self.tree.allocate_scope(child_scope, id);
+                        None if self.tree.is_rewriting() => {
+                            let child = self.rewritten_tree().allocate_scope(child_scope, id);
                             self.record_scope_fresh(child)
                         }
                         None => {
@@ -385,25 +395,24 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         matched: &[bool],
         entries: &[ChildEntry],
     ) {
-        if !self.rewrites_tree {
+        let Some(tree) = self.tree.rewrites() else {
             return;
-        }
+        };
         for (entry, matched) in published.iter().zip(matched) {
             if let (ChildKey::Scope(child), false) = (entry.key(), *matched) {
-                self.tree.detach_scope(child);
+                tree.detach_scope(child);
             }
         }
-        self.tree.set_children(id, entries);
+        tree.set_children(id, entries);
     }
 
     fn record_scope_fresh(&mut self, id: ScopeId) -> ChildEntry {
-        debug_assert!(self.rewrites_tree);
-        let scope = self.tree.scope_of(id);
+        let scope = self.rewritten_tree().scope_of(id);
         let plan = self.host.plan_scope(scope);
         if !plan.active {
             self.host
                 .observe(AssemblyEvent::ScopeBegin(scope, ScopeAction::Inactive));
-            self.tree.set_children(id, &[]);
+            self.rewritten_tree().set_children(id, &[]);
             self.host.observe(AssemblyEvent::ScopeEnd(scope));
             return ChildEntry::scope(id, OutputSize::default());
         }
@@ -421,14 +430,14 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                     }
                 }
                 PaintOrderItem::Scope(child_scope) => {
-                    let child = self.tree.allocate_scope(child_scope, id);
+                    let child = self.rewritten_tree().allocate_scope(child_scope, id);
                     let recorded = self.record_scope_fresh(child);
                     total.add(recorded.output());
                     entries.push(recorded);
                 }
             }
         }
-        self.tree.set_children(id, &entries);
+        self.rewritten_tree().set_children(id, &entries);
         self.host.observe(AssemblyEvent::ScopeEnd(scope));
         ChildEntry::scope(id, total)
     }
@@ -773,8 +782,12 @@ mod tests {
         let prologue_bytes = host.output.recorder.byte_size() as u32;
         let source_prologue_bytes = host.source.as_ref().map(|frame| frame.prologue_bytes);
         let mut marks = ScopeMarks::default();
-        let root_output = Assembler::new(host, tree, &mut marks, source_prologue_bytes, rewrites_tree, false)
-            .assemble_root(context(row(0)));
+        let access = match rewrites_tree {
+            true => PaintOrderTreeAccess::Rewrites(tree),
+            false => PaintOrderTreeAccess::Reads(tree),
+        };
+        let root_output =
+            Assembler::new(host, access, &mut marks, source_prologue_bytes, false).assemble_root(context(row(0)));
         let output = std::mem::replace(&mut host.output, new_output());
         let hit_test_items = std::sync::Arc::try_unwrap(output.hit_test_list.items).expect("items are unshared");
         Frame {
@@ -1382,75 +1395,99 @@ mod tests {
         }
     }
 
+    // Random changes to the tree `random_tree_host` makes: to contents, to the cards listed and their order, to whether
+    // a card paints, and to where a card's subtree is.
+    struct RandomChanges {
+        random: Lcg,
+        listed: Vec<u32>,
+        removed: Vec<u32>,
+        inactive: HashSet<u32>,
+    }
+
+    impl RandomChanges {
+        fn new(seed: u32) -> Self {
+            Self {
+                random: Lcg(seed),
+                listed: CARD_ROWS.to_vec(),
+                removed: Vec::new(),
+                inactive: HashSet::new(),
+            }
+        }
+
+        fn plan_listed_cards(&self, host: &mut TestHost) {
+            let items: Vec<PaintOrderItem> = self.listed.iter().map(|card| child(context(row(*card)))).collect();
+            host.plan(foreground(row(0)), true, &items);
+            host.push(row(0), PaintDamage::ORDER);
+        }
+
+        fn apply(&mut self, host: &mut TestHost) {
+            let rows_with_content = [1, 2, 3, 4, 5, 6, 12, 13, 15];
+            for _ in 0..=self.random.next(3) {
+                match self.random.next(7) {
+                    0 | 1 => {
+                        let row_index = rows_with_content[self.random.next(rows_with_content.len() as u32) as usize];
+                        change_content(host, &mut self.random, row_index);
+                    }
+                    2 => {
+                        for index in (1..self.listed.len()).rev() {
+                            self.listed.swap(index, self.random.next(index as u32 + 1) as usize);
+                        }
+                        self.plan_listed_cards(host);
+                    }
+                    3 if self.listed.len() > 1 => {
+                        let card = self.listed.remove(self.random.next(self.listed.len() as u32) as usize);
+                        self.removed.push(card);
+                        self.plan_listed_cards(host);
+                    }
+                    4 if !self.removed.is_empty() => {
+                        let card = self
+                            .removed
+                            .remove(self.random.next(self.removed.len() as u32) as usize);
+                        self.listed
+                            .insert(self.random.next(self.listed.len() as u32 + 1) as usize, card);
+                        push_with_hints(host, card, PaintDamage::ORDER | PaintDamage::ALL_PRODUCERS);
+                        if let Some(nested) = nested_row(card) {
+                            push_with_hints(host, nested, PaintDamage::ORDER | PaintDamage::ALL_PRODUCERS);
+                        }
+                        self.plan_listed_cards(host);
+                    }
+                    5 => {
+                        let card = self.listed[self.random.next(self.listed.len() as u32) as usize];
+                        if !self.inactive.remove(&card) {
+                            self.inactive.insert(card);
+                        }
+                        host.plans.get_mut(&context(row(card))).unwrap().active = !self.inactive.contains(&card);
+                        push_with_hints(host, card, PaintDamage::ELIGIBILITY);
+                    }
+                    6 => {
+                        let card = self.listed[self.random.next(self.listed.len() as u32) as usize];
+                        let mut subtree = vec![card];
+                        subtree.extend(nested_row(card));
+                        for row_index in subtree {
+                            for kind in producer_kinds_of(host, row_index) {
+                                bump_version(host, row_index, kind);
+                            }
+                            host.moved_subtrees.insert(row(row_index));
+                        }
+                        push_with_hints(host, card, PaintDamage::MOVED);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
     #[test]
     fn random_damage_over_a_synthetic_tree_always_matches_from_scratch() {
-        let mut random = Lcg(0x2545_f491);
+        let mut changes = RandomChanges::new(0x2545_f491);
         let mut host = random_tree_host();
         let mut tree = PaintOrderTree::default();
         let first = record_frame(&mut host, &mut tree);
         host.source = Some(first);
         host.clear_damage();
-        let mut listed: Vec<u32> = CARD_ROWS.to_vec();
-        let mut removed: Vec<u32> = Vec::new();
-        let mut inactive: HashSet<u32> = HashSet::new();
-        let rows_with_content = [1, 2, 3, 4, 5, 6, 12, 13, 15];
 
         for step in 0..400 {
-            for _ in 0..=random.next(3) {
-                match random.next(7) {
-                    0 | 1 => {
-                        let row_index = rows_with_content[random.next(rows_with_content.len() as u32) as usize];
-                        change_content(&mut host, &mut random, row_index);
-                    }
-                    2 => {
-                        for index in (1..listed.len()).rev() {
-                            listed.swap(index, random.next(index as u32 + 1) as usize);
-                        }
-                        let items: Vec<PaintOrderItem> = listed.iter().map(|card| child(context(row(*card)))).collect();
-                        host.plan(foreground(row(0)), true, &items);
-                        host.push(row(0), PaintDamage::ORDER);
-                    }
-                    3 if listed.len() > 1 => {
-                        let card = listed.remove(random.next(listed.len() as u32) as usize);
-                        removed.push(card);
-                        let items: Vec<PaintOrderItem> = listed.iter().map(|card| child(context(row(*card)))).collect();
-                        host.plan(foreground(row(0)), true, &items);
-                        host.push(row(0), PaintDamage::ORDER);
-                    }
-                    4 if !removed.is_empty() => {
-                        let card = removed.remove(random.next(removed.len() as u32) as usize);
-                        listed.insert(random.next(listed.len() as u32 + 1) as usize, card);
-                        let items: Vec<PaintOrderItem> = listed.iter().map(|card| child(context(row(*card)))).collect();
-                        host.plan(foreground(row(0)), true, &items);
-                        push_with_hints(&mut host, card, PaintDamage::ORDER | PaintDamage::ALL_PRODUCERS);
-                        if let Some(nested) = nested_row(card) {
-                            push_with_hints(&mut host, nested, PaintDamage::ORDER | PaintDamage::ALL_PRODUCERS);
-                        }
-                        host.push(row(0), PaintDamage::ORDER);
-                    }
-                    5 => {
-                        let card = listed[random.next(listed.len() as u32) as usize];
-                        if !inactive.remove(&card) {
-                            inactive.insert(card);
-                        }
-                        host.plans.get_mut(&context(row(card))).unwrap().active = !inactive.contains(&card);
-                        push_with_hints(&mut host, card, PaintDamage::ELIGIBILITY);
-                    }
-                    6 => {
-                        let card = listed[random.next(listed.len() as u32) as usize];
-                        let mut subtree = vec![card];
-                        subtree.extend(nested_row(card));
-                        for row_index in subtree {
-                            for kind in producer_kinds_of(&host, row_index) {
-                                bump_version(&mut host, row_index, kind);
-                            }
-                            host.moved_subtrees.insert(row(row_index));
-                        }
-                        push_with_hints(&mut host, card, PaintDamage::MOVED);
-                    }
-                    _ => {}
-                }
-            }
+            changes.apply(&mut host);
 
             // Hit tests between two published frames record frames that publish nothing.
             let published_structure = tree.structure();
@@ -1464,6 +1501,48 @@ mod tests {
             assert_matches_from_scratch(&mut host, &frame);
             host.clear_damage();
             assert!(tree.scope_count() <= 32, "retired scopes are freed at once");
+        }
+    }
+
+    #[test]
+    fn frames_that_publish_nothing_match_from_scratch_as_damage_accumulates_over_them() {
+        let mut changes = RandomChanges::new(0x9e37_79b9);
+        let mut host = random_tree_host();
+        let mut tree = PaintOrderTree::default();
+        let first = record_frame(&mut host, &mut tree);
+        host.source = Some(first);
+        host.clear_damage();
+
+        for _ in 0..80 {
+            let published_structure = tree.structure();
+            let published_root_entry = tree.root_entry();
+            let removed_when_published = changes.removed.clone();
+            for _ in 0..6 {
+                changes.apply(&mut host);
+                // A card that left and comes back since the published frame is still in the tree, and what it published
+                // still stands: its parent's new order is all that changes.
+                if changes.random.next(2) == 0
+                    && let Some(position) = changes
+                        .removed
+                        .iter()
+                        .position(|card| !removed_when_published.contains(card))
+                {
+                    let card = changes.removed.remove(position);
+                    let at = changes.random.next(changes.listed.len() as u32 + 1) as usize;
+                    changes.listed.insert(at, card);
+                    changes.plan_listed_cards(&mut host);
+                }
+                let unpublished = record_frame_rewriting_tree(&mut host, &mut tree, false);
+                assert_matches_from_scratch(&mut host, &unpublished);
+                assert_eq!(tree.structure(), published_structure);
+                assert_eq!(tree.root_entry(), published_root_entry);
+                host.recorded.clear();
+                host.events.clear();
+            }
+
+            let frame = record_next_frame(&mut host, &mut tree);
+            assert_matches_from_scratch(&mut host, &frame);
+            host.clear_damage();
         }
     }
 }

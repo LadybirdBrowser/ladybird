@@ -26,6 +26,7 @@ use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
 use crate::painting::presentation::Presentation;
 use crate::painting::presentation::VectorImageResources;
 use crate::painting::published_frame::PublishedFrame;
+use crate::painting::record::order_tree::PaintOrderTreeAccess;
 use crate::painting::record::publish::PresentedOutput;
 use crate::painting::record::recorder_state::RecorderState;
 use crate::painting::record::vector_images::VectorImageRenderRequest;
@@ -449,10 +450,14 @@ pub(crate) fn record_frame(
         published_inputs,
     } = recorder;
     let source = PaintSource::new(&frame, absolute_rects);
+    let tree = match inputs.publishes_recording {
+        true => PaintOrderTreeAccess::Rewrites(paint_order_tree),
+        false => PaintOrderTreeAccess::Reads(paint_order_tree),
+    };
     let recording = crate::painting::record::traversal::record_display_list(
         &source,
         scratch,
-        paint_order_tree,
+        tree,
         viewport,
         &inputs,
         published_recording.clone(),

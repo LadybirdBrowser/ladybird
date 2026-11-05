@@ -303,6 +303,33 @@ pub(crate) struct PaintOrderTree {
     root_entry: ChildEntry,
 }
 
+/// What a recording does to the paint-order tree: a recording that publishes rewrites it to describe what it publishes,
+/// and any other only reads it, as the map of the published recording it copies from.
+pub(crate) enum PaintOrderTreeAccess<'a> {
+    Reads(&'a PaintOrderTree),
+    Rewrites(&'a mut PaintOrderTree),
+}
+
+impl PaintOrderTreeAccess<'_> {
+    pub(crate) fn read(&self) -> &PaintOrderTree {
+        match self {
+            Self::Reads(tree) => tree,
+            Self::Rewrites(tree) => tree,
+        }
+    }
+
+    pub(crate) fn rewrites(&mut self) -> Option<&mut PaintOrderTree> {
+        match self {
+            Self::Reads(_) => None,
+            Self::Rewrites(tree) => Some(tree),
+        }
+    }
+
+    pub(crate) fn is_rewriting(&self) -> bool {
+        matches!(self, Self::Rewrites(_))
+    }
+}
+
 /// The scopes on a damaged path of the current recording, which is what makes an ancestor recurse into a scope instead
 /// of copying it. A scope counts as on one while its stamp equals the current stamp.
 #[derive(Default)]

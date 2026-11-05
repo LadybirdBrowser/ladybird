@@ -20,7 +20,7 @@ use crate::painting::paint_read::{GeometryRead, PaintSource};
 use crate::painting::record::RecordingInputs;
 use crate::painting::record::assemble::{Assembler, frame_is_unchanged};
 use crate::painting::record::frame_inputs::FrameInputs;
-use crate::painting::record::order_tree::{PaintOrderTree, ProducerKind};
+use crate::painting::record::order_tree::{PaintOrderTreeAccess, ProducerKind};
 use crate::painting::record::paint::background_resolution::root_background_canvas_rect;
 use crate::painting::record::resources::RecordingResourceManifest;
 use crate::painting::record::scratch::RecordingScratch;
@@ -33,7 +33,7 @@ use std::sync::Arc;
 pub(crate) fn record_display_list(
     source: &PaintSource<'_>,
     scratch: &mut RecordingScratch,
-    tree: &mut PaintOrderTree,
+    tree: PaintOrderTreeAccess<'_>,
     viewport: NodeSlotId,
     inputs: &RecordingInputs,
     source_recording: Option<Arc<RecordingOutput>>,
@@ -67,7 +67,7 @@ pub(crate) fn record_display_list(
 fn record_display_list_impl<O: Observer>(
     source: &PaintSource<'_>,
     scratch: &mut RecordingScratch,
-    tree: &mut PaintOrderTree,
+    tree: PaintOrderTreeAccess<'_>,
     viewport: NodeSlotId,
     inputs: &RecordingInputs,
     source_recording: Option<Arc<RecordingOutput>>,
@@ -139,7 +139,7 @@ fn record_display_list_impl<O: Observer>(
         .as_ref()
         .zip(recorder.source_items.as_ref())
         .filter(|(frame, _)| {
-            frame_is_unchanged(tree, !source.frame().damage().is_empty(), window_focus_changed)
+            frame_is_unchanged(tree.read(), !source.frame().damage().is_empty(), window_focus_changed)
                 && !has_inspector_overlays
                 && frame.prologue_bytes == prologue_bytes
                 && recorder.recorder.bytes() == &frame.display_list.bytes[..prologue_bytes as usize]
@@ -151,7 +151,7 @@ fn record_display_list_impl<O: Observer>(
                 .observer
                 .observe(|log| log.leaf(Operation::Scope(root_scope), Action::Copy, false));
             recorder.list.items = items;
-            recorder.blocking_wheel_event_region_count = tree.root_entry().output().blocking_wheel_event_regions;
+            recorder.blocking_wheel_event_region_count = tree.read().root_entry().output().blocking_wheel_event_regions;
             display_list
         }
         None => {
@@ -162,7 +162,6 @@ fn record_display_list_impl<O: Observer>(
                 tree,
                 &mut marks,
                 source_prologue_bytes,
-                inputs.publishes_recording,
                 window_focus_changed,
             )
             .assemble_root(root_scope);
