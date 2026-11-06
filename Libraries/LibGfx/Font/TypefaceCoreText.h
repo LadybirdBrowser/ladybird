@@ -63,6 +63,9 @@ CTFontRef create_core_text_font_from_data(NonnullRefPtr<Typeface::FontDataBackin
 // Whether CoreText loads a face of font data the way the compositor does to draw it.
 bool core_text_accepts_font_data(NonnullRefPtr<Typeface::FontDataBacking>, u32 ttc_index);
 
+// Whether a typeface has glyphs that are bitmaps, as Apple Color Emoji does.
+bool typeface_has_bitmap_glyphs(Typeface const&);
+
 // A copy of a CoreText font at a size, with these coordinates on top of the variation of the font. Without
 // coordinates, the copy keeps the variation of the font. Null if CoreText does not make the copy.
 CTFontRef create_core_text_font_with_variations(CTFontRef, CGFloat size, ReadonlySpan<FontVariationAxis>);

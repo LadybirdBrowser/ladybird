@@ -82,6 +82,24 @@ struct TypefaceData final : public Gfx::RasterizerData {
     sk_sp<SkTypeface> typeface;
 };
 
+#if defined(AK_OS_MACOS)
+// CoreText places the bitmap glyphs of an installed font, such as Apple Color Emoji, lower than it places the same
+// glyphs of font data, whose bitmaps would then sit on the baseline. So an installed font is drawn by its name. Only
+// the font that draws the glyphs changes, which has the same glyphs as the data that shapes them.
+static sk_sp<SkTypeface> make_installed_bitmap_font_skia_typeface(Gfx::Typeface const& typeface)
+{
+    if (!typeface.system_font_identifier().has_value() || !Gfx::typeface_has_bitmap_glyphs(typeface))
+        return nullptr;
+    auto postscript_name = typeface.postscript_name();
+    if (!postscript_name.has_value())
+        return nullptr;
+    auto installed_typeface = Gfx::TypefaceCoreText::try_load_postscript_name(*postscript_name);
+    if (installed_typeface.is_error())
+        return nullptr;
+    return SkMakeTypefaceFromCTFont(installed_typeface.value()->core_text_font());
+}
+#endif
+
 // The Skia typeface of font data from the font manager of the platform. Null where FreeType is that font manager.
 // The typeface loaders are called directly, because a font manager also finds the system fonts when it is made.
 sk_sp<SkTypeface> make_platform_skia_typeface([[maybe_unused]] sk_sp<SkData> const& data, [[maybe_unused]] Gfx::Typeface const& typeface)
@@ -89,6 +107,9 @@ sk_sp<SkTypeface> make_platform_skia_typeface([[maybe_unused]] sk_sp<SkData> con
     if (s_font_rasterizer == FontRasterizer::FreeType)
         return nullptr;
 #if defined(AK_OS_MACOS)
+    if (auto installed_typeface = make_installed_bitmap_font_skia_typeface(typeface))
+        return installed_typeface;
+
     // The CoreText typeface loader of Skia loads only the first face of font data.
     if (typeface.collection_index() != 0) {
         auto font = Gfx::create_core_text_font_from_data(typeface.font_data_backing().release_nonnull(), typeface.font_data(), typeface.collection_index());
