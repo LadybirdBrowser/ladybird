@@ -16,12 +16,14 @@ RootImpl::RootImpl(Cell* cell, SourceLocation location)
     , m_location(location)
 {
     ASSERT(!heap_access_is_forbidden_on_this_thread());
+    ASSERT(m_cell->heap().is_on_owner_thread());
     m_cell->heap().did_create_root({}, *this);
 }
 
 RootImpl::~RootImpl()
 {
     ASSERT(!heap_access_is_forbidden_on_this_thread());
+    ASSERT(m_cell->heap().is_on_owner_thread());
     m_cell->heap().did_destroy_root({}, *this);
 }
 

@@ -17,11 +17,13 @@ RootHashMapBase::RootHashMapBase()
 RootHashMapBase::RootHashMapBase(Heap& heap)
     : m_heap(&heap)
 {
+    ASSERT(m_heap->is_on_owner_thread());
     m_heap->did_create_root_hash_map({}, *this);
 }
 
 RootHashMapBase::~RootHashMapBase()
 {
+    ASSERT(m_heap->is_on_owner_thread());
     m_heap->did_destroy_root_hash_map({}, *this);
 }
 

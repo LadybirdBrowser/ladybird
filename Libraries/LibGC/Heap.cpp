@@ -334,6 +334,7 @@ Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roo
 
 Heap::~Heap()
 {
+    VERIFY(is_on_owner_thread());
     collect_garbage(CollectionType::CollectEverything);
     free_weak_blocks();
 
@@ -415,6 +416,7 @@ void Heap::finish_stats_collection()
 void Heap::will_allocate(size_t size, TriggersCollection triggers_collection)
 {
     ASSERT(!heap_access_is_forbidden_on_this_thread());
+    ASSERT(is_on_owner_thread());
     if (triggers_collection == TriggersCollection::No) {
         m_total_allocated_bytes += size;
         return;
@@ -949,6 +951,7 @@ bool heap_access_is_forbidden_on_this_thread()
 NO_SANITIZE_ADDRESS void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 {
     VERIFY(!heap_access_is_forbidden_on_this_thread());
+    VERIFY(is_on_owner_thread());
     jmp_buf registers;
     setjmp(registers);
     ReadonlySpan<FlatPtr> captured_registers { reinterpret_cast<FlatPtr const*>(registers), sizeof(jmp_buf) / (sizeof(FlatPtr)) };
