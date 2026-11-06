@@ -73,12 +73,8 @@ unsafe extern "C" {
         data: u64,
         ports: *const *mut c_void,
         count: usize,
-    ) -> *mut c_void;
-    fn web_bindings_create_message_event_with_origin(
-        realm: *mut c_void,
-        r#type: ak::Span<'_, u8>,
-        data: u64,
         origin: *const FfiOrigin,
+        source: *mut c_void,
     ) -> *mut c_void;
     fn web_bindings_message_event_data(event: u64) -> u64;
     fn web_bindings_set_event_owner(event: *mut c_void, interface_name: u16, owner: *mut c_void);
@@ -260,43 +256,35 @@ impl CppEvent {
         })
     }
 
-    /// A MessageEvent in the realm, https://html.spec.whatwg.org/multipage/comms.html#messageevent, with its data
-    /// attribute initialized to the data and its ports attribute initialized to the MessagePorts that the objects are.
-    pub(crate) fn create_message_event(realm: Gc<Realm>, r#type: &str, data: Value, ports: &[Gc<Object>]) -> Self {
-        let ports: Vec<*mut c_void> = ports.iter().map(|port| port.as_ptr().cast()).collect();
-        // SAFETY: The realm, the data and the ports are live, the type and the ports are lent for the call, and LibWeb
-        //         returns a live event.
-        Self(unsafe {
-            CppCell::from_raw(web_bindings_create_message_event(
-                realm.as_ptr().cast(),
-                ak::Span::new(r#type.as_bytes()),
-                data.to_raw(),
-                ports.as_ptr(),
-                ports.len(),
-            ))
-        })
-    }
-
-    /// A MessageEvent in the realm with its data attribute initialized to the data and its origin attribute initialized
-    /// to the serialization of the origin.
-    pub(crate) fn create_message_event_with_origin(
+    /// A MessageEvent in the realm, https://html.spec.whatwg.org/multipage/comms.html#messageevent
+    pub(crate) fn create_message_event(
         realm: Gc<Realm>,
         r#type: &str,
         data: Value,
-        origin: &Origin,
+        ports: &[Gc<Object>],
+        origin: Option<&Origin>,
+        source: Option<&CppCell>,
     ) -> Self {
-        FfiOrigin::with_origin(origin, |origin| {
-            // SAFETY: The realm and the data are live, the type and the origin are lent for the call, and LibWeb returns a
-            //         live event.
+        let ports: Vec<*mut c_void> = ports.iter().map(|port| port.as_ptr().cast()).collect();
+        let create = |origin: *const FfiOrigin| {
+            // SAFETY: The realm, the data, the ports and the source are live, the type, the ports and the origin are
+            //         lent for the call, and LibWeb returns a live event.
             Self(unsafe {
-                CppCell::from_raw(web_bindings_create_message_event_with_origin(
+                CppCell::from_raw(web_bindings_create_message_event(
                     realm.as_ptr().cast(),
                     ak::Span::new(r#type.as_bytes()),
                     data.to_raw(),
+                    ports.as_ptr(),
+                    ports.len(),
                     origin,
+                    source.map_or(core::ptr::null_mut(), CppCell::as_ptr),
                 ))
             })
-        })
+        };
+        match origin {
+            Some(origin) => FfiOrigin::with_origin(origin, |origin| create(origin)),
+            None => create(core::ptr::null()),
+        }
     }
 
     pub(crate) fn set_owner<T: Interface>(&self, owner: Ref<T>) {

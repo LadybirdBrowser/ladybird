@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibURL/RustIntegration.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
@@ -234,35 +235,32 @@ WebIDL::ExceptionOr<void> RemoteWindow::post_message(JS::Realm& realm, JS::Value
 {
     // The Window interface's postMessage(message, options) method steps are to run the window post message steps given
     // this, message, and options.
+    return Window::window_post_message_steps(realm, m_navigable, message, options);
+}
 
-    // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
-    // 1. Let targetRealm be targetWindow's realm.
-    // NB: Taken from targetWindow when the task delivers the message in its process.
+extern "C" void web_window_post_message_send_remote(RemoteNavigable* target, EnvironmentSettingsObject* settings, SerializedTransferRecord* record, URL::FFI::FfiOrigin const* target_origin, URL::FFI::FfiOrigin const* source_origin, WindowProxy* source);
 
-    // 2-7.
-    auto prepared = TRY(Window::prepare_post_message(realm, message, options));
-
-    // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:
-    // NB: targetWindow lives in the process hosting this navigable's document, so the task is a request to the UI
-    //     process, which forwards it there. That process represents the source's navigable, which names the source.
-    //     A source whose [[Window]] has no navigable is null there.
+void web_window_post_message_send_remote(RemoteNavigable* target, EnvironmentSettingsObject* settings, SerializedTransferRecord* record, URL::FFI::FfiOrigin const* target_origin, URL::FFI::FfiOrigin const* source_origin, WindowProxy* source)
+{
     Optional<CrossProcessId> source_navigable_id;
     // AD-HOC: The UI process takes the source only from a navigable this process hosts, so a source whose [[Window]] is
     //         in another process is null.
     // NB: A navigable in a destroyed subtree is discarded, like it is for the source's window.parent.
-    if (auto window = prepared.source->window()) {
+    if (auto window = source->window()) {
         if (auto source_navigable = window->navigable(); source_navigable && !source_navigable->is_in_a_destroyed_subtree())
             source_navigable_id = source_navigable->id();
     }
+    Variant<Utf16String, URL::Origin> target_origin_value = u"*"_utf16;
+    if (target_origin)
+        target_origin_value = URL::RustIntegration::origin_from_ffi(*target_origin);
     PostedMessageDescriptor posted_message {
-        .serialize_with_transfer_result = move(prepared.serialize_with_transfer_result),
-        .target_origin = move(prepared.target_origin),
-        .incumbent_settings_id = move(prepared.incumbent_settings_id),
-        .source_origin = move(prepared.source_origin),
+        .serialize_with_transfer_result = move(*record),
+        .target_origin = move(target_origin_value),
+        .incumbent_settings_id = settings->id,
+        .source_origin = URL::RustIntegration::origin_from_ffi(*source_origin),
         .source_navigable_id = source_navigable_id,
     };
-    m_navigable->page().client().request_post_message_to_remote_navigable(*m_navigable, move(posted_message));
-    return {};
+    target->page().client().request_post_message_to_remote_navigable(*target, move(posted_message));
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#document-tree-child-navigables

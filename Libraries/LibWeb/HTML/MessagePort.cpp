@@ -114,17 +114,3 @@ void MessagePort::fail_next_transfer_for_testing()
 }
 
 }
-
-namespace Web::Bindings {
-
-GC::RootVector<GC::Ref<HTML::MessagePort>> message_ports_from_transferred_values(Vector<GC::Root<JS::Object>> const& transferred_values)
-{
-    GC::RootVector<GC::Ref<HTML::MessagePort>> ports;
-    for (auto const& object : transferred_values) {
-        if (auto* message_port = impl_from<HTML::MessagePort>(object.ptr()))
-            ports.append(*message_port);
-    }
-    return ports;
-}
-
-}
