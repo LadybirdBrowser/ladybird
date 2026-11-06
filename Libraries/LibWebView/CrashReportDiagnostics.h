@@ -37,6 +37,9 @@ struct WEBVIEW_API CrashReportDiagnostics {
     // What the crash has in common with every other crash of the same bug: the process, how it failed and where.
     ByteString signature() const;
 
+    // Whether the report has frames with addresses, which are what can tell one crash from another.
+    bool has_native_stack() const { return stack.contains(" 0x"sv); }
+
     Vector<Header> headers;
 
     ByteString stack;

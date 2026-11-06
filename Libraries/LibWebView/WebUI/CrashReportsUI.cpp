@@ -94,16 +94,18 @@ void CrashReportsUI::load_reports()
     Vector<Group> groups;
     HashMap<ByteString, size_t> group_indices;
     for (auto const& name : names) {
-        ByteString signature { "Unreadable"sv };
+        // Only a stack can show that two reports are the same crash, so every other report gets a row of its own.
+        auto signature = name;
         String process = "Unreadable report"_string;
         Optional<UnixDateTime> crashed_at;
 
-        // A report that cannot be read still counts as waiting, so it gets a row of its own to delete it from.
+        // A report that cannot be read still counts as waiting, so it gets a row to delete it from.
         if (auto report = store.saved_report(name); report.is_error()) {
             warnln("Could not read crash report {}: {}", name, report.error());
         } else {
             auto diagnostics = CrashReportDiagnostics::parse(report.value().text);
-            signature = diagnostics.signature();
+            if (diagnostics.has_native_stack())
+                signature = diagnostics.signature();
             process = MUST(String::from_utf8(plain_process_name(diagnostics.header("Process"sv))));
             crashed_at = diagnostics.crashed_at;
         }

@@ -158,3 +158,11 @@ TEST_CASE(an_empty_report_parses_to_nothing)
     EXPECT(diagnostics.stack.is_empty());
     EXPECT_EQ(diagnostics.signal.name, ""sv);
 }
+
+TEST_CASE(only_frames_with_addresses_count_as_a_native_stack)
+{
+    EXPECT(CrashReportDiagnostics::parse("Native stack (binary build ID, object address):\n#0 abcdef 0x1234\n"sv).has_native_stack());
+    EXPECT(!CrashReportDiagnostics::parse("Native stack (binary build ID, object address):\n#0 unavailable\n"sv).has_native_stack());
+    EXPECT(!CrashReportDiagnostics::parse("Native stack (binary build ID, object address):\nUnavailable: the process exited without a captured native stack.\n"sv).has_native_stack());
+    EXPECT(!CrashReportDiagnostics::parse("Process: WebContent\n"sv).has_native_stack());
+}
