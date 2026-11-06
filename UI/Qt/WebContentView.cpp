@@ -1519,14 +1519,6 @@ void WebContentView::set_crash_overlay_visible(bool visible)
     schedule_repaint();
 }
 
-void WebContentView::review_hidden_crash_report(ByteString const& report_name)
-{
-    set_crash_overlay_visible(true);
-    show_crash_report_review(report_name);
-    if (!m_crash_report_review)
-        set_crash_overlay_visible(false);
-}
-
 // A tab opened only for a review lets go of what it showed over its page once the user takes the tab elsewhere.
 void WebContentView::leave_report_review()
 {
@@ -1759,41 +1751,30 @@ bool WebContentView::is_page_covered_by_overlay() const
     return false;
 }
 
-// A report of a crash with no crash screen of its own is reviewed in a blank tab opened for it.
-void WebContentView::show_crash_report_review(Optional<ByteString> const& hidden_crash_report_name)
+void WebContentView::show_crash_report_review()
 {
     if (!m_crash_report_container || m_crash_report_review)
         return;
 
-    auto is_hidden_crash = hidden_crash_report_name.has_value();
-    auto report_name = is_hidden_crash ? hidden_crash_report_name : crash_report_name();
+    auto report_name = crash_report_name();
     if (!report_name.has_value())
         return;
 
-    m_crash_report_review = new CrashReportReviewWidget(is_hidden_crash ? tr("Close tab") : tr("Reload page"), m_crash_report_container);
-    if (auto result = m_crash_report_review->open_report(report_name, is_hidden_crash ? Optional<String> {} : crash_report_website()); result.is_error()) {
+    m_crash_report_review = new CrashReportReviewWidget(tr("Reload page"), m_crash_report_container);
+    if (auto result = m_crash_report_review->open_report(report_name, crash_report_website()); result.is_error()) {
         warnln("Could not open crash report {}: {}", *report_name, result.error());
         delete m_crash_report_review;
         m_crash_report_review = nullptr;
         return;
     }
-    m_crash_report_review->on_exit = [this, is_hidden_crash] {
-        // The tab was opened only for the review, and a report on its way keeps going without it. The reports still
-        // waiting stay behind the feedback button.
-        if (is_hidden_crash) {
-            Application::the().update_feedback_buttons();
-            if (on_close)
-                on_close();
-            return;
-        }
+    m_crash_report_review->on_exit = [this] {
         reload();
     };
     m_crash_report_review->on_report_text_visibility_change = [this](bool visible) {
         m_crash_overlay->set_fills_tab(visible);
     };
-    auto answered_message = is_hidden_crash ? tr("Part of Ladybird stopped unexpectedly.") : crash_screen_message();
-    m_crash_report_review->on_answered = [this, answered_message] {
-        m_crash_overlay_message->setText(answered_message);
+    m_crash_report_review->on_answered = [this] {
+        m_crash_overlay_message->setText(crash_screen_message());
     };
 
     // The review offers reloading among its own actions, and the website among its fields. It takes text, so Return
@@ -1802,9 +1783,7 @@ void WebContentView::show_crash_report_review(Optional<ByteString> const& hidden
     auto reload_button_had_focus = m_crash_overlay_reload_button->hasFocus();
     m_crash_overlay_reload_button->hide();
     m_crash_overlay_url->hide();
-    m_crash_overlay_message->setText(is_hidden_crash
-            ? tr("Part of Ladybird stopped unexpectedly. You can send us a crash report to help fix it.")
-            : tr("This page crashed. You can send us a crash report to help fix it."));
+    m_crash_overlay_message->setText(tr("This page crashed. You can send us a crash report to help fix it."));
     m_crash_report_container->layout()->addWidget(m_crash_report_review);
     m_crash_report_container->show();
     if (reload_button_had_focus)

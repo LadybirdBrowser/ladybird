@@ -181,7 +181,6 @@ public:
     void finish_window_move();
     void close_select_dropdown_after_crash();
     void cancel_mouse_press();
-    void review_hidden_crash_report(ByteString const& report_name);
     void leave_report_review();
     void review_web_compat_report(WebCompatReportCapture);
     void select_web_compat_report_screenshot(Function<void(QImage)> on_selected, Function<void()> on_close = {});
@@ -271,7 +270,7 @@ private:
     void watch_screen_geometry(QScreen&);
 
     void set_crash_overlay_visible(bool);
-    void show_crash_report_review(Optional<ByteString> const& hidden_crash_report_name = {});
+    void show_crash_report_review();
 
     void start_web_compat_report();
     ScreenshotSelectionOverlay& select_screenshot(QImage const& frame, ScreenshotSelectionOverlay::Purpose, Function<void()> on_close = {});

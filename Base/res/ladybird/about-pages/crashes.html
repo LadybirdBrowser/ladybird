@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>Crash Reports</title>
+        <link rel="icon" type="image/png" href="resource://icons/48x48/app-browser.png" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
+        <style>
+            body {
+                max-width: 728px;
+                padding: 48px 24px;
+            }
+
+            header {
+                align-items: baseline;
+            }
+
+            header h1 {
+                flex: none;
+            }
+
+            #count {
+                flex: 1;
+
+                color: var(--muted);
+                font-size: 13px;
+                font-variant-numeric: tabular-nums;
+            }
+
+            #actions {
+                display: flex;
+                gap: 8px;
+            }
+
+            #actions button {
+                padding: 0 14px;
+            }
+
+            #reports {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            #empty {
+                padding: 36px 12px;
+
+                color: var(--muted);
+                font-size: 13px;
+                text-align: center;
+            }
+
+            #settings {
+                display: inline-block;
+                margin-top: 18px;
+
+                color: var(--link);
+                font-size: 12px;
+                text-decoration: none;
+            }
+
+            #settings:hover {
+                text-decoration: underline;
+            }
+
+            /* Each report is a thing of its own to send or delete, so it never shares a box with another. */
+            .report {
+                background-color: var(--tile);
+                border-radius: var(--card-radius);
+            }
+
+            .report-row {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+
+                min-height: 44px;
+                padding-right: 10px;
+            }
+
+            .report-toggle {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+
+                min-width: 0;
+                min-height: 44px;
+                padding: 0 6px 0 16px;
+
+                border: none;
+                border-radius: var(--card-radius);
+                background: none;
+                color: var(--text);
+
+                font: inherit;
+                font-size: 13px;
+                text-align: left;
+
+                cursor: pointer;
+            }
+
+            .report-chevron {
+                flex: none;
+                width: 12px;
+                height: 12px;
+
+                fill: none;
+                stroke: var(--muted);
+                stroke-width: 1.5;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+            }
+
+            .report.expanded .report-chevron {
+                transform: rotate(90deg);
+            }
+
+            .report-name {
+                font-weight: 500;
+            }
+
+            .report.expanded .report-name {
+                font-weight: 600;
+            }
+
+            .report-when {
+                flex: 1;
+
+                overflow: hidden;
+                color: var(--muted);
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .report-status {
+                flex: none;
+                padding: 0 8px;
+
+                color: var(--muted);
+                font-size: 12px;
+            }
+
+            .report-status.failed {
+                color: var(--error);
+            }
+
+            .quiet-button {
+                flex: none;
+
+                height: 24px;
+                padding: 0 10px;
+
+                border: none;
+                border-radius: 7px;
+                background: none;
+                color: var(--body);
+
+                font: inherit;
+                font-size: 12px;
+
+                cursor: pointer;
+            }
+
+            .quiet-button:hover {
+                background-color: var(--control-hover);
+            }
+
+            .quiet-button:active {
+                background-color: var(--control-pressed);
+            }
+
+            .quiet-button:disabled {
+                color: var(--muted);
+                background: none;
+                cursor: default;
+            }
+
+            .report.expanded .report-row .quiet-button,
+            .report:not(.expanded) .report-details {
+                display: none;
+            }
+
+            .report-details {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+
+                padding: 0 16px 16px 38px;
+            }
+
+            .report-note {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+
+                color: var(--muted);
+                font-size: 12px;
+            }
+
+            .report-note textarea {
+                height: 64px;
+                padding: 8px 10px;
+
+                border: none;
+                border-radius: 7px;
+                outline: none;
+                box-shadow: inset 0 0 0 1px var(--separator);
+                background-color: var(--page);
+                color: var(--text);
+
+                font: inherit;
+                font-size: 13px;
+
+                resize: vertical;
+            }
+
+            .report-note textarea:focus {
+                box-shadow: inset 0 0 0 2px var(--link);
+            }
+
+            .report-footer {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .report-included {
+                flex: 1;
+
+                color: var(--muted);
+                font-size: 12px;
+            }
+
+            .report-show {
+                padding: 0;
+
+                border: none;
+                background: none;
+                color: var(--link);
+
+                font: inherit;
+
+                cursor: pointer;
+            }
+
+            .report-text-note {
+                margin: 0;
+                color: var(--muted);
+                font-size: 12px;
+            }
+
+            .report-text {
+                max-height: 320px;
+                margin: 0;
+                padding: 8px 10px;
+
+                overflow: auto;
+                border-radius: 7px;
+                box-shadow: inset 0 0 0 1px var(--separator);
+                background-color: var(--page);
+                color: var(--body);
+
+                font-family: ui-monospace, monospace;
+                font-size: 11px;
+                white-space: pre-wrap;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Crash reports</h1>
+            <span id="count"></span>
+            <div id="actions">
+                <button id="delete-all" class="secondary-button">Delete all</button>
+                <button id="send-all" class="primary-button">Send all</button>
+            </div>
+        </header>
+        <div id="reports"></div>
+        <div id="empty" class="hidden">No crash reports waiting</div>
+        <a id="settings" href="about:settings#privacy">Crash report settings</a>
+
+        <template id="report-template">
+            <section class="report">
+                <div class="report-row">
+                    <button class="report-toggle">
+                        <svg class="report-chevron" viewBox="0 0 12 12" aria-hidden="true">
+                            <path d="M4.5 2.5 8 6l-3.5 3.5" />
+                        </svg>
+                        <span class="report-name"></span>
+                        <span class="report-when"></span>
+                    </button>
+                    <span class="report-status"></span>
+                    <button class="quiet-button report-delete">Delete</button>
+                    <button class="quiet-button report-send">Send</button>
+                </div>
+                <div class="report-details">
+                    <label class="report-note">
+                        What were you doing? (optional)
+                        <textarea maxlength="4096"></textarea>
+                    </label>
+                    <p class="report-text-note hidden"></p>
+                    <pre class="report-text hidden"></pre>
+                    <div class="report-footer">
+                        <span class="report-included">
+                            Crash details, Ladybird version and platform.
+                            <button class="report-show">Show report</button>
+                        </span>
+                        <button class="quiet-button report-delete">Delete</button>
+                        <button class="secondary-button report-send">Send</button>
+                    </div>
+                </div>
+            </section>
+        </template>
+
+        <script type="module">
+            const reportsElement = document.querySelector("#reports");
+            const emptyElement = document.querySelector("#empty");
+            const countElement = document.querySelector("#count");
+            const actionsElement = document.querySelector("#actions");
+            const deleteAllButton = document.querySelector("#delete-all");
+            const sendAllButton = document.querySelector("#send-all");
+            const template = document.querySelector("#report-template");
+
+            // The cards outlive each update of the list, so what was typed into one or opened on it stays.
+            const cards = new Map();
+            const collapsedByUser = new Set();
+            let groups = [];
+
+            const minute = 60 * 1000;
+            const hour = 60 * minute;
+            const day = 24 * hour;
+
+            function plural(count, noun) {
+                return `${count} ${noun}${count === 1 ? "" : "s"}`;
+            }
+
+            function startOfDay(date) {
+                return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+            }
+
+            function describeTime(milliseconds) {
+                if (milliseconds === undefined) return "";
+
+                const now = new Date();
+                const then = new Date(milliseconds);
+                const age = now - then;
+                const daysAgo = Math.round((startOfDay(now) - startOfDay(then)) / day);
+
+                if (age < minute) return "Just now";
+                if (age < hour) return `${plural(Math.floor(age / minute), "minute")} ago`;
+                if (daysAgo === 0) return `${plural(Math.floor(age / hour), "hour")} ago`;
+                if (daysAgo === 1) {
+                    const time = then.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+                    return `Yesterday, ${time}`;
+                }
+                return `${daysAgo} days ago`;
+            }
+
+            function describeGroup(group) {
+                const when = describeTime(group.lastCrashedAt);
+                if (group.names.length === 1) return when;
+                if (!when) return `${group.names.length} times`;
+                return `${group.names.length} times · last ${when.charAt(0).toLowerCase()}${when.slice(1)}`;
+            }
+
+            function reportsToSend(group, card) {
+                const description = card.querySelector("textarea").value;
+                return group.names.map(name => ({ name, description }));
+            }
+
+            function createCard(id) {
+                const card = template.content.firstElementChild.cloneNode(true);
+                const toggle = card.querySelector(".report-toggle");
+                const showButton = card.querySelector(".report-show");
+                const reportText = card.querySelector(".report-text");
+
+                const group = () => groups.find(candidate => candidate.id === id);
+
+                toggle.addEventListener("click", () => {
+                    if (card.classList.toggle("expanded")) collapsedByUser.delete(id);
+                    else collapsedByUser.add(id);
+                    toggle.setAttribute("aria-expanded", card.classList.contains("expanded"));
+                });
+                card.querySelectorAll(".report-delete").forEach(button => {
+                    button.addEventListener("click", () => ladybird.sendMessage("deleteReports", group().names));
+                });
+                card.querySelectorAll(".report-send").forEach(button => {
+                    button.addEventListener("click", () => {
+                        ladybird.sendMessage("sendReports", reportsToSend(group(), card));
+                    });
+                });
+                showButton.addEventListener("click", () => {
+                    if (reportText.classList.contains("hidden")) {
+                        ladybird.sendMessage("showReport", group().names[0]);
+                    } else {
+                        reportText.classList.add("hidden");
+                        showButton.textContent = "Show report";
+                        updateCard(card, group());
+                    }
+                });
+
+                return card;
+            }
+
+            function updateCard(card, group) {
+                card.querySelector(".report-name").textContent = group.process;
+                card.querySelector(".report-when").textContent = describeGroup(group);
+
+                // Only the latest report of a group is shown, so say what stands behind it.
+                const reportTextNote = card.querySelector(".report-text-note");
+                const reportIsHidden = card.querySelector(".report-text").classList.contains("hidden");
+                reportTextNote.textContent = `Showing the latest of ${group.names.length}. The others are the same crash.`;
+                reportTextNote.classList.toggle("hidden", reportIsHidden || group.names.length === 1);
+
+                const status = card.querySelector(".report-status");
+                status.textContent = group.isSending ? "Sending…" : group.couldNotSend ? "Couldn’t send" : "";
+                status.classList.toggle("failed", !group.isSending && group.couldNotSend);
+
+                card.querySelectorAll(".report-delete, .report-send").forEach(button => {
+                    button.disabled = group.isSending;
+                });
+                card.querySelector("textarea").disabled = group.isSending;
+
+                const expanded =
+                    card.classList.contains("expanded") || (groups.length === 1 && !collapsedByUser.has(group.id));
+                card.classList.toggle("expanded", expanded);
+                card.querySelector(".report-toggle").setAttribute("aria-expanded", expanded);
+            }
+
+            function render() {
+                const ids = new Set(groups.map(group => group.id));
+                for (const [id, card] of cards) {
+                    if (ids.has(id)) continue;
+                    card.remove();
+                    cards.delete(id);
+                }
+
+                // Moving a card takes the focus from its note, so one already in its place stays untouched.
+                groups.forEach((group, index) => {
+                    if (!cards.has(group.id)) cards.set(group.id, createCard(group.id));
+                    const card = cards.get(group.id);
+                    updateCard(card, group);
+                    const current = reportsElement.children[index];
+                    if (current !== card) reportsElement.insertBefore(card, current ?? null);
+                });
+
+                const reportCount = groups.reduce((count, group) => count + group.names.length, 0);
+                const allSending = groups.every(group => group.isSending);
+                countElement.textContent = reportCount > 0 ? `${reportCount} not sent` : "";
+                actionsElement.classList.toggle("hidden", reportCount === 0);
+                emptyElement.classList.toggle("hidden", reportCount > 0);
+                deleteAllButton.disabled = allSending;
+                sendAllButton.disabled = allSending;
+            }
+
+            deleteAllButton.addEventListener("click", () => {
+                const idle = groups.filter(group => !group.isSending);
+                ladybird.sendMessage(
+                    "deleteReports",
+                    idle.flatMap(group => group.names)
+                );
+            });
+
+            sendAllButton.addEventListener("click", () => {
+                const idle = groups.filter(group => !group.isSending);
+                ladybird.sendMessage(
+                    "sendReports",
+                    idle.flatMap(group => reportsToSend(group, cards.get(group.id)))
+                );
+            });
+
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name === "loadReports") {
+                    groups = event.detail.data;
+                    render();
+                } else if (event.detail.name === "showReport") {
+                    const { name, text } = event.detail.data;
+                    const group = groups.find(candidate => candidate.names[0] === name);
+                    if (!group) return;
+
+                    const card = cards.get(group.id);
+                    const reportText = card.querySelector(".report-text");
+                    reportText.textContent = text;
+                    reportText.classList.remove("hidden");
+                    card.querySelector(".report-show").textContent = "Hide report";
+                    updateCard(card, group);
+                }
+            });
+
+            // The times on the page age, and a report can be answered from a crashed tab's own screen.
+            document.addEventListener("visibilitychange", () => {
+                if (!document.hidden) ladybird.sendMessage("loadReports");
+            });
+
+            document.addEventListener("WebUILoaded", () => ladybird.sendMessage("loadReports"));
+        </script>
+    </body>
+</html>

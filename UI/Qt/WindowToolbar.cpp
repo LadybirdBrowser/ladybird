@@ -1489,11 +1489,8 @@ void WindowToolbar::show_feedback_popover()
         m_feedback_popover->on_report_bug = [this] {
             browser_window().new_tab_from_url(WebView::new_bug_report_url(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
         };
-        m_feedback_popover->on_review_crash_reports = [] {
-            auto names = WebView::CrashReportStore::the().pending_report_names();
-            if (!names.is_error() && !names.value().is_empty())
-                Application::the().review_crash_report(names.value().first());
-            Application::the().update_feedback_buttons();
+        m_feedback_popover->on_review_crash_reports = [this] {
+            browser_window().new_tab_from_url(URL::URL::about("crashes"sv), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
         };
     }
 

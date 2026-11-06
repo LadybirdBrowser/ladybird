@@ -95,6 +95,7 @@ set(SOURCES
     WebDriverBrowserConnection.cpp
     WebUI.cpp
     WebUI/BookmarksUI.cpp
+    WebUI/CrashReportsUI.cpp
     WebUI/DownloadsUI.cpp
     WebUI/HistoryUI.cpp
     WebUI/SettingsUI.cpp

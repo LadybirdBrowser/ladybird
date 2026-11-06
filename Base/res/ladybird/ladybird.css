@@ -56,6 +56,7 @@
         --control-pressed: rgba(0, 0, 0, 0.09);
         --segment: #ffffff;
         --surface: #fbfbfc;
+        --tile: #f3f3f5;
         --edge: rgba(0, 0, 0, 0.1);
         --popover-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
         --dialog-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
@@ -92,6 +93,7 @@
         --control-pressed: rgba(255, 255, 255, 0.14);
         --segment: #48484e;
         --surface: #333336;
+        --tile: #2c2c2f;
         --edge: rgba(255, 255, 255, 0.12);
         --popover-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
         --dialog-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
