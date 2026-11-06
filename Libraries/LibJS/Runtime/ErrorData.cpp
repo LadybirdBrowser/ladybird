@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
 #include <LibJS/EmbeddingABIConversions.h>
 #include <LibJS/Runtime/ErrorData.h>
 #include <LibJS/Runtime/VM.h>
@@ -19,16 +18,10 @@ static JSErrorData const* error_data_to_abi(ErrorData const& error_data)
     return reinterpret_cast<JSErrorData const*>(&error_data);
 }
 
-static SourceRange const& source_range_of_a_frame_without_one()
-{
-    static NeverDestroyed<SourceRange> source_range { SourceRange { SourceCode::create({}, Utf16String {}), {} } };
-    return *source_range;
-}
-
-SourceRange const& TracebackFrame::source_range() const
+SourceRange TracebackFrame::source_range() const
 {
     if (!cached_source_range.has_value())
-        return source_range_of_a_frame_without_one();
+        return SourceRange { SourceCode::create({}, Utf16String {}), {} };
     return *cached_source_range;
 }
 

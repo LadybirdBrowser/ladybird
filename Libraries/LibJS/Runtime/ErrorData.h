@@ -24,7 +24,7 @@ namespace JS {
 
 struct JS_API TracebackFrame {
     Utf16String function_name;
-    [[nodiscard]] SourceRange const& source_range() const;
+    [[nodiscard]] SourceRange source_range() const;
 
     Optional<SourceRange> cached_source_range;
 };
