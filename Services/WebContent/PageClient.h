@@ -254,7 +254,6 @@ private:
     virtual void page_did_change_title(Utf16String const&) override;
     virtual void page_did_update_editing_history_state(bool can_undo, bool can_redo) override;
     virtual void page_did_set_text_fragment_indication_visibility(bool) override;
-    virtual void page_did_request_refresh() override;
     virtual void page_did_request_resize_window(Gfx::IntSize, u64 completion_id) override;
     virtual void page_did_request_reposition_window(Gfx::IntPoint, u64 completion_id) override;
     virtual void page_did_request_restore_window() override;
@@ -265,8 +264,6 @@ private:
     virtual void page_did_exit_picture_in_picture() override;
     virtual void page_did_change_picture_in_picture_video_size(Gfx::IntSize) override;
     virtual void page_did_change_picture_in_picture_player_controls_visibility(bool shown) override;
-    virtual void page_did_request_tooltip_override(Web::CSSPixelPoint, ByteString const&) override;
-    virtual void page_did_stop_tooltip_override() override;
     virtual void page_did_enter_tooltip_area(ByteString const&) override;
     virtual void page_did_leave_tooltip_area() override;
     virtual void page_did_click_link(Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers) override;

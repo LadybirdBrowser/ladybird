@@ -318,7 +318,6 @@ private:
 
     bool m_follows_mouse_while_inactive { false };
 
-    bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;
     QTimer m_tooltip_hover_timer;
 

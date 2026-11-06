@@ -935,11 +935,6 @@ void PageClient::page_did_set_text_fragment_indication_visibility(bool visible)
 {
     client().async_did_set_text_fragment_indication_visibility(m_id, visible);
 }
-void PageClient::page_did_request_refresh()
-{
-    client().async_did_request_refresh(m_id);
-}
-
 void PageClient::page_did_request_resize_window(Gfx::IntSize size, u64 completion_id)
 {
     client().async_did_request_resize_window(m_id, size, completion_id);
@@ -988,17 +983,6 @@ void PageClient::page_did_change_picture_in_picture_video_size(Gfx::IntSize vide
 void PageClient::page_did_change_picture_in_picture_player_controls_visibility(bool shown)
 {
     client().async_did_change_picture_in_picture_player_controls_visibility(m_id, shown);
-}
-
-void PageClient::page_did_request_tooltip_override(Web::CSSPixelPoint position, ByteString const& title)
-{
-    auto device_position = page().css_to_device_point(position);
-    client().async_did_request_tooltip_override(m_id, { device_position.x(), device_position.y() }, title);
-}
-
-void PageClient::page_did_stop_tooltip_override()
-{
-    client().async_did_leave_tooltip_area(m_id);
 }
 
 void PageClient::page_did_enter_tooltip_area(ByteString const& title)
