@@ -1,0 +1,4 @@
+no-cors fetch: type opaque, body "", requests 1
+cors fetch: type cors, X-Not-Exposed null, requests 1
+image on a canvas: SecurityError, requests 1
+stylesheet cssRules: SecurityError, requests 1
