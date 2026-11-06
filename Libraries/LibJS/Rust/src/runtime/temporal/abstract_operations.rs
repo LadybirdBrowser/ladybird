@@ -2277,7 +2277,7 @@ pub fn iso_date_to_fields(calendar: Utf16View<'_>, iso_date: ISODate, date_type:
     // 5. If type is either YEAR-MONTH or DATE, then
     if date_type == DateType::YearMonth || date_type == DateType::Date {
         // a. Set fields.[[Year]] to calendarDate.[[Year]].
-        fields.year = Some(calendar_date.year);
+        fields.year = Some(f64::from(calendar_date.year));
     }
 
     // 6. Return fields.
