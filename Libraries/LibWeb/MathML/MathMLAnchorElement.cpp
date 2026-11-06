@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/MathMLAnchorElement.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/MathML/AttributeNames.h>
 #include <LibWeb/MathML/MathMLAnchorElement.h>
 
@@ -25,6 +26,19 @@ void MathMLAnchorElement::attribute_changed(Utf16FlyString const& name, Optional
 
     if (name == AttributeNames::href && !namespace_.has_value())
         href_content_attribute_changed();
+}
+
+bool MathMLAnchorElement::has_activation_behavior() const
+{
+    return creates_a_hyperlink();
+}
+
+void MathMLAnchorElement::activation_behavior(DOM::Event const& event)
+{
+    if (event.is_trusted() && is_editable_or_editing_host())
+        return;
+
+    activate_the_hyperlink(event);
 }
 
 bool MathMLAnchorElement::is_focusable() const
