@@ -304,6 +304,16 @@ impl FunctionIndex {
         })
     }
 
+    /// Where lookups for what comes after the function of `row` start out.
+    pub fn position_after_row(&self, row: usize) -> usize {
+        let rows = self.rows_by_params_start();
+        if rows.is_empty() {
+            return row + 1;
+        }
+        let params_start = self.params_start[row];
+        rows.partition_point(|&other| self.params_start[other as usize] <= params_start)
+    }
+
     /// The row of the function that starts over at `params_start`. Lookups follow the source, so that the answer is mostly
     /// right where the last one left `cursor`.
     pub fn row_at_params_start(&self, params_start: u32, cursor: &Cell<usize>) -> Option<u32> {
@@ -324,8 +334,34 @@ impl FunctionIndex {
             {
                 return None;
             }
-            _ if rows.is_empty() => self.params_start.partition_point(|&offset| offset < params_start),
-            _ => rows.partition_point(|&row| self.params_start[row as usize] < params_start),
+            _ => {
+                // NB: What comes next tends to be close by, past the functions nested in the last one.
+                let is_before = |position: usize| offset_at(position).is_some_and(|offset| offset < params_start);
+                let (mut low, mut high) = (last, last);
+                let mut step = 1;
+                if is_before(last) {
+                    while is_before(high) {
+                        low = high;
+                        high = high.saturating_add(step).min(self.params_start.len());
+                        step *= 2;
+                    }
+                } else {
+                    while low != 0 && !is_before(low) {
+                        high = low;
+                        low = low.saturating_sub(step);
+                        step *= 2;
+                    }
+                }
+                while low < high {
+                    let middle = low + (high - low) / 2;
+                    if is_before(middle) {
+                        low = middle + 1;
+                    } else {
+                        high = middle;
+                    }
+                }
+                low
+            }
         };
         cursor.set(position);
         row_at(position).filter(|&row| self.params_start[row as usize] == params_start)
