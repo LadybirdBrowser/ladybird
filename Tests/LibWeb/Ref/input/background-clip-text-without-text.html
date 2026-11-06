@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/background-clip-text-without-text-ref.html" />
+<style>
+    html, body {
+        margin: 0;
+        background: white;
+    }
+    div {
+        height: 40px;
+        background-color: red;
+        background-clip: text;
+    }
+    #blending {
+        background-image: linear-gradient(red, red);
+        background-blend-mode: multiply;
+    }
+    section {
+        background: yellow;
+    }
+    #blending-border-box-layer {
+        background-image: linear-gradient(blue, blue), none;
+        background-clip: border-box, text;
+        background-blend-mode: multiply, normal;
+    }
+    #border-box-layer {
+        background-image: linear-gradient(blue, blue), linear-gradient(red, red);
+        background-clip: border-box, text;
+    }
+</style>
+<div></div>
+<div><span></span></div>
+<div id="blending"></div>
+<div id="border-box-layer"></div>
+<section><div id="blending-border-box-layer"></div></section>
