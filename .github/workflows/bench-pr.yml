@@ -113,8 +113,10 @@ jobs:
               exit 1
             fi
             gh api "repos/${REPO}/pulls/${pr}" > pr.json
-            if ! jq -e '.state == "open" and .base.ref == "master"' pr.json > /dev/null; then
-              echo "::error::#${pr} isn't an open PR against master."
+            # A merged PR can be measured too: Its head stays fetchable, and since PRs land only by rebasing, that head
+            # never lands on master itself — so its merge-base is still the commit it branched from.
+            if ! jq -e '(.state == "open" or .merged_at != null) and .base.ref == "master"' pr.json > /dev/null; then
+              echo "::error::#${pr} isn't an open or merged PR against master."
               exit 1
             fi
             # A label run measures the head the PR had when the label went on, so a push after that can't change what
