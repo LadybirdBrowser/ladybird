@@ -35,6 +35,7 @@
 #include <LibGC/RootVector.h>
 #include <LibGC/WeakBlock.h>
 #include <LibGC/WeakContainer.h>
+#include <pthread.h>
 
 namespace GC {
 
@@ -60,6 +61,7 @@ public:
     explicit Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots, BecomeThreadDefault = BecomeThreadDefault::Yes);
     ~Heap();
 
+    // The default heap of the calling thread.
     static Heap& the();
     static void set_default_heap_for_testing(Heap&);
 
@@ -107,6 +109,11 @@ public:
     // The shortest path from a root to each reachable cell that is_target accepts, for at most max_paths of them.
     NEVER_INLINE Vector<RetainingPath> find_retaining_paths(AK::Function<bool(Cell&)> const& is_target, size_t max_paths);
     static String describe_root(HeapRoot const&);
+
+    // A heap belongs to the thread that created it: the collector only scans that thread's stack, and nothing in the heap
+    // is synchronized. That thread has to destroy it as well. Collections and destruction verify this, allocation and
+    // rooting are debug assertions.
+    bool is_on_owner_thread() const { return pthread_equal(m_owner_thread, pthread_self()); }
 
     bool should_collect_on_every_allocation() const { return m_should_collect_on_every_allocation; }
     // This is true for any CollectEverything cycle, not only heap teardown.
@@ -327,6 +334,8 @@ private:
         size_t live_external_bytes { 0 };
     };
     OwnPtr<Stats> m_stats;
+
+    pthread_t m_owner_thread { pthread_self() };
 
     size_t m_gc_bytes_threshold { 0 };
     size_t m_allocated_bytes_since_last_gc { 0 };

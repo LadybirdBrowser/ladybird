@@ -18,11 +18,13 @@ RootHashTableBase::RootHashTableBase()
 RootHashTableBase::RootHashTableBase(Heap& heap)
     : m_heap(&heap)
 {
+    ASSERT(m_heap->is_on_owner_thread());
     m_heap->did_create_root_hash_table({}, *this);
 }
 
 RootHashTableBase::~RootHashTableBase()
 {
+    ASSERT(m_heap->is_on_owner_thread());
     m_heap->did_destroy_root_hash_table({}, *this);
 }
 
