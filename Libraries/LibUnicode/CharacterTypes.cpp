@@ -6,9 +6,9 @@
 
 #include <AK/Array.h>
 #include <AK/CharacterTypes.h>
+#include <AK/Diagnostics.h>
 #include <AK/Find.h>
 #include <AK/HashMap.h>
-#include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Traits.h>
 #include <LibUnicode/CharacterTypes.h>
@@ -56,14 +56,26 @@ static constexpr GeneralCategory GENERAL_CATEGORY_LIMIT = U_CHAR_CATEGORY_COUNT 
 
 static auto& category_sets_with_case_closure()
 {
-    static NeverDestroyed<HashMap<GeneralCategory, NonnullOwnPtr<icu::UnicodeSet>>> sets;
-    return *sets;
+    using Sets = HashMap<GeneralCategory, NonnullOwnPtr<icu::UnicodeSet>>;
+    // NB: Destroy each thread's ICU objects when that thread exits.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local Sets sets)
+#else
+    static thread_local Sets sets;
+#endif
+    return sets;
 }
 
 static auto& property_sets_with_case_closure()
 {
-    static NeverDestroyed<HashMap<Property, NonnullOwnPtr<icu::UnicodeSet>>> sets;
-    return *sets;
+    using Sets = HashMap<Property, NonnullOwnPtr<icu::UnicodeSet>>;
+    // NB: Destroy each thread's ICU objects when that thread exits.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local Sets sets)
+#else
+    static thread_local Sets sets;
+#endif
+    return sets;
 }
 
 Optional<GeneralCategory> general_category_from_string(StringView general_category)

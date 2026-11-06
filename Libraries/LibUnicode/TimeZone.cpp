@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/QuickSort.h>
@@ -18,10 +19,15 @@
 
 namespace Unicode {
 
-static auto& cached_system_time_zone()
+struct SystemTimeZoneCache {
+    Mutex mutex;
+    Optional<Utf16String> time_zone;
+};
+
+static SystemTimeZoneCache& system_time_zone_cache()
 {
-    static NeverDestroyed<Optional<Utf16String>> cached_system_time_zone;
-    return *cached_system_time_zone;
+    static NeverDestroyed<SystemTimeZoneCache> cache;
+    return *cache;
 }
 
 static Utf16String current_time_zone_impl(OwnPtr<icu::TimeZone> time_zone)
@@ -55,12 +61,16 @@ static Utf16String current_default_time_zone()
 
 Utf16String current_time_zone()
 {
-    return cached_system_time_zone().ensure([] { return current_host_time_zone(); });
+    auto& cache = system_time_zone_cache();
+    MutexLocker locker { cache.mutex };
+    return cache.time_zone.ensure([] { return current_host_time_zone(); });
 }
 
 void clear_system_time_zone_cache()
 {
-    cached_system_time_zone().clear();
+    auto& cache = system_time_zone_cache();
+    MutexLocker locker { cache.mutex };
+    cache.time_zone.clear();
 }
 
 ErrorOr<void> set_current_time_zone(Utf16View time_zone)
@@ -69,8 +79,10 @@ ErrorOr<void> set_current_time_zone(Utf16View time_zone)
     if (!time_zone_data.has_value())
         return Error::from_string_literal("Unable to find the provided time zone");
 
+    auto& cache = system_time_zone_cache();
+    MutexLocker locker { cache.mutex };
     icu::TimeZone::setDefault(time_zone_data->time_zone());
-    cached_system_time_zone() = current_default_time_zone();
+    cache.time_zone = current_default_time_zone();
 
     return {};
 }
