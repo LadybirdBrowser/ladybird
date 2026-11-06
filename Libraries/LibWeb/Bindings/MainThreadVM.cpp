@@ -522,9 +522,9 @@ void initialize_main_thread_vm(HTML::AgentType type)
 
         // 7. If referrer is a Cyclic Module Record and moduleRequest is equal to the first element of referrer.[[RequestedModules]], then:
         if (referrer.has<GC::Ref<JS::CyclicModule>>()) {
-            if (auto const& requested_modules = referrer.get<GC::Ref<JS::CyclicModule>>()->requested_modules(); !requested_modules.is_empty() && module_request == requested_modules.first()) {
+            if (auto requested_modules = referrer.get<GC::Ref<JS::CyclicModule>>()->requested_modules(); !requested_modules.is_empty() && module_request == requested_modules.first()) {
                 // 1. For each ModuleRequest record requested of referrer.[[RequestedModules]]:
-                for (auto const& module_request : referrer.get<GC::Ref<JS::CyclicModule>>()->requested_modules()) {
+                for (auto const& module_request : requested_modules) {
                     // 1. If moduleRequest.[[Attributes]] contains a Record entry such that entry.[[Key]] is not "type", then:
                     for (auto const& attribute : module_request.attributes) {
                         if (attribute.key == "type"sv)
