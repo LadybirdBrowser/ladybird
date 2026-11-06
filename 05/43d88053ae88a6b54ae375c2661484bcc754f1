@@ -1,0 +1,8 @@
+An IndexedDB open or delete request in Ladybird waits until the one
+before it in its connection queue has completed, upgrade included. So
+do the other engines: Chromium’s ConnectionCoordinator keeps an open
+request first in request_queue_ until OnUpgradeTransactionFinished().
+WebKit’s UniqueIDBDatabase::handleDatabaseOperations() takes no next
+open request while a version-change transaction runs. And Gecko’s
+FactoryOp::MustWaitFor() holds back an operation for a database while
+any other operation for it is still running.
