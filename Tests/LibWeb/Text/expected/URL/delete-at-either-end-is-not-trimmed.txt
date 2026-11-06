@@ -1,0 +1,6 @@
+ASCII input with a leading DELETE: http://example.com/dir/%7Fjavascript:x
+ASCII input with a trailing DELETE: http://example.com/x%7F
+Latin-1 input with a leading DELETE: http://example.com/dir/%7Fjavascript:%C3%A9
+Latin-1 input with a trailing DELETE: http://example.com/%C3%A9%7F
+UTF-16 input with a leading DELETE: http://example.com/dir/%7Fjavascript:%E4%B8%80
+UTF-16 input with a trailing DELETE: http://example.com/%E4%B8%80%7F

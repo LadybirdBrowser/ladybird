@@ -61,7 +61,7 @@ pub(super) fn report_validation_error(state: State, pointer: usize, code_point: 
 
 // https://infra.spec.whatwg.org/#c0-control-or-space
 pub(super) fn is_ascii_c0_control_or_space(code_point: char) -> bool {
-    code_point.is_ascii_control() || code_point == ' '
+    code_point <= ' '
 }
 
 // https://url.spec.whatwg.org/#url-code-points
