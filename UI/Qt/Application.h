@@ -14,7 +14,6 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <UI/Qt/BrowserWindow.h>
-#include <UI/Qt/CrashReportNotifier.h>
 
 #include <QApplication>
 #include <QPointer>
@@ -80,7 +79,6 @@ public:
     bool is_finishing_quit() const { return m_quit_is_finishing; }
     bool confirm_stop_active_downloads(QWidget* parent = nullptr);
 
-    CrashReportNotifier& crash_report_notifier() { return m_crash_report_notifier; }
     void update_feedback_buttons();
     void review_crash_report(ByteString const& report_name);
 
@@ -173,7 +171,7 @@ private:
     virtual void open_download(WebView::FileDownloader::Download const&) const override;
     virtual void show_download_in_folder(WebView::FileDownloader::Download const&) const override;
 
-    virtual void display_crash_report_notification(ByteString const& report_name) override;
+    virtual void crash_report_saved() override;
 
     virtual bool supports_clipboard_type(ClipboardType) const override;
     virtual Utf16String clipboard_text(ClipboardType) const override;
@@ -218,7 +216,6 @@ private:
     OwnPtr<QApplication> m_application;
     BrowserWindow* m_active_window { nullptr };
     OwnPtr<ProcessManagerWindow> m_process_manager_window;
-    CrashReportNotifier m_crash_report_notifier;
 
     bool m_private_session_restart_in_progress { false };
     bool m_quit_in_progress { false };

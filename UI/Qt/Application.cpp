@@ -1177,9 +1177,9 @@ void Application::reopen_recently_closed_tab(BrowserWindow* target_window, Optio
     update_reopen_recently_closed_actions();
 }
 
-void Application::display_crash_report_notification(ByteString const& report_name)
+void Application::crash_report_saved()
 {
-    m_crash_report_notifier.offer(report_name);
+    update_feedback_buttons();
 }
 
 void Application::update_feedback_buttons()

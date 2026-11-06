@@ -135,8 +135,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             window.setWindowTitle(BROWSER_PRODUCT_NAME);
             app->offer_to_restore_unexpectedly_closed_tabs(window);
         }
-
-        app->offer_newest_pending_crash_report();
     }
 
     return app->execute();
