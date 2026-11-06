@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    p { margin: 0; }
+    #wrapper { padding: 30px; width: 300px; }
+    #area { height: 300px; }
+</style>
+<div id="area"><p id="editorInArea" contenteditable>editable</p></div>
+<div id="wrapper"><div id="editorInWrapper" contenteditable>editable</div></div>
+<div><span id="inlineEditor" contenteditable>editable</span></div>
+<script src="../include.js"></script>
+<script>
+    // A click beside a block-level editing host, on the non-editable content around it, focuses nothing in it and
+    // leaves the caret outside it, so typing doesn't go into it. A click on the line beside an inline editing host
+    // puts the caret in it.
+    asyncTest(async done => {
+        const name = node => node ? node.localName + (node.id ? `#${node.id}` : "") : "null";
+        const rect = id => document.getElementById(id).getBoundingClientRect();
+        const report = label => {
+            const anchor = getSelection().anchorNode;
+            const anchorElement = anchor && anchor.nodeType !== Node.ELEMENT_NODE ? anchor.parentElement : anchor;
+            println(`${label}: focus ${name(document.activeElement)}, caret in ${name(anchorElement)}`);
+        };
+        const click = async (x, y) => {
+            internals.click(x, y);
+            await new Promise(resolve => requestAnimationFrame(resolve));
+        };
+
+        await click(rect("wrapper").left + 5, rect("wrapper").top + 5);
+        report("Wrapper padding around a block editor");
+
+        await click(rect("editorInArea").left + 5, rect("editorInArea").top + 5);
+        report("Inside a block editor");
+        await click(rect("area").right - 50, rect("area").bottom - 10);
+        println(`Then far below it in its container: focus ${name(document.activeElement)}`);
+        internals.sendText(document.body, "X");
+        println(`Typing then leaves the editor as it was: ${document.getElementById("editorInArea").textContent === "editable"}`);
+
+        await click(rect("inlineEditor").right + 300, rect("inlineEditor").top + rect("inlineEditor").height / 2);
+        report("On the line beside an inline editor");
+        done();
+    });
+</script>
