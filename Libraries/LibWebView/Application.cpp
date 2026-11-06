@@ -2397,7 +2397,9 @@ void Application::process_did_exit(Process&& process, Optional<int>)
         }
         break;
     case ProcessType::WebWorker:
-        dbgln_if(WEBVIEW_PROCESS_DEBUG, "WebWorker {} died, not sure what to do.", process.pid());
+        // NB: A worker that closes itself says so and exits right away, and this can come ahead of what it said.
+        if (auto client = process.client<WebWorkerClient>())
+            client->dispatch_pending_messages();
         break;
     case ProcessType::Browser:
         dbgln("Invalid process type to be dying: Browser");
