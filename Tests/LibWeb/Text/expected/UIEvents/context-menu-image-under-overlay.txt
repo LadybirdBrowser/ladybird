@@ -1,0 +1,14 @@
+right-click over transparent: page target=DIV
+right-click over translucent: page target=DIV
+right-click over faded-opaque: page target=DIV
+right-click over stacked-transparent: page target=DIV
+right-click over caption: page target=DIV
+right-click over link: link target=A
+right-click over opaque: page target=DIV
+right-click over listener: page target=DIV
+right-click over editable: page target=DIV
+right-click over text-input: page target=INPUT
+right-click over canvas: page target=CANVAS
+right-click over iframe: page target=BODY
+right-click over ancestor-listener: page target=DIV
+right-click over selected-caption: page target=DIV
