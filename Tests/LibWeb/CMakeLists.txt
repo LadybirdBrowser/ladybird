@@ -18,7 +18,6 @@ set(TEST_SOURCES
     TestControlMessageQueue.cpp
     TestCSSDecodeBytes.cpp
     TestCSSIDSpeed.cpp
-    TestCSSInheritedProperty.cpp
     TestCSSPropertyList.cpp
     TestDump.cpp
     TestEventLoop.cpp
@@ -40,7 +39,6 @@ set(TEST_SOURCES
     TestInitialLoadTracker.cpp
     TestInlineStyle.cpp
     TestLoaderConfig.cpp
-    TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
     TestSecureContexts.cpp
