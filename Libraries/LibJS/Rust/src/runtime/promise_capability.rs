@@ -11,7 +11,7 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
-use crate::layout::member::Member;
+use crate::layout::member::{Member, NullableMember};
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{construct, ordinary_create_from_constructor_of};
@@ -21,6 +21,7 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::FunctionObject;
 use crate::runtime::native_function::NativeFunction;
 use crate::runtime::promise::Promise;
+use crate::runtime::realm::Realm;
 
 // 27.2.1.1 PromiseCapability Records, https://tc39.es/ecma262/#sec-promisecapability-records
 #[repr(C)]
@@ -28,11 +29,15 @@ use crate::runtime::promise::Promise;
 pub struct PromiseCapability {
     header: CellHeader,
     promise: Member<Object>,
-    resolve: Member<FunctionObject>,
-    reject: Member<FunctionObject>,
+    resolve: NullableMember<FunctionObject>,
+    reject: NullableMember<FunctionObject>,
+    /// The realm of the resolving functions, for a capability that has not created them.
+    realm: NullableMember<Realm>,
+    #[gc(untraced)]
+    padding: u32,
 }
 
-const _: () = assert!(size_of::<PromiseCapability>() == 24);
+const _: () = assert!(size_of::<PromiseCapability>() == 32);
 
 define_cell!(PromiseCapability, Other);
 
@@ -46,9 +51,34 @@ impl PromiseCapability {
         vm.heap().allocate(|_| PromiseCapability {
             header: CellHeader::for_class(Self::CLASS),
             promise: Member::new(promise),
-            resolve: Member::new(resolve),
-            reject: Member::new(reject),
+            resolve: NullableMember::new(Some(resolve)),
+            reject: NullableMember::new(Some(reject)),
+            realm: NullableMember::new(None),
+            padding: 0,
         })
+    }
+
+    /// OPTIMIZATION: A capability whose [[Resolve]] and [[Reject]] no script can reach does not need them to be functions,
+    ///               which take more time to create than the rest of a reaction together. Whoever uses this capability
+    ///               settles `promise` directly, once, from within `realm`, or creates the functions there.
+    pub fn create_for_promise_without_resolving_functions(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        promise: Gc<Promise>,
+    ) -> Gc<PromiseCapability> {
+        vm.heap().allocate(|_| PromiseCapability {
+            header: CellHeader::for_class(Self::CLASS),
+            promise: Member::new(promise.upcast()),
+            resolve: NullableMember::new(None),
+            reject: NullableMember::new(None),
+            realm: NullableMember::new(Some(realm)),
+            padding: 0,
+        })
+    }
+
+    /// The realm to settle the promise from, for a capability that has no resolving functions.
+    pub fn realm_without_resolving_functions(&self) -> Option<Gc<Realm>> {
+        self.realm.get()
     }
 
     pub fn promise(&self) -> Gc<Object> {
@@ -56,11 +86,11 @@ impl PromiseCapability {
     }
 
     pub fn resolve(&self) -> Gc<FunctionObject> {
-        self.resolve.get()
+        self.resolve.get().expect("this capability has resolving functions")
     }
 
     pub fn reject(&self) -> Gc<FunctionObject> {
-        self.reject.get()
+        self.reject.get().expect("this capability has resolving functions")
     }
 }
 

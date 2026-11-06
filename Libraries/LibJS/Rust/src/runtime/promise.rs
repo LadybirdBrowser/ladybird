@@ -169,7 +169,10 @@ impl Promise {
 
     // 27.2.1.3 CreateResolvingFunctions ( promise ), https://tc39.es/ecma262/#sec-createresolvingfunctions
     pub fn create_resolving_functions(&self, vm: &Vm) -> ResolvingFunctions {
-        let realm = vm.current_realm().expect("there is a current realm");
+        self.create_resolving_functions_in_realm(vm, vm.current_realm().expect("there is a current realm"))
+    }
+
+    pub fn create_resolving_functions_in_realm(&self, vm: &Vm, realm: Gc<Realm>) -> ResolvingFunctions {
         self.has_resolver.set(true);
 
         // 1. Let alreadyResolved be the Record { [[Value]]: false }.

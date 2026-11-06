@@ -20,7 +20,7 @@ use crate::runtime::native_function::{NativeFunction, RawNativeFunction, RawNati
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::promise::{Promise, promise_resolve};
-use crate::runtime::promise_capability::new_promise_capability;
+use crate::runtime::promise_capability::{PromiseCapability, new_promise_capability};
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::prototype_object::typed_this_object;
@@ -117,7 +117,12 @@ impl PromisePrototype {
         let constructor = species_constructor(vm, &promise, realm.intrinsics().promise_constructor(vm).upcast())?;
 
         // 4. Let resultCapability be ? NewPromiseCapability(C).
-        let result_capability = new_promise_capability(vm, Value::from_object(constructor))?;
+        // OPTIMIZATION: The resolving functions of the intrinsic Promise would never reach any script here.
+        let result_capability = if constructor == realm.intrinsics().promise_constructor(vm).upcast() {
+            PromiseCapability::create_for_promise_without_resolving_functions(vm, realm, Promise::create(vm, realm))
+        } else {
+            new_promise_capability(vm, Value::from_object(constructor))?
+        };
 
         // 5. Return PerformPromiseThen(promise, onFulfilled, onRejected, resultCapability).
         Ok(promise.perform_then(vm, on_fulfilled, on_rejected, Some(result_capability)))

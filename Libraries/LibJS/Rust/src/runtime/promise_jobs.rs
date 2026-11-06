@@ -70,6 +70,36 @@ fn run_reaction_job(vm: &Vm, reaction: Gc<PromiseReaction>, argument: Value) -> 
 
     // g. Assert: promiseCapability is a PromiseCapability Record.
 
+    if let Some(realm) = promise_capability.realm_without_resolving_functions() {
+        let promise = promise_capability
+            .promise()
+            .downcast::<Promise>()
+            .expect("a capability without resolving functions has a Promise");
+
+        // OPTIMIZATION: Nothing else can resolve the promise, so from the realm of its resolving functions, settling it
+        //               directly does what calling them would. Without a handler, the job runs in no realm at all. The
+        //               host looks at the running execution context for a rejection without a handler, which has to be
+        //               that of a resolving function. Only an object can reject the promise as it resolves it.
+        let may_reject_without_handler =
+            !promise.is_handled() && (handler_result.is_abrupt() || handler_result.value().is_object());
+        if vm.current_realm() == Some(realm) && !may_reject_without_handler {
+            if handler_result.is_abrupt() {
+                promise.reject(vm, handler_result.value());
+            } else {
+                promise.resolve(vm, handler_result.value());
+            }
+            return Ok(Value::UNDEFINED);
+        }
+
+        let resolving_functions = promise.create_resolving_functions_in_realm(vm, realm);
+        let function = if handler_result.is_abrupt() {
+            resolving_functions.reject
+        } else {
+            resolving_functions.resolve
+        };
+        return call_function_object(vm, function, Value::UNDEFINED, &[handler_result.value()]);
+    }
+
     // h. If handlerResult is an abrupt completion, then
     if handler_result.is_abrupt() {
         // i. Return ? Call(promiseCapability.[[Reject]], undefined, « handlerResult.[[Value]] »).
