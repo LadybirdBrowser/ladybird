@@ -1391,20 +1391,30 @@ impl Executable {
     /// into any realm. Without another holder nothing can link it again, so what only linking reads goes away.
     pub fn create_with_source_code(
         vm: &Vm,
-        data: Arc<ExecutableData>,
+        mut data: Arc<ExecutableData>,
         source_code: Option<&Rc<SourceCode>>,
     ) -> Gc<Executable> {
         let executable = DeferGc::scope(vm, |_| {
             let mut tables = SliceBlock::builder(Self::size_of_tables(&data));
             let is_strict = data.is_strict;
-            let shared_function_data = tables.slice(data.shared_function_data.iter().map(|pending| {
-                SharedFunctionInstanceData::create_from_pending_shared_function_data(
-                    vm,
-                    pending,
-                    is_strict,
-                    source_code,
-                )
-            }));
+            let shared_function_data = match Arc::get_mut(&mut data) {
+                Some(code) => tables.slice(code.shared_function_data.take_elements().map(|pending| {
+                    SharedFunctionInstanceData::create_from_owned_pending_shared_function_data(
+                        vm,
+                        pending,
+                        is_strict,
+                        source_code,
+                    )
+                })),
+                None => tables.slice(data.shared_function_data.iter().map(|pending| {
+                    SharedFunctionInstanceData::create_from_pending_shared_function_data(
+                        vm,
+                        pending,
+                        is_strict,
+                        source_code,
+                    )
+                })),
+            };
             vm.heap()
                 .allocate(|defer_gc| Self::build(vm, data, tables, shared_function_data, source_code, defer_gc))
         });
