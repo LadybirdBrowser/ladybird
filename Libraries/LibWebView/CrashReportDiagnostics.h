@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/ByteString.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
@@ -26,10 +27,15 @@ struct WEBVIEW_API CrashReportDiagnostics {
         Optional<u64> number;
     };
 
+    static constexpr auto failure_headers = Array { "Verification failed"sv, "Assertion failed"sv, "Rust panic"sv, "Exit code"sv };
+
     static CrashReportDiagnostics parse(StringView text);
 
     // The first value under this name, or an empty string when the report has no such line.
     ByteString header(StringView name) const;
+
+    // What the crash has in common with every other crash of the same bug: the process, how it failed and where.
+    ByteString signature() const;
 
     Vector<Header> headers;
 

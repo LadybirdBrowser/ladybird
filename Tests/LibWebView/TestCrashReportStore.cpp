@@ -128,7 +128,7 @@ TEST_CASE(a_name_the_store_rejects_is_never_read_or_marked)
     EXPECT(MUST(test_store().pending_report_names(now)).is_empty());
     EXPECT(test_store().saved_report("notes.txt"sv).is_error());
     EXPECT(test_store().mark_seen("../escape.txt"sv).is_error());
-    EXPECT(test_store().remove_sent_report("notes.txt"sv).is_error());
+    EXPECT(test_store().remove_report("notes.txt"sv).is_error());
 }
 
 TEST_CASE(a_seen_report_is_no_longer_pending)
@@ -252,8 +252,8 @@ TEST_CASE(sending_a_report_removes_it_wherever_it_is)
     auto store = test_store();
     MUST(store.mark_seen(seen_name));
 
-    MUST(store.remove_sent_report(pending_name));
-    MUST(store.remove_sent_report(seen_name));
+    MUST(store.remove_report(pending_name));
+    MUST(store.remove_report(seen_name));
     EXPECT(directory_entries().is_empty());
     EXPECT(directory_entries("Seen"sv).is_empty());
 }

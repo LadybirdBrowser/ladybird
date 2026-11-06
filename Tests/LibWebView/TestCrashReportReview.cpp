@@ -167,6 +167,19 @@ TEST_CASE(an_opened_report_is_no_longer_pending)
     EXPECT(review.open().is_error());
 }
 
+TEST_CASE(a_report_opened_without_marking_it_seen_stays_pending)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto name = write_report("2026-10-01T12-00-00Z"sv);
+    WebView::CrashReportStore store { test_directory() };
+    CrashReportReview review { store };
+
+    EXPECT_EQ(MUST(review.open(name, CrashReportReview::MarkAsSeen::No)).name, name);
+    EXPECT(is_pending(name));
+}
+
 TEST_CASE(a_report_can_be_reopened_by_name_once_seen)
 {
     cleanup();

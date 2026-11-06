@@ -41,7 +41,7 @@ public:
 
     // Seen reports move into a subdirectory, where the newest of them are kept for reference and never offered again.
     ErrorOr<void> mark_seen(ByteString const& name) const;
-    ErrorOr<void> remove_sent_report(ByteString const& name) const;
+    ErrorOr<void> remove_report(ByteString const& name) const;
 
     // Reports that are still unsent 30 days after their crash are deleted, whether they were seen or not.
     ErrorOr<void> remove_expired_reports(UnixDateTime now = UnixDateTime::now()) const;
