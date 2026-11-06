@@ -1171,6 +1171,7 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     update_chrome_style();
     set_window_controls_visible(false);
     update_feedback_button();
+    config_variable_changed(WebView::ConfigVariableID::ShowFeedbackButton);
 }
 
 WindowToolbar::~WindowToolbar() = default;
@@ -1382,6 +1383,12 @@ void WindowToolbar::tab_settings_changed()
 
 void WindowToolbar::config_variable_changed(WebView::ConfigVariableID variable)
 {
+    if (variable == WebView::ConfigVariableID::ShowFeedbackButton && m_feedback_button) {
+        auto show_button = WebView::Application::settings().config_variable_as_bool(variable);
+        if (!show_button && m_feedback_popover)
+            m_feedback_popover->close();
+        m_feedback_button->setVisible(show_button);
+    }
     if (variable == WebView::ConfigVariableID::ShowTabPerformanceMonitor)
         m_performance_monitor->setVisible(WebView::Application::settings().config_variable_as_bool(variable));
 }

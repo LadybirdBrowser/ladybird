@@ -136,6 +136,14 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .array_element_type = {},
     },
     {
+        .id = ConfigVariableID::ShowFeedbackButton,
+        .name = "ui.toolbar.show_feedback_button"sv,
+        .title = "Show feedback button"sv,
+        .description = "Show the button for sending feedback at the end of the toolbar."sv,
+        .default_value = true,
+        .array_element_type = {},
+    },
+    {
         .id = ConfigVariableID::UseClientSideWindowDecorations,
         .name = "ui.window.use_client_side_decorations"sv,
         .title = "Use client-side window decorations"sv,
