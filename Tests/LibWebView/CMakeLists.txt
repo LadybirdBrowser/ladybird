@@ -150,7 +150,6 @@ if (NOT WIN32)
         TestUserActivation.cpp
         TestViewSource.cpp
         TestWebCompatReport.cpp
-        TestWebCompatReportPage.cpp
     )
     list(APPEND TEST_SOURCES ${HEADLESS_TEST_SOURCES})
 endif()
