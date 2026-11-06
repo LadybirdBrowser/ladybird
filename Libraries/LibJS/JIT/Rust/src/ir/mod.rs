@@ -857,6 +857,12 @@ pub enum Op {
     /// `Graph::legacy_arguments_guards`). Until then it is no `AssumeValid`,
     /// so that check elimination does not rely on it.
     AssumeLegacyArgumentsUnread,
+    /// Exits with `ExitKind::Interrupted` if another thread interrupted the
+    /// VM (`Vm::request_interrupt()`), which raised the native stack limit
+    /// past the stack pointer. Every loop back edge has one, right before the
+    /// instruction that jumps back, where the interpreter stops. Calls need
+    /// none: the same limit sends every call and entry to the interpreter.
+    CheckInterrupt,
     /// Loads binding `index` of the global declarative environment
     /// `environment`. Exits with `ExitKind::BadShape` if it is still
     /// uninitialized.
@@ -1492,6 +1498,10 @@ impl Op {
                 reads: Locations::ALL,
                 ..P::PURE
             },
+            Op::CheckInterrupt => P {
+                writes: Locations::INTERRUPT,
+                ..P::PURE
+            },
             Op::HasInPrototypeChain => P {
                 reads: Locations::SHAPES,
                 ..P::PURE
@@ -1748,6 +1758,7 @@ impl Op {
             Op::CheckShape { .. } => "CheckShape",
             Op::CheckPrototypeChainValid { .. } => "CheckPrototypeChainValid",
             Op::AssumeValid => "AssumeValid",
+            Op::CheckInterrupt => "CheckInterrupt",
             Op::AssumeLegacyArgumentsUnread => "AssumeLegacyArgumentsUnread",
             Op::HasInPrototypeChain => "HasInPrototypeChain",
             Op::LoadGlobalBinding { .. } => "LoadGlobalBinding",
@@ -1876,6 +1887,7 @@ impl Op {
             Op::CheckNonNegativeInt32 => Some(ExitKind::Overflow),
             Op::CheckNumber | Op::CheckIdentityComparable | Op::HasInPrototypeChain => Some(ExitKind::BadType),
             Op::AssumeValid | Op::AssumeLegacyArgumentsUnread => Some(ExitKind::Invalidated),
+            Op::CheckInterrupt => Some(ExitKind::Interrupted),
             Op::Int32Binary { op } if op.int32_can_overflow() => Some(ExitKind::Overflow),
             Op::CheckValue { kind, .. } => Some(*kind),
             Op::LoadArgument { .. } | Op::SliceArguments => Some(ExitKind::ArgumentsIndex),
