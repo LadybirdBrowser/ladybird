@@ -151,7 +151,7 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
         // The display list of a page holds none of the commands of the canvas 2D stream.
         | T::Canvas2DFillPath
         | T::Canvas2DStrokePath
-        | T::Canvas2DDrawGlyphRun
+        | T::Canvas2DDrawGlyphRuns
         | T::Canvas2DClearRect
         | T::Canvas2DDrawImageFrame
         | T::Canvas2DDrawCanvas
@@ -304,7 +304,7 @@ fn command_blend(
         // The display list of a page holds none of the commands of the canvas 2D stream.
         | T::Canvas2DFillPath
         | T::Canvas2DStrokePath
-        | T::Canvas2DDrawGlyphRun
+        | T::Canvas2DDrawGlyphRuns
         | T::Canvas2DClearRect
         | T::Canvas2DDrawImageFrame
         | T::Canvas2DDrawCanvas

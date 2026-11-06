@@ -56,7 +56,7 @@ pub enum DisplayListCommandType {
     CompositorNestedContextWheelRegion,
     Canvas2DFillPath,
     Canvas2DStrokePath,
-    Canvas2DDrawGlyphRun,
+    Canvas2DDrawGlyphRuns,
     Canvas2DClearRect,
     Canvas2DDrawImageFrame,
     Canvas2DDrawCanvas,
@@ -107,7 +107,7 @@ impl DisplayListCommandType {
             self,
             Self::Canvas2DFillPath
                 | Self::Canvas2DStrokePath
-                | Self::Canvas2DDrawGlyphRun
+                | Self::Canvas2DDrawGlyphRuns
                 | Self::Canvas2DClearRect
                 | Self::Canvas2DDrawImageFrame
                 | Self::Canvas2DDrawCanvas
@@ -164,7 +164,7 @@ impl DisplayListCommandType {
             Self::CompositorNestedContextWheelRegion => "CompositorNestedContextWheelRegion",
             Self::Canvas2DFillPath => "Canvas2DFillPath",
             Self::Canvas2DStrokePath => "Canvas2DStrokePath",
-            Self::Canvas2DDrawGlyphRun => "Canvas2DDrawGlyphRun",
+            Self::Canvas2DDrawGlyphRuns => "Canvas2DDrawGlyphRuns",
             Self::Canvas2DClearRect => "Canvas2DClearRect",
             Self::Canvas2DDrawImageFrame => "Canvas2DDrawImageFrame",
             Self::Canvas2DDrawCanvas => "Canvas2DDrawCanvas",
@@ -1884,26 +1884,39 @@ impl DisplayListCommand for Canvas2DStrokePath {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::Canvas2DStrokePath;
 }
 
-// The glyphs of one font, positioned relative to the translation, with the top of the line box at the glyph position.
+// A font and how many of the next glyphs of a Canvas2DDrawGlyphRuns it draws.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
-pub struct Canvas2DDrawGlyphRun {
+pub struct Canvas2DGlyphRun {
     pub font_id: FontResourceId,
+    pub glyph_count: u64,
+}
+ffi_bytes_fields!(Canvas2DGlyphRun { font_id, glyph_count });
+
+// The glyphs of a text, positioned relative to the translation, with the top of the line box at the glyph position.
+// The text is a single draw, so that its runs of different fonts share one shadow and one composite. The horizontal
+// scale condenses the glyphs and their positions towards the translation.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct Canvas2DDrawGlyphRuns {
+    pub runs: DisplayListDataSpan,
     pub glyphs: DisplayListDataSpan,
     pub translation: FloatPoint,
+    pub horizontal_scale: f32,
     pub paint: Canvas2DPaint,
     pub compositing: Canvas2DCompositing,
 }
-ffi_bytes_fields!(Canvas2DDrawGlyphRun {
-    font_id,
+ffi_bytes_fields!(Canvas2DDrawGlyphRuns {
+    runs,
     glyphs,
     translation,
+    horizontal_scale,
     paint,
     compositing
 });
 
-impl DisplayListCommand for Canvas2DDrawGlyphRun {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::Canvas2DDrawGlyphRun;
+impl DisplayListCommand for Canvas2DDrawGlyphRuns {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::Canvas2DDrawGlyphRuns;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

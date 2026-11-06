@@ -254,19 +254,21 @@ impl TapeWriter {
         self.append(&command, &inline_data);
     }
 
-    pub fn draw_glyph_run(
+    pub fn draw_glyph_runs(
         &mut self,
-        font_id: FontResourceId,
+        runs: &[Canvas2DGlyphRun],
         glyphs: &[DisplayListGlyph],
         translation: FloatPoint,
+        horizontal_scale: f32,
         paint: &Paint,
         compositing: &Compositing,
     ) {
-        let mut inline_data = InlineData::new::<Canvas2DDrawGlyphRun>();
-        let command = Canvas2DDrawGlyphRun {
-            font_id,
+        let mut inline_data = InlineData::new::<Canvas2DDrawGlyphRuns>();
+        let command = Canvas2DDrawGlyphRuns {
+            runs: inline_data.append_objects(runs),
             glyphs: inline_data.append_objects(glyphs),
             translation,
+            horizontal_scale,
             paint: inline_data.append_paint(paint),
             compositing: inline_data.append_compositing(compositing),
         };
@@ -490,13 +492,17 @@ mod tests {
         });
         writer.clear_rect(FloatRect::new(0.0, 0.0, 10.0, 10.0), Color(0));
         writer.clip_path(&[4, 4, 4, 4], WindingRule::Nonzero);
-        writer.draw_glyph_run(
-            FontResourceId(7),
+        writer.draw_glyph_runs(
+            &[Canvas2DGlyphRun {
+                font_id: FontResourceId(7),
+                glyph_count: 1,
+            }],
             &[DisplayListGlyph {
                 position: FloatPoint { x: 1.0, y: 0.0 },
                 glyph_id: 42,
             }],
             FloatPoint { x: 10.0, y: 20.0 },
+            1.0,
             &Paint::Color(Color(0xff00_ff00)),
             &Compositing::default(),
         );
@@ -515,7 +521,7 @@ mod tests {
                 DisplayListCommandType::Canvas2DSetTransform,
                 DisplayListCommandType::Canvas2DClearRect,
                 DisplayListCommandType::Canvas2DClipPath,
-                DisplayListCommandType::Canvas2DDrawGlyphRun,
+                DisplayListCommandType::Canvas2DDrawGlyphRuns,
                 DisplayListCommandType::Canvas2DRestore,
                 DisplayListCommandType::Canvas2DReset,
                 DisplayListCommandType::Canvas2DClearCanvas,
@@ -635,6 +641,49 @@ mod tests {
             } else {
                 Err("Canvas 2D stream command has a global alpha outside 0 to 1")
             };
+            assert_eq!(validate_canvas_2d_tape(writer.bytes()), expected);
+        }
+    }
+
+    #[test]
+    fn glyph_runs_that_do_not_split_their_glyphs_exactly_are_rejected() {
+        let glyph = DisplayListGlyph {
+            position: FloatPoint { x: 0.0, y: 0.0 },
+            glyph_id: 1,
+        };
+        let run = |glyph_count| Canvas2DGlyphRun {
+            font_id: FontResourceId(1),
+            glyph_count,
+        };
+        for (runs, scale, expected) in [
+            (vec![run(1), run(1)], 1.0, Ok(())),
+            (vec![run(2), run(0)], 0.5, Ok(())),
+            (vec![run(1)], 1.0, Err("Canvas glyph runs do not cover their glyphs")),
+            (
+                vec![run(2), run(1)],
+                1.0,
+                Err("Canvas glyph runs do not cover their glyphs"),
+            ),
+            (
+                vec![run(u64::MAX), run(3)],
+                1.0,
+                Err("Canvas glyph runs do not cover their glyphs"),
+            ),
+            (
+                vec![run(2)],
+                f32::NAN,
+                Err("Canvas glyph runs have a horizontal scale that is not finite"),
+            ),
+        ] {
+            let mut writer = TapeWriter::default();
+            writer.draw_glyph_runs(
+                &runs,
+                &[glyph, glyph],
+                FloatPoint { x: 0.0, y: 0.0 },
+                scale,
+                &Paint::Color(Color(0xff00_0000)),
+                &Compositing::default(),
+            );
             assert_eq!(validate_canvas_2d_tape(writer.bytes()), expected);
         }
     }

@@ -20,7 +20,6 @@
 #include <LibGfx/WindingRule.h>
 
 class SkColorSpace;
-class SkFont;
 class SkImage;
 class SkImageFilter;
 template<typename T>
@@ -41,6 +40,11 @@ struct CanvasGlyph {
     u32 glyph_id { 0 };
 };
 
+struct CanvasGlyphRun {
+    Font const& font;
+    ReadonlySpan<CanvasGlyph> glyphs;
+};
+
 class PainterSkia final {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -54,7 +58,7 @@ public:
     void draw_image(SkImage const&, Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::ScalingMode, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const&);
     void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, sk_sp<SkImageFilter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&, float miter_limit, Vector<float> const&, float dash_offset, Optional<CanvasShadow> const&);
     void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule, Optional<CanvasShadow> const&);
-    void draw_glyph_run(Font const&, SkFont, ReadonlySpan<CanvasGlyph>, FloatPoint translation, PaintStyle const&, sk_sp<SkImageFilter>, float global_alpha, CompositingAndBlendingOperator, Optional<CanvasShadow> const&);
+    void draw_glyph_runs(ReadonlySpan<CanvasGlyphRun>, FloatPoint translation, float horizontal_scale, PaintStyle const&, sk_sp<SkImageFilter>, float global_alpha, CompositingAndBlendingOperator, Optional<CanvasShadow> const&);
     void set_transform(Gfx::AffineTransform const&);
     void save();
     void restore();

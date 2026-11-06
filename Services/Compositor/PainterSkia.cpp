@@ -12,6 +12,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/String.h>
 #include <AK/TypeCasts.h>
+#include <Compositor/FontSkia.h>
 #include <Compositor/PainterSkia.h>
 #include <Compositor/SkiaUtils.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -387,24 +388,42 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_
     });
 }
 
-void PainterSkia::draw_glyph_run(Font const& font, SkFont sk_font, ReadonlySpan<CanvasGlyph> glyphs, FloatPoint translation, PaintStyle const& style, sk_sp<SkImageFilter> image_filter, float global_alpha, CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const& shadow)
+void PainterSkia::draw_glyph_runs(ReadonlySpan<CanvasGlyphRun> runs, FloatPoint translation, float horizontal_scale, PaintStyle const& style, sk_sp<SkImageFilter> image_filter, float global_alpha, CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const& shadow)
 {
-    if (glyphs.is_empty() || font.is_invisible())
-        return;
+    struct SkiaGlyphRun {
+        SkFont font;
+        Vector<SkGlyphID, 32> glyph_ids;
+        Vector<SkPoint, 32> glyph_positions;
+    };
 
-    // NB: Preserve canvas text's fractional baseline and unhinted outline geometry.
-    sk_font.setHinting(SkFontHinting::kNone);
-    sk_font.setForceAutoHinting(false);
-    sk_font.setBaselineSnap(false);
+    Vector<SkiaGlyphRun, 2> skia_runs;
+    skia_runs.ensure_capacity(runs.size());
+    for (auto const& run : runs) {
+        if (run.glyphs.is_empty() || run.font.is_invisible())
+            continue;
 
-    Vector<SkGlyphID, 32> glyph_ids;
-    Vector<SkPoint, 32> glyph_positions;
-    glyph_ids.ensure_capacity(glyphs.size());
-    glyph_positions.ensure_capacity(glyphs.size());
-    auto font_ascent = font.pixel_metrics().ascent;
-    for (auto const& glyph : glyphs) {
-        glyph_ids.unchecked_append(static_cast<SkGlyphID>(glyph.glyph_id));
-        glyph_positions.unchecked_append({ glyph.position.x(), glyph.position.y() + font_ascent });
+        auto sk_font = Compositor::skia_font(run.font, 1);
+        if (!sk_font.has_value())
+            continue;
+
+        SkiaGlyphRun skia_run { .font = sk_font.release_value(), .glyph_ids = {}, .glyph_positions = {} };
+
+        // NB: Preserve canvas text's fractional baseline and unhinted outline geometry.
+        skia_run.font.setHinting(SkFontHinting::kNone);
+        skia_run.font.setForceAutoHinting(false);
+        skia_run.font.setBaselineSnap(false);
+
+        // NB: The scale goes on the font rather than the canvas, as it must not scale the paint of the text.
+        skia_run.font.setScaleX(skia_run.font.getScaleX() * horizontal_scale);
+
+        skia_run.glyph_ids.ensure_capacity(run.glyphs.size());
+        skia_run.glyph_positions.ensure_capacity(run.glyphs.size());
+        auto font_ascent = run.font.pixel_metrics().ascent;
+        for (auto const& glyph : run.glyphs) {
+            skia_run.glyph_ids.unchecked_append(static_cast<SkGlyphID>(glyph.glyph_id));
+            skia_run.glyph_positions.unchecked_append({ glyph.position.x() * horizontal_scale, glyph.position.y() + font_ascent });
+        }
+        skia_runs.unchecked_append(move(skia_run));
     }
 
     auto paint = to_skia_paint(style, move(image_filter), color_space());
@@ -414,7 +433,27 @@ void PainterSkia::draw_glyph_run(Font const& font, SkFont sk_font, ReadonlySpan<
     //     scanning every entry of that blob. Canvas text is often redrawn at moving fractional positions, which
     //     piles up thousands of entries per blob and makes each draw scan all of them.
     draw_with_compositing(m_painting_surface->canvas(), paint, compositing_and_blending_operator, shadow, [&](SkCanvas& canvas, SkPaint const& paint) {
-        canvas.drawGlyphs({ glyph_ids.data(), glyph_ids.size() }, { glyph_positions.data(), glyph_positions.size() }, to_skia_point(translation), sk_font, paint);
+        auto draw_runs = [&](SkPaint const& run_paint) {
+            for (auto const& run : skia_runs)
+                canvas.drawGlyphs({ run.glyph_ids.data(), run.glyph_ids.size() }, { run.glyph_positions.data(), run.glyph_positions.size() }, to_skia_point(translation), run.font, run_paint);
+        };
+
+        if (skia_runs.size() <= 1 || !paint.getImageFilter()) {
+            draw_runs(paint);
+            return;
+        }
+
+        // NB: The filter of the context applies to the text as a whole, so it goes on a layer that holds all runs.
+        //     Otherwise, what the filter makes of one run would land on top of the other runs.
+        SkPaint layer_paint;
+        layer_paint.setImageFilter(paint.refImageFilter());
+        layer_paint.setBlender(paint.refBlender());
+        SkPaint run_paint = paint;
+        run_paint.setImageFilter(nullptr);
+        run_paint.setBlender(nullptr);
+        canvas.saveLayer(nullptr, &layer_paint);
+        draw_runs(run_paint);
+        canvas.restore();
     });
 }
 

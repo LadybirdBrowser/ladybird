@@ -6,7 +6,6 @@
 
 #include <AK/Assertions.h>
 #include <Compositor/Canvas2DCommandPlayer.h>
-#include <Compositor/FontSkia.h>
 #include <Compositor/PainterSkia.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/SkiaUtils.h>
@@ -18,7 +17,6 @@
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Path.h>
 #include <core/SkCanvas.h>
-#include <core/SkFont.h>
 #include <core/SkPaint.h>
 
 namespace Compositor {
@@ -172,15 +170,9 @@ void Canvas2DCommandPlayer::play_command(Canvas2DStrokePath const& command)
     m_painter->stroke_path(path, *paint_style, image_filter_from(command.compositing), command.thickness, command.compositing.global_alpha, command.compositing.compositing_and_blending_operator, command.cap_style, command.join_style, command.miter_limit, dash_array, command.dash_offset, shadow_from(command.compositing));
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DDrawGlyphRun const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DDrawGlyphRuns const& command)
 {
     if (!m_resolvers.font)
-        return;
-    auto const* font = m_resolvers.font(command.font_id.value());
-    if (!font)
-        return;
-    auto sk_font = skia_font(*font, 1);
-    if (!sk_font.has_value())
         return;
     auto paint_style = paint_style_from(command.paint);
     if (!paint_style)
@@ -190,7 +182,21 @@ void Canvas2DCommandPlayer::play_command(Canvas2DDrawGlyphRun const& command)
     glyphs.ensure_capacity(tape_glyphs.size());
     for (auto const& glyph : tape_glyphs)
         glyphs.unchecked_append({ .position = glyph.position, .glyph_id = glyph.glyph_id });
-    m_painter->draw_glyph_run(*font, sk_font.release_value(), glyphs, command.translation, *paint_style, image_filter_from(command.compositing), command.compositing.global_alpha, command.compositing.compositing_and_blending_operator, shadow_from(command.compositing));
+
+    auto tape_runs = inline_objects<Canvas2DGlyphRun>(inline_data(command.runs));
+    Vector<Gfx::CanvasGlyphRun, 2> runs;
+    runs.ensure_capacity(tape_runs.size());
+    size_t first_glyph = 0;
+    for (auto const& run : tape_runs) {
+        // NB: The tape validation guarantees that the runs split the glyphs exactly.
+        auto run_glyphs = glyphs.span().slice(first_glyph, run.glyph_count);
+        first_glyph += run.glyph_count;
+        auto const* font = m_resolvers.font(run.font_id.value());
+        if (!font)
+            continue;
+        runs.unchecked_append({ .font = *font, .glyphs = run_glyphs });
+    }
+    m_painter->draw_glyph_runs(runs, command.translation, command.horizontal_scale, *paint_style, image_filter_from(command.compositing), command.compositing.global_alpha, command.compositing.compositing_and_blending_operator, shadow_from(command.compositing));
 }
 
 void Canvas2DCommandPlayer::play_command(Canvas2DClearRect const& command)

@@ -112,6 +112,10 @@ impl Payload<'_> {
         u32::from_ne_bytes(self.bytes[offset..offset + 4].try_into().unwrap())
     }
 
+    fn u64_at(self, offset: usize) -> u64 {
+        u64::from_ne_bytes(self.bytes[offset..offset + 8].try_into().unwrap())
+    }
+
     fn i32_at(self, offset: usize) -> i32 {
         i32::from_ne_bytes(self.bytes[offset..offset + 4].try_into().unwrap())
     }
@@ -265,6 +269,31 @@ fn validate_paint_style(
     }
 }
 
+// The runs must split the glyphs exactly, since the player hands each run the glyphs that follow the previous run.
+fn validate_canvas_2d_glyph_runs(payload: Payload) -> Result<(), ValidationError> {
+    const MISMATCH: ValidationError = "Canvas glyph runs do not cover their glyphs";
+
+    let run_count = payload.array_span_at::<Canvas2DGlyphRun>(offset_of!(Canvas2DDrawGlyphRuns, runs))?;
+    let glyph_count = payload.array_span_at::<DisplayListGlyph>(offset_of!(Canvas2DDrawGlyphRuns, glyphs))?;
+    let (runs_start, _) = payload.span_at(offset_of!(Canvas2DDrawGlyphRuns, runs))?;
+    let mut remaining_glyphs = glyph_count as u64;
+    for run in 0..run_count {
+        let run_offset = runs_start + run * size_of::<Canvas2DGlyphRun>();
+        let run_glyph_count = payload.u64_at(run_offset + offset_of!(Canvas2DGlyphRun, glyph_count));
+        remaining_glyphs = remaining_glyphs.checked_sub(run_glyph_count).ok_or(MISMATCH)?;
+    }
+    if remaining_glyphs != 0 {
+        return Err(MISMATCH);
+    }
+    if !payload
+        .f32_at(offset_of!(Canvas2DDrawGlyphRuns, horizontal_scale))
+        .is_finite()
+    {
+        return Err("Canvas glyph runs have a horizontal scale that is not finite");
+    }
+    Ok(())
+}
+
 fn validate_canvas_2d_paint(payload: Payload, offset: usize) -> Result<(), ValidationError> {
     payload.enum_at::<Canvas2DPaintKind>(offset + offset_of!(Canvas2DPaint, kind))?;
     payload.enum_at::<Canvas2DPatternRepetition>(offset + offset_of!(Canvas2DPaint, pattern_repetition))?;
@@ -343,7 +372,7 @@ fn command_struct_size(command_type: DisplayListCommandType) -> usize {
         T::CompositorNestedContextWheelRegion => size_of::<CompositorNestedContextWheelRegion>(),
         T::Canvas2DFillPath => size_of::<Canvas2DFillPath>(),
         T::Canvas2DStrokePath => size_of::<Canvas2DStrokePath>(),
-        T::Canvas2DDrawGlyphRun => size_of::<Canvas2DDrawGlyphRun>(),
+        T::Canvas2DDrawGlyphRuns => size_of::<Canvas2DDrawGlyphRuns>(),
         T::Canvas2DClearRect => size_of::<Canvas2DClearRect>(),
         T::Canvas2DDrawImageFrame => size_of::<Canvas2DDrawImageFrame>(),
         T::Canvas2DDrawCanvas => size_of::<Canvas2DDrawCanvas>(),
@@ -554,10 +583,10 @@ fn validate_command_fields(
             p.array_span_at::<f32>(offset_of!(Canvas2DStrokePath, dash_array))?;
             validate_canvas_2d_compositing(p, offset_of!(Canvas2DStrokePath, compositing))?;
         }
-        T::Canvas2DDrawGlyphRun => {
-            p.array_span_at::<DisplayListGlyph>(offset_of!(Canvas2DDrawGlyphRun, glyphs))?;
-            validate_canvas_2d_paint(p, offset_of!(Canvas2DDrawGlyphRun, paint))?;
-            validate_canvas_2d_compositing(p, offset_of!(Canvas2DDrawGlyphRun, compositing))?;
+        T::Canvas2DDrawGlyphRuns => {
+            validate_canvas_2d_glyph_runs(p)?;
+            validate_canvas_2d_paint(p, offset_of!(Canvas2DDrawGlyphRuns, paint))?;
+            validate_canvas_2d_compositing(p, offset_of!(Canvas2DDrawGlyphRuns, compositing))?;
         }
         T::Canvas2DDrawImageFrame => {
             p.enum_at::<ScalingMode>(offset_of!(Canvas2DDrawImageFrame, scaling_mode))?;
