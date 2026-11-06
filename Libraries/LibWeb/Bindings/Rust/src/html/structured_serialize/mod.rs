@@ -1006,9 +1006,10 @@ impl<'memory> Serializer<'_, '_, 'memory> {
                         )?;
                     }
                     SerializableSteps::Rust => {
+                        let realm = self.realm.expect("an object is serialized in a realm");
                         serializable::serialization_steps(
                             interface_name,
-                            vm,
+                            &CallContext::new(vm, realm),
                             object,
                             &mut SerializationWriter::new(self),
                             self.for_storage,

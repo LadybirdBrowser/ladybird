@@ -36,7 +36,7 @@ use crate::bindings::generated::serializable_objects as generated;
 // A standalone cargo build has no wrapper classes or interface identifiers to dispatch on.
 #[cfg(not(web_idl_bindings))]
 mod generated {
-    use libjs_rust::api::{Gc, Object, Value, Vm};
+    use libjs_rust::api::{Gc, Object, Value};
 
     use super::{SerializableRegistryEntry, SerializableSteps};
     use crate::bindings::structured_data::{SerializationReader, SerializationWriter};
@@ -70,7 +70,7 @@ mod generated {
 
     pub(crate) fn serialization_steps(
         _: u16,
-        _: &Vm,
+        _: &CallContext,
         _: Gc<Object>,
         _: &mut SerializationWriter,
         _: bool,

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const iframeWindow = iframe.contentWindow;
+            const module = new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]));
+            for (const [name, value] of [["function", () => {}], ["WebAssembly.Module", module]]) {
+                try {
+                    iframeWindow.history.pushState(value, "");
+                    println(`${name}: no exception`);
+                } catch (e) {
+                    const realm = e instanceof iframeWindow.DOMException ? "current" : "other";
+                    println(`${name}: ${e.name} in the ${realm} realm`);
+                }
+            }
+            done();
+        };
+        document.body.appendChild(iframe);
+    });
+</script>

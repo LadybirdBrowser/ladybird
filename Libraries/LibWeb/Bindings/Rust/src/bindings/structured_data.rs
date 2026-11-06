@@ -399,12 +399,12 @@ pub(crate) trait Transferable: Interface {
 }
 
 pub(crate) fn serialization_steps<T: Serializable>(
-    vm: &Vm,
+    cx: &CallContext,
     object: Gc<Object>,
     serialized: &mut SerializationWriter,
     for_storage: bool,
 ) -> WebIdlResult<()> {
-    let mut cx = CallContext::new(vm, object.shape().realm());
+    let mut cx = CallContext::new(cx.vm(), cx.realm());
     implementation_of::<T>(object)
         .serialization_steps(&mut cx, serialized, for_storage)
         .map_err(|exception| Exception::Thrown(exception.throw(&cx)))
