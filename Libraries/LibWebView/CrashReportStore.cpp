@@ -84,7 +84,7 @@ static constexpr auto pending_suffix = ".pending"sv;
 static constexpr off_t maximum_report_size = 1048576;
 static constexpr size_t retained_report_count = 20;
 static constexpr auto hard_cutoff_date = UnixDateTime::from_unix_time_parts(2026, 10, 2, 20, 0, 0, 0);
-static constexpr auto maximum_pending_report_age = AK::Duration::from_seconds(14ll * 24 * 60 * 60);
+static constexpr auto maximum_unsent_report_age = AK::Duration::from_seconds(30ll * 24 * 60 * 60);
 
 static NeverDestroyed<ByteString> s_browser_pending_path;
 static NeverDestroyed<OwnPtr<CrashReport>> s_browser_crash_report;
@@ -245,7 +245,7 @@ ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names(UnixDateTime 
 {
     // Runs on every launch, so this only lists names instead of reading every report.
     auto directory = TRY(open_report_directory(m_directory));
-    auto earliest_time = max(hard_cutoff_date, now - maximum_pending_report_age);
+    auto earliest_time = max(hard_cutoff_date, now - maximum_unsent_report_age);
 
     Vector<ByteString> names;
     Core::DirIterator iterator(directory.path().string(), Core::DirIterator::SkipDots);
@@ -264,6 +264,31 @@ ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names(UnixDateTime 
     // Names begin with the crash time, so this orders the most recent crash first.
     quick_sort(names, [](auto const& a, auto const& b) { return a > b; });
     return names;
+}
+
+static void remove_reports_older_than(Core::Directory const& directory, UnixDateTime earliest_time)
+{
+    Core::DirIterator iterator(directory.path().string(), Core::DirIterator::SkipDots);
+    while (iterator.has_next()) {
+        auto name = iterator.next_path();
+        if (!CrashReportStore::is_saved_report_name(name))
+            continue;
+        struct stat status {};
+        if (!is_owned_regular_file_at(directory, name, status))
+            continue;
+        if (UnixDateTime::from_unix_timespec(modified_time(status)) < earliest_time)
+            (void)unlinkat(directory.fd(), name.characters(), 0);
+    }
+}
+
+ErrorOr<void> CrashReportStore::remove_expired_reports(UnixDateTime now) const
+{
+    auto directory = TRY(open_report_directory(m_directory));
+    auto earliest_time = now - maximum_unsent_report_age;
+    remove_reports_older_than(directory, earliest_time);
+    if (auto seen_directory = TRY(open_seen_directory_if_exists(directory)); seen_directory.has_value())
+        remove_reports_older_than(*seen_directory, earliest_time);
+    return {};
 }
 
 bool CrashReportStore::has_pending_reports(UnixDateTime now) const
@@ -405,6 +430,8 @@ ErrorOr<void> CrashReportStore::initialize_browser_crash_handler()
     // process installs a handler of its own. One unreadable file must not prevent that.
     if (auto result = recover_pending_reports(); result.is_error())
         warnln("Could not recover browser crash reports: {}", result.error());
+    if (auto result = remove_expired_reports(); result.is_error())
+        warnln("Could not remove expired crash reports: {}", result.error());
 
     ByteString pending_name;
     auto file = TRY(create_unique_file(directory, pending_prefix, pending_suffix, pending_name));
@@ -463,6 +490,7 @@ ErrorOr<ByteString> CrashReportStore::store_report(ProcessType, StringView, Unix
     return Error::from_string_literal("Crash reports are not supported on this platform yet");
 }
 
+ErrorOr<void> CrashReportStore::remove_expired_reports(UnixDateTime) const { return {}; }
 ErrorOr<size_t> CrashReportStore::recover_pending_reports() const { return 0; }
 
 ErrorOr<void> CrashReportStore::initialize_browser_crash_handler()
