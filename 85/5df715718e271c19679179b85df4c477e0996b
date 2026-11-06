@@ -1,0 +1,9 @@
+Ladybird’s console.timeStamp(), profile() and profileEnd() do nothing.
+The other engines all have them, with a length of 0, and pass the
+calls on to their developer tools. V8’s bootstrapper installs them on
+the console object, and forwards them to debug::ConsoleDelegate. Gecko
+declares them in Console.webidl and implements them in Console::
+TimeStamp(), Console::Profile() and Console::ProfileEnd(). And the
+ConsoleObject of JavaScriptCore has consoleProtoFuncTimeStamp(),
+consoleProtoFuncProfile() and consoleProtoFuncProfileEnd(), which
+call its ConsoleClient.
