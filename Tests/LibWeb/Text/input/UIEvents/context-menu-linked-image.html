@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0 }
+    img { display: block; width: 200px; height: 100px }
+</style>
+<a id="link" href="https://example.com/around-image"><img id="linked" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4YWMDAAMQAUEiFmcFAAAAAElFTkSuQmCC"></a>
+<a id="sourceless-link" href="https://example.com/around-sourceless-image"><img id="linked-sourceless" alt="no source"></a>
+<img id="sourceless" alt="no source">
+<script>
+    test(() => {
+        // A right-click on an image inside a link offers both the image and the link. An image without a source has
+        // nothing to offer, which leaves the link or the page.
+        const describe = () => {
+            const request = internals.takeContextMenuRequest();
+            if (!request)
+                return 'no request';
+            const target = request.target;
+            const link = request.linkURL ? ` link=${request.linkURL}` : '';
+            return `${request.kind} target=${target.id ? `${target.nodeName}#${target.id}` : target.nodeName}${link}`;
+        };
+        const rightClickAt = element => {
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            internals.mouseDown(x, y, 1, 2);
+            internals.mouseUp(x, y, 2);
+        };
+
+        for (const id of ['linked', 'linked-sourceless', 'sourceless']) {
+            rightClickAt(document.getElementById(id));
+            println(`right-click #${id}: ${describe()}`);
+        }
+    });
+</script>

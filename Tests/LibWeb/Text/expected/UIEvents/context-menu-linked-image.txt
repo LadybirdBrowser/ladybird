@@ -1,0 +1,3 @@
+right-click #linked: link target=A#link
+right-click #linked-sourceless: link target=A#sourceless-link
+right-click #sourceless: image target=IMG#sourceless
