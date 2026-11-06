@@ -8,5 +8,6 @@
 
 pub mod cleanup;
 pub mod dominators;
+pub mod interrupt_checks;
 pub mod licm;
 pub mod schedule;
