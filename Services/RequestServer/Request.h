@@ -268,7 +268,7 @@ private:
     bool defer_until_response_cookies_and_hsts_policy_are_stored(Function<void()> continuation);
     void request_response_storage(ControlConnectionFromClient&);
     void handle_fetch_complete(int result_code);
-    void send_headers_to_client(Optional<IPC::File> javascript_bytecode = {}, u64 javascript_bytecode_size = 0, Optional<u64> javascript_bytecode_cache_vary_key = {});
+    void send_headers_to_client();
     ErrorOr<void> write_queued_bytes_without_blocking();
 
     virtual bool is_revalidation_request() const override;

@@ -400,7 +400,7 @@ void ReportSubmission::post(StringView path, StringView activity, StringView con
             on_success = move(on_success)](u64, Requests::RequestTimingInfo const&,
             Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers,
             Optional<u32> response_code, Optional<String> const&,
-            Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState,
+            Requests::CacheState,
             Core::ImmutableBytes payload) {
             auto self = weak_this.strong_ref();
             if (!self || !self->m_request)

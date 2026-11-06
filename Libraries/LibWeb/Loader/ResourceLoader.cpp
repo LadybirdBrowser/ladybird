@@ -552,7 +552,7 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
 
     auto network_transport = Fetch::Engine::NetworkTransportHandle::create(*protocol_request);
 
-    auto protocol_headers_received = [on_headers_received = move(on_headers_received), request, &protocol_request = *protocol_request, network_transport](auto const& response_headers, auto status_code, auto const& reason_phrase, auto, auto, auto cache_state) {
+    auto protocol_headers_received = [on_headers_received = move(on_headers_received), request, &protocol_request = *protocol_request, network_transport](auto const& response_headers, auto status_code, auto const& reason_phrase, auto cache_state) {
         if (auto page = request.page())
             page->client().page_did_receive_network_response_headers(protocol_request.id(), status_code.value_or(0), reason_phrase, response_headers->headers(), cache_state);
 

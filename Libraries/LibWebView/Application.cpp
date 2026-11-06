@@ -966,7 +966,7 @@ void Application::start_next_content_blocker_list_update()
     timeout->start();
 
     m_content_blocker_list_update_request->set_unbuffered_request_callbacks(
-        [this](NonnullRefPtr<HTTP::HeaderList> headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
+        [this](NonnullRefPtr<HTTP::HeaderList> headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Requests::CacheState) {
             if (m_content_blocker_list_update_cancelled)
                 return;
             if (response_code.has_value() && Web::Fetch::Infrastructure::is_redirect_status(*response_code)) {

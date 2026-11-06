@@ -5,6 +5,7 @@
  */
 
 #include <AK/AllOf.h>
+#include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <AK/NumericLimits.h>
@@ -222,36 +223,11 @@ LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_k
     return cache_directory.append(file);
 }
 
-static constexpr StringView cache_entry_associated_data_suffix(CacheEntryAssociatedData associated_data)
-{
-    switch (associated_data) {
-    case CacheEntryAssociatedData::JavaScriptBytecode:
-        return "jsbc"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static constexpr Optional<CacheEntryAssociatedData> cache_entry_associated_data_from_suffix(StringView suffix)
-{
-    if (suffix == "jsbc"sv)
-        return CacheEntryAssociatedData::JavaScriptBytecode;
-    return {};
-}
-
-LexicalPath path_for_cache_entry_associated_data(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key, CacheEntryAssociatedData associated_data)
-{
-    auto file = vary_key == 0
-        ? ByteString::formatted("{:016x}.{}", cache_key, cache_entry_associated_data_suffix(associated_data))
-        : ByteString::formatted("{:016x}_{:016x}.{}", cache_key, vary_key, cache_entry_associated_data_suffix(associated_data));
-
-    return cache_directory.append(file);
-}
-
 Optional<CacheEntryData> cache_entry_data_for_file(LexicalPath const& cache_file)
 {
     CacheEntryData result;
 
-    if (auto file_name = cache_file.basename(LexicalPath::StripExtension::Yes); file_name.contains('_')) {
+    if (auto file_name = cache_file.basename(); file_name.contains('_')) {
         auto parts = file_name.split_view('_', SplitBehavior::KeepEmpty);
         if (parts.size() != 2)
             return {};
@@ -269,12 +245,6 @@ Optional<CacheEntryData> cache_entry_data_for_file(LexicalPath const& cache_file
             return {};
 
         result.cache_key = *cache_key;
-    }
-
-    if (auto extension = cache_file.extension(); !extension.is_empty()) {
-        result.associated_data = cache_entry_associated_data_from_suffix(extension);
-        if (!result.associated_data.has_value())
-            return {};
     }
 
     return result;

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/LexicalPath.h>
 #include <AK/Optional.h>
@@ -53,13 +52,6 @@ public:
     };
     Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, CacheMode, OpenMode);
 
-    ErrorOr<Optional<CacheEntryBodyFile>> store_associated_data(Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData, ReadonlyBytes);
-    ErrorOr<Optional<ByteBuffer>> retrieve_associated_data(Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
-    ErrorOr<Optional<CacheEntryBodyFile>> retrieve_associated_data_file(Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
-
-    // Ensure an index row exists for url+method so the shelf has something to attach to even if there are no real HTTP requests in flight.
-    ErrorOr<bool> create_synthetic_entry(Utf16String const& partition, URL::URL const&, StringView method);
-
     void remove_entries_exceeding_cache_limit();
     void remove_variants_exceeding_limit(Badge<CacheEntryWriter>, u64 cache_key, u64 vary_key_to_keep);
     void set_maximum_disk_cache_size(u64 maximum_disk_cache_size);
@@ -96,7 +88,6 @@ private:
     bool check_if_cache_has_open_entry(CacheRequest&, u64 cache_key, URL::URL const&, CheckReaderEntries);
 
     void close_entry(CacheEntry const&);
-    ErrorOr<void> count_associated_data_or_remove_entry(u64 cache_key, u64 vary_key);
     void delete_entry(u64 cache_key, u64 vary_key);
     void remove_entry_files(u64 cache_key, u64 vary_key);
 

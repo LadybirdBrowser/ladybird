@@ -267,12 +267,6 @@ static bool is_fetchable_url(URL::URL const& url)
     return !url.port().has_value() || !HTTP::is_bad_port(*url.port());
 }
 
-// IPC does not validate enum values; the cache requires a known associated-data kind.
-static bool is_valid_associated_data(HTTP::CacheEntryAssociatedData associated_data)
-{
-    return HTTP::CACHE_ENTRY_ASSOCIATED_DATA_TYPES.contains_slow(associated_data);
-}
-
 // Headers go verbatim on the wire; newlines would allow request injection.
 static bool are_valid_headers(Vector<HTTP::Header> const& headers)
 {
@@ -838,81 +832,6 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
 
     auto request = Request::connect(request_id, *this, m_curl_multi, m_resolver, move(url), cache_level);
     m_active_requests.set(request_id, move(request));
-}
-
-// The partition of this RequestServer's disk cache that a key reaches, if any.
-static Optional<Utf16String> disk_cache_partition_for(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key)
-{
-    if (!network_isolation_key.has_value() || !process_keeps_responses_under(network_isolation_key->top_level_site))
-        return {};
-    return network_isolation_key->disk_cache_partition();
-}
-
-Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
-{
-    if (!is_valid_associated_data(associated_data)) {
-        did_misbehave("invalid cache associated data kind");
-        return { Optional<IPC::File> {}, 0 };
-    }
-
-    if (!are_valid_headers(request_headers)) {
-        did_misbehave("invalid request header");
-        return { Optional<IPC::File> {}, 0 };
-    }
-
-    if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
-        return { Optional<IPC::File> {}, 0 };
-
-    auto partition = disk_cache_partition_for(network_isolation_key);
-    if (!m_disk_cache.has_value() || !partition.has_value() || !data.is_valid())
-        return { Optional<IPC::File> {}, 0 };
-
-    auto result = m_disk_cache->store_associated_data(*partition, url, method, *HTTP::HeaderList::create(move(request_headers)), vary_key, associated_data, data.bytes());
-    if (result.is_error()) {
-        dbgln("Failed to store cache associated data for {}: {}", url, result.error());
-        return { Optional<IPC::File> {}, 0 };
-    }
-
-    if (!result.value().has_value())
-        return { Optional<IPC::File> {}, 0 };
-    return { IPC::File::adopt_fd(result.value()->fd), result.value()->size };
-}
-
-Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClient::retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)
-{
-    if (!is_valid_associated_data(associated_data)) {
-        did_misbehave("invalid cache associated data kind");
-        return Optional<Core::AnonymousBuffer> {};
-    }
-
-    if (!are_valid_headers(request_headers)) {
-        did_misbehave("invalid request header");
-        return Optional<Core::AnonymousBuffer> {};
-    }
-
-    if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
-        return Optional<Core::AnonymousBuffer> {};
-
-    auto partition = disk_cache_partition_for(network_isolation_key);
-    if (!m_disk_cache.has_value() || !partition.has_value())
-        return Optional<Core::AnonymousBuffer> {};
-
-    auto data = m_disk_cache->retrieve_associated_data(*partition, url, method, *HTTP::HeaderList::create(move(request_headers)), vary_key, associated_data);
-    if (data.is_error()) {
-        dbgln("Failed to retrieve cache associated data for {}: {}", url, data.error());
-        return Optional<Core::AnonymousBuffer> {};
-    }
-    if (!data.value().has_value())
-        return Optional<Core::AnonymousBuffer> {};
-
-    auto buffer = Core::AnonymousBuffer::create_with_size(data.value()->size());
-    if (buffer.is_error()) {
-        dbgln("Failed to allocate cache associated data buffer for {}: {}", url, buffer.error());
-        return Optional<Core::AnonymousBuffer> {};
-    }
-
-    memcpy(buffer.value().data<void>(), data.value()->data(), data.value()->size());
-    return Optional<Core::AnonymousBuffer> { buffer.release_value() };
 }
 
 size_t ConnectionFromClient::websocket_count() const

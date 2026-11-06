@@ -369,7 +369,7 @@ void NavigationLoader::set_response_body_callbacks(Requests::Request& request)
 {
     auto weak_this = make_weak_ptr();
     request.set_unbuffered_request_callbacks(
-        [weak_this](NonnullRefPtr<HTTP::HeaderList> response_header_list, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
+        [weak_this](NonnullRefPtr<HTTP::HeaderList> response_header_list, Optional<u32>, Optional<String> const&, Requests::CacheState) {
             if (auto* loader = weak_this.ptr()) {
                 loader->m_response_header_list = move(response_header_list);
                 loader->did_acquire(true);

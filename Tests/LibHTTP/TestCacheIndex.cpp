@@ -8,10 +8,13 @@
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <LibCore/Directory.h>
+#include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibDatabase/Database.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/CacheIndex.h>
 #include <LibHTTP/Cache/Utilities.h>
+#include <LibTest/TemporaryDirectory.h>
 #include <LibTest/TestCase.h>
 
 struct CacheIndexTestState {
@@ -116,32 +119,6 @@ TEST_CASE(remove_entries_exceeding_cache_limit_tolerates_replaced_unloaded_entri
     EXPECT_EQ(reloaded_index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 80u);
 }
 
-TEST_CASE(associated_data_counts_toward_cache_size)
-{
-    auto state = create_cache_index();
-
-    auto request_headers = HTTP::HeaderList::create();
-    auto response_headers = HTTP::HeaderList::create();
-    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
-    auto now = UnixDateTime::now();
-
-    state.index.set_maximum_disk_cache_size(80);
-
-    for (u64 cache_key = 1; cache_key <= 5; ++cache_key)
-        TRY_OR_FAIL(state.index.create_entry(cache_key, vary_key, "https://example.com/script.js"_string, request_headers, response_headers, 10, now, now));
-    TRY_OR_FAIL(state.index.update_associated_data_size(1, vary_key, 50));
-
-    EXPECT_EQ(state.index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 100u);
-
-    Vector<u64> removed_entries;
-    state.index.remove_entries_exceeding_cache_limit([&](auto removed_cache_key, auto) {
-        removed_entries.append(removed_cache_key);
-    });
-
-    EXPECT(removed_entries.size() > 0);
-    EXPECT(state.index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total <= 80u);
-}
-
 TEST_CASE(newer_cache_index_schema_reports_database_too_new)
 {
     auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
@@ -167,6 +144,33 @@ TEST_CASE(entries_with_previous_vary_keys_are_dropped_on_migration)
     auto index = MUST(HTTP::CacheIndex::create(*database, cache_directory()));
     EXPECT(!index.find_entry(1, *HTTP::HeaderList::create()).has_value());
     EXPECT_EQ(index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 0u);
+}
+
+TEST_CASE(stored_responses_outlive_the_files_beside_them_on_migration)
+{
+    Test::TemporaryDirectory const directory { "TestCacheIndex"sv };
+    auto database = TRY_OR_FAIL(Database::Database::create(directory.path().string(), "INDEX"sv));
+
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);"sv));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO SchemaVersions (store, version) VALUES ('CacheIndex', 3);"sv));
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE CacheIndex (cache_key INTEGER, vary_key INTEGER, url TEXT, request_headers BLOB, response_headers BLOB, data_size INTEGER, associated_data_size INTEGER, request_time INTEGER, response_time INTEGER, last_access_time INTEGER, PRIMARY KEY(cache_key, vary_key));"sv));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO CacheIndex VALUES (1, 0, 'https://example.com', x'', x'', 10, 5, 0, 0, 0);"sv));
+
+    auto entry_file = directory.path().append("0000000000000001"sv);
+    auto bytecode_file = directory.path().append("0000000000000001.jsbc"sv);
+    auto partial_bytecode_file = directory.path().append("0000000000000001.jsbc.tmp"sv);
+    for (auto const& path : { entry_file, bytecode_file, partial_bytecode_file })
+        (void)TRY_OR_FAIL(Core::File::open(path.string(), Core::File::OpenMode::Write));
+
+    EXPECT_EQ(TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database)), Database::MigrationOutcome::Success);
+
+    EXPECT(FileSystem::exists(entry_file.string()));
+    EXPECT(!FileSystem::exists(bytecode_file.string()));
+    EXPECT(!FileSystem::exists(partial_bytecode_file.string()));
+
+    auto index = MUST(HTTP::CacheIndex::create(*database, directory.path()));
+    EXPECT(index.has_entry(1, 0));
+    EXPECT_EQ(index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 10u);
 }
 
 TEST_CASE(full_range_cache_keys_round_trip)
@@ -245,7 +249,6 @@ TEST_CASE(failed_statements_after_creation_do_not_abort)
     // Writes report that they failed.
     EXPECT(state.index.create_entry(2, vary_key, "https://example.com/2"_string, request_headers, response_headers, 10, now, now).is_error());
     EXPECT(state.index.update_response_headers(1, vary_key, response_headers).is_error());
-    EXPECT(state.index.update_associated_data_size(1, vary_key, 5).is_error());
     state.index.update_last_access_time(1, vary_key);
 
     // Entries that can't be read are missed.
@@ -362,8 +365,7 @@ TEST_CASE(persisted_entries_are_found_before_they_are_looked_up)
     auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
     EXPECT(reloaded_index.has_entry(1, 0));
 
-    TRY_OR_FAIL(reloaded_index.update_associated_data_size(1, 0, 5));
-    EXPECT_EQ(reloaded_index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 10u + 5u + 25u);
+    EXPECT_EQ(reloaded_index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 10u + 25u);
 }
 
 TEST_CASE(malformed_rows_are_dropped_when_the_index_is_opened)
@@ -380,7 +382,7 @@ TEST_CASE(malformed_rows_are_dropped_when_the_index_is_opened)
     TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET request_headers = NULL WHERE cache_key = 1;"sv));
     TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET last_access_time = NULL WHERE cache_key = 2;"sv));
     TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET data_size = 9223372036854775807 WHERE cache_key = 3;"sv));
-    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET associated_data_size = 'large' WHERE cache_key = 4;"sv));
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET response_time = 'late' WHERE cache_key = 4;"sv));
 
     auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
     for (u64 cache_key = 1; cache_key <= 4; ++cache_key)
