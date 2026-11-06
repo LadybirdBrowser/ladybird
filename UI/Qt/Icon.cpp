@@ -311,9 +311,7 @@ static constexpr auto WINDOW_MAXIMIZE_ICON_PATH = "M4.5 3.5h7a1 1 0 0 1 1 1v7a1 
 static constexpr auto WINDOW_RESTORE_ICON_PATH = "M4.5 5.5h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1zM5.5 3.5h6a1 1 0 0 1 1 1v6"sv;
 static constexpr auto WINDOW_CLOSE_ICON_PATH = "M3.5 3.5l9 9M12.5 3.5l-9 9"sv;
 
-// The line of the icons, and the finer one of the window controls.
 static constexpr qreal CHROME_ICON_STROKE_WIDTH = 1.5;
-static constexpr qreal WINDOW_CONTROL_STROKE_WIDTH = 1;
 // Icons between these sizes all keep the same line, so that they look alike side by side. A smaller one needs a finer
 // line to keep its shape, and a larger one is shown as a feature, with its line growing along with it.
 static constexpr int SMALLEST_ICON_SIZE_WITH_FIXED_STROKE = 14;
@@ -624,10 +622,8 @@ static QPainterPath fit_icon_path_to_pixels(QPainterPath const& path, qreal scal
     return fitted;
 }
 
-static qreal chrome_icon_stroke_width(ChromeIcon icon, int logical_size)
+static qreal chrome_icon_stroke_width(int logical_size)
 {
-    if (icon == ChromeIcon::WindowMinimize || icon == ChromeIcon::WindowMaximize || icon == ChromeIcon::WindowRestore || icon == ChromeIcon::WindowClose)
-        return WINDOW_CONTROL_STROKE_WIDTH;
     if (logical_size > LARGEST_ICON_SIZE_WITH_FIXED_STROKE)
         return CHROME_ICON_STROKE_WIDTH * logical_size / CHROME_ICON_CANVAS_SIZE;
     if (logical_size < SMALLEST_ICON_SIZE_WITH_FIXED_STROKE)
@@ -712,7 +708,7 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QPainterPath const& pa
 
     // A line of a whole number of pixels can fill them exactly. Rounding down keeps a 1x line at one pixel, the most
     // that leaves room inside an icon of this size.
-    auto stroke_width = max(1, static_cast<int>(floor((chrome_icon_stroke_width(icon, logical_size) * device_pixel_ratio) + 0.25)));
+    auto stroke_width = max(1, static_cast<int>(floor((chrome_icon_stroke_width(logical_size) * device_pixel_ratio) + 0.25)));
     auto scale = logical_size * device_pixel_ratio / CHROME_ICON_CANVAS_SIZE;
     auto fitted_path = fit_icon_path_to_pixels(path, scale, stroke_width, pixmap.width());
 

@@ -1307,7 +1307,7 @@ void BrowserWindow::update_tab_button_icons()
 void BrowserWindow::create_menu_bar_window_controls()
 {
     if constexpr (!use_native_macos_window_controls()) {
-        auto window_control_buttons = create_window_control_buttons(*menuBar(), "LadybirdMenuBarWindowControls", { 16, 16 }, { 40, 30 });
+        auto window_control_buttons = create_window_control_buttons(*menuBar(), "LadybirdMenuBarWindowControls", { 16, 16 }, { 34, 30 });
         m_menu_bar_window_controls = window_control_buttons.container;
         m_menu_bar_minimize_window_button = window_control_buttons.minimize;
         m_menu_bar_maximize_window_button = window_control_buttons.maximize;
