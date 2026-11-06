@@ -33,6 +33,9 @@ public:
     void run(GC::Ref<Web::Page>, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&, Web::HTML::RequestCredentials, bool is_shared, URL::Origin origin, Web::HTML::EnvironmentId environment_id);
     void connect_shared_worker(Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject);
 
+    void terminate();
+    void run_closing_steps();
+
     GC::Ptr<Web::HTML::WorkerGlobalScope> global_scope() { return m_worker_global_scope.cell(); }
 
     bool script_has_run() const { return m_script_has_run; }

@@ -157,7 +157,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (stats_log)
         stats_log->start_sampling([&heap](JsonObject& values) { heap.add_stats(values); });
 
-    return event_loop.exec();
+    auto exit_code = event_loop.exec();
+
+    // The worker has closed. This goes through its agent in order, as a thread that hosts a worker will have to, rather
+    // than leave it all to the end of the process.
+    stats_log = nullptr;
+    client->release_agent_state();
+    MediaClient::Client::set_transport_factory(nullptr);
+    Web::Bindings::shut_down_agent();
+    client->finish_shutdown();
+
+    // The client terminates a process that closes the connection, so the connection stays open until this process ends.
+    (void)move(client).leak_ref();
+
+    return exit_code;
 }
 
 static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle, Optional<int> client_id, Optional<Utf16String> const& top_level_site)

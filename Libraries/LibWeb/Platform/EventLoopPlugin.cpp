@@ -29,6 +29,8 @@ EventLoopPlugin::~EventLoopPlugin() = default;
 void EventLoopPlugin::spin_until(GC::Root<GC::Function<bool()>> goal_condition)
 {
     Core::EventLoop::current().spin_until([goal_condition = move(goal_condition)]() {
+        // NB: A process that shuts down fast has nothing to unwind for. A worker event loop quits only once no script is
+        //     waiting in here, as its agent has an ordered shutdown ahead of it.
         if (Core::EventLoop::current().was_exit_requested())
             ::exit(0);
         return goal_condition->function()();

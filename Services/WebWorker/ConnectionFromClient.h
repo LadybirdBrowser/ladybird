@@ -33,6 +33,12 @@ public:
     virtual ~ConnectionFromClient() override;
 
     virtual void die() override;
+    virtual void did_lose_peer_during_sync_request() override;
+
+    // The two ends of the shutdown of the worker agent, which go around Web::Bindings::shut_down_agent(). The connection
+    // outlives the heap, as cells in the heap use it until they are gone.
+    void release_agent_state();
+    void finish_shutdown();
 
     virtual void set_font_service(IPC::TransportHandle, IPC::File catalog, u64 catalog_size, u64 generation) override;
     virtual void close_worker() override;
@@ -93,10 +99,12 @@ private:
     HashMap<u64, Web::HTML::SerializedTransferRecord> m_pending_transform_inits;
 
     void run_transform_init(u64 transform_id, Web::HTML::SerializedTransferRecord options_record);
+    void begin_closing();
 
     RefPtr<WorkerHost> m_worker_host;
     Function<void()> m_request_server_died_callback_for_testing;
     bool m_enable_test_mode { false };
+    bool m_shutdown_finished { false };
 };
 
 }

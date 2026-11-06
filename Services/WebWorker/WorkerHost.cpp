@@ -16,6 +16,7 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
+#include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
@@ -44,6 +45,38 @@ WorkerHost::WorkerHost(URL::URL url, Web::HTML::WorkerType type, String name)
 }
 
 WorkerHost::~WorkerHost() = default;
+
+void WorkerHost::terminate()
+{
+    m_worker_global_scope->terminate_a_worker();
+}
+
+// https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
+void WorkerHost::run_closing_steps()
+{
+    // 16. Clear the worker global scope's map of active timers.
+    m_worker_global_scope->clear_map_of_active_timers();
+
+    // NB: The connection of an EventSource goes with the worker, whose global scope is not there for the finalizer of the
+    //     EventSource to reach anymore.
+    m_worker_global_scope->forcibly_close_all_event_sources();
+
+    // 17. Disentangle all the ports in the list of the worker's ports.
+    Web::HTML::MessagePort::disentangle_ports_of_realm(Web::HTML::relevant_realm(*m_worker_global_scope));
+
+    // 18. Empty worker global scope's owner set.
+    m_worker_global_scope->owner_set().clear();
+
+    // AD-HOC: The File API only has these steps for a Document, but the blob URLs of a worker go away with it as well.
+    Web::FileAPI::remove_entries_of_environment(*m_inside_settings, *m_worker_global_scope->page());
+
+    // NB: The roots have to go before the heap does, and on_complete keeps this object alive until then.
+    m_console = nullptr;
+    m_worker_global_scope = nullptr;
+    m_inside_settings = nullptr;
+    m_pending_shared_worker_connections.clear();
+    m_on_script_ready = nullptr;
+}
 
 void WorkerHost::notify_script_ran()
 {
@@ -239,6 +272,10 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     // In both cases, let onComplete given script be the following steps:
     RefPtr<WorkerHost> protected_this { *this };
     auto on_complete_function = [protected_this, page, inside_settings, worker_global_scope, message_port_data = move(message_port_data), outside_settings_snapshot, url = m_url, is_shared](GC::Ptr<Web::HTML::Script> script) mutable {
+        // NB: A worker that was told to close while it fetched its script never runs it.
+        if (worker_global_scope->is_closing())
+            return;
+
         auto& realm = inside_settings->realm();
 
         // 1. If script is null or if script's error to rethrow is non-null, then:
@@ -322,13 +359,8 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         //     worker client is worker global scope's relevant settings object.
 
         // 15. Event loop: Run the responsible event loop specified by inside settings until it is destroyed.
+        // NB: The event loop runs on from here, and the steps after it are in run_closing_steps().
         inside_settings->responsible_event_loop().schedule();
-
-        // FIXME: We need to react to the closing flag being set on the responsible event loop
-        //        And use that to shutdown the WorkerHost
-        // FIXME: 16. Clear the worker global scope's map of active timers.
-        // FIXME: 17. Disentangle all the ports in the list of the worker's ports.
-        // FIXME: 18. Empty worker global scope's owner set.
     };
     auto on_complete = Web::HTML::create_on_fetch_script_complete(GC::Heap::the(), move(on_complete_function));
 
@@ -339,8 +371,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         //    onComplete and performFetch as defined below.
         if (auto err = Web::HTML::fetch_classic_worker_script(m_url, outside_settings, destination, inside_settings, perform_fetch, on_complete); err.is_error()) {
             dbgln("Failed to run worker script");
-            // FIXME: Abort the worker properly
-            TODO();
+            on_complete->function()(nullptr);
         }
     } else {
         // -> "module":
@@ -349,8 +380,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         VERIFY(m_type == Web::HTML::WorkerType::Module);
         if (auto err = Web::HTML::fetch_module_worker_script_graph(m_url, outside_settings, destination, inside_settings, perform_fetch, on_complete, static_cast<Web::Fetch::Infrastructure::Request::CredentialsMode>(credentials)); err.is_error()) {
             dbgln("Failed to run worker script");
-            // FIXME: Abort the worker properly
-            TODO();
+            on_complete->function()(nullptr);
         }
     }
 }

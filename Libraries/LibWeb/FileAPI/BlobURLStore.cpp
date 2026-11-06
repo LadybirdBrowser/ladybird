@@ -149,8 +149,11 @@ void remove_entry_from_blob_url_store(URL::URL const& url)
 void run_unloading_cleanup_steps(GC::Ref<DOM::Document> document)
 {
     // 1.  Let environment be the Document's relevant settings object.
-    auto& environment = document->relevant_settings_object();
+    remove_entries_of_environment(document->relevant_settings_object(), document->page());
+}
 
+void remove_entries_of_environment(HTML::EnvironmentSettingsObject& environment, Page& page)
+{
     // 2.  Let store be the user agent’s blob URL store;
     auto& store = FileAPI::blob_url_store();
 
@@ -164,7 +167,7 @@ void run_unloading_cleanup_steps(GC::Ref<DOM::Document> document)
     });
     // NB: Remove them from the browser process's store too, as revokeObjectURL would.
     if (!urls.is_empty())
-        document->page().client().page_did_remove_blob_url_entries(environment, urls);
+        page.client().page_did_remove_blob_url_entries(environment, urls);
 }
 
 // https://w3c.github.io/FileAPI/#blob-url-resolve
