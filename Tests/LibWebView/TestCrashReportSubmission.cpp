@@ -241,5 +241,32 @@ TEST_CASE(crash_report_submission)
     }
     VERIFY(MUST(store.pending_report_names()).is_empty());
 
+    // Reports still waiting behind one that failed after retries keep what the user chose for them.
+    auto first_name = write_report(reports_directory, "2026-10-01T17-00-00Z-WebContent-abc123.txt"sv);
+    auto second_name = write_report(reports_directory, "2026-10-01T18-00-00Z-WebContent-abc123.txt"sv);
+    server.respond_with({ 503, "{}", {} });
+    server.respond_with({ 400, "{}", {} });
+    Vector<WebView::CrashReportOutbox::Report> reports;
+    reports.append({ first_name, "I clicked a link"_string, "https://example.com/"_string });
+    reports.append({ second_name, "I clicked a link"_string, "https://example.com/other"_string });
+    outbox.send(move(reports));
+    Core::EventLoop::current().spin_until([&] { return !outbox.is_sending(first_name) && !outbox.is_sending(second_name); });
+    VERIFY(outbox.could_not_send(second_name));
+    VERIFY(outbox.failed_attempt(second_name)->description == "I clicked a link"sv);
+    VERIFY(outbox.failed_attempt(second_name)->url == "https://example.com/other"sv);
+
+    // A report that fails after its review went away keeps what the user chose, and its submission ID.
+    name = write_report(reports_directory, "2026-10-01T19-00-00Z-WebContent-abc123.txt"sv);
+    {
+        WebView::CrashReportReview departing_review { store };
+        MUST(departing_review.open(name));
+        server.respond_with({ 400, "{}", {} });
+        VERIFY(!outbox.send_from_review(departing_review, "I closed the tab"_string, {}).has_value());
+    }
+    Core::EventLoop::current().spin_until([&] { return !outbox.is_sending(name); });
+    VERIFY(outbox.could_not_send(name));
+    VERIFY(outbox.failed_attempt(name)->description == "I closed the tab"sv);
+    VERIFY(!outbox.failed_attempt(name)->manifest.is_empty());
+
     outln("PASS: Crash reports reach the report server in the format it expects");
 }
