@@ -24,6 +24,7 @@ mod exit_unboxing;
 mod facts;
 mod frame_initialization;
 mod gvn;
+mod interrupt_check_elimination;
 mod licm;
 mod loop_rotation;
 mod representation;
@@ -92,6 +93,10 @@ const PASSES: &[Pass] = &[
     Pass {
         name: "bounds check elimination",
         run: bounds_check_elimination::run,
+    },
+    Pass {
+        name: "interrupt check elimination",
+        run: interrupt_check_elimination::run,
     },
     Pass {
         name: "exit unboxing",

@@ -412,6 +412,7 @@ unreachable. Each one keeps the graph valid (`passes/verify.rs`), and IR tests i
 | Global value numbering | Again, for the nodes that check elimination and simplification made the same. |
 | Loop invariant code motion | Gives loops entered from several blocks a merged preheader, then moves effect-free nodes with inputs from outside the loop to it (but calls in cold blocks); nodes that may exit too, exiting to the loop header, and not where that kind of exit was taken there before. Those from blocks that not every iteration runs, but for cold ones, move speculatively: they exit with `Hoisted`, and stay in the loop where such an exit was taken there before. |
 | Bounds check elimination | Bounds checks against constant counts go away where the index is known to be in range: induction variables of loops whose back edge compares the grown counter with a constant bound, merges of values from outside a loop, and int32 arithmetic on them that cannot overflow. The counter an on-stack replacement entry brings is checked against the bound once where it enters, unless such a check exited there before. With the same ranges, `((x << k) + c) >> k` becomes `x + (c >> k)` where nothing overflows and `c` is a multiple of 2^k. Int32 additions, subtractions and multiplications become `Int32WrappingBinary` where the ranges of their operands keep the result an int32 (and not -0), with operands also bounded by the masks and shifts of any int32, and by the dominating bounds checks and in-bounds branches of indices. |
+| Interrupt check elimination | Small innermost loops that count towards an end lose their `CheckInterrupt`, if they run under 5000 times or a loop around them keeps its check (section 9, "Interrupts"). |
 | Exit unboxing | Frame states take the unboxed value of an int32, float64 or bool boxing that only frame states use, so that exits box it instead of the fast path. |
 | Dead code elimination | Removes nodes without uses and without effects; frame states count as uses. Branches whose edges lead to the same place doing the same thing become jumps. |
 | Escape analysis | Allocations that do not escape become their properties' SSA values; frame states refer to `VirtualObject`s. `AssumeLegacyArgumentsUnread` nodes after calls whose frame states have virtual objects among legacy arguments become `AssumeValid` nodes; the others go away. |
@@ -483,6 +484,18 @@ runs no further script.
 A `CheckInterrupt` also exits where the stack really got that deep, which only a frame that entered
 compiled code below the limit does; the interpreter then continues the frame, like after any exit.
 The exit counts as nothing learned, and not towards discarding the code.
+
+The check is two instructions, which costs a loop of a few instructions up to 18% of them. So
+interrupt check elimination removes it from small innermost loops without calls that count: a
+branch on every iteration tests an int32 that changes by a constant on every back edge against a
+bound in that direction. A loop whose constant start and bound say it runs under 5000 times (V8's
+bound for the same thing) goes wherever it is. Any other counting loop ends within 2^32 iterations,
+like a builtin that goes through a huge array, and only goes where it has a loop around it: an edge
+path from its exits back to its header, whose back edge keeps a check. An interrupt can thus take as
+long as one such loop takes to finish, up to seconds for one of 2^31 iterations, but only in a loop
+around it. An on-stack replacement entry into an inner loop keeps the outer one from being a natural
+loop, which is why this follows edges. Loops with an edge to a block before them, like a `continue`
+of the loop around them, keep their check, as that may be the only one of the loop around them.
 
 To be written: exit reasons, recompiles.
 
