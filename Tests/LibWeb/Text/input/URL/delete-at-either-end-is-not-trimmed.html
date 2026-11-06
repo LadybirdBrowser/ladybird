@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // U+007F DELETE is not a C0 control, so URL parsing keeps it at either end of the input.
+    test(() => {
+        const DELETE = "\x7F";
+        const base = "http://example.com/dir/";
+        const inputs = [
+            { kind: "ASCII", text: "x" },
+            { kind: "Latin-1", text: "\xE9" },
+            { kind: "UTF-16", text: "一" },
+        ];
+
+        for (const { kind, text } of inputs) {
+            const leading = DELETE + "javascript:" + text;
+            println(`${kind} input with a leading DELETE: ${new URL(leading, base).href}`);
+
+            const trailing = "http://example.com/" + text + DELETE;
+            println(`${kind} input with a trailing DELETE: ${new URL(trailing).href}`);
+        }
+    });
+</script>

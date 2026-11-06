@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::parser::is_ascii_c0_control_or_space;
+
 /// Borrowed URL input. Offsets refer to storage units, not Unicode scalar values.
 #[derive(Clone, Copy)]
 pub enum UrlInput<'a> {
@@ -217,21 +219,18 @@ impl<'a> UrlInput<'a> {
 
     pub(crate) fn trim_ascii_c0(self) -> Self {
         match self {
-            Self::Utf8(text) => Self::Utf8(text.trim_matches(super::parser::is_ascii_c0_control_or_space)),
-            Self::Latin1(text) => {
-                let is_retained = |byte: &u8| *byte > 0x20 && *byte != 0x7f;
-                let start = text.iter().position(is_retained).unwrap_or(text.len());
-                let end = text.iter().rposition(is_retained).map_or(start, |index| index + 1);
-                Self::Latin1(&text[start..end])
-            }
-            Self::Utf16(text) => {
-                let is_retained = |unit: &u16| *unit > 0x20 && *unit != 0x7f;
-                let start = text.iter().position(is_retained).unwrap_or(text.len());
-                let end = text.iter().rposition(is_retained).map_or(start, |index| index + 1);
-                Self::Utf16(&text[start..end])
-            }
+            Self::Utf8(text) => Self::Utf8(text.trim_matches(is_ascii_c0_control_or_space)),
+            Self::Latin1(text) => Self::Latin1(trim_c0_control_or_space_code_units(text)),
+            Self::Utf16(text) => Self::Utf16(trim_c0_control_or_space_code_units(text)),
         }
     }
+}
+
+fn trim_c0_control_or_space_code_units<T: Copy + Into<u32>>(units: &[T]) -> &[T] {
+    let is_retained = |unit: &T| !char::from_u32((*unit).into()).is_some_and(is_ascii_c0_control_or_space);
+    let start = units.iter().position(is_retained).unwrap_or(units.len());
+    let end = units.iter().rposition(is_retained).map_or(start, |index| index + 1);
+    &units[start..end]
 }
 
 impl<'a> From<&'a str> for UrlInput<'a> {
