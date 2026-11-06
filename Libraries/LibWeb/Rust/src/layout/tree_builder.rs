@@ -67,6 +67,8 @@ pub(crate) struct TreeBuilderState {
     /// The document's style, which the build is handed before it starts when it may build the
     /// viewport, held until the viewport's row takes it or the build ends without one.
     pub(super) document_style: Option<DerivedStyleRecord>,
+    /// The run of new siblings the walk is placing in DOM order, if the last insertion started or continued one.
+    dom_order_run: Option<DomOrderRun>,
 }
 
 impl Default for TreeBuilderState {
@@ -88,6 +90,7 @@ impl Default for TreeBuilderState {
             reports: Vec::new(),
             pinned_style_records: Vec::new(),
             document_style: None,
+            dom_order_run: None,
         }
     }
 }
@@ -4769,8 +4772,55 @@ fn wrap_children_in_anonymous_wrapper(
     }
 }
 
+/// A run of new siblings that a walk places in DOM order. Every one of them goes before the same box: the first of the
+/// run looked past the siblings after it for a box of `parent`, and a walk reaches those siblings in DOM order, so none
+/// of the ones it looked past has gained such a box since. Without this, placing N new siblings looks past O(N) siblings
+/// N times, which stalls a large document that arrives in a few chunks.
+#[derive(Clone, Copy)]
+struct DomOrderRun {
+    parent: LayoutNode,
+    last_placed: StyleNodeID,
+    /// The sibling whose box the run goes before, where it goes before a sibling's box.
+    next_sibling_with_box: Option<StyleNodeID>,
+    before: LayoutNode,
+}
+
+impl DomOrderRun {
+    /// The siblings between two children of a run that have no box of their own, such as the white space between two
+    /// elements. A longer gap ends the run, which costs one more look past the siblings after it.
+    const MAX_SKIPPED_SIBLINGS: usize = 8;
+
+    fn continues_with(&self, host: &TreeBuilderHost<'_>, parent: LayoutNode, identity: StyleNodeID) -> bool {
+        // NB: The walk may have replaced the box, whose slot then holds nothing or another box.
+        if self.parent != parent
+            || (!self.before.is_invalid()
+                && (!host.arena().slot_is_live(self.before) || host.parent(self.before) != parent))
+        {
+            return false;
+        }
+        if identity == self.last_placed {
+            return true;
+        }
+        let mut sibling = self.last_placed;
+        for _ in 0..=Self::MAX_SKIPPED_SIBLINGS {
+            let Some(next) = host.next_dom_sibling(sibling) else {
+                return false;
+            };
+            if Some(next) == self.next_sibling_with_box {
+                return false;
+            }
+            if next == identity {
+                return true;
+            }
+            sibling = next;
+        }
+        false
+    }
+}
+
 fn insert_child_in_dom_order(
     host: &mut TreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     parent: LayoutNode,
     child: UnplacedLayoutNode,
     identity: StyleNodeID,
@@ -4799,12 +4849,36 @@ fn insert_child_in_dom_order(
         }
     }
 
+    if let Some(run) = state.dom_order_run.as_mut()
+        && run.continues_with(host, parent, identity)
+    {
+        run.last_placed = identity;
+        host.attach_child(parent, child, run.before);
+        return;
+    }
+
+    let (before, next_sibling_with_box) = box_to_place_dom_child_before(host, parent, identity);
+    state.dom_order_run = Some(DomOrderRun {
+        parent,
+        last_placed: identity,
+        next_sibling_with_box,
+        before,
+    });
+    host.attach_child(parent, child, before);
+}
+
+/// The child of `parent` that a new box of `identity` goes before, or an invalid node for the end of the child list,
+/// and the sibling of `identity` that child is the box of, if it is one.
+fn box_to_place_dom_child_before(
+    host: &TreeBuilderHost<'_>,
+    parent: LayoutNode,
+    identity: StyleNodeID,
+) -> (LayoutNode, Option<StyleNodeID>) {
     let mut sibling = host.next_dom_sibling(identity);
     while let Some(current) = sibling {
         let sibling_layout_node = host.arena().bound_row(current);
         if !sibling_layout_node.is_invalid() && host.parent(sibling_layout_node) == parent {
-            host.attach_child(parent, child, sibling_layout_node);
-            return;
+            return (sibling_layout_node, Some(current));
         }
         sibling = host.next_dom_sibling(current);
     }
@@ -4816,20 +4890,18 @@ fn insert_child_in_dom_order(
             after_layout_child = host.parent(after_layout_child);
         }
         if host.parent(after_layout_child) == parent {
-            host.attach_child(parent, child, after_layout_child);
-            return;
+            return (after_layout_child, None);
         }
     }
 
     let mut layout_child = host.first_child(parent);
     while !layout_child.is_invalid() {
         if host.data(layout_child).generated_for.get() == GENERATED_FOR_AFTER {
-            host.attach_child(parent, child, layout_child);
-            return;
+            return (layout_child, None);
         }
         layout_child = host.next_sibling(layout_child);
     }
-    host.attach_child(parent, child, NodeSlotId::INVALID);
+    (NodeSlotId::INVALID, None)
 }
 
 /// Whether `node` is an absolutely positioned box that would be inline-level in flow, laid out among the inline content
@@ -4894,6 +4966,7 @@ fn insert_node_into_inline_or_block_ancestor(
         }
         FfiInsertionMode::InDomOrder => insert_child_in_dom_order(
             host,
+            state,
             insertion_point,
             node,
             identity.expect("an insertion in DOM order names its node"),

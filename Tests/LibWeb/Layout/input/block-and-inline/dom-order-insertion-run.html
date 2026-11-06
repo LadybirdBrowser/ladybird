@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<style>
+    #list::after {
+        content: "end";
+    }
+</style>
+<div id="list">
+    <div id="first">first</div>
+    <div id="last">last</div>
+</div>
+<div id="tail"></div>
+<script>
+    document.body.offsetWidth;
+
+    const list = document.getElementById("list");
+    const last = document.getElementById("last");
+    const tail = document.getElementById("tail");
+
+    function block(text) {
+        const element = document.createElement("div");
+        element.textContent = text;
+        return element;
+    }
+
+    // A run of new siblings that goes before an existing box, with gaps of nodes that have no box of their own.
+    for (let i = 0; i < 3; ++i) {
+        list.insertBefore(block(`a${i}`), last);
+        list.insertBefore(document.createTextNode("\n"), last);
+    }
+    for (let i = 0; i < 12; ++i)
+        list.insertBefore(document.createComment("gap"), last);
+    list.insertBefore(block("b"), last);
+
+    // A run of new siblings that goes before the ::after box of its parent.
+    for (let i = 0; i < 3; ++i) {
+        list.appendChild(block(`c${i}`));
+        list.appendChild(document.createTextNode("\n"));
+    }
+
+    // A run of new siblings that goes at the end of a child list.
+    for (let i = 0; i < 3; ++i)
+        tail.appendChild(block(`d${i}`));
+</script>
