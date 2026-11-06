@@ -23,7 +23,7 @@ use crate::bindings::promise::{
     react_to_promise, reject_promise, resolve_promise,
 };
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
-use crate::streams::cpp::AbortSignal;
+use crate::dom::abort_signal::AbortSignal;
 use crate::streams::read_request::ReadRequest;
 use crate::streams::readable_stream::{
     ReadableStream, ReadableStreamState, acquire_readable_stream_default_reader, is_readable_stream_locked,

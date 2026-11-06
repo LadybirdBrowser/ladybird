@@ -15,8 +15,8 @@ use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Ref, Wrappable, allocate, wrap};
 use crate::bindings::promise::{WebIdlPromise, create_resolved_promise, exception_value, react_to_promise};
 use crate::bindings::{CallContext, MustNotThrow, WebIdlResult};
+use crate::dom::abort_signal::AbortSignal;
 use crate::streams::algorithms::{AbortAlgorithm, CloseAlgorithm, SizeAlgorithm, StartAlgorithm, WriteAlgorithm};
-use crate::streams::cpp::AbortSignal;
 use crate::streams::queue_with_sizes::QueueWithSizes;
 use crate::streams::underlying_sink::UnderlyingSink;
 use crate::streams::writable_stream::{
