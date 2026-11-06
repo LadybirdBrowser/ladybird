@@ -1,0 +1,4 @@
+tab-size 8 reaches 8 spaces: true
+tab-size 4 reaches 4 spaces: true
+a tab in an inline box uses the block container's spaces: true
+a tab stop of 8 spaces is 80px: 80px
