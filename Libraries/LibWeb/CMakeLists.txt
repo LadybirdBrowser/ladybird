@@ -921,9 +921,7 @@ set(SOURCES
     ViewTransition/ViewTransition.cpp
     VisualLines.cpp
     WebLocks/AbstractOperations.cpp
-    WebLocks/Lock.cpp
     WebLocks/LockManager.cpp
-    WebLocks/LockRequest.cpp
     WebLocks/NavigatorLocks.cpp
     WebAssembly/WebAssembly.cpp
     WebAudio/AnalyserNode.cpp

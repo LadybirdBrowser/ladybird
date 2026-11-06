@@ -185,6 +185,16 @@ pub(crate) mod web_assembly;
 )]
 pub(crate) mod web_gl;
 #[cfg(not(test))]
+#[cfg_attr(
+    not(web_idl_bindings),
+    allow(dead_code, reason = "only the generated bindings use the interfaces")
+)]
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the bindings call every operation as one that can throw"
+)]
+pub(crate) mod web_locks;
+#[cfg(not(test))]
 pub(crate) mod webidl;
 #[cfg(not(test))]
 pub(crate) mod webrtc;

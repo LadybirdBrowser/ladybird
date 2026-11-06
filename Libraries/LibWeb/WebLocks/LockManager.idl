@@ -1,8 +1,8 @@
 // https://w3c.github.io/web-locks/#lockmanager
-[SecureContext, Exposed=(Window,Worker)]
+[SecureContext, Exposed=(Window,Worker), ImplementedIn=Rust]
 interface LockManager {
-    Promise<any> request(DOMString name, LockGrantedCallback callback);
-    Promise<any> request(DOMString name, LockOptions options, LockGrantedCallback callback);
+    [ImplementedAs=request] Promise<any> request(DOMString name, LockGrantedCallback callback);
+    [ImplementedAs=request] Promise<any> request(DOMString name, LockOptions options, LockGrantedCallback callback);
 
     Promise<LockManagerSnapshot> query();
 };

@@ -146,6 +146,10 @@ impl CallbackInterface {
 }
 
 impl PromiseCallbackFunction {
+    pub(crate) fn as_ptr(&self) -> *mut c_void {
+        self.0.0.as_ptr()
+    }
+
     /// The callback function value of a JS value, https://webidl.spec.whatwg.org/#js-callback-function
     pub(crate) fn from_js(vm: &Vm, value: Value) -> ThrowCompletionOr<Self> {
         CallbackType::from_js(vm, value, true).map(Self)
