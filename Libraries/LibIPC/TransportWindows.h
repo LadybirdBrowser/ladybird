@@ -12,8 +12,10 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <AK/Mutex.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/Queue.h>
 #include <AK/RefPtr.h>
+#include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibCore/Forward.h>
 #include <LibIPC/Attachment.h>
@@ -21,6 +23,7 @@
 #include <LibIPC/HandleBroker.h>
 #include <LibIPC/ReceivedMessageBytes.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibThreading/Forward.h>
 
 namespace IPC {
 
@@ -47,6 +50,11 @@ public:
     ~TransportWindows();
 
     void set_up_read_hook(Function<void()>);
+
+    // Starts an IO thread that reads the handle from then on, and shows the observer each message before its owner gets
+    // to it, and an empty message once the peer is gone.
+    void set_incoming_message_observer(Function<void(ReadonlyBytes)>);
+
     bool is_open() const;
     void close();
     void close_after_sending_all_pending_messages();
@@ -58,6 +66,7 @@ public:
 
     // Both are no-ops here: post_message() writes to the pipe before it returns, and the read path below reads the
     // pipe itself, so neither direction has a queue that can lag behind another transport.
+    // FIXME: Once an observer has started an IO thread, the pipe can hold messages that it has not queued yet.
     void flush() { }
     void wait_until_incoming_is_current() { }
 
@@ -68,6 +77,8 @@ public:
         Yes,
     };
     struct Message {
+        AK_ALLOC_WITH_KMALLOC;
+
         ReceivedMessageBytes bytes;
         Queue<Attachment> attachments;
     };
@@ -81,6 +92,7 @@ private:
         Socket,
     };
     struct MessageHeader;
+    struct ReadHookRelay;
     enum class ReadOutcome : u8 {
         Read,
         WouldBlock,
@@ -93,7 +105,15 @@ private:
     ErrorOr<void> transfer(ReadonlyBytes);
     ErrorOr<size_t> write_some(ReadonlyBytes);
     ReadOutcome read_some_without_waiting(Bytes, size_t& bytes_read);
+    bool wait_until_readable_or_signaled(void* event);
+    ShouldShutdown read_and_parse_messages(Function<void(NonnullOwnPtr<Message>)>&&);
     void stop_watching();
+
+    void start_io_thread();
+    void stop_io_thread();
+    intptr_t io_thread_loop();
+    void notify_incoming_message_observer(ReadonlyBytes);
+    void notify_read_hook();
 
     int m_handle { -1 };
     Kind m_kind { Kind::Pipe };
@@ -108,6 +128,23 @@ private:
     HandleBrokerChannel m_handle_broker_channel { 0 };
     bool m_has_parked_attachments { false };
     bool m_disconnects_when_peer_stops_reading { false };
+
+    // Manual-reset events, as HANDLEs.
+    void* m_incoming_event { nullptr };
+    void* m_io_thread_stop_event { nullptr };
+
+    // Only there once an observer is set. The IO thread is then the only reader of the handle and of m_unprocessed_bytes.
+    RefPtr<Threading::Thread> m_io_thread;
+    bool m_io_thread_has_stopped { false };
+    RefPtr<Core::WeakEventLoopReference> m_owner_event_loop;
+    RefPtr<ReadHookRelay> m_read_hook_relay;
+
+    Mutex m_incoming_mutex;
+    Vector<NonnullOwnPtr<Message>> m_incoming_messages;
+    bool m_incoming_has_ended { false };
+
+    Mutex m_incoming_message_observer_mutex;
+    Function<void(ReadonlyBytes)> m_incoming_message_observer;
 };
 
 }

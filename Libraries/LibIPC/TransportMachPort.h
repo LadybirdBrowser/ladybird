@@ -49,6 +49,12 @@ public:
     ~TransportMachPort();
 
     void set_up_read_hook(Function<void()>);
+
+    // Sets what the IO thread shows every message that arrives, before the transport's owner gets to see it, and empty
+    // bytes once the peer is gone. This is for a thread that does not get back to its event loop on its own, like one
+    // stuck in script. It runs while the IO thread holds a lock, so it should only have a look.
+    void set_incoming_message_observer(Function<void(ReadonlyBytes)>);
+
     bool is_open() const;
 
     void close();
@@ -138,6 +144,7 @@ private:
     Mutex m_incoming_mutex;
     ConditionVariable m_incoming_cv { m_incoming_mutex };
     Vector<NonnullOwnPtr<Message>> m_incoming_messages;
+    Function<void(ReadonlyBytes)> m_incoming_message_observer;
     u64 m_receive_barriers_sent { 0 };
     u64 m_receive_barriers_received { 0 };
     bool m_read_notification_pending { false };

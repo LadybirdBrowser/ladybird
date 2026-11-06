@@ -334,6 +334,8 @@ intptr_t TransportSocket::io_thread_loop()
         MutexLocker locker(m_incoming_mutex);
         m_peer_eof = true;
         m_incoming_eof = true;
+        if (m_incoming_message_observer)
+            m_incoming_message_observer({});
         m_incoming_cv.broadcast();
         notify_read_available();
     }
@@ -765,6 +767,10 @@ TransportSocket::MoreToRead TransportSocket::read_incoming_messages()
     bool const peer_eof = m_peer_eof;
     if (!batch.is_empty() || peer_eof) {
         MutexLocker locker(m_incoming_mutex);
+        if (m_incoming_message_observer) {
+            for (auto const& message : batch)
+                m_incoming_message_observer(message->bytes.bytes());
+        }
         if (!batch.is_empty())
             m_incoming_messages.extend(move(batch));
         // Publish EOF only after the final batch is appended — under the same lock the consumer drains with — so that a
@@ -776,6 +782,12 @@ TransportSocket::MoreToRead TransportSocket::read_incoming_messages()
     }
 
     return peer_eof ? MoreToRead::No : more_to_read;
+}
+
+void TransportSocket::set_incoming_message_observer(Function<void(ReadonlyBytes)> observer)
+{
+    MutexLocker locker(m_incoming_mutex);
+    m_incoming_message_observer = move(observer);
 }
 
 TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)
