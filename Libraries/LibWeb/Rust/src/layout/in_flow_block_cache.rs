@@ -54,10 +54,10 @@ impl InFlowBlockKey {
             treat_block_axis_percentage_insets_as_auto_beyond_root: run
                 .treat_block_axis_percentage_insets_as_auto_beyond_root,
             initial_containing_block_size: (
-                run.callbacks.initial_containing_block_inline_size,
-                run.callbacks.initial_containing_block_block_size,
+                run.pass.initial_containing_block_inline_size,
+                run.pass.initial_containing_block_block_size,
             ),
-            document_in_quirks_mode: run.callbacks.document_in_quirks_mode,
+            document_in_quirks_mode: run.pass.document_in_quirks_mode,
         }
     }
 }
