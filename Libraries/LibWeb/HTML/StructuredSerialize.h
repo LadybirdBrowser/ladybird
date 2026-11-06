@@ -35,6 +35,15 @@ class HostObject;
 
 namespace Web::HTML {
 
+// A Mach port name and its disposition on Apple, and a descriptor elsewhere.
+struct TransferAttachment {
+    int value;
+    u32 disposition;
+};
+
+Vector<IPC::Attachment> adopt_transfer_attachments(TransferAttachment const*, size_t count);
+Vector<TransferAttachment> release_transfer_attachments(Vector<IPC::Attachment>);
+
 struct StructuredSerializeOptions {
     GC::RootVector<GC::Ref<JS::Object>> transfer;
 };

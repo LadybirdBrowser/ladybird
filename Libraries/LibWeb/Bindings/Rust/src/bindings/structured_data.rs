@@ -25,8 +25,8 @@ use libjs_rust::api::{Gc, MarkedVec, Object, Realm, Value, Vm};
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
 use crate::bindings::interface::{ConstructedObject, Interface, Ref, implementation_of, wrap};
-use crate::bindings::transport::TransportHandle;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::message_port::TransportHandle;
 use crate::html::structured_serialize::cpp::{
     ImageBitmapSharedPixels, SharedPixelBuffers, data_clone_error_from_serialization_error,
 };
