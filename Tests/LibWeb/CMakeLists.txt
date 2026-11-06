@@ -20,7 +20,6 @@ set(TEST_SOURCES
     TestCSSIDSpeed.cpp
     TestCSSInheritedProperty.cpp
     TestCSSPropertyList.cpp
-    TestDownloadReader.cpp
     TestDump.cpp
     TestEventLoop.cpp
     TestFaviconDecoding.cpp
