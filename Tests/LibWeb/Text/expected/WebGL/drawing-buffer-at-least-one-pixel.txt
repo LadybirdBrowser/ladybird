@@ -1,0 +1,8 @@
+webgl canvas 300x150: drawing buffer 300x150
+webgl canvas 1956x0: drawing buffer 1956x1
+webgl canvas 0x0: drawing buffer 1x1
+webgl framebuffer as large as a 1956x0 canvas's drawing buffer is complete: true
+webgl2 canvas 300x150: drawing buffer 300x150
+webgl2 canvas 1956x0: drawing buffer 1956x1
+webgl2 canvas 0x0: drawing buffer 1x1
+webgl2 framebuffer as large as a 1956x0 canvas's drawing buffer is complete: true

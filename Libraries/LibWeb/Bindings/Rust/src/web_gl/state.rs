@@ -44,6 +44,13 @@ use crate::canvas_2d::canvas::CanvasImageSourceKind;
 
 pub(crate) const MAX_WEBGL_DRAWING_BUFFER_DIMENSION: i32 = 16384;
 
+/// The width or height of the drawing buffer for a canvas of this width or height.
+// https://registry.khronos.org/webgl/specs/latest/1.0/#THE_DRAWING_BUFFER
+// A 0x0 canvas yields a 1x1 drawing buffer, and a canvas larger than the implementation supports yields a smaller one.
+pub(crate) fn drawing_buffer_dimension(canvas_dimension: i32) -> i32 {
+    canvas_dimension.clamp(1, MAX_WEBGL_DRAWING_BUFFER_DIMENSION)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum WebGLVersion {
     WebGL1,

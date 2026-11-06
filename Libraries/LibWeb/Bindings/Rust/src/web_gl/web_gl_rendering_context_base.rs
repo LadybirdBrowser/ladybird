@@ -25,9 +25,7 @@ use super::constants::{
     GL_UNPACK_SKIP_ROWS, GL_VERTEX_ATTRIB_ARRAY_POINTER, GL_VERTEX_SHADER,
 };
 use super::gl_string::{utf8_bytes, utf16_string_from_gl_string};
-use super::state::{
-    Binding, ContextState, MAX_WEBGL_DRAWING_BUFFER_DIMENSION, RenderingContext, Version, WebGLVersion,
-};
+use super::state::{Binding, ContextState, RenderingContext, Version, WebGLVersion, drawing_buffer_dimension};
 use super::types::Float32List;
 use super::web_gl_active_info::WebGLActiveInfo;
 use super::web_gl_buffer::WebGLBuffer;
@@ -124,12 +122,12 @@ impl<V: Version> RenderingContext<V> {
 
     pub(crate) fn drawing_buffer_width(&self, _: &mut CallContext) -> WebIdlResult<i32> {
         let (width, _) = ContextState::canvas(self).bitmap_size();
-        Ok(width.min(MAX_WEBGL_DRAWING_BUFFER_DIMENSION))
+        Ok(drawing_buffer_dimension(width))
     }
 
     pub(crate) fn drawing_buffer_height(&self, _: &mut CallContext) -> WebIdlResult<i32> {
         let (_, height) = ContextState::canvas(self).bitmap_size();
-        Ok(height.min(MAX_WEBGL_DRAWING_BUFFER_DIMENSION))
+        Ok(drawing_buffer_dimension(height))
     }
 
     pub(crate) fn get_context_attributes(&self, _: &mut CallContext) -> WebIdlResult<Option<WebGLContextAttributes>> {

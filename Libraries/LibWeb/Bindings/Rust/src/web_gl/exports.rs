@@ -16,8 +16,8 @@ use super::fingerprint::verify_that_rust_and_cpp_agree_on_layouts_and_constants;
 use super::host::CppTransport;
 use super::proxy::recorder::Proxy;
 use super::state::{
-    ContextParameters, ContextRef, ContextState, MAX_WEBGL_DRAWING_BUFFER_DIMENSION, RenderingContext, WebGL1, WebGL2,
-    WebGLVersion,
+    ContextParameters, ContextRef, ContextState, RenderingContext, WebGL1, WebGL2, WebGLVersion,
+    drawing_buffer_dimension,
 };
 use super::web_gl_rendering_context::WebGLPowerPreference;
 use super::web_gl_rendering_context_base::WebGLContextAttributes;
@@ -200,10 +200,9 @@ pub extern "C" fn web_webgl_context_canvas_id(context: &ContextCell, out_canvas_
 #[unsafe(no_mangle)]
 pub extern "C" fn web_webgl_context_set_size(context: &ContextCell, width: i32, height: i32) {
     with_context(context, |context| {
-        context.proxy.set_size(
-            width.clamp(1, MAX_WEBGL_DRAWING_BUFFER_DIMENSION),
-            height.clamp(1, MAX_WEBGL_DRAWING_BUFFER_DIMENSION),
-        );
+        context
+            .proxy
+            .set_size(drawing_buffer_dimension(width), drawing_buffer_dimension(height));
     });
 }
 
