@@ -171,7 +171,7 @@ impl Storage {
         let new_queue = CONNECTION_QUEUE_CLASS.allocate(vm, |defer| ConnectionQueue {
             storage_key: key.clone(),
             name: name.clone(),
-            request_list: RequestList::new(defer),
+            request_list: RequestList::new_for_connection_queue(defer),
         });
         self.connection_queues.borrow_mut(vm).push(new_queue);
         new_queue

@@ -30,6 +30,8 @@ pub(crate) struct RequestList {
     entries: GcRefCell<Vec<Entry>>,
     on_all_processed: Cell<Option<Function>>,
     blocked: Cell<bool>,
+    // Whether this is a connection queue's list, whose requests run one at a time, each until its steps complete.
+    is_connection_queue: bool,
 }
 
 impl RequestList {
@@ -38,6 +40,14 @@ impl RequestList {
             entries: GcRefCell::new(Vec::new()),
             on_all_processed: Cell::new(None),
             blocked: Cell::new(false),
+            is_connection_queue: false,
+        }
+    }
+
+    pub(crate) fn new_for_connection_queue(defer: &DeferGc<'_>) -> Self {
+        Self {
+            is_connection_queue: true,
+            ..Self::new(defer)
         }
     }
 
@@ -64,7 +74,11 @@ impl RequestList {
             let Some(request) = entry.request.get() else {
                 continue;
             };
-            if request.processed() {
+            // AD-HOC: The spec has a connection queue's request wait only until the requests before it are processed,
+            //         and upgrading a database sets its request's processed flag before it fires upgradeneeded. So a
+            //         request would run while the upgrade transaction is live. Instead, a request waits until the one
+            //         before it has completed, which drops it from the queue.
+            if request.processed() && !self.is_connection_queue {
                 continue;
             }
             if request.aborted() {
@@ -88,6 +102,12 @@ impl RequestList {
     }
 
     pub(crate) fn on_request_processed(&self, vm: &Vm) {
+        if self.is_connection_queue {
+            let mut entries = self.entries.borrow_mut(vm);
+            if let Some(position) = entries.iter().position(|entry| entry.steps.is_none()) {
+                entries.remove(position);
+            }
+        }
         self.maybe_process_next_request(vm);
     }
 
