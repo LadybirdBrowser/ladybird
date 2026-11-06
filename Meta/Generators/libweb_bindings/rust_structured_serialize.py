@@ -43,7 +43,7 @@ def write_rust_serializable_dispatch(out: TextIO, interfaces: List[Interface], v
     out.write(
         """
 pub(crate) mod serializable_objects {
-    use libjs_rust::api::{Gc, Object, Value, Vm};
+    use libjs_rust::api::{Gc, Object, Value};
     use crate::bindings::{CallContext, WebIdlResult};
     use crate::bindings::interface::is_exact_wrapper;
     use crate::bindings::structured_data::{self, SerializationReader, SerializationWriter};
@@ -73,7 +73,7 @@ pub(crate) mod serializable_objects {
 
     pub(crate) fn serialization_steps(
         interface_name: u16,
-        vm: &Vm,
+        cx: &CallContext,
         object: Gc<Object>,
         serialized: &mut SerializationWriter,
         for_storage: bool,
@@ -83,7 +83,7 @@ pub(crate) mod serializable_objects {
     )
     for interface in rust_interfaces:
         out.write(
-            f"            {values[interface.name]} => structured_data::serialization_steps::<{rust_interface_path(interface)}>(vm, object, serialized, for_storage),\n"
+            f"            {values[interface.name]} => structured_data::serialization_steps::<{rust_interface_path(interface)}>(cx, object, serialized, for_storage),\n"
         )
     out.write(
         """            _ => unreachable!("the interface is a Rust serializable interface"),
