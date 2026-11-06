@@ -250,6 +250,27 @@ void EventLoopImplementationUnix::wake()
     MUST(move(result));
 }
 
+// Waits until a file descriptor is ready or `timeout` has passed, whichever comes first.
+static ErrorOr<int> wait_for_file_descriptors(Span<pollfd> poll_fds, Optional<AK::Duration> timeout)
+{
+#ifdef AK_OS_LINUX
+    // NB: A timer that poll() rounds up to the next whole millisecond fires up to a millisecond late.
+    for (auto& poll_fd : poll_fds)
+        poll_fd.revents = 0;
+    timespec timeout_spec {};
+    if (timeout.has_value())
+        timeout_spec = timeout->to_timespec();
+    int marked_fd_count = ::ppoll(poll_fds.data(), poll_fds.size(), timeout.has_value() ? &timeout_spec : nullptr, nullptr);
+    if (marked_fd_count < 0)
+        return Error::from_syscall("ppoll"sv, errno);
+    return marked_fd_count;
+#else
+    if (!timeout.has_value())
+        return System::poll(poll_fds, -1);
+    return System::poll(poll_fds, static_cast<i32>(min<i64>(AK::NumericLimits<i32>::max(), timeout->to_ceiled_milliseconds())));
+#endif
+}
+
 void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mode)
 {
     auto& thread_data = ThreadData::the();
@@ -262,16 +283,14 @@ void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mod
 
     // Figure out how long to wait at maximum.
     // This mainly depends on the PumpMode and whether we have pending events, but also the next expiring timer.
-    int timeout = 0;
+    auto timeout = AK::Duration::zero();
     bool should_wait_forever = false;
     if (mode == EventLoopImplementation::PumpMode::WaitForEvents && !has_pending_events) {
         auto next_timer_expiration = thread_data.timeouts.next_timer_expiration();
         if (next_timer_expiration.has_value()) {
-            auto computed_timeout = next_timer_expiration.value() - time_at_iteration_start;
-            if (computed_timeout.is_negative())
-                computed_timeout = AK::Duration::zero();
-            i64 true_timeout = computed_timeout.to_ceiled_milliseconds();
-            timeout = static_cast<i32>(min<i64>(AK::NumericLimits<i32>::max(), true_timeout));
+            timeout = next_timer_expiration.value() - time_at_iteration_start;
+            if (timeout.is_negative())
+                timeout = AK::Duration::zero();
         } else {
             should_wait_forever = true;
         }
@@ -279,7 +298,7 @@ void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mod
 
 try_select_again:
     // select() and wait for file system events, calls to wake(), POSIX signals, or timer expirations.
-    auto error_or_marked_fd_count = System::poll(thread_data.poll_fds, should_wait_forever ? -1 : timeout);
+    auto error_or_marked_fd_count = wait_for_file_descriptors(thread_data.poll_fds, should_wait_forever ? Optional<AK::Duration> {} : timeout);
     auto time_after_poll = MonotonicTime::now();
     // Because POSIX, we might spuriously return from select() with EINTR; just select again.
     if (error_or_marked_fd_count.is_error()) {
