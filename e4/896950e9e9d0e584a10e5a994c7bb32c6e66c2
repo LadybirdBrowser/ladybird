@@ -1,0 +1,13 @@
+Before applying an incremental change to the accessibility tree,
+Ladybird’s UI process checks the whole change against the tree
+it holds, and applies all of it or none of it; on a change that
+doesn’t fit, it asks WebContent for the whole tree. Chromium does
+the same: AXTree::Unserialize() checks every pending change in
+ComputePendingChanges() before it touches the tree, and when that fails,
+BrowserAccessibilityManager::OnAccessibilityEvents() hands the error
+to its delegate, which recovers by creating the manager again from a
+full tree. Gecko instead treats a change that doesn’t fit as a protocol
+error: DocAccessibleParent::RecvShowEvent() returns IPC_FAIL for an
+unknown parent or an invalid index, which kills the content process.
+WebKit’s AXIsolatedTree is filled in within the web process, from the
+accessibility objects it mirrors, so it has no such check to make.
