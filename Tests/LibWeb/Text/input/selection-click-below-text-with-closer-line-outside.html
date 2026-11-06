@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    p { margin: 0; }
+    #header { height: 40px; }
+    #area { height: 200px; }
+</style>
+<div id="header">header text</div>
+<div id="area"><p id="paragraph">paragraph text</p></div>
+<div><span id="below">text below the area</span></div>
+<script src="include.js"></script>
+<script>
+    // A click in the empty part of an element, far below its text but close to a line outside it, puts the caret on
+    // the element's own closest line, and moves the selection there.
+    asyncTest(async done => {
+        const describe = () => {
+            const selection = getSelection();
+            const node = selection.anchorNode;
+            const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+            return `${node.nodeType === Node.TEXT_NODE ? "text in " : ""}${element.localName}#${element.id}, offset ${selection.anchorOffset}`;
+        };
+        const click = async (x, y) => {
+            internals.click(x, y);
+            await new Promise(resolve => requestAnimationFrame(resolve));
+        };
+
+        const header = document.getElementById("header").getBoundingClientRect();
+        await click(header.left + 10, header.top + 10);
+        println(`After a click in the header: ${describe()}`);
+
+        const area = document.getElementById("area").getBoundingClientRect();
+        await click(area.right - 50, area.bottom - 5);
+        println(`After a click far below the paragraph: ${describe()}`);
+        done();
+    });
+</script>
