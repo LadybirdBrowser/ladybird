@@ -32,6 +32,7 @@ public:
     void release_transfer_lease();
 
     void set_on_requires_network(Function<void()>);
+    void set_on_upload_progress(Function<void(u64 bytes_sent)>);
     void set_on_teardown(Function<void(Requests::Request::TeardownReason)>);
 
 private:

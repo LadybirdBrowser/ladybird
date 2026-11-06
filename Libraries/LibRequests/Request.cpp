@@ -363,6 +363,7 @@ void Request::defer_teardown()
     Core::deferred_invoke([self = NonnullRefPtr(*this)] {
         self->on_headers_received = nullptr;
         self->on_finish = nullptr;
+        self->on_upload_progress = nullptr;
         self->m_internal_buffered_data = nullptr;
         self->m_internal_stream_data = nullptr;
     });

@@ -34,6 +34,8 @@ Description:
 Endpoints:
     - POST /echo <json body>, Creates an echo response for later use. See "Echo" class below for body properties.
     - Echo responses accept chunks=<byte-counts> and chunk_unblock_tokens=<tokens> query parameters.
+    - Echo responses accept request_body_read_size=<bytes> and request_body_read_delay_ms=<ms> query parameters,
+      which read the request's body that many bytes at a time, waiting that long before each read.
       Each named token holds the response after the corresponding chunk until GET /unblock/<token>.
     - GET <any path> with an "Upgrade: websocket" header: Performs a WebSocket handshake and then echoes
       every text/binary frame back to the client verbatim. With a "send-binary=<size>" query parameter, the
@@ -610,7 +612,17 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # The request's body is read before responding, so closing the connection does not reset it.
         content_length = int(self.headers.get("Content-Length", 0))
         if content_length:
-            self.rfile.read(content_length)
+            read_size = int(query.get("request_body_read_size", [content_length])[0])
+            read_delay_ms = int(query.get("request_body_read_delay_ms", [0])[0])
+            remaining = content_length
+            while remaining > 0:
+                if read_delay_ms:
+                    time.sleep(read_delay_ms / 1000)
+                read = len(self.rfile.read(min(read_size, remaining)))
+                # The client closed the connection before sending the whole body.
+                if read == 0:
+                    break
+                remaining -= read
 
         is_revalidation_request = "If-Modified-Since" in self.headers
         send_not_modified = is_revalidation_request and "X-Ladybird-Respond-With-Not-Modified" in self.headers

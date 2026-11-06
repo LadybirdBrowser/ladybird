@@ -125,6 +125,7 @@ public:
     void set_stop_callback(RequestStopped);
 
     Function<void()> on_requires_network;
+    Function<void(u64 bytes_sent)> on_upload_progress;
 
     enum class TeardownReason : u8 {
         Stopped,

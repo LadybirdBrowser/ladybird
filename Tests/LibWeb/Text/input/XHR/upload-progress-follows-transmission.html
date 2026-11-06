@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The server reads each request body slowly, so upload progress events fire as the body goes out, not all at once.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const url = await httpServer.createEcho("POST", "/xhr-upload-progress-follows-transmission", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "ok",
+        });
+        const bytes = new Uint8Array(16 * 1024 * 1024);
+
+        function upload(name, body) {
+            return new Promise(resolve => {
+                const xhr = new XMLHttpRequest();
+                const progress = [];
+                let total = 0;
+                xhr.upload.onprogress = event => {
+                    progress.push(event.loaded);
+                    total = event.total;
+                };
+                xhr.upload.onload = event => {
+                    // The progress event that completing the upload fires can repeat the last one's loaded value.
+                    const neverDecreases = progress.every((loaded, index) => index === 0 || loaded >= progress[index - 1]);
+                    println(`${name}: more than one loaded value: ${new Set(progress).size > 1}`);
+                    println(`${name}: loaded never decreases: ${neverDecreases}`);
+                    println(`${name}: first progress before the end: ${progress[0] < total}`);
+                    println(`${name}: load ${event.loaded === event.total && event.total === total}`);
+                };
+                xhr.upload.onloadend = event => {
+                    println(`${name}: loadend ${event.loaded === event.total && event.total === total}`);
+                };
+                xhr.onloadend = () => {
+                    println(`${name}: status ${xhr.status}`);
+                    resolve();
+                };
+                xhr.open("POST", `${url}?request_body_read_size=524288&request_body_read_delay_ms=25`);
+                xhr.send(body);
+            });
+        }
+
+        await upload("File", new File([bytes], "file.bin"));
+        const formData = new FormData();
+        formData.append("file", new File([bytes], "file.bin"));
+        await upload("FormData", formData);
+        done();
+    });
+</script>

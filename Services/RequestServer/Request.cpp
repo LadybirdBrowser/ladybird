@@ -344,8 +344,11 @@ static void record_chunk(Request const* request, size_t bytes)
         stats.max_chunk_bytes = bytes;
 }
 
-[[maybe_unused]] static int on_xferinfo(void* user_data, curl_off_t /*dltotal*/, curl_off_t dlnow, curl_off_t /*ultotal*/, curl_off_t /*ulnow*/)
+static int on_xferinfo(void* user_data, curl_off_t /*dltotal*/, curl_off_t dlnow, curl_off_t /*ultotal*/, curl_off_t ulnow)
 {
+    if (ulnow > 0)
+        static_cast<Request*>(user_data)->did_send_request_body_bytes(static_cast<u64>(ulnow));
+
     if constexpr (!REQUESTSERVER_WIRE_DEBUG)
         return 0;
     auto* request = static_cast<Request const*>(user_data);
@@ -1625,7 +1628,8 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_WRITEFUNCTION, &on_data_received);
     set_option(CURLOPT_WRITEDATA, this);
 
-    if constexpr (REQUESTSERVER_WIRE_DEBUG) {
+    // Progress callbacks report how much of a request body curl has sent.
+    if (REQUESTSERVER_WIRE_DEBUG || (m_type == RequestType::Fetch && !m_request_body.is_empty())) {
         set_option(CURLOPT_NOPROGRESS, 0L);
         set_option(CURLOPT_XFERINFOFUNCTION, &on_xferinfo);
         set_option(CURLOPT_XFERINFODATA, this);
@@ -2318,8 +2322,33 @@ void Request::transfer_headers_to_client_if_needed()
     send_headers_to_client(move(javascript_bytecode), javascript_bytecode_size, javascript_bytecode_cache_vary_key);
 }
 
+void Request::did_send_request_body_bytes(u64 bytes_sent)
+{
+    if (m_type != RequestType::Fetch)
+        return;
+
+    bytes_sent = min(bytes_sent, m_request_body.size());
+    if (bytes_sent <= m_reported_request_body_bytes)
+        return;
+
+    // Curl calls back far more often than a client could use, so report at most every 50ms, which is how often XHR
+    // fires its upload progress events, and always report the whole body once it's sent.
+    auto now = MonotonicTime::now();
+    if (bytes_sent < m_request_body.size() && m_last_request_body_report_time.has_value()
+        && now - *m_last_request_body_report_time < AK::Duration::from_milliseconds(50))
+        return;
+
+    m_last_request_body_report_time = now;
+    m_reported_request_body_bytes = bytes_sent;
+    m_client->async_request_upload_progress(m_request_id, bytes_sent);
+}
+
 void Request::send_headers_to_client(Optional<IPC::File> javascript_bytecode, u64 javascript_bytecode_size, Optional<u64> javascript_bytecode_cache_vary_key)
 {
+    // A response means the request body has been sent, including one that a cache or a substitution answered, and
+    // which never went out at all.
+    did_send_request_body_bytes(m_request_body.size());
+
     auto cache_state = Requests::CacheState::NotCached;
     if (m_cache_status == CacheStatus::ReadFromCache)
         cache_state = m_cache_entry_was_revalidated ? Requests::CacheState::Validated : Requests::CacheState::Local;
