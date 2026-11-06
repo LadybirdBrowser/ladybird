@@ -7,6 +7,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/Platform.h>
+#include <AK/StdLibExtras.h>
 #include <AK/kmalloc.h>
 
 #if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__) || defined(HAS_THREAD_SANITIZER)
@@ -122,34 +123,20 @@ void* ak_kmalloc(size_t size)
     return mi_malloc(size);
 }
 
-static thread_local mi_heap_t* s_buffer_heap = nullptr;
-static thread_local mi_heap_t* s_string_heap = nullptr;
+// A mimalloc heap belongs to the thread that made it: only that thread may allocate from it, but any thread may free
+// its memory. When the thread exits, mimalloc deletes its heaps, and what is still allocated stays valid until freed.
+static constexpr size_t PARTITION_COUNT = to_underlying(HeapPartition::String) + 1;
+AK_TLS_INITIAL_EXEC static thread_local constinit mi_heap_t* s_partition_heaps[PARTITION_COUNT] {};
 static thread_local mi_heap_t* s_scratch_heap = nullptr;
 
 static mi_heap_t* heap_for_partition(HeapPartition partition)
 {
-    switch (partition) {
-    case HeapPartition::General:
+    if (partition == HeapPartition::General)
         return mi_heap_get_default();
-    case HeapPartition::ArrayBuffer:
-        static mi_heap_t* array_buffer_heap = mi_heap_new();
-        return array_buffer_heap;
-    case HeapPartition::JSObjectStorage:
-        static mi_heap_t* js_object_storage_heap = mi_heap_new();
-        return js_object_storage_heap;
-    case HeapPartition::Layout:
-        static mi_heap_t* layout_heap = mi_heap_new();
-        return layout_heap;
-    case HeapPartition::Buffer:
-        if (!s_buffer_heap)
-            s_buffer_heap = mi_heap_new();
-        return s_buffer_heap;
-    case HeapPartition::String:
-        if (!s_string_heap)
-            s_string_heap = mi_heap_new();
-        return s_string_heap;
-    }
-    VERIFY_NOT_REACHED();
+    auto*& heap = s_partition_heaps[to_underlying(partition)];
+    if (!heap) [[unlikely]]
+        heap = mi_heap_new();
+    return heap;
 }
 
 void* ak_kmalloc(HeapPartition partition, size_t size)
@@ -192,12 +179,11 @@ void ak_kmalloc_collect()
     // NB: In a scratch heap, mi_collect() would collect that heap again instead of the thread's own.
     VERIFY(!s_scratch_heap || mi_heap_get_default() != s_scratch_heap);
 
-    // mi_collect() only visits the calling thread's default heap, so the thread-local partitions have to be collected
-    // separately. The remaining partitions are shared between threads and are left to their owners.
-    if (s_buffer_heap)
-        mi_heap_collect(s_buffer_heap, true);
-    if (s_string_heap)
-        mi_heap_collect(s_string_heap, true);
+    // mi_collect() only visits the calling thread's default heap, so its partitions have to be collected separately.
+    for (auto* heap : s_partition_heaps) {
+        if (heap)
+            mi_heap_collect(heap, true);
+    }
     if (s_scratch_heap)
         mi_heap_collect(s_scratch_heap, true);
 
