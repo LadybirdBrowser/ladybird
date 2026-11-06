@@ -36,7 +36,7 @@ public:
     // The exit button leaves the review, for example by reloading the crashed page.
     CrashReportReviewWidget(QString exit_text, QWidget* parent, WebView::CrashReportStore& = WebView::CrashReportStore::the());
 
-    ErrorOr<void> open_report(Optional<ByteString> const& name = {}, Optional<String> const& website = {});
+    ErrorOr<void> open_report(ByteString const& name, Optional<String> const& website = {});
 
     void show_progress(WebView::ReportSubmission::Stage);
     void show_retry(String const& reason, u32 retry_number, u32 maximum_retries, u32 delay_seconds);
@@ -87,7 +87,6 @@ private:
     QLabel* m_status_message { nullptr };
     QPushButton* m_retry_button { nullptr };
     QPushButton* m_cancel_button { nullptr };
-    QPushButton* m_next_button { nullptr };
     QPushButton* m_exit_button { nullptr };
 
     bool m_is_updating_chrome_style { false };

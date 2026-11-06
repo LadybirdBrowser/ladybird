@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/AnyOf.h>
 #include <AK/Hex.h>
 #include <AK/WeakPtr.h>
 #include <LibCrypto/Hash/SHA2.h>
@@ -30,7 +29,7 @@ CrashReportReview::CrashReportReview(CrashReportStore& store)
 
 CrashReportReview::~CrashReportReview() = default;
 
-ErrorOr<CrashReportReview::Report> CrashReportReview::open(Optional<ByteString> const& name, MarkAsSeen mark_as_seen)
+ErrorOr<CrashReportReview::Report> CrashReportReview::open(ByteString const& report_name, MarkAsSeen mark_as_seen)
 {
     VERIFY(!m_submission);
 
@@ -39,14 +38,6 @@ ErrorOr<CrashReportReview::Report> CrashReportReview::open(Optional<ByteString> 
     m_prepared_manifest = {};
     m_prepared_description = {};
     m_prepared_url = {};
-
-    auto report_name = name.value_or({});
-    if (report_name.is_empty()) {
-        auto pending = TRY(m_store.pending_report_names());
-        if (pending.is_empty())
-            return Error::from_string_literal("There is no crash report to review");
-        report_name = pending.first();
-    }
 
     auto saved_report = TRY(m_store.saved_report(report_name));
 
@@ -99,14 +90,6 @@ ErrorOr<CrashReportReview::Report> CrashReportReview::open(Optional<ByteString> 
     add_field("Git commit"sv, diagnostics.header("Git commit"sv), true);
 
     return report;
-}
-
-bool CrashReportReview::has_next_report() const
-{
-    auto pending = m_store.pending_report_names();
-    if (pending.is_error())
-        return false;
-    return any_of(pending.value(), [&](auto const& name) { return name != m_report_name; });
 }
 
 ErrorOr<ByteString> CrashReportReview::report_text() const
