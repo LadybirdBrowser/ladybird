@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    html {
+        height: 100%;
+        background: repeating-linear-gradient(green 0 25px, lime 25px 50px) 0 0 / 50px 50px;
+    }
+    body {
+        margin: 0;
+        height: 100%;
+    }
+    #content {
+        position: absolute;
+        top: 0;
+        width: 100px;
+        height: 3000px;
+    }
+</style>
+<div id="content"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

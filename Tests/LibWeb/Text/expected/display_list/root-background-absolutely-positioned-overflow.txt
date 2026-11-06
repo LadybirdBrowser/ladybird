@@ -1,0 +1,12 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+DisplayList:
+CompositorScrollNode@s0/e0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,2400] is_viewport=true
+DrawRepeatedTile@s1/e0 dst_rect=[0,0 50x50] clip_rect=[0,0 800x613] tile_size=[50x50] tile_step=[50x50] scaling_mode=Bilinear inline_clips=[clip=[0,0 800x613]]
+  PaintLinearGradient@s1/e0 rect=[0,0 50x50]
+
