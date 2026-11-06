@@ -125,7 +125,6 @@ if (NOT WIN32)
         TestAutocomplete.cpp
         TestBeforeUnload.cpp
         TestBrowserHistoryTraversal.cpp
-        TestCompositorInputRouting.cpp
         TestCrashOverlay.cpp
         TestCrashReportSubmission.cpp
         TestFavicon.cpp
