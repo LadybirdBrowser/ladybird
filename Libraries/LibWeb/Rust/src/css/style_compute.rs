@@ -1139,13 +1139,13 @@ pub(crate) fn value_is_computationally_independent(value: &StyleValueData) -> Op
         Some(independent)
     };
     match value {
-        StyleValueData::Keyword { keyword } => {
+        StyleValueData::Keyword { .. } => {
             if value_is_css_wide_keyword(value) {
                 return Some(false);
             }
-            if *keyword != keyword::CURRENTCOLOR && keyword_is_color(*keyword) {
-                return Some(false);
-            }
+            // NB: System colors are computationally independent, although the color scheme decides what they compute
+            //     to, and so is light-dark() below:
+            //     https://github.com/w3c/csswg-drafts/issues/12735
             // FIXME: Are there any other keywords which aren't computationally independent?
             Some(true)
         }
@@ -1176,7 +1176,11 @@ pub(crate) fn value_is_computationally_independent(value: &StyleValueData) -> Op
         | StyleValueData::Url { .. }
         | StyleValueData::FontSource { .. }
         | StyleValueData::ScrollbarGutter { .. } => Some(true),
-        StyleValueData::LightDark { .. } | StyleValueData::TreeCountingFunction { .. } => Some(false),
+        StyleValueData::LightDark(light_dark) => Some(
+            value_is_computationally_independent(light_dark.light.data())?
+                && value_is_computationally_independent(light_dark.dark.data())?,
+        ),
+        StyleValueData::TreeCountingFunction { .. } => Some(false),
         // The calculation tree decides natively; its style value leaves resolve through the
         // same decision, falling back for the types the core cannot decide.
         StyleValueData::Calculated(calculated_payload) => {
