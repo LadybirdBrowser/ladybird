@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    let local, remote;
+    try {
+        // Use numeric host candidates so this loopback test does not depend on mDNS multicast.
+        await internals.setPermission("microphone", "granted");
+        local = new RTCPeerConnection();
+        remote = new RTCPeerConnection();
+        // Only the remote side is told about candidates, so the local side learns of the remote side's from its checks.
+        const sentAddresses = [];
+        local.onicecandidate = event => {
+            if (!event.candidate)
+                return;
+            sentAddresses.push(event.candidate.candidate.split(" ")[4]);
+            remote.addIceCandidate(event.candidate).catch(error => println(`ICE error: ${error.name}`));
+        };
+        const channel = local.createDataChannel("test");
+        const opened = new Promise(resolve => channel.onopen = resolve);
+        await local.setLocalDescription(await local.createOffer());
+        await remote.setRemoteDescription(local.localDescription);
+        const answer = await remote.createAnswer();
+        await remote.setLocalDescription(answer);
+        await local.setRemoteDescription({ type: "answer", sdp: answer.sdp.replace(/a=candidate:.*\r\n/g, "") });
+        await opened;
+
+        const remoteCandidates = async connection => [...(await connection.getStats()).values()].filter(entry => entry.type === "remote-candidate");
+        const learned = await remoteCandidates(local);
+        println(`learned remote candidates from connectivity checks: ${learned.length > 0 && learned.every(candidate => candidate.candidateType === "prflx")}`);
+        println(`peer-reflexive remote candidates have a null address: ${learned.every(candidate => candidate.address === null && candidate.ip === undefined)}`);
+        const signaled = (await remoteCandidates(remote)).filter(candidate => candidate.candidateType === "host");
+        println(`signaled remote candidates keep their address: ${signaled.length > 0 && signaled.every(candidate => sentAddresses.includes(candidate.address))}`);
+    } catch (error) {
+        println(`FAIL: ${error.name}: ${error.message}`);
+    } finally {
+        local?.close();
+        remote?.close();
+    }
+});
+</script>

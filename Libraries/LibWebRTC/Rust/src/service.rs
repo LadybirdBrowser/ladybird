@@ -25,12 +25,14 @@ use libipc_rust::EndpointMessage;
 use tokio::sync::{Mutex as AsyncMutex, mpsc, oneshot, watch};
 use webrtc::data_channel::RTCDataChannel;
 use webrtc::data_channel::data_channel_init::RTCDataChannelInit;
+use webrtc::ice::candidate::CandidateType;
 use webrtc::ice::url::{ProtoType, SchemeType, Url};
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::policy::ice_transport_policy::RTCIceTransportPolicy;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
+use webrtc::stats::{ICECandidateStats, StatsReport, StatsReportType};
 use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
 
 use crate::peer::{LocalNetwork, build_api};
@@ -625,16 +627,7 @@ async fn dispatch(state: &Arc<State>, message: Message) -> Result<()> {
                 let pc = find_pc(state, req.pc_id)
                     .await
                     .ok_or_else(|| anyhow!("Unknown peer connection"))?;
-                let mut reports = serde_json::to_value(pc.get_stats().await)?;
-                // webrtc-rs serializes epoch seconds; WebRTC DOM timestamps use milliseconds.
-                if let Some(entries) = reports.as_object_mut() {
-                    for entry in entries.values_mut() {
-                        if let Some(timestamp) = entry.get("timestamp").and_then(serde_json::Value::as_f64) {
-                            entry["timestamp"] = serde_json::json!(timestamp * 1000.0);
-                        }
-                    }
-                }
-                Ok::<_, anyhow::Error>(serde_json::to_string(&reports)?)
+                serialize_stats(pc.get_stats().await)
             }
             .await;
             // The renderer holds a promise for every request, so failures have to be answered too.
@@ -1079,6 +1072,43 @@ async fn dispatch(state: &Arc<State>, message: Message) -> Result<()> {
         _ => log::warn!("refusing a response sent to the WebRTCClient service"),
     }
     Ok(())
+}
+
+fn serialize_stats(report: StatsReport) -> Result<String> {
+    let mut entries = serde_json::Map::with_capacity(report.reports.len());
+    for (id, stats) in report.reports {
+        let mut entry = match stats {
+            StatsReportType::LocalCandidate(candidate) => serialize_candidate_stats(candidate, true)?,
+            StatsReportType::RemoteCandidate(candidate) => {
+                let address_is_signaled = candidate.candidate_type != CandidateType::PeerReflexive;
+                serialize_candidate_stats(candidate, address_is_signaled)?
+            }
+            stats => serde_json::to_value(stats)?,
+        };
+        // webrtc-rs serializes epoch seconds; WebRTC DOM timestamps use milliseconds.
+        if let Some(timestamp) = entry.get("timestamp").and_then(serde_json::Value::as_f64) {
+            entry["timestamp"] = serde_json::json!(timestamp * 1000.0);
+        }
+        entries.insert(id, entry);
+    }
+    Ok(serde_json::to_string(&entries)?)
+}
+
+/// A peer-reflexive remote candidate's address is where the peer's connectivity checks came from, which the page may
+/// never have seen. The peer may have hidden it behind an mDNS name, or the page may not have its candidates yet.
+fn serialize_candidate_stats(mut candidate: ICECandidateStats, expose_address: bool) -> Result<serde_json::Value> {
+    let address = std::mem::take(&mut candidate.ip);
+    let mut entry = serde_json::to_value(candidate)?;
+    if let Some(members) = entry.as_object_mut() {
+        members.remove("ip");
+        let address = if expose_address {
+            serde_json::Value::String(address)
+        } else {
+            serde_json::Value::Null
+        };
+        members.insert("address".to_owned(), address);
+    }
+    Ok(entry)
 }
 
 async fn find_pc(state: &Arc<State>, pc_id: u64) -> Option<Arc<RTCPeerConnection>> {
@@ -1608,6 +1638,8 @@ fn send<M: EndpointMessage>(writer: &SharedWriter, msg: &M) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use webrtc::ice::network_type::NetworkType;
+    use webrtc::stats::RTCStatsType;
 
     const CONFIG: &str = r#"{"ice_servers":[],"ice_transport_policy":"all","bundle_policy":"balanced","ice_candidate_pool_size":0,"host_candidates":"exposed"}"#;
 
@@ -1850,6 +1882,43 @@ mod tests {
         assert_eq!(candidates[0].sdp_mline_index, Some(0));
         assert_eq!(candidates[1].sdp_mid.as_deref(), Some("video"));
         assert_eq!(candidates[1].sdp_mline_index, Some(1));
+    }
+
+    fn candidate_stats(stats_type: RTCStatsType, candidate_type: CandidateType, ip: &str) -> ICECandidateStats {
+        ICECandidateStats {
+            timestamp: tokio::time::Instant::now(),
+            stats_type,
+            id: String::new(),
+            candidate_type,
+            deleted: false,
+            ip: ip.to_owned(),
+            network_type: NetworkType::Udp4,
+            port: 9,
+            priority: 0,
+            relay_protocol: String::new(),
+            url: String::new(),
+        }
+    }
+
+    #[test]
+    fn peer_reflexive_remote_candidates_hide_their_address() {
+        let local = candidate_stats(RTCStatsType::LocalCandidate, CandidateType::Host, "local-host.local");
+        let signaled = candidate_stats(RTCStatsType::RemoteCandidate, CandidateType::Host, "remote-host.local");
+        let learned = candidate_stats(RTCStatsType::RemoteCandidate, CandidateType::PeerReflexive, "192.0.2.1");
+        let report = StatsReport {
+            reports: HashMap::from([
+                ("local".to_owned(), StatsReportType::LocalCandidate(local)),
+                ("signaled".to_owned(), StatsReportType::RemoteCandidate(signaled)),
+                ("learned".to_owned(), StatsReportType::RemoteCandidate(learned)),
+            ]),
+        };
+        let serialized = serialize_stats(report).unwrap();
+        assert!(!serialized.contains("192.0.2.1"));
+        assert!(!serialized.contains("\"ip\""));
+        let entries: serde_json::Value = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(entries["local"]["address"], "local-host.local");
+        assert_eq!(entries["signaled"]["address"], "remote-host.local");
+        assert_eq!(entries["learned"].get("address"), Some(&serde_json::Value::Null));
     }
 
     #[test]
