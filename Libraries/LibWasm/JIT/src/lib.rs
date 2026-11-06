@@ -209,6 +209,7 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
         );
     }
     passes::cleanup::cleanup(&mut context.func, &mut context.liveliness);
+    passes::interrupt_checks::run(&context.func, &mut context.liveliness);
     // NB: The loop an OSR compile enters has two ways in, so it has no preheader to hoist into.
     let no_licm = request.options.no_licm || request.osr.is_some();
     if no_licm {
