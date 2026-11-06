@@ -3843,7 +3843,8 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
     if ((watched == m_page_column || watched == m_vertical_tabs_content) && (event->type() == QEvent::Move || event->type() == QEvent::Resize))
         place_toolbar_over_page_column();
 
-    if (watched == m_toolbar && event->type() == QEvent::Resize) {
+    // NB: Each step of a sidebar toggle lays out the sidebar itself, with the pictures of its buttons on top.
+    if (watched == m_toolbar && event->type() == QEvent::Resize && !slides_page_with_toggling_sidebar()) {
         update_vertical_tabs_column_margins();
         update_tab_layout();
     }
@@ -4507,7 +4508,9 @@ void TabWidget::place_toolbar_over_page_column()
     }
 
     auto position = m_page_column->mapTo(this, QPoint());
-    m_toolbar->setGeometry(position.x(), position.y(), m_page_column->width(), m_toolbar_placeholder->height());
+    // NB: While the sidebar toggles, the page reaches past the window's edge, but the toolbar stays within the window.
+    auto toolbar_width = min(m_page_column->width(), width() - position.x());
+    m_toolbar->setGeometry(position.x(), position.y(), toolbar_width, m_toolbar_placeholder->height());
     m_toolbar->stackUnder(m_vertical_tab_bar_column);
 
     // Reparenting the page column when switching tab layouts can put its placeholder above the toolbar.
