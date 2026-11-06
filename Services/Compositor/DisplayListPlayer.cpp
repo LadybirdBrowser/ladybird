@@ -8,7 +8,7 @@
 #include <Compositor/DisplayListPlayer.h>
 #include <Compositor/PaintingSurface.h>
 #include <LibCompositing/RustFFI.h>
-#include <LibGfx/Path.h>
+#include <LibGfx/PathData.h>
 
 namespace Compositor {
 

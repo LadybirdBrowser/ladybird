@@ -23,6 +23,7 @@
 
 class SkImage;
 class SkImageFilter;
+class SkPath;
 template<typename T>
 class sk_sp;
 
@@ -70,7 +71,7 @@ private:
     void draw_image(SkImage const&, Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::ScalingMode, Compositing::Canvas2DCompositing const&);
 
     ReadonlyBytes inline_data(Compositing::DisplayListDataSpan) const;
-    Gfx::Path path_from(Compositing::DisplayListDataSpan) const;
+    SkPath path_from(Compositing::DisplayListDataSpan) const;
     sk_sp<SkImageFilter> image_filter_from(Compositing::Canvas2DCompositing const&) const;
     RefPtr<Gfx::PaintStyle> paint_style_from(Compositing::Canvas2DPaint const&) const;
 

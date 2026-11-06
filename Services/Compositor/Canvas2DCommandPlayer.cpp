@@ -15,7 +15,6 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Path.h>
 #include <core/SkCanvas.h>
 #include <core/SkPaint.h>
 
@@ -84,9 +83,9 @@ static Vector<T> inline_objects(ReadonlyBytes bytes)
     return objects;
 }
 
-Gfx::Path Canvas2DCommandPlayer::path_from(DisplayListDataSpan path_data) const
+SkPath Canvas2DCommandPlayer::path_from(DisplayListDataSpan path_data) const
 {
-    return Gfx::Path::from_serialized_bytes(inline_data(path_data));
+    return Gfx::skia_path_from_serialized_bytes(inline_data(path_data));
 }
 
 sk_sp<SkImageFilter> Canvas2DCommandPlayer::image_filter_from(Canvas2DCompositing const& compositing) const
@@ -157,7 +156,7 @@ void Canvas2DCommandPlayer::play_command(Canvas2DFillPath const& command)
     auto paint_style = paint_style_from(command.paint);
     if (!paint_style)
         return;
-    m_painter->fill_path(path, *paint_style, image_filter_from(command.compositing), command.compositing.global_alpha, command.compositing.compositing_and_blending_operator, command.winding_rule, shadow_from(command.compositing));
+    m_painter->fill_path(move(path), *paint_style, image_filter_from(command.compositing), command.compositing.global_alpha, command.compositing.compositing_and_blending_operator, command.winding_rule, shadow_from(command.compositing));
 }
 
 void Canvas2DCommandPlayer::play_command(Canvas2DStrokePath const& command)

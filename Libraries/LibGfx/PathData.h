@@ -7,21 +7,15 @@
 #pragma once
 
 #include <AK/Forward.h>
-#include <AK/NonnullRefPtr.h>
-#include <AK/String.h>
-#include <AK/Vector.h>
-#include <AK/kmalloc.h>
-#include <LibGfx/AffineTransform.h>
+#include <AK/Span.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
-#include <LibGfx/Rect.h>
 #include <LibGfx/WindingRule.h>
 
 namespace Gfx {
 
 namespace FFI {
 
-struct PathGeometry;
 struct PathGeometryData;
 
 }
@@ -46,32 +40,7 @@ struct PathData {
     WindingRule winding_rule { WindingRule::Nonzero };
 };
 
-class Path {
-public:
-    AK_ALLOC_WITH_KMALLOC;
-
-    Path();
-    ~Path();
-
-    Path(Path const&);
-    Path& operator=(Path const&);
-    Path(Path&&);
-    Path& operator=(Path&&);
-
-    [[nodiscard]] static Path from_serialized_bytes(ReadonlyBytes);
-
-    void move_to(Gfx::FloatPoint const&);
-    void line_to(Gfx::FloatPoint const&);
-    void close();
-
-    Gfx::Path clone() const { return *this; }
-
-    PathData data() const;
-
-private:
-    explicit Path(FFI::PathGeometry*);
-
-    FFI::PathGeometry* m_geometry { nullptr };
-};
+// The contours are valid only during the call. Bytes that describe no path give no contours.
+void with_contours_of_serialized_path(ReadonlyBytes serialized_path, Function<void(PathData const&)> const& callback);
 
 }

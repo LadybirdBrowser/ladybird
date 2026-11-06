@@ -22,7 +22,6 @@ struct FontPixelMetrics;
 class Palette;
 class YUVData;
 class PaletteImpl;
-class Path;
 struct PathData;
 class SharedImage;
 class SharedImageBuffer;

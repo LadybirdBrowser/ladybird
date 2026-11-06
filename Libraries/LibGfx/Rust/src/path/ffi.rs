@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The functions through which `Gfx::Path` in C++ owns, builds and reads a path.
+//! The functions through which C++ builds glyph outlines, decodes paths and reads their contours.
 //!
-//! Only LibGfx's copy of this crate makes and frees the paths of `Gfx::Path`. Rust code builds and
-//! queries its own paths with `Path`.
+//! Only LibGfx's copy of this crate makes and frees these paths. Rust code builds and queries its
+//! own paths with `Path`.
 
 use super::encoding;
 use super::geometry::{PathGeometry, PathVerb};
@@ -40,14 +40,6 @@ pub extern "C" fn path_geometry_create() -> *mut PathGeometry {
 }
 
 /// # Safety
-/// `path` must be a live path from this module.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_clone(path: *const PathGeometry) -> *mut PathGeometry {
-    // SAFETY: Forwarded from the caller.
-    into_raw(unsafe { &*path }.clone())
-}
-
-/// # Safety
 /// `path` must be a path from this module that nothing uses afterwards, or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn path_geometry_destroy(path: *mut PathGeometry) {
@@ -65,31 +57,7 @@ pub unsafe extern "C" fn path_geometry_clear(path: *mut PathGeometry) {
     unsafe { &mut *path }.clear();
 }
 
-/// # Safety
-/// `path` must be a live path from this module, which nothing else uses for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_move_to(path: *mut PathGeometry, x: f32, y: f32) {
-    // SAFETY: Forwarded from the caller.
-    unsafe { &mut *path }.move_to(point(x, y));
-}
-
-/// # Safety
-/// `path` must be a live path from this module, which nothing else uses for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_line_to(path: *mut PathGeometry, x: f32, y: f32) {
-    // SAFETY: Forwarded from the caller.
-    unsafe { &mut *path }.line_to(point(x, y));
-}
-
-/// # Safety
-/// `path` must be a live path from this module, which nothing else uses for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_close(path: *mut PathGeometry) {
-    // SAFETY: Forwarded from the caller.
-    unsafe { &mut *path }.close();
-}
-
-// Contour building for outlines, without the rules of Gfx::Path for a path that has no current point.
+// Contour building for outlines, without the rules of Path for a path that has no current point.
 
 /// # Safety
 /// `path` must be a live path from this module, which nothing else uses for the call.

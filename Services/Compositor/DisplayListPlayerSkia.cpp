@@ -801,7 +801,7 @@ void DisplayListPlayerSkia::play_command(PaintOuterBoxShadow const& command)
 // shadows are.
 void DisplayListPlayerSkia::play_command(PaintPathBoxShadow const& command)
 {
-    auto shape = Gfx::to_skia_path(path_from_data(command.shape_path_data));
+    auto shape = path_from_data(command.shape_path_data);
 
     // The spread distance grows the shape of an outer shadow, and shrinks the shape whose outside casts an inner one,
     // by the outline of a stroke along the shape twice as wide.
@@ -1123,15 +1123,14 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle c
     VERIFY_NOT_REACHED();
 }
 
-Gfx::Path DisplayListPlayerSkia::path_from_data(DisplayListDataSpan path_data) const
+SkPath DisplayListPlayerSkia::path_from_data(DisplayListDataSpan path_data) const
 {
-    auto bytes = inline_data(path_data);
-    return Gfx::Path::from_serialized_bytes(bytes);
+    return Gfx::skia_path_from_serialized_bytes(inline_data(path_data));
 }
 
 void DisplayListPlayerSkia::play_command(FillPath const& command)
 {
-    auto path = Gfx::to_skia_path(path_from_data(command.path_data));
+    auto path = path_from_data(command.path_data);
     path.setFillType(to_skia_path_fill_type(command.winding_rule));
 
     SkPaint paint;
@@ -1148,7 +1147,7 @@ void DisplayListPlayerSkia::play_command(FillPath const& command)
 
 void DisplayListPlayerSkia::play_command(StrokePath const& command)
 {
-    auto path = Gfx::to_skia_path(path_from_data(command.path_data));
+    auto path = path_from_data(command.path_data);
     SkPaint paint;
     if (command.paint_kind == PathPaintKind::PaintStyle) {
         paint = paint_style_to_skia_paint(command.paint_style, command.path_bounding_rect);
@@ -1510,7 +1509,7 @@ void DisplayListPlayerSkia::push_clip_path(Gfx::PathData const& path, u64 path_i
 void DisplayListPlayerSkia::push_clip_path_bytes(ReadonlyBytes path_bytes, Gfx::WindingRule winding_rule)
 {
     surface().canvas().save();
-    clip_path(Gfx::to_skia_path(Gfx::Path::from_serialized_bytes(path_bytes)), winding_rule, true);
+    clip_path(Gfx::skia_path_from_serialized_bytes(path_bytes), winding_rule, true);
 }
 
 void DisplayListPlayerSkia::push_transform(Gfx::AffineTransform const& transform)

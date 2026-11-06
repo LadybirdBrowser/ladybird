@@ -7,7 +7,6 @@
 #include <AK/ScopeGuard.h>
 #include <AK/TypeCasts.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/Path.h>
 #include <LibGfx/RustFFI.h>
 
 #include <harfbuzz/hb.h>
@@ -16,94 +15,7 @@
 #    include <LibGfx/Font/TypefaceCoreText.h>
 #endif
 
-static_assert(sizeof(Gfx::FloatPoint) == sizeof(Gfx::FFI::FloatPoint));
-static_assert(to_underlying(Gfx::WindingRule::Nonzero) == 0 && to_underlying(Gfx::WindingRule::EvenOdd) == 1);
-static_assert(to_underlying(Gfx::PathVerb::Move) == to_underlying(Gfx::FFI::PathVerb::Move));
-static_assert(to_underlying(Gfx::PathVerb::Line) == to_underlying(Gfx::FFI::PathVerb::Line));
-static_assert(to_underlying(Gfx::PathVerb::Quad) == to_underlying(Gfx::FFI::PathVerb::Quad));
-static_assert(to_underlying(Gfx::PathVerb::Conic) == to_underlying(Gfx::FFI::PathVerb::Conic));
-static_assert(to_underlying(Gfx::PathVerb::Cubic) == to_underlying(Gfx::FFI::PathVerb::Cubic));
-static_assert(to_underlying(Gfx::PathVerb::Close) == to_underlying(Gfx::FFI::PathVerb::Close));
-
 namespace Gfx {
-
-Path::Path()
-    : m_geometry(FFI::path_geometry_create())
-{
-}
-
-Path::Path(FFI::PathGeometry* geometry)
-    : m_geometry(geometry)
-{
-}
-
-Path::~Path()
-{
-    FFI::path_geometry_destroy(m_geometry);
-}
-
-Path::Path(Path const& other)
-    : m_geometry(FFI::path_geometry_clone(other.m_geometry))
-{
-}
-
-Path& Path::operator=(Path const& other)
-{
-    if (this != &other) {
-        FFI::path_geometry_destroy(m_geometry);
-        m_geometry = FFI::path_geometry_clone(other.m_geometry);
-    }
-    return *this;
-}
-
-Path::Path(Path&& other)
-    : m_geometry(exchange(other.m_geometry, nullptr))
-{
-}
-
-Path& Path::operator=(Path&& other)
-{
-    if (this != &other)
-        swap(m_geometry, other.m_geometry);
-    return *this;
-}
-
-Path Path::from_serialized_bytes(ReadonlyBytes bytes)
-{
-    return Path { FFI::path_geometry_decode(bytes.data(), bytes.size()) };
-}
-
-void Path::move_to(FloatPoint const& point)
-{
-    FFI::path_geometry_move_to(m_geometry, point.x(), point.y());
-}
-
-void Path::line_to(FloatPoint const& point)
-{
-    FFI::path_geometry_line_to(m_geometry, point.x(), point.y());
-}
-
-void Path::close()
-{
-    FFI::path_geometry_close(m_geometry);
-}
-
-PathData PathData::from_ffi(FFI::PathGeometryData const& data)
-{
-    return {
-        .verbs = { reinterpret_cast<PathVerb const*>(data.verbs), data.verb_count },
-        .points = { reinterpret_cast<FloatPoint const*>(data.points), data.point_count },
-        .conic_weights = { data.conic_weights, data.conic_weight_count },
-        .winding_rule = static_cast<WindingRule>(data.fill_rule),
-    };
-}
-
-PathData Path::data() const
-{
-    FFI::PathGeometryData data;
-    FFI::path_geometry_data(m_geometry, &data);
-    return PathData::from_ffi(data);
-}
 
 namespace {
 

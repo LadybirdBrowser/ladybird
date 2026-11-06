@@ -131,12 +131,12 @@ impl<T: Transport> Recorder<T> {
         self.transport.append_command(self.tape.bytes());
     }
 
-    /// `path` is a serialized Gfx::Path.
+    /// `path` is a serialized `libgfx_rust::path::Path`.
     pub fn fill_path(&mut self, path: &[u8], paint: &Paint, winding_rule: WindingRule, compositing: &Compositing) {
         self.record(|tape| tape.fill_path(path, paint, winding_rule, compositing));
     }
 
-    /// `path` is a serialized Gfx::Path.
+    /// `path` is a serialized `libgfx_rust::path::Path`.
     pub fn stroke_path(&mut self, path: &[u8], paint: &Paint, stroke: &Stroke, compositing: &Compositing) {
         self.record(|tape| tape.stroke_path(path, paint, stroke, compositing));
     }
@@ -234,7 +234,7 @@ impl<T: Transport> Recorder<T> {
         self.record(TapeWriter::restore);
     }
 
-    /// `path` is a serialized Gfx::Path.
+    /// `path` is a serialized `libgfx_rust::path::Path`.
     pub fn clip_path(&mut self, path: &[u8], winding_rule: WindingRule) {
         self.record(|tape| tape.clip_path(path, winding_rule));
     }

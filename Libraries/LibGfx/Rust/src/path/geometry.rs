@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The data of a `Gfx::Path`: its verbs, the points that they use and the weights of its conics,
-//! and the rules by which the operations of `Gfx::Path` add to them.
+//! The data of a path: its verbs, the points that they use and the weights of its conics, and the
+//! rules by which the operations of `Path` add to them.
 
 use super::arcs;
 use crate::geometry::FloatPoint;
@@ -108,7 +108,7 @@ pub struct PathGeometry {
     fill_rule: WindingRule,
     has_only_finite_points: bool,
 
-    // What the operations of Gfx::Path remember between calls: whether there is a point to draw from,
+    // What the operations of Path remember between calls: whether there is a point to draw from,
     // and where the last subpath started.
     has_current_point: bool,
     last_move_to: FloatPoint,
@@ -163,7 +163,7 @@ impl PathGeometry {
         self.has_only_finite_points && !self.verbs.is_empty()
     }
 
-    /// Whether the path has no current point, which Gfx::Path::is_empty() calls empty.
+    /// Whether the path has no current point.
     pub fn is_empty(&self) -> bool {
         !self.has_current_point
     }
@@ -209,7 +209,7 @@ impl PathGeometry {
         [left, top, right - left, bottom - top]
     }
 
-    // Contour building, without the rules of Gfx::Path for a path that has no current point.
+    // Contour building, without the rules of Path for a path that has no current point.
 
     fn push_point(&mut self, point: FloatPoint) {
         self.has_only_finite_points &= is_finite_point(point);
@@ -298,7 +298,7 @@ impl PathGeometry {
         self.verbs.push(PathVerb::Close);
     }
 
-    // The operations of Gfx::Path.
+    // The operations of Path.
 
     pub fn move_to(&mut self, point: FloatPoint) {
         self.last_move_to = point;
@@ -371,7 +371,7 @@ impl PathGeometry {
     }
 
     /// Adds the contours of the other path with its points mapped, as for glyph outlines. The state of
-    /// Gfx::Path is left as it was; update_state_from_contours() sets it.
+    /// Path is left as it was; update_state_from_contours() sets it.
     pub fn append_mapped(&mut self, other: &PathGeometry, map: impl Fn(FloatPoint) -> FloatPoint) {
         self.append_mapped_contours(&other.verbs, &other.points, &other.conic_weights, map);
     }
@@ -401,7 +401,7 @@ impl PathGeometry {
             .all(|point| is_finite_point(*point));
     }
 
-    /// Sets the state of Gfx::Path from the contours, for a path that was not built by its operations.
+    /// Sets the state of Path from the contours, for a path that was not built by its operations.
     pub fn update_state_from_contours(&mut self) {
         self.has_current_point = !self.verbs.is_empty();
         self.last_move_to = self.start_of_last_contour();

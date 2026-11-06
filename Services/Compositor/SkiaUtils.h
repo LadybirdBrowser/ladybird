@@ -14,7 +14,6 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Path.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/StrokeStyle.h>
 #include <LibGfx/WindingRule.h>
@@ -141,7 +140,7 @@ constexpr SkSamplingOptions to_skia_sampling_options(ScalingMode scaling_mode)
 }
 
 SkPath to_skia_path(PathData const&);
-SkPath to_skia_path(Path const& path);
+SkPath skia_path_from_serialized_bytes(ReadonlyBytes);
 // Builds the SkImageFilter tree a serialized filter graph describes; `image_frame` supplies the
 // frames the graph names by id.
 // With `blur_edge`, every blur() filter function reads its input mirrored at that rect, not what lies outside it.
