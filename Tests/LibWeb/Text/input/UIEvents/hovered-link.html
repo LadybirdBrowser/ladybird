@@ -10,6 +10,8 @@
 <a></a>
 <div></div>
 <div id="host"><span>Slotted text</span></div>
+<div contenteditable><a href="in-editable-content"></a></div>
+<a href="editing-host" contenteditable></a>
 <script>
     test(() => {
         host.attachShadow({ mode: "open" }).innerHTML = `<a href="slot"><slot></slot></a>`;
@@ -25,5 +27,7 @@
         hover("back on a link", 10);
         hover("no link", 70);
         hover("a link around a slot", 90);
+        hover("a link in editable content", 110);
+        hover("a link that is an editing host", 130);
     });
 </script>
