@@ -148,6 +148,11 @@ enum class EnableMemoryHTTPCache {
     Yes,
 };
 
+enum class ShareProcessBetweenSameOriginTabs {
+    No,
+    Yes,
+};
+
 enum class ExposeExperimentalInterfaces {
     No,
     Yes,
@@ -189,6 +194,7 @@ struct WebContentOptions {
     IsTestMode is_test_mode { IsTestMode::No };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
     SiteIsolationMode site_isolation_mode { SiteIsolationMode::IFrame };
+    ShareProcessBetweenSameOriginTabs share_process_between_same_origin_tabs { ShareProcessBetweenSameOriginTabs::Yes };
     EnableMemoryHTTPCache enable_http_memory_cache { EnableMemoryHTTPCache::No };
     ExposeExperimentalInterfaces expose_experimental_interfaces { ExposeExperimentalInterfaces::No };
     ExposeInternalsObject expose_internals_object { ExposeInternalsObject::No };

@@ -138,6 +138,11 @@ public:
     // documents processes of their own, which host nothing else.
     Optional<String> const& hosted_web_ui() const { return m_hosted_web_ui; }
     void set_hosted_web_ui(String host) { m_hosted_web_ui = move(host); }
+    // A process can take in a tab of an origin only if all it has ever hosted, and so may still hold, is tabs of that
+    // origin with their same-site iframes.
+    void note_hosted_document(CanonicalDocument const&);
+    bool has_hosted_only_tabs_of(URL::Origin const& origin) const { return m_origin_of_hosted_tabs == origin; }
+    bool has_hosted_only_tabs_of_an_origin_other_than(URL::Origin const& origin) const { return m_origin_of_hosted_tabs.has_value() && m_origin_of_hosted_tabs != origin; }
     void register_embedded_page(Web::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Web::PageId page_id);
     Optional<Web::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
@@ -260,6 +265,8 @@ private:
     bool m_has_hosted_documents_of_several_sites { false };
     bool m_has_hosted_local_file_content { false };
     Optional<String> m_hosted_web_ui;
+    Optional<URL::Origin> m_origin_of_hosted_tabs;
+    bool m_has_hosted_more_than_tabs_of_one_origin { false };
     Vector<u64> m_crashed_view_ids;
 
     WebContentPage& open_page(Web::PageId, CanonicalTraversable&);

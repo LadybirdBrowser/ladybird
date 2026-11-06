@@ -893,6 +893,17 @@ static Optional<String> origin_of_sandboxed_document(CanonicalNavigable const& n
     return {};
 }
 
+static RefPtr<WebContentClient> lowest_process_hosting_only_tabs_of(URL::Origin const& origin, BrowsingSession const& session)
+{
+    RefPtr<WebContentClient> process;
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        if (&client.session() == &session && client.is_open() && !client.has_requested_close() && client.has_hosted_only_tabs_of(origin) && (!process || client.child_id() < process->child_id()))
+            process = client;
+        return IterationDecision::Continue;
+    });
+    return process;
+}
+
 RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin) const
 {
     RefPtr<WebContentPage> page_holding_navigable = parent() ? reporting_page() : top_level_traversable().page_hosting(*this);
@@ -918,6 +929,17 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
             return nullptr;
     }
 
+    // A tab goes to a process that has hosted only tabs of its origin, to share what the process holds. Nothing else can
+    // reach a browsing context group of one, whereas an opener could make a process it can connect to host the tab. A
+    // tab recovering from a crash gets a process of its own, so that it can't take the tabs it joins down with it again.
+    if (!parent() && process_holding_navigable && document.may_share_a_process_with_tabs_of_its_origin()
+        && document.browsing_context().top_level_browsing_context().group()->browsing_context_set().size() == 1
+        && !top_level_traversable().has_page_standing_in_for_lost_document()
+        && Application::the().same_origin_tabs_may_share_a_process()) {
+        if (auto process = lowest_process_hosting_only_tabs_of(document.origin(), process_holding_navigable->session()))
+            return process;
+    }
+
     // Any other opaque origin keys an agent cluster of its own, which nothing but the documents it was created from can
     // address: it goes with the initiator's agent. A traversable's document of an opaque origin that no such agent
     // hosts, as a file's opened from the browser's UI is, keeps the process of a document of an opaque origin.
@@ -934,9 +956,13 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
 
     // A traversable's first document takes the process its initial about:blank came with, unless that document
     // inherited its creator's origin and shares the creator's process, or a browsing context group switch leaves the
-    // initial about:blank's group.
-    if (!parent() && active_document().is_initial_about_blank() && active_document().origin().is_opaque() && !active_browsing_context().is_auxiliary() && &document.browsing_context() == &active_browsing_context())
+    // initial about:blank's group. A noopener popup's initial about:blank came with the process of the document that
+    // opened it, which a document of another origin stays out of if that process hosts tabs of one origin.
+    if (!parent() && active_document().is_initial_about_blank() && active_document().origin().is_opaque() && !active_browsing_context().is_auxiliary() && &document.browsing_context() == &active_browsing_context()) {
+        if (process_holding_navigable && process_holding_navigable->has_hosted_only_tabs_of_an_origin_other_than(document.origin()))
+            return nullptr;
         return process_holding_navigable;
+    }
 
     return nullptr;
 }

@@ -68,6 +68,26 @@ Optional<URL::Origin> CanonicalDocument::top_level_origin() const
     return top_level_browsing_context.active_document()->origin();
 }
 
+bool CanonicalDocument::is_top_level() const
+{
+    return &m_browsing_context->top_level_browsing_context() == m_browsing_context.ptr();
+}
+
+bool CanonicalDocument::may_share_a_process_with_tabs_of_its_origin() const
+{
+    if (!is_top_level() || m_origin.is_opaque() || m_web_ui_host.has_value() || m_is_local_file_content)
+        return false;
+
+    auto const& scheme = m_origin.scheme();
+    if (!scheme.has_value() || !scheme->is_one_of("http"sv, "https"sv))
+        return false;
+
+    auto const& agent = m_relevant_global_object->agent();
+    return !agent.agent_cluster_is_origin_keyed()
+        && agent.agent_cluster_cross_origin_isolation_mode() == Web::HTML::CrossOriginIsolationMode::None
+        && m_opener_policy.value == Web::HTML::OpenerPolicyValue::UnsafeNone;
+}
+
 void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
 {
     m_host = move(host);
@@ -80,6 +100,7 @@ void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
         auto is_pdf_viewer = !m_origin.is_opaque() && m_origin.scheme() == "resource"sv;
         if (auto site = URL::Site::serialize_for_partitioning(m_origin); site.has_value() && !is_pdf_viewer)
             m_host->client().did_host_document_of_site(site.release_value());
+        m_host->client().note_hosted_document(*this);
     }
 }
 
