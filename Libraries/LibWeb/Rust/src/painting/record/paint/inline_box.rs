@@ -7,7 +7,7 @@
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::trace::Observer;
 
-use crate::css::css_pixels::CssPixelRect;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::paint::background_resolution::body_background_is_propagated_to_root;
@@ -76,30 +76,122 @@ fn paint_pieces<O: Observer>(
             paintable,
             recorder.inputs.uncaptured.root_background_source,
         );
-        let has_borders = recorder
-            .source
-            .node_style_if_live(paintable)
-            .is_some_and(style_queries::has_css_borders);
+        let style = recorder.source.node_style_if_live(paintable);
+        let has_borders = style.is_some_and(style_queries::has_css_borders);
+        let border = crate::painting::paintable_geometry::committed_border(recorder.source, paintable);
+        let background_rect_of = |piece: &crate::layout::inline_content::InlineBoxPieceRecord| {
+            let border_box_rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_position_of(piece));
+            if has_borders {
+                border_box_rect
+            } else {
+                piece.shrunken_by_present_edges(border_box_rect, border)
+            }
+        };
+
+        // https://drafts.csswg.org/css-break-4/#valdef-box-decoration-break-slice
+        // "The effect is as though the element were rendered with no breaks present, and then sliced by the breaks
+        // afterward." So a background image of a box broken across lines is laid out once, over a strip as long as
+        // all of its pieces placed end to end in the inline direction, and each piece shows its own slice of it.
+        let background_strip = style
+            .filter(|style| {
+                style.misc_layout().box_decoration_break == crate::css::css_enums::box_decoration_break::SLICE
+                    && style_queries::background_layers_have_image(*style)
+            })
+            .map(|style| {
+                let is_horizontal = style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB;
+                let inline_axis_is_reverse = style.inline_axis_is_reverse();
+                let inline_size_of = |rect: CssPixelRect| if is_horizontal { rect.width } else { rect.height };
+                // NB: The pieces are painted one by one, interleaved with the text of their lines, so the strip is
+                //     measured over all of the box's pieces, in logical order, rather than those painted now.
+                let all_piece_indices = side.inline_box_piece_indices(paintable);
+                let inline_sizes: Vec<(u32, CssPixels)> = all_piece_indices
+                    .iter()
+                    .filter(|index| !root_pieces[**index as usize].is_geometry_only_placeholder)
+                    .map(|index| {
+                        (
+                            *index,
+                            inline_size_of(background_rect_of(&root_pieces[*index as usize])),
+                        )
+                    })
+                    .collect();
+                let strip_inline_size = inline_sizes
+                    .iter()
+                    .fold(CssPixels::default(), |total, (_, size)| total + *size);
+                (is_horizontal, inline_axis_is_reverse, strip_inline_size, inline_sizes)
+            })
+            .filter(|(_, _, _, inline_sizes)| inline_sizes.len() > 1);
+
         for piece_index in piece_indices {
             let piece = &root_pieces[*piece_index as usize];
             if piece.is_geometry_only_placeholder {
                 continue;
             }
             let border_box_rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_position_of(piece));
-            let padding_box_rect = piece.shrunken_by_present_edges(
-                border_box_rect,
-                crate::painting::paintable_geometry::committed_border(recorder.source, paintable),
-            );
+            let padding_box_rect = piece.shrunken_by_present_edges(border_box_rect, border);
             let border_radii = recorder.piece_border_radii(paintable, piece);
             if !background_is_propagated_to_root {
-                background::paint_background_within(
-                    recorder,
-                    paintable,
-                    if has_borders { border_box_rect } else { padding_box_rect },
-                    border_radii,
-                    None,
-                    None,
-                );
+                let piece_background_rect = background_rect_of(piece);
+                if let Some((is_horizontal, inline_axis_is_reverse, strip_inline_size, inline_sizes)) =
+                    &background_strip
+                {
+                    let (is_horizontal, inline_axis_is_reverse, strip_inline_size) =
+                        (*is_horizontal, *inline_axis_is_reverse, *strip_inline_size);
+                    let inline_offset_in_strip = inline_sizes
+                        .iter()
+                        .take_while(|(index, _)| index != piece_index)
+                        .fold(CssPixels::default(), |total, (_, size)| total + *size);
+                    let piece_inline_size = if is_horizontal {
+                        piece_background_rect.width
+                    } else {
+                        piece_background_rect.height
+                    };
+                    // Where the inline axis runs right to left, or bottom to top, the first piece takes the physical
+                    // end of the strip.
+                    let offset = if inline_axis_is_reverse {
+                        strip_inline_size - inline_offset_in_strip - piece_inline_size
+                    } else {
+                        inline_offset_in_strip
+                    };
+                    let strip_rect = if is_horizontal {
+                        CssPixelRect::new(
+                            piece_background_rect.x - offset,
+                            piece_background_rect.y,
+                            strip_inline_size,
+                            piece_background_rect.height,
+                        )
+                    } else {
+                        CssPixelRect::new(
+                            piece_background_rect.x,
+                            piece_background_rect.y - offset,
+                            piece_background_rect.width,
+                            strip_inline_size,
+                        )
+                    };
+                    let piece_clip =
+                        crate::painting::display_list::builder::PendingInlineClip::intersecting_rounded_rect(
+                            recorder.converter.rounded_device_rect(piece_background_rect).to_float(),
+                            border_radii.as_corners(&recorder.converter),
+                        );
+                    recorder.record_with_inline_clips(&[piece_clip], |recorder| {
+                        background::paint_background_within(
+                            recorder,
+                            paintable,
+                            strip_rect,
+                            crate::painting::border_radii::BorderRadii::default(),
+                            None,
+                            Some(piece_background_rect),
+                        );
+                    });
+                } else {
+                    background::paint_background_within(
+                        recorder,
+                        paintable,
+                        piece_background_rect,
+                        border_radii,
+                        None,
+                        None,
+                    );
+                }
             }
             crate::painting::record::paint::shadow::paint_box_shadow(
                 recorder,
