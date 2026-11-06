@@ -10,6 +10,7 @@
 #include <LibCore/BrowserVersion.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCore/Promise.h>
+#include <LibURL/Parser.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebCommon/WebView/PageInfo.h>
 #include <LibWebView/Application.h>
@@ -226,6 +227,24 @@ void WebCompatReport::start_submission()
 
     m_submission = submission;
     submission->start();
+}
+
+URL::URL new_bug_report_url()
+{
+    StringBuilder url;
+    url.append("https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml"sv);
+    auto append_field = [&](StringView id, StringView value) {
+        url.appendff("&{}={}", id, URL::percent_encode(value, URL::PercentEncodeSet::Component));
+    };
+
+    // NB: These are the IDs of the fields in .github/ISSUE_TEMPLATE/bug_report.yml, where the architecture is a choice
+    //     of these values.
+    append_field("os"sv, platform);
+    append_field("architecture"sv, architecture == "x86_64"sv || architecture == "AArch64"sv ? architecture : "Other"sv);
+    append_field("commit"sv, LADYBIRD_COMMIT);
+    append_field("build-flags"sv, ByteString::formatted("Ladybird {}, {}", browser_version, build_configuration));
+
+    return URL::Parser::basic_parse(url.string_view()).release_value();
 }
 
 }

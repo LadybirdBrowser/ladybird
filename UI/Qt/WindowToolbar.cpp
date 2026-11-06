@@ -8,11 +8,11 @@
  */
 
 #include <AK/kmalloc.h>
-#include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/DownloadPresentation.h>
 #include <LibWebView/TabPerformanceMonitor.h>
+#include <LibWebView/WebCompatReport.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
@@ -620,7 +620,6 @@ static constexpr int toolbar_right_margin(bool has_custom_window_controls)
 {
     return has_custom_window_controls ? 0 : TOOLBAR_HORIZONTAL_MARGIN - TOOLBAR_LOCATION_FOCUS_RING_ROOM;
 }
-static constexpr auto REPORT_BUG_URL = "https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml"sv;
 static constexpr int DOWNLOADS_POPOVER_WIDTH = 380;
 static constexpr int DOWNLOADS_POPOVER_MAX_HEIGHT = 360;
 class ElidedLabel final : public QLabel {
@@ -1473,7 +1472,7 @@ void WindowToolbar::show_feedback_popover()
                 m_tab->view().report_website_issue();
         };
         m_feedback_popover->on_report_bug = [this] {
-            browser_window().new_tab_from_url(URL::Parser::basic_parse(REPORT_BUG_URL).release_value(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
+            browser_window().new_tab_from_url(WebView::new_bug_report_url(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
         };
         m_feedback_popover->on_review_crash_reports = [] {
             auto names = WebView::CrashReportStore::the().pending_report_names();
