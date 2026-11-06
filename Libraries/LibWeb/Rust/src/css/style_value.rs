@@ -4154,16 +4154,6 @@ pub extern "C" fn rust_style_value_create_angle(value: f64, unit: u8) -> *const 
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_flex(value: f64, unit: u8) -> *const StyleValueData {
-    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::Flex { value, unit }))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_frequency(value: f64, unit: u8) -> *const StyleValueData {
-    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::Frequency { value, unit }))
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_length(value: f64, unit: u8) -> *const StyleValueData {
     StyleValueArc::into_raw(shared_style_value(StyleValueData::Length { value, unit }))
 }
@@ -4171,16 +4161,6 @@ pub extern "C" fn rust_style_value_create_length(value: f64, unit: u8) -> *const
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_percentage(value: f64) -> *const StyleValueData {
     StyleValueArc::into_raw(shared_style_value(StyleValueData::Percentage { value }))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_resolution(value: f64, unit: u8) -> *const StyleValueData {
-    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::Resolution { value, unit }))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_time(value: f64, unit: u8) -> *const StyleValueData {
-    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::Time { value, unit }))
 }
 
 /// Takes ownership of one strong reference to each of the numerator and denominator.
@@ -4237,31 +4217,6 @@ pub extern "C" fn rust_style_value_create_guaranteed_invalid() -> *const StyleVa
     StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::GuaranteedInvalid))
 }
 
-/// Takes ownership of one strong reference to the filter's value.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_filter(
-    kind: u8,
-    color_operation: u8,
-    value: OwnedStyleValue,
-) -> *const StyleValueData {
-    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::Filter {
-        kind,
-        color_operation,
-        value: RetainedStyleValueData::from_arc(value.into_arc()),
-    }))
-}
-
-/// Takes ownership of one leaked reference to the string.
-///
-/// # Safety
-/// `custom_ident` must be zero or one leaked AK::Utf16FlyString reference.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_custom_ident(custom_ident: usize) -> *const StyleValueData {
-    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::CustomIdent {
-        custom_ident: unsafe { CssString::from_leaked_raw(custom_ident) },
-    }))
-}
-
 /// Takes ownership of one leaked reference to the name and one strong reference to the value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_function(
@@ -4286,30 +4241,6 @@ pub extern "C" fn rust_style_value_create_font_style(
         font_style,
         angle_value: RetainedStyleValueData::from_optional_arc(angle_value.into_option()),
     }))
-}
-
-/// Takes ownership of one strong reference to each non-null style value.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_shadow(
-    shadow_type: u8,
-    color: OwnedStyleValue,
-    offset_x: OwnedStyleValue,
-    offset_y: OwnedStyleValue,
-    blur_radius: OwnedStyleValue,
-    spread_distance: OwnedStyleValue,
-    placement: u8,
-) -> *const StyleValueData {
-    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::Shadow(StyleValueBox::new(
-        ShadowPayload {
-            shadow_type,
-            color: RetainedStyleValueData::from_optional_arc(color.into_option()),
-            offset_x: RetainedStyleValueData::from_arc(offset_x.into_arc()),
-            offset_y: RetainedStyleValueData::from_arc(offset_y.into_arc()),
-            blur_radius: RetainedStyleValueData::from_optional_arc(blur_radius.into_option()),
-            spread_distance: RetainedStyleValueData::from_optional_arc(spread_distance.into_option()),
-            placement,
-        },
-    ))))
 }
 
 /// Takes ownership of one strong reference to each of the `length` values.

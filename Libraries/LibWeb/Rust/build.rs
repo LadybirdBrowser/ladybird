@@ -2585,6 +2585,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiTransitionAction",
         "FfiColorResolutionStyle",
         "FfiLaneTransition",
+        "FfiCompositeOperation",
     ]
     .map(String::from)
     .to_vec();
@@ -3007,7 +3008,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     tree_builder_config.export.exclude = vec![
         "ladybird_layout_code_point_category_facts".to_string(),
         "ladybird_layout_node_shell_destroy".to_string(),
-        "rust_calc_node_create_numeric_dimension".to_string(),
         "rust_calc_resolve".to_string(),
     ];
     expose_css_pixel_types_as_web_types(&mut tree_builder_config);
@@ -3042,7 +3042,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut layout_config = base_config;
     layout_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
     layout_config.export.exclude = vec![
-        "rust_calc_node_create_numeric_dimension".to_string(),
         "rust_calc_resolve".to_string(),
         "rust_calc_root_from_calculated".to_string(),
         "rust_calc_external_resolutions".to_string(),

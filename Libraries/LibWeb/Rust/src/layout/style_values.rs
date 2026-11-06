@@ -699,7 +699,7 @@ fn unresolvable_anchor_size_or<'a>(size: &'a ComputedSize, initial: &'static Com
 
 /// A px calc node, holding one reference for the external-resolution snapshot that releases it.
 pub(crate) fn calc_node_create_px_dimension(value: f64) -> *const c_void {
-    crate::css::calc::rust_calc_node_create_numeric_dimension(
+    crate::css::calc::calc_node_create_numeric_dimension(
         formatting_context::CALC_NUMERIC_KIND_LENGTH,
         value,
         crate::css::style_compute::px_length_unit(),

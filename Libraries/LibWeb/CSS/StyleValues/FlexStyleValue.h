@@ -13,10 +13,6 @@ namespace Web::CSS {
 
 class FlexStyleValue final : public DimensionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<FlexStyleValue const> create(Flex flex)
-    {
-        return adopt_ref(*new (nothrow) FlexStyleValue(move(flex)));
-    }
     virtual ~FlexStyleValue() override = default;
 
     Flex flex() const { return Flex(m_value->flex.value, static_cast<FlexUnit>(m_value->flex.unit)); }
@@ -28,11 +24,6 @@ private:
 
     explicit FlexStyleValue(StyleValueFFI::StyleValueData const* data)
         : DimensionStyleValue(Type::Flex, data)
-    {
-    }
-
-    FlexStyleValue(Flex&& flex)
-        : DimensionStyleValue(Type::Flex, StyleValueFFI::rust_style_value_create_flex(flex.raw_value(), to_underlying(flex.unit())))
     {
     }
 };

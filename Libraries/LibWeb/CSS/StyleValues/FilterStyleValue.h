@@ -35,11 +35,6 @@ protected:
     }
 
     ValueComparingNonnullRefPtr<StyleValue const> filter_value() const { return wrap_rust_child(m_value->filter.value); }
-
-    static StyleValueFFI::StyleValueData const* make_filter_data(Kind kind, u8 color_operation, StyleValue const* value)
-    {
-        return StyleValueFFI::rust_style_value_create_filter(to_underlying(kind), color_operation, StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()));
-    }
 };
 
 // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-blur
@@ -60,22 +55,6 @@ private:
 // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-drop-shadow
 class DropShadowFilterStyleValue final : public FilterStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<DropShadowFilterStyleValue const> create(
-        ValueComparingNonnullRefPtr<StyleValue const> offset_x,
-        ValueComparingNonnullRefPtr<StyleValue const> offset_y,
-        ValueComparingRefPtr<StyleValue const> radius,
-        ValueComparingRefPtr<StyleValue const> color)
-    {
-        return adopt_ref(*new (nothrow) DropShadowFilterStyleValue(ShadowStyleValue::create(
-            ShadowStyleValue::ShadowType::Text,
-            move(color),
-            move(offset_x),
-            move(offset_y),
-            move(radius),
-            nullptr,
-            ShadowPlacement::Outer)));
-    }
-
     ValueComparingNonnullRefPtr<ShadowStyleValue const> shadow() const { return filter_value()->as_shadow(); }
     ValueComparingNonnullRefPtr<StyleValue const> offset_x() const { return shadow()->offset_x(); }
     ValueComparingNonnullRefPtr<StyleValue const> offset_y() const { return shadow()->offset_y(); }
@@ -84,11 +63,6 @@ public:
 
 private:
     friend class StyleValue;
-
-    explicit DropShadowFilterStyleValue(ValueComparingNonnullRefPtr<ShadowStyleValue const> shadow)
-        : FilterStyleValue(make_filter_data(Kind::DropShadow, 0, shadow.ptr()))
-    {
-    }
 
     explicit DropShadowFilterStyleValue(StyleValueFFI::StyleValueData const* data)
         : FilterStyleValue(data)

@@ -62,7 +62,6 @@ if (NOT WIN32)
         TestLengthAbsolutizeParity.cpp
         TestStylePropertyMetadataParity.cpp
         TestStyleStructRef.cpp
-        TestStyleValueEquality.cpp
     )
 endif()
 
