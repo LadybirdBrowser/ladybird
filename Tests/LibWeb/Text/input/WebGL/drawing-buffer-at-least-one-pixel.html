@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A canvas width or height under 1 gives a drawing buffer 1 pixel in that dimension, so a framebuffer as large as
+    // the drawing buffer is complete.
+    test(() => {
+        for (const type of ["webgl", "webgl2"]) {
+            for (const [width, height] of [[300, 150], [1956, 0], [0, 0]]) {
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+                const gl = canvas.getContext(type);
+                println(`${type} canvas ${width}x${height}: drawing buffer ${gl.drawingBufferWidth}x${gl.drawingBufferHeight}`);
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = 1956;
+            canvas.height = 0;
+            const gl = canvas.getContext(type);
+            const texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.drawingBufferWidth, gl.drawingBufferHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, gl.createFramebuffer());
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+            const complete = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+            println(`${type} framebuffer as large as a 1956x0 canvas's drawing buffer is complete: ${complete}`);
+        }
+    });
+</script>
