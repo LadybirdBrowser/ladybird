@@ -320,7 +320,6 @@ public:
     void did_not_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id);
     void did_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id, bool performed_default_action);
     void discard_input_events_routed_through_lost_compositor(Badge<Application>);
-    size_t pending_input_event_count_for_testing() const { return m_pending_input_events.size(); }
     void handle_external_url(Badge<WebContentPage>, URL::URL, URL::Origin, bool has_transient_activation);
     void did_request_cursor_change(Badge<WebContentPage>, Gfx::Cursor);
     void did_enter_tooltip_area(Badge<WebContentPage>, ByteString title);
