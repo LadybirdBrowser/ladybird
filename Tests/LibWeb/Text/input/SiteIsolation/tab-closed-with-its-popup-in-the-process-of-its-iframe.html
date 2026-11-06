@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A tab with an iframe in another process closes while its popup, of the iframe's site, is hosted in that process.
+    // The page holding the iframe goes on representing the closed tab to the popup until the tab has let go of it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const channelName = `closed-opener-${uniqueID()}`;
+        const channel = new BroadcastChannel(channelName);
+
+        const crossSiteHostname = uniqueLocalhostHostname("iframe-and-popup");
+        const crossSiteUrl = async (name, body) => {
+            const url = new URL(
+                await httpServer.createEcho("GET", `/${channelName}-${name}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body,
+                })
+            );
+            url.hostname = crossSiteHostname;
+            return url.href;
+        };
+
+        const iframeUrl = await crossSiteUrl("iframe", `<!DOCTYPE html><script>parent.postMessage("iframe", "*");<\/script>`);
+        const popupUrl = await crossSiteUrl("popup", `<!DOCTYPE html><script>opener.postMessage("popup", "*");<\/script>`);
+
+        const tabUrl = await httpServer.createEcho("GET", `/${channelName}-tab`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                const heard = new Set();
+                addEventListener("message", ({ data }) => {
+                    heard.add(data);
+                    if (heard.size !== 2)
+                        return;
+                    channel.postMessage("closing");
+                    internals.closeTabThroughUIProcess();
+                });
+                const iframe = document.createElement("iframe");
+                iframe.src = ${JSON.stringify(iframeUrl)};
+                document.documentElement.appendChild(iframe);
+                window.open(${JSON.stringify(popupUrl)});
+            <\/script>`,
+        });
+
+        const closing = new Promise(resolve => (channel.onmessage = resolve));
+        window.open(tabUrl, "_blank", "noopener");
+        await closing;
+        await timeout(500);
+        println("The UI process survived the tab closing");
+        channel.close();
+    });
+</script>

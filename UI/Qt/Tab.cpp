@@ -1645,9 +1645,8 @@ void Tab::request_close()
     m_preserve_close_retry_state_on_dialog_dismissal = false;
 
     if (!view().needs_beforeunload_check()) {
-        auto request_close = view().prepare_for_immediate_close();
-        if (m_window->definitely_close_tab(tab_index()))
-            Core::deferred_invoke(AK::move(request_close));
+        view().prepare_for_immediate_close();
+        m_window->definitely_close_tab(tab_index());
         return;
     }
 
