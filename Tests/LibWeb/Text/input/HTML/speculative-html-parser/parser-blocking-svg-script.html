@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const parserGate = `${crypto.randomUUID()}-parser`;
+        const path = name => `/speculative-parser-blocking-svg-script-${name}`;
+
+        const parserBlockerURL = await server.createEcho("GET", path("parser-blocker.js"), {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: "",
+            wait_for_unblock: parserGate,
+        });
+        const laterScriptURL = await server.createEcho("GET", path("later.js"), {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: "",
+        });
+
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageURL = await server.createEcho("GET", path("page.html"), {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+                <svg>${scriptStartTag} href="${parserBlockerURL}">${scriptEndTag}</svg>
+                ${scriptStartTag} src="${laterScriptURL}">${scriptEndTag}`,
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = pageURL;
+        document.body.appendChild(frame);
+
+        await server.waitForRequest(laterScriptURL);
+        println("The speculative parser fetched a script that follows a parser-blocking SVG script");
+
+        await fetch(`${server.baseURL}/unblock/${parserGate}`);
+    });
+</script>

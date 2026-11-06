@@ -1,0 +1,1 @@
+The speculative parser fetched a script that follows a parser-blocking SVG script

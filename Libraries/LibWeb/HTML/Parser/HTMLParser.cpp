@@ -612,6 +612,9 @@ bool HTMLParser::process_svg_script_end_tag_from_rust_parser(SVG::SVGScriptEleme
     // pause the parser and schedule a resume check. The parser will resume from
     // resume_after_parser_blocking_script when the fetch completes.
     if (!m_parsing_fragment && document().pending_parsing_blocking_svg_script()) {
+        // AD-HOC: Start the speculative HTML parser while the script blocks the parser, as for an HTML script.
+        if (script_nesting_level() == 0)
+            start_the_speculative_html_parser();
         m_parser_pause_flag = true;
         schedule_resume_check();
     }
