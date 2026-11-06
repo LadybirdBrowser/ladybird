@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const CACHEABLE = { "Content-Type": "text/javascript", "Cache-Control": "max-age=60" };
+
+    function newFrame() {
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        return iframe.contentWindow;
+    }
+
+    function loadScript(frame, url, attributes = {}) {
+        return new Promise((resolve, reject) => {
+            const script = frame.document.createElement("script");
+            Object.assign(script, attributes);
+            script.src = url;
+            script.onload = resolve;
+            script.onerror = reject;
+            frame.document.body.appendChild(script);
+        });
+    }
+
+    async function loadInNewFrame(url, attributes) {
+        const frame = newFrame();
+        await loadScript(frame, url, attributes);
+        return frame;
+    }
+
+    function waitForMessage(source) {
+        return new Promise(resolve => {
+            window.addEventListener("message", function listener(event) {
+                if (event.source !== source)
+                    return;
+                window.removeEventListener("message", listener);
+                resolve(event.data);
+            });
+        });
+    }
+
+    async function testHitsAcrossRealms(server) {
+        const url = await server.createEcho("GET", "/compiled-script-reuse/hit", {
+            status: 200,
+            headers: CACHEABLE,
+            body: `globalThis.calledFirst = function () { return 1; };
+                   globalThis.neverCalledBefore = function () { return 2; };
+                   globalThis.outer = function () { return function inner() { return 3; }; };
+                   globalThis.iife = (function () { return function () { return 4; }; })();`,
+        });
+
+        const first = await loadInNewFrame(url);
+        first.calledFirst();
+        const innerOfFirst = first.outer();
+
+        const second = await loadInNewFrame(url);
+        println(`Function called in the first realm: ${internals.functionsShareCode(first.calledFirst, second.calledFirst)}`);
+        println(`Function called in neither realm: ${internals.functionsShareCode(first.neverCalledBefore, second.neverCalledBefore)}`);
+        println(`Nested function: ${internals.functionsShareCode(innerOfFirst, second.outer())}`);
+        println(`Function of an immediately invoked function: ${internals.functionsShareCode(first.iife, second.iife)}`);
+        println(`Different functions: ${internals.functionsShareCode(first.calledFirst, second.neverCalledBefore)}`);
+
+        println(`Second realm runs: ${second.calledFirst() + second.neverCalledBefore() + second.outer()() + second.iife()}`);
+    }
+
+    async function testRealmBoundState(server) {
+        const url = await server.createEcho("GET", "/compiled-script-reuse/realm-bound", {
+            status: 200,
+            headers: CACHEABLE,
+            body: `function tag(strings) { return strings; }
+                   globalThis.template = function () { return tag\`a\${1}b\`; };
+                   globalThis.objectLiteral = function () { return { a: 1 }; };
+                   globalThis.topLevelTemplate = tag\`c\`;
+                   globalThis.topLevelObjectLiteral = { b: 2 };`,
+        });
+
+        const first = await loadInNewFrame(url);
+        const second = await loadInNewFrame(url);
+        println(`Realm-bound code is shared: ${internals.functionsShareCode(first.objectLiteral, second.objectLiteral)}`);
+
+        // Run the code in both realms in turn, so that each sees caches the other would have filled if they were shared.
+        for (let i = 0; i < 3; ++i) {
+            for (const frame of [first, second]) {
+                const objectPrototypeIsOwn = Object.getPrototypeOf(frame.objectLiteral()) === frame.Object.prototype;
+                const templatePrototypeIsOwn = Object.getPrototypeOf(frame.template()) === frame.Array.prototype;
+                if (!objectPrototypeIsOwn || !templatePrototypeIsOwn)
+                    println(`FAIL: Prototypes of another realm, round ${i}`);
+            }
+        }
+        println(`Top-level object literal prototype is per realm: ${Object.getPrototypeOf(second.topLevelObjectLiteral) === second.Object.prototype}`);
+        println(`Template object is stable in a realm: ${first.template() === first.template()}`);
+        println(`Template objects differ across realms: ${first.template() !== second.template()}`);
+        println(`Top-level template objects differ across realms: ${first.topLevelTemplate !== second.topLevelTemplate}`);
+
+        const firstLoad = first.template;
+        const firstLoadTemplate = firstLoad();
+        const firstTopLevelTemplate = first.topLevelTemplate;
+        await loadScript(first, url);
+        println(`Second load in one realm is shared: ${internals.functionsShareCode(firstLoad, first.template)}`);
+        println(`Template objects differ across loads in one realm: ${firstLoadTemplate !== first.template()}`);
+        println(`Top-level template objects differ across loads in one realm: ${firstTopLevelTemplate !== first.topLevelTemplate}`);
+    }
+
+    async function testToString(server) {
+        const source = "function   spaced ( a ,b ) { /* comment */ return a+b; }";
+        const url = await server.createEcho("GET", "/compiled-script-reuse/to-string", {
+            status: 200,
+            headers: CACHEABLE,
+            body: `globalThis.spaced = ${source};\nclass C { method ( ) { } }\nglobalThis.C = C;`,
+        });
+
+        const first = await loadInNewFrame(url);
+        first.spaced(1, 2);
+        const second = await loadInNewFrame(url);
+        println(`toString is shared: ${internals.functionsShareCode(first.spaced, second.spaced)}`);
+        println(`toString of a function: ${second.spaced.toString() === source}`);
+        println(`toString of a class: ${second.C.toString()}`);
+    }
+
+    async function testFilenames(server) {
+        const body = `globalThis.stackOf = function () { return new Error("x").stack; };`;
+        const target = await server.createEcho("GET", "/compiled-script-reuse/target", {
+            status: 200,
+            headers: CACHEABLE,
+            body,
+        });
+        const redirect = await server.createEcho("GET", "/compiled-script-reuse/redirect", {
+            status: 302,
+            headers: { Location: target, "Cache-Control": "no-store" },
+        });
+
+        const firstRedirected = await loadInNewFrame(redirect);
+        const secondRedirected = await loadInNewFrame(redirect);
+        const direct = await loadInNewFrame(target);
+        println(`Redirected loads are shared: ${internals.functionsShareCode(firstRedirected.stackOf, secondRedirected.stackOf)}`);
+        println(`Stack names the request URL: ${secondRedirected.stackOf().includes(redirect)}`);
+        println(`Stack does not name the redirect target: ${!secondRedirected.stackOf().includes(target)}`);
+        println(`Stack of the direct load names the target: ${direct.stackOf().includes(target)}`);
+
+        const firstFragment = await loadInNewFrame(`${target}#one`);
+        const secondFragment = await loadInNewFrame(`${target}#two`);
+        println(`Loads with other fragments are shared: ${internals.functionsShareCode(firstFragment.stackOf, secondFragment.stackOf)}`);
+        println(`Stack names the fragment of its load: ${firstFragment.stackOf().includes("#one") && secondFragment.stackOf().includes("#two")}`);
+    }
+
+    async function testMutedErrors(server) {
+        const echo = await server.createEcho("GET", "/compiled-script-reuse/muted", {
+            status: 200,
+            headers: { ...CACHEABLE, "Access-Control-Allow-Origin": "*" },
+            body: `globalThis.fn = function () {}; throw new Error("secret");`,
+        });
+        const crossOrigin = new URL(echo);
+        crossOrigin.hostname = uniqueLocalhostHostname("muted");
+
+        async function messageOfError(attributes) {
+            const frame = newFrame();
+            const message = new Promise(resolve => {
+                frame.onerror = message => {
+                    resolve(message);
+                    return true;
+                };
+            });
+            await loadScript(frame, crossOrigin.href, attributes);
+            return { frame, message: await message };
+        }
+
+        const unmuted = await messageOfError({ crossOrigin: "anonymous" });
+        const muted = await messageOfError({});
+        const unmutedAgain = await messageOfError({ crossOrigin: "anonymous" });
+        println(`Muted load is shared: ${internals.functionsShareCode(unmuted.frame.fn, muted.frame.fn)}`);
+        println(`CORS load reports the error: ${unmuted.message.includes("secret")}`);
+        println(`No-CORS load mutes the error: ${muted.message}`);
+        println(`Later CORS load reports the error: ${unmutedAgain.message.includes("secret")}`);
+    }
+
+    async function testCharset(server) {
+        const url = await server.createEcho("GET", "/compiled-script-reuse/charset", {
+            status: 200,
+            headers: CACHEABLE,
+            body: `globalThis.length = "é".length; globalThis.fn = function () {};`,
+        });
+
+        const utf8 = await loadInNewFrame(url, { charset: "utf-8" });
+        const latin1 = await loadInNewFrame(url, { charset: "windows-1252" });
+        const utf8Again = await loadInNewFrame(url, { charset: "utf-8" });
+        println(`Charsets decode to: ${utf8.length}, ${latin1.length}`);
+        println(`Other charset is shared: ${internals.functionsShareCode(utf8.fn, latin1.fn)}`);
+        println(`Back to the first charset: ${utf8Again.length}`);
+    }
+
+    async function testClassicAndModule(server) {
+        const url = await server.createEcho("GET", "/compiled-script-reuse/classic-and-module", {
+            status: 200,
+            headers: { ...CACHEABLE, "Access-Control-Allow-Origin": "*" },
+            body: `globalThis.isModule = this === undefined; globalThis.fn = function () {};`,
+        });
+
+        const classic = await loadInNewFrame(url);
+        const module = await loadInNewFrame(url, { type: "module" });
+        const moduleAgain = await loadInNewFrame(url, { type: "module" });
+        const classicAgain = await loadInNewFrame(url);
+        println(`Loaded as: ${classic.isModule}, ${module.isModule}, ${moduleAgain.isModule}, ${classicAgain.isModule}`);
+        println(`Classic and module are shared: ${internals.functionsShareCode(classic.fn, module.fn)}`);
+        println(`Modules are shared: ${internals.functionsShareCode(module.fn, moduleAgain.fn)}`);
+        println(`Classic scripts are shared: ${internals.functionsShareCode(classic.fn, classicAgain.fn)}`);
+    }
+
+    async function testChangedBytes(server) {
+        const url = `${server.getStaticURL("Text/input/Cache/resources/compiled-script-changing-bytes.py")}?token=${crypto.randomUUID()}`;
+        const before = await loadInNewFrame(url);
+        const after = await loadInNewFrame(url);
+        println(`Changed bytes run: ${before.value()}, ${after.value()}`);
+        println(`Changed bytes are shared: ${internals.functionsShareCode(before.value, after.value)}`);
+    }
+
+    async function testNoStore(server) {
+        const url = await server.createEcho("GET", "/compiled-script-reuse/no-store", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript", "Cache-Control": "no-store" },
+            body: "globalThis.fn = function () {};",
+        });
+        const first = await loadInNewFrame(url);
+        const second = await loadInNewFrame(url);
+        println(`A no-store response is shared: ${internals.functionsShareCode(first.fn, second.fn)}`);
+    }
+
+    async function testPartitions(server) {
+        const url = await server.createEcho("GET", "/compiled-script-reuse/partition", {
+            status: 200,
+            headers: CACHEABLE,
+            body: "globalThis.fn = function () {};",
+        });
+        await loadInNewFrame(url);
+        println(`Stored in this partition: ${internals.compiledScriptCacheContains(url)}`);
+
+        const frameEchoURL = await server.createEcho("GET", "/compiled-script-reuse/partition-frame.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+            body: `<!DOCTYPE html><script>
+                const before = internals.compiledScriptCacheContains(${JSON.stringify(url)});
+                const script = document.createElement("script");
+                script.src = ${JSON.stringify(url)};
+                script.onload = () => parent.postMessage({ before, after: internals.compiledScriptCacheContains(${JSON.stringify(url)}) }, "*");
+                document.head.appendChild(script);
+            <\/script>`,
+        });
+        const frameURL = new URL(frameEchoURL);
+        frameURL.hostname = uniqueLocalhostHostname("partition");
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const message = waitForMessage(iframe.contentWindow);
+        iframe.src = frameURL.href;
+        const { before, after } = await message;
+        println(`Found from another partition: ${before}`);
+        println(`Stored for the other partition once it loaded: ${after}`);
+    }
+
+    asyncTest(async done => {
+        const httpMemoryCacheWasEnabled = internals.setHttpMemoryCacheEnabled(true);
+        const server = httpTestServer();
+
+        await testHitsAcrossRealms(server);
+        await testRealmBoundState(server);
+        await testToString(server);
+        await testFilenames(server);
+        await testMutedErrors(server);
+        await testCharset(server);
+        await testClassicAndModule(server);
+        await testChangedBytes(server);
+        await testNoStore(server);
+        await testPartitions(server);
+
+        internals.setHttpMemoryCacheEnabled(httpMemoryCacheWasEnabled);
+        done();
+    });
+</script>

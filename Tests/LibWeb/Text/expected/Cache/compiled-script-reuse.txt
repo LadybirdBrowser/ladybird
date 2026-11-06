@@ -1,0 +1,40 @@
+Function called in the first realm: true
+Function called in neither realm: true
+Nested function: true
+Function of an immediately invoked function: true
+Different functions: false
+Second realm runs: 10
+Realm-bound code is shared: true
+Top-level object literal prototype is per realm: true
+Template object is stable in a realm: true
+Template objects differ across realms: true
+Top-level template objects differ across realms: true
+Second load in one realm is shared: true
+Template objects differ across loads in one realm: true
+Top-level template objects differ across loads in one realm: true
+toString is shared: true
+toString of a function: true
+toString of a class: class C { method ( ) { } }
+Redirected loads are shared: true
+Stack names the request URL: true
+Stack does not name the redirect target: true
+Stack of the direct load names the target: true
+Loads with other fragments are shared: true
+Stack names the fragment of its load: true
+Muted load is shared: true
+CORS load reports the error: true
+No-CORS load mutes the error: Script error.
+Later CORS load reports the error: true
+Charsets decode to: 1, 2
+Other charset is shared: false
+Back to the first charset: 1
+Loaded as: false, true, true, false
+Classic and module are shared: false
+Modules are shared: true
+Classic scripts are shared: true
+Changed bytes run: 1, 2
+Changed bytes are shared: false
+A no-store response is shared: false
+Stored in this partition: true
+Found from another partition: false
+Stored for the other partition once it loaded: true

@@ -177,6 +177,10 @@ interface Internals {
     boolean hasCookieForURL(DOMString url, ByteString name, ByteString value);
 
     boolean setHttpMemoryCacheEnabled(boolean enabled);
+    // Whether two functions run the same compiled code, which compiles them if they did not run yet.
+    boolean functionsShareCode(any a, any b);
+    // Whether a classic script from the given URL is in the compiled script cache for this window's partition.
+    boolean compiledScriptCacheContains(DOMString url);
     boolean setDiskCacheEnabledForNavigations(boolean enabled);
     undefined simulateRequestServerConnectionLoss();
     undefined simulateWorkerRequestServerConnectionLoss();

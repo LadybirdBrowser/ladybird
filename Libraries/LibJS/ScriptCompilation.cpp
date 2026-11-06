@@ -87,6 +87,11 @@ Vector<Position> breakpoint_positions_for_source(SourceCode const& source_code, 
     return positions;
 }
 
+bool functions_share_code(VM& vm, FunctionObject const& a, FunctionObject const& b)
+{
+    return js_function_shares_code(vm_to_abi(vm), object_to_abi(a), object_to_abi(b));
+}
+
 ParsedProgram::ParsedProgram(FFI::ParsedProgram* program)
     : m_program(program)
 {
@@ -222,7 +227,6 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> create_module(CompiledPro
     return module_from_abi<SourceTextModule>(module);
 }
 
-// The host's callbacks, which the runtime shares between the main thread and the workers until it releases them.
 RefPtr<SourceCode const> top_level_source_code(Script const& script)
 {
     return source_code_from_abi(js_compile_top_level_source_code_of_script(script_to_abi(script)));
