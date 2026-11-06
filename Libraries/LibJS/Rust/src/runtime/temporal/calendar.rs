@@ -103,7 +103,7 @@ const CALENDAR_FIELDS: [CalendarField; 14] = [
 pub struct CalendarFields {
     pub era: Option<Utf16String>,
     pub era_year: Option<i32>,
-    pub year: Option<i32>,
+    pub year: Option<f64>,
     pub month: Option<u32>,
     pub month_code: Option<Utf16String>,
     pub day: Option<u32>,
@@ -191,12 +191,12 @@ impl CalendarFields {
         }
     }
 
-    /// Sets a field to a double. The date fields convert to their integer type, saturating so that a value out of range
-    /// stays out of it. The time fields keep the double for RegulateTime to range-check.
+    /// Sets a field to a double. The era year, month, and day convert to their integer type, saturating so that a value
+    /// out of range stays out of it. The year and time fields keep the double.
     fn set_number_field(&mut self, field: CalendarField, value: f64) {
         match field {
             CalendarField::EraYear => self.era_year = Some(value as i32),
-            CalendarField::Year => self.year = Some(value as i32),
+            CalendarField::Year => self.year = Some(value),
             CalendarField::Month => self.month = Some(value as u32),
             CalendarField::Day => self.day = Some(value as u32),
             CalendarField::Hour => self.hour = Some(value),
@@ -1474,7 +1474,7 @@ pub fn non_iso_calendar_date_to_iso(
     overflow: Overflow,
 ) -> ThrowCompletionOr<ISODate> {
     // 1. Assert: fields.[[Year]], fields.[[Month]], and fields.[[Day]] are not UNSET.
-    let fields_year = fields.year.expect("the year is resolved");
+    let fields_year = fields.year.expect("the year is resolved") as i32;
     let fields_month = fields.month.expect("the month is resolved");
     let fields_day = fields.day.expect("the day is resolved");
 
@@ -1545,7 +1545,7 @@ pub fn calendar_date_to_iso(
     // 1. If calendar is "iso8601", then
     if calendar == ISO8601_CALENDAR {
         // a. Assert: fields.[[Year]], fields.[[Month]], and fields.[[Day]] are not UNSET.
-        let year = fields.year.expect("the year is resolved");
+        let year = fields.year.expect("the year is resolved") as i32;
         let month = fields.month.expect("the month is resolved");
         let day = fields.day.expect("the day is resolved");
 
@@ -1573,6 +1573,8 @@ pub fn non_iso_month_day_to_iso_reference_date(
 
     // 2. If fields.[[Year]] is not UNSET, then
     if let Some(fields_year) = fields.year {
+        let fields_year = fields_year as i32;
+
         // a. Assert: fields.[[Month]] is not UNSET.
         let fields_month = fields.month.expect("the month is resolved");
 
@@ -1746,10 +1748,14 @@ pub fn calendar_month_day_to_iso_reference_date(
         const REFERENCE_ISO_YEAR: i32 = 1972;
 
         // c. If fields.[[Year]] is UNSET, let year be referenceISOYear; else let year be fields.[[Year]].
-        let year = fields.year.unwrap_or(REFERENCE_ISO_YEAR);
+        let year = fields.year.unwrap_or(f64::from(REFERENCE_ISO_YEAR));
+
+        // AD-HOC: Only the leap-year status matters here. ISO years repeat every 400 years, so reduce the year before
+        //         regulating it to avoid losing precision or exceeding the range of ISODate.year.
+        let year = year % 400.0;
 
         // d. Let result be ? RegulateISODate(year, fields.[[Month]], fields.[[Day]], overflow).
-        let result = regulate_iso_date(vm, f64::from(year), f64::from(month), f64::from(day), overflow)?;
+        let result = regulate_iso_date(vm, year, f64::from(month), f64::from(day), overflow)?;
 
         // e. Return CreateISODateRecord(referenceISOYear, result.[[Month]], result.[[Day]]).
         return Ok(create_iso_date_record(
@@ -2014,7 +2020,7 @@ pub fn non_iso_resolve_fields(
             calendar_date_arithmetic_year_for_era_year(calendar, Utf16View::of_string(&era), era_year);
 
         // d. If fields.[[Year]] is not UNSET, and fields.[[Year]] ≠ arithmeticYear, throw a RangeError exception.
-        if fields.year.is_some_and(|year| year != arithmetic_year) {
+        if fields.year.is_some_and(|year| year != f64::from(arithmetic_year)) {
             return vm.throw_completion(
                 ErrorKind::RangeError,
                 ErrorType::TemporalInvalidCalendarFieldName,
@@ -2023,7 +2029,7 @@ pub fn non_iso_resolve_fields(
         }
 
         // e. Set fields.[[Year]] to arithmeticYear.
-        fields.year = Some(arithmetic_year);
+        fields.year = Some(f64::from(arithmetic_year));
     }
 
     // 15. Set fields.[[Era]] to UNSET.
@@ -2049,6 +2055,8 @@ pub fn non_iso_resolve_fields(
 
         // b. If fields.[[Year]] is not UNSET, then
         if let Some(year) = fields.year {
+            let year = year as i32;
+
             // i. If YearContainsMonthCode(calendar, fields.[[Year]], fields.[[MonthCode]]) is true, let constrainedMonthCode be fields.[[MonthCode]];
             //    else let constrainedMonthCode be ! ConstrainMonthCode(calendar, fields.[[Year]], fields.[[MonthCode]], CONSTRAIN).
             let constrained_month_code = if year_contains_month_code(calendar, year, Utf16View::of_string(&month_code))

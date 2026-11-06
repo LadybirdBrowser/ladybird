@@ -13,6 +13,40 @@ describe("correct behavior", () => {
         expect(plainMonthDay.day).toBe(6);
     });
 
+    for (const [year, februaryDays] of [
+        [-1000000, 29],
+        [-999999, 28],
+        [-1000000000000005, 28],
+        [-1000000000000004, 29],
+        [1000000000000004, 29],
+        [1000000000000005, 28],
+        [1000000000000100, 28],
+        [1000000000000400, 29],
+    ]) {
+        test(`ISO year ${year} is only used to apply overflow`, () => {
+            for (const overflow of [undefined, "constrain", "reject"]) {
+                const january = Temporal.PlainMonthDay.from({ year, month: 1, day: 1 }, { overflow });
+                expect(january.toString({ calendarName: "always" })).toBe("1972-01-01[u-ca=iso8601]");
+
+                for (const month of [{ month: 2 }, { monthCode: "M02" }]) {
+                    const fields = { year, ...month, day: 29 };
+                    if (februaryDays === 28 && overflow === "reject") {
+                        expect(() => {
+                            Temporal.PlainMonthDay.from(fields, { overflow });
+                        }).toThrowWithMessage(RangeError, "Invalid ISO date");
+                    } else {
+                        const february = Temporal.PlainMonthDay.from(fields, { overflow });
+                        expect(february.monthCode).toBe("M02");
+                        expect(february.day).toBe(februaryDays);
+                        expect(february.toString({ calendarName: "always" })).toBe(
+                            `1972-02-${februaryDays}[u-ca=iso8601]`
+                        );
+                    }
+                }
+            }
+        });
+    }
+
     test("from month day string", () => {
         const plainMonthDay = Temporal.PlainMonthDay.from("--07-06");
         expect(plainMonthDay.monthCode).toBe("M07");
