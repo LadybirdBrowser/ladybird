@@ -27,9 +27,9 @@ pub(super) fn layout_replaced_with_children(
     // The TreeBuilder wraps shadow DOM children in an anonymous BlockContainer.
     // Delegate layout to a BFC for that wrapper.
     let Some(wrapper) = run
-        .callbacks
+        .pass
         .children(run.box_)
-        .find(|&child| node_facts::NodeFacts::new(&run.callbacks, child).is_block_container())
+        .find(|&child| node_facts::NodeFacts::new(&run.pass, child).is_block_container())
     else {
         return formatting_context::ChildLayoutResult::default();
     };
@@ -37,18 +37,18 @@ pub(super) fn layout_replaced_with_children(
     let wrapper_constraints =
         run.sizing()
             .constraints_for_child_context(run.box_, &*root, layout_input.containing_block_constraints);
-    let mut wrapper_cells = used_values::cells_before_sizing(&run.callbacks, wrapper, wrapper_constraints);
+    let mut wrapper_cells = used_values::cells_before_sizing(&run.pass, wrapper, wrapper_constraints);
     wrapper_cells.set_content_inline_size(content_inline_size);
 
     let wrapper_outcome = formatting_context::run_formatting_context(
         run.fragments.is_some(),
         wrapper_cells,
         wrapper,
-        run.callbacks.in_flow_containing_block(wrapper),
+        run.pass.in_flow_containing_block(wrapper),
         None,
         formatting_context::FormattingContextType::Block,
         run.should_collect_devtools_layout_data,
-        run.callbacks,
+        run.pass,
         geometry::LayoutInput {
             available_space: child_available_space,
             containing_block_constraints: wrapper_constraints,
@@ -65,7 +65,7 @@ pub(super) fn layout_replaced_with_children(
     };
     formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
         run.state,
-        &run.callbacks,
+        &run.pass,
         wrapper,
         wrapper_result.depends_on_percentage_block_size,
     );

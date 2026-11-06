@@ -98,8 +98,8 @@ pub(crate) fn lay_out_shapes_ahead(pass: &LayoutPass<'_>, shapes: Vec<formatting
         pass,
         shapes,
         |shape| shape.node,
-        |callbacks, shape| {
-            formatting_context::lay_out_shape_for_its_result(callbacks, shape);
+        |pass, shape| {
+            formatting_context::lay_out_shape_for_its_result(pass, shape);
         },
     );
 }

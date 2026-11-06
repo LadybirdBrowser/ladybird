@@ -225,9 +225,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if let Some((cached_node, data, style_payloads)) = self.facts_cache.get()
             && cached_node == node
         {
-            return NodeFacts::from_lookups(&self.context.callbacks, node, data, style_payloads);
+            return NodeFacts::from_lookups(&self.context.pass, node, data, style_payloads);
         }
-        let facts = NodeFacts::new(&self.context.callbacks, node);
+        let facts = NodeFacts::new(&self.context.pass, node);
         self.facts_cache.set(Some((node, facts.data(), facts.style_view())));
         facts
     }
@@ -242,7 +242,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let style = self.style(style_source);
         let facts = self.facts(node);
         let (text_utf16, text_length) = if facts.is_text_node() {
-            let text = &self.context().callbacks.text_content(node).text;
+            let text = &self.context().pass.text_content(node).text;
             (text.as_ptr(), text.len())
         } else {
             (std::ptr::null(), 0)
@@ -990,7 +990,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 } else {
                     let box_cells = box_cells.expect("the fragment of an element item carries the cells of its box");
                     formatting_context::inline_box_baseline(
-                        &self.context().callbacks,
+                        &self.context().pass,
                         node,
                         &box_cells,
                         content_baselines

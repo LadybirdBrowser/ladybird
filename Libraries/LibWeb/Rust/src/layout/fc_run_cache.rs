@@ -729,8 +729,8 @@ fn shared_entry_in_allocation_of(
     }
 }
 
-pub(super) fn run_root_validity(callbacks: &LayoutPass<'_>, box_: Node) -> FcRunCacheValidity {
-    let data = NodeFacts::new(callbacks, box_).data();
+pub(super) fn run_root_validity(pass: &LayoutPass<'_>, box_: Node) -> FcRunCacheValidity {
+    let data = NodeFacts::new(pass, box_).data();
     FcRunCacheValidity {
         slot_generation: data.slot_generation.get(),
         fragment_cache_epoch: data.fragment_cache_epoch,
@@ -780,7 +780,7 @@ impl FcRunCacheAttempt {
         builds_fragments: bool,
         should_collect_devtools_layout_data: bool,
         measurement_root_keeps_its_result: bool,
-        callbacks: &LayoutPass<'_>,
+        pass: &LayoutPass<'_>,
         key: &FcRunCacheKey,
     ) -> Result<Self, FcRunCacheHit> {
         if !can_describe_run(
@@ -788,20 +788,20 @@ impl FcRunCacheAttempt {
             runs_as_subgrid,
             should_collect_devtools_layout_data,
             measurement_root_keeps_its_result,
-            callbacks,
+            pass,
             key,
         ) {
             return Ok(Self::Bypass);
         }
-        let store = callbacks.fc_run_cache_store();
-        let validity = run_root_validity(callbacks, box_);
+        let store = pass.fc_run_cache_store();
+        let validity = run_root_validity(pass, box_);
         if !builds_fragments {
             if let Some(entry) = store.first_entry_where_summary_allows(
                 box_.slot_index(),
                 |summary| summary.may_answer_probe(validity, false),
                 |entry| entry.validity == validity && entry.answers_probe_for(key),
             ) {
-                entry.note_used_at_layout_commit(callbacks.arena().layout_commit_count());
+                entry.note_used_at_layout_commit(pass.arena().layout_commit_count());
                 return Err(FcRunCacheHit { entry });
             }
             return Ok(Self::StoreResultOnly { validity });
@@ -813,7 +813,7 @@ impl FcRunCacheAttempt {
         ) {
             // NB: Once the replayed fragments are committed, the sweep keeps the entry beside later ones.
             store.enqueue_for_sweep(box_.slot_index());
-            entry.note_used_at_layout_commit(callbacks.arena().layout_commit_count());
+            entry.note_used_at_layout_commit(pass.arena().layout_commit_count());
             return Err(FcRunCacheHit { entry });
         }
         let structurally_damaged_entry = store.structurally_damaged_entry(box_, validity, key);
@@ -828,7 +828,7 @@ impl FcRunCacheAttempt {
         builds_fragments: bool,
         should_collect_devtools_layout_data: bool,
         measurement_root_keeps_its_result: bool,
-        callbacks: &LayoutPass<'_>,
+        pass: &LayoutPass<'_>,
         key: &FcRunCacheKey,
     ) -> bool {
         if !can_describe_run(
@@ -836,14 +836,13 @@ impl FcRunCacheAttempt {
             false,
             should_collect_devtools_layout_data,
             measurement_root_keeps_its_result,
-            callbacks,
+            pass,
             key,
         ) {
             return false;
         }
-        let validity = run_root_validity(callbacks, box_);
-        callbacks
-            .fc_run_cache_store()
+        let validity = run_root_validity(pass, box_);
+        pass.fc_run_cache_store()
             .first_entry_where_summary_allows(
                 box_.slot_index(),
                 |summary| summary.may_answer_probe(validity, builds_fragments),
@@ -871,12 +870,12 @@ impl FcRunCacheAttempt {
     /// that the parent takes in what it keeps of them without a copy, or as they are.
     pub(super) fn conclude(
         self,
-        callbacks: &LayoutPass<'_>,
+        pass: &LayoutPass<'_>,
         box_: Node,
         key: &FcRunCacheKey,
         outputs: formatting_context::RunOutputs,
     ) -> formatting_context::RunOutputsHandle {
-        let store = callbacks.fc_run_cache_store();
+        let store = pass.fc_run_cache_store();
         let (validity, structurally_damaged_entry) = match self {
             Self::Bypass => return formatting_context::RunOutputsHandle::Owned(outputs),
             Self::StoreResultOnly { validity } => {
@@ -889,11 +888,11 @@ impl FcRunCacheAttempt {
                         outputs,
                         table_cell_block_paddings_unobserved: false,
                         last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(
-                            callbacks.arena().layout_commit_count(),
+                            pass.arena().layout_commit_count(),
                         ),
                         structural_epoch_bumps_when_stored: 0,
                     },
-                    |entry| entry.holds_committed_fragments(callbacks.arena(), box_),
+                    |entry| entry.holds_committed_fragments(pass.arena(), box_),
                 ));
             }
             Self::Store {
@@ -906,20 +905,20 @@ impl FcRunCacheAttempt {
         if outputs.root.is_none() {
             return formatting_context::RunOutputsHandle::Owned(outputs);
         }
-        let table_cell_block_paddings_unobserved = NodeFacts::new(callbacks, box_).is_table_cell()
+        let table_cell_block_paddings_unobserved = NodeFacts::new(pass, box_).is_table_cell()
             && outputs.root_outcome.parent_owns_root_input_cells()
-            && !run_observes_root_block_padding(callbacks, box_, &outputs);
+            && !run_observes_root_block_padding(pass, box_, &outputs);
         let entry = FcRunCacheEntry {
             key: key.clone(),
             validity,
             outputs,
             table_cell_block_paddings_unobserved,
-            last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(callbacks.arena().layout_commit_count()),
+            last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(pass.arena().layout_commit_count()),
             structural_epoch_bumps_when_stored: 0,
         };
-        formatting_context::RunOutputsHandle::Stored(store.store(box_, entry, |entry| {
-            entry.holds_committed_fragments(callbacks.arena(), box_)
-        }))
+        formatting_context::RunOutputsHandle::Stored(
+            store.store(box_, entry, |entry| entry.holds_committed_fragments(pass.arena(), box_)),
+        )
     }
 }
 
@@ -928,7 +927,7 @@ pub(super) fn can_describe_run(
     runs_as_subgrid: bool,
     should_collect_devtools_layout_data: bool,
     measurement_root_keeps_its_result: bool,
-    callbacks: &LayoutPass<'_>,
+    pass: &LayoutPass<'_>,
     key: &FcRunCacheKey,
 ) -> bool {
     let fc_type = key.fc_type;
@@ -940,7 +939,7 @@ pub(super) fn can_describe_run(
         // Replaying a stored output costs more than rebuilding it and retains an entry needlessly.
         || (fc_type == formatting_context::FormattingContextType::Block
             && input.participation == ParticipationInParentFormattingContext::AtomicInline
-            && callbacks.first_child(box_).is_invalid())
+            && pass.first_child(box_).is_invalid())
     {
         return false;
     }
@@ -955,10 +954,7 @@ pub(super) fn can_describe_run(
     // pass; scroll compensation compares chains that converge at the run root; and
     // anchor-size() resolves to None today, so inset properties are the only anchor
     // dependency a run can have.
-    !node_facts::has_flag(
-        NodeFacts::new(callbacks, box_).data(),
-        NodeFlag::InsetsUseAnchorFunctions,
-    )
+    !node_facts::has_flag(NodeFacts::new(pass, box_).data(), NodeFlag::InsetsUseAnchorFunctions)
 }
 
 /// Whether a run's outputs may depend on its root's block paddings. They hold the content in content box coordinates,
@@ -968,11 +964,11 @@ pub(super) fn can_describe_run(
 /// containing block rects, anchors), which are placed against its padding box. Outputs without a root fragment cannot
 /// show those payloads.
 pub(super) fn run_observes_root_block_padding(
-    callbacks: &LayoutPass<'_>,
+    pass: &LayoutPass<'_>,
     box_: Node,
     outputs: &formatting_context::RunOutputs,
 ) -> bool {
-    let facts = NodeFacts::new(callbacks, box_);
+    let facts = NodeFacts::new(pass, box_);
     let places_rendered_legend_on_its_border_box = facts.is_fieldset_box() && !facts.rendered_legend().is_invalid();
     facts.is_scroll_container()
         || places_rendered_legend_on_its_border_box

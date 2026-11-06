@@ -489,14 +489,14 @@ pub(crate) fn collapsed_border_share(width: CssPixels, start_edge: bool, is_tabl
 
 /// The input cells of `node` before anything sizes the box: the sizes its style makes definite without layout.
 pub(crate) fn cells_before_sizing(
-    callbacks: &LayoutPass<'_>,
+    pass: &LayoutPass<'_>,
     node: Node,
     constraints: ContainingBlockConstraints,
 ) -> RootInputCells {
     assert!(!node.is_invalid());
-    let facts = NodeFacts::new(callbacks, node);
+    let facts = NodeFacts::new(pass, node);
 
-    let style = StyleValues::for_node(callbacks, node);
+    let style = StyleValues::for_node(pass, node);
     let percentage_basis_inline_size = constraints.percentage_basis_inline_size;
     let percentage_basis_block_size = constraints.percentage_basis_block_size;
 
@@ -571,7 +571,7 @@ pub(crate) fn cells_before_sizing(
                 && facts.display().is_block_outside()
                 && facts.parent_is_unfloated_flow_container()
                 && containing_block_has_definite_size(Axis::Inline)
-                && !formatting_context::frame_established_by(callbacks, node).is_orthogonal_to(callbacks.frame)
+                && !formatting_context::frame_established_by(pass, node).is_orthogonal_to(pass.frame)
             {
                 let available = containing_block_size_for_axis(Axis::Inline);
                 return Some(clamp_to_max_dimension_value(
@@ -600,7 +600,7 @@ pub(crate) fn cells_before_sizing(
                 }
                 Axis::Block => {
                     let (margin_top, margin_bottom) =
-                        crate::layout::sizing_context::stretch_fit_block_margins(callbacks, node, inline_basis);
+                        crate::layout::sizing_context::stretch_fit_block_margins(pass, node, inline_basis);
                     margin_top
                         + style.border_top_width()
                         + style.padding_top().to_px(inline_basis)
@@ -670,8 +670,8 @@ pub(crate) struct CommittedBox {
     pub(crate) facts_decided_by_parent: super::run_state::FactsDecidedByParent,
 }
 
-pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node: Node) -> Option<CommittedBox> {
-    let link = callbacks.committed_fragment_link(node)?;
+pub(crate) fn committed_box_from_fragment_link(pass: &LayoutPass<'_>, node: Node) -> Option<CommittedBox> {
+    let link = pass.committed_fragment_link(node)?;
 
     Some(CommittedBox {
         cells: RootInputCells::of_committed_fragment_link(&link),

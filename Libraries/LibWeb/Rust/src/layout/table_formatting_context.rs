@@ -1090,20 +1090,20 @@ struct TableParticipantBox {
 
 impl TableTree for TableFormattingContext<'_> {
     fn first_child(&self, node: Node) -> Node {
-        self.run.callbacks.first_child(node)
+        self.run.pass.first_child(node)
     }
 
     fn next_sibling(&self, node: Node) -> Node {
-        self.run.callbacks.next_sibling(node)
+        self.run.pass.next_sibling(node)
     }
 
     fn node_data(&self, node: Node) -> &NodeData {
-        self.run.callbacks.node_data(node)
+        self.run.pass.node_data(node)
     }
 
     fn display(&self, node: Node) -> FfiDisplay {
         self.run
-            .callbacks
+            .pass
             .computed_values_view_if_styled(node)
             .map_or_else(FfiDisplay::block, |style| style.display())
     }
@@ -1162,12 +1162,12 @@ impl TableFormattingContext<'_> {
 
 impl<'pass> TableFormattingContext<'pass> {
     fn node_facts(&self, node: Node) -> NodeFacts<'_> {
-        NodeFacts::new(&self.run.callbacks, node)
+        NodeFacts::new(&self.run.pass, node)
     }
 
     #[inline]
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        StyleValues::for_node(&self.run.callbacks, node)
+        StyleValues::for_node(&self.run.pass, node)
     }
 
     pub(super) fn new(
@@ -1259,16 +1259,16 @@ impl<'pass> TableFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
-        sizing_context::SizingContext::new(self.run.state, self.run.callbacks)
+        sizing_context::SizingContext::new(self.run.state, self.run.pass)
     }
 
     fn parent(&self, node: Node) -> Node {
-        self.run.callbacks.parent(node)
+        self.run.pass.parent(node)
     }
 
     fn matching_children(&mut self, parent: Node, predicate: impl Fn(NodeFacts<'_>) -> bool) -> Vec<Node> {
         self.run
-            .callbacks
+            .pass
             .children(parent)
             .filter(|&child| {
                 let facts = self.node_facts(child);
@@ -1635,7 +1635,7 @@ impl<'pass> TableFormattingContext<'pass> {
         };
         let participant_box = |participant| TableParticipantBox {
             cells: Cell::new(used_values::cells_before_sizing(
-                &self.run.callbacks,
+                &self.run.pass,
                 participant,
                 self.participant_constraints,
             )),
@@ -1669,8 +1669,7 @@ impl<'pass> TableFormattingContext<'pass> {
             .cells
             .iter()
             .map(|cell| {
-                let cells =
-                    used_values::cells_before_sizing(&self.run.callbacks, cell.box_, self.participant_constraints);
+                let cells = used_values::cells_before_sizing(&self.run.pass, cell.box_, self.participant_constraints);
                 note_percentage_block_size_dependency_of(cell.box_);
                 cells
             })
@@ -2940,7 +2939,7 @@ impl<'pass> TableFormattingContext<'pass> {
         adopt_automatic_content_block_size: bool,
     ) -> Option<TableCellMeasurement> {
         let cell = self.cells[cell_index];
-        let facts = NodeFacts::new(&self.run.callbacks, cell.box_);
+        let facts = NodeFacts::new(&self.run.pass, cell.box_);
         if !facts.can_have_children() {
             return None;
         }
@@ -2963,7 +2962,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 participation: ParticipationInParentFormattingContext::Item,
             },
         );
-        let result = formatting_context::lay_out_shape_for_its_result(run.callbacks, shape);
+        let result = formatting_context::lay_out_shape_for_its_result(run.pass, shape);
         Some(TableCellMeasurement {
             automatic_content_block_size: result.automatic_content_block_size,
             baselines: result.baselines,
@@ -3447,7 +3446,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out.baselines);
                 formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
                     run.state,
-                    &run.callbacks,
+                    &run.pass,
                     cell.box_,
                     measurement.depends_on_percentage_block_size,
                 );
@@ -3682,7 +3681,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let mut y = block_start;
             if let Some((group, group_box)) =
                 group_placement.map(|group_placement| &self.column_group_and_column_boxes[group_placement])
-                && self.run.callbacks.in_flow_containing_block(node) == *group
+                && self.run.pass.in_flow_containing_block(node) == *group
             {
                 let group_offset = group_box.content_offset.get();
                 x -= group_offset.x;

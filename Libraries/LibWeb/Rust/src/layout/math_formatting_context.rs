@@ -1503,15 +1503,15 @@ impl<'pass> MathFormattingContext<'pass> {
     }
 
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        StyleValues::for_node(&self.run.callbacks, node)
+        StyleValues::for_node(&self.run.pass, node)
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'_> {
-        NodeFacts::new(&self.run.callbacks, node)
+        NodeFacts::new(&self.run.pass, node)
     }
 
     fn kind(&self, node: Node) -> MathLayoutKind {
-        self.run.callbacks.arena().math_layout_kind(node)
+        self.run.pass.arena().math_layout_kind(node)
     }
 
     fn in_flow_children(&self) -> Vec<Node> {
@@ -1523,13 +1523,13 @@ impl<'pass> MathFormattingContext<'pass> {
         // The float property does not create floating of elements whose parent's computed display value is block
         // math or inline math, and does not take them out-of-flow.
         self.run
-            .callbacks
+            .pass
             .children(parent)
             .filter(|&child| {
                 let facts = self.facts(child);
                 facts.is_box()
                     && !facts.is_absolutely_positioned()
-                    && !self.run.callbacks.can_skip_is_anonymous_text_run(child)
+                    && !self.run.pass.can_skip_is_anonymous_text_run(child)
             })
             .collect()
     }
@@ -1594,13 +1594,13 @@ impl<'pass> MathFormattingContext<'pass> {
 
     /// The text of an operator that contains only text content.
     fn operator_text_content(&self, operator: Node) -> Option<Vec<u16>> {
-        let callbacks = &self.run.callbacks;
+        let pass = &self.run.pass;
         let mut content = Vec::new();
-        for child in callbacks.children(operator) {
-            if !node_facts::kind_is_text(callbacks.node_data(child).kind.get()) {
+        for child in pass.children(operator) {
+            if !node_facts::kind_is_text(pass.node_data(child).kind.get()) {
                 return Option::None;
             }
-            content.extend_from_slice(&callbacks.text_content(child).text);
+            content.extend_from_slice(&pass.text_content(child).text);
         }
         let is_whitespace = |unit: &u16| *unit <= 0x7f && (*unit as u8).is_ascii_whitespace();
         let start = content
@@ -1683,7 +1683,7 @@ impl<'pass> MathFormattingContext<'pass> {
         first_and_last_non_space_like: Option<(usize, usize)>,
     ) -> Option<OperatorProperties> {
         let core_operator = self.core_operator(siblings[index])?;
-        let attributes = self.run.callbacks.arena().math_attribute_facts(core_operator);
+        let attributes = self.run.pass.arena().math_attribute_facts(core_operator);
         // 2. Otherwise, run the algorithm for determining the form of an embellished operator.
         let explicit_form = OperatorForm::from_attribute(attributes.form);
         let form = explicit_form
@@ -1748,17 +1748,17 @@ impl<'pass> MathFormattingContext<'pass> {
     /// The properties of an operator, as the core operator of the outermost embellished operator it is the core
     /// operator of.
     fn core_operator_properties(&self, operator: Node) -> Option<OperatorProperties> {
-        let callbacks = &self.run.callbacks;
+        let pass = &self.run.pass;
         let lays_out_math = |node: Node| !node.is_invalid() && self.kind(node).uses_math_layout();
         let mut embellished_operator = operator;
         loop {
-            let parent = callbacks.parent(embellished_operator);
+            let parent = pass.parent(embellished_operator);
             if !lays_out_math(parent) || self.core_operator(parent) != Some(operator) {
                 break;
             }
             embellished_operator = parent;
         }
-        let parent = callbacks.parent(embellished_operator);
+        let parent = pass.parent(embellished_operator);
         if lays_out_math(parent) {
             let siblings = self.in_flow_children_of(parent);
             if let Some(index) = siblings.iter().position(|&sibling| sibling == embellished_operator) {
@@ -1864,7 +1864,7 @@ impl<'pass> MathFormattingContext<'pass> {
             //    maxsize:
             // NB: Font-relative lengths for minsize and maxsize rely on the font style of the core operator. The
             //     dictionary sets minsize to 100% and maxsize to ∞, which is represented by `None`.
-            let attributes = self.run.callbacks.arena().math_attribute_facts(operator);
+            let attributes = self.run.pass.arena().math_attribute_facts(operator);
             let glyph_metrics = font.glyph_metrics(glyph_id);
             let glyph_height = CssPixels::nearest_value_for_f32(glyph_metrics.ascent + glyph_metrics.descent);
             let mut minsize = attributes.minsize.resolve(&style, glyph_height).unwrap_or(glyph_height);
@@ -2157,7 +2157,7 @@ impl<'pass> MathFormattingContext<'pass> {
         stretch_size_constraint: Option<MathStretchSizeConstraint>,
     ) -> Child {
         let run = &self.run;
-        let child_cells = used_values::cells_before_sizing(&run.callbacks, child, constraints);
+        let child_cells = used_values::cells_before_sizing(&run.pass, child, constraints);
         // NB: MathML layout does not break lines, so each child is laid out at its max-content inline size, as an
         //     atomic box whose block size follows from its content.
         let mut input = LayoutInput::new(
@@ -2453,7 +2453,7 @@ impl<'pass> MathFormattingContext<'pass> {
     /// Whether the accentunder and accent attributes of an <munder>, <mover> or <munderover> are a match to true.
     // https://w3c.github.io/mathml-core/#dfn-accent
     fn accents(&self, node: Node) -> (bool, bool) {
-        let attributes = self.run.callbacks.arena().math_attribute_facts(node);
+        let attributes = self.run.pass.arena().math_attribute_facts(node);
         (
             attributes.accentunder == math_boolean::TRUE,
             attributes.accent == math_boolean::TRUE,
@@ -2462,7 +2462,7 @@ impl<'pass> MathFormattingContext<'pass> {
 
     // https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded
     fn layout_padded(&self, inner: MathContent, style: &StyleValues<'_>) -> MathContent {
-        let attributes = self.run.callbacks.arena().math_attribute_facts(self.run.box_);
+        let attributes = self.run.pass.arena().math_attribute_facts(self.run.box_);
         let resolve = |length: FfiMathLength| {
             (!length.is_percentage())
                 .then(|| length.resolve(style, CssPixels::default()))
@@ -2511,7 +2511,7 @@ impl<'pass> MathFormattingContext<'pass> {
     fn layout_space(&self, style: &StyleValues<'_>) -> MathContent {
         // If the height attribute is absent, invalid or a percentage then the requested line-ascent is 0. Otherwise
         // the requested line-ascent is the resolved value of the height attribute, clamping negative values to 0.
-        let height = self.run.callbacks.arena().math_attribute_facts(self.run.box_).height;
+        let height = self.run.pass.arena().math_attribute_facts(self.run.box_).height;
         let requested_line_ascent = if height.is_percentage() {
             CssPixels::default()
         } else {
@@ -2539,7 +2539,7 @@ impl<'pass> MathFormattingContext<'pass> {
         // value. A negative value is interpreted as 0.
         let line_thickness = self
             .run
-            .callbacks
+            .pass
             .arena()
             .math_attribute_facts(self.run.box_)
             .linethickness
@@ -2643,7 +2643,7 @@ impl<'pass> MathFormattingContext<'pass> {
     }
 
     pub(super) fn parent_did_dimension(&self, root_after_epilogue: used_values::RootInputCells) {
-        for child in self.run.callbacks.children(self.run.box_) {
+        for child in self.run.pass.children(self.run.box_) {
             let facts = self.facts(child);
             if !facts.is_box() || !facts.is_absolutely_positioned() {
                 continue;
@@ -2661,7 +2661,7 @@ impl<'pass> MathFormattingContext<'pass> {
                 alignment_derives_from_own_computed_values: false,
             };
             formatting_context::register_contained_abspos_child(
-                &self.run.callbacks,
+                &self.run.pass,
                 self.run.fragments,
                 self.run.box_,
                 child,

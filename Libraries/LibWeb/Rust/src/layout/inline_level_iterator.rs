@@ -297,7 +297,7 @@ impl Item {
 
     pub(crate) fn is_ascii_whitespace(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
         assert_eq!(self.type_, ItemType::Text);
-        let text = &context.callbacks.text_content(self.node).text;
+        let text = &context.pass.text_content(self.node).text;
         text[self.offset_in_node..self.offset_in_node + self.length_in_node]
             .iter()
             .all(|unit| *unit <= 0x7f && (*unit as u8).is_ascii_whitespace())
@@ -305,7 +305,7 @@ impl Item {
 
     pub(crate) fn ends_in_ascii_space(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
         assert_eq!(self.type_, ItemType::Text);
-        let text = &context.callbacks.text_content(self.node).text;
+        let text = &context.pass.text_content(self.node).text;
         text[self.offset_in_node..self.offset_in_node + self.length_in_node]
             .last()
             .is_some_and(|unit| line_box_fragment::is_ascii_space(*unit))
@@ -1686,7 +1686,7 @@ fn lay_out_entered_inline_box(
     node: Node,
 ) -> used_values::RootInputCells {
     let constraints = context.input.containing_block_constraints;
-    let mut sides = used_values::cells_before_sizing(&context.callbacks, node, constraints);
+    let mut sides = used_values::cells_before_sizing(&context.pass, node, constraints);
     let style = context.style(node);
     let basis = constraints.inline_basis();
     sides.resolve_box_model(&style, basis);
@@ -1697,7 +1697,7 @@ fn lay_out_entered_inline_box(
             context.run,
             node,
             formatting_context::PlacedChild::new(fragment_tree::FragmentGeometry {
-                cells: sides.in_frame(context.callbacks.frame, context.run.callbacks.frame),
+                cells: sides.in_frame(context.pass.frame, context.run.pass.frame),
                 line_data: None,
             })
             .with_in_flow_box_insets(insets),
@@ -1841,7 +1841,7 @@ impl InlineLevelIterator {
         context: &mut inline_formatting_context::InlineFormattingContext<'_>,
         atomic_sizing: AtomicInlineSizing,
     ) -> Self {
-        PreparedInlineContent::for_block_container(context.callbacks, context.containing_block)
+        PreparedInlineContent::for_block_container(context.pass, context.containing_block)
             .resolve_items_for_run(context, atomic_sizing)
     }
 
@@ -2011,8 +2011,8 @@ fn first_grapheme_cluster(
     item: &Item,
 ) -> Item {
     let style = context.style(context.style_source(item.node));
-    let text_content = context.callbacks.text_content(item.node);
-    let first_grapheme_cluster_inline_size = context.callbacks.with_grapheme_segmenter(item.node, |segmenter| {
+    let text_content = context.pass.text_content(item.node);
+    let first_grapheme_cluster_inline_size = context.pass.with_grapheme_segmenter(item.node, |segmenter| {
         item.first_grapheme_cluster_inline_size(
             prepared,
             &text_content.text,

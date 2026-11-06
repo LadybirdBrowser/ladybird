@@ -37,13 +37,13 @@ pub(super) fn verification_is_enabled() -> bool {
 /// Lays out a run whose result is discarded through `run`, where the verification is on and no such run is in
 /// progress around it already. Nothing it does is traced.
 pub(super) fn lay_out_discarded_run(
-    callbacks: &LayoutPass<'_>,
+    pass: &LayoutPass<'_>,
     run: impl for<'discarded> FnOnce(LayoutPass<'discarded>) -> formatting_context::RunOutputs,
 ) -> Option<formatting_context::RunOutputs> {
-    if run_repeatability_verification() == RunRepeatabilityVerification::Off || callbacks.reads_no_memoized_layout() {
+    if run_repeatability_verification() == RunRepeatabilityVerification::Off || pass.reads_no_memoized_layout() {
         return None;
     }
-    Some(callbacks.lay_out_discarded_run(run))
+    Some(pass.lay_out_discarded_run(run))
 }
 
 /// Checks that the run of `box_` that produced `used` repeated what the discarded run that produced `discarded` did.
@@ -175,7 +175,7 @@ fn root_cells_at_other_block_margins(
 }
 
 pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins(
-    callbacks: &LayoutPass<'_>,
+    pass: &LayoutPass<'_>,
     box_: Node,
     root_cells: used_values::RootInputCells,
     input: &LayoutInput,
@@ -186,7 +186,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
         LayoutInput,
     ) -> formatting_context::RunOutputs,
 ) {
-    if !unobserved_own_block_size_verification_is_enabled() || callbacks.reads_no_memoized_layout() {
+    if !unobserved_own_block_size_verification_is_enabled() || pass.reads_no_memoized_layout() {
         return;
     }
     let checked = format!("the run of {box_:?}, which never observed its own block size or block margins,");
@@ -215,8 +215,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
         reference_inputs.push((cells, input.clone(), reference));
     }
     for (reference_cells, reference_input, reference) in reference_inputs {
-        let reference_outputs =
-            callbacks.lay_out_discarded_run(|callbacks| lay_out(callbacks, reference_cells, reference_input));
+        let reference_outputs = pass.lay_out_discarded_run(|pass| lay_out(pass, reference_cells, reference_input));
         ComparedLayouts {
             checked: &checked,
             reference: &reference,

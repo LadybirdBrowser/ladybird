@@ -1368,13 +1368,13 @@ enum ChunkFont<'text> {
 }
 
 pub(crate) fn text_chunks(
-    callbacks: &LayoutPass<'_>,
+    pass: &LayoutPass<'_>,
     node: Node,
     should_wrap_lines: bool,
     should_respect_linebreaks: bool,
     unidirectional_ltr: bool,
 ) -> std::sync::Arc<super::rendered_text::CachedTextChunks> {
-    let parent_style = StyleValues::for_node(callbacks, callbacks.parent(node));
+    let parent_style = StyleValues::for_node(pass, pass.parent(node));
     let frozen_font_list = parent_style.frozen_font_list();
     let counted_frozen_font_list = &parent_style.font().frozen_font_list;
     let key = super::rendered_text::TextChunkCacheKey {
@@ -1385,7 +1385,7 @@ pub(crate) fn text_chunks(
         word_break: parent_style.word_break(),
         line_break: parent_style.line_break(),
         line_break_language: if parent_style.line_break() == line_break::LOOSE {
-            callbacks.arena().text_line_break_language(node)
+            pass.arena().text_line_break_language(node)
         } else {
             LineBreakLanguage::Other
         },
@@ -1397,8 +1397,8 @@ pub(crate) fn text_chunks(
             writing_mode::VERTICAL_RL | writing_mode::VERTICAL_LR
         ) && parent_style.text_orientation() == text_orientation::MIXED,
     };
-    let text = &callbacks.text_content(node).text;
-    callbacks.text_chunks(node, &key, || ChunkedText {
+    let text = &pass.text_content(node).text;
+    pass.text_chunks(node, &key, || ChunkedText {
         frozen_font_list_held_for_memo_key: Some(parent_style.frozen_font_list_ref()),
         ..chunk_text(TextChunkInputs {
             text,

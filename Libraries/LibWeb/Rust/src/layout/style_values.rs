@@ -221,11 +221,11 @@ impl<'a> StyleValues<'a> {
     }
 
     #[inline]
-    pub(crate) fn for_node(callbacks: &LayoutPass<'a>, node: Node) -> Self {
-        let (data, style) = callbacks.row_and_style(node);
+    pub(crate) fn for_node(pass: &LayoutPass<'a>, node: Node) -> Self {
+        let (data, style) = pass.row_and_style(node);
         StyleValues::new(style.expect("styled node must publish its style container before layout"))
             .for_kind(data.kind.get())
-            .in_frame(callbacks.frame)
+            .in_frame(pass.frame)
     }
 
     /// The view as seen from `frame`, whose sides and axes the box's sizes and box model properties are read in.

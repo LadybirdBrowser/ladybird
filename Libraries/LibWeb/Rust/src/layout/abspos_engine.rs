@@ -170,7 +170,7 @@ impl<'a> OutOfFlowBox<'a> {
 
 pub(crate) struct AbsposEngine<'pass> {
     state: &'pass RunState,
-    callbacks: LayoutPass<'pass>,
+    pass: LayoutPass<'pass>,
     fragments: Option<&'pass fragment_tree::RunFragmentBuilder>,
 }
 
@@ -178,7 +178,7 @@ impl<'pass> AbsposEngine<'pass> {
     pub(crate) fn for_run(run: &FormattingContextRun<'pass>) -> Self {
         Self {
             state: run.state,
-            callbacks: run.callbacks,
+            pass: run.pass,
             fragments: run.fragments,
         }
     }
@@ -190,7 +190,7 @@ impl<'pass> AbsposEngine<'pass> {
         let containing_block = entry.containing_block();
         let Some(containing_block_cells) = self
             .placed_box_fragments()
-            .cells_of_placed_containing_block(containing_block, self.callbacks.frame)
+            .cells_of_placed_containing_block(containing_block, self.pass.frame)
         else {
             panic!(
                 "the run placed no containing block for slot {} (cb slot {})",
@@ -250,7 +250,7 @@ impl<'pass> AbsposEngine<'pass> {
             return FfiCssPixelPoint::default();
         }
         let mut merge_point = from_space;
-        while merge_point != to_space && !self.callbacks.is_ancestor(merge_point, to_space, self.state.root()) {
+        while merge_point != to_space && !self.pass.is_ancestor(merge_point, to_space, self.state.root()) {
             merge_point = self.placement_containing_block(merge_point);
             assert!(!merge_point.is_invalid());
         }
@@ -283,22 +283,21 @@ impl<'pass> AbsposEngine<'pass> {
 
     /// Where the run placed `node`, if it placed the box.
     fn placement_of(&self, node: Node) -> Option<run_state::BoxPlacement> {
-        self.placed_box_fragments().placement_of(&self.callbacks, node)
+        self.placed_box_fragments().placement_of(&self.pass, node)
     }
 
     fn placement_containing_block(&self, node: Node) -> Node {
-        self.placed_box_fragments()
-            .placement_containing_block(&self.callbacks, node)
+        self.placed_box_fragments().placement_containing_block(&self.pass, node)
     }
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
-        sizing_context::SizingContext::new(self.state, self.callbacks)
+        sizing_context::SizingContext::new(self.state, self.pass)
     }
 
     #[inline]
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        StyleValues::for_node(&self.callbacks, node)
+        StyleValues::for_node(&self.pass, node)
     }
 
     /// The style of `sized`, an absolutely positioned box this engine sizes, with its anchor-size() resolutions.
@@ -306,12 +305,12 @@ impl<'pass> AbsposEngine<'pass> {
     where
         'pass: 'sized,
     {
-        StyleValues::for_node(&self.callbacks, sized.node).with_anchor_resolved_values(sized.anchor_resolved_values)
+        StyleValues::for_node(&self.pass, sized.node).with_anchor_resolved_values(sized.anchor_resolved_values)
     }
 
     #[inline]
     fn facts(&self, node: Node) -> NodeFacts<'_> {
-        NodeFacts::new(&self.callbacks, node)
+        NodeFacts::new(&self.pass, node)
     }
 
     fn base_containing_block_info(
@@ -451,7 +450,7 @@ impl AbsposEngine<'_> {
     /// in, and when that is a shadow tree and nothing acceptable is found there, it continues in the
     /// tree scope of the shadow host, up to the document tree.
     fn anchor_lookup(&self, positioned_box: Node, anchor_name: usize) -> Option<Node> {
-        let arena = self.callbacks.arena();
+        let arena = self.pass.arena();
         // A pseudo-element queries from its generator. Any other anonymous box stands for no element
         // and has no tree scope to search.
         let is_pseudo_element = arena.node_is_generated_for_pseudo_element(positioned_box);
@@ -495,7 +494,7 @@ impl AbsposEngine<'_> {
         anchor_name: usize,
         scope_host: Option<StyleNodeID>,
     ) -> Option<StyleNodeID> {
-        let arena = self.callbacks.arena();
+        let arena = self.pass.arena();
         let mut candidate = Some(element);
         while let Some(current) = candidate {
             if let Some(style) = arena.style_node_style(current) {
@@ -517,7 +516,7 @@ impl AbsposEngine<'_> {
     /// Whether `anchor_box` may act as the anchor of `positioned_box`: it must have used values
     /// from this pass, and its containing block chain must reach the positioned box's own.
     fn anchor_is_acceptable(&self, anchor_box: Node, positioned_box: Node, containing_block: Node) -> bool {
-        let arena = self.callbacks.arena();
+        let arena = self.pass.arena();
         if anchor_box == positioned_box
             || !arena
                 .node_kind_if_live(anchor_box)
@@ -583,7 +582,7 @@ impl AbsposEngine<'_> {
         is_from_end: bool,
         is_horizontal_axis: bool,
     ) -> Option<CssPixels> {
-        let frame = self.callbacks.frame;
+        let frame = self.pass.frame;
         // NB: The physical sides an anchor() names lie on the sides of the frame the box is laid out in.
         let side = match side {
             AnchorSide::Top | AnchorSide::Right | AnchorSide::Bottom | AnchorSide::Left if !frame.is_physical() => {
@@ -681,7 +680,7 @@ impl AbsposEngine<'_> {
         //     the physical vertical axis in a vertical writing mode.
         let measures_width = match anchor_size {
             None => is_horizontal_axis,
-            Some(anchor_size) => measures_physical_width(anchor_size) != self.callbacks.frame.is_transposed(),
+            Some(anchor_size) => measures_physical_width(anchor_size) != self.pass.frame.is_transposed(),
         };
         if measures_width { rect.width } else { rect.height }
     }
@@ -772,18 +771,17 @@ impl AbsposEngine<'_> {
             None => default_scroll_shift,
         };
         // NB: Scrolling is physical, while the axes the shift was resolved in are those of the frame.
-        let (compensates_for_horizontal_scroll, compensates_for_vertical_scroll) =
-            if self.callbacks.frame.is_transposed() {
-                (
-                    default_scroll_shift.compensates_for_vertical_scroll,
-                    default_scroll_shift.compensates_for_horizontal_scroll,
-                )
-            } else {
-                (
-                    default_scroll_shift.compensates_for_horizontal_scroll,
-                    default_scroll_shift.compensates_for_vertical_scroll,
-                )
-            };
+        let (compensates_for_horizontal_scroll, compensates_for_vertical_scroll) = if self.pass.frame.is_transposed() {
+            (
+                default_scroll_shift.compensates_for_vertical_scroll,
+                default_scroll_shift.compensates_for_horizontal_scroll,
+            )
+        } else {
+            (
+                default_scroll_shift.compensates_for_horizontal_scroll,
+                default_scroll_shift.compensates_for_vertical_scroll,
+            )
+        };
         (
             resolved,
             abspos_inputs::DefaultScrollShift {
@@ -902,7 +900,7 @@ impl AbsposEngine<'_> {
     ) -> style_values::ResolvedAnchorSizes {
         // NB: Read the computed values themselves, not what an earlier resolution made of them, in the frame the box
         //     is laid out in.
-        let style = StyleValues::for_node(&self.callbacks, node);
+        let style = StyleValues::for_node(&self.pass, node);
         // NB: Each resolution also tells whether any of its anchor functions resolved against an anchor box.
         let resolve = |calculated: *const c_void, is_horizontal: bool, containing_block_extent: CssPixels| {
             let mut resolution_state = AnchorResolutionState::NO_SCROLL_SHIFT;
@@ -1126,7 +1124,7 @@ impl AbsposEngine<'_> {
                 direction: style.direction(),
             },
         )?
-        .in_frame(self.callbacks.frame);
+        .in_frame(self.pass.frame);
 
         let anchor_box = self.anchor_lookup(positioned_box, style.position_anchor_name())?;
         let anchor_rect = self.anchor_rect(anchor_box, containing_block_geometry, entry_coordinate_space_box);
@@ -1813,7 +1811,7 @@ impl AbsposEngine<'_> {
         };
         let frame_horizontal = matches!(axis, SizingAxis::Inline);
         let containing_inline_is_frame_horizontal =
-            (writing_mode == writing_mode::HORIZONTAL_TB) != self.callbacks.frame.is_transposed();
+            (writing_mode == writing_mode::HORIZONTAL_TB) != self.pass.frame.is_transposed();
         if frame_horizontal != containing_inline_is_frame_horizontal {
             return AutoMarginOverflow::Split;
         }
@@ -1822,7 +1820,7 @@ impl AbsposEngine<'_> {
         // space is negative and both margins are auto, the start margin resolves to zero and the end margin receives
         // the remaining space.
         // NB: The negative remainder goes to the containing block's inline-end in this frame.
-        if geometry::start_is_low_side_in_frame(self.callbacks.frame, writing_mode, direction, frame_horizontal) {
+        if geometry::start_is_low_side_in_frame(self.pass.frame, writing_mode, direction, frame_horizontal) {
             AutoMarginOverflow::HighSide
         } else {
             AutoMarginOverflow::LowSide
@@ -3252,12 +3250,7 @@ impl<'pass> AbsposEngine<'pass> {
             }
         };
         let own_start_is_low_side = || {
-            geometry::start_is_low_side_in_frame(
-                self.callbacks.frame,
-                style.writing_mode(),
-                style.direction(),
-                inline_axis,
-            )
+            geometry::start_is_low_side_in_frame(self.pass.frame, style.writing_mode(), style.direction(), inline_axis)
         };
         match value {
             justify_self::CENTER => Some(AbsposAlignment::Center),
@@ -3408,9 +3401,9 @@ impl<'pass> AbsposEngine<'pass> {
         let child_box = child.child_box;
         let position_option = self.determine_position_fallback_styles(&child);
         self.with_position_option_style(child_box, position_option.style, |engine| {
-            let run = run.with_callbacks(engine.callbacks);
+            let run = run.with_pass(engine.pass);
             let cells =
-                used_values::cells_before_sizing(&engine.callbacks, child_box, ContainingBlockConstraints::default());
+                used_values::cells_before_sizing(&engine.pass, child_box, ContainingBlockConstraints::default());
             let (mut inputs, default_scroll_shift) = engine.pending_child_layout_inputs(&mut child);
             inputs.position_option = position_option.choice;
             engine.layout_element(&run, child_box, cells, inputs, Some(default_scroll_shift))
@@ -3427,9 +3420,9 @@ impl<'pass> AbsposEngine<'pass> {
             style: None,
             option_styles: Vec::new(),
         };
-        let style = StyleValues::for_node(&self.callbacks, node);
+        let style = StyleValues::for_node(&self.pass, node);
         let anchor = style.anchor();
-        let arena = self.callbacks.arena();
+        let arena = self.pass.arena();
         if anchor.position_try_fallbacks.length == 0 || !style.is_absolutely_positioned() {
             return styles;
         }
@@ -3442,7 +3435,7 @@ impl<'pass> AbsposEngine<'pass> {
         let (writing_mode, direction) = if containing_block.is_invalid() {
             (writing_mode::HORIZONTAL_TB, direction::LTR)
         } else {
-            let containing_block_style = StyleValues::for_node(&self.callbacks, containing_block);
+            let containing_block_style = StyleValues::for_node(&self.pass, containing_block);
             (
                 containing_block_style.writing_mode(),
                 containing_block_style.direction(),
@@ -3516,7 +3509,7 @@ impl<'pass> AbsposEngine<'pass> {
                         let mut child = *child;
                         let (inputs, _) = engine.pending_child_layout_inputs(&mut child);
                         let size = engine.inset_modified_containing_block_size(node, &inputs);
-                        let horizontal_is_frame_inline = !engine.callbacks.frame.is_transposed();
+                        let horizontal_is_frame_inline = !engine.pass.frame.is_transposed();
                         let inline_axis_is_horizontal = writing_mode == writing_mode::HORIZONTAL_TB;
                         let (horizontal, vertical) = if horizontal_is_frame_inline {
                             (size.inline_size, size.block_size)
@@ -3610,10 +3603,10 @@ impl<'pass> AbsposEngine<'pass> {
         let Some(style) = style else {
             return callback(self);
         };
-        self.callbacks.with_position_option_style(node, style, |callbacks| {
+        self.pass.with_position_option_style(node, style, |pass| {
             callback(&AbsposEngine {
                 state: self.state,
-                callbacks,
+                pass,
                 fragments: self.fragments,
             })
         })
@@ -3664,9 +3657,9 @@ impl<'pass> AbsposEngine<'pass> {
         //    abspos's inset-modified containing block, when laid out with adjusted styles.
         let (available_space, constraints) = out_of_flow_root_space(&inputs);
         let laid_out = formatting_context::run_root_without_parent_fragments(
-            self.callbacks,
+            self.pass,
             node,
-            used_values::cells_before_sizing(&self.callbacks, node, ContainingBlockConstraints::default()),
+            used_values::cells_before_sizing(&self.pass, node, ContainingBlockConstraints::default()),
             LayoutInput::new(
                 available_space,
                 constraints,
@@ -3893,7 +3886,7 @@ impl<'pass> AbsposEngine<'pass> {
 
     pub(super) fn replay(&self, run: &FormattingContextRun<'pass>, node: Node) {
         let mut inputs = self
-            .callbacks
+            .pass
             .saved_abspos_layout_inputs(node)
             .expect("abspos relayout root must have committed layout inputs");
         if !inputs.containing_block_info.derives_from_own_computed_values {
@@ -3907,9 +3900,9 @@ impl<'pass> AbsposEngine<'pass> {
         }
         // Partial relayout uses a fresh state and keeps the replay root
         // exactly once.
-        let cells = used_values::cells_before_sizing(&self.callbacks, node, ContainingBlockConstraints::default());
+        let cells = used_values::cells_before_sizing(&self.pass, node, ContainingBlockConstraints::default());
         let default_scroll_shift = self
-            .callbacks
+            .pass
             .committed_fragment_link(node)
             .and_then(|link| link.default_scroll_shift);
         self.layout_element(run, node, cells, inputs, default_scroll_shift);
@@ -3937,7 +3930,7 @@ impl<'pass> AbsposEngine<'pass> {
         // an anchor-bearing box resolves its insets even when it turns out not
         // to be relatively positioned.
         let resolved = if has_anchor_insets {
-            let in_flow_containing_block = self.callbacks.in_flow_containing_block(node);
+            let in_flow_containing_block = self.pass.in_flow_containing_block(node);
             let containing_block_geometry =
                 ContainingBlockGeometry::from_box_metrics(containing_block, FfiCssPixelPoint::default());
             let (resolved, default_scroll_shift) = self.resolve_anchor_insets(
@@ -3957,10 +3950,7 @@ impl<'pass> AbsposEngine<'pass> {
             return insets;
         }
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-            self.state,
-            &self.callbacks,
-            node,
-            false,
+            self.state, &self.pass, node, false,
         );
 
         let resolve_opposing = |first: style_values::InsetValue, second: style_values::InsetValue, basis: CssPixels| {
@@ -4006,7 +3996,7 @@ impl<'pass> AbsposEngine<'pass> {
 
 pub(crate) fn drain_abspos_with_placed_containing_blocks(
     state: &RunState,
-    callbacks: LayoutPass<'_>,
+    pass: LayoutPass<'_>,
     should_collect_devtools_layout_data: bool,
     entry_fragments: &fragment_tree::RunFragmentBuilder,
 ) {
@@ -4014,14 +4004,14 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
     let run = FormattingContextRun {
         state,
         box_: accumulator_root,
-        callbacks,
+        pass,
         should_collect_devtools_layout_data,
         treat_block_axis_percentage_insets_as_auto_beyond_root: false,
         fragments: Some(entry_fragments),
         fragmentainer: None,
     };
     loop {
-        let batch = entry_fragments.take_drainable_abspos(accumulator_root, &callbacks);
+        let batch = entry_fragments.take_drainable_abspos(accumulator_root, &pass);
         if batch.is_empty() {
             break;
         }

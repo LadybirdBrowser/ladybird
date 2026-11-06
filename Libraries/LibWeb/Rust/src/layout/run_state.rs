@@ -328,14 +328,14 @@ impl RunState {
     /// Runs `run` with what a run rooted at `root` keeps, and the pass as that run sees it. The style reads of an
     /// absolutely positioned root see `root_anchor_resolved_values`.
     pub(crate) fn with_root<R>(
-        callbacks: LayoutPass<'_>,
+        pass: LayoutPass<'_>,
         root: Node,
         root_containing_block: Node,
         root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
         run: impl for<'run> FnOnce(&'run Self, LayoutPass<'run>) -> R,
     ) -> R {
         Self::enter(
-            callbacks,
+            pass,
             root,
             root_containing_block,
             root_anchor_resolved_values,
@@ -346,7 +346,7 @@ impl RunState {
     }
 
     pub(crate) fn with_root_building_fragments<R>(
-        callbacks: LayoutPass<'_>,
+        pass: LayoutPass<'_>,
         root: Node,
         root_containing_block: Node,
         root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
@@ -354,7 +354,7 @@ impl RunState {
         run: impl for<'run> FnOnce(&'run Self, LayoutPass<'run>) -> R,
     ) -> R {
         Self::enter(
-            callbacks,
+            pass,
             root,
             root_containing_block,
             root_anchor_resolved_values,
@@ -365,13 +365,13 @@ impl RunState {
     }
 
     pub(crate) fn with_content_sizing_root<R>(
-        callbacks: LayoutPass<'_>,
+        pass: LayoutPass<'_>,
         root: Node,
         root_containing_block: Node,
         run: impl for<'run> FnOnce(&'run Self, LayoutPass<'run>) -> R,
     ) -> R {
         Self::enter(
-            callbacks,
+            pass,
             root,
             root_containing_block,
             None,
@@ -382,13 +382,13 @@ impl RunState {
     }
 
     pub(crate) fn with_content_inline_sizes_root<R>(
-        callbacks: LayoutPass<'_>,
+        pass: LayoutPass<'_>,
         root: Node,
         root_containing_block: Node,
         run: impl for<'run> FnOnce(&'run Self, LayoutPass<'run>) -> R,
     ) -> R {
         Self::enter(
-            callbacks,
+            pass,
             root,
             root_containing_block,
             None,
@@ -399,7 +399,7 @@ impl RunState {
     }
 
     fn enter<R>(
-        callbacks: LayoutPass<'_>,
+        pass: LayoutPass<'_>,
         root: Node,
         root_containing_block: Node,
         root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
@@ -418,10 +418,7 @@ impl RunState {
             host_findings: HostFindingsSink::default(),
             fragments,
         };
-        run(
-            &state,
-            callbacks.for_run(root, root_containing_block, &state.host_findings),
-        )
+        run(&state, pass.for_run(root, root_containing_block, &state.host_findings))
     }
 
     pub(crate) fn fragments(&self) -> Option<&fragment_tree::RunFragmentBuilder> {
@@ -540,15 +537,15 @@ mod tests {
             root,
             NodeSlotId::INVALID,
             None,
-            |parent, parent_callbacks| {
+            |parent, parent_pass| {
                 assert_eq!(parent.root(), root);
-                let nested_findings = RunState::with_root(parent_callbacks, child, root, None, |nested, callbacks| {
+                let nested_findings = RunState::with_root(parent_pass, child, root, None, |nested, pass| {
                     assert_eq!(nested.root(), child);
                     assert!(nested.resolves_percentage_block_size_dependency_of(child));
                     assert!(!nested.resolves_percentage_block_size_dependency_of(root));
                     assert!(!parent.resolves_percentage_block_size_dependency_of(child));
                     assert!(nested.anchor_resolved_values_of(child).is_none());
-                    callbacks.note_host_findings(|findings| {
+                    pass.note_host_findings(|findings| {
                         findings.document_svg_root_natural_size =
                             Some((child, crate::css::style::NaturalSize::default()));
                     });
