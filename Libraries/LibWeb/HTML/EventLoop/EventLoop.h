@@ -236,6 +236,8 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
+    [[nodiscard]] bool run_one_turn_of_the_processing_model();
+
     void process_input_events() const;
     Vector<GC::Root<DOM::Document>> take_clock_lanes_and_input_events_in(Optional<u64> update_serial);
     void update_the_rendering();
@@ -282,6 +284,7 @@ private:
     GC::Ptr<Platform::Timer> m_idle_period_timer;
     u64 m_task_generation_of_last_idle_callback { 0 };
     bool m_idle_callback_requested_outside_idle_period { false };
+    bool m_may_have_idle_callbacks { false };
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };
