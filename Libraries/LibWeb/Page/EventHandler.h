@@ -331,6 +331,7 @@ private:
     void release_pointer_capture_implicitly(Layout::BegunRead const&, PointerState&);
     void track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node>, Optional<DOM::HoverEventData> = {});
     void report_hovered_node_to_client(GC::Ptr<DOM::Node>);
+    void report_hovered_link_to_client(GC::Ptr<DOM::Node>);
 
     void dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget>, Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position);
     void update_nested_navigable_under_pointer(GC::Ptr<HTML::LocalNavigable>);

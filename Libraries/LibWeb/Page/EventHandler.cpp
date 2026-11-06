@@ -5701,6 +5701,13 @@ void EventHandler::report_hovered_node_to_client(GC::Ptr<DOM::Node> target)
         page.set_is_in_tooltip_area(false);
     }
 
+    report_hovered_link_to_client(target);
+}
+
+void EventHandler::report_hovered_link_to_client(GC::Ptr<DOM::Node> target)
+{
+    auto& page = m_navigable->page();
+
     Optional<URL::URL> hovered_link_url;
     if (target) {
         // NB: A link in editable content is text to edit, which clicking does not follow.
