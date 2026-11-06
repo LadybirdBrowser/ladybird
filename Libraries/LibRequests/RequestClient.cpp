@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
 #include <LibCore/System.h>
@@ -12,27 +11,6 @@
 #include <LibRequests/RequestClient.h>
 
 namespace Requests {
-
-static Optional<Core::ImmutableBytes> map_cache_associated_data_file(int fd, u64 size)
-{
-    ArmedScopeGuard close_fd = [fd] {
-        (void)Core::System::close(fd);
-    };
-
-    if (!AK::is_within_range<size_t>(size)) {
-        dbgln("RequestClient: Received cache associated data file outside mappable range");
-        return {};
-    }
-
-    close_fd.disarm();
-    auto payload = Core::ImmutableBytes::map_from_fd_range_and_close(fd, "cache associated data"sv, 0, static_cast<size_t>(size));
-    if (payload.is_error()) {
-        dbgln("RequestClient: Failed to map cache associated data file: {}", payload.error());
-        return {};
-    }
-
-    return payload.release_value();
-}
 
 RequestClient::RequestClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport))
@@ -130,28 +108,6 @@ RefPtr<Request> RequestClient::import_request(ExportedRequest exported, Transfer
     auto request = Request::create_from_id({}, *this, request_id, move(transfer_lease_key));
     m_requests.set(request_id, request);
     return request;
-}
-
-ErrorOr<Optional<Core::ImmutableBytes>> RequestClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, ReadonlyBytes data)
-{
-    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(data.size()));
-    memcpy(buffer.data<void>(), data.data(), data.size());
-    return store_cache_associated_data(network_isolation_key, url, method, request_headers, vary_key, associated_data, move(buffer));
-}
-
-ErrorOr<Optional<Core::ImmutableBytes>> RequestClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
-{
-    auto headers = request_headers.map([](auto const& headers) { return headers.headers(); }).value_or({});
-    auto response = IPCProxy::store_cache_associated_data(network_isolation_key, url, method, headers, vary_key, associated_data, move(data));
-    if (!response.file().has_value())
-        return Optional<Core::ImmutableBytes> {};
-    return map_cache_associated_data_file(response.take_file()->take_fd(), response.size());
-}
-
-ErrorOr<Optional<Core::AnonymousBuffer>> RequestClient::retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)
-{
-    auto headers = request_headers.map([](auto const& headers) { return headers.headers(); }).value_or({});
-    return IPCProxy::retrieve_cache_associated_data(network_isolation_key, url, method, headers, vary_key, associated_data);
 }
 
 bool RequestClient::stop_request(Badge<Request>, Request& request)
@@ -268,15 +224,11 @@ void RequestClient::request_finished(u64 request_id, u64 total_size, RequestTimi
         m_requests.remove(request_id);
 }
 
-void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Optional<IPC::File> javascript_bytecode_file, u64 javascript_bytecode_size, Optional<u64> javascript_bytecode_cache_vary_key, CacheState cache_state, ByteString http_version)
+void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, CacheState cache_state, ByteString http_version)
 {
-    Optional<Core::ImmutableBytes> javascript_bytecode;
-    if (javascript_bytecode_file.has_value())
-        javascript_bytecode = map_cache_associated_data_file(javascript_bytecode_file->take_fd(), javascript_bytecode_size);
-
     RefPtr<Request> request = m_requests.get(request_id).value_or(nullptr);
     if (request)
-        request->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key, cache_state, move(http_version));
+        request->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, cache_state, move(http_version));
     else
         warnln("Received headers for non-existent request {}", request_id);
 }

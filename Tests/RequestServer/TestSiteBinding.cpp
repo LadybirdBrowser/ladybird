@@ -5,7 +5,6 @@
  */
 
 #include <LibCore/EventLoop.h>
-#include <LibCore/System.h>
 #include <LibCore/Timer.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/NetworkIsolationKey.h>
@@ -77,22 +76,6 @@ struct TestServer {
         VERIFY(response);
     }
 
-    // Puts associated data in the cache partition of the key, and returns whether RequestServer reads it back.
-    bool can_use_cache_partition(HTTP::NetworkIsolationKey const& network_isolation_key)
-    {
-        auto url = URL::Parser::basic_parse("https://cdn.example/library.js"sv).release_value();
-        auto partition = *network_isolation_key.disk_cache_partition();
-        (void)MUST(disk_cache->create_synthetic_entry(partition, url, "GET"sv));
-        auto request_headers = HTTP::HeaderList::create();
-        auto stored = MUST(disk_cache->store_associated_data(partition, url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, "data"sv.bytes()));
-        VERIFY(stored.has_value());
-        (void)Core::System::close(stored->fd);
-
-        auto& stub = static_cast<RequestServerEndpoint::Stub&>(*connection);
-        auto response = stub.retrieve_cache_associated_data(network_isolation_key, url, ByteString { "GET" }, {}, 0u, HTTP::CacheEntryAssociatedData::JavaScriptBytecode);
-        return response.data().has_value();
-    }
-
     void start_request(u64 request_id, StringView url, HTTP::NetworkIsolationKey const& network_isolation_key)
     {
         auto message = make<Messages::RequestServer::StartRequest>(
@@ -135,22 +118,30 @@ struct TestServer {
 
 }
 
-TEST_CASE(bound_client_uses_only_the_cache_partitions_of_its_sites)
+TEST_CASE(bound_client_uses_only_the_network_isolation_keys_of_its_sites)
 {
     TestServer server;
+    u64 request_id = 0;
 
-    EXPECT(!server.can_use_cache_partition(key("https://a.example"sv, "https://a.example"sv)));
+    // NB: Port 2 has no listener, so a request the client may make fails to connect, and one it may not make fails
+    //     before that.
+    auto can_use_key = [&](HTTP::NetworkIsolationKey const& network_isolation_key) {
+        server.start_request(++request_id, "http://localhost:2/"sv, network_isolation_key);
+        return server.wait_for_request_finished(request_id) == Requests::NetworkError::UnableToConnect;
+    };
+
+    EXPECT(!can_use_key(key("https://a.example"sv, "https://a.example"sv)));
 
     server.bind_to_site("https://a.example"sv, "https://a.example"sv);
-    EXPECT(server.can_use_cache_partition(key("https://a.example"sv, "https://a.example"sv)));
+    EXPECT(can_use_key(key("https://a.example"sv, "https://a.example"sv)));
 
     // Neither another top-level site nor another frame site under the bound one is reachable.
-    EXPECT(!server.can_use_cache_partition(key("https://b.example"sv, "https://b.example"sv)));
-    EXPECT(!server.can_use_cache_partition(key("https://b.example"sv, "https://a.example"sv)));
-    EXPECT(!server.can_use_cache_partition(key("https://a.example"sv, "https://b.example"sv)));
+    EXPECT(!can_use_key(key("https://b.example"sv, "https://b.example"sv)));
+    EXPECT(!can_use_key(key("https://b.example"sv, "https://a.example"sv)));
+    EXPECT(!can_use_key(key("https://a.example"sv, "https://b.example"sv)));
 
     server.bind_to_site("https://a.example"sv, "https://b.example"sv);
-    EXPECT(server.can_use_cache_partition(key("https://a.example"sv, "https://b.example"sv)));
+    EXPECT(can_use_key(key("https://a.example"sv, "https://b.example"sv)));
 }
 
 TEST_CASE(bound_client_requests_only_for_its_sites)

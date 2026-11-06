@@ -351,7 +351,7 @@ void FileDownloader::attach_request_to_download(u64 download_id, size_t segment_
     request->set_body_delivery_paused(true);
 
     request->set_unbuffered_request_callbacks(
-        [this, download_id, segment_index, request_generation](NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState cache_state) {
+        [this, download_id, segment_index, request_generation](NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state) {
             handle_segment_headers(download_id, segment_index, request_generation, *response_headers, response_code, reason_phrase, cache_state);
         },
         [this, download_id, segment_index, request_generation](Requests::ResponseData data) {

@@ -67,7 +67,6 @@ public:
     virtual ~CacheEntry() = default;
 
     u64 cache_key() const { return m_cache_key; }
-    u64 vary_key() const { return m_vary_key; }
     u64 body_size() const { return m_cache_footer.data_size; }
 
     void remove();

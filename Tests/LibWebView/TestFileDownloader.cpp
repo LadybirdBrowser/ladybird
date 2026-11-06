@@ -411,7 +411,7 @@ void expect_request_can_be_released_from_finish_callback(TestHttpServer& server,
 
     request->set_body_delivery_paused(true);
     request->set_unbuffered_request_callbacks(
-        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
+        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Requests::CacheState) {
         },
         [&](Requests::ResponseData data) {
             delivered_size += data.bytes().size();
@@ -447,12 +447,12 @@ void expect_request_can_be_exported_from_headers_callback(TestHttpServer& server
     bool finished = false;
     request->set_body_delivery_paused(true);
     request->set_unbuffered_request_callbacks(
-        [&](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
+        [&](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Requests::CacheState) {
             auto exported = MUST(request_client.export_request(*request));
             request = request_client.import_request(move(exported));
             VERIFY(request);
             request->set_unbuffered_request_callbacks(
-                [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
+                [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Requests::CacheState) {
                 },
                 [&](Requests::ResponseData data) {
                     delivered_size += data.bytes().size();
@@ -497,7 +497,7 @@ void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHtt
 
     request->set_body_delivery_paused(true);
     request->set_unbuffered_request_callbacks(
-        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
+        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Requests::CacheState) {
         },
         [](Requests::ResponseData) {
         },
@@ -530,7 +530,7 @@ void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHtt
     bool adopted_request_finished = false;
 
     adopted_request->set_unbuffered_request_callbacks(
-        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
+        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Requests::CacheState) {
         },
         [&](Requests::ResponseData data) {
             delivered_size += data.bytes().size();

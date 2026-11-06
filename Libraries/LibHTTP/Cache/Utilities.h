@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Array.h>
 #include <AK/LexicalPath.h>
 #include <AK/StringView.h>
 #include <AK/Time.h>
@@ -27,13 +26,6 @@ constexpr inline u64 DEFAULT_MAXIMUM_DISK_CACHE_SIZE = 5 * GiB;
 constexpr inline size_t MAXIMUM_VARY_FIELD_COUNT = 32;
 constexpr inline size_t MAXIMUM_CACHE_ENTRY_VARIANT_COUNT = 16;
 
-enum class CacheEntryAssociatedData {
-    JavaScriptBytecode,
-};
-constexpr inline Array CACHE_ENTRY_ASSOCIATED_DATA_TYPES {
-    CacheEntryAssociatedData::JavaScriptBytecode,
-};
-
 i64 compute_maximum_disk_cache_size(u64 free_bytes, u64 limit_maximum_disk_cache_size = DEFAULT_MAXIMUM_DISK_CACHE_SIZE);
 i64 compute_maximum_disk_cache_entry_size(i64 maximum_disk_cache_size);
 
@@ -45,12 +37,10 @@ u64 create_cache_key(StringView url, StringView method);
 Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers);
 Optional<u64> create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers);
 LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key);
-LexicalPath path_for_cache_entry_associated_data(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key, CacheEntryAssociatedData);
 
 struct CacheEntryData {
     u64 cache_key { 0 };
     u64 vary_key { 0 };
-    Optional<CacheEntryAssociatedData> associated_data;
 };
 Optional<CacheEntryData> cache_entry_data_for_file(LexicalPath const&);
 

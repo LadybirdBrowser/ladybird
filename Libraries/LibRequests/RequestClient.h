@@ -8,7 +8,6 @@
 
 #include <AK/HashMap.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibCore/ImmutableBytes.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
@@ -69,9 +68,6 @@ public:
     RefPtr<WebSocket> websocket_connect(URL::URL const&, Optional<HTTP::NetworkIsolationKey> const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers);
 
     // Stores the data in the HTTP cache, and returns it mapped read-only from the cache's file, or nothing when it wasn't stored.
-    ErrorOr<Optional<Core::ImmutableBytes>> store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, ReadonlyBytes);
-    ErrorOr<Optional<Core::ImmutableBytes>> store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, Core::AnonymousBuffer);
-    ErrorOr<Optional<Core::AnonymousBuffer>> retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData);
 
     Function<void()> on_request_server_died;
 
@@ -84,7 +80,7 @@ private:
     virtual void request_body_file_available(u64 request_id, IPC::File, u64 offset, u64 size) override;
     virtual void request_cached_body_file_available(u64 request_id, IPC::File, u64 offset, u64 size) override;
     virtual void request_finished(u64 request_id, u64, RequestTimingInfo, Optional<NetworkError>) override;
-    virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>, Optional<IPC::File>, u64 javascript_bytecode_size, Optional<u64>, CacheState, ByteString http_version) override;
+    virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>, CacheState, ByteString http_version) override;
     virtual void request_transferred(u64 request_id) override;
     virtual void host_resolved(u64 lookup_id, Vector<ByteString> addresses) override;
 

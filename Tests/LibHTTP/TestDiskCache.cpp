@@ -5,8 +5,10 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <LibCore/File.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCore/System.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -229,44 +231,25 @@ TEST_CASE(fields_received_after_the_header_section_are_not_stored)
     EXPECT(!reader->response_headers().contains("X-Trailer"sv));
 }
 
-TEST_CASE(unreadable_entry_is_removed_with_its_associated_data)
+TEST_CASE(unreadable_entry_is_removed)
 {
     auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
     TestCacheRequest request;
 
     auto url = parse_url("https://example.com/script.js"sv);
     auto request_headers = create_cacheable_request_headers();
+    store_cache_entry(disk_cache, request, url, *request_headers, create_cacheable_response_headers(), "console.log('hello');"sv);
 
-    EXPECT(TRY_OR_FAIL(disk_cache.create_synthetic_entry(test_partition(), url, "GET"sv)));
-
-    auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
-    auto stored = TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));
-    EXPECT(stored.has_value());
-    if (stored.has_value())
-        (void)Core::System::close(stored->fd);
-
-    // A synthetic entry has no body to read.
-    EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers).has_value());
-
-    EXPECT(TRY_OR_FAIL(disk_cache.create_synthetic_entry(test_partition(), url, "GET"sv)));
-    auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
-    EXPECT(!retrieved_bytecode.has_value());
-}
-
-TEST_CASE(synthetic_entry_accounts_for_existing_associated_data)
-{
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
-
-    auto url = parse_url("https://example.com/script.js"sv);
     auto cache_key = HTTP::create_cache_key(test_partition(), HTTP::serialize_url_for_cache_storage(url), "GET"sv);
-    auto path = HTTP::path_for_cache_entry_associated_data(disk_cache.cache_directory(), cache_key, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode);
+    auto path = HTTP::path_for_cache_entry(disk_cache.cache_directory(), cache_key, 0);
     {
-        auto file = TRY_OR_FAIL(Core::File::open(path.string(), Core::File::OpenMode::Write));
-        TRY_OR_FAIL(file->write_until_depleted("leftover bytecode"sv.bytes()));
+        auto file = TRY_OR_FAIL(Core::File::open(path.string(), Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
+        TRY_OR_FAIL(file->write_until_depleted("garbage"sv.bytes()));
     }
 
-    EXPECT(TRY_OR_FAIL(disk_cache.create_synthetic_entry(test_partition(), url, "GET"sv)));
-    EXPECT_EQ(disk_cache.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, "leftover bytecode"sv.length());
+    EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers).has_value());
+    EXPECT(!FileSystem::exists(path.string()));
+    EXPECT_EQ(disk_cache.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 0u);
 }
 
 TEST_CASE(clearing_the_cache_removes_responses_still_being_written)
@@ -304,75 +287,6 @@ TEST_CASE(connection_specific_cache_policy_does_not_allow_storage)
 
     auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
     EXPECT(writer.write_status_and_reason(302, "Found"_string, *request_headers, *response_headers).is_error());
-}
-
-TEST_CASE(associated_data_round_trips_with_cache_entry)
-{
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
-    TestCacheRequest request;
-
-    auto url = parse_url("https://example.com/script.js"sv);
-    auto request_headers = create_cacheable_request_headers();
-    auto response_headers = create_cacheable_response_headers();
-
-    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
-    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
-    TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
-    TRY_OR_FAIL(writer.flush(request_headers));
-
-    auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
-    auto stored = TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));
-    EXPECT(stored.has_value());
-    if (stored.has_value())
-        (void)Core::System::close(stored->fd);
-
-    auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
-    VERIFY(retrieved_bytecode.has_value());
-    EXPECT_EQ(retrieved_bytecode->bytes(), bytecode.bytes());
-
-    auto retrieved_bytecode_file = TRY_OR_FAIL(disk_cache.retrieve_associated_data_file(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
-    VERIFY(retrieved_bytecode_file.has_value());
-    auto mapped_bytecode = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(retrieved_bytecode_file->fd, "bytecode"sv, retrieved_bytecode_file->offset, retrieved_bytecode_file->size));
-    EXPECT_EQ(mapped_bytecode.bytes(), bytecode.bytes());
-
-    disk_cache.remove_entries_accessed_since(UnixDateTime::earliest());
-
-    retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
-    EXPECT(!retrieved_bytecode.has_value());
-}
-
-TEST_CASE(replacing_cache_entry_removes_associated_data)
-{
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
-    TestCacheRequest request;
-
-    auto url = parse_url("https://example.com/script.js"sv);
-    auto request_headers = create_cacheable_request_headers();
-    auto response_headers = create_cacheable_response_headers();
-
-    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
-    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
-    TRY_OR_FAIL(writer.write_data("console.log('old');"sv.bytes()));
-    TRY_OR_FAIL(writer.flush(request_headers));
-
-    auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
-    auto stored = TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));
-    EXPECT(stored.has_value());
-    if (stored.has_value())
-        (void)Core::System::close(stored->fd);
-
-    auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
-    VERIFY(retrieved_bytecode.has_value());
-
-    auto replacement_request_headers = create_cacheable_request_headers();
-    auto replacement_response_headers = create_cacheable_response_headers();
-    auto& replacement_writer = create_cache_entry(disk_cache, request, url, *replacement_request_headers);
-    TRY_OR_FAIL(replacement_writer.write_status_and_reason(200, "OK"_string, *replacement_request_headers, *replacement_response_headers));
-    TRY_OR_FAIL(replacement_writer.write_data("console.log('new');"sv.bytes()));
-    TRY_OR_FAIL(replacement_writer.flush(replacement_request_headers));
-
-    retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
-    EXPECT(!retrieved_bytecode.has_value());
 }
 
 TEST_CASE(flush_returns_mappable_body_file)
@@ -420,62 +334,6 @@ TEST_CASE(replacing_cache_entry_keeps_existing_body_mapping_stable)
     EXPECT_EQ(old_body.bytes(), "console.log('old');"sv.bytes());
 }
 
-TEST_CASE(associated_data_round_trips_with_explicit_vary_key)
-{
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
-    TestCacheRequest request;
-
-    auto url = parse_url("https://example.com/script.js"sv);
-    auto request_headers = HTTP::HeaderList::create({
-        { HTTP::TEST_CACHE_ENABLED_HEADER, "1"sv },
-        { "Origin"sv, "https://origin.example"sv },
-    });
-    auto mismatched_request_headers = create_cacheable_request_headers();
-    auto response_headers = HTTP::HeaderList::create({
-        { "Cache-Control"sv, "max-age=60"sv },
-        { "Vary"sv, "Origin"sv },
-    });
-    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
-
-    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
-    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
-    TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
-    TRY_OR_FAIL(writer.flush(request_headers));
-
-    auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
-    EXPECT(!TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *mismatched_request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())).has_value());
-    auto stored = TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *mismatched_request_headers, vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));
-    EXPECT(stored.has_value());
-    if (stored.has_value())
-        (void)Core::System::close(stored->fd);
-
-    auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *mismatched_request_headers, vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
-    VERIFY(retrieved_bytecode.has_value());
-    EXPECT_EQ(retrieved_bytecode->bytes(), bytecode.bytes());
-}
-
-TEST_CASE(associated_data_participates_in_cache_eviction)
-{
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
-    TestCacheRequest request;
-
-    auto url = parse_url("https://example.com/script.js"sv);
-    auto request_headers = create_cacheable_request_headers();
-    auto response_headers = create_cacheable_response_headers();
-
-    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
-    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
-    TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
-    TRY_OR_FAIL(writer.flush(request_headers));
-
-    disk_cache.set_maximum_disk_cache_size(80);
-    auto bytecode = TRY_OR_FAIL(ByteBuffer::create_zeroed(100));
-    EXPECT(!TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())).has_value());
-
-    auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
-    EXPECT(!retrieved_bytecode.has_value());
-}
-
 TEST_CASE(cache_partitions_do_not_share_entries)
 {
     auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
@@ -510,10 +368,7 @@ TEST_CASE(cache_partitions_do_not_share_entries)
     TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
     TRY_OR_FAIL(writer.flush(request_headers));
 
-    auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
     for (auto const& other_partition : { other_top_level_site, other_frame_site, subframe_document, cross_site_main_frame_navigation }) {
-        EXPECT(!TRY_OR_FAIL(disk_cache.store_associated_data(other_partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())).has_value());
-
         disk_cache.open_entry(request, other_partition, url, "GET"sv, *request_headers, HTTP::CacheMode::Default, HTTP::DiskCache::OpenMode::Read)
             .visit(
                 [&](Optional<HTTP::CacheEntryReader&> reader) {
@@ -522,19 +377,7 @@ TEST_CASE(cache_partitions_do_not_share_entries)
                 [](HTTP::DiskCache::CacheHasOpenEntry) { });
     }
 
-    auto stored = TRY_OR_FAIL(disk_cache.store_associated_data(partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));
-
-    EXPECT(stored.has_value());
-
-    if (stored.has_value())
-
-        (void)Core::System::close(stored->fd);
-    for (auto const& other_partition : { other_top_level_site, other_frame_site, subframe_document, cross_site_main_frame_navigation })
-        EXPECT(!TRY_OR_FAIL(disk_cache.retrieve_associated_data(other_partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode)).has_value());
-
-    auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
-    VERIFY(retrieved_bytecode.has_value());
-    EXPECT_EQ(retrieved_bytecode->bytes(), bytecode.bytes());
+    EXPECT(open_cache_entry(disk_cache, request, url, *request_headers).has_value());
 
     disk_cache.remove_entries_accessed_since(UnixDateTime::earliest());
 }
