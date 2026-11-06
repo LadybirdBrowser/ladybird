@@ -41,6 +41,7 @@ use crate::utf16::Utf16View;
 use ak::Utf16String;
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 // Compile-time assertion: what parse and compile produce travels from a worker thread to the main thread.
 const _: fn() = || {
@@ -1137,6 +1138,8 @@ pub struct FunctionPayload {
     /// The environment the function closes over, as laid out by the generators of its enclosing functions.
     pub enclosing_environment_scope: Option<Arc<bytecode::codegen::EnclosingEnvironmentScope>>,
     pub enclosing_code: Arc<EnclosingCode>,
+    /// The function's code, once it compiled, if its script retains compiled functions.
+    pub compiled: OnceLock<Arc<bytecode::executable_data::PrecompiledFunction>>,
 }
 
 /// What a runtime needs to create a SharedFunctionInstanceData for one function, none of which takes the function's own
@@ -1203,6 +1206,7 @@ pub fn describe_shared_function(
             row: tree.function_row(function),
             enclosing_environment_scope,
             enclosing_code: enclosing_code.clone(),
+            compiled: OnceLock::new(),
         }),
     }
 }
@@ -1242,6 +1246,7 @@ pub(crate) fn pending_function_of_row(
                 row: crate::parser::FunctionRow(row),
                 enclosing_environment_scope,
                 enclosing_code: enclosing_code.clone(),
+                compiled: OnceLock::new(),
             }),
         },
         class_field_initializer_name: None,
@@ -1305,22 +1310,36 @@ impl PendingSharedFunctionData {
 /// walk a binding pattern or the like, which nest no deeper than the parser allows.
 const STACK_FOR_SMALL_WALKS: usize = 1 << 20;
 
-/// Parses the function of `payload` on its own and compiles its body. Like [`compile_parsed_program_off_thread()`], it
-/// needs no VM and so can run on any thread. `stack_limit` is the lowest address that the stack may reach on the way.
+/// Parses the function of `payload` on its own and compiles its body, unless that happened before and the function's
+/// script keeps the result. Like [`compile_parsed_program_off_thread()`], it needs no VM and so can run on any thread.
+/// `stack_limit` is the lowest address that the stack may reach on the way.
 pub fn compile_function(
     payload: &FunctionPayload,
     builtin_abstract_operations_enabled: bool,
     stack_limit: usize,
 ) -> Result<bytecode::executable_data::PrecompiledFunction, OutOfStack> {
+    if let Some(compiled) = payload.compiled.get() {
+        return Ok(compiled.shared_copy());
+    }
+
     let stack_limit = stack_limit.saturating_add(STACK_FOR_SMALL_WALKS);
-    bytecode::codegen::compile_function(
+    let compiled = bytecode::codegen::compile_function(
         &payload.script,
         payload.row,
         payload.enclosing_environment_scope.clone(),
         &payload.enclosing_code,
         builtin_abstract_operations_enabled,
         stack_limit,
-    )
+    )?;
+
+    // NB: Code with builtin abstract operations is only for the builtins of the engine, whatever asked for it.
+    if payload.script.retains_compiled_functions()
+        && !builtin_abstract_operations_enabled
+        && payload.compiled.set(Arc::new(compiled.shared_copy())).is_ok()
+    {
+        payload.script.add_retained_code_size(compiled.memory_size());
+    }
+    Ok(compiled)
 }
 
 // =============================================================================
@@ -1560,9 +1579,34 @@ fn collect_var_scoped_declarations(tree: &Arc<SyntaxTree>) -> VarScopedDeclarati
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parser::stack_limit_for_budget;
+
+    const SOURCE: &str = "function outer() { return function inner() { return 1; }; }";
 
     fn compile(source: &str) -> CompiledProgram {
         compile_parsed_program_off_thread(parse(&Utf16String::from_utf8(source), ProgramType::Script, 1))
+    }
+
+    fn first_payload(program: &CompiledProgram) -> Arc<FunctionPayload> {
+        let script = program.clone().into_script();
+        script.declarations.functions_to_initialize[0]
+            .shared_function_data
+            .description
+            .payload
+            .clone()
+    }
+
+    fn compile_with_enough_stack(
+        payload: &FunctionPayload,
+        builtin_abstract_operations_enabled: bool,
+    ) -> bytecode::executable_data::PrecompiledFunction {
+        compile_function(
+            payload,
+            builtin_abstract_operations_enabled,
+            stack_limit_for_budget(1 << 23),
+        )
+        .ok()
+        .expect("the stack holds the function")
     }
 
     fn precompiled_functions(source: &str) -> Vec<bool> {
@@ -1639,6 +1683,57 @@ mod tests {
     }
 
     #[test]
+    fn clones_share_the_code_of_a_program() {
+        let program = compile(SOURCE);
+        let first = program.clone().into_script();
+        let second = program.into_script();
+        assert!(Arc::ptr_eq(&first.executable, &second.executable));
+        assert!(Arc::ptr_eq(&first.declarations, &second.declarations));
+    }
+
+    #[test]
+    fn a_retaining_script_compiles_a_function_once() {
+        let program = compile(SOURCE);
+        program.set_retains_compiled_functions(true);
+        let payload = first_payload(&program);
+        let first = compile_with_enough_stack(&payload, false);
+        let second = compile_with_enough_stack(&payload, false);
+        assert!(Arc::ptr_eq(&first.executable, &second.executable));
+    }
+
+    #[test]
+    fn other_scripts_keep_nothing() {
+        let program = compile(SOURCE);
+        let size = program.memory_size();
+        let payload = first_payload(&program);
+        let first = compile_with_enough_stack(&payload, false);
+        let second = compile_with_enough_stack(&payload, false);
+        assert!(!Arc::ptr_eq(&first.executable, &second.executable));
+        assert!(payload.compiled.get().is_none());
+        assert_eq!(program.memory_size(), size);
+    }
+
+    #[test]
+    fn builtin_code_is_not_kept() {
+        let program = compile(SOURCE);
+        program.set_retains_compiled_functions(true);
+        let payload = first_payload(&program);
+        compile_with_enough_stack(&payload, true);
+        assert!(payload.compiled.get().is_none());
+    }
+
+    #[test]
+    fn running_out_of_stack_is_not_kept() {
+        let program = compile(SOURCE);
+        program.set_retains_compiled_functions(true);
+        let payload = first_payload(&program);
+        assert!(compile_function(&payload, false, usize::MAX).is_err());
+        assert!(payload.compiled.get().is_none());
+        compile_with_enough_stack(&payload, false);
+        assert!(payload.compiled.get().is_some());
+    }
+
+    #[test]
     fn code_of_an_eval_does_not_keep_its_script_alive() {
         let parsed = parse_eval(&Utf16String::from_utf8("1 + 1"), EvalContext::default())
             .ok()
@@ -1647,5 +1742,15 @@ mod tests {
         let compiled = compile_eval(parsed);
         assert!(script.upgrade().is_none());
         assert!(compiled.executable.position_source.is_some());
+    }
+
+    #[test]
+    fn memory_size_grows_with_the_code_kept() {
+        let program = compile(SOURCE);
+        program.set_retains_compiled_functions(true);
+        let size = program.memory_size();
+        let payload = first_payload(&program);
+        let compiled = compile_with_enough_stack(&payload, false);
+        assert_eq!(program.memory_size(), size + compiled.memory_size());
     }
 }
