@@ -1050,7 +1050,6 @@ impl AbsposEngine<'_> {
             containing_block_info.block_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
             containing_block_info.block_alignment = Some(AbsposAlignment::AnchorCenter);
         }
-        static_position_rect.is_known = true;
         containing_block_info.derives_from_own_computed_values = true;
     }
 
@@ -1248,7 +1247,6 @@ impl AbsposEngine<'_> {
                 inline_alignment: StaticPositionAlignment::Center,
                 block_alignment: StaticPositionAlignment::Center,
                 alignment_derives_from_own_computed_values: true,
-                is_known: true,
             },
             containing_block_info,
             position_area_geometry,
@@ -3865,7 +3863,8 @@ impl<'pass> AbsposEngine<'pass> {
             resolved_anchor_insets: resolved,
             resolved_anchor_sizes,
             position_option: None,
-        };
+        }
+        .without_static_position_in_axes_placed_by_own_insets();
         (inputs, default_scroll_shift)
     }
 
@@ -3904,6 +3903,7 @@ impl<'pass> AbsposEngine<'pass> {
             );
             inputs.containing_block_info.inline_axis_mode = inline;
             inputs.containing_block_info.block_axis_mode = block;
+            inputs = inputs.without_static_position_in_axes_placed_by_own_insets();
         }
         // Partial relayout uses a fresh state and keeps the replay root
         // exactly once.

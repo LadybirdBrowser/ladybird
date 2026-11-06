@@ -2741,7 +2741,6 @@ impl<'context> InlineFormattingContext<'context> {
                 inline_alignment: StaticPositionAlignment::Start,
                 block_alignment: StaticPositionAlignment::Start,
                 alignment_derives_from_own_computed_values: false,
-                is_known: true,
             };
             'lines: for line in &self.line_data().line_boxes {
                 for marker in &line.static_position_markers {

@@ -1,0 +1,6 @@
+inset to inset: position=0,5 roots=[layout PARTIAL BlockContainer<DIV>#insetChange.child.with-insets]
+top to auto: position=0,50 roots=[layout FULL]
+left to auto: position=45,0 roots=[layout FULL]
+top to auto after the static position moved: position=0,80 roots=[layout FULL]
+auto to inset: position=45,5 roots=[layout PARTIAL BlockContainer<DIV>#staticBox.child]
+back to auto: position=45,50 roots=[layout FULL]

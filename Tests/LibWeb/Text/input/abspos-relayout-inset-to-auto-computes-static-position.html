@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .container { position: relative; width: 200px; padding-left: 30px; }
+    .block { height: 50px; }
+    .wrapper { padding-left: 15px; }
+    .child { position: absolute; width: 20px; height: 20px; }
+    .with-insets { top: 0; left: 0; }
+</style>
+<div class="container"><div class="block"></div><div class="wrapper"><div class="child with-insets" id="insetChange"></div></div></div>
+<div class="container"><div class="block"></div><div class="wrapper"><div class="child with-insets" id="topToAuto"></div></div></div>
+<div class="container"><div class="block"></div><div class="wrapper"><div class="child with-insets" id="leftToAuto"></div></div></div>
+<div class="container"><div class="block" id="movedBlock"></div><div class="wrapper"><div class="child with-insets" id="topToAutoAfterMove"></div></div></div>
+<div class="container"><div class="block"></div><div class="wrapper"><div class="child" id="staticBox"></div></div></div>
+<script>
+    // A box's saved layout inputs hold its static position only in the axes that read it. Once an axis its insets
+    // placed it in falls back to the static position, that position has to be computed, not replayed. Other changes
+    // to its insets still replay the inputs, including what they hold of the static position in the other axis.
+    test(() => {
+        document.body.offsetHeight;
+
+        // NB: Printing changes the DOM, which would keep the next change from staying a partial relayout.
+        const output = [];
+        const report = (name, child, change) => {
+            internals.beginLayoutTrace();
+            change(child.style);
+            document.body.offsetHeight;
+            const roots = internals.takeLayoutTrace().split("\n").filter(line => line.startsWith("layout")).join(" | ");
+            const box = child.getBoundingClientRect();
+            const origin = child.closest(".container").getBoundingClientRect();
+            output.push(`${name}: position=${box.left - origin.left},${box.top - origin.top} roots=[${roots}]`);
+        };
+
+        report("inset to inset", insetChange, style => style.top = "5px");
+        report("top to auto", topToAuto, style => style.top = "auto");
+        report("left to auto", leftToAuto, style => style.left = "auto");
+
+        movedBlock.style.height = "80px";
+        document.body.offsetHeight;
+        report("top to auto after the static position moved", topToAutoAfterMove, style => style.top = "auto");
+
+        report("auto to inset", staticBox, style => style.top = "5px");
+        report("back to auto", staticBox, style => style.top = "auto");
+
+        for (const line of output)
+            println(line);
+    });
+</script>

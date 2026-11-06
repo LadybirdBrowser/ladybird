@@ -7572,7 +7572,6 @@ mod tests {
                 inline_alignment: StaticPositionAlignment::Center,
                 block_alignment: StaticPositionAlignment::End,
                 alignment_derives_from_own_computed_values: true,
-                is_known: true,
             },
             containing_block_info: AbsposContainingBlockInfo {
                 rect: Default::default(),

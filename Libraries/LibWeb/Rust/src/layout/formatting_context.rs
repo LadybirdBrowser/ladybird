@@ -1535,7 +1535,6 @@ fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
                         inline_alignment: StaticPositionAlignment::Start,
                         block_alignment: StaticPositionAlignment::Start,
                         alignment_derives_from_own_computed_values: false,
-                        is_known: true,
                     },
                     None,
                 );
