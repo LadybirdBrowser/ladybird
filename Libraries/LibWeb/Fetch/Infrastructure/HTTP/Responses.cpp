@@ -195,12 +195,8 @@ NonnullRefPtr<Response> Response::clone() const
     new_response->set_navigation_timing_allow_values_list(m_navigation_timing_allow_values_list);
     new_response->set_body_info(m_body_info);
     new_response->set_redirect_taint(m_redirect_taint);
-    new_response->set_javascript_bytecode_cache(m_javascript_bytecode_cache);
-    new_response->set_javascript_bytecode_cache_vary_key(m_javascript_bytecode_cache_vary_key);
     if (m_network_transport.has_value())
         new_response->set_network_transport(*m_network_transport);
-    if (m_javascript_bytecode_cache_memory_cache_request_headers.has_value())
-        new_response->set_javascript_bytecode_cache_memory_cache_request_headers(HTTP::HeaderList::create((*m_javascript_bytecode_cache_memory_cache_request_headers)->headers()));
     // FIXME: service worker timing info
 
     // 3. If response’s body is non-null, then set newResponse’s body to the result of cloning response’s body.

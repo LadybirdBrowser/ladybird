@@ -41,7 +41,7 @@ public:
     // for requests without a site or without a client for that site.
     void set_client(Optional<Utf16String> const& top_level_site, NonnullRefPtr<Requests::RequestClient>);
 
-    using OnHeadersReceived = GC::Function<void(Fetch::Engine::NetworkTransportHandle*, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Requests::CacheState cache_state)>;
+    using OnHeadersReceived = GC::Function<void(Fetch::Engine::NetworkTransportHandle*, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state)>;
     using OnDataReceived = GC::Function<void(Requests::ResponseData data)>;
     using OnCachedBodyAvailable = GC::Function<void(Core::ImmutableBytes data)>;
     using OnComplete = GC::Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message)>;
