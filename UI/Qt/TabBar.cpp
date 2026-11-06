@@ -4507,6 +4507,9 @@ void TabWidget::place_toolbar_over_page_column()
         m_page_column_layout->activate();
     }
 
+    // NB: The toolbar lies over the page rather than in a layout, so its stand-in keeps the window wide enough for it.
+    m_toolbar_placeholder->setMinimumWidth(m_toolbar->minimumSizeHint().width());
+
     auto position = m_page_column->mapTo(this, QPoint());
     // NB: While the sidebar toggles, the page reaches past the window's edge, but the toolbar stays within the window.
     auto toolbar_width = min(m_page_column->width(), width() - position.x());
