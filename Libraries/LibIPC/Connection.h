@@ -33,10 +33,11 @@ public:
     virtual void die() { }
 
     // Tells the connection that its peer owns this process — i.e. that the process exists only to serve that peer, and
-    // that die() ends it. Such a process has nothing left to do once that peer has closed the connection. So, the
-    // connection then shuts down rather than be used any further: It drops whatever the peer sent before closing,
-    // rather than dispatch that to handlers that'd find the connection closed under them. And it shuts down on a sync
-    // request, rather than fail one whose caller may have no way to carry on without the response.
+    // that die() ends it, right away or once its event loop unwinds. Such a process has nothing left to do once that
+    // peer has closed the connection. So, the connection then shuts down rather than be used any further: It drops
+    // whatever the peer sent before closing, rather than dispatch that to handlers that'd find the connection closed
+    // under them. And it shuts down on a sync request, rather than fail one whose caller may have no way to carry on
+    // without the response.
     // Gecko/WebKit/Blink do the same for a child process's connection to its parent, each exiting the process right
     // there: Gecko SetAbortOnError, Blink TerminateSelfOnDisconnect, WebKit
     // setDidCloseOnConnectionWorkQueueCallback/setShouldExitOnSyncMessageSendFailure.
@@ -50,6 +51,10 @@ public:
     // arrival order. A caller that asked the peer for state synchronously reads what the peer sent ahead of
     // its answer this way, without dispatching anything else out of turn.
     Vector<NonnullOwnPtr<Message>> take_unprocessed_messages(u32 endpoint_magic, i32 message_id);
+
+    // A sync request cannot get a response, as a peer that owns this process has closed the connection. The caller of
+    // send_sync() has no way to carry on, so a connection whose die() returns has to end the process here.
+    virtual void did_lose_peer_during_sync_request() { shutdown(); }
 
     // Dispatch every message the peer has already sent on this connection, without waiting for new ones.
     void dispatch_pending_messages();
@@ -108,6 +113,7 @@ protected:
     u32 m_local_endpoint_magic { 0 };
 
     bool m_peer_owns_this_process { false };
+    bool m_is_waiting_for_sync_response { false };
     bool m_died { false };
 };
 
