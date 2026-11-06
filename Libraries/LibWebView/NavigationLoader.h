@@ -12,6 +12,7 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
+#include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
 #include <LibHTTP/Forward.h>
 #include <LibRequests/Forward.h>
@@ -73,6 +74,7 @@ public:
     // The host may adopt the response body once. The steps run once RequestServer has answered, or at once if there is
     // nothing to designate.
     void let_host_adopt_response_body(WebContentPage const& host, Function<void()> steps);
+    bool response_body_was_handed_to_another_process(WebContentClient const&) const;
     // The host's client that RequestServer was told may adopt the response body.
     Optional<int> response_body_adopter_client_id() const { return m_response_body_adopter_client_id; }
     Web::HTML::NavigationPopulationRequest const& request() const { return m_request; }
@@ -80,6 +82,7 @@ public:
     Web::HTML::NavigationPopulationResult take_result();
     void reclaim_response_body_after_failed_handoff();
 
+    static bool response_body_belongs_to_another_process(Web::HTML::NavigationPopulationResult const&, WebContentClient const&);
     static void discard(WebContentClient const& population_worker, Web::HTML::NavigationPopulationResult&);
 
 private:
@@ -103,6 +106,7 @@ private:
     // The top-level site of the document the response creates.
     Optional<Utf16String> m_top_level_site;
     bool m_response_body_was_handed_off { false };
+    WeakPtr<WebContentClient> m_response_body_host;
     Optional<int> m_response_body_adopter_client_id;
     Function<void(bool)> m_completion_steps;
     Function<void()> m_steps_after_adopter_designation;
