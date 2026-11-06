@@ -1,0 +1,10 @@
+Ladybird still visits every node of the accessibility tree on each
+build, but it decides which nodes to send from version numbers and
+the few fields every build computes again, rather than comparing each
+node’s data with the last tree sent. The other engines keep track of
+dirty objects and visit only those. Blink’s AXObjectCacheImpl marks
+objects dirty, and AXTreeSerializer::SerializeChanges() serializes
+just those. WebKit’s AXObjectCache queues updates for single nodes
+of its AXIsolatedTree, through AXIsolatedTree::queueNodeUpdate(). And
+Gecko’s DocAccessible::QueueCacheUpdate() records which cache domains of
+which accessibles to send.
