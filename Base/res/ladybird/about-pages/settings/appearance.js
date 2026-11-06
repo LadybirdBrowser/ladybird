@@ -26,7 +26,7 @@ const loadSettings = settings => {
     APPEARANCE = settings.appearance || {};
 
     showMenuBar.checked = !!APPEARANCE.showMenuBar;
-    showBookmarksBar.value = APPEARANCE.showBookmarksBar || "always";
+    showBookmarksBar.value = APPEARANCE.showBookmarksBar || "never";
     setSegmentedValue(interfaceTheme, APPEARANCE.interfaceTheme || "system");
     setSegmentedValue(websiteColorScheme, APPEARANCE.websiteColorScheme || "system");
 };

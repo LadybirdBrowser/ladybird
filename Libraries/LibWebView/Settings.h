@@ -46,7 +46,7 @@ enum class ThemePreference : u8 {
 
 struct Appearance {
     bool show_menu_bar { false };
-    ShowBookmarksBar show_bookmarks_bar { ShowBookmarksBar::Always };
+    ShowBookmarksBar show_bookmarks_bar { ShowBookmarksBar::Never };
     ThemePreference interface_theme { ThemePreference::System };
     ThemePreference website_color_scheme { ThemePreference::System };
 };
