@@ -1557,8 +1557,9 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn margin_box_rect(metrics: &impl BoxMetricCells) -> CssPixelRect {
-        let left = (metrics.margin_left() + metrics.border_box_left(false)).max(CssPixels::default());
-        let right = (metrics.margin_right() + metrics.border_box_right(false)).max(CssPixels::default());
+        // NB: Negative inline margins shrink the margin box, down to no width at all, so that it intrudes on nothing.
+        let left = metrics.margin_left() + metrics.border_box_left(false);
+        let right = metrics.margin_right() + metrics.border_box_right(false);
         let top = metrics.margin_box_top(false).max(CssPixels::default());
         let bottom = metrics.margin_box_bottom(false).max(CssPixels::default());
         CssPixelRect {

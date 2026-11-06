@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/float-negative-margin-beside-formatting-context-ref.html">
+<style>
+body {
+    margin: 0;
+    padding-left: 200px;
+}
+
+.container {
+    display: flow-root;
+    width: 300px;
+    margin-bottom: 10px;
+}
+
+.float {
+    float: left;
+    width: 125px;
+    height: 60px;
+    background: blue;
+}
+
+/* A box with a formatting context of its own goes beside a float's margin box, which negative margins shrink. */
+.beside {
+    height: 40px;
+    background: green;
+}
+</style>
+<!-- The margin box is 75px wide. -->
+<div class="container"><div class="float" style="margin-left: -50px"></div><div class="beside" style="display: flow-root"></div></div>
+<!-- The margin boxes have no width at all. -->
+<div class="container"><div class="float" style="margin-left: -150px"></div><div class="beside" style="display: flex"></div></div>
+<div class="container"><div class="float" style="margin-right: -150px"></div><div class="beside" style="display: flow-root"></div></div>
