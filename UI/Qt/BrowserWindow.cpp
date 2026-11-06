@@ -1650,7 +1650,24 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
         return true;
     }
 
-    auto const is_button = qobject_cast<QAbstractButton*>(object) != nullptr;
+    auto is_button = qobject_cast<QAbstractButton*>(object) != nullptr;
+
+    // The window controls run to the window's right edge. While the window can be resized, that edge still resizes it.
+    if (is_button && uses_client_side_decorations() && !isMaximized() && !isFullScreen()) {
+        auto is_press = event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick;
+        auto is_mouse_event = is_press || event->type() == QEvent::MouseMove;
+        auto position = is_mouse_event ? widget->mapTo(this, static_cast<QMouseEvent*>(event)->position().toPoint()) : mapFromGlobal(QCursor::pos());
+        if (auto edges = resize_edges_for_position(position); edges.testFlag(Qt::RightEdge)) {
+            // NB: Even if the resize does not start, a press here must not reach the button and close the window.
+            if (is_press) {
+                auto* handle = windowHandle();
+                if (handle && event->type() == QEvent::MouseButtonPress && static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton)
+                    handle->startSystemResize(edges);
+                return true;
+            }
+            is_button = false;
+        }
+    }
 
     if (is_button && (event->type() == QEvent::Enter || event->type() == QEvent::MouseMove || event->type() == QEvent::Leave)) {
         clear_resize_cursor();

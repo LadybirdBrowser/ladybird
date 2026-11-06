@@ -61,6 +61,8 @@ WindowControlButton::WindowControlButton(WindowControlButtonType type, QString c
     setIconSize(icon_size);
     setFixedSize(button_size);
     setFocusPolicy(Qt::NoFocus);
+    // NB: The window follows the pointer across a button to show its resize cursor over the edge of the window.
+    setMouseTracking(true);
     setProperty(pressed_outside_property, false);
 }
 
