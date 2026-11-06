@@ -72,6 +72,7 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     only_finds_line_breaks: bool,
     current_block_offset: CssPixels,
     max_block_size_on_current_line: CssPixels,
+    nodes_with_edges_of_collapsed_whitespace: Vec<(Node, CssPixels)>,
     /// The outside markers that the first line box this builder lays out contributes to.
     outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     unbreakable_run_inline_size_interrupted_by_float: CssPixels,
@@ -140,6 +141,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             only_finds_line_breaks: false,
             current_block_offset: CssPixels::default(),
             max_block_size_on_current_line: CssPixels::default(),
+            nodes_with_edges_of_collapsed_whitespace: Vec::new(),
             outside_marker_line: context.parent.pending_outside_marker_line(),
             unbreakable_run_inline_size_interrupted_by_float: CssPixels::default(),
             text_indentation: inline_formatting_context::TextIndentation::of(style, containing_inline_size),
@@ -297,6 +299,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     ) {
         // FIXME: Respect inline direction.
 
+        self.keep_line_of_collapsed_whitespace_edges();
         let line_index = self.ensure_last_line_index();
         {
             let mut line = self.line_mut(line_index);
@@ -469,18 +472,35 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     pub(crate) fn append_inline_edge(&mut self, item: &inline_level_iterator::Item) {
-        self.prepare_to_append_inline_content();
-        let line_index = self.ensure_last_line_index();
-        let facts = self.fragment_facts(item.node);
-        let block_size = TextLayoutBounds::new(self.style(facts.style_source), None).block_size();
-        self.line_mut(line_index).add_fragment(
+        self.append_empty_fragment(
             item.node,
-            0,
-            0,
             item.border_start + item.padding_start,
             item.border_end + item.padding_end,
             item.margin_start,
             item.margin_end,
+        );
+    }
+
+    fn append_empty_fragment(
+        &mut self,
+        node: Node,
+        leading_size: CssPixels,
+        trailing_size: CssPixels,
+        leading_margin: CssPixels,
+        trailing_margin: CssPixels,
+    ) {
+        self.prepare_to_append_inline_content();
+        let line_index = self.ensure_last_line_index();
+        let facts = self.fragment_facts(node);
+        let block_size = TextLayoutBounds::new(self.style(facts.style_source), None).block_size();
+        self.line_mut(line_index).add_fragment(
+            node,
+            0,
+            0,
+            leading_size,
+            trailing_size,
+            leading_margin,
+            trailing_margin,
             CssPixels::default(),
             block_size,
             CssPixels::default(),
@@ -491,6 +511,74 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             line_box_fragment::TrailingWhitespace::default(),
         );
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(block_size);
+    }
+
+    /// Collapsed whitespace adds no fragment, so that whitespace after it keeps collapsing too.
+    fn append_edges_of_collapsed_whitespace(
+        &mut self,
+        margin: CssPixels,
+        border: CssPixels,
+        padding: CssPixels,
+    ) -> bool {
+        let none = CssPixels::default();
+        if margin == none && border == none && padding == none {
+            return false;
+        }
+        self.prepare_to_append_inline_content();
+        let line_index = self.ensure_last_line_index();
+        self.line_mut(line_index)
+            .advance_inline_length(margin + border + padding);
+        true
+    }
+
+    pub(crate) fn append_start_edges_of_collapsed_whitespace(
+        &mut self,
+        node: Node,
+        margin: CssPixels,
+        border: CssPixels,
+        padding: CssPixels,
+    ) {
+        if self.append_edges_of_collapsed_whitespace(margin, border, padding) {
+            let inline_offset = self.line(self.line_count() - 1).inline_length;
+            self.note_edges_of_collapsed_whitespace(node, inline_offset);
+        }
+    }
+
+    fn note_edges_of_collapsed_whitespace(&mut self, node: Node, inline_offset: CssPixels) {
+        match self.nodes_with_edges_of_collapsed_whitespace.last_mut() {
+            Some(last) if last.0 == node => last.1 = inline_offset,
+            _ => self
+                .nodes_with_edges_of_collapsed_whitespace
+                .push((node, inline_offset)),
+        }
+    }
+
+    pub(crate) fn append_end_edges_of_collapsed_whitespace(
+        &mut self,
+        node: Node,
+        margin: CssPixels,
+        border: CssPixels,
+        padding: CssPixels,
+    ) {
+        if self.append_edges_of_collapsed_whitespace(margin, border, padding) {
+            let inline_offset = self.line(self.line_count() - 1).inline_length - (margin + border + padding);
+            self.note_edges_of_collapsed_whitespace(node, inline_offset);
+        }
+    }
+
+    /// Nonzero inline-axis edges keep a line box even when it contains no text.
+    /// https://drafts.csswg.org/css-inline-3/#invisible-line-boxes
+    pub(crate) fn keep_line_of_collapsed_whitespace_edges(&mut self) {
+        let nodes = std::mem::take(&mut self.nodes_with_edges_of_collapsed_whitespace);
+        if nodes.is_empty() || !self.current_line_is_empty() {
+            return;
+        }
+        let none = CssPixels::default();
+        for (node, inline_offset) in nodes {
+            // NB: The line has already advanced past these edges, so each fragment goes back to where its node was.
+            let distance = self.line(self.line_count() - 1).inline_length - inline_offset;
+            self.append_empty_fragment(node, none, none, none - distance, distance);
+        }
     }
 
     pub(crate) fn append_text_item(
@@ -602,6 +690,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     pub(crate) fn finish_current_line_before_block_level_box(&mut self) {
+        self.keep_line_of_collapsed_whitespace_edges();
         if self.line_count() == 0 || self.line(self.line_count() - 1).is_empty() {
             return;
         }

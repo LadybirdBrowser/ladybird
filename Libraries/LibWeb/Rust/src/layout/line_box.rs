@@ -191,6 +191,10 @@ impl LineBoxData {
             .max(content_block_size + border_box_block_start + border_box_block_end);
     }
 
+    pub(crate) fn advance_inline_length(&mut self, inline_size: CssPixels) {
+        self.record.inline_length += inline_size;
+    }
+
     pub(crate) fn add_static_position_marker(&mut self, box_: Node, preceded_by_inline_box_start_edges: bool) {
         self.static_position_markers.push(StaticPositionMarker {
             box_,
