@@ -297,6 +297,9 @@ TEST_CASE(navigation_downloads)
     expect_navigation_downloads_cached_body(theme, "a response sniffed from the disk cache"sv, "Cache-Control: max-age=3600\r\nContent-Type: application/octet-stream\r\n"sv, body);
     expect_navigation_downloads_cached_body(theme, "an attachment from the disk cache"sv, "Cache-Control: max-age=3600\r\nContent-Disposition: attachment; filename=\"attachment.bin\"\r\n"sv, body);
 
+    // The host of a response with an opaque origin adopts it through its client without a site.
+    expect_cross_site_navigation_downloads_body(theme, "a cross-site sandboxed response"sv, "Content-Security-Policy: sandbox allow-downloads\r\nContent-Type: application/octet-stream\r\n"sv, body, false);
+
     for (bool redirect : { false, true }) {
         expect_cross_site_navigation_downloads_body(theme, "a cross-site attachment"sv, "Content-Disposition: attachment; filename=\"cross-site.bin\"\r\n"sv, body, redirect);
         expect_cross_site_navigation_downloads_body(theme, "a cross-site response sniffed as unrenderable"sv, "Content-Type: application/octet-stream\r\n"sv, body, redirect);

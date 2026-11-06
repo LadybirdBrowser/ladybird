@@ -208,9 +208,13 @@ void ConnectionFromClient::cancel_owned_work()
 void ConnectionFromClient::die()
 {
     Vector<Requests::RequestTransferLeaseKey> transfer_leases_to_cancel;
-    for (auto const& entry : m_request_transfer_leases) {
+    for (auto& entry : m_request_transfer_leases) {
         if (entry.value.owner.ptr() == this)
             transfer_leases_to_cancel.append(entry.key);
+
+        // A designation ends with the client it names.
+        if (entry.value.adopter_client_id == client_id())
+            entry.value.adopter_client_id = {};
     }
     for (auto const& transfer_lease : transfer_leases_to_cancel) {
         auto lease = m_request_transfer_leases.take(transfer_lease);
@@ -363,7 +367,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
         m_request_transfer_leases.set(*transfer_lease, RequestTransferLease { *this, request_id });
 }
 
-void ConnectionFromClient::adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease)
+void ConnectionFromClient::adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease, Optional<int> owner_client_id)
 {
     if (is_live_request_id(target_request_id)) {
         did_misbehave("reused live request ID");
@@ -372,7 +376,21 @@ void ConnectionFromClient::adopt_request(int source_client_id, u64 source_reques
 
     auto lease_key = Requests::RequestTransferLeaseKey { source_client_id, source_request_id };
     auto transfer_lease = m_request_transfer_leases.get(lease_key);
-    if (!transfer_lease.has_value()) {
+    auto may_adopt = [&] {
+        if (!transfer_lease.has_value())
+            return false;
+        // The UI process adopts from the owner it names, or from itself when it names the client it designated. A bound
+        // client adopts only what it was designated for.
+        if (m_site_binding == SiteBinding::Unrestricted) {
+            if (!owner_client_id.has_value())
+                return false;
+            if (*owner_client_id == transfer_lease->owner->client_id())
+                return true;
+            return transfer_lease->owner.ptr() == this && transfer_lease->adopter_client_id == *owner_client_id;
+        }
+        return transfer_lease->adopter_client_id == client_id();
+    }();
+    if (!may_adopt) {
         async_request_finished(target_request_id, 0, {}, Requests::NetworkError::Unknown);
         return;
     }
@@ -408,6 +426,7 @@ void ConnectionFromClient::adopt_request(int source_client_id, u64 source_reques
     if (preserve_transfer_lease) {
         transfer_lease->owner = *this;
         transfer_lease->request_id = target_request_id;
+        transfer_lease->adopter_client_id = {};
     } else {
         m_request_transfer_leases.remove(lease_key);
     }

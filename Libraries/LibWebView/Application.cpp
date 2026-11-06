@@ -1196,6 +1196,15 @@ void Application::did_disconnect_request_server_client(int client_id)
 {
     m_request_server_client_sessions.remove(client_id);
     m_unrestricted_request_server_clients.remove(client_id);
+
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        client.request_server_site_bindings().did_disconnect(client_id);
+        return IterationDecision::Continue;
+    });
+    WorkerAgentManager::the().for_each_request_server_site_bindings([&](RequestServerSiteBindings& bindings) {
+        bindings.did_disconnect(client_id);
+        return IterationDecision::Continue;
+    });
 }
 
 bool Application::request_server_client_may_use_cookies_in(int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& context) const

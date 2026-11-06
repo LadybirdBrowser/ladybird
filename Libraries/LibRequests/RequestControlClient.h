@@ -14,6 +14,7 @@
 #include <LibIPC/ConnectionToServer.h>
 #include <LibRequests/CacheSizes.h>
 #include <LibRequests/NetworkUsage.h>
+#include <LibRequests/RequestTransferLease.h>
 #include <RequestServer/IsPrivate.h>
 #include <RequestServer/RequestServerControlClientEndpoint.h>
 #include <RequestServer/RequestServerControlEndpoint.h>
@@ -33,6 +34,8 @@ public:
     NonnullRefPtr<Core::Promise<CacheSizes>> estimate_cache_size_accessed_since(UnixDateTime since);
     NonnullRefPtr<Core::Promise<Empty>> clear_cache(UnixDateTime since);
     NonnullRefPtr<Core::Promise<Vector<CacheAccessBucket>>> retrieve_cache_access_profile(AK::Duration granularity);
+    // Resolves once RequestServer has handled the designation.
+    NonnullRefPtr<Core::Promise<Empty>> designate_request_adopter(RequestTransferLeaseKey, int adopter_client_id);
 
     Function<void(Vector<NetworkUsage>, u64 interval_microseconds)> on_network_usage;
     Function<void(int client_id)> on_client_disconnected;
@@ -52,6 +55,7 @@ private:
     virtual void removed_cache_entries(u64 clear_cache_request_id) override;
     virtual void disk_cache_size_changed(u64 size) override;
     virtual void retrieved_cache_access_profile(u64 access_profile_request_id, Vector<CacheAccessBucket> buckets) override;
+    virtual void request_adopter_designated(u64 designation_id) override;
 
     HashMap<u64, NonnullRefPtr<Core::Promise<CacheSizes>>> m_pending_cache_size_estimations;
     u64 m_next_cache_size_estimation_id { 0 };
@@ -61,6 +65,9 @@ private:
 
     HashMap<u64, NonnullRefPtr<Core::Promise<Vector<CacheAccessBucket>>>> m_pending_cache_access_profile_requests;
     u64 m_next_cache_access_profile_request_id { 0 };
+
+    HashMap<u64, NonnullRefPtr<Core::Promise<Empty>>> m_pending_adopter_designations;
+    u64 m_next_adopter_designation_id { 0 };
 };
 
 }

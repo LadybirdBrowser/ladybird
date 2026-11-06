@@ -287,7 +287,7 @@ void FileDownloader::follow_download_redirect(u64 download_id, HTTP::HeaderList 
     start_download_request(download_id, redirect_url.release_value());
 }
 
-u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, LexicalPath destination, Optional<u64> total_size, HTTP::Cookie::SameSiteContext same_site_context, int request_server_client_id, u64 request_server_request_id, ReadonlyBytes initial_data,
+u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, LexicalPath destination, Optional<u64> total_size, HTTP::Cookie::SameSiteContext same_site_context, int request_server_client_id, u64 request_server_request_id, int owner_client_id, ReadonlyBytes initial_data,
     ResponseFinished on_response_finished)
 {
     ScopeGuard report_failure = [&] {
@@ -311,10 +311,10 @@ u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, Le
             return download_id;
     }
 
-    // The response lives in the RequestServer of the client that fetched it.
+    // The response lives in the RequestServer of its owner.
     RefPtr<Requests::Request> request;
-    if (auto request_server = RequestServerManager::the().instance_for_client(request_server_client_id))
-        request = request_server->ui_client().adopt_request(request_server_client_id, request_server_request_id);
+    if (auto request_server = RequestServerManager::the().instance_for_client(owner_client_id))
+        request = request_server->ui_client().adopt_request(request_server_client_id, request_server_request_id, Requests::RequestClient::TransferLease::No, owner_client_id);
     if (!request) {
         fail_download(download_id, "Unable to adopt request to download file"_string);
         return download_id;
