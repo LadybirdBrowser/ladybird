@@ -280,11 +280,14 @@ unsafe fn wait(context: *mut ExecutionContext) -> u64 {
         }
     };
     let timeout = (timeout >= 0).then(|| std::time::Duration::from_nanos(timeout as u64));
-    match futex::atomic_wait(word, expected, timeout, None) {
+    match futex::atomic_wait(word, expected, timeout, store.wait_interrupt.as_deref()) {
         AtomicWaitResult::Woken => 0,
         AtomicWaitResult::NotEqual => 1,
         AtomicWaitResult::TimedOut => 2,
-        AtomicWaitResult::Interrupted => unreachable!("nothing can interrupt this wait"),
+        AtomicWaitResult::Interrupted => {
+            store.pending_trap = Some(Trap::StackExhausted);
+            crate::abi::WAIT_CANNOT_BLOCK
+        }
     }
 }
 

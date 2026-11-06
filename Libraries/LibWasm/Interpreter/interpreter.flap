@@ -902,6 +902,14 @@ handler Block() @opcode(0x02) {
 }
 
 handler Loop() @opcode(0x03) {
+    # Another thread stops the code of a store by making its stack limit the highest address. Calls notice, but only
+    # this stops a loop that does not call.
+    let interrupt_context = context();
+    let mut stack_limit: u64;
+    load64(stack_limit, [interrupt_context, CONTEXT_STACK_LIMIT]);
+    if stack_limit + 1 == 0 @cold {
+        trap_with(TRAP_STACK_EXHAUSTED, interrupt_context);
+    }
     let function = frame_word(FRAME_FUNCTION);
     let mut budget: u64;
     load32(budget, [function, FUNCTION_TIER_UP_BUDGET]);

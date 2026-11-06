@@ -222,6 +222,11 @@ impl Agent {
         let store = unsafe { &mut *store_cell.get() };
         store.attach_to_heap();
 
+        // NB: An interrupt of the agent's VM has to stop the store's code too.
+        // SAFETY: The word is in the boxed store, which does not move, and shut_down() clears it before the store goes.
+        unsafe { vm.set_wasm_stack_limit_word(store.stack_limit_word()) };
+        store.wait_interrupt = Some(vm.wait_interrupt().clone());
+
         // NB: The store is the agent's, whose [[CanBlock]] decides whether memory.atomic.wait may block.
         store.can_block = libjs_rust::api::agent_can_suspend(vm);
 
@@ -261,6 +266,8 @@ impl Agent {
         let Some(agent) = AGENT.take() else {
             return;
         };
+        // SAFETY: Null is always allowed.
+        unsafe { agent.vm().set_wasm_stack_limit_word(std::ptr::null()) };
         // SAFETY: The root belongs to the agent, which is going away, and the heap it is in is alive.
         unsafe { gc_root_destroy(agent._js_tag_root.as_ptr()) };
         // SAFETY: the() leaked this box, and AGENT held the only way to reach the agent.

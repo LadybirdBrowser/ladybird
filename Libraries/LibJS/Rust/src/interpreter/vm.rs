@@ -8,12 +8,12 @@ use core::cell::{Cell, OnceCell, Ref, RefCell};
 use core::ffi::c_void;
 use core::ops::ControlFlow;
 use core::ptr::NonNull;
-use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering, fence};
+use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering, fence};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use ak::futex::WaitInterrupt;
 use ak::{Utf16FlyString, Utf16String};
@@ -518,10 +518,13 @@ pub struct Vm {
     pub jit_native_stack_limit: AtomicUsize,
     /// Set once script on this VM has to stop for good (see request_interrupt()). Any thread may set it.
     interrupt_requested: AtomicBool,
-    /// What wakes this VM's thread from Atomics.wait() for an interrupt.
+    /// What wakes this VM's thread from Atomics.wait() and memory.atomic.wait for an interrupt.
     wait_interrupt: Arc<WaitInterrupt>,
     /// The tables `VmHead::dispatch_tables` points to.
     pub(crate) own_dispatch_tables: VmDispatchTables,
+    /// The word that stops the WebAssembly code of this VM's agent (see set_wasm_stack_limit_word()), if it has any.
+    /// The lock keeps the word from going away during an interrupt.
+    wasm_stack_limit_word: Mutex<*const AtomicU64>,
     heap: OnceCell<Heap>,
     _interpreter_stack_memory: InterpreterStackMemory,
     /// The storage of the execution context stack, whose length is its capacity. The head points into it and knows
@@ -697,6 +700,7 @@ impl Vm {
             interrupt_requested: AtomicBool::new(false),
             wait_interrupt: Arc::new(WaitInterrupt::new()),
             own_dispatch_tables: VmDispatchTables::new(),
+            wasm_stack_limit_word: Mutex::new(core::ptr::null()),
             heap: OnceCell::new(),
             _interpreter_stack_memory: interpreter_stack_memory,
             execution_context_stack_storage: RefCell::new(execution_context_stack_storage),
@@ -904,6 +908,14 @@ impl Vm {
         self.jit_native_stack_limit.store(usize::MAX, Ordering::Relaxed);
         fence(Ordering::SeqCst);
         self.own_dispatch_tables.stop_dispatching();
+        let word = self
+            .wasm_stack_limit_word
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        // SAFETY: Whoever set the word clears it before it goes away, which takes the lock.
+        if let Some(word) = unsafe { word.as_ref() } {
+            word.store(u64::MAX, Ordering::Relaxed);
+        }
         self.wait_interrupt.interrupt();
     }
 
@@ -911,6 +923,24 @@ impl Vm {
     pub fn wait_interrupt(&self) -> &Arc<WaitInterrupt> {
         &self.wait_interrupt
     }
+
+    /// Has an interrupt also store the highest address to `word` (null for none), which is how the embedder's
+    /// WebAssembly store learns of it. Only the VM's thread may call this.
+    ///
+    /// # Safety
+    ///
+    /// `word` must be null, or point to a word that stays live until it is replaced or cleared by another call.
+    pub unsafe fn set_wasm_stack_limit_word(&self, word: *const AtomicU64) {
+        *self
+            .wasm_stack_limit_word
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = word;
+        // SAFETY: The caller guarantees that the word is live, or null.
+        if self.interrupt_requested()
+            && let Some(word) = unsafe { word.as_ref() }
+        {
+            word.store(u64::MAX, Ordering::Relaxed);
+        }
     }
 
     #[inline]

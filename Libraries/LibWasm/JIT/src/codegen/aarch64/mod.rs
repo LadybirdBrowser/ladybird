@@ -733,6 +733,7 @@ impl<'a> CodeGenerator<'a> {
             | Op::TableStore
             | Op::CalleeInstance
             | Op::CheckNull
+            | Op::CheckInterrupt
             | Op::CheckFunction
             | Op::Helper => self.lower_runtime(value),
             Op::CheckedAddress
@@ -780,6 +781,7 @@ pub fn generate(
     func: &Func,
     allocation: &Allocation,
     runtime: &RuntimeInfo,
+    _stack_limit: u64,
 ) -> Result<Generated, crate::CompileFailure> {
     let _ = (NONE, Shift::Lsl);
     CodeGenerator::new(func, allocation, runtime).generate()

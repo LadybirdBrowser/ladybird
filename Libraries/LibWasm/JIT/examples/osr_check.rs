@@ -60,6 +60,7 @@ fn main() {
         if let Some((function, pc)) = dump {
             let mut context = CompileContext::default();
             let request = CompileRequest {
+                stack_limit: 0,
                 module: module.clone(),
                 function,
                 runtime: RUNTIME,
@@ -101,6 +102,7 @@ fn main() {
                         }
                         for pc in loops {
                             let request = CompileRequest {
+                                stack_limit: 0,
                                 module: module.clone(),
                                 function: first + index,
                                 runtime: RUNTIME,

@@ -118,6 +118,23 @@ impl CodeGenerator<'_> {
                 let null = self.trap_label(u32::from(node.flags));
                 self.asm.cbz(Width::W64, input(0), null);
             }
+            Op::CheckInterrupt => {
+                let interrupted = self.trap_label(libwasm_module::abi::TRAP_STACK_EXHAUSTED);
+                self.asm
+                    .ldr(Width::W64, SCRATCH, MemOperand::Offset(FP, convention::FRAME_INSTANCE));
+                self.asm.ldr(
+                    Width::W64,
+                    SCRATCH,
+                    MemOperand::Offset(SCRATCH, field(offset_of!(InstanceData, context))),
+                );
+                self.asm.ldr(
+                    Width::W64,
+                    SCRATCH,
+                    MemOperand::Offset(SCRATCH, field(offset_of!(ExecutionContext, stack_limit))),
+                );
+                self.asm.cmp(Width::W64, FP, SCRATCH);
+                self.asm.b_cond(Cond::Lo, interrupted);
+            }
             Op::CheckFunction => {
                 let (reference, identity) = (input(0), input(1));
                 let null = self.trap_label(u32::from(node.flags));

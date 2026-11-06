@@ -469,3 +469,98 @@ fn calls_between_the_tiers_with_many_values() {
     };
     assert_eq!(run(false), run(true));
 }
+
+/// (func (export "spin") (loop (br 0)))
+const LOOP_FOREVER: &[u8] = &[
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07,
+    0x08, 0x01, 0x04, 0x73, 0x70, 0x69, 0x6e, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b,
+    0x0b,
+];
+
+/// Runs LOOP_FOREVER in `store` while another thread interrupts the store.
+fn interrupt_a_loop(mut store: Store, delay: std::time::Duration) {
+    let module = libwasm_engine::compile(LOOP_FOREVER).unwrap();
+    let instance = store.instantiate(Arc::new(module), &[]).unwrap();
+    let word = store.stack_limit_word() as usize;
+    let interrupter = std::thread::spawn(move || {
+        std::thread::sleep(delay);
+        // SAFETY: The store outlives this thread.
+        let word = unsafe { &*(word as *const std::sync::atomic::AtomicU64) };
+        word.store(
+            libwasm_engine::abi::STACK_LIMIT_INTERRUPTED,
+            std::sync::atomic::Ordering::Relaxed,
+        );
+    });
+    assert_eq!(call(&mut store, instance, "spin", &[]), Err(Trap::StackExhausted));
+    interrupter.join().unwrap();
+
+    // NB: It stays that way.
+    assert_eq!(call(&mut store, instance, "spin", &[]), Err(Trap::StackExhausted));
+}
+
+#[test]
+fn another_thread_interrupts_an_interpreted_loop() {
+    let mut store = Store::new();
+    store.disable_jit();
+    interrupt_a_loop(store, std::time::Duration::from_millis(50));
+}
+
+#[test]
+fn another_thread_interrupts_a_compiled_loop() {
+    // NB: The loop tiers up on the way there, wherever the JIT runs.
+    interrupt_a_loop(Store::new(), std::time::Duration::from_millis(500));
+}
+
+/// Starts a memory.atomic.wait on a thread of its own, which `interrupt` can end, and returns the address of its word.
+fn start_wait(
+    timeout: i64,
+    interrupt: Arc<ak::futex::WaitInterrupt>,
+    disable_jit: bool,
+) -> (usize, std::thread::JoinHandle<Result<Vec<Value>, Trap>>) {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let waiter = std::thread::spawn(move || {
+        let mut store = Store::new();
+        if disable_jit {
+            store.disable_jit();
+        }
+        store.wait_interrupt = Some(interrupt);
+        let instance = instantiate(&mut store, "shared_memory_export.wasm");
+        let Some(ExternValue::Memory(memory)) = store.instance(instance).export("memory") else {
+            panic!("no memory export");
+        };
+        sender.send(store.memory(memory).bytes().as_ptr() as usize).unwrap();
+        call(
+            &mut store,
+            instance,
+            "wait",
+            &[Value::I32(8), Value::I32(0), Value::I64(timeout)],
+        )
+    });
+    (receiver.recv().unwrap() + 8, waiter)
+}
+
+#[test]
+fn another_thread_interrupts_a_wait() {
+    for disable_jit in [false, true] {
+        // No timeout, and ten minutes.
+        for timeout in [-1, 600_000_000_000] {
+            let interrupt = Arc::new(ak::futex::WaitInterrupt::new());
+            let (_, waiter) = start_wait(timeout, interrupt.clone(), disable_jit);
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            interrupt.interrupt();
+            assert_eq!(waiter.join().unwrap(), Err(Trap::StackExhausted));
+        }
+    }
+}
+
+/// Only a wake ends a wait: it does not look at the word again.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_change_of_the_word_does_not_end_a_wait() {
+    let interrupt = Arc::new(ak::futex::WaitInterrupt::new());
+    let (address, waiter) = start_wait(300_000_000, interrupt, false);
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    // SAFETY: The word is in the memory of the store, which lives until the wait is over.
+    unsafe { &*(address as *const std::sync::atomic::AtomicU32) }.store(1, std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(waiter.join().unwrap(), Ok(vec![Value::I32(2)]));
+}

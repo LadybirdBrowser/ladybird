@@ -92,6 +92,7 @@ pub struct CodeGenerator<'a> {
     func: &'a Func,
     allocation: &'a Allocation,
     runtime: &'a RuntimeInfo,
+    stack_limit: u64,
     asm: Assembler,
     block_labels: Vec<Label>,
     trap_labels: Vec<Option<Label>>,
@@ -109,12 +110,13 @@ pub struct CodeGenerator<'a> {
 }
 
 impl<'a> CodeGenerator<'a> {
-    pub fn new(func: &'a Func, allocation: &'a Allocation, runtime: &'a RuntimeInfo) -> Self {
+    pub fn new(func: &'a Func, allocation: &'a Allocation, runtime: &'a RuntimeInfo, stack_limit: u64) -> Self {
         let size = convention::FRAME_HEADER_SIZE as u32 + 8 * allocation.slot_count + allocation.outgoing_size;
         Self {
             func,
             allocation,
             runtime,
+            stack_limit,
             asm: Assembler::for_host(),
             block_labels: Vec::new(),
             trap_labels: vec![None; 32],
@@ -694,6 +696,7 @@ impl<'a> CodeGenerator<'a> {
             | Op::TableStore
             | Op::CalleeInstance
             | Op::CheckNull
+            | Op::CheckInterrupt
             | Op::CheckFunction
             | Op::Helper => self.lower_runtime(value),
             Op::VectorLoad => self.lower_memory(value),
@@ -728,7 +731,8 @@ pub fn generate(
     func: &Func,
     allocation: &Allocation,
     runtime: &RuntimeInfo,
+    stack_limit: u64,
 ) -> Result<Generated, crate::CompileFailure> {
     let _ = NONE;
-    CodeGenerator::new(func, allocation, runtime).generate()
+    CodeGenerator::new(func, allocation, runtime, stack_limit).generate()
 }

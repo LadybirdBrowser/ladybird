@@ -31,6 +31,7 @@
 #![allow(dead_code)]
 
 use std::mem::offset_of;
+use std::sync::atomic::AtomicU64;
 
 /// The frame header. All fields are 8 bytes, at `fp + FRAME_*`. Its first two words are where a native call and
 /// `push fp` leave the return address and the caller's fp, so that compiled frames have the same header.
@@ -188,11 +189,16 @@ pub const TRAP_EXPECTED_SHARED_MEMORY: u32 = 17;
 /// (TRAP_RUNTIME).
 pub const WAIT_CANNOT_BLOCK: u64 = 3;
 
+/// The stack limit that no frame stays above, of a store whose code has to stop for good: compiled code traps at its
+/// next function entry or loop, and so does the interpreter. The trap is the one for an exhausted stack.
+pub const STACK_LIMIT_INTERRUPTED: u64 = u64::MAX;
+
 /// The state one thread executes WebAssembly with.
 #[repr(C)]
 pub struct ExecutionContext {
-    /// The lowest address a frame may reach.
-    pub stack_limit: u64,
+    /// The lowest address a frame may reach. Another thread may make this `STACK_LIMIT_INTERRUPTED`, whenever it wants
+    /// the code running here to stop.
+    pub stack_limit: AtomicU64,
     /// The fp of the innermost entry into the interpreter.
     pub entry_fp: u64,
     /// The `EntryRecord` of the innermost entry into the interpreter.
