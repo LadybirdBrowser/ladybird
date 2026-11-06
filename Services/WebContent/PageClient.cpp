@@ -1175,7 +1175,7 @@ void PageClient::schedule_accessibility_tree_update()
 
     if (!m_accessibility_update_timer) {
         m_accessibility_update_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(200), [this] {
-            if (m_is_closed)
+            if (m_is_closed || !page().accessibility_interested())
                 return;
             publish_accessibility_tree(false);
         });

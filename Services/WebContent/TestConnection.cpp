@@ -45,6 +45,9 @@ void TestConnection::reset_state_for_testing(Web::PageId page_id)
         page->page().local_traversable()->reset_navigation_or_history_update_rate_limit_for_testing();
         // A test that sets a preferred color scheme may never put it back, and the override outlives the document.
         page->page().set_preferred_color_scheme_override_for_testing({});
+        // A test that asks for accessibility updates never stops asking, and the page outlives the document, so every
+        // later test in this view would build and serialize the accessibility tree on each change.
+        page->page().set_accessibility_interested(false);
         auto active_entry = page->page().local_traversable()->active_session_history_entry();
         VERIFY(active_entry);
         async_did_reset_state_for_testing(page_id, Web::HTML::create_session_history_entry_descriptor(*active_entry));
