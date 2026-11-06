@@ -56,9 +56,3 @@ public:
 };
 
 }
-
-namespace Web::Bindings {
-
-WEB_API GC::RootVector<GC::Ref<HTML::MessagePort>> message_ports_from_transferred_values(Vector<GC::Root<JS::Object>> const&);
-
-}

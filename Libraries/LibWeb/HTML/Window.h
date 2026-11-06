@@ -231,15 +231,8 @@ public:
         Utf16String target_origin;
     };
     WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, PostMessageOptions const&);
-    struct PreparedPostMessage {
-        SerializedTransferRecord serialize_with_transfer_result;
-        Variant<Utf16String, URL::Origin> target_origin;
-        EnvironmentId incumbent_settings_id;
-        URL::Origin source_origin;
-        GC::Ref<WindowProxy> source;
-    };
-    static WebIDL::ExceptionOr<PreparedPostMessage> prepare_post_message(JS::Realm&, JS::Value message, PostMessageOptions const&);
-    void deliver_posted_message(SerializedTransferRecord, Variant<Utf16String, URL::Origin> const& target_origin, URL::Origin const& source_origin, GC::Ptr<WindowProxy> source);
+    static WebIDL::ExceptionOr<void> window_post_message_steps(JS::Realm&, Variant<GC::Ref<Window>, GC::Ref<RemoteNavigable>> target_window, JS::Value, PostMessageOptions const&);
+    void queue_posted_message(SerializedTransferRecord, Variant<Utf16String, URL::Origin> const& target_origin, URL::Origin const& source_origin, GC::Ptr<WindowProxy> source);
 
     Variant<GC::Ref<DOM::Event>, Empty> event() const;
 
@@ -348,8 +341,6 @@ private:
         GC::RootVector<GC::Ref<DOM::Element>> elements;
     };
     NamedObjects named_objects(Utf16View name);
-
-    WebIDL::ExceptionOr<void> window_post_message_steps(JS::Realm&, JS::Value, PostMessageOptions const&);
 
     // https://html.spec.whatwg.org/multipage/window-object.html#concept-document-window
     GC::Ptr<DOM::Document> m_associated_document;

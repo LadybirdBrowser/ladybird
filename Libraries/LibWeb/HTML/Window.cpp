@@ -11,6 +11,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibIPC/File.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Error.h>
@@ -19,6 +20,7 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
+#include <LibURL/RustIntegration.h>
 #include <LibWeb/Bindings/IdleRequest.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -62,7 +64,6 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Location.h>
-#include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Navigator.h>
@@ -1623,128 +1624,72 @@ Optional<Utf16String> Window::prompt(Optional<Utf16String> const& message, Optio
     return result;
 }
 
-WebIDL::ExceptionOr<Window::PreparedPostMessage> Window::prepare_post_message(JS::Realm& realm, JS::Value message, PostMessageOptions const& options)
+extern "C" {
+JSCompletion web_window_post_message(JSVM*, void* realm, void* target, bool remote, JSValue, FlatPtr target_origin, JSObject* const* transfer, size_t count);
+void web_window_queue_posted_message(JSVM*, Window*, SerializedTransferRecord*, URL::FFI::FfiOrigin const* target_origin, URL::FFI::FfiOrigin const* source_origin, WindowProxy* source);
+EnvironmentSettingsObject* web_window_post_message_incumbent_settings();
+void web_window_post_message_settings_origin(EnvironmentSettingsObject*, void*, void (*)(void*, URL::FFI::FfiOrigin const*));
+WindowProxy* web_window_post_message_source(EnvironmentSettingsObject*);
+void web_window_post_message_parse_target_origin(FlatPtr, void*, void (*)(void*, URL::FFI::FfiOrigin const*));
+void* web_window_post_message_realm(Window*);
+void web_window_post_message_document_origin(Window*, void*, void (*)(void*, URL::FFI::FfiOrigin const*));
+}
+
+EnvironmentSettingsObject* web_window_post_message_incumbent_settings()
 {
-    // 2. Let incumbentSettings be the incumbent settings object.
-    auto& incumbent_settings = incumbent_settings_object();
+    return &incumbent_settings_object();
+}
 
-    // 3. Let targetOrigin be options["targetOrigin"].
-    Variant<Utf16String, URL::Origin> target_origin = options.target_origin;
+void web_window_post_message_settings_origin(EnvironmentSettingsObject* settings, void* context, void (*receive)(void*, URL::FFI::FfiOrigin const*))
+{
+    URL::RustIntegration::lend_origin_to_ffi(settings->origin(), [&](auto const& origin) { receive(context, &origin); });
+}
 
-    // 4. If targetOrigin is a single U+002F SOLIDUS character (/), then set targetOrigin to incumbentSettings's origin.
-    if (options.target_origin == u"/"sv) {
-        target_origin = incumbent_settings.origin();
-    }
-    // 5. Otherwise, if targetOrigin is not a single U+002A ASTERISK character (*), then:
-    else if (options.target_origin != u"*"sv) {
-        // 1. Let parsedURL be the result of running the URL parser on targetOrigin.
-        auto parsed_url = DOMURL::parse(options.target_origin.utf16_view());
+WindowProxy* web_window_post_message_source(EnvironmentSettingsObject* settings)
+{
+    return window_proxy_from_global_this_value(settings->realm().global_environment().global_this_value()).ptr();
+}
 
-        // 2. If parsedURL is failure, then throw a "SyntaxError" DOMException.
-        if (!parsed_url.has_value())
-            return Web::throw_completion(
-                realm,
-                WebIDL::SyntaxError::create(Utf16String::formatted("Invalid URL for targetOrigin: '{}'", options.target_origin)));
+void web_window_post_message_parse_target_origin(FlatPtr raw_target_origin, void* context, void (*receive)(void*, URL::FFI::FfiOrigin const*))
+{
+    // DOMURL parsing also resolves blob URL entries, whose stored origin takes precedence over parsing their path.
+    auto target_origin = Utf16String::from_raw(raw_target_origin);
+    if (auto url = DOMURL::parse(target_origin.utf16_view()); url.has_value())
+        URL::RustIntegration::lend_origin_to_ffi(url->origin(), [&](auto const& origin) { receive(context, &origin); });
+}
 
-        // 3. Set targetOrigin to parsedURL's origin.
-        target_origin = parsed_url->origin();
-    }
+void* web_window_post_message_realm(Window* window)
+{
+    return &window->principal_realm();
+}
 
-    // 6. Let transfer be options["transfer"].
-    auto& transfer = options.structured_serialize_options.transfer;
-
-    // 7. Let serializeWithTransferResult be StructuredSerializeWithTransfer(message, transfer). Rethrow any exceptions.
-    auto serialize_with_transfer_result = TRY(structured_serialize_with_transfer(realm, message, transfer));
-
-    // NB: The task queued by step 8 reads incumbentSettings in its steps 2 and 3. Snapshot those values here.
-    // 8.2. Let origin be the incumbentSettings's origin.
-    auto source_origin = incumbent_settings.origin();
-
-    // 8.3. Let source be the WindowProxy object corresponding to incumbentSettings's global object (a Window object).
-    auto source = window_proxy_from_global_this_value(incumbent_settings.realm().global_environment().global_this_value());
-
-    return PreparedPostMessage {
-        .serialize_with_transfer_result = move(serialize_with_transfer_result),
-        .target_origin = move(target_origin),
-        .incumbent_settings_id = incumbent_settings.id,
-        .source_origin = move(source_origin),
-        .source = source,
-    };
+void web_window_post_message_document_origin(Window* window, void* context, void (*receive)(void*, URL::FFI::FfiOrigin const*))
+{
+    URL::RustIntegration::lend_origin_to_ffi(window->document()->origin(), [&](auto const& origin) { receive(context, &origin); });
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
-WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Realm& realm, JS::Value message, PostMessageOptions const& options)
+WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Realm& realm, Variant<GC::Ref<Window>, GC::Ref<RemoteNavigable>> target_window, JS::Value message, PostMessageOptions const& options)
 {
-    // 1. Let targetRealm be targetWindow's realm.
-    // NB: Taken from targetWindow when the queued task delivers the message.
-
-    // 2-7.
-    auto prepared = TRY(prepare_post_message(realm, message, options));
-
-    // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:
-    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this, prepared = move(prepared)]() mutable {
-        deliver_posted_message(move(prepared.serialize_with_transfer_result), prepared.target_origin, prepared.source_origin, prepared.source);
-    }));
-
+    auto* target = target_window.visit([](auto target) -> void* { return target.ptr(); });
+    Vector<JSObject*> transfer;
+    for (auto const& object : options.structured_serialize_options.transfer)
+        transfer.append(JS::HostABI::object_to_abi(object.ptr()));
+    TRY(JS::HostABI::completion_from_abi<void>(web_window_post_message(JS::HostABI::vm_to_abi(realm.vm()), &realm, target, target_window.has<GC::Ref<RemoteNavigable>>(), JS::HostABI::value_to_abi(message), options.target_origin.to_raw_leaked(), transfer.data(), transfer.size())));
     return {};
 }
 
-void Window::deliver_posted_message(SerializedTransferRecord serialize_with_transfer_result, Variant<Utf16String, URL::Origin> const& target_origin, URL::Origin const& origin, GC::Ptr<WindowProxy> source)
+void Window::queue_posted_message(SerializedTransferRecord record, Variant<Utf16String, URL::Origin> const& target_origin, URL::Origin const& source_origin, GC::Ptr<WindowProxy> source)
 {
-    // 1. Let targetRealm be targetWindow's realm.
-    auto& target_realm = principal_realm();
-
-    // 1. If the targetOrigin argument is not a single literal U+002A ASTERISK character (*) and targetWindow's
-    //    associated Document's origin is not same origin with targetOrigin, then return.
-    // NOTE: Due to step 4 and 5 above, the only time it's not '*' is if target_origin contains an Origin.
-    if (!target_origin.has<Utf16String>()) {
-        auto const& actual_target_origin = target_origin.get<URL::Origin>();
-        if (!document()->origin().is_same_origin(actual_target_origin))
-            return;
-    }
-
-    // 2. Let origin be the incumbentSettings's origin.
-    // 3. Let source be the WindowProxy object corresponding to incumbentSettings's global object (a Window object).
-    // NB: Both were snapshotted by prepare_post_message().
-    NullableMessageEventSource source_for_event = Empty {};
-    if (source)
-        source_for_event = GC::Ref { *source };
-
-    // 4. Let deserializeRecord be StructuredDeserializeWithTransfer(serializeWithTransferResult, targetRealm).
-    // NB: The execution context must not stay on the stack while the event is dispatched, so that a microtask
-    //     checkpoint can be performed after each listener.
-    auto deserialize_record_or_error = [&] {
-        TemporaryExecutionContext temporary_execution_context { target_realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-        return structured_deserialize_with_transfer(serialize_with_transfer_result, target_realm);
-    }();
-
-    // If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
-    // with its origin initialized to origin and the source attribute initialized to source, and then return.
-    if (deserialize_record_or_error.is_exception()) {
-        MessageEventInit message_event_init { {}, JS::js_null(), Utf16String {}, Utf16String {}, {}, source_for_event };
-
-        auto message_error_event = MessageEvent::create(target_realm.global_object(), EventNames::messageerror, message_event_init, origin);
-        dispatch_event(message_error_event);
-        return;
-    }
-
-    // 5. Let messageClone be deserializeRecord.[[Deserialized]].
-    auto deserialize_record = deserialize_record_or_error.release_value();
-    auto message_clone = deserialize_record.deserialized;
-
-    // 6. Let newPorts be a new frozen array consisting of all MessagePort objects in deserializeRecord.[[TransferredValues]],
-    //    if any, maintaining their relative order.
-    // FIXME: Use a FrozenArray
-    auto new_ports = Bindings::message_ports_from_transferred_values(deserialize_record.transferred_values);
-
-    // 7. Fire an event named message at targetWindow, using MessageEvent, with its origin initialized to origin,
-    //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports
-    //    attribute initialized to newPorts.
-    MessageEventInit message_event_init { {}, message_clone, Utf16String {}, Utf16String {}, move(new_ports), source_for_event };
-
-    auto message_event = MessageEvent::create(target_realm.global_object(), EventNames::message, message_event_init, origin);
-    message_event->set_is_trusted(true);
-    dispatch_event(message_event);
+    URL::RustIntegration::lend_origin_to_ffi(source_origin, [&](auto const& source_origin) {
+        auto queue = [&](URL::FFI::FfiOrigin const* target) {
+            web_window_queue_posted_message(JS::HostABI::vm_to_abi(vm()), this, &record, target, &source_origin, source.ptr());
+        };
+        if (target_origin.has<URL::Origin>())
+            URL::RustIntegration::lend_origin_to_ffi(target_origin.get<URL::Origin>(), [&](auto const& target) { queue(&target); });
+        else
+            queue(nullptr);
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage-options
@@ -1752,7 +1697,7 @@ WebIDL::ExceptionOr<void> Window::post_message(JS::Realm& realm, JS::Value messa
 {
     // The Window interface's postMessage(message, options) method steps are to run the window post message steps given
     // this, message, and options.
-    return window_post_message_steps(realm, message, options);
+    return window_post_message_steps(realm, GC::Ref { *this }, message, options);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage
@@ -1760,7 +1705,7 @@ WebIDL::ExceptionOr<void> Window::post_message(JS::Realm& realm, JS::Value messa
 {
     // The Window interface's postMessage(message, targetOrigin, transfer) method steps are to run the window post message
     // steps given this, message, and «[ "targetOrigin" → targetOrigin, "transfer" → transfer ]».
-    return window_post_message_steps(realm, message, PostMessageOptions { { .transfer = transfer }, target_origin });
+    return window_post_message_steps(realm, GC::Ref { *this }, message, PostMessageOptions { { .transfer = transfer }, target_origin });
 }
 
 // https://dom.spec.whatwg.org/#dom-window-event

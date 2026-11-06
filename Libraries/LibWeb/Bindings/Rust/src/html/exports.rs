@@ -8,7 +8,7 @@
 //! handles, which Libraries/LibWeb/HTML/ImageData.cpp, Libraries/LibWeb/HTML/ImageBitmap.cpp and
 //! Libraries/LibWeb/HTML/MessagePort.cpp declare. A cell is the cell of an object of the interface that the name of
 //! the function says. Libraries/LibWeb/HTML/BroadcastChannel.cpp hands the BroadcastChannel objects the messages that
-//! other processes post.
+//! other processes post, and Libraries/LibWeb/HTML/Window.cpp runs the window post message steps.
 
 use core::ffi::{c_int, c_void};
 use core::ptr::NonNull;
@@ -24,16 +24,20 @@ use super::image_data::ImageData;
 use super::message_port::MessagePort;
 use super::storage::{Storage, StorageType};
 use super::storage_event::{StorageEvent, StorageEventInit};
+use super::window::{PostedMessage, queue_posted_message, window_post_message_steps};
 use crate::bindings::CallContext;
 use crate::bindings::conversions::UsvString;
+use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::environment_settings_object::relevant_settings_object;
 use crate::bindings::event_target::CppEventTarget;
 use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi, realm_arguments, wrap};
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::dom::event::EventInit;
+use crate::html::structured_serialize::cpp::SerializedTransferRecord;
 use crate::html::structured_serialize::cpp::TransferDataDecoder;
 use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
+use crate::html::structured_serialize::transfer_record::TransferRecord;
 use crate::storage_api::storage_area_mirror::StorageEndpointType;
 use crate::storage_api::storage_bottle::{obtain_a_local_storage_bottle_map, obtain_a_session_storage_bottle_map};
 use crate::storage_api::storage_key::StorageKey;
@@ -48,6 +52,18 @@ unsafe fn object_from_abi<'a, T: Interface>(cell: *mut c_void) -> &'a T {
     let object: Ref<T> = unsafe { cell_from_abi(cell) };
     // SAFETY: The caller keeps the cell alive for 'a.
     unsafe { &*object.as_ptr() }
+}
+
+/// # Safety
+///
+/// `objects` must point to `count` live objects.
+unsafe fn objects_from_abi(vm: &Vm, objects: *const *mut c_void, count: usize) -> MarkedVec<'_, Gc<Object>> {
+    let list = MarkedVec::with_capacity(vm, count);
+    // SAFETY: The caller passes `count` live objects.
+    for &object in unsafe { ak::slice_from_raw_parts(objects, count) } {
+        list.push(unsafe { Gc::from_non_null(NonNull::new(object.cast::<Object>()).expect("C++ passes objects")) });
+    }
+    list
 }
 
 /// Creates an ImageData of the size, with transparent black pixels and the sRGB color space, in the realm, and stores
@@ -279,13 +295,8 @@ pub unsafe extern "C" fn web_rust_message_port_post_message(
     let mut cx = CallContext::new(vm, realm);
     // SAFETY: The caller passes a live cell of a MessagePort and a live value.
     let (port, message) = unsafe { (cell_from_abi::<MessagePort>(port), Value::from_raw(message)) };
-    let transfer_list = MarkedVec::with_capacity(vm, count);
-    for index in 0..count {
-        // SAFETY: The caller passes `count` live objects.
-        transfer_list.push(unsafe {
-            Gc::from_non_null(NonNull::new((*transfer.add(index)).cast::<Object>()).expect("C++ passes objects"))
-        });
-    }
+    // SAFETY: The caller passes `count` live objects.
+    let transfer_list = unsafe { objects_from_abi(vm, transfer, count) };
     let result = MessagePort::post_message(&port, &mut cx, message, transfer_list);
     RawNativeFunctionResult::from_completion(
         result
@@ -540,4 +551,61 @@ pub unsafe extern "C" fn web_rust_html_create_storage_event(vm: *mut c_void, rea
     StorageEvent::create(vm, realm, &Utf16String::from_utf8(""), event_init)
         .event()
         .as_ptr()
+}
+
+/// # Safety
+///
+/// The VM, the realm, the target and the transferred objects must be live, and the target must be a Window if remote
+/// is false and a RemoteNavigable otherwise. The target origin string is handed over, and the transfer list is lent.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_window_post_message(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    target: *mut c_void,
+    remote: bool,
+    message: u64,
+    target_origin: usize,
+    transfer: *const *mut c_void,
+    count: usize,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the live VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    let cx = CallContext::new(vm, realm);
+    // SAFETY: The caller lends the live target, message and transferred objects, and hands over the string.
+    let (target, message, target_origin, transfer) = unsafe {
+        (
+            CppCell::from_raw(target),
+            Value::from_raw(message),
+            Utf16String::from_raw_owned(target_origin),
+            objects_from_abi(vm, transfer, count),
+        )
+    };
+    let result = window_post_message_steps(&cx, target, remote, message, &target_origin, &transfer.values());
+    RawNativeFunctionResult::from_completion(result.map(|()| Value::UNDEFINED).map_err(|error| error.throw(&cx)))
+}
+
+/// # Safety
+///
+/// The VM, the Window and the source, if any, must be live, and the record and the origins are lent for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_window_queue_posted_message(
+    vm: *mut c_void,
+    target_window: *mut c_void,
+    record: *mut c_void,
+    target_origin: *const FfiOrigin,
+    origin: *const FfiOrigin,
+    source: *mut c_void,
+) {
+    // SAFETY: The caller passes the live VM, and lends the Window, the source, the record and the origins.
+    unsafe {
+        let vm = &*vm.cast::<Vm>();
+        let posted_message = PostedMessage {
+            target_window: CppCell::from_raw(target_window),
+            serialize_with_transfer_result: TransferRecord::from_cpp(vm, SerializedTransferRecord::from_raw(record)),
+            target_origin: target_origin.as_ref().map(|origin| origin.to_origin()),
+            origin: (*origin).to_origin(),
+            source: NonNull::new(source).map(|source| CppCell::from_raw(source.as_ptr())),
+        };
+        queue_posted_message(vm, posted_message);
+    }
 }

@@ -3569,10 +3569,7 @@ void LocalNavigable::deliver_posted_message_from_another_process(MessageDescript
     }
 
     // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:
-    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*window), GC::create_function(heap(), [window, source, message = move(message)]() mutable {
-        // NB: deliver_posted_message() runs these steps.
-        window->deliver_posted_message(move(message.serialize_with_transfer_result), message.target_origin, message.source_origin, source);
-    }));
+    window->queue_posted_message(move(message.serialize_with_transfer_result), message.target_origin, message.source_origin, source);
 }
 
 // Continue the navigate algorithm at step 9 with the values prepared by steps 1-7 in navigate().

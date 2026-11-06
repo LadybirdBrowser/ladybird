@@ -331,11 +331,13 @@ impl BroadcastChannel {
         let Ok(data) = data else {
             //    If this throws an exception, catch it, fire an event named messageerror at destination, using MessageEvent, with its
             //    origin initialized to sourceOrigin, and then abort these steps.
-            let event = CppEvent::create_message_event_with_origin(
+            let event = CppEvent::create_message_event(
                 target_realm,
                 "messageerror",
                 Value::NULL,
-                &message.source_origin,
+                &[],
+                Some(&message.source_origin),
+                None,
             );
             event.set_is_trusted(true);
             destination.event_target.dispatch_event(&event);
@@ -344,7 +346,8 @@ impl BroadcastChannel {
 
         // 4. Fire an event named message at destination, using MessageEvent, with the data attribute initialized to data and
         //    its origin initialized to sourceOrigin.
-        let event = CppEvent::create_message_event_with_origin(target_realm, "message", data, &message.source_origin);
+        let event =
+            CppEvent::create_message_event(target_realm, "message", data, &[], Some(&message.source_origin), None);
         event.set_is_trusted(true);
         destination.event_target.dispatch_event(&event);
     }
