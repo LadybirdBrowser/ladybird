@@ -87,7 +87,10 @@ WebIDL::ExceptionOr<void> WaveShaperNode::set_curve(GC::Ptr<JS::Float32Array> ne
 
     // When this attribute is set, an internal copy of the curve is created by the WaveShaperNode. Subsequent
     // modifications of the contents of the array used to set the attribute therefore have no effect.
-    m_curve_copy = new_curve ? adopt_ref(*new Rendering::WaveShaperCurve(copy_float32_array(*new_curve))) : nullptr;
+    if (new_curve)
+        m_curve_copy = adopt_ref(*new Rendering::WaveShaperCurve(copy_float32_array(*new_curve)));
+    else
+        m_curve_copy = nullptr;
     send_parameters_to_render_node();
     return {};
 }
