@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        window.onmessage = event => {
+            println(event.data);
+            done();
+        };
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-scripts";
+        iframe.srcdoc = `<script>
+            onmessage = () => parent.postMessage("message", "*");
+            onmessageerror = event => parent.postMessage(\`messageerror isTrusted: \${event.isTrusted}\`, "*");
+        <\/script>`;
+        iframe.onload = () => iframe.contentWindow.postMessage(new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])), "*");
+        document.body.appendChild(iframe);
+    });
+</script>
