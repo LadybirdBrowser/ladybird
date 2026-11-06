@@ -8,6 +8,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf8View.h>
 #include <LibGC/Heap.h>
+#include <LibGC/RootVector.h>
 #include <LibGfx/Font/Font.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/AttributeNames.h>
@@ -467,7 +468,44 @@ static Optional<u64> fill_volatile_fields(WebView::AccessibilityNodeData& node_d
     return keep_text_geometry(node_data, *text_node, document, geometry.release_value());
 }
 
+static bool should_skip_child_in_node_data(AccessibilityTreeNode const& child)
+{
+    if (child.value()->is_uninteresting_whitespace_node())
+        return true;
+    if (child.value()->is_text()) {
+        for (auto* ancestor = child.value()->parent(); ancestor; ancestor = ancestor->parent()) {
+            if (is<HTML::HTMLHeadElement>(*ancestor))
+                return true;
+        }
+    }
+    return false;
+}
+
 void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const& document, Layout::BegunRead const& read, i64 parent_id, AccessibilityChangeTracker* tracker) const
+{
+    // Each node comes out before its subtree, and its children in order: a depth-first walk. It's done with a stack of
+    // its own rather than by recursion, since a page's DOM can be many thousands of levels deep, and a frame per level
+    // would exhaust the thread's stack.
+    // The nodes still to serialize, each with its parent's ID at the same index of pending_parent_ids.
+    GC::RootVector<GC::Ref<AccessibilityTreeNode const>> pending_nodes;
+    Vector<i64> pending_parent_ids;
+    pending_nodes.append(*this);
+    pending_parent_ids.append(parent_id);
+    while (!pending_nodes.is_empty()) {
+        auto node = pending_nodes.take_last();
+        auto node_parent_id = pending_parent_ids.take_last();
+        auto id = node->serialize_node_as_node_data(out, document, read, node_parent_id, tracker);
+        auto children = node->children();
+        for (size_t i = children.size(); i > 0; --i) {
+            if (should_skip_child_in_node_data(*children[i - 1]))
+                continue;
+            pending_nodes.append(*children[i - 1]);
+            pending_parent_ids.append(id);
+        }
+    }
+}
+
+i64 AccessibilityTreeNode::serialize_node_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const& document, Layout::BegunRead const& read, i64 parent_id, AccessibilityChangeTracker* tracker) const
 {
     WebView::AccessibilityNodeData node_data;
     node_data.parent_id = parent_id;
@@ -930,32 +968,15 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
 
     auto my_id = node_data.id;
 
-    auto should_skip_child = [](AccessibilityTreeNode const& child) -> bool {
-        if (child.value()->is_uninteresting_whitespace_node())
-            return true;
-        if (child.value()->is_text()) {
-            for (auto* ancestor = child.value()->parent(); ancestor; ancestor = ancestor->parent()) {
-                if (is<HTML::HTMLHeadElement>(*ancestor))
-                    return true;
-            }
-        }
-        return false;
-    };
-
     for (auto const& child : children()) {
-        if (should_skip_child(*child))
+        if (should_skip_child_in_node_data(*child))
             continue;
         node_data.child_ids.append(static_cast<i64>(child->value()->unique_id().value()));
     }
 
     if (!tracker || tracker->note(node_data, record_version, geometry_version))
         out.append(move(node_data));
-
-    for (auto const& child : children()) {
-        if (should_skip_child(*child))
-            continue;
-        child->serialize_tree_as_node_data(out, document, read, my_id, tracker);
-    }
+    return my_id;
 }
 
 void AccessibilityTreeNode::visit_edges(Visitor& visitor)
