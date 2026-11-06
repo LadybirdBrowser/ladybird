@@ -95,7 +95,6 @@ pub struct StrokeStyle {
     pub dash_offset: f32,
 }
 
-/// A path, with the rules of `Gfx::Path` for each operation.
 pub struct Path {
     geometry: PathGeometry,
     // A process-unique, never-reused identity, so that consumers that hold a copied snapshot can
@@ -192,7 +191,7 @@ impl Path {
         self.geometry_mut().set_fill_rule(fill_rule);
     }
 
-    /// Whether the path has no current point, which Gfx::Path::is_empty() calls empty.
+    /// Whether the path has no current point.
     pub fn is_empty(&self) -> bool {
         self.geometry.is_empty()
     }

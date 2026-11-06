@@ -175,10 +175,7 @@ fn point(x: f32, y: f32) -> FloatPoint {
     FloatPoint { x, y }
 }
 
-#[allow(
-    clippy::cast_possible_truncation,
-    reason = "a point of a Gfx::Path is in floats, as the C++ made it"
-)]
+#[allow(clippy::cast_possible_truncation, reason = "a point of a path is in floats")]
 fn point_from_doubles(x: f64, y: f64) -> FloatPoint {
     point(x as f32, y as f32)
 }
@@ -351,7 +348,7 @@ pub(crate) fn ellipse(
     let tau = core::f32::consts::TAU;
     #[allow(
         clippy::cast_possible_truncation,
-        reason = "the angles of an arc of a Gfx::Path are floats"
+        reason = "the angles of an arc of a path are floats"
     )]
     let (start_angle, end_angle) = ((start_angle as f32) % tau, (end_angle as f32) % tau);
 
@@ -523,7 +520,7 @@ pub(crate) fn arc_to(
     // the subpath.
     #[allow(
         clippy::cast_possible_truncation,
-        reason = "the radius of an arc of a Gfx::Path is a float"
+        reason = "the radius of an arc of a path is a float"
     )]
     path.arc_to(end_tangent, radius as f32, large_arc, sweep);
     Ok(())
@@ -670,7 +667,7 @@ pub(crate) fn round_rect(
     let sweep = x_direction * y_direction > 0.0;
     #[allow(
         clippy::cast_possible_truncation,
-        reason = "the radii of an arc of a Gfx::Path are floats"
+        reason = "the radii of an arc of a path are floats"
     )]
     let radii_of = |radius: RoundRectRadius| FloatSize {
         width: radius.x as f32,
@@ -766,7 +763,7 @@ mod tests {
         Close,
     }
 
-    /// The operations that a path was given, with the rules of a Gfx::Path for its current point.
+    /// The operations that a path was given, with the rules of `Path` for its current point.
     #[derive(Default)]
     struct RecordingPath {
         ops: Vec<Op>,

@@ -13,6 +13,7 @@
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/InterpolationColorSpace.h>
+#include <LibGfx/PathData.h>
 #include <LibGfx/RustFFI.h>
 #include <core/SkBitmap.h>
 #include <core/SkBlender.h>
@@ -38,11 +39,6 @@ static_assert(to_underlying(PathVerb::Close) == to_underlying(SkPathVerb::kClose
 static_assert(sizeof(PathVerb) == sizeof(SkPathVerb));
 static_assert(sizeof(FloatPoint) == sizeof(SkPoint));
 
-SkPath to_skia_path(Path const& path)
-{
-    return to_skia_path(path.data());
-}
-
 SkPath to_skia_path(PathData const& data)
 {
     return SkPath::Raw(
@@ -50,6 +46,15 @@ SkPath to_skia_path(PathData const& data)
         { reinterpret_cast<SkPathVerb const*>(data.verbs.data()), data.verbs.size() },
         { data.conic_weights.data(), data.conic_weights.size() },
         to_skia_path_fill_type(data.winding_rule));
+}
+
+SkPath skia_path_from_serialized_bytes(ReadonlyBytes serialized_path)
+{
+    SkPath path;
+    with_contours_of_serialized_path(serialized_path, [&](PathData const& data) {
+        path = to_skia_path(data);
+    });
+    return path;
 }
 
 namespace {

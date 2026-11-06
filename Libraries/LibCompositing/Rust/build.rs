@@ -176,7 +176,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "LibGfx/GradientInterpolation.h",
             "LibGfx/InterpolationColorSpace.h",
             "LibGfx/Matrix4x4.h",
-            "LibGfx/Path.h",
+            "LibGfx/PathData.h",
             "LibGfx/Point.h",
             "LibGfx/Rect.h",
             "LibGfx/ScalingMode.h",

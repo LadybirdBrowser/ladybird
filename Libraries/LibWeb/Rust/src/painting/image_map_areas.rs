@@ -71,7 +71,7 @@ pub struct PublishedImageMapArea {
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
 /// The shape to layer onto the image, built with the same operations the DOM side built it with,
-/// so that the containment test is the one `Gfx::Path` already answered.
+/// so that the containment test gives the same answer.
 fn shape_path(shape: AreaShape, coords: &[f64]) -> Option<Path> {
     // Each area element in areas must be processed as follows to obtain a shape to layer onto the image:
 

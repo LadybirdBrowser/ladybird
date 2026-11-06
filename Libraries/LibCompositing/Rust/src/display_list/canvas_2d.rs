@@ -225,7 +225,7 @@ impl TapeWriter {
         append_record(&mut self.bytes, command, &[]);
     }
 
-    /// `path` is a serialized Gfx::Path.
+    /// `path` is a serialized `libgfx_rust::path::Path`.
     pub fn fill_path(&mut self, path: &[u8], paint: &Paint, winding_rule: WindingRule, compositing: &Compositing) {
         let mut inline_data = InlineData::new::<Canvas2DFillPath>();
         let command = Canvas2DFillPath {
@@ -237,7 +237,7 @@ impl TapeWriter {
         self.append(&command, &inline_data);
     }
 
-    /// `path` is a serialized Gfx::Path.
+    /// `path` is a serialized `libgfx_rust::path::Path`.
     pub fn stroke_path(&mut self, path: &[u8], paint: &Paint, stroke: &Stroke, compositing: &Compositing) {
         let mut inline_data = InlineData::new::<Canvas2DStrokePath>();
         let command = Canvas2DStrokePath {
@@ -350,7 +350,7 @@ impl TapeWriter {
         self.append_plain(&Canvas2DRestore::default());
     }
 
-    /// `path` is a serialized Gfx::Path.
+    /// `path` is a serialized `libgfx_rust::path::Path`.
     pub fn clip_path(&mut self, path: &[u8], winding_rule: WindingRule) {
         let mut inline_data = InlineData::new::<Canvas2DClipPath>();
         let command = Canvas2DClipPath {

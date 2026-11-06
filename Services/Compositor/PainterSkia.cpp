@@ -353,13 +353,13 @@ void PainterSkia::set_transform(Gfx::AffineTransform const& transform)
     canvas.setMatrix(matrix);
 }
 
-void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, sk_sp<SkImageFilter> image_filter, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::CapStyle const& cap_style, Gfx::JoinStyle const& join_style, float miter_limit, Vector<float> const& dash_array, float dash_offset, Optional<CanvasShadow> const& shadow)
+void PainterSkia::stroke_path(SkPath const& path, Gfx::PaintStyle const& paint_style, sk_sp<SkImageFilter> image_filter, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::CapStyle const& cap_style, Gfx::JoinStyle const& join_style, float miter_limit, Vector<float> const& dash_array, float dash_offset, Optional<CanvasShadow> const& shadow)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (thickness <= 0)
         return;
 
-    auto sk_path = prune_path_for_stroking(to_skia_path(path));
+    auto pruned_path = prune_path_for_stroking(path);
     auto paint = to_skia_paint(paint_style, move(image_filter), color_space());
     paint.setAntiAlias(true);
     float alpha = paint.getAlphaf();
@@ -371,20 +371,19 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& pain
     paint.setStrokeMiter(miter_limit);
     paint.setPathEffect(SkDashPathEffect::Make({ dash_array.data(), dash_array.size() }, dash_offset));
     draw_with_compositing(m_painting_surface->canvas(), paint, compositing_and_blending_operator, shadow, [&](SkCanvas& canvas, SkPaint const& paint) {
-        canvas.drawPath(sk_path, paint);
+        canvas.drawPath(pruned_path, paint);
     });
 }
 
-void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, sk_sp<SkImageFilter> image_filter, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule winding_rule, Optional<CanvasShadow> const& shadow)
+void PainterSkia::fill_path(SkPath path, Gfx::PaintStyle const& paint_style, sk_sp<SkImageFilter> image_filter, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule winding_rule, Optional<CanvasShadow> const& shadow)
 {
-    auto sk_path = to_skia_path(path);
-    sk_path.setFillType(to_skia_path_fill_type(winding_rule));
+    path.setFillType(to_skia_path_fill_type(winding_rule));
     auto paint = to_skia_paint(paint_style, move(image_filter), color_space());
     paint.setAntiAlias(true);
     float alpha = paint.getAlphaf();
     paint.setAlphaf(alpha * global_alpha);
     draw_with_compositing(m_painting_surface->canvas(), paint, compositing_and_blending_operator, shadow, [&](SkCanvas& canvas, SkPaint const& paint) {
-        canvas.drawPath(sk_path, paint);
+        canvas.drawPath(path, paint);
     });
 }
 
@@ -469,12 +468,11 @@ void PainterSkia::restore()
     canvas.restore();
 }
 
-void PainterSkia::clip(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+void PainterSkia::clip(SkPath path, Gfx::WindingRule winding_rule)
 {
-    auto sk_path = to_skia_path(path);
-    sk_path.setFillType(to_skia_path_fill_type(winding_rule));
+    path.setFillType(to_skia_path_fill_type(winding_rule));
     auto& canvas = m_painting_surface->canvas();
-    canvas.clipPath(sk_path, SkClipOp::kIntersect, true);
+    canvas.clipPath(path, SkClipOp::kIntersect, true);
 }
 
 void PainterSkia::reset()
