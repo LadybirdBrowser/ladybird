@@ -6,22 +6,21 @@
 
 #pragma once
 
-#include <LibWeb/HTML/HyperlinkElementUtils.h>
+#include <LibWeb/HTML/HTMLHyperlinkElementUtils.h>
 #include <LibWeb/MathML/MathMLElement.h>
 
 namespace Web::MathML {
 
+// AD-HOC: MathML Core's set the url steps do not set the url to null first, so href would keep returning the old URL
+//         after the href attribute is removed. This shares the HTML steps instead, which do.
 class MathMLAnchorElement final
     : public MathMLElement
-    , public HTML::HyperlinkElementUtils {
+    , public HTML::HTMLHyperlinkElementUtils {
     WEB_WRAPPABLE(MathMLAnchorElement, MathMLElement);
     GC_DECLARE_ALLOCATOR(MathMLAnchorElement);
 
 public:
     virtual ~MathMLAnchorElement() override;
-
-    Utf16String href() const;
-    void set_href(Utf16String const&);
 
 private:
     MathMLAnchorElement(DOM::Document&, DOM::QualifiedName);
@@ -29,8 +28,6 @@ private:
     // ^HTML::HTMLHyperlinkElementUtils
     virtual DOM::Element& hyperlink_element_utils_element() override { return *this; }
     virtual DOM::Element const& hyperlink_element_utils_element() const override { return *this; }
-    virtual void update_href() override;
-    virtual void set_the_url() override;
 };
 
 }
