@@ -62,11 +62,11 @@ static auto make_registered_mime_types()
         { .name = "image/gif"sv, .common_extensions = { ".gif"sv } },
         { .name = "image/j2c"sv, .common_extensions = { ".j2c"sv, ".j2k"sv } },
         { .name = "image/jp2"sv, .common_extensions = { ".jp2"sv, ".jpf"sv, ".jpx"sv } },
-        { .name = "image/jpeg"sv, .common_extensions = { ".jpg"sv, ".jpeg"sv } },
+        { .name = "image/jpeg"sv, .common_extensions = { ".jpg"sv, ".jpeg"sv, ".jfif"sv } },
         { .name = "image/jxl"sv, .common_extensions = { ".jxl"sv } },
         { .name = "image/png"sv, .common_extensions = { ".png"sv } },
         { .name = "image/svg+xml"sv, .common_extensions = { ".svg"sv } },
-        { .name = "image/tiff"sv, .common_extensions = { ".tiff"sv } },
+        { .name = "image/tiff"sv, .common_extensions = { ".tiff"sv, ".tif"sv } },
         { .name = "image/webp"sv, .common_extensions = { ".webp"sv } },
         { .name = "image/x-icon"sv, .common_extensions = { ".ico"sv } },
         { .name = "image/x-ilbm"sv, .common_extensions = { ".iff"sv, ".lbm"sv } },
@@ -108,6 +108,15 @@ StringView guess_mime_type_based_on_filename(StringView path)
     }
 
     return "application/octet-stream"sv;
+}
+
+Optional<StringView> common_extension_for_mime_type(StringView mime_type_name)
+{
+    for (auto const& mime_type : registered_mime_types()) {
+        if (mime_type.name == mime_type_name)
+            return mime_type.common_extensions.first();
+    }
+    return {};
 }
 
 }

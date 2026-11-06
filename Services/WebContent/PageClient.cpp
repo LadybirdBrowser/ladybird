@@ -1304,13 +1304,13 @@ void PageClient::page_did_request_link_context_menu(Web::HTML::CrossProcessId lo
     client().async_did_request_link_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), move(navigation), target, modifiers, text_fragment_generation_id);
 }
 
-void PageClient::page_did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*> bitmap_pointer, Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation)
+void PageClient::page_did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*> bitmap_pointer, Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation, Optional<String> image_mime_type)
 {
     Optional<Gfx::ShareableBitmap> bitmap;
     if (bitmap_pointer.has_value() && bitmap_pointer.value())
         bitmap = bitmap_pointer.value()->to_shareable_bitmap();
 
-    client().async_did_request_image_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), move(navigation), target, modifiers, bitmap, move(link_navigation));
+    client().async_did_request_image_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), move(navigation), target, modifiers, bitmap, move(link_navigation), move(image_mime_type));
 }
 
 void PageClient::page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const& menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation)

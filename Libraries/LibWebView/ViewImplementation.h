@@ -699,7 +699,7 @@ public:
     void reset_spell_checking();
     void did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<u64> text_fragment_generation_id);
     void did_generate_text_fragment_url(u64 request_id, Optional<URL::URL>);
-    void did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<Gfx::ShareableBitmap> bitmap, Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation);
+    void did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<Gfx::ShareableBitmap> bitmap, Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation, Optional<String> image_mime_type);
     void did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu, Optional<Web::HTML::PreparedNavigationDescriptor>);
 
     void did_request_color_picker(Badge<WebContentPage>, WebContentPage& requesting_page, Color current_color);
@@ -876,7 +876,7 @@ protected:
         No,
         Yes,
     };
-    void download_url(URL::URL const&, PromptForPath);
+    void download_url(URL::URL const&, PromptForPath, Optional<String> const& image_mime_type = {});
 
     struct SharedBitmap {
         i32 id { -1 };

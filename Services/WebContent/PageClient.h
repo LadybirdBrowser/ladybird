@@ -275,7 +275,7 @@ private:
     virtual void page_did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::ContextMenuForInputEventsTarget, Optional<Utf16String> misspelled_word, GC::Ptr<Web::DOM::Range> selected_text_range) override;
     virtual void page_did_request_spelling_menu_action_for_testing(Web::SpellingMenuActionForTesting, u32 guess_index) override;
     virtual void page_did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers, GC::Ptr<Web::DOM::Range> selected_text_range) override;
-    virtual void page_did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*>, Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation) override;
+    virtual void page_did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*>, Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation, Optional<String> image_mime_type) override;
     virtual void page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const&, Optional<Web::HTML::PreparedNavigationDescriptor>) override;
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;
     virtual void page_did_change_active_document_in_child_navigable(Web::DOM::Document&) override;

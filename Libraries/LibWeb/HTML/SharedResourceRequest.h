@@ -46,6 +46,7 @@ public:
     virtual ~SharedResourceRequest() override;
 
     URL::URL const& url() const { return m_key.url; }
+    Optional<String> const& image_mime_type() const { return m_image_mime_type; }
     [[nodiscard]] bool can_be_shared() const { return m_can_be_shared; }
 
     [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
@@ -103,6 +104,7 @@ private:
     };
 
     State m_state { State::New };
+    Optional<String> m_image_mime_type;
 
     GC::Ref<Page> m_page;
 

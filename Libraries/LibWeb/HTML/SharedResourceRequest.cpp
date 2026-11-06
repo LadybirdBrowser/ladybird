@@ -26,6 +26,7 @@
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
+#include <LibWebCommon/MimeSniff/Resource.h>
 
 namespace Web::HTML {
 
@@ -191,6 +192,8 @@ void SharedResourceRequest::fetch_resource(NonnullRefPtr<Fetch::Infrastructure::
             auto const is_svg_image = extracted_mime_type.has_value()
                 ? extracted_mime_type.value().essence() == "image/svg+xml"sv
                 : request->url().basename().ends_with(".svg"sv);
+            if (extracted_mime_type.has_value())
+                self->m_image_mime_type = extracted_mime_type->essence();
             self->handle_successful_fetch(request->url(), is_svg_image ? IsSVGImage::Yes : IsSVGImage::No, move(data), image_data_is_cors_cross_origin);
         });
         auto process_body_error = GC::create_function(GC::Heap::the(), [weak_this](JS::Value) {
@@ -322,6 +325,8 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
     // FIXME: Bring this closer to spec.
 
     if (is_svg_image == IsSVGImage::Yes) {
+        m_image_mime_type = "image/svg+xml"_string;
+
         // NB: The decode waits for the image's document to load completely, which it may never do, and its promise keeps
         //     both handlers. So they hold this request weakly: its document keeps it alive for as long as it is needed.
         SVG::SVGDecodedImageData::decode(m_page, url_string, data)
@@ -339,6 +344,11 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
             });
         return;
     }
+
+    // NB: The image's own bytes are a better source than the server's claim, which is often missing or wrong. Formats
+    //     that sniffing does not know keep the claimed type.
+    if (auto sniffed_type = MimeSniff::Resource::sniff(data, { .sniffing_context = MimeSniff::SniffingContext::Image }); sniffed_type.is_image())
+        m_image_mime_type = sniffed_type.essence();
 
     // NB: Keeping the encoded data lets the decoded image data discard its frame while it is not in use. The decode
     //     request copies the bytes before it returns, so the handler can own the buffer they are read from.
