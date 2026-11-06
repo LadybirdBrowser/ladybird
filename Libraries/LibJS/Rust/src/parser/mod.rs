@@ -35,6 +35,7 @@ use base::Parser;
 use columns::Ast;
 use columns::FunctionIndex;
 use columns::function_flag;
+use core::sync::atomic::AtomicBool;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
 use intern::Interner;
@@ -78,6 +79,11 @@ pub struct ScriptData {
     global_names_used_in_with: Vec<u32>,
     /// Filled in when the first function gets parsed again, for the ones after it.
     reparse_context: Mutex<Option<ReparseContext>>,
+    /// Whether the code that gets compiled for the functions of this source is worth keeping, because the program may
+    /// get linked again.
+    retains_compiled_functions: AtomicBool,
+    /// The bytes of the code kept so far, for [`ScriptData::memory_size()`].
+    retained_code_size: AtomicUsize,
 }
 
 /// The memory of the tree of a function that a compile job is done with, for the next one on the thread.
@@ -175,6 +181,22 @@ pub(crate) fn vm_stack_limit_of_this_thread() -> Option<usize> {
 }
 
 impl ScriptData {
+    pub(crate) fn set_retains_compiled_functions(&self, retains_compiled_functions: bool) {
+        self.retains_compiled_functions
+            .store(retains_compiled_functions, Ordering::Relaxed);
+    }
+
+    /// The bytes of this source and of the tables that compile jobs read, and of the code kept for its functions so far.
+    pub(crate) fn memory_size(&self) -> usize {
+        size_of::<Self>()
+            + crate::compile::utf16_string_memory_size(&self.positions.source)
+            + self.index.memory_size()
+            + self.names.memory_size()
+            + self.positions.lines.memory_size()
+            + self.global_names_used_in_with.capacity() * size_of::<u32>()
+            + self.retained_code_size.load(Ordering::Relaxed)
+    }
+
     /// The rows of the top level for a sweep, which the parse of the source left here for its one compile.
     pub(crate) fn take_top_level_rows(self: &Arc<Self>) -> Result<(SyntaxTree, u32), OutOfStack> {
         let rows = self.top_level_rows.lock().expect("nothing panics with the rows").take();
@@ -349,6 +371,10 @@ pub(crate) struct LineTable {
 }
 
 impl LineTable {
+    fn memory_size(&self) -> usize {
+        (self.line_starts.capacity() + self.low_surrogates.capacity()) * size_of::<u32>()
+    }
+
     fn new<U: Unit>(source: &[U], initial_line_number: u32) -> Self {
         let mut line_starts = vec![0];
         let mut low_surrogates = Vec::new();
@@ -616,6 +642,8 @@ pub fn parse_to_tree(source: &ak::Utf16String, options: &ParseOptions) -> Result
         default_constructor_parameter_name,
         global_names_used_in_with,
         reparse_context: Mutex::new(None),
+        retains_compiled_functions: AtomicBool::new(false),
+        retained_code_size: AtomicUsize::new(0),
     });
     let mut tree = SyntaxTree {
         script,

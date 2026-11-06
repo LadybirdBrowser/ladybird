@@ -178,6 +178,45 @@ pub unsafe fn compiled_program_from_abi<'a>(compiled: *const JSCompiledProgram) 
     unsafe { &*compiled.cast::<CompiledProgram>() }
 }
 
+/// CompiledProgram::clone(): another reference to the same compiled program, which the caller owns. Any thread may call
+/// this.
+///
+/// # Safety
+///
+/// `compiled` must be a live compiled program.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_compile_compiled_program_clone(
+    compiled: *const JSCompiledProgram,
+) -> *mut JSCompiledProgram {
+    // SAFETY: The caller passes a live compiled program.
+    compiled_program_into_abi(unsafe { compiled_program_from_abi(compiled) }.clone())
+}
+
+/// CompiledProgram::memory_size(). Any thread may call this.
+///
+/// # Safety
+///
+/// `compiled` must be a live compiled program.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_compile_compiled_program_memory_size(compiled: *const JSCompiledProgram) -> usize {
+    // SAFETY: The caller passes a live compiled program.
+    unsafe { compiled_program_from_abi(compiled) }.memory_size()
+}
+
+/// CompiledProgram::set_retains_compiled_functions(). Any thread may call this.
+///
+/// # Safety
+///
+/// `compiled` must be a live compiled program.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_compile_compiled_program_set_retains_compiled_functions(
+    compiled: *const JSCompiledProgram,
+    retains_compiled_functions: bool,
+) {
+    // SAFETY: The caller passes a live compiled program.
+    unsafe { compiled_program_from_abi(compiled) }.set_retains_compiled_functions(retains_compiled_functions);
+}
+
 /// Destroys a compiled program that the caller owns and that will not run, freeing what the frontend compiled for it.
 /// Null does nothing. Any thread may call this.
 ///

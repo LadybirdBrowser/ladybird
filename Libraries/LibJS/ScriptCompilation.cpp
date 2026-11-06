@@ -151,6 +151,21 @@ CompiledProgram CompiledProgram::compile(ParsedProgram parsed)
     return CompiledProgram { compiled_program_from_abi(js_compile_parsed_program(program)) };
 }
 
+CompiledProgram CompiledProgram::clone() const
+{
+    return CompiledProgram { compiled_program_from_abi(js_compile_compiled_program_clone(compiled_program_to_abi(m_program))) };
+}
+
+void CompiledProgram::set_retains_compiled_functions(bool retains_compiled_functions) const
+{
+    js_compile_compiled_program_set_retains_compiled_functions(compiled_program_to_abi(m_program), retains_compiled_functions);
+}
+
+size_t CompiledProgram::memory_size() const
+{
+    return js_compile_compiled_program_memory_size(compiled_program_to_abi(m_program));
+}
+
 Result<GC::Ref<Script>, Vector<ParserError>> create_script(ParsedProgram parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
 {
     ParserErrorCollector errors;
