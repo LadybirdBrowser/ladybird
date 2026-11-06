@@ -138,7 +138,7 @@ void NavigationLoader::did_finish_navigation_params_creation(Web::HTML::Navigati
                 names_a_local_file |= any_of(navigation_params->request->url_list, is_file_url);
         }
         if (names_a_local_file) {
-            discard(m_is_private, result);
+            discard(result);
             result.navigation_params = Web::HTML::NavigationParamsNullOrError {};
             result.redirected_url.clear();
         }
@@ -502,7 +502,7 @@ void NavigationLoader::set_document(CanonicalDocument const& document, Canonical
         navigation_params->new_browsing_context_group_id = document.browsing_context().group()->id();
 }
 
-void NavigationLoader::discard(IsPrivate, Web::HTML::NavigationPopulationResult& result)
+void NavigationLoader::discard(Web::HTML::NavigationPopulationResult& result)
 {
     auto* body_handle = response_body_handle(result);
     if (!body_handle)
