@@ -1,0 +1,4 @@
+colors with .prose: rgb(0, 128, 0) rgb(0, 0, 255)
+invalidation tests don't grow with unrelated elements: true
+color without .prose: rgb(0, 0, 0)
+alternatives with .other: rgb(128, 0, 128) rgb(128, 0, 128)

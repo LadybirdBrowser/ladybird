@@ -611,12 +611,27 @@ pub(super) fn required_key(compound: &CompoundRef<'_>) -> Option<DispatchKey> {
                 ))
             }
             SimpleSelector::TagName(name) if name.name_is_ascii_lowercase => Some(DispatchKey::TagName(name.name)),
+            // NB: Only an argument list of one compound requires what that compound does: Of a list of several, an
+            //     element matches whichever alternative it carries, and a compound left of a combinator is an
+            //     ancestor's or a sibling's.
+            SimpleSelector::PseudoClass(pseudo_class)
+                if matches!(pseudo_class.pseudo_class, PseudoClassType::Is | PseudoClassType::Where) =>
+            {
+                sole_compound(pseudo_class.argument_selector_list).and_then(|compound| required_key(&compound))
+            }
             SimpleSelector::PseudoClass(pseudo_class) => {
                 state_fact_for(pseudo_class.pseudo_class).map(DispatchKey::State)
             }
             _ => None,
         })
         .min_by_key(|&key| dispatch_selectivity(key))
+}
+
+/// The one compound `list` consists of, where it holds a single selector with no combinator.
+fn sole_compound(list: SelectorListView<'_>) -> Option<CompoundRef<'_>> {
+    let mut selectors = list.iter();
+    let selector = selectors.next()?;
+    (selectors.next().is_none() && selector.left().is_none()).then(|| selector.first_compound())
 }
 
 /// Whether every element matches `compound`, as far as its own facts go.

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .prose :where(.one) { color: rgb(0, 128, 0) }
+    .prose :is(.two):not(:where(.skip)) { color: rgb(0, 0, 255) }
+    .other :is(.three, .four) { color: rgb(128, 0, 128) }
+</style>
+<div id="root">
+    <div id="one" class="one"></div>
+    <div id="two" class="two"></div>
+</div>
+<div id="alternatives">
+    <div id="three" class="three"></div>
+    <div id="four" class="four"></div>
+</div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+
+        function toggleProse(on) {
+            root.classList.toggle("prose", on);
+            internals.updateStyle();
+        }
+
+        function measure() {
+            toggleProse(true);
+            toggleProse(false);
+            internals.resetStyleCounters();
+            toggleProse(true);
+            const counters = internals.styleCounters();
+            const colors = ["one", "two"].map(id => getComputedStyle(document.getElementById(id)).color);
+            toggleProse(false);
+            return { tests: counters.invalidationTests, colors: colors.join(" ") };
+        }
+
+        function growTo(size) {
+            const fragment = document.createDocumentFragment();
+            for (let index = root.childElementCount; index < size; ++index)
+                fragment.appendChild(document.createElement("div"));
+            root.appendChild(fragment);
+            internals.updateStyle();
+        }
+
+        const measurements = [];
+        // An element without .one or .two can't start matching the first two rules, however many there are.
+        for (const size of [64, 1024]) {
+            growTo(size);
+            measurements.push(measure());
+        }
+
+        println(`colors with .prose: ${measurements[0].colors}`);
+        println(`invalidation tests don't grow with unrelated elements: ${measurements[1].tests === measurements[0].tests}`);
+        toggleProse(false);
+        println(`color without .prose: ${getComputedStyle(document.getElementById("one")).color}`);
+
+        // Of a list of alternatives, an element matches whichever one it carries.
+        const alternatives = document.getElementById("alternatives");
+        alternatives.classList.add("other");
+        internals.updateStyle();
+        println(`alternatives with .other: ${["three", "four"].map(id => getComputedStyle(document.getElementById(id)).color).join(" ")}`);
+    });
+</script>
