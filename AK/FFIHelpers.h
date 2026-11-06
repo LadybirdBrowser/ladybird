@@ -30,6 +30,10 @@ void ladybird_dealloc(void*, size_t alignment);
 // Gives the memory the calling thread freed back to the system (see ak_kmalloc_collect()).
 void ladybird_release_unused_allocator_memory();
 
+// See ak_enter_scratch_heap().
+void* ladybird_enter_scratch_heap();
+void ladybird_leave_scratch_heap(void* previous_heap);
+
 // Allocations in HeapPartition::JSObjectStorage, where JS objects keep their property values. ak_kfree frees them.
 void* ladybird_js_object_storage_alloc(size_t size);
 void* ladybird_js_object_storage_realloc(void*, size_t new_size);
