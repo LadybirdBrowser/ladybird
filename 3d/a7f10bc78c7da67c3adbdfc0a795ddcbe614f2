@@ -1,0 +1,12 @@
+While an assistive technology consumes the accessibility tree,
+Ladybird keeps each node’s complete data between builds, recomputes
+its bounds, text geometry and focus on every build, and drops the
+rest on the changes that can reach it. The other engines keep their
+accessibility objects themselves and update only the parts marked
+dirty. Blink’s AXObjectCacheImpl marks AXObjects dirty from its
+mutation handlers, and AXTreeSerializer::SerializeChanges() sends only
+those. WebKit’s AXIsolatedTree::updateNodeProperties() updates just
+the properties a change requests, and queues whole-node updates only
+for broader changes. Gecko’s DocAccessible::QueueCacheUpdate() records
+the CacheDomain bits a change touches, and BundleFieldsForCache()
+recomputes only those domains.
