@@ -84,6 +84,7 @@ static constexpr auto pending_prefix = "Browser-"sv;
 static constexpr auto pending_suffix = ".pending"sv;
 static constexpr off_t maximum_report_size = 1048576;
 static constexpr size_t retained_report_count = 20;
+static constexpr size_t maximum_waiting_report_count = 100;
 static constexpr auto hard_cutoff_date = UnixDateTime::from_unix_time_parts(2026, 10, 2, 20, 0, 0, 0);
 static constexpr auto maximum_unsent_report_age = AK::Duration::from_seconds(30ll * 24 * 60 * 60);
 
@@ -242,8 +243,8 @@ static timespec modified_time(struct stat const& status)
 #    endif
 }
 
-// Bound disk use by the reports kept for reference. Unrelated files and symlinks are ignored.
-static void apply_retention(Core::Directory const& seen_directory, ByteString const& offered_name)
+// Bound disk use by a directory of reports. Unrelated files and symlinks are ignored.
+static void apply_retention(Core::Directory const& directory, ByteString const& offered_name, size_t maximum_count)
 {
     struct RetainedReport {
         ByteString name;
@@ -251,13 +252,13 @@ static void apply_retention(Core::Directory const& seen_directory, ByteString co
     };
 
     Vector<RetainedReport> reports;
-    Core::DirIterator iterator(seen_directory.path().string(), Core::DirIterator::SkipDots);
+    Core::DirIterator iterator(directory.path().string(), Core::DirIterator::SkipDots);
     while (iterator.has_next()) {
         auto name = iterator.next_path();
         if (!CrashReportStore::is_saved_report_name(name))
             continue;
         struct stat status {};
-        if (!is_owned_regular_file_at(seen_directory, name, status))
+        if (!is_owned_regular_file_at(directory, name, status))
             continue;
         reports.append({ move(name), modified_time(status) });
     }
@@ -268,13 +269,14 @@ static void apply_retention(Core::Directory const& seen_directory, ByteString co
         return a.modified.tv_nsec < b.modified.tv_nsec;
     });
     // The report just offered is kept however old it is, so it can still be read and sent. An older one goes instead.
-    auto excess_count = reports.size() > retained_report_count ? reports.size() - retained_report_count : 0;
+    auto excess_count = reports.size() > maximum_count ? reports.size() - maximum_count : 0;
     for (auto const& report : reports) {
         if (excess_count == 0)
             break;
         if (report.name == offered_name)
             continue;
-        (void)unlinkat(seen_directory.fd(), report.name.characters(), 0);
+        (void)unlinkat(directory.fd(), report.name.characters(), 0);
+        remove_website(directory, report.name);
         --excess_count;
     }
 }
@@ -368,7 +370,7 @@ ErrorOr<void> CrashReportStore::mark_seen(ByteString const& name) const
     auto seen_directory = TRY(open_seen_directory(directory));
     TRY(move_report(directory, seen_directory, name));
     remove_website(directory, name);
-    apply_retention(seen_directory, name);
+    apply_retention(seen_directory, name, retained_report_count);
     return {};
 }
 
@@ -493,6 +495,8 @@ ErrorOr<ByteString> CrashReportStore::store_report(ProcessType process_type, Str
     if (fsync(directory.fd()) < 0)
         return Error::from_errno(errno);
     remove_incomplete_report.disarm();
+    // Nothing else bounds the reports waiting for an answer, and a crash loop can save them faster than anyone looks.
+    apply_retention(directory, name, maximum_waiting_report_count);
     return name;
 }
 

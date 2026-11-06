@@ -512,3 +512,24 @@ TEST_CASE(a_browser_that_crashes_is_recovered_by_the_next_launch)
     EXPECT(text.contains("Termination signal: SIGSEGV\nTermination signal number: 11\n"sv));
     EXPECT(text.contains("Native stack"sv));
 }
+
+TEST_CASE(waiting_reports_are_limited_and_the_oldest_go_first)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto store = test_store();
+    Vector<ByteString> names;
+    for (i64 index = 0; index <= 100; ++index) {
+        auto crashed_at = now - AK::Duration::from_seconds(1000 - index);
+        names.append(MUST(store.store_report(WebView::ProcessType::WebContent, "A report\n"sv, crashed_at)));
+        if (index == 0)
+            MUST(store.save_website(names.first(), "https://example.com/"sv));
+    }
+
+    auto waiting = MUST(store.pending_report_names(now));
+    EXPECT_EQ(waiting.size(), 100u);
+    EXPECT(!waiting.contains_slow(names.first()));
+    EXPECT(waiting.contains_slow(names.last()));
+    EXPECT(!store.website(names.first()).has_value());
+}
