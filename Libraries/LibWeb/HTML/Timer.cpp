@@ -51,6 +51,11 @@ void Timer::stop()
     m_timer->stop();
 }
 
+void Timer::fire_now()
+{
+    m_timer->on_timeout();
+}
+
 void Timer::restart(i32 milliseconds)
 {
     m_earliest_firing = MonotonicTime::now() + AK::Duration::from_milliseconds(milliseconds);

@@ -1525,6 +1525,8 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     //     throttled_timer_delay()), so the delay the timer is armed with can differ from the one it was asked for.
     auto deadline = HighResolutionTime::unsafe_shared_current_time() + timeout;
     auto throttled_delay = throttled_timer_delay(throttling_class, deadline);
+    if (throttling_class != TimerThrottlingClass::Immediate || repeat == Repeat::Yes)
+        m_earliest_timer_deadline = min(m_earliest_timer_deadline, deadline);
 
     // NB: The intensive tier paces chained timers by their wake-ups (see throttled_timer_delay()), so note when one
     //     runs while the document is hidden. The step itself goes into a GC::Function rather than into the wrapper's
@@ -1584,8 +1586,31 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
 
     // NB: Don't restart an already-active repeating timer. It's already firing on schedule and
     // restarting it would cause drift (next fire = now + interval instead of previous fire + interval).
-    if (!existing_timer)
-        timer->start();
+    if (!existing_timer) {
+        // OPTIMIZATION: A timer with no delay has nothing to wait for. Unless a timer that expired before this one started
+        //               still waits for the platform event loop, it needs no pass through that loop, so its task comes
+        //               before the tasks queued after this. One that does not repeat needs no clock at all.
+        bool can_fire_now = throttling_class == TimerThrottlingClass::Immediate && !has_expired_timer_yet_to_fire(deadline);
+        if (!can_fire_now || repeating == Timer::Repeating::Yes)
+            timer->start();
+        if (can_fire_now)
+            timer->fire_now();
+    }
+}
+
+// NB: An expired timer's firing comes from the platform event loop, and its task goes ahead of those of the timers that
+//     started after it expired. m_earliest_timer_deadline never comes after the real earliest deadline, so this only
+//     looks through the timers after that deadline has passed.
+bool WindowOrWorkerGlobalScopeMixin::has_expired_timer_yet_to_fire(double now)
+{
+    if (now < m_earliest_timer_deadline)
+        return false;
+    m_earliest_timer_deadline = NumericLimits<double>::max();
+    for (auto& it : m_timers) {
+        if (it.value->is_active() && !it.value->has_queued_firing())
+            m_earliest_timer_deadline = min(m_earliest_timer_deadline, it.value->deadline());
+    }
+    return now >= m_earliest_timer_deadline;
 }
 
 // A delay for Core::Timer: whole milliseconds, never negative, and no more than it can hold.

@@ -1,1 +1,1 @@
-microtask message port window message timeout 1 timeout 2
+microtask timeout 1 message port window message timeout 2
