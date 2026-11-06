@@ -5516,12 +5516,8 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, We
     });
 }
 
-void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<u64> text_fragment_generation_id)
+void ViewImplementation::add_link_actions(Menu& menu, Web::HTML::PreparedNavigationDescriptor const& navigation)
 {
-    request_text_fragment_url(text_fragment_generation_id);
-    prepare_inspect_element_action(content_position);
-    ++m_context_menu_request_id;
-
     auto url = navigation.url;
     auto copy_url_text = [&] {
         switch (url_type(url)) {
@@ -5535,16 +5531,25 @@ void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gf
         VERIFY_NOT_REACHED();
     }();
 
-    auto menu = Menu::create("Link Context Menu"sv);
-    add_open_url_actions(*menu, url, navigation);
-    menu->add_separator();
-    menu->add_action(create_copy_url_action(copy_url_text, url));
-    menu->add_action(Action::create("Download Linked File"sv, ActionID::DownloadLinkedFile, [this, url]() {
+    add_open_url_actions(menu, url, navigation);
+    menu.add_separator();
+    menu.add_action(create_copy_url_action(copy_url_text, url));
+    menu.add_action(Action::create("Download Linked File"sv, ActionID::DownloadLinkedFile, [this, url]() {
         download_url(url, PromptForPath::No);
     }));
-    menu->add_action(Action::create("Save Link As…"sv, ActionID::DownloadLinkedFileAs, [this, url]() {
+    menu.add_action(Action::create("Save Link As…"sv, ActionID::DownloadLinkedFileAs, [this, url]() {
         download_url(url, PromptForPath::Yes);
     }));
+}
+
+void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<u64> text_fragment_generation_id)
+{
+    request_text_fragment_url(text_fragment_generation_id);
+    prepare_inspect_element_action(content_position);
+    ++m_context_menu_request_id;
+
+    auto menu = Menu::create("Link Context Menu"sv);
+    add_link_actions(*menu, navigation);
     menu->add_action(*m_copy_link_to_highlight_action);
     menu->add_separator();
     menu->add_action(*m_inspect_element_action);
@@ -5572,7 +5577,7 @@ void ViewImplementation::download_url(URL::URL const& url, PromptForPath prompt_
     });
 }
 
-void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<Gfx::ShareableBitmap> bitmap)
+void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<Gfx::ShareableBitmap> bitmap, Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation)
 {
     prepare_inspect_element_action(content_position);
     ++m_context_menu_request_id;
@@ -5591,6 +5596,10 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, G
     copy_image_action->set_enabled(bitmap.has_value());
 
     auto menu = Menu::create("Image Context Menu"sv);
+    if (link_navigation.has_value()) {
+        add_link_actions(*menu, *link_navigation);
+        menu->add_separator();
+    }
     add_open_in_new_tab_action(*menu, "Open Image in New Tab"sv, url, navigation);
     menu->add_action(Action::create("Open Image"sv, ActionID::OpenImage, [this, navigation]() {
         load(navigation);

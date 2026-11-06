@@ -2996,13 +2996,17 @@ void WebContentPage::did_generate_text_fragment_url(u64 request_id, Optional<URL
     view().did_generate_text_fragment_url(request_id, move(url));
 }
 
-void WebContentPage::did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap)
+void WebContentPage::did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap, Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation)
 {
     auto verified_navigation = navigation_from_page(client(), move(navigation));
     if (!verified_navigation.has_value())
         return;
+    // NB: A link the page may not navigate to takes only its own actions out of the menu, the image's stay.
+    Optional<Web::HTML::PreparedNavigationDescriptor> verified_link_navigation;
+    if (link_navigation.has_value())
+        verified_link_navigation = navigation_from_page(client(), link_navigation.release_value());
     if (auto target = view_position(local_root_id, content_position); target.has_value())
-        target->view.did_request_image_context_menu({}, target->position, verified_navigation.release_value(), move(bitmap));
+        target->view.did_request_image_context_menu({}, target->position, verified_navigation.release_value(), move(bitmap), move(verified_link_navigation));
 }
 
 void WebContentPage::did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation)

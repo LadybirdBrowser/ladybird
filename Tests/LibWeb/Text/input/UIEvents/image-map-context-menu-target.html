@@ -17,13 +17,14 @@
 <script>
     test(() => {
         // An <area> is never rendered, so a right-click over an image map hit-tests to the area while the user agent
-        // menu describes the image whose box was hit - unless the area is itself a link, which wins.
+        // menu describes the image whose box was hit. An area that is itself a link adds that link to the menu.
         const describe = () => {
             const request = internals.takeContextMenuRequest();
             if (!request)
                 return 'no request';
             const target = request.target;
-            return `${request.kind} target=${target.id ? `${target.nodeName}#${target.id}` : target.nodeName}`;
+            const link = request.linkURL ? ` link=${request.linkURL}` : '';
+            return `${request.kind} target=${target.id ? `${target.nodeName}#${target.id}` : target.nodeName}${link}`;
         };
         const rightClickAt = element => {
             const rect = element.getBoundingClientRect();
