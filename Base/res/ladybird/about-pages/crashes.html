@@ -446,6 +446,13 @@
                 card.querySelector(".report-websites-title").classList.toggle("hidden", group.websites.length < 2);
             }
 
+            function restoreChoices(card, group) {
+                card.querySelector("textarea").value = group.note;
+                card.querySelectorAll(".report-website input").forEach(input => {
+                    input.checked = group.includedWebsites.includes(input.value);
+                });
+            }
+
             function reportsToSend(group, card) {
                 const description = card.querySelector("textarea").value;
                 const ticked = tickedWebsites(card);
@@ -527,9 +534,11 @@
 
                 // Moving a card takes the focus from its note, so one already in its place stays untouched.
                 groups.forEach((group, index) => {
-                    if (!cards.has(group.id)) cards.set(group.id, createCard(group.id));
+                    const isNewCard = !cards.has(group.id);
+                    if (isNewCard) cards.set(group.id, createCard(group.id));
                     const card = cards.get(group.id);
                     updateCard(card, group);
+                    if (isNewCard) restoreChoices(card, group);
                     const current = reportsElement.children[index];
                     if (current !== card) reportsElement.insertBefore(card, current ?? null);
                 });

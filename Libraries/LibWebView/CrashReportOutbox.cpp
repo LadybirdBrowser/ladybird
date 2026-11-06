@@ -35,8 +35,9 @@ CrashReportOutbox::CrashReportOutbox(CrashReportStore& store)
         // Retries that all failed took a while, and the next report would only wait through the same ones. A report
         // the server turned down says nothing about the others.
         if (m_report_being_sent_was_retried) {
-            for (auto const& report : m_queue)
-                m_could_not_send.set(report.name, report.earlier_attempt);
+            for (auto const& report : m_queue) {
+                m_could_not_send.set(report.name, report.earlier_attempt.value_or(CrashReportReview::PreparedSubmission { {}, report.description, report.url }));
+            }
             m_queue.clear();
         }
 
@@ -70,8 +71,13 @@ Optional<String> CrashReportOutbox::send_from_review(CrashReportReview& review, 
         return reason;
 
     if (auto* submission = review.submission()) {
-        submission->on_finished = [this, name] {
-            m_submissions_from_reviews.remove(name);
+        submission->on_finished = [this, name, description, url, weak_review = review.make_weak_ptr<CrashReportReview>()] {
+            auto finished_submission = m_submissions_from_reviews.take(name);
+
+            // A review that is gone cannot offer to try again, so the report waits with what the user chose.
+            if (!weak_review.ptr() && finished_submission.has_value() && !m_store.saved_report(name).is_error())
+                m_could_not_send.set(name, CrashReportReview::PreparedSubmission { finished_submission.value()->prepared_manifest(), description, url });
+
             reports_changed();
         };
         m_submissions_from_reviews.set(name, *submission);
@@ -137,6 +143,14 @@ bool CrashReportOutbox::is_sending(ByteString const& name) const
     return m_report_being_sent == name
         || m_submissions_from_reviews.contains(name)
         || any_of(m_queue, [&](auto const& report) { return report.name == name; });
+}
+
+Optional<CrashReportReview::PreparedSubmission> CrashReportOutbox::failed_attempt(ByteString const& name) const
+{
+    auto attempt = m_could_not_send.get(name);
+    if (!attempt.has_value())
+        return {};
+    return attempt.value();
 }
 
 size_t CrashReportOutbox::waiting_report_count() const

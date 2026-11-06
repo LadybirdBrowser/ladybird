@@ -49,6 +49,9 @@ public:
     bool is_sending(ByteString const& name) const;
     bool could_not_send(ByteString const& name) const { return m_could_not_send.contains(name); }
 
+    // What the user chose for a report that could not be sent, so that sending it again can start from those choices.
+    Optional<CrashReportReview::PreparedSubmission> failed_attempt(ByteString const& name) const;
+
     // The reports that need the user, which leaves out those on their way.
     size_t waiting_report_count() const;
 

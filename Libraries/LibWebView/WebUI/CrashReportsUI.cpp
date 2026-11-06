@@ -141,10 +141,18 @@ void CrashReportsUI::load_reports()
         JsonArray serialized_names;
         bool is_sending = false;
         bool could_not_send = false;
+        String note;
+        JsonArray included_websites;
         for (auto const& name : group.names) {
             serialized_names.must_append(String::from_utf8_with_replacement_character(name));
             is_sending |= outbox.is_sending(name);
             could_not_send |= outbox.could_not_send(name);
+            if (auto attempt = outbox.failed_attempt(name); attempt.has_value()) {
+                if (note.is_empty())
+                    note = attempt->description;
+                if (attempt->url.has_value())
+                    included_websites.must_append(*attempt->url);
+            }
         }
 
         JsonObject serialized_group;
@@ -170,6 +178,10 @@ void CrashReportsUI::load_reports()
         for (auto const& website : group.website_of_each_report)
             serialized_website_of_each_report.must_append(website.has_value() ? JsonValue { *website } : JsonValue {});
         serialized_group.set("websiteOfEachReport"sv, move(serialized_website_of_each_report));
+
+        // A page opened after a failed attempt starts from the choices that were made for it.
+        serialized_group.set("note"sv, note);
+        serialized_group.set("includedWebsites"sv, move(included_websites));
 
         serialized_group.set("isSending"sv, is_sending);
         serialized_group.set("couldNotSend"sv, could_not_send);
