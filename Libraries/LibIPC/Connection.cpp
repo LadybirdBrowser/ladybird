@@ -7,6 +7,7 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <AK/TemporaryChange.h>
 #include <AK/Vector.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Message.h>
@@ -58,7 +59,7 @@ ErrorOr<void> ConnectionBase::post_sync_request(Message const& request)
     // rather than hand the failure to a caller that may have no way to carry on — as WebKit's sendSyncMessage() does
     // (thru didFailToSendSyncMessage) for a connection with setShouldExitOnSyncMessageSendFailure().
     if (result.is_error() && m_peer_owns_this_process && !is_open())
-        shutdown();
+        did_lose_peer_during_sync_request();
     return result;
 }
 
@@ -185,7 +186,11 @@ ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
     // dispatching that would run handlers on a connection that's closed under them. So, drop it all and shut down now,
     // rather than after one last dispatch; see set_peer_owns_this_process().
     if (schedule_shutdown == Transport::ShouldShutdown::Yes && m_peer_owns_this_process) {
-        shutdown();
+        // NB: A wait for a sync response acts on this once it sees that no response came, and shuts down then.
+        if (m_is_waiting_for_sync_response)
+            m_unprocessed_messages.clear();
+        else
+            shutdown();
         return PeerEOF::Yes;
     }
 
@@ -208,6 +213,7 @@ ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
 OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id)
 {
     VERIFY(m_owner_thread_id.is_current_thread());
+    TemporaryChange waiting_for_sync_response { m_is_waiting_for_sync_response, true };
     bool peer_disconnected_during_wait = false;
 
     auto take_matching_message = [&]() -> OwnPtr<IPC::Message> {
@@ -261,11 +267,11 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
         // issue #9582. PageHost's constructor issues a sync IPC before ConnectionFromClient::m_page_host has been
         // assigned.) Re-entering arbitrary handlers from here can hit uninitialized state and crash. shutdown() closes
         // the transport and calls die(). That exits processes cleanly — the same as queued close_server message would.
-        shutdown();
+        did_lose_peer_during_sync_request();
     } else if (m_peer_owns_this_process && !is_open()) {
         // NB: A peer that owns this process may also have been found gone before the wait began — e.g. by the
         // transport's IO thread, right after the request was posted; see set_peer_owns_this_process().
-        shutdown();
+        did_lose_peer_during_sync_request();
     }
 
     return {};
