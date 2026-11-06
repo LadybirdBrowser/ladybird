@@ -123,8 +123,10 @@ static GC::Ptr<DOM::Node> associated_descendant_editing_host(Layout::BegunRead c
         });
 
         if (editing_host && !has_multiple_editing_hosts) {
+            // NB: An editing host inside the hit node is not what the click is on: The click landed on the hit node
+            //     around it, as in its padding or below it.
             if (ancestor == &node)
-                return editing_host;
+                return nullptr;
             auto const* editing_host_layout_node = editing_host->layout_node(read);
             if (hit_node_rect.has_value() && editing_host_layout_node && Painting::has_committed_box(*editing_host_layout_node)
                 && hit_node_rect->intersects(Painting::absolute_rect(*editing_host_layout_node)))
@@ -201,6 +203,46 @@ static Optional<Painting::CaretPosition> caret_position_from_editable_hit_node(L
         .paintable = Painting::committed_row_slot(*layout_node),
         .arena = *arena,
         .boundary = { boundary_identity, 0 },
+    };
+}
+
+// A click on content outside a block-level editing host puts the caret before or after the host in its parent, rather
+// than inside it, as the caret position from the point does when it snaps to the host's nearest text. So the click
+// neither selects in the host nor focuses it. The caret goes before the host where it landed at the start of the
+// host's content, and after it otherwise. An inline editing host takes the caret, as on the line beside it.
+static Optional<Painting::CaretPosition> caret_position_beside_block_editing_host(Layout::BegunRead const& read, Painting::CaretPosition const& caret_position, DOM::Node& hit_node)
+{
+    auto boundary_node = caret_position.boundary_node();
+    if (!boundary_node || !boundary_node->is_editable_or_editing_host() || hit_node.is_editable_or_editing_host())
+        return {};
+    auto editing_host = boundary_node->is_editing_host() ? boundary_node : boundary_node->editing_host();
+    if (!editing_host || hit_node.is_inclusive_descendant_of(*editing_host))
+        return {};
+    auto const* editing_host_layout_node = as_if<Layout::NodeWithStyle>(editing_host->layout_node(read));
+    if (!editing_host_layout_node || editing_host_layout_node->display().is_inline_outside())
+        return {};
+    auto parent = editing_host->parent();
+    if (!parent)
+        return {};
+
+    auto first_leaf = first_editable_leaf_descendant(*editing_host);
+    bool const at_start = caret_position.boundary.offset == 0
+        && (boundary_node == editing_host || boundary_node == first_leaf);
+    auto offset = editing_host->index() + (at_start ? 0 : 1);
+
+    auto* arena = hit_node.document().layout_node_arena_if_created();
+    if (!arena)
+        return {};
+    auto* layout_node = DOM::NodeIdentity::of(*parent).bound_layout_node(read, *arena);
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
+        layout_node = DOM::NodeIdentity::of(hit_node).bound_layout_node(read, *arena);
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
+        return {};
+
+    return Painting::CaretPosition {
+        .paintable = Painting::committed_row_slot(*layout_node),
+        .arena = *arena,
+        .boundary = { DOM::NodeIdentity::of(*parent), static_cast<WebIDL::UnsignedLong>(offset) },
     };
 }
 
@@ -3687,6 +3729,11 @@ Optional<Painting::CaretPosition> EventHandler::caret_position_for_mouse_selecti
     }
     if (!caret_position.has_value())
         return {};
+
+    if (editable_hit_node_before_focus && editable_hit_node_before_focus->is_connected() && !editing_host_before_focus) {
+        if (auto beside = caret_position_beside_block_editing_host(read, *caret_position, *editable_hit_node_before_focus); beside.has_value())
+            caret_position = beside;
+    }
 
     return caret_position;
 }
