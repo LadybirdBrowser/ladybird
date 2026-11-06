@@ -95,7 +95,7 @@ public:
             *registration.m_copy = js_heap_region_base;
     }
 
-    // This process-global region is shared by every Heap. GC block allocation is single-threaded per process, but the
+    // This process-global region is shared by every Heap, and heaps allocate blocks on their own threads while the
     // decommit worker prepares the next chunk ahead of time, so the chunk bookkeeping is under a lock.
     void* allocate_chunk()
     {

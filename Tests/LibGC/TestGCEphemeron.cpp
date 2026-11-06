@@ -137,7 +137,7 @@ NEVER_INLINE void add_double_of_dead_key(GC::Heap& heap, EphemeronTable& table)
 
 static NEVER_INLINE void value_referring_to_its_key_dies_with_it()
 {
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
     heap.set_incremental_sweep_enabled(false);
     auto table = GC::make_root(heap.allocate<EphemeronTable>());
 
@@ -152,7 +152,7 @@ static NEVER_INLINE void value_referring_to_its_key_dies_with_it()
 
 static NEVER_INLINE void value_survives_when_its_key_is_marked_later()
 {
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
     heap.set_incremental_sweep_enabled(false);
     auto table = GC::make_root(heap.allocate<EphemeronTable>());
     auto first_key = GC::make_root(heap.allocate<TestCell>());
@@ -168,8 +168,8 @@ static NEVER_INLINE void value_survives_when_its_key_is_marked_later()
 
 static NEVER_INLINE void value_of_key_outside_domain_survives_local_collection()
 {
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
-    GC::Heap foreign_heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+    GC::Heap foreign_heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
     heap.set_incremental_sweep_enabled(false);
     foreign_heap.set_incremental_sweep_enabled(false);
     auto table = GC::make_root(heap.allocate<EphemeronTable>());
@@ -185,7 +185,7 @@ static NEVER_INLINE void value_of_key_outside_domain_survives_local_collection()
 
 static NEVER_INLINE void non_cell_value_is_ignored()
 {
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
     heap.set_incremental_sweep_enabled(false);
     auto table = GC::make_root(heap.allocate<EphemeronTable>());
     auto key = GC::make_root(heap.allocate<TestCell>());

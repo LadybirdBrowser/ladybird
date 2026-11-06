@@ -94,7 +94,7 @@ NEVER_INLINE GC::Root<CellOfAnotherType> allocate_reachable_cell_of_another_type
 
 TEST_CASE(allocating_from_a_destructor_during_a_sweep_does_not_free_reachable_cells_of_the_block)
 {
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
 
     auto reachable_cell = allocate_unreachable_then_reachable_cell(heap);
     GC::scrub_stack_for_testing();
@@ -115,7 +115,7 @@ TEST_CASE(allocating_from_a_destructor_during_a_sweep_does_not_free_reachable_ce
 
 TEST_CASE(ending_a_deferral_from_a_destructor_during_a_sweep_does_not_start_a_collection)
 {
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
     heap.enable_stats();
     s_cell_that_allocates_when_destroyed_was_destroyed = false;
     s_reachable_cell_was_destroyed = false;
@@ -145,7 +145,7 @@ TEST_CASE(ending_a_deferral_from_a_destructor_during_a_sweep_does_not_start_a_co
 
 TEST_CASE(free_cells_that_a_destructor_takes_while_a_collection_finishes_the_sweep_go_back_to_their_block)
 {
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
 
     auto reachable_cell = allocate_reachable_cell_of_another_type_then_unreachable_cell(heap);
     GC::scrub_stack_for_testing();
@@ -172,7 +172,7 @@ TEST_CASE(free_cells_that_a_destructor_takes_while_a_collection_finishes_the_swe
 
 TEST_CASE(cells_allocated_into_blocks_pending_sweep_do_not_count_as_live)
 {
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
     heap.enable_stats();
 
     auto reachable_cell = GC::make_root(heap.allocate<CellOfAnotherType>());
@@ -201,7 +201,7 @@ TEST_CASE(cells_allocated_into_blocks_pending_sweep_do_not_count_as_live)
 
 TEST_CASE(collect_everything_leaves_no_live_cell_bytes)
 {
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
     heap.enable_stats();
 
     {

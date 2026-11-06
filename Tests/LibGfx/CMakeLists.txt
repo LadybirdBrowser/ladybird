@@ -19,6 +19,12 @@ list(APPEND TEST_SOURCES TestBitmapSequence.cpp TestShareableBitmap.cpp)
 if (BUILD_SHARED_LIBS AND (APPLE OR LINUX))
     list(APPEND TEST_SOURCES TestRustCrateCopies.cpp)
     target_link_libraries(TestLibGfx PRIVATE LibWeb)
+    # LibWeb's initial-exec thread-locals need static TLS, which glibc has only a small surplus of for dlopen(). No symbol
+    # here keeps LibWeb linked, so the linker would drop it and leave it to the dlopen() in the test. Opening a library
+    # the program has loaded already gives the same handle.
+    if (LINUX)
+        target_link_options(TestLibGfx PRIVATE LINKER:--no-as-needed)
+    endif()
 endif()
 
 target_sources(TestLibGfx PRIVATE ${TEST_SOURCES})

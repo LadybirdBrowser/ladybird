@@ -77,7 +77,8 @@ static constexpr int GC_INCREMENTAL_SWEEP_SLICE_MS = 5;
 // whether to proactively collect. See idle_gc_on_timer().
 static constexpr int GC_IDLE_GC_INTERVAL_MS = 4000;
 
-static Heap* s_the;
+// Every thread that runs a VM has a heap of its own, and all but the main thread may come and go.
+AK_TLS_INITIAL_EXEC static thread_local constinit Heap* s_the = nullptr;
 
 namespace {
 
@@ -321,10 +322,10 @@ CellAllocator& Heap::create_cell_allocator(CellAllocatorDescriptorBase& descript
     return *allocator;
 }
 
-Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots, BecomeProcessDefault become_process_default)
+Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots, BecomeThreadDefault become_thread_default)
     : m_gather_embedder_roots(move(gather_embedder_roots))
 {
-    if (become_process_default == BecomeProcessDefault::Yes)
+    if (become_thread_default == BecomeThreadDefault::Yes)
         s_the = this;
     m_gc_bytes_threshold = GC_MIN_BYTES_THRESHOLD;
     m_last_collection_end_ns = MonotonicTime::now().nanoseconds();
@@ -347,6 +348,9 @@ Heap::~Heap()
     for (auto* member : m_incoming_cross_heap_members)
         member->detach_from_heap({});
     m_incoming_cross_heap_members.clear();
+
+    if (s_the == this)
+        s_the = nullptr;
 }
 
 void Heap::free_weak_blocks()

@@ -157,16 +157,16 @@ enum AllocationKind {
 
 impl Heap {
     /// Creates a heap that calls `gather_roots` with `context` whenever it gathers its roots. A heap that becomes the
-    /// process default is the one GC::Heap::the() returns to C++ code.
+    /// default of its thread is the one GC::Heap::the() returns to C++ code on that thread.
     ///
     /// # Safety
     ///
     /// `context` must stay valid for as long as the heap exists, including while it is being destroyed.
-    pub unsafe fn new(gather_roots: GCGatherRootsCallback, context: *mut c_void, become_process_default: bool) -> Self {
+    pub unsafe fn new(gather_roots: GCGatherRootsCallback, context: *mut c_void, become_thread_default: bool) -> Self {
         let layout = check_layout();
         crate::layout_forward::initialize_heap_region_base();
         // SAFETY: The caller keeps the context alive for the heap's lifetime.
-        let raw = unsafe { capi::gc_heap_create(gather_roots, context, become_process_default) };
+        let raw = unsafe { capi::gc_heap_create(gather_roots, context, become_thread_default) };
         let raw = NonNull::new(raw).expect("LibGC creates the heap");
         // NB: LibGC reports offsets of fields of its heap.
         let counter = |offset: u32| {
