@@ -69,6 +69,26 @@ void CrashReportsUI::crash_reports_changed()
         load_reports();
 }
 
+static CrashReportsUI::ReportSummary read_report_summary(CrashReportStore const& store, ByteString const& name)
+{
+    // Only a stack can show that two reports are the same crash, so every other report gets a row of its own.
+    CrashReportsUI::ReportSummary summary { name, "Unreadable report"_string, {} };
+
+    // A report that cannot be read still counts as waiting, so it gets a row to delete it from.
+    auto report = store.saved_report(name);
+    if (report.is_error()) {
+        warnln("Could not read crash report {}: {}", name, report.error());
+        return summary;
+    }
+
+    auto diagnostics = CrashReportDiagnostics::parse(report.value().text);
+    if (diagnostics.has_native_stack())
+        summary.signature = diagnostics.signature();
+    summary.process = MUST(String::from_utf8(plain_process_name(diagnostics.header("Process"sv))));
+    summary.crashed_at = diagnostics.crashed_at;
+    return summary;
+}
+
 void CrashReportsUI::load_reports()
 {
     struct Group {
@@ -93,22 +113,13 @@ void CrashReportsUI::load_reports()
     // The names come newest first, so a group's first report is its last crash.
     Vector<Group> groups;
     HashMap<ByteString, size_t> group_indices;
+    HashMap<ByteString, ReportSummary> report_summaries;
     for (auto const& name : names) {
-        // Only a stack can show that two reports are the same crash, so every other report gets a row of its own.
-        auto signature = name;
-        String process = "Unreadable report"_string;
-        Optional<UnixDateTime> crashed_at;
-
-        // A report that cannot be read still counts as waiting, so it gets a row to delete it from.
-        if (auto report = store.saved_report(name); report.is_error()) {
-            warnln("Could not read crash report {}: {}", name, report.error());
-        } else {
-            auto diagnostics = CrashReportDiagnostics::parse(report.value().text);
-            if (diagnostics.has_native_stack())
-                signature = diagnostics.signature();
-            process = MUST(String::from_utf8(plain_process_name(diagnostics.header("Process"sv))));
-            crashed_at = diagnostics.crashed_at;
-        }
+        // A saved report does not change, and this runs each time any report does.
+        auto cached_summary = m_report_summaries.get(name);
+        auto summary = cached_summary.has_value() ? cached_summary.value() : read_report_summary(store, name);
+        report_summaries.set(name, summary);
+        auto const& [signature, process, crashed_at] = summary;
 
         auto index = group_indices.ensure(signature, [&] {
             groups.append({
@@ -134,6 +145,8 @@ void CrashReportsUI::load_reports()
                 group.websites.append(website.release_value());
         }
     }
+
+    m_report_summaries = move(report_summaries);
 
     JsonArray serialized_groups;
     serialized_groups.ensure_capacity(groups.size());
