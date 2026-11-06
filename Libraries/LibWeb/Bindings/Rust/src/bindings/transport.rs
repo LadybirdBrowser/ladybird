@@ -13,12 +13,24 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use crate::html::structured_serialize::cpp::OwnedSerializedTransferRecord;
+use crate::html::structured_serialize::transfer_data_holder::{
+    RawAttachment, ReceivePayload, TransferPayload, append_attachments,
+};
 use crate::html::structured_serialize::transfer_record::{TransferRecord, TransferRecordRef};
+use libipc_rust::{Attachment, DecodeError, Decoder, Encoder};
 use libjs_rust::api::{MarkedVec, Vm};
 
 unsafe extern "C" {
-    fn web_bindings_transport_handle_destroy(handle: *mut c_void);
-    fn web_bindings_transport_handle_create_transport(handle: *mut c_void) -> *mut c_void;
+    fn web_structured_serialize_transfer_handle_take(
+        handle: *mut c_void,
+        context: *mut c_void,
+        receive: ReceivePayload,
+    );
+    fn web_structured_serialize_transfer_handle_create_transport(
+        bytes: ak::Span<'_, u8>,
+        attachments: *const RawAttachment,
+        count: usize,
+    ) -> *mut c_void;
     fn web_bindings_message_port_transport_create_paired(out_remote_handle: &mut *mut c_void) -> *mut c_void;
     fn web_bindings_message_port_transport_destroy(transport: *mut c_void);
     fn web_bindings_message_port_transport_release_for_transfer(transport: *mut c_void) -> *mut c_void;
@@ -38,33 +50,83 @@ unsafe extern "C" {
     ) -> bool;
 }
 
-/// A handle to one end of an IPC transport that this owns: an IPC::TransportHandle, which holds the rights of that end
-/// until a data holder carries them to another agent, or a transport takes them.
-pub(crate) struct TransportHandle(NonNull<c_void>);
+/// The rights of one end of an IPC transport, which this owns until a data holder carries them to another agent, or a
+/// transport takes them.
+pub(crate) struct TransportHandle {
+    attachments: Vec<Attachment>,
+}
 
 impl TransportHandle {
     /// # Safety
     ///
     /// `handle` must be a handle that LibWeb hands over.
     pub(crate) unsafe fn from_raw(handle: *mut c_void) -> Self {
-        Self(NonNull::new(handle).expect("LibWeb hands over a handle"))
+        let mut payload = None;
+        // SAFETY: The call takes the native handle and fills the lent payload slot.
+        unsafe {
+            web_structured_serialize_transfer_handle_take(handle, (&raw mut payload).cast(), TransferPayload::receive);
+        };
+        let payload: TransferPayload = payload.expect("C++ hands over the handle's payload");
+        let mut decoder = Decoder::new(&payload.bytes, payload.attachments);
+        let handle = Self::decode(&mut decoder).expect("a native handle has the transport's rights");
+        assert!(decoder.is_at_end() && decoder.remaining_attachments() == 0);
+        handle
     }
 
-    pub(crate) fn as_raw(&self) -> *mut c_void {
-        self.0.as_ptr()
+    pub(crate) fn encode_into(self, encoder: &mut Encoder) {
+        append_attachments(encoder, self.attachments);
+    }
+
+    pub(crate) fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        let count = if cfg!(target_vendor = "apple") { 2 } else { 1 };
+        if decoder.remaining_attachments() < count {
+            return Err(DecodeError::MissingAttachment);
+        }
+        let mut attachments = Vec::with_capacity(count);
+        for index in 0..count {
+            let attachment = decoder.take_attachment()?;
+            #[cfg(target_vendor = "apple")]
+            let attachment = {
+                use libipc_rust::mach::{
+                    MACH_MSG_TYPE_MOVE_RECEIVE, MACH_MSG_TYPE_MOVE_SEND, MACH_PORT_DEAD, MACH_PORT_NULL,
+                };
+                let (port, disposition) = attachment.into_mach_port();
+                let expected = if index == 0 {
+                    MACH_MSG_TYPE_MOVE_RECEIVE
+                } else {
+                    MACH_MSG_TYPE_MOVE_SEND
+                };
+                if disposition != expected
+                    || port.name() == MACH_PORT_NULL
+                    || (index == 0 && port.name() == MACH_PORT_DEAD)
+                {
+                    return Err(DecodeError::InvalidValue("invalid transport handle right"));
+                }
+                Attachment::from_mach_port(port, disposition)
+            };
+            #[cfg(not(target_vendor = "apple"))]
+            let _ = index;
+            attachments.push(attachment);
+        }
+        Ok(Self { attachments })
     }
 
     /// The transport of the end that the handle holds the rights of, which it gives up.
     pub(crate) fn create_transport(self) -> MessagePortTransport {
-        // SAFETY: This owns the handle, and LibWeb hands over the transport.
-        unsafe { MessagePortTransport::from_raw(web_bindings_transport_handle_create_transport(self.0.as_ptr())) }
-    }
-}
-
-impl Drop for TransportHandle {
-    fn drop(&mut self) {
-        // SAFETY: This owns the handle.
-        unsafe { web_bindings_transport_handle_destroy(self.0.as_ptr()) };
+        let payload = TransferPayload {
+            bytes: Vec::new(),
+            attachments: self.attachments,
+        };
+        payload.with_raw(|bytes, attachments| {
+            // SAFETY: The call takes every right, and LibWeb hands over the transport.
+            unsafe {
+                MessagePortTransport::from_raw(web_structured_serialize_transfer_handle_create_transport(
+                    bytes,
+                    attachments.as_ptr(),
+                    attachments.len(),
+                ))
+            }
+        })
     }
 }
 

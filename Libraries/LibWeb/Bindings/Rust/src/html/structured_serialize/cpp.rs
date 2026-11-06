@@ -55,11 +55,7 @@ unsafe extern "C" {
     ) -> *mut c_void;
     fn web_structured_serialize_image_bitmap_pixels_destroy(image_bitmap_pixels: *mut c_void);
 
-    fn web_structured_serialize_transfer_data_holder_create() -> *mut c_void;
-    fn web_structured_serialize_transfer_data_holder_append(data_holder: *mut c_void, bytes: ak::Span<'_, u8>);
-    fn web_structured_serialize_transfer_data_holder_destroy(data_holder: *mut c_void);
     fn web_structured_serialize_transfer_record_destroy(record: *mut c_void);
-    fn web_structured_serialize_transfer_data_decoder_create(data_holder: *mut c_void) -> *mut c_void;
     fn web_structured_serialize_shared_pixels_create(
         descriptors: *const c_int,
         sizes: *const usize,
@@ -67,8 +63,6 @@ unsafe extern "C" {
     ) -> *mut c_void;
     fn web_structured_serialize_shared_pixels_destroy(buffers: *mut c_void);
     fn web_structured_serialize_transferred_values_append(transferred_values: *mut c_void, value: *mut c_void);
-    fn web_structured_serialize_transfer_data_decoder_bytes(decoder: *const c_void, bytes: &mut ak::Span<'static, u8>);
-    fn web_structured_serialize_transfer_data_decoder_destroy(decoder: *mut c_void);
 }
 
 fn object_into_abi<T>(object: Gc<T>) -> *mut c_void {
@@ -278,54 +272,6 @@ impl Drop for ImageBitmapSharedPixels {
     }
 }
 
-/// The C++ carrier of a data holder that this owns: an HTML::TransferDataEncoder, which the record of a transfer and
-/// IPC carry, and which C++ encodes the values that have attachments into.
-pub(crate) struct TransferDataCarrier(NonNull<c_void>);
-
-impl TransferDataCarrier {
-    pub(crate) fn new() -> Self {
-        // SAFETY: LibWeb returns a new carrier, which this owns.
-        Self(
-            NonNull::new(unsafe { web_structured_serialize_transfer_data_holder_create() }).expect("LibWeb creates it"),
-        )
-    }
-
-    /// # Safety
-    ///
-    /// The carrier must be handed over by C++.
-    pub(crate) unsafe fn from_raw(carrier: *mut c_void) -> Self {
-        Self(NonNull::new(carrier).expect("C++ hands over a carrier"))
-    }
-
-    pub(crate) fn into_decoder(self) -> Option<OwnedTransferDataDecoder> {
-        // SAFETY: The call takes the carrier, including when it is empty.
-        NonNull::new(unsafe { web_structured_serialize_transfer_data_decoder_create(self.into_raw()) })
-            .map(|decoder| OwnedTransferDataDecoder(TransferDataDecoder(decoder)))
-    }
-
-    pub(crate) fn as_raw(&self) -> *mut c_void {
-        self.0.as_ptr()
-    }
-
-    /// Appends bytes that are already in IPC's encoding.
-    pub(crate) fn append(&self, bytes: &[u8]) {
-        // SAFETY: This owns the carrier, and the call borrows the bytes.
-        unsafe { web_structured_serialize_transfer_data_holder_append(self.0.as_ptr(), ak::Span::new(bytes)) };
-    }
-
-    /// Hands the carrier over to LibWeb's C++ code, which owns it from then on.
-    pub(crate) fn into_raw(self) -> *mut c_void {
-        ManuallyDrop::new(self).0.as_ptr()
-    }
-}
-
-impl Drop for TransferDataCarrier {
-    fn drop(&mut self) {
-        // SAFETY: This owns the carrier.
-        unsafe { web_structured_serialize_transfer_data_holder_destroy(self.0.as_ptr()) };
-    }
-}
-
 /// An HTML::SerializedTransferRecord that C++ lends.
 #[derive(Clone, Copy)]
 pub(crate) struct SerializedTransferRecord(NonNull<c_void>);
@@ -389,51 +335,6 @@ impl TransferredValues {
     pub(crate) fn append(self, value: Gc<Object>) {
         // SAFETY: The list is lent, and the value is live.
         unsafe { web_structured_serialize_transferred_values_append(self.0.as_ptr(), object_into_abi(value)) };
-    }
-}
-
-/// The decoder of a received data holder: an HTML::TransferDataDecoder that C++ lends.
-#[derive(Clone, Copy)]
-pub(crate) struct TransferDataDecoder(NonNull<c_void>);
-
-impl TransferDataDecoder {
-    /// # Safety
-    ///
-    /// `decoder` must be a decoder that C++ lends while this is used.
-    pub(crate) unsafe fn from_raw(decoder: *mut c_void) -> Self {
-        Self(NonNull::new(decoder).expect("C++ lends a decoder"))
-    }
-
-    pub(crate) fn as_raw(self) -> *mut c_void {
-        self.0.as_ptr()
-    }
-
-    /// The bytes of the data holder, which it lends for as long as it is lent.
-    ///
-    /// # Safety
-    ///
-    /// The decoder must be lent for `'a`.
-    pub(crate) unsafe fn bytes<'a>(self) -> &'a [u8] {
-        let mut bytes = ak::Span::default();
-        // SAFETY: The decoder is lent for 'a, and its bytes with it.
-        unsafe { web_structured_serialize_transfer_data_decoder_bytes(self.0.as_ptr(), &mut bytes) };
-        bytes.as_slice()
-    }
-}
-
-/// A decoder of a received data holder that this owns.
-pub(crate) struct OwnedTransferDataDecoder(TransferDataDecoder);
-
-impl OwnedTransferDataDecoder {
-    pub(crate) fn decoder(&self) -> TransferDataDecoder {
-        self.0
-    }
-}
-
-impl Drop for OwnedTransferDataDecoder {
-    fn drop(&mut self) {
-        // SAFETY: This owns the decoder.
-        unsafe { web_structured_serialize_transfer_data_decoder_destroy(self.0.0.as_ptr()) };
     }
 }
 

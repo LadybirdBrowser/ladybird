@@ -12,6 +12,8 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGC/RootVector.h>
 #include <LibIPC/File.h>
+#include <LibIPC/Transport.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
@@ -32,6 +34,46 @@
 using namespace Web;
 using namespace Web::HTML;
 
+// A Mach port name and its disposition on Apple, and a descriptor elsewhere.
+struct TransferAttachment {
+    int value;
+    u32 disposition;
+};
+using ReceiveTransferPayload = void (*)(void*, ReadonlyBytes, TransferAttachment const*, size_t);
+
+static Vector<IPC::Attachment> adopt_attachments(TransferAttachment const* raw, size_t count)
+{
+    Vector<IPC::Attachment> attachments;
+    for (size_t i = 0; i < count; ++i) {
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
+        auto disposition = static_cast<Core::MachPort::MessageRight>(raw[i].disposition);
+        auto right = Core::MachPort::PortRight::Send;
+        if (disposition == Core::MachPort::MessageRight::MoveReceive || disposition == Core::MachPort::MessageRight::MakeSend || disposition == Core::MachPort::MessageRight::MakeSendOnce)
+            right = Core::MachPort::PortRight::Receive;
+        else if (disposition == Core::MachPort::MessageRight::MoveSendOnce)
+            right = Core::MachPort::PortRight::SendOnce;
+        attachments.append(IPC::Attachment::from_mach_port(Core::MachPort::adopt_right(static_cast<mach_port_t>(raw[i].value), right), disposition));
+#else
+        attachments.append(IPC::Attachment::from_fd(raw[i].value));
+#endif
+    }
+    return attachments;
+}
+
+static void hand_over_payload(ReadonlyBytes bytes, Vector<IPC::Attachment> attachments, void* context, ReceiveTransferPayload receive)
+{
+    Vector<TransferAttachment> raw;
+    for (auto& attachment : attachments) {
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
+        auto disposition = to_underlying(attachment.message_right());
+        raw.append({ static_cast<int>(attachment.release_mach_port().release()), disposition });
+#else
+        raw.append({ attachment.to_fd(), 0 });
+#endif
+    }
+    receive(context, bytes, raw.data(), raw.size());
+}
+
 extern "C" {
 
 void web_structured_serialize_set_ipc_record(IPCSerializationRecord*, ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t count);
@@ -51,18 +93,17 @@ bool web_structured_serialize_is_exposed(u16 interface_name, void* realm);
 ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(JSObject* const* transfer_list, size_t count, u32 buffer_index, int* shared_memory, size_t* size);
 void web_structured_serialize_image_bitmap_pixels_destroy(ImageBitmapSharedPixels*);
 
-TransferDataEncoder* web_structured_serialize_transfer_data_holder_create();
-void web_structured_serialize_transfer_data_holder_append(TransferDataEncoder*, ReadonlyBytes);
-void web_structured_serialize_transfer_data_holder_destroy(TransferDataEncoder*);
+TransferDataEncoder* web_structured_serialize_transfer_data_holder_create(ReadonlyBytes, TransferAttachment const*, size_t);
+void web_structured_serialize_transfer_data_holder_take(TransferDataEncoder*, void*, ReceiveTransferPayload);
+void web_structured_serialize_transfer_handle_take(IPC::TransportHandle*, void*, ReceiveTransferPayload);
+IPC::Transport* web_structured_serialize_transfer_handle_create_transport(ReadonlyBytes, TransferAttachment const*, size_t);
+bool web_structured_serialize_validate_shared_memory(int, size_t);
 SerializedTransferRecord* web_structured_serialize_transfer_record_create(ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t, TransferDataEncoder* const*, size_t);
 void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord*);
 void web_structured_serialize_transfer_record_take(SerializedTransferRecord*, void*, void (*)(void*, ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t), void (*)(void*, TransferDataEncoder*));
-TransferDataDecoder* web_structured_serialize_transfer_data_decoder_create(TransferDataEncoder*);
 Vector<Core::AnonymousBuffer>* web_structured_serialize_shared_pixels_create(int const*, size_t const*, size_t);
 void web_structured_serialize_shared_pixels_destroy(Vector<Core::AnonymousBuffer>*);
 void web_structured_serialize_transferred_values_append(Vector<GC::Root<JS::Object>>*, JSObject*);
-void web_structured_serialize_transfer_data_decoder_bytes(TransferDataDecoder const*, ReadonlyBytes* bytes);
-void web_structured_serialize_transfer_data_decoder_destroy(TransferDataDecoder*);
 }
 
 static JS::Realm& realm_from_abi(void* realm)
@@ -176,19 +217,49 @@ void web_structured_serialize_image_bitmap_pixels_destroy(ImageBitmapSharedPixel
     delete image_bitmap_pixels;
 }
 
-TransferDataEncoder* web_structured_serialize_transfer_data_holder_create()
+TransferDataEncoder* web_structured_serialize_transfer_data_holder_create(ReadonlyBytes bytes, TransferAttachment const* attachments, size_t count)
 {
-    return new TransferDataEncoder;
+    IPC::MessageDataType data;
+    MUST(data.try_append(bytes.data(), bytes.size()));
+    return new TransferDataEncoder(IPC::MessageBuffer { move(data), adopt_attachments(attachments, count) });
 }
 
-void web_structured_serialize_transfer_data_holder_append(TransferDataEncoder* data_holder, ReadonlyBytes bytes)
+void web_structured_serialize_transfer_data_holder_take(TransferDataEncoder* holder, void* context, ReceiveTransferPayload receive)
 {
-    MUST(data_holder->append(bytes));
+    auto owner = adopt_own(*holder);
+    auto buffer = owner->take_buffer();
+    hand_over_payload(buffer.data().span(), buffer.take_attachments(), context, receive);
 }
 
-void web_structured_serialize_transfer_data_holder_destroy(TransferDataEncoder* data_holder)
+void web_structured_serialize_transfer_handle_take(IPC::TransportHandle* handle, void* context, ReceiveTransferPayload receive)
 {
-    delete data_holder;
+    auto owner = adopt_own(*handle);
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder(buffer);
+    MUST(encoder.encode(*owner));
+    hand_over_payload(buffer.data().span(), buffer.take_attachments(), context, receive);
+}
+
+IPC::Transport* web_structured_serialize_transfer_handle_create_transport(ReadonlyBytes bytes, TransferAttachment const* attachments, size_t count)
+{
+    FixedMemoryStream stream(bytes);
+    Queue<IPC::Attachment> queue;
+    for (auto& attachment : adopt_attachments(attachments, count))
+        queue.enqueue(move(attachment));
+    IPC::Decoder decoder(stream, queue);
+    auto handle = MUST(decoder.decode<IPC::TransportHandle>());
+    return MUST(handle.create_transport()).leak_ptr();
+}
+
+bool web_structured_serialize_validate_shared_memory(int descriptor, size_t size)
+{
+    auto file = IPC::File::clone_fd(descriptor);
+    if (file.is_error())
+        return false;
+    auto buffer = Core::AnonymousBuffer::create_from_anon_fd(file.release_value().take_fd(), size);
+    if (buffer.is_error())
+        return false;
+    return !buffer.value().validate_backing_size().is_error();
 }
 
 // Takes over the descriptors and the data holders.
@@ -228,14 +299,6 @@ void web_structured_serialize_transfer_record_take(SerializedTransferRecord* rec
     record->shared_buffers.clear();
 }
 
-TransferDataDecoder* web_structured_serialize_transfer_data_decoder_create(TransferDataEncoder* holder)
-{
-    auto carrier = adopt_own(*holder);
-    if (carrier->buffer().data().is_empty())
-        return nullptr;
-    return new TransferDataDecoder(move(*carrier));
-}
-
 Vector<Core::AnonymousBuffer>* web_structured_serialize_shared_pixels_create(int const* descriptors, size_t const* sizes, size_t count)
 {
     Vector<Core::AnonymousBuffer> buffers;
@@ -259,14 +322,4 @@ void web_structured_serialize_shared_pixels_destroy(Vector<Core::AnonymousBuffer
 void web_structured_serialize_transferred_values_append(Vector<GC::Root<JS::Object>>* transferred_values, JSObject* value)
 {
     transferred_values->append(GC::make_root(*JS::HostABI::object_from_abi(value)));
-}
-
-void web_structured_serialize_transfer_data_decoder_bytes(TransferDataDecoder const* decoder, ReadonlyBytes* bytes)
-{
-    *bytes = decoder->bytes();
-}
-
-void web_structured_serialize_transfer_data_decoder_destroy(TransferDataDecoder* decoder)
-{
-    delete decoder;
 }

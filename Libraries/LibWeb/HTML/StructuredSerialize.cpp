@@ -133,15 +133,6 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, StorageSeriali
     return TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_deserialize_for_storage(JS::HostABI::vm_to_abi(vm), &target_realm, serialized.data.bytes())));
 }
 
-TransferDataDecoder::TransferDataDecoder(TransferDataEncoder&& data_holder)
-    : m_buffer(data_holder.take_buffer())
-    , m_stream(m_buffer.data().span())
-    , m_decoder(m_stream, m_attachments)
-{
-    for (auto& attachment : m_buffer.take_attachments())
-        m_attachments.enqueue(move(attachment));
-}
-
 Vector<SerializableRegistryEntry> serializable_storage_registry()
 {
     Vector<SerializableRegistryEntry> entries;

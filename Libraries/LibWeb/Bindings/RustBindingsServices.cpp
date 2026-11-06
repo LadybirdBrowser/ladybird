@@ -112,13 +112,6 @@ void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_e
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
-void web_bindings_transfer_data_encode_records(HTML::TransferDataEncoder*, HTML::SerializedTransferRecord const* const*, size_t count);
-void web_bindings_transfer_data_encode_transport_handle(HTML::TransferDataEncoder*, IPC::TransportHandle const*);
-void web_bindings_transfer_data_extend(HTML::TransferDataEncoder*, HTML::TransferDataEncoder*);
-JSCompletion web_bindings_transfer_data_decode_records(HTML::TransferDataDecoder*, void* realm, size_t* offset, void* records, void (*append)(void*, HTML::SerializedTransferRecord*));
-JSCompletion web_bindings_transfer_data_decode_transport_handle(HTML::TransferDataDecoder*, void* realm, size_t* offset, IPC::TransportHandle** out_handle);
-void web_bindings_transport_handle_destroy(IPC::TransportHandle*);
-IPC::Transport* web_bindings_transport_handle_create_transport(IPC::TransportHandle*);
 IPC::Transport* web_bindings_message_port_transport_create_paired(IPC::TransportHandle** out_remote_handle);
 void web_bindings_message_port_transport_destroy(IPC::Transport*);
 IPC::TransportHandle* web_bindings_message_port_transport_release_for_transfer(IPC::Transport*);
@@ -293,58 +286,6 @@ bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origi
         on_origin(ctx, &ffi_origin);
     });
     return true;
-}
-
-// Writes the records as a Vector of them is encoded, which web_bindings_transfer_data_decode_records() and C++ read.
-void web_bindings_transfer_data_encode_records(HTML::TransferDataEncoder* data_holder, HTML::SerializedTransferRecord const* const* records, size_t count)
-{
-    MUST(data_holder->encode_size(count));
-    for (size_t i = 0; i < count; ++i)
-        MUST(data_holder->encode(*records[i]));
-}
-
-void web_bindings_transfer_data_encode_transport_handle(HTML::TransferDataEncoder* data_holder, IPC::TransportHandle const* handle)
-{
-    MUST(data_holder->encode(*handle));
-}
-
-void web_bindings_transfer_data_extend(HTML::TransferDataEncoder* data_holder, HTML::TransferDataEncoder* holder)
-{
-    data_holder->extend(*adopt_own(*holder));
-}
-
-// Reads what web_bindings_transfer_data_encode_records() writes, and hands each record over.
-JSCompletion web_bindings_transfer_data_decode_records(HTML::TransferDataDecoder* data_holder, void* realm, size_t* offset, void* records, void (*append)(void*, HTML::SerializedTransferRecord*))
-{
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto decoded = data_holder->decode_at<Vector<HTML::SerializedTransferRecord>>(*offset);
-    if (decoded.is_error())
-        return completion_to_abi(js_realm, HTML::data_clone_error_from_serialization_error(js_realm, decoded.release_error()));
-    for (auto& record : decoded.value())
-        append(records, new HTML::SerializedTransferRecord(move(record)));
-    return completion_to_abi(js_realm, JS::js_undefined());
-}
-
-// Reads a transport handle, and hands it over.
-JSCompletion web_bindings_transfer_data_decode_transport_handle(HTML::TransferDataDecoder* data_holder, void* realm, size_t* offset, IPC::TransportHandle** out_handle)
-{
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto handle = data_holder->decode_at<IPC::TransportHandle>(*offset);
-    if (handle.is_error())
-        return completion_to_abi(js_realm, HTML::data_clone_error_from_serialization_error(js_realm, handle.release_error()));
-    *out_handle = new IPC::TransportHandle(handle.release_value());
-    return completion_to_abi(js_realm, JS::js_undefined());
-}
-
-void web_bindings_transport_handle_destroy(IPC::TransportHandle* handle)
-{
-    delete handle;
-}
-
-// The transport of the end whose rights the handle holds, which it gives up, handed over.
-IPC::Transport* web_bindings_transport_handle_create_transport(IPC::TransportHandle* handle)
-{
-    return MUST(handle->create_transport()).leak_ptr();
 }
 
 IPC::Transport* web_bindings_message_port_transport_create_paired(IPC::TransportHandle** out_remote_handle)

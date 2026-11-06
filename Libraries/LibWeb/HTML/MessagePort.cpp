@@ -30,7 +30,7 @@ size_t web_rust_message_port_pending_outgoing_message_count(void* port);
 void web_rust_message_port_fail_next_transfer_for_testing(void* port);
 void web_rust_message_port_disentangle_ports_of_realm(JSVM*, void* realm);
 JSCompletion web_rust_message_port_transfer_steps(JSVM*, void* realm, void* port, TransferDataEncoder** out_data_holder);
-JSCompletion web_rust_message_port_transfer_receiving_steps(JSVM*, void* realm, TransferDataDecoder*);
+JSCompletion web_rust_message_port_transfer_receiving_steps(JSVM*, void* realm, TransferDataEncoder*);
 }
 
 static JSVM* vm_abi()
@@ -43,9 +43,9 @@ GC::Ref<MessagePort> MessagePort::create(JS::Realm& realm)
     return GC::Ref { *static_cast<MessagePort*>(web_rust_message_port_create(vm_abi(), &realm)) };
 }
 
-GC::Ref<MessagePort> MessagePort::create_from_transfer(JS::Realm& realm, TransferDataDecoder& data_holder)
+GC::Ref<MessagePort> MessagePort::create_from_transfer(JS::Realm& realm, TransferDataEncoder&& data_holder)
 {
-    auto wrapper = MUST(JS::HostABI::completion_from_abi<JS::Value>(web_rust_message_port_transfer_receiving_steps(vm_abi(), &realm, &data_holder)));
+    auto wrapper = MUST(JS::HostABI::completion_from_abi<JS::Value>(web_rust_message_port_transfer_receiving_steps(vm_abi(), &realm, new TransferDataEncoder(move(data_holder)))));
     return *Bindings::impl_from<MessagePort>(&wrapper.as_object());
 }
 

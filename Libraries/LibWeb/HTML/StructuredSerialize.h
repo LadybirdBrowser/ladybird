@@ -35,35 +35,6 @@ class HostObject;
 
 namespace Web::HTML {
 
-// A received data holder, whose bytes Rust reads. The values that have attachments C++ decodes for it, at the offset
-// that Rust has read to.
-class WEB_API TransferDataDecoder {
-    AK_ALLOC_WITH_KMALLOC;
-
-public:
-    explicit TransferDataDecoder(TransferDataEncoder&&);
-
-    ReadonlyBytes bytes() const { return m_buffer.data().span(); }
-
-    // Decodes a value at the offset, and sets the offset to the end of the value.
-    template<typename T>
-    ErrorOr<T> decode_at(size_t& offset)
-    {
-        TRY(m_stream.seek(offset, SeekMode::SetPosition));
-        auto value = TRY(m_decoder.decode<T>());
-        offset = TRY(m_stream.tell());
-        return value;
-    }
-
-private:
-    IPC::MessageBuffer m_buffer;
-
-    FixedMemoryStream m_stream;
-    Queue<IPC::Attachment> m_attachments;
-
-    IPC::Decoder m_decoder;
-};
-
 struct StructuredSerializeOptions {
     GC::RootVector<GC::Ref<JS::Object>> transfer;
 };
@@ -104,15 +75,6 @@ struct SerializableRegistryEntry {
 };
 
 WEB_API Vector<SerializableRegistryEntry> serializable_storage_registry();
-
-template<typename T>
-WebIDL::ExceptionOr<void> encode_or_throw_data_clone_error(JS::Realm& realm, TransferDataEncoder& encoder, T const& value)
-{
-    auto result = encoder.encode(value);
-    if (result.is_error())
-        return data_clone_error_from_serialization_error(realm, result.release_error());
-    return {};
-}
 
 WEB_API WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::Realm&, JS::Value, ReadonlySpan<GC::Ref<JS::Object>> transfer_list);
 WEB_API WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_transfer(SerializedTransferRecord&, JS::Realm&);
