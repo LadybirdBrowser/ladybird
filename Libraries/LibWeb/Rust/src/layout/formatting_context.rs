@@ -1667,7 +1667,6 @@ fn apply_root_sizing_directives(
         }
         ParticipationInParentFormattingContext::Float {
             flex_container_resolves_its_own_automatic_block_size,
-            ..
         } => {
             flex_self_resolution_space =
                 (*flex_container_resolves_its_own_automatic_block_size).then_some(input.available_space);
@@ -1816,7 +1815,6 @@ fn float_flex_container_resolves_its_own_automatic_block_size(input: &LayoutInpu
         input.participation,
         ParticipationInParentFormattingContext::Float {
             flex_container_resolves_its_own_automatic_block_size: true,
-            ..
         }
     )
 }

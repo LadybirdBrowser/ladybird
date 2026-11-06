@@ -6447,13 +6447,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    /// Resolves the vertical box model and the inline size of a float, which depends on the floats placed beside it
-    /// before.
+    /// Resolves the vertical box model and the inline size of a float, which depends on the floats placed beside the
+    /// content box of its containing block, at `containing_block_position_in_root`, before.
     pub(crate) fn dimension_float_root_inline_size(
         &self,
         sized_float: ChildSizedHere<'_>,
         block_container: BlockContainer,
         input: &LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
     ) {
         let available_space = input.available_space;
         let block_container_inline_size = block_container.cells.content_inline_size;
@@ -6462,14 +6463,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             block_container_inline_size,
             input.containing_block_constraints,
         );
-        let ParticipationInParentFormattingContext::Float {
-            containing_block_position_in_bfc_root,
-            ..
-        } = input.participation
-        else {
-            unreachable!("a float root is dimensioned as a float");
-        };
-        let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_bfc_root);
+        let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
         let containing_block_rect_now = containing_block_rect.translated(
             CssPixels::default(),
             self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container.node),
@@ -6549,11 +6543,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             containing_block_constraints: input.containing_block_constraints,
             sizing: RootSizingDirectives::default(),
             participation: ParticipationInParentFormattingContext::Float {
-                containing_block_position_in_bfc_root: containing_block_position_in_root,
                 flex_container_resolves_its_own_automatic_block_size,
             },
         };
-        self.dimension_float_root_inline_size(sized_float, block_container, &float_input);
+        self.dimension_float_root_inline_size(
+            sized_float,
+            block_container,
+            &float_input,
+            containing_block_position_in_root,
+        );
         float_input
     }
 

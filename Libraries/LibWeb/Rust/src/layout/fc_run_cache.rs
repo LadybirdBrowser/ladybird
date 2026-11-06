@@ -120,15 +120,6 @@ impl FcRunCacheKey {
         mut input: LayoutInput,
         root_cells: used_values::RootInputCells,
     ) -> Self {
-        // NB: The parent block formatting context sizes a float against its containing block position before the
-        //     run and places it after. The run lays the float out from its own origin.
-        if let ParticipationInParentFormattingContext::Float {
-            containing_block_position_in_bfc_root,
-            ..
-        } = &mut input.participation
-        {
-            *containing_block_position_in_bfc_root = FfiCssPixelPoint::default();
-        }
         if let ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs) = &mut input.participation {
             let normalized_inputs = inputs.without_static_position_in_axes_placed_by_own_insets();
             if normalized_inputs != **inputs {
@@ -211,16 +202,6 @@ fn participation_matches_probe(
     probe: &ParticipationInParentFormattingContext,
 ) -> bool {
     match (stored, probe) {
-        (
-            ParticipationInParentFormattingContext::Float {
-                flex_container_resolves_its_own_automatic_block_size: stored,
-                ..
-            },
-            ParticipationInParentFormattingContext::Float {
-                flex_container_resolves_its_own_automatic_block_size: probe,
-                ..
-            },
-        ) => stored == probe,
         (
             ParticipationInParentFormattingContext::AbsolutelyPositioned(stored),
             ParticipationInParentFormattingContext::AbsolutelyPositioned(probe),
@@ -1653,7 +1634,6 @@ mod tests {
             },
             |probe| {
                 probe.input.participation = ParticipationInParentFormattingContext::Float {
-                    containing_block_position_in_bfc_root: FfiCssPixelPoint::default(),
                     flex_container_resolves_its_own_automatic_block_size: false,
                 }
             },
