@@ -110,6 +110,23 @@ jobs:
             --python-executable "${{ env.pythonLocation }}/bin/python" \
             | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # Cloning WPT normally takes well under a minute, but now and then a clone stalls. Cut a stalled clone off and
+      # start over, in a step of its own, so it can't use up the time the smoke tests have.
+      - name: Clone WPT
+        if: ${{ inputs.os_name == 'Linux' && (inputs.build_preset == 'Release' || inputs.build_preset == 'Sanitizer') }}
+        timeout-minutes: 10
+        working-directory: ${{ github.workspace }}
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            rm -rf Tests/LibWeb/WPT/wpt
+            if timeout 180 Meta/WPT.sh update; then
+              exit 0
+            fi
+            echo "::warning::Cloning WPT failed or stalled (attempt ${attempt} of 3)"
+          done
+          exit 1
+
       - name: Run WPT Smoke Tests
         if: ${{ inputs.os_name == 'Linux' && (inputs.build_preset == 'Release' || inputs.build_preset == 'Sanitizer') }}
         timeout-minutes: 5
