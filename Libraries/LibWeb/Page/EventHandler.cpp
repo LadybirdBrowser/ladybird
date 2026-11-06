@@ -5703,7 +5703,9 @@ void EventHandler::report_hovered_node_to_client(GC::Ptr<DOM::Node> target)
 
     Optional<URL::URL> hovered_link_url;
     if (target) {
-        if (auto const* hovered_link_element = target->enclosing_link_element())
+        // NB: A link in editable content is text to edit, which clicking does not follow.
+        auto const* hovered_link_element = target->enclosing_link_element();
+        if (hovered_link_element && !hovered_link_element->hyperlink_element_utils_element().is_editable_or_editing_host())
             hovered_link_url = target->document().encoding_parse_url(hovered_link_element->href());
     }
     page.hover_link().request(move(hovered_link_url));
