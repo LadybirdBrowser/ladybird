@@ -48,7 +48,8 @@ struct SocketMessageHeader {
 
 class SendQueue : public AtomicRefCounted<SendQueue> {
 public:
-    void enqueue_message(SocketMessageHeader, MessageDataType payload, Vector<NonnullRefPtr<AutoCloseFileDescriptor>>&& fds);
+    // Answers whether the queue was empty before this message.
+    bool enqueue_message(SocketMessageHeader, MessageDataType payload, Vector<NonnullRefPtr<AutoCloseFileDescriptor>>&& fds);
     struct BytesAndFds {
         Vector<u8> bytes;
         Vector<int> fds;
@@ -144,6 +145,7 @@ private:
         SocketClosed,
     };
     [[nodiscard]] TransferState transfer_data(ReadonlyBytes& bytes, Vector<int>& fds);
+    [[nodiscard]] bool send_queued_messages_on_this_thread();
 
     static ErrorOr<void> send_message(Core::LocalSocket&, ReadonlyBytes& bytes, Vector<int>& unowned_fds);
 
@@ -169,6 +171,8 @@ private:
 
     RefPtr<Threading::Thread> m_io_thread;
     RefPtr<SendQueue> m_send_queue;
+    // Held by the thread that takes bytes from the send queue and writes them to the socket, which keeps them in order.
+    Mutex m_send_mutex;
     Atomic<IOThreadState> m_io_thread_state { IOThreadState::Running };
     Atomic<bool> m_is_being_transferred { false };
     Atomic<bool> m_peer_eof { false };

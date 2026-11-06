@@ -84,9 +84,10 @@ ErrorOr<TransportSocket::Paired> TransportSocket::create_paired()
     };
 }
 
-void SendQueue::enqueue_message(SocketMessageHeader header, MessageDataType payload, Vector<NonnullRefPtr<AutoCloseFileDescriptor>>&& fds)
+bool SendQueue::enqueue_message(SocketMessageHeader header, MessageDataType payload, Vector<NonnullRefPtr<AutoCloseFileDescriptor>>&& fds)
 {
     MutexLocker locker(m_mutex);
+    bool queue_was_empty = m_queued_messages.is_empty();
 
     // Send the descriptors that do not fit in one sendmsg() with the message ahead of it, in full frames.
     size_t fds_ahead = 0;
@@ -109,6 +110,7 @@ void SendQueue::enqueue_message(SocketMessageHeader header, MessageDataType payl
 
     m_queued_byte_count += sizeof(SocketMessageHeader) + payload.size();
     m_queued_messages.append(QueuedMessage { header, move(payload), move(fds) });
+    return queue_was_empty;
 }
 
 SendQueue::BytesAndFds SendQueue::peek(size_t max_bytes)
@@ -291,6 +293,7 @@ intptr_t TransportSocket::io_thread_loop()
         }
 
         if (pollfds[0].revents & POLLOUT) {
+            MutexLocker locker(m_send_mutex);
             auto [bytes, fds] = m_send_queue->peek(4096);
             if (!bytes.is_empty() || !fds.is_empty()) {
                 ReadonlyBytes remaining = bytes;
@@ -391,6 +394,7 @@ void TransportSocket::close()
 {
     m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
     stop_io_thread(IOThreadState::Stopped);
+    MutexLocker locker(m_send_mutex);
     m_socket->close();
 }
 
@@ -398,6 +402,7 @@ void TransportSocket::close_after_sending_all_pending_messages()
 {
     m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
     stop_io_thread(IOThreadState::SendPendingMessagesAndStop);
+    MutexLocker locker(m_send_mutex);
     m_socket->close();
 }
 
@@ -494,21 +499,42 @@ ErrorOr<void> TransportSocket::post_message(MessageDataType bytes_to_write, Vect
     if (shared_memory)
         fds.unchecked_append(shared_memory.release_nonnull());
 
-    m_send_queue->enqueue_message(header, move(bytes_to_write), move(fds));
-    wake_io_thread();
+    bool queue_was_empty = m_send_queue->enqueue_message(header, move(bytes_to_write), move(fds));
+
+    // OPTIMIZATION: The socket takes a message right away unless the peer has fallen far behind, so write it from here
+    //               instead of waking the IO thread for each one, which adds a thread hop to the latency of every
+    //               message. The IO thread writes what the socket does not take, and all that is queued behind it.
+    if (!queue_was_empty || !send_queued_messages_on_this_thread())
+        wake_io_thread();
     return {};
+}
+
+// Answers whether the send queue is empty afterwards. This never blocks, and it leaves the queue alone if another thread
+// is writing from it.
+bool TransportSocket::send_queued_messages_on_this_thread()
+{
+    if (!m_send_mutex.try_lock())
+        return false;
+    ScopeGuard unlock_send_mutex = [this] { m_send_mutex.unlock(); };
+    if (m_io_thread_state.load(AK::MemoryOrder::memory_order_acquire) != IOThreadState::Running)
+        return false;
+
+    auto [bytes, fds] = m_send_queue->peek(MAX_INLINE_PAYLOAD_SIZE);
+    if (bytes.is_empty() && fds.is_empty())
+        return true;
+    ReadonlyBytes remaining = bytes;
+    if (transfer_data(remaining, fds) == TransferState::SocketClosed)
+        return false;
+    if (!remaining.is_empty())
+        return false;
+    auto [more_bytes, more_fds] = m_send_queue->peek(1);
+    return more_bytes.is_empty() && more_fds.is_empty();
 }
 
 ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyBytes& bytes_to_write, Vector<int>& unowned_fds)
 {
-    auto num_fds_to_transfer = unowned_fds.size();
     while (!bytes_to_write.is_empty()) {
-        ErrorOr<ssize_t> maybe_nwritten = 0;
-        if (num_fds_to_transfer > 0) {
-            maybe_nwritten = socket.send_message(bytes_to_write, 0, unowned_fds);
-        } else {
-            maybe_nwritten = socket.write_some(bytes_to_write);
-        }
+        auto maybe_nwritten = socket.send_message(bytes_to_write, MSG_DONTWAIT, unowned_fds);
 
         if (maybe_nwritten.is_error()) {
             if (auto error = maybe_nwritten.release_error(); error.is_errno() && (error.code() == EAGAIN || error.code() == EWOULDBLOCK || error.code() == EINTR)) {
@@ -519,7 +545,6 @@ ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyB
         }
 
         bytes_to_write = bytes_to_write.slice(maybe_nwritten.value());
-        num_fds_to_transfer = 0;
         unowned_fds.clear();
     }
     return {};
@@ -759,6 +784,7 @@ ErrorOr<TransportHandle> TransportSocket::release_for_transfer()
     m_is_being_transferred.store(true, AK::MemoryOrder::memory_order_release);
     m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
     stop_io_thread(IOThreadState::SendPendingMessagesAndStop);
+    MutexLocker locker(m_send_mutex);
     auto fd = TRY(m_socket->release_fd());
     return TransportHandle { File::adopt_fd(fd) };
 }
