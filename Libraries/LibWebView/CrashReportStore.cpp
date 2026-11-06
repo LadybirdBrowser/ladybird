@@ -20,6 +20,7 @@
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/ProcessManager.h>
@@ -167,11 +168,37 @@ static ErrorOr<Optional<Core::Directory>> open_seen_directory_if_exists(Core::Di
 }
 
 // Moving is atomic, so a report is always in exactly one of the two directories. Moving it where it already is succeeds.
+static timespec modified_time(struct stat const&);
+
+// A profile can live on another file system than the place reports used to be kept, which rename cannot reach.
+static ErrorOr<void> copy_report_across_file_systems(Core::Directory const& from, Core::Directory const& to, ByteString const& name, struct stat const& status)
+{
+    auto text = TRY(read_owned_file(from, name));
+    auto file = TRY(to.open(name, Core::File::OpenMode::Write | Core::File::OpenMode::MustBeNew | Core::File::OpenMode::NoFollow, 0400));
+    ArmedScopeGuard remove_incomplete_copy = [&] { (void)unlinkat(to.fd(), name.characters(), 0); };
+    TRY(file->write_until_depleted(text.bytes()));
+
+    // A report's age is based on this, so the copy has to expire when the report would have.
+    auto modified = modified_time(status);
+    timespec times[2] { modified, modified };
+    if (futimens(file->fd(), times) < 0 || fsync(file->fd()) < 0)
+        return Error::from_errno(errno);
+    remove_incomplete_copy.disarm();
+
+    if (unlinkat(from.fd(), name.characters(), 0) < 0)
+        return Error::from_errno(errno);
+    return {};
+}
+
 static ErrorOr<void> move_report(Core::Directory const& from, Core::Directory const& to, ByteString const& name)
 {
     struct stat status {};
     if (is_owned_regular_file_at(from, name, status)) {
-        TRY(Core::System::renameat(from.fd(), name, to.fd(), name));
+        if (auto result = Core::System::renameat(from.fd(), name, to.fd(), name); result.is_error()) {
+            if (result.error().code() != EXDEV)
+                return result.release_error();
+            TRY(copy_report_across_file_systems(from, to, name, status));
+        }
         // The move is only durable once both directories are, or a report could be offered again.
         if (fsync(to.fd()) < 0 || fsync(from.fd()) < 0)
             return Error::from_errno(errno);
@@ -180,6 +207,18 @@ static ErrorOr<void> move_report(Core::Directory const& from, Core::Directory co
     if (is_owned_regular_file_at(to, name, status))
         return {};
     return Error::from_string_literal("Crash report no longer exists");
+}
+
+static void move_all_reports(Core::Directory const& from, Core::Directory const& to)
+{
+    Core::DirIterator iterator(from.path().string(), Core::DirIterator::SkipDots);
+    while (iterator.has_next()) {
+        auto name = iterator.next_path();
+        if (!CrashReportStore::is_saved_report_name(name))
+            continue;
+        if (auto result = move_report(from, to, name); result.is_error())
+            warnln("Could not move crash report {}: {}", name, result.error());
+    }
 }
 
 static timespec modified_time(struct stat const& status)
@@ -306,6 +345,21 @@ ErrorOr<void> CrashReportStore::mark_seen(ByteString const& name) const
     auto seen_directory = TRY(open_seen_directory(directory));
     TRY(move_report(directory, seen_directory, name));
     apply_retention(seen_directory, name);
+    return {};
+}
+
+ErrorOr<void> CrashReportStore::adopt_reports_from(ByteString const& directory) const
+{
+    if (directory == m_directory || !FileSystem::exists(directory))
+        return {};
+
+    auto from = TRY(open_report_directory(directory, Core::Directory::CreateDirectories::No));
+    auto to = TRY(open_report_directory(m_directory));
+    move_all_reports(from, to);
+    if (auto seen_from = TRY(open_seen_directory_if_exists(from)); seen_from.has_value()) {
+        auto seen_to = TRY(open_seen_directory(to));
+        move_all_reports(*seen_from, seen_to);
+    }
     return {};
 }
 
@@ -495,6 +549,7 @@ bool CrashReportStore::has_pending_reports(UnixDateTime) const { return false; }
 ErrorOr<void> CrashReportStore::mark_seen(ByteString const&) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_report(ByteString const&) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_all_reports() const { return {}; }
+ErrorOr<void> CrashReportStore::adopt_reports_from(ByteString const&) const { return {}; }
 
 ErrorOr<ByteString> CrashReportStore::store_report(ProcessType, StringView, UnixDateTime) const
 {

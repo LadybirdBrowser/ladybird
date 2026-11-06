@@ -174,6 +174,7 @@ private:
     virtual void show_download_in_folder(WebView::FileDownloader::Download const&) const override;
 
     virtual void crash_reports_changed() override;
+    virtual bool captures_browser_crashes() const override { return true; }
 
     virtual bool supports_clipboard_type(ClipboardType) const override;
     virtual Utf16String clipboard_text(ClipboardType) const override;
