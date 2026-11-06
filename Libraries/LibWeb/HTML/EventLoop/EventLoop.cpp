@@ -277,7 +277,11 @@ void EventLoop::process()
     }
 
     // 5. If this is a window event loop that has no runnable task in this event loop's task queues, then:
-    if (m_type == Type::Window && !m_task_queue->has_runnable_tasks() && (!m_idle_period_timer || !m_idle_period_timer->is_active())) {
+    // NB: A callback that asks for the next one through a task still waits, as a page would otherwise spin while idle.
+    static constexpr double minimum_time_between_idle_periods_in_ms = 1;
+    bool idle_period_may_start = !m_idle_period_timer || !m_idle_period_timer->is_active()
+        || (m_idle_callback_requested_outside_idle_period && HighResolutionTime::unsafe_shared_current_time() - m_last_idle_period_start_time >= minimum_time_between_idle_periods_in_ms);
+    if (m_type == Type::Window && !m_task_queue->has_runnable_tasks() && idle_period_may_start) {
         auto windows = same_loop_windows();
         bool has_idle_callbacks = false;
         for (auto& window : windows) {
@@ -289,7 +293,9 @@ void EventLoop::process()
         if (has_idle_callbacks) {
             // NB: Delay the next idle period until this one's 50 ms budget has elapsed. Callbacks registered
             //     during an idle period belong to the next one; immediately starting it lets self-scheduling
-            //     callbacks spin continuously even when they have no work to do.
+            //     callbacks spin continuously even when they have no work to do. A callback requested from
+            //     anything but an idle callback starts an idle period right away (see did_request_idle_callback()).
+            m_idle_callback_requested_outside_idle_period = false;
             if (!m_idle_period_timer) {
                 m_idle_period_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(50), GC::create_function(GC::Heap::the(), [this] {
                     schedule();
@@ -1935,6 +1941,15 @@ Vector<GC::Root<HTML::Window>> EventLoop::same_loop_windows() const
         windows.append(GC::make_root(document->window()));
     }
     return windows;
+}
+
+// NB: A page that asks for an idle callback from a task or a rendering update does not keep the event loop busy by
+//     doing so, so its callback need not wait for the last idle period's 50 ms to run out. One that an idle callback
+//     or a reaction to it asks for does wait, or the two would run back to back.
+void EventLoop::did_request_idle_callback()
+{
+    if (m_task_generation != m_task_generation_of_last_idle_callback)
+        m_idle_callback_requested_outside_idle_period = true;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model:last-idle-period-start-time
