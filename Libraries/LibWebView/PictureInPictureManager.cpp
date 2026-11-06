@@ -146,15 +146,25 @@ void PictureInPictureManager::window_did_close(PictureInPictureWindow& window, P
 
 void PictureInPictureManager::window_page_did_close(PictureInPictureWindow& window)
 {
-    OwnPtr<PictureInPictureWindow> closed_window;
     if (auto index = index_of(window); index.has_value()) {
-        closed_window = m_windows.take(*index).window;
+        m_closed_windows.append(m_windows.take(*index).window);
     } else if (auto index = m_retired_windows.find_first_index_if([&](auto const& retired_window) { return retired_window.ptr() == &window; }); index.has_value()) {
-        closed_window = m_retired_windows.take(*index);
+        m_closed_windows.append(m_retired_windows.take(*index));
     }
 
-    // The window's page closes from within a callback of its view, so the window is destroyed once that returns.
-    Core::deferred_invoke([closed_window = move(closed_window)] { });
+    // The window's page closes from within a callback of its view, so the window is destroyed once that returns. The
+    // event loop may never get to this, so the window stays here for destroy_all_windows() to find.
+    Core::deferred_invoke([this] {
+        auto closed_windows = exchange(m_closed_windows, {});
+    });
+}
+
+void PictureInPictureManager::destroy_all_windows()
+{
+    // Destroying a window's view closes its page, which comes back here, so the windows leave their lists first.
+    auto windows = exchange(m_windows, {});
+    auto retired_windows = exchange(m_retired_windows, {});
+    auto closed_windows = exchange(m_closed_windows, {});
 }
 
 }

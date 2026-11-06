@@ -64,6 +64,7 @@
 #include <LibWebView/NoOpMicrophoneAuthorizer.h>
 #include <LibWebView/NoOpNotificationBackend.h>
 #include <LibWebView/PermissionManager.h>
+#include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/PictureInPictureWindow.h>
 #include <LibWebView/ProcessType.h>
 #include <LibWebView/RequestServerManager.h>
@@ -281,6 +282,8 @@ Application::~Application()
     }
 
     m_spare_web_content_process = nullptr;
+
+    PictureInPictureManager::the().destroy_all_windows();
 
     // Connection die() handlers use the process manager, so destroy the processes while it is still reachable.
     if (m_process_manager)
