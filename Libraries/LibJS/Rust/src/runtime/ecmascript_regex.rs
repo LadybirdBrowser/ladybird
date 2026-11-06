@@ -28,7 +28,7 @@ impl MatchResult {
         match result {
             VmResult::Match => Self::Match,
             VmResult::NoMatch => Self::NoMatch,
-            VmResult::LimitExceeded => Self::LimitExceeded,
+            VmResult::LimitExceeded | VmResult::Interrupted => Self::LimitExceeded,
         }
     }
 }

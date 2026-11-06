@@ -780,6 +780,9 @@ impl Vm {
             .keyed_property_lookup_cache_entries
             .set(vm.keyed_property_lookup_cache.entries_for_interpreter());
         vm.update_dispatch_tables();
+        if options.become_thread_default_heap {
+            libregex_rust::vm::set_interrupt_flag_of_this_thread(&raw const vm.interrupt_requested);
+        }
         let context = storage.cast();
         // SAFETY: The VM stays at this address until it is dropped, and it destroys the heap before anything else.
         let heap = unsafe { Heap::new(gather_roots, context, options.become_thread_default_heap) };
@@ -2148,6 +2151,9 @@ impl Vm {
 
 impl Drop for Vm {
     fn drop(&mut self) {
+        if self.options.become_thread_default_heap {
+            libregex_rust::vm::set_interrupt_flag_of_this_thread(core::ptr::null());
+        }
         // The debugger holds weak references to executables, which go away with the heap.
         drop(self.debugger.take());
         // So do these caches of shapes. A weak reference that outlives the heap also keeps its weak block allocated.
