@@ -67,6 +67,9 @@ private:
 // compiled yet. This compiles a private copy of the source without touching the VM or the GC heap.
 JS_API Vector<Position> breakpoint_positions_for_source(SourceCode const&, ProgramType, size_t line_number_offset);
 
+// Whether two functions run the same compiled code, which compiles them if they did not run yet. Only for tests.
+JS_API bool functions_share_code(VM&, FunctionObject const&, FunctionObject const&);
+
 class ParsedProgram;
 class CompiledProgram;
 
@@ -77,8 +80,8 @@ JS_API Result<GC::Ref<Script>, Vector<ParserError>> create_script(CompiledProgra
 JS_API Result<GC::Ref<SourceTextModule>, Vector<ParserError>> create_module(ParsedProgram, NonnullRefPtr<SourceCode const>, Realm&, StringView filename, GC::Ptr<GC::Cell>);
 JS_API Result<GC::Ref<SourceTextModule>, Vector<ParserError>> create_module(CompiledProgram, NonnullRefPtr<SourceCode const>, Realm&, StringView filename, GC::Ptr<GC::Cell>);
 
-// ParsedProgram and CompiledProgram hold a program outside of the VM and the GC heap. Parsing, compiling, serializing
-// and destroying them is thread-safe, so a host can do that work on a worker thread.
+// ParsedProgram and CompiledProgram hold a program outside of the VM and the GC heap. Parsing, compiling and destroying
+// them is thread-safe, so a host can do that work on a worker thread.
 class JS_API ParsedProgram {
     AK_MAKE_NONCOPYABLE(ParsedProgram);
 
@@ -92,8 +95,6 @@ public:
 
     explicit operator bool() const { return m_program; }
     bool has_errors() const;
-
-    // Only for a program without errors. The copy compiles independently of the original.
 
 private:
     friend class CompiledProgram;

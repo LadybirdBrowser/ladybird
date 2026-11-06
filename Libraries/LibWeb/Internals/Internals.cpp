@@ -21,6 +21,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Cursor.h>
+#include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -89,6 +90,7 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/CompiledScriptCache.h>
 #include <LibWeb/HTML/Scripting/ConsoleInputCompletion.h>
 #include <LibWeb/HTML/Scripting/DevToolsObjectTable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -1410,6 +1412,32 @@ bool Internals::set_http_memory_cache_enabled(bool enabled)
     auto was_enabled = Web::Fetch::Fetching::http_memory_cache_enabled();
     Web::Fetch::Fetching::set_http_memory_cache_enabled(enabled);
     return was_enabled;
+}
+
+bool Internals::functions_share_code(JS::Value a, JS::Value b)
+{
+    if (!a.is_function() || !b.is_function())
+        return false;
+    return JS::functions_share_code(vm(), a.as_function(), b.as_function());
+}
+
+bool Internals::compiled_script_cache_contains(Utf16String const& url)
+{
+    auto parsed_url = DOMURL::parse(url);
+    if (!parsed_url.has_value())
+        return false;
+
+    auto key = Fetch::Infrastructure::determine_the_network_partition_key(window().associated_document().relevant_settings_object());
+    auto partition = key.has_value() ? key->disk_cache_partition() : OptionalNone {};
+    if (!partition.has_value())
+        return false;
+
+    return HTML::CompiledScriptCache::the().contains({
+        .partition = partition.release_value(),
+        .url_without_fragment = HTTP::serialize_url_for_cache_storage(*parsed_url),
+        .program_type = JS::ProgramType::Script,
+        .line_number_offset = 1,
+    });
 }
 
 bool Internals::set_disk_cache_enabled_for_navigations(bool enabled)

@@ -39,6 +39,8 @@ public:
     // From here on, the program keeps the functions that get compiled for it. Replaces what the key held before.
     void store(CompiledScriptCacheKey, Utf16String source_text, JS::CompiledProgram const&);
 
+    bool contains(CompiledScriptCacheKey const& key) const { return m_entries.contains(key); }
+
     void clear();
 
 private:
