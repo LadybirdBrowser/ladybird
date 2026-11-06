@@ -4685,8 +4685,10 @@ void TabWidget::update_tab_layout()
     auto margins = m_tab_bar_row_layout->contentsMargins();
     auto controls_width = margins.left() + margins.right() + HORIZONTAL_NEW_TAB_BUTTON_GAP - HORIZONTAL_TAB_END_ROOM + HORIZONTAL_NEW_TAB_BUTTON_SIZE + horizontal_tab_strip_drag_space();
     controls_width += m_ladybird_buttons->sizeHint().width() + LADYBIRD_BUTTONS_TRAILING_GAP - HORIZONTAL_TAB_END_ROOM;
+    // NB: This is the room the window controls need, and not their width, which shrinks along with a strip that is too
+    //     narrow for them. The minimum width below would then follow it down.
     if (!m_window_controls->isHidden())
-        controls_width += m_window_controls->width() + (use_native_macos_window_controls() ? LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP : 0);
+        controls_width += m_window_controls->sizeHint().expandedTo(m_window_controls->minimumSize()).width() + (use_native_macos_window_controls() ? LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP : 0);
 
     auto available_for_tabs = width() - controls_width;
     auto pinned_count = m_tab_bar->pinned_tab_count();
