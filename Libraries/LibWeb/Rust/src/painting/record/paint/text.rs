@@ -704,6 +704,7 @@ fn paint_text_shadow<O: Observer>(
                 .placed()
                 .skip(span_glyphs.start)
                 .take(span_glyphs.len())
+                .filter(|placed| placed.glyph.should_paint())
                 .map(DisplayListGlyph::from),
         },
         scale,
@@ -774,7 +775,11 @@ fn paint_text_fragment<O: Observer>(
             .inherited_text()
             .font_smoothing,
         font_id: FontResourceId(font_id),
-        glyphs: run.glyphs.placed().map(DisplayListGlyph::from),
+        glyphs: run
+            .glyphs
+            .placed()
+            .filter(|placed| placed.glyph.should_paint())
+            .map(DisplayListGlyph::from),
     };
 
     // Paint text, clipped to span range if not full fragment.

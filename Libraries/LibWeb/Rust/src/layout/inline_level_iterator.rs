@@ -83,6 +83,33 @@ fn shaped_glyphs_from(
     shape.with_baseline_start(baseline_start_x).into_glyphs()
 }
 
+/// `glyphs`, the glyphs of a text item past its leading tabs, after a glyph that paints nothing standing for the
+/// `tab_count` tabs and advancing to the tab stop at `tab_advance`, so that the code units of the item's glyphs line up
+/// with those of its text.
+fn glyphs_after_tab_spacer(
+    glyphs: &libgfx_rust::text_layout::GlyphBuffer,
+    tab_count: usize,
+    tab_advance: f32,
+) -> libgfx_rust::text_layout::GlyphBuffer {
+    use libgfx_rust::text_layout::{DrawGlyph, GlyphBuffer, PlacedGlyph};
+    let tab_count_u32 = u32::try_from(tab_count).expect("tab counts fit in 32 bits");
+    let mut with_spacer = GlyphBuffer::default();
+    with_spacer.push_placed(PlacedGlyph {
+        glyph: DrawGlyph::new(tab_advance, 0, tab_count, false),
+        x: 0.0,
+        y: glyphs.placed().next().map_or(0.0, |placed| placed.y),
+        cluster_start: 0,
+        is_rtl: false,
+    });
+    for placed in glyphs.placed() {
+        with_spacer.push_placed(PlacedGlyph {
+            cluster_start: placed.cluster_start + tab_count_u32,
+            ..placed
+        });
+    }
+    with_spacer
+}
+
 fn reshaped_glyph_run(
     text: &[u16],
     font: &libgfx_rust::font::FontHandle,
@@ -1642,6 +1669,7 @@ impl<'context> RunItemResolver<'_, 'context> {
         let prepared = self.prepared;
         let mut inline_offset = 0.0f32;
         let mut upright_advance_after_tabs = None;
+        let mut tab_count = 0;
         if prepared_item.has(PreparedItem::TAB_STOP) {
             let tab_stop = prepared.tab_stops[self.next_tab_stop];
             self.next_tab_stop += 1;
@@ -1658,6 +1686,7 @@ impl<'context> RunItemResolver<'_, 'context> {
             tab_stop_distance = tab_stop_distance * tab_stop.tab_count as usize;
             inline_offset = tab_stop_distance.to_double() as f32;
             upright_advance_after_tabs = tab_stop.upright_advance;
+            tab_count = tab_stop.tab_count as usize;
         }
         let shape = prepared_item.shape();
         let mut width = shape.width();
@@ -1666,6 +1695,8 @@ impl<'context> RunItemResolver<'_, 'context> {
             let mut glyphs = shaped_glyphs_from(shape, inline_offset);
             if let Some(advance) = upright_advance_after_tabs {
                 width = set_glyphs_upright(&mut glyphs, inline_offset, advance);
+            } else if tab_count > 0 {
+                glyphs = glyphs_after_tab_spacer(&glyphs, tab_count, inline_offset);
             }
             owned_glyph_run = Some(Box::new(OwnedGlyphRun {
                 glyphs,
