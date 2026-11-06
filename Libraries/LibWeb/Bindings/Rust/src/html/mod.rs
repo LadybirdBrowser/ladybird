@@ -82,3 +82,5 @@ pub(crate) mod structured_serialize;
 pub(crate) mod text_metrics;
 #[cfg(not(test))]
 pub(crate) mod window;
+#[cfg(not(test))]
+pub(crate) mod window_or_worker_global_scope;
