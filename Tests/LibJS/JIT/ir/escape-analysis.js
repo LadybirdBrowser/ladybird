@@ -50,3 +50,27 @@ jit.compile(nested);
 // CHECK: AllocateObject 0x{{[0-9a-f]+}} with 0 properties
 // CHECK-NOT: AllocateObject
 // CHECK: CallSlowPath GetIterator
+
+// An object that a frame state refers to where its shape isn't known is allocated. Here, the code before the outer
+// loop exits, since it has no feedback, so only the back edge reaches the loop's header (the loop is entered through
+// the resume entry in the inner loop) and no shape reaches it either. But the header's frame state refers to the
+// object the previous iteration allocated.
+
+function* resumedLoop(a) {
+    let s = a + 1;
+    let o;
+    for (let k = 0; k < 1000; ++k) {
+        for (let j = 0; j < 50; ++j) yield j;
+        o = { a: k, b: s };
+    }
+    return o.a;
+}
+const resumed = resumedLoop(1);
+resumed.next();
+jit.prepare(resumedLoop);
+for (let i = 0; i < 200; ++i) resumed.next();
+jit.compile(resumedLoop);
+
+// CHECK-FUNCTION: resumedLoop
+// CHECK-PASS: escape analysis
+// CHECK: AllocateObject
