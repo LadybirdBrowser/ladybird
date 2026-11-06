@@ -26,8 +26,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.cb> at [0,1200] positioned [0+0+0 400 0+0+400] [0+0+0 300 0+0+0] children: not-inline
         Box <div#rowMaxPercent.root.row> at [3,1203] positioned flex-container(row) [0+0+3 200 3+0+0] [0+0+3 30 3+0+0] [FFC] children: not-inline
           BlockContainer <div.item> at [3,1203] flex-item [0+0+0 20 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
-          BlockContainer <div> at [23,1203] flex-item [0+0+0 20 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
-            BlockContainer <div.half> at [23,1203] [0+0+0 10 0+0+10] [0+0+0 25 0+0+0] children: not-inline
+          BlockContainer <div> at [23,1203] flex-item [0+0+0 20 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+            BlockContainer <div.half> at [23,1203] [0+0+0 10 0+0+10] [0+0+0 15 0+0+0] children: not-inline
       BlockContainer <div.cb> at [0,1500] positioned [0+0+0 400 0+0+400] [0+0+0 300 0+0+0] children: not-inline
         Box <div#gridRows.root.grid> at [0,1500] positioned [0+0+0 200 0+0+0] [0+0+0 80 0+0+0] [GFC] children: not-inline
           BlockContainer <div.item> at [0,1500] [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline

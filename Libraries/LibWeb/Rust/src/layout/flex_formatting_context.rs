@@ -948,7 +948,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             self.facts(self.run.box_).is_replaced_box(),
             self.cross_axis_is_horizontal(),
             self.available_space_for_items.unwrap().cross,
-            self.item_containing_block_constraints(),
+            self.layout_input.as_ref().unwrap().containing_block_constraints,
         )
     }
 
