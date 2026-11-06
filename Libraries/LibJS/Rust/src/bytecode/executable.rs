@@ -1313,7 +1313,12 @@ impl Executable {
 
     /// An executable of `code`, with empty caches. `code` is the only thing that keeps the bytecode alive, and it lives
     /// for as long as the executable, which is what makes the address of the bytecode good to hand out.
-    fn new_with_code(code: Arc<ExecutableData>, constants: ThinSlice<Value>, _defer_gc: &DeferGc<'_>) -> Self {
+    fn new_with_code(
+        code: Arc<ExecutableData>,
+        constants: ThinSlice<Value>,
+        property_keys: ThinSlice<PropertyKey>,
+        _defer_gc: &DeferGc<'_>,
+    ) -> Self {
         let cache_counts = &code.cache_counts;
         let property_lookup_caches: ThinSlice<PropertyLookupCache> = (0..cache_counts.property_lookup)
             .map(|_| PropertyLookupCache::new())
@@ -1373,7 +1378,7 @@ impl Executable {
             interpreter_tier: Cell::new(InterpreterTier::Plain),
             has_dumped_feedback: Cell::new(false),
             is_strict_mode: code.is_strict,
-            property_keys: code.property_key_table.iter().cloned().map(PropertyKey::from).collect(),
+            property_keys,
             shared_function_data: ThinSlice::empty(),
             name: FlyStringSlot::new(None),
             source_code: None,
@@ -1388,21 +1393,23 @@ impl Executable {
         data: Arc<ExecutableData>,
         source_code: Option<&Rc<SourceCode>>,
     ) -> Gc<Executable> {
-        // The shared function data stays rooted until the executable that holds it is allocated.
-        let rooted_shared_function_data = MarkedVec::with_capacity(vm, data.shared_function_data.len());
-        let is_strict = data.is_strict;
-        for pending in &data.shared_function_data {
-            rooted_shared_function_data.push(SharedFunctionInstanceData::create_from_pending_shared_function_data(
-                vm,
-                pending,
-                is_strict,
-                source_code,
-            ));
-        }
-
-        let executable = vm
-            .heap()
-            .allocate(|defer_gc| Self::build(vm, data, &rooted_shared_function_data, source_code, defer_gc));
+        let executable = DeferGc::scope(vm, |_| {
+            let is_strict = data.is_strict;
+            let shared_function_data: ThinSlice<Gc<SharedFunctionInstanceData>> = data
+                .shared_function_data
+                .iter()
+                .map(|pending| {
+                    SharedFunctionInstanceData::create_from_pending_shared_function_data(
+                        vm,
+                        pending,
+                        is_strict,
+                        source_code,
+                    )
+                })
+                .collect();
+            vm.heap()
+                .allocate(|defer_gc| Self::build(vm, data, shared_function_data, source_code, defer_gc))
+        });
         vm.register_executable(executable);
 
         if let Some(debugger) = vm.debugger() {
@@ -1414,8 +1421,8 @@ impl Executable {
 
     fn build(
         vm: &Vm,
-        data: Arc<ExecutableData>,
-        rooted_shared_function_data: &MarkedVec<'_, Gc<SharedFunctionInstanceData>>,
+        mut data: Arc<ExecutableData>,
+        shared_function_data: ThinSlice<Gc<SharedFunctionInstanceData>>,
         source_code: Option<&Rc<SourceCode>>,
         defer_gc: &DeferGc<'_>,
     ) -> Executable {
@@ -1424,8 +1431,14 @@ impl Executable {
             .iter()
             .map(|blueprint| ClassBlueprint::create(vm, blueprint, source_code, defer_gc))
             .collect();
-        let shared_function_data: ThinSlice<Gc<SharedFunctionInstanceData>> =
-            rooted_shared_function_data.values().iter().copied().collect();
+        let property_keys: ThinSlice<PropertyKey> = match Arc::get_mut(&mut data) {
+            Some(code) => std::mem::take(&mut code.property_key_table)
+                .into_vec()
+                .into_iter()
+                .map(PropertyKey::from)
+                .collect(),
+            None => data.property_key_table.iter().cloned().map(PropertyKey::from).collect(),
+        };
         let constants: ThinSlice<Value> = data
             .constants
             .iter()
@@ -1436,7 +1449,7 @@ impl Executable {
             .collect();
         let object_property_iterator_caches = data.cache_counts.object_property_iterator;
 
-        let mut executable = Self::new_with_code(data, constants, defer_gc);
+        let mut executable = Self::new_with_code(data, constants, property_keys, defer_gc);
         if let Some(code) = Arc::get_mut(&mut executable.code) {
             code.release_link_inputs();
         }
