@@ -422,14 +422,21 @@ impl NameTables {
             + SliceBlock::room_for::<Utf16FlyString>(self.strings.entries.len())
     }
 
-    /// Hands out the tables, as an executable keeps them: identifiers, property keys and strings.
+    /// How much of a block the table that only linking reads takes.
+    pub(super) fn room_for_link_tables(&self) -> usize {
+        SliceBlock::room_for::<Utf16FlyString>(self.property_keys.entries.len())
+    }
+
+    /// Hands out the tables, as an executable keeps them: identifiers and strings from `block`, and property keys from
+    /// `link_block`.
     pub(super) fn take_tables(
         &mut self,
         tree: &SyntaxTree,
         block: &mut SliceBlockBuilder,
+        link_block: &mut SliceBlockBuilder,
     ) -> (
         BlockSlice<Utf16FlyString>,
-        Box<[Utf16FlyString]>,
+        BlockSlice<Utf16FlyString>,
         BlockSlice<Utf16FlyString>,
     ) {
         let script_names = &mut self.script_names;
@@ -439,7 +446,7 @@ impl NameTables {
         };
         (
             block.slice(self.identifiers.entries.iter().map(&mut fly_string_of)),
-            self.property_keys.entries.iter().map(&mut fly_string_of).collect(),
+            link_block.slice(self.property_keys.entries.iter().map(&mut fly_string_of)),
             block.slice(self.strings.entries.iter().map(&mut fly_string_of)),
         )
     }

@@ -172,6 +172,14 @@ impl<T> BlockSlice<T> {
         // SAFETY: A non-null slice has its length in front of its initialized elements, which it owns.
         unsafe { ak::slice_from_raw_parts_mut(self.data, self.data.cast::<usize>().sub(1).read()) }
     }
+
+    /// Moves the elements out and leaves the slice empty. Elements the caller does not get to stay undropped.
+    pub fn take_elements(&mut self) -> impl ExactSizeIterator<Item = T> {
+        let length = self.len();
+        let data = core::mem::replace(&mut self.data, core::ptr::null_mut());
+        // SAFETY: The slice let go of the elements, and each gets read once.
+        (0..length).map(move |index| unsafe { data.add(index).read() })
+    }
 }
 
 impl<T> core::ops::Deref for BlockSlice<T> {

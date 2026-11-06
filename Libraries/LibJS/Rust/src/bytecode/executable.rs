@@ -1387,7 +1387,8 @@ impl Executable {
     }
 
     /// Links what the frontend compiled from `source_code` into a new executable, with the functions and classes it
-    /// declares and caches of its own. `data` stays as it is, so it can be linked again, into any realm.
+    /// declares and caches of its own. While something else holds `data`, it stays as it is and can be linked again,
+    /// into any realm. Without another holder nothing can link it again, so what only linking reads goes away.
     pub fn create_with_source_code(
         vm: &Vm,
         data: Arc<ExecutableData>,
@@ -1443,12 +1444,7 @@ impl Executable {
             .map(|blueprint| ClassBlueprint::create(vm, blueprint, source_code, defer_gc))
             .collect();
         let property_keys = match Arc::get_mut(&mut data) {
-            Some(code) => tables.slice(
-                std::mem::take(&mut code.property_key_table)
-                    .into_vec()
-                    .into_iter()
-                    .map(PropertyKey::from),
-            ),
+            Some(code) => tables.slice(code.property_key_table.take_elements().map(PropertyKey::from)),
             None => tables.slice(data.property_key_table.iter().cloned().map(PropertyKey::from)),
         };
         let constants = tables.slice(data.constants.iter().map(|constant| constant_value(vm, constant)));
@@ -1604,6 +1600,7 @@ impl Executable {
     }
 
     /// What this executable runs. Executables that link the same code have the same one.
+    /// This is not something to link again, as the last holder of code has nothing left to link it from.
     pub fn code(&self) -> &Arc<ExecutableData> {
         &self.code
     }
