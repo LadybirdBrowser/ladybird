@@ -299,6 +299,15 @@ static constexpr int vertical_tabs_side_margin(bool expanded)
     return expanded ? VERTICAL_TABS_EXPANDED_SIDE_MARGIN : VERTICAL_TABS_COLLAPSED_SIDE_MARGIN;
 }
 
+// The Ladybird button stays where it is as the sidebar on the left toggles: where the toolbar beside the collapsed
+// sidebar starts, or past the traffic lights while the open sidebar holds them.
+static constexpr int sidebar_ladybird_button_inset(bool after_traffic_lights)
+{
+    if (after_traffic_lights)
+        return NATIVE_MACOS_WINDOW_CONTROLS_INSET + NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP;
+    return TOOLBAR_HORIZONTAL_MARGIN;
+}
+
 static constexpr int vertical_tabs_horizontal_margin_width(TabLayout tab_layout)
 {
     return vertical_tabs_side_margin(tab_layout != TabLayout::VerticalCollapsed) * 2;
@@ -3628,7 +3637,7 @@ void TabWidget::float_sidebar_buttons_while_toggling()
 
     auto& ladybird_buttons = *m_floating_ladybird_buttons;
     auto& toggle = *m_floating_sidebar_toggle;
-    auto ladybird_x = column_origin.x() + (vertical_tabs_hold_window_controls() ? NATIVE_MACOS_WINDOW_CONTROLS_INSET + NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP : vertical_tabs_side_margin(true));
+    auto ladybird_x = column_origin.x() + sidebar_ladybird_button_inset(vertical_tabs_hold_window_controls());
     auto collapsed_toggle_x = ladybird_x + ladybird_buttons.width() + m_toolbar->sidebar_slot().layout()->spacing();
     auto at_edge_x = column_origin.x() + current_vertical_tabs_width() - vertical_tabs_side_margin(true) - SIDEBAR_TOGGLE_PAGE_SIDE_MARGIN - toggle.width();
     toggle.move(max(collapsed_toggle_x, at_edge_x), center_y(toggle));
@@ -4387,8 +4396,7 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
             top_row_layout->addStretch(1);
             top_row_layout->addWidget(m_ladybird_buttons, 0, Qt::AlignVCenter);
         } else {
-            if (vertical_tabs_hold_window_controls())
-                top_row_layout->addSpacing(NATIVE_MACOS_WINDOW_CONTROLS_INSET + NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP - vertical_tabs_side_margin(true));
+            top_row_layout->addSpacing(sidebar_ladybird_button_inset(vertical_tabs_hold_window_controls()) - vertical_tabs_side_margin(true));
             top_row_layout->addWidget(m_ladybird_buttons, 0, Qt::AlignVCenter);
             top_row_layout->addStretch(1);
             top_row_layout->addSpacing(SIDEBAR_TOGGLE_MINIMUM_GAP);
