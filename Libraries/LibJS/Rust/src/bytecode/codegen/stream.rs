@@ -3643,12 +3643,15 @@ impl Generator<'_> {
             }
         }
         let source_entry_count = head.source_entries.len() + segment.source_entries.len();
-        let mut block = SliceBlock::builder(
-            SliceBlock::room_for::<u8>(head.bytes.len() + segment.bytes.len())
-                + SliceBlock::room_for::<SourceOffsetEntry>(source_entry_count)
-                + SliceBlock::room_for::<ExceptionHandler>(exception_handlers.len())
-                + other_tables_size,
-        );
+        // SAFETY: The slices and the block end up in an ExecutableData, which drops the slices first.
+        let mut block = unsafe {
+            SliceBlock::builder(
+                SliceBlock::room_for::<u8>(head.bytes.len() + segment.bytes.len())
+                    + SliceBlock::room_for::<SourceOffsetEntry>(source_entry_count)
+                    + SliceBlock::room_for::<ExceptionHandler>(exception_handlers.len())
+                    + other_tables_size,
+            )
+        };
         let mut bytecode = block.slice_from_parts(&head.bytes, &segment.bytes);
         let head_positions = head.operand_positions.iter().map(|position| position.offset);
         let positions = segment

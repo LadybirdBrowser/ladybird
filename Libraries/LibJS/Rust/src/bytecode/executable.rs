@@ -1395,7 +1395,8 @@ impl Executable {
         source_code: Option<&Rc<SourceCode>>,
     ) -> Gc<Executable> {
         let executable = DeferGc::scope(vm, |_| {
-            let mut tables = SliceBlock::builder(Self::size_of_tables(&data));
+            // SAFETY: The slices and the block end up in the executable, which drops the slices first.
+            let mut tables = unsafe { SliceBlock::builder(Self::size_of_tables(&data)) };
             let is_strict = data.is_strict;
             let shared_function_data = match Arc::get_mut(&mut data) {
                 Some(code) => tables.slice(code.shared_function_data.take_elements().map(|pending| {
