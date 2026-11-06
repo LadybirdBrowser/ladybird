@@ -218,6 +218,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
             case JS::Promise::RejectionOperation::Reject:
                 // 1. Append promise to global's about-to-be-notified rejected promises list.
                 global_mixin.push_onto_about_to_be_notified_rejected_promises_list(promise);
+                HTML::main_thread_event_loop().did_reject_promise_without_handler();
                 break;
             // 7. If operation is "handle",
             case JS::Promise::RejectionOperation::Handle: {
