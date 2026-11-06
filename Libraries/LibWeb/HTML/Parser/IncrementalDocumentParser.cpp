@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/StringView.h>
+#include <AK/Time.h>
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Value.h>
@@ -14,6 +15,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -186,7 +188,8 @@ void IncrementalDocumentParser::process_body_chunk(ByteBuffer bytes)
     else
         m_input_bytes.append(bytes);
 
-    feed_parser();
+    if (!m_has_queued_task_to_feed_parser)
+        feed_parser();
     process_link_headers_after_first_task();
 }
 
@@ -219,8 +222,30 @@ static size_t encoding_independent_prefix_length(ReadonlyBytes bytes)
     return length;
 }
 
+void IncrementalDocumentParser::queue_task_to_feed_parser()
+{
+    // NB: A parser that was blocked may ask for more input while this task is queued, and that task goes on from there.
+    if (m_has_queued_task_to_feed_parser)
+        return;
+    ++m_times_yielded_to_event_loop;
+    m_has_queued_task_to_feed_parser = true;
+    queue_global_task(Task::Source::Networking, m_document->relevant_settings_object().realm().global_object(), GC::create_function(GC::Heap::the(), [parser = GC::Ref { *this }] {
+        parser->m_has_queued_task_to_feed_parser = false;
+        parser->feed_parser();
+    }));
+}
+
 void IncrementalDocumentParser::feed_parser()
 {
+    // NB: A document that arrives faster than we can parse it would otherwise keep the event loop for as long as that
+    //     takes. The first slices are short, so that the first rendering update has little to lay out. After those,
+    //     longer slices spare us laying out a document over and over while it is still growing.
+    static constexpr size_t maximum_bytes_to_process_at_once = 16 * KiB;
+    static constexpr auto first_slices_time_budget = AK::Duration::from_milliseconds(10);
+    static constexpr auto later_slices_time_budget = AK::Duration::from_milliseconds(500);
+    static constexpr u32 number_of_first_slices = 6;
+    auto const deadline = MonotonicTime::now() + (m_times_yielded_to_event_loop < number_of_first_slices ? first_slices_time_budget : later_slices_time_budget);
+
     while (!undecoded_input_bytes().is_empty()) {
         if (!should_continue()) {
             discard_input_bytes();
@@ -255,7 +280,12 @@ void IncrementalDocumentParser::feed_parser()
             }
         }
 
-        decode_and_process(length_to_decode);
+        decode_and_process(min(length_to_decode, maximum_bytes_to_process_at_once));
+
+        if (!undecoded_input_bytes().is_empty() && MonotonicTime::now() >= deadline) {
+            queue_task_to_feed_parser();
+            return;
+        }
     }
 
     if (!should_continue() || m_parser->encoding_confidence() != EncodingConfidence::Tentative)
@@ -282,7 +312,8 @@ void IncrementalDocumentParser::process_end_of_body()
 
     // Bytes held back for a still-possible encoding declaration are fed first; the implied EOF character waits for
     // them in finish_body().
-    feed_parser();
+    if (!m_has_queued_task_to_feed_parser)
+        feed_parser();
     process_link_headers_after_first_task();
 }
 
