@@ -158,6 +158,12 @@ PageClient::PageClient(PageHost& owner, Web::PageId id, Optional<Web::HTML::Cros
     m_page->cursor().set_send([&client = client(), id = m_id](Gfx::Cursor const& cursor) {
         client.async_did_request_cursor_change(id, cursor);
     });
+    m_page->hover_link().set_send([&client = client(), id = m_id](Optional<URL::URL> const& url) {
+        if (url.has_value())
+            client.async_did_hover_link(id, *url);
+        else
+            client.async_did_unhover_link(id);
+    });
 
     m_frame_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [this] {
         if (m_is_closed)
@@ -1003,16 +1009,6 @@ void PageClient::page_did_enter_tooltip_area(ByteString const& title)
 void PageClient::page_did_leave_tooltip_area()
 {
     client().async_did_leave_tooltip_area(m_id);
-}
-
-void PageClient::page_did_hover_link(URL::URL const& url)
-{
-    client().async_did_hover_link(m_id, url);
-}
-
-void PageClient::page_did_unhover_link()
-{
-    client().async_did_unhover_link(m_id);
 }
 
 void PageClient::page_did_click_link(Web::HTML::PreparedNavigationDescriptor navigation, ByteString const& target, unsigned modifiers)

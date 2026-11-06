@@ -130,6 +130,7 @@ public:
     void pinch_through_ui_process(double x, double y, double scale_delta, bool continues_gesture);
     void reset_zoom();
 
+    Optional<Utf16String> hovered_link();
     Utf16String current_cursor();
     Optional<Utf16String> current_cursor_pixel(i32 x, i32 y);
     Utf16String theme_color();

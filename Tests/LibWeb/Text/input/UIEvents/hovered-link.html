@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<base href="https://example.com/base/">
+<style>
+    body { margin: 0; }
+    a, div { display: block; width: 100px; height: 20px; }
+</style>
+<a href="https://example.com/absolute"><span>Text in a link</span></a>
+<a href="relative?query=1"></a>
+<a></a>
+<div></div>
+<div id="host"><span>Slotted text</span></div>
+<script>
+    test(() => {
+        host.attachShadow({ mode: "open" }).innerHTML = `<a href="slot"><slot></slot></a>`;
+
+        const hover = (name, y) => {
+            internals.mouseMove(50, y);
+            println(`${name}: ${internals.hoveredLink()}`);
+        };
+
+        hover("text in a link", 10);
+        hover("a relative link", 30);
+        hover("an anchor without href", 50);
+        hover("back on a link", 10);
+        hover("no link", 70);
+        hover("a link around a slot", 90);
+    });
+</script>

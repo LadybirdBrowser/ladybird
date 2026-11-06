@@ -5701,22 +5701,16 @@ void EventHandler::report_hovered_node_to_client(GC::Ptr<DOM::Node> target)
         page.set_is_in_tooltip_area(false);
     }
 
-    HTML::HTMLHyperlinkElementUtils const* hovered_link_element = nullptr;
-    if (target)
-        hovered_link_element = target->enclosing_link_element();
-    if (hovered_link_element) {
-        if (auto link_url = target->document().encoding_parse_url(hovered_link_element->href()); link_url.has_value()) {
-            page.client().page_did_hover_link(*link_url);
-            page.set_is_hovering_link(true);
-        }
-    } else if (page.is_hovering_link()) {
-        page.client().page_did_unhover_link();
-        page.set_is_hovering_link(false);
+    Optional<URL::URL> hovered_link_url;
+    if (target) {
+        if (auto const* hovered_link_element = target->enclosing_link_element())
+            hovered_link_url = target->document().encoding_parse_url(hovered_link_element->href());
     }
+    page.hover_link().request(move(hovered_link_url));
 
     // Whatever the client shows now, this handler reported — so the hover is this handler's to end.
     GC::Ptr<HTML::LocalNavigable> hover_reporting_navigable;
-    if (page.is_hovering_link() || page.is_in_tooltip_area())
+    if (page.hover_link().has_link() || page.is_in_tooltip_area())
         hover_reporting_navigable = m_navigable;
     page.set_hover_reporting_navigable({}, hover_reporting_navigable);
 }

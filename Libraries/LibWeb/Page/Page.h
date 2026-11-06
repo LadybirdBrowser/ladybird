@@ -59,6 +59,7 @@
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/PageCursor.h>
+#include <LibWeb/Page/PageHoverLink.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
@@ -264,9 +265,6 @@ public:
     bool is_webdriver_active() const { return m_is_webdriver_active; }
     void set_is_webdriver_active(bool b) { m_is_webdriver_active = b; }
 
-    bool is_hovering_link() const { return m_is_hovering_link; }
-    void set_is_hovering_link(bool b) { m_is_hovering_link = b; }
-
     bool is_in_tooltip_area() const { return m_is_in_tooltip_area; }
     void set_is_in_tooltip_area(bool b) { m_is_in_tooltip_area = b; }
 
@@ -275,6 +273,7 @@ public:
 
     Gfx::Cursor current_cursor() const { return m_cursor->current(); }
     PageCursor& cursor() { return *m_cursor; }
+    PageHoverLink& hover_link() { return *m_hover_link; }
 
     DevicePixelPoint window_position() const { return m_window_position; }
     void set_window_position(DevicePixelPoint position) { m_window_position = position; }
@@ -565,10 +564,10 @@ private:
     // The webdriver-active flag is set to true when the user agent is under remote control. It is initially false.
     bool m_is_webdriver_active { false };
 
-    bool m_is_hovering_link { false };
     bool m_is_in_tooltip_area { false };
 
     NonnullRefPtr<PageCursor> m_cursor { PageCursor::create() };
+    NonnullRefPtr<PageHoverLink> m_hover_link { PageHoverLink::create() };
 
     DevicePixelPoint m_window_position {};
     DevicePixelSize m_window_size {};
@@ -825,8 +824,6 @@ public:
     virtual void page_did_stop_tooltip_override() { }
     virtual void page_did_enter_tooltip_area(ByteString const&) { }
     virtual void page_did_leave_tooltip_area() { }
-    virtual void page_did_hover_link(URL::URL const&) { }
-    virtual void page_did_unhover_link() { }
     virtual void page_did_change_favicon(Gfx::Bitmap const&) { }
     virtual void page_did_request_alert(Utf16String const&) { }
     virtual void page_did_request_before_unload(String const&) { }
