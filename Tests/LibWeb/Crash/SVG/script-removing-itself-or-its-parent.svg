@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+    <script id="removes-itself">document.getElementById("removes-itself").remove();</script>
+    <g id="parent"><script>document.getElementById("parent").remove();</script></g>
+    <rect width="10" height="10"/>
+</svg>
