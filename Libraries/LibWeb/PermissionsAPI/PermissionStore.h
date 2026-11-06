@@ -56,6 +56,9 @@ public:
     // The sites this process holds decisions for.
     Vector<String> cached_origins_for_testing() const;
 
+    // For an agent that goes away, whose statuses have to go with its heap.
+    void forget_statuses() { m_statuses.clear(); }
+
 private:
     PermissionStore() = default;
 

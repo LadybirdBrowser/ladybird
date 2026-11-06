@@ -41,6 +41,11 @@ static Vector<ServiceWorkerContainerReadyPromiseCacheEntry>& service_worker_cont
     return *caches;
 }
 
+void clear_service_worker_container_ready_promise_caches()
+{
+    service_worker_container_ready_promise_caches().clear();
+}
+
 static void prune_service_worker_container_ready_promise_caches()
 {
     service_worker_container_ready_promise_caches().remove_all_matching([](auto const& entry) {

@@ -38,6 +38,7 @@ public:
         m_armed_sources.ensure(token, [&] { return GC::make_root(source); });
     }
     void disarm(BodyStreamWakeToken token) { m_armed_sources.remove(token); }
+    void disarm_all() { m_armed_sources.clear(); }
 
     void notify(BodyStreamWakeToken token, Engine::WakeTicket ticket)
     {
@@ -52,6 +53,11 @@ private:
     u64 m_next_token { 1 };
     HashMap<BodyStreamWakeToken, GC::Root<BodyStreamPullSource>> m_armed_sources;
 };
+
+void disarm_all_body_stream_wakes()
+{
+    BodyStreamWakeRegistry::the().disarm_all();
+}
 
 NonnullRefPtr<BodyStreamWakeSink> BodyStreamWakeSink::create()
 {

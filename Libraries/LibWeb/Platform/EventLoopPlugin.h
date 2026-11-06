@@ -24,6 +24,10 @@ public:
 
     void spin_until(GC::Root<GC::Function<bool()>> goal_condition);
     void deferred_invoke(ESCAPING GC::Root<GC::Function<void()>>);
+
+    // For an agent that goes away on this thread: what was deferred until now goes unrun.
+    static void set_discard_deferred_invocations_on_this_thread(bool);
+
     void quit();
 };
 

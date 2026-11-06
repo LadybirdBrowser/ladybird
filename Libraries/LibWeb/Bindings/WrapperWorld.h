@@ -126,6 +126,8 @@ public:
         m_entries.for_each_live_value([&](auto& cache) { callback(*cache); });
     }
 
+    void clear() { m_entries.clear(); }
+
 private:
     // The per-key cache is held behind an OwnPtr so this map can be embedded as a
     // member with only a forward declaration of Value (e.g. WindowProxy in

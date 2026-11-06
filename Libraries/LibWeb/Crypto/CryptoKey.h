@@ -161,4 +161,7 @@ struct CryptoKeyPair {
     GC::Ref<CryptoKey> private_key;
 };
 
+// For an agent that goes away, whose weak references the cache would keep beyond the end of its heap.
+void clear_crypto_key_caches();
+
 }

@@ -35,9 +35,18 @@ void EventLoopPlugin::spin_until(GC::Root<GC::Function<bool()>> goal_condition)
     });
 }
 
+static thread_local bool s_discard_deferred_invocations_on_this_thread { false };
+
+void EventLoopPlugin::set_discard_deferred_invocations_on_this_thread(bool discard)
+{
+    s_discard_deferred_invocations_on_this_thread = discard;
+}
+
 void EventLoopPlugin::deferred_invoke(GC::Root<GC::Function<void()>> function)
 {
     Core::deferred_invoke([function = move(function)]() {
+        if (s_discard_deferred_invocations_on_this_thread)
+            return;
         function->function()();
     });
 }

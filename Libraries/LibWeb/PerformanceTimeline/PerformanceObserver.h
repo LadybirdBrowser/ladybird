@@ -80,4 +80,7 @@ private:
     Vector<PerformanceObserverInit> m_options_list;
 };
 
+// For an agent that goes away, whose weak references the cache would keep beyond the end of its heap.
+void clear_supported_entry_types_caches();
+
 }
