@@ -42,9 +42,6 @@ public:
     [[nodiscard]] Vector<Vector<String>> const& navigation_timing_allow_values_list() const { return m_record->navigation_timing_allow_values_list(); }
     [[nodiscard]] Response::BodyInfo const& body_info() const { return m_record->body_info(); }
     [[nodiscard]] RedirectTaint redirect_taint() const { return m_record->redirect_taint(); }
-    [[nodiscard]] Optional<Core::ImmutableBytes> const& javascript_bytecode_cache() const { return m_record->javascript_bytecode_cache(); }
-    [[nodiscard]] Optional<u64> javascript_bytecode_cache_vary_key() const { return m_record->javascript_bytecode_cache_vary_key(); }
-    [[nodiscard]] Optional<NonnullRefPtr<HTTP::HeaderList>> const& javascript_bytecode_cache_memory_cache_request_headers() const { return m_record->javascript_bytecode_cache_memory_cache_request_headers(); }
 
     [[nodiscard]] bool is_aborted_network_error() const { return m_record->is_aborted_network_error(); }
     [[nodiscard]] bool is_network_error() const { return m_record->is_network_error(); }

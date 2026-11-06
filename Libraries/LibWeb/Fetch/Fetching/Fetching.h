@@ -75,6 +75,5 @@ WEB_API void clear_http_memory_cache();
 WEB_API Optional<Utf16String> http_cache_partition(Infrastructure::Request const&);
 WEB_API void set_disk_cache_enabled_for_navigations_for_testing(bool enabled);
 WEB_API bool disk_cache_enabled_for_navigations_for_testing();
-void update_javascript_bytecode_cache_in_http_memory_cache(Utf16String const& partition, URL::URL const&, ByteString const& method, HTTP::HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes);
 
 }

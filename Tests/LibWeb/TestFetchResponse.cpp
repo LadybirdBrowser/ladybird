@@ -39,22 +39,6 @@ private:
 
 }
 
-TEST_CASE(javascript_bytecode_cache_memory_cache_request_headers_are_cloned)
-{
-    auto request_headers = HTTP::HeaderList::create({
-        { "User-Agent"sv, "Ladybird"sv },
-    });
-    auto response = Web::Fetch::Infrastructure::Response::create();
-    response->set_javascript_bytecode_cache_memory_cache_request_headers(request_headers);
-
-    auto cloned_response = response->clone();
-    auto const& cloned_request_headers = cloned_response->javascript_bytecode_cache_memory_cache_request_headers();
-    request_headers->set({ "User-Agent"sv, "Changed"sv });
-
-    VERIFY(cloned_request_headers.has_value());
-    EXPECT_EQ((*cloned_request_headers)->get("User-Agent"sv), Optional<ByteString> { "Ladybird" });
-}
-
 TEST_CASE(http_redirect_fetch_releases_intermediate_response_transfer_lease)
 {
     auto vm = JS::VM::create();
