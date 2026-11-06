@@ -111,6 +111,8 @@ interface Internals {
     undefined pinchThroughUIProcess(double x, double y, double scaleDelta, optional boolean continuesGesture = false);
     undefined resetZoom();
 
+    // The URL of the link the page asks its client to show as hovered, or null when it shows none.
+    DOMString? hoveredLink();
     DOMString currentCursor();
     // The color of one pixel of the current image cursor's bitmap, or null when the cursor is no image.
     DOMString? currentCursorPixel(long x, long y);

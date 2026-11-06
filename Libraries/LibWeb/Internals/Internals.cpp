@@ -99,6 +99,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -1084,6 +1085,14 @@ void Internals::reset_zoom()
 {
     if (auto local_root = local_root_of(window()))
         local_root->reset_zoom();
+}
+
+Optional<Utf16String> Internals::hovered_link()
+{
+    auto url = page().hover_link().current();
+    if (!url.has_value())
+        return {};
+    return utf16_string_from_url_ascii(url->serialize());
 }
 
 Utf16String Internals::current_cursor()

@@ -709,6 +709,7 @@ set(SOURCES
     Page/MiddleButtonScrollHandler.cpp
     Page/Page.cpp
     Page/PageCursor.cpp
+    Page/PageHoverLink.cpp
     Page/RenderingStats.cpp
     Page/ScreenWakeLockHandle.cpp
     PaintTiming/PaintTiming.cpp

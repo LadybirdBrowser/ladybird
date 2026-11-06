@@ -269,8 +269,6 @@ private:
     virtual void page_did_stop_tooltip_override() override;
     virtual void page_did_enter_tooltip_area(ByteString const&) override;
     virtual void page_did_leave_tooltip_area() override;
-    virtual void page_did_hover_link(URL::URL const&) override;
-    virtual void page_did_unhover_link() override;
     virtual void page_did_click_link(Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_middle_click_link(Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_request_external_url(URL::URL const&, URL::Origin const& initiator_origin, bool has_transient_activation) override;
