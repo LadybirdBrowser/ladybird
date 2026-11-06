@@ -6,4 +6,6 @@
 
 //! The IDL definitions of DOM that the interfaces implemented in Rust use.
 
+#[cfg(not(test))]
+pub(crate) mod abort_signal;
 pub(crate) mod event;

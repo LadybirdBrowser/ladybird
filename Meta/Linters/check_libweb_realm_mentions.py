@@ -50,7 +50,11 @@ ALLOWED_REALM_MENTIONS = {
         "WebCrypto algorithms still use realms for buffer/key/promise materialization and for normalizing algorithm "
         "dictionaries, which SubtleCrypto.supports() does in the caller realm",
     ),
-    "DOM": (10, 33, "DOM abort plumbing and node helpers still have callback/materialization realm use"),
+    "DOM": (
+        10,
+        35,
+        "DOM abort plumbing, including the Rust AbortSignal adapter, and node helpers use callback/materialization realms",
+    ),
     "Fetch": (
         20,
         60,

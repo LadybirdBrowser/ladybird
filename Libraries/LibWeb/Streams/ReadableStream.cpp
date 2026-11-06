@@ -11,8 +11,6 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/RustSerialization.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
-#include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
@@ -56,14 +54,6 @@ void web_streams_read_request_error_steps(ReadRequest*, JSValue error);
 void web_streams_call_bytes_steps(ReadableStreamDefaultReader::SuccessSteps*, ReadonlyBytes);
 void web_streams_call_value_steps(ReadableStreamDefaultReader::FailureSteps*, JSValue);
 void web_streams_complete_rendering_pending_stream(ReadableStream*);
-void* web_streams_abort_signal_from_wrapper(JSObject* wrapper);
-JSObject* web_streams_abort_signal_wrapper(void* realm, DOM::AbortSignal*);
-void* web_streams_create_abort_signal();
-bool web_streams_abort_signal_aborted(DOM::AbortSignal*);
-JSValue web_streams_abort_signal_reason(DOM::AbortSignal*);
-bool web_streams_abort_signal_add_algorithm(DOM::AbortSignal*, JSObject* function, u64* id);
-void web_streams_abort_signal_remove_algorithm(DOM::AbortSignal*, u64 id);
-void web_streams_abort_signal_signal_abort(DOM::AbortSignal*, JSValue reason, void* realm);
 }
 
 static JSVM* vm_abi()
@@ -281,56 +271,6 @@ void web_streams_call_value_steps(ReadableStreamDefaultReader::FailureSteps* ste
 void web_streams_complete_rendering_pending_stream(ReadableStream* stream)
 {
     complete_rendering_pending_stream(*stream);
-}
-
-void* web_streams_abort_signal_from_wrapper(JSObject* wrapper)
-{
-    auto* signal = Bindings::impl_from<DOM::AbortSignal>(JS::HostABI::object_from_abi(wrapper));
-    VERIFY(signal);
-    return signal;
-}
-
-JSObject* web_streams_abort_signal_wrapper(void* realm, DOM::AbortSignal* signal)
-{
-    auto& js_realm = realm_of(realm);
-    return JS::HostABI::object_to_abi(Bindings::wrap(Bindings::host_defined_wrapper_world(js_realm), js_realm, GC::Ref { *signal }).ptr());
-}
-
-void* web_streams_create_abort_signal()
-{
-    return DOM::AbortSignal::create().ptr();
-}
-
-bool web_streams_abort_signal_aborted(DOM::AbortSignal* signal)
-{
-    return signal->aborted();
-}
-
-JSValue web_streams_abort_signal_reason(DOM::AbortSignal* signal)
-{
-    return JS::HostABI::value_to_abi(signal->reason());
-}
-
-bool web_streams_abort_signal_add_algorithm(DOM::AbortSignal* signal, JSObject* function, u64* id)
-{
-    GC::Ref<JS::FunctionObject> algorithm = as<JS::FunctionObject>(*JS::HostABI::object_from_abi(function));
-    auto algorithm_id = signal->add_abort_algorithm([algorithm] {
-        MUST(JS::call(algorithm->vm(), *algorithm, JS::js_undefined()));
-    });
-    if (!algorithm_id.has_value())
-        return false;
-    *id = algorithm_id.value();
-    return true;
-}
-
-void web_streams_abort_signal_remove_algorithm(DOM::AbortSignal* signal, u64 id)
-{
-    signal->remove_abort_algorithm(id);
-}
-
-void web_streams_abort_signal_signal_abort(DOM::AbortSignal* signal, JSValue reason, void* realm)
-{
-    signal->signal_abort(JS::HostABI::value_from_abi(reason), realm_of(realm).global_object());
 }
 
 }
