@@ -29,10 +29,6 @@ use crate::html::canvas_rendering_context2d::CanvasTextBaseline;
 impl ContextState {
     /// The outlines of the glyphs of the text, drawn at the point.
     fn text_path(&self, vm: &Vm, text: &[u16], x: f32, y: f32, max_width: Option<f64>) -> Path {
-        if max_width.is_some_and(|max_width| max_width <= 0.0) {
-            return Path::new();
-        }
-
         let font = self.current_font(vm);
         let letter_spacing = self.resolved_letter_spacing();
         let word_spacing = self.resolved_word_spacing();
@@ -53,8 +49,10 @@ impl ContextState {
 }
 
 /// Whether the arguments of fillText() or strokeText() let it draw.
-fn are_finite(x: f32, y: f32, max_width: Option<f64>) -> bool {
-    x.is_finite() && y.is_finite() && max_width.is_none_or(f64::is_finite)
+/// INTEROP: A maxWidth of zero or less draws nothing at all, rather than a draw of no text, which an operator such as
+///          copy would composite over the whole canvas.
+fn arguments_let_text_draw(x: f32, y: f32, max_width: Option<f64>) -> bool {
+    x.is_finite() && y.is_finite() && max_width.is_none_or(|max_width| max_width.is_finite() && max_width > 0.0)
 }
 
 impl<K: CanvasKind> RenderingContext2D<K> {
@@ -68,7 +66,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         max_width: Option<f64>,
     ) -> WebIdlResult<()> {
         let (x, y) = (float(x), float(y));
-        if !are_finite(x, y, max_width) {
+        if !arguments_let_text_draw(x, y, max_width) {
             return Ok(());
         }
         if !self.recorder_is_ready() {
@@ -90,17 +88,13 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         let font = self.current_font(cx.vm());
         let letter_spacing = self.resolved_letter_spacing();
         let word_spacing = self.resolved_word_spacing();
-        let runs = if max_width.is_some_and(|max_width| max_width <= 0.0) {
-            Vec::new()
-        } else {
-            shape_text(
-                &font.cascade,
-                &text,
-                FloatPoint { x: 0.0, y: 0.0 },
-                letter_spacing,
-                word_spacing,
-            )
-        };
+        let runs = shape_text(
+            &font.cascade,
+            &text,
+            FloatPoint { x: 0.0, y: 0.0 },
+            letter_spacing,
+            word_spacing,
+        );
 
         // NB: The glyphs are not filled as outlines, since the glyphs of a color font can have none. All runs are a
         //     single draw, so that the fallback fonts of the text share one shadow and one composite.
@@ -158,7 +152,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         max_width: Option<f64>,
     ) -> WebIdlResult<()> {
         let (x, y) = (float(x), float(y));
-        if !are_finite(x, y, max_width) {
+        if !arguments_let_text_draw(x, y, max_width) {
             return Ok(());
         }
         // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm
