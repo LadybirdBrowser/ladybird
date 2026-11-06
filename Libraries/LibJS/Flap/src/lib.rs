@@ -996,20 +996,13 @@ handler Outer() {
     }
 
     #[test]
-    fn compiles_declarative_single_and_fused_specializations() {
+    fn compiles_declarative_specializations() {
         let source = r#"
 handler Copy(dst: out Operand, src: in Operand) {
     store(dst, load(src));
     dispatch_next;
 }
-handler Touch(src: in Operand) {
-    let value = load(src);
-    assert(extract_tag(value) != 0);
-    dispatch_next;
-}
 specialize Copy(src: Int32);
-specialize Copy() + Touch();
-specialize Copy() + Touch() + Touch();
 "#;
 
         for architecture in [Architecture::X86_64, Architecture::Aarch64] {
@@ -1027,13 +1020,6 @@ specialize Copy() + Touch() + Touch();
                 })
                 .expect("declarative specializations should prepare");
             assert!(prepared.handlers.iter().any(|handler| handler.name() == "CopySrcInt32"));
-            assert!(prepared.handlers.iter().any(|handler| handler.name() == "CopyTouch"));
-            assert!(
-                prepared
-                    .handlers
-                    .iter()
-                    .any(|handler| { handler.name() == "CopyTouchTouch" })
-            );
 
             compiler
                 .lower(&prepared)

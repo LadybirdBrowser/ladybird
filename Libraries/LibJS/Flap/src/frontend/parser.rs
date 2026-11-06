@@ -1803,7 +1803,7 @@ handler Mod(lhs: Value, rhs: Value) {
         let program = parse(
             "test.flap",
             "
-specialize Increment() + JumpLessThan(rhs: Int32);
+specialize JumpLessThan(rhs: Int32);
 handler Increment(dst: inout Operand) { dispatch_next; }
 ",
         )

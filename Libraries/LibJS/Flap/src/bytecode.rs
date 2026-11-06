@@ -101,39 +101,34 @@ pub(crate) fn validate_specializations(
     let ops = ops.iter().map(|op| (op.name.as_str(), op)).collect::<HashMap<_, _>>();
     let mut names = ops.keys().copied().map(str::to_string).collect::<HashSet<_>>();
     for specialization in specializations {
-        for (component_index, component) in specialization.components.iter().enumerate() {
-            let op = ops
-                .get(component.bytecode.as_str())
-                .ok_or_else(|| format!("specialization references unknown bytecode '{}'", component.bytecode))?;
-            if component_index + 1 != specialization.components.len() && op.is_terminator {
+        let op = ops.get(specialization.bytecode.as_str()).ok_or_else(|| {
+            format!(
+                "specialization references unknown bytecode '{}'",
+                specialization.bytecode
+            )
+        })?;
+        let mut parameters = HashSet::new();
+        for parameter in &specialization.parameters {
+            if !parameters.insert(parameter.name.as_str()) {
                 return Err(format!(
-                    "terminating bytecode '{}' may only be the final specialization component",
-                    component.bytecode
+                    "specialization repeats parameter '{}.{}'",
+                    specialization.bytecode, parameter.name
                 ));
             }
-            let mut parameters = HashSet::new();
-            for parameter in &component.parameters {
-                if !parameters.insert(parameter.name.as_str()) {
-                    return Err(format!(
-                        "specialization repeats parameter '{}.{}'",
-                        component.bytecode, parameter.name
-                    ));
-                }
-                let field_name = format!("m_{}", parameter.name);
-                let field = op.fields.iter().find(|field| field.name == field_name).ok_or_else(|| {
-                    format!(
-                        "specialization parameter '{}.{}' does not name a bytecode field",
-                        component.bytecode, parameter.name
-                    )
-                })?;
-                match parameter.constraint {
-                    SpecializationConstraint::Int32 | SpecializationConstraint::Undefined => {
-                        if field.ty != "Operand" || field.is_array {
-                            return Err(format!(
-                                "constant constraint requires an Operand field, but '{}.{}' is {}",
-                                component.bytecode, parameter.name, field.ty
-                            ));
-                        }
+            let field_name = format!("m_{}", parameter.name);
+            let field = op.fields.iter().find(|field| field.name == field_name).ok_or_else(|| {
+                format!(
+                    "specialization parameter '{}.{}' does not name a bytecode field",
+                    specialization.bytecode, parameter.name
+                )
+            })?;
+            match parameter.constraint {
+                SpecializationConstraint::Int32 | SpecializationConstraint::Undefined => {
+                    if field.ty != "Operand" || field.is_array {
+                        return Err(format!(
+                            "constant constraint requires an Operand field, but '{}.{}' is {}",
+                            specialization.bytecode, parameter.name, field.ty
+                        ));
                     }
                 }
             }
@@ -291,19 +286,6 @@ mod tests {
 
         assert_eq!(error, "handler 'Put' has 2 parameter names but 1 parameter types");
     }
-    #[test]
-    fn validates_pair_specialization_constraints() {
-        let source = r#"
-handler Increment(dst: inout Operand) { dispatch_next; }
-handler JumpLessThan(lhs: Operand, rhs: Operand) @terminator { exit; }
-specialize Increment() + JumpLessThan(rhs: Int32);
-"#;
-        let ops = crate::metadata::parse_flap_metadata("test.flap", source).unwrap();
-        let specializations = crate::metadata::parse_specializations("test.flap", source).unwrap();
-
-        validate_specializations(&ops, &specializations).unwrap();
-    }
-
     #[test]
     fn rejects_duplicate_derived_specialization_names() {
         let source = r#"

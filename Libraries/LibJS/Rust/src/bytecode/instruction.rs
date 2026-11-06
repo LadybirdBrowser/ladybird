@@ -27,10 +27,8 @@ mod tests {
         };
         let constants = [ConstantValue::Number(42.0)];
 
-        let (specialized, component_count) =
-            specialize_instruction_sequence([&instruction].into_iter(), &constants).expect("Add should specialize");
+        let specialized = specialize_instruction(&instruction, &constants).expect("Add should specialize");
 
-        assert_eq!(component_count, 1);
         assert!(matches!(
             specialized,
             Instruction::AddRhsInt32 {
@@ -49,9 +47,7 @@ mod tests {
         };
         let constants = [ConstantValue::Undefined];
 
-        let (specialized, component_count) =
-            specialize_instruction_sequence([&instruction].into_iter(), &constants).expect("Mov should specialize");
-        assert_eq!(component_count, 1);
+        let specialized = specialize_instruction(&instruction, &constants).expect("Mov should specialize");
         assert!(matches!(specialized, Instruction::MovSrcUndefined { .. }));
     }
 }
