@@ -662,6 +662,28 @@ void round_appkit_view_bottom_corners(QWidget& widget, qreal radius)
     layer.masksToBounds = YES;
 }
 
+void cast_appkit_view_shadow(QWidget& widget, qreal corner_radius, qreal blur_radius, qreal y_offset, QColor const& color)
+{
+    if (QGuiApplication::platformName() != "cocoa")
+        return;
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view)
+        return;
+    view.wantsLayer = YES;
+    auto* layer = view.layer;
+    layer.masksToBounds = NO;
+    layer.shadowOpacity = 1;
+    layer.shadowRadius = blur_radius;
+    // NB: The layer of a view is flipped with it, and Qt's views are, so a positive offset points down.
+    layer.shadowOffset = CGSizeMake(0, y_offset);
+    auto* shadow_color = CGColorCreateSRGB(color.redF(), color.greenF(), color.blueF(), color.alphaF());
+    layer.shadowColor = shadow_color;
+    CGColorRelease(shadow_color);
+    auto* shadow_path = CGPathCreateWithRoundedRect(view.bounds, corner_radius, corner_radius, nullptr);
+    layer.shadowPath = shadow_path;
+    CGPathRelease(shadow_path);
+}
+
 void set_appkit_view_opacity(QWidget& widget, qreal opacity)
 {
     if (QGuiApplication::platformName() != "cocoa")

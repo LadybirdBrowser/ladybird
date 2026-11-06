@@ -57,11 +57,12 @@ private:
     void set_anchor_popup_open(bool);
     bool is_visible() const;
     void position_popup();
+    void cast_card_shadow();
     bool is_selectable_row(int row) const;
 
     QLineEdit* m_anchor { nullptr };
     QFrame* m_popup { nullptr };
-    // The card's shadow, in a window of its own that lets the mouse through.
+    // The card's shadow, in a window of its own that lets the mouse through. Not used on macOS.
     QPointer<QWidget> m_shadow;
     QListView* m_list_view { nullptr };
     AutocompleteModel* m_model { nullptr };

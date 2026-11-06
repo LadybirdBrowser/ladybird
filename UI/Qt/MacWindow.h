@@ -52,6 +52,8 @@ void stack_appkit_view_below(QWidget&, QWidget& sibling);
 void set_appkit_view_opacity(QWidget&, qreal opacity);
 // Clips a native view to rounded bottom corners, for a sheet that hangs from what is above it.
 void round_appkit_view_bottom_corners(QWidget&, qreal radius);
+// Casts a shadow around a native view. Being outside of the view, the shadow takes no mouse input.
+void cast_appkit_view_shadow(QWidget&, qreal corner_radius, qreal blur_radius, qreal y_offset, QColor const&);
 bool start_appkit_window_drag(QWidget&);
 Qt::DropAction execute_appkit_tab_drag(QWidget&, QDrag&);
 void show_appkit_dictionary_lookup(QWidget&, WebView::DictionaryLookup const&, Gfx::IntPoint);

@@ -14,6 +14,9 @@
 #include <UI/Qt/Autocomplete.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
+#if defined(AK_OS_MACOS)
+#    include <UI/Qt/MacWindow.h>
+#endif
 #include <UI/Qt/Motion.h>
 #include <UI/Qt/Popover.h>
 #include <UI/Qt/StringUtils.h>
@@ -22,6 +25,7 @@
 
 #include <QAbstractListModel>
 #include <QApplication>
+#include <QColor>
 #include <QEvent>
 #include <QFontMetrics>
 #include <QFrame>
@@ -48,9 +52,11 @@ namespace Ladybird {
 static constexpr int POPUP_ANCHOR_GAP = 4;
 static constexpr int POPUP_PADDING = 6;
 static constexpr int POPUP_CORNER_RADIUS = 12;
+#if !defined(AK_OS_MACOS)
 // The card's shadow is drawn in a window of its own, with this much room around the card.
 // NB: The shadow falls downward, so it needs less room above the card.
 static constexpr QMargins POPUP_SHADOW_MARGINS { 60, 36, 60, 90 };
+#endif
 static constexpr int ROW_HEIGHT = 34;
 static constexpr int ROW_CORNER_RADIUS = 6;
 static constexpr int CELL_HORIZONTAL_PADDING = 12;
@@ -392,13 +398,13 @@ void Autocomplete::create_popup()
     m_popup->setFrameShape(QFrame::NoFrame);
     m_popup->hide();
 
+#if !defined(AK_OS_MACOS)
     // The card casts the same shadow as popovers. The shadow is a window of its own behind the card, and it lets the
     // mouse through to the page, which a transparent room around the card in the card's window would not.
+    // NB: On macOS, Qt sends the mouse movement over a child window to that window even when it is transparent for
+    //     input, which keeps the page from seeing it. There, the card's own view casts the shadow instead.
     m_shadow = new QWidget(m_anchor->window(), Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint | Qt::WindowTransparentForInput);
     m_shadow->setAttribute(Qt::WA_TranslucentBackground);
-#if defined(AK_OS_MACOS)
-    m_shadow->setAttribute(Qt::WA_NativeWindow);
-#endif
     m_shadow->setAttribute(Qt::WA_ShowWithoutActivating);
     m_shadow->setAttribute(Qt::WA_X11DoNotAcceptFocus);
     m_shadow->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -408,6 +414,7 @@ void Autocomplete::create_popup()
     cast_popover_shadow(*shadow_caster);
     shadow_layout->addWidget(shadow_caster);
     m_shadow->hide();
+#endif
 
     m_list_view = new QListView(m_popup);
     m_list_view->setObjectName("LadybirdAutocompleteList");
@@ -454,7 +461,9 @@ void Autocomplete::update_chrome_style()
     m_list_view->setPalette(palette);
     m_popup->setStyleSheet(ChromeStyle::autocomplete_popup_style_sheet(palette));
     m_popup->update();
-    m_shadow->update();
+    if (m_shadow)
+        m_shadow->update();
+    cast_card_shadow();
     m_list_view->viewport()->update();
     m_is_updating_chrome_style = false;
 }
@@ -496,21 +505,25 @@ void Autocomplete::show_with_suggestions(Vector<WebView::AutocompleteSuggestion>
                 auto progress = value.toReal();
                 m_opening_offset = SystemAppearance::prefers_reduced_motion() ? 0 : -4 * (1 - progress);
                 set_floating_window_opacity(*m_popup, progress);
-                set_floating_window_opacity(*m_shadow, progress);
+                if (m_shadow)
+                    set_floating_window_opacity(*m_shadow, progress);
                 position_popup();
             });
         }
         auto reduce_motion = SystemAppearance::prefers_reduced_motion();
         m_opening_offset = reduce_motion ? 0 : -4;
         set_floating_window_opacity(*m_popup, 0);
-        set_floating_window_opacity(*m_shadow, 0);
-        m_shadow->show();
+        if (m_shadow) {
+            set_floating_window_opacity(*m_shadow, 0);
+            m_shadow->show();
+        }
         m_popup->show();
         position_popup();
         m_opening_animation->stop();
         m_opening_animation->start();
     }
-    m_shadow->raise();
+    if (m_shadow)
+        m_shadow->raise();
     m_popup->raise();
 
     set_selected_suggestion(selected_suggestion_index);
@@ -540,7 +553,8 @@ bool Autocomplete::close()
     if (!m_popup || !m_popup->isVisible())
         return false;
     m_popup->hide();
-    m_shadow->hide();
+    if (m_shadow)
+        m_shadow->hide();
     return true;
 }
 
@@ -617,6 +631,8 @@ void Autocomplete::position_popup()
     if (!top_window)
         return;
     for (QWidget* window : { static_cast<QWidget*>(m_shadow.data()), static_cast<QWidget*>(m_popup) }) {
+        if (!window)
+            continue;
         if (window->parentWidget() != top_window) {
             window->setParent(top_window, window->windowFlags());
             window->setAttribute(Qt::WA_ShowWithoutActivating);
@@ -648,10 +664,23 @@ void Autocomplete::position_popup()
 #if defined(AK_OS_WINDOWS)
     card.translate(top_window->mapToGlobal(QPoint(0, 0)));
 #endif
+#if !defined(AK_OS_MACOS)
     m_shadow->setGeometry(card.marginsAdded(POPUP_SHADOW_MARGINS));
+#endif
     m_popup->setGeometry(card);
-    m_shadow->raise();
+    cast_card_shadow();
+    if (m_shadow)
+        m_shadow->raise();
     m_popup->raise();
+}
+
+void Autocomplete::cast_card_shadow()
+{
+#if defined(AK_OS_MACOS)
+    // NB: This is the shadow of cast_popover_shadow(), which Core Animation draws outside of the view, where it takes
+    //     no mouse input.
+    cast_appkit_view_shadow(*m_popup, POPUP_CORNER_RADIUS, 15, 14, QColor(0, 0, 0, Theme::is_dark() ? 115 : 41));
+#endif
 }
 
 bool Autocomplete::is_selectable_row(int row) const

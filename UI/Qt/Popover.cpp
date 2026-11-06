@@ -553,9 +553,9 @@ class FloatingShadow final : public QWidget {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    // NB: On macOS, like the suggestions under the address field, the shadow is a window of its own embedded in the
-    //     browser window, so it stacks above the page's native view, while letting the mouse through to it. Elsewhere
-    //     the page and the surface are drawn in the window itself, so the shadow is a widget beside the surface.
+    // NB: On macOS, the shadow is a window of its own embedded in the browser window, so it stacks above the page's
+    //     native view, while letting clicks through to it. Elsewhere the page and the surface are drawn in the window
+    //     itself, so the shadow is a widget beside the surface.
     FloatingShadow(QWidget& surface, qreal corner_radius, FloatingShadowTone tone, FloatingShadowKind kind)
 #if defined(AK_OS_MACOS)
         : QWidget(surface.window(), Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint | Qt::WindowTransparentForInput)
