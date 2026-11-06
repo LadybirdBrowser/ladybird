@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>MathML tabIndex attribute: resetting an explicitly set value</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#attributes-common-to-html-and-mathml-elements">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#attr-tabindex">
+<meta name="assert" content="Verify that an explicitly set tabIndex is reset to the default value when the tabindex attribute is changed to a value that is not a valid integer, or removed">
+
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+  <div id="log"></div>
+  <math>
+  </math>
+  <script>
+    // tabindex is defined by HTML, which parses the attribute as an integer and
+    // falls back to the default tab index for any value that fails to parse.
+    // That includes the empty string, garbage, and out-of-range integers.
+    const invalidValues = ["", "invalid", " ", "9999999999", "-9999999999"];
+
+    // The HTML rules for parsing integers stop at the first non-digit and keep
+    // the digits collected so far, so these are valid despite the trailing junk.
+    const valuesWithTrailingGarbage = [["1.5", 1], ["4abc", 4], ["-2 ", -2]];
+
+    Object.keys(MathMLFragments).forEach(elName => {
+        const mathEl = document.querySelector('math');
+
+        // <a> needs an href to be focusable by default, and so to have a
+        // default tab index of 0 rather than -1.
+        const href = elName == 'a' ? ' href="#"' : '';
+        mathEl.innerHTML = `<${elName} id="el"${href}></${elName}>`;
+        const el = mathEl.querySelector('#el');
+        const expectedDefault = elName == 'a' ? 0 : -1;
+
+        invalidValues.forEach(invalidValue => {
+            test(() => {
+                el.setAttribute("tabindex", "3");
+                assert_equals(el.tabIndex, 3, "valid value");
+
+                el.setAttribute("tabindex", invalidValue);
+                assert_equals(el.getAttribute("tabindex"), invalidValue);
+                assert_equals(el.tabIndex, expectedDefault, "invalid value");
+            }, `changing tabindex from "3" to "${invalidValue}" resets ${elName}.tabIndex`);
+        });
+
+        test(() => {
+            valuesWithTrailingGarbage.forEach(([value, expectedTabIndex]) => {
+                el.setAttribute("tabindex", "3");
+                assert_equals(el.tabIndex, 3, "valid value");
+
+                el.setAttribute("tabindex", value);
+                assert_equals(el.tabIndex, expectedTabIndex, `"${value}"`);
+            });
+            el.removeAttribute("tabindex");
+        }, `trailing garbage after the digits of ${elName}'s tabindex is ignored`);
+
+        test(() => {
+            el.setAttribute("tabindex", "3");
+            assert_equals(el.tabIndex, 3, "valid value");
+
+            el.removeAttribute("tabindex");
+            assert_equals(el.tabIndex, expectedDefault, "attribute removed");
+        }, `removing tabindex resets ${elName}.tabIndex`);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<title>Invalid tabindex</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1128054">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<!-- Test default focusability -->
+<math data-focusable="false"></math>
+<math href="#" data-focusable="false"></math>
+<math><a data-focusable="false"></a></math>
+<math><a href="#" data-focusable="true"></a></math>
+
+<!-- Test tabindex=0 focusability -->
+<math tabindex="0" data-focusable="true"></math>
+<math><a tabindex="0" data-focusable="true"></a></math>
+
+<!-- Test tabindex=-1 focusability -->
+<math tabindex="-1" data-focusable="true"></math>
+<math><a tabindex="-1" data-focusable="true"></a></math>
+
+<!-- Test tabindex=invalid focusability -->
+<math tabindex="invalid" data-focusable="false"></math>
+<math href="#" tabindex="invalid" data-focusable="false"></math>
+<math><a tabindex="invalid" data-focusable="false"></a></math>
+<math><a href="#" tabindex="invalid" data-focusable="true"></a></math>
+
+<script>
+  test(() => {
+    for (let element of document.querySelectorAll("[data-focusable]")) {
+      let focusable = element.dataset.focusable === "true";
+      let desc = "<" + element.tagName;
+      for (let attr of ["href", "tabindex"]) {
+        if (element.hasAttribute(attr)) {
+          desc += ` ${attr}=${element.getAttribute(attr)}`;
+        }
+      }
+      desc += ">";
+      element.focus();
+      focusable ? assert_equals(document.activeElement, element, desc + " should be focusable")
+                : assert_not_equals(document.activeElement, element, desc + " should not be focusable");
+    }
+  }, "invalid tabindex attribute does not make the element focusable");
+</script>

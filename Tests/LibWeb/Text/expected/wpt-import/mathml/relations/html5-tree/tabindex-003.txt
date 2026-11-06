@@ -1,0 +1,229 @@
+Harness status: OK
+
+Found 224 tests
+
+224 Pass
+Pass	changing tabindex from "3" to "" resets a.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets a.tabIndex
+Pass	changing tabindex from "3" to " " resets a.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets a.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets a.tabIndex
+Pass	trailing garbage after the digits of a's tabindex is ignored
+Pass	removing tabindex resets a.tabIndex
+Pass	changing tabindex from "3" to "" resets annotation.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets annotation.tabIndex
+Pass	changing tabindex from "3" to " " resets annotation.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets annotation.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets annotation.tabIndex
+Pass	trailing garbage after the digits of annotation's tabindex is ignored
+Pass	removing tabindex resets annotation.tabIndex
+Pass	changing tabindex from "3" to "" resets annotation-xml.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets annotation-xml.tabIndex
+Pass	changing tabindex from "3" to " " resets annotation-xml.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets annotation-xml.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets annotation-xml.tabIndex
+Pass	trailing garbage after the digits of annotation-xml's tabindex is ignored
+Pass	removing tabindex resets annotation-xml.tabIndex
+Pass	changing tabindex from "3" to "" resets maction.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets maction.tabIndex
+Pass	changing tabindex from "3" to " " resets maction.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets maction.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets maction.tabIndex
+Pass	trailing garbage after the digits of maction's tabindex is ignored
+Pass	removing tabindex resets maction.tabIndex
+Pass	changing tabindex from "3" to "" resets menclose.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets menclose.tabIndex
+Pass	changing tabindex from "3" to " " resets menclose.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets menclose.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets menclose.tabIndex
+Pass	trailing garbage after the digits of menclose's tabindex is ignored
+Pass	removing tabindex resets menclose.tabIndex
+Pass	changing tabindex from "3" to "" resets merror.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets merror.tabIndex
+Pass	changing tabindex from "3" to " " resets merror.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets merror.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets merror.tabIndex
+Pass	trailing garbage after the digits of merror's tabindex is ignored
+Pass	removing tabindex resets merror.tabIndex
+Pass	changing tabindex from "3" to "" resets mfrac.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mfrac.tabIndex
+Pass	changing tabindex from "3" to " " resets mfrac.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mfrac.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mfrac.tabIndex
+Pass	trailing garbage after the digits of mfrac's tabindex is ignored
+Pass	removing tabindex resets mfrac.tabIndex
+Pass	changing tabindex from "3" to "" resets mi.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mi.tabIndex
+Pass	changing tabindex from "3" to " " resets mi.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mi.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mi.tabIndex
+Pass	trailing garbage after the digits of mi's tabindex is ignored
+Pass	removing tabindex resets mi.tabIndex
+Pass	changing tabindex from "3" to "" resets mmultiscripts.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mmultiscripts.tabIndex
+Pass	changing tabindex from "3" to " " resets mmultiscripts.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mmultiscripts.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mmultiscripts.tabIndex
+Pass	trailing garbage after the digits of mmultiscripts's tabindex is ignored
+Pass	removing tabindex resets mmultiscripts.tabIndex
+Pass	changing tabindex from "3" to "" resets mn.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mn.tabIndex
+Pass	changing tabindex from "3" to " " resets mn.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mn.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mn.tabIndex
+Pass	trailing garbage after the digits of mn's tabindex is ignored
+Pass	removing tabindex resets mn.tabIndex
+Pass	changing tabindex from "3" to "" resets mo.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mo.tabIndex
+Pass	changing tabindex from "3" to " " resets mo.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mo.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mo.tabIndex
+Pass	trailing garbage after the digits of mo's tabindex is ignored
+Pass	removing tabindex resets mo.tabIndex
+Pass	changing tabindex from "3" to "" resets mover.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mover.tabIndex
+Pass	changing tabindex from "3" to " " resets mover.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mover.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mover.tabIndex
+Pass	trailing garbage after the digits of mover's tabindex is ignored
+Pass	removing tabindex resets mover.tabIndex
+Pass	changing tabindex from "3" to "" resets mpadded.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mpadded.tabIndex
+Pass	changing tabindex from "3" to " " resets mpadded.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mpadded.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mpadded.tabIndex
+Pass	trailing garbage after the digits of mpadded's tabindex is ignored
+Pass	removing tabindex resets mpadded.tabIndex
+Pass	changing tabindex from "3" to "" resets mphantom.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mphantom.tabIndex
+Pass	changing tabindex from "3" to " " resets mphantom.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mphantom.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mphantom.tabIndex
+Pass	trailing garbage after the digits of mphantom's tabindex is ignored
+Pass	removing tabindex resets mphantom.tabIndex
+Pass	changing tabindex from "3" to "" resets mprescripts.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mprescripts.tabIndex
+Pass	changing tabindex from "3" to " " resets mprescripts.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mprescripts.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mprescripts.tabIndex
+Pass	trailing garbage after the digits of mprescripts's tabindex is ignored
+Pass	removing tabindex resets mprescripts.tabIndex
+Pass	changing tabindex from "3" to "" resets mroot.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mroot.tabIndex
+Pass	changing tabindex from "3" to " " resets mroot.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mroot.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mroot.tabIndex
+Pass	trailing garbage after the digits of mroot's tabindex is ignored
+Pass	removing tabindex resets mroot.tabIndex
+Pass	changing tabindex from "3" to "" resets mrow.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mrow.tabIndex
+Pass	changing tabindex from "3" to " " resets mrow.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mrow.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mrow.tabIndex
+Pass	trailing garbage after the digits of mrow's tabindex is ignored
+Pass	removing tabindex resets mrow.tabIndex
+Pass	changing tabindex from "3" to "" resets ms.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets ms.tabIndex
+Pass	changing tabindex from "3" to " " resets ms.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets ms.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets ms.tabIndex
+Pass	trailing garbage after the digits of ms's tabindex is ignored
+Pass	removing tabindex resets ms.tabIndex
+Pass	changing tabindex from "3" to "" resets mspace.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mspace.tabIndex
+Pass	changing tabindex from "3" to " " resets mspace.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mspace.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mspace.tabIndex
+Pass	trailing garbage after the digits of mspace's tabindex is ignored
+Pass	removing tabindex resets mspace.tabIndex
+Pass	changing tabindex from "3" to "" resets msqrt.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets msqrt.tabIndex
+Pass	changing tabindex from "3" to " " resets msqrt.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets msqrt.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets msqrt.tabIndex
+Pass	trailing garbage after the digits of msqrt's tabindex is ignored
+Pass	removing tabindex resets msqrt.tabIndex
+Pass	changing tabindex from "3" to "" resets mstyle.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mstyle.tabIndex
+Pass	changing tabindex from "3" to " " resets mstyle.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mstyle.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mstyle.tabIndex
+Pass	trailing garbage after the digits of mstyle's tabindex is ignored
+Pass	removing tabindex resets mstyle.tabIndex
+Pass	changing tabindex from "3" to "" resets msub.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets msub.tabIndex
+Pass	changing tabindex from "3" to " " resets msub.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets msub.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets msub.tabIndex
+Pass	trailing garbage after the digits of msub's tabindex is ignored
+Pass	removing tabindex resets msub.tabIndex
+Pass	changing tabindex from "3" to "" resets msubsup.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets msubsup.tabIndex
+Pass	changing tabindex from "3" to " " resets msubsup.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets msubsup.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets msubsup.tabIndex
+Pass	trailing garbage after the digits of msubsup's tabindex is ignored
+Pass	removing tabindex resets msubsup.tabIndex
+Pass	changing tabindex from "3" to "" resets msup.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets msup.tabIndex
+Pass	changing tabindex from "3" to " " resets msup.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets msup.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets msup.tabIndex
+Pass	trailing garbage after the digits of msup's tabindex is ignored
+Pass	removing tabindex resets msup.tabIndex
+Pass	changing tabindex from "3" to "" resets mtable.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mtable.tabIndex
+Pass	changing tabindex from "3" to " " resets mtable.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mtable.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mtable.tabIndex
+Pass	trailing garbage after the digits of mtable's tabindex is ignored
+Pass	removing tabindex resets mtable.tabIndex
+Pass	changing tabindex from "3" to "" resets mtd.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mtd.tabIndex
+Pass	changing tabindex from "3" to " " resets mtd.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mtd.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mtd.tabIndex
+Pass	trailing garbage after the digits of mtd's tabindex is ignored
+Pass	removing tabindex resets mtd.tabIndex
+Pass	changing tabindex from "3" to "" resets mtext.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mtext.tabIndex
+Pass	changing tabindex from "3" to " " resets mtext.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mtext.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mtext.tabIndex
+Pass	trailing garbage after the digits of mtext's tabindex is ignored
+Pass	removing tabindex resets mtext.tabIndex
+Pass	changing tabindex from "3" to "" resets mtr.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets mtr.tabIndex
+Pass	changing tabindex from "3" to " " resets mtr.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets mtr.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets mtr.tabIndex
+Pass	trailing garbage after the digits of mtr's tabindex is ignored
+Pass	removing tabindex resets mtr.tabIndex
+Pass	changing tabindex from "3" to "" resets munder.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets munder.tabIndex
+Pass	changing tabindex from "3" to " " resets munder.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets munder.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets munder.tabIndex
+Pass	trailing garbage after the digits of munder's tabindex is ignored
+Pass	removing tabindex resets munder.tabIndex
+Pass	changing tabindex from "3" to "" resets munderover.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets munderover.tabIndex
+Pass	changing tabindex from "3" to " " resets munderover.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets munderover.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets munderover.tabIndex
+Pass	trailing garbage after the digits of munderover's tabindex is ignored
+Pass	removing tabindex resets munderover.tabIndex
+Pass	changing tabindex from "3" to "" resets none.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets none.tabIndex
+Pass	changing tabindex from "3" to " " resets none.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets none.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets none.tabIndex
+Pass	trailing garbage after the digits of none's tabindex is ignored
+Pass	removing tabindex resets none.tabIndex
+Pass	changing tabindex from "3" to "" resets semantics.tabIndex
+Pass	changing tabindex from "3" to "invalid" resets semantics.tabIndex
+Pass	changing tabindex from "3" to " " resets semantics.tabIndex
+Pass	changing tabindex from "3" to "9999999999" resets semantics.tabIndex
+Pass	changing tabindex from "3" to "-9999999999" resets semantics.tabIndex
+Pass	trailing garbage after the digits of semantics's tabindex is ignored
+Pass	removing tabindex resets semantics.tabIndex

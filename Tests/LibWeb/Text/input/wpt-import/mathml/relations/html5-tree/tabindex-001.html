@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>MathML tabIndex attribute</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#css-styling">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-top-level-math-element">
+<meta name="assert" content="Verify default values for the tabIndex attribute">
+
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+  <div id="log"></div>
+  <math>
+  </math>
+  <script>
+    Object.keys(MathMLFragments).forEach(elName => {
+        const mathEl = document.querySelector('math');
+
+        mathEl.innerHTML = `
+        <${elName} id="el" onfocus="alert('fail')"></${elName}>
+        <${elName} id="el-link" href="javascript:alert('fail')" onfocus="alert('fail')"></${elName}>
+        `;
+
+        const el = mathEl.querySelector('#el');
+        const elLink = mathEl.querySelector('#el-link');
+
+        const expectedDefault = elName == 'a' ? 0 : -1;
+
+        test(() => {
+            assert_equals(el.tabIndex, expectedDefault, "no attribute");
+            el.setAttribute("tabindex", "invalid");
+            assert_equals(el.getAttribute("tabindex"), "invalid");
+            assert_equals(el.tabIndex, expectedDefault, "invalid");
+            el.setAttribute("tabindex", "9999999999");
+            assert_equals(el.getAttribute("tabindex"), "9999999999");
+            assert_equals(el.tabIndex, expectedDefault, "too large integer");
+        }, `default and invalid values for ${elName} without href`);
+        test(() => {
+            assert_equals(elLink.tabIndex, expectedDefault, "no attribute");
+            elLink.setAttribute("tabindex", "invalid");
+            assert_equals(elLink.getAttribute("tabindex"), "invalid");
+            assert_equals(elLink.tabIndex, expectedDefault, "invalid");
+            elLink.setAttribute("tabindex", "9999999999");
+            assert_equals(elLink.getAttribute("tabindex"), "9999999999");
+            assert_equals(elLink.tabIndex, expectedDefault, "too large integer");
+        }, `default and invalid values for ${elName} with href`);
+    });
+  </script>
+</body>
+</html>
