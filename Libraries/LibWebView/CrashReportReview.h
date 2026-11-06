@@ -50,11 +50,10 @@ public:
         Yes,
     };
 
-    // Opens the named report, or the newest one awaiting review. Being shown as the user's one prompt for a report makes
+    // Opens the named report. Being shown as the user's one prompt for a report makes
     // it count as seen from then on, so declining it needs no further step. A report that goes on waiting whatever
     // comes of this review is opened without that.
-    ErrorOr<Report> open(Optional<ByteString> const& name = {}, MarkAsSeen = MarkAsSeen::Yes);
-    bool has_next_report() const;
+    ErrorOr<Report> open(ByteString const& name, MarkAsSeen = MarkAsSeen::Yes);
 
     // The open report's text, exactly as it would be attached.
     ErrorOr<ByteString> report_text() const;

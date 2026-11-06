@@ -93,7 +93,6 @@ TEST_CASE(a_crash_screen_offers_the_website_without_including_it)
 
     child<QPushButton>(widget, "CrashReportDeclineButton").click();
     EXPECT_EQ(status_title(widget), "Report not sent");
-    EXPECT(!child<QPushButton>(widget, "CrashReportNextButton").isVisible());
 }
 
 TEST_CASE(the_review_offers_to_exit_before_and_after_answering)
@@ -182,38 +181,18 @@ TEST_CASE(a_choice_that_cannot_be_sent_is_explained_in_place)
     EXPECT(child<QPushButton>(widget, "CrashReportSendButton").isVisible());
 }
 
-TEST_CASE(the_review_walks_through_every_waiting_report)
+TEST_CASE(without_a_website_there_is_nothing_to_include)
 {
     cleanup();
     ScopeGuard guard = cleanup;
 
-    write_report("2026-10-01T12-00-00Z"sv);
-    write_report("2026-10-01T13-00-00Z"sv);
+    auto name = write_report("2026-10-01T12-00-00Z"sv);
     WebView::CrashReportStore store { test_directory() };
     CrashReportReviewWidget widget { QStringLiteral("Continue"), nullptr, store };
-    auto exited = false;
-    widget.on_exit = [&] { exited = true; };
-    MUST(widget.open_report());
+    MUST(widget.open_report(name));
     widget.show();
 
-    // Without a website to offer, there is nothing to include.
     EXPECT(!child<QCheckBox>(widget, "CrashReportIncludeWebsite").isVisible());
-
-    child<QPushButton>(widget, "CrashReportDeclineButton").click();
-    auto& next = child<QPushButton>(widget, "CrashReportNextButton");
-    EXPECT(next.isVisible());
-
-    next.click();
-    EXPECT(child<QPushButton>(widget, "CrashReportSendButton").isVisible());
-    EXPECT(!store.has_pending_reports());
-
-    child<QPushButton>(widget, "CrashReportDeclineButton").click();
-    EXPECT(!next.isVisible());
-    auto& exit_button = child<QPushButton>(widget, "CrashReportExitButton");
-    EXPECT(exit_button.isVisible());
-
-    exit_button.click();
-    EXPECT(exited);
 }
 
 TEST_CASE(sending_shows_its_progress_and_outcome)

@@ -145,28 +145,6 @@ TEST_CASE(a_report_that_does_not_say_when_it_crashed_has_no_crash_date)
         EXPECT(field.label != "Crash date"sv);
 }
 
-TEST_CASE(an_opened_report_is_no_longer_pending)
-{
-    cleanup();
-    ScopeGuard guard = cleanup;
-
-    auto older = write_report("2026-10-01T12-00-00Z"sv);
-    auto newer = write_report("2026-10-01T13-00-00Z"sv);
-    WebView::CrashReportStore store { test_directory() };
-    CrashReportReview review { store };
-
-    // Without a name, the newest report waiting for an answer is shown.
-    EXPECT_EQ(MUST(review.open()).name, newer);
-    EXPECT(!is_pending(newer));
-    EXPECT(review.has_next_report());
-
-    EXPECT_EQ(MUST(review.open()).name, older);
-    EXPECT(!is_pending(older));
-    EXPECT(!review.has_next_report());
-
-    EXPECT(review.open().is_error());
-}
-
 TEST_CASE(a_report_opened_without_marking_it_seen_stays_pending)
 {
     cleanup();

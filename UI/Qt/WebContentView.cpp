@@ -1761,7 +1761,7 @@ void WebContentView::show_crash_report_review()
         return;
 
     m_crash_report_review = new CrashReportReviewWidget(tr("Reload page"), m_crash_report_container);
-    if (auto result = m_crash_report_review->open_report(report_name, crash_report_website()); result.is_error()) {
+    if (auto result = m_crash_report_review->open_report(*report_name, crash_report_website()); result.is_error()) {
         warnln("Could not open crash report {}: {}", *report_name, result.error());
         delete m_crash_report_review;
         m_crash_report_review = nullptr;
