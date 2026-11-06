@@ -1,0 +1,14 @@
+When the subject compound of a rule holds a :is() or :where() whose
+argument is a single compound, Ladybird’s style invalidation keys the
+rule by the class, id, attribute, tag, or state that compound requires,
+so the walk an ancestor’s change starts skips every element without
+it. Blink does the same and more, in RuleInvalidationDataVisitor::
+ExtractInvalidationSetFeaturesFromSelectorList(): It narrows a
+subject’s invalidation features to those of its :is() or :where()
+arguments whenever every argument has some, which covers lists of
+several alternatives too, and never does so for :not(). WebKit’s
+RuleFeatureSet::recursivelyCollectFeaturesFromSelector() collects the
+classes inside :is() and :where() as features of the subject. And
+Gecko’s SelectorDependencyCollector::visit_selector_list() visits the
+rightmost compound of each argument with the outer collector, so a
+class inside one becomes a dependency of the subject.
