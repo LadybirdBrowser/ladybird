@@ -2644,7 +2644,7 @@ void WebContentPage::did_complete_navigation_unload_check(Web::HTML::CrossProces
         Application::the().allocate_ui_process_cross_process_id());
     population_request.target_snapshot_params.sandboxing_flags |= navigable->snapshot_target_snapshot_params().sandboxing_flags;
     ongoing_navigation->history_entry = MUST(CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::create_session_history_entry_descriptor(population_request.history_entry, 0)));
-    ongoing_navigation->state = CanonicalNavigation::CreatingNavigationParams { NavigationLoader::create(client().is_private(), move(population_request)) };
+    ongoing_navigation->state = CanonicalNavigation::CreatingNavigationParams { NavigationLoader::create(move(population_request)) };
     async_create_navigation_params(ongoing_navigation->loader()->request());
 
     // Requesting navigation params starts the fetch, so a view's top-level population begins its recorded
@@ -2660,7 +2660,7 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
     auto navigable = population_worker_navigable(navigable_id);
     if (!navigable.has_value()) {
         if (result.has_value())
-            NavigationLoader::discard(client().is_private(), *result);
+            NavigationLoader::discard(*result);
         return;
     }
 
@@ -2668,7 +2668,7 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
     auto* creating = ongoing_navigation ? ongoing_navigation->state.get_pointer<CanonicalNavigation::CreatingNavigationParams>() : nullptr;
     if (!creating || ongoing_navigation->worker() != this) {
         if (result.has_value())
-            NavigationLoader::discard(client().is_private(), *result);
+            NavigationLoader::discard(*result);
         return;
     }
 
@@ -2685,7 +2685,7 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
     acquiring_loader->did_finish_navigation_params_creation(result.release_value());
     if (ongoing_navigation->history_entry->update_from_descriptor(Web::HTML::create_session_history_entry_descriptor(acquiring_loader->request().history_entry, 0)).is_error()) {
         auto rejected_result = acquiring_loader->take_result();
-        NavigationLoader::discard(client().is_private(), rejected_result);
+        NavigationLoader::discard(rejected_result);
         navigable->did_cancel_navigation(navigation_id);
         client().did_misbehave("did_finish_navigation_params_creation"sv, "replacement document state forms a cycle"sv);
         return;

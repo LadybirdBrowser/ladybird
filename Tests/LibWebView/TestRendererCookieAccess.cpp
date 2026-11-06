@@ -157,16 +157,16 @@ TEST_CASE(renderer_cookie_access)
     auto navigation_view = create_view();
     auto& navigation_client = navigation_view->page().client();
     auto& navigation_stub = static_cast<WebContentClientStub&>(navigation_client);
-    auto loader = WebView::NavigationLoader::create(navigation_client.is_private(), Web::HTML::NavigationPopulationRequest {
-                                                                                        .navigable_id = navigation_view->traversable().id(),
-                                                                                        .history_entry = {},
-                                                                                        .source_snapshot_params = Web::HTML::create_navigation_source_snapshot_without_a_source_document(),
-                                                                                        .target_snapshot_params = {},
-                                                                                        .csp_navigation_type = Web::ContentSecurityPolicy::Directives::NavigationType::Other,
-                                                                                        .history_handling = Web::Bindings::NavigationHistoryBehavior::Auto,
-                                                                                        .user_involvement = Web::HTML::UserNavigationInvolvement::None,
-                                                                                        .navigation_id = "authorized-navigation"_utf16,
-                                                                                    });
+    auto loader = WebView::NavigationLoader::create(Web::HTML::NavigationPopulationRequest {
+        .navigable_id = navigation_view->traversable().id(),
+        .history_entry = {},
+        .source_snapshot_params = Web::HTML::create_navigation_source_snapshot_without_a_source_document(),
+        .target_snapshot_params = {},
+        .csp_navigation_type = Web::ContentSecurityPolicy::Directives::NavigationType::Other,
+        .history_handling = Web::Bindings::NavigationHistoryBehavior::Auto,
+        .user_involvement = Web::HTML::UserNavigationInvolvement::None,
+        .navigation_id = "authorized-navigation"_utf16,
+    });
     navigation_view->traversable().set_ongoing_navigation({
         .url = victim_url,
         .navigation_id = "authorized-navigation"_utf16,

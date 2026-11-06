@@ -32,7 +32,7 @@ TEST_CASE(response_document_uses_history_entry_url_when_response_url_list_is_emp
     auto url = URL::Parser::basic_parse("https://ladybird.org/"sv).release_value();
     Web::HTML::NavigationPopulationRequest request {};
     request.history_entry.url = url;
-    auto loader = WebView::NavigationLoader::create(WebView::IsPrivate::No, move(request));
+    auto loader = WebView::NavigationLoader::create(move(request));
     loader->did_finish_navigation_params_creation({
         .navigation_params = navigation_params_for(url),
         .redirected_url = {},
@@ -52,7 +52,7 @@ TEST_CASE(response_document_uses_last_response_url_after_redirects)
     auto final_url = URL::Parser::basic_parse("https://example.com/"sv).release_value();
     Web::HTML::NavigationPopulationRequest request {};
     request.history_entry.url = initial_url;
-    auto loader = WebView::NavigationLoader::create(WebView::IsPrivate::No, move(request));
+    auto loader = WebView::NavigationLoader::create(move(request));
     auto params = navigation_params_for(initial_url);
     params.response.url_list = { initial_url, final_url };
     loader->did_finish_navigation_params_creation({
