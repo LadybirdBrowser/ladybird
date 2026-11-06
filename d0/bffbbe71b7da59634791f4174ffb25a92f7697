@@ -1,0 +1,14 @@
+When a click is beside an editing host, on non-editable content around
+it, Ladybird focuses nothing in it, and puts the caret before or after
+a block-level host rather than inside it. Blink, WebKit and Gecko all
+pick the element a mousedown focuses by walking up from the clicked
+element: Blink in MouseEventManager::HandleMouseFocus(), WebKit in
+EventHandler::dispatchMouseEvent(), and Gecko in EventStateManager::
+PostHandleEvent(). None looks for an editor inside it. And Blink’s and
+WebKit’s positionForPointRespectingEditingBoundaries() give a point
+beside a block child of different editability a position before or
+after that child, so the selection only focuses an editor (through
+FrameSelection::SetFocusedNodeIfNeeded() in Blink, and FrameSelection::
+setFocusedElementIfNeeded() in WebKit) when the point is on its line.
+WebKit’s editing/selection/click-outside-editable-div.html test checks
+that a click in the padding outside an editable div focuses nothing.
