@@ -441,12 +441,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
     Optional<URL::URL> result;
 
     // 10. For each scopePrefix → scopeImports of importMap's scopes:
-    for (auto const& entry : import_map.scopes()) {
-        // FIXME: Clarify if the serialization steps need to be run here. The steps below assume
-        //        scopePrefix to be a string.
-        auto scope_prefix = utf16_string_from_url_ascii(entry.key.serialize());
-        auto const& scope_imports = entry.value;
-
+    for (auto const& [scope_prefix, scope_imports] : import_map.scopes()) {
         // 1. If scopePrefix is serializedBaseURL, or if scopePrefix ends with U+002F (/) and scopePrefix is a code unit prefix of serializedBaseURL, then:
         if (scope_prefix == serialized_base_url
             || (scope_prefix.utf16_view().ends_with('/')

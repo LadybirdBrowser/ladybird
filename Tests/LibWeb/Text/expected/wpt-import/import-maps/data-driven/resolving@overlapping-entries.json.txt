@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Test helper: fetching and sanity checking test JSON: overlapping-entries.json
+Pass	should favor the most-specific key: Overlapping entries with trailing slashes: a
+Pass	should favor the most-specific key: Overlapping entries with trailing slashes: a/
+Pass	should favor the most-specific key: Overlapping entries with trailing slashes: a/x
+Pass	should favor the most-specific key: Overlapping entries with trailing slashes: a/b
+Pass	should favor the most-specific key: Overlapping entries with trailing slashes: a/b/
+Pass	should favor the most-specific key: Overlapping entries with trailing slashes: a/b/c

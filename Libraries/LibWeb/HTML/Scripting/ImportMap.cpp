@@ -57,7 +57,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, Utf16Vi
     }
 
     // 5. Let sortedAndNormalizedScopes be an empty ordered map.
-    HashMap<URL::URL, ModuleSpecifierMap> sorted_and_normalized_scopes;
+    ModuleScopesMap sorted_and_normalized_scopes;
 
     // 6. If parsed["scopes"] exists, then:
     if (TRY(parsed_object.has_property("scopes"_utf16_fly_string))) {
@@ -196,14 +196,15 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
     }
 
     // 3. Return the result of sorting in descending order normalized, with an entry a being less than an entry b if a's key is code unit less than b's key.
+    // NB: DescendingCodeUnitOrderedMap keeps normalized in this order.
     return normalized;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#sorting-and-normalizing-scopes
-WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_scopes(JS::Realm& realm, JS::Object& original_map, URL::URL base_url)
+WebIDL::ExceptionOr<ModuleScopesMap> sort_and_normalise_scopes(JS::Realm& realm, JS::Object& original_map, URL::URL base_url)
 {
     // 1. Let normalized be an empty ordered map.
-    HashMap<URL::URL, ModuleSpecifierMap> normalized;
+    ModuleScopesMap normalized;
 
     // 2. For each scopePrefix → potentialSpecifierMap of originalMap:
     auto scope_prefixes = TRY(original_map.internal_own_property_keys());
@@ -230,11 +231,14 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
         }
 
         // 4. Let normalizedScopePrefix be the serialization of scopePrefixURL.
+        auto normalized_scope_prefix = utf16_string_from_url_ascii(scope_prefix_url->serialize());
+
         // 5. Set normalized[normalizedScopePrefix] to the result of sorting and normalizing a module specifier map given potentialSpecifierMap and baseURL.
-        normalized.set(scope_prefix_url.value(), TRY(sort_and_normalise_module_specifier_map(realm, potential_specifier_map.as_object(), base_url)));
+        normalized.set(move(normalized_scope_prefix), TRY(sort_and_normalise_module_specifier_map(realm, potential_specifier_map.as_object(), base_url)));
     }
 
     // 3. Return the result of sorting in descending order normalized, with an entry a being less than an entry b if a's key is code unit less than b's key.
+    // NB: DescendingCodeUnitOrderedMap keeps normalized in this order.
     return normalized;
 }
 
@@ -304,6 +308,7 @@ static ModuleSpecifierMap merge_module_specifier_maps(JS::Realm& realm, ModuleSp
         }
 
         // 2. Set mergedMap[specifier] to url.
+        // AD-HOC: This inserts in sorted order rather than appending, as resolution relies on the order.
         merged_map.set(specifier, url);
     }
 
@@ -333,11 +338,10 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
         // 1. For each record of global's resolved module set:
         for (auto const& record : global.resolved_module_set()) {
             // 1. If scopePrefix is record's serialized base URL, or if scopePrefix ends with U+002F (/) and scopePrefix is a code unit prefix of record's serialized base URL, then:
-            auto serialized_scope_prefix = utf16_string_from_url_ascii(scope_prefix.serialize());
             if (record.serialized_base_url.has_value()
-                && (serialized_scope_prefix == *record.serialized_base_url
-                    || (serialized_scope_prefix.utf16_view().ends_with('/')
-                        && Infra::is_code_unit_prefix(serialized_scope_prefix.utf16_view(), record.serialized_base_url->utf16_view())))) {
+                && (scope_prefix == *record.serialized_base_url
+                    || (scope_prefix.utf16_view().ends_with('/')
+                        && Infra::is_code_unit_prefix(scope_prefix.utf16_view(), record.serialized_base_url->utf16_view())))) {
                 // 1. For each specifierKey → resolutionResult of scopeImports:
                 scope_imports.remove_all_matching([&](Utf16String const& specifier_key, Optional<URL::URL> const&) {
                     // 1. If specifierKey is record's specifier, or if all of the following conditions are true:
@@ -366,11 +370,12 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
 
         // 2. If scopePrefix exists in oldImportMap's scopes, then set oldImportMap's scopes[scopePrefix] to the result
         //    of merging module specifier maps, given scopeImports and oldImportMap's scopes[scopePrefix].
-        if (auto it = old_import_map.scopes().find(scope_prefix); it != old_import_map.scopes().end()) {
-            it->value = merge_module_specifier_maps(realm, scope_imports, it->value);
+        if (auto* old_scope_imports = old_import_map.scopes().find(scope_prefix)) {
+            *old_scope_imports = merge_module_specifier_maps(realm, scope_imports, *old_scope_imports);
         }
         // 3. Otherwise, set oldImportMap's scopes[scopePrefix] to scopeImports.
         else {
+            // AD-HOC: This inserts in sorted order rather than appending, as resolution relies on the order.
             old_import_map.scopes().set(scope_prefix, scope_imports);
         }
     }

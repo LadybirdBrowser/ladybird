@@ -1,0 +1,134 @@
+{
+  "name": "Exact vs. prefix based matching",
+  "details": "Scopes are matched with base URLs that are exactly the same or subpaths under the scopes with trailing shashes",
+  "link": "https://wicg.github.io/import-maps/#resolve-a-module-specifier Step 8.1",
+  "tests": {
+    "Scope without trailing slash only": {
+      "importMap": {
+        "scopes": {
+          "/js": {
+            "moment": "/only-triggered-by-exact/moment",
+            "moment/": "/only-triggered-by-exact/moment/"
+          }
+        }
+      },
+      "importMapBaseURL": "https://example.com/app/index.html",
+      "tests": {
+        "Non-trailing-slash base URL (exact match)": {
+          "baseURL": "https://example.com/js",
+          "expectedResults": {
+            "moment": "https://example.com/only-triggered-by-exact/moment",
+            "moment/foo": "https://example.com/only-triggered-by-exact/moment/foo"
+          }
+        },
+        "Trailing-slash base URL (fail)": {
+          "baseURL": "https://example.com/js/",
+          "expectedResults": {
+            "moment": null,
+            "moment/foo": null
+          }
+        },
+        "Subpath base URL (fail)": {
+          "baseURL": "https://example.com/js/app.mjs",
+          "expectedResults": {
+            "moment": null,
+            "moment/foo": null
+          }
+        },
+        "Non-subpath base URL (fail)": {
+          "baseURL": "https://example.com/jsiscool",
+          "expectedResults": {
+            "moment": null,
+            "moment/foo": null
+          }
+        }
+      }
+    },
+    "Scope with trailing slash only": {
+      "importMap": {
+        "scopes": {
+          "/js/": {
+            "moment": "/triggered-by-any-subpath/moment",
+            "moment/": "/triggered-by-any-subpath/moment/"
+          }
+        }
+      },
+      "importMapBaseURL": "https://example.com/app/index.html",
+      "tests": {
+        "Non-trailing-slash base URL (fail)": {
+          "baseURL": "https://example.com/js",
+          "expectedResults": {
+            "moment": null,
+            "moment/foo": null
+          }
+        },
+        "Trailing-slash base URL (exact match)": {
+          "baseURL": "https://example.com/js/",
+          "expectedResults": {
+            "moment": "https://example.com/triggered-by-any-subpath/moment",
+            "moment/foo": "https://example.com/triggered-by-any-subpath/moment/foo"
+          }
+        },
+        "Subpath base URL (prefix match)": {
+          "baseURL": "https://example.com/js/app.mjs",
+          "expectedResults": {
+            "moment": "https://example.com/triggered-by-any-subpath/moment",
+            "moment/foo": "https://example.com/triggered-by-any-subpath/moment/foo"
+          }
+        },
+        "Non-subpath base URL (fail)": {
+          "baseURL": "https://example.com/jsiscool",
+          "expectedResults": {
+            "moment": null,
+            "moment/foo": null
+          }
+        }
+      }
+    },
+    "Scopes with and without trailing slash": {
+      "importMap": {
+        "scopes": {
+          "/js": {
+            "moment": "/only-triggered-by-exact/moment",
+            "moment/": "/only-triggered-by-exact/moment/"
+          },
+          "/js/": {
+            "moment": "/triggered-by-any-subpath/moment",
+            "moment/": "/triggered-by-any-subpath/moment/"
+          }
+        }
+      },
+      "importMapBaseURL": "https://example.com/app/index.html",
+      "tests": {
+        "Non-trailing-slash base URL (exact match)": {
+          "baseURL": "https://example.com/js",
+          "expectedResults": {
+            "moment": "https://example.com/only-triggered-by-exact/moment",
+            "moment/foo": "https://example.com/only-triggered-by-exact/moment/foo"
+          }
+        },
+        "Trailing-slash base URL (exact match)": {
+          "baseURL": "https://example.com/js/",
+          "expectedResults": {
+            "moment": "https://example.com/triggered-by-any-subpath/moment",
+            "moment/foo": "https://example.com/triggered-by-any-subpath/moment/foo"
+          }
+        },
+        "Subpath base URL (prefix match)": {
+          "baseURL": "https://example.com/js/app.mjs",
+          "expectedResults": {
+            "moment": "https://example.com/triggered-by-any-subpath/moment",
+            "moment/foo": "https://example.com/triggered-by-any-subpath/moment/foo"
+          }
+        },
+        "Non-subpath base URL (fail)": {
+          "baseURL": "https://example.com/jsiscool",
+          "expectedResults": {
+            "moment": null,
+            "moment/foo": null
+          }
+        }
+      }
+    }
+  }
+}

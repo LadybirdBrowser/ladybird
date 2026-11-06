@@ -1,0 +1,74 @@
+{
+  "importMap": {
+    "imports": {
+      "moment": "/node_modules/moment/src/moment.js",
+      "moment/": "/node_modules/moment/src/",
+      "lodash-dot": "./node_modules/lodash-es/lodash.js",
+      "lodash-dot/": "./node_modules/lodash-es/",
+      "lodash-dotdot": "../node_modules/lodash-es/lodash.js",
+      "lodash-dotdot/": "../node_modules/lodash-es/",
+      "mapped/": "https://example.com/",
+      "mapped/path/": "https://github.com/WICG/import-maps/issues/207/",
+      "mapped/non-ascii-1/": "https://example.com/%E3%81%8D%E3%81%A4%E3%81%AD/",
+      "mapped/non-ascii-2/": "https://example.com/きつね/"
+    }
+  },
+  "importMapBaseURL": "https://example.com/app/index.html",
+  "baseURL": "https://example.com/js/app.mjs",
+  "name": "Package-like scenarios",
+  "link": "https://github.com/WICG/import-maps#packages-via-trailing-slashes",
+  "tests": {
+    "package main modules": {
+      "expectedResults": {
+        "moment": "https://example.com/node_modules/moment/src/moment.js",
+        "lodash-dot": "https://example.com/app/node_modules/lodash-es/lodash.js",
+        "lodash-dotdot": "https://example.com/node_modules/lodash-es/lodash.js"
+      }
+    },
+    "package submodules": {
+      "expectedResults": {
+        "moment/foo": "https://example.com/node_modules/moment/src/foo",
+        "moment/foo?query": "https://example.com/node_modules/moment/src/foo?query",
+        "moment/foo#fragment": "https://example.com/node_modules/moment/src/foo#fragment",
+        "moment/foo?query#fragment": "https://example.com/node_modules/moment/src/foo?query#fragment",
+        "lodash-dot/foo": "https://example.com/app/node_modules/lodash-es/foo",
+        "lodash-dotdot/foo": "https://example.com/node_modules/lodash-es/foo"
+      }
+    },
+    "package names that end in a slash should just pass through": {
+      "expectedResults": {
+        "moment/": "https://example.com/node_modules/moment/src/"
+      }
+    },
+    "package modules that are not declared should fail": {
+      "expectedResults": {
+        "underscore/": null,
+        "underscore/foo": null
+      }
+    },
+    "backtracking via ..": {
+      "expectedResults": {
+        "mapped/path": "https://example.com/path",
+        "mapped/path/": "https://github.com/WICG/import-maps/issues/207/",
+        "mapped/path/..": null,
+        "mapped/path/../path/": null,
+        "mapped/path/../207": null,
+        "mapped/path/../207/": "https://github.com/WICG/import-maps/issues/207/",
+        "mapped/path//": null,
+        "mapped/path/WICG/import-maps/issues/207/": "https://github.com/WICG/import-maps/issues/207/WICG/import-maps/issues/207/",
+        "mapped/path//WICG/import-maps/issues/207/": "https://github.com/WICG/import-maps/issues/207/",
+        "mapped/path/../backtrack": null,
+        "mapped/path/../../backtrack": null,
+        "mapped/path/../../../backtrack": null,
+        "moment/../backtrack": null,
+        "moment/..": null,
+        "mapped/non-ascii-1/": "https://example.com/%E3%81%8D%E3%81%A4%E3%81%AD/",
+        "mapped/non-ascii-1/../%E3%81%8D%E3%81%A4%E3%81%AD/": "https://example.com/%E3%81%8D%E3%81%A4%E3%81%AD/",
+        "mapped/non-ascii-1/../きつね/": "https://example.com/%E3%81%8D%E3%81%A4%E3%81%AD/",
+        "mapped/non-ascii-2/": "https://example.com/%E3%81%8D%E3%81%A4%E3%81%AD/",
+        "mapped/non-ascii-2/../%E3%81%8D%E3%81%A4%E3%81%AD/": "https://example.com/%E3%81%8D%E3%81%A4%E3%81%AD/",
+        "mapped/non-ascii-2/../きつね/": "https://example.com/%E3%81%8D%E3%81%A4%E3%81%AD/"
+      }
+    }
+  }
+}

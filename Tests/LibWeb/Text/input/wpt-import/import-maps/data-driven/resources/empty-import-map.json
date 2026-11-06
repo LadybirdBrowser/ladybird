@@ -1,0 +1,61 @@
+{
+  "importMap": {},
+  "importMapBaseURL": "https://example.com/app/index.html",
+  "baseURL": "https://example.com/js/app.mjs",
+  "tests": {
+    "valid relative specifiers": {
+      "expectedResults": {
+        "./foo": "https://example.com/js/foo",
+        "./foo/bar": "https://example.com/js/foo/bar",
+        "./foo/../bar": "https://example.com/js/bar",
+        "./foo/../../bar": "https://example.com/bar",
+        "../foo": "https://example.com/foo",
+        "../foo/bar": "https://example.com/foo/bar",
+        "../../../foo/bar": "https://example.com/foo/bar",
+        "/foo": "https://example.com/foo",
+        "/foo/bar": "https://example.com/foo/bar",
+        "/../../foo/bar": "https://example.com/foo/bar",
+        "/../foo/../bar": "https://example.com/bar"
+      }
+    },
+    "HTTPS scheme absolute URLs": {
+      "expectedResults": {
+        "https://fetch-scheme.net": "https://fetch-scheme.net/",
+        "https:fetch-scheme.org": "https://fetch-scheme.org/",
+        "https://fetch%2Dscheme.com/": "https://fetch-scheme.com/",
+        "https://///fetch-scheme.com///": "https://fetch-scheme.com///"
+      }
+    },
+    "valid relative URLs that are invalid as specifiers should fail": {
+      "expectedResults": {
+        "invalid-specifier": null,
+        "\\invalid-specifier": null,
+        ":invalid-specifier": null,
+        "@invalid-specifier": null,
+        "%2E/invalid-specifier": null,
+        "%2E%2E/invalid-specifier": null,
+        ".%2Finvalid-specifier": null
+      }
+    },
+    "invalid absolute URLs should fail": {
+      "expectedResults": {
+        "https://invalid-url.com:demo": null,
+        "http://[invalid-url.com]/": null
+      }
+    },
+    "non-HTTPS fetch scheme absolute URLs": {
+      "expectedResults": {
+        "about:fetch-scheme": "about:fetch-scheme"
+      }
+    },
+    "non-fetch scheme absolute URLs": {
+      "expectedResults": {
+        "about:fetch-scheme": "about:fetch-scheme",
+        "mailto:non-fetch-scheme": "mailto:non-fetch-scheme",
+        "import:non-fetch-scheme": "import:non-fetch-scheme",
+        "javascript:non-fetch-scheme": "javascript:non-fetch-scheme",
+        "wss:non-fetch-scheme": "wss://non-fetch-scheme/"
+      }
+    }
+  }
+}

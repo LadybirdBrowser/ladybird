@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Test helper: fetching and sanity checking test JSON: data-url-prefix.json
+Pass	data: URL prefix: should not resolve since you can't resolve relative to a data: URL: foo/bar

@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	Test helper: fetching and sanity checking test JSON: url-specifiers-schemes.json
+Pass	URL-like specifiers: Non-special vs. special schemes: data:text/javascript,console.log('foo')
+Pass	URL-like specifiers: Non-special vs. special schemes: data:text/
+Pass	URL-like specifiers: Non-special vs. special schemes: about:text/foo
+Pass	URL-like specifiers: Non-special vs. special schemes: about:text/
+Pass	URL-like specifiers: Non-special vs. special schemes: blob:text/foo
+Pass	URL-like specifiers: Non-special vs. special schemes: blob:text/
+Pass	URL-like specifiers: Non-special vs. special schemes: blah:text/foo
+Pass	URL-like specifiers: Non-special vs. special schemes: blah:text/
+Pass	URL-like specifiers: Non-special vs. special schemes: http:text/foo
+Pass	URL-like specifiers: Non-special vs. special schemes: http:text/
+Pass	URL-like specifiers: Non-special vs. special schemes: https:text/foo
+Pass	URL-like specifiers: Non-special vs. special schemes: https:text/
+Pass	URL-like specifiers: Non-special vs. special schemes: ftp:text/foo
+Pass	URL-like specifiers: Non-special vs. special schemes: ftp:text/
+Pass	URL-like specifiers: Non-special vs. special schemes: file:text/foo
+Pass	URL-like specifiers: Non-special vs. special schemes: file:text/
+Pass	URL-like specifiers: Non-special vs. special schemes: ws:text/foo
+Pass	URL-like specifiers: Non-special vs. special schemes: ws:text/
+Pass	URL-like specifiers: Non-special vs. special schemes: wss:text/foo
+Pass	URL-like specifiers: Non-special vs. special schemes: wss:text/

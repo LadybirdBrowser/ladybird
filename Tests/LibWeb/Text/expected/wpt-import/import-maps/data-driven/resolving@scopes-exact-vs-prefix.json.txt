@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Pass
+Pass	Test helper: fetching and sanity checking test JSON: scopes-exact-vs-prefix.json
+Pass	Exact vs. prefix based matching: Scope without trailing slash only: Non-trailing-slash base URL (exact match): moment
+Pass	Exact vs. prefix based matching: Scope without trailing slash only: Non-trailing-slash base URL (exact match): moment/foo
+Pass	Exact vs. prefix based matching: Scope without trailing slash only: Trailing-slash base URL (fail): moment
+Pass	Exact vs. prefix based matching: Scope without trailing slash only: Trailing-slash base URL (fail): moment/foo
+Pass	Exact vs. prefix based matching: Scope without trailing slash only: Subpath base URL (fail): moment
+Pass	Exact vs. prefix based matching: Scope without trailing slash only: Subpath base URL (fail): moment/foo
+Pass	Exact vs. prefix based matching: Scope without trailing slash only: Non-subpath base URL (fail): moment
+Pass	Exact vs. prefix based matching: Scope without trailing slash only: Non-subpath base URL (fail): moment/foo
+Pass	Exact vs. prefix based matching: Scope with trailing slash only: Non-trailing-slash base URL (fail): moment
+Pass	Exact vs. prefix based matching: Scope with trailing slash only: Non-trailing-slash base URL (fail): moment/foo
+Pass	Exact vs. prefix based matching: Scope with trailing slash only: Trailing-slash base URL (exact match): moment
+Pass	Exact vs. prefix based matching: Scope with trailing slash only: Trailing-slash base URL (exact match): moment/foo
+Pass	Exact vs. prefix based matching: Scope with trailing slash only: Subpath base URL (prefix match): moment
+Pass	Exact vs. prefix based matching: Scope with trailing slash only: Subpath base URL (prefix match): moment/foo
+Pass	Exact vs. prefix based matching: Scope with trailing slash only: Non-subpath base URL (fail): moment
+Pass	Exact vs. prefix based matching: Scope with trailing slash only: Non-subpath base URL (fail): moment/foo
+Pass	Exact vs. prefix based matching: Scopes with and without trailing slash: Non-trailing-slash base URL (exact match): moment
+Pass	Exact vs. prefix based matching: Scopes with and without trailing slash: Non-trailing-slash base URL (exact match): moment/foo
+Pass	Exact vs. prefix based matching: Scopes with and without trailing slash: Trailing-slash base URL (exact match): moment
+Pass	Exact vs. prefix based matching: Scopes with and without trailing slash: Trailing-slash base URL (exact match): moment/foo
+Pass	Exact vs. prefix based matching: Scopes with and without trailing slash: Subpath base URL (prefix match): moment
+Pass	Exact vs. prefix based matching: Scopes with and without trailing slash: Subpath base URL (prefix match): moment/foo
+Pass	Exact vs. prefix based matching: Scopes with and without trailing slash: Non-subpath base URL (fail): moment
+Pass	Exact vs. prefix based matching: Scopes with and without trailing slash: Non-subpath base URL (fail): moment/foo

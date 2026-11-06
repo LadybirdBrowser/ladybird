@@ -1,0 +1,68 @@
+{
+  "importMap": {
+    "imports": {
+      "/lib/foo.mjs": "./more/bar.mjs",
+      "./dotrelative/foo.mjs": "/lib/dot.mjs",
+      "../dotdotrelative/foo.mjs": "/lib/dotdot.mjs",
+      "/": "/lib/slash-only/",
+      "./": "/lib/dotslash-only/",
+      "/test/": "/lib/url-trailing-slash/",
+      "./test/": "/lib/url-trailing-slash-dot/",
+      "/test": "/lib/test1.mjs",
+      "../test": "/lib/test2.mjs"
+    }
+  },
+  "importMapBaseURL": "https://example.com/app/index.html",
+  "baseURL": "https://example.com/js/app.mjs",
+  "name": "URL-like specifiers",
+  "tests": {
+    "Ordinary URL-like specifiers": {
+      "expectedResults": {
+        "https://example.com/lib/foo.mjs": "https://example.com/app/more/bar.mjs",
+        "https://///example.com/lib/foo.mjs": "https://example.com/app/more/bar.mjs",
+        "/lib/foo.mjs": "https://example.com/app/more/bar.mjs",
+        "https://example.com/app/dotrelative/foo.mjs": "https://example.com/lib/dot.mjs",
+        "../app/dotrelative/foo.mjs": "https://example.com/lib/dot.mjs",
+        "https://example.com/dotdotrelative/foo.mjs": "https://example.com/lib/dotdot.mjs",
+        "../dotdotrelative/foo.mjs": "https://example.com/lib/dotdot.mjs"
+      }
+    },
+    "Import map entries just composed from / and .": {
+      "expectedResults": {
+        "https://example.com/": "https://example.com/lib/slash-only/",
+        "/": "https://example.com/lib/slash-only/",
+        "../": "https://example.com/lib/slash-only/",
+        "https://example.com/app/": "https://example.com/lib/dotslash-only/",
+        "/app/": "https://example.com/lib/dotslash-only/",
+        "../app/": "https://example.com/lib/dotslash-only/"
+      }
+    },
+    "prefix-matched by keys with trailing slashes": {
+      "expectedResults": {
+        "/test/foo.mjs": "https://example.com/lib/url-trailing-slash/foo.mjs",
+        "https://example.com/app/test/foo.mjs": "https://example.com/lib/url-trailing-slash-dot/foo.mjs"
+      }
+    },
+    "should use the last entry's address when URL-like specifiers parse to the same absolute URL": {
+      "expectedResults": {
+        "/test": "https://example.com/lib/test2.mjs"
+      }
+    },
+    "backtracking (relative URLs)": {
+      "expectedResults": {
+        "/test/..": "https://example.com/lib/slash-only/",
+        "/test/../backtrack": "https://example.com/lib/slash-only/backtrack",
+        "/test/../../backtrack": "https://example.com/lib/slash-only/backtrack",
+        "/test/../../../backtrack": "https://example.com/lib/slash-only/backtrack"
+      }
+    },
+    "backtracking (absolute URLs)": {
+      "expectedResults": {
+        "https://example.com/test/..": "https://example.com/lib/slash-only/",
+        "https://example.com/test/../backtrack": "https://example.com/lib/slash-only/backtrack",
+        "https://example.com/test/../../backtrack": "https://example.com/lib/slash-only/backtrack",
+        "https://example.com/test/../../../backtrack": "https://example.com/lib/slash-only/backtrack"
+      }
+    }
+  }
+}

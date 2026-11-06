@@ -1,0 +1,160 @@
+{
+  "name": "Scope sorting with multiple empty scopes",
+  "details": "Tests that empty scopes don't interfere with scope resolution priority. This reproduces a bug where having multiple empty scope entries before a more specific scope causes the wrong scope to be selected.",
+  "link": "https://github.com/astegmaier/playground-import-maps",
+  "tests": {
+    "Multiple empty scopes before specific scope": {
+      "importMap": {
+        "scopes": {
+          "./__bundles__/asdfasdf/": {},
+          "./__bundles__/qwerqwer/": {},
+          "./__bundles__/foo/": {
+            "bar": "./__bundles__/bar/version2/index.js"
+          },
+          "./__bundles__/": {
+            "bar": "./__bundles__/bar/version1/index.js"
+          }
+        }
+      },
+      "importMapBaseURL": "https://example.com/",
+      "tests": {
+        "Import from foo should use version2": {
+          "baseURL": "https://example.com/__bundles__/foo/index.js",
+          "expectedResults": {
+            "bar": "https://example.com/__bundles__/bar/version2/index.js"
+          }
+        },
+        "Import from root bundles should use version1": {
+          "baseURL": "https://example.com/__bundles__/other/index.js",
+          "expectedResults": {
+            "bar": "https://example.com/__bundles__/bar/version1/index.js"
+          }
+        },
+        "Import from asdfasdf should use version1 (empty scope)": {
+          "baseURL": "https://example.com/__bundles__/asdfasdf/index.js",
+          "expectedResults": {
+            "bar": "https://example.com/__bundles__/bar/version1/index.js"
+          }
+        },
+        "Import from qwerqwer should use version1 (empty scope)": {
+          "baseURL": "https://example.com/__bundles__/qwerqwer/index.js",
+          "expectedResults": {
+            "bar": "https://example.com/__bundles__/bar/version1/index.js"
+          }
+        }
+      }
+    },
+    "Empty scopes after specific scope": {
+      "importMap": {
+        "scopes": {
+          "./__bundles__/foo/": {
+            "bar": "./__bundles__/bar/version2/index.js"
+          },
+          "./__bundles__/": {
+            "bar": "./__bundles__/bar/version1/index.js"
+          },
+          "./__bundles__/asdfasdf/": {},
+          "./__bundles__/qwerqwer/": {}
+        }
+      },
+      "importMapBaseURL": "https://example.com/",
+      "tests": {
+        "Import from foo should use version2 (order independent)": {
+          "baseURL": "https://example.com/__bundles__/foo/index.js",
+          "expectedResults": {
+            "bar": "https://example.com/__bundles__/bar/version2/index.js"
+          }
+        },
+        "Import from root bundles should use version1": {
+          "baseURL": "https://example.com/__bundles__/other/index.js",
+          "expectedResults": {
+            "bar": "https://example.com/__bundles__/bar/version1/index.js"
+          }
+        }
+      }
+    },
+    "Single empty scope before specific scope": {
+      "importMap": {
+        "scopes": {
+          "./__bundles__/asdfasdf/": {},
+          "./__bundles__/foo/": {
+            "bar": "./__bundles__/bar/version2/index.js"
+          },
+          "./__bundles__/": {
+            "bar": "./__bundles__/bar/version1/index.js"
+          }
+        }
+      },
+      "importMapBaseURL": "https://example.com/",
+      "tests": {
+        "Import from foo should use version2 (single empty scope)": {
+          "baseURL": "https://example.com/__bundles__/foo/index.js",
+          "expectedResults": {
+            "bar": "https://example.com/__bundles__/bar/version2/index.js"
+          }
+        }
+      }
+    },
+    "Deeply nested scopes with empty scopes": {
+      "importMap": {
+        "scopes": {
+          "./a/b/c/d/": {},
+          "./a/b/c/e/": {},
+          "./a/b/foo/": {
+            "pkg": "./resolved/version2.js"
+          },
+          "./a/b/": {
+            "pkg": "./resolved/version1.js"
+          }
+        }
+      },
+      "importMapBaseURL": "https://example.com/",
+      "tests": {
+        "Import from a/b/foo should use version2": {
+          "baseURL": "https://example.com/a/b/foo/index.js",
+          "expectedResults": {
+            "pkg": "https://example.com/resolved/version2.js"
+          }
+        },
+        "Import from a/b/ should use version1": {
+          "baseURL": "https://example.com/a/b/other.js",
+          "expectedResults": {
+            "pkg": "https://example.com/resolved/version1.js"
+          }
+        }
+      }
+    },
+    "Many empty scopes with different lengths": {
+      "importMap": {
+        "scopes": {
+          "./x/": {},
+          "./xy/": {},
+          "./xyz/": {},
+          "./xyzw/": {},
+          "./xyzwv/": {},
+          "./packages/foo/": {
+            "bar": "./bar/version2.js"
+          },
+          "./packages/": {
+            "bar": "./bar/version1.js"
+          }
+        }
+      },
+      "importMapBaseURL": "https://example.com/",
+      "tests": {
+        "Import from packages/foo should use version2": {
+          "baseURL": "https://example.com/packages/foo/index.js",
+          "expectedResults": {
+            "bar": "https://example.com/bar/version2.js"
+          }
+        },
+        "Import from packages/ should use version1": {
+          "baseURL": "https://example.com/packages/other.js",
+          "expectedResults": {
+            "bar": "https://example.com/bar/version1.js"
+          }
+        }
+      }
+    }
+  }
+}
