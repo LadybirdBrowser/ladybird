@@ -111,6 +111,14 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
     };
 }
 
+static Web::HTML::NavigationResponseBodyHandle const* response_body_handle(Web::HTML::NavigationPopulationResult const& result)
+{
+    if (!result.navigation_params.has<Web::HTML::NavigationParamsDescriptor>())
+        return nullptr;
+    auto const& response = result.navigation_params.get<Web::HTML::NavigationParamsDescriptor>().response;
+    return response.body.get_pointer<Web::HTML::NavigationResponseBodyHandle>();
+}
+
 static Web::HTML::NavigationResponseBodyHandle* response_body_handle(Web::HTML::NavigationPopulationResult& result)
 {
     if (!result.navigation_params.has<Web::HTML::NavigationParamsDescriptor>())
@@ -122,6 +130,37 @@ static Web::HTML::NavigationResponseBodyHandle* response_body_handle(Web::HTML::
 static bool response_body_was_fetched_by(Web::HTML::NavigationResponseBodyHandle const& body_handle, WebContentClient const& population_worker)
 {
     return population_worker.request_server_site_bindings().has_connected_client(body_handle.request_server_client_id);
+}
+
+bool NavigationLoader::response_body_belongs_to_another_process(Web::HTML::NavigationPopulationResult const& result, WebContentClient const& process)
+{
+    auto const* body_handle = response_body_handle(result);
+    if (!body_handle)
+        return false;
+
+    bool belongs_to_another_process = false;
+    auto check_bindings = [&](RequestServerSiteBindings const& bindings) {
+        if (!bindings.has_connected_client(body_handle->request_server_client_id))
+            return IterationDecision::Continue;
+        belongs_to_another_process = true;
+        return IterationDecision::Break;
+    };
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        if (&client == &process)
+            return IterationDecision::Continue;
+        return check_bindings(client.request_server_site_bindings());
+    });
+    if (!belongs_to_another_process)
+        WorkerAgentManager::the().for_each_request_server_site_bindings([&](RequestServerSiteBindings& bindings) { return check_bindings(bindings); });
+    if (!belongs_to_another_process) {
+        RequestServerManager::the().for_each_instance([&](RequestServerInstance& instance) {
+            if (instance.ui_client().request_server_client_id() != body_handle->request_server_client_id)
+                return IterationDecision::Continue;
+            belongs_to_another_process = true;
+            return IterationDecision::Break;
+        });
+    }
+    return belongs_to_another_process;
 }
 
 NavigationLoader::~NavigationLoader()
@@ -462,6 +501,7 @@ void NavigationLoader::let_host_adopt_response_body(WebContentPage const& host, 
     VERIFY(!m_steps_after_adopter_designation);
 
     auto* host_process = host.routed_connection();
+    m_response_body_host = host_process;
 
     // The host adopts the response through its client of the RequestServer that the body handle names.
     Optional<int> host_client_id;
@@ -505,11 +545,17 @@ bool NavigationLoader::response_body_matches(int request_server_client_id, u64 r
     return m_response_body_transfer_lease == Requests::RequestTransferLeaseKey { request_server_client_id, request_server_request_id };
 }
 
+bool NavigationLoader::response_body_was_handed_to_another_process(WebContentClient const& process) const
+{
+    return m_response_body_host && m_response_body_host.ptr() != &process;
+}
+
 void NavigationLoader::reclaim_response_body_after_failed_handoff()
 {
     if (!m_response_body_was_handed_off)
         return;
     m_response_body_was_handed_off = false;
+    m_response_body_host = nullptr;
     m_response_body_adopter_client_id = {};
     release_response_body();
 }

@@ -26,11 +26,14 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/HeadlessWebView.h>
+#include <LibWebView/HelperProcess.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/RequestServerManager.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
+#include <LibWebView/WorkerAgentManager.h>
 
 namespace {
 
@@ -235,6 +238,21 @@ void load_page(WebView::HeadlessWebView& view, URL::URL const& url)
     view.on_load_finish = nullptr;
 }
 
+void expect_rejected(WebView::HeadlessWebView& view, StringView what, Function<void()> const& send)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA Optional<WebView::ViewImplementation::WebContentCrashReason> crash_reason;
+    view.on_web_content_crashed = [&](auto reason) { crash_reason = reason; };
+
+    send();
+    Core::EventLoop::current().spin_until([&] { return crash_reason.has_value(); });
+    view.on_web_content_crashed = nullptr;
+
+    if (crash_reason != WebView::ViewImplementation::WebContentCrashReason::RejectedIPC) {
+        warnln("FAIL: {} was not rejected", what);
+        VERIFY_NOT_REACHED();
+    }
+}
+
 // A navigation of the view in which the test acts for the processes running it.
 class TestPopulation {
 public:
@@ -343,6 +361,110 @@ private:
 
 }
 
+// The UI process takes over a navigation's response body only from a RequestServer client it gave the renderer naming
+// it. A renderer naming the client of another live renderer, of a worker or of the UI process is terminated, and any
+// other client's body is left alone.
+TEST_CASE(renderer_response_body_claims)
+{
+    TestFixture fixture;
+    auto& app = fixture.application();
+    TestResponseServer server;
+
+    auto victim_view = fixture.create_view();
+    auto victim_client_id = victim_view->page().client().request_server_site_bindings().client_id().value();
+
+    auto view = fixture.create_view();
+    auto& stub = static_cast<WebContentClientStub&>(view->page().client());
+    auto page_id = view->page().id();
+    auto navigable_id = view->traversable().id();
+    auto own_client_id = view->page().client().request_server_site_bindings().client_id().value();
+    VERIFY(own_client_id != victim_client_id);
+
+    // A renderer's own response body is not misbehavior.
+    stub.did_finish_navigation_params_creation(page_id, navigable_id, "unknown"_utf16, result_with_response_body_of(own_client_id, 0));
+    stub.did_finish_history_navigation_params_creation(page_id, app.allocate_ui_process_cross_process_id(), navigable_id, result_with_response_body_of(own_client_id, 0));
+    EXPECT(view->page().client().is_open());
+
+    // Nor is the body of a client no live renderer holds. The UI process takes none of it, whether the result is
+    // discarded or continues a navigation in flight.
+    auto new_client = MUST(WebView::connect_new_request_server_client(WebView::Application::default_session(), RequestServer::SiteBinding::Bound));
+    auto other_client = make_ref_counted<Requests::RequestClient>(MUST(new_client.handle.create_transport()));
+    auto other_request = start_leased_request(*other_client, server.unique_url());
+    auto other_result = [&] { return result_with_response_body_of(other_client->request_server_client_id(), other_request->id()); };
+
+    stub.did_finish_navigation_params_creation(page_id, navigable_id, "unknown"_utf16, other_result());
+    stub.did_finish_history_navigation_params_creation(page_id, app.allocate_ui_process_cross_process_id(), navigable_id, other_result());
+
+    auto navigation_id = start_navigation(*view);
+    stub.did_finish_navigation_params_creation(page_id, navigable_id, navigation_id, other_result());
+    EXPECT(!view->traversable().has_uncommitted_navigation());
+    EXPECT(view->page().client().is_open());
+
+    // Every adoption above has reached RequestServer once the UI process's own client is answered.
+    auto other_request_server = WebView::RequestServerManager::the().instance_for_client(other_client->request_server_client_id());
+    VERIFY(other_request_server);
+    (void)other_request_server->ui_client().send_sync<Messages::RequestServer::GetClientId>();
+    EXPECT(other_client->send_sync<Messages::RequestServer::StopRequest>(other_request->id())->success());
+
+    auto expect_rejected_from_new_view = [&](StringView what, Function<void(WebContentClientStub&, Web::PageId, Web::HTML::CrossProcessId)> send) {
+        auto view = fixture.create_view();
+        expect_rejected(*view, what, [&] {
+            send(static_cast<WebContentClientStub&>(view->page().client()), view->page().id(), view->traversable().id());
+        });
+    };
+
+    // A body fetched by an earlier client of the population worker is still the worker's own, so the UI process stops
+    // it along with a discarded result.
+    auto earlier_client = connect_client(*view);
+    auto later_client = connect_client(*view);
+    auto earlier_client_id = earlier_client->request_server_client_id();
+    auto earlier_request = start_leased_request(*earlier_client, server.unique_url());
+    stub.did_finish_navigation_params_creation(page_id, navigable_id, "unknown"_utf16, result_with_response_body_of(earlier_client_id, earlier_request->id()));
+    EXPECT(view->page().client().is_open());
+    auto earlier_request_server = WebView::RequestServerManager::the().instance_for_client(earlier_client_id);
+    VERIFY(earlier_request_server);
+    (void)earlier_request_server->ui_client().send_sync<Messages::RequestServer::GetClientId>();
+    EXPECT(!earlier_client->send_sync<Messages::RequestServer::StopRequest>(earlier_request->id())->success());
+
+    // It is not any other process's own.
+    expect_rejected_from_new_view("a navigation's response body fetched by an earlier client of another renderer"sv, [&](auto& stub, auto page_id, auto navigable_id) {
+        stub.did_finish_navigation_params_creation(page_id, navigable_id, "unknown"_utf16, result_with_response_body_of(earlier_client_id, 0));
+    });
+
+    // A client that has disconnected is no longer any process's own.
+    auto const& bindings = view->page().client().request_server_site_bindings();
+    EXPECT(bindings.has_connected_client(earlier_client_id));
+    earlier_client->shutdown();
+    Core::EventLoop::current().spin_until([&] { return !bindings.has_connected_client(earlier_client_id); });
+    auto& victim_stub = static_cast<WebContentClientStub&>(victim_view->page().client());
+    victim_stub.did_finish_navigation_params_creation(victim_view->page().id(), victim_view->traversable().id(), "unknown"_utf16, result_with_response_body_of(earlier_client_id, 0));
+    EXPECT(victim_view->page().client().is_open());
+
+    expect_rejected_from_new_view("a navigation's response body fetched by another renderer"sv, [&](auto& stub, auto page_id, auto navigable_id) {
+        stub.did_finish_navigation_params_creation(page_id, navigable_id, "unknown"_utf16, result_with_response_body_of(victim_client_id, 0));
+    });
+    expect_rejected_from_new_view("a history navigation's response body fetched by another renderer"sv, [&](auto& stub, auto page_id, auto navigable_id) {
+        stub.did_finish_history_navigation_params_creation(page_id, app.allocate_ui_process_cross_process_id(), navigable_id, result_with_response_body_of(victim_client_id, 0));
+    });
+    expect_rejected_from_new_view("a navigation's response body held by the UI process"sv, [&](auto& stub, auto page_id, auto navigable_id) {
+        stub.did_finish_navigation_params_creation(page_id, navigable_id, "unknown"_utf16, result_with_response_body_of(other_request_server->ui_client().request_server_client_id(), 0));
+    });
+
+    auto worker_view = fixture.create_view();
+    worker_view->load_html("<script>new Worker('data:text/javascript,setInterval(() => {}, 1000)')</script>"sv);
+    Optional<int> worker_client_id;
+    Core::EventLoop::current().spin_until([&]() {
+        WebView::WorkerAgentManager::the().for_each_request_server_site_bindings([&](auto& bindings) {
+            worker_client_id = bindings.client_id();
+            return worker_client_id.has_value() ? IterationDecision::Break : IterationDecision::Continue;
+        });
+        return worker_client_id.has_value();
+    });
+    expect_rejected_from_new_view("a navigation's response body fetched by a worker"sv, [&](auto& stub, auto page_id, auto navigable_id) {
+        stub.did_finish_navigation_params_creation(page_id, navigable_id, "unknown"_utf16, result_with_response_body_of(*worker_client_id, 0));
+    });
+}
+
 // A host adopts a response body through its current client of the site, whichever of its clients fetched the response.
 TEST_CASE(host_adopts_response_body_through_its_client_of_the_site)
 {
@@ -396,8 +518,26 @@ TEST_CASE(host_without_a_client_of_the_site_adopts_response_body_through_its_cli
     EXPECT(adoption.succeeded());
 }
 
+// A process that reports a download of a response body handed to another process is terminated.
+TEST_CASE(download_of_response_body_handed_to_another_process_is_rejected)
+{
+    TestFixture fixture;
+    TestResponseServer server;
+    auto view = fixture.create_view();
+    auto host_view = fixture.create_view();
+
+    auto fetching_client = connect_client(*view);
+    TestPopulation population { *view, server.unique_url() };
+    population.fetch_response_through(*fetching_client);
+    population.hand_response_body_to(*host_view);
+
+    expect_rejected(*view, "a download of a response body handed to another process"sv, [&] {
+        (void)population.report_download();
+    });
+}
+
 // A process reporting a download of a response body no client of it may adopt is refused, which ends the navigation, as
-// the process ends its side of it.
+// the process ends its side of it. The process is not at fault while the response body has no other recipient.
 TEST_CASE(download_of_response_body_with_no_client_recorded_is_refused)
 {
     TestFixture fixture;
