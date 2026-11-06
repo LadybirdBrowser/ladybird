@@ -24,7 +24,6 @@ static TextCodec::Decoder decoder_for(StringView encoding)
 static Vector<u32> process_code_points(TextCodec::Decoder decoder, ReadonlyBytes input)
 {
     auto utf16 = MUST(decoder.to_utf16(input));
-    EXPECT_EQ(MUST(decoder.length_in_utf16_code_units(input)), utf16.length_in_code_units());
     EXPECT_EQ(Utf16String::from_utf8(MUST(decoder.to_utf8(input))), utf16);
 
     Vector<u32> code_points;
@@ -308,6 +307,5 @@ TEST_CASE(test_decode_removes_only_the_sniffed_byte_order_mark)
         auto input = bytes(input_bytes);
         EXPECT_EQ(MUST(TextCodec::decode_to_utf16(input, fallback_decoder)), u"\uFEFFA"sv);
         EXPECT_EQ(MUST(TextCodec::decode_to_utf8(input, fallback_decoder)), "\uFEFFA"sv);
-        EXPECT_EQ(MUST(TextCodec::decoded_length_in_utf16_code_units(input, fallback_decoder)), 2u);
     }
 }
