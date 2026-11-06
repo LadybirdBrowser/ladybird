@@ -109,7 +109,7 @@ struct SerializableRegistryEntry {
     StringView identifier;
 };
 
-WEB_API ReadonlySpan<SerializableRegistryEntry> serializable_storage_registry();
+WEB_API Vector<SerializableRegistryEntry> serializable_storage_registry();
 
 template<typename T>
 WebIDL::ExceptionOr<void> encode_or_throw_data_clone_error(JS::Realm& realm, TransferDataEncoder& encoder, T const& value)
@@ -122,11 +122,5 @@ WebIDL::ExceptionOr<void> encode_or_throw_data_clone_error(JS::Realm& realm, Tra
 
 WEB_API WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::Realm&, JS::Value, ReadonlySpan<GC::Ref<JS::Object>> transfer_list);
 WEB_API WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_transfer(SerializedTransferRecord&, JS::Realm&);
-
-}
-
-namespace Web::Bindings {
-
-WEB_API bool serializable_interface_is_implemented_in_rust(InterfaceName);
 
 }

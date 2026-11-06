@@ -16,11 +16,6 @@
 
 namespace Web::HTML {
 
-// The per-interface payload version encoded after every SerializableObject's interface name in
-// storage records. The decoder requires an exact match, so a bump orphans stored records of every
-// type unless migration support is added alongside it.
-static constexpr u64 serializable_payload_version = 1;
-
 // A storage-golden expectation, not a deserializer rule.
 enum class Expectation : u8 {
     PositiveGolden,

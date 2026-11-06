@@ -234,3 +234,17 @@ pub unsafe extern "C" fn web_rust_structured_deserialize_with_transfer(
         }),
     )
 }
+
+/// # Safety
+///
+/// The callback must accept the context and an identifier of static storage.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_serializable_storage_registry(
+    context: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, u16, ak::Span<'static, u8>),
+) {
+    for entry in super::serializable::STORAGE_INTERFACES {
+        // SAFETY: The caller lends its context to its callback.
+        unsafe { append(context, entry.interface_name, ak::Span::new(entry.identifier)) };
+    }
+}

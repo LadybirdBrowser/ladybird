@@ -7,7 +7,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Array.h>
 #include <AK/Debug.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -17,31 +16,6 @@
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
-
-// The identifier that a storage record holds for the primary interface of each serializable object.
-static constexpr auto s_serializable_storage_registry = to_array<SerializableRegistryEntry>({
-    { Bindings::InterfaceName::Blob, "Blob"sv },
-    { Bindings::InterfaceName::CryptoKey, "CryptoKey"sv },
-    { Bindings::InterfaceName::DOMException, "DOMException"sv },
-    { Bindings::InterfaceName::DOMMatrix, "DOMMatrix"sv },
-    { Bindings::InterfaceName::DOMMatrixReadOnly, "DOMMatrixReadOnly"sv },
-    { Bindings::InterfaceName::DOMPoint, "DOMPoint"sv },
-    { Bindings::InterfaceName::DOMPointReadOnly, "DOMPointReadOnly"sv },
-    { Bindings::InterfaceName::DOMQuad, "DOMQuad"sv },
-    { Bindings::InterfaceName::DOMRect, "DOMRect"sv },
-    { Bindings::InterfaceName::DOMRectReadOnly, "DOMRectReadOnly"sv },
-    { Bindings::InterfaceName::File, "File"sv },
-    { Bindings::InterfaceName::FileList, "FileList"sv },
-    { Bindings::InterfaceName::ImageBitmap, "ImageBitmap"sv },
-    { Bindings::InterfaceName::ImageData, "ImageData"sv },
-    { Bindings::InterfaceName::Module, "Module"sv },
-    { Bindings::InterfaceName::QuotaExceededError, "QuotaExceededError"sv },
-});
-
-ReadonlySpan<SerializableRegistryEntry> serializable_storage_registry()
-{
-    return s_serializable_storage_registry.span();
-}
 
 // The same-process SharedArrayBuffer aliases of an IPCSerializationRecord. Only this file creates side tables, so a
 // record's side table is one of these.
@@ -88,6 +62,7 @@ JSCompletion web_rust_structured_deserialize(JSVM*, void* target_realm, IPCSeria
 JSCompletion web_rust_structured_deserialize_for_storage(JSVM*, void* target_realm, ReadonlyBytes);
 JSCompletion web_rust_structured_serialize_with_transfer(JSVM*, void* realm, JSValue, JSObject* const* transfer_list, size_t count, SerializedTransferRecord** out_record);
 JSCompletion web_rust_structured_deserialize_with_transfer(JSVM*, void* target_realm, SerializedTransferRecord*, Vector<GC::Root<JS::Object>>* transferred_values);
+void web_rust_serializable_storage_registry(void* context, void (*append)(void*, u16 interface_name, ReadonlyBytes identifier));
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializewithtransfer
@@ -165,6 +140,15 @@ TransferDataDecoder::TransferDataDecoder(TransferDataEncoder&& data_holder)
 {
     for (auto& attachment : m_buffer.take_attachments())
         m_attachments.enqueue(move(attachment));
+}
+
+Vector<SerializableRegistryEntry> serializable_storage_registry()
+{
+    Vector<SerializableRegistryEntry> entries;
+    web_rust_serializable_storage_registry(&entries, [](void* context, u16 interface_name, ReadonlyBytes identifier) {
+        static_cast<Vector<SerializableRegistryEntry>*>(context)->append({ static_cast<Bindings::InterfaceName>(interface_name), StringView { identifier } });
+    });
+    return entries;
 }
 
 }

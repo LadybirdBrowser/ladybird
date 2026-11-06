@@ -316,7 +316,6 @@ function (generate_js_bindings target)
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/rust_types.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/rust_usage.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/security_checks.py"
-        "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/structured_serialize.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/to_idl_value.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/to_js_value.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/wrappers.py"
@@ -358,10 +357,6 @@ function (generate_js_bindings target)
     endif()
     list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${GLOBAL_MIXIN_HEADERS})
     list(APPEND LIBWEB_ALL_BINDINGS_SOURCES ${GLOBAL_MIXIN_HEADERS})
-
-    set(STRUCTURED_SERIALIZE_BINDINGS_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/Bindings/StructuredSerializeBindings.cpp")
-    target_sources(${target} PRIVATE ${STRUCTURED_SERIALIZE_BINDINGS_SOURCE})
-    list(APPEND LIBWEB_ALL_BINDINGS_SOURCES ${STRUCTURED_SERIALIZE_BINDINGS_SOURCE})
 
     set(LIBWEB_ALL_IDL_FILES_ARGUMENT ${LIBWEB_ALL_IDL_FILES})
     set(LIBWEB_ALL_PARSED_IDL_FILES_ARGUMENT ${LIBWEB_ALL_PARSED_IDL_FILES})
