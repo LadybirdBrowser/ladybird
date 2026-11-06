@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	MathML 'a' element with :visited selector must return the unvisited (:any-link) style to JavaScript API.

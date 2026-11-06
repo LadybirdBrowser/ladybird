@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/HTMLProgressElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/MathML/MathMLAnchorElement.h>
 #include <LibWeb/SVG/SVGAElement.h>
 
 namespace Web::SelectorMatching {
@@ -200,7 +201,7 @@ ElementStateQuestions element_state_questions(DOM::Element const& element)
         || is<HTML::HTMLDialogElement>(element)) {
         questions |= ElementStateQuestions::Control;
     }
-    if (is<HTML::HTMLAnchorElement>(element) || is<HTML::HTMLAreaElement>(element) || is<SVG::SVGAElement>(element))
+    if (is<HTML::HTMLAnchorElement>(element) || is<HTML::HTMLAreaElement>(element) || is<SVG::SVGAElement>(element) || is<MathML::MathMLAnchorElement>(element))
         questions |= ElementStateQuestions::Link;
     if (is<HTML::HTMLMediaElement>(element))
         questions |= ElementStateQuestions::Media;

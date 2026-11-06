@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Ensure MathML 'a' elements inside SVG drawn to canvas do not leak :visited styles via getImageData
+1 Pass
+Pass	Ensure MathML 'a' elements inside SVG drawn to canvas do not leak :visited styles via getImageData

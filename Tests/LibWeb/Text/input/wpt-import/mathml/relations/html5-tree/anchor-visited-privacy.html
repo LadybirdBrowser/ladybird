@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+
+<meta charset="utf-8">
+<title>MathML 'a' element: :visited privacy security restrictions</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#link">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #mathLink:any-link {
+    background-color: rgb(0, 255, 0);
+  }
+
+  #mathLink:visited {
+    color: rgb(255, 0, 0);
+  }
+</style>
+
+<math>
+  <!-- The empty string means the current page, so it's :visited -->
+  <a id="mathLink" href="">
+    <mtext>x</mtext>
+  </a>
+</math>
+
+<script>
+  test(function () {
+    const mathLink = document.getElementById('mathLink');
+    const style = window.getComputedStyle(mathLink);
+
+    assert_equals(style.backgroundColor, "rgb(0, 255, 0)");
+
+    assert_not_equals(style.color, "rgb(255, 0, 0)")
+
+  }, "MathML 'a' element with :visited selector must return the unvisited (:any-link) style to JavaScript API.");
+</script>

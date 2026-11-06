@@ -215,6 +215,7 @@ public:
     virtual bool is_svg_text_path_element() const { return false; }
     virtual bool is_svg_geometry_element() const { return false; }
     virtual bool is_svg_filter_element() const { return false; }
+    virtual bool is_mathml_anchor_element() const { return false; }
 
     bool in_a_document_tree() const;
 
