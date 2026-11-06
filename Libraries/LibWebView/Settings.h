@@ -123,6 +123,7 @@ enum class ConfigVariableID : u8 {
     ShowWebContentProcessIDInTabTitle,
     ShowAdvancedDebugMenu,
     ShowTabPerformanceMonitor,
+    ShowFeedbackButton,
     UseClientSideWindowDecorations,
     VerticalTabsHoverExpandDelay,
     VerticalTabsHoverExpandAnimationDuration,

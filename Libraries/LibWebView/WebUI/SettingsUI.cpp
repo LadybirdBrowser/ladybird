@@ -7,6 +7,7 @@
 #include <AK/JsonArray.h>
 #include <AK/Platform.h>
 #include <AK/Utf16String.h>
+#include <LibCore/BrowserVersion.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibCore/Promise.h>
@@ -45,6 +46,8 @@ static StringView config_variable_type_to_string(JsonValue::Type type)
 
 static bool should_show_config_variable(ConfigVariableID id)
 {
+    if (id == ConfigVariableID::ShowFeedbackButton)
+        return !BROWSER_IS_FINAL_RELEASE;
     if (id == ConfigVariableID::UseClientSideWindowDecorations)
         return Application::the().supports_client_side_window_decorations();
     if (id == ConfigVariableID::VerticalTabsHoverExpandDelay || id == ConfigVariableID::VerticalTabsHoverExpandAnimationDuration)
