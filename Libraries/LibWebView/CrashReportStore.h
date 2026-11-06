@@ -45,6 +45,7 @@ public:
 
     // Reports that are still unsent 30 days after their crash are deleted, whether they were seen or not.
     ErrorOr<void> remove_expired_reports(UnixDateTime now = UnixDateTime::now()) const;
+    ErrorOr<void> remove_all_reports() const;
 
     ErrorOr<ByteString> store_report(ProcessType, StringView text, UnixDateTime crashed_at) const;
 

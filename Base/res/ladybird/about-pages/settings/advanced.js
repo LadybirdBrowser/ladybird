@@ -99,6 +99,11 @@ function loadConfigVariables(settings) {
 
     const configVariables = settings.configVariableDefinitions || [];
     configVariables.forEach(variable => {
+        // This one has its own switch on the Feedback tab.
+        if (variable.name === "ui.toolbar.show_feedback_button") {
+            return;
+        }
+
         const previous = CONFIG_VARIABLES.get(variable.name);
         if (previous && JSON.stringify(previous.value) === JSON.stringify(variable.value)) {
             return;
@@ -123,17 +128,5 @@ configFilter.addEventListener("input", applyFilter);
 document.addEventListener("WebUIMessage", event => {
     if (event.detail.name === "loadSettings") {
         loadConfigVariables(event.detail.data);
-    }
-});
-
-const crashReportsStatus = document.querySelector("#crash-reports-status");
-document.querySelector("#open-crash-reports").addEventListener("click", () => {
-    crashReportsStatus.hidden = true;
-    ladybird.sendMessage("showCrashReports");
-});
-document.addEventListener("WebUIMessage", event => {
-    if (event.detail.name === "crashReportsStatus") {
-        crashReportsStatus.textContent = event.detail.data;
-        crashReportsStatus.hidden = !event.detail.data;
     }
 });

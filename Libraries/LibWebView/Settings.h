@@ -109,6 +109,14 @@ enum class GlobalPrivacyControl {
     Yes,
 };
 
+enum class CrashReportSending {
+    AskMe,
+    NeverSend,
+};
+
+WEBVIEW_API CrashReportSending crash_report_sending_from_string(StringView);
+WEBVIEW_API StringView crash_report_sending_to_string(CrashReportSending);
+
 struct ContentBlockerList {
     String identifier;
     String name;
@@ -164,6 +172,7 @@ public:
     virtual void autoplay_settings_changed() { }
     virtual void browsing_data_settings_changed() { }
     virtual void global_privacy_control_changed() { }
+    virtual void crash_report_sending_changed() { }
     virtual void dns_settings_changed() { }
     virtual void config_variable_changed(ConfigVariableID) { }
     virtual void geolocation_settings_changed() { }
@@ -252,6 +261,9 @@ public:
     GlobalPrivacyControl global_privacy_control() const { return m_global_privacy_control; }
     void set_global_privacy_control(GlobalPrivacyControl);
 
+    CrashReportSending crash_report_sending() const { return m_crash_report_sending; }
+    void set_crash_report_sending(CrashReportSending);
+
     bool background_networking_enabled() const { return m_background_networking_enabled; }
     void set_background_networking_enabled(bool);
     bool filter_list_updates_enabled() const { return m_filter_list_updates_enabled; }
@@ -323,6 +335,7 @@ private:
 
     BrowsingDataSettings m_browsing_data_settings;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
+    CrashReportSending m_crash_report_sending { CrashReportSending::AskMe };
 
     bool m_background_networking_enabled { true };
     bool m_filter_list_updates_enabled { false };

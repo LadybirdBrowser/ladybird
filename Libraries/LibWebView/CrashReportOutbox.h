@@ -37,6 +37,9 @@ public:
     // A report on its way is no longer the user's to delete.
     void remove(ReadonlySpan<ByteString> names);
 
+    // Forgets every report, seen or not, and stops sending them.
+    void discard_all();
+
     bool is_sending(ByteString const& name) const;
     bool could_not_send(ByteString const& name) const { return m_could_not_send.contains(name); }
 

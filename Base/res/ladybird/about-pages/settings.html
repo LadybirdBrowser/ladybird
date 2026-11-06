@@ -362,6 +362,73 @@
                 overflow-x: auto;
             }
 
+            .crash-modes {
+                margin-top: 10px;
+
+                border-radius: 10px;
+                box-shadow: inset 0 0 0 1px var(--separator);
+                overflow: hidden;
+            }
+
+            .crash-mode {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+
+                min-height: 40px;
+                margin: 0;
+                padding: 8px 14px;
+
+                cursor: pointer;
+            }
+
+            .crash-mode + .crash-mode {
+                border-top: 1px solid var(--separator-soft);
+            }
+
+            .crash-mode:has(input:checked) {
+                background: var(--choice-fill);
+            }
+
+            .crash-mode:has(input:focus-visible) {
+                box-shadow: inset 0 0 0 2px var(--focus-ring);
+            }
+
+            .crash-mode input {
+                position: absolute;
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            .crash-mode-text {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 1px;
+            }
+
+            .crash-mode .description {
+                margin: 0;
+                font-size: 12px;
+            }
+
+            .crash-mode svg {
+                visibility: hidden;
+                flex: none;
+                width: 14px;
+                height: 14px;
+
+                fill: none;
+                stroke: var(--choice);
+                stroke-width: 1.8;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+            }
+
+            .crash-mode:has(input:checked) svg {
+                visibility: visible;
+            }
+
             .tab-button {
                 background: none;
                 border: none;
@@ -775,6 +842,7 @@
                 <button id="tab-button-languages" class="tab-button" data-tab="languages" role="tab">Languages</button>
                 <button id="tab-button-services" class="tab-button" data-tab="services" role="tab">Services</button>
                 <button id="tab-button-network" class="tab-button" data-tab="network" role="tab">Network</button>
+                <button id="tab-button-feedback" class="tab-button" data-tab="feedback" role="tab">Feedback</button>
                 <button id="tab-button-advanced" class="tab-button" data-tab="advanced" role="tab">Advanced</button>
             </div>
         </nav>
@@ -838,17 +906,6 @@
                             </label>
                             <input id="enable-primary-paste" type="checkbox" switch />
                         </div>
-                    </div>
-                </div>
-
-                <h3 class="card-title">Crash reports</h3>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="inline-container">
-                            <p>Open the folder containing saved crash reports.</p>
-                            <button id="open-crash-reports" class="secondary-button">Open folder</button>
-                        </div>
-                        <p id="crash-reports-status" class="description" role="status" hidden></p>
                     </div>
                 </div>
             </div>
@@ -1259,6 +1316,49 @@
                 </div>
             </div>
 
+            <div class="tab-panel" id="tab-feedback" data-title="Feedback">
+                <div class="card">
+                    <div class="card-body">
+                        <div id="show-feedback-button-group" class="card-group inline-container hidden">
+                            <label for="show-feedback-button">Show Feedback button in toolbar</label>
+                            <input id="show-feedback-button" type="checkbox" switch />
+                        </div>
+                        <div class="card-group">
+                            <span id="crash-reports-title">Crash reports</span>
+                            <div class="crash-modes" role="radiogroup" aria-labelledby="crash-reports-title">
+                                <label class="crash-mode">
+                                    <input type="radio" name="crash-report-sending" value="ask" />
+                                    <span class="crash-mode-text">
+                                        Ask me
+                                        <span class="description"
+                                            >Reports are kept on this computer until you review them</span
+                                        >
+                                    </span>
+                                    <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" /></svg>
+                                </label>
+                                <label class="crash-mode">
+                                    <input type="radio" name="crash-report-sending" value="never" />
+                                    <span class="crash-mode-text">
+                                        Never send
+                                        <span class="description">Nothing is kept</span>
+                                    </span>
+                                    <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" /></svg>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="crash-reports-waiting-group" class="card-group inline-container hidden">
+                            <span id="crash-reports-waiting" class="description"></span>
+                            <button id="review-crash-reports" class="secondary-button">Review reports</button>
+                        </div>
+                        <div class="card-group inline-container">
+                            <p>Open the folder containing saved crash reports.</p>
+                            <button id="open-crash-reports" class="secondary-button">Open folder</button>
+                        </div>
+                        <p id="crash-reports-status" class="description" role="status" hidden></p>
+                    </div>
+                </div>
+            </div>
+
             <div class="tab-panel" id="tab-advanced" data-title="Advanced">
                 <div class="search-container">
                     <svg
@@ -1464,6 +1564,7 @@
         <script src="resource://ladybird/about-pages/settings/blocking.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/browsing-behavior.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/content.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/feedback.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/geolocation.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/languages.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/network.js" type="module"></script>
