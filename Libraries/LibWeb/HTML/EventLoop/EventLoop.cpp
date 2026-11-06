@@ -1843,7 +1843,8 @@ void EventLoop::perform_a_microtask_checkpoint()
     m_performing_a_microtask_checkpoint = true;
 
     // 3. While the event loop's microtask queue is not empty:
-    while (!m_microtask_queue.is_empty()) {
+    // AD-HOC: The script these would run was aborted, and nothing in the agent runs anymore.
+    while (!m_microtask_queue.is_empty() && !vm().interrupt_requested()) {
         // 1. Let oldestMicrotask be the result of dequeuing from the event loop's microtask queue.
         auto oldest_microtask = m_microtask_queue.dequeue();
 

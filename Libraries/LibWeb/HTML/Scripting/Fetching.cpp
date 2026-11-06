@@ -23,6 +23,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Fetching/RefCountedFlag.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -618,7 +619,11 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     request->set_parser_metadata(Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted);
     request->set_use_url_credentials(true);
 
-    auto process_response_consume_body = [&response, &body_bytes](GC::Ref<Fetch::Infrastructure::ResponseView> res, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bb) {
+    auto is_abandoned = Fetch::Fetching::RefCountedFlag::create(false);
+    auto process_response_consume_body = [&response, &body_bytes, is_abandoned](GC::Ref<Fetch::Infrastructure::ResponseView> res, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bb) {
+        if (is_abandoned->value())
+            return;
+
         // 1. Set bodyBytes to bb.
         body_bytes = move(bb);
 
@@ -650,6 +655,12 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     } else {
         auto pause_handle = event_loop.pause(EventLoop::UpdateTheRendering::No);
         Platform::EventLoopPlugin::the().spin_until(response_is_not_null);
+    }
+
+    // NB: The fetch outlives an aborted script, whose stack the steps above must not write to anymore.
+    if (!response) {
+        is_abandoned->set_value(true);
+        return WebIDL::NetworkError::create("Network error"_utf16);
     }
 
     // NB: Whether response was CORS-cross-origin must be determined before unwrapping it, since the internal

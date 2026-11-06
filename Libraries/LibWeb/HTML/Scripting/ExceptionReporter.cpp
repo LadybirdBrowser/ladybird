@@ -27,6 +27,10 @@ namespace Web::HTML {
 
 void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromise error_in_promise)
 {
+    // NB: Whatever comes out of an aborted script is no error of its own.
+    if (realm.vm().interrupt_requested())
+        return;
+
     auto& console = realm.intrinsics().console_object()->console();
 
     if (value.is_object()) {
@@ -77,6 +81,10 @@ void report_an_exception(JS::Object& global, JS::Value exception, Optional<Error
 {
     auto& realm = relevant_realm(global);
     auto& vm = realm.vm();
+
+    // NB: Whatever comes out of an aborted script is no error of its own.
+    if (vm.interrupt_requested())
+        return;
 
     // 1. Let notHandled be true.
     bool not_handled = true;
