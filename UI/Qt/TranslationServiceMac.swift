@@ -115,7 +115,7 @@ public final class TranslationSessionWrapper: NSObject {
     // NB: Units are translated one after another, so only one call at a time gets here.
     private func translation_session() async -> TranslationSession
     {
-        if let session = lock.withLock({ session }) {
+        if let session = lock.withLock({ self.session }) {
             return session
         }
 
