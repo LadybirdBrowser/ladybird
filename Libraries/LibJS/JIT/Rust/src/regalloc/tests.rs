@@ -715,13 +715,7 @@ impl ProgramGenerator {
                 dst: self.writable(),
                 src: self.readable(),
             },
-            3 => Instruction::Mov2 {
-                c0_dst: self.writable(),
-                c0_src: self.readable(),
-                c1_dst: self.writable(),
-                c1_src: self.readable(),
-            },
-            4 => Instruction::MovSrcUndefined { dst: self.writable() },
+            3 | 4 => Instruction::MovSrcUndefined { dst: self.writable() },
             5 => Instruction::Add {
                 arith_feedback: 0,
                 dst: self.writable(),

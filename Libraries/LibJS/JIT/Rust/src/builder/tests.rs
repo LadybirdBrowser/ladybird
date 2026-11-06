@@ -751,21 +751,14 @@ fn trivial_frame_operations_are_native() {
     let program = assemble(|_| {
         vec![
             Instruction::GetLexicalEnvironment { dst: r(5) },
-            Instruction::MovUndefined2 {
-                c0_dst: r(6),
-                c1_dst: r(3),
-            },
+            Instruction::MovSrcUndefined { dst: r(6) },
+            Instruction::MovSrcUndefined { dst: r(3) },
             Instruction::IsCallable { dst: r(7), value: r(5) },
             Instruction::SetLexicalEnvironment { environment: r(5) },
             Instruction::LeavePrivateEnvironment,
-            Instruction::Mov3 {
-                c0_dst: l(0),
-                c0_src: r(7),
-                c1_dst: r(7),
-                c1_src: r(6),
-                c2_dst: l(1),
-                c2_src: r(2),
-            },
+            Instruction::Mov { dst: l(0), src: r(7) },
+            Instruction::Mov { dst: r(7), src: r(6) },
+            Instruction::Mov { dst: l(1), src: r(2) },
             Instruction::Throw { src: l(0) },
         ]
     });
@@ -781,10 +774,10 @@ fn trivial_frame_operations_are_native() {
           [[V5]] = IsCallable ([[V2]])
           [[V6]]:pointer = SetLexicalEnvironment ([[V2]])
           LeavePrivateEnvironment
-          CallSlowPath Throw @88 ([[V5]]) [[[FS0]]]
+          CallSlowPath Throw @104 ([[V5]]) [[[FS0]]]
           Unreachable
         frame states:
-          [[FS0]]: pc 88 after {}
+          [[FS0]]: pc 104 after {}
         ",
     );
 }

@@ -91,11 +91,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         // Control flow, moves and frame setup.
         O::Enter
         | O::Mov
-        | O::Mov2
-        | O::Mov3
         | O::MovSrcUndefined
-        | O::MovUndefined2
-        | O::MovUndefined3
         | O::Jump
         | O::JumpIf
         | O::JumpTrue
