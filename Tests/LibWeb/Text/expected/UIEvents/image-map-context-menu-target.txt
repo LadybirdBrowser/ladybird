@@ -1,2 +1,2 @@
 right-click #mapped: image target=IMG#mapped
-right-click #linkmapped: link target=AREA#linkarea
+right-click #linkmapped: image target=IMG#linkmapped link=https://example.com/area

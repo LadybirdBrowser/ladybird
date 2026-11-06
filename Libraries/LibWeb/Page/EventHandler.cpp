@@ -4001,83 +4001,91 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
         return range->clone_range();
     };
 
-    if (auto const* link = node_under_pointer->enclosing_link_element()) {
+    // AD-HOC: Skip up the tree to the first ancestor that is not a UA shadow DOM node, and use its context menu.
+    //         Media elements' controls' shadow DOM nodes should not have their own context menu, but rather
+    //         activate their parent media element's menu.
+    auto context_menu_node = node_of_box_under_pointer;
+    while (auto shadow_root = context_menu_node->containing_shadow_root()) {
+        if (!shadow_root->is_user_agent_internal())
+            break;
+        VERIFY(shadow_root->host() != nullptr);
+        context_menu_node = *shadow_root->host();
+    }
+
+    auto const* link = node_under_pointer->enclosing_link_element();
+    Optional<URL::URL> link_url;
+    if (link)
+        link_url = document->encoding_parse_url(link->href());
+
+    // An image without a source has nothing for the image menu to act on.
+    auto* image_element = as_if<HTML::HTMLImageElement>(*context_menu_node);
+    Optional<URL::URL> image_url;
+    if (image_element && !image_element->current_src().is_empty())
+        image_url = image_element->document().encoding_parse_url(image_element->current_src());
+
+    if (image_url.has_value()) {
+        Optional<Gfx::Bitmap const*> bitmap;
+        if (auto frame = image_element->current_image_frame(); frame.has_value())
+            bitmap = &frame->bitmap();
+
+        // An image inside a link, or under an image map's link, offers both the image and the link.
+        Optional<HTML::PreparedNavigationDescriptor> link_navigation;
+        if (link_url.has_value())
+            link_navigation = HTML::prepare_navigation_from_document(*document, *link_url, link->hyperlink_element_utils_element().hyperlink_referrer_policy());
+
+        auto navigation = HTML::prepare_navigation_from_document(image_element->document(), image_url.release_value(), ReferrerPolicy::ReferrerPolicy::EmptyString);
+        m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Image, .target = *image_element, .position = page_viewport_position, .link_url = move(link_url) });
+        m_navigable->page().client().page_did_request_image_context_menu(local_root_id, page_viewport_position, move(navigation), "", modifiers, bitmap, move(link_navigation));
+    } else if (link) {
         // Right-clicking link text without an existing selection first selects the word under the pointer, as the
         // ordinary page context menu does. A selected range is still only offered when the click lands within it.
         (void)select_context_menu_text(read, document, coordinates);
-        auto href = link->href();
-        auto url = document->encoding_parse_url(href);
-        if (url.has_value()) {
+        if (link_url.has_value()) {
             auto const& element = link->hyperlink_element_utils_element();
-            auto navigation = HTML::prepare_navigation_from_document(*document, url.release_value(), element.hyperlink_referrer_policy());
+            auto navigation = HTML::prepare_navigation_from_document(*document, link_url.release_value(), element.hyperlink_referrer_policy());
             m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Link, .target = const_cast<DOM::Element&>(element), .position = page_viewport_position });
             m_navigable->page().client().page_did_request_link_context_menu(local_root_id, page_viewport_position, move(navigation), link->target().to_byte_string(), modifiers, selected_text_range_at_context_menu_position());
         }
+    } else if (is<HTML::HTMLMediaElement>(*context_menu_node)) {
+        auto& media_element = as<HTML::HTMLMediaElement>(*context_menu_node);
+        auto* video_element = as_if<HTML::HTMLVideoElement>(*context_menu_node);
+        auto is_video = video_element != nullptr;
+
+        // A media element without a source, or one whose source does not resolve against the document's base
+        // URL, has no URL to open or copy.
+        Optional<URL::URL> media_url;
+        if (auto const& current_src = media_element.current_src(); !current_src.is_empty())
+            media_url = media_element.document().encoding_parse_url(current_src);
+
+        Page::MediaContextMenu menu {
+            .media_url = move(media_url),
+            .is_video = is_video,
+            .is_playing = media_element.potentially_playing(),
+            .is_muted = media_element.muted(),
+            .has_user_agent_controls = media_element.has_attribute(HTML::AttributeNames::controls),
+            .is_looping = media_element.has_attribute(HTML::AttributeNames::loop),
+            .is_fullscreen = is_video && media_element.is_fullscreen_element(),
+            .is_picture_in_picture = media_element.is_picture_in_picture_element(),
+            .can_enter_picture_in_picture = is_video && video_element->can_enter_picture_in_picture(),
+        };
+
+        auto navigation = menu.media_url.map([&](auto const& url) {
+            return HTML::prepare_navigation_from_document(media_element.document(), url, ReferrerPolicy::ReferrerPolicy::EmptyString);
+        });
+        m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Media, .target = media_element, .position = page_viewport_position, .media = menu });
+        m_navigable->page().did_request_media_context_menu(media_element.unique_id(), local_root_id, page_viewport_position, "", modifiers, menu, move(navigation));
     } else {
-        // AD-HOC: Skip up the tree to the first ancestor that is not a UA shadow DOM node, and use its context menu.
-        //         Media elements' controls' shadow DOM nodes should not have their own context menu, but rather
-        //         activate their parent media element's menu.
-        auto context_menu_node = node_of_box_under_pointer;
-        while (auto shadow_root = context_menu_node->containing_shadow_root()) {
-            if (!shadow_root->is_user_agent_internal())
-                break;
-            VERIFY(shadow_root->host() != nullptr);
-            context_menu_node = *shadow_root->host();
-        }
+        auto misspelling = select_context_menu_misspelling(read, document, coordinates);
+        if (!misspelling.has_value())
+            select_context_menu_text(read, document, coordinates);
+        Optional<Utf16String> misspelled_word;
+        if (misspelling.has_value())
+            misspelled_word = misspelling->word;
+        m_navigable->page().record_context_menu_misspelling({}, move(misspelling));
 
-        if (is<HTML::HTMLImageElement>(*context_menu_node)) {
-            auto& image_element = as<HTML::HTMLImageElement>(*context_menu_node);
-            auto image_url = image_element.document().encoding_parse_url(image_element.current_src());
-            if (image_url.has_value()) {
-                Optional<Gfx::Bitmap const*> bitmap;
-                if (auto frame = image_element.current_image_frame(); frame.has_value())
-                    bitmap = &frame->bitmap();
-
-                auto navigation = HTML::prepare_navigation_from_document(image_element.document(), image_url.release_value(), ReferrerPolicy::ReferrerPolicy::EmptyString);
-                m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Image, .target = image_element, .position = page_viewport_position });
-                m_navigable->page().client().page_did_request_image_context_menu(local_root_id, page_viewport_position, move(navigation), "", modifiers, bitmap);
-            }
-        } else if (is<HTML::HTMLMediaElement>(*context_menu_node)) {
-            auto& media_element = as<HTML::HTMLMediaElement>(*context_menu_node);
-            auto* video_element = as_if<HTML::HTMLVideoElement>(*context_menu_node);
-            auto is_video = video_element != nullptr;
-
-            // A media element without a source, or one whose source does not resolve against the document's base
-            // URL, has no URL to open or copy.
-            Optional<URL::URL> media_url;
-            if (auto const& current_src = media_element.current_src(); !current_src.is_empty())
-                media_url = media_element.document().encoding_parse_url(current_src);
-
-            Page::MediaContextMenu menu {
-                .media_url = move(media_url),
-                .is_video = is_video,
-                .is_playing = media_element.potentially_playing(),
-                .is_muted = media_element.muted(),
-                .has_user_agent_controls = media_element.has_attribute(HTML::AttributeNames::controls),
-                .is_looping = media_element.has_attribute(HTML::AttributeNames::loop),
-                .is_fullscreen = is_video && media_element.is_fullscreen_element(),
-                .is_picture_in_picture = media_element.is_picture_in_picture_element(),
-                .can_enter_picture_in_picture = is_video && video_element->can_enter_picture_in_picture(),
-            };
-
-            auto navigation = menu.media_url.map([&](auto const& url) {
-                return HTML::prepare_navigation_from_document(media_element.document(), url, ReferrerPolicy::ReferrerPolicy::EmptyString);
-            });
-            m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Media, .target = media_element, .position = page_viewport_position, .media = menu });
-            m_navigable->page().did_request_media_context_menu(media_element.unique_id(), local_root_id, page_viewport_position, "", modifiers, menu, move(navigation));
-        } else {
-            auto misspelling = select_context_menu_misspelling(read, document, coordinates);
-            if (!misspelling.has_value())
-                select_context_menu_text(read, document, coordinates);
-            Optional<Utf16String> misspelled_word;
-            if (misspelling.has_value())
-                misspelled_word = misspelling->word;
-            m_navigable->page().record_context_menu_misspelling({}, move(misspelling));
-
-            auto for_input_events_target = document->active_input_events_target() ? ContextMenuForInputEventsTarget::Yes : ContextMenuForInputEventsTarget::No;
-            m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Page, .target = context_menu_node, .position = page_viewport_position });
-            m_navigable->page().client().page_did_request_context_menu(local_root_id, page_viewport_position, for_input_events_target, move(misspelled_word), selected_text_range_at_context_menu_position());
-        }
+        auto for_input_events_target = document->active_input_events_target() ? ContextMenuForInputEventsTarget::Yes : ContextMenuForInputEventsTarget::No;
+        m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Page, .target = context_menu_node, .position = page_viewport_position });
+        m_navigable->page().client().page_did_request_context_menu(local_root_id, page_viewport_position, for_input_events_target, move(misspelled_word), selected_text_range_at_context_menu_position());
     }
 }
 

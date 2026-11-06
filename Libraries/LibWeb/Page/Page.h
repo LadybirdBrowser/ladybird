@@ -438,6 +438,7 @@ public:
         GC::Ref<DOM::Node> target;
         CSSPixelPoint position;
         Optional<Web::MediaContextMenu> media {};
+        Optional<URL::URL> link_url {};
     };
     void record_context_menu_request(Badge<EventHandler>, ContextMenuRequest);
     void clear_context_menu_request() { m_context_menu_request.clear(); }
@@ -839,7 +840,7 @@ public:
     virtual void page_did_change_accessibility_focus(Web::UniqueNodeID) { }
     virtual void page_did_request_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, ContextMenuForInputEventsTarget, [[maybe_unused]] Optional<Utf16String> misspelled_word, [[maybe_unused]] GC::Ptr<DOM::Range> selected_text_range) { }
     virtual void page_did_request_link_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, [[maybe_unused]] GC::Ptr<DOM::Range> selected_text_range) { }
-    virtual void page_did_request_image_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Optional<Gfx::Bitmap const*>) { }
+    virtual void page_did_request_image_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Optional<Gfx::Bitmap const*>, [[maybe_unused]] Optional<HTML::PreparedNavigationDescriptor> link_navigation) { }
     virtual void page_did_request_media_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Page::MediaContextMenu const&, Optional<HTML::PreparedNavigationDescriptor>) { }
     virtual void page_did_click_link(HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_middle_click_link(HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
