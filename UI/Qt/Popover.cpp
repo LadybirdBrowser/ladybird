@@ -6,6 +6,7 @@
 
 #include <AK/StdLibExtras.h>
 #include <AK/TemporaryChange.h>
+#include <AK/TypeCasts.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Motion.h>
 #include <UI/Qt/Popover.h>
@@ -511,6 +512,7 @@ void cast_popover_shadow(QWidget& card)
 
 static constexpr int SHEET_SHADOW_MARGIN = 100;
 
+#if !defined(AK_OS_MACOS)
 // The shape that casts the shadow. It lies under the surface, so only the shadow around it shows.
 class FloatingShadowCaster final : public QWidget {
 public:
@@ -548,17 +550,18 @@ private:
     qreal m_corner_radius { 0 };
     FloatingShadowTone m_tone { FloatingShadowTone::FollowTheme };
 };
+#endif
 
 class FloatingShadow final : public QWidget {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    // NB: On macOS, the shadow is a window of its own embedded in the browser window, so it stacks above the page's
-    //     native view, while letting clicks through to it. Elsewhere the page and the surface are drawn in the window
-    //     itself, so the shadow is a widget beside the surface.
+    // NB: On macOS, the shadow is a plain view right below the surface's native view, so it stacks above the page's
+    //     native view, while letting the mouse through to it, and this widget stays hidden. Elsewhere the page and the
+    //     surface are drawn in the window itself, so the shadow is a widget beside the surface.
     FloatingShadow(QWidget& surface, qreal corner_radius, FloatingShadowTone tone, FloatingShadowKind kind)
 #if defined(AK_OS_MACOS)
-        : QWidget(surface.window(), Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint | Qt::WindowTransparentForInput)
+        : QWidget(surface.window())
 #else
         : QWidget(surface.parentWidget())
 #endif
@@ -566,22 +569,30 @@ public:
         , m_margins(kind == FloatingShadowKind::Sheet
                   ? QMargins(SHEET_SHADOW_MARGIN, 0, SHEET_SHADOW_MARGIN, SHEET_SHADOW_MARGIN)
                   : POPOVER_SHADOW_MARGINS)
+#if defined(AK_OS_MACOS)
+        , m_corner_radius(corner_radius)
+        , m_tone(tone)
+        , m_kind(kind)
+#endif
     {
+#if !defined(AK_OS_MACOS)
         setAttribute(Qt::WA_TranslucentBackground);
         setAttribute(Qt::WA_ShowWithoutActivating);
         setAttribute(Qt::WA_TransparentForMouseEvents);
-#if defined(AK_OS_MACOS)
-        setAttribute(Qt::WA_NativeWindow);
-#endif
         auto* layout = new QVBoxLayout(this);
         layout->setContentsMargins(m_margins);
         layout->addWidget(new FloatingShadowCaster(*this, corner_radius, tone, kind));
+#endif
 
         watch_surface_and_its_ancestors();
         connect(&surface, &QObject::destroyed, this, &QObject::deleteLater);
         hide();
         follow_surface();
     }
+
+#if defined(AK_OS_MACOS)
+    void set_opacity(qreal opacity) { m_view_shadow.set_opacity(opacity); }
+#endif
 
 private:
     virtual bool eventFilter(QObject*, QEvent* event) override
@@ -592,6 +603,7 @@ private:
         case QEvent::Show:
         case QEvent::Hide:
         case QEvent::ZOrderChange:
+        case QEvent::PaletteChange:
             follow_surface();
             break;
         case QEvent::ParentChange:
@@ -622,7 +634,11 @@ private:
         TemporaryChange following { m_is_following, true };
 
         if (!m_surface->isVisible()) {
+#if defined(AK_OS_MACOS)
+            m_view_shadow.hide();
+#else
             hide();
+#endif
             return;
         }
 
@@ -631,17 +647,13 @@ private:
         if (parentWidget() != m_surface->window())
             setParent(m_surface->window(), windowFlags());
 
-        // NB: The shadow is stacked right below the surface's native view, among the views of the surface's native
-        //     parent, so it is placed in that parent's coordinates.
-        auto* host = m_surface->nativeParentWidget();
-        if (!host)
-            host = m_surface->window();
-        (void)winId();
-        windowHandle()->setParent(host->windowHandle());
-        auto surface_rect = QRect(m_surface->mapTo(host, QPoint()), m_surface->size());
-        setGeometry(surface_rect.marginsAdded(m_margins));
-        show();
-        stack_appkit_view_below(*this, *m_surface);
+        // NB: Core Animation's blur radius is a little over 40% of the CSS one of the design.
+        auto is_dark = m_tone == FloatingShadowTone::Dark || Theme::is_dark();
+        auto fill_color = m_tone == FloatingShadowTone::Dark ? QColor(28, 28, 30) : Theme::panel().surface;
+        if (m_kind == FloatingShadowKind::Sheet)
+            m_view_shadow.follow(*m_surface, m_margins, m_corner_radius, 17, 18, QColor(0, 0, 0, is_dark ? 140 : 56), fill_color);
+        else
+            m_view_shadow.follow(*m_surface, m_margins, m_corner_radius, 15, 14, QColor(0, 0, 0, is_dark ? 115 : 41), fill_color);
 #else
         if (parentWidget() != m_surface->parentWidget())
             setParent(m_surface->parentWidget());
@@ -654,6 +666,12 @@ private:
     QPointer<QWidget> m_surface;
     QMargins m_margins;
     bool m_is_following { false };
+#if defined(AK_OS_MACOS)
+    qreal m_corner_radius { 0 };
+    FloatingShadowTone m_tone { FloatingShadowTone::FollowTheme };
+    FloatingShadowKind m_kind { FloatingShadowKind::Popover };
+    AppKitViewShadow m_view_shadow;
+#endif
 };
 
 QWidget& cast_floating_shadow(QWidget& surface, qreal corner_radius, FloatingShadowTone tone, FloatingShadowKind kind)
@@ -664,7 +682,10 @@ QWidget& cast_floating_shadow(QWidget& surface, qreal corner_radius, FloatingSha
 void set_floating_window_opacity(QWidget& window, qreal opacity)
 {
 #if defined(AK_OS_MACOS)
-    set_appkit_view_opacity(window, opacity);
+    if (auto* shadow = as_if<FloatingShadow>(window))
+        shadow->set_opacity(opacity);
+    else
+        set_appkit_view_opacity(window, opacity);
 #else
     // NB: Wayland has no window opacity, and a widget in a window has none either, so those fade by an effect instead.
     static auto const has_window_opacity = !QGuiApplication::platformName().startsWith(QStringLiteral("wayland"));
