@@ -9,14 +9,14 @@
 use crate::bytecode::executable_data::ExceptionHandler;
 use crate::bytecode::operand::Operand;
 use crate::bytecode::operand::OperandType;
-use crate::bytecode::source_map::SourceMapEntry;
+use crate::bytecode::source_map::SourceOffsetEntry;
 use crate::layout::buffer::BlockSlice;
 use crate::u32_from_usize;
 
 /// The result of assembling bytecode.
 pub struct AssembledBytecode {
     pub bytecode: BlockSlice<u8>,
-    pub source_map: BlockSlice<SourceMapEntry>,
+    pub source_map: BlockSlice<SourceOffsetEntry>,
     pub exception_handlers: BlockSlice<ExceptionHandler>,
     pub number_of_registers: u32,
     /// One past the highest `Operand::argument` index referenced by any

@@ -2009,7 +2009,7 @@ impl Generator<'_> {
             constants,
             shared_function_data,
             class_blueprints: link_block.slice(std::mem::take(&mut self.class_blueprints).into_iter()),
-            position_source: Some(script.positions.clone()),
+            position_source: script.positions.clone(),
             tables: block.finish(),
             link_tables: link_block.finish(),
         };
