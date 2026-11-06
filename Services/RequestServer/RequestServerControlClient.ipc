@@ -24,4 +24,6 @@ endpoint RequestServerControlClient
     // Sent once the disk cache's size settles after changing.
     disk_cache_size_changed(u64 size) =|
     retrieved_cache_access_profile(u64 access_profile_request_id, Vector<Requests::CacheAccessBucket> buckets) =|
+
+    request_adopter_designated(u64 designation_id) =|
 }

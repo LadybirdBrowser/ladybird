@@ -75,14 +75,14 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     return request;
 }
 
-RefPtr<Request> RequestClient::adopt_request(int source_client_id, u64 source_request_id, TransferLease transfer_lease)
+RefPtr<Request> RequestClient::adopt_request(int source_client_id, u64 source_request_id, TransferLease transfer_lease, Optional<int> owner_client_id)
 {
     auto request_id = m_next_request_id++;
 
     auto transfer_lease_key = transfer_lease == TransferLease::Yes
         ? Optional<RequestTransferLeaseKey> { { source_client_id, source_request_id } }
         : Optional<RequestTransferLeaseKey> {};
-    IPCProxy::async_adopt_request(source_client_id, source_request_id, request_id, transfer_lease_key.has_value());
+    IPCProxy::async_adopt_request(source_client_id, source_request_id, request_id, transfer_lease_key.has_value(), owner_client_id);
     auto request = Request::create_from_id({}, *this, request_id, move(transfer_lease_key));
     m_requests.set(request_id, request);
     return request;

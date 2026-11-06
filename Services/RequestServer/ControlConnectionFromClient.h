@@ -40,6 +40,8 @@ private:
     virtual Messages::RequestServerControl::ConnectNewClientsResponse connect_new_clients(size_t count, IsPrivate, SiteBinding) override;
     virtual void bind_client_to_site(int client_id, Utf16String top_level_site, Optional<Utf16String> frame_site) override;
 
+    virtual void designate_request_adopter(u64 designation_id, int source_client_id, u64 source_request_id, int adopter_client_id) override;
+
     virtual void set_disk_cache_settings(HTTP::DiskCacheSettings) override;
 
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;

@@ -140,6 +140,14 @@ void ControlConnectionFromClient::bind_client_to_site(int client_id, Utf16String
         connection.value()->bind_to_site({}, top_level_site, frame_site);
 }
 
+void ControlConnectionFromClient::designate_request_adopter(u64 designation_id, int source_client_id, u64 source_request_id, int adopter_client_id)
+{
+    auto lease_key = Requests::RequestTransferLeaseKey { source_client_id, source_request_id };
+    if (auto lease = m_request_transfer_leases.get(lease_key); lease.has_value() && m_connections.contains(adopter_client_id))
+        lease->adopter_client_id = adopter_client_id;
+    async_request_adopter_designated(designation_id);
+}
+
 void ControlConnectionFromClient::set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings)
 {
     if (m_disk_cache.has_value())
