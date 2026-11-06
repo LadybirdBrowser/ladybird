@@ -1,5 +1,5 @@
-$fba164e3 computed-string-object-literal.js:15:1
-  Registers: 8
+$f8dd73d3 computed-string-object-literal.js:15:1
+  Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
@@ -7,42 +7,43 @@ $fba164e3 computed-string-object-literal.js:15:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `simple_computed`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, simple_computed
-  [  38] GetGlobal value_feedback:2, dst:reg7, `mixed`
-  [  48] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, mixed
-  [  68] GetGlobal value_feedback:4, dst:reg7, `dynamic`
-  [  78] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:Undefined, dynamic, arguments:[String("x")]
-  [  a0] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `simple_computed`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  48] GetGlobal value_feedback:2, dst:reg6, `mixed`
+  [  58] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  78] GetGlobal value_feedback:4, dst:reg6, `dynamic`
+  [  88] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[String("x")]
+  [  b0] End value:reg5
 
 
-simple_computed$6cbba156 computed-string-object-literal.js:6:5
+simple_computed$ee1d99de computed-string-object-literal.js:6:5
   Registers: 6
   Blocks:    1
   Constants:
-    [0] = Int32(1)
+    [0] = String("x")
+    [1] = Int32(1)
 
 block0:
   [   0] Enter
   [   8] NewObject dst:reg5
-  [  18] InitObjectLiteralProperty object:reg5, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  30] CacheObjectShape object:reg5
-  [  40] Return value:reg5
+  [  18] PutById base:reg5, `x`, src:Int32(1), kind:Own
+  [  38] Return value:reg5
 
 
 mixed$15906784 computed-string-object-literal.js:9:5
   Registers: 6
   Blocks:    1
   Constants:
-    [0] = Int32(1)
-    [1] = Int32(2)
+    [0] = String("a")
+    [1] = Int32(1)
+    [2] = Int32(2)
 
 block0:
   [   0] Enter
   [   8] NewObject dst:reg5
-  [  18] InitObjectLiteralProperty object:reg5, `a`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  30] InitObjectLiteralProperty object:reg5, `b`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  48] CacheObjectShape object:reg5
+  [  18] PutById base:reg5, `a`, src:Int32(1), kind:Own
+  [  38] PutById base:reg5, `b`, src:Int32(2), kind:Own
   [  58] Return value:reg5
 
 

@@ -1,4 +1,4 @@
-$2b997e90 numeric-index-object-literal.js:4:1
+$28d58d80 numeric-index-object-literal.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,21 +6,22 @@ $2b997e90 numeric-index-object-literal.js:4:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `test`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, test
-  [  38] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `test`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  48] End value:reg5
 
 
 test$815e337c numeric-index-object-literal.js:2:5
   Registers: 6
   Blocks:    1
   Constants:
-    [0] = Int32(100)
-    [1] = Int32(1)
-    [2] = Int32(200)
-    [3] = Int32(2)
-    [4] = Int32(300)
-    [5] = Int32(3)
+    [0] = Int32(1)
+    [1] = Int32(100)
+    [2] = Int32(2)
+    [3] = Int32(200)
+    [4] = Int32(3)
+    [5] = Int32(300)
 
 block0:
   [   0] Enter

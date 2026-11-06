@@ -1,4 +1,4 @@
-$fd650eed async-await.js:9:1
+$faa11ddd async-await.js:9:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,12 +6,13 @@ $fd650eed async-await.js:9:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f
-  [  38] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  48] End value:reg5
 
 
-f$d11be5f1 async-await.js:7:5
+f$4cf5fc59 async-await.js:7:5
   Registers: 10
   Blocks:    4
   Constants:
@@ -20,19 +21,21 @@ f$d11be5f1 async-await.js:7:5
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `Promise`
-  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `resolve` (Promise.resolve)
-  [  30] Call value_feedback:2, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
-  [  58] Mov dst:reg7, src:reg0
+  [   8] GetGlobal value_feedback:0, dst:reg5, `Promise`
+  [  18] GetById value_feedback:1, dst:reg6, base:reg5, `resolve`
+  [  30] Call value_feedback:2, call_feedback:0, dst:reg5, callee:reg6, this_value:reg5, arguments:[Int32(42)]
+  [  58] Mov dst:reg6, src:reg0
   [  68] Await continuation_label:block1, argument:reg5
 
 block1:
-  [  78] Mov dst:reg7, src:reg0
-  [  88] GetCompletionFields type_dst:reg6, value_dst:reg8, completion:reg7
-  [  98] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block2, false_target:block3
+  [  78] Mov dst:reg6, src:reg0
+  [  88] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
+  [  98] StrictlyEqualsRhsInt32 arith_feedback:0, dst:reg9, lhs:reg7, rhs:1
+  [  a8] JumpIf condition:reg9, true_target:block3, false_target:block2
 
 block2:
-  [  b0] Yield value:reg8
+  [  b8] Throw src:reg8
 
 block3:
-  [  c0] Throw src:reg8
+  [  c0] Mov dst:reg5, src:reg8
+  [  d0] Yield value:reg5

@@ -4,6 +4,29 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+/// Why the length of the encoded instruction at some offset cannot be told.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstructionLengthError {
+    UnknownOpcode,
+    TruncatedInstruction,
+    InvalidLength,
+}
+
+#[inline]
+pub fn read_u16(bytes: &[u8], at: usize) -> u16 {
+    u16::from_ne_bytes(bytes[at..at + 2].try_into().unwrap())
+}
+
+#[inline]
+pub fn read_u32(bytes: &[u8], at: usize) -> u32 {
+    u32::from_ne_bytes(bytes[at..at + 4].try_into().unwrap())
+}
+
+#[inline]
+pub fn read_u64(bytes: &[u8], at: usize) -> u64 {
+    u64::from_ne_bytes(bytes[at..at + 8].try_into().unwrap())
+}
+
 /// A bytecode register index.
 ///
 /// Reserved registers:
@@ -73,6 +96,10 @@ impl Operand {
         !self.is_invalid() && self.operand_type() == OperandType::Local
     }
 
+    pub fn is_argument(self) -> bool {
+        !self.is_invalid() && self.operand_type() == OperandType::Argument
+    }
+
     pub fn is_constant(self) -> bool {
         !self.is_invalid() && self.operand_type() == OperandType::Constant
     }
@@ -107,7 +134,7 @@ impl Operand {
     /// Offset the index by the given amount, stripping the type tag and
     /// leaving a flat index into the combined
     /// [registers | locals | constants | arguments] array.
-    /// Used during operand rewriting in the assembler.
+    /// Used when the operands of finished code get their final indices.
     pub fn offset_index_by(&mut self, offset: u32) {
         self.0 &= Self::INDEX_MASK;
         self.0 = self.0.checked_add(offset).expect("operand index overflow");
@@ -127,14 +154,10 @@ pub enum OperandType {
 /// During compilation, holds a basic block index. After linking,
 /// holds the final byte offset in the flat bytecode stream.
 /// Stored as a single `u32`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Label(pub u32);
 
-impl Label {
-    pub fn basic_block_index(self) -> usize {
-        self.0 as usize
-    }
-}
+impl Label {}
 
 /// Index into the string table.
 #[derive(Debug, Clone, Copy)]

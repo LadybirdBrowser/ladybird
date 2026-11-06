@@ -15,10 +15,10 @@ for (let i = 0; i < 10; ++i) warm_up.push(sum([1, 2, 3]));
 
 // CHECK-FUNCTION: sum
 // CHECK-PASS: graph building
-// CHECK: LoadSlot r5
-// CHECK-NEXT: LoadSlot r6
+// CHECK: LoadSlot r6
 // CHECK-NEXT: LoadSlot r7
-// CHECK-NEXT: LoadSlot r12
+// CHECK-NEXT: LoadSlot r8
+// CHECK-NEXT: LoadSlot l0
 // CHECK-NEXT: Jump [[CONTINUATION:b[0-9]+]]
 // CHECK: InitializeFrame
 // CHECK-NOT: Suspend

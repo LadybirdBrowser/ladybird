@@ -136,13 +136,32 @@ recompileAfterExit(count, notANumber);
 // CHECK-FUNCTION: count
 // CHECK-PASS: dead code elimination
 // CHECK: Int32Add ({{v[0-9]+}}, #i32:1)
-// CHECK: CallSlowPath PostfixIncrement
-// CHECK-NEXT: SlowPathOutput 1
+// CHECK: CallSlowPath Increment
 // CHECK: Float64Add ({{v[0-9]+}}, #0x3ff0000000000000)
 // CHECK: [[COUNT:v[0-9]+]] = Phi ({{v[0-9]+}}, {{v[0-9]+}}, {{v[0-9]+}})
 // CHECK-NEXT: [[NUMBER:v[0-9]+]]:float64 = CheckNumber ([[COUNT]])
 // CHECK-NOT: CallSlowPath LessThan
 // CHECK: Float64LessThan ([[NUMBER]], #0x4025000000000000)
+
+// An update whose old value stays in use gets both values out of its slow path.
+
+function countAndKeep(x) {
+    let n = x;
+    const before = n++;
+    return n + before;
+}
+jit.prepare(countAndKeep);
+for (let i = 0; i < 10; ++i) {
+    countAndKeep(i);
+    countAndKeep(i + 0.25);
+}
+recompileAfterExit(countAndKeep, notANumber);
+
+// CHECK-FUNCTION: countAndKeep
+// CHECK-PASS: dead code elimination
+// CHECK: Int32Add ({{v[0-9]+}}, #i32:1)
+// CHECK: CallSlowPath PostfixIncrement
+// CHECK-NEXT: SlowPathOutput 1
 
 // Divisions of int32 values make numbers that are rarely int32 values, so a
 // division whose feedback only saw int32 operands checks that they are numbers

@@ -78,18 +78,6 @@ impl ExecutableFeedback {
         unsafe { ak::slice_from_raw_parts(storage.data().add(offset).cast::<T>(), count as usize) }
     }
 
-    /// Takes over what `other`, the feedback of an executable with the same bytecode, observed.
-    pub fn copy_from(&self, other: &ExecutableFeedback) {
-        assert!(self.counts == other.counts, "the feedback has the same slots");
-        if let (Some(storage), Some(other_storage)) = (&self.storage, &other.storage) {
-            // SAFETY: Both storages hold `layout.size` bytes laid out for the same counts, and are distinct.
-            unsafe { core::ptr::copy_nonoverlapping(other_storage.data(), storage.data(), self.layout.size) };
-        }
-        for (value, other_value) in self.value.iter().zip(&other.value) {
-            value.set(other_value.get());
-        }
-    }
-
     pub fn arith(&self) -> &[Cell<u8>] {
         self.array(0, self.counts.arith)
     }

@@ -1,18 +1,19 @@
-$5e3d9c55 constant-fold-large-string-to-number.js:1:1
-  Registers: 5
+$07237b81 constant-fold-large-string-to-number.js:1:5
+  Registers: 6
   Blocks:    1
   Constants:
-    [0] = String("0x10000000000000000")
-    [1] = Double(18446744073709552000)
-    [2] = String("0xFFFFFFFFFFFFFFFF")
-    [3] = String("0b10000000000000000000000000000000000000000000000000000000000000000")
-    [4] = String("0o2000000000000000000000")
-    [5] = Undefined
+    [0] = Undefined
+    [1] = String("0x10000000000000000")
+    [2] = Double(18446744073709552000)
+    [3] = String("0xFFFFFFFFFFFFFFFF")
+    [4] = String("0b10000000000000000000000000000000000000000000000000000000000000000")
+    [5] = String("0o2000000000000000000000")
 
 block0:
   [   0] Enter
-  [   8] SetGlobal `a`, src:Double(18446744073709552000)
-  [  18] SetGlobal `b`, src:Double(18446744073709552000)
-  [  28] SetGlobal `c`, src:Double(18446744073709552000)
-  [  38] SetGlobal `d`, src:Double(18446744073709552000)
-  [  48] End value:Undefined
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] SetGlobal `a`, src:Double(18446744073709552000)
+  [  28] SetGlobal `b`, src:Double(18446744073709552000)
+  [  38] SetGlobal `c`, src:Double(18446744073709552000)
+  [  48] SetGlobal `d`, src:Double(18446744073709552000)
+  [  58] End value:reg5

@@ -53,7 +53,7 @@ Program (script) @1:1
 │  │  └─ BindingPattern (object)
 │  │     └─ entry
 │  │        ├─ name
-│  │        │  └─ Identifier "a" [global] @13:19
+│  │        │  └─ Identifier "a" @13:19
 │  │        └─ alias
 │  │           └─ BindingPattern (object)
 │  │              └─ entry
@@ -82,7 +82,7 @@ Program (script) @1:1
    │  └─ BindingPattern (object)
    │     └─ entry
    │        ├─ name
-   │        │  └─ Identifier "a" [global] @21:20
+   │        │  └─ Identifier "a" @21:20
    │        └─ alias
    │           └─ Identifier "renamed" [variable:0] @21:23
    └─ body

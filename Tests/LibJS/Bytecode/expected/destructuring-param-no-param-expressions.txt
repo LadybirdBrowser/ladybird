@@ -1,4 +1,4 @@
-$2e11f366 destructuring-param-no-param-expressions.js:10:1
+$365dc696 destructuring-param-no-param-expressions.js:10:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -8,16 +8,17 @@ $2e11f366 destructuring-param-no-param-expressions.js:10:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  18] NewObject dst:reg7
-  [  28] InitObjectLiteralProperty object:reg7, `captured`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  40] InitObjectLiteralProperty object:reg7, `local`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  58] CacheObjectShape object:reg7
-  [  68] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
-  [  90] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  28] NewObject dst:reg7
+  [  38] InitObjectLiteralProperty object:reg7, `captured`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  50] InitObjectLiteralProperty object:reg7, `local`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  68] CacheObjectShape object:reg7
+  [  78] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  a0] End value:reg5
 
 
-f$c0843f91 destructuring-param-no-param-expressions.js:7:5
+f$24ed28b9 destructuring-param-no-param-expressions.js:6:12
   Registers: 7
   Blocks:    1
   Locals:    local~0
@@ -29,7 +30,6 @@ block0:
   [  20] Mov dst:reg5, src:arg0
   [  30] GetById value_feedback:0, dst:reg6, base:reg5, `captured`
   [  48] InitializeLexicalBinding `captured`, src:reg6
-  [  60] GetById value_feedback:1, dst:reg6, base:reg5, `local`
-  [  78] Mov dst:local~0, src:reg6
-  [  88] NewFunction dst:reg5, shared_function_data_index:0
-  [  a0] Return value:reg5
+  [  60] GetById value_feedback:1, dst:local~0, base:reg5, `local`
+  [  78] NewFunction dst:reg5, shared_function_data_index:0
+  [  90] Return value:reg5

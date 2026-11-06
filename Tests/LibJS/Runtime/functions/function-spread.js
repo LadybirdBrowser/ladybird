@@ -36,3 +36,13 @@ test("spreading non iterable", () => {
         [...1];
     }).toThrowWithMessage(TypeError, "1 is not iterable");
 });
+
+test("call of a function named async with spread arguments", () => {
+    const async = (...values) => values;
+
+    expect(async(...[1, 2], 3)).toEqual([1, 2, 3]);
+    expect(async(0, ...[1, 2])).toEqual([0, 1, 2]);
+    expect(async(0, ...[1], 2, ...[3], 4)).toEqual([0, 1, 2, 3, 4]);
+    expect(async(...[1, 2])).toEqual([1, 2]);
+    expect(async(...[1, 2]).length).toBe(2);
+});

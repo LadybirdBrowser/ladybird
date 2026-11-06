@@ -11,37 +11,29 @@
 //! A JSParsedProgram and a JSCompiledProgram hold nothing of the VM or its heap, so any thread may create, inspect,
 //! compile or destroy them, and they may move between threads. Everything that takes a JSVM runs on the VM's thread.
 //!
-//! The functions of a script or module that do not run right away compile on their first call. An embedder can have
-//! them compiled on its worker threads before that instead, through JSOffThreadCompilationCallbacks.
+//! The functions of a script or module that do not run right away compile on their first call.
 //!
 //! Tokenizing source text for syntax highlighting, and finding the positions of a source where a debugger can stop,
 //! need no VM either.
 
 use core::ffi::c_void;
-use std::borrow::Cow;
-use std::sync::Arc;
 
-use crate::ast::{FunctionPayload, ProgramType};
-use crate::bytecode::bytecode_cache::ExecutableBacking;
-use crate::bytecode::executable::Executable;
-use crate::bytecode::generator::PrecompiledFunction;
+use crate::ast::ProgramType;
 use crate::compile::{
-    CompiledProgram, FunctionPrecompileMode, ParsedProgram, compile_function, compile_module,
-    compile_parsed_program_off_thread, compile_script, parse,
+    CompiledProgram, ParsedProgram, compile_module, compile_parsed_program_off_thread, compile_script, parse,
 };
-use crate::embedding::abi_types::{JSRealm, JSSourceCode, JSUtf16View, cell_from_abi, cell_into_abi, vm_from_abi};
+use crate::embedding::abi_types::{
+    JSOwnedUtf16String, JSRealm, JSSourceCode, JSUtf16View, cell_from_abi, cell_into_abi, owned_utf16_string_from_abi,
+    vm_from_abi,
+};
 use crate::embedding::script::{JSParserErrorSink, JSScript, append_to_parser_error_sink, host_defined_slot_from_abi};
 use crate::embedding::source_code::{shared_source_code_from_abi, source_code_into_abi};
-use crate::gc::root::{MarkedVec, Root};
-use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{JSModule, JSVM};
 use crate::parser_error::ParserError;
 use crate::runtime::module::Module;
-use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::source_text_module::SourceTextModule;
 use crate::script::Script;
-use crate::utf16::Utf16View;
 
 /// A program that the frontend parsed, with or without syntax errors, which no VM owns: LibJS's JS::ParsedProgram.
 pub struct JSParsedProgram {
@@ -70,45 +62,26 @@ pub fn program_type_from_abi(program_type: JSProgramType) -> ProgramType {
     }
 }
 
-/// What the frontend parses from: UTF-16 code units, which a view in the ASCII storage kind is widened to.
-///
-/// # Safety
-///
-/// The view must be valid for `'a`.
-pub unsafe fn code_units_of<'a>(source: JSUtf16View) -> Cow<'a, [u16]> {
-    // SAFETY: The caller passes a valid view.
-    match unsafe { source.as_view() } {
-        Utf16View::Utf16(code_units) => Cow::Borrowed(code_units),
-        one_byte @ (Utf16View::Ascii(_) | Utf16View::Latin1(_)) => Cow::Owned(one_byte.code_units().collect()),
-    }
-}
-
-/// A parsed program together with the length of the source it was parsed from, which compiling it needs.
-struct ParsedSourceText {
-    program: ParsedProgram,
-    source_length_in_code_units: usize,
-}
-
-fn parsed_program_into_abi(parsed: ParsedSourceText) -> *mut JSParsedProgram {
+fn parsed_program_into_abi(parsed: ParsedProgram) -> *mut JSParsedProgram {
     Box::into_raw(Box::new(parsed)).cast()
 }
 
 /// # Safety
 ///
 /// `parsed` must be a parsed program the ABI handed out and that is still alive for `'a`.
-unsafe fn parsed_program_from_abi<'a>(parsed: *const JSParsedProgram) -> &'a ParsedSourceText {
+unsafe fn parsed_program_from_abi<'a>(parsed: *const JSParsedProgram) -> &'a ParsedProgram {
     assert!(!parsed.is_null(), "the embedder passes a parsed program");
-    // SAFETY: The caller passes a live parsed program, which is a boxed ParsedSourceText.
-    unsafe { &*parsed.cast::<ParsedSourceText>() }
+    // SAFETY: The caller passes a live parsed program, which is a boxed ParsedProgram.
+    unsafe { &*parsed.cast::<ParsedProgram>() }
 }
 
 /// # Safety
 ///
 /// `parsed` must be a parsed program the ABI handed out, which the caller gives up.
-unsafe fn take_parsed_program_from_abi(parsed: *mut JSParsedProgram) -> ParsedSourceText {
+unsafe fn take_parsed_program_from_abi(parsed: *mut JSParsedProgram) -> ParsedProgram {
     assert!(!parsed.is_null(), "the embedder passes a parsed program");
-    // SAFETY: The caller gives up a boxed ParsedSourceText.
-    *unsafe { Box::from_raw(parsed.cast::<ParsedSourceText>()) }
+    // SAFETY: The caller gives up a boxed ParsedProgram.
+    *unsafe { Box::from_raw(parsed.cast::<ParsedProgram>()) }
 }
 
 fn compiled_program_into_abi(compiled: CompiledProgram) -> *mut JSCompiledProgram {
@@ -141,23 +114,21 @@ pub unsafe fn source_text_module_from_abi(module: *mut JSModule) -> Gc<SourceTex
 
 /// ParsedProgram::parse(source_text, type, line_number_offset): parses `source` as a classic script or a module, with
 /// its lines counted from `line_number_offset`, except that a module's lines start at 1 or later. The program holds its
-/// syntax errors, if it has any. The caller owns the program. Borrows the view. Any thread may call this.
+/// syntax errors, if it has any. The caller owns the program. Adopts the string, whose storage the program shares from
+/// then on. Any thread may call this.
 ///
 /// # Safety
 ///
-/// The view must be valid.
+/// `source` must be a raw AK::Utf16String whose reference the caller gives up.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_compile_parse(
-    source: JSUtf16View,
+    source: JSOwnedUtf16String,
     program_type: JSProgramType,
     line_number_offset: usize,
 ) -> *mut JSParsedProgram {
-    // SAFETY: The caller passes a valid view.
-    let source = unsafe { code_units_of(source) };
-    parsed_program_into_abi(ParsedSourceText {
-        program: parse(&source, program_type_from_abi(program_type), line_number_offset),
-        source_length_in_code_units: source.len(),
-    })
+    // SAFETY: The caller transfers its reference.
+    let source = unsafe { owned_utf16_string_from_abi(source) };
+    parsed_program_into_abi(parse(&source, program_type_from_abi(program_type), line_number_offset))
 }
 
 /// ParsedProgram::has_errors(). Any thread may call this.
@@ -168,23 +139,7 @@ pub unsafe extern "C" fn js_compile_parse(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_compile_parsed_program_has_errors(parsed: *const JSParsedProgram) -> bool {
     // SAFETY: The caller passes a live parsed program.
-    unsafe { parsed_program_from_abi(parsed) }.program.has_errors()
-}
-
-/// ParsedProgram::clone(): a copy of a program without errors, which compiles independently of it, such as for the
-/// bytecode cache while the original runs. The caller owns the copy. Any thread may call this.
-///
-/// # Safety
-///
-/// `parsed` must be a live parsed program without errors.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_compile_parsed_program_clone(parsed: *const JSParsedProgram) -> *mut JSParsedProgram {
-    // SAFETY: The caller passes a live parsed program.
-    let parsed = unsafe { parsed_program_from_abi(parsed) };
-    parsed_program_into_abi(ParsedSourceText {
-        program: parsed.program.clone_for_separate_compilation(),
-        source_length_in_code_units: parsed.source_length_in_code_units,
-    })
+    unsafe { parsed_program_from_abi(parsed) }.has_errors()
 }
 
 /// Destroys a parsed program that the caller owns. Null does nothing. Any thread may call this.
@@ -202,9 +157,7 @@ pub unsafe extern "C" fn js_compile_parsed_program_destroy(parsed: *mut JSParsed
 
 /// CompiledProgram::compile(ParsedProgram): compiles a program that parsed without errors, which this consumes. The
 /// bytecode covers the top level and the functions it invokes right away; every other function compiles on its first
-/// call, or through js_compile_remaining_functions_of_script_off_thread() and
-/// js_compile_remaining_functions_of_module_off_thread(). The caller owns the compiled program. Any thread may call
-/// this.
+/// call. The caller owns the compiled program. Any thread may call this.
 ///
 /// # Safety
 ///
@@ -213,32 +166,7 @@ pub unsafe extern "C" fn js_compile_parsed_program_destroy(parsed: *mut JSParsed
 pub unsafe extern "C" fn js_compile_parsed_program(parsed: *mut JSParsedProgram) -> *mut JSCompiledProgram {
     // SAFETY: The caller gives up a live parsed program.
     let parsed = unsafe { take_parsed_program_from_abi(parsed) };
-    compiled_program_into_abi(compile_parsed_program_off_thread(
-        parsed.program,
-        parsed.source_length_in_code_units,
-        FunctionPrecompileMode::EagerOnly,
-    ))
-}
-
-/// CompiledProgram::compile_all_functions(ParsedProgram): compiles a program that parsed without errors, which this
-/// consumes, with every function it contains, as the bytecode cache needs: the result only feeds
-/// js_bytecode_cache_serialize(), and never becomes a script or module. The caller owns the compiled program. Any thread
-/// may call this.
-///
-/// # Safety
-///
-/// `parsed` must be a live parsed program without errors, which the caller gives up.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_compile_parsed_program_with_all_functions(
-    parsed: *mut JSParsedProgram,
-) -> *mut JSCompiledProgram {
-    // SAFETY: The caller gives up a live parsed program.
-    let parsed = unsafe { take_parsed_program_from_abi(parsed) };
-    compiled_program_into_abi(compile_parsed_program_off_thread(
-        parsed.program,
-        parsed.source_length_in_code_units,
-        FunctionPrecompileMode::All,
-    ))
+    compiled_program_into_abi(compile_parsed_program_off_thread(parsed))
 }
 
 /// # Safety
@@ -270,13 +198,13 @@ pub unsafe extern "C" fn js_compile_compiled_program_destroy(compiled: *mut JSCo
 ///
 /// `errors` must be null or a valid sink.
 unsafe fn parsed_program_without_errors(
-    parsed: ParsedSourceText,
+    parsed: ParsedProgram,
     errors: *const JSParserErrorSink,
 ) -> Option<ParsedProgram> {
-    if !parsed.program.has_errors() {
-        return Some(parsed.program);
+    if !parsed.has_errors() {
+        return Some(parsed);
     }
-    let parser_errors = ParserError::all_from_parsed_program(&parsed.program);
+    let parser_errors = ParserError::all_from_parsed_program(&parsed);
     drop(parsed);
     // SAFETY: The caller passes null or a valid sink.
     unsafe { append_to_parser_error_sink(errors, &parser_errors) };
@@ -319,15 +247,13 @@ pub unsafe extern "C" fn js_compile_create_script_from_parsed_program(
     let Some(parsed) = (unsafe { parsed_program_without_errors(parsed, errors) }) else {
         return core::ptr::null_mut();
     };
-    let source_length = source_code.length_in_code_units();
     cell_into_abi(Script::create(
         vm,
         realm,
-        compile_script(parsed, source_length),
+        compile_script(parsed),
         source_code,
         &filename,
         host_defined,
-        ExecutableBacking::Source,
     ))
 }
 
@@ -367,7 +293,6 @@ pub unsafe extern "C" fn js_compile_create_script_from_compiled_program(
         source_code,
         &filename,
         host_defined,
-        ExecutableBacking::HeapBytecode,
     ))
 }
 
@@ -405,15 +330,13 @@ pub unsafe extern "C" fn js_compile_create_module_from_parsed_program(
     let Some(parsed) = (unsafe { parsed_program_without_errors(parsed, errors) }) else {
         return core::ptr::null_mut();
     };
-    let source_length = source_code.length_in_code_units();
     module_into_abi(SourceTextModule::create(
         vm,
         realm,
         &filename,
-        compile_module(parsed, source_length),
+        compile_module(parsed),
         source_code,
         host_defined,
-        ExecutableBacking::Source,
     ))
 }
 
@@ -451,7 +374,6 @@ pub unsafe extern "C" fn js_compile_create_module_from_compiled_program(
         compiled.into_module(),
         source_code,
         host_defined,
-        ExecutableBacking::HeapBytecode,
     ))
 }
 
@@ -487,269 +409,6 @@ pub unsafe extern "C" fn js_compile_top_level_source_code_of_module(module: *mut
         .cached_executable()
         .and_then(|executable| executable.source_code.as_ref().map(source_code_into_abi))
         .unwrap_or(core::ptr::null())
-}
-
-/// Work that the embedder runs once, on the thread that the callback receiving it names: C++ Function<void()>.
-#[repr(C)]
-pub struct JSOffThreadTask {
-    pub run: Option<unsafe extern "C" fn(data: *mut c_void)>,
-    pub data: *mut c_void,
-}
-
-/// OffThreadCompilationCallbacks: how an embedder runs background compilation work. The runtime copies the struct and
-/// calls the functions with `context` from both threads, so they and the context must work on any thread.
-///
-/// - `submit_work` is called on the VM's thread, and must run the task on a worker thread.
-/// - `post_to_main_thread` is called on a worker thread, and must run the task on the VM's thread.
-/// - `release`, which may be null, is called once, on either thread, when the runtime no longer needs the callbacks.
-///
-/// A callback may also run its task right away when it is already on the task's thread, which is how an embedder
-/// without threads runs the work synchronously. The tasks hold nothing of the VM that a callback must keep alive.
-#[repr(C)]
-pub struct JSOffThreadCompilationCallbacks {
-    pub context: *mut c_void,
-    pub submit_work: Option<unsafe extern "C" fn(context: *mut c_void, task: JSOffThreadTask)>,
-    pub post_to_main_thread: Option<unsafe extern "C" fn(context: *mut c_void, task: JSOffThreadTask)>,
-    pub release: Option<unsafe extern "C" fn(context: *mut c_void)>,
-}
-
-/// The embedder's callbacks, which the VM's thread and the worker share: the worker can still be inside
-/// post_to_main_thread() when the VM's thread has run the task it posted.
-struct SharedOffThreadCompilationCallbacks(JSOffThreadCompilationCallbacks);
-
-// SAFETY: The embedder's callbacks work on any thread, as JSOffThreadCompilationCallbacks requires.
-unsafe impl Send for SharedOffThreadCompilationCallbacks {}
-// SAFETY: As above.
-unsafe impl Sync for SharedOffThreadCompilationCallbacks {}
-
-impl SharedOffThreadCompilationCallbacks {
-    fn submit_work(&self, run: unsafe extern "C" fn(*mut c_void), data: *mut c_void) {
-        let submit_work = self.0.submit_work.expect("the embedder submits work to its workers");
-        // SAFETY: The embedder's callback takes tasks with the context it came with.
-        unsafe { submit_work(self.0.context, JSOffThreadTask { run: Some(run), data }) };
-    }
-
-    fn post_to_main_thread(&self, run: unsafe extern "C" fn(*mut c_void), data: *mut c_void) {
-        let post_to_main_thread = self
-            .0
-            .post_to_main_thread
-            .expect("the embedder posts tasks to the VM's thread");
-        // SAFETY: As above.
-        unsafe { post_to_main_thread(self.0.context, JSOffThreadTask { run: Some(run), data }) };
-    }
-}
-
-impl Drop for SharedOffThreadCompilationCallbacks {
-    fn drop(&mut self) {
-        if let Some(release) = self.0.release {
-            // SAFETY: The runtime is done with the callbacks, which the embedder releases once.
-            unsafe { release(self.0.context) };
-        }
-    }
-}
-
-/// What the VM's thread keeps while a worker compiles copies of the ASTs of some functions: their shared data, which
-/// stays alive until the compiled functions are installed in it.
-struct LazyFunctionsAwaitingCompilation {
-    vm: &'static Vm,
-    shared_function_data: Root<'static, Vec<Gc<SharedFunctionInstanceData>>>,
-    callbacks: Arc<SharedOffThreadCompilationCallbacks>,
-}
-
-/// What a worker carries without touching it, from the VM's thread and back.
-struct OnlyForTheVmsThread(Box<LazyFunctionsAwaitingCompilation>);
-
-// SAFETY: Only the VM's thread opens what the worker carries.
-unsafe impl Send for OnlyForTheVmsThread {}
-
-/// The task a worker runs.
-#[allow(clippy::vec_box, reason = "the frontend compiles boxed ASTs")]
-struct LazyFunctionCompilation {
-    function_asts: Vec<Box<FunctionPayload>>,
-    source_length_in_code_units: usize,
-    callbacks: Arc<SharedOffThreadCompilationCallbacks>,
-    awaiting_compilation: OnlyForTheVmsThread,
-}
-
-/// The task the worker posts back to the VM's thread.
-#[allow(
-    clippy::vec_box,
-    reason = "the frontend returns boxed functions, which shared function data keeps boxed"
-)]
-struct CompiledLazyFunctions {
-    compiled_functions: Vec<Box<PrecompiledFunction>>,
-    awaiting_compilation: OnlyForTheVmsThread,
-}
-
-const _: fn() = || {
-    fn assert_send<T: Send>() {}
-    assert_send::<LazyFunctionCompilation>();
-    assert_send::<CompiledLazyFunctions>();
-};
-
-/// Has a worker compile copies of the ASTs of the functions, and installs the results on the VM's thread.
-fn compile_lazy_functions_off_thread(
-    vm: &'static Vm,
-    shared_function_data: &MarkedVec<'_, Gc<SharedFunctionInstanceData>>,
-    function_asts: impl IntoIterator<Item = Box<FunctionPayload>>,
-    source_length_in_code_units: usize,
-    callbacks: Arc<SharedOffThreadCompilationCallbacks>,
-) {
-    let awaiting_compilation = LazyFunctionsAwaitingCompilation {
-        vm,
-        shared_function_data: Root::new(vm, shared_function_data.to_vec()),
-        callbacks: callbacks.clone(),
-    };
-    let work = Box::new(LazyFunctionCompilation {
-        function_asts: function_asts.into_iter().collect(),
-        source_length_in_code_units,
-        callbacks: callbacks.clone(),
-        awaiting_compilation: OnlyForTheVmsThread(Box::new(awaiting_compilation)),
-    });
-    callbacks.submit_work(compile_lazy_functions_on_a_worker, Box::into_raw(work).cast());
-}
-
-unsafe extern "C" fn compile_lazy_functions_on_a_worker(work: *mut c_void) {
-    // SAFETY: The embedder runs each task once, with the data that came with it, which is this boxed work.
-    let work = *unsafe { Box::from_raw(work.cast::<LazyFunctionCompilation>()) };
-    let compiled_functions = work
-        .function_asts
-        .into_iter()
-        .map(|function_ast| {
-            compile_function(
-                function_ast,
-                work.source_length_in_code_units,
-                false,
-                FunctionPrecompileMode::All,
-            )
-        })
-        .collect();
-    let compiled = Box::new(CompiledLazyFunctions {
-        compiled_functions,
-        awaiting_compilation: work.awaiting_compilation,
-    });
-    work.callbacks
-        .post_to_main_thread(install_compiled_lazy_functions, Box::into_raw(compiled).cast());
-}
-
-unsafe extern "C" fn install_compiled_lazy_functions(compiled: *mut c_void) {
-    // SAFETY: The embedder runs each task once, with the data that came with it, which is this boxed result.
-    let compiled = *unsafe { Box::from_raw(compiled.cast::<CompiledLazyFunctions>()) };
-    let awaiting_compilation = compiled.awaiting_compilation.0;
-    let shared_function_data = awaiting_compilation.shared_function_data.get();
-    assert_eq!(shared_function_data.len(), compiled.compiled_functions.len());
-    for (&shared_data, compiled_function) in shared_function_data.iter().zip(compiled.compiled_functions) {
-        // A function that started running in the meantime compiled on this thread, so the worker compiles the
-        // functions it creates instead.
-        if let Some(executable) = shared_data.executable() {
-            compile_remaining_functions_of_executable_off_thread(
-                awaiting_compilation.vm,
-                executable,
-                awaiting_compilation.callbacks.clone(),
-            );
-            continue;
-        }
-        // Installing a bytecode cache may have dropped the AST, and its bytecode with it, while the worker compiled.
-        if !shared_data.has_function_ast() {
-            continue;
-        }
-        shared_data.set_precompiled_bytecode_executable(compiled_function);
-    }
-    drop(awaiting_compilation);
-}
-
-fn compile_remaining_functions_of_executable_off_thread(
-    vm: &'static Vm,
-    executable: Gc<Executable>,
-    callbacks: Arc<SharedOffThreadCompilationCallbacks>,
-) {
-    let shared_function_data = MarkedVec::new(vm);
-    let function_asts = SharedFunctionInstanceData::uncompiled_functions_of(executable, &shared_function_data);
-    if function_asts.is_empty() {
-        return;
-    }
-    // NB: The frontend checks that nested functions lie within the source, which is unknown without a source code.
-    let source_length_in_code_units = executable
-        .source_code
-        .as_ref()
-        .map_or(usize::MAX, |source_code| source_code.length_in_code_units());
-    compile_lazy_functions_off_thread(
-        vm,
-        &shared_function_data,
-        function_asts,
-        source_length_in_code_units,
-        callbacks,
-    );
-}
-
-/// # Safety
-///
-/// `callbacks` must point to valid callbacks.
-unsafe fn shared_callbacks_from_abi(
-    callbacks: *const JSOffThreadCompilationCallbacks,
-) -> Arc<SharedOffThreadCompilationCallbacks> {
-    assert!(!callbacks.is_null(), "the embedder passes its callbacks");
-    // SAFETY: The caller passes valid callbacks, which the runtime copies.
-    let callbacks = unsafe { callbacks.read() };
-    Arc::new(SharedOffThreadCompilationCallbacks(callbacks))
-}
-
-/// compile_remaining_functions_off_thread(Script&, source_code, callbacks): has the embedder's workers compile the
-/// functions that the script's top-level code creates and that have not been compiled yet, so that their first calls
-/// do not have to. Functions that start running in the meantime compile on the VM's thread as usual, and the functions
-/// they create are then compiled off thread as well. The compiled functions are installed when the tasks the workers
-/// post run on the VM's thread. The VM must outlive every task. Only the VM's thread may call this.
-///
-/// # Safety
-///
-/// `vm` and `script` must be live, and `callbacks` must point to valid callbacks.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_compile_remaining_functions_of_script_off_thread(
-    vm: *mut JSVM,
-    script: *mut JSScript,
-    callbacks: *const JSOffThreadCompilationCallbacks,
-) {
-    // SAFETY: The caller passes a live VM and script, and valid callbacks, and the VM outlives the tasks.
-    let (vm, script, callbacks) = unsafe {
-        (
-            vm_from_abi(vm),
-            cell_from_abi(script),
-            shared_callbacks_from_abi(callbacks),
-        )
-    };
-    compile_remaining_functions_of_executable_off_thread(vm, script.cached_executable(), callbacks);
-}
-
-/// compile_remaining_functions_off_thread(SourceTextModule&, source_code, callbacks): like
-/// js_compile_remaining_functions_of_script_off_thread(), for the functions of a module, whose body is the async
-/// function of a module with top-level await. Only the VM's thread may call this.
-///
-/// # Safety
-///
-/// `vm` and `module` must be live, `module` a Source Text Module Record, and `callbacks` must point to valid
-/// callbacks.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_compile_remaining_functions_of_module_off_thread(
-    vm: *mut JSVM,
-    module: *mut JSModule,
-    callbacks: *const JSOffThreadCompilationCallbacks,
-) {
-    // SAFETY: The caller passes a live VM and module, and valid callbacks, and the VM outlives the tasks.
-    let (vm, module, callbacks) = unsafe {
-        (
-            vm_from_abi(vm),
-            source_text_module_from_abi(module),
-            shared_callbacks_from_abi(callbacks),
-        )
-    };
-    let executable = module.cached_executable().or_else(|| {
-        module
-            .top_level_await_shared_data()
-            .and_then(|shared_data| shared_data.executable())
-    });
-    if let Some(executable) = executable {
-        compile_remaining_functions_of_executable_off_thread(vm, executable, callbacks);
-    }
 }
 
 /// A token of a source text, with the trivia (whitespace and comments) before it, which JS::SyntaxHighlighter reads.
@@ -808,9 +467,9 @@ const _: () = {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_compile_tokenize(source: JSUtf16View, tokens: *const JSTokenSink) {
     // SAFETY: The caller passes a valid view and sink.
-    let (source, tokens) = unsafe { (code_units_of(source), &*tokens) };
+    let (source, tokens) = unsafe { (source.as_view(), &*tokens) };
     let append = tokens.append.expect("a token sink has an append function");
-    for token in crate::tokenize::tokenize(&source) {
+    for token in crate::tokenize::tokenize(source) {
         let token = JSToken {
             token_type: token.token_type as u8,
             category: token.category as u8,
@@ -856,7 +515,7 @@ pub unsafe extern "C" fn js_compile_breakpoint_positions_for_source(
     positions: *const JSPositionSink,
 ) {
     // SAFETY: The caller passes a valid view and sink.
-    let (source, sink) = unsafe { (code_units_of(source), &*positions) };
+    let (source, sink) = unsafe { (source.as_view().to_utf16_string(), &*positions) };
     let append = sink.append.expect("a position sink has an append function");
     let positions: Vec<JSPosition> = crate::breakpoint_positions::breakpoint_positions_for_source(
         &source,

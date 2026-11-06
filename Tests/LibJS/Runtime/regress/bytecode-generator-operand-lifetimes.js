@@ -133,4 +133,32 @@ describe("bytecode generator operand lifetime regressions", () => {
         expect(bindingPattern.call(receiver)).toEqual([receiver, 1]);
         expect(classElement.call(receiver)).toEqual([receiver, true]);
     });
+
+    test("a destructuring assignment evaluates to the value it started with", () => {
+        function objectPattern() {
+            const source = { a: 1 };
+            let value = source;
+            const result = ({ a: value } = value);
+            return [result === source, value];
+        }
+
+        function arrayPattern() {
+            const source = [1];
+            let value = source;
+            const result = ([value] = value);
+            return [result === source, value];
+        }
+
+        function computedKey() {
+            const source = { a: 1 };
+            let value = source;
+            let target;
+            const result = ({ [((value = null), "a")]: target } = value);
+            return [result === source, target];
+        }
+
+        expect(objectPattern()).toEqual([true, 1]);
+        expect(arrayPattern()).toEqual([true, 1]);
+        expect(computedKey()).toEqual([true, 1]);
+    });
 });

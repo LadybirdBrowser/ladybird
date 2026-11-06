@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/EventLoop.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/ScriptAndModuleABIConversions.h>
@@ -23,6 +22,11 @@ static_assert(sizeof(ScriptOrModule) == sizeof(JSScriptOrModule));
 static_assert(sizeof(Position) == sizeof(JSPosition));
 static_assert(offsetof(Position, line) == offsetof(JSPosition, line));
 static_assert(offsetof(Position, column) == offsetof(JSPosition, column));
+
+static JSProgramType program_type_to_abi(ProgramType program_type)
+{
+    return to_underlying(program_type);
+}
 
 static JSParsedProgram* parsed_program_to_abi(FFI::ParsedProgram* program)
 {
@@ -107,19 +111,14 @@ ParsedProgram::~ParsedProgram()
     js_compile_parsed_program_destroy(parsed_program_to_abi(m_program));
 }
 
-ParsedProgram ParsedProgram::parse(Utf16View source_text, ProgramType program_type, size_t line_number_offset)
+ParsedProgram ParsedProgram::parse(Utf16String source_text, ProgramType program_type, size_t line_number_offset)
 {
-    return ParsedProgram { parsed_program_from_abi(js_compile_parse(utf16_view_to_abi(source_text), program_type_to_abi(program_type), line_number_offset)) };
+    return ParsedProgram { parsed_program_from_abi(js_compile_parse(owned_utf16_string_to_abi(move(source_text)), program_type_to_abi(program_type), line_number_offset)) };
 }
 
 bool ParsedProgram::has_errors() const
 {
     return js_compile_parsed_program_has_errors(parsed_program_to_abi(m_program));
-}
-
-ParsedProgram ParsedProgram::clone() const
-{
-    return ParsedProgram { parsed_program_from_abi(js_compile_parsed_program_clone(parsed_program_to_abi(m_program))) };
 }
 
 CompiledProgram::CompiledProgram(FFI::CompiledProgram* program)
@@ -150,26 +149,6 @@ CompiledProgram CompiledProgram::compile(ParsedProgram parsed)
 {
     auto* program = parsed_program_to_abi(exchange(parsed.m_program, nullptr));
     return CompiledProgram { compiled_program_from_abi(js_compile_parsed_program(program)) };
-}
-
-CompiledProgram CompiledProgram::compile_all_functions(ParsedProgram parsed)
-{
-    auto* program = parsed_program_to_abi(exchange(parsed.m_program, nullptr));
-    return CompiledProgram { compiled_program_from_abi(js_compile_parsed_program_with_all_functions(program)) };
-}
-
-ByteBuffer CompiledProgram::serialize_for_bytecode_cache(ProgramType program_type, ReadonlyBytes source_hash) const
-{
-    ByteBuffer blob;
-    JSByteSink sink {
-        .context = &blob,
-        .append = [](void* context, u8 const* bytes, size_t length) {
-            return !static_cast<ByteBuffer*>(context)->try_append(bytes, length).is_error();
-        },
-    };
-    if (!js_bytecode_cache_serialize(compiled_program_to_abi(m_program), program_type_to_abi(program_type), source_hash.data(), source_hash.size(), &sink))
-        return {};
-    return blob;
 }
 
 Result<GC::Ref<Script>, Vector<ParserError>> create_script(ParsedProgram parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
@@ -228,50 +207,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> create_module(CompiledPro
     return module_from_abi<SourceTextModule>(module);
 }
 
-RefPtr<DecodedBytecodeCache> decode_and_validate_bytecode_cache(Core::ImmutableBytes bytes, ProgramType program_type, ReadonlyBytes source_hash, size_t source_length_in_code_units, Core::EventLoop& main_thread_event_loop)
-{
-    // The runtime may release the bytes on this thread, so their last reference goes on the main thread.
-    struct BlobBytesOwner {
-        AK_ALLOC_WITH_KMALLOC;
-
-        Core::ImmutableBytes bytes;
-        Core::EventLoop& main_thread_event_loop;
-    };
-    auto* bytes_owner = new BlobBytesOwner { move(bytes), main_thread_event_loop };
-    JSBytecodeCacheBlobOwner owner {
-        .owner = bytes_owner,
-        .release = [](void* owner) {
-            auto* bytes_owner = static_cast<BlobBytesOwner*>(owner);
-            bytes_owner->main_thread_event_loop.deferred_invoke([bytes_owner] { delete bytes_owner; });
-        },
-    };
-    auto blob = bytes_owner->bytes.bytes();
-    return adopt_decoded_bytecode_cache_from_abi(js_bytecode_cache_decode_and_validate(blob.data(), blob.size(), program_type_to_abi(program_type), source_hash.data(), source_hash.size(), source_length_in_code_units, owner));
-}
-
 // The host's callbacks, which the runtime shares between the main thread and the workers until it releases them.
-static JSOffThreadCompilationCallbacks off_thread_compilation_callbacks_to_abi(OffThreadCompilationCallbacks callbacks)
-{
-    return JSOffThreadCompilationCallbacks {
-        .context = new OffThreadCompilationCallbacks(move(callbacks)),
-        .submit_work = [](void* context, JSOffThreadTask task) { static_cast<OffThreadCompilationCallbacks*>(context)->submit_work([task] { task.run(task.data); }); },
-        .post_to_main_thread = [](void* context, JSOffThreadTask task) { static_cast<OffThreadCompilationCallbacks*>(context)->post_to_main_thread([task] { task.run(task.data); }); },
-        .release = [](void* context) { delete static_cast<OffThreadCompilationCallbacks*>(context); },
-    };
-}
-
-void compile_remaining_functions_off_thread(Script& script, NonnullRefPtr<SourceCode const>, OffThreadCompilationCallbacks callbacks)
-{
-    auto abi_callbacks = off_thread_compilation_callbacks_to_abi(move(callbacks));
-    js_compile_remaining_functions_of_script_off_thread(vm_to_abi(script.vm()), script_to_abi(script), &abi_callbacks);
-}
-
-void compile_remaining_functions_off_thread(SourceTextModule& module, NonnullRefPtr<SourceCode const>, OffThreadCompilationCallbacks callbacks)
-{
-    auto abi_callbacks = off_thread_compilation_callbacks_to_abi(move(callbacks));
-    js_compile_remaining_functions_of_module_off_thread(vm_to_abi(module.vm()), module_to_abi(module), &abi_callbacks);
-}
-
 RefPtr<SourceCode const> top_level_source_code(Script const& script)
 {
     return source_code_from_abi(js_compile_top_level_source_code_of_script(script_to_abi(script)));

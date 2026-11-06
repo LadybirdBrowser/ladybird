@@ -452,29 +452,29 @@ impl EcmascriptFunctionObject {
     }
 
     /// The function's executable, compiled first if the function never ran.
-    pub fn compiled_executable(&self, vm: &Vm) -> Gc<Executable> {
+    pub fn compiled_executable(&self, vm: &Vm) -> ThrowCompletionOr<Gc<Executable>> {
         let shared_data = self.shared_data();
         if let Some(executable) = shared_data.executable() {
-            return executable;
+            return Ok(executable);
         }
-        let rust_executable = SharedFunctionInstanceData::compile_function(vm, shared_data, false)
-            .expect("an ECMAScript function compiles to an executable");
+        let rust_executable = SharedFunctionInstanceData::compile_function(vm, shared_data, false)?;
         shared_data.set_executable(Some(rust_executable));
         rust_executable.set_name(self.name());
         if should_dump_bytecode() {
             rust_executable.dump();
         }
         shared_data.clear_compile_inputs();
-        rust_executable
+        Ok(rust_executable)
     }
 
-    fn get_stack_frame_info(object: &Object, vm: &Vm, stack_frame_info: &mut StackFrameInfo) {
+    fn get_stack_frame_info(object: &Object, vm: &Vm, stack_frame_info: &mut StackFrameInfo) -> ThrowCompletionOr<()> {
         let function = as_ecmascript_function(object);
-        let executable = function.compiled_executable(vm);
+        let executable = function.compiled_executable(vm)?;
         stack_frame_info.registers_and_locals_count = executable.registers_and_locals_count();
         stack_frame_info.constant_count =
             u32::try_from(executable.constants().len()).expect("the constant count fits in u32");
         stack_frame_info.argument_count = stack_frame_info.argument_count.max(function.formal_parameter_count());
+        Ok(())
     }
 
     // 10.2.1 [[Call]] ( thisArgument, argumentsList ), https://tc39.es/ecma262/#sec-ecmascript-function-objects-call-thisargument-argumentslist

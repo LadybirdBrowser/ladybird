@@ -8,11 +8,13 @@
 
 use std::rc::Rc;
 
-use ak::{Utf16FlyString, Utf16String};
+use ak::Utf16FlyString;
+
+use crate::utf16::Utf16View;
 use libjs_abi::ClassElementKind;
 use libjs_runtime_macros::Trace;
 
-use crate::bytecode::generator::{PendingClassBlueprint, PendingClassElement, PendingLiteralValueKind};
+use crate::bytecode::executable_data::{PendingClassBlueprint, PendingClassElement, PendingLiteralValueKind};
 use crate::gc::defer_gc::DeferGc;
 use crate::interpreter::vm::Vm;
 use crate::layout::value::Value;
@@ -64,7 +66,7 @@ impl ClassBlueprint {
         _defer_gc: &DeferGc<'_>,
     ) -> ClassBlueprint {
         let name = match &blueprint.name {
-            Some(name) if !name.is_empty() => Utf16FlyString::from_utf16(name),
+            Some(name) if !name.is_empty() => Utf16View::of_string(name).to_utf16_fly_string(),
             _ => Utf16FlyString::default(),
         };
         let elements = blueprint
@@ -89,7 +91,7 @@ impl ClassBlueprint {
             .private_identifier
             .as_ref()
             .filter(|identifier| !identifier.is_empty())
-            .map(|identifier| Utf16FlyString::from_utf16(identifier));
+            .map(|identifier| Utf16View::of_string(identifier).to_utf16_fly_string());
         let literal_value = match element.literal_value_kind {
             PendingLiteralValueKind::None => None,
             PendingLiteralValueKind::Number => Some(Value::from_f64(element.literal_value_number)),
@@ -97,10 +99,7 @@ impl ClassBlueprint {
             PendingLiteralValueKind::BooleanFalse => Some(Value::FALSE),
             PendingLiteralValueKind::Null => Some(Value::NULL),
             PendingLiteralValueKind::String => {
-                let string = element
-                    .literal_value_string
-                    .as_ref()
-                    .map_or_else(Utf16String::default, |string| Utf16String::from_utf16(string));
+                let string = element.literal_value_string.clone().unwrap_or_default();
                 Some(Value::from_string(PrimitiveString::create(vm, string)))
             }
         };

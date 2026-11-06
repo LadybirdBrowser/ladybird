@@ -22,7 +22,7 @@ Program (script) @1:1
          │     │  │     └─ Identifier "x" [variable:2] (let) @3:11
          │     │  └─ entry
          │     │     ├─ name
-         │     │     │  └─ Identifier "y" [global] @3:14
+         │     │     │  └─ Identifier "y" @3:14
          │     │     └─ alias
          │     │        └─ Identifier "z" [variable:3] (let) @3:17
          │     └─ ObjectExpression @3:23

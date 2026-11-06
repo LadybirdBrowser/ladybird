@@ -1,4 +1,4 @@
-$9431c529 destructuring-assignment-in-logical-and.js:5:1
+$916dd419 destructuring-assignment-in-logical-and.js:5:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,102 +8,78 @@ $9431c529 destructuring-assignment-in-logical-and.js:5:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Int32(0)]
-  [  40] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null, Int32(0)]
+  [  50] End value:reg5
 
 
-f$6d0ab5b2 destructuring-assignment-in-logical-and.js:2:5
-  Registers: 14
-  Blocks:    21
+f$d31b6efb destructuring-assignment-in-logical-and.js:2:9
+  Registers: 13
+  Blocks:    16
   Locals:    a~0, b~1
   Constants:
     [0] = Undefined
     [1] = Bool(false)
-    [2] = Int32(1)
-    [3] = Int32(2)
 
 block0:
   [   0] Enter
-  [   8] Mov3 c0_dst:a~0, c0_src:Undefined, c1_dst:b~1, c1_src:Undefined, c2_dst:reg5, c2_src:arg0
-  [  28] JumpFalse condition:arg0, target:block2
+  [   8] Mov dst:a~0, src:Undefined
+  [  18] Mov dst:b~1, src:Undefined
+  [  28] Mov dst:reg5, src:arg0
+  [  38] JumpFalse condition:reg5, target:block15
 
 block1:
-  [  38] Mov2 c0_dst:reg7, c0_src:arg0, c1_dst:reg8, c1_src:arg1
-  [  50] Call value_feedback:0, call_feedback:0, dst:reg6, callee:reg7, this_value:Undefined, t, arguments:[reg8]
-  [  78] Mov dst:reg7, src:Bool(false)
-  [  88] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6, fast_array_mode_allowed:true
-  [  a8] Jump target:block5
+  [  48] Call value_feedback:0, call_feedback:0, dst:reg7, callee:arg0, this_value:Undefined, arguments:[arg1]
+  [  70] Mov dst:reg8, src:Bool(false)
+  [  80] GetIterator dst_iterator_object:reg9, dst_iterator_next:reg10, dst_iterator_done:reg11, iterable:reg7, fast_array_mode_allowed:true
+  [  a0] IteratorNextUnpack dst_value:reg12, dst_done:reg8, iterator_object:reg9, iterator_next:reg10, iterator_done:reg11
 
 block2:
-  [  b0] End value:Undefined
+  [  b8] JumpFalse condition:reg8, target:block4
 
 block3:
-  [  b8] Catch value_feedback:1, dst:reg12
-  [  c0] Mov dst:reg11, src:Int32(1)
-  [  d0] JumpIf condition:reg10, true_target:block16, false_target:block15
+  [  c8] Mov dst:reg12, src:Undefined
 
 block4:
-  [  e0] Mov dst:reg5, src:reg6
-  [  f0] JumpLoop target:block2
+  [  d8] Mov dst:a~0, src:reg12
+  [  e8] JumpTrue condition:reg8, target:block7
 
 block5:
-  [  f8] Jump target:block7
+  [  f8] IteratorNextUnpack dst_value:reg12, dst_done:reg8, iterator_object:reg9, iterator_next:reg10, iterator_done:reg11
 
 block6:
-  [ 100] MovSrcUndefined dst:reg13
-  [ 108] Jump target:block8
+  [ 110] JumpFalse condition:reg8, target:block8
 
 block7:
-  [ 110] IteratorNextUnpack dst_value:reg13, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-  [ 128] JumpTrueLoop condition:reg7, target:block6
+  [ 120] Mov dst:reg12, src:Undefined
 
 block8:
-  [ 138] Mov dst:a~0, src:reg13
-  [ 148] JumpFalse condition:reg7, target:block10
+  [ 130] Mov dst:b~1, src:reg12
 
 block9:
-  [ 158] MovSrcUndefined dst:reg13
-  [ 160] Jump target:block11
+  [ 140] JumpTrue condition:reg11, target:block14
 
 block10:
-  [ 168] IteratorNextUnpack dst_value:reg13, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-  [ 180] JumpTrueLoop condition:reg7, target:block9
+  [ 150] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:Undefined
+  [ 170] Jump target:block14
 
 block11:
-  [ 190] Mov dst:b~1, src:reg13
+  [ 178] Catch value_feedback:1, dst:reg12
+  [ 180] JumpTrue condition:reg11, target:block13
 
 block12:
-  [ 1a0] JumpFalse condition:reg10, target:block14
+  [ 190] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:reg12
 
 block13:
-  [ 1b0] JumpLoop target:block4
+  [ 1b0] Throw src:reg12
 
 block14:
-  [ 1b8] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [ 1d8] JumpLoop target:block13
+  [ 1b8] Mov dst:reg5, src:reg7
 
 block15:
-  [ 1e0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg11, rhs:1, true_target:block17, false_target:block18
-
-block16:
-  [ 1f8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg11, rhs:2, true_target:block19, false_target:block20
-
-block17:
-  [ 210] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg12
-  [ 230] Throw src:reg12
-
-block18:
-  [ 238] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [ 258] JumpLoop target:block16
-
-block19:
-  [ 260] Return value:reg12
-
-block20:
-  [ 268] Throw src:reg12
+  [ 1c8] End value:Undefined
 
 Exception handlers:
-  [  f8 ..  110] => handler block3
-  [ 138 ..  168] => handler block3
-  [ 190 ..  1a0] => handler block3
+  [  b8 ..   f8] => handler block11
+  [ 110 ..  140] => handler block11

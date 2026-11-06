@@ -214,3 +214,55 @@ test("var declaration named like the catch parameter leaves the function binding
     }
     expect(captured()).toBeUndefined();
 });
+
+describe("names of a catch parameter's binding pattern are uninitialized until they are bound", () => {
+    function caughtName(thrown, handler) {
+        try {
+            handler(thrown);
+        } catch (error) {
+            return error.name;
+        }
+        return "nothing";
+    }
+
+    test("read by an initializer", () => {
+        expect(
+            caughtName({}, value => {
+                try {
+                    throw value;
+                } catch ({ a = b, b }) {}
+            })
+        ).toBe("ReferenceError");
+        expect(
+            caughtName([], value => {
+                try {
+                    throw value;
+                } catch ([a = b, b]) {}
+            })
+        ).toBe("ReferenceError");
+    });
+
+    test("read by an initializer on each iteration of a loop", () => {
+        const results = [];
+        for (let i = 0; i < 2; i++) {
+            try {
+                try {
+                    throw { b: i === 0 ? undefined : 1 };
+                } catch ({ a = i === 0 ? 0 : b, b }) {
+                    results.push(a);
+                }
+            } catch (error) {
+                results.push(error.name);
+            }
+        }
+        expect(results).toEqual([0, "ReferenceError"]);
+    });
+
+    test("read once they are bound", () => {
+        try {
+            throw { a: 1 };
+        } catch ({ a, b = a }) {
+            expect(b).toBe(1);
+        }
+    });
+});

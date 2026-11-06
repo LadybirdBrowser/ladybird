@@ -415,8 +415,24 @@ fn generate_rust_code(mut w: impl Write, ops: &[InstructionDefinition], record_f
     writeln!(w, "#[cfg(test)]")?;
     writeln!(w, "#[allow(dead_code)]")?;
     writeln!(w, "impl Instruction {{")?;
-    generate_encode_method(&mut w, ops)?;
+    generate_encode_method(&mut w, ops, "encode_with", "TestEncoder<'_>")?;
     generate_encoded_size_method(&mut w, ops)?;
+    writeln!(
+        w,
+        "    pub fn encode(&self, strict: bool, bytes: &mut Vec<u8>) {{ self.encode_with(strict, &mut TestEncoder {{ bytes }}); }}"
+    )?;
+    writeln!(w, "}}")?;
+    writeln!(w)?;
+    writeln!(w, "#[cfg(test)]")?;
+    writeln!(w, "pub struct TestEncoder<'a> {{ bytes: &'a mut Vec<u8> }}")?;
+    writeln!(w)?;
+    writeln!(w, "#[cfg(test)]")?;
+    writeln!(w, "impl TestEncoder<'_> {{")?;
+    writeln!(
+        w,
+        "    fn operand(&mut self, operand: Operand, _: usize) -> u32 {{ operand.raw() }}"
+    )?;
+    writeln!(w, "    fn note_label(&mut self, _: usize) {{}}")?;
     writeln!(w, "}}")?;
     Ok(())
 }

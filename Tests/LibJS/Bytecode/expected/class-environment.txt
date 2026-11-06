@@ -1,39 +1,40 @@
-$1bd06a9d class-environment.js:9:1
-  Registers: 10
+$241c3dcd class-environment.js:9:1
+  Registers: 9
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `console`
-  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
-  [  30] GetGlobal value_feedback:2, dst:reg9, `classWithName`
-  [  40] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:Undefined, classWithName
-  [  60] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  88] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  28] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  40] GetGlobal value_feedback:2, dst:reg8, `classWithName`
+  [  50] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
+  [  70] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  98] End value:reg5
 
 
-classWithName$91377959 class-environment.js:2:13
-  Registers: 8
+classWithName$f3615e6d class-environment.js:2:9
+  Registers: 7
   Blocks:    1
   Locals:    C~0
   Constants:
     [0] = String("method")
-    [1] = Undefined
 
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
   [  38] SetLexicalEnvironment environment:reg4
-  [  40] NewClass dst:C~0, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
-  [  70] CallConstruct value_feedback:0, call_feedback:0, dst:reg6, callee:C~0, C
-  [  90] GetById value_feedback:1, dst:reg7, base:reg6, `method`
-  [  a8] Call value_feedback:2, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, <object>.method
-  [  c8] StrictlyEquals arith_feedback:0, dst:reg7, lhs:reg5, rhs:C~0
-  [  d8] Return value:reg7
+  [  40] NewClass dst:reg5, class_environment:reg6, class_blueprint_index:0, element_keys:[element_keys:String("method")]
+  [  70] Mov dst:C~0, src:reg5
+  [  80] CallConstruct value_feedback:0, call_feedback:0, dst:reg5, callee:C~0
+  [  a0] GetById value_feedback:1, dst:reg6, base:reg5, `method`
+  [  b8] Call value_feedback:2, call_feedback:1, dst:reg5, callee:reg6, this_value:reg5
+  [  d8] StrictlyEquals arith_feedback:0, dst:reg5, lhs:reg5, rhs:C~0
+  [  e8] Return value:reg5
 
 
 Foo$cf27a8b3

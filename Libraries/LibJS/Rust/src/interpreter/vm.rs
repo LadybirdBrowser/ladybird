@@ -852,6 +852,11 @@ impl Vm {
         current < self.head.native_stack_limit.get()
     }
 
+    /// The address below which did_reach_stack_space_limit().
+    pub fn native_stack_limit(&self) -> usize {
+        self.head.native_stack_limit.get()
+    }
+
     pub fn push_execution_context(&self, context: NonNull<ExecutionContext>) {
         // SAFETY: The caller passes a live context.
         let context_ref = unsafe { context.as_ref() };

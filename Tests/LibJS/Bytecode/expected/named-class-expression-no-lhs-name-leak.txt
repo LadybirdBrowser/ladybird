@@ -1,83 +1,58 @@
-$752dc5b7 named-class-expression-no-lhs-name-leak.js:1:1
-  Registers: 15
-  Blocks:    18
+$ca340182 named-class-expression-no-lhs-name-leak.js:1:1
+  Registers: 14
+  Blocks:    12
   Constants:
-    [0] = Bool(false)
-    [1] = Undefined
-    [2] = Int32(1)
-    [3] = Int32(2)
+    [0] = Undefined
+    [1] = Bool(false)
 
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] NewArray dst:reg5
-  [  20] Mov dst:reg6, src:Bool(false)
-  [  30] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5, fast_array_mode_allowed:true
-  [  50] Jump target:block3
+  [  10] Mov dst:reg5, src:Undefined
+  [  20] NewArray dst:reg6
+  [  30] Mov dst:reg7, src:Bool(false)
+  [  40] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6, fast_array_mode_allowed:true
+  [  60] IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
 
 block1:
-  [  58] Catch value_feedback:0, dst:reg11
-  [  60] SetLexicalEnvironment environment:reg4
-  [  68] Mov dst:reg10, src:Int32(1)
-  [  78] JumpIf condition:reg9, true_target:block13, false_target:block12
+  [  78] JumpFalse condition:reg7, target:block3
 
 block2:
-  [  88] End value:Undefined
+  [  88] Mov dst:reg11, src:Undefined
 
 block3:
-  [  90] Jump target:block5
+  [  98] JumpUndefined condition:reg11, true_target:block4, false_target:block5
 
 block4:
-  [  98] MovSrcUndefined dst:reg12
-  [  a0] Jump target:block6
+  [  a8] CreateLexicalEnvironment dst:reg13, parent:reg4, capacity:1, is_catch_environment:false
+  [  c0] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
+  [  d0] SetLexicalEnvironment environment:reg4
+  [  d8] NewClass dst:reg12, class_environment:reg13, class_blueprint_index:0
+  [ 100] Mov dst:reg11, src:reg12
 
 block5:
-  [  a8] IteratorNextUnpack dst_value:reg12, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-  [  c0] JumpTrueLoop condition:reg6, target:block4
+  [ 110] SetGlobal `C`, src:reg11
 
 block6:
-  [  d0] JumpUndefined condition:reg12, true_target:block7, false_target:block8
+  [ 120] JumpTrue condition:reg10, target:block11
 
 block7:
-  [  e0] CreateLexicalEnvironment dst:reg13, parent:reg4, capacity:1, is_catch_environment:false
-  [  f8] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
-  [ 108] SetLexicalEnvironment environment:reg4
-  [ 110] NewClass dst:reg14, class_environment:reg13, class_blueprint_index:0
-  [ 138] Mov dst:reg12, src:reg14
+  [ 130] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+  [ 150] Jump target:block11
 
 block8:
-  [ 148] SetGlobal `C`, src:reg12
+  [ 158] Catch value_feedback:0, dst:reg11
+  [ 160] SetLexicalEnvironment environment:reg4
+  [ 168] JumpTrue condition:reg10, target:block10
 
 block9:
-  [ 158] JumpFalse condition:reg9, target:block11
+  [ 178] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg11
 
 block10:
-  [ 168] JumpLoop target:block2
+  [ 198] Throw src:reg11
 
 block11:
-  [ 170] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 190] JumpLoop target:block10
-
-block12:
-  [ 198] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block14, false_target:block15
-
-block13:
-  [ 1b0] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block16, false_target:block17
-
-block14:
-  [ 1c8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
-  [ 1e8] Throw src:reg11
-
-block15:
-  [ 1f0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 210] JumpLoop target:block13
-
-block16:
-  [ 218] Return value:reg11
-
-block17:
-  [ 220] Throw src:reg11
+  [ 1a0] End value:reg5
 
 Exception handlers:
-  [  90 ..   a8] => handler block1
-  [  d0 ..  158] => handler block1
+  [  78 ..  120] => handler block8

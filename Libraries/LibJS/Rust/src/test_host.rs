@@ -122,6 +122,13 @@ extern "C" fn ladybird_utf16_fly_string_from_utf8(data: *const u8, length: usize
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn ladybird_utf16_string_from_utf8(data: *const u8, length: usize) -> usize {
+    // SAFETY: The frontend passes `length` readable bytes of UTF-8.
+    let string = std::str::from_utf8(unsafe { ak::slice_from_raw_parts(data, length) }).expect("valid UTF-8");
+    allocate_utf16_string(&string.encode_utf16().collect::<Vec<_>>())
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_string_create_uninitialized(length: usize, has_latin1_storage: bool) -> usize {
     allocate_uninitialized_string(length, has_latin1_storage)
 }

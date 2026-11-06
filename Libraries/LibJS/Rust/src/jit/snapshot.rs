@@ -1029,7 +1029,7 @@ impl SnapshotBuilder<'_> {
             },
             constants: executable.constants().iter().map(|constant| constant.0).collect(),
             exception_handlers: executable
-                .exception_handlers
+                .exception_handlers()
                 .iter()
                 .map(|handler| ExceptionHandler {
                     start_offset: handler.start_offset,
@@ -1100,7 +1100,7 @@ impl SnapshotBuilder<'_> {
             // NB: Only the compiled function's own code creates bindings by name.
             identifiers: if entry.function.is_none() {
                 executable
-                    .identifier_table
+                    .identifier_table()
                     .iter()
                     .map(|identifier| identifier.raw_identity() as u64)
                     .collect()

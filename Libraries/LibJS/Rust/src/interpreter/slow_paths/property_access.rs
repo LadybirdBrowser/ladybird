@@ -68,7 +68,10 @@ fn is_non_negative_int32(value: Value) -> bool {
 }
 
 fn optional_identifier(vm: &Vm, index: &OptionalIndex<IdentifierTableIndex>) -> Option<Utf16FlyString> {
-    let index = index.get()?;
+    let Some(index) = index.get() else {
+        let program_counter = vm.running_execution_context_ref().program_counter.get();
+        return vm.current_executable().base_text_at(program_counter);
+    };
     Some(vm.current_executable().get_identifier(index).clone())
 }
 

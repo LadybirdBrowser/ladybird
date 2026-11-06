@@ -1,103 +1,110 @@
-$b64866f5 catch-scope-boundary.js:14:1
-  Registers: 11
+$be943a25 catch-scope-boundary.js:14:1
+  Registers: 9
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `console`
-  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
-  [  30] GetGlobal value_feedback:2, dst:reg9, `throwInCatch`
-  [  40] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:Undefined, throwInCatch
-  [  60] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  88] GetGlobal value_feedback:5, dst:reg6, `console`
-  [  98] GetById value_feedback:6, dst:reg8, base:reg6, `log` (console.log)
-  [  b0] GetGlobal value_feedback:7, dst:reg10, `throwInCatchWithLocals`
-  [  c0] Call value_feedback:8, call_feedback:2, dst:reg9, callee:reg10, this_value:Undefined, throwInCatchWithLocals
-  [  e0] Call value_feedback:9, call_feedback:3, dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 108] End value:reg7
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  28] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  40] GetGlobal value_feedback:2, dst:reg8, `throwInCatch`
+  [  50] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
+  [  70] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  98] GetGlobal value_feedback:5, dst:reg6, `console`
+  [  a8] GetById value_feedback:6, dst:reg7, base:reg6, `log`
+  [  c0] GetGlobal value_feedback:7, dst:reg8, `throwInCatchWithLocals`
+  [  d0] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined
+  [  f0] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [ 118] End value:reg5
 
 
-throwInCatch$9784c856 catch-scope-boundary.js:2:5
+throwInCatch$db4351ba catch-scope-boundary.js:2:9
   Registers: 7
-  Blocks:    6
-  Locals:    e2~0, e~1, result~2
+  Blocks:    7
+  Locals:    result~0, e~1, e2~2
   Constants:
     [0] = String("bad")
-    [1] = String("good")
-    [2] = Int32(2)
-    [3] = Int32(1)
+    [1] = Int32(1)
+    [2] = <Empty>
+    [3] = Int32(2)
+    [4] = String("good")
 
 block0:
   [   0] Enter
-  [   8] Mov dst:result~2, src:String("bad")
-  [  18] Jump target:block5
+  [   8] Mov dst:result~0, src:String("bad")
 
 block1:
-  [  20] Catch value_feedback:0, dst:reg5
-  [  28] Mov dst:e~1, src:reg5
-  [  38] Jump target:block3
+  [  18] Throw src:Int32(1)
 
 block2:
-  [  40] Catch value_feedback:1, dst:reg6
-  [  48] Mov2 c0_dst:e2~0, c0_src:reg6, c1_dst:result~2, c1_src:String("good")
-  [  60] Return value:result~2
+  [  20] Catch value_feedback:0, dst:reg5
+  [  28] Mov dst:e~1, src:<Empty>
+  [  38] Mov dst:e~1, src:reg5
 
 block3:
-  [  68] Throw src:Int32(2)
+  [  48] Throw src:Int32(2)
 
 block4:
-  [  70] Return value:result~2
+  [  50] Catch value_feedback:1, dst:reg6
+  [  58] Mov dst:e2~2, src:<Empty>
+  [  68] Mov dst:e2~2, src:reg6
+  [  78] Mov dst:result~0, src:String("good")
+  [  88] Jump target:block5
 
 block5:
-  [  78] Throw src:Int32(1)
+  [  90] Jump target:block6
+
+block6:
+  [  98] Return value:result~0
 
 Exception handlers:
-  [  68 ..   70] => handler block2
-  [  78 ..   80] => handler block1
+  [  18 ..   20] => handler block2
+  [  48 ..   50] => handler block4
 
 
-throwInCatchWithLocals$32ece8d9 catch-scope-boundary.js:17:5
-  Registers: 9
+throwInCatchWithLocals$d64ae5e5 catch-scope-boundary.js:17:9
+  Registers: 8
   Blocks:    5
-  Locals:    inner~0, catchLocal~1, e~2, outerVar~3
+  Locals:    outerVar~0, e~1, catchLocal~2, inner~3
   Constants:
     [0] = String("outer")
-    [1] = String("local:")
-    [2] = String(",")
-    [3] = String("second")
-    [4] = String("first")
+    [1] = String("first")
+    [2] = <Empty>
+    [3] = String("local:")
+    [4] = String("second")
+    [5] = String(",")
 
 block0:
   [   0] Enter
-  [   8] Mov dst:outerVar~3, src:String("outer")
-  [  18] Jump target:block4
+  [   8] Mov dst:outerVar~0, src:String("outer")
 
 block1:
-  [  20] Catch value_feedback:0, dst:reg5
-  [  28] Mov dst:e~2, src:reg5
-  [  38] Add arith_feedback:0, dst:catchLocal~1, lhs:String("local:"), rhs:e~2
-  [  48] Jump target:block3
+  [  18] Throw src:String("first")
 
 block2:
-  [  50] Catch value_feedback:1, dst:reg6
-  [  58] Mov dst:inner~0, src:reg6
-  [  68] Add arith_feedback:1, dst:reg7, lhs:outerVar~3, rhs:String(",")
-  [  78] Add arith_feedback:2, dst:reg8, lhs:reg7, rhs:catchLocal~1
-  [  88] Add arith_feedback:3, dst:reg7, lhs:reg8, rhs:String(",")
-  [  98] Add arith_feedback:4, dst:reg8, lhs:reg7, rhs:inner~0
-  [  a8] Return value:reg8
+  [  20] Catch value_feedback:0, dst:reg5
+  [  28] Mov dst:e~1, src:<Empty>
+  [  38] Mov dst:e~1, src:reg5
+  [  48] Add arith_feedback:0, dst:catchLocal~2, lhs:String("local:"), rhs:e~1
 
 block3:
-  [  b0] Throw src:String("second")
+  [  58] Throw src:String("second")
 
 block4:
-  [  b8] Throw src:String("first")
+  [  60] Catch value_feedback:1, dst:reg6
+  [  68] Mov dst:inner~3, src:<Empty>
+  [  78] Mov dst:inner~3, src:reg6
+  [  88] Add arith_feedback:1, dst:reg7, lhs:outerVar~0, rhs:String(",")
+  [  98] Add arith_feedback:2, dst:reg7, lhs:reg7, rhs:catchLocal~2
+  [  a8] Add arith_feedback:3, dst:reg7, lhs:reg7, rhs:String(",")
+  [  b8] Add arith_feedback:4, dst:reg7, lhs:reg7, rhs:inner~3
+  [  c8] Return value:reg7
 
 Exception handlers:
-  [  b0 ..   b8] => handler block2
-  [  b8 ..   c0] => handler block1
+  [  18 ..   20] => handler block2
+  [  58 ..   60] => handler block4
 
 
 "good"

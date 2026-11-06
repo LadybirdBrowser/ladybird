@@ -14,12 +14,12 @@ Program (script) @6:1
 │     ├─ BindingPattern (object)
 │     │  ├─ entry
 │     │  │  ├─ name
-│     │  │  │  └─ Identifier "x" [global] @7:7
+│     │  │  │  └─ Identifier "x" @7:7
 │     │  │  └─ alias
 │     │  │     └─ Identifier "aliased" [global] (let) @7:10
 │     │  └─ entry
 │     │     ├─ name
-│     │     │  └─ Identifier "y" [global] @7:19
+│     │     │  └─ Identifier "y" @7:19
 │     │     └─ alias
 │     │        └─ Identifier "also" [global] (let) @7:22
 │     └─ ObjectExpression @7:31
@@ -39,7 +39,7 @@ Program (script) @6:1
 │     ├─ BindingPattern (object)
 │     │  ├─ entry
 │     │  │  ├─ name
-│     │  │  │  └─ Identifier "nested" [global] @9:7
+│     │  │  │  └─ Identifier "nested" @9:7
 │     │  │  └─ alias
 │     │  │     └─ BindingPattern (object)
 │     │  │        └─ entry
@@ -73,7 +73,7 @@ Program (script) @6:1
    │  │  │     └─ Identifier "p" [variable:0] @12:25
    │  │  └─ entry
    │  │     ├─ name
-   │  │     │  └─ Identifier "q" [global] @12:28
+   │  │     │  └─ Identifier "q" @12:28
    │  │     └─ alias
    │  │        └─ Identifier "r" [variable:1] @12:31
    │  └─ BindingPattern (array)

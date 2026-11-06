@@ -1,5 +1,5 @@
-$bced3bd8 argument-variables.js:12:1
-  Registers: 8
+$ba294ac8 argument-variables.js:12:1
+  Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
@@ -8,11 +8,12 @@ $bced3bd8 argument-variables.js:12:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `identity`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, identity, arguments:[Int32(1)]
-  [  40] GetGlobal value_feedback:2, dst:reg7, `swap`
-  [  50] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, swap, arguments:[Int32(1), Int32(2)]
-  [  78] End value:reg6
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `identity`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  50] GetGlobal value_feedback:2, dst:reg6, `swap`
+  [  60] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2)]
+  [  88] End value:reg5
 
 
 identity$f6a18ea3 argument-variables.js:5:5

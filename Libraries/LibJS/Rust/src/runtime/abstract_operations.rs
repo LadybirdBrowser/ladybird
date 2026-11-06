@@ -138,7 +138,7 @@ fn with_callee_context<T>(
         argument_count: u32::try_from(arguments_list.len()).expect("the argument count fits in u32"),
         ..Default::default()
     };
-    function.get_stack_frame_info(vm, &mut stack_frame_info);
+    function.get_stack_frame_info(vm, &mut stack_frame_info)?;
 
     let stack = vm.interpreter_stack();
     let stack_mark = stack.top.get();
@@ -1265,11 +1265,11 @@ struct EvalResult<'vm> {
     declaration_data: EvalDeclarationData<'vm>,
 }
 
-fn fly_string_of(name: &crate::ast::Utf16String) -> Utf16FlyString {
-    Utf16FlyString::from_utf16(&name.0)
+fn fly_string_of(name: &Utf16String) -> Utf16FlyString {
+    Utf16View::of_string(name).to_utf16_fly_string()
 }
 
-fn fly_strings_of(names: &[crate::ast::Utf16String]) -> Vec<Utf16FlyString> {
+fn fly_strings_of(names: &[Utf16String]) -> Vec<Utf16FlyString> {
     names.iter().map(fly_string_of).collect()
 }
 
@@ -1289,10 +1289,6 @@ fn compile_eval(
     in_class_field_initializer: bool,
 ) -> Result<EvalResult<'_>, String> {
     let source_code = SourceCode::create(Utf16String::default(), code);
-    let mut code_units = Vec::with_capacity(source_code.length_in_code_units());
-    Utf16View::of_string(source_code.code()).append_to(&mut code_units);
-    let length = code_units.len();
-
     let context = EvalContext {
         starts_in_strict_mode: strict_caller == CallerMode::Strict,
         in_eval_function_context: in_function,
@@ -1300,7 +1296,7 @@ fn compile_eval(
         allow_super_constructor_call: in_derived_constructor,
         in_class_field_initializer,
     };
-    let parsed = parse_eval(&code_units, context).map_err(|errors| {
+    let parsed = parse_eval(source_code.code(), context).map_err(|errors| {
         errors
             .first()
             .map(|error| format!("{} (line: {}, column: {})", error.message, error.line, error.column))
@@ -1310,17 +1306,17 @@ fn compile_eval(
     let CompiledEval {
         executable,
         declarations,
-    } = crate::compile::compile_eval(parsed, length);
+    } = crate::compile::compile_eval(parsed);
     let executable = Executable::create_with_source_code(vm, executable, Some(&source_code));
     executable.set_name(Utf16FlyString::from_utf8("eval"));
 
     let functions_to_initialize_shared_data = MarkedVec::with_capacity(vm, declarations.functions_to_initialize.len());
     let mut functions_to_initialize = Vec::with_capacity(declarations.functions_to_initialize.len());
     let mut declared_function_names = HashSet::new();
-    for mut function in declarations.functions_to_initialize {
+    for function in &declarations.functions_to_initialize {
         functions_to_initialize_shared_data.push(SharedFunctionInstanceData::create_from_pending_shared_function_data(
             vm,
-            &mut function.shared_function_data,
+            &function.shared_function_data,
             declarations.is_strict,
             Some(&source_code),
         ));

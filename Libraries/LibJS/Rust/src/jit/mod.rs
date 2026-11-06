@@ -477,7 +477,7 @@ pub fn describe_executable(executable: &Executable) -> String {
     } else {
         name
     };
-    let Some(entry) = executable.source_map.iter().find(|entry| entry.line != 0) else {
+    let Some(entry) = executable.source_positions().find(|entry| entry.line != 0) else {
         return name;
     };
     let filename = executable.source_code().map_or(String::new(), |source_code| {

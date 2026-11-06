@@ -103,7 +103,7 @@ fn prepare(vm: &Vm) -> ThrowCompletionOr<Value> {
     if !vm.jit.options.collects_feedback() {
         return Ok(Value::UNDEFINED);
     }
-    let executable = function.compiled_executable(vm);
+    let executable = function.compiled_executable(vm)?;
     if executable.jit_compile_state() == CompileState::Refused {
         return Ok(Value::UNDEFINED);
     }
@@ -150,7 +150,7 @@ fn never_compile(vm: &Vm) -> ThrowCompletionOr<Value> {
     if !vm.jit.options.collects_feedback() {
         return Ok(Value::UNDEFINED);
     }
-    let executable = function.compiled_executable(vm);
+    let executable = function.compiled_executable(vm)?;
     tier_up::wait_for_compile_job(vm, &executable);
     if executable.jit_compile_state() == CompileState::Installed {
         executable.discard_jit_code(vm);

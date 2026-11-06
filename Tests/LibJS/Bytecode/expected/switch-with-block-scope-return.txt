@@ -1,4 +1,4 @@
-$469b0790 switch-with-block-scope-return.js:12:1
+$43d71680 switch-with-block-scope-return.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,14 +7,15 @@ $469b0790 switch-with-block-scope-return.js:12:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
-  [  40] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  50] End value:reg5
 
 
-f$25d82f37 switch-with-block-scope-return.js:2:5
+f$3acd362f switch-with-block-scope-return.js:2:13
   Registers: 8
-  Blocks:    7
+  Blocks:    6
   Constants:
     [0] = Int32(1)
     [1] = Int32(2)
@@ -26,31 +27,28 @@ f$25d82f37 switch-with-block-scope-return.js:2:5
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  28] CreateImmutableBinding environment:reg5, `y`, strict_binding:true
-  [  38] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:arg0, true_target:block3, false_target:block1
+  [  10] Mov dst:reg5, src:arg0
+  [  20] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
+  [  38] CreateVariable `y`, is_immutable:true, is_global:false, is_strict:true
+  [  48] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg5, true_target:block3, false_target:block1
 
 block1:
-  [  50] JumpStrictlyEquals arith_feedback:1, lhs:Int32(2), rhs:arg0, true_target:block4, false_target:block2
+  [  60] JumpStrictlyEquals arith_feedback:1, lhs:Int32(2), rhs:reg5, true_target:block4, false_target:block2
 
 block2:
-  [  68] Jump target:block5
+  [  78] Jump target:block5
 
 block3:
-  [  70] SetLexicalEnvironment environment:reg4
-  [  78] Return value:String("one")
+  [  80] SetLexicalEnvironment environment:reg4
+  [  88] Return value:String("one")
 
 block4:
-  [  80] InitializeLexicalBinding `y`, src:String("two")
-  [  98] NewFunction dst:reg7, shared_function_data_index:0
-  [  b0] Call value_feedback:0, call_feedback:0, dst:reg6, callee:reg7, this_value:Undefined
-  [  d0] SetLexicalEnvironment environment:reg4
-  [  d8] Return value:reg6
+  [  90] InitializeLexicalBinding `y`, src:String("two")
+  [  a8] NewFunction dst:reg7, shared_function_data_index:0
+  [  c0] Call value_feedback:0, call_feedback:0, dst:reg7, callee:reg7, this_value:Undefined
+  [  e0] SetLexicalEnvironment environment:reg4
+  [  e8] Return value:reg7
 
 block5:
-  [  e0] SetLexicalEnvironment environment:reg4
-  [  e8] Return value:String("other")
-
-block6:
   [  f0] SetLexicalEnvironment environment:reg4
-  [  f8] End value:Undefined
+  [  f8] Return value:String("other")

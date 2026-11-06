@@ -53,9 +53,9 @@ describe("errors", () => {
             // Since the body, surrounded by a newline on each side, is first parsed standalone,
             // we report unexpected token EOF instead of }.
             // FIXME: The position is odd though, I'd expect `line: 2, column: 2` and `line: 3, column: 1`...
-            // > eval("\n[")   // Uncaught exception: [SyntaxError] Unexpected token Eof. Expected BracketClose (line: 2, column: 2)
-            // > eval("\n[\n") // Uncaught exception: [SyntaxError] Unexpected token Eof. Expected BracketClose (line: 2, column: 3)
-            .toThrowWithMessage(SyntaxError, "Unexpected token Eof. Expected BracketClose (line: 2, column: 3)");
+            // > eval("\n[")   // Uncaught exception: [SyntaxError] Unexpected end of input. Expected ']' (line: 2, column: 2)
+            // > eval("\n[\n") // Uncaught exception: [SyntaxError] Unexpected end of input. Expected ']' (line: 2, column: 3)
+            .toThrowWithMessage(SyntaxError, "Unexpected end of input. Expected ']' (line: 2, column: 3)");
     });
 
     test("parameters and body must be valid standalone", () => {

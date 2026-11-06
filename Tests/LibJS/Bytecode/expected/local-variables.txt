@@ -1,21 +1,22 @@
-$53c8db40 local-variables.js:20:1
-  Registers: 8
+$568ccc50 local-variables.js:20:1
+  Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `simple_let`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, simple_let
-  [  38] GetGlobal value_feedback:2, dst:reg7, `simple_const`
-  [  48] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, simple_const
-  [  68] GetGlobal value_feedback:4, dst:reg7, `multiple_locals`
-  [  78] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:Undefined, multiple_locals
-  [  98] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `simple_let`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  48] GetGlobal value_feedback:2, dst:reg6, `simple_const`
+  [  58] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  78] GetGlobal value_feedback:4, dst:reg6, `multiple_locals`
+  [  88] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined
+  [  a8] End value:reg5
 
 
-simple_let$bee58da9 local-variables.js:5:5
+simple_let$49601125 local-variables.js:5:9
   Registers: 5
   Blocks:    1
   Locals:    x~0
@@ -28,7 +29,7 @@ block0:
   [  18] Return value:x~0
 
 
-simple_const$f7280be6 local-variables.js:10:5
+simple_const$bcfa8e68 local-variables.js:10:11
   Registers: 5
   Blocks:    1
   Locals:    y~0
@@ -41,7 +42,7 @@ block0:
   [  18] Return value:y~0
 
 
-multiple_locals$f8b7974e local-variables.js:15:5
+multiple_locals$f526ee7a local-variables.js:15:9
   Registers: 6
   Blocks:    1
   Locals:    a~0, b~1
@@ -51,6 +52,7 @@ multiple_locals$f8b7974e local-variables.js:15:5
 
 block0:
   [   0] Enter
-  [   8] Mov2 c0_dst:a~0, c0_src:Int32(1), c1_dst:b~1, c1_src:Int32(2)
-  [  20] Add arith_feedback:0, dst:reg5, lhs:a~0, rhs:b~1
-  [  30] Return value:reg5
+  [   8] Mov dst:a~0, src:Int32(1)
+  [  18] Mov dst:b~1, src:Int32(2)
+  [  28] Add arith_feedback:0, dst:reg5, lhs:a~0, rhs:b~1
+  [  38] Return value:reg5

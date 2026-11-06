@@ -1,24 +1,25 @@
-$aa05d16f generator-yield.js:11:1
-  Registers: 9
+$47dbec5b generator-yield.js:11:5
+  Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `multi_yield`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, multi_yield
-  [  38] SetGlobal `g`, src:reg5
-  [  48] GetGlobal value_feedback:2, dst:reg6, `g`
-  [  58] GetById value_feedback:3, dst:reg7, base:reg6, `next` (g.next)
-  [  70] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, g.next
-  [  90] GetGlobal value_feedback:5, dst:reg6, `g`
-  [  a0] GetById value_feedback:6, dst:reg8, base:reg6, `next` (g.next)
-  [  b8] Call value_feedback:7, call_feedback:2, dst:reg7, callee:reg8, this_value:reg6, g.next
-  [  d8] End value:reg7
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `multi_yield`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:Undefined
+  [  48] SetGlobal `g`, src:reg6
+  [  58] GetGlobal value_feedback:2, dst:reg6, `g`
+  [  68] GetById value_feedback:3, dst:reg7, base:reg6, `next`
+  [  80] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  a0] GetGlobal value_feedback:5, dst:reg6, `g`
+  [  b0] GetById value_feedback:6, dst:reg7, base:reg6, `next`
+  [  c8] Call value_feedback:7, call_feedback:2, dst:reg5, callee:reg7, this_value:reg6
+  [  e8] End value:reg5
 
 
-multi_yield$ff8f10c7 generator-yield.js:7:5
+multi_yield$0a9ed507 generator-yield.js:7:5
   Registers: 10
   Blocks:    12
   Constants:
@@ -37,33 +38,39 @@ block1:
 block2:
   [  28] Mov dst:reg5, src:reg0
   [  38] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  48] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block3, false_target:block4
+  [  48] StrictlyEqualsRhsInt32 arith_feedback:0, dst:reg8, lhs:reg6, rhs:1
+  [  58] JumpIf condition:reg8, true_target:block6, false_target:block3
 
 block3:
-  [  60] Yield continuation_label:block7, value:Int32(2)
+  [  68] StrictlyEqualsRhsInt32 arith_feedback:1, dst:reg9, lhs:reg6, rhs:5
+  [  78] JumpIf condition:reg9, true_target:block4, false_target:block5
 
 block4:
-  [  70] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg6, rhs:5, true_target:block5, false_target:block6
-
-block5:
   [  88] Throw src:reg7
 
-block6:
+block5:
   [  90] Yield value:reg7
 
+block6:
+  [  a0] Mov dst:reg5, src:reg7
+  [  b0] Yield continuation_label:block7, value:Int32(2)
+
 block7:
-  [  a0] Mov dst:reg7, src:reg0
-  [  b0] GetCompletionFields type_dst:reg5, value_dst:reg6, completion:reg7
-  [  c0] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg5, rhs:1, true_target:block8, false_target:block9
+  [  c0] Mov dst:reg5, src:reg0
+  [  d0] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  e0] StrictlyEqualsRhsInt32 arith_feedback:2, dst:reg8, lhs:reg6, rhs:1
+  [  f0] JumpIf condition:reg8, true_target:block11, false_target:block8
 
 block8:
-  [  d8] Yield value:Undefined
+  [ 100] StrictlyEqualsRhsInt32 arith_feedback:3, dst:reg9, lhs:reg6, rhs:5
+  [ 110] JumpIf condition:reg9, true_target:block9, false_target:block10
 
 block9:
-  [  e8] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg5, rhs:5, true_target:block10, false_target:block11
+  [ 120] Throw src:reg7
 
 block10:
-  [ 100] Throw src:reg6
+  [ 128] Yield value:reg7
 
 block11:
-  [ 108] Yield value:reg6
+  [ 138] Mov dst:reg5, src:reg7
+  [ 148] Yield value:Undefined

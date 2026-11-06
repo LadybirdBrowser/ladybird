@@ -18,8 +18,8 @@ use indexmap::IndexMap;
 use libjs_runtime_macros::Trace;
 
 use crate::breakpoint::{Breakpoint, BreakpointID};
-use crate::bytecode::basic_block::SourceMapEntry;
-use crate::bytecode::executable::{Executable, LocalVariableMetadata};
+use crate::bytecode::executable::{Executable, LocalVariableScopeRange};
+use crate::bytecode::source_map::SourceMapEntry;
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::root::MarkedVec;
 use crate::gc::sweep::Sweep;
@@ -375,8 +375,8 @@ impl Debugger {
         } else {
             executable.source_range_at(context.program_counter.get())
         };
-        let scope_is_active = |metadata: &LocalVariableMetadata| {
-            let (Some(scope_range), Some(paused_source_range)) = (metadata.scope_range, &paused_source_range) else {
+        let scope_is_active = |scope_range: Option<LocalVariableScopeRange>| {
+            let (Some(scope_range), Some(paused_source_range)) = (scope_range, &paused_source_range) else {
                 return true;
             };
             let position = paused_source_range.start;
@@ -387,15 +387,15 @@ impl Debugger {
             if name.is_empty() {
                 continue;
             }
-            let metadata = executable.local_variable_metadata[index];
-            if !scope_is_active(&metadata) {
+            let scope_range = executable.local_variable_scope_range(index);
+            if !scope_is_active(scope_range) {
                 continue;
             }
 
             if let Some(existing) = binding_locations.get(name)
                 && existing.storage == BindingStorage::Local
             {
-                let Some(scope_range) = metadata.scope_range else {
+                let Some(scope_range) = scope_range else {
                     continue;
                 };
                 if existing
@@ -410,8 +410,8 @@ impl Debugger {
                 BindingLocation {
                     storage: BindingStorage::Local,
                     index,
-                    is_mutable: metadata.is_mutable,
-                    scope_start: metadata.scope_range.map(|range| range.start),
+                    is_mutable: executable.local_variable_metadata()[index].is_mutable,
+                    scope_start: scope_range.map(|range| range.start),
                 },
             );
         }
@@ -739,7 +739,7 @@ impl Debugger {
             return true;
         }
 
-        for entry in &executable.source_map {
+        for entry in executable.source_positions() {
             if entry.bytecode_offset > bytecode_offset && entry.line > 0 {
                 return false;
             }
@@ -796,7 +796,7 @@ fn breakpoint_candidate_for_executable(breakpoint: &Breakpoint, executable: &Exe
     }
 
     let mut matching_entry: Option<SourceMapEntry> = None;
-    for entry in &executable.source_map {
+    for entry in executable.source_positions() {
         if entry.line == 0 || entry.line < breakpoint.line {
             continue;
         }
@@ -807,7 +807,7 @@ fn breakpoint_candidate_for_executable(breakpoint: &Breakpoint, executable: &Exe
             entry.line < matching_entry.line
                 || (entry.line == matching_entry.line && entry.column < matching_entry.column)
         }) {
-            matching_entry = Some(*entry);
+            matching_entry = Some(entry);
         }
     }
     matching_entry

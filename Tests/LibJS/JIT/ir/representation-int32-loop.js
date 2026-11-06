@@ -12,8 +12,8 @@ jit.compile(count);
 // CHECK-FUNCTION: count
 // CHECK-PASS: frame initialization
 // CHECK: loop:
-// CHECK-NEXT: [[I:v[0-9]+]]:int32 = Phi (#i32:0, [[NEXT:v[0-9]+]])
 // CHECK-NEXT: [[SUM:v[0-9]+]]:int32 = Phi (#i32:0, {{v[0-9]+}})
+// CHECK-NEXT: [[I:v[0-9]+]]:int32 = Phi (#i32:0, [[NEXT:v[0-9]+]])
 // CHECK: BranchInt32LessThan ([[I]],
 // CHECK: Int32WrappingAdd ([[SUM]], [[I]])
 // CHECK: [[NEXT]]:int32 = Int32Add ([[I]], #i32:1)

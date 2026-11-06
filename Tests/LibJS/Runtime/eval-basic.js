@@ -63,7 +63,7 @@ test("completion value of a try statement whose catch clause runs", () => {
 test("syntax error", () => {
     expect(() => {
         eval("{");
-    }).toThrowWithMessage(SyntaxError, "Unexpected token Eof. Expected CurlyClose (line: 1, column: 2)");
+    }).toThrowWithMessage(SyntaxError, "Unexpected end of input. Expected '}' (line: 1, column: 2)");
 });
 
 test("returns 1st argument unless 1st argument is a string", () => {
@@ -128,10 +128,10 @@ test("indirect eval with syntax error can be called multiple times", function ()
     }
     expect(f).toThrowWithMessage(
         SyntaxError,
-        "Unexpected token Invalid. Expected statement or declaration (line: 1, column: 1)"
+        "Unexpected token '@'. Expected statement or declaration (line: 1, column: 1)"
     );
     expect(f).toThrowWithMessage(
         SyntaxError,
-        "Unexpected token Invalid. Expected statement or declaration (line: 1, column: 1)"
+        "Unexpected token '@'. Expected statement or declaration (line: 1, column: 1)"
     );
 });

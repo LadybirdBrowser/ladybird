@@ -15,7 +15,7 @@ include!(concat!(env!("OUT_DIR"), "/instruction_generated.rs"));
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bytecode::generator::ConstantValue;
+    use crate::bytecode::executable_data::ConstantValue;
 
     #[test]
     fn selects_declarative_int32_specializations() {

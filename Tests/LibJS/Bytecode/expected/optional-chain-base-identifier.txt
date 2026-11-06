@@ -1,30 +1,31 @@
-$32b2807a optional-chain-base-identifier.js:1:1
-  Registers: 9
-  Blocks:    3
+$3643294e optional-chain-base-identifier.js:1:5
+  Registers: 8
+  Blocks:    4
   Constants:
-    [0] = Int32(44)
-    [1] = Undefined
+    [0] = Undefined
+    [1] = Int32(44)
 
 block0:
   [   0] Enter
-  [   8] NewObject dst:reg5
+  [   8] Mov dst:reg5, src:Undefined
   [  18] NewObject dst:reg6
-  [  28] InitObjectLiteralProperty object:reg6, `b`, src:Int32(44), shape_cache_index:1, property_slot:0
-  [  40] CacheObjectShape object:reg6
-  [  50] InitObjectLiteralProperty object:reg5, `a`, src:reg6, shape_cache_index:0, property_slot:0
-  [  68] CacheObjectShape object:reg5
-  [  78] SetGlobal `obj`, src:reg5
-  [  88] MovSrcUndefined dst:reg5
-  [  90] GetGlobal value_feedback:0, dst:reg7, `obj`
-  [  a0] GetById value_feedback:1, dst:reg8, base:reg7, `a` (obj.a)
-  [  b8] Mov2 c0_dst:reg5, c0_src:reg7, c1_dst:reg6, c1_src:reg8
-  [  d0] JumpNullish condition:reg6, true_target:block1, false_target:block2
+  [  28] NewObject dst:reg7
+  [  38] InitObjectLiteralProperty object:reg7, `b`, src:Int32(44), shape_cache_index:1, property_slot:0
+  [  50] CacheObjectShape object:reg7
+  [  60] InitObjectLiteralProperty object:reg6, `a`, src:reg7, shape_cache_index:0, property_slot:0
+  [  78] CacheObjectShape object:reg6
+  [  88] SetGlobal `obj`, src:reg6
+  [  98] GetGlobal value_feedback:0, dst:reg6, `obj`
+  [  a8] GetById value_feedback:1, dst:reg6, base:reg6, `a`
+  [  c0] JumpNullish condition:reg6, true_target:block2, false_target:block1
 
 block1:
-  [  e0] MovSrcUndefined dst:reg6
-  [  e8] End value:reg6
+  [  d0] GetById value_feedback:2, dst:reg6, base:reg6, `b`
+  [  e8] Jump target:block3
 
 block2:
-  [  f0] Mov dst:reg5, src:reg6
-  [ 100] GetById value_feedback:2, dst:reg6, base:reg6, `b`
-  [ 118] End value:reg6
+  [  f0] Mov dst:reg6, src:Undefined
+
+block3:
+  [ 100] Mov dst:reg5, src:reg6
+  [ 110] End value:reg5

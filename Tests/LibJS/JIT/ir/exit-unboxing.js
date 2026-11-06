@@ -4,7 +4,10 @@
 
 function sumElements(array, n) {
     let sum = 0;
-    for (let i = 0; i < n; ++i) sum += array[i];
+    for (let i = 0; i < n; ++i) {
+        const next = sum + array[i];
+        sum = next;
+    }
     return sum;
 }
 jit.prepare(sumElements);
@@ -15,9 +18,9 @@ jit.compile(sumElements);
 // CHECK-PASS: loop invariant code motion
 // CHECK: [[SUM:v[0-9]+]]:int32 = Int32Add
 // CHECK-NEXT: [[BOXED:v[0-9]+]] = BoxInt32 ([[SUM]])
-// CHECK: at {l0={{v[0-9]+}}, l1=[[BOXED]]}
+// CHECK: at {l0=[[BOXED]], l1={{v[0-9]+}}}
 // CHECK-PASS: exit unboxing
-// CHECK: at {l0={{v[0-9]+}}, l1=[[SUM]]}
+// CHECK: at {l0=[[SUM]], l1={{v[0-9]+}}}
 // CHECK-PASS: dead code elimination
 // CHECK-NOT: = BoxInt32 ([[SUM]])
 // CHECK: frame states:

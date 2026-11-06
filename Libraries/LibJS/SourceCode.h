@@ -6,14 +6,12 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
-#include <LibCore/ImmutableBytes.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Position.h>
@@ -29,9 +27,6 @@ class JS_API SourceCode {
 
 public:
     static NonnullRefPtr<SourceCode const> create(Utf16String filename, Utf16String code);
-
-    // This decodes the bytes right away rather than when the code is first needed.
-    static NonnullRefPtr<SourceCode const> create(Utf16String filename, size_t length_in_code_units, ByteString source_encoding, Core::ImmutableBytes source_bytes);
 
     Utf16String const& filename() const;
     Utf16String const& code() const;

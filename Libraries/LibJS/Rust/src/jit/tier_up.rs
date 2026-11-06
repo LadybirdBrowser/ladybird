@@ -518,7 +518,9 @@ pub fn compile_now(vm: &Vm, function: Gc<EcmascriptFunctionObject>) -> bool {
     if !vm.jit.options.enabled || vm.debugging_enabled() {
         return false;
     }
-    let executable = function.compiled_executable(vm);
+    let Ok(executable) = function.compiled_executable(vm) else {
+        return false;
+    };
     wait_for_compile_job(vm, &executable);
     if executable.jit_compile_state() == CompileState::Discarding {
         executable.detach_discarded_jit_code_if_unused(vm);

@@ -215,7 +215,8 @@ fn file_parser_error(errors: Vec<ParserError>, source_text: &[u16]) -> FileParse
 
 pub fn parse_script(vm: &Vm, path: &str, realm: Gc<Realm>) -> Result<Gc<Script>, FileParserError> {
     let source_text = source_text_of(path);
-    Script::parse_with_filename(vm, &source_text, realm, path).map_err(|errors| file_parser_error(errors, &source_text))
+    let source = Utf16String::from_utf16(&source_text);
+    Script::parse_with_filename(vm, &source, realm, path).map_err(|errors| file_parser_error(errors, &source_text))
 }
 
 pub fn parse_module(vm: &Vm, path: &str, realm: Gc<Realm>) -> Result<Gc<SourceTextModule>, FileParserError> {

@@ -1,4 +1,4 @@
-$393b7f47 for-loop-break-after-if-continue.js:11:1
+$36778e37 for-loop-break-after-if-continue.js:11:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,14 +7,15 @@ $393b7f47 for-loop-break-after-if-continue.js:11:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `bok`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, bok, arguments:[Bool(false)]
-  [  40] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `bok`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Bool(false)]
+  [  50] End value:reg5
 
 
-bok$c038c4fc for-loop-break-after-if-continue.js:6:9
+bok$39f47ee0 for-loop-break-after-if-continue.js:5:14
   Registers: 5
-  Blocks:    5
+  Blocks:    6
   Constants:
     [0] = Undefined
 
@@ -22,13 +23,16 @@ block0:
   [   0] Enter
 
 block1:
-  [   8] JumpIf condition:arg0, true_target:block3, false_target:block4
+  [   8] JumpFalse condition:arg0, target:block3
 
 block2:
-  [  18] End value:Undefined
+  [  18] Jump target:block4
 
 block3:
-  [  20] JumpLoop target:block1
+  [  20] Jump target:block5
 
 block4:
-  [  28] JumpLoop target:block2
+  [  28] JumpLoop target:block1
+
+block5:
+  [  30] End value:Undefined

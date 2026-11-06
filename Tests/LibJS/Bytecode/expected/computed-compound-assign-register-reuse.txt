@@ -1,20 +1,25 @@
-$9d326325 computed-compound-assign-register-reuse.js:9:1
+$9a6e7215 computed-compound-assign-register-reuse.js:9:1
   Registers: 9
   Blocks:    1
   Constants:
     [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
+    [3] = Int32(3)
+    [4] = Int32(4)
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `subVector`
-  [  18] NewPrimitiveArray dst:reg7, elements:[1, 2]
-  [  38] NewPrimitiveArray dst:reg8, elements:[3, 4]
-  [  58] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, subVector, arguments:[reg7, reg8]
-  [  80] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `subVector`
+  [  28] NewPrimitiveArray dst:reg7, elements:[1, 2]
+  [  48] NewPrimitiveArray dst:reg8, elements:[3, 4]
+  [  68] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, reg8]
+  [  90] End value:reg5
 
 
-subVector$19d5c5b3 computed-compound-assign-register-reuse.js:5:13
-  Registers: 9
+subVector$b437e388 computed-compound-assign-register-reuse.js:5:13
+  Registers: 8
   Blocks:    1
   Constants:
     [0] = Int32(0)
@@ -23,14 +28,12 @@ subVector$19d5c5b3 computed-compound-assign-register-reuse.js:5:13
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:arg0
-  [  18] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:reg5, property:Int32(0) (self[Int32(0)])
-  [  38] GetByValue value_feedback:1, keyed_feedback:1, dst:reg7, base:arg1, property:Int32(0) (v[Int32(0)])
-  [  58] Sub arith_feedback:0, dst:reg8, lhs:reg6, rhs:reg7
-  [  68] PutByValue keyed_feedback:2, base:reg5, property:Int32(0), src:reg8, kind:Normal
-  [  88] Mov dst:reg8, src:arg0
-  [  98] GetByValue value_feedback:2, keyed_feedback:3, dst:reg5, base:reg8, property:Int32(1) (self[Int32(1)])
-  [  b8] GetByValue value_feedback:3, keyed_feedback:4, dst:reg6, base:arg1, property:Int32(1) (v[Int32(1)])
-  [  d8] Sub arith_feedback:1, dst:reg7, lhs:reg5, rhs:reg6
-  [  e8] PutByValue keyed_feedback:5, base:reg8, property:Int32(1), src:reg7, kind:Normal
-  [ 108] End value:Undefined
+  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:Int32(0)
+  [  28] GetByValue value_feedback:1, keyed_feedback:1, dst:reg6, base:arg1, property:Int32(0)
+  [  48] Sub arith_feedback:0, dst:reg7, lhs:reg5, rhs:reg6
+  [  58] PutByValue keyed_feedback:2, base:arg0, property:Int32(0), src:reg7, kind:Normal
+  [  78] GetByValue value_feedback:2, keyed_feedback:3, dst:reg5, base:arg0, property:Int32(1)
+  [  98] GetByValue value_feedback:3, keyed_feedback:4, dst:reg6, base:arg1, property:Int32(1)
+  [  b8] Sub arith_feedback:1, dst:reg7, lhs:reg5, rhs:reg6
+  [  c8] PutByValue keyed_feedback:5, base:arg0, property:Int32(1), src:reg7, kind:Normal
+  [  e8] End value:Undefined

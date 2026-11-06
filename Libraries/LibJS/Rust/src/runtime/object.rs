@@ -231,7 +231,7 @@ pub struct ObjectMethods {
     pub has_constructor: fn(&Object) -> bool,
     pub is_strict_mode: fn(&Object) -> bool,
     /// Takes the VM since an ECMAScript function compiles its body the first time it is asked.
-    pub get_stack_frame_info: fn(&Object, &Vm, &mut StackFrameInfo),
+    pub get_stack_frame_info: fn(&Object, &Vm, &mut StackFrameInfo) -> ThrowCompletionOr<()>,
     /// FunctionObject::realm(), the [[Realm]] of a function that has one.
     pub function_realm: fn(&Object) -> Option<Gc<Realm>>,
     /// FunctionObject::name_for_call_stack(), which every class of function object defines.
@@ -278,7 +278,7 @@ pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     internal_construct: None,
     has_constructor: |_| false,
     is_strict_mode: |_| false,
-    get_stack_frame_info: |_, _, _| {},
+    get_stack_frame_info: |_, _, _| Ok(()),
     function_realm: |_| None,
     name_for_call_stack: |_| unreachable!("FunctionObject::name_for_call_stack is pure virtual"),
     native_function: None,
@@ -2074,8 +2074,8 @@ impl Object {
         (self.methods().is_strict_mode)(self)
     }
 
-    pub fn get_stack_frame_info(&self, vm: &Vm, info: &mut StackFrameInfo) {
-        (self.methods().get_stack_frame_info)(self, vm, info);
+    pub fn get_stack_frame_info(&self, vm: &Vm, info: &mut StackFrameInfo) -> ThrowCompletionOr<()> {
+        (self.methods().get_stack_frame_info)(self, vm, info)
     }
 
     pub fn function_realm(&self) -> Option<Gc<Realm>> {

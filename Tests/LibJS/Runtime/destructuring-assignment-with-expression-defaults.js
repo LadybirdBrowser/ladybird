@@ -188,3 +188,8 @@ test("array destructuring default value does not leak class name", () => {
     [x = class C {}] = [undefined];
     expect(() => C).toThrowWithMessage(ReferenceError, "'C' is not defined");
 });
+
+test("parenthesized targets with defaults", () => {
+    expect(new Function("var target; [(target) = 5] = [1]; return target;")()).toBe(1);
+    expect(new Function("var target; [(target) = 5] = []; return target;")()).toBe(5);
+});

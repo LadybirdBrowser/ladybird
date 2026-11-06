@@ -1,4 +1,4 @@
-$469b0790 logical-or-in-if-condition.js:12:1
+$43d71680 logical-or-in-if-condition.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,14 +7,15 @@ $469b0790 logical-or-in-if-condition.js:12:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `blocked`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
-  [  40] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `blocked`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Bool(false)]
+  [  50] End value:reg5
 
 
-blocked$70fe0bcb logical-or-in-if-condition.js:7:9
+blocked$36a96b15 logical-or-in-if-condition.js:6:14
   Registers: 6
-  Blocks:    7
+  Blocks:    8
   Constants:
     [0] = Undefined
 
@@ -23,19 +24,22 @@ block0:
 
 block1:
   [   8] Mov dst:reg5, src:arg0
-  [  18] JumpIf condition:arg0, true_target:block4, false_target:block3
+  [  18] JumpTrue condition:reg5, target:block3
 
 block2:
-  [  28] End value:Undefined
+  [  28] Mov dst:reg5, src:arg0
 
 block3:
-  [  30] Mov dst:reg5, src:arg0
+  [  38] JumpFalse condition:reg5, target:block5
 
 block4:
-  [  40] JumpFalse condition:reg5, target:block6
+  [  48] Jump target:block6
 
 block5:
-  [  50] JumpLoop target:block1
+  [  50] Jump target:block7
 
 block6:
-  [  58] JumpLoop target:block2
+  [  58] JumpLoop target:block1
+
+block7:
+  [  60] End value:Undefined

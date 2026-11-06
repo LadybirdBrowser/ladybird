@@ -247,13 +247,14 @@ impl BoundFunction {
         internal_construct(&target, vm, callee_context, final_new_target)
     }
 
-    fn get_stack_frame_info(object: &Object, vm: &Vm, stack_frame_info: &mut StackFrameInfo) {
+    fn get_stack_frame_info(object: &Object, vm: &Vm, stack_frame_info: &mut StackFrameInfo) -> ThrowCompletionOr<()> {
         let function = as_bound_function(object);
         function
             .bound_target_function()
-            .get_stack_frame_info(vm, stack_frame_info);
+            .get_stack_frame_info(vm, stack_frame_info)?;
         stack_frame_info.argument_count +=
             u32::try_from(function.bound_arguments_count()).expect("the bound argument count fits in u32");
+        Ok(())
     }
 
     pub fn name_for_call_stack(&self) -> Utf16String {

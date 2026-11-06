@@ -14,7 +14,8 @@ jit.compile(floorPlusAbs);
 // CHECK-FUNCTION: floorPlusAbs
 // CHECK-PASS: graph building
 // CHECK: CheckValue {{0x[0-9a-f]+}} ({{v[0-9]+}})
-// CHECK-NEXT: BranchInt32Value ([[X:v[0-9]+]]) -> [[INT32:b[0-9]+]], [[OTHER:b[0-9]+]]
+// CHECK-NEXT: [[X:v[0-9]+]] = LoadSlot a0
+// CHECK-NEXT: BranchInt32Value ([[X]]) -> [[INT32:b[0-9]+]], [[OTHER:b[0-9]+]]
 // CHECK: [[INT32]] <- {{b[0-9]+}}:
 // CHECK-NEXT: [[INTEGER:v[0-9]+]] = RefineInt32Value ([[X]])
 // CHECK-NEXT: UnboxInt32 ([[INTEGER]])

@@ -29,7 +29,6 @@ set(SOURCES
     Console.cpp
     CyclicModule.cpp
     Debugger.cpp
-    DecodedBytecodeCache.cpp
     Heap/Cell.cpp
     Module.cpp
     ParserError.cpp

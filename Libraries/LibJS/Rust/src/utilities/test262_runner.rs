@@ -510,7 +510,7 @@ fn decoded_source<'source>(source: Option<&'source [u16]>, what: &str) -> &'sour
 }
 
 fn parse_only_check(source: &[u16], program_type: ProgramType) -> Result<(), TestError> {
-    if parse(source, program_type, 1).has_errors() {
+    if parse(&Utf16String::from_utf16(source), program_type, 1).has_errors() {
         return Err(TestError::syntax_error(
             NegativePhase::ParseOrEarly,
             "Parse error".to_string(),
@@ -537,7 +537,7 @@ fn parse_program(
         TestError::syntax_error(NegativePhase::ParseOrEarly, first_parser_error(&errors), "")
     };
     if program_type == ProgramType::Script {
-        return Script::parse_with_filename(vm, source, realm, filepath)
+        return Script::parse_with_filename(vm, &Utf16String::from_utf16(source), realm, filepath)
             .map(ScriptOrModuleProgram::Script)
             .map_err(syntax_error);
     }
@@ -639,7 +639,7 @@ fn run_test(
         let harness_source = utf16_from_wtf8(&harness_source);
         let harness_program = Script::parse_with_filename(
             &vm,
-            decoded_source(harness_source.as_deref(), "The harness"),
+            &Utf16String::from_utf16(decoded_source(harness_source.as_deref(), "The harness")),
             realm,
             "<harness>",
         )
@@ -1039,7 +1039,8 @@ mod agent_mode {
 
     fn run_agent_script(vm: &Vm, realm: Gc<Realm>, source: &[u8]) -> Result<(), TestError> {
         let source = utf16_from_wtf8(source);
-        let script = Script::parse_with_filename(vm, decoded_source(source.as_deref(), "The agent"), realm, "<agent>")
+        let source = ak::Utf16String::from_utf16(decoded_source(source.as_deref(), "The agent"));
+        let script = Script::parse_with_filename(vm, &source, realm, "<agent>")
             .map_err(|errors| TestError::syntax_error(NegativePhase::ParseOrEarly, first_parser_error(&errors), ""))?;
         run_program(vm, ScriptOrModuleProgram::Script(script))?;
         match UNHANDLED_REJECTIONS.take().into_iter().next() {

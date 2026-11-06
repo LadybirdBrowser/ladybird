@@ -1293,10 +1293,10 @@ impl ProxyObject {
         Ok(())
     }
 
-    fn get_stack_frame_info(object: &Object, vm: &Vm, stack_frame_info: &mut StackFrameInfo) {
+    fn get_stack_frame_info(object: &Object, vm: &Vm, stack_frame_info: &mut StackFrameInfo) -> ThrowCompletionOr<()> {
         let target = as_proxy_object(object).target.get();
         assert!(target.is_function());
-        target.get_stack_frame_info(vm, stack_frame_info);
+        target.get_stack_frame_info(vm, stack_frame_info)
     }
 
     pub fn name_for_call_stack() -> Utf16String {

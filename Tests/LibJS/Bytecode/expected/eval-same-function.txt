@@ -1,4 +1,4 @@
-$d36729be eval-same-function.js:10:1
+$d0a338ae eval-same-function.js:10:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,38 +6,39 @@ $d36729be eval-same-function.js:10:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `foo`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, foo
-  [  38] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `foo`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  48] End value:reg5
 
 
 foo$40f9e494 eval-same-function.js:6:9
-  Registers: 8
+  Registers: 7
   Blocks:    1
   Constants:
     [0] = String("var x = 1")
-    [1] = Undefined
-    [2] = Int32(42)
+    [1] = Int32(42)
 
 block0:
   [   0] Enter
   [   8] CreateArguments is_immutable:false, creates_parameter_bindings:false
-  [  18] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
-  [  30] CallDirectEval value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
-  [  58] DynamicGetBinding value_feedback:2, dst:reg6, `Number`
-  [  68] CallConstruct value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
+  [  18] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg5, this_value:reg6, `eval`
+  [  30] CallDirectEval value_feedback:1, call_feedback:0, dst:reg5, callee:reg5, this_value:reg6, arguments:[String("var x = 1")]
+  [  58] DynamicGetBinding value_feedback:2, dst:reg5, `Number`
+  [  68] CallConstruct value_feedback:3, call_feedback:1, dst:reg5, callee:reg5, arguments:[Int32(42)]
   [  90] Return value:reg5
 
 
-eval$5fd20edb line 1, column 1
-  Registers: 6
+eval$c783d60f line 1, column 5
+  Registers: 7
   Blocks:    1
   Constants:
-    [0] = Int32(1)
-    [1] = Undefined
+    [0] = Undefined
+    [1] = Int32(1)
 
 block0:
   [   0] Enter
-  [   8] ResolveBinding dst:reg5, `x`
-  [  18] SetResolvedBinding environment:reg5, `x`, src:Int32(1)
-  [  28] End value:Undefined
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] ResolveBinding dst:reg6, `x`
+  [  28] SetResolvedBinding environment:reg6, `x`, src:Int32(1)
+  [  38] End value:reg5

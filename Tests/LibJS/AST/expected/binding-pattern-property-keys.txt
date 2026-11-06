@@ -4,12 +4,12 @@ Program (script) @1:1
       ├─ BindingPattern (object)
       │  ├─ entry
       │  │  ├─ name
-      │  │  │  └─ Identifier "foo" [global] @1:7
+      │  │  │  └─ Identifier "foo" @1:7
       │  │  └─ alias
       │  │     └─ Identifier "a" [global] (let) @1:12
       │  └─ entry
       │     ├─ name
-      │     │  └─ Identifier "1" [global] @1:15
+      │     │  └─ Identifier "1" @1:15
       │     └─ alias
       │        └─ Identifier "b" [global] (let) @1:18
       └─ ObjectExpression @1:24

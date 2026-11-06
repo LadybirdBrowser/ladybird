@@ -73,3 +73,27 @@ test("syntax errors", () => {
         ({ foo(bar, ...bar) {} });
     `).not.toEval();
 });
+
+test("sloppy generators and async functions with a simple parameter list may repeat a parameter name", () => {
+    expect("function* g(a, a) {}").toEval();
+    expect("async function f(a, a) {}").toEval();
+    expect("async function* h(a, a) {}").toEval();
+    expect("(function* (a, a) {})").toEval();
+    expect("(async function (a, a) {})").toEval();
+    expect("(async function* (a, a) {})").toEval();
+
+    function* generator(a, a) {
+        yield a;
+    }
+    expect(generator(1, 2).next().value).toBe(2);
+});
+
+test("other generators and async functions may not repeat a parameter name", () => {
+    expect("'use strict'; function* g(a, a) {}").not.toEval();
+    expect("async function f(a, a) { 'use strict'; }").not.toEval();
+    expect("function* g(a, [a]) {}").not.toEval();
+    expect("async function f(a, a = 1) {}").not.toEval();
+    expect("async (a, a) => {}").not.toEval();
+    expect("({ *m(a, a) {} })").not.toEval();
+    expect("({ async m(a, a) {} })").not.toEval();
+});

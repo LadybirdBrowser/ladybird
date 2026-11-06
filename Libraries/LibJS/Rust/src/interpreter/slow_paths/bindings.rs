@@ -246,7 +246,7 @@ fn current_executable(vm: &Vm) -> Gc<Executable> {
 
 /// VM::get_identifier(), copied out of the executable's identifier table.
 fn get_identifier(vm: &Vm, index: IdentifierTableIndex) -> Utf16FlyString {
-    current_executable(vm).identifier_table[index.0 as usize].clone()
+    current_executable(vm).identifier_table()[index.0 as usize].clone()
 }
 
 fn strict_of(header: &InstructionHeader) -> Strict {
@@ -508,7 +508,7 @@ fn cached_dynamic_global_variable_value(
     let Some(hops) = global_environment_hops(cache.get().get()) else {
         return Ok(None);
     };
-    let identifier = &cache.executable.identifier_table[identifier_index.0 as usize];
+    let identifier = &cache.executable.identifier_table()[identifier_index.0 as usize];
     if is_global_environment_at_hops(vm, current_environment, hops, identifier) {
         let global_variable_cache = cache.executable.dynamic_global_variable_cache(cache.index);
         if let Some(value) = global_variable_value(vm, identifier_index, global_variable_cache, strict)? {

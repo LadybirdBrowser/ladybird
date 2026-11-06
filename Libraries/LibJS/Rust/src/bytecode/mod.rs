@@ -13,9 +13,8 @@
 //!
 //! - `operand` -- Register, Operand, Label, and table index types
 //! - `instruction` -- Instruction enum (generated from interpreter.flap by build.rs)
-//! - `basic_block` -- BasicBlock: list of instructions with control flow metadata
-//! - `generator` -- Generator: manages registers, constants, tables, and assembly
-//! - `codegen` -- AST-walking code that emits instructions via the Generator
+//! - `source_map` -- Where in the source code instructions come from
+//! - `codegen` -- Generates bytecode from the columns of the syntax tree
 //! - `constant` -- VM-dependent constants codegen refers to by kind
 //! - `executable_data` -- ExecutableData: a compiled body and everything needed to run it
 //!
@@ -26,15 +25,14 @@
 //! - `executable` -- Executable: the cell that holds bytecode and its caches
 //! - `feedback` -- What the profiling interpreter observes for the optimizing JIT, per executable
 //! - `property_access` -- Property lookups through the inline caches
-//! - `class_blueprint`, `bytecode_cache` -- Classes and bytecode cache blobs as the runtime keeps them
+//! - `class_blueprint` -- Classes as the runtime keeps them
 
-pub mod basic_block;
-#[cfg(not(test))]
-pub mod bytecode_cache;
 #[cfg(not(test))]
 pub mod class_blueprint;
+#[path = "codegen/mod.rs"]
 pub mod codegen;
 pub mod constant;
+pub mod constant_fold;
 #[cfg(not(test))]
 pub mod dump;
 pub mod encoded_value;
@@ -45,13 +43,13 @@ pub mod executable;
 pub mod executable_data;
 #[cfg(not(test))]
 pub mod feedback;
-pub mod generator;
 pub mod instruction;
 mod native_disassembler;
 pub mod operand;
 #[cfg(not(test))]
 pub mod property_access;
-pub mod validator;
+pub mod reference_text;
+pub mod source_map;
 
 /// The view of an instruction in `op`, which lays out the instruction of its opcode in the bytecode.
 ///
@@ -72,8 +70,8 @@ pub fn instruction_at<Op: BytecodeOp>(executable: &executable::Executable, pc: u
     let bytes = &executable.bytecode()[pc as usize..];
     assert_eq!(bytes[0], Op::OPCODE);
     assert!(size_of::<Op>() <= bytes.len() && bytes.as_ptr().addr().is_multiple_of(align_of::<Op>()));
-    // SAFETY: Executables only hold validated bytecode, so an instruction of this opcode, with the layout of Op and
-    //         valid fields, starts at pc.
+    // SAFETY: Executables only hold bytecode the generator encoded, so an instruction of this opcode, with the layout
+    //         of Op and valid fields, starts at pc.
     let instruction = unsafe { &*bytes.as_ptr().cast::<Op>() };
     assert!(instruction.length() as usize <= bytes.len());
     instruction

@@ -1,22 +1,15 @@
-$ae8c96e2 block-function-declaration-order.js:1:1
-  Registers: 7
+$63c57e75 block-function-declaration-order.js:1:1
+  Registers: 6
   Blocks:    1
+  Locals:    f1~0, f2~1
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:2, is_catch_environment:false
-  [  28] CreateMutableBinding environment:reg5, `f1`, can_be_deleted:false
-  [  38] CreateMutableBinding environment:reg5, `f2`, can_be_deleted:false
-  [  48] NewFunction dst:reg6, shared_function_data_index:0
-  [  60] InitializeLexicalBinding `f1`, src:reg6
-  [  78] NewFunction dst:reg6, shared_function_data_index:1
-  [  90] InitializeLexicalBinding `f2`, src:reg6
-  [  a8] GetBinding value_feedback:0, dst:reg6, `f1`
-  [  c0] DynamicSetVariableBinding `f1`, src:reg6
-  [  d0] GetBinding value_feedback:1, dst:reg6, `f2`
-  [  e8] DynamicSetVariableBinding `f2`, src:reg6
-  [  f8] SetLexicalEnvironment environment:reg4
-  [ 100] End value:Undefined
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] NewFunction dst:f1~0, shared_function_data_index:0
+  [  30] NewFunction dst:f2~1, shared_function_data_index:1
+  [  48] DynamicSetVariableBinding `f1`, src:f1~0
+  [  58] DynamicSetVariableBinding `f2`, src:f2~1
+  [  68] End value:reg5

@@ -1,19 +1,20 @@
-$1ed4f972 var-binding-access.js:22:1
-  Registers: 8
+$2ca8aec2 var-binding-access.js:22:1
+  Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `var_access`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, var_access
-  [  38] GetGlobal value_feedback:2, dst:reg7, `let_access`
-  [  48] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, let_access
-  [  68] End value:reg6
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `var_access`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  48] GetGlobal value_feedback:2, dst:reg6, `let_access`
+  [  58] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  78] End value:reg5
 
 
-var_access$e4db39e3 var-binding-access.js:5:5
+var_access$192c9e6f var-binding-access.js:5:9
   Registers: 6
   Blocks:    1
   Constants:
@@ -30,18 +31,16 @@ block0:
   [  78] Return value:reg5
 
 
-let_access$eea15a78 var-binding-access.js:14:5
-  Registers: 7
+let_access$3bd63894 var-binding-access.js:14:9
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = Int32(1)
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  28] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  38] InitializeLexicalBinding `x`, src:Int32(1)
-  [  50] NewFunction dst:reg6, shared_function_data_index:0
-  [  68] GetBinding value_feedback:0, dst:reg6, `x`
-  [  80] Return value:reg6
+  [   8] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [  18] InitializeLexicalBinding `x`, src:Int32(1)
+  [  30] NewFunction dst:reg5, shared_function_data_index:0
+  [  48] GetBinding value_feedback:0, dst:reg5, `x`
+  [  60] Return value:reg5
