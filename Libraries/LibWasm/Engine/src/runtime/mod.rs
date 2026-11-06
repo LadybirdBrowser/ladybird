@@ -45,14 +45,17 @@ pub mod ranges;
 
 use crate::abi::{
     EntryRecord, ExecutionContext, FRAME_HEADER_SIZE, FUNCTION_KIND_HOST, FUNCTION_KIND_WASM,
-    FUNCTION_KIND_WASM_VECTOR, FunctionHeader, InstanceData, SPILL_AREA_SIZE, Segment, TableData,
+    FUNCTION_KIND_WASM_VECTOR, FunctionHeader, InstanceData, SPILL_AREA_SIZE, STACK_LIMIT_INTERRUPTED, Segment,
+    TableData,
 };
 use crate::module::{DataMode, ElementItems, ElementMode, ExternalKind, ImportDescription, Module};
 use crate::types::{FuncType, GlobalType, HeapType, RefType, TableType, TypeCanonicalizer, ValType};
+use ak::futex::WaitInterrupt;
 use memory::MemoryInstance;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// A value as the runtime's API sees it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -387,6 +390,9 @@ pub struct Store {
     /// Whether the agent the store runs code for may block, its [[CanBlock]]: `memory.atomic.wait` traps where it
     /// may not. The embedder decides (a browser's window agents may not block).
     pub can_block: bool,
+    /// What lets another thread end a `memory.atomic.wait` of this store's code. The embedder sets this, along with
+    /// whatever makes it stop the store.
+    pub wait_interrupt: Option<Arc<WaitInterrupt>>,
     /// The store's compiled code, once it has some.
     jit: Option<jit::StoreJit>,
 }
@@ -422,7 +428,7 @@ impl Store {
         interpreter::install_fault_handler();
         Self {
             context: Box::new(ExecutionContext {
-                stack_limit: 0,
+                stack_limit: AtomicU64::new(0),
                 entry_fp: 0,
                 entry_record: std::ptr::null_mut(),
                 store: std::ptr::null_mut(),
@@ -441,8 +447,15 @@ impl Store {
             rtt_pointers: Vec::new(),
             memory_grow_callback: None,
             can_block: true,
+            wait_interrupt: None,
             jit: None,
         }
+    }
+
+    /// What another thread stores `STACK_LIMIT_INTERRUPTED` to, to stop the code of this store for good. It stays where
+    /// it is for as long as the store lives.
+    pub fn stack_limit_word(&self) -> *const AtomicU64 {
+        &raw const self.context.stack_limit
     }
 
     /// Have the heap keep the runtime types for as long as the store lives. The store must not move after this.
@@ -1177,7 +1190,16 @@ impl Store {
         let header: *const FunctionHeader = &raw const function.header;
         let is_outermost = self.context.entry_record.is_null();
         if is_outermost {
-            self.context.stack_limit = interpreter::stack_limit(STACK_RESERVE);
+            // NB: The limit is the one thing another thread writes, and an interrupt must stick.
+            let limit = self.context.stack_limit.load(Ordering::Relaxed);
+            if limit != STACK_LIMIT_INTERRUPTED {
+                let _ = self.context.stack_limit.compare_exchange(
+                    limit,
+                    interpreter::stack_limit(STACK_RESERVE),
+                    Ordering::Relaxed,
+                    Ordering::Relaxed,
+                );
+            }
         }
         let large_images = jit::large_images_in_use();
         self.context.store = (self as *mut Store).cast();

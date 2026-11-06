@@ -80,6 +80,9 @@ const TRAP_OFFSET: i32 = offset_of!(SessionState, trap) as i32;
 
 const CODE_SPACE_SIZE: usize = 1 << 30;
 
+/// The stack limit that compiled code polls, which nothing interrupts here.
+static NO_STACK_LIMIT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// Executable memory, reserved up front. Code is added in batches, which are written while their pages are not
 /// executable.
 pub struct CodeSpace {
@@ -307,6 +310,7 @@ impl CompiledModule {
         let mut context = CompileContext::default();
         for (index, slot) in failures.iter_mut().enumerate().skip(first) {
             let request = CompileRequest {
+                stack_limit: (&raw const NO_STACK_LIMIT) as u64,
                 osr: None,
                 module: module.clone(),
                 function: index as u32,
@@ -465,7 +469,7 @@ impl TestBinding {
         let mut result_slots = vec![0u64; result_count];
         unsafe {
             let context: *mut ExecutionContext = (*self.data).context;
-            (*context).stack_limit = lowest_stack_address() + 256 * 1024;
+            (*context).stack_limit = std::sync::atomic::AtomicU64::new(lowest_stack_address() + 256 * 1024);
             (*context).store = (store as *mut Store).cast();
         }
         let function: extern "C" fn(u64, *const u64, *mut u64, *const InstanceData) -> u32 =

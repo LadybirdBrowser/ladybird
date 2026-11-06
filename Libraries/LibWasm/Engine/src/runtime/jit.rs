@@ -277,9 +277,16 @@ pub(crate) fn enabled() -> bool {
 }
 
 impl Store {
+    fn compile_state(&mut self) -> &mut StoreJit {
+        let stack_limit = self.stack_limit_word() as u64;
+        let jit = self.jit.get_or_insert_with(Default::default);
+        jit.stack_limit = stack_limit;
+        jit
+    }
+
     /// Keeps everything in this store interpreted, whatever `LIBWASM_JIT` says, as tests comparing the tiers want.
     pub fn disable_jit(&mut self) {
-        self.jit.get_or_insert_with(Default::default).disabled = true;
+        self.compile_state().disabled = true;
     }
 }
 
@@ -958,7 +965,7 @@ mod native {
                 unreachable!("the function is a WebAssembly function");
             };
             let body = &module.code[(*index - module.imported_function_count) as usize];
-            let jit = store.jit.get_or_insert_with(Default::default);
+            let jit = store.compile_state();
             let key = jit.key(module, *index, Some(body.code.start));
             assert_eq!(jit.compile(key, super::Compile::Now), super::CompileState::Compiled);
             unsafe { loops.get_mut() }.header.tier_up_budget = crate::abi::TIER_UP_CALL_COST;
@@ -1206,6 +1213,8 @@ mod native {
     /// instances hold it, and code of a module only runs in frames of its functions.
     #[derive(Default)]
     pub struct StoreJit {
+        /// The address of the store's stack limit, which compiled code polls.
+        pub stack_limit: u64,
         context: CompileContext,
         /// What the store compiled of each module, by the module's address.
         modules: HashMap<usize, ModuleCode>,
@@ -1277,6 +1286,7 @@ mod native {
                 module: self.modules[&key.module].module.upgrade()?,
                 function: key.function,
                 runtime: stubs().runtime,
+                stack_limit: self.stack_limit,
                 options: super::options().compile_options(),
                 osr: key.osr,
             })
@@ -1446,7 +1456,7 @@ mod native {
     /// Compiles every function of an instance, on the compile threads unless in sync mode, and installs the code.
     pub fn compile_instance(store: &mut Store, instance: InstanceAddress) {
         let functions = store.instance(instance).functions.clone();
-        let jit = store.jit.get_or_insert_with(Default::default);
+        let jit = store.compile_state();
         if jit.disabled {
             return;
         }
@@ -1469,7 +1479,7 @@ mod native {
     /// Compiles a WebAssembly function, unless the store compiled its module's function already, and installs the
     /// code once there is some.
     pub fn compile_function(store: &mut Store, address: FunctionAddress, when: Compile) -> CompileState {
-        let jit = store.jit.get_or_insert_with(Default::default);
+        let jit = store.compile_state();
         if jit.disabled {
             return CompileState::Failed;
         }
@@ -1680,7 +1690,7 @@ mod native {
                 return LoopEntry::Never;
             };
             let offset = (pc - module.bytes.as_ptr() as u64) as u32;
-            let jit = store.jit.get_or_insert_with(Default::default);
+            let jit = store.compile_state();
             if jit.disabled {
                 return LoopEntry::Never;
             }
@@ -1728,6 +1738,7 @@ mod native {
 
     #[derive(Default)]
     pub struct StoreJit {
+        pub stack_limit: u64,
         pub disabled: bool,
     }
 

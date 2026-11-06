@@ -8,9 +8,9 @@
 //! the runtime's functions.
 
 use super::gc::Operand32;
-use super::{CodeGenerator, FP, SCRATCH, gpr};
+use super::{CodeGenerator, FP, SCRATCH, SP, gpr};
 use crate::asm::x86_64::AluOp;
-use crate::asm::x86_64::Cond;
+use crate::asm::x86_64::{BranchGroups, Cond};
 use crate::asm::{Address, Gpr, Label, Scale, Width};
 use crate::convention;
 use crate::ir::{Helper, Op, Value};
@@ -104,6 +104,14 @@ impl CodeGenerator<'_> {
                 let null = self.trap_label(u32::from(node.flags));
                 self.asm.test_rr(Width::W64, input(0), input(0));
                 self.asm.jcc(Cond::Equal, null);
+            }
+            Op::CheckInterrupt => {
+                let interrupted = self.trap_label(libwasm_module::abi::TRAP_STACK_EXHAUSTED);
+                self.asm.mov_ri(SCRATCH, self.stack_limit);
+                self.asm.branch_group(|asm| {
+                    asm.cmp_mr(Width::W64, &Address::new(SCRATCH, 0), SP);
+                    asm.jcc(Cond::Above, interrupted);
+                });
             }
             Op::CheckFunction => {
                 let (reference, identity) = (input(0), input(1));

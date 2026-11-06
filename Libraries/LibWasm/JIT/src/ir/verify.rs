@@ -274,6 +274,7 @@ fn check_types(func: &Func, value: Value, error: &mut impl FnMut(String)) {
         Op::TableStore => input_type(0) == Type::Pointer && input_type(2) == Type::Ref,
         Op::CheckFunction => input_type(0) == Type::Ref && input_type(1) == Type::I32,
         Op::CheckNull => input_type(0) == Type::Ref,
+        Op::CheckInterrupt => true,
         Op::CalleeInstance => matches!(input_type(0), Type::Ref | Type::Pointer) && input_type(1) == Type::Pointer,
         Op::Call | Op::TailCall => {
             matches!(input_type(0), Type::Ref | Type::Pointer)

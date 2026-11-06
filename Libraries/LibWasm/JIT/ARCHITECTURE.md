@@ -99,6 +99,7 @@ truncations, unless their flags say they cannot), and are neither removed nor mo
 | CheckFunction, CheckNull | The checks of `call_indirect` (null, then type identity, then the subtype check of GC types) and of references that must not be null. |
 | Call | A call through a `FunctionHeader`, direct or not; its value is the first result. |
 | Helper | A call of a function of the runtime, which takes its operands in the context and may return a trap code. |
+| CheckInterrupt | Traps if another thread interrupted the store (section on calls, "Interrupts"). |
 | CallResult | A further result of the call right before it. Never removed, since the results' places depend on them all. |
 | Jump, Branch, BranchCompare, BranchFloatCompare, BrTable, Return, Trap, TailCall | Terminators. A branch goes to its first successor where its condition holds. |
 
@@ -243,6 +244,14 @@ recomputed from fp, which also undoes whatever a callee's tail calls did to it.
 The prologue writes the instance to the frame and checks the new rsp against the stack limit of
 the store's `ExecutionContext`, which `InstanceData::context` points at, trapping with
 `TRAP_STACK_EXHAUSTED`. `RuntimeInfo` has the trap exit.
+
+**Interrupts.** Another thread stops the code of a store by making that limit
+`STACK_LIMIT_INTERRUPTED`, above every stack pointer. Calls then trap in their prologue at no cost,
+and `CheckInterrupt`, in the header of every loop, compares the limit with rsp for code that does
+not call. Each store has its own code, so x86-64 code has the limit's address as a constant: a move,
+a compare and a branch to the shared trap stub, which take no allocatable register. aarch64 reaches
+it through the frame's instance. The embedder turns the trap into whatever stopped the store;
+nothing else can observe it.
 
 **Calls.** Every call goes through `FunctionHeader::native_entry`. A direct call of a function of
 the same instance passes the caller's instance and memory base; any other call (imports,

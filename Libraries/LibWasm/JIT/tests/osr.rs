@@ -22,6 +22,7 @@ fn compile_at_first_loop(bytes: &[u8]) -> Result<(), CompileFailure> {
         }
     };
     let request = CompileRequest {
+        stack_limit: 0,
         module: module.clone(),
         function: module.imported_function_count,
         runtime: RuntimeInfo::default(),

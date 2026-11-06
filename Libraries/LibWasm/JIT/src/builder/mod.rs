@@ -1429,6 +1429,7 @@ impl Builder {
         }
         // Calls and global.set in the body may change globals before the header runs again.
         self.call_epoch += 1;
+        Self::append(func, Node::new(Op::CheckInterrupt, Type::None, 0, [0, 0, 0]));
     }
 
     /// Begins a loop an OSR compile enters from the frame (see `Osr`): the loop the frame is at if `target`, else a
