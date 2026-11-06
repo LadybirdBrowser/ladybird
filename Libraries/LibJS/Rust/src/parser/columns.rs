@@ -351,6 +351,24 @@ impl FunctionIndex {
         (start, end)
     }
 
+    pub fn memory_size(&self) -> usize {
+        let u32_columns = [
+            &self.start,
+            &self.params_start,
+            &self.end,
+            &self.flags,
+            &self.length,
+            &self.parameter_count,
+            &self.name,
+            &self.capture_start,
+            &self.capture_count,
+            &self.capture_names,
+        ];
+        let sorted_rows = self.rows_by_params_start.get().map_or(0, Vec::capacity);
+        (u32_columns.iter().map(|column| column.capacity()).sum::<usize>() + sorted_rows) * size_of::<u32>()
+            + self.ctx.capacity() * size_of::<u16>()
+    }
+
     /// Gives back what parsing set aside for rows that it did not need, now that the index is all that stays.
     pub fn shrink_to_fit(&mut self) {
         self.start.shrink_to_fit();

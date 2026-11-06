@@ -16,6 +16,7 @@ use super::operand::PropertyKeyTableIndex;
 use super::source_map::SourceMapEntry;
 use crate::ast::FunctionId;
 use crate::compile::SharedFunctionDescription;
+use crate::compile::utf16_string_memory_size;
 
 /// Exception handler range (with byte offsets, post-linking).
 #[derive(Debug, Clone)]
@@ -76,6 +77,21 @@ pub struct PrecompiledFunction {
     pub metadata: FunctionSfdMetadata,
 }
 
+impl PrecompiledFunction {
+    /// The bytes of this function's code, without the functions kept for its payloads.
+    pub fn memory_size(&self) -> usize {
+        size_of::<Self>() + size_of_val(&*self.metadata.parameter_names) + self.executable.memory_size()
+    }
+
+    /// This function again, sharing its code.
+    pub fn shared_copy(&self) -> Self {
+        Self {
+            executable: self.executable.clone(),
+            metadata: self.metadata.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub enum PendingLiteralValueKind {
     None,
@@ -106,6 +122,20 @@ pub struct PendingClassBlueprint {
     pub has_super_class: bool,
     pub has_name: bool,
     pub elements: Vec<PendingClassElement>,
+}
+
+impl PendingClassBlueprint {
+    pub fn memory_size(&self) -> usize {
+        let string_size = |string: &Option<Utf16String>| string.as_ref().map_or(0, utf16_string_memory_size);
+        size_of::<Self>()
+            + string_size(&self.name)
+            + self.elements.capacity() * size_of::<PendingClassElement>()
+            + self
+                .elements
+                .iter()
+                .map(|element| string_size(&element.private_identifier) + string_size(&element.literal_value_string))
+                .sum::<usize>()
+    }
 }
 
 /// How many inline cache and feedback slots of each kind the bytecode indexes into.
@@ -167,6 +197,14 @@ pub struct ExecutableData {
     pub position_source: Option<Arc<crate::parser::SourcePositions>>,
 }
 
+fn constant_memory_size(constant: &ConstantValue) -> usize {
+    match constant {
+        ConstantValue::String(string) => utf16_string_memory_size(string),
+        ConstantValue::BigInt(literal) => literal.capacity(),
+        _ => 0,
+    }
+}
+
 impl ExecutableData {
     /// The entries of the source map, with the lines and columns that they stand for. Code that goes by offsets of the
     /// source leaves working those out until something asks.
@@ -189,6 +227,32 @@ impl ExecutableData {
             }
             None => *entry,
         })
+    }
+
+    /// The bytes of this code and of what it holds for the functions and classes it declares. A name in one of the tables
+    /// counts as its slot in the table, since the text of a name is shared by everything that uses it.
+    pub fn memory_size(&self) -> usize {
+        size_of::<Self>()
+            + size_of_val(&*self.bytecode)
+            + size_of_val(&*self.exception_handlers)
+            + size_of_val(&*self.source_map)
+            + size_of_val(&*self.identifier_table)
+            + size_of_val(&*self.string_table)
+            + size_of_val(&*self.variable_names)
+            + size_of_val(&*self.local_variable_metadata)
+            + size_of_val(&*self.property_key_table)
+            + size_of_val(&*self.constants)
+            + self.constants.iter().map(constant_memory_size).sum::<usize>()
+            + self
+                .shared_function_data
+                .iter()
+                .map(PendingSharedFunctionData::memory_size)
+                .sum::<usize>()
+            + self
+                .class_blueprints
+                .iter()
+                .map(PendingClassBlueprint::memory_size)
+                .sum::<usize>()
     }
 
     /// Frees what only linking reads, for an executable that is the last to hold this code, so that code nothing can

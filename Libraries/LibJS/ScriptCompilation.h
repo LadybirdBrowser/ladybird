@@ -120,6 +120,17 @@ public:
 
     explicit operator bool() const { return m_program; }
 
+    // Another reference to the same program, which can be turned into a record of its own, in any realm. They all share
+    // the program's code, and each record gets the caches and the functions that depend on its realm.
+    CompiledProgram clone() const;
+
+    // Whether the code that the program's functions compile to stays with the program from now on, so that the next
+    // record finds them compiled. Otherwise, it goes away with the function that compiled it.
+    void set_retains_compiled_functions(bool) const;
+
+    // The bytes that the program holds on to right now, which grows as functions compile while it retains them.
+    size_t memory_size() const;
+
 private:
     friend JS_API Result<GC::Ref<Script>, Vector<ParserError>> create_script(CompiledProgram, NonnullRefPtr<SourceCode const>, Realm&, StringView filename, GC::Ptr<GC::Cell>);
     friend JS_API Result<GC::Ref<SourceTextModule>, Vector<ParserError>> create_module(CompiledProgram, NonnullRefPtr<SourceCode const>, Realm&, StringView filename, GC::Ptr<GC::Cell>);

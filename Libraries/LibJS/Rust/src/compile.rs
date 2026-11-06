@@ -161,13 +161,20 @@ pub fn parse(source: &ak::Utf16String, program_type: ProgramType, initial_line_n
 
 /// A script or module compiled to bytecode, with what its record needs from its code. The syntax tree is gone by now, so
 /// a compiled program holds no more of its source than the functions that have yet to compile need.
+///
+/// A clone shares everything with the original, and both can be finished into records of any number of realms.
+#[derive(Clone)]
 pub struct CompiledProgram {
     program_type: ProgramType,
     has_top_level_await: bool,
     executable: Arc<ExecutableData>,
     declarations: CompiledProgramDeclarations,
+    script: Arc<ScriptData>,
+    /// The bytes of the top-level code and of the declarations, which do not change.
+    top_level_size: usize,
 }
 
+#[derive(Clone)]
 enum CompiledProgramDeclarations {
     Script(Arc<ScriptDeclarations>),
     Module(Arc<ModuleDeclarations>),
@@ -278,11 +285,18 @@ pub fn compile_parsed_program_off_thread(parsed: ParsedProgram) -> CompiledProgr
 
     tree.script.index.prepare_for_reparsing();
 
+    let declarations_size = match &declarations {
+        CompiledProgramDeclarations::Script(declarations) => declarations.memory_size(),
+        CompiledProgramDeclarations::Module(declarations) => declarations.memory_size(),
+    };
+
     CompiledProgram {
         program_type: parsed.program_type,
         has_top_level_await: parsed.has_top_level_await,
+        top_level_size: executable.memory_size() + declarations_size,
         executable,
         declarations,
+        script: tree.script.clone(),
     }
 }
 
@@ -293,6 +307,18 @@ impl CompiledProgram {
 
     pub fn has_top_level_await(&self) -> bool {
         self.has_top_level_await
+    }
+
+    /// Whether the code that functions of this program compile to stays with the program from now on, so that the
+    /// next record of it finds them compiled. It is memory that nothing but such a record has a use for.
+    pub fn set_retains_compiled_functions(&self, retains_compiled_functions: bool) {
+        self.script.set_retains_compiled_functions(retains_compiled_functions);
+    }
+
+    /// The bytes that the program holds on to right now: its source and the tables of its functions, its top-level
+    /// code, and the code of its functions that compiled while it retained them.
+    pub fn memory_size(&self) -> usize {
+        self.top_level_size + self.script.memory_size()
     }
 
     /// Finishes a script into what [`compile_script()`] returns.
@@ -572,6 +598,18 @@ fn for_each_bound_name_in_pattern(pattern: &ast::BindingPattern, f: &mut dyn FnM
 // Eval
 // =============================================================================
 
+/// The bytes of the storage of `string`.
+pub(crate) fn utf16_string_memory_size(string: &Utf16String) -> usize {
+    match string.as_units() {
+        ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => units.len(),
+        ak::Utf16StringUnits::Utf16(units) => size_of_val(units),
+    }
+}
+
+fn utf16_strings_memory_size(strings: &[Utf16String]) -> usize {
+    size_of_val(strings) + strings.iter().map(utf16_string_memory_size).sum::<usize>()
+}
+
 /// How the code an eval runs relates to the code that calls it, as PerformEval works it out.
 #[derive(Clone, Copy, Default)]
 pub struct EvalContext {
@@ -672,6 +710,43 @@ pub struct ModuleDeclarations {
     pub lexical_bindings: Vec<ModuleLexicalBinding>,
     /// In source order.
     pub requested_modules: Vec<ast::ModuleRequest>,
+}
+
+impl ModuleDeclarations {
+    fn memory_size(&self) -> usize {
+        let optional_string_size = |string: &Option<Utf16String>| string.as_ref().map_or(0, utf16_string_memory_size);
+        let entries = [
+            &self.local_export_entries,
+            &self.indirect_export_entries,
+            &self.star_export_entries,
+        ];
+        let export_entries_size = entries.iter().flat_map(|entries| entries.iter()).map(|entry| {
+            size_of::<ModuleExportEntry>()
+                + optional_string_size(&entry.export_name)
+                + optional_string_size(&entry.local_or_import_name)
+        });
+        let import_entries_size = self.import_entries.iter().map(|entry| {
+            size_of::<ModuleImportEntry>()
+                + optional_string_size(&entry.import_name)
+                + utf16_string_memory_size(&entry.local_name)
+        });
+        let functions_size = self.functions_to_initialize.iter().map(|function| {
+            size_of::<ModuleFunctionToInitialize>()
+                + function.description.memory_size()
+                + utf16_string_memory_size(&function.name)
+        });
+        let lexical_bindings_size = self
+            .lexical_bindings
+            .iter()
+            .map(|binding| size_of::<ModuleLexicalBinding>() + utf16_string_memory_size(&binding.name));
+        size_of::<Self>()
+            + utf16_strings_memory_size(&self.var_names)
+            + size_of_val(&*self.requested_modules)
+            + export_entries_size.sum::<usize>()
+            + import_entries_size.sum::<usize>()
+            + functions_size.sum::<usize>()
+            + lexical_bindings_size.sum::<usize>()
+    }
 }
 
 /// Collects what ParseModule records from a module's top-level scope.
@@ -1082,6 +1157,14 @@ pub struct SharedFunctionDescription {
     pub payload: Arc<FunctionPayload>,
 }
 
+impl SharedFunctionDescription {
+    /// The bytes of this description and of its payload. What the payload shares with the functions around it counts
+    /// for those.
+    pub(crate) fn memory_size(&self) -> usize {
+        size_of::<Self>() + size_of::<FunctionPayload>()
+    }
+}
+
 /// Describes a function of `tree`, whose code does not have to be in the tree.
 pub fn describe_shared_function(
     tree: &SyntaxTree,
@@ -1193,6 +1276,20 @@ impl PendingSharedFunctionData {
         }
     }
 
+    /// The bytes of what is kept for this function, including the code it was precompiled to.
+    pub fn memory_size(&self) -> usize {
+        size_of::<Self>() - size_of::<SharedFunctionDescription>()
+            + self.description.memory_size()
+            + self
+                .class_field_initializer_name
+                .as_ref()
+                .map_or(0, |(name, _)| utf16_string_memory_size(name))
+            + self
+                .precompiled_function
+                .as_ref()
+                .map_or(0, |precompiled| precompiled.memory_size())
+    }
+
     /// The environment that the function closes over.
     pub fn enclosing_environment_scope(&self) -> Option<Arc<bytecode::codegen::EnclosingEnvironmentScope>> {
         self.description.payload.enclosing_environment_scope.clone()
@@ -1265,6 +1362,27 @@ pub struct EvalDeclarations {
     pub annex_b_candidate_names: Vec<Utf16String>,
     pub lexical_bindings: Vec<LexicalBinding>,
     pub private_names: Vec<Utf16String>,
+}
+
+impl ScriptDeclarations {
+    fn memory_size(&self) -> usize {
+        let functions_size = self.functions_to_initialize.iter().map(|function| {
+            size_of::<FunctionToInitialize>() - size_of::<PendingSharedFunctionData>()
+                + function.shared_function_data.memory_size()
+                + utf16_string_memory_size(&function.name)
+        });
+        let lexical_bindings_size = self
+            .lexical_bindings
+            .iter()
+            .map(|binding| size_of::<LexicalBinding>() + utf16_string_memory_size(&binding.name));
+        size_of::<Self>()
+            + utf16_strings_memory_size(&self.lexical_names)
+            + utf16_strings_memory_size(&self.var_names)
+            + utf16_strings_memory_size(&self.var_scoped_names)
+            + utf16_strings_memory_size(&self.annex_b_candidate_names)
+            + functions_size.sum::<usize>()
+            + lexical_bindings_size.sum::<usize>()
+    }
 }
 
 /// Collect what GlobalDeclarationInstantiation needs from a script's top-level scope.

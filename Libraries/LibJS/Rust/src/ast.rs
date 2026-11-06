@@ -285,6 +285,14 @@ pub(crate) struct NameTable {
 }
 
 impl NameTable {
+    pub(crate) fn memory_size(&self) -> usize {
+        self.spans.capacity() * size_of::<NameSpan>()
+            + self.ascii_text.capacity()
+            + self.utf16_text.capacity() * size_of::<u16>()
+            + self.utf8_text.capacity()
+            + self.utf8_spans.capacity() * size_of::<(u32, u32)>()
+    }
+
     pub(crate) fn push(&mut self, text: &[u8]) {
         let is_ascii = text.is_ascii();
         let start = if is_ascii {
