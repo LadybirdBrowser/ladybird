@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script type="importmap">
+    {
+        "imports": {
+            "pkg/": "./broad/"
+        },
+        "scopes": {
+            "./": {
+                "scoped/": "./general/"
+            }
+        }
+    }
+</script>
+<script type="importmap">
+    {
+        "imports": {
+            "pkg/narrow/": "./narrow/"
+        },
+        "scopes": {
+            "./multiple-import-maps-most-specific-wins.html": {
+                "scoped/": "./specific/"
+            }
+        }
+    }
+</script>
+<script type="module">
+    function resolved(specifier) {
+        return new URL(import.meta.resolve(specifier)).pathname.split("/").slice(-2).join("/");
+    }
+
+    test(() => {
+        println(resolved("pkg/module.js"));
+        println(resolved("pkg/narrow/module.js"));
+        println(resolved("scoped/module.js"));
+    });
+</script>

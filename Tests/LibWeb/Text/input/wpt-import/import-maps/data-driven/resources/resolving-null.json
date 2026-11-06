@@ -1,0 +1,82 @@
+{
+  "importMapBaseURL": "https://example.com/app/index.html",
+  "baseURL": "https://example.com/js/app.mjs",
+  "name": "Entries with errors shouldn't allow fallback",
+  "tests": {
+    "No fallback to less-specific prefixes": {
+      "importMap": {
+        "imports": {
+          "null/": "/1/",
+          "null/b/": null,
+          "null/b/c/": "/1/2/",
+          "invalid-url/": "/1/",
+          "invalid-url/b/": "https://:invalid-url:/",
+          "invalid-url/b/c/": "/1/2/",
+          "without-trailing-slashes/": "/1/",
+          "without-trailing-slashes/b/": "/x",
+          "without-trailing-slashes/b/c/": "/1/2/",
+          "prefix-resolution-error/": "/1/",
+          "prefix-resolution-error/b/": "data:text/javascript,/",
+          "prefix-resolution-error/b/c/": "/1/2/"
+        }
+      },
+      "expectedResults": {
+        "null/x": "https://example.com/1/x",
+        "null/b/x": null,
+        "null/b/c/x": "https://example.com/1/2/x",
+        "invalid-url/x": "https://example.com/1/x",
+        "invalid-url/b/x": null,
+        "invalid-url/b/c/x": "https://example.com/1/2/x",
+        "without-trailing-slashes/x": "https://example.com/1/x",
+        "without-trailing-slashes/b/x": null,
+        "without-trailing-slashes/b/c/x": "https://example.com/1/2/x",
+        "prefix-resolution-error/x": "https://example.com/1/x",
+        "prefix-resolution-error/b/x": null,
+        "prefix-resolution-error/b/c/x": "https://example.com/1/2/x"
+      }
+    },
+    "No fallback to less-specific scopes": {
+      "importMap": {
+        "imports": {
+          "null": "https://example.com/a",
+          "invalid-url": "https://example.com/b",
+          "without-trailing-slashes/": "https://example.com/c/",
+          "prefix-resolution-error/": "https://example.com/d/"
+        },
+        "scopes": {
+          "/js/": {
+            "null": null,
+            "invalid-url": "https://:invalid-url:/",
+            "without-trailing-slashes/": "/x",
+            "prefix-resolution-error/": "data:text/javascript,/"
+          }
+        }
+      },
+      "expectedResults": {
+        "null": null,
+        "invalid-url": null,
+        "without-trailing-slashes/x": null,
+        "prefix-resolution-error/x": null
+      }
+    },
+    "No fallback to absolute URL parsing": {
+      "importMap": {
+        "imports": {},
+        "scopes": {
+          "/js/": {
+            "https://example.com/null": null,
+            "https://example.com/invalid-url": "https://:invalid-url:/",
+            "https://example.com/without-trailing-slashes/": "/x",
+            "https://example.com/prefix-resolution-error/": "data:text/javascript,/"
+          }
+        }
+      },
+      "expectedResults": {
+        "https://example.com/null": null,
+        "https://example.com/invalid-url": null,
+        "https://example.com/without-trailing-slashes/x": null,
+        "https://example.com/prefix-resolution-error/x": null
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Pass
+Pass	Test helper: fetching and sanity checking test JSON: tricky-specifiers.json
+Pass	Tricky specifiers: explicitly-mapped specifiers that happen to have a slash: package/withslash
+Pass	Tricky specifiers: specifier with punctuation: .
+Pass	Tricky specifiers: specifier with punctuation: ..
+Pass	Tricky specifiers: specifier with punctuation: ..\
+Pass	Tricky specifiers: specifier with punctuation: %2E
+Pass	Tricky specifiers: specifier with punctuation: %2F
+Pass	Tricky specifiers: submodule of something not declared with a trailing slash should fail: not-a-package/foo
+Pass	Tricky specifiers: module for which only a trailing-slash version is present should fail: only-slash
+Pass	Tricky specifiers: URL-like specifiers are normalized: https://map.example/%E3%81%8D%E3%81%A4%E3%81%AD/
+Pass	Tricky specifiers: URL-like specifiers are normalized: https://map.example/%E3%81%8D%E3%81%A4%E3%81%AD/bar
+Pass	Tricky specifiers: URL-like specifiers are normalized: https://map.example/%E3%81%8D%E3%81%A4%E3%81%AD/fox/
+Pass	Tricky specifiers: URL-like specifiers are normalized: https://map.example/%E3%81%8D%E3%81%A4%E3%81%AD/fox/bar
+Pass	Tricky specifiers: URL-like specifiers are normalized: https://map.example/きつね/
+Pass	Tricky specifiers: URL-like specifiers are normalized: https://map.example/きつね/bar
+Pass	Tricky specifiers: URL-like specifiers are normalized: https://map.example/きつね/fox/
+Pass	Tricky specifiers: URL-like specifiers are normalized: https://map.example/きつね/fox/bar
+Pass	Tricky specifiers: Bare specifiers are not normalized: %E3%81%8D%E3%81%A4%E3%81%AD/
+Pass	Tricky specifiers: Bare specifiers are not normalized: %E3%81%8D%E3%81%A4%E3%81%AD/bar
+Pass	Tricky specifiers: Bare specifiers are not normalized: %E3%81%8D%E3%81%A4%E3%81%AD/fox/
+Pass	Tricky specifiers: Bare specifiers are not normalized: %E3%81%8D%E3%81%A4%E3%81%AD/fox/bar
+Pass	Tricky specifiers: Bare specifiers are not normalized: きつね/
+Pass	Tricky specifiers: Bare specifiers are not normalized: きつね/bar
+Pass	Tricky specifiers: Bare specifiers are not normalized: きつね/fox/
+Pass	Tricky specifiers: Bare specifiers are not normalized: きつね/fox/bar

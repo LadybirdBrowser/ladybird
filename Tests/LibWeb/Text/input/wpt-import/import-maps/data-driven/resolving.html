@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta name="variant" content="?data-url-prefix.json">
+<meta name="variant" content="?empty-import-map.json">
+<meta name="variant" content="?overlapping-entries.json">
+<meta name="variant" content="?packages-via-trailing-slashes.json">
+<meta name="variant" content="?resolving-null.json">
+<meta name="variant" content="?empty-scopes.json">
+<meta name="variant" content="?scopes-exact-vs-prefix.json">
+<meta name="variant" content="?scopes.json">
+<meta name="variant" content="?tricky-specifiers.json">
+<meta name="variant" content="?url-specifiers-schemes.json">
+<meta name="variant" content="?url-specifiers.json">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script type="module">
+import { runTestsFromJSON } from "./resources/test-helper.js";
+
+const filename = location.search.substring(1);
+promise_test(
+  () => runTestsFromJSON('resources/' + filename),
+  "Test helper: fetching and sanity checking test JSON: " + filename);
+</script>

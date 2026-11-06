@@ -1,0 +1,171 @@
+{
+  "importMapBaseURL": "https://example.com/app/index.html",
+  "tests": {
+    "Fallback to toplevel and between scopes": {
+      "importMap": {
+        "imports": {
+          "a": "/a-1.mjs",
+          "b": "/b-1.mjs",
+          "c": "/c-1.mjs",
+          "d": "/d-1.mjs"
+        },
+        "scopes": {
+          "/scope2/": {
+            "a": "/a-2.mjs",
+            "d": "/d-2.mjs"
+          },
+          "/scope2/scope3/": {
+            "b": "/b-3.mjs",
+            "d": "/d-3.mjs"
+          }
+        }
+      },
+      "tests": {
+        "should fall back to `imports` when no scopes match": {
+          "baseURL": "https://example.com/scope1/foo.mjs",
+          "expectedResults": {
+            "a": "https://example.com/a-1.mjs",
+            "b": "https://example.com/b-1.mjs",
+            "c": "https://example.com/c-1.mjs",
+            "d": "https://example.com/d-1.mjs"
+          }
+        },
+        "should use a direct scope override": {
+          "baseURL": "https://example.com/scope2/foo.mjs",
+          "expectedResults": {
+            "a": "https://example.com/a-2.mjs",
+            "b": "https://example.com/b-1.mjs",
+            "c": "https://example.com/c-1.mjs",
+            "d": "https://example.com/d-2.mjs"
+          }
+        },
+        "should use an indirect scope override": {
+          "baseURL": "https://example.com/scope2/scope3/foo.mjs",
+          "expectedResults": {
+            "a": "https://example.com/a-2.mjs",
+            "b": "https://example.com/b-3.mjs",
+            "c": "https://example.com/c-1.mjs",
+            "d": "https://example.com/d-3.mjs"
+          }
+        }
+      }
+    },
+    "Relative URL scope keys": {
+      "importMap": {
+        "imports": {
+          "a": "/a-1.mjs",
+          "b": "/b-1.mjs",
+          "c": "/c-1.mjs"
+        },
+        "scopes": {
+          "": {
+            "a": "/a-empty-string.mjs"
+          },
+          "./": {
+            "b": "/b-dot-slash.mjs"
+          },
+          "../": {
+            "c": "/c-dot-dot-slash.mjs"
+          }
+        }
+      },
+      "tests": {
+        "An empty string scope is a scope with import map base URL": {
+          "baseURL": "https://example.com/app/index.html",
+          "expectedResults": {
+            "a": "https://example.com/a-empty-string.mjs",
+            "b": "https://example.com/b-dot-slash.mjs",
+            "c": "https://example.com/c-dot-dot-slash.mjs"
+          }
+        },
+        "'./' scope is a scope with import map base URL's directory": {
+          "baseURL": "https://example.com/app/foo.mjs",
+          "expectedResults": {
+            "a": "https://example.com/a-1.mjs",
+            "b": "https://example.com/b-dot-slash.mjs",
+            "c": "https://example.com/c-dot-dot-slash.mjs"
+          }
+        },
+        "'../' scope is a scope with import map base URL's parent directory": {
+          "baseURL": "https://example.com/foo.mjs",
+          "expectedResults": {
+            "a": "https://example.com/a-1.mjs",
+            "b": "https://example.com/b-1.mjs",
+            "c": "https://example.com/c-dot-dot-slash.mjs"
+          }
+        }
+      }
+    },
+    "Package-like scenarios": {
+      "importMap": {
+        "imports": {
+          "moment": "/node_modules/moment/src/moment.js",
+          "moment/": "/node_modules/moment/src/",
+          "lodash-dot": "./node_modules/lodash-es/lodash.js",
+          "lodash-dot/": "./node_modules/lodash-es/",
+          "lodash-dotdot": "../node_modules/lodash-es/lodash.js",
+          "lodash-dotdot/": "../node_modules/lodash-es/"
+        },
+        "scopes": {
+          "/": {
+            "moment": "/node_modules_3/moment/src/moment.js",
+            "vue": "/node_modules_3/vue/dist/vue.runtime.esm.js"
+          },
+          "/js/": {
+            "lodash-dot": "./node_modules_2/lodash-es/lodash.js",
+            "lodash-dot/": "./node_modules_2/lodash-es/",
+            "lodash-dotdot": "../node_modules_2/lodash-es/lodash.js",
+            "lodash-dotdot/": "../node_modules_2/lodash-es/"
+          }
+        }
+      },
+      "tests": {
+        "Base URLs inside the scope should use the scope if the scope has matching keys": {
+          "baseURL": "https://example.com/js/app.mjs",
+          "expectedResults": {
+            "lodash-dot": "https://example.com/app/node_modules_2/lodash-es/lodash.js",
+            "lodash-dot/foo": "https://example.com/app/node_modules_2/lodash-es/foo",
+            "lodash-dotdot": "https://example.com/node_modules_2/lodash-es/lodash.js",
+            "lodash-dotdot/foo": "https://example.com/node_modules_2/lodash-es/foo"
+          }
+        },
+        "Base URLs inside the scope fallback to less specific scope": {
+          "baseURL": "https://example.com/js/app.mjs",
+          "expectedResults": {
+            "moment": "https://example.com/node_modules_3/moment/src/moment.js",
+            "vue": "https://example.com/node_modules_3/vue/dist/vue.runtime.esm.js"
+          }
+        },
+        "Base URLs inside the scope fallback to toplevel": {
+          "baseURL": "https://example.com/js/app.mjs",
+          "expectedResults": {
+            "moment/foo": "https://example.com/node_modules/moment/src/foo"
+          }
+        },
+        "Base URLs outside a scope shouldn't use the scope even if the scope has matching keys": {
+          "baseURL": "https://example.com/app.mjs",
+          "expectedResults": {
+            "lodash-dot": "https://example.com/app/node_modules/lodash-es/lodash.js",
+            "lodash-dotdot": "https://example.com/node_modules/lodash-es/lodash.js",
+            "lodash-dot/foo": "https://example.com/app/node_modules/lodash-es/foo",
+            "lodash-dotdot/foo": "https://example.com/node_modules/lodash-es/foo"
+          }
+        },
+        "Fallback to toplevel or not, depending on trailing slash match": {
+          "baseURL": "https://example.com/app.mjs",
+          "expectedResults": {
+            "moment": "https://example.com/node_modules_3/moment/src/moment.js",
+            "moment/foo": "https://example.com/node_modules/moment/src/foo"
+          }
+        },
+        "should still fail for package-like specifiers that are not declared": {
+          "baseURL": "https://example.com/js/app.mjs",
+          "expectedResults": {
+            "underscore/": null,
+            "underscore/foo": null
+          }
+        }
+      }
+    }
+  }
+}

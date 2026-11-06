@@ -1,0 +1,17 @@
+{
+  "importMap": {
+    "imports": {
+      "foo/": "data:text/javascript,foo/"
+    }
+  },
+  "importMapBaseURL": "https://example.com/app/index.html",
+  "baseURL": "https://example.com/js/app.mjs",
+  "name": "data: URL prefix",
+  "tests": {
+    "should not resolve since you can't resolve relative to a data: URL": {
+      "expectedResults": {
+        "foo/bar": null
+      }
+    }
+  }
+}

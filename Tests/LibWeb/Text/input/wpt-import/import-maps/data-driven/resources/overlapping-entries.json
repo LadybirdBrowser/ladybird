@@ -1,0 +1,25 @@
+{
+  "importMapBaseURL": "https://example.com/app/index.html",
+  "baseURL": "https://example.com/js/app.mjs",
+  "name": "should favor the most-specific key",
+  "tests": {
+    "Overlapping entries with trailing slashes": {
+      "importMap": {
+        "imports": {
+          "a": "/1",
+          "a/": "/2/",
+          "a/b": "/3",
+          "a/b/": "/4/"
+        }
+      },
+      "expectedResults": {
+        "a": "https://example.com/1",
+        "a/": "https://example.com/2/",
+        "a/x": "https://example.com/2/x",
+        "a/b": "https://example.com/3",
+        "a/b/": "https://example.com/4/",
+        "a/b/c": "https://example.com/4/c"
+      }
+    }
+  }
+}

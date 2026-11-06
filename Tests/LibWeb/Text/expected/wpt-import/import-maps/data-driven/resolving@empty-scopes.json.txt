@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Test helper: fetching and sanity checking test JSON: empty-scopes.json
+Pass	Scope sorting with multiple empty scopes: Multiple empty scopes before specific scope: Import from foo should use version2: bar
+Pass	Scope sorting with multiple empty scopes: Multiple empty scopes before specific scope: Import from root bundles should use version1: bar
+Pass	Scope sorting with multiple empty scopes: Multiple empty scopes before specific scope: Import from asdfasdf should use version1 (empty scope): bar
+Pass	Scope sorting with multiple empty scopes: Multiple empty scopes before specific scope: Import from qwerqwer should use version1 (empty scope): bar
+Pass	Scope sorting with multiple empty scopes: Empty scopes after specific scope: Import from foo should use version2 (order independent): bar
+Pass	Scope sorting with multiple empty scopes: Empty scopes after specific scope: Import from root bundles should use version1: bar
+Pass	Scope sorting with multiple empty scopes: Single empty scope before specific scope: Import from foo should use version2 (single empty scope): bar
+Pass	Scope sorting with multiple empty scopes: Deeply nested scopes with empty scopes: Import from a/b/foo should use version2: pkg
+Pass	Scope sorting with multiple empty scopes: Deeply nested scopes with empty scopes: Import from a/b/ should use version1: pkg
+Pass	Scope sorting with multiple empty scopes: Many empty scopes with different lengths: Import from packages/foo should use version2: bar
+Pass	Scope sorting with multiple empty scopes: Many empty scopes with different lengths: Import from packages/ should use version1: bar

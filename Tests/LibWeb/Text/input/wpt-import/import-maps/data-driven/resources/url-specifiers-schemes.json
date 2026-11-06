@@ -1,0 +1,45 @@
+{
+  "importMap": {
+    "imports": {
+      "data:text/": "/lib/test-data/",
+      "about:text/": "/lib/test-about/",
+      "blob:text/": "/lib/test-blob/",
+      "blah:text/": "/lib/test-blah/",
+      "http:text/": "/lib/test-http/",
+      "https:text/": "/lib/test-https/",
+      "file:text/": "/lib/test-file/",
+      "ftp:text/": "/lib/test-ftp/",
+      "ws:text/": "/lib/test-ws/",
+      "wss:text/": "/lib/test-wss/"
+    }
+  },
+  "importMapBaseURL": "https://example.com/app/index.html",
+  "baseURL": "https://example.com/js/app.mjs",
+  "name": "URL-like specifiers",
+  "tests": {
+    "Non-special vs. special schemes": {
+      "expectedResults": {
+        "data:text/javascript,console.log('foo')": "data:text/javascript,console.log('foo')",
+        "data:text/": "https://example.com/lib/test-data/",
+        "about:text/foo": "about:text/foo",
+        "about:text/": "https://example.com/lib/test-about/",
+        "blob:text/foo": "blob:text/foo",
+        "blob:text/": "https://example.com/lib/test-blob/",
+        "blah:text/foo": "blah:text/foo",
+        "blah:text/": "https://example.com/lib/test-blah/",
+        "http:text/foo": "https://example.com/lib/test-http/foo",
+        "http:text/": "https://example.com/lib/test-http/",
+        "https:text/foo": "https://example.com/lib/test-https/foo",
+        "https:text/": "https://example.com/lib/test-https/",
+        "ftp:text/foo": "https://example.com/lib/test-ftp/foo",
+        "ftp:text/": "https://example.com/lib/test-ftp/",
+        "file:text/foo": "https://example.com/lib/test-file/foo",
+        "file:text/": "https://example.com/lib/test-file/",
+        "ws:text/foo": "https://example.com/lib/test-ws/foo",
+        "ws:text/": "https://example.com/lib/test-ws/",
+        "wss:text/foo": "https://example.com/lib/test-wss/foo",
+        "wss:text/": "https://example.com/lib/test-wss/"
+      }
+    }
+  }
+}

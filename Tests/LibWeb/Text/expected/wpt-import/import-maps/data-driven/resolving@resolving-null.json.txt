@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	Test helper: fetching and sanity checking test JSON: resolving-null.json
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: null/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: null/b/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: null/b/c/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: invalid-url/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: invalid-url/b/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: invalid-url/b/c/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: without-trailing-slashes/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: without-trailing-slashes/b/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: without-trailing-slashes/b/c/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: prefix-resolution-error/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: prefix-resolution-error/b/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific prefixes: prefix-resolution-error/b/c/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific scopes: null
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific scopes: invalid-url
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific scopes: without-trailing-slashes/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to less-specific scopes: prefix-resolution-error/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to absolute URL parsing: https://example.com/null
+Pass	Entries with errors shouldn't allow fallback: No fallback to absolute URL parsing: https://example.com/invalid-url
+Pass	Entries with errors shouldn't allow fallback: No fallback to absolute URL parsing: https://example.com/without-trailing-slashes/x
+Pass	Entries with errors shouldn't allow fallback: No fallback to absolute URL parsing: https://example.com/prefix-resolution-error/x

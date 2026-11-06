@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 33 tests
+
+33 Pass
+Pass	Test helper: fetching and sanity checking test JSON: packages-via-trailing-slashes.json
+Pass	Package-like scenarios: package main modules: moment
+Pass	Package-like scenarios: package main modules: lodash-dot
+Pass	Package-like scenarios: package main modules: lodash-dotdot
+Pass	Package-like scenarios: package submodules: moment/foo
+Pass	Package-like scenarios: package submodules: moment/foo?query
+Pass	Package-like scenarios: package submodules: moment/foo#fragment
+Pass	Package-like scenarios: package submodules: moment/foo?query#fragment
+Pass	Package-like scenarios: package submodules: lodash-dot/foo
+Pass	Package-like scenarios: package submodules: lodash-dotdot/foo
+Pass	Package-like scenarios: package names that end in a slash should just pass through: moment/
+Pass	Package-like scenarios: package modules that are not declared should fail: underscore/
+Pass	Package-like scenarios: package modules that are not declared should fail: underscore/foo
+Pass	Package-like scenarios: backtracking via ..: mapped/path
+Pass	Package-like scenarios: backtracking via ..: mapped/path/
+Pass	Package-like scenarios: backtracking via ..: mapped/path/..
+Pass	Package-like scenarios: backtracking via ..: mapped/path/../path/
+Pass	Package-like scenarios: backtracking via ..: mapped/path/../207
+Pass	Package-like scenarios: backtracking via ..: mapped/path/../207/
+Pass	Package-like scenarios: backtracking via ..: mapped/path//
+Pass	Package-like scenarios: backtracking via ..: mapped/path/WICG/import-maps/issues/207/
+Pass	Package-like scenarios: backtracking via ..: mapped/path//WICG/import-maps/issues/207/
+Pass	Package-like scenarios: backtracking via ..: mapped/path/../backtrack
+Pass	Package-like scenarios: backtracking via ..: mapped/path/../../backtrack
+Pass	Package-like scenarios: backtracking via ..: mapped/path/../../../backtrack
+Pass	Package-like scenarios: backtracking via ..: moment/../backtrack
+Pass	Package-like scenarios: backtracking via ..: moment/..
+Pass	Package-like scenarios: backtracking via ..: mapped/non-ascii-1/
+Pass	Package-like scenarios: backtracking via ..: mapped/non-ascii-1/../%E3%81%8D%E3%81%A4%E3%81%AD/
+Pass	Package-like scenarios: backtracking via ..: mapped/non-ascii-1/../きつね/
+Pass	Package-like scenarios: backtracking via ..: mapped/non-ascii-2/
+Pass	Package-like scenarios: backtracking via ..: mapped/non-ascii-2/../%E3%81%8D%E3%81%A4%E3%81%AD/
+Pass	Package-like scenarios: backtracking via ..: mapped/non-ascii-2/../きつね/
