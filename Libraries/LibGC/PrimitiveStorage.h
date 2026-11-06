@@ -8,6 +8,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
+#include <AK/Mutex.h>
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
 #include <AK/StdLibExtras.h>
@@ -159,6 +160,9 @@ private:
     u8* data_unchecked(Entry const&) const;
     ErrorOr<void> reallocate_entry(Entry&, size_t new_size, size_t new_capacity, ZeroFillNewBytes, bool force_large);
 
+    // All threads share the storage, so that a SharedArrayBuffer can be in several VMs. This guards the table of entries
+    // and the allocator, not the bytes of the storage.
+    mutable Mutex m_mutex;
     Allocator m_allocator;
     Vector<Entry> m_entries;
 };

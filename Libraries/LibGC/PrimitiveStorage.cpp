@@ -55,6 +55,7 @@ PrimitiveStorage& PrimitiveStorage::the()
 
 ErrorOr<void> PrimitiveStorage::ensure_cage()
 {
+    MutexLocker locker { m_mutex };
     return m_allocator.ensure_cage();
 }
 
@@ -425,12 +426,14 @@ u8* PrimitiveStorage::Allocator::data(Allocation const& allocation, size_t byte_
 
 ErrorOr<PrimitiveStorageHandle> PrimitiveStorage::try_allocate(size_t size, ZeroFillNewBytes zero_fill_new_bytes)
 {
+    MutexLocker locker { m_mutex };
     auto allocation = TRY(m_allocator.allocate(size, size, zero_fill_new_bytes, 0, false));
     return install_allocation(move(allocation), size);
 }
 
 ErrorOr<PrimitiveStorageHandle> PrimitiveStorage::try_reserve(size_t size, size_t capacity, ZeroFillNewBytes zero_fill_new_bytes, size_t guard_size)
 {
+    MutexLocker locker { m_mutex };
     if (size > capacity)
         return Error::from_errno(ENOMEM);
 
@@ -440,6 +443,7 @@ ErrorOr<PrimitiveStorageHandle> PrimitiveStorage::try_reserve(size_t size, size_
 
 ErrorOr<PrimitiveStorageHandle> PrimitiveStorage::try_adopt_shared_fd(int fd, size_t size)
 {
+    MutexLocker locker { m_mutex };
     if (size == 0)
         return Error::from_errno(EINVAL);
 
@@ -462,46 +466,54 @@ PrimitiveStorageHandle PrimitiveStorage::install_allocation(Allocator::Allocatio
 
 bool PrimitiveStorage::is_valid(PrimitiveStorageHandle handle) const
 {
+    MutexLocker locker { m_mutex };
     return ExternalEntityTable::is_valid(handle, primitive_storage_tag);
 }
 
 bool PrimitiveStorage::contains(void const* address, size_t size) const
 {
+    MutexLocker locker { m_mutex };
     return m_allocator.contains(address, size);
 }
 
 bool PrimitiveStorage::contains(PrimitiveStorageHandle handle, void const* address, size_t size) const
 {
+    MutexLocker locker { m_mutex };
     auto const* entry = entry_for(handle);
     return entry && m_allocator.contains(entry->allocation, address, size);
 }
 
 size_t PrimitiveStorage::offset(PrimitiveStorageHandle handle) const
 {
+    MutexLocker locker { m_mutex };
     auto const* entry = entry_for(handle);
     return entry ? entry->allocation.offset : invalid_offset;
 }
 
 size_t PrimitiveStorage::size(PrimitiveStorageHandle handle) const
 {
+    MutexLocker locker { m_mutex };
     auto const* entry = entry_for(handle);
     return entry ? entry->size : 0;
 }
 
 size_t PrimitiveStorage::capacity(PrimitiveStorageHandle handle) const
 {
+    MutexLocker locker { m_mutex };
     auto const* entry = entry_for(handle);
     return entry ? entry->allocation.capacity : 0;
 }
 
 size_t PrimitiveStorage::committed_size(PrimitiveStorageHandle handle) const
 {
+    MutexLocker locker { m_mutex };
     auto const* entry = entry_for(handle);
     return entry ? entry->allocation.committed_size : 0;
 }
 
 PrimitiveStorage::Layout PrimitiveStorage::layout(PrimitiveStorageHandle handle) const
 {
+    MutexLocker locker { m_mutex };
     auto const* entry = entry_for(handle);
     if (!entry)
         return {};
@@ -510,6 +522,7 @@ PrimitiveStorage::Layout PrimitiveStorage::layout(PrimitiveStorageHandle handle)
 
 u8* PrimitiveStorage::data(PrimitiveStorageHandle handle)
 {
+    MutexLocker locker { m_mutex };
     auto* entry = entry_for(handle);
     return entry ? data_unchecked(*entry) : nullptr;
 }
@@ -521,6 +534,7 @@ u8 const* PrimitiveStorage::data(PrimitiveStorageHandle handle) const
 
 u8* PrimitiveStorage::data(PrimitiveStorageHandle handle, size_t byte_offset)
 {
+    MutexLocker locker { m_mutex };
     auto* entry = entry_for(handle);
     return entry ? m_allocator.data(entry->allocation, byte_offset) : nullptr;
 }
@@ -532,6 +546,7 @@ u8 const* PrimitiveStorage::data(PrimitiveStorageHandle handle, size_t byte_offs
 
 ErrorOr<void> PrimitiveStorage::try_resize(PrimitiveStorageHandle handle, size_t new_size, ZeroFillNewBytes zero_fill_new_bytes)
 {
+    MutexLocker locker { m_mutex };
     auto* entry = entry_for(handle);
     if (!entry)
         return Error::from_errno(EINVAL);
@@ -547,6 +562,7 @@ ErrorOr<void> PrimitiveStorage::try_resize(PrimitiveStorageHandle handle, size_t
 
 ErrorOr<void> PrimitiveStorage::try_reserve(PrimitiveStorageHandle handle, size_t new_capacity)
 {
+    MutexLocker locker { m_mutex };
     auto* entry = entry_for(handle);
     if (!entry)
         return Error::from_errno(EINVAL);
@@ -558,6 +574,7 @@ ErrorOr<void> PrimitiveStorage::try_reserve(PrimitiveStorageHandle handle, size_
 
 ErrorOr<void> PrimitiveStorage::try_resize_and_reserve(PrimitiveStorageHandle handle, size_t new_size, size_t new_capacity, ZeroFillNewBytes zero_fill_new_bytes)
 {
+    MutexLocker locker { m_mutex };
     if (new_size > new_capacity)
         return Error::from_errno(ENOMEM);
 
@@ -586,6 +603,7 @@ ErrorOr<void> PrimitiveStorage::reallocate_entry(Entry& entry, size_t new_size, 
 
 void PrimitiveStorage::free(PrimitiveStorageHandle handle)
 {
+    MutexLocker locker { m_mutex };
     auto* entry = entry_for(handle);
     if (!entry)
         return;
