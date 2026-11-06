@@ -2065,6 +2065,7 @@ impl<'a, U: Unit> Parser<'a, U> {
         let (start, params_start) = (index.start[row_index], index.params_start[row_index]);
         let (flags, name) = (index.flags[row_index], index.name[row_index]);
         self.reparse_target = params_start;
+        self.row_cursor.set(index.position_after_row(row_index));
         self.strict = flags & STRICT != 0;
         self.ctx = index.ctx[row_index] as u32;
         self.retain = flags & (FIELD_INITIALIZER | STATIC_BLOCK) != 0;
