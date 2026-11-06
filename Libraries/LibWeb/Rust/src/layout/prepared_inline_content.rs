@@ -135,8 +135,12 @@ pub(super) struct InlineBoxEvent {
 const _: () = assert!(size_of::<InlineBoxEvent>() == 8);
 
 impl InlineBoxEvent {
+    const LEAVES_BEFORE_ITEM: u32 = 1 << 31;
+
     pub(super) fn position_at(item_index: usize, within_item: bool) -> u32 {
-        u32::try_from(item_index << 1 | usize::from(within_item)).expect("item indices fit in 31 bits")
+        let position = u32::try_from(item_index << 1 | usize::from(within_item)).expect("item indices fit in 31 bits");
+        assert!(position < Self::LEAVES_BEFORE_ITEM, "item indices fit in 30 bits");
+        position
     }
 
     pub(super) fn entering(position: u32, node: Node) -> Self {
@@ -146,15 +150,20 @@ impl InlineBoxEvent {
         }
     }
 
-    pub(super) fn leaving_innermost_box(position: u32) -> Self {
+    pub(super) fn leaving_innermost_box(position: u32, before_item: bool) -> Self {
         Self {
-            position,
+            position: position | if before_item { Self::LEAVES_BEFORE_ITEM } else { 0 },
             entered_box: NodeSlotId::INVALID,
         }
     }
 
     pub(super) fn position(&self) -> u32 {
-        self.position
+        self.position & !Self::LEAVES_BEFORE_ITEM
+    }
+
+    /// Whether the box ended before the item at this position began, instead of with that item.
+    pub(super) fn leaves_before_item(&self) -> bool {
+        self.position & Self::LEAVES_BEFORE_ITEM != 0
     }
 
     pub(super) fn entered_box(&self) -> Option<Node> {
