@@ -1,0 +1,28 @@
+For an inline element containing a block-level box, Ladybird reports
+the inline’s pieces and each block’s own border box, in content order,
+with zero-size rects for empty pieces before the first block and after
+the last. All three engines give the same three rects for an inline
+holding one block. For several consecutive blocks, Gecko and WebKit also
+report one rect per block: Gecko’s nsLayoutUtils::GetAllInFlowBoxes()
+replaces each MozBlockInsideInlineWrapper frame with its principal
+children in AddBoxesForFrame(), and BoxToRect::AddBox() reads their
+border boxes, while WebKit’s LineBoxBuilder::constructBlockContent()
+makes one spanning inline box per block. But Blink’s LayoutInline::
+AddChildAsBlockInInline() groups consecutive blocks in one anonymous
+LayoutBlockFlow, so LayoutInline::QuadsForSelfInternal() returns one
+middle rect for each group of blocks.
+
+The widths differ too: Gecko and Ladybird use the block’s own border
+box, while Blink and WebKit use the available width of the line.
+
+With the block in the bounding client rect, scrolling the inline into
+view now centers the whole block, which matches what Blink gets from
+LayoutObject::AbsoluteBoundingBoxRectForScrollIntoView(). Gecko’s
+PresShell::ScrollFrameIntoView() follows only GetNextContinuation()
+and leaves out the block, while WebKit centers the rect from its
+RenderElement::absoluteAnchorRectWithScrollMargin(), which spans from
+the top of the block to the bottom of the inline’s last text.
+
+Ladybird reports each empty piece at the start of its anonymous line,
+before the block’s top margin or after its bottom margin. That’s
+where Blink reports them too.
