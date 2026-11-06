@@ -278,7 +278,6 @@ static constexpr auto SITE_SETTINGS_ICON_PATH = "M2.5 5h6M12.5 5h1M2.5 11h1M7.5 
 static constexpr auto MICROPHONE_ICON_PATH = "M8 2.5a2 2 0 0 1 2 2v3.5a2 2 0 0 1-4 0V4.5a2 2 0 0 1 2-2zM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5"sv;
 static constexpr auto LOCATION_ICON_PATH = "M8 14.2C5.1 10.9 3.6 8.6 3.6 6.7a4.4 4.4 0 0 1 8.8 0c0 1.9-1.5 4.2-4.4 7.5zM9.6 6.7a1.6 1.6 0 1 1-3.2 0a1.6 1.6 0 1 1 3.2 0"sv;
 static constexpr auto NOTIFICATIONS_ICON_PATH = "M8 2.2a3.8 3.8 0 0 1 3.8 3.8v2.6l1.4 2.4H2.8L4.2 8.6V6A3.8 3.8 0 0 1 8 2.2zM6.6 13.2a1.4 1.4 0 0 0 2.8 0"sv;
-static constexpr auto SELECT_AREA_ICON_PATH = "M2 5V3a1 1 0 0 1 1-1h2M11 2h2a1 1 0 0 1 1 1v2M14 11v2a1 1 0 0 1-1 1h-2M5 14H3a1 1 0 0 1-1-1v-2"sv;
 static constexpr auto CHECK_CIRCLE_ICON_PATH = "M14.5 8a6.5 6.5 0 1 1-13 0a6.5 6.5 0 1 1 13 0M5.2 8.2l2 2 3.8-4.2"sv;
 static constexpr auto STAR_ICON_PATH = "M8 2.3l1.75 3.55 3.9.57-2.83 2.75.67 3.88L8 11.22l-3.49 1.83.67-3.88L2.35 6.42l3.9-.57z"sv;
 static constexpr auto CONTENT_BLOCKING_ICON_PATH = "M8 1.8l5 1.9v4c0 3.1-2.1 5.3-5 6.5-2.9-1.2-5-3.4-5-6.5v-4z"sv;
@@ -293,12 +292,10 @@ static constexpr auto SIDEBAR_ICON_PATH = "M4 3h8a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H
 static constexpr auto DOWNLOAD_ICON_PATH = "M8 3v6.5M5 6.8L8 9.8l3-3M3.5 12.5h9"sv;
 static constexpr auto AUDIO_ICON_PATH = "M2.5 6h2.5L8.5 3v10L5 10H2.5zM11 5.5a3.5 3.5 0 0 1 0 5"sv;
 static constexpr auto MUTED_ICON_PATH = "M2.5 6h2.5L8.5 3v10L5 10H2.5zM11 6l3.5 4M14.5 6L11 10"sv;
-static constexpr auto PIN_ICON_PATH = "M8 10v4M5 10h6M6.2 2.5h3.6l-.4 4 1.6 3.5H5l1.6-3.5z"sv;
 static constexpr auto WARNING_ICON_PATH = "M8 2.5l6 11H2zM8 6.8v3M8 11.7v.1"sv;
 static constexpr auto SEARCH_ICON_PATH = "M7 2.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9zM10.5 10.5L14 14"sv;
 static constexpr auto ZOOM_OUT_ICON_PATH = "M3 8h10"sv;
 static constexpr auto PAUSE_ICON_PATH = "M6 4v8M10 4v8"sv;
-static constexpr auto MENU_ICON_PATH = "M3 4.5h10M3 8h10M3 11.5h10"sv;
 static constexpr auto GLOBE_ICON_PATH = "M8 2.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11zM2.5 8h11M8 2.5c-1.6 1.6-2.4 3.4-2.4 5.5s.8 3.9 2.4 5.5M8 2.5c1.6 1.6 2.4 3.4 2.4 5.5s-.8 3.9-2.4 5.5"sv;
 static constexpr auto DOCUMENT_ICON_PATH = "M3.5 2.5h6l3 3v8h-9zM9.5 2.5v3h3"sv;
 static constexpr auto NETWORK_ICON_PATH = "M2.5 8a5.5 5.5 0 1 0 11 0a5.5 5.5 0 1 0-11 0M2.5 8h11M8 2.5c1.6 1.6 2.4 3.4 2.4 5.5S9.6 11.9 8 13.5M8 2.5C6.4 4.1 5.6 5.9 5.6 8s.8 3.9 2.4 5.5"sv;
@@ -334,8 +331,6 @@ static StringView chrome_icon_path(ChromeIcon icon)
         return CLOSE_ICON_PATH;
     case ChromeIcon::TabClose:
         return TAB_CLOSE_ICON_PATH;
-    case ChromeIcon::Menu:
-        return MENU_ICON_PATH;
     case ChromeIcon::Star:
     case ChromeIcon::StarFilled:
         return STAR_ICON_PATH;
@@ -375,12 +370,8 @@ static StringView chrome_icon_path(ChromeIcon icon)
         return LOCATION_ICON_PATH;
     case ChromeIcon::Notifications:
         return NOTIFICATIONS_ICON_PATH;
-    case ChromeIcon::SelectArea:
-        return SELECT_AREA_ICON_PATH;
     case ChromeIcon::CheckCircle:
         return CHECK_CIRCLE_ICON_PATH;
-    case ChromeIcon::Pin:
-        return PIN_ICON_PATH;
     case ChromeIcon::Warning:
         return WARNING_ICON_PATH;
     case ChromeIcon::Pause:
