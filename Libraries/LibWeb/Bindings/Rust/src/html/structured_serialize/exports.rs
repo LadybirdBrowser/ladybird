@@ -21,6 +21,7 @@ use crate::html::structured_serialize::cpp::{
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
+use crate::html::structured_serialize::transfer_record::TransferRecord;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::html::structured_serialize::{
     AllowSharedArrayBuffers, structured_deserialize_internal, structured_deserialize_with_transfer,
@@ -137,7 +138,7 @@ pub unsafe extern "C" fn web_rust_structured_deserialize(
     let cx = CallContext::new(vm, target_realm);
     // SAFETY: The caller lends the record.
     let record = unsafe { ReceivedIPCSerializationRecord::from_raw(record) };
-    let serialized = StructuredSerializeReader::new_ipc(target_realm, record, &[]);
+    let serialized = StructuredSerializeReader::new_ipc(target_realm, record);
     let memory = DeserializationMemory::new(vm);
     completion(&cx, structured_deserialize_internal(&cx, &serialized, &memory, false))
 }
@@ -194,7 +195,7 @@ pub unsafe extern "C" fn web_rust_structured_serialize_with_transfer(
     completion(
         &cx,
         result.map(|record| {
-            *out_record = record.into_raw();
+            *out_record = TransferRecord::into_cpp(record, vm).into_raw();
             Value::UNDEFINED
         }),
     )
@@ -223,7 +224,9 @@ pub unsafe extern "C" fn web_rust_structured_deserialize_with_transfer(
             TransferredValues::from_raw(transferred_values),
         )
     };
+    let record = TransferRecord::from_cpp(vm, record);
     let result = structured_deserialize_with_transfer(&cx, record);
+    TransferRecord::discard(record);
     completion(
         &cx,
         result.map(|deserialize_record| {

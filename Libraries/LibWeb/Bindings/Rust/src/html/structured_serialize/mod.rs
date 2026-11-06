@@ -19,13 +19,14 @@ pub(crate) mod message_record;
 pub(crate) mod reader;
 pub(crate) mod serializable;
 pub(crate) mod transfer_data_holder;
+pub(crate) mod transfer_record;
 pub(crate) mod writer;
 
 use ak::Utf16String;
 use libjs_rust::api::{
     Array, ArrayBuffer, ArrayBufferOrder, ArrayBufferShared, BigIntObject, BooleanObject, ByteLength, DataView, Date,
-    DeferGc, ErrorKind, ErrorType as JsErrorType, Gc, Map, MarkedVec, Must, NumberObject, Object, PrimitiveString,
-    PropertyKey, PropertyKind, Realm, RegExpObject, Set, StringObject, TypedArrayBase, TypedArrayKind, Value, Vm,
+    ErrorKind, ErrorType as JsErrorType, Gc, Map, MarkedVec, Must, NumberObject, Object, PrimitiveString, PropertyKey,
+    PropertyKind, Realm, RegExpObject, Set, StringObject, TypedArrayBase, TypedArrayKind, Value, Vm,
     create_byte_data_block, detach_array_buffer, is_typed_array_out_of_bounds, is_view_out_of_bounds,
     length_of_array_like, make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record,
     regexp_create,
@@ -42,7 +43,7 @@ use crate::html::image_bitmap::ImageBitmap;
 use crate::html::message_port::MessagePort;
 use crate::html::offscreen_canvas;
 use crate::html::structured_serialize::cpp::{
-    OwnedSerializedTransferRecord, SerializedTransferRecord, current_settings_object_agent_cluster,
+    SharedPixelBuffers, current_settings_object_agent_cluster,
     current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
     gather_image_bitmap_pixels, is_exposed, realm_agent_cluster,
 };
@@ -54,6 +55,7 @@ use crate::html::structured_serialize::serializable::{
     serializable_interface_storage_identifier, serializable_steps,
 };
 use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
+use crate::html::structured_serialize::transfer_record::{TransferRecord, TransferRecordRef};
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::streams::readable_stream::ReadableStream;
 use crate::streams::transform_stream::TransformStream;
@@ -1696,7 +1698,7 @@ pub(crate) fn structured_serialize_with_transfer(
     cx: &CallContext,
     value: Value,
     transfer_list: &[Gc<Object>],
-) -> WebIdlResult<OwnedSerializedTransferRecord> {
+) -> WebIdlResult<TransferRecordRef> {
     let vm = cx.vm();
 
     // 1. Let memory be an empty map.
@@ -1728,8 +1730,6 @@ pub(crate) fn structured_serialize_with_transfer(
         memory.set(transferable_value, memory.size());
     }
 
-    let result = OwnedSerializedTransferRecord::new();
-
     // 3. Let serialized be ? StructuredSerializeInternal(value, false, memory).
     // NB: The record may cross a process boundary, so it is a message record, with the memory of its SharedArrayBuffers
     //     shared on the side. The data holders share the pixels of ImageBitmaps through the same list.
@@ -1753,7 +1753,7 @@ pub(crate) fn structured_serialize_with_transfer(
     }
 
     // 4. Let transferDataHolders be a new empty List.
-    // NB: The record of the result holds the list.
+    let mut transfer_data_holders = Vec::with_capacity(transfer_list.len());
 
     // 5. For each transferable of transferList:
     for transferable in transfer_list {
@@ -1829,15 +1829,15 @@ pub(crate) fn structured_serialize_with_transfer(
         }
 
         // 6. Append dataHolder to transferDataHolders.
-        result.record().append_data_holder(data_holder);
+        transfer_data_holders.push(data_holder.into_carrier());
     }
 
     // 6. Let result be { [[Serialized]]: serialized, [[TransferDataHolders]]: transferDataHolders, [[InterfaceNames]]: an empty ordered set, [[AgentCluster]]: null }.
-    DeferGc::scope(vm, |defer_gc| {
-        result
-            .record()
-            .set_serialized(defer_gc, serialized.finish_message_record(defer_gc));
-    });
+    let result = TransferRecord::create(
+        vm,
+        |defer_gc| serialized.finish_message_record(defer_gc),
+        transfer_data_holders,
+    );
 
     // FIXME: 7. For each object → record of memory:
     //     1. If object is a platform object, then append record.[[Type]] to result.[[InterfaceNames]].
@@ -1859,7 +1859,7 @@ pub(crate) struct DeserializedTransferRecord<'vm> {
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserializewithtransfer
 pub(crate) fn structured_deserialize_with_transfer<'vm>(
     cx: &CallContext<'vm>,
-    serialize_with_transfer_result: SerializedTransferRecord,
+    serialize_with_transfer_result: TransferRecordRef,
 ) -> WebIdlResult<DeserializedTransferRecord<'vm>> {
     let target_realm = cx.realm();
 
@@ -1873,14 +1873,22 @@ pub(crate) fn structured_deserialize_with_transfer<'vm>(
     // 4. Let transferredValues be a new empty List.
     let transferred_values = MarkedVec::new(cx.vm());
 
+    let serialized = serialize_with_transfer_result.serialized.borrow();
+    let serialized = serialized
+        .as_ref()
+        .ok_or_else(|| data_clone_error("Empty transfer record"))?;
+    let shared_pixels = SharedPixelBuffers::new(&serialized.shared_memory);
+
     // 5. For each transferDataHolder of serializeWithTransferResult.[[TransferDataHolders]]:
-    for index in 0..serialize_with_transfer_result.data_holder_count() {
+    let transfer_data_holders = core::mem::take(&mut *serialize_with_transfer_result.data_holders.borrow_mut());
+    for transfer_data_holder in transfer_data_holders {
         // NB: The transfer writes no empty data holder.
-        let Some(decoder) = serialize_with_transfer_result.take_data_holder(index) else {
-            return Err(data_clone_error("Empty transfer data holder"));
-        };
+        let decoder = transfer_data_holder
+            .into_decoder()
+            .ok_or_else(|| data_clone_error("Empty transfer data holder"))?;
         // SAFETY: The decoder lives for the loop body.
-        let mut data_holder = unsafe { TransferDataReader::new(decoder.decoder(), target_realm) };
+        let mut data_holder =
+            unsafe { TransferDataReader::with_shared_pixels(decoder.decoder(), target_realm, &shared_pixels) };
 
         // 1. Let value be an uninitialized value.
         let value = structured_deserialize_with_transfer_internal(cx, &mut data_holder)?;
@@ -1893,20 +1901,10 @@ pub(crate) fn structured_deserialize_with_transfer<'vm>(
     }
 
     // 6. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).
-    let shared_memory = serialize_with_transfer_result.shared_memory();
-    let serialized = StructuredSerializeReader::new_ipc(
-        target_realm,
-        // SAFETY: The caller lends the record for the deserialization.
-        unsafe { serialize_with_transfer_result.serialized() },
-        &shared_memory,
-    );
+    let serialized = StructuredSerializeReader::new_message(target_realm, serialized);
     let deserialized = with_temporary_execution_context(target_realm, || {
         structured_deserialize_internal(cx, &serialized, &memory, false)
     })?;
-
-    // NB: The deserialized values hold their own references to the shared memory they use. The record can outlive its
-    //     delivery, as in a task that awaits garbage collection, so it must not keep that memory alive.
-    serialize_with_transfer_result.clear_shared_buffers();
 
     // 7. Return { [[Deserialized]]: deserialized, [[TransferredValues]]: transferredValues }.
     Ok(DeserializedTransferRecord {

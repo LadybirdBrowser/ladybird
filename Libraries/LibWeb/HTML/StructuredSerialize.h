@@ -55,10 +55,6 @@ public:
         return value;
     }
 
-    // The shared memory of the record that this transfer data belongs to, for transfer-receiving steps that map theirs.
-    void set_shared_buffers(Vector<Core::AnonymousBuffer> const& shared_buffers) { m_shared_buffers = &shared_buffers; }
-    Vector<Core::AnonymousBuffer> const* shared_buffers() const { return m_shared_buffers; }
-
 private:
     IPC::MessageBuffer m_buffer;
 
@@ -66,8 +62,6 @@ private:
     Queue<IPC::Attachment> m_attachments;
 
     IPC::Decoder m_decoder;
-
-    Vector<Core::AnonymousBuffer> const* m_shared_buffers { nullptr };
 };
 
 struct StructuredSerializeOptions {

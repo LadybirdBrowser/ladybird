@@ -114,7 +114,7 @@ JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, Fla
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 void web_bindings_transfer_data_encode_records(HTML::TransferDataEncoder*, HTML::SerializedTransferRecord const* const*, size_t count);
 void web_bindings_transfer_data_encode_transport_handle(HTML::TransferDataEncoder*, IPC::TransportHandle const*);
-void web_bindings_transfer_data_extend(HTML::TransferDataEncoder*, HTML::SerializedTransferRecord*);
+void web_bindings_transfer_data_extend(HTML::TransferDataEncoder*, HTML::TransferDataEncoder*);
 JSCompletion web_bindings_transfer_data_decode_records(HTML::TransferDataDecoder*, void* realm, size_t* offset, void* records, void (*append)(void*, HTML::SerializedTransferRecord*));
 JSCompletion web_bindings_transfer_data_decode_transport_handle(HTML::TransferDataDecoder*, void* realm, size_t* offset, IPC::TransportHandle** out_handle);
 void web_bindings_transport_handle_destroy(IPC::TransportHandle*);
@@ -308,9 +308,9 @@ void web_bindings_transfer_data_encode_transport_handle(HTML::TransferDataEncode
     MUST(data_holder->encode(*handle));
 }
 
-void web_bindings_transfer_data_extend(HTML::TransferDataEncoder* data_holder, HTML::SerializedTransferRecord* record)
+void web_bindings_transfer_data_extend(HTML::TransferDataEncoder* data_holder, HTML::TransferDataEncoder* holder)
 {
-    data_holder->extend(move(record->transfer_data_holders));
+    data_holder->extend(*adopt_own(*holder));
 }
 
 // Reads what web_bindings_transfer_data_encode_records() writes, and hands each record over.

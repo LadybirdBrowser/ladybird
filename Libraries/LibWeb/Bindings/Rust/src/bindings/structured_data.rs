@@ -21,18 +21,19 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libipc_rust::{Decode, DecodeError, Decoder, Encode};
-use libjs_rust::api::{Gc, Object, RawNativeFunctionResult, Realm, Value, Vm};
+use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, Realm, Value, Vm};
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
 use crate::bindings::interface::{ConstructedObject, Interface, Ref, implementation_of, wrap};
 use crate::bindings::transport::TransportHandle;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
-    ImageBitmapSharedPixels, OwnedSerializedTransferRecord, TransferDataDecoder,
+    ImageBitmapSharedPixels, OwnedSerializedTransferRecord, SharedPixelBuffers, TransferDataDecoder,
     data_clone_error_from_serialization_error,
 };
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
+use crate::html::structured_serialize::transfer_record::{TransferRecord, TransferRecordRef};
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::html::structured_serialize::{
     Deserializer, Serializer, decode_serializable_object_header, encode_serializable_object_header,
@@ -42,7 +43,7 @@ use crate::html::structured_serialize::{
 unsafe extern "C" {
     fn web_bindings_transfer_data_encode_records(data_holder: *mut c_void, records: *const *mut c_void, count: usize);
     fn web_bindings_transfer_data_encode_transport_handle(data_holder: *mut c_void, handle: *mut c_void);
-    fn web_bindings_transfer_data_extend(data_holder: *mut c_void, record: *mut c_void);
+    fn web_bindings_transfer_data_extend(data_holder: *mut c_void, holder: *mut c_void);
     fn web_bindings_transfer_data_decode_records(
         data_holder: *mut c_void,
         realm: *mut c_void,
@@ -282,8 +283,12 @@ impl<'a> TransferDataWriter<'a> {
     }
 
     /// Writes the records of structured serializations with transfer, as a list.
-    pub(crate) fn write_records(&mut self, records: &[OwnedSerializedTransferRecord]) {
-        let records: Vec<*mut c_void> = records.iter().map(|record| record.record().as_raw()).collect();
+    pub(crate) fn write_records(&mut self, cx: &CallContext, records: &[TransferRecordRef]) {
+        let carriers: Vec<_> = records
+            .iter()
+            .map(|&record| TransferRecord::into_cpp(record, cx.vm()))
+            .collect();
+        let records: Vec<*mut c_void> = carriers.iter().map(|record| record.record().as_raw()).collect();
         // SAFETY: The carrier is live, and the call borrows the records.
         unsafe {
             web_bindings_transfer_data_encode_records(
@@ -306,8 +311,11 @@ impl<'a> TransferDataWriter<'a> {
     /// record holds: its [[Serialized]] is a reference to the transferred value. read_transferred_value() reads it.
     pub(crate) fn write_transferred_value(&mut self, cx: &CallContext, value: Value) -> WebIdlResult<()> {
         let record = structured_serialize_with_transfer(cx, value, &[value.as_object()])?;
-        // SAFETY: The carrier is live, and the call borrows the record.
-        unsafe { web_bindings_transfer_data_extend(self.data_holder.carrier().as_raw(), record.record().as_raw()) };
+        for holder in record.data_holders.borrow_mut().drain(..) {
+            // SAFETY: The outer carrier is live, and the call takes the nested holder.
+            unsafe { web_bindings_transfer_data_extend(self.data_holder.carrier().as_raw(), holder.into_raw()) };
+        }
+        TransferRecord::discard(record);
         Ok(())
     }
 }
@@ -321,6 +329,7 @@ pub(crate) struct TransferDataReader<'a> {
     bytes: &'a [u8],
     offset: usize,
     realm: Gc<Realm>,
+    shared_pixels: Option<&'a SharedPixelBuffers<'a>>,
 }
 
 impl<'a> TransferDataReader<'a> {
@@ -334,7 +343,30 @@ impl<'a> TransferDataReader<'a> {
             bytes: unsafe { decoder.bytes() },
             offset: 0,
             realm,
+            shared_pixels: None,
         }
+    }
+
+    /// # Safety
+    ///
+    /// The decoder must be lent for 'a, alongside the shared pixel context.
+    pub(crate) unsafe fn with_shared_pixels(
+        decoder: TransferDataDecoder,
+        realm: Gc<Realm>,
+        shared_pixels: &'a SharedPixelBuffers<'a>,
+    ) -> Self {
+        // SAFETY: The caller lends the decoder for 'a.
+        Self {
+            shared_pixels: Some(shared_pixels),
+            ..unsafe { Self::new(decoder, realm) }
+        }
+    }
+
+    pub(crate) fn shared_pixels_as_raw(&self) -> WebIdlResult<*mut c_void> {
+        self.shared_pixels
+            .and_then(SharedPixelBuffers::as_raw)
+            .map(core::ptr::NonNull::as_ptr)
+            .ok_or_else(|| data_clone_error_from_serialization_error(self.realm, "Invalid ImageBitmap shared pixels"))
     }
 
     pub(crate) fn realm(&self) -> Gc<Realm> {
@@ -371,22 +403,22 @@ impl<'a> TransferDataReader<'a> {
     }
 
     /// Reads what TransferDataWriter::write_records() writes.
-    pub(crate) fn read_records(&mut self) -> WebIdlResult<Vec<OwnedSerializedTransferRecord>> {
-        unsafe extern "C" fn append(records: *mut c_void, record: *mut c_void) {
-            // SAFETY: The records are the Vec that read_records() lends, and LibWeb hands over the record.
-            unsafe {
-                (*records.cast::<Vec<OwnedSerializedTransferRecord>>())
-                    .push(OwnedSerializedTransferRecord::from_raw(record));
-            }
+    pub(crate) fn read_records<'vm>(&mut self, vm: &'vm Vm) -> WebIdlResult<MarkedVec<'vm, TransferRecordRef>> {
+        unsafe extern "C" fn append(context: *mut c_void, record: *mut c_void) {
+            // SAFETY: read_records() lends its VM and rooted list; C++ hands the carrier over.
+            let (vm, records) = unsafe { &*context.cast::<(&Vm, &MarkedVec<'_, TransferRecordRef>)>() };
+            let carrier = unsafe { OwnedSerializedTransferRecord::from_raw(record) };
+            records.push(TransferRecord::from_cpp(vm, carrier.record()));
         }
-        let mut records = Vec::new();
-        // SAFETY: The data holder and the records are lent for the steps, and the realm is live.
+        let records = MarkedVec::new(vm);
+        let mut context = (vm, &records);
+        // SAFETY: The decoder, realm, context and rooted list live for the call.
         unsafe {
             web_bindings_transfer_data_decode_records(
                 self.as_raw(),
                 self.realm.as_ptr().cast(),
                 &mut self.offset,
-                (&raw mut records).cast(),
+                (&raw mut context).cast(),
                 append,
             )
         }
