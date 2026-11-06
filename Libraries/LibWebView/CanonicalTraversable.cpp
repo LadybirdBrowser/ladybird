@@ -1409,7 +1409,7 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_reached_po
         .user_involvement = operation->algorithm->user_involvement(),
         .navigation_id = finalized_navigation_id(*operation, navigable_id).value_or(Utf16String {}),
     };
-    auto loader = NavigationLoader::create(source_page.client().is_private(), move(request));
+    auto loader = NavigationLoader::create(move(request));
     changing_navigable->population = ChangingNavigable::CreatingNavigationParams { loader };
     source_page.owe_reply({ OwedReply::Kind::ChangingJob, operation_id, navigable_id });
     source_page.async_create_history_navigation_params(operation_id, loader->request(), allow_POST);
@@ -1421,7 +1421,7 @@ void CanonicalTraversable::did_finish_history_navigation_params_creation(WebCont
     auto* changing_navigable = operation ? operation->pending_changing_job(navigable_id) : nullptr;
     auto* creating = changing_navigable ? changing_navigable->population.get_pointer<ChangingNavigable::CreatingNavigationParams>() : nullptr;
     if (!creating || !source_page.take_owed_reply({ OwedReply::Kind::ChangingJob, operation_id, navigable_id })) {
-        NavigationLoader::discard(source_page.client().is_private(), result);
+        NavigationLoader::discard(result);
         return;
     }
     auto loader = creating->loader;

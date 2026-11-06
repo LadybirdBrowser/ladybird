@@ -18,7 +18,6 @@
 #include <LibRequests/Request.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
-#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/RequestServerManager.h>
@@ -33,9 +32,9 @@ class WEBVIEW_API NavigationLoader final
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static NonnullRefPtr<NavigationLoader> create(IsPrivate is_private, Web::HTML::NavigationPopulationRequest request)
+    static NonnullRefPtr<NavigationLoader> create(Web::HTML::NavigationPopulationRequest request)
     {
-        return adopt_ref(*new NavigationLoader(is_private, move(request)));
+        return adopt_ref(*new NavigationLoader(move(request)));
     }
 
     ~NavigationLoader();
@@ -73,12 +72,11 @@ public:
     Web::HTML::NavigationPopulationResult take_result();
     void reclaim_response_body_after_failed_handoff();
 
-    static void discard(IsPrivate, Web::HTML::NavigationPopulationResult&);
+    static void discard(Web::HTML::NavigationPopulationResult&);
 
 private:
-    NavigationLoader(IsPrivate is_private, Web::HTML::NavigationPopulationRequest request)
-        : m_is_private(is_private)
-        , m_request(move(request))
+    explicit NavigationLoader(Web::HTML::NavigationPopulationRequest request)
+        : m_request(move(request))
     {
     }
 
@@ -87,7 +85,6 @@ private:
     void set_response_body_callbacks(Requests::Request&);
     void release_response_body();
 
-    IsPrivate m_is_private { IsPrivate::No };
     Web::HTML::NavigationPopulationRequest m_request;
     Optional<Web::HTML::NavigationPopulationResult> m_result;
     RefPtr<Requests::Request> m_response_body_request;
