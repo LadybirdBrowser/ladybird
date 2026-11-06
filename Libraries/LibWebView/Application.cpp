@@ -2381,27 +2381,14 @@ void Application::process_did_exit(Process&& process, Optional<int>)
     if (report_name.is_empty())
         return;
 
-    // The tab's crash screen is this report's one automatic prompt, so it is not offered again. Every other crash is
-    // hidden from the user, so its report is offered right away.
+    // The tab's crash screen already asks about this report. Every other crash is hidden from the user, so its report
+    // waits to be reviewed.
     if (!crash_is_shown_in_tab) {
-        offer_crash_report(report_name);
+        crash_report_saved();
     } else if (!browser_options().headless_mode.has_value()) {
         if (auto result = CrashReportStore::the().mark_seen(report_name); result.is_error())
             warnln("Could not mark crash report as seen: {}", result.error());
     }
-}
-
-void Application::offer_newest_pending_crash_report()
-{
-    if (auto names = CrashReportStore::the().pending_report_names(); !names.is_error() && !names.value().is_empty())
-        offer_crash_report(names.value().first());
-}
-
-void Application::offer_crash_report(ByteString const& report_name)
-{
-    if (browser_options().headless_mode.has_value() || browser_options().webdriver_browser_endpoint.has_value())
-        return;
-    display_crash_report_notification(report_name);
 }
 
 static bool download_path_is_available(LexicalPath const& path)

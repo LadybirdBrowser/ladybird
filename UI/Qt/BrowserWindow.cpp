@@ -1560,12 +1560,6 @@ void BrowserWindow::exit_fullscreen()
         showNormal();
 
     m_tabs_container->update_bookmarks_bar_visibility();
-
-    // A crash report that came in while the toolbar was hidden can be offered now, even on a tab other than the one
-    // that was current back then.
-    QTimer::singleShot(0, this, [] {
-        Application::the().crash_report_notifier().show_pending();
-    });
 }
 
 bool BrowserWindow::event(QEvent* event)
@@ -1598,7 +1592,6 @@ bool BrowserWindow::event(QEvent* event)
             report_activation_to_session_store();
         QTimer::singleShot(0, this, [this] {
             refresh_resize_cursor_at_current_position(true);
-            Application::the().crash_report_notifier().show_pending();
         });
         QTimer::singleShot(50, this, [this] {
             refresh_resize_cursor_at_current_position(true);

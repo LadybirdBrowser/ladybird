@@ -21,7 +21,6 @@ add_library(ladybird_impl STATIC
     BookmarksBar.cpp
     BrowserWindow.cpp
     ChromeStyle.cpp
-    CrashReportNotifier.cpp
     CrashReportReviewWidget.cpp
     DevToolsBanner.cpp
     EventLoopImplementationQt.cpp

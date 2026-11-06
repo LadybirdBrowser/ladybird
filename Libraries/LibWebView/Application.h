@@ -338,8 +338,6 @@ public:
     virtual void open_download(FileDownloader::Download const&) const;
     virtual void show_download_in_folder(FileDownloader::Download const&) const;
 
-    void offer_newest_pending_crash_report();
-
     // FIXME: We should implement UI-agnostic platform APIs to interact with the system clipboard.
     enum class ClipboardType : u8 {
         Text,
@@ -465,7 +463,7 @@ protected:
 
     virtual NonnullRefPtr<Core::Promise<ByteString>> ask_user_for_download_path(ByteString const& file) const;
 
-    virtual void display_crash_report_notification([[maybe_unused]] ByteString const& report_name) { }
+    virtual void crash_report_saved() { }
 
     virtual void update_tabs_display() const { }
 
@@ -493,7 +491,6 @@ private:
     void handle_compositor_process_death();
     void recover_compositor_process();
     void crash_compositor_process();
-    void offer_crash_report(ByteString const& report_name);
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_devtools_server();
     // Returns whether the combined rules changed.
