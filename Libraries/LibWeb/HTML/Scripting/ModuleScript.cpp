@@ -137,28 +137,6 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compile
     return script;
 }
 
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_bytecode_cache(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, NonnullRefPtr<JS::DecodedBytecodeCache> bytecode_cache)
-{
-    auto& realm = settings.realm();
-    auto script = create_internal(move(base_url), filename, settings);
-
-    script->set_parse_error(JS::js_null());
-    script->set_error_to_rethrow(JS::js_null());
-
-    auto result = JS::SourceTextModule::parse_from_bytecode_cache(bytecode_cache, move(source_code), realm, script->filename(), script.ptr());
-
-    if (result.is_error()) {
-        auto& parse_error = result.error().first();
-        dbgln("JavaScriptModuleScript: Failed to materialize bytecode cache: {}", parse_error.to_utf16_string());
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()), parse_error.position);
-        return script;
-    }
-
-    script->m_record = result.value();
-    register_source(*script, ScriptRegistry::IsInlineSource::No, 1);
-    return script;
-}
-
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-css-module-script
 WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject& settings)
 {

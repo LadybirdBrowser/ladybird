@@ -29,7 +29,6 @@ public:
 
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::ParsedProgram);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_compiled(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::CompiledProgram);
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_bytecode_cache(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, NonnullRefPtr<JS::DecodedBytecodeCache>);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_javascript_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject&, URL::URL base_url, size_t source_line_number = 1, ScriptRegistry::IsInlineSource = ScriptRegistry::IsInlineSource::No);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_css_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject&);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_json_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject&);
