@@ -1,0 +1,13 @@
+For a text node’s character offsets, Ladybird now reads each character’s
+x from the glyph runs layout shaped, and splits a cluster’s advance
+evenly among its code units. Blink also reads layout’s shaping:
+AXBlockFlowIterator::GetCharacterLayoutPixelOffsets() takes the
+layout fragment’s TextShapeResult() and reads per-character advances
+with ShapeResult::IndividualCharacterRanges(). Gecko’s nsTextFrame::
+GetCharacterRectsInRange() also reads the frame’s mTextRun, with
+cluster boundaries and GetAdvanceWidth(), but gives every character
+of a cluster the whole cluster’s rect, rather than an even share.
+WebKit’s AccessibilityRenderObject::textRuns() measures each whole
+TextRun again, into a GlyphBuffer through ComplexTextController or
+WidthIterator, so it shapes runs rather than single code points, but
+doesn’t reuse layout’s shaping.
