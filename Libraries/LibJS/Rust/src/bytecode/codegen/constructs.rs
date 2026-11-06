@@ -358,13 +358,13 @@ impl Generator<'_> {
     fn sweep_class_element_key(&mut self, key: ClassElementKey, first_row: usize) -> Result<Operand, OutOfStack> {
         let tree = self.tree;
         let key = match key {
-            ClassElementKey::Name(name) => return Ok(self.context.constants.add_string_view(tree.name_text(name))),
+            ClassElementKey::Name(name) => return Ok(self.add_constant_string_view(tree.name_text(name))),
             ClassElementKey::Expression(key) => key,
         };
         match tree.node_tag(key) {
             tag::STR_KEY => {
                 let operand = match tree.string_literal_text(key) {
-                    StringLiteralText::Source(text) => self.context.constants.add_string_view(text),
+                    StringLiteralText::Source(text) => self.add_constant_string_view(text),
                     StringLiteralText::Processed(value) => self.context.constants.add_string(value),
                 };
                 Ok(operand)
@@ -545,7 +545,7 @@ impl Generator<'_> {
         let mut strings = Vec::with_capacity(elements.len() + 1);
         for element in elements.iter().step_by(2) {
             let value = match tree.template_chunk_text(element, EscapeMode::TaggedTemplate) {
-                Some(StringLiteralText::Source(text)) => self.context.constants.add_string_view(text),
+                Some(StringLiteralText::Source(text)) => self.add_constant_string_view(text),
                 Some(StringLiteralText::Processed(value)) => self.context.constants.add_string(value),
                 None => self.context.constants.add_undefined(),
             };
@@ -556,7 +556,7 @@ impl Generator<'_> {
             strings.push(if units.code_units().any(|unit| unit == u16::from(b'\r')) {
                 self.context.constants.add_string(raw_template_value(units))
             } else {
-                self.context.constants.add_string_view(units)
+                self.add_constant_string_view(units)
             });
         }
         let first_temporary = self.next_temporary();
@@ -603,7 +603,7 @@ impl Generator<'_> {
                     .template_chunk_text(element, EscapeMode::StringLiteral)
                     .expect("only a tagged template can have an invalid escape");
                 let operand = match text {
-                    StringLiteralText::Source(text) => self.context.constants.add_string_view(text),
+                    StringLiteralText::Source(text) => self.add_constant_string_view(text),
                     StringLiteralText::Processed(value) => self.context.constants.add_string(value),
                 };
                 (operand, true)
@@ -1682,7 +1682,7 @@ impl Generator<'_> {
                     self.put_get_by_id(property_value, object, name);
                     if has_rest {
                         let text = tree.name_text(name);
-                        excluded_names.push(self.context.constants.add_string_view(text));
+                        excluded_names.push(self.add_constant_string_view(text));
                     }
                     // NB: The row of the key is the identifier that gets bound, which has no rows of its own.
                     element = NodeId(tree.node_b(item));
@@ -1727,7 +1727,7 @@ impl Generator<'_> {
                     }
                     if has_rest {
                         let name = match &text {
-                            StringLiteralText::Source(view) => self.context.constants.add_string_view(*view),
+                            StringLiteralText::Source(view) => self.add_constant_string_view(*view),
                             StringLiteralText::Processed(value) => self.context.constants.add_string(value.clone()),
                         };
                         excluded_names.push(name);

@@ -10,12 +10,14 @@
 use crate::bytecode::constant::AbstractOperationKind;
 use crate::bytecode::constant::WellKnownSymbolKind;
 use crate::bytecode::executable_data::ConstantValue;
+use crate::bytecode::executable_data::MAXIMUM_INTERNED_CONSTANT_LENGTH;
 use crate::bytecode::operand::Operand;
 use crate::u32_from_usize;
 use crate::utf16::Utf16View;
 use ak::Utf16String;
 
 use super::context::MAXIMUM_SPARE_CAPACITY;
+use super::names::NameTables;
 
 /// An open-addressed table from a key to a constant index that forgets everything by moving on to a new generation.
 #[derive(Default)]
@@ -214,9 +216,10 @@ impl ConstantTable {
         Operand::constant(index)
     }
 
-    /// A string whose value is `text`, which is only copied if the table does not have it yet.
+    /// A string whose value is `text`, which is only looked at if the table does not have it yet: a text that gets
+    /// interned when the code is linked comes from what `names` knows of the script, and any other gets copied.
     #[inline(always)]
-    pub(super) fn add_string_view(&mut self, text: Utf16View<'_>) -> Operand {
+    pub(super) fn add_string_view(&mut self, text: Utf16View<'_>, names: &mut NameTables) -> Operand {
         let key = hash_of_units(text);
         let values = &self.values;
         let found = self.strings.find(key, |index| {
@@ -225,7 +228,12 @@ impl ConstantTable {
         match found {
             Ok(index) => Operand::constant(index),
             Err(slot) => {
-                let index = self.append(ConstantValue::String(text.into()));
+                let string = if text.length_in_code_units() <= MAXIMUM_INTERNED_CONSTANT_LENGTH {
+                    Utf16String::from(names.fly_string_of_text(text, key))
+                } else {
+                    text.into()
+                };
+                let index = self.append(ConstantValue::String(string));
                 self.strings.insert_at(slot, key, index);
                 Operand::constant(index)
             }

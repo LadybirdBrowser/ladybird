@@ -184,7 +184,7 @@ impl Generator<'_> {
                 tag::NUM => self.value_of_number(tree.number_value(node)),
                 tag::STR => {
                     let operand = match tree.string_literal_text(node) {
-                        StringLiteralText::Source(text) => self.context.constants.add_string_view(text),
+                        StringLiteralText::Source(text) => self.add_constant_string_view(text),
                         StringLiteralText::Processed(value) => self.context.constants.add_string(value),
                     };
                     self.value_of_constant(operand);

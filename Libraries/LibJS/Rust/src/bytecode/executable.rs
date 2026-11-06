@@ -17,7 +17,7 @@ use crate::bytecode::class_blueprint::ClassBlueprint;
 use crate::bytecode::constant::{AbstractOperationKind, WellKnownSymbolKind};
 use crate::bytecode::dump::{count_basic_blocks, dump_bytecode};
 use crate::bytecode::encoding::{IdentifierTableIndex, PropertyKeyTableIndex, StringTableIndex};
-use crate::bytecode::executable_data::{ConstantValue, ExceptionHandler};
+use crate::bytecode::executable_data::{ConstantValue, ExceptionHandler, MAXIMUM_INTERNED_CONSTANT_LENGTH};
 use crate::bytecode::executable_data::{ExecutableData, LocalVariableMetadata};
 use crate::bytecode::feedback::{ExecutableFeedback, FeedbackSlotCounts};
 use crate::bytecode::source_map::SourceMapEntry;
@@ -59,6 +59,7 @@ use crate::slice_block::{SliceBlock, SliceBlockBuilder};
 use crate::source_code::SourceCode;
 use crate::source_range::{Position, SourceRange};
 use crate::utf16::Utf16View;
+use crate::utf16::to_utf16_fly_string;
 use libjs_runtime_macros::Trace;
 
 /// The contents of a cache entry, copied out of the cache so that no reference into its storage outlives a call that
@@ -2029,16 +2030,11 @@ fn constant_value(vm: &Vm, constant: &ConstantValue) -> Value {
         ConstantValue::Undefined => Value::UNDEFINED,
         ConstantValue::Empty => Value::EMPTY,
         ConstantValue::String(string) => {
-            // String constants are interned so that comparisons with them are pointer comparisons. Long ones are
-            // rarely compared, and not worth hashing.
-            const MAX_INTERNED_CONSTANT_LENGTH: usize = 256;
-            if string.length_in_code_units() > MAX_INTERNED_CONSTANT_LENGTH {
+            // String constants are interned so that comparisons with them are pointer comparisons.
+            if string.length_in_code_units() > MAXIMUM_INTERNED_CONSTANT_LENGTH {
                 return Value::from_string(PrimitiveString::create(vm, string.clone()));
             }
-            Value::from_string(PrimitiveString::create_interned(
-                vm,
-                &Utf16View::of_string(string).to_utf16_fly_string(),
-            ))
+            Value::from_string(PrimitiveString::create_interned(vm, &to_utf16_fly_string(string)))
         }
         ConstantValue::BigInt(literal) => Value::from_bigint(BigInt::create(vm, parse_big_int_literal(literal))),
         ConstantValue::WellKnownSymbol(WellKnownSymbolKind::SymbolIterator) => {

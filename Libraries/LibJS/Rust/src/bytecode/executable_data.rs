@@ -29,6 +29,9 @@ pub struct ExceptionHandler {
     pub catches_exception: bool,
 }
 
+/// The longest string constant that gets interned. Long ones are rarely compared, and not worth hashing.
+pub(crate) const MAXIMUM_INTERNED_CONSTANT_LENGTH: usize = 256;
+
 /// A typed constant value stored in the constant pool.
 ///
 /// The actual NaN-boxed encoding happens at the FFI boundary when
