@@ -1,0 +1,10 @@
+Ladybird’s RequestServer reports how much of a request body curl has
+sent, at most every 50ms, and Fetch turns each report into a chunk for
+processBodyChunk, so XHR’s upload progress events follow the upload.
+The other engines report upload progress from their network processes
+the same way. Chromium’s URLLoader sends OnUploadProgress, sampled
+every 100ms (kUploadProgressInterval) by its UploadProgressTracker.
+WebKit’s NetworkResourceLoader::didSendData() is relayed to the web
+process’s WebResourceLoader::didSendData(). And while it’s uploading,
+Gecko’s XMLHttpRequestMainThread::OnProgress() takes the bytes sent
+from the channel’s progress reports.
