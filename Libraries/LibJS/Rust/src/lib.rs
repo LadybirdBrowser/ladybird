@@ -133,7 +133,6 @@ mod layout_forward;
 pub mod lexer;
 #[cfg(not(test))]
 pub mod lexical_path;
-#[path = "parser/mod.rs"]
 pub mod parser;
 pub mod parser_error;
 #[cfg(not(test))]
