@@ -44,7 +44,7 @@ WebIDL::UnsignedLong AnimationFrameCallbackDriver::add_after_callbacks(Callback 
 
 bool AnimationFrameCallbackDriver::remove(WebIDL::UnsignedLong id)
 {
-    return m_callbacks.remove(id) || m_after_callbacks.remove(id);
+    return m_callbacks.remove(id) || m_executing_callbacks.remove(id) || m_after_callbacks.remove(id) || m_executing_after_callbacks.remove(id);
 }
 
 bool AnimationFrameCallbackDriver::has_callbacks() const
@@ -59,15 +59,16 @@ void AnimationFrameCallbackDriver::run(double now)
     // NB: Work added while callbacks run waits for the next invocation of the algorithm.
     m_executing_after_callbacks = move(m_after_callbacks);
 
-    for (auto& [id, callback] : m_executing_callbacks)
-        callback->function()(now);
+    // NB: A callback may cancel a callback that comes after it.
+    while (!m_executing_callbacks.is_empty())
+        m_executing_callbacks.take_first()->function()(now);
 }
 
 void AnimationFrameCallbackDriver::run_after_callbacks(double now)
 {
     AK::ScopeGuard guard { [&]() { m_executing_after_callbacks.clear(); } };
-    for (auto& [id, callback] : m_executing_after_callbacks)
-        callback->function()(now);
+    while (!m_executing_after_callbacks.is_empty())
+        m_executing_after_callbacks.take_first()->function()(now);
 }
 
 }

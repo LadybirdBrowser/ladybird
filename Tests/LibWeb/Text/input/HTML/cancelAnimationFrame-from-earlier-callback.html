@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let cancelled;
+        requestAnimationFrame(() => {
+            println("first callback runs");
+            cancelAnimationFrame(cancelled);
+        });
+        cancelled = requestAnimationFrame(() => println("FAIL: cancelled callback runs"));
+        requestAnimationFrame(() => {
+            println("last callback runs");
+            done();
+        });
+    });
+</script>
