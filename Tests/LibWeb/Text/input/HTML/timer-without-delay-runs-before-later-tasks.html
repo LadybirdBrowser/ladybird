@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const order = [];
+        const channel = new MessageChannel();
+        let finished = 0;
+        function mark(name) {
+            order.push(name);
+            if (++finished === 5) {
+                println(order.join(" "));
+                done();
+            }
+        }
+
+        setTimeout(() => mark("timeout 1"), 0);
+        channel.port1.onmessage = () => mark("message port");
+        channel.port2.postMessage(0);
+        window.addEventListener("message", () => mark("window message"));
+        window.postMessage(0, "*");
+        setTimeout(() => mark("timeout 2"), 0);
+        queueMicrotask(() => mark("microtask"));
+    });
+</script>
