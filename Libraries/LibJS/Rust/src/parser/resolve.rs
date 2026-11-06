@@ -447,9 +447,9 @@ pub(super) struct ResolveOptions {
 }
 
 /// What a name means from inside a function that a tree did not hold the code of, by function row and name.
-#[derive(Default)]
+#[derive(Clone)]
 pub struct OuterResolutions {
-    entries: Vec<(u64, Resolution)>,
+    entries: Arc<[(u64, Resolution)]>,
 }
 
 impl OuterResolutions {
@@ -457,12 +457,15 @@ impl OuterResolutions {
         u64::from(row) << 32 | u64::from(name.0)
     }
 
-    fn new(mut entries: Vec<(u64, Resolution)>) -> Self {
+    /// The resolutions of `entries`, which get sorted, and of which the first for a name is the one that counts.
+    fn new(entries: &mut Vec<(u64, Resolution)>) -> Self {
         if !entries.is_sorted_by_key(|&(key, _)| key) {
-            entries.sort_unstable_by_key(|&(key, _)| key);
+            entries.sort_by_key(|&(key, _)| key);
         }
         entries.dedup_by_key(|&mut (key, _)| key);
-        Self { entries }
+        Self {
+            entries: Arc::from(entries.as_slice()),
+        }
     }
 
     fn get(&self, row: u32, name: Name) -> Option<Resolution> {
@@ -482,7 +485,7 @@ pub struct EnclosingCode {
     /// The row of the function, or NONE for a program.
     row: u32,
     /// What the functions nested in this code see of it, unless it has none.
-    resolutions: Option<Arc<OuterResolutions>>,
+    resolutions: Option<OuterResolutions>,
     parent: Option<Arc<EnclosingCode>>,
 }
 
@@ -496,12 +499,10 @@ impl EnclosingCode {
     }
 
     /// The code of the function at `row`, from what it found out about what is nested in it itself.
-    pub(crate) fn of_function(row: u32, mut entries: Vec<(u64, Resolution)>, parent: &Arc<Self>) -> Arc<Self> {
-        // NB: The first entry for a name is the one that counts.
-        entries.sort_by_key(|&(key, _)| key);
+    pub(crate) fn of_function(row: u32, entries: &mut Vec<(u64, Resolution)>, parent: &Arc<Self>) -> Arc<Self> {
         Arc::new(Self {
             row,
-            resolutions: Some(Arc::new(OuterResolutions::new(entries))),
+            resolutions: Some(OuterResolutions::new(entries)),
             parent: Some(parent.clone()),
         })
     }
@@ -520,7 +521,7 @@ impl EnclosingCode {
         while let Some(enclosing) = code {
             let resolutions = enclosing
                 .resolutions
-                .as_deref()
+                .as_ref()
                 .expect("code that a function is nested in has resolutions for it");
             if let Some(mut resolution) = resolutions.get(function, name) {
                 if is_inside_scope_with_eval {
@@ -644,17 +645,17 @@ impl<'t> Resolver<'t> {
     }
 
     /// Hands the results over to the tree.
-    fn finish(mut self) -> (ResolverResults, Option<Arc<OuterResolutions>>) {
+    fn finish(mut self) -> (ResolverResults, Option<OuterResolutions>) {
         self.give_back_memory();
         self.function_scope_rows.sort_unstable_by_key(|&(node, _)| node);
         // NB: Every function nested in the code leaves a reference behind, so that without any there are none.
         let outer_resolutions = (!self.outer_references.is_empty()).then(|| {
-            let entries = self
+            let mut entries = self
                 .outer_references
                 .iter()
                 .map(|&(row, name, node)| (OuterResolutions::key(row, name), self.resolutions[node as usize]))
                 .collect();
-            Arc::new(OuterResolutions::new(entries))
+            OuterResolutions::new(&mut entries)
         });
         (
             ResolverResults {

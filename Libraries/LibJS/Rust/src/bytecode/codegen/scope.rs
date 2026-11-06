@@ -235,6 +235,9 @@ pub struct CodeScope {
     /// What functions nested in scopes see of the bindings of those scopes, which are gone by the end of the function.
     scope_resolutions: Vec<(u64, Resolution)>,
     nested_functions: Vec<NestedFunction>,
+    /// The memory of what `sweep_parameter_names()` puts together.
+    pub(super) spare_parameter_names: Vec<Name>,
+    pub(super) spare_parameter_shapes: Vec<ParameterShape>,
     /// What a name means that no scope around the function binds, once something asked.
     unbound: Option<Resolution>,
 }
@@ -396,8 +399,8 @@ fn read_varint(bytes: &[u8], at: &mut usize) -> u32 {
 impl Generator<'_> {
     /// Gets ready for the function at `row`, which the summary says the bindings of.
     pub(super) fn begin_function_scope(&mut self, row: FunctionRow) {
-        let script = self.tree.script.clone();
-        let index = &script.index;
+        let tree = self.tree;
+        let index = &tree.script.index;
         let flags = index.flags[row.0 as usize];
         let (summary_start, summary_end) = index.summary_range(row.0);
         let summary = &index.summaries[summary_start..summary_end];
@@ -1905,7 +1908,9 @@ impl Generator<'_> {
                     resolution,
                 ));
             }
-            EnclosingCode::of_function(row, entries, &self.enclosing_code)
+            let enclosing_code = EnclosingCode::of_function(row, &mut entries, &self.enclosing_code);
+            self.context.scope.scope_resolutions = entries;
+            enclosing_code
         };
         let mut shared_function_data: Vec<PendingSharedFunctionData> = Vec::with_capacity(nested_count);
         for nested in 0..nested_count {

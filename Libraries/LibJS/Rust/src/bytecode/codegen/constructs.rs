@@ -1302,8 +1302,8 @@ impl Generator<'_> {
     pub(super) fn sweep_parameter_names(&mut self, function: NodeId) {
         let tree = self.tree;
         let parameters = parameters_of(tree, function);
-        let mut names = Vec::with_capacity(parameters.len());
-        let mut shapes = Vec::new();
+        let mut names = std::mem::take(&mut self.context.scope.spare_parameter_names);
+        let mut shapes = std::mem::take(&mut self.context.scope.spare_parameter_shapes);
         if self.context.scope.has_simple_parameters() {
             names.extend(parameters.iter().map(|parameter| Name(tree.node_a(parameter))));
         } else {
@@ -1322,6 +1322,10 @@ impl Generator<'_> {
             }
         }
         self.declare_parameters(&names, &shapes);
+        names.clear();
+        shapes.clear();
+        self.context.scope.spare_parameter_names = names;
+        self.context.scope.spare_parameter_shapes = shapes;
     }
 
     /// The functions that a block declares exist from its start. `function` is the first one, and each knows the next.
