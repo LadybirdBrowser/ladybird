@@ -362,6 +362,8 @@ public:
     // elements keep 0, which is what makes them free.
     [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
     void set_style_node_id(CSS::StyleNodeID);
+    // Tells the hover of the render clock what link this element is, as its href or style node changed.
+    void update_hover_link();
     void record_style_environment_change();
 
     // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dimension-attributes

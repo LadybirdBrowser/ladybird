@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 100px; height: 40px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    // An element called a with an href in no namespace is no link, in a document where nothing is in the HTML namespace.
+    asyncTest(async done => {
+        const iframe = document.querySelector("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        const xml = `<root><a href="https://example.com/link" style="display: block; width: 100px; height: 20px"/></root>`;
+        iframe.src = URL.createObjectURL(new Blob([xml], { type: "application/xml" }));
+        await loaded;
+        await twoFramesLanded();
+
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 10, frameTime + 16, 1);
+            iframe.contentWindow.internals.injectClockTick(frameTime + 24);
+            println(`the lane finds: ${internals.hoveredLink()}`);
+        }, [document, iframe.contentDocument]);
+        done();
+    });
+</script>

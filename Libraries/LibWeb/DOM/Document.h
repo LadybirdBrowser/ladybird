@@ -85,6 +85,7 @@
 
 namespace Web {
 
+class HoverLinkReporter;
 struct RenderingStats;
 
 }
@@ -413,6 +414,9 @@ public:
     Optional<URL::URL> get_the_base_url() const;
     String const& serialized_url() const;
     String const& serialized_base_url() const;
+    // What a hover of the render clock tells the page the link it is over with.
+    HoverLinkReporter& hover_link_reporter();
+    void update_hover_link_base();
 
     void update_base_element(Badge<HTML::HTMLBaseElement>);
     void did_set_frozen_base_url(Badge<HTML::HTMLBaseElement>);
@@ -2214,6 +2218,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-about-base-url
     Optional<URL::URL> m_about_base_url;
+
+    RefPtr<HoverLinkReporter> m_hover_link_reporter;
 
     // https://dom.spec.whatwg.org/#document-base-url-override
     Optional<URL::URL> m_base_url_override;

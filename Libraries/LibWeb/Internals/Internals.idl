@@ -332,6 +332,8 @@ interface Internals {
     // would, beside the mouse event with the given input event id, if any, and waits until the tick that hovers what is
     // under it has run, at the given frame time, or now.
     undefined injectHoverPointer(double x, double y, optional double frameTimeMs, optional unsigned long long inputEventId, optional unsigned long buttons = 0);
+    // Hands the clock lanes of the current document the pointer leaving it, and waits as injectHoverPointer() does.
+    undefined injectHoverPointerLeft(double frameTimeMs);
     // Reports to the current document's navigable, as the compositor would, that a frame of a transform animation it
     // runs moved content under the pointer at rest, or away from it, as of the given frame time.
     undefined noteAnimatedContentMovedUnderPointer(double frameTimeMs);

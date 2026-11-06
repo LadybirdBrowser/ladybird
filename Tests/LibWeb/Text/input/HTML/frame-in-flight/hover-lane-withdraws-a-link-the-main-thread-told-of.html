@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    a { display: block; width: 100px; height: 20px; }
+</style>
+<a href="https://example.com/link"></a>
+<script>
+    // The main thread told of the link before a task began, and the pointer leaves the page beside that task.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        internals.mouseMove(50, 10);
+        println(`the main thread hovers: ${internals.hoveredLink()}`);
+        await twoFramesLanded();
+
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointerLeft(frameTime + 16);
+            println(`after the pointer left: ${internals.hoveredLink()}`);
+        });
+        done();
+    });
+</script>

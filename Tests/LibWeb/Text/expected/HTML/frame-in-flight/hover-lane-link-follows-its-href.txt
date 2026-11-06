@@ -1,0 +1,5 @@
+the first href: https://example.com/first
+the href changed: https://example.com/second
+the href went: null
+the href came back: https://example.com/third
+the link moved below the other element: https://example.com/third

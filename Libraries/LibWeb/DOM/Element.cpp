@@ -153,6 +153,7 @@
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/PageHoverLink.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -3196,6 +3197,16 @@ void Element::record_style_environment_change()
     document().style_computer().style_engine().record_derived_element_style_input_change(style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
 }
 
+void Element::update_hover_link()
+{
+    if (m_style_node_id == 0)
+        return;
+    Optional<Utf16String> href;
+    if (created_hyperlink())
+        href = attribute(HTML::AttributeNames::href);
+    document().hover_link_reporter().set_link(m_style_node_id.value(), move(href));
+}
+
 void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
 {
     if (m_style_node_id == style_node_id)
@@ -3204,6 +3215,11 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     auto old_style_node_id = m_style_node_id;
     m_style_node_id = style_node_id;
     Layout::Node::dom_node_style_node_changed(*this, old_style_node_id);
+    if (created_hyperlink()) {
+        if (old_style_node_id != 0)
+            document().hover_link_reporter().set_link(old_style_node_id.value(), {});
+        update_hover_link();
+    }
     // An element keeps the random base values of its own keys for its whole life: it holds them while it has no style
     // node, and its next one takes them back.
     auto& style_engine = document().style_computer().style_engine();

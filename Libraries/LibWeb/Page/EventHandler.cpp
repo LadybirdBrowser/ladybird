@@ -5651,8 +5651,13 @@ void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::
     // NB: A primary touch or pen pointer can move the effective legacy mouse pointer position away from the native
     //     mouse pointer's boundary target, so the native pointer's boundary events also need to reach T.
     auto previous_pointer_target = m_native_mouse_hover_target;
-    if (m_effective_legacy_mouse_pointer_position == target && previous_pointer_target == target)
+    if (m_effective_legacy_mouse_pointer_position == target && previous_pointer_target == target) {
+        // AD-HOC: A hover of the render clock may have told the client of the link in the frame on screen, which may
+        //         not be what is under the pointer here. Nothing else would tell the client so, as the target did not
+        //         change.
+        report_hovered_link_to_client(target);
         return;
+    }
 
     // 3. Dispatch mouseover, mouseout, mouseenter and mouseleave events as per [UIEVENTS] for a mouse moving from the
     //    current effective legacy mouse pointer position to T. Consider an unset value of either current effective
@@ -5709,13 +5714,15 @@ void EventHandler::report_hovered_link_to_client(GC::Ptr<DOM::Node> target)
     auto& page = m_navigable->page();
 
     Optional<URL::URL> hovered_link_url;
+    Optional<UniqueNodeID> hovered_document;
     if (target) {
+        hovered_document = target->document().unique_id();
         // NB: A link in editable content is text to edit, which clicking does not follow.
         auto const* hovered_link_element = target->enclosing_link_element();
         if (hovered_link_element && !hovered_link_element->hyperlink_element_utils_element().is_editable_or_editing_host())
             hovered_link_url = target->document().encoding_parse_url(hovered_link_element->href());
     }
-    page.hover_link().request(move(hovered_link_url));
+    page.hover_link().request(move(hovered_link_url), hovered_document);
 
     // Whatever the client shows now, this handler reported — so the hover is this handler's to end.
     GC::Ptr<HTML::LocalNavigable> hover_reporting_navigable;
@@ -5742,6 +5749,9 @@ void EventHandler::reset_hover_for_document_replacement(Badge<HTML::LocalNavigab
     m_additional_pointers.clear();
     if (m_navigable->page().hover_reporting_navigable() == m_navigable)
         report_hovered_node_to_client(nullptr);
+    // A hover of the render clock may have told of a link there, of which no handler has heard yet.
+    if (auto document = m_navigable->active_document())
+        m_navigable->page().hover_link().withdraw(document->unique_id());
 }
 
 void EventHandler::record_last_known_mouse_position(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers)

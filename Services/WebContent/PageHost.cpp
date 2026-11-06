@@ -62,9 +62,12 @@ Web::HTML::CrossProcessId PageHost::allocate_navigable_id()
 
 void PageHost::remove_page(Badge<PageClient>, Web::PageId page_id)
 {
-    // The page's cursor asks nothing more of the connection, which a hover of the render clock may still ask it of.
-    if (auto page = m_pages.get(page_id); page.has_value())
+    // The cursor and hovered link of the page ask nothing more of the connection, which a hover of the render clock may
+    // still ask it of.
+    if (auto page = m_pages.get(page_id); page.has_value()) {
         page.value()->page().cursor().set_send({});
+        page.value()->page().hover_link().set_send({});
+    }
     m_pages.remove(page_id);
 }
 
@@ -83,9 +86,11 @@ Optional<PageClient&> PageHost::page(Web::PageId page_id)
 
 PageHost::~PageHost()
 {
-    // The pages' cursors ask nothing more of the connection, which goes away with this.
-    for (auto& page : m_pages)
+    // The pages' cursors and hovered links ask nothing more of the connection, which goes away with this.
+    for (auto& page : m_pages) {
         page.value->page().cursor().set_send({});
+        page.value->page().hover_link().set_send({});
+    }
 }
 
 void PageHost::ensure_compositor_host()

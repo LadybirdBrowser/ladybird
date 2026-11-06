@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    a, div { display: block; width: 100px; height: 20px; }
+</style>
+<a id="link" href="https://example.com/first"></a>
+<div id="other"></div>
+<script>
+    // A hover tells of the href a link has now, however a task changed it, and of the link wherever it moved to.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        const hoverAt = frameTime => {
+            let time = frameTime;
+            return (name, y) => {
+                time += 16;
+                internals.injectHoverPointer(50, 30, time);
+                time += 16;
+                internals.injectHoverPointer(50, y, time);
+                println(`${name}: ${internals.hoveredLink()}`);
+            };
+        };
+
+        await whileLaneHovers(frameTime => {
+            const hover = hoverAt(frameTime);
+            hover("the first href", 10);
+            link.href = "https://example.com/second";
+            hover("the href changed", 10);
+            link.removeAttribute("href");
+            hover("the href went", 10);
+            link.href = "https://example.com/third";
+            hover("the href came back", 10);
+        });
+
+        other.after(link);
+        await twoFramesLanded();
+        await whileLaneHovers(frameTime => hoverAt(frameTime)("the link moved below the other element", 30));
+        done();
+    });
+</script>

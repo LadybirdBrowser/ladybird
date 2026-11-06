@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<base href="https://example.com/base/">
+<style>
+    body { margin: 0; }
+    a, div { display: block; width: 100px; height: 20px; }
+    a:hover, div:hover { background: rgb(0, 128, 0); }
+</style>
+<a href="https://example.com/absolute"><span>Text in a link</span></a>
+<a href="relative?query=1"></a>
+<a></a>
+<div></div>
+<div id="host"><span>Slotted text</span></div>
+<div contenteditable><a href="in-editable-content"></a></div>
+<a href="editing-host" contenteditable></a>
+<script>
+    // The main thread stays in one task for every move, so what shows is what the lane asked for.
+    asyncTest(async done => {
+        host.attachShadow({ mode: "open" }).innerHTML = `<a href="slot"><slot></slot></a>`;
+        await twoFramesLanded();
+
+        await whileLaneHovers(frameTime => {
+            let time = frameTime;
+            const hover = (name, y) => {
+                time += 16;
+                internals.injectHoverPointer(50, y, time);
+                println(`${name}: ${internals.hoveredLink()}`);
+            };
+
+            hover("text in a link", 10);
+            hover("a relative link", 30);
+            hover("an anchor without href", 50);
+            hover("back on a link", 10);
+            hover("no link", 70);
+            hover("a link around a slot", 90);
+            hover("a link in editable content", 110);
+            hover("a link that is an editing host", 130);
+        });
+        done();
+    });
+</script>

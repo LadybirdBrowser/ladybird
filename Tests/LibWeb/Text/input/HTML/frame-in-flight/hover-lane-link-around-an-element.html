@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    a, span { display: block; width: 100px; height: 20px; }
+</style>
+<a href="https://example.com/link"><span></span></a>
+<script>
+    // The lane walks up from the element to the link around it, in a document with no shadow root anywhere.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 10, frameTime + 16);
+            println(`an element in a link: ${internals.hoveredLink()}`);
+        });
+        done();
+    });
+</script>

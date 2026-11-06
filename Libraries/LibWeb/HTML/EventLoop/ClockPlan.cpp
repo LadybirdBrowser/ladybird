@@ -191,6 +191,20 @@ static Layout::RustFFI::FfiPageCursor ffi_page_cursor(PageCursor& cursor)
     };
 }
 
+// What tells the document's page the link a hover of the render clock is over, on the Render thread.
+static Layout::RustFFI::FfiHoverLinkReporter ffi_hover_link_reporter(DOM::Document& document)
+{
+    document.update_hover_link_base();
+    return {
+        .reporter = &document.hover_link_reporter(),
+        .retain = [](void const* reporter) { static_cast<HoverLinkReporter const*>(reporter)->ref(); },
+        .release = [](void const* reporter) { static_cast<HoverLinkReporter const*>(reporter)->unref(); },
+        .is_link = [](void const* reporter, u32 element) { return static_cast<HoverLinkReporter const*>(reporter)->is_link(element); },
+        .report = [](void const* reporter, u32 element) { const_cast<HoverLinkReporter&>(*static_cast<HoverLinkReporter const*>(reporter)).report(element); },
+        .withdraw = [](void const* reporter) { const_cast<HoverLinkReporter&>(*static_cast<HoverLinkReporter const*>(reporter)).withdraw(); },
+    };
+}
+
 bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
 {
     auto* arena = document.layout_node_arena_if_created();
@@ -322,6 +336,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                 .scroll_offset_count = scroll_offsets.size(),
                 .chrome_metrics = document.page().chrome_metrics(),
                 .page_cursor = ffi_page_cursor(document.page().cursor()),
+                .link_reporter = ffi_hover_link_reporter(document),
                 .effect_timing_nodes = effect_timing_nodes.data(),
                 .effect_timing_identities = effect_timing_identities.data(),
                 .effect_timings = effect_timings.data(),

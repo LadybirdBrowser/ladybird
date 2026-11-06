@@ -1,0 +1,4 @@
+frame scheduler while held: in-flight
+link beside the held frame: https://example.com/link
+link matches :hover beside the held frame: false
+link once the frame landed: https://example.com/link

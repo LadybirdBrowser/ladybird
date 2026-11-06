@@ -1,0 +1,2 @@
+the main thread hovers: https://example.com/link
+after the pointer left: null
