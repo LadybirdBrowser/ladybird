@@ -146,7 +146,6 @@ if (NOT WIN32)
         TestRequestServerClientSessions.cpp
         TestRequestServerDiskCaches.cpp
         TestShadowTreeTooltipsAndLinks.cpp
-        TestTabPerformanceMonitor.cpp
         TestUserActivation.cpp
         TestViewSource.cpp
         TestWebCompatReport.cpp
