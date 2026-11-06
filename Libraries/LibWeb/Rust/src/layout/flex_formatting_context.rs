@@ -121,7 +121,6 @@ struct FlexItemDetails<'pass> {
     // The cross size transferred through the aspect ratio before the automatic minimum size grew it to fit the
     // content. The content resolves percentages against it.
     cross_size_transferred_through_aspect_ratio: Option<CssPixels>,
-    desired_flex_fraction: f64,
     content_baselines: DerivedBaselines,
     /// For an item that establishes an orthogonal flow, its baselines along the horizontal axis of the container's
     /// frame, as its run handed them back.
@@ -137,7 +136,6 @@ impl<'pass> FlexItemDetails<'pass> {
             cells,
             used_flex_basis: UsedFlexBasis::Content,
             cross_size_transferred_through_aspect_ratio: None,
-            desired_flex_fraction: 0.0,
             content_baselines: DerivedBaselines::default(),
             orthogonal_flow_baselines: None,
             stretched_table_wrapper_block_sizes: None,
@@ -3925,106 +3923,67 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .unwrap_or_default();
         }
 
-        let chosen = if use_hypothetical_main_sizes {
-            0.0
-        } else {
-            self.chosen_flex_fraction_for_intrinsic_main_size()
-        };
-
-        // 4. Add each item's flex base size to the product of its flex grow factor (scaled flex shrink factor, if shrinking)
-        //    and the chosen flex fraction, then clamp that result by the max main size floored by the min main size.
+        // https://drafts.csswg.org/css-flexbox-1/#intrinsic-main-sizes
+        // An implementation may follow either the ideal algorithm or the web-compatible one. A row container follows
+        // the web-compatible one: The ideal algorithm keeps an item that can't shrink at its flex base size, so an
+        // item whose base size is its content's max-content size can't contribute less, even where its content
+        // could shrink, like an image with `max-width: 100%`.
+        let max_content = self.available_space_for_items.unwrap().main != AvailableSize::MinContent;
         let mut sum = CssPixels::default();
         for index in 0..self.flex_items.len() {
-            let product = if chosen > 0.0 {
-                chosen * self.flex_item_details[index].inputs.flex_grow_factor
-            } else if chosen < 0.0 {
-                chosen * self.flex_items[index].scaled_flex_shrink_factor
+            if use_hypothetical_main_sizes {
+                sum += self.outer_hypothetical_main_size_for_intrinsic_main_size(index, true);
+                continue;
+            }
+            // For the max-content size of a flex container, take the sum of the max-content contributions of all the
+            // non-collapsed flex items in the flex container. For the min-content size of a single-line container,
+            // take the sum of the min-content contributions of all the non-collapsed flex items in the flex container.
+            // INTEROP: An item that can't grow or shrink toward its contribution, and whose flex basis is definite,
+            //          contributes its hypothetical main size instead, since it keeps that size in layout.
+            let contribution = self.calculate_main_content_contribution(index, max_content);
+            let outer_flex_base_size = self.flex_items[index].outer_flex_base_size();
+            let inputs = &self.flex_item_details[index].inputs;
+            let cannot_reach_contribution = (contribution > outer_flex_base_size && inputs.flex_grow_factor == 0.0)
+                || (contribution < outer_flex_base_size && inputs.flex_shrink_factor == 0.0);
+            sum += if self.flex_items[index].used_flex_basis_is_definite && cannot_reach_contribution {
+                self.outer_hypothetical_main_size_for_intrinsic_main_size(index, false)
             } else {
-                0.0
+                contribution
             };
-            let result = self.flex_items[index].flex_base_size + CssPixels::nearest_value_for(product);
-            let min = self.computed_main_min_size(index);
-            // NB: A hypothetical main size is clamped by any specified min main size, where a percentage resolves
-            //     against the zero-sized container we are measuring.
-            let clamp_min = if !min.is_auto() && (use_hypothetical_main_sizes || !min.contains_percentage()) {
-                self.specified_main_min_size(index)
-            } else {
-                self.automatic_minimum_size(index)
-            };
-            let clamp_max = self.specified_main_max_size_for_intrinsic_contribution(
-                index,
-                self.available_space_for_items.unwrap().main,
-            );
-            // NOTE: The spec doesn't mention anything about the *outer* size here, but if we don't add the margin box,
-            //       flex items with non-zero padding/border/margin in the main axis end up overflowing the container.
-            sum += self.flex_items[index].add_main_margin_box_sizes(css_clamp(result, clamp_min, clamp_max));
         }
         // CSS-FLEXBOX-2: Account for gap between flex items.
         if !self.flex_items.is_empty() {
             sum += self.main_gap() * (self.flex_items.len() - 1);
         }
         let largest_sum = sum.max(CssPixels::default());
-        // 5. The flex container’s max-content size is the largest sum (among all the lines) of the afore-calculated sizes of all items within a single line.
         self.set_container_main_size(largest_sum);
         largest_sum
     }
 
-    // https://drafts.csswg.org/css-flexbox-1/#intrinsic-main-sizes-ideal
-    fn chosen_flex_fraction_for_intrinsic_main_size(&mut self) -> f64 {
-        // The max-content main size of a flex container is, fundamentally, the smallest size the flex container
-        // can take such that when flex layout is run with that container size, each flex item ends up at least
-        // as large as its max-content contribution, to the extent allowed by the items’ flexibility.
-        // It is calculated, considering only non-collapsed flex items, by:
-
-        // 1. For each flex item, subtract its outer flex base size from its max-content contribution size.
-        //    If that result is positive, divide it by the item’s flex grow factor if the flex grow factor is ≥ 1,
-        //    or multiply it by the flex grow factor if the flex grow factor is < 1; if the result is negative,
-        //    divide it by the item’s scaled flex shrink factor (if dividing by zero, treat the result as negative infinity).
-        //    This is the item’s desired flex fraction.
-        let min_content = self.available_space_for_items.unwrap().main == AvailableSize::MinContent;
-        for index in 0..self.flex_items.len() {
-            let contribution = self.calculate_main_content_contribution(index, !min_content);
-            let result = contribution - self.flex_items[index].outer_flex_base_size();
-            let mut adjusted = result;
-            let flex_grow_factor = self.flex_item_details[index].inputs.flex_grow_factor;
-            if result > CssPixels::default() {
-                adjusted = if flex_grow_factor >= 1.0 {
-                    result.scaled(1.0 / flex_grow_factor)
-                } else {
-                    result.scaled(flex_grow_factor)
-                };
-            } else if result < CssPixels::default() {
-                adjusted = if self.flex_items[index].scaled_flex_shrink_factor == 0.0 {
-                    CssPixels::from_raw(i32::MIN)
-                } else {
-                    result.scaled(1.0 / self.flex_items[index].scaled_flex_shrink_factor)
-                };
-            }
-            self.flex_item_details[index].desired_flex_fraction = adjusted.to_double();
-        }
-
-        // 2. Place all flex items into a line of infinite length and find its greatest desired flex fraction.
-        // FIXME: Honor breaking requests.
-        let mut greatest = 0.0f32;
-        let mut grow_sum = 0.0f32;
-        let mut shrink_sum = 0.0f32;
-        for details in &self.flex_item_details {
-            greatest = greatest.max(details.desired_flex_fraction as f32);
-            grow_sum += details.inputs.flex_grow_factor as f32;
-            shrink_sum += details.inputs.flex_shrink_factor as f32;
-        }
-        let mut chosen = greatest;
-        // 3. If the chosen flex fraction is positive, and the sum of the line's flex grow factors is less than 1,
-        //    divide the chosen flex fraction by that sum.
-        if chosen > 0.0 && grow_sum < 1.0 {
-            chosen /= grow_sum;
-        }
-        // If the chosen flex fraction is negative, and the sum of the line's flex shrink factors is less than 1,
-        // multiply the chosen flex fraction by that sum.
-        if chosen < 0.0 && shrink_sum < 1.0 {
-            chosen *= shrink_sum;
-        }
-        f64::from(chosen)
+    /// An item's flex base size clamped by its max main size floored by its min main size, with its margin box added:
+    /// its outer hypothetical main size, as the container's intrinsic main size sees it.
+    fn outer_hypothetical_main_size_for_intrinsic_main_size(
+        &self,
+        index: usize,
+        use_hypothetical_main_sizes: bool,
+    ) -> CssPixels {
+        let min = self.computed_main_min_size(index);
+        // NB: A hypothetical main size is clamped by any specified min main size, where a percentage resolves
+        //     against the zero-sized container we are measuring.
+        let clamp_min = if !min.is_auto() && (use_hypothetical_main_sizes || !min.contains_percentage()) {
+            self.specified_main_min_size(index)
+        } else {
+            self.automatic_minimum_size(index)
+        };
+        let clamp_max = self
+            .specified_main_max_size_for_intrinsic_contribution(index, self.available_space_for_items.unwrap().main);
+        // NOTE: The spec doesn't mention anything about the *outer* size here, but if we don't add the margin box,
+        //       flex items with non-zero padding/border/margin in the main axis end up overflowing the container.
+        self.flex_items[index].add_main_margin_box_sizes(css_clamp(
+            self.flex_items[index].flex_base_size,
+            clamp_min,
+            clamp_max,
+        ))
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#intrinsic-cross-sizes
