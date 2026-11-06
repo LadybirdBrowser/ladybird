@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/Agent.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Scripting/ScriptAbortHandle.h>
 
 namespace JS {
 
@@ -38,6 +39,10 @@ struct WEB_API Agent : public JS::Agent {
 
     virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) override;
 
+    // Only the agent's thread may call this, the first time at least. The handle is for other threads.
+    NonnullRefPtr<ScriptAbortHandle> script_abort_handle();
+    void detach_script_abort_handle();
+
 protected:
     using JS::Agent::Agent;
 
@@ -49,6 +54,8 @@ private:
     // windows in one WebContent process currently share the process's
     // SimilarOriginWindowAgent; proper agent-cluster separation is future work.
     mutable GC::Root<Bindings::WrapperWorld> m_main_world;
+
+    RefPtr<ScriptAbortHandle> m_script_abort_handle;
 };
 
 Agent& relevant_agent(JS::Object const&);

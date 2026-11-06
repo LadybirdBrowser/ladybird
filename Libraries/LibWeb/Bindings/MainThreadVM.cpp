@@ -194,6 +194,10 @@ void initialize_main_thread_vm(HTML::AgentType type)
     main_thread_vm_ptr()->host_promise_rejection_tracker = [](JS::Promise& promise, JS::Promise::RejectionOperation operation) {
         auto& vm = *main_thread_vm_ptr();
 
+        // NB: Nothing reports what an aborted script left behind.
+        if (vm.interrupt_requested())
+            return;
+
         // 1. Let script be the running script.
         //    The running script is the script in the [[HostDefined]] field in the ScriptOrModule component of the running JavaScript execution context.
         HTML::Script* script { nullptr };
@@ -744,6 +748,8 @@ extern "C" void web_rust_shut_down_agent(JSVM*);
 void shut_down_agent()
 {
     auto& vm = main_thread_vm();
+
+    static_cast<HTML::Agent*>(vm.agent())->detach_script_abort_handle();
 
     // What the agent keeps outside its heap refers to cells in it, so that goes while the heap is alive.
     Platform::discard_thread_pool_completions();

@@ -100,10 +100,13 @@ void WorkerGlobalScope::terminate_a_worker()
     //    discard them without processing them.
     close_a_worker();
 
-    // FIXME: 3. Abort the script currently running in the worker.
-    // FIXME: 4. If the worker's WorkerGlobalScope object is actually a DedicatedWorkerGlobalScope object (i.e. the
-    //           worker is a dedicated worker), then empty the port message queue of the port that the worker's implicit
-    //           port is entangled with.
+    // 3. Abort the script currently running in the worker.
+    relevant_realm(*this).vm().request_interrupt();
+
+    // 4. If the worker's WorkerGlobalScope object is actually a DedicatedWorkerGlobalScope object (i.e. the worker is
+    //    a dedicated worker), then empty the port message queue of the port that the worker's implicit port is
+    //    entangled with.
+    // NB: That port is in the owner, whose Worker::terminate() empties its queue.
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#importing-scripts-and-libraries

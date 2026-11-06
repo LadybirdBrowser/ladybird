@@ -460,6 +460,9 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             return false;
         }));
 
+        // NB: The event loop gave up on an aborted script.
+        if (!process_response_completion_result.has_value())
+            return WebIDL::AbortError::create("Service Worker fetch was terminated or aborted"_utf16);
         return process_response_completion_result.release_value();
     };
     auto perform_the_fetch_hook = HTML::create_perform_the_fetch_hook(GC::Heap::the(), move(perform_the_fetch_hook_function));

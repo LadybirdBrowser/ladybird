@@ -6,6 +6,8 @@
 
 #include <AK/Function.h>
 #include <LibCore/EventLoop.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::Platform {
@@ -29,10 +31,18 @@ EventLoopPlugin::~EventLoopPlugin() = default;
 void EventLoopPlugin::spin_until(GC::Root<GC::Function<bool()>> goal_condition)
 {
     Core::EventLoop::current().spin_until([goal_condition = move(goal_condition)]() {
-        // NB: A process that shuts down fast has nothing to unwind for. A worker event loop quits only once no script is
-        //     waiting in here, as its agent has an ordered shutdown ahead of it.
-        if (Core::EventLoop::current().was_exit_requested())
-            ::exit(0);
+        // NB: Only script can be waiting for the goal, and it has to unwind once aborted, goal or not. Every caller has to
+        //     cope with that.
+        if (JS::VM::the().interrupt_requested())
+            return true;
+        if (Core::EventLoop::current().was_exit_requested()) {
+            // NB: A process that shuts down fast has nothing to unwind for. An event loop on a worker's thread can only
+            //     end the worker, whose agent has an ordered shutdown ahead of it, so that script is aborted instead.
+            if (HTML::surrounding_agent().is_similar_origin_window_agent())
+                ::exit(0);
+            JS::VM::the().request_interrupt();
+            return true;
+        }
         return goal_condition->function()();
     });
 }
