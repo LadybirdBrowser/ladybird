@@ -601,11 +601,6 @@ pub fn put_by_property_key(
                                 continue;
                             };
 
-                            // Cannot add properties to non-extensible objects (frozen, sealed, or preventExtensions).
-                            if !object.internal_is_extensible(vm)? {
-                                continue;
-                            }
-
                             // The cache is invalid if the prototype chain has been mutated, since such a mutation could have added a setter for the property.
                             if cache
                                 .prototype_chain_validity
