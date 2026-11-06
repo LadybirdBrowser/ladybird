@@ -1,0 +1,4 @@
+control: notified 1
+Atomics.wait: stopped
+Atomics.wait with a timeout: stopped
+memory.atomic.wait: stopped

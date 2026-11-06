@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const ATOMICS_WAIT = `
+        const memory = new SharedArrayBuffer(8);
+        const words = new Int32Array(memory);
+        self.postMessage(memory);
+        Atomics.store(words, 1, 1);
+        Atomics.wait(words, 0, 0, TIMEOUT);
+        self.postMessage("woken");
+    `;
+
+    const MEMORY_ATOMIC_WAIT = `
+        const memory = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true });
+        // NB: The buffer of a shared memory reaches another agent as a copy, so this one tells that the wait is near.
+        const words = new Int32Array(new SharedArrayBuffer(8));
+        self.postMessage(words.buffer);
+        const instance = new WebAssembly.Instance(
+            new WebAssembly.Module(
+                new Uint8Array([
+                    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x02, 0x09, 0x01,
+                    0x01, 0x65, 0x01, 0x6d, 0x02, 0x03, 0x01, 0x01, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66,
+                    0x00, 0x00, 0x0a, 0x0f, 0x01, 0x0d, 0x00, 0x41, 0x00, 0x41, 0x00, 0x42, 0x7f, 0xfe, 0x01, 0x02, 0x00,
+                    0x1a, 0x0b,
+                ])
+            ),
+            { e: { m: memory } }
+        );
+        Atomics.store(words, 1, 1);
+        instance.exports.f();
+        self.postMessage("woken");
+    `;
+
+    // NB: A notify finds nobody on the word once terminate() ended the wait, and the worker ran nothing past it. The worker
+    //     sets word 1 right before it waits, and terminate() ends a wait that starts after it as well, so that nothing here
+    //     depends on how long anything takes.
+    async function check(name, body) {
+        const script = URL.createObjectURL(new Blob([body], { type: "text/javascript" }));
+        const worker = new Worker(script);
+        worker.onerror = () => println(`${name}: error`);
+        let words = null;
+        let wasWoken = false;
+        worker.onmessage = ({ data }) => {
+            if (data === "woken") wasWoken = true;
+            else words = new Int32Array(data);
+        };
+        await waitForCondition(() => words !== null && Atomics.load(words, 1) === 1);
+
+        // NB: terminate() takes the way through the browser process, so only the end of the thread shows that it arrived.
+        worker.terminate();
+        await waitForCondition(() => internals.workerAgentCount() === 0);
+        const notified = Atomics.notify(words, 0, 1);
+        println(`${name}: ${notified === 0 && !wasWoken ? "stopped" : "still waiting"}`);
+    }
+
+    // NB: Without terminate(), the same notify wakes the worker. So this is what the checks above would see for a wait
+    //     that nothing ended.
+    async function checkControl() {
+        const script = URL.createObjectURL(new Blob([ATOMICS_WAIT.replace("TIMEOUT", "Infinity")], { type: "text/javascript" }));
+        const worker = new Worker(script);
+        let words = null;
+        let wasWoken = false;
+        worker.onmessage = ({ data }) => {
+            if (data === "woken") wasWoken = true;
+            else words = new Int32Array(data);
+        };
+        await waitForCondition(() => words !== null);
+        // NB: A busy machine can take any time to get the worker to the wait.
+        let notified = 0;
+        await waitForCondition(() => (notified = Atomics.notify(words, 0, 1)) !== 0);
+        await waitForCondition(() => wasWoken);
+        worker.terminate();
+        await waitForCondition(() => internals.workerAgentCount() === 0);
+        println(`control: notified ${notified}`);
+    }
+
+    promiseTest(async () => {
+        await checkControl();
+        await check("Atomics.wait", ATOMICS_WAIT.replace("TIMEOUT", "Infinity"));
+        await check("Atomics.wait with a timeout", ATOMICS_WAIT.replace("TIMEOUT", "600000"));
+        await check("memory.atomic.wait", MEMORY_ATOMIC_WAIT);
+    });
+</script>
