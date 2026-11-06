@@ -1,0 +1,9 @@
+Ladybird ends an outside marker at the start of its list item’s border
+box. Gecko’s nsBlockFrame::ReflowOutsideMarker() computes that same
+offset: the content start, less the list item’s start border and
+padding, less the marker’s end margin and its size. Blink places the
+marker against the start of the border box in UnpositionedListMarker::
+AddToBox(). And WebKit’s RenderListItem::placeExcludedMarker() moves it
+there from the content edge, by subtracting borderAndPaddingStart().
+Chrome and Firefox both draw it outside the border box in a manual
+check: with start padding, with a start border, and right to left.
