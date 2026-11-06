@@ -685,10 +685,11 @@ impl ProjectionGeneration {
             return Some(slot);
         }
         let parent = row.links.parent?;
+        // NB: The column only reaches as far as the last element that has a shadow root.
         let host = self
             .shadows
-            .get(parent.element_slot())?
-            .as_deref()
+            .get(parent.element_slot())
+            .and_then(Option::as_deref)
             .and_then(|shadow| shadow.host);
         Some(host.unwrap_or(parent))
     }
