@@ -12,9 +12,11 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Size.h>
 #include <QAbstractNativeEventFilter>
+#include <QColor>
 #include <QCoreApplication>
 #include <QDrag>
 #include <QGuiApplication>
+#include <QMargins>
 #include <QMouseEvent>
 #include <QPointer>
 #include <QWheelEvent>
@@ -23,6 +25,7 @@
 #include <UI/Qt/WebContentView.h>
 
 #import <Cocoa/Cocoa.h>
+#import <QuartzCore/QuartzCore.h>
 #import <UI/Qt/DictionaryLookup.h>
 #import <dlfcn.h>
 #import <objc/runtime.h>
@@ -133,6 +136,18 @@
 - (void)windowDidResize:(NSNotification*)notification
 {
     [self applyWindowControlOffsets];
+}
+
+@end
+
+@interface LadybirdShadowView : NSView
+@end
+
+@implementation LadybirdShadowView
+
+- (NSView*)hitTest:(NSPoint)point
+{
+    return nil;
 }
 
 @end
@@ -635,17 +650,6 @@ void round_appkit_view_corners(QWidget& widget, qreal radius, QColor const& bord
     CGColorRelease(color);
 }
 
-void stack_appkit_view_below(QWidget& widget, QWidget& sibling)
-{
-    if (QGuiApplication::platformName() != "cocoa")
-        return;
-    auto* view = reinterpret_cast<NSView*>(widget.winId());
-    auto* sibling_view = reinterpret_cast<NSView*>(sibling.winId());
-    if (!view || !sibling_view || !sibling_view.superview)
-        return;
-    [sibling_view.superview addSubview:view positioned:NSWindowBelow relativeTo:sibling_view];
-}
-
 void round_appkit_view_bottom_corners(QWidget& widget, qreal radius)
 {
     if (QGuiApplication::platformName() != "cocoa")
@@ -682,6 +686,76 @@ void cast_appkit_view_shadow(QWidget& widget, qreal corner_radius, qreal blur_ra
     auto* shadow_path = CGPathCreateWithRoundedRect(view.bounds, corner_radius, corner_radius, nullptr);
     layer.shadowPath = shadow_path;
     CGPathRelease(shadow_path);
+}
+
+AppKitViewShadow::AppKitViewShadow()
+{
+    auto* view = [[LadybirdShadowView alloc] initWithFrame:NSZeroRect];
+    view.wantsLayer = YES;
+    view.layer.masksToBounds = YES;
+    view.hidden = YES;
+    auto* caster = [[CALayer alloc] init];
+    [view.layer addSublayer:caster];
+    m_view = view;
+    m_caster = caster;
+}
+
+AppKitViewShadow::~AppKitViewShadow()
+{
+    auto* view = static_cast<NSView*>(m_view);
+    [view removeFromSuperview];
+    [view release];
+    [static_cast<CALayer*>(m_caster) release];
+}
+
+void AppKitViewShadow::follow(QWidget& widget, QMargins const& room, qreal corner_radius, qreal blur_radius, qreal y_offset, QColor const& shadow_color, QColor const& fill_color)
+{
+    if (QGuiApplication::platformName() != "cocoa")
+        return;
+    auto* surface = reinterpret_cast<NSView*>(widget.winId());
+    if (!surface || !surface.superview)
+        return;
+    auto* view = static_cast<NSView*>(m_view);
+    auto* caster = static_cast<CALayer*>(m_caster);
+
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+
+    auto surface_frame = surface.frame;
+    auto room_at_origin = surface.superview.isFlipped ? room.top() : room.bottom();
+    view.frame = NSMakeRect(surface_frame.origin.x - room.left(), surface_frame.origin.y - room_at_origin,
+        surface_frame.size.width + room.left() + room.right(), surface_frame.size.height + room.top() + room.bottom());
+    [surface.superview addSubview:view positioned:NSWindowBelow relativeTo:surface];
+    view.hidden = NO;
+
+    // NB: This view is not flipped, unlike Qt's, so the bottom of the room comes first and a shadow falls to lower y.
+    auto caster_frame = CGRectMake(room.left(), room.bottom(), surface_frame.size.width, surface_frame.size.height);
+    caster.frame = caster_frame;
+    caster.cornerRadius = corner_radius;
+    auto* fill = CGColorCreateSRGB(fill_color.redF(), fill_color.greenF(), fill_color.blueF(), fill_color.alphaF());
+    caster.backgroundColor = fill;
+    CGColorRelease(fill);
+    auto* shadow = CGColorCreateSRGB(shadow_color.redF(), shadow_color.greenF(), shadow_color.blueF(), shadow_color.alphaF());
+    caster.shadowColor = shadow;
+    CGColorRelease(shadow);
+    caster.shadowOpacity = 1;
+    caster.shadowRadius = blur_radius;
+    caster.shadowOffset = CGSizeMake(0, -y_offset);
+    auto* shadow_path = CGPathCreateWithRoundedRect(CGRectMake(0, 0, caster_frame.size.width, caster_frame.size.height), corner_radius, corner_radius, nullptr);
+    caster.shadowPath = shadow_path;
+    CGPathRelease(shadow_path);
+
+    [CATransaction commit];
+}
+
+void AppKitViewShadow::hide()
+{
+    static_cast<NSView*>(m_view).hidden = YES;
+}
+
+void AppKitViewShadow::set_opacity(qreal opacity)
+{
+    static_cast<NSView*>(m_view).alphaValue = opacity;
 }
 
 void set_appkit_view_opacity(QWidget& widget, qreal opacity)
