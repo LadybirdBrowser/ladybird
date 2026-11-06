@@ -7,12 +7,12 @@
 #include <AK/Utf16View.h>
 #include <LibCore/EventLoop.h>
 #include <LibGC/Root.h>
-#include <LibThreading/ThreadPool.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
 #include <LibWeb/CSS/Parser/SourcePosition.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Platform/ThreadPoolWork.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
 
@@ -185,18 +185,13 @@ void Parser::parse_stylesheet_off_thread(ParsingParams const& params, Utf16Strin
 
     // NB: Retain all borrowed input storage and GC roots on the main thread. The worker only
     //     accesses the immutable source and context snapshots, plus this private parser's counter.
-    auto* callback = new Function<void(RustStyleSheetParse)>(
+    auto parse = [input, parse_context] {
+        return RustStyleSheetParse { rust_parse_css_stylesheet_syntax(input, parse_context) };
+    };
+    Platform::run_on_thread_pool<RustStyleSheetParse>(move(parse),
         [source = move(source_storage), parser = move(parser), context = move(context), document = GC::Root<DOM::Document const>::create(params.document.ptr()), on_complete = move(on_complete)](RustStyleSheetParse result) mutable {
             on_complete(move(result));
         });
-    auto& main_thread_event_loop = Core::EventLoop::current();
-    Threading::ThreadPool::the().submit([input, parse_context, callback, &main_thread_event_loop] {
-        RustStyleSheetParse result { rust_parse_css_stylesheet_syntax(input, parse_context) };
-        main_thread_event_loop.deferred_invoke([result = move(result), callback]() mutable {
-            (*callback)(move(result));
-            delete callback;
-        });
-    });
 }
 
 RustRuleList RustStyleSheetParse::native_rules() const

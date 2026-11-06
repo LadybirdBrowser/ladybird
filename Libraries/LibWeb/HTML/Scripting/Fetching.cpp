@@ -17,7 +17,6 @@
 #include <LibJS/ScriptCompilation.h>
 #include <LibJS/SourceCode.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibThreading/ThreadPool.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
@@ -40,6 +39,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/Platform/ThreadPoolWork.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 #include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/Infra/Strings.h>
@@ -103,42 +103,44 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Nonnu
     // The script runs in a task of the settings object's global, so never beside a rendering update in flight that holds
     // back the tasks of its document, and the microtasks it queues (e.g. promise reactions from react_to_promise during
     // module linking) are drained after it.
-    auto* callback = new Function<void(OffThreadCompiledProgram)>(
-        [settings_object = GC::make_root(settings_object), on_compiled = move(on_compiled), source_code = move(source_code)](OffThreadCompiledProgram result) mutable {
-            queue_global_task(Task::Source::Networking, settings_object->global_object(), GC::create_function(GC::Heap::the(), [on_compiled = move(on_compiled), source_code = move(source_code), result = move(result)]() mutable {
-                // NB: The callback holds GC roots. Release them as the task runs: the roots of a function that died
-                //     would keep what they root alive through the collection that finds it dead.
-                auto steps = move(on_compiled);
-                steps(move(result), move(source_code));
-            }));
-        });
+    auto run_callback = [settings_object = GC::make_root(settings_object), on_compiled = move(on_compiled), source_code = move(source_code)](OffThreadCompiledProgram result) mutable {
+        queue_global_task(Task::Source::Networking, settings_object->global_object(), GC::create_function(GC::Heap::the(), [on_compiled = move(on_compiled), source_code = move(source_code), result = move(result)]() mutable {
+            // NB: The callback holds GC roots. Release them as the task runs: the roots of a function that died
+            //     would keep what they root alive through the collection that finds it dead.
+            auto steps = move(on_compiled);
+            steps(move(result), move(source_code));
+        }));
+    };
 
     if (cached_program.has_value()) {
-        (*callback)(OffThreadCompiledProgram { .compiled = cached_program.release_value() });
-        delete callback;
+        run_callback(OffThreadCompiledProgram { .compiled = cached_program.release_value() });
         return;
     }
 
-    auto& main_thread_event_loop = Core::EventLoop::current();
+    struct OffThreadCompilation {
+        OffThreadCompiledProgram result;
+        Utf16String source_text;
+    };
 
-    Threading::ThreadPool::the().submit([source_text = move(source_text), type, line_number_offset, cache_key = move(cache_key), callback, &main_thread_event_loop]() mutable {
+    auto compile = [source_text = move(source_text), type, line_number_offset]() mutable {
         OffThreadCompiledProgram result { .parsed = JS::ParsedProgram::parse(source_text, type, line_number_offset) };
         if (result.parsed && !result.parsed.has_errors())
             result.compiled = JS::CompiledProgram::compile(move(result.parsed));
-
-        main_thread_event_loop.deferred_invoke([result = move(result), source_text = move(source_text), cache_key = move(cache_key), callback]() mutable {
+        return OffThreadCompilation { .result = move(result), .source_text = move(source_text) };
+    };
+    Platform::run_on_thread_pool<OffThreadCompilation>(move(compile),
+        [cache_key = move(cache_key), run_callback = move(run_callback)](OffThreadCompilation compilation) mutable {
+            auto result = move(compilation.result);
             if (cache_key.has_value() && result.compiled) {
                 // NB: Another load of the script may have stored it while this one compiled.
-                if (auto cached_program = CompiledScriptCache::the().find(*cache_key, source_text); cached_program.has_value())
+                if (auto cached_program = CompiledScriptCache::the().find(*cache_key, compilation.source_text); cached_program.has_value())
                     result.compiled = cached_program.release_value();
                 else
-                    CompiledScriptCache::the().store(cache_key.release_value(), move(source_text), result.compiled);
+                    CompiledScriptCache::the().store(cache_key.release_value(), move(compilation.source_text), result.compiled);
             }
 
-            (*callback)(move(result));
-            delete callback;
+            run_callback(move(result));
         });
-    });
 }
 
 GC_DEFINE_ALLOCATOR(FetchContext);
