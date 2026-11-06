@@ -64,10 +64,9 @@ IPC::MessageBuffer TransferDataEncoder::take_buffer() const
     return move(m_buffer);
 }
 
-void TransferDataEncoder::extend(Vector<TransferDataEncoder> data_holders)
+void TransferDataEncoder::extend(TransferDataEncoder const& data_holder)
 {
-    for (auto& data_holder : data_holders)
-        MUST(m_buffer.extend(data_holder.take_buffer()));
+    MUST(m_buffer.extend(data_holder.take_buffer()));
 }
 
 }

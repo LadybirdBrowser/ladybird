@@ -11,6 +11,7 @@
 #include <AK/Checked.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGC/RootVector.h>
+#include <LibIPC/File.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
@@ -53,16 +54,12 @@ void web_structured_serialize_image_bitmap_pixels_destroy(ImageBitmapSharedPixel
 TransferDataEncoder* web_structured_serialize_transfer_data_holder_create();
 void web_structured_serialize_transfer_data_holder_append(TransferDataEncoder*, ReadonlyBytes);
 void web_structured_serialize_transfer_data_holder_destroy(TransferDataEncoder*);
-SerializedTransferRecord* web_structured_serialize_transfer_record_create();
+SerializedTransferRecord* web_structured_serialize_transfer_record_create(ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t, TransferDataEncoder* const*, size_t);
 void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord*);
-void web_structured_serialize_transfer_record_set_serialized(SerializedTransferRecord*, ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t shared_array_buffer_count, int const* shared_memory, size_t const* shared_memory_sizes, size_t shared_memory_count);
-size_t web_structured_serialize_transfer_record_shared_memory_count(SerializedTransferRecord*);
-void web_structured_serialize_transfer_record_shared_memory(SerializedTransferRecord*, size_t index, int* shared_memory, size_t* size);
-void web_structured_serialize_transfer_record_append_data_holder(SerializedTransferRecord*, TransferDataEncoder*);
-size_t web_structured_serialize_transfer_record_data_holder_count(SerializedTransferRecord*);
-TransferDataDecoder* web_structured_serialize_transfer_record_take_data_holder(SerializedTransferRecord*, size_t index);
-IPCSerializationRecord const* web_structured_serialize_transfer_record_serialized(SerializedTransferRecord*);
-void web_structured_serialize_transfer_record_clear_shared_buffers(SerializedTransferRecord*);
+void web_structured_serialize_transfer_record_take(SerializedTransferRecord*, void*, void (*)(void*, ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t), void (*)(void*, TransferDataEncoder*));
+TransferDataDecoder* web_structured_serialize_transfer_data_decoder_create(TransferDataEncoder*);
+Vector<Core::AnonymousBuffer>* web_structured_serialize_shared_pixels_create(int const*, size_t const*, size_t);
+void web_structured_serialize_shared_pixels_destroy(Vector<Core::AnonymousBuffer>*);
 void web_structured_serialize_transferred_values_append(Vector<GC::Root<JS::Object>>*, JSObject*);
 void web_structured_serialize_transfer_data_decoder_bytes(TransferDataDecoder const*, ReadonlyBytes* bytes);
 void web_structured_serialize_transfer_data_decoder_destroy(TransferDataDecoder*);
@@ -194,9 +191,18 @@ void web_structured_serialize_transfer_data_holder_destroy(TransferDataEncoder* 
     delete data_holder;
 }
 
-SerializedTransferRecord* web_structured_serialize_transfer_record_create()
+// Takes over the descriptors and the data holders.
+SerializedTransferRecord* web_structured_serialize_transfer_record_create(ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t shared_array_buffer_count, int const* shared_memory, size_t const* sizes, size_t shared_memory_count, TransferDataEncoder* const* holders, size_t holder_count)
 {
-    return new SerializedTransferRecord;
+    auto* record = new SerializedTransferRecord;
+    record->serialized = create_ipc_serialization_record(data, shared_array_buffers_from_abi(shared_array_buffers, shared_array_buffer_count));
+    for (size_t i = 0; i < shared_memory_count; ++i)
+        record->shared_buffers.append(MUST(Core::AnonymousBuffer::create_from_anon_fd(shared_memory[i], sizes[i])));
+    for (size_t i = 0; i < holder_count; ++i) {
+        record->transfer_data_holders.append(move(*holders[i]));
+        delete holders[i];
+    }
+    return record;
 }
 
 void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord* record)
@@ -204,56 +210,50 @@ void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord* 
     delete record;
 }
 
-// The record's [[Serialized]], with the shared memory of the transfer, whose descriptors it takes over.
-void web_structured_serialize_transfer_record_set_serialized(SerializedTransferRecord* record, ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t shared_array_buffer_count, int const* shared_memory, size_t const* shared_memory_sizes, size_t shared_memory_count)
+// Rust roots the SharedArrayBuffers before this returns.
+void web_structured_serialize_transfer_record_take(SerializedTransferRecord* record, void* context, void (*receive)(void*, ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t), void (*append_holder)(void*, TransferDataEncoder*))
 {
-    record->serialized = create_ipc_serialization_record(data, shared_array_buffers_from_abi(shared_array_buffers, shared_array_buffer_count));
-    record->shared_buffers.ensure_capacity(shared_memory_count);
-    for (size_t i = 0; i < shared_memory_count; ++i)
-        record->shared_buffers.unchecked_append(MUST(Core::AnonymousBuffer::create_from_anon_fd(shared_memory[i], shared_memory_sizes[i])));
-}
-
-size_t web_structured_serialize_transfer_record_shared_memory_count(SerializedTransferRecord* record)
-{
-    return record->shared_buffers.size();
-}
-
-void web_structured_serialize_transfer_record_shared_memory(SerializedTransferRecord* record, size_t index, int* shared_memory, size_t* size)
-{
-    *shared_memory = record->shared_buffers[index].fd();
-    *size = record->shared_buffers[index].size();
-}
-
-void web_structured_serialize_transfer_record_append_data_holder(SerializedTransferRecord* record, TransferDataEncoder* data_holder)
-{
-    record->transfer_data_holders.append(move(*data_holder));
-    delete data_holder;
-}
-
-size_t web_structured_serialize_transfer_record_data_holder_count(SerializedTransferRecord* record)
-{
-    return record->transfer_data_holders.size();
-}
-
-// A decoder of the data holder at the index, which it takes from the record, or null if the data holder is empty.
-TransferDataDecoder* web_structured_serialize_transfer_record_take_data_holder(SerializedTransferRecord* record, size_t index)
-{
-    auto& transfer_data_holder = record->transfer_data_holders[index];
-    if (transfer_data_holder.buffer().data().is_empty())
-        return nullptr;
-    auto* decoder = new TransferDataDecoder { move(transfer_data_holder) };
-    decoder->set_shared_buffers(record->shared_buffers);
-    return decoder;
-}
-
-IPCSerializationRecord const* web_structured_serialize_transfer_record_serialized(SerializedTransferRecord* record)
-{
-    return &record->serialized;
-}
-
-void web_structured_serialize_transfer_record_clear_shared_buffers(SerializedTransferRecord* record)
-{
+    Vector<JSObject*> buffers;
+    for (auto const& buffer : same_process_shared_array_buffers(record->serialized))
+        buffers.append(JS::HostABI::object_to_abi(buffer.ptr()));
+    Vector<int> descriptors;
+    Vector<size_t> sizes;
+    for (auto const& buffer : record->shared_buffers) {
+        descriptors.append(buffer.fd());
+        sizes.append(buffer.size());
+    }
+    receive(context, record->serialized.data.span(), buffers.data(), buffers.size(), descriptors.data(), sizes.data(), descriptors.size());
+    for (auto& holder : record->transfer_data_holders)
+        append_holder(context, new TransferDataEncoder(move(holder)));
     record->shared_buffers.clear();
+}
+
+TransferDataDecoder* web_structured_serialize_transfer_data_decoder_create(TransferDataEncoder* holder)
+{
+    auto carrier = adopt_own(*holder);
+    if (carrier->buffer().data().is_empty())
+        return nullptr;
+    return new TransferDataDecoder(move(*carrier));
+}
+
+Vector<Core::AnonymousBuffer>* web_structured_serialize_shared_pixels_create(int const* descriptors, size_t const* sizes, size_t count)
+{
+    Vector<Core::AnonymousBuffer> buffers;
+    for (size_t i = 0; i < count; ++i) {
+        auto file = IPC::File::clone_fd(descriptors[i]);
+        if (file.is_error())
+            return nullptr;
+        auto buffer = Core::AnonymousBuffer::create_from_anon_fd(file.release_value().take_fd(), sizes[i]);
+        if (buffer.is_error())
+            return nullptr;
+        buffers.append(buffer.release_value());
+    }
+    return new Vector<Core::AnonymousBuffer>(move(buffers));
+}
+
+void web_structured_serialize_shared_pixels_destroy(Vector<Core::AnonymousBuffer>* buffers)
+{
+    delete buffers;
 }
 
 void web_structured_serialize_transferred_values_append(Vector<GC::Root<JS::Object>>* transferred_values, JSObject* value)

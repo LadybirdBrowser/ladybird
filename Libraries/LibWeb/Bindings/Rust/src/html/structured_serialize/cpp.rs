@@ -14,11 +14,10 @@ use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{ArrayBuffer, DeferGc, Gc, Object, RawNativeFunctionResult, Realm, Value, into_raw_descriptor};
+use libjs_rust::api::{ArrayBuffer, AsSharedMemory, Gc, Object, RawNativeFunctionResult, Realm, Value, raw_descriptor};
 
 use crate::bindings::{Exception, WebIdlResult};
-use crate::html::structured_serialize::message_record::{MessageRecord, SharedMemory};
-use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
+use crate::html::structured_serialize::message_record::SharedMemory;
 
 unsafe extern "C" {
     fn web_structured_serialize_set_ipc_record(
@@ -59,29 +58,14 @@ unsafe extern "C" {
     fn web_structured_serialize_transfer_data_holder_create() -> *mut c_void;
     fn web_structured_serialize_transfer_data_holder_append(data_holder: *mut c_void, bytes: ak::Span<'_, u8>);
     fn web_structured_serialize_transfer_data_holder_destroy(data_holder: *mut c_void);
-    fn web_structured_serialize_transfer_record_create() -> *mut c_void;
     fn web_structured_serialize_transfer_record_destroy(record: *mut c_void);
-    fn web_structured_serialize_transfer_record_set_serialized(
-        record: *mut c_void,
-        data: ak::Span<'_, u8>,
-        shared_array_buffers: *const *mut c_void,
-        shared_array_buffer_count: usize,
-        shared_memory: *const c_int,
-        shared_memory_sizes: *const usize,
-        shared_memory_count: usize,
-    );
-    fn web_structured_serialize_transfer_record_shared_memory_count(record: *mut c_void) -> usize;
-    fn web_structured_serialize_transfer_record_shared_memory(
-        record: *mut c_void,
-        index: usize,
-        shared_memory: &mut c_int,
-        size: &mut usize,
-    );
-    fn web_structured_serialize_transfer_record_append_data_holder(record: *mut c_void, data_holder: *mut c_void);
-    fn web_structured_serialize_transfer_record_data_holder_count(record: *mut c_void) -> usize;
-    fn web_structured_serialize_transfer_record_take_data_holder(record: *mut c_void, index: usize) -> *mut c_void;
-    fn web_structured_serialize_transfer_record_serialized(record: *mut c_void) -> *const c_void;
-    fn web_structured_serialize_transfer_record_clear_shared_buffers(record: *mut c_void);
+    fn web_structured_serialize_transfer_data_decoder_create(data_holder: *mut c_void) -> *mut c_void;
+    fn web_structured_serialize_shared_pixels_create(
+        descriptors: *const c_int,
+        sizes: *const usize,
+        count: usize,
+    ) -> *mut c_void;
+    fn web_structured_serialize_shared_pixels_destroy(buffers: *mut c_void);
     fn web_structured_serialize_transferred_values_append(transferred_values: *mut c_void, value: *mut c_void);
     fn web_structured_serialize_transfer_data_decoder_bytes(decoder: *const c_void, bytes: &mut ak::Span<'static, u8>);
     fn web_structured_serialize_transfer_data_decoder_destroy(decoder: *mut c_void);
@@ -104,7 +88,7 @@ fn completion(result: RawNativeFunctionResult) -> WebIdlResult<Value> {
 }
 
 /// The values of an array of objects, as the C ABI takes them.
-fn objects_into_abi<T>(objects: &[Gc<T>]) -> Vec<*mut c_void> {
+pub(crate) fn objects_into_abi<T>(objects: &[Gc<T>]) -> Vec<*mut c_void> {
     objects.iter().map(|object| object_into_abi(*object)).collect()
 }
 
@@ -306,6 +290,19 @@ impl TransferDataCarrier {
         )
     }
 
+    /// # Safety
+    ///
+    /// The carrier must be handed over by C++.
+    pub(crate) unsafe fn from_raw(carrier: *mut c_void) -> Self {
+        Self(NonNull::new(carrier).expect("C++ hands over a carrier"))
+    }
+
+    pub(crate) fn into_decoder(self) -> Option<OwnedTransferDataDecoder> {
+        // SAFETY: The call takes the carrier, including when it is empty.
+        NonNull::new(unsafe { web_structured_serialize_transfer_data_decoder_create(self.into_raw()) })
+            .map(|decoder| OwnedTransferDataDecoder(TransferDataDecoder(decoder)))
+    }
+
     pub(crate) fn as_raw(&self) -> *mut c_void {
         self.0.as_ptr()
     }
@@ -344,107 +341,12 @@ impl SerializedTransferRecord {
     pub(crate) fn as_raw(self) -> *mut c_void {
         self.0.as_ptr()
     }
-
-    /// Sets the record's [[Serialized]] to the message record, with its same-process side table and the shared memory
-    /// of the transfer, which C++ takes over. Its SharedArrayBuffers are rooted once the record has them, so the
-    /// caller hands it over under the deferral that it was finished under.
-    pub(crate) fn set_serialized(self, _: &DeferGc<'_>, serialized: MessageRecord) {
-        let shared_array_buffers = objects_into_abi(&serialized.shared_array_buffers);
-        let (shared_memory, shared_memory_sizes): (Vec<c_int>, Vec<usize>) = serialized
-            .shared_memory
-            .into_iter()
-            .map(|shared_memory| (into_raw_descriptor(shared_memory.descriptor), shared_memory.size))
-            .unzip();
-        // SAFETY: The record is lent, the call borrows the bytes, the buffers are live, and it takes over the
-        //         descriptors.
-        unsafe {
-            web_structured_serialize_transfer_record_set_serialized(
-                self.0.as_ptr(),
-                ak::Span::new(&serialized.bytes),
-                shared_array_buffers.as_ptr(),
-                shared_array_buffers.len(),
-                shared_memory.as_ptr(),
-                shared_memory_sizes.as_ptr(),
-                shared_memory.len(),
-            );
-        }
-    }
-
-    /// Duplicates of the shared memory of the record, which its [[Serialized]] and its data holders share
-    /// SharedArrayBuffers and the pixels of ImageBitmaps through. A descriptor that cannot be duplicated leaves out the
-    /// shared memory from it on, which deserializing then throws for.
-    pub(crate) fn shared_memory(self) -> Vec<SharedMemory> {
-        // SAFETY: The record is lent.
-        let count = unsafe { web_structured_serialize_transfer_record_shared_memory_count(self.0.as_ptr()) };
-        (0..count)
-            .map_while(|index| {
-                let (mut descriptor, mut size) = (0, 0);
-                // SAFETY: The record is lent, and it keeps the descriptor open.
-                unsafe {
-                    web_structured_serialize_transfer_record_shared_memory(
-                        self.0.as_ptr(),
-                        index,
-                        &mut descriptor,
-                        &mut size,
-                    );
-                    SharedMemory::duplicate(descriptor, size)
-                }
-            })
-            .collect()
-    }
-
-    /// Appends the data holder to the record's [[TransferDataHolders]].
-    pub(crate) fn append_data_holder(self, data_holder: TransferDataHolder) {
-        // SAFETY: The record is lent, and LibWeb takes the carrier.
-        unsafe {
-            web_structured_serialize_transfer_record_append_data_holder(
-                self.0.as_ptr(),
-                data_holder.into_carrier().into_raw(),
-            );
-        }
-    }
-
-    pub(crate) fn data_holder_count(self) -> usize {
-        // SAFETY: The record is lent.
-        unsafe { web_structured_serialize_transfer_record_data_holder_count(self.0.as_ptr()) }
-    }
-
-    /// A decoder of the data holder at the index, which takes it from the record, unless the data holder is empty.
-    pub(crate) fn take_data_holder(self, index: usize) -> Option<OwnedTransferDataDecoder> {
-        // SAFETY: The record is lent, and LibWeb returns a decoder that this owns, or null.
-        NonNull::new(unsafe { web_structured_serialize_transfer_record_take_data_holder(self.0.as_ptr(), index) })
-            .map(|decoder| OwnedTransferDataDecoder(TransferDataDecoder(decoder)))
-    }
-
-    /// The record's [[Serialized]], which it lends for as long as it is lent.
-    ///
-    /// # Safety
-    ///
-    /// The record must be lent for `'a`.
-    pub(crate) unsafe fn serialized<'a>(self) -> ReceivedIPCSerializationRecord<'a> {
-        // SAFETY: The caller lends the record for 'a, and so its [[Serialized]].
-        unsafe {
-            ReceivedIPCSerializationRecord::from_raw(web_structured_serialize_transfer_record_serialized(
-                self.0.as_ptr(),
-            ))
-        }
-    }
-
-    pub(crate) fn clear_shared_buffers(self) {
-        // SAFETY: The record is lent.
-        unsafe { web_structured_serialize_transfer_record_clear_shared_buffers(self.0.as_ptr()) };
-    }
 }
 
 /// A record of a structured serialization with transfer that this owns.
 pub(crate) struct OwnedSerializedTransferRecord(SerializedTransferRecord);
 
 impl OwnedSerializedTransferRecord {
-    pub(crate) fn new() -> Self {
-        // SAFETY: LibWeb returns a new record, which this owns.
-        Self(unsafe { SerializedTransferRecord::from_raw(web_structured_serialize_transfer_record_create()) })
-    }
-
     /// # Safety
     ///
     /// `record` must be a record that LibWeb hands over.
@@ -532,5 +434,47 @@ impl Drop for OwnedTransferDataDecoder {
     fn drop(&mut self) {
         // SAFETY: This owns the decoder.
         unsafe { web_structured_serialize_transfer_data_decoder_destroy(self.0.0.as_ptr()) };
+    }
+}
+
+/// The shared memory that the ImageBitmaps of a record share their pixels through, mapped when one needs it.
+pub(crate) struct SharedPixelBuffers<'a> {
+    memory: &'a [SharedMemory],
+    buffers: core::cell::Cell<Option<NonNull<c_void>>>,
+}
+
+impl<'a> SharedPixelBuffers<'a> {
+    pub(crate) fn new(memory: &'a [SharedMemory]) -> Self {
+        Self {
+            memory,
+            buffers: core::cell::Cell::new(None),
+        }
+    }
+
+    pub(crate) fn as_raw(&self) -> Option<NonNull<c_void>> {
+        if let Some(buffers) = self.buffers.get() {
+            return Some(buffers);
+        }
+        let descriptors: Vec<_> = self
+            .memory
+            .iter()
+            .map(|memory| raw_descriptor(memory.descriptor.as_shared_memory()))
+            .collect();
+        let sizes: Vec<_> = self.memory.iter().map(|memory| memory.size).collect();
+        // SAFETY: The call borrows the open descriptors and their sizes, and hands over the buffer list.
+        let buffers = NonNull::new(unsafe {
+            web_structured_serialize_shared_pixels_create(descriptors.as_ptr(), sizes.as_ptr(), descriptors.len())
+        });
+        self.buffers.set(buffers);
+        buffers
+    }
+}
+
+impl Drop for SharedPixelBuffers<'_> {
+    fn drop(&mut self) {
+        if let Some(buffers) = self.buffers.get() {
+            // SAFETY: This owns the list. Each image keeps its own reference to the buffers it uses.
+            unsafe { web_structured_serialize_shared_pixels_destroy(buffers.as_ptr()) };
+        }
     }
 }

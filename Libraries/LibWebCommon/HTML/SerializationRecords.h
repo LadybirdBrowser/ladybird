@@ -141,7 +141,7 @@ public:
         return m_encoder.append(bytes.data(), bytes.size());
     }
 
-    void extend(Vector<TransferDataEncoder>);
+    void extend(TransferDataEncoder const&);
 
     IPC::MessageBuffer const& buffer() const;
     IPC::MessageBuffer take_buffer() const;

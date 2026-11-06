@@ -152,7 +152,7 @@ size_t web_image_bitmap_frame_size_in_bytes(Gfx::DecodedImageFrame const*);
 void web_image_bitmap_frame_pixels(Gfx::DecodedImageFrame const*, FramePixels*);
 JSCompletion web_image_bitmap_create_frame(void* realm, FramePixels const*, Gfx::DecodedImageFrame** out_frame);
 bool web_image_bitmap_copy_to_shared_pixels(ImageBitmapSharedPixels*, Gfx::DecodedImageFrame const*, u32* buffer_index, u64* offset);
-JSCompletion web_image_bitmap_create_frame_from_shared_pixels(void* realm, HTML::TransferDataDecoder const*, u32 buffer_index, u64 offset, FramePixels const*, Gfx::DecodedImageFrame** out_frame);
+JSCompletion web_image_bitmap_create_frame_from_shared_pixels(void* realm, Vector<Core::AnonymousBuffer> const*, u32 buffer_index, u64 offset, FramePixels const*, Gfx::DecodedImageFrame** out_frame);
 
 size_t web_image_bitmap_frame_size_in_bytes(Gfx::DecodedImageFrame const* frame)
 {
@@ -251,11 +251,11 @@ bool web_image_bitmap_copy_to_shared_pixels(ImageBitmapSharedPixels* shared_pixe
 // AD-HOC: A frame over the pixels at the offset of the shared memory of a transfer, as the transfer steps of
 //         Bindings/Rust/src/html/image_bitmap.rs place them there. The values of the bitmap and the color space are in
 //         the pixels, whose bytes are unused.
-JSCompletion web_image_bitmap_create_frame_from_shared_pixels(void* realm, HTML::TransferDataDecoder const* data_holder, u32 buffer_index, u64 offset, FramePixels const* pixels, Gfx::DecodedImageFrame** out_frame)
+JSCompletion web_image_bitmap_create_frame_from_shared_pixels(void* realm, Vector<Core::AnonymousBuffer> const* shared_buffers, u32 buffer_index, u64 offset, FramePixels const* pixels, Gfx::DecodedImageFrame** out_frame)
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
     auto frame = [&]() -> WebIDL::ExceptionOr<Gfx::DecodedImageFrame> {
-        auto bitmap = TRY(bitmap_from_shared_pixels(js_realm.vm(), data_holder->shared_buffers(), buffer_index, offset, static_cast<Gfx::BitmapFormat>(pixels->format), static_cast<Gfx::AlphaType>(pixels->alpha_type), pixels->width, pixels->height));
+        auto bitmap = TRY(bitmap_from_shared_pixels(js_realm.vm(), shared_buffers, buffer_index, offset, static_cast<Gfx::BitmapFormat>(pixels->format), static_cast<Gfx::AlphaType>(pixels->alpha_type), pixels->width, pixels->height));
         auto color_space = color_space_from_frame_pixels(*pixels);
         if (color_space.is_error())
             return data_clone_error_from_serialization_error(js_realm, color_space.release_error());

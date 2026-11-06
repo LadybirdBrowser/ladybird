@@ -12,7 +12,9 @@ use core::any::Any;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use crate::html::structured_serialize::cpp::{OwnedSerializedTransferRecord, SerializedTransferRecord};
+use crate::html::structured_serialize::cpp::OwnedSerializedTransferRecord;
+use crate::html::structured_serialize::transfer_record::{TransferRecord, TransferRecordRef};
+use libjs_rust::api::{MarkedVec, Vm};
 
 unsafe extern "C" {
     fn web_bindings_transport_handle_destroy(handle: *mut c_void);
@@ -158,30 +160,28 @@ impl MessagePortTransport {
     }
 
     /// Sends the record to the peer as one message. False if the transport failed, which LibWeb logs.
-    pub(crate) fn send(&self, record: SerializedTransferRecord) -> bool {
+    pub(crate) fn send(&self, vm: &Vm, record: TransferRecordRef) -> bool {
+        let record = TransferRecord::into_cpp(record, vm);
         // SAFETY: This owns the transport, and the call borrows the record.
-        unsafe { web_bindings_message_port_transport_send(self.raw.as_ptr(), record.as_raw()) }
+        unsafe { web_bindings_message_port_transport_send(self.raw.as_ptr(), record.record().as_raw()) }
     }
 
     /// Appends every message that has arrived, each a record, and tells whether the peer is gone.
     pub(crate) fn read_as_many_messages_as_possible_without_blocking(
         &self,
-        records: &mut Vec<OwnedSerializedTransferRecord>,
+        vm: &Vm,
+        records: &MarkedVec<'_, TransferRecordRef>,
     ) -> ShouldShutdown {
-        unsafe extern "C" fn append(records: *mut c_void, record: *mut c_void) {
-            // SAFETY: The records are the Vec that the read lends, and LibWeb hands over the record.
-            unsafe {
-                (*records.cast::<Vec<OwnedSerializedTransferRecord>>())
-                    .push(OwnedSerializedTransferRecord::from_raw(record));
-            }
+        unsafe extern "C" fn append(context: *mut c_void, record: *mut c_void) {
+            // SAFETY: The read lends its VM and rooted list, and C++ hands over the carrier.
+            let (vm, records) = unsafe { &*context.cast::<(&Vm, &MarkedVec<'_, TransferRecordRef>)>() };
+            let carrier = unsafe { OwnedSerializedTransferRecord::from_raw(record) };
+            records.push(TransferRecord::from_cpp(vm, carrier.record()));
         }
+        let mut context = (vm, records);
         // SAFETY: This owns the transport, and lends the records for the call.
         let should_shutdown = unsafe {
-            web_bindings_message_port_transport_read_messages(
-                self.raw.as_ptr(),
-                core::ptr::from_mut(records).cast(),
-                append,
-            )
+            web_bindings_message_port_transport_read_messages(self.raw.as_ptr(), (&raw mut context).cast(), append)
         };
         if should_shutdown {
             ShouldShutdown::Yes

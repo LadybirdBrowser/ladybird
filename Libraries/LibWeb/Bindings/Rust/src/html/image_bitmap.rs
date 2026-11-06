@@ -307,7 +307,7 @@ fn read_transferred_bitmap_data(data_holder: &mut TransferDataReader) -> WebIdlR
         unsafe {
             web_image_bitmap_create_frame_from_shared_pixels(
                 realm.as_ptr().cast(),
-                data_holder.as_raw(),
+                data_holder.shared_pixels_as_raw()?,
                 buffer_index,
                 offset,
                 &pixels,

@@ -10,6 +10,7 @@ use libjs_rust::api::{ArrayBuffer, Gc, Must, Value, clone_array_buffer, construc
 
 use crate::bindings::conversions::{ArrayBufferView, BufferSource};
 use crate::bindings::{CallContext, WebIdlResult};
+use crate::html::structured_serialize::transfer_record::TransferRecord;
 use crate::html::structured_serialize::{structured_deserialize_with_transfer, structured_serialize_with_transfer};
 
 // https://streams.spec.whatwg.org/#can-transfer-array-buffer
@@ -102,7 +103,9 @@ pub(crate) fn structured_clone(cx: &CallContext, value: Value) -> WebIdlResult<V
     let serialized = structured_serialize_with_transfer(cx, value, &[])?;
 
     // 2. Return ? StructuredDeserialize(serialized, the current Realm).
-    Ok(structured_deserialize_with_transfer(cx, serialized.record())?.deserialized)
+    let result = structured_deserialize_with_transfer(cx, serialized);
+    TransferRecord::discard(serialized);
+    Ok(result?.deserialized)
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-cancopydatablockbytes

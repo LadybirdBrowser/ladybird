@@ -27,7 +27,7 @@ use crate::bindings::WebIdlResult;
 use crate::html::structured_serialize::cpp::{
     ReceivedIPCSerializationRecord, data_clone_error_from_serialization_error,
 };
-use crate::html::structured_serialize::message_record::{MessageRecord, SharedMemory};
+use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::html::structured_serialize::serializable::{
     is_ipc_interface, serializable_interface_name_from_storage_identifier,
 };
@@ -36,8 +36,8 @@ use crate::html::structured_serialize::serializable::{
 #[derive(Clone, Copy)]
 enum SharedArrayBuffers<'a> {
     None,
-    /// The side table of a record that C++ lends, and the shared memory that it was handed over with, if any.
-    Lent(ReceivedIPCSerializationRecord<'a>, &'a [SharedMemory]),
+    /// The side table of a record that C++ lends.
+    Lent(ReceivedIPCSerializationRecord<'a>),
     Message(&'a MessageRecord),
 }
 
@@ -48,15 +48,11 @@ pub(crate) struct StructuredSerializeReader<'a> {
 }
 
 impl<'a> StructuredSerializeReader<'a> {
-    pub(crate) fn new_ipc(
-        realm: Gc<Realm>,
-        record: ReceivedIPCSerializationRecord<'a>,
-        shared_memory: &'a [SharedMemory],
-    ) -> Self {
+    pub(crate) fn new_ipc(realm: Gc<Realm>, record: ReceivedIPCSerializationRecord<'a>) -> Self {
         Self {
             decoder: RecordDecoder::new(SerializationType::Ipc, record.data()).expect("an IPC record has no prologue"),
             realm,
-            shared_array_buffers: SharedArrayBuffers::Lent(record, shared_memory),
+            shared_array_buffers: SharedArrayBuffers::Lent(record),
         }
     }
 
@@ -204,8 +200,7 @@ impl<'a> StructuredSerializeReader<'a> {
         shared_object_id: u64,
     ) -> WebIdlResult<Value> {
         let shared_memory = match self.shared_array_buffers {
-            SharedArrayBuffers::None => &[],
-            SharedArrayBuffers::Lent(_, shared_memory) => shared_memory,
+            SharedArrayBuffers::None | SharedArrayBuffers::Lent(_) => &[],
             SharedArrayBuffers::Message(record) => record.shared_memory.as_slice(),
         };
         let Some(shared_memory) = shared_memory.get(index as usize) else {
@@ -236,7 +231,7 @@ impl<'a> StructuredSerializeReader<'a> {
     ) -> Option<Gc<ArrayBuffer>> {
         let source_buffer = match self.shared_array_buffers {
             SharedArrayBuffers::None => return None,
-            SharedArrayBuffers::Lent(record, _) => record.shared_array_buffer(side_table_index)?,
+            SharedArrayBuffers::Lent(record) => record.shared_array_buffer(side_table_index)?,
             SharedArrayBuffers::Message(record) => *record.shared_array_buffers.get(side_table_index as usize)?,
         };
         array_buffer_sharing_storage_with(vm, self.realm, source_buffer, byte_length, preserve_growability)
