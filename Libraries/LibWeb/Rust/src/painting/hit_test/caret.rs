@@ -969,6 +969,7 @@ impl HitTestList {
         let find_closest_line =
             |scope| self.find_closest_line(scopes, arena, tree, callbacks, point, mode, scope, respect_clip);
         let mut closest_line = find_closest_line(line_scope);
+        let closest_line_in_scope = closest_line;
         let point_is_in_column_of_closest_line = closest_line.index.is_some()
             && closest_line.fragment_inline_distance == CssPixels::default()
             && arena.paintable_row_is_populated(closest_line.block_container)
@@ -1013,11 +1014,21 @@ impl HitTestList {
                 if self.item_is_inline_adjacent_to_line(hit.index, line_index) {
                     return Some(caret);
                 }
-                // A selection doesn't follow the point into an overlay or side content. But a plain caret query over an
-                // element whose content has no line near the point (an empty line, e.g.) puts the caret at the start of
-                // that element, rather than on a line outside it.
+                // A selection doesn't follow the point into an overlay or side content: It stays in the hit element's
+                // own content, on its line closest to the point, as a closer line outside it took the place of. But a
+                // plain caret query over an element whose content has no line near the point (an empty line, e.g.)
+                // puts the caret at the start of that element, rather than on a line outside it.
                 if mode != CaretPositionMode::Normal {
-                    return None;
+                    let line_index_in_scope = closest_line_in_scope.index.filter(|&index| index != line_index)?;
+                    return self
+                        .caret_at_line(arena, line_index_in_scope, closest_line_in_scope.local_point, mode)
+                        .map(|caret| {
+                            caret.with_debug_rect_in_viewport(
+                                tree,
+                                callbacks,
+                                self.caret_lines[line_index_in_scope].context.spatial,
+                            )
+                        });
                 }
                 return self.caret_at_hit_container(arena, hit.index).map(|caret| {
                     caret.with_debug_rect_in_viewport(tree, callbacks, self.items[hit.index].context.spatial)

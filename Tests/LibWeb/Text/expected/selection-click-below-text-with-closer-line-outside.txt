@@ -1,0 +1,2 @@
+After a click in the header: text in div#header, offset 1
+After a click far below the paragraph: text in p#paragraph, offset 14
