@@ -78,7 +78,7 @@ private:
     virtual void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) = 0;
     virtual void pop_mask(Compositing::ReplayMask const&, Compositing::EffectNodeIndex) = 0;
     virtual void pop() = 0;
-    virtual void push_device_space_plane_clip(Gfx::Path const&) = 0;
+    virtual void push_device_space_plane_clip(ReadonlySpan<Gfx::FloatVector3> polygon_vertices) = 0;
 
     Compositing::DisplayList const* m_active_display_list { nullptr };
     Compositing::AccumulatedVisualContextTree const* m_active_visual_context_tree { nullptr };

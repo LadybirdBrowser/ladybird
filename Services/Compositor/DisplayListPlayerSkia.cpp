@@ -1686,12 +1686,17 @@ void DisplayListPlayerSkia::pop()
     surface().canvas().restore();
 }
 
-void DisplayListPlayerSkia::push_device_space_plane_clip(Gfx::Path const& path)
+void DisplayListPlayerSkia::push_device_space_plane_clip(ReadonlySpan<Gfx::FloatVector3> polygon_vertices)
 {
+    Vector<SkPoint, 8> polygon_points;
+    polygon_points.ensure_capacity(polygon_vertices.size());
+    for (auto const& vertex : polygon_vertices)
+        polygon_points.unchecked_append(Gfx::to_skia_point(vertex));
+
     auto& canvas = surface().canvas();
     canvas.save();
     canvas.setMatrix(SkM44());
-    clip_path(Gfx::to_skia_path(path), Gfx::WindingRule::Nonzero, false);
+    clip_path(SkPath::Polygon({ polygon_points.data(), polygon_points.size() }, true), Gfx::WindingRule::Nonzero, false);
 }
 
 void DisplayListPlayerSkia::set_matrix(Gfx::FloatMatrix4x4 const& matrix)
