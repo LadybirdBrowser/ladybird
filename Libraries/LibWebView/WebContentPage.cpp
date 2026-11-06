@@ -970,12 +970,6 @@ void WebContentPage::did_find_in_page(size_t current_match_index, Optional<size_
     }
 }
 
-void WebContentPage::did_request_refresh()
-{
-    if (displays_tab())
-        view().reload();
-}
-
 void WebContentPage::did_request_cursor_change(Gfx::Cursor cursor)
 {
     view().did_request_cursor_change({}, move(cursor));
@@ -994,20 +988,6 @@ void WebContentPage::did_set_text_fragment_indication_visibility(bool visible)
 {
     if (displays_tab())
         view().set_text_fragment_indication_visibility({}, visible);
-}
-
-void WebContentPage::did_request_tooltip_override(Gfx::IntPoint position, ByteString title)
-{
-    if (displays_tab()) {
-        if (view().on_request_tooltip_override)
-            view().on_request_tooltip_override(view().to_widget_position(position), title);
-    }
-}
-
-void WebContentPage::did_stop_tooltip_override()
-{
-    if (view().on_stop_tooltip_override)
-        view().on_stop_tooltip_override();
 }
 
 void WebContentPage::did_enter_tooltip_area(ByteString title)

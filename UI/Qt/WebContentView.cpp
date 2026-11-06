@@ -338,18 +338,6 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
     };
 #endif
 
-    on_request_tooltip_override = [this](auto position, auto const& tooltip) {
-        m_tooltip_override = true;
-        if (m_tooltip_hover_timer.isActive())
-            m_tooltip_hover_timer.stop();
-
-        show_tooltip(mapToGlobal(QPoint(position.x(), position.y())), qstring_from_ak_string(tooltip), *this);
-    };
-
-    on_stop_tooltip_override = [this]() {
-        m_tooltip_override = false;
-    };
-
     on_enter_tooltip_area = [this](auto const& tooltip) {
         m_tooltip_text = tooltip;
     };
@@ -897,10 +885,8 @@ void WebContentView::mouseMoveEvent(QMouseEvent* event)
         return;
     }
 
-    if (!m_tooltip_override) {
-        hide_tooltip();
-        m_tooltip_hover_timer.start(600);
-    }
+    hide_tooltip();
+    m_tooltip_hover_timer.start(600);
 
     enqueue_native_event(Web::MouseEvent::Type::MouseMove, *event);
     WebContentViewBase::mouseMoveEvent(event);

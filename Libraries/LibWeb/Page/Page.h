@@ -797,7 +797,6 @@ public:
     virtual void page_did_change_title(Utf16String const&) { }
     virtual void page_did_update_editing_history_state(bool, bool) { }
     virtual void page_did_set_text_fragment_indication_visibility(bool) { }
-    virtual void page_did_request_refresh() { }
     virtual void page_did_request_resize_window(Gfx::IntSize, u64) { }
     virtual void page_did_request_reposition_window(Gfx::IntPoint, u64) { }
     virtual void page_did_request_restore_window() { }
@@ -846,8 +845,6 @@ public:
     virtual void page_did_click_link(HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_middle_click_link(HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_request_external_url([[maybe_unused]] URL::URL const& url, [[maybe_unused]] URL::Origin const& initiator_origin, [[maybe_unused]] bool has_transient_activation) { }
-    virtual void page_did_request_tooltip_override(CSSPixelPoint, ByteString const&) { }
-    virtual void page_did_stop_tooltip_override() { }
     virtual void page_did_enter_tooltip_area(ByteString const&) { }
     virtual void page_did_leave_tooltip_area() { }
     virtual void page_did_change_favicon(Gfx::Bitmap const&) { }
