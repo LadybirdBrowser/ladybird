@@ -28,6 +28,7 @@ use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use std::thread::Thread;
+use std::time::{Duration, Instant};
 
 // This crate is not instrumented by ThreadSanitizer, so TSan cannot see the ordering the hand-off gives between the
 // host's thread and a stage thread. Tell it explicitly, or every access a stage thread makes to what the host wrote
@@ -121,9 +122,13 @@ pub extern "C" fn stage_thread_set_flight_finished(finished: extern "C" fn()) {
 // not committed, so the larger size costs address space only.
 pub(crate) const STAGE_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
 
+/// How long a stage thread waits for a job before it gives back the memory it freed.
+const IDLE_MEMORY_RELEASE_DELAY: Duration = Duration::from_secs(1);
+
 impl StageThread {
-    /// Spawns a thread named `name`, which lives as long as the process.
-    pub(crate) fn spawn(name: &str) -> Self {
+    /// Spawns a thread named `name`, which lives as long as the process, and which calls `release_more` once it has
+    /// given back the memory it freed.
+    pub(crate) fn spawn(name: &str, release_more: fn()) -> Self {
         let shared: &'static Shared = Box::leak(Box::new(Shared {
             handed: AtomicPtr::new(std::ptr::null_mut()),
             tsan_key: AtomicBool::new(false),
@@ -135,8 +140,30 @@ impl StageThread {
                 if let Some(setup) = THREAD_SETUP.get() {
                     setup();
                 }
+                let mut release_memory_at = None;
                 loop {
-                    let last = wait_for(|| NonNull::new(shared.handed.swap(std::ptr::null_mut(), Ordering::Acquire)));
+                    let last = loop {
+                        if let Some(last) = NonNull::new(shared.handed.swap(std::ptr::null_mut(), Ordering::Acquire)) {
+                            break last;
+                        }
+                        let Some(deadline) = release_memory_at else {
+                            std::thread::park();
+                            continue;
+                        };
+                        // NB: An unpark this thread did not wait for makes the next park return at once, so this
+                        //     goes by the clock.
+                        let now = Instant::now();
+                        if now < deadline {
+                            std::thread::park_timeout(deadline - now);
+                            continue;
+                        }
+                        // NB: The allocator keeps what a thread freed until the thread allocates again, which an idle
+                        //     thread does not do. Standalone Rust tests do not link the C++ allocator.
+                        #[cfg(feature = "allocator")]
+                        ak::release_unused_allocator_memory();
+                        release_more();
+                        release_memory_at = None;
+                    };
                     tsan::acquire(&shared.tsan_key);
                     let mut next = Some(in_handed_order(last));
                     while let Some(job) = next {
@@ -148,6 +175,7 @@ impl StageThread {
                             (job.as_ref().run)(job, shared);
                         }
                     }
+                    release_memory_at = Some(Instant::now() + IDLE_MEMORY_RELEASE_DELAY);
                 }
             })
             .expect("a stage thread could not be started");
@@ -886,7 +914,12 @@ static RENDER_THREAD: OnceLock<StageThread> = OnceLock::new();
 
 /// The Render thread, which runs the jobs on every document's render state that the host does not run itself.
 pub(crate) fn render_thread() -> &'static StageThread {
-    RENDER_THREAD.get_or_init(|| StageThread::spawn("Render"))
+    RENDER_THREAD.get_or_init(|| {
+        StageThread::spawn(
+            "Render",
+            crate::render_state::release_unused_memory_of_style_layout_threads,
+        )
+    })
 }
 
 #[cfg(test)]
@@ -896,7 +929,7 @@ mod tests {
 
     fn test_thread() -> &'static StageThread {
         static THREAD: OnceLock<StageThread> = OnceLock::new();
-        THREAD.get_or_init(|| StageThread::spawn("Test"))
+        THREAD.get_or_init(|| StageThread::spawn("Test", || {}))
     }
 
     impl Flown for std::thread::ThreadId {
