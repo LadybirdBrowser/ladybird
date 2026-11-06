@@ -121,6 +121,22 @@ void EventLoop::schedule_for_queued_task()
         m_system_event_loop_timer->restart();
 }
 
+void EventLoop::destroy_once_script_has_finished()
+{
+    m_destruction_requested = true;
+    schedule();
+}
+
+bool EventLoop::destroy_if_requested()
+{
+    // NB: A paused event loop has script waiting further up the stack, as a spinning one has.
+    if (!m_destruction_requested || m_spin_depth > 0 || execution_paused())
+        return false;
+    if (auto on_destroyed = move(m_on_destroyed))
+        on_destroyed();
+    return true;
+}
+
 EventLoop& main_thread_event_loop()
 {
     return *static_cast<HTML::Agent*>(Bindings::main_thread_vm().agent())->event_loop;
@@ -155,7 +171,11 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     //       NOTE: This is achieved by returning from the function.
 
     ++m_spin_depth;
-    ScopeGuard leave_spin = [this] { --m_spin_depth; };
+    ScopeGuard leave_spin = [this] {
+        --m_spin_depth;
+        if (m_destruction_requested)
+            schedule();
+    };
     Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), [this, goal_condition] {
         if (goal_condition->function()())
             return true;
@@ -177,7 +197,7 @@ void EventLoop::process()
 {
     m_turn_requested_without_a_task = false;
 
-    if (execution_paused())
+    if (destroy_if_requested() || execution_paused())
         return;
 
     // OPTIMIZATION: A trip through the platform event loop costs more than a small task does, so run the tasks that are
@@ -195,6 +215,9 @@ void EventLoop::process()
         if (Core::ThreadEventQueue::current().has_pending_events() || MonotonicTime::now() >= turn_deadline)
             break;
     }
+
+    if (destroy_if_requested())
+        return;
 
     // If there are eligible tasks in the queue, schedule a new round of processing. :^)
     if (has_runnable_tasks || (!m_microtask_queue.is_empty() && !m_performing_a_microtask_checkpoint)) {

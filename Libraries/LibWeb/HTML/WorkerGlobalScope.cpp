@@ -87,6 +87,23 @@ void WorkerGlobalScope::close_a_worker()
     // 2. Set workerGlobal's closing flag to true. (This prevents any further tasks from being queued.)
     m_closing = true;
     relevant_settings_object(*this).responsible_event_loop().task_queue().discard_further_tasks();
+
+    // NB: The event loop is destroyed once it has no more to do after the closing flag is set.
+    relevant_settings_object(*this).responsible_event_loop().destroy_once_script_has_finished();
+}
+
+// https://html.spec.whatwg.org/multipage/workers.html#terminate-a-worker
+void WorkerGlobalScope::terminate_a_worker()
+{
+    // 1. Set the worker's WorkerGlobalScope object's closing flag to true.
+    // 2. If there are any tasks queued in the WorkerGlobalScope object's relevant agent's event loop's task queues,
+    //    discard them without processing them.
+    close_a_worker();
+
+    // FIXME: 3. Abort the script currently running in the worker.
+    // FIXME: 4. If the worker's WorkerGlobalScope object is actually a DedicatedWorkerGlobalScope object (i.e. the
+    //           worker is a dedicated worker), then empty the port message queue of the port that the worker's implicit
+    //           port is entangled with.
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#importing-scripts-and-libraries
