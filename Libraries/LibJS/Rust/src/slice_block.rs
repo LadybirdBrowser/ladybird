@@ -46,7 +46,11 @@ impl SliceBlock {
     }
 
     /// A block with `size` bytes for slices to be put in.
-    pub fn builder(size: usize) -> SliceBlockBuilder {
+    ///
+    /// # Safety
+    ///
+    /// Slices do not keep their block alive, so every slice put in this one has to go away before it does.
+    pub unsafe fn builder(size: usize) -> SliceBlockBuilder {
         if size == 0 {
             return SliceBlockBuilder {
                 block: Self::empty(),

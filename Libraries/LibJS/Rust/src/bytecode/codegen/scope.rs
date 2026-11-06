@@ -1915,12 +1915,15 @@ impl Generator<'_> {
             enclosing_code
         };
         self.seal_stream();
-        let mut link_block = SliceBlock::builder(
-            SliceBlock::room_for::<PendingSharedFunctionData>(nested_count)
-                + SliceBlock::room_for::<PendingClassBlueprint>(self.class_blueprints.len())
-                + SliceBlock::room_for::<ConstantValue>(self.context.constants.values.len())
-                + self.context.names.room_for_link_tables(),
-        );
+        // SAFETY: The slices and the block end up in an ExecutableData, which drops the slices first.
+        let mut link_block = unsafe {
+            SliceBlock::builder(
+                SliceBlock::room_for::<PendingSharedFunctionData>(nested_count)
+                    + SliceBlock::room_for::<PendingClassBlueprint>(self.class_blueprints.len())
+                    + SliceBlock::room_for::<ConstantValue>(self.context.constants.values.len())
+                    + self.context.names.room_for_link_tables(),
+            )
+        };
         let shared_function_data = link_block.slice((0..nested_count).map(|nested| {
             let nested_function = &mut self.context.scope.nested_functions[nested];
             let row = nested_function.row;
