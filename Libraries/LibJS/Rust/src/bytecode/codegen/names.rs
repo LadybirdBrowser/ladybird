@@ -23,7 +23,10 @@ use crate::ast::SyntaxTree;
 use crate::bytecode::operand::IdentifierTableIndex;
 use crate::bytecode::operand::PropertyKeyTableIndex;
 use crate::bytecode::operand::StringTableIndex;
+use crate::layout::buffer::BlockSlice;
 use crate::parser::ScriptData;
+use crate::slice_block::SliceBlock;
+use crate::slice_block::SliceBlockBuilder;
 use crate::u32_from_usize;
 use crate::utf16::Utf16View;
 
@@ -407,22 +410,31 @@ impl NameTables {
         self.script_names.fly_string(tree, name).clone()
     }
 
+    /// How much of a block the tables that stay with the code take.
+    pub(super) fn room_for_tables(&self) -> usize {
+        SliceBlock::room_for::<Utf16FlyString>(self.identifiers.entries.len())
+            + SliceBlock::room_for::<Utf16FlyString>(self.strings.entries.len())
+    }
+
     /// Hands out the tables, as an executable keeps them: identifiers, property keys and strings.
     pub(super) fn take_tables(
         &mut self,
         tree: &SyntaxTree,
-    ) -> (Vec<Utf16FlyString>, Vec<Utf16FlyString>, Vec<Utf16FlyString>) {
+        block: &mut SliceBlockBuilder,
+    ) -> (
+        BlockSlice<Utf16FlyString>,
+        Box<[Utf16FlyString]>,
+        BlockSlice<Utf16FlyString>,
+    ) {
         let script_names = &mut self.script_names;
-        let mut take = |table: &Table| -> Vec<Utf16FlyString> {
-            let mut strings = Vec::with_capacity(table.entries.len());
-            for entry in &table.entries {
-                strings.push(match entry {
-                    TableEntry::Name(name) => script_names.fly_string(tree, *name).clone(),
-                    TableEntry::Text(text) => text.clone(),
-                });
-            }
-            strings
+        let mut fly_string_of = |entry: &TableEntry| match entry {
+            TableEntry::Name(name) => script_names.fly_string(tree, *name).clone(),
+            TableEntry::Text(text) => text.clone(),
         };
-        (take(&self.identifiers), take(&self.property_keys), take(&self.strings))
+        (
+            block.slice(self.identifiers.entries.iter().map(&mut fly_string_of)),
+            self.property_keys.entries.iter().map(&mut fly_string_of).collect(),
+            block.slice(self.strings.entries.iter().map(&mut fly_string_of)),
+        )
     }
 }

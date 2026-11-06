@@ -34,6 +34,8 @@ use crate::bytecode::instruction::typed::TypedInstruction;
 use crate::bytecode::operand::*;
 use crate::bytecode::source_map::SourceMapEntry;
 use crate::bytecode::source_map::SourceOffset;
+use crate::slice_block::SliceBlock;
+use crate::slice_block::SliceBlockBuilder;
 use crate::u32_from_usize;
 
 use libjs_abi::FunctionNamePrefix;
@@ -3594,9 +3596,8 @@ impl Generator<'_> {
         });
     }
 
-    /// Assembles what was emitted: the operands that come after the registers get their place in the frame, and labels
-    /// their offsets.
-    pub(super) fn finish_stream(&mut self) -> AssembledBytecode {
+    /// Ends the code, so that nothing comes after this but assembling it.
+    pub(super) fn seal_stream(&mut self) {
         if !self.is_stream_dead() {
             let value = match self.context.stream.completion {
                 Some(completion) => completion,
@@ -3613,6 +3614,11 @@ impl Generator<'_> {
             }
         }
         self.insert_body_head();
+    }
+
+    /// Assembles what was emitted into a new block, which has `other_tables_size` bytes left: the operands that come
+    /// after the registers get their place in the frame, and labels their offsets.
+    pub(super) fn finish_stream(&mut self, other_tables_size: usize) -> (AssembledBytecode, SliceBlockBuilder) {
         let frame = FrameLayout {
             register_count: self.context.stream.temporary_count.max(Register::RESERVED_COUNT),
             local_count: self.context.scope.local_count(),
@@ -3622,7 +3628,7 @@ impl Generator<'_> {
         let head = &stream.head;
         let segment = &mut stream.current;
         let head_size = u32_from_usize(head.bytes.len());
-        let mut exception_handlers = Vec::with_capacity(stream.handler_changes.len());
+        let mut exception_handlers = Vec::new();
         for (index, &(start, handler)) in stream.handler_changes.iter().enumerate() {
             let end = stream
                 .handler_changes
@@ -3639,9 +3645,14 @@ impl Generator<'_> {
                 });
             }
         }
-        let mut bytecode = Vec::with_capacity(head.bytes.len() + segment.bytes.len());
-        bytecode.extend_from_slice(&head.bytes);
-        bytecode.extend_from_slice(&segment.bytes);
+        let source_entry_count = head.source_entries.len() + segment.source_entries.len();
+        let mut block = SliceBlock::builder(
+            SliceBlock::room_for::<u8>(head.bytes.len() + segment.bytes.len())
+                + SliceBlock::room_for::<SourceMapEntry>(source_entry_count)
+                + SliceBlock::room_for::<ExceptionHandler>(exception_handlers.len())
+                + other_tables_size,
+        );
+        let mut bytecode = block.slice_from_parts(&head.bytes, &segment.bytes);
         let head_positions = head.operand_positions.iter().map(|position| position.offset);
         let positions = segment
             .operand_positions
@@ -3666,20 +3677,23 @@ impl Generator<'_> {
             .source_entries
             .iter()
             .map(|&(bytecode_offset, source_offset)| (bytecode_offset + head_size, source_offset));
-        let source_map = head_entries
-            .chain(entries)
-            .map(|(bytecode_offset, source_offset)| SourceMapEntry {
-                bytecode_offset,
-                line: u32::MAX,
-                column: source_offset.0,
-            })
-            .collect();
-        AssembledBytecode {
+        let source_map = block.slice_of_length(
+            source_entry_count,
+            head_entries
+                .chain(entries)
+                .map(|(bytecode_offset, source_offset)| SourceMapEntry {
+                    bytecode_offset,
+                    line: u32::MAX,
+                    column: source_offset.0,
+                }),
+        );
+        let assembled = AssembledBytecode {
             bytecode,
             source_map,
-            exception_handlers,
+            exception_handlers: block.slice(exception_handlers.into_iter()),
             number_of_registers: frame.register_count,
             number_of_arguments: stream.number_of_arguments,
-        }
+        };
+        (assembled, block)
     }
 }

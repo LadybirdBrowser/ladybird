@@ -100,26 +100,48 @@ pub struct SliceBlockBuilder {
 impl SliceBlockBuilder {
     /// Moves `elements` into the block. It has to have been made with room for them.
     pub fn slice<T>(&mut self, elements: impl ExactSizeIterator<Item = T>) -> BlockSlice<T> {
-        let length = elements.len();
+        self.slice_of_length(elements.len(), elements)
+    }
+
+    /// Moves the `length` elements that `elements` yields into the block.
+    pub fn slice_of_length<T>(&mut self, length: usize, elements: impl Iterator<Item = T>) -> BlockSlice<T> {
+        let data = self.claim::<T>(length);
+        let mut written = 0;
+        for element in elements.take(length) {
+            // SAFETY: There is room for `length` elements.
+            unsafe { data.add(written).write(element) };
+            written += 1;
+        }
+        assert_eq!(written, length, "an iterator yields as much as it says");
+        BlockSlice::from_data(data)
+    }
+
+    /// Copies two slices into the block, one after the other, as one.
+    pub fn slice_from_parts<T: Copy>(&mut self, first: &[T], second: &[T]) -> BlockSlice<T> {
+        let data = self.claim::<T>(first.len() + second.len());
+        // SAFETY: There is room for both, and nothing else knows of that memory.
+        unsafe {
+            core::ptr::copy_nonoverlapping(first.as_ptr(), data, first.len());
+            core::ptr::copy_nonoverlapping(second.as_ptr(), data.add(first.len()), second.len());
+        }
+        BlockSlice::from_data(data)
+    }
+
+    /// Room for `length` elements with their length in front of them, or null if that is none.
+    fn claim<T>(&mut self, length: usize) -> *mut T {
         let room = SliceBlock::room_for::<T>(length);
         assert!(room <= self.remaining, "a block has room for what goes in it");
         if length == 0 {
-            return BlockSlice::empty();
+            return core::ptr::null_mut();
         }
-        // SAFETY: There is room for the length and for `length` elements, aligned for both, since everything in a block
-        //         takes a multiple of the size of the length.
+        // SAFETY: There is room, aligned for the length and for the elements, since everything in a block takes a
+        //         multiple of the size of the length.
         unsafe {
             self.free.cast::<usize>().write(length);
             let data = self.free.add(THIN_SLICE_HEADER_SIZE).cast::<T>();
-            let mut written = 0;
-            for element in elements.take(length) {
-                data.add(written).write(element);
-                written += 1;
-            }
-            assert_eq!(written, length, "an iterator yields as much as it says");
             self.free = self.free.add(room);
             self.remaining -= room;
-            BlockSlice::from_data(data)
+            data
         }
     }
 
@@ -128,6 +150,11 @@ impl SliceBlockBuilder {
         self.block
     }
 }
+
+// SAFETY: A slice owns its elements, like a Box<[T]>.
+unsafe impl<T: Send> Send for BlockSlice<T> {}
+// SAFETY: As above.
+unsafe impl<T: Sync> Sync for BlockSlice<T> {}
 
 impl<T> BlockSlice<T> {
     pub fn as_slice(&self) -> &[T] {

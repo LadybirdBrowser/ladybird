@@ -37,6 +37,7 @@ use crate::parser::token::N_DOT_NEW_TARGET;
 use crate::parser::token::N_DOT_SUPER;
 use crate::parser::token::N_DOT_THIS;
 use crate::parser::token::N_DOT_UNBOUND;
+use crate::slice_block::SliceBlock;
 use crate::u32_from_usize;
 
 use super::EnclosingEnvironmentScope;
@@ -1936,30 +1937,34 @@ impl Generator<'_> {
             shared_function_data.push(pending);
         }
 
-        let assembled = self.assemble();
-        let (identifier_table, property_key_table, string_table) = self.context.names.take_tables(tree);
+        self.seal_stream();
+        let scope = &self.context.scope;
+        let variable_name_count = scope.locals.len() + scope.parameters.len();
+        let other_tables_size = self.context.names.room_for_tables()
+            + SliceBlock::room_for::<ak::Utf16FlyString>(variable_name_count)
+            + SliceBlock::room_for::<LocalVariableMetadata>(scope.locals.len());
+        let (assembled, mut block) = self.finish_stream(other_tables_size);
+        let (identifier_table, property_key_table, string_table) = self.context.names.take_tables(tree, &mut block);
         let context = &mut *self.context;
         let constants: Box<[_]> = context.constants.values.drain(..).collect();
         let scope = &context.scope;
-        let local_variable_metadata = scope
-            .locals
-            .iter()
-            .map(|local| LocalVariableMetadata {
-                is_mutable: local.is_mutable,
-                scope_range: local.block_range.map(|(start, end)| tree.range_between(start, end)),
-            })
-            .collect();
-        let mut variable_names = Vec::with_capacity(scope.locals.len() + scope.parameters.len());
-        for local in &scope.locals {
-            variable_names.push(context.names.fly_string_of(tree, local.name));
-        }
-        for &(name, is_argument) in &scope.parameters {
-            variable_names.push(if is_argument {
-                context.names.fly_string_of(tree, name)
-            } else {
-                ak::Utf16FlyString::default()
-            });
-        }
+        let local_variable_metadata = block.slice(scope.locals.iter().map(|local| LocalVariableMetadata {
+            is_mutable: local.is_mutable,
+            scope_range: local.block_range.map(|(start, end)| tree.range_between(start, end)),
+        }));
+        let local_names = scope.locals.iter().map(|local| (local.name, true));
+        let variable_names = block.slice_of_length(
+            variable_name_count,
+            local_names
+                .chain(scope.parameters.iter().copied())
+                .map(|(name, has_name)| {
+                    if has_name {
+                        context.names.fly_string_of(tree, name)
+                    } else {
+                        ak::Utf16FlyString::default()
+                    }
+                }),
+        );
         let environment_binding_count = scope.environment_binding_count;
         let function_environment_binding_count = scope
             .function_environment_binding_count
@@ -1975,23 +1980,24 @@ impl Generator<'_> {
             Box::default()
         };
         let executable = ExecutableData {
-            bytecode: assembled.bytecode.into(),
-            exception_handlers: assembled.exception_handlers.into(),
-            source_map: assembled.source_map.into(),
+            bytecode: assembled.bytecode,
+            exception_handlers: assembled.exception_handlers,
+            source_map: assembled.source_map,
             number_of_registers: assembled.number_of_registers,
             number_of_arguments: assembled.number_of_arguments,
             is_strict: self.strict,
             cache_counts: self.cache_counts(),
-            identifier_table: identifier_table.into(),
-            string_table: string_table.into(),
-            variable_names: variable_names.into(),
+            identifier_table,
+            string_table,
+            variable_names,
             local_variable_metadata,
             length_identifier: self.length_identifier,
-            property_key_table: property_key_table.into(),
+            property_key_table,
             constants,
             shared_function_data: shared_function_data.into(),
             class_blueprints: std::mem::take(&mut self.class_blueprints).into(),
             position_source: Some(script.positions.clone()),
+            tables: block.finish(),
         };
         let this_from_environment = this_comes_from_environment(flags);
         PrecompiledFunction {

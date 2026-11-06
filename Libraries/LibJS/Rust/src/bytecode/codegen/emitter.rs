@@ -10,13 +10,14 @@ use crate::bytecode::executable_data::ExceptionHandler;
 use crate::bytecode::operand::Operand;
 use crate::bytecode::operand::OperandType;
 use crate::bytecode::source_map::SourceMapEntry;
+use crate::layout::buffer::BlockSlice;
 use crate::u32_from_usize;
 
 /// The result of assembling bytecode.
 pub struct AssembledBytecode {
-    pub bytecode: Vec<u8>,
-    pub source_map: Vec<SourceMapEntry>,
-    pub exception_handlers: Vec<ExceptionHandler>,
+    pub bytecode: BlockSlice<u8>,
+    pub source_map: BlockSlice<SourceMapEntry>,
+    pub exception_handlers: BlockSlice<ExceptionHandler>,
     pub number_of_registers: u32,
     /// One past the highest `Operand::argument` index referenced by any
     /// instruction, or 0 if the bytecode never reads an argument.

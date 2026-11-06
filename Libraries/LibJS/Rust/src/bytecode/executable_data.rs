@@ -17,6 +17,8 @@ use super::source_map::SourceMapEntry;
 use crate::ast::FunctionId;
 use crate::compile::SharedFunctionDescription;
 use crate::compile::utf16_string_memory_size;
+use crate::layout::buffer::BlockSlice;
+use crate::slice_block::SliceBlock;
 
 /// Exception handler range (with byte offsets, post-linking).
 #[derive(Debug, Clone)]
@@ -172,21 +174,21 @@ pub struct LocalVariableMetadata {
 ///
 /// [`Executable`]: super::executable::Executable
 pub struct ExecutableData {
-    pub bytecode: Box<[u8]>,
+    pub bytecode: BlockSlice<u8>,
     /// Sorted by start offset, and not overlapping.
-    pub exception_handlers: Box<[ExceptionHandler]>,
+    pub exception_handlers: BlockSlice<ExceptionHandler>,
     /// Sorted by bytecode offset: where in the source code the instructions from each offset on came from.
-    pub source_map: Box<[SourceMapEntry]>,
+    pub source_map: BlockSlice<SourceMapEntry>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict: bool,
     pub cache_counts: ExecutableCacheCounts,
-    pub identifier_table: Box<[ak::Utf16FlyString]>,
-    pub string_table: Box<[ak::Utf16FlyString]>,
+    pub identifier_table: BlockSlice<ak::Utf16FlyString>,
+    pub string_table: BlockSlice<ak::Utf16FlyString>,
     /// The names of the local variables, then the names of the arguments.
-    pub variable_names: Box<[ak::Utf16FlyString]>,
+    pub variable_names: BlockSlice<ak::Utf16FlyString>,
     /// One for each of the local variables.
-    pub local_variable_metadata: Box<[LocalVariableMetadata]>,
+    pub local_variable_metadata: BlockSlice<LocalVariableMetadata>,
     pub length_identifier: Option<PropertyKeyTableIndex>,
     /// What linking reads, and nothing after it (see [`ExecutableData::release_link_inputs()`]).
     pub property_key_table: Box<[ak::Utf16FlyString]>,
@@ -195,6 +197,8 @@ pub struct ExecutableData {
     pub class_blueprints: Box<[PendingClassBlueprint]>,
     /// What turns the source offsets of a source map that has them into lines and columns.
     pub position_source: Option<Arc<crate::parser::SourcePositions>>,
+    /// The memory of everything above that running the code reads, which gets dropped before it.
+    pub tables: SliceBlock,
 }
 
 fn constant_memory_size(constant: &ConstantValue) -> usize {
@@ -204,6 +208,11 @@ fn constant_memory_size(constant: &ConstantValue) -> usize {
         _ => 0,
     }
 }
+
+// SAFETY: Code compiles away from the heap, so it cannot hold a cell. What it describes turns into cells only when an
+//         Executable links it, and those stay with that Executable.
+#[cfg(not(test))]
+unsafe impl crate::gc::lint_markers::HoldsNoCells for ExecutableData {}
 
 impl ExecutableData {
     /// The entries of the source map, with the lines and columns that they stand for. Code that goes by offsets of the
