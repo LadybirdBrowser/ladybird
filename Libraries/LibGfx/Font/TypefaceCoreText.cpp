@@ -319,6 +319,11 @@ CTFontRef create_core_text_font_from_data(NonnullRefPtr<Typeface::FontDataBackin
     return font;
 }
 
+bool typeface_has_bitmap_glyphs(Typeface const& typeface)
+{
+    return hb_ot_color_has_png(typeface.harfbuzz_typeface());
+}
+
 bool core_text_accepts_font_data(NonnullRefPtr<Typeface::FontDataBacking> backing, u32 ttc_index)
 {
     auto bytes = backing->bytes();
