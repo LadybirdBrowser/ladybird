@@ -1,0 +1,11 @@
+Implementation note: the macOS translator
+
+Ladybird translates with the public Translation framework, from Swift,
+since the framework has no Objective-C API. Safari translates through
+the same framework’s private Objective-C classes, e.g. _LTTranslator and
+_LTTranslationSession. They reach translationd, whose online engine
+(_LTOnlineTranslationEngine) translates on Apple’s servers when the
+device can’t. But translationd accepts a client only if it has the
+com.apple.private.translation entitlement, which Safari has and no other
+developer can get, and rejects any other. So Ladybird translates on the
+device only, into and from the languages the user has installed.
