@@ -251,16 +251,24 @@ static Optional<FirefoxInstallation> firefox_installation_from_binary(StringView
 static Optional<FirefoxInstallation> find_firefox_in_path()
 {
     static constexpr auto EXECUTABLE_NAMES = to_array<StringView>({
+#if defined(AK_OS_WINDOWS)
+        "firefox.exe"sv,
+#else
         "firefox"sv,
+#endif
 #if defined(AK_OS_LINUX)
         "flatpak"sv,
 #endif
     });
 
-    auto search_path = Core::Environment::get("PATH"sv).value_or(DEFAULT_PATH_SV);
+    auto search_path = Core::Environment::get("PATH"sv);
+    if (!search_path.has_value())
+        return {};
+
+    auto search_paths = search_path->split_view(Core::Environment::PATH_SEPARATOR);
 
     for (auto executable_name : EXECUTABLE_NAMES) {
-        for (auto directory : search_path.split_view(':')) {
+        for (auto directory : search_paths) {
             auto candidate = LexicalPath::join(directory, executable_name);
 
             if (auto installation = firefox_installation_from_binary(candidate.string()); installation.has_value())
@@ -279,11 +287,26 @@ static Optional<FirefoxInstallation> find_firefox_installation()
     auto candidate = LexicalPath::join("/Applications"sv, APPLICATION_NAME, "Contents"sv, "MacOS"sv, "firefox"sv);
     if (auto installation = firefox_installation_from_binary(candidate.string()); installation.has_value())
         return installation;
+#elif defined(AK_OS_WINDOWS)
+    static constexpr auto INSTALLATION_ROOTS = to_array<StringView>({
+        "ProgramW6432"sv,
+        "ProgramFiles"sv,
+        "ProgramFiles(x86)"sv,
+        "LOCALAPPDATA"sv,
+    });
+
+    for (auto variable : INSTALLATION_ROOTS) {
+        auto directory = Core::Environment::get(variable);
+        if (!directory.has_value())
+            continue;
+
+        auto candidate = LexicalPath::join(*directory, "Mozilla Firefox"sv, "firefox.exe"sv);
+        if (auto installation = firefox_installation_from_binary(candidate.string()); installation.has_value())
+            return installation;
+    }
+#endif
 
     return find_firefox_in_path();
-#else
-    return find_firefox_in_path();
-#endif
 }
 
 NonnullOwnPtr<FirefoxClient> FirefoxClient::create()
