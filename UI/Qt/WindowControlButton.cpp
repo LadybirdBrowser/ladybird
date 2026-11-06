@@ -32,6 +32,8 @@ namespace Ladybird {
 // A round button is a 24 px circle at the end of its button, with a little room before it.
 static constexpr int ROUND_BUTTON_SIZE = 24;
 static constexpr int ROUND_BUTTON_LEADING_GAP = 6;
+// Square buttons run to the window's edge, but a circle keeps clear of it.
+static constexpr int ROUND_BUTTONS_TRAILING_GAP = 8;
 // Its glyph is drawn in a 10 px box, with a heavier line than the hairlines of the square buttons.
 static constexpr qreal ROUND_BUTTON_GLYPH_SIZE = 10;
 static constexpr qreal ROUND_BUTTON_GLYPH_STROKE_WIDTH = 1.5;
@@ -171,6 +173,8 @@ WindowControlButtons create_window_control_buttons(QWidget& parent, char const* 
     close->setVisible(desktop_buttons.close);
     for (auto* button : { minimize, maximize, close })
         button->set_round(desktop_buttons.round);
+    if (desktop_buttons.round)
+        layout->setContentsMargins(0, 0, ROUND_BUTTONS_TRAILING_GAP, 0);
 
     return { container, minimize, maximize, close };
 }
