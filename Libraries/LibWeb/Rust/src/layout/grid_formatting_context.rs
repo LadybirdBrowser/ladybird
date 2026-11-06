@@ -4906,9 +4906,11 @@ impl<'pass> GridFormattingContext<'pass> {
         );
         formatting_context::ChildRunShape {
             node: item.box_,
-            fc_type: plan.fc_type,
-            input: plan.input,
-            root_cells: cells,
+            key: fc_run_cache::FcRunCacheKey {
+                fc_type: plan.fc_type,
+                input: plan.input,
+                root_cells: cells,
+            },
             root_containing_block: plan.root_containing_block,
         }
     }
