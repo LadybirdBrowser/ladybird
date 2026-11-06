@@ -43,6 +43,7 @@
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
+#include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
@@ -55,6 +56,7 @@
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -3930,6 +3932,54 @@ static bool range_contains_viewport_position(DOM::Range& range, CSSPixelPoint vi
     });
 }
 
+static bool node_or_ancestor_listens_for_contextmenu(DOM::Node const& node)
+{
+    for (auto const* current = &node; current; current = current->parent_or_shadow_host()) {
+        if (current->has_event_listener(UIEvents::EventNames::contextmenu))
+            return true;
+    }
+    return false;
+}
+
+// Media and editable content have menus of their own, which an image below them must not replace.
+static bool has_own_context_menu(DOM::Node const& node)
+{
+    return is<HTML::HTMLMediaElement>(node) || is<HTML::FormAssociatedTextControlElement>(node) || node.is_editable_or_editing_host();
+}
+
+// NB: A background image is not taken to hide anything, as we can't cheaply tell whether it is opaque, and overlays
+//     often draw a transparent one, such as a play icon.
+static bool box_hides_what_is_below_it(Layout::NodeWithStyle const& box)
+{
+    return box.opacity() == 1 && box.background_color().alpha() == 255;
+}
+
+// Sites often cover an image with a transparent layer, or a caption, so the topmost box at a position may not be what
+// the user is pointing at. This looks through such layers for an image, but stops at one that hides what is below it,
+// and at one whose page may be handling context menus itself.
+static HTML::HTMLImageElement* image_beneath_overlays(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint position)
+{
+    HTML::HTMLImageElement* image = nullptr;
+    (void)document.hit_test_all(read, position, [&](Painting::HitTestResult result) {
+        auto* layout_node = result.layout_node(read);
+        if (!layout_node)
+            return TraversalDecision::Continue;
+        // NB: A pseudo-element's box has no DOM node, but it can hide what is below it all the same.
+        if (auto* node = layout_node->dom_node()) {
+            if (node_or_ancestor_listens_for_contextmenu(*node) || has_own_context_menu(*node) || is<HTML::HTMLCanvasElement>(*node) || is<HTML::NavigableContainer>(*node))
+                return TraversalDecision::Break;
+            if (auto* image_element = as_if<HTML::HTMLImageElement>(*node); image_element && !image_element->current_src().is_empty()) {
+                image = image_element;
+                return TraversalDecision::Break;
+            }
+        }
+        if (auto const* box = as_if<Layout::NodeWithStyle>(*layout_node); box && box_hides_what_is_below_it(*box))
+            return TraversalDecision::Break;
+        return TraversalDecision::Continue;
+    });
+    return image;
+}
+
 // https://w3c.github.io/uievents/#maybe-show-context-menu
 void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers)
 {
@@ -3983,20 +4033,22 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
 
     auto local_root_id = m_navigable->local_root()->id();
     auto page_viewport_position = m_navigable->to_page_position(viewport_position);
-    auto selected_text_range_at_context_menu_position = [&]() -> GC::Ptr<DOM::Range> {
-        if (!m_navigable->is_top_level_traversable())
-            return nullptr;
-
+    auto selected_range_at_context_menu_position = [&]() -> GC::Ptr<DOM::Range> {
         auto selection = document->get_selection();
         if (!selection || selection->is_collapsed())
             return nullptr;
 
         auto range = selection->range();
-        if (!range)
+        if (!range || !range_contains_viewport_position(*range, coordinates.viewport_position))
+            return nullptr;
+        return range;
+    };
+    auto selected_text_range_at_context_menu_position = [&]() -> GC::Ptr<DOM::Range> {
+        if (!m_navigable->is_top_level_traversable())
             return nullptr;
 
-        if (!range_contains_viewport_position(*range, coordinates.viewport_position)
-            || !HTML::selection_is_eligible_for_text_fragment_generation(*document, *range))
+        auto range = selected_range_at_context_menu_position();
+        if (!range || !HTML::selection_is_eligible_for_text_fragment_generation(*document, *range))
             return nullptr;
         return range->clone_range();
     };
@@ -4017,10 +4069,16 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
     if (link)
         link_url = document->encoding_parse_url(link->href());
 
-    // An image without a source has nothing for the image menu to act on.
+    // NB: An image without a source has nothing for the image menu to act on.
     auto* image_element = as_if<HTML::HTMLImageElement>(*context_menu_node);
+    if (image_element && image_element->current_src().is_empty())
+        image_element = nullptr;
+    // NB: Selected text keeps its menu too, wherever it is and whatever it spans.
+    if (!image_element && !has_own_context_menu(*context_menu_node) && !selected_range_at_context_menu_position())
+        image_element = image_beneath_overlays(read, document, coordinates.visual_viewport_position);
+
     Optional<URL::URL> image_url;
-    if (image_element && !image_element->current_src().is_empty())
+    if (image_element)
         image_url = image_element->document().encoding_parse_url(image_element->current_src());
 
     if (image_url.has_value()) {
@@ -4028,7 +4086,7 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
         if (auto frame = image_element->current_image_frame(); frame.has_value())
             bitmap = &frame->bitmap();
 
-        // An image inside a link, or under an image map's link, offers both the image and the link.
+        // NB: An image inside a link, or under an image map's link, offers both the image and the link.
         Optional<HTML::PreparedNavigationDescriptor> link_navigation;
         if (link_url.has_value())
             link_navigation = HTML::prepare_navigation_from_document(*document, *link_url, link->hyperlink_element_utils_element().hyperlink_referrer_policy());
