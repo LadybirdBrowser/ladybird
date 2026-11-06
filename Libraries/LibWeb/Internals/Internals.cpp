@@ -3730,6 +3730,8 @@ GC::Ptr<JS::Object> Internals::take_context_menu_request()
     object->define_direct_property("y"_utf16_fly_string, JS::Value(request->position.y().to_double()), JS::default_attributes);
     if (request->link_url.has_value())
         object->define_direct_property("linkURL"_utf16_fly_string, JS::PrimitiveString::create(vm(), utf16_string_from_url_ascii(request->link_url->serialize())), JS::default_attributes);
+    if (request->image_mime_type.has_value())
+        object->define_direct_property("imageMimeType"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(*request->image_mime_type)), JS::default_attributes);
     if (request->media.has_value()) {
         object->define_direct_property("isPictureInPicture"_utf16_fly_string, JS::Value(request->media->is_picture_in_picture), JS::default_attributes);
         object->define_direct_property("canEnterPictureInPicture"_utf16_fly_string, JS::Value(request->media->can_enter_picture_in_picture), JS::default_attributes);

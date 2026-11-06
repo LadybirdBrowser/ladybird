@@ -54,12 +54,14 @@
 #include <LibWeb/HTML/HTMLSummaryElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
+#include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/TextDirectiveGenerator.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -4091,9 +4093,13 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
         if (link_url.has_value())
             link_navigation = HTML::prepare_navigation_from_document(*document, *link_url, link->hyperlink_element_utils_element().hyperlink_referrer_policy());
 
+        Optional<String> image_mime_type;
+        if (auto request = image_element->current_request().shared_resource_request())
+            image_mime_type = request->image_mime_type();
+
         auto navigation = HTML::prepare_navigation_from_document(image_element->document(), image_url.release_value(), ReferrerPolicy::ReferrerPolicy::EmptyString);
-        m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Image, .target = *image_element, .position = page_viewport_position, .link_url = move(link_url) });
-        m_navigable->page().client().page_did_request_image_context_menu(local_root_id, page_viewport_position, move(navigation), "", modifiers, bitmap, move(link_navigation));
+        m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Image, .target = *image_element, .position = page_viewport_position, .link_url = move(link_url), .image_mime_type = image_mime_type });
+        m_navigable->page().client().page_did_request_image_context_menu(local_root_id, page_viewport_position, move(navigation), "", modifiers, bitmap, move(link_navigation), move(image_mime_type));
     } else if (link) {
         // Right-clicking link text without an existing selection first selects the word under the pointer, as the
         // ordinary page context menu does. A selected range is still only offered when the click lands within it.

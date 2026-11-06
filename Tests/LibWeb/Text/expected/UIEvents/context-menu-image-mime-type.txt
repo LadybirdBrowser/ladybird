@@ -1,0 +1,4 @@
+right-click #png: image/png
+right-click #png-without-image-type: image/png
+right-click #gif-claiming-png: image/gif
+right-click #svg: image/svg+xml

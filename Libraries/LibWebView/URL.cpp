@@ -11,6 +11,7 @@
 #include <AK/IPv6Address.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <LibCore/MimeData.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibURL/Parser.h>
 #include <LibURL/PublicSuffixData.h>
@@ -442,6 +443,24 @@ ByteString url_text_to_copy(URL::URL const& url)
     if (url.scheme() == "tel"sv)
         return url_text.substring("tel:"sv.length());
     return url_text;
+}
+
+ByteString image_filename_with_extension(ByteString filename, StringView image_mime_type)
+{
+    // NB: The type comes from the page's process, so only an image's type may pick an extension here.
+    if (!image_mime_type.starts_with("image/"sv))
+        return filename;
+    auto extension = Core::common_extension_for_mime_type(image_mime_type);
+    if (!extension.has_value())
+        return filename;
+
+    // A name with an extension we know stays as the server gave it.
+    if (Core::guess_mime_type_based_on_filename(filename) != "application/octet-stream"sv)
+        return filename;
+
+    if (filename.is_empty())
+        filename = "download"sv;
+    return ByteString::formatted("{}{}", filename, *extension);
 }
 
 }

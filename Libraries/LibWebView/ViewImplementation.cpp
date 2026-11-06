@@ -5556,11 +5556,13 @@ void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gf
     open_context_menu(move(menu), content_position);
 }
 
-void ViewImplementation::download_url(URL::URL const& url, PromptForPath prompt_for_path)
+void ViewImplementation::download_url(URL::URL const& url, PromptForPath prompt_for_path, Optional<String> const& image_mime_type)
 {
     // URLs with an opaque path, such as data: URLs, do not contain a usable filename, so the default filename is
     // used instead.
     auto suggested_filename = url.has_an_opaque_path() ? ByteString {} : url.basename();
+    if (image_mime_type.has_value())
+        suggested_filename = image_filename_with_extension(move(suggested_filename), *image_mime_type);
 
     if (prompt_for_path == PromptForPath::No) {
         if (auto download_path = Application::the().default_path_for_downloaded_file(suggested_filename); !download_path.is_error())
@@ -5577,7 +5579,7 @@ void ViewImplementation::download_url(URL::URL const& url, PromptForPath prompt_
     });
 }
 
-void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<Gfx::ShareableBitmap> bitmap, Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation)
+void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<Gfx::ShareableBitmap> bitmap, Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation, Optional<String> image_mime_type)
 {
     prepare_inspect_element_action(content_position);
     ++m_context_menu_request_id;
@@ -5607,8 +5609,8 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, G
     menu->add_separator();
     menu->add_action(move(copy_image_action));
     menu->add_action(create_copy_url_action("Copy Image Address"sv, url));
-    menu->add_action(Action::create("Save Image As…"sv, ActionID::SaveImage, [this, url]() {
-        download_url(url, PromptForPath::Yes);
+    menu->add_action(Action::create("Save Image As…"sv, ActionID::SaveImage, [this, url, image_mime_type = move(image_mime_type)]() {
+        download_url(url, PromptForPath::Yes, image_mime_type);
     }));
     menu->add_separator();
     menu->add_action(*m_inspect_element_action);

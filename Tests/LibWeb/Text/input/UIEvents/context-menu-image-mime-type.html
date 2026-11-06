@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0 }
+    img { display: block; width: 100px; height: 20px }
+</style>
+<script>
+    const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4YWMDAAMQAUEiFmcFAAAAAElFTkSuQmCC";
+    const gif = "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+    const svg = "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz4=";
+    const sources = {
+        "png": `data:image/png;base64,${png}`,
+        "png-without-image-type": `data:application/octet-stream;base64,${png}`,
+        "gif-claiming-png": `data:image/png;base64,${gif}`,
+        "svg": `data:image/svg+xml;base64,${svg}`,
+    };
+
+    asyncTest(async done => {
+        const images = Object.entries(sources).map(([name, src]) => {
+            const image = new Image();
+            image.id = name;
+            image.src = src;
+            document.body.appendChild(image);
+            return image;
+        });
+        await Promise.all(images.map(image => image.decode()));
+
+        // The type comes from the image's bytes where they tell, as a server's claim is often missing or wrong.
+        for (const image of images) {
+            const rect = image.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            internals.mouseDown(x, y, 1, 2);
+            internals.mouseUp(x, y, 2);
+            println(`right-click #${image.id}: ${internals.takeContextMenuRequest().imageMimeType}`);
+        }
+        done();
+    });
+</script>

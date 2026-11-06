@@ -7,11 +7,13 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <LibCore/Export.h>
 
 namespace Core {
 
 CORE_API StringView guess_mime_type_based_on_filename(StringView);
+CORE_API Optional<StringView> common_extension_for_mime_type(StringView);
 
 }
