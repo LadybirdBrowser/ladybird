@@ -2082,6 +2082,9 @@ impl Drop for Vm {
     fn drop(&mut self) {
         // The debugger holds weak references to executables, which go away with the heap.
         drop(self.debugger.take());
+        // So do these caches of shapes. A weak reference that outlives the heap also keeps its weak block allocated.
+        self.json_parse_cache = JsonParseCache::default();
+        self.json_stringify_cache = JsonStringifyCache::new();
         // Compile jobs that are still running are abandoned; their results are dropped when they finish.
         self.jit.abandon_compile_jobs();
         // The heap's final collection destroys every cell, so it has to happen while the rest of the VM exists.
