@@ -14,10 +14,8 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/SourceExpression.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
-#include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -133,10 +131,7 @@ Nonceable is_element_nonceable(GC::Ptr<DOM::Element const> element)
     // 2. If element is a script element, then for each attribute of element’s attribute list:
     // FIXME: File spec issue to ask if this should include SVGScriptElement.
     if (is<HTML::HTMLScriptElement>(element.ptr()) || is<SVG::SVGScriptElement>(element.ptr())) {
-        for (size_t attribute_index = 0; attribute_index < element->attributes()->length(); ++attribute_index) {
-            auto attribute = element->attributes()->item(attribute_index);
-            VERIFY(attribute);
-
+        for (auto const& attribute : element->attribute_list()) {
             auto contains_dangling_markup = [](Utf16View string) {
                 return string.find_code_unit_offset_ignoring_case("<link"sv).has_value()
                     || string.find_code_unit_offset_ignoring_case("<script"sv).has_value()
@@ -145,12 +140,12 @@ Nonceable is_element_nonceable(GC::Ptr<DOM::Element const> element)
 
             // 1. If attribute’s name contains an ASCII case-insensitive match for "<link", "<script", or "<style",
             //    return "Not Nonceable".
-            if (contains_dangling_markup(attribute->name().view()))
+            if (contains_dangling_markup(attribute.name.as_string().view()))
                 return Nonceable::No;
 
             // 2. If attribute’s value contains an ASCII case-insensitive match for "<link", "<script", or "<style",
             //    return "Not Nonceable".
-            if (contains_dangling_markup(attribute->value()))
+            if (contains_dangling_markup(attribute.value))
                 return Nonceable::No;
         }
     }
