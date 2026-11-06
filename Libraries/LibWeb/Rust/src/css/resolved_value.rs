@@ -517,6 +517,19 @@ impl ResolvedValueBox<'_> {
             self.principal_style.position(),
             positioning::ABSOLUTE | positioning::FIXED
         );
+        // NB: Grid layout aligns an item in its grid area through the item's used margins, which then hold the offset
+        //     of its alignment, and the space its auto margins absorb, as well as its margins. So an auto margin of a
+        //     grid item resolves to zero, and a length to itself, as other engines report them.
+        // FIXME: A percentage resolves against the item's grid area, which isn't known here, so it still resolves to
+        //        the used value, alignment and all.
+        if !is_absolutely_positioned && containing_block_style.is_some_and(|style| style.display().is_grid_inside()) {
+            if margin.is_auto {
+                return length_value(0.0);
+            }
+            if let Some(pixels) = handle_value(&margin.value).and_then(absolute_length_px) {
+                return length_value(pixels);
+            }
+        }
         if !self.principal_style.display().is_block_outside()
             || is_absolutely_positioned
             || containing_block_style.is_some_and(|style| {

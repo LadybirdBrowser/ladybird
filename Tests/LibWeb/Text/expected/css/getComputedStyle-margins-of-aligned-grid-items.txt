@@ -1,0 +1,4 @@
+centered: 0px 0px 0px 0px
+end-aligned: 0px 0px 0px 0px
+with-margins: 5px 7px 5px 7px
+auto-margins: 0px 0px 0px 0px

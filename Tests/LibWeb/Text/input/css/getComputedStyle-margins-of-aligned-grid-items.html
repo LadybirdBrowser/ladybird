@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+.grid {
+    display: grid;
+    width: 300px;
+    height: 200px;
+}
+
+.item {
+    width: 100px;
+    height: 50px;
+}
+</style>
+<div class="grid" style="place-items: center"><div class="item" id="centered"></div></div>
+<div class="grid" style="justify-items: end; align-items: end"><div class="item" id="end-aligned"></div></div>
+<div class="grid" style="place-items: center"><div class="item" id="with-margins" style="margin: 5px 7px"></div></div>
+<div class="grid"><div class="item" id="auto-margins" style="margin: auto"></div></div>
+<script>
+    // The margins of a grid item are its own, wherever its alignment puts it in its grid area.
+    test(() => {
+        for (const id of ["centered", "end-aligned", "with-margins", "auto-margins"]) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`${id}: ${style.marginTop} ${style.marginRight} ${style.marginBottom} ${style.marginLeft}`);
+        }
+    });
+</script>
