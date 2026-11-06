@@ -495,6 +495,22 @@ void SVGDecodedImageData::SVGPageClient::request_frame()
         svg_image_data.did_request_frame();
 }
 
+void SVGDecodedImageData::SVGPageClient::request_frame_for(DOM::Document const& document)
+{
+    if (m_frame_request_suppression_count > 0)
+        return;
+
+    // Only the image of the document asking for the frame changes. A document that's still being decoded has no image
+    // yet, and so nothing to invalidate. Invalidating every image instead would make loading n images take O(n^3)
+    // time, since each invalidation prunes the cached resources of every image.
+    for (auto& svg_image_data : m_svg_image_data) {
+        if (&svg_image_data.svg_document() == &document) {
+            svg_image_data.did_request_frame();
+            return;
+        }
+    }
+}
+
 NonnullRefPtr<Media::AudioOutputFactory> SVGDecodedImageData::SVGPageClient::create_audio_output_factory()
 {
     return m_host_page->client().create_audio_output_factory();

@@ -3083,7 +3083,7 @@ void Document::throttled_animation_visibility_changed()
     }
     flush_throttled_animation_style_update();
     set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-    page().client().request_frame();
+    page().client().request_frame_for(*this);
 }
 
 void Document::set_needs_animated_style_update(Animations::KeyframeEffect& effect)
@@ -3099,7 +3099,7 @@ void Document::set_needs_animated_style_update(Animations::KeyframeEffect& effec
         return;
 
     set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-    page().client().request_frame();
+    page().client().request_frame_for(*this);
 }
 
 void Document::finish_animated_style_update()
@@ -5352,7 +5352,7 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
 
     if (readiness_value != HTML::DocumentReadyState::Loading) {
         set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-        page().client().request_frame();
+        page().client().request_frame_for(*this);
     }
 
     // 3. If document is associated with an HTML parser, then:
@@ -5823,7 +5823,7 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
     if (m_visibility_state == HTML::VisibilityState::Visible) {
         flush_throttled_animation_style_update();
         set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-        page().client().request_frame();
+        page().client().request_frame_for(*this);
     }
 }
 
@@ -6223,7 +6223,7 @@ void Document::increment_number_of_pending_style_sheet_requests(Badge<DocumentLo
     ++m_number_of_pending_style_sheet_requests;
     set_rendering_pending(*this, RenderingPendingReason::StyleSheetLoads, m_number_of_pending_style_sheet_requests + m_pending_css_import_rules.size());
     set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-    page().client().request_frame();
+    page().client().request_frame_for(*this);
 }
 
 void Document::decrement_number_of_pending_style_sheet_requests(Badge<DocumentLoadEventDelayer>)
@@ -6232,7 +6232,7 @@ void Document::decrement_number_of_pending_style_sheet_requests(Badge<DocumentLo
     --m_number_of_pending_style_sheet_requests;
     set_rendering_pending(*this, RenderingPendingReason::StyleSheetLoads, m_number_of_pending_style_sheet_requests + m_pending_css_import_rules.size());
     set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-    page().client().request_frame();
+    page().client().request_frame_for(*this);
 }
 
 // AD-HOC: A navigation can drop the document it created before activating it. Its parser and fetch go on queueing
@@ -9235,7 +9235,7 @@ void Document::service_compositor_animation_wakeup(double timestamp)
         }
         ++m_style_invalidation_counters.animation_frame_pump_requests;
         set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-        page().client().request_frame();
+        page().client().request_frame_for(*this);
     }
 }
 
@@ -9970,7 +9970,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
             m_compositor_animation_observation_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(100), GC::weak_callback(*this, [](auto& document) {
                 ++document.m_style_invalidation_counters.animation_frame_pump_requests;
                 set_rendering_pending(document, RenderingPendingReason::NeedsRenderingUpdate, 1);
-                document.page().client().request_frame();
+                document.page().client().request_frame_for(document);
                 document.m_compositor_animation_observation_timer->start();
             }));
         }
@@ -10142,7 +10142,7 @@ void Document::update_animations_and_send_events(double timestamp)
         }
         ++m_style_invalidation_counters.animation_frame_pump_requests;
         set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-        page().client().request_frame();
+        page().client().request_frame_for(*this);
         break;
     }
 }
@@ -11344,7 +11344,7 @@ void Document::remove_render_blocking_element(GC::Ref<Element> element)
     }
 
     set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-    page().client().request_frame();
+    page().client().request_frame_for(*this);
 }
 
 // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
@@ -11384,7 +11384,7 @@ void Document::append_pending_fullscreen_change(PendingFullscreenEvent::Type typ
 {
     m_pending_fullscreen_events.append(PendingFullscreenEvent { type, element, request_type });
     set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-    page().client().request_frame();
+    page().client().request_frame_for(*this);
 }
 
 // https://fullscreen.spec.whatwg.org/#fullscreen-an-element
@@ -11914,7 +11914,7 @@ void Document::request_frame_for_pending_repaint()
         //     loading between renders must still invalidate the image's cached rendering and notify its clients.
         if (page().client().is_svg_page_client()) {
             set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-            page().client().request_frame();
+            page().client().request_frame_for(*this);
         }
         return;
     }
@@ -11924,7 +11924,7 @@ void Document::request_frame_for_pending_repaint()
     // A local root's frames come from its page, whether it is the traversable or another process hosts its parent.
     if (navigable->is_local_root()) {
         set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-        page().client().request_frame();
+        page().client().request_frame_for(*this);
         return;
     }
 
@@ -12201,7 +12201,7 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
     m_caret_hit_test_debug_rect = rect;
     set_needs_repaint(InvalidateDisplayList::PaintCommands);
     set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-    page().client().request_frame();
+    page().client().request_frame_for(*this);
 }
 
 Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunRead const& read, Optional<i64> visual_animation_sample_time_nanoseconds)
@@ -12614,7 +12614,7 @@ void Document::set_rendering_suppression_for_view_transitions(bool value)
 
     if (!value) {
         set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-        page().client().request_frame();
+        page().client().request_frame_for(*this);
     }
 }
 
@@ -13082,7 +13082,7 @@ void Document::remove_pending_css_import_rule(Badge<CSS::StyleSheetImport>, Nonn
     set_rendering_pending(*this, RenderingPendingReason::StyleSheetLoads, m_number_of_pending_style_sheet_requests + m_pending_css_import_rules.size());
     if (m_pending_css_import_rules.is_empty()) {
         set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
-        page().client().request_frame();
+        page().client().request_frame_for(*this);
     }
 }
 

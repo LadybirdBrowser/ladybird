@@ -785,6 +785,8 @@ public:
     }
     virtual HTML::CrossProcessId allocate_navigable_id() { return allocate_cross_process_id(); }
     virtual void request_frame() = 0;
+    // A frame request on behalf of one document, for a client whose page shows many documents.
+    virtual void request_frame_for(DOM::Document const&) { request_frame(); }
     virtual double rendering_frame_interval_in_milliseconds() const { return 1000.0 / 60.0; }
     virtual void rendering_opportunity([[maybe_unused]] i64 frame_time_nanoseconds, [[maybe_unused]] double frame_interval_milliseconds) { }
     virtual void will_begin_rendering_update() { }
