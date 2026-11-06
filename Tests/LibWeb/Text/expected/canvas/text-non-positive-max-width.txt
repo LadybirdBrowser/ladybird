@@ -1,0 +1,4 @@
+fillText, zero: true
+fillText, negative: true
+strokeText, zero: true
+strokeText, negative: true

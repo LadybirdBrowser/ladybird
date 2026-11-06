@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function canvasIsKept(draw) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 100;
+        canvas.height = 100;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "green";
+        context.fillRect(0, 0, 100, 100);
+        context.globalCompositeOperation = "copy";
+        draw(context);
+        return context.getImageData(50, 50, 1, 1).data[3] === 255;
+    }
+
+    test(() => {
+        println(`fillText, zero: ${canvasIsKept(context => context.fillText("x", 10, 60, 0))}`);
+        println(`fillText, negative: ${canvasIsKept(context => context.fillText("x", 10, 60, -1))}`);
+        println(`strokeText, zero: ${canvasIsKept(context => context.strokeText("x", 10, 60, 0))}`);
+        println(`strokeText, negative: ${canvasIsKept(context => context.strokeText("x", 10, 60, -1))}`);
+    });
+</script>
