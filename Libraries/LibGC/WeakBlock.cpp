@@ -10,7 +10,7 @@
 
 namespace GC {
 
-WeakImpl WeakImpl::the_null_weak_impl;
+constinit WeakImpl WeakImpl::the_null_weak_impl { WeakImpl::State::Null };
 
 WeakBlock* WeakBlock::create()
 {
