@@ -16,8 +16,10 @@ from pathlib import Path
 webdriver = importlib.import_module("test-webdriver-delete-session")
 
 
-def launch(webdriver_binary, environment):
-    process, port = webdriver.launch_webdriver(webdriver_binary, "--headless", env=environment)
+def launch(webdriver_binary, profile, environment):
+    process, port = webdriver.launch_webdriver(
+        webdriver_binary, "--headless", f"--profile-path={profile}", env=environment
+    )
     status, payload, response = webdriver.request(
         port, "POST", "/session", {"capabilities": {"alwaysMatch": {"ladybird:headless": True}}}
     )
@@ -63,10 +65,11 @@ def run_test(webdriver_binary):
             ("XDG_CACHE_HOME", "cache"),
         ):
             environment[variable] = str(Path(temporary) / directory)
-        reports_directory = Path(temporary) / "data/Ladybird/CrashReports"
+        profile = Path(temporary) / "profile"
+        reports_directory = profile / "data/CrashReports"
 
         report = write_browser_report(reports_directory)
-        process, port, session = launch(webdriver_binary, environment)
+        process, port, session = launch(webdriver_binary, profile, environment)
         try:
             # A running browser keeps a signal-safe record, which the next launch recovers if a fatal signal ends it.
             deadline = time.monotonic() + webdriver.EVENT_TIMEOUT_SECONDS

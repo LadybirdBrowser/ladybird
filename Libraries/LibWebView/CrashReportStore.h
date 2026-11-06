@@ -31,6 +31,10 @@ public:
     }
 
     ByteString const& directory() const { return m_directory; }
+    void set_directory(ByteString directory) { m_directory = move(directory); }
+
+    // Moves in every saved report of another store, which is how reports from before they belonged to a profile arrive.
+    ErrorOr<void> adopt_reports_from(ByteString const& directory) const;
 
     ErrorOr<SavedReport> saved_report(ByteString const& name) const;
 

@@ -458,6 +458,7 @@ protected:
     virtual NonnullOwnPtr<MicrophoneAuthorizer> create_microphone_authorizer();
 
     virtual bool should_coordinate_browser_process() const { return true; }
+    virtual bool captures_browser_crashes() const { return false; }
     virtual bool should_use_os_geolocation() const { return true; }
     virtual SiteIsolationMode default_site_isolation_mode() const { return SiteIsolationMode::IFrame; }
 

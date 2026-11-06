@@ -9,7 +9,6 @@
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
-#include <LibWebView/CrashReportStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
@@ -39,9 +38,6 @@
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
-
-    if (auto result = WebView::CrashReportStore::the().initialize_browser_crash_handler(); result.is_error())
-        warnln("Could not prepare Browser crash reporting: {}", result.error());
 
     // The web content view is presented in a native child window. Without this attribute, a widget
     // gaining a native window would force every other widget in the browser window to become native

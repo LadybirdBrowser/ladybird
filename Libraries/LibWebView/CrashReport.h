@@ -40,7 +40,7 @@ public:
     static ByteString describe_current_build(ProcessType);
     ErrorOr<void> record_build_description(StringView description);
 
-    ErrorOr<void> save(int wait_status, ByteString const& directory = CrashReportStore::default_directory(),
+    ErrorOr<void> save(int wait_status, ByteString const& directory = CrashReportStore::the().directory(),
         Optional<UnixDateTime> crashed_at = {});
 
     explicit CrashReport(NonnullOwnPtr<Core::File> file, ProcessType process_type)
