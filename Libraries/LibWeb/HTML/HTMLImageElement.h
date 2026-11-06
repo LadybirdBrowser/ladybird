@@ -206,6 +206,8 @@ private:
 
     CSSPixelSize m_last_seen_viewport_size;
 
+    bool m_is_child_of_picture { false };
+
     // https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:dimension-attribute-source
     // Each img element has a dimension attribute source, which must initially be the img element itself.
     GC::Ptr<DOM::Element const> m_dimension_attribute_source;

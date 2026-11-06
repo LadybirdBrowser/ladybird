@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 113 tests
 
-108 Pass
-5 Fail
+109 Pass
+4 Fail
 Pass	src set
 Pass	src changed
 Pass	src removed
@@ -60,7 +60,7 @@ Pass	referrerpolicy no-referrer to absent, src already set
 Pass	referrerpolicy no-referrer to empty, src already set
 Pass	referrerpolicy no-referrer to no-referrer-when-downgrade, src already set
 Pass	referrerpolicy no-referrer to invalid, src already set
-Fail	inserted into picture
+Pass	inserted into picture
 Pass	removed from picture
 Pass	parent is picture, previous source inserted
 Pass	parent is picture, previous source removed
