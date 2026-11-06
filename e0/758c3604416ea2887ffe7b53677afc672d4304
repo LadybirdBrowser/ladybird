@@ -1,0 +1,9 @@
+Ladybird shrinks a float’s margin box by its negative inline margins,
+and a float whose margin box has no width left doesn’t narrow the space
+beside it. Blink, WebKit, and Gecko all do the same. In Blink,
+CreateExclusionArea() clamps the margin-box width at zero, and
+ExclusionSpaceInternal::DerivedGeometry::Add() then skips an exclusion
+with no width. In Gecko, nsFloatManager::CalculateRegionFor() clamps
+the region to no width, which GetFlowArea() skips as empty. And in
+WebKit, a negative width is kept: FloatingObjects::logicalLeftOffset()
+moves the line start only past a float edge that’s beyond it.
