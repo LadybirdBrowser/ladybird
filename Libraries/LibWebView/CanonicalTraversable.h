@@ -130,6 +130,7 @@ public:
     RefPtr<WebContentPage> display_page() const;
     ErrorOr<NonnullRefPtr<WebContentPage>> obtain_page_to_host_traversable(RefPtr<WebContentClient> host);
     void set_page_standing_in_for_lost_document(Badge<ViewImplementation>, NonnullRefPtr<WebContentPage>);
+    bool has_page_standing_in_for_lost_document() const { return m_page_standing_in_for_lost_document; }
     void did_activate_document_in(Badge<CanonicalNavigable>, WebContentPage& host);
     void remove_child_navigables_of(CanonicalNavigable&, CanonicalDocument const&);
     void did_lose_page(WebContentPage&, WebContentProcessLost);

@@ -80,6 +80,27 @@ void WebContentClient::close_worker_agent(Web::PageId page_id, Web::HTML::Worker
         WorkerAgentManager::the().close_worker_agent(*this, agent_id, owner_token);
 }
 
+void WebContentClient::note_hosted_document(CanonicalDocument const& document)
+{
+    // NB: An about:blank document starts out empty, and its origin is that of a document the process already hosts or
+    //     an opaque one that nothing else can script.
+    if (m_has_hosted_more_than_tabs_of_one_origin || Web::HTML::url_matches_about_blank(document.creation_url()))
+        return;
+
+    auto const& origin = document.origin();
+    if (document.may_share_a_process_with_tabs_of_its_origin()) {
+        if (!m_origin_of_hosted_tabs.has_value())
+            m_origin_of_hosted_tabs = origin;
+        if (m_origin_of_hosted_tabs == origin)
+            return;
+    } else if (!document.is_top_level() && m_origin_of_hosted_tabs.has_value() && !origin.is_opaque() && origin.is_same_site(*m_origin_of_hosted_tabs)) {
+        return;
+    }
+
+    m_has_hosted_more_than_tabs_of_one_origin = true;
+    m_origin_of_hosted_tabs.clear();
+}
+
 bool WebContentClient::hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const& storage_key)
 {
     bool hosts_one = false;
