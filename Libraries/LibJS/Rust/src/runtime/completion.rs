@@ -214,10 +214,17 @@ pub fn r#await(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
         // Embedder case (i.e. LibWeb). Runs all promise jobs by performing a microtask checkpoint.
         // NB: The goal condition reads the outcome itself, as a copy taken before the promise settles would never
         //     make it true.
-        agent.spin_event_loop_until(vm, &|| awaited_completion.success.get().is_some());
+        agent.spin_event_loop_until(vm, &|| {
+            awaited_completion.success.get().is_some() || vm.interrupt_requested()
+        });
     } else {
         // No embedder, standalone LibJS implementation
         vm.run_queued_promise_jobs_for_await(|| awaited_completion.success.get().is_some());
+    }
+
+    // NB: The jobs that would settle the promise do not run anymore.
+    if vm.interrupt_requested() {
+        return vm.throw_interrupt();
     }
 
     // 8. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
