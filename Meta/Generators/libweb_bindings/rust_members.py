@@ -121,6 +121,9 @@ class RustOperation:
     # for a [Default] toJSON operation: the bindings run the default toJSON steps instead,
     # https://webidl.spec.whatwg.org/#default-tojson-steps
     method: str
+    omitted_parameter: Optional[OperationParameter] = None
+    omitted_parameter_index: Optional[int] = None
+    implementation_parameters: Optional[List[OperationParameter]] = None
 
     @property
     def length(self) -> int:
@@ -134,7 +137,8 @@ class RustOperation:
     def steps_function(self) -> str:
         """The generated function of the steps of the operation, when the operation is one of several overloads that
         the function of the prototype chooses between."""
-        return f"{generated_function_stem(self.method)}_steps"
+        suffix = f"_{len(self.operation.parameters)}" if self.omitted_parameter is not None else ""
+        return f"{generated_function_stem(self.method)}{suffix}_steps"
 
 
 @dataclass
@@ -573,6 +577,31 @@ def rust_members(interface: Interface) -> RustMembers:
             overloads = [
                 RustOperation(operation, method_of(name, operation.extended_attributes)) for operation in operations
             ]
+            for method in {overload.method for overload in overloads}:
+                shared = [overload for overload in overloads if overload.method == method]
+                if len(shared) == 1:
+                    continue
+                if static or len(shared) != 2:
+                    fail(f"the overloads sharing the Rust method {method} must differ by one required parameter")
+                shorter, longer = sorted(shared, key=lambda overload: len(overload.operation.parameters))
+                short_parameters = shorter.operation.parameters
+                long_parameters = longer.operation.parameters
+                if len(long_parameters) != len(short_parameters) + 1:
+                    fail(f"the overloads sharing the Rust method {method} must differ by one required parameter")
+                indices = [
+                    index
+                    for index, parameter in enumerate(long_parameters)
+                    if not parameter.optional
+                    and not parameter.variadic
+                    and long_parameters[:index] + long_parameters[index + 1 :] == short_parameters
+                ]
+                if len(indices) != 1 or shorter.operation.return_type != longer.operation.return_type:
+                    fail(f"the overloads sharing the Rust method {method} must differ by one required parameter")
+                index = indices[0]
+                for overload in shared:
+                    overload.omitted_parameter = long_parameters[index]
+                    overload.omitted_parameter_index = index
+                    overload.implementation_parameters = long_parameters
             sets.append(RustOperationSet(name, overloads))
         if static and any("FIXME" in operation.extended_attributes for operation in operations_of_interface):
             fail("it has static operations marked [FIXME], which the Rust bindings do not record yet")
@@ -604,10 +633,9 @@ def rust_members(interface: Interface) -> RustMembers:
     )
     methods = sorted(attribute_methods)
     methods.extend(
-        overload.method
+        method
         for operation_set in members.operation_sets + members.static_operation_sets
-        for overload in operation_set.overloads
-        if not overload.is_default_to_json
+        for method in {overload.method for overload in operation_set.overloads if not overload.is_default_to_json}
     )
     if members.stringifier is not None and members.stringifier.defines_method:
         methods.append(members.stringifier.method)

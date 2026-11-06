@@ -154,8 +154,6 @@ def check_interface_is_supported(interface: Interface, module: Module, context: 
         fail(
             f"it inherits from {interface.parent_name}, which is neither implemented in Rust nor one of {CPP_PARENT_INTERFACES}"
         )
-    if module.callback_functions:
-        fail("its module defines callback functions")
 
     for other in inheriting_interfaces(interface, context):
         if not is_implemented_in_rust(other):
@@ -807,11 +805,24 @@ def implementation_method_signatures(
                 "WebIdlResult<()>"
             )
     for operation_set in members.operation_sets:
+        written_methods = set()
         for overload in operation_set.overloads:
-            if overload.is_default_to_json:
+            if overload.is_default_to_json or overload.method in written_methods:
                 continue
+            written_methods.add(overload.method)
             what = f"{interface.name}.{operation_set.name}()"
-            parameters = parameter_list(what, overload.operation.parameters)
+            if overload.implementation_parameters is not None:
+                parameters = "".join(
+                    f", {rust_identifier(parameter.name)}: "
+                    + (
+                        f"Option<{rust_parameter_type(parameter, context, what)}>"
+                        if index == overload.omitted_parameter_index
+                        else rust_parameter_type(parameter, context, what)
+                    )
+                    for index, parameter in enumerate(overload.implementation_parameters)
+                )
+            else:
+                parameters = parameter_list(what, overload.operation.parameters)
             signatures.append(
                 f"fn {overload.method}(&self, cx: &mut CallContext{parameters}) -> "
                 f"WebIdlResult<{rust_type(overload.operation.return_type, context, what, is_result=True)}>"
@@ -2277,6 +2288,13 @@ def write_rust_operation(
         steps.write("        drop(type_error_realm_scope);\n")
     arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in operation.parameters)
     returns_promise = is_promise_type(operation.return_type) and not operation.return_type.nullable
+    if overload.implementation_parameters is not None:
+        arguments = ""
+        for index, parameter in enumerate(overload.implementation_parameters):
+            argument = rust_local_name(parameter.name)
+            if index == overload.omitted_parameter_index:
+                argument = f"Some({argument})" if parameter in operation.parameters else "None"
+            arguments += f", {argument}"
     call = f"Implementation::{overload.method}(&implementation, &mut cx{arguments})"
     if "CEReactions" in operation.extended_attributes:
         if returns_promise:
