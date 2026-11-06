@@ -104,8 +104,8 @@ floating table: 152x22, 52x62, 152x22, 120x42
 floating table with collapsed borders: 166x30, 116x50, 166x30, 120x50
 percentage height table cell: 102x80, 52x80, 102x80, 102x80
 row flex: 161x20, 111x40, 161x20, 120x40
-row flex with flex factors: 185x20, 110x40, 185x20, 120x40
-row flex with item constraints: 190x40, 190x40, 190x40, 190x40
+row flex with flex factors: 150x40, 100x40, 150x40, 120x40
+row flex with item constraints: 170x40, 170x40, 170x40, 170x40
 row flex with a scroll container item: 140x20, 140x20, 140x20, 140x20
 row flex with a percentage gap: 90x20, 90x20, 90x20, 90x20
 wrapping row flex: 208x20, 50x88, 208x20, 120x44

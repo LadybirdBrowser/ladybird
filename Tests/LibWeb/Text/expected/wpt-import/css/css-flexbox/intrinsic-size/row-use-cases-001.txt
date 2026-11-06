@@ -2,10 +2,11 @@ Harness status: OK
 
 Found 6 tests
 
-6 Pass
+3 Pass
+3 Fail
 Pass	left < right
 Pass	no overflow
 Pass	same widths
-Pass	zero width
-Pass	same heights
-Pass	no overflow 2
+Fail	zero width
+Fail	same heights
+Fail	no overflow 2

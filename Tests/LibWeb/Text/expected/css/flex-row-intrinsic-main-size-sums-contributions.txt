@@ -1,0 +1,4 @@
+gallery: 568.8125px
+fixed: 200px
+flexible: 60px
+max-content: 250px

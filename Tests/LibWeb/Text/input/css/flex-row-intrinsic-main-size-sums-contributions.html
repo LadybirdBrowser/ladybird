@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+  body { margin: 0; }
+  .grid { display: grid; grid-template-columns: 1fr 40%; width: 948px; }
+  .track { display: flex; height: 400px; }
+  .slide { display: flex; flex-shrink: 0; width: 100%; }
+  img { max-width: 100%; height: 100%; }
+  .min-content { display: grid; grid-template-columns: min-content; }
+  .row { display: flex; }
+  .fixed { flex: 0 0 200px; }
+  .grows { flex: 1 0 auto; }
+  .box { display: inline-block; width: 30px; height: 10px; }
+</style>
+<div class="grid">
+  <div id="gallery">
+    <div class="track">
+      <div class="slide"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800'/%3E"></div>
+      <div class="slide"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800'/%3E"></div>
+      <div class="slide"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800'/%3E"></div>
+      <div class="slide"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800'/%3E"></div>
+    </div>
+  </div>
+  <div></div>
+</div>
+<div class="min-content"><div class="row" id="fixed"><div class="fixed"><span class="box"></span></div></div></div>
+<div class="min-content"><div class="row" id="flexible"><div><span class="box"></span> <span class="box"></span></div><div class="grows"><span class="box"></span> <span class="box"></span></div></div></div>
+<div style="width: max-content"><div class="row" id="max-content"><div class="fixed"><span class="box"></span></div><div style="width: 50px"></div></div></div>
+<script>
+    // A row flex container's intrinsic main size sums its items' min-content or max-content contributions. An item
+    // that can't shrink, and whose flex basis is indefinite, still contributes its min-content size, so a carousel of
+    // shrinkable images doesn't widen a 1fr grid column. An item that can't shrink, and whose flex basis is definite,
+    // contributes its flex base size.
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            for (const id of ["gallery", "fixed", "flexible", "max-content"])
+                println(`${id}: ${document.getElementById(id).getBoundingClientRect().width}px`);
+            done();
+        });
+    });
+</script>
