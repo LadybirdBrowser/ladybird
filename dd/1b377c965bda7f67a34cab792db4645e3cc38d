@@ -1,0 +1,14 @@
+Ladybird now resolves the margins of an in-flow grid item to its own
+margins, with zero for an auto margin. Blink and Gecko report the same:
+Blink’s MarginTop::CSSValueFromComputedStyleInternal() reads the
+fragment’s margins (LayoutBox::MarginOutsets()), and its grid layout
+places an aligned item by adding AlignmentOffset() to its grid area’s
+offset, keeping auto margins at zero. Gecko’s nsComputedDOMStyle::
+GetMarginFor() returns a length as it is, and the used margin
+otherwise, which stays zero for an auto margin of a grid item, since
+nsGridContainerFrame aligns items with a separate offset in
+AlignJustifySelf(). WebKit also positions an aligned grid item with a
+separate offset, in RenderGrid::columnAxisOffsetForGridItem(). But
+its GridLayoutFunctions::updateAutoMarginsInRowAxisIfNeeded() writes
+the space that auto margins absorb into the item’s margins, which its
+computed style then reports, so it reports nonzero auto margins.
