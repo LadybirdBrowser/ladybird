@@ -1,0 +1,10 @@
+A click below the text of an element, with a closer line outside the
+element, puts Ladybird’s selection caret on the element’s own closest
+line. Blink, WebKit and Gecko all look for the caret position in the
+content of the element the point hits: Blink’s PhysicalBoxFragment::
+PositionForPointInBlockFlowDirection() and WebKit’s RenderBlock::
+positionForPoint() take the hit block’s last child for a point below
+all of it, and Gecko’s nsIFrame::GetContentOffsetsFromPoint() drills
+down to the closest frame inside the hit frame. So the click selects
+at the end of the element’s text, rather than leaving the selection
+where it was; Chrome puts the caret there in a manual check.
