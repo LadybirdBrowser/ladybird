@@ -2667,6 +2667,11 @@ void WebContentPage::did_complete_navigation_unload_check(Web::HTML::CrossProces
 
 void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult> result)
 {
+    if (result.has_value() && NavigationLoader::response_body_belongs_to_another_process(*result, client())) {
+        client().did_misbehave("did_finish_navigation_params_creation"sv, "response body fetched by another process"sv);
+        return;
+    }
+
     auto navigable = population_worker_navigable(navigable_id);
     if (!navigable.has_value()) {
         if (result.has_value())
@@ -2716,6 +2721,11 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
 
 void WebContentPage::did_finish_history_navigation_params_creation(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::NavigationPopulationResult result)
 {
+    if (NavigationLoader::response_body_belongs_to_another_process(result, client())) {
+        client().did_misbehave("did_finish_history_navigation_params_creation"sv, "response body fetched by another process"sv);
+        return;
+    }
+
     auto& host = this->traversable();
     host.top_level_traversable().did_finish_history_navigation_params_creation(*this, operation_id, navigable_id, move(result));
 }
@@ -2865,6 +2875,14 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_d
     Optional<int> owner_client_id;
     if (auto navigable = traversable().top_level_traversable().find(navigable_id); navigable.has_value()) {
         auto ongoing_navigation = navigation_id.has_value() ? navigable->navigation_with_id(*navigation_id) : nullptr;
+        bool names_in_flight_response_body = ongoing_navigation
+            && ongoing_navigation->state.has<CanonicalNavigation::Populating>()
+            && ongoing_navigation->loader()->response_body_matches(request_server_client_id, request_server_request_id);
+        if (names_in_flight_response_body && ongoing_navigation->loader()->response_body_was_handed_to_another_process(client())) {
+            client().did_misbehave("did_start_download"sv, "response body handed to another process"sv);
+            return { Optional<u64> {} };
+        }
+
         bool owns_navigation = ongoing_navigation
             && ((ongoing_navigation->state.has<CanonicalNavigation::CreatingNavigationParams>() && ongoing_navigation->worker() == this)
                 || (ongoing_navigation->state.has<CanonicalNavigation::Populating>() && ongoing_navigation->host() == this));
@@ -2885,7 +2903,7 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_d
                         timing, error);
             };
         }
-        if (owns_navigation && ongoing_navigation->loader()->response_body_matches(request_server_client_id, request_server_request_id)) {
+        if (owns_navigation && names_in_flight_response_body) {
             owner_client_id = ongoing_navigation->loader()->response_body_adopter_client_id();
             navigable->did_cancel_navigation(*navigation_id);
         }
