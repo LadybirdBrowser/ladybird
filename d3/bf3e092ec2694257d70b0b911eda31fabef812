@@ -1,0 +1,11 @@
+Ladybird’s WebContent now sends the UI process only the accessibility
+nodes that changed since the last tree it sent, numbered so the UI
+process can tell when it has to ask for the whole tree again. The
+other engines send incremental updates too. Blink’s AXTreeSerializer::
+SerializeChanges() serializes only the dirty nodes into an AXTreeUpdate,
+and sets its node_id_to_clear to have the browser drop a subtree
+it has to replace. Gecko’s content process sends ShowEvent and
+HideEvent messages for structural changes, and DocAccessibleChild
+sends cache updates marked CacheUpdateType::Update after the
+CacheUpdateType::Initial one. WebKit keeps its accessibility tree in the
+web process, so it has no tree to send.
