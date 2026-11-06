@@ -41,6 +41,10 @@ impl Locations {
     /// The entries of keyed collections (Map, Set, WeakMap and WeakSet
     /// objects).
     pub const COLLECTIONS: Self = Self(1 << 8);
+    /// Whether another thread interrupted the VM. Nothing reads it but
+    /// `Op::CheckInterrupt`, which counts as writing it: a check has to stay
+    /// in its loop, and no other node gets in its way.
+    pub const INTERRUPT: Self = Self(1 << 9);
     /// Every location.
     pub const ALL: Self = Self(u16::MAX);
 

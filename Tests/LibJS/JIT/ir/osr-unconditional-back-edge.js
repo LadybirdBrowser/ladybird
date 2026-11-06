@@ -21,6 +21,7 @@ jit.compile(countUp);
 // CHECK-NEXT: [[ENTRY:b[0-9]+]]:
 // CHECK-NEXT: LoadSlot l0
 // CHECK-NEXT: LoadSlot a0
+// CHECK-NEXT: CheckInterrupt
 // CHECK-NEXT: Jump [[HEADER:b[0-9]+]]
 // CHECK: [[HEADER]] (pc {{[0-9]+}}) <- [[ENTRY]], {{b[0-9]+}}, {{b[0-9]+}} loop:
 // CHECK: osr entry at pc {{[0-9]+}}: [[ENTRY]]

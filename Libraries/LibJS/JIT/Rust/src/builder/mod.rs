@@ -1391,6 +1391,9 @@ impl<'a> GraphBuilder<'a> {
         let instruction = self.function.instructions[self.function.instruction_index]
             .instruction
             .clone();
+        if osr::is_loop_back_edge(instruction.opcode()) {
+            self.emit_checked(Op::CheckInterrupt, Vec::new(), None);
+        }
         if replaces_environments(instruction.opcode()) {
             self.frame.forget_environments();
         }

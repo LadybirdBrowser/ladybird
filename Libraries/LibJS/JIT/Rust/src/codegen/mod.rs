@@ -1630,6 +1630,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 let offset = self.masm.patchable_nop();
                 self.invalidation_points.push((offset, exit));
             }
+            Op::CheckInterrupt => {
+                // NB: This fuses into one micro-op on x86-64, unlike a comparison of a word in memory with zero.
+                let exit = self.exit_site(node_id);
+                let limit = Address::new(self.pinned.vm, self.runtime.offsets.vm_jit_native_stack_limit as i32);
+                self.masm.branch_if_stack_pointer_below(&limit, exit);
+            }
             Op::HasInPrototypeChain => self.emit_has_in_prototype_chain(node_id),
             Op::LoadGlobalBinding { environment, index } => {
                 let exit = self.exit_site(node_id);

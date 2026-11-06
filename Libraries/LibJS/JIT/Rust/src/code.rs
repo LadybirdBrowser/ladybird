@@ -136,6 +136,10 @@ pub enum ExitKind {
     /// Something the code depended on stopped holding while it ran other
     /// code (see `Dependency`), so the code was invalidated.
     Invalidated,
+    /// Another thread interrupted the VM, so script has to stop, which the
+    /// interpreter does at once. Or the stack got so deep that calls leave
+    /// compiled code, which is no reason to stop.
+    Interrupted,
     /// Code that a call in an inlined function ran read the legacy
     /// `arguments` of the function's frame, among which were objects the
     /// code never allocated: the runtime created them, and the code exited

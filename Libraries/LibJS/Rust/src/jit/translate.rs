@@ -679,9 +679,13 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
         vm.jit.count_coverage("exit.from-inlined-code");
     }
     // NB: Exits in inlined builtins count for the code they were inlined into only.
-    // NB: Invalidated code was discarded, and its recompile sees that what it depended on no longer holds.
+    // NB: Invalidated code was discarded, and its recompile sees that what it depended on no longer holds. An interrupt
+    //     speculated nothing, and nothing runs after it.
     let snapshot_executable = code.snapshot_executable(frame_state.executable);
-    let learned = if kind == libjs_jit::code::ExitKind::Invalidated {
+    let learned = if matches!(
+        kind,
+        libjs_jit::code::ExitKind::Invalidated | libjs_jit::code::ExitKind::Interrupted
+    ) {
         false
     } else if matches!(snapshot_executable.function, Some(InlinedFunction::Builtin(_))) {
         let index = compiled_executable.add_jit_builtin_exit_site((executable.as_ptr() as u64, frame_state.pc, kind));
@@ -697,7 +701,8 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
         compiled_executable.note_learned_jit_exit_site();
     }
 
-    if code.count_exit() >= EXIT_COUNT_BEFORE_DISCARD
+    if kind != libjs_jit::code::ExitKind::Interrupted
+        && code.count_exit() >= EXIT_COUNT_BEFORE_DISCARD
         && compiled_executable.jit_compile_state() == CompileState::Installed
     {
         compiled_executable.discard_jit_code(vm);

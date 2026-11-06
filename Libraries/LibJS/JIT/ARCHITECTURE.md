@@ -70,8 +70,9 @@ from them alone:
 - **Memory.** `reads` and `writes`: sets of abstract locations (`ir::Locations`): `FRAME`,
   `NAMED_SLOTS` (property values), `SHAPES` (shapes and prototypes), `ELEMENTS` (element values),
   `ELEMENT_COUNTS` (element storage kind, length, capacity and the storage offset of typed arrays), `GLOBAL_BINDINGS` and `BINDINGS` (the
-  bindings of declarative environments), `ITERATORS` (the state of iterators), and `COLLECTIONS` (the
-  entries of Map, Set, WeakMap and WeakSet objects). Passes ask
+  bindings of declarative environments), `ITERATORS` (the state of iterators), `COLLECTIONS` (the
+  entries of Map, Set, WeakMap and WeakSet objects), and `INTERRUPT`, which only `CheckInterrupt`
+  writes, so that loop invariant code motion leaves it in its loop and nothing else cares. Passes ask
   one question: whether one node's writes intersect another's reads. `runs_code`: may run other
   code, which may write anything, or invalidate the compiled code. The op table below names the
   locations coarsely (Named for slots and shapes, Elements for values and counts, Any for all);
@@ -167,6 +168,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | CheckNotHole | Exits at holes (the empty value). The value is input 0, refined. | E | | | cse |
 | CheckInitialized | Exits unless the binding or local variable (input 0) is initialized (not the empty value). The value is input 0, refined. | E | | | cse |
 | AssumeValid | Exits if the code was invalidated; a patchable no-op (section 5). | E | Any | | |
+| CheckInterrupt | Exits if another thread interrupted the VM (section 9, "Interrupts"). At every loop back edge; never moved. | E | | Interrupt | |
 | AssumeLegacyArgumentsUnread | After an instruction whose calls may run code reading the legacy `arguments` of inlined frames; escape analysis makes it an `AssumeValid` or removes it (section 4, "Legacy arguments"). | E | Any | | |
 | **Object memory** | | | | | |
 | LoadNamed | A named property at an offset; exits for accessors, unless the shape check of its object input ensures that it `holds_data` (the own property is writable in the checked shape, and accessor properties never are). Loads from prototypes always check: no check guards their constant object as an input, so they could move above their guards. | E unless `holds_data` | Named | | cse |
@@ -467,6 +469,20 @@ speculated on records how many entries the cache had when the code was compiled.
 the exit out of the sites they avoid once the cache has more (`Executable::jit_exit_sites_for_recompile()`),
 since the interpreter added the shapes the code did not know. Each such exit needs a larger cache,
 and caches stop growing once megamorphic, so this ends.
+
+**Interrupts.** Another thread can stop script on a VM (`Vm::request_interrupt()`). It cannot patch
+compiled code the VM's thread is running, so it raises `Vm::jit_native_stack_limit` above every
+stack pointer. Every entry of compiled code and every call out of it then takes the path it takes
+when the stack is nearly exhausted, to the interpreter, at no cost to running code, since those
+paths compare with the limit anyway. A `CheckInterrupt` right before each loop back edge compares
+the same limit, for code that never calls, and exits to the back edge. The interrupt also made
+every dispatch table entry of the VM the fallback handler, so the interpreter does not run the
+back edge: it unwinds (`Vm::handle_exception()` catches nothing on an interrupted VM), and the frame
+runs no further script.
+
+A `CheckInterrupt` also exits where the stack really got that deep, which only a frame that entered
+compiled code below the limit does; the interpreter then continues the frame, like after any exit.
+The exit counts as nothing learned, and not towards discarding the code.
 
 To be written: exit reasons, recompiles.
 
