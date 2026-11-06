@@ -32,7 +32,10 @@ void FetchRecord::visit_edges(Visitor& visitor)
 void FetchRecord::finalize()
 {
     Base::finalize();
-    m_list_node.remove();
+
+    // NB: A fetch whose client another process hosts has no fetch group here.
+    if (m_list_node.is_in_list())
+        m_list_node.remove();
 }
 
 }
