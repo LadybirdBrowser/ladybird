@@ -64,18 +64,6 @@ public:
     void line_to(Gfx::FloatPoint const&);
     void close();
 
-    enum class CapStyle {
-        Butt,
-        Round,
-        Square,
-    };
-
-    enum class JoinStyle {
-        Miter,
-        Round,
-        Bevel,
-    };
-
     Gfx::Path clone() const { return *this; }
 
     PathData data() const;

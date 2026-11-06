@@ -16,6 +16,7 @@
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/ScalingMode.h>
+#include <LibGfx/StrokeStyle.h>
 #include <LibGfx/WindingRule.h>
 #include <core/SkBlender.h>
 #include <core/SkColor.h>
@@ -72,27 +73,27 @@ constexpr SkColor to_skia_color(Gfx::Color const& color)
     return SkColorSetARGB(color.alpha(), color.red(), color.green(), color.blue());
 }
 
-constexpr SkPaint::Join to_skia_join(Gfx::Path::JoinStyle const& join_style)
+constexpr SkPaint::Join to_skia_join(Gfx::JoinStyle const& join_style)
 {
     switch (join_style) {
-    case Gfx::Path::JoinStyle::Round:
+    case Gfx::JoinStyle::Round:
         return SkPaint::kRound_Join;
-    case Gfx::Path::JoinStyle::Bevel:
+    case Gfx::JoinStyle::Bevel:
         return SkPaint::kBevel_Join;
-    case Gfx::Path::JoinStyle::Miter:
+    case Gfx::JoinStyle::Miter:
         return SkPaint::kMiter_Join;
     }
     VERIFY_NOT_REACHED();
 }
 
-constexpr SkPaint::Cap to_skia_cap(Gfx::Path::CapStyle const& cap_style)
+constexpr SkPaint::Cap to_skia_cap(Gfx::CapStyle const& cap_style)
 {
     switch (cap_style) {
-    case Gfx::Path::CapStyle::Butt:
+    case Gfx::CapStyle::Butt:
         return SkPaint::kButt_Cap;
-    case Gfx::Path::CapStyle::Round:
+    case Gfx::CapStyle::Round:
         return SkPaint::kRound_Cap;
-    case Gfx::Path::CapStyle::Square:
+    case Gfx::CapStyle::Square:
         return SkPaint::kSquare_Cap;
     }
     VERIFY_NOT_REACHED();
