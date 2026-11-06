@@ -17,6 +17,7 @@
 #include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/ScalingMode.h>
+#include <LibGfx/StrokeStyle.h>
 #include <LibGfx/WindingRule.h>
 
 class SkColorSpace;
@@ -56,7 +57,7 @@ public:
     void fill_rect(Gfx::FloatRect const&, Color);
     void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::FloatRect const& src_rect, Gfx::ScalingMode, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const&);
     void draw_image(SkImage const&, Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::ScalingMode, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<CanvasShadow> const&);
-    void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, sk_sp<SkImageFilter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&, float miter_limit, Vector<float> const&, float dash_offset, Optional<CanvasShadow> const&);
+    void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, sk_sp<SkImageFilter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::CapStyle const&, Gfx::JoinStyle const&, float miter_limit, Vector<float> const&, float dash_offset, Optional<CanvasShadow> const&);
     void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, sk_sp<SkImageFilter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule, Optional<CanvasShadow> const&);
     void draw_glyph_runs(ReadonlySpan<CanvasGlyphRun>, FloatPoint translation, float horizontal_scale, PaintStyle const&, sk_sp<SkImageFilter>, float global_alpha, CompositingAndBlendingOperator, Optional<CanvasShadow> const&);
     void set_transform(Gfx::AffineTransform const&);
