@@ -5724,7 +5724,6 @@ impl<'pass> GridFormattingContext<'pass> {
                     inline_alignment: static_position_alignment(child, horizontal_axis),
                     block_alignment: static_position_alignment(child, vertical_axis),
                     alignment_derives_from_own_computed_values: true,
-                    is_known: true,
                 };
                 // The grid area supplies both the containing block and the
                 // static position for the grid's own abspos children.

@@ -117,15 +117,9 @@ fn root_input_cells_match_ignoring_unobserved(
 impl FcRunCacheKey {
     pub(super) fn new(
         fc_type: formatting_context::FormattingContextType,
-        mut input: LayoutInput,
+        input: LayoutInput,
         root_cells: used_values::RootInputCells,
     ) -> Self {
-        if let ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs) = &mut input.participation {
-            let normalized_inputs = inputs.without_static_position_in_axes_placed_by_own_insets();
-            if normalized_inputs != **inputs {
-                *inputs = std::sync::Arc::new(normalized_inputs);
-            }
-        }
         Self {
             fc_type,
             input,
@@ -158,7 +152,7 @@ impl FcRunCacheKey {
         if self.fc_type != probe.fc_type {
             return false;
         }
-        if self.root_cells == probe.root_cells && layout_inputs_equal_to_probe(&self.input, probe.input) {
+        if self.root_cells == probe.root_cells && self.input == *probe.input {
             return true;
         }
         if !unobserved.relaxes_any_input() {
@@ -197,29 +191,6 @@ impl<'input> FcRunCacheProbe<'input> {
     }
 }
 
-fn participation_matches_probe(
-    stored: &ParticipationInParentFormattingContext,
-    probe: &ParticipationInParentFormattingContext,
-) -> bool {
-    match (stored, probe) {
-        (
-            ParticipationInParentFormattingContext::AbsolutelyPositioned(stored),
-            ParticipationInParentFormattingContext::AbsolutelyPositioned(probe),
-        ) => {
-            std::sync::Arc::ptr_eq(stored, probe)
-                || **stored == probe.without_static_position_in_axes_placed_by_own_insets()
-        }
-        (stored, probe) => stored == probe,
-    }
-}
-
-fn layout_inputs_equal_to_probe(stored: &LayoutInput, probe: &LayoutInput) -> bool {
-    stored.available_space == probe.available_space
-        && stored.containing_block_constraints == probe.containing_block_constraints
-        && stored.sizing == probe.sizing
-        && participation_matches_probe(&stored.participation, &probe.participation)
-}
-
 fn available_block_sizes_match(a: AvailableSize, b: AvailableSize, block_size_definiteness_unobserved: bool) -> bool {
     let is_definite_or_indefinite =
         |size: AvailableSize| matches!(size, AvailableSize::Definite(_) | AvailableSize::Indefinite);
@@ -242,7 +213,7 @@ fn layout_inputs_match_ignoring_unobserved(
         percentage_basis_block_size,
         quirks_mode_percentage_basis_block_size,
     } = *containing_block_constraints;
-    if !participation_matches_probe(participation, &b.participation) {
+    if *participation != b.participation {
         return false;
     }
     let available_inline_sizes_match = available_space.inline_size == b.available_space.inline_size

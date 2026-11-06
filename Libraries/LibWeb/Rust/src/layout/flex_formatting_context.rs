@@ -3572,7 +3572,6 @@ impl<'pass> FlexFormattingContext<'pass> {
             block_alignment,
             // alignment_for_style() consulted the box's own align-self.
             alignment_derives_from_own_computed_values: true,
-            is_known: true,
         }
     }
 

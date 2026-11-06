@@ -463,11 +463,19 @@ impl LayoutNodeArena {
             return false;
         };
         let inset = &style.surround().inset;
-        let uses_static_position =
-            (inset.left.is_auto() && inset.right.is_auto()) || (inset.top.is_auto() && inset.bottom.is_auto());
-        if uses_static_position
-            && (!inputs.static_position_rect.is_known
-                || inputs.static_position_rect.alignment_derives_from_own_computed_values)
+        let inline_uses_static_position = inset.left.is_auto() && inset.right.is_auto();
+        let block_uses_static_position = inset.top.is_auto() && inset.bottom.is_auto();
+        // NB: The saved inputs hold no static position in an axis the box's insets placed it in. Once it falls back to
+        //     its static position there, that has to be computed.
+        let (inline_placed_by_insets, block_placed_by_insets) =
+            inputs.containing_block_info.axes_placed_by_own_insets();
+        if (inline_uses_static_position && inline_placed_by_insets)
+            || (block_uses_static_position && block_placed_by_insets)
+        {
+            return false;
+        }
+        if (inline_uses_static_position || block_uses_static_position)
+            && inputs.static_position_rect.alignment_derives_from_own_computed_values
         {
             return false;
         }
@@ -636,7 +644,6 @@ impl LayoutNodeArena {
                 inline_alignment: StaticPositionAlignment::Start,
                 block_alignment: StaticPositionAlignment::Start,
                 alignment_derives_from_own_computed_values: false,
-                is_known: false,
             },
             containing_block_info: AbsposContainingBlockInfo {
                 rect: LogicalRect {
