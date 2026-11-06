@@ -24,6 +24,8 @@ namespace Ladybird {
 class BrowserWindow;
 class DownloadsButton;
 class DownloadsPopover;
+class FeedbackButton;
+class FeedbackPopover;
 class LocationEdit;
 class PerformanceMonitorWidget;
 class ReloadButton;
@@ -60,6 +62,7 @@ public:
 
     void show_downloads_popover();
     void update_downloads_button();
+    void update_feedback_button();
 
 private:
     virtual bool event(QEvent*) override;
@@ -79,6 +82,7 @@ private:
     void update_chrome_style();
     void update_downloads_popover();
     void position_downloads_popover();
+    void show_feedback_popover();
 
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
     QPointer<Tab> m_tab;
@@ -108,6 +112,9 @@ private:
     DownloadsButton* m_downloads_button { nullptr };
     QPointer<DownloadsPopover> m_downloads_popover;
     size_t m_completed_download_count { 0 };
+
+    FeedbackButton* m_feedback_button { nullptr };
+    QPointer<FeedbackPopover> m_feedback_popover;
 
     bool m_is_updating_chrome_style { false };
 };

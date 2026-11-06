@@ -1713,6 +1713,50 @@ QToolButton#LadybirdPopoverIconButton {{
         style_sheet_color(panel.separator), style_sheet_color(panel.link), style_sheet_color(panel.warning), style_sheet_color(panel.control), style_sheet_color(panel.pressed));
 }
 
+QString feedback_popover_style_sheet(QPalette const&)
+{
+    auto const& panel = Theme::panel();
+    return qformatted(R"(
+QFrame#LadybirdFeedbackPopover {{
+    color: {0};
+    background: {1};
+    border: 1px solid {2};
+    border-radius: 12px;
+}}
+
+QFrame#LadybirdFeedbackPopover QLabel {{
+    color: {0};
+    background: transparent;
+}}
+
+QFrame#LadybirdFeedbackPopover QLabel#LadybirdFeedbackDetail {{
+    color: {3};
+    font-size: 12px;
+}}
+
+QFrame#LadybirdPopoverSeparator {{
+    background: {4};
+    border: 0;
+}}
+
+QPushButton#LadybirdPopoverRow {{
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+}}
+
+QPushButton#LadybirdPopoverRow:hover {{
+    background: {5};
+}}
+
+QPushButton#LadybirdPopoverRow:pressed {{
+    background: {6};
+}}
+)",
+        style_sheet_color(panel.text), style_sheet_color(panel.surface), style_sheet_color(over(panel.edge, panel.surface)), style_sheet_color(panel.muted),
+        style_sheet_color(panel.separator), style_sheet_color(panel.control), style_sheet_color(panel.pressed));
+}
+
 QString all_tabs_popover_style_sheet(QPalette const&)
 {
     auto const& panel = Theme::panel();

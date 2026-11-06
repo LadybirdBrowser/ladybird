@@ -98,6 +98,7 @@ QString autocomplete_popup_style_sheet(QPalette const&);
 QString downloads_popover_style_sheet(QPalette const&);
 QString message_popover_style_sheet(QPalette const&);
 QString site_settings_popover_style_sheet(QPalette const&);
+QString feedback_popover_style_sheet(QPalette const&);
 QString permission_prompt_style_sheet(QPalette const&);
 QString all_tabs_popover_style_sheet(QPalette const&);
 QString bookmark_popover_style_sheet(QPalette const&);

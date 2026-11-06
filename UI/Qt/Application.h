@@ -81,6 +81,7 @@ public:
     bool confirm_stop_active_downloads(QWidget* parent = nullptr);
 
     CrashReportNotifier& crash_report_notifier() { return m_crash_report_notifier; }
+    void update_feedback_buttons();
     void review_crash_report(ByteString const& report_name);
 
     BrowserWindow& active_window() const { return *m_active_window; }

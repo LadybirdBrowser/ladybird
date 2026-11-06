@@ -23,6 +23,7 @@ static constexpr int CRASH_REPORT_POPOVER_WIDTH = 340;
 void CrashReportNotifier::offer(ByteString report_name)
 {
     m_pending_report_name = move(report_name);
+    Application::the().update_feedback_buttons();
 
     if (!exchange(m_is_listening_for_activation, true)) {
         QObject::connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
@@ -77,12 +78,16 @@ void CrashReportNotifier::show_pending()
     // The review marks the report as seen once it opens it. The popover is the report's one automatic prompt, so
     // however else it is left, the report is not offered again. Leaving it also declines the reports still waiting,
     // except when a newer report takes its place, which is about to be offered itself.
-    m_popover->on_accept = [report_name] { Application::the().review_crash_report(report_name); };
+    m_popover->on_accept = [report_name] {
+        Application::the().review_crash_report(report_name);
+        Application::the().update_feedback_buttons();
+    };
     m_popover->on_dismiss = [this, report_name] {
         auto& store = WebView::CrashReportStore::the();
         auto result = m_is_replacing_popover ? store.mark_seen(report_name) : store.mark_all_seen();
         if (result.is_error())
             warnln("Could not mark crash reports as seen: {}", result.error());
+        Application::the().update_feedback_buttons();
     };
 
     // The menu button's palette is transparent, so the popover takes its colors from the window instead.
