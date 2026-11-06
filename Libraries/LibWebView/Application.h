@@ -463,8 +463,6 @@ protected:
 
     virtual NonnullRefPtr<Core::Promise<ByteString>> ask_user_for_download_path(ByteString const& file) const;
 
-    virtual void crash_report_saved() { }
-
     virtual void update_tabs_display() const { }
 
     virtual void rebuild_bookmarks_menu() const { }

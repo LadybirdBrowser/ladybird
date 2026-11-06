@@ -96,7 +96,7 @@ ErrorOr<ReportSubmission::Payload, String> CrashReportSubmission::prepare()
 
 void CrashReportSubmission::did_send()
 {
-    if (auto result = m_store.remove_sent_report(m_options.report_name); result.is_error())
+    if (auto result = m_store.remove_report(m_options.report_name); result.is_error())
         warnln("Could not remove the sent crash report: {}", result.error());
 }
 

@@ -13,6 +13,7 @@
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
+#include <LibWebView/CrashReportOutbox.h>
 #include <UI/Qt/BrowserWindow.h>
 
 #include <QApplication>
@@ -40,7 +41,9 @@ enum class ShowWindow {
     Yes,
 };
 
-class Application final : public WebView::Application {
+class Application final
+    : public WebView::Application
+    , public WebView::CrashReportOutboxObserver {
     WEB_VIEW_APPLICATION(Application)
 
 public:
@@ -171,7 +174,7 @@ private:
     virtual void open_download(WebView::FileDownloader::Download const&) const override;
     virtual void show_download_in_folder(WebView::FileDownloader::Download const&) const override;
 
-    virtual void crash_report_saved() override;
+    virtual void crash_reports_changed() override;
 
     virtual bool supports_clipboard_type(ClipboardType) const override;
     virtual Utf16String clipboard_text(ClipboardType) const override;

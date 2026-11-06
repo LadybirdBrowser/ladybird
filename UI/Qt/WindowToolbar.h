@@ -83,6 +83,7 @@ private:
     void update_downloads_popover();
     void position_downloads_popover();
     void show_feedback_popover();
+    void fit_feedback_popover();
 
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
     QPointer<Tab> m_tab;

@@ -25,6 +25,7 @@ set(SOURCES
     CookieJar.cpp
     CrashReport.cpp
     CrashReportDiagnostics.cpp
+    CrashReportOutbox.cpp
     CrashReportReview.cpp
     CrashReportStore.cpp
     CrashReportSubmission.cpp

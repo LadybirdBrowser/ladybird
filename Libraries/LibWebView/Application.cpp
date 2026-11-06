@@ -52,6 +52,7 @@
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/CompositorPresentationClient.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/FontService.h>
@@ -2384,7 +2385,7 @@ void Application::process_did_exit(Process&& process, Optional<int>)
     // The tab's crash screen already asks about this report. Every other crash is hidden from the user, so its report
     // waits to be reviewed.
     if (!crash_is_shown_in_tab) {
-        crash_report_saved();
+        CrashReportOutbox::the().reports_changed();
     } else if (!browser_options().headless_mode.has_value()) {
         if (auto result = CrashReportStore::the().mark_seen(report_name); result.is_error())
             warnln("Could not mark crash report as seen: {}", result.error());

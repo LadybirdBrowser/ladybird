@@ -9,7 +9,7 @@
 
 #include <AK/kmalloc.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/CrashReportStore.h>
+#include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/DownloadPresentation.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/WebCompatReport.h>
@@ -1456,8 +1456,23 @@ void WindowToolbar::update_downloads_popover()
 
 void WindowToolbar::update_feedback_button()
 {
-    if (m_feedback_button)
-        m_feedback_button->set_crash_reports_waiting(WebView::CrashReportStore::the().has_pending_reports());
+    if (!m_feedback_button)
+        return;
+
+    auto crash_report_count = WebView::CrashReportOutbox::the().waiting_report_count();
+    m_feedback_button->set_crash_reports_waiting(crash_report_count > 0);
+
+    if (m_feedback_popover && m_feedback_popover->isVisible()) {
+        m_feedback_popover->set_crash_report_count(crash_report_count);
+        fit_feedback_popover();
+    }
+}
+
+void WindowToolbar::fit_feedback_popover()
+{
+    m_feedback_popover->card().layout()->activate();
+    m_feedback_popover->adjustSize();
+    move_popover_below(*m_feedback_popover, *m_feedback_button, PopoverAlignment::Trailing);
 }
 
 void WindowToolbar::show_feedback_popover()
@@ -1487,16 +1502,13 @@ void WindowToolbar::show_feedback_popover()
         if (m_tab->url().host().has_value())
             reportable_host = qstring_from_ak_string(m_tab->url().serialized_host());
     }
-    auto names = WebView::CrashReportStore::the().pending_report_names();
-    auto crash_report_count = names.is_error() ? 0 : names.value().size();
+    auto crash_report_count = WebView::CrashReportOutbox::the().waiting_report_count();
     m_feedback_button->set_crash_reports_waiting(crash_report_count > 0);
 
     m_feedback_popover->update_chrome_style(palette());
     m_feedback_popover->set_reportable_host(reportable_host);
     m_feedback_popover->set_crash_report_count(crash_report_count);
-    m_feedback_popover->card().layout()->activate();
-    m_feedback_popover->adjustSize();
-    move_popover_below(*m_feedback_popover, *m_feedback_button, PopoverAlignment::Trailing);
+    fit_feedback_popover();
     m_feedback_popover->show();
     move_popover_below(*m_feedback_popover, *m_feedback_button, PopoverAlignment::Trailing);
     m_feedback_popover->raise();

@@ -30,6 +30,12 @@ public:
     static constexpr size_t maximum_description_bytes = 16384;
     static constexpr size_t maximum_url_bytes = 4096;
 
+    // What an earlier attempt sent, which lets another attempt count as the same submission.
+    struct PreparedSubmission {
+        ByteString manifest;
+        String description;
+    };
+
     struct Report {
         ByteString name;
         // The fields that tell crashes apart. The rest is in the report itself, which report_text() reads.
@@ -39,9 +45,15 @@ public:
     explicit CrashReportReview(CrashReportStore& = CrashReportStore::the());
     ~CrashReportReview();
 
-    // Opens the named report, or the newest one awaiting review. Being shown is the user's one prompt for a report, so
-    // it counts as seen from then on and declining it needs no further step.
-    ErrorOr<Report> open(Optional<ByteString> const& name = {});
+    enum class MarkAsSeen : u8 {
+        No,
+        Yes,
+    };
+
+    // Opens the named report, or the newest one awaiting review. Being shown as the user's one prompt for a report makes
+    // it count as seen from then on, so declining it needs no further step. A report that goes on waiting whatever
+    // comes of this review is opened without that.
+    ErrorOr<Report> open(Optional<ByteString> const& name = {}, MarkAsSeen = MarkAsSeen::Yes);
     bool has_next_report() const;
 
     // The open report's text, exactly as it would be attached.
@@ -53,6 +65,8 @@ public:
     // Returns why nothing was sent, or nothing when the report is on its way. A report on its way keeps being sent if
     // the review is destroyed, which then only stops hearing about it.
     Optional<String> send(String const& description, Optional<String> const& url);
+    PreparedSubmission prepared_submission() const { return { m_prepared_manifest, m_prepared_description }; }
+    void set_prepared_submission(PreparedSubmission);
     bool is_sending() const { return m_submission; }
     void cancel_sending();
 

@@ -91,6 +91,16 @@ CrashReportDiagnostics CrashReportDiagnostics::parse(StringView text)
     return diagnostics;
 }
 
+ByteString CrashReportDiagnostics::signature() const
+{
+    StringBuilder builder;
+    builder.appendff("{}\n", header("Process"sv));
+    for (auto name : failure_headers)
+        builder.appendff("{}\n", header(name));
+    builder.appendff("{}\n{}", signal.name, stack);
+    return builder.to_byte_string();
+}
+
 ByteString CrashReportDiagnostics::header(StringView name) const
 {
     for (auto const& entry : headers) {

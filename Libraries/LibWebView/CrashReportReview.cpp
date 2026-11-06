@@ -5,7 +5,6 @@
  */
 
 #include <AK/AnyOf.h>
-#include <AK/Array.h>
 #include <AK/Hex.h>
 #include <AK/WeakPtr.h>
 #include <LibCrypto/Hash/SHA2.h>
@@ -13,8 +12,6 @@
 #include <LibWebView/CrashReportReview.h>
 
 namespace WebView {
-
-static constexpr auto failure_headers = Array { "Verification failed"sv, "Assertion failed"sv, "Rust panic"sv, "Exit code"sv };
 
 static String to_string(StringView text)
 {
@@ -33,7 +30,7 @@ CrashReportReview::CrashReportReview(CrashReportStore& store)
 
 CrashReportReview::~CrashReportReview() = default;
 
-ErrorOr<CrashReportReview::Report> CrashReportReview::open(Optional<ByteString> const& name)
+ErrorOr<CrashReportReview::Report> CrashReportReview::open(Optional<ByteString> const& name, MarkAsSeen mark_as_seen)
 {
     VERIFY(!m_submission);
 
@@ -54,8 +51,10 @@ ErrorOr<CrashReportReview::Report> CrashReportReview::open(Optional<ByteString> 
     auto saved_report = TRY(m_store.saved_report(report_name));
 
     // Without this, a report closed rather than answered would come back on every launch.
-    if (auto result = m_store.mark_seen(report_name); result.is_error())
-        warnln("Could not mark crash report as seen: {}", result.error());
+    if (mark_as_seen == MarkAsSeen::Yes) {
+        if (auto result = m_store.mark_seen(report_name); result.is_error())
+            warnln("Could not mark crash report as seen: {}", result.error());
+    }
 
     m_report_name = report_name;
     m_text_digest = sha256_hex(saved_report.text.bytes());
@@ -86,7 +85,7 @@ ErrorOr<CrashReportReview::Report> CrashReportReview::open(Optional<ByteString> 
         if (auto crashed_at = diagnostics.crashed_at->to_string("%Y-%m-%d %H:%M:%S"sv, UnixDateTime::LocalTime::Yes); !crashed_at.is_error())
             add_field("Crash date"sv, crashed_at.value().bytes_as_string_view());
     }
-    for (auto header : failure_headers) {
+    for (auto header : CrashReportDiagnostics::failure_headers) {
         if (auto value = diagnostics.header(header); !value.is_empty()) {
             add_field(header, value, true);
             break;
@@ -190,6 +189,12 @@ Optional<String> CrashReportReview::send(String const& description, Optional<Str
     m_submission = submission;
     submission->start();
     return {};
+}
+
+void CrashReportReview::set_prepared_submission(PreparedSubmission submission)
+{
+    m_prepared_manifest = move(submission.manifest);
+    m_prepared_description = move(submission.description);
 }
 
 // The report stays on the device, and sending it again sends the same submission, which the server recognizes if the
