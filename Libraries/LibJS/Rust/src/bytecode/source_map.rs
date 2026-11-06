@@ -4,12 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-/// A source map entry mapping a bytecode offset to a source position.
+/// A bytecode offset with the line and column that the source map says it came from.
 #[derive(Debug, Clone, Copy)]
 pub struct SourceMapEntry {
     pub bytecode_offset: u32,
     pub line: u32,
     pub column: u32,
+}
+
+/// An entry of the source map of an executable: where in the source the instructions from a bytecode offset on came from.
+#[derive(Debug, Clone, Copy)]
+pub struct SourceOffsetEntry {
+    pub bytecode_offset: u32,
+    pub source_offset: SourceOffset,
 }
 
 /// Where an instruction came from: an offset into the source, which only turns into a line and a column for what ends

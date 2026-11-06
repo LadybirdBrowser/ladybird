@@ -13,7 +13,7 @@ use ak::Utf16String;
 use super::constant::AbstractOperationKind;
 use super::constant::WellKnownSymbolKind;
 use super::operand::PropertyKeyTableIndex;
-use super::source_map::SourceMapEntry;
+use super::source_map::SourceOffsetEntry;
 use crate::ast::FunctionId;
 use crate::compile::SharedFunctionDescription;
 use crate::compile::utf16_string_memory_size;
@@ -181,7 +181,7 @@ pub struct ExecutableData {
     /// Sorted by start offset, and not overlapping.
     pub exception_handlers: BlockSlice<ExceptionHandler>,
     /// Sorted by bytecode offset: where in the source code the instructions from each offset on came from.
-    pub source_map: BlockSlice<SourceMapEntry>,
+    pub source_map: BlockSlice<SourceOffsetEntry>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict: bool,
@@ -199,7 +199,7 @@ pub struct ExecutableData {
     pub shared_function_data: BlockSlice<PendingSharedFunctionData>,
     pub class_blueprints: BlockSlice<PendingClassBlueprint>,
     /// What turns the source offsets of a source map that has them into lines and columns.
-    pub position_source: Option<Arc<crate::parser::SourcePositions>>,
+    pub position_source: Arc<crate::parser::SourcePositions>,
     /// The memory of everything above that running the code reads, which gets dropped before it.
     pub tables: SliceBlock,
     /// The memory of what only linking reads.
@@ -220,26 +220,25 @@ fn constant_memory_size(constant: &ConstantValue) -> usize {
 unsafe impl crate::gc::lint_markers::HoldsNoCells for ExecutableData {}
 
 impl ExecutableData {
-    /// The entries of the source map, with the lines and columns that they stand for. Code that goes by offsets of the
-    /// source leaves working those out until something asks.
+    /// The entries of the source map, with the lines and columns that they stand for, which get worked out when something
+    /// asks.
     pub fn source_positions(&self) -> impl Iterator<Item = crate::bytecode::source_map::SourceMapEntry> + '_ {
         use crate::bytecode::source_map::SourceMapEntry;
         use crate::bytecode::source_map::SourceOffset;
-        self.source_map.iter().map(|entry| match &self.position_source {
-            Some(_) if entry.column == SourceOffset::NONE.0 => SourceMapEntry {
-                bytecode_offset: entry.bytecode_offset,
-                line: 0,
-                column: 0,
-            },
-            Some(positions) => {
-                let position = positions.lines.position(entry.column);
-                SourceMapEntry {
+        self.source_map.iter().map(|entry| {
+            if entry.source_offset == SourceOffset::NONE {
+                return SourceMapEntry {
                     bytecode_offset: entry.bytecode_offset,
-                    line: position.line,
-                    column: position.column,
-                }
+                    line: 0,
+                    column: 0,
+                };
             }
-            None => *entry,
+            let position = self.position_source.lines.position(entry.source_offset.0);
+            SourceMapEntry {
+                bytecode_offset: entry.bytecode_offset,
+                line: position.line,
+                column: position.column,
+            }
         })
     }
 

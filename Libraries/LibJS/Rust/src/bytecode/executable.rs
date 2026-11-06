@@ -20,7 +20,7 @@ use crate::bytecode::encoding::{IdentifierTableIndex, PropertyKeyTableIndex, Str
 use crate::bytecode::executable_data::{ConstantValue, ExceptionHandler, MAXIMUM_INTERNED_CONSTANT_LENGTH};
 use crate::bytecode::executable_data::{ExecutableData, LocalVariableMetadata};
 use crate::bytecode::feedback::{ExecutableFeedback, FeedbackSlotCounts};
-use crate::bytecode::source_map::SourceMapEntry;
+use crate::bytecode::source_map::{SourceMapEntry, SourceOffset, SourceOffsetEntry};
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::root::MarkedVec;
@@ -1524,13 +1524,11 @@ impl Executable {
             return None;
         }
         let entry = &source_map[entries_at_or_before_offset - 1];
-        let (line, column) = match &self.code.position_source {
-            Some(positions) if entry.column != crate::bytecode::source_map::SourceOffset::NONE.0 => {
-                let position = positions.lines.position(entry.column);
-                (position.line, position.column)
-            }
-            Some(_) => (0, 0),
-            None => (entry.line, entry.column),
+        let (line, column) = if entry.source_offset == SourceOffset::NONE {
+            (0, 0)
+        } else {
+            let position = self.code.position_source.lines.position(entry.source_offset.0);
+            (position.line, position.column)
         };
         Some(SourceRange {
             code: self
@@ -1544,14 +1542,16 @@ impl Executable {
     /// The source around the instruction at `offset`, and where in that it is.
     fn source_around(&self, offset: u32) -> Option<(Vec<u16>, usize)> {
         const LONGEST_TEXT: usize = 1024;
-        let positions = self.code.position_source.as_ref()?;
+        let positions = &self.code.position_source;
         let source_map = self.source_map();
         let entries_at_or_before_offset = source_map.partition_point(|entry| entry.bytecode_offset <= offset);
-        let source_offset = source_map.get(entries_at_or_before_offset.checked_sub(1)?)?.column;
-        if source_offset == crate::bytecode::source_map::SourceOffset::NONE.0 {
+        let source_offset = source_map
+            .get(entries_at_or_before_offset.checked_sub(1)?)?
+            .source_offset;
+        if source_offset == SourceOffset::NONE {
             return None;
         }
-        let source_offset = source_offset as usize;
+        let source_offset = source_offset.0 as usize;
         let view = crate::utf16::Utf16View::of_string(&positions.source);
         let start = source_offset.saturating_sub(LONGEST_TEXT);
         let end = (source_offset + LONGEST_TEXT).min(view.length_in_code_units());
@@ -1621,7 +1621,7 @@ impl Executable {
         self.code.source_positions()
     }
 
-    pub fn source_map(&self) -> &[SourceMapEntry] {
+    pub fn source_map(&self) -> &[SourceOffsetEntry] {
         &self.code.source_map
     }
 

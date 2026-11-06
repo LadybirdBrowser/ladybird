@@ -1739,9 +1739,8 @@ mod tests {
             .ok()
             .expect("the source parses");
         let script = Arc::downgrade(&parsed.tree.script);
-        let compiled = compile_eval(parsed);
+        let _compiled = compile_eval(parsed);
         assert!(script.upgrade().is_none());
-        assert!(compiled.executable.position_source.is_some());
     }
 
     #[test]

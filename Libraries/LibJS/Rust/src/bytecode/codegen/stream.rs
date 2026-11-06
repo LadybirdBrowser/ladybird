@@ -32,8 +32,8 @@ use crate::bytecode::instruction::specialize_instruction_sequence;
 use crate::bytecode::instruction::typed as op;
 use crate::bytecode::instruction::typed::TypedInstruction;
 use crate::bytecode::operand::*;
-use crate::bytecode::source_map::SourceMapEntry;
 use crate::bytecode::source_map::SourceOffset;
+use crate::bytecode::source_map::SourceOffsetEntry;
 use crate::slice_block::SliceBlock;
 use crate::slice_block::SliceBlockBuilder;
 use crate::u32_from_usize;
@@ -3648,7 +3648,7 @@ impl Generator<'_> {
         let source_entry_count = head.source_entries.len() + segment.source_entries.len();
         let mut block = SliceBlock::builder(
             SliceBlock::room_for::<u8>(head.bytes.len() + segment.bytes.len())
-                + SliceBlock::room_for::<SourceMapEntry>(source_entry_count)
+                + SliceBlock::room_for::<SourceOffsetEntry>(source_entry_count)
                 + SliceBlock::room_for::<ExceptionHandler>(exception_handlers.len())
                 + other_tables_size,
         );
@@ -3681,10 +3681,9 @@ impl Generator<'_> {
             source_entry_count,
             head_entries
                 .chain(entries)
-                .map(|(bytecode_offset, source_offset)| SourceMapEntry {
+                .map(|(bytecode_offset, source_offset)| SourceOffsetEntry {
                     bytecode_offset,
-                    line: u32::MAX,
-                    column: source_offset.0,
+                    source_offset,
                 }),
         );
         let assembled = AssembledBytecode {
