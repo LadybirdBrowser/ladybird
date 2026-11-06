@@ -1761,16 +1761,19 @@ void EventLoop::perform_a_microtask_checkpoint()
     }
 
     // 4. For each environment settings object settingsObject whose responsible event loop is this event loop, notify about rejected promises given settingsObject's global object.
-    GC::RootVector<GC::Ref<EnvironmentSettingsObject>> environments;
-    for (auto const& entry : m_related_environment_settings_objects)
-        environments.append(*entry.value);
-    for (auto& environment_settings_object : environments) {
-        auto& global_object = environment_settings_object->global_object();
-        if (auto* worklet_global_scope = Bindings::impl_from<WorkletGlobalScope>(&global_object)) {
-            worklet_global_scope->notify_about_rejected_promises({});
-            continue;
+    // OPTIMIZATION: This runs for every callback, and only a promise rejected since the last time gives it anything to do.
+    if (exchange(m_has_rejected_promises_to_notify_about, false)) {
+        GC::RootVector<GC::Ref<EnvironmentSettingsObject>> environments;
+        for (auto const& entry : m_related_environment_settings_objects)
+            environments.append(*entry.value);
+        for (auto& environment_settings_object : environments) {
+            auto& global_object = environment_settings_object->global_object();
+            if (auto* worklet_global_scope = Bindings::impl_from<WorkletGlobalScope>(&global_object)) {
+                worklet_global_scope->notify_about_rejected_promises({});
+                continue;
+            }
+            relevant_window_or_worker_global_scope(global_object).notify_about_rejected_promises({});
         }
-        relevant_window_or_worker_global_scope(global_object).notify_about_rejected_promises({});
     }
 
     // 5. Cleanup Indexed Database transactions.

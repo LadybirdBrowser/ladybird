@@ -174,6 +174,8 @@ public:
 
     double compute_deadline() const;
 
+    void did_reject_promise_without_handler() { m_has_rejected_promises_to_notify_about = true; }
+
     void did_run_idle_callback() { m_task_generation_of_last_idle_callback = m_task_generation; }
     void did_request_idle_callback();
 
@@ -283,6 +285,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };
+    bool m_has_rejected_promises_to_notify_about { false };
     u32 m_microtask_checkpoint_deferrals { 0 };
 
     mutable Vector<GC::Weak<DOM::Document>> m_documents;
