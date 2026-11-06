@@ -334,6 +334,7 @@ Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roo
 Heap::~Heap()
 {
     collect_garbage(CollectionType::CollectEverything);
+    free_weak_blocks();
 
     while (auto* allocator = m_all_cell_allocators.first())
         m_all_cell_allocators.remove(*allocator);
@@ -346,6 +347,20 @@ Heap::~Heap()
     for (auto* member : m_incoming_cross_heap_members)
         member->detach_from_heap({});
     m_incoming_cross_heap_members.clear();
+}
+
+void Heap::free_weak_blocks()
+{
+    // NB: A weak pointer outside the heap may outlive it, so a block that one still refers to has to stay. Its pointers
+    //     are all null by now, and it is leaked once this heap forgets about it.
+    auto free_blocks = [](WeakBlock::List& blocks) {
+        while (auto* block = blocks.take_first()) {
+            if (!block->has_referenced_impls())
+                WeakBlock::destroy(block);
+        }
+    };
+    free_blocks(m_usable_weak_blocks);
+    free_blocks(m_full_weak_blocks);
 }
 
 void Heap::enable_stats()
@@ -2061,7 +2076,6 @@ WeakImpl* Heap::create_weak_impl(void* ptr)
         return &WeakImpl::the_null_weak_impl;
 
     if (m_usable_weak_blocks.is_empty()) {
-        // NOTE: These are leaked on Heap destruction, but that's fine since Heap is tied to process lifetime.
         auto* weak_block = WeakBlock::create();
         m_usable_weak_blocks.append(*weak_block);
     }

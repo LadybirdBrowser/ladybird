@@ -17,11 +17,13 @@ public:
     static constexpr size_t BLOCK_SIZE = 16 * KiB;
 
     static WeakBlock* create();
+    static void destroy(WeakBlock*);
 
     WeakImpl* allocate(Cell*);
     void deallocate(WeakImpl*);
 
     bool can_allocate() const { return m_freelist != nullptr; }
+    bool has_referenced_impls() const;
 
     void sweep();
 

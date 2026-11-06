@@ -18,6 +18,12 @@ WeakBlock* WeakBlock::create()
     return new (block) WeakBlock;
 }
 
+void WeakBlock::destroy(WeakBlock* block)
+{
+    block->~WeakBlock();
+    MUST(Core::System::release_address_space(block, WeakBlock::BLOCK_SIZE));
+}
+
 WeakBlock::WeakBlock()
 {
     for (size_t i = 0; i < IMPL_COUNT; ++i) {
@@ -28,6 +34,15 @@ WeakBlock::WeakBlock()
 }
 
 WeakBlock::~WeakBlock() = default;
+
+bool WeakBlock::has_referenced_impls() const
+{
+    for (auto const& impl : m_impls) {
+        if (impl.ref_count() != 0)
+            return true;
+    }
+    return false;
+}
 
 WeakImpl* WeakBlock::allocate(Cell* cell)
 {

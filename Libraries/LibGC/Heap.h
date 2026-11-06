@@ -290,6 +290,7 @@ private:
     void finalize_unmarked_cells();
     void sweep_dead_cells(bool print_report, Core::ElapsedTimer const&);
     void sweep_weak_blocks();
+    void free_weak_blocks();
     void run_post_gc_tasks();
 
     bool sweep_next_block();
