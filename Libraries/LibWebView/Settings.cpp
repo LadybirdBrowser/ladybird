@@ -83,6 +83,7 @@ static constexpr auto DISK_CACHE_KEY = "diskCache"sv;
 static constexpr auto DISK_CACHE_MAXIMUM_SIZE_KEY = "maxSize"sv;
 
 static constexpr auto GLOBAL_PRIVACY_CONTROL_KEY = "globalPrivacyControl"sv;
+static constexpr auto CRASH_REPORT_SENDING_KEY = "crashReportSending"sv;
 
 static constexpr auto BACKGROUND_NETWORKING_KEY = "backgroundNetworking"sv;
 static constexpr auto BACKGROUND_NETWORKING_ENABLED_KEY = "enabled"sv;
@@ -211,6 +212,24 @@ Optional<ConfigVariableID> config_variable_id_from_name(StringView name)
     }
 
     return {};
+}
+
+CrashReportSending crash_report_sending_from_string(StringView string)
+{
+    if (string == "never"sv)
+        return CrashReportSending::NeverSend;
+    return CrashReportSending::AskMe;
+}
+
+StringView crash_report_sending_to_string(CrashReportSending crash_report_sending)
+{
+    switch (crash_report_sending) {
+    case CrashReportSending::AskMe:
+        return "ask"sv;
+    case CrashReportSending::NeverSend:
+        return "never"sv;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 static constexpr StringView show_bookmarks_bar_to_string(ShowBookmarksBar show_bookmarks_bar)
@@ -446,6 +465,9 @@ Settings Settings::create(ByteString settings_path, Vector<String> platform_lang
     if (auto global_privacy_control = settings_json.value().get_bool(GLOBAL_PRIVACY_CONTROL_KEY); global_privacy_control.has_value())
         settings.m_global_privacy_control = *global_privacy_control ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No;
 
+    if (auto crash_report_sending = settings_json.value().get_string(CRASH_REPORT_SENDING_KEY); crash_report_sending.has_value())
+        settings.m_crash_report_sending = crash_report_sending_from_string(*crash_report_sending);
+
     if (auto background_networking = settings_json.value().get_object(BACKGROUND_NETWORKING_KEY); background_networking.has_value()) {
         if (auto enabled = background_networking->get_bool(BACKGROUND_NETWORKING_ENABLED_KEY); enabled.has_value())
             settings.m_background_networking_enabled = *enabled;
@@ -672,6 +694,7 @@ JsonValue Settings::serialize_json() const
     settings.set(BROWSING_DATA_KEY, move(browsing_data));
 
     settings.set(GLOBAL_PRIVACY_CONTROL_KEY, m_global_privacy_control == GlobalPrivacyControl::Yes);
+    settings.set(CRASH_REPORT_SENDING_KEY, crash_report_sending_to_string(m_crash_report_sending));
 
     JsonObject background_network_features;
     background_network_features.set(CONTENT_BLOCKER_SUBSCRIPTION_UPDATES_KEY, m_filter_list_updates_enabled);
@@ -1212,6 +1235,15 @@ void Settings::set_global_privacy_control(GlobalPrivacyControl global_privacy_co
 
     for (auto& observer : m_observers)
         observer.global_privacy_control_changed();
+}
+
+void Settings::set_crash_report_sending(CrashReportSending crash_report_sending)
+{
+    m_crash_report_sending = crash_report_sending;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.crash_report_sending_changed();
 }
 
 DNSSettings Settings::parse_dns_settings(JsonValue const& dns_settings)

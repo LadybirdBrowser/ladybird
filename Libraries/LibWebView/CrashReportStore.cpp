@@ -266,7 +266,8 @@ ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names(UnixDateTime 
     return names;
 }
 
-static void remove_reports_older_than(Core::Directory const& directory, UnixDateTime earliest_time)
+// Without an earliest time, every report goes.
+static void remove_reports_older_than(Core::Directory const& directory, Optional<UnixDateTime> earliest_time)
 {
     Core::DirIterator iterator(directory.path().string(), Core::DirIterator::SkipDots);
     while (iterator.has_next()) {
@@ -276,7 +277,7 @@ static void remove_reports_older_than(Core::Directory const& directory, UnixDate
         struct stat status {};
         if (!is_owned_regular_file_at(directory, name, status))
             continue;
-        if (UnixDateTime::from_unix_timespec(modified_time(status)) < earliest_time)
+        if (!earliest_time.has_value() || UnixDateTime::from_unix_timespec(modified_time(status)) < *earliest_time)
             (void)unlinkat(directory.fd(), name.characters(), 0);
     }
 }
@@ -305,6 +306,15 @@ ErrorOr<void> CrashReportStore::mark_seen(ByteString const& name) const
     auto seen_directory = TRY(open_seen_directory(directory));
     TRY(move_report(directory, seen_directory, name));
     apply_retention(seen_directory, name);
+    return {};
+}
+
+ErrorOr<void> CrashReportStore::remove_all_reports() const
+{
+    auto directory = TRY(open_report_directory(m_directory));
+    remove_reports_older_than(directory, {});
+    if (auto seen_directory = TRY(open_seen_directory_if_exists(directory)); seen_directory.has_value())
+        remove_reports_older_than(*seen_directory, {});
     return {};
 }
 
@@ -484,6 +494,7 @@ ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names(UnixDateTime)
 bool CrashReportStore::has_pending_reports(UnixDateTime) const { return false; }
 ErrorOr<void> CrashReportStore::mark_seen(ByteString const&) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_report(ByteString const&) const { return {}; }
+ErrorOr<void> CrashReportStore::remove_all_reports() const { return {}; }
 
 ErrorOr<ByteString> CrashReportStore::store_report(ProcessType, StringView, UnixDateTime) const
 {

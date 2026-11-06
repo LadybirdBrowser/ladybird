@@ -120,6 +120,9 @@ void SettingsUI::register_interfaces()
         return;
     }
 
+    register_interface("loadCrashReportsWaiting"sv, [this](auto const&) {
+        crash_reports_changed();
+    });
     register_interface("showCrashReports"sv, [this](auto const&) {
         if (!CrashReport::is_supported()) {
             async_send_message("crashReportsStatus"sv, "Crash reporting is not available on this platform yet."_string);
@@ -194,6 +197,9 @@ void SettingsUI::register_interfaces()
     });
     register_interface("setGlobalPrivacyControl"sv, [this](auto const& data) {
         set_global_privacy_control(data);
+    });
+    register_interface("setCrashReportSending"sv, [this](auto const& data) {
+        set_crash_report_sending(data);
     });
 
     register_interface("setServicesNetworkAccessEnabled"sv, [this](auto const& data) {
@@ -717,6 +723,24 @@ void SettingsUI::set_global_privacy_control(JsonValue const& global_privacy_cont
         return;
 
     Application::settings().set_global_privacy_control(global_privacy_control.as_bool() ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No);
+}
+
+void SettingsUI::crash_reports_changed()
+{
+    if (has_client())
+        async_send_message("crashReportsWaiting"sv, CrashReportOutbox::the().waiting_report_count());
+}
+
+void SettingsUI::set_crash_report_sending(JsonValue const& crash_report_sending)
+{
+    if (!crash_report_sending.is_string())
+        return;
+
+    auto sending = crash_report_sending_from_string(crash_report_sending.as_string());
+    Application::settings().set_crash_report_sending(sending);
+
+    if (sending == CrashReportSending::NeverSend)
+        CrashReportOutbox::the().discard_all();
 }
 
 void SettingsUI::set_services_network_access_enabled(JsonValue const& enabled)

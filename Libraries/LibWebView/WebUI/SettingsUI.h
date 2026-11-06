@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/JsonObject.h>
+#include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/Settings.h>
@@ -33,7 +34,8 @@ private:
 
 class WEBVIEW_API SettingsUI final
     : public WebUI
-    , public SettingsObserver {
+    , public SettingsObserver
+    , public CrashReportOutboxObserver {
     WEB_UI(SettingsUI);
     friend class SettingsUISitePermissionsObserver;
 
@@ -51,6 +53,8 @@ private:
     virtual void autoplay_settings_changed() override { broadcast_settings_change(); }
     virtual void browsing_data_settings_changed() override { broadcast_settings_change(); }
     virtual void global_privacy_control_changed() override { broadcast_settings_change(); }
+    virtual void crash_report_sending_changed() override { broadcast_settings_change(); }
+    virtual void crash_reports_changed() override;
     virtual void dns_settings_changed() override { broadcast_settings_change(); }
     virtual void config_variable_changed(ConfigVariableID) override { broadcast_settings_change(); }
     virtual void geolocation_settings_changed() override { broadcast_settings_change(); }
@@ -95,6 +99,7 @@ private:
     void set_browsing_data_settings(JsonValue const&);
     void clear_browsing_data(JsonValue const&);
     void set_global_privacy_control(JsonValue const&);
+    void set_crash_report_sending(JsonValue const&);
 
     void set_services_network_access_enabled(JsonValue const&);
     void set_filter_list_updates_enabled(JsonValue const&);

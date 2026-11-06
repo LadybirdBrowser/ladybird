@@ -98,6 +98,17 @@ void CrashReportOutbox::remove(ReadonlySpan<ByteString> names)
     reports_changed();
 }
 
+void CrashReportOutbox::discard_all()
+{
+    m_queue.clear();
+    m_could_not_send.clear();
+    m_review.cancel_sending();
+    m_report_being_sent.clear();
+    if (auto result = m_store.remove_all_reports(); result.is_error())
+        warnln("Could not delete crash reports: {}", result.error());
+    reports_changed();
+}
+
 bool CrashReportOutbox::is_sending(ByteString const& name) const
 {
     return m_report_being_sent == name

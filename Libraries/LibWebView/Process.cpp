@@ -15,6 +15,7 @@
 #include <LibCore/StatsLog.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
 
@@ -22,7 +23,6 @@
 
 #if defined(AK_OS_MACOS)
 #    include <LibIPC/TransportBootstrapMach.h>
-#    include <LibWebView/Application.h>
 #    include <LibWebView/ProcessReaper.h>
 #    include <LibWebView/Utilities.h>
 #endif
@@ -30,7 +30,6 @@
 #if defined(AK_OS_WINDOWS)
 #    include <AK/Windows.h>
 #    include <LibIPC/HandleBrokerServer.h>
-#    include <LibWebView/Application.h>
 #endif
 
 namespace WebView {
@@ -61,7 +60,8 @@ void Process::did_register(Badge<ProcessManager>, u64 child_id)
 
 void Process::save_crash_report(Optional<int> exit_status)
 {
-    if (m_crash_report && exit_status.has_value()) {
+    auto keeps_reports = Application::settings().crash_report_sending() != CrashReportSending::NeverSend;
+    if (m_crash_report && exit_status.has_value() && keeps_reports) {
         if (auto result = m_crash_report->save(*exit_status); result.is_error())
             warnln("Could not save {} crash report: {}", process_name_from_type(m_type), result.error());
         else

@@ -678,6 +678,10 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     auto platform_languages = m_web_content_options.is_test_mode == IsTestMode::Yes ? Vector<String> {} : platform_preferred_languages();
 
     m_settings = make<Settings>(Settings::create(LexicalPath::join(profile().paths().config, "Settings.json"sv).string(), move(platform_languages)));
+    // A browser that crashed left a report that was recovered before the settings were read.
+    if (m_settings->crash_report_sending() == CrashReportSending::NeverSend)
+        CrashReportOutbox::the().discard_all();
+
     m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(profile().paths().config, "Bookmarks.json"sv).string()));
 
     if (m_web_content_options.is_test_mode == IsTestMode::Yes) {
