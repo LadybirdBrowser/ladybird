@@ -60,7 +60,8 @@ static Vector<IPC::Attachment> adopt_attachments(TransferAttachment const* raw, 
     return attachments;
 }
 
-static void hand_over_payload(ReadonlyBytes bytes, Vector<IPC::Attachment> attachments, void* context, ReceiveTransferPayload receive)
+template<typename Receive>
+static auto hand_over_payload(ReadonlyBytes bytes, Vector<IPC::Attachment> attachments, void* context, Receive receive)
 {
     Vector<TransferAttachment> raw;
     for (auto& attachment : attachments) {
@@ -71,7 +72,7 @@ static void hand_over_payload(ReadonlyBytes bytes, Vector<IPC::Attachment> attac
         raw.append({ attachment.to_fd(), 0 });
 #endif
     }
-    receive(context, bytes, raw.data(), raw.size());
+    return receive(context, bytes, raw.data(), raw.size());
 }
 
 extern "C" {
@@ -98,6 +99,8 @@ void web_structured_serialize_transfer_data_holder_take(TransferDataEncoder*, vo
 void web_structured_serialize_transfer_handle_take(IPC::TransportHandle*, void*, ReceiveTransferPayload);
 IPC::Transport* web_structured_serialize_transfer_handle_create_transport(ReadonlyBytes, TransferAttachment const*, size_t);
 bool web_structured_serialize_validate_shared_memory(int, size_t);
+bool web_bindings_message_port_transport_send(IPC::Transport*, ReadonlyBytes, TransferAttachment const*, size_t);
+bool web_bindings_message_port_transport_read_messages(IPC::Transport*, void*, bool (*)(void*, ReadonlyBytes, TransferAttachment const*, size_t));
 SerializedTransferRecord* web_structured_serialize_transfer_record_create(ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t, TransferDataEncoder* const*, size_t);
 void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord*);
 void web_structured_serialize_transfer_record_take(SerializedTransferRecord*, void*, void (*)(void*, ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t), void (*)(void*, TransferDataEncoder*));
@@ -260,6 +263,33 @@ bool web_structured_serialize_validate_shared_memory(int descriptor, size_t size
     if (buffer.is_error())
         return false;
     return !buffer.value().validate_backing_size().is_error();
+}
+
+bool web_bindings_message_port_transport_send(IPC::Transport* transport, ReadonlyBytes bytes, TransferAttachment const* attachments, size_t count)
+{
+    IPC::MessageDataType data;
+    MUST(data.try_append(bytes.data(), bytes.size()));
+    IPC::MessageBuffer buffer { move(data), adopt_attachments(attachments, count) };
+    if (auto result = buffer.transfer_message(*transport); result.is_error()) {
+        dbgln("Failed to post message: {}", result.error());
+        return false;
+    }
+    return true;
+}
+
+bool web_bindings_message_port_transport_read_messages(IPC::Transport* transport, void* context, bool (*receive)(void*, ReadonlyBytes, TransferAttachment const*, size_t))
+{
+    bool failed_to_decode = false;
+    auto should_shutdown = transport->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+        // The peer is treated as gone after a malformed record. Later messages still release all their attachments.
+        if (failed_to_decode)
+            return;
+        Vector<IPC::Attachment> attachments;
+        while (!message.attachments.is_empty())
+            attachments.append(message.attachments.dequeue());
+        failed_to_decode = !hand_over_payload(message.bytes.bytes(), move(attachments), context, receive);
+    });
+    return failed_to_decode || should_shutdown == IPC::Transport::ShouldShutdown::Yes;
 }
 
 // Takes over the descriptors and the data holders.

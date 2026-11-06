@@ -119,8 +119,6 @@ void web_bindings_message_port_transport_set_up_read_hook(IPC::Transport*, void*
 bool web_bindings_message_port_transport_is_open(IPC::Transport*);
 void web_bindings_message_port_transport_close(IPC::Transport*);
 void web_bindings_message_port_transport_close_after_sending_all_pending_messages(IPC::Transport*);
-bool web_bindings_message_port_transport_send(IPC::Transport*, HTML::SerializedTransferRecord const*);
-bool web_bindings_message_port_transport_read_messages(IPC::Transport*, void* records, void (*append)(void*, HTML::SerializedTransferRecord*));
 
 void* web_css_wrap_object(void* realm, void* cell);
 void* web_css_realm_document(void* realm);
@@ -324,40 +322,6 @@ void web_bindings_message_port_transport_close(IPC::Transport* transport)
 void web_bindings_message_port_transport_close_after_sending_all_pending_messages(IPC::Transport* transport)
 {
     transport->close_after_sending_all_pending_messages();
-}
-
-// Sends the record to the peer as one message, or logs the failure and returns false.
-bool web_bindings_message_port_transport_send(IPC::Transport* transport, HTML::SerializedTransferRecord const* record)
-{
-    IPC::MessageBuffer buffer;
-    IPC::Encoder encoder(buffer);
-    MUST(encoder.encode(*record));
-    if (auto result = buffer.transfer_message(*transport); result.is_error()) {
-        dbgln("Failed to post message: {}", result.error());
-        return false;
-    }
-    return true;
-}
-
-// Hands over every message that has arrived as the record it carries, and returns whether the peer is gone, so that
-// nothing more arrives. A message that is not a record is treated as the peer going away, along with what follows it.
-bool web_bindings_message_port_transport_read_messages(IPC::Transport* transport, void* records, void (*append)(void*, HTML::SerializedTransferRecord*))
-{
-    bool failed_to_decode = false;
-    auto should_shutdown = transport->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
-        if (failed_to_decode)
-            return;
-        FixedMemoryStream stream { message.bytes.bytes() };
-        IPC::Decoder decoder { stream, message.attachments };
-        auto record = decoder.decode<HTML::SerializedTransferRecord>();
-        if (record.is_error()) {
-            dbgln("Failed to decode a MessagePort message: {}", record.error());
-            failed_to_decode = true;
-            return;
-        }
-        append(records, new HTML::SerializedTransferRecord(record.release_value()));
-    });
-    return failed_to_decode || should_shutdown == IPC::Transport::ShouldShutdown::Yes;
 }
 
 JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason)

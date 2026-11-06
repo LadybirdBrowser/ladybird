@@ -12,7 +12,6 @@ use core::any::Any;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use crate::html::structured_serialize::cpp::OwnedSerializedTransferRecord;
 use crate::html::structured_serialize::transfer_data_holder::{
     RawAttachment, ReceivePayload, TransferPayload, append_attachments,
 };
@@ -42,11 +41,16 @@ unsafe extern "C" {
     fn web_bindings_message_port_transport_is_open(transport: *mut c_void) -> bool;
     fn web_bindings_message_port_transport_close(transport: *mut c_void);
     fn web_bindings_message_port_transport_close_after_sending_all_pending_messages(transport: *mut c_void);
-    fn web_bindings_message_port_transport_send(transport: *mut c_void, record: *mut c_void) -> bool;
+    fn web_bindings_message_port_transport_send(
+        transport: *mut c_void,
+        bytes: ak::Span<'_, u8>,
+        attachments: *const RawAttachment,
+        count: usize,
+    ) -> bool;
     fn web_bindings_message_port_transport_read_messages(
         transport: *mut c_void,
         records: *mut c_void,
-        append: unsafe extern "C" fn(*mut c_void, *mut c_void),
+        append: unsafe extern "C" fn(*mut c_void, ak::Span<'_, u8>, *const RawAttachment, usize) -> bool,
     ) -> bool;
 }
 
@@ -223,9 +227,20 @@ impl MessagePortTransport {
 
     /// Sends the record to the peer as one message. False if the transport failed, which LibWeb logs.
     pub(crate) fn send(&self, vm: &Vm, record: TransferRecordRef) -> bool {
-        let record = TransferRecord::into_cpp(record, vm);
-        // SAFETY: This owns the transport, and the call borrows the record.
-        unsafe { web_bindings_message_port_transport_send(self.raw.as_ptr(), record.record().as_raw()) }
+        let mut encoder = Encoder::new();
+        TransferRecord::encode_into(record, vm, &mut encoder).expect("a message record encodes");
+        let (bytes, attachments) = encoder.finish();
+        TransferPayload { bytes, attachments }.with_raw(|bytes, attachments| {
+            // SAFETY: This owns the transport. The call copies the bytes and takes every native attachment.
+            unsafe {
+                web_bindings_message_port_transport_send(
+                    self.raw.as_ptr(),
+                    bytes,
+                    attachments.as_ptr(),
+                    attachments.len(),
+                )
+            }
+        })
     }
 
     /// Appends every message that has arrived, each a record, and tells whether the peer is gone.
@@ -234,11 +249,26 @@ impl MessagePortTransport {
         vm: &Vm,
         records: &MarkedVec<'_, TransferRecordRef>,
     ) -> ShouldShutdown {
-        unsafe extern "C" fn append(context: *mut c_void, record: *mut c_void) {
-            // SAFETY: The read lends its VM and rooted list, and C++ hands over the carrier.
+        unsafe extern "C" fn append(
+            context: *mut c_void,
+            bytes: ak::Span<'_, u8>,
+            attachments: *const RawAttachment,
+            count: usize,
+        ) -> bool {
+            // SAFETY: The read lends its VM, rooted result list and bytes, and hands over every attachment.
             let (vm, records) = unsafe { &*context.cast::<(&Vm, &MarkedVec<'_, TransferRecordRef>)>() };
-            let carrier = unsafe { OwnedSerializedTransferRecord::from_raw(record) };
-            records.push(TransferRecord::from_cpp(vm, carrier.record()));
+            let attachments = unsafe { RawAttachment::take_all(attachments, count) };
+            let mut decoder = Decoder::new(bytes.as_slice(), attachments);
+            match TransferRecord::decode(vm, &mut decoder) {
+                Ok(record) => {
+                    records.push(record);
+                    true
+                }
+                Err(error) => {
+                    eprintln!("Failed to decode a MessagePort message: {error:?}");
+                    false
+                }
+            }
         }
         let mut context = (vm, records);
         // SAFETY: This owns the transport, and lends the records for the call.
