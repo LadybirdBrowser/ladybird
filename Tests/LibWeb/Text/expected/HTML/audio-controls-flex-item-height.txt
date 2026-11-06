@@ -1,0 +1,6 @@
+height in block layout is more than 0px and less than 150px: true
+in-column-flex: same height as in block layout: true
+in-min-content-column-flex: same height as in block layout: true
+in-row-flex: same height as in block layout: true
+auto-width-in-row-flex: same height as in block layout: true
+auto-width-in-row-flex: width: 300

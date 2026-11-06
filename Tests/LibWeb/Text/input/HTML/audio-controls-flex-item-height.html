@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="width: min-content"><audio id="in-block" controls></audio></div>
+<div style="display: flex; flex-direction: column"><audio id="in-column-flex" controls></audio></div>
+<div style="display: flex; flex-direction: column; width: min-content"><audio id="in-min-content-column-flex" controls></audio></div>
+<div style="display: flex"><audio id="in-row-flex" controls></audio></div>
+<div style="display: flex"><audio id="auto-width-in-row-flex" controls style="width: auto"></audio></div>
+<script>
+    // An audio element with controls takes the height of its controls, wherever it's laid out.
+    test(() => {
+        const blockHeight = document.getElementById("in-block").getBoundingClientRect().height;
+        println(`height in block layout is more than 0px and less than 150px: ${blockHeight > 0 && blockHeight < 150}`);
+        for (const id of ["in-column-flex", "in-min-content-column-flex", "in-row-flex", "auto-width-in-row-flex"]) {
+            const height = document.getElementById(id).getBoundingClientRect().height;
+            println(`${id}: same height as in block layout: ${height === blockHeight}`);
+        }
+        // With an automatic width, it keeps the fallback width of a replaced element.
+        println(`auto-width-in-row-flex: width: ${document.getElementById("auto-width-in-row-flex").getBoundingClientRect().width}`);
+    });
+</script>

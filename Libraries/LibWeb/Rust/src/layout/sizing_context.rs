@@ -536,7 +536,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // the intrinsic sizes of replaced elements without natural sizes are defined below:
         let facts = self.facts(node);
         let is_inline_axis = dimension == formatting_context::SizeDimension::Inline;
+        // NB: A replaced box whose content-box size isn't automatic (an audio element, sized from its controls) takes
+        //     its intrinsic block size from its contents, rather than from the fallback height below. It keeps the
+        //     fallback width.
         if !facts.is_replaced_box()
+            || (!is_inline_axis && !facts.has_auto_content_box_size())
             || if is_inline_axis {
                 natural_size.width.is_some()
             } else {
