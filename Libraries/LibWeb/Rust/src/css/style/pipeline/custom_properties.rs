@@ -418,8 +418,13 @@ impl RetainedState {
         };
         // A store whose own values all stay with the element hands down what it was handed, which
         // keeps one store through a chain of elements declaring only such values.
+        // NB: A caller that doesn't know what the element was handed gets the chain the store
+        //     inherits through instead, which still holds every custom property of its ancestors.
         if inheritable.own_values.is_empty() {
-            return handed_down.map(std::borrow::Cow::Borrowed);
+            return match handed_down {
+                Some(handed_down) => Some(std::borrow::Cow::Borrowed(handed_down)),
+                None => inheritable.parent().cloned().map(std::borrow::Cow::Owned),
+            };
         }
         Some(std::borrow::Cow::Owned(inheritable))
     }

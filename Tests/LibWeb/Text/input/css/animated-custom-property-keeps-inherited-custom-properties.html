@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+@property --color {
+    syntax: "<color>";
+    inherits: false;
+    initial-value: transparent;
+}
+
+@property --duration {
+    syntax: "*";
+    inherits: false;
+}
+
+/* Enough custom properties on the root that its descendants reach them through the stores of their ancestors, rather
+   than holding copies of them. */
+:root {
+    --a: 1px;
+    --b: 2px;
+    --c: 3px;
+    --d: 4px;
+    --e: 5px;
+    --f: 6px;
+    --g: 7px;
+    --h: 8px;
+    --size: 20px;
+}
+
+#ancestor {
+    --duration: 1s;
+    transition-duration: 1s;
+}
+
+#ancestor.colored {
+    --color: green;
+}
+
+#target {
+    height: var(--size);
+}
+</style>
+<div id="ancestor" class="colored"><div><div id="target"></div></div></div>
+<script>
+    // A transition of a custom property on an ancestor that hands down none of its own custom properties keeps its
+    // descendants' access to the custom properties above it.
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        println(`before: ${getComputedStyle(target).height}`);
+        await animationFrame();
+        document.getElementById("ancestor").classList.remove("colored");
+        await animationFrame();
+        await animationFrame();
+        println(`during the transition: ${getComputedStyle(target).height}`);
+        done();
+    });
+</script>
