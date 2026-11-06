@@ -33,7 +33,6 @@ use crate::parser::EnclosingCode;
 use crate::utf16::Utf16View;
 
 use super::constants::ConstantTable;
-use super::emitter::AssembledBytecode;
 use super::environment::BindingLocation;
 use super::environment::EnclosingEnvironmentScope;
 use super::environment::EnvironmentCoordinateScope;
@@ -455,11 +454,6 @@ impl<'t> Generator<'t> {
             self.context.initialized_arguments.resize(index + 1, false);
         }
         self.context.initialized_arguments[index] = true;
-    }
-
-    /// Generates what is left of the bytecode, once all the code has been emitted.
-    pub(super) fn assemble(&mut self) -> AssembledBytecode {
-        self.finish_stream()
     }
 
     pub(super) fn cache_counts(&self) -> ExecutableCacheCounts {
