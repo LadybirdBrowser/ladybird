@@ -6,7 +6,7 @@
 
 use core::cell::Cell;
 
-use super::buffer::ThinSlice;
+use super::buffer::BlockSlice;
 use super::cell::CellHeaderTail;
 use super::feedback::ExecutableFeedbackHead;
 use super::property_lookup_cache::{EnvironmentCoordinate, GlobalVariableCache, PropertyLookupCache};
@@ -36,10 +36,10 @@ pub struct ExecutableHead {
     pub jit_compile_state: Cell<u8>,
     /// Where the profiling interpreter records feedback for the optimizing JIT.
     pub feedback: ExecutableFeedbackHead,
-    pub constants: ThinSlice<Value>,
-    pub property_lookup_caches: ThinSlice<PropertyLookupCache>,
-    pub global_variable_caches: ThinSlice<GlobalVariableCache>,
-    pub environment_coordinate_caches: ThinSlice<Cell<EnvironmentCoordinate>>,
+    pub constants: BlockSlice<Value>,
+    pub property_lookup_caches: BlockSlice<PropertyLookupCache>,
+    pub global_variable_caches: BlockSlice<GlobalVariableCache>,
+    pub environment_coordinate_caches: BlockSlice<Cell<EnvironmentCoordinate>>,
 }
 
 const _: () = assert!(size_of::<ExecutableHead>() == 96);

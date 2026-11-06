@@ -47,3 +47,33 @@ impl<T> Default for ThinSlice<T> {
         Self::empty()
     }
 }
+
+/// A [`ThinSlice`] that lives in a block of memory with other slices. Dropping it drops its elements and leaves the memory
+/// to the block, so whatever holds both has to drop the slice first.
+#[repr(transparent)]
+pub struct BlockSlice<T> {
+    pub data: *mut T,
+    _elements: PhantomData<T>,
+}
+
+const _: () = assert!(size_of::<BlockSlice<u8>>() == 8);
+
+impl<T> BlockSlice<T> {
+    pub const fn empty() -> Self {
+        Self::from_data(core::ptr::null_mut())
+    }
+
+    /// `data` must be null, or point at elements that have their length in front of them and that this slice owns.
+    pub(crate) const fn from_data(data: *mut T) -> Self {
+        Self {
+            data,
+            _elements: PhantomData,
+        }
+    }
+}
+
+impl<T> Default for BlockSlice<T> {
+    fn default() -> Self {
+        Self::empty()
+    }
+}

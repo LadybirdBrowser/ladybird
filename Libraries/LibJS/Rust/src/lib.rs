@@ -143,6 +143,7 @@ pub mod runtime;
 pub mod script;
 #[cfg(not(test))]
 pub mod simdjson;
+pub mod slice_block;
 #[cfg(not(test))]
 pub mod source_code;
 #[cfg(not(test))]

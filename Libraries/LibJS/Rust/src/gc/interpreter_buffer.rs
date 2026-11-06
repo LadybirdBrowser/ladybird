@@ -14,7 +14,8 @@ use core::cell::Cell;
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 
 use super::visitor::{Trace, Visitor};
-use crate::layout::buffer::{InterpreterBuffer, ThinSlice};
+use crate::layout::buffer::{BlockSlice, InterpreterBuffer, ThinSlice};
+use crate::slice_block::THIN_SLICE_HEADER_SIZE;
 
 /// Mirrors AK::Vector's growth policy.
 fn padded_capacity(capacity: usize) -> usize {
@@ -155,8 +156,6 @@ unsafe impl<T: Copy + Trace> Trace for InterpreterBuffer<T> {
     }
 }
 
-const THIN_SLICE_HEADER_SIZE: usize = size_of::<usize>();
-
 impl<T> ThinSlice<T> {
     const fn layout_for(length: usize) -> Layout {
         const { assert!(size_of::<T>() != 0 && align_of::<T>() <= THIN_SLICE_HEADER_SIZE) };
@@ -283,6 +282,13 @@ impl<T> Drop for ThinSlice<T> {
 
 // SAFETY: Visits every element.
 unsafe impl<T: Trace> Trace for ThinSlice<T> {
+    fn trace(&self, visitor: &mut Visitor) {
+        T::trace_slice(self.as_slice(), visitor);
+    }
+}
+
+// SAFETY: Visits every element.
+unsafe impl<T: Trace> Trace for BlockSlice<T> {
     fn trace(&self, visitor: &mut Visitor) {
         T::trace_slice(self.as_slice(), visitor);
     }

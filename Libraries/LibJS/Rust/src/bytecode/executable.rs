@@ -30,7 +30,7 @@ use crate::gc::weak::SweptAfterCollection;
 use crate::interpreter::vm::Vm;
 use crate::jit::InterpreterTier;
 use crate::jit::code::ExecutableJitState;
-use crate::layout::buffer::{InterpreterBuffer, ThinSlice};
+use crate::layout::buffer::{BlockSlice, InterpreterBuffer, ThinSlice};
 use crate::layout::cell::{CellHeader, CellHeaderTail, Gc};
 use crate::layout::executable::ExecutableHead;
 use crate::layout::feedback::ExecutableFeedbackHead;
@@ -55,6 +55,7 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shape::ShapeKey;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::value::number_to_string;
+use crate::slice_block::{SliceBlock, SliceBlockBuilder};
 use crate::source_code::SourceCode;
 use crate::source_range::{Position, SourceRange};
 use crate::utf16::Utf16View;
@@ -1195,8 +1196,8 @@ pub struct Executable {
     pub head: ExecutableHead,
     /// What this executable runs, which other executables of the same code share.
     code: Arc<ExecutableData>,
-    environment_shape_caches: ThinSlice<NullableMember<EnvironmentShape>>,
-    object_shape_caches: ThinSlice<ObjectShapeCache>,
+    environment_shape_caches: BlockSlice<NullableMember<EnvironmentShape>>,
+    object_shape_caches: BlockSlice<ObjectShapeCache>,
     /// How many feedback slots of each kind the bytecode indexes into.
     feedback_slot_counts: FeedbackSlotCounts,
     /// What the interpreter observed running the bytecode, for the optimizing JIT. Only executables that left the
@@ -1215,13 +1216,15 @@ pub struct Executable {
     has_dumped_feedback: Cell<bool>,
     pub is_strict_mode: bool,
     /// The property keys, made once, since turning a string into a property key checks whether it is an array index.
-    property_keys: ThinSlice<PropertyKey>,
+    property_keys: BlockSlice<PropertyKey>,
     /// The functions the bytecode creates, which NewFunction and NewClass refer to by index.
-    shared_function_data: ThinSlice<Gc<SharedFunctionInstanceData>>,
+    shared_function_data: BlockSlice<Gc<SharedFunctionInstanceData>>,
     /// The name of the function the executable is the body of, given when the function is first compiled. Empty for
     /// other code.
     name: FlyStringSlot,
     pub source_code: Option<Rc<SourceCode>>,
+    /// The memory of the slices above, which get dropped before it.
+    tables: SliceBlock,
 }
 
 // NB: Every function that was called has these bytes.
@@ -1315,24 +1318,21 @@ impl Executable {
     /// for as long as the executable, which is what makes the address of the bytecode good to hand out.
     fn new_with_code(
         code: Arc<ExecutableData>,
-        constants: ThinSlice<Value>,
-        property_keys: ThinSlice<PropertyKey>,
+        mut tables: SliceBlockBuilder,
+        constants: BlockSlice<Value>,
+        property_keys: BlockSlice<PropertyKey>,
+        shared_function_data: BlockSlice<Gc<SharedFunctionInstanceData>>,
         _defer_gc: &DeferGc<'_>,
     ) -> Self {
         let cache_counts = &code.cache_counts;
-        let property_lookup_caches: ThinSlice<PropertyLookupCache> = (0..cache_counts.property_lookup)
-            .map(|_| PropertyLookupCache::new())
-            .collect();
-        let global_variable_caches: ThinSlice<GlobalVariableCache> = (0..cache_counts.global_variable)
-            .map(|_| GlobalVariableCache::default())
-            .collect();
-        let environment_coordinate_caches: ThinSlice<Cell<EnvironmentCoordinate>> = (0..cache_counts
-            .environment_coordinate)
-            .map(|_| Cell::new(EnvironmentCoordinate::invalid()))
-            .collect();
-        let environment_shape_caches = (0..cache_counts.environment_shape)
-            .map(|_| NullableMember::null())
-            .collect();
+        let property_lookup_caches =
+            tables.slice((0..cache_counts.property_lookup).map(|_| PropertyLookupCache::new()));
+        let global_variable_caches =
+            tables.slice((0..cache_counts.global_variable).map(|_| GlobalVariableCache::default()));
+        let environment_coordinate_caches =
+            tables.slice((0..cache_counts.environment_coordinate).map(|_| Cell::new(EnvironmentCoordinate::invalid())));
+        let environment_shape_caches =
+            tables.slice((0..cache_counts.environment_shape).map(|_| NullableMember::null()));
         let number_of_locals = u32::try_from(code.local_variable_metadata.len()).expect("local count fits in u32");
         let registers_and_locals_count = code.number_of_registers + number_of_locals;
         let constant_count = u32::try_from(constants.len()).expect("constant count fits in u32");
@@ -1353,9 +1353,7 @@ impl Executable {
             // The interpreter only reads the caches, which slow paths update through their cells.
             environment_coordinate_caches,
         };
-        let object_shape_caches = (0..cache_counts.object_shape)
-            .map(|_| ObjectShapeCache::default())
-            .collect();
+        let object_shape_caches = tables.slice((0..cache_counts.object_shape).map(|_| ObjectShapeCache::default()));
         let feedback_slot_counts = FeedbackSlotCounts {
             arith: cache_counts.arith_feedback,
             value: cache_counts.value_feedback,
@@ -1379,9 +1377,10 @@ impl Executable {
             has_dumped_feedback: Cell::new(false),
             is_strict_mode: code.is_strict,
             property_keys,
-            shared_function_data: ThinSlice::empty(),
+            shared_function_data,
             name: FlyStringSlot::new(None),
             source_code: None,
+            tables: tables.finish(),
             code,
         }
     }
@@ -1394,21 +1393,18 @@ impl Executable {
         source_code: Option<&Rc<SourceCode>>,
     ) -> Gc<Executable> {
         let executable = DeferGc::scope(vm, |_| {
+            let mut tables = SliceBlock::builder(Self::size_of_tables(&data));
             let is_strict = data.is_strict;
-            let shared_function_data: ThinSlice<Gc<SharedFunctionInstanceData>> = data
-                .shared_function_data
-                .iter()
-                .map(|pending| {
-                    SharedFunctionInstanceData::create_from_pending_shared_function_data(
-                        vm,
-                        pending,
-                        is_strict,
-                        source_code,
-                    )
-                })
-                .collect();
+            let shared_function_data = tables.slice(data.shared_function_data.iter().map(|pending| {
+                SharedFunctionInstanceData::create_from_pending_shared_function_data(
+                    vm,
+                    pending,
+                    is_strict,
+                    source_code,
+                )
+            }));
             vm.heap()
-                .allocate(|defer_gc| Self::build(vm, data, shared_function_data, source_code, defer_gc))
+                .allocate(|defer_gc| Self::build(vm, data, tables, shared_function_data, source_code, defer_gc))
         });
         vm.register_executable(executable);
 
@@ -1419,10 +1415,24 @@ impl Executable {
         executable
     }
 
+    /// The bytes of the tables that an executable of `code` has from the start.
+    fn size_of_tables(code: &ExecutableData) -> usize {
+        let cache_counts = &code.cache_counts;
+        SliceBlock::room_for::<Gc<SharedFunctionInstanceData>>(code.shared_function_data.len())
+            + SliceBlock::room_for::<PropertyKey>(code.property_key_table.len())
+            + SliceBlock::room_for::<Value>(code.constants.len())
+            + SliceBlock::room_for::<PropertyLookupCache>(cache_counts.property_lookup as usize)
+            + SliceBlock::room_for::<GlobalVariableCache>(cache_counts.global_variable as usize)
+            + SliceBlock::room_for::<Cell<EnvironmentCoordinate>>(cache_counts.environment_coordinate as usize)
+            + SliceBlock::room_for::<NullableMember<EnvironmentShape>>(cache_counts.environment_shape as usize)
+            + SliceBlock::room_for::<ObjectShapeCache>(cache_counts.object_shape as usize)
+    }
+
     fn build(
         vm: &Vm,
         mut data: Arc<ExecutableData>,
-        shared_function_data: ThinSlice<Gc<SharedFunctionInstanceData>>,
+        mut tables: SliceBlockBuilder,
+        shared_function_data: BlockSlice<Gc<SharedFunctionInstanceData>>,
         source_code: Option<&Rc<SourceCode>>,
         defer_gc: &DeferGc<'_>,
     ) -> Executable {
@@ -1431,29 +1441,26 @@ impl Executable {
             .iter()
             .map(|blueprint| ClassBlueprint::create(vm, blueprint, source_code, defer_gc))
             .collect();
-        let property_keys: ThinSlice<PropertyKey> = match Arc::get_mut(&mut data) {
-            Some(code) => std::mem::take(&mut code.property_key_table)
-                .into_vec()
-                .into_iter()
-                .map(PropertyKey::from)
-                .collect(),
-            None => data.property_key_table.iter().cloned().map(PropertyKey::from).collect(),
+        let property_keys = match Arc::get_mut(&mut data) {
+            Some(code) => tables.slice(
+                std::mem::take(&mut code.property_key_table)
+                    .into_vec()
+                    .into_iter()
+                    .map(PropertyKey::from),
+            ),
+            None => tables.slice(data.property_key_table.iter().cloned().map(PropertyKey::from)),
         };
-        let constants: ThinSlice<Value> = data
-            .constants
-            .iter()
-            .map(|constant| constant_value(vm, constant))
-            .collect();
+        let constants = tables.slice(data.constants.iter().map(|constant| constant_value(vm, constant)));
         let template_object_caches: ThinSlice<Gc<TemplateObjectCache>> = (0..data.cache_counts.template_object)
             .map(|_| TemplateObjectCache::create(vm))
             .collect();
         let object_property_iterator_caches = data.cache_counts.object_property_iterator;
 
-        let mut executable = Self::new_with_code(data, constants, property_keys, defer_gc);
+        let mut executable =
+            Self::new_with_code(data, tables, constants, property_keys, shared_function_data, defer_gc);
         if let Some(code) = Arc::get_mut(&mut executable.code) {
             code.release_link_inputs();
         }
-        executable.shared_function_data = shared_function_data;
         if !class_blueprints.is_empty() {
             executable.rare_data_mut().class_blueprints = class_blueprints;
         }
