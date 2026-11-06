@@ -1,0 +1,8 @@
+Ladybird now negates HarfBuzz’s y offsets and advances, since its
+glyph positions grow downward. Blink does the same, in
+ShapeResult::ComputeGlyphPositions(), which stores each offset as
+GlyphOffset(x_offset, -y_offset). And Gecko’s
+gfxHarfBuzzShaper::SetGlyphsFromRun() subtracts the y offset from the
+block position of each glyph. WebKit’s HarfBuzz ComplexTextRun keeps the
+offsets y-up, like the CoreText glyph origins its ComplexTextController
+takes on macOS.
