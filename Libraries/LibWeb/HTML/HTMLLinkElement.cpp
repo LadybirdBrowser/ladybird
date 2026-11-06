@@ -1099,11 +1099,12 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
         //        https://github.com/whatwg/html/issues/9355
         // NB: Step 1 sets the body of a clone of response, so the response fetch delivered never changes. Nothing can
         //     observe the difference.
-        auto response = response_view->record()->unsafe_response()->clone();
+        // NB: Keep the filtered response, which main fetch uses as is. Unfiltered, it would be treated as same-origin.
+        auto response = response_view->record()->clone();
 
         // 1. If bodyBytes is a byte sequence, then set response's body to bodyBytes as a body.
         if (auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>())
-            response->set_body(Fetch::Infrastructure::ResponseBody::from_bytes(*byte_sequence));
+            response->unsafe_response()->set_body(Fetch::Infrastructure::ResponseBody::from_bytes(*byte_sequence));
         // 2. Otherwise, set response to a network error.
         else
             response = Fetch::Infrastructure::Response::network_error("Expected preload response to contain a body"_string);

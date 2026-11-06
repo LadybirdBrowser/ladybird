@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const createCrossOriginEcho = async (name, options) => {
+            const url = new URL(await server.createEcho("GET", `/link-preload-cross-origin-response-stays-filtered/${name}`, { status: 200, ...options }));
+            url.hostname = location.hostname === "localhost" ? "127.0.0.1" : "localhost";
+            return url.href;
+        };
+        const preload = (as, href, crossOrigin) => new Promise(resolve => {
+            const link = document.createElement("link");
+            link.rel = "preload";
+            link.as = as;
+            if (crossOrigin)
+                link.crossOrigin = crossOrigin;
+            link.href = href;
+            link.onload = link.onerror = resolve;
+            document.head.appendChild(link);
+        });
+        const requestCount = async url => (await fetch(server.recordedRequestCountURL(url))).json();
+
+        const textURL = await createCrossOriginEcho("text", {
+            headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
+            body: "cross-origin text",
+        });
+        await preload("fetch", textURL);
+        const textResponse = await fetch(textURL, { mode: "no-cors", credentials: "include" });
+        println(`no-cors fetch: type ${textResponse.type}, body "${await textResponse.text()}", requests ${await requestCount(textURL)}`);
+
+        const corsURL = await createCrossOriginEcho("cors", {
+            headers: { "Content-Type": "text/plain", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*", "X-Not-Exposed": "value" },
+            body: "cross-origin text",
+        });
+        await preload("fetch", corsURL, "anonymous");
+        const corsResponse = await fetch(corsURL);
+        println(`cors fetch: type ${corsResponse.type}, X-Not-Exposed ${corsResponse.headers.get("X-Not-Exposed")}, requests ${await requestCount(corsURL)}`);
+
+        const imageURL = await createCrossOriginEcho("image.png", {
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+            body: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgaGAAAAEEAIFw9selAAAAAElFTkSuQmCC",
+            body_encoding: "base64",
+        });
+        await preload("image", imageURL);
+        const image = new Image();
+        const loaded = await new Promise(resolve => {
+            image.onload = () => resolve(true);
+            image.onerror = () => resolve(false);
+            image.src = imageURL;
+        });
+        let imageResult = "failed to load";
+        if (loaded) {
+            const context = document.createElement("canvas").getContext("2d");
+            context.drawImage(image, 0, 0);
+            try {
+                imageResult = `pixel ${context.getImageData(0, 0, 1, 1).data.join(",")}`;
+            } catch (error) {
+                imageResult = error.name;
+            }
+        }
+        println(`image on a canvas: ${imageResult}, requests ${await requestCount(imageURL)}`);
+
+        const styleURL = await createCrossOriginEcho("style.css", {
+            headers: { "Content-Type": "text/css", "Cache-Control": "no-store" },
+            body: "body { color: green; }",
+        });
+        await preload("style", styleURL);
+        const stylesheet = document.createElement("link");
+        stylesheet.rel = "stylesheet";
+        await new Promise(resolve => {
+            stylesheet.onload = stylesheet.onerror = resolve;
+            stylesheet.href = styleURL;
+            document.head.appendChild(stylesheet);
+        });
+        let styleResult;
+        try {
+            styleResult = `${stylesheet.sheet.cssRules.length} rules`;
+        } catch (error) {
+            styleResult = error.name;
+        }
+        println(`stylesheet cssRules: ${styleResult}, requests ${await requestCount(styleURL)}`);
+    });
+</script>
