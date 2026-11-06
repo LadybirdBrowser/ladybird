@@ -148,7 +148,6 @@ if (NOT WIN32)
         TestShadowTreeTooltipsAndLinks.cpp
         TestTabPerformanceMonitor.cpp
         TestUserActivation.cpp
-        TestViewDestruction.cpp
         TestViewSource.cpp
         TestWebCompatReport.cpp
         TestWebCompatReportPage.cpp
