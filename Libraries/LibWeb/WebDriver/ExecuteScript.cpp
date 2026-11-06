@@ -53,9 +53,9 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     //        function async, unfortunately. See: https://github.com/w3c/webdriver/issues/1436
     auto body_utf16 = Utf16String::from_utf8(body);
     auto source_text = Utf16String::formatted(
-        R"~~~(function() {{
+        R"~~~((function() {{
             {}
-        }})~~~",
+        }}))~~~",
         body_utf16);
 
     auto compiled_function = JS::CompiledDynamicFunction::compile(realm.vm(), source_text, Utf16String {}, body_utf16, JS::FunctionKind::Normal);
