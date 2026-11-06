@@ -1686,15 +1686,6 @@ mod execution {
                     }
                 }
                 Instruction::Mov { dst, src } => slots[dst.raw() as usize] = read(&slots, src),
-                Instruction::Mov2 {
-                    c0_dst,
-                    c0_src,
-                    c1_dst,
-                    c1_src,
-                } => {
-                    slots[c0_dst.raw() as usize] = read(&slots, c0_src);
-                    slots[c1_dst.raw() as usize] = read(&slots, c1_src);
-                }
                 Instruction::MovSrcUndefined { dst } => slots[dst.raw() as usize] = value::UNDEFINED,
                 Instruction::Add { dst, lhs, rhs, .. } => {
                     slots[dst.raw() as usize] = reference_add(read(&slots, lhs), read(&slots, rhs));

@@ -1430,25 +1430,13 @@ impl<'a> GraphBuilder<'a> {
                     };
                 }
             }
-            Instruction::Mov { dst, src } => self.build_moves(&[(dst, src)])?,
-            Instruction::Mov2 {
-                c0_dst,
-                c0_src,
-                c1_dst,
-                c1_src,
-            } => self.build_moves(&[(c0_dst, c0_src), (c1_dst, c1_src)])?,
-            Instruction::Mov3 {
-                c0_dst,
-                c0_src,
-                c1_dst,
-                c1_src,
-                c2_dst,
-                c2_src,
-            } => self.build_moves(&[(c0_dst, c0_src), (c1_dst, c1_src), (c2_dst, c2_src)])?,
-            Instruction::MovSrcUndefined { dst } => self.build_undefined_moves(&[dst])?,
-            Instruction::MovUndefined2 { c0_dst, c1_dst } => self.build_undefined_moves(&[c0_dst, c1_dst])?,
-            Instruction::MovUndefined3 { c0_dst, c1_dst, c2_dst } => {
-                self.build_undefined_moves(&[c0_dst, c1_dst, c2_dst])?;
+            Instruction::Mov { dst, src } => {
+                let value = self.read(src)?;
+                self.write(dst, value)?;
+            }
+            Instruction::MovSrcUndefined { dst } => {
+                let undefined = self.constant(value::UNDEFINED);
+                self.write(dst, undefined)?;
             }
             Instruction::Jump { target } | Instruction::JumpLoop { target } => {
                 let target = self.block_for_label(target)?;
@@ -1901,22 +1889,6 @@ impl<'a> GraphBuilder<'a> {
         self.block_for_label(Label(
             self.function.instructions[self.function.instruction_index].next_pc(),
         ))
-    }
-
-    fn build_moves(&mut self, moves: &[(Operand, Operand)]) -> Result<(), CompileFailure> {
-        for (dst, src) in moves {
-            let value = self.read(*src)?;
-            self.write(*dst, value)?;
-        }
-        Ok(())
-    }
-
-    fn build_undefined_moves(&mut self, destinations: &[Operand]) -> Result<(), CompileFailure> {
-        let undefined = self.constant(value::UNDEFINED);
-        for dst in destinations {
-            self.write(*dst, undefined)?;
-        }
-        Ok(())
     }
 
     fn build_tag_branch(

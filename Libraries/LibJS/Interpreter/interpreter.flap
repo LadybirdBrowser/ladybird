@@ -1271,11 +1271,7 @@ handler Mov(
     dispatch_next;
 }
 
-specialize Mov() + Mov() as Mov2;
-specialize Mov() + Mov() + Mov() as Mov3;
 specialize Mov(src: Undefined);
-specialize Mov(src: Undefined) + Mov(src: Undefined) as MovUndefined2;
-specialize Mov(src: Undefined) + Mov(src: Undefined) + Mov(src: Undefined) as MovUndefined3;
 
 specialize Add(lhs: Int32);
 specialize Add(rhs: Int32);
