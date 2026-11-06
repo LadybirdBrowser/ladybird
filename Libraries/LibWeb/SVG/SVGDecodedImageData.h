@@ -149,6 +149,7 @@ public:
     virtual Queue<QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
     virtual void report_finished_handling_input_event([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] u64 event_id, [[maybe_unused]] EventResult event_was_handled) override { }
     virtual void request_frame() override;
+    virtual void request_frame_for(DOM::Document const&) override;
 
     virtual bool is_headless() const override { return m_host_page->client().is_headless(); }
     virtual NonnullRefPtr<Media::AudioOutputFactory> create_audio_output_factory() override;
