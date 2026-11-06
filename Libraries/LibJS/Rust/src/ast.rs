@@ -566,7 +566,7 @@ pub struct SyntaxTree {
     /// The row in `scopes` of each function node of the tree whose code the tree holds, sorted by node.
     pub(crate) function_scope_rows: Vec<(u32, u32)>,
     /// What scope analysis found out for the functions that the code of the tree goes on to compile.
-    pub(crate) outer_resolutions: Option<Arc<OuterResolutions>>,
+    pub(crate) outer_resolutions: Option<OuterResolutions>,
 }
 
 impl SyntaxTree {
