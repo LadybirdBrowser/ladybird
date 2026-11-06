@@ -487,6 +487,8 @@ pub struct EnclosingCode {
     /// What the functions nested in this code see of it, unless it has none.
     resolutions: Option<OuterResolutions>,
     parent: Option<Arc<EnclosingCode>>,
+    /// Whether what this code leaves unbound can go through a direct `eval` of its own.
+    has_direct_eval: bool,
 }
 
 impl EnclosingCode {
@@ -495,15 +497,22 @@ impl EnclosingCode {
             row: NONE,
             resolutions: tree.outer_resolutions.clone(),
             parent: None,
+            has_direct_eval: true,
         })
     }
 
     /// The code of the function at `row`, from what it found out about what is nested in it itself.
-    pub(crate) fn of_function(row: u32, entries: &mut Vec<(u64, Resolution)>, parent: &Arc<Self>) -> Arc<Self> {
+    pub(crate) fn of_function(
+        row: u32,
+        entries: &mut Vec<(u64, Resolution)>,
+        parent: &Arc<Self>,
+        has_direct_eval: bool,
+    ) -> Arc<Self> {
         Arc::new(Self {
             row,
             resolutions: Some(OuterResolutions::new(entries)),
             parent: Some(parent.clone()),
+            has_direct_eval,
         })
     }
 
@@ -529,11 +538,14 @@ impl EnclosingCode {
                 }
                 return resolution;
             }
-            // NB: The name goes through all the scopes of this code that are around the function.
-            outermost_unbound_name = resolutions
-                .get(function, Name(N_DOT_UNBOUND))
-                .expect("the code around a function resolved what it does not bind");
-            is_inside_scope_with_eval |= outermost_unbound_name.is_inside_tree_scope_with_eval();
+            // NB: The name goes through all the scopes of this code that are around the function. Only the outermost
+            //     code has the last word on it, and other code only matters if it has an `eval`.
+            if enclosing.has_direct_eval || enclosing.parent.is_none() {
+                outermost_unbound_name = resolutions
+                    .get(function, Name(N_DOT_UNBOUND))
+                    .expect("the code around a function resolved what it does not bind");
+                is_inside_scope_with_eval |= outermost_unbound_name.is_inside_tree_scope_with_eval();
+            }
             function = enclosing.row;
             code = enclosing.parent.as_ref();
         }

@@ -1910,7 +1910,7 @@ impl Generator<'_> {
                     resolution,
                 ));
             }
-            let enclosing_code = EnclosingCode::of_function(row, &mut entries, &self.enclosing_code);
+            let enclosing_code = EnclosingCode::of_function(row, &mut entries, &self.enclosing_code, has_direct_eval);
             self.context.scope.scope_resolutions = entries;
             enclosing_code
         };
