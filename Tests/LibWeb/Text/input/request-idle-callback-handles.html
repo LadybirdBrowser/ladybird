@@ -61,29 +61,42 @@
 
         // A callback that outlasts the idle deadline leaves the rest of the runnable list waiting. Keeping the
         // event loop busy afterwards stops a new idle period from starting, so the timeout of the callback still
-        // on the runnable list is what runs it.
-        order.length = 0;
-        const channel = new MessageChannel();
-        let keepEventLoopBusy = true;
-        channel.port1.onmessage = () => {
-            if (keepEventLoopBusy)
+        // on the runnable list is what runs it. That needs an idle period to start before the timeout ends, which
+        // a slow machine doesn't promise; when one starts too late, both callbacks are still waiting when the
+        // timeout ends, so try again.
+        for (let attempt = 0; attempt < 10; ++attempt) {
+            // Each attempt keeps the event loop busy through a channel of its own, closed once the attempt ends, so
+            // no message from an earlier attempt can still be keeping it busy when the next one waits for idle.
+            order.length = 0;
+            const channel = new MessageChannel();
+            let keepEventLoopBusy = true;
+            channel.port1.onmessage = () => {
+                if (keepEventLoopBusy)
+                    channel.port2.postMessage(undefined);
+            };
+            await timeout(0);
+            const registeredAt = performance.now();
+            let idlePeriodStartedInTime = false;
+            const busyDone = new Promise(resolve => requestIdleCallback(() => {
+                idlePeriodStartedInTime = performance.now() - registeredAt < 20;
                 channel.port2.postMessage(undefined);
-        };
-        await timeout(0);
-        requestIdleCallback(() => {
-            channel.port2.postMessage(undefined);
-            const end = performance.now() + 80;
-            while (performance.now() < end)
-                ;
-            order.push("busy");
-        });
-        await new Promise(resolve => requestIdleCallback(deadline => {
-            order.push(`timed out on the runnable list: ${deadline.didTimeout}`);
-            keepEventLoopBusy = false;
-            resolve();
-        }, { timeout: 20 }));
-        channel.port1.close();
-        channel.port2.close();
+                const end = performance.now() + 80;
+                while (performance.now() < end)
+                    ;
+                order.push("busy");
+                resolve();
+            }));
+            await new Promise(resolve => requestIdleCallback(deadline => {
+                order.push(`timed out on the runnable list: ${deadline.didTimeout}`);
+                keepEventLoopBusy = false;
+                resolve();
+            }, { timeout: 20 }));
+            await busyDone;
+            channel.port1.close();
+            channel.port2.close();
+            if (idlePeriodStartedInTime)
+                break;
+        }
         println(order.join(", "));
 
         done();
