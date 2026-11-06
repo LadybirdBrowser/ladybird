@@ -3028,10 +3028,19 @@ impl<'pass> BlockFormattingContext<'pass> {
         let marker_block_size = marker_metrics.content_block_size();
         let marker_inline_size = marker_metrics.content_inline_size();
         let list_item_style = self.style(list_item.node);
+        // https://drafts.csswg.org/css-lists-3/#valdef-list-style-position-outside
+        // "If the list item is an inline box: [...] Otherwise, the marker box is placed outside the principal block
+        // box".
+        // NB: So the marker ends at the start of the list item's border box, rather than of its content box: Padding
+        //     and borders at the start of the list item move its contents, but not its marker.
+        let collapsed = list_item.cells.uses_collapsing_borders_model();
         let marker_inline_offset = if list_item_style.direction() == direction::LTR {
-            inline_space_used_before_list_item_elements_formatted.left - marker_inline_size
+            inline_space_used_before_list_item_elements_formatted.left
+                - list_item.cells.border_box_left(collapsed)
+                - marker_inline_size
         } else {
-            list_item.cells.content_inline_size - inline_space_used_before_list_item_elements_formatted.right
+            list_item.cells.content_inline_size + list_item.cells.border_box_right(collapsed)
+                - inline_space_used_before_list_item_elements_formatted.right
         };
         let marker_block_offset = if let Some(list_item_first_baseline) = list_item_first_baseline
             && let Some(marker_first_baseline) = marker_box.baselines.first
