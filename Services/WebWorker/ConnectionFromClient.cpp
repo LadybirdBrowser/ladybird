@@ -128,19 +128,63 @@ void ConnectionFromClient::set_preferred_languages(Vector<String> preferred_lang
 
 void ConnectionFromClient::close_worker()
 {
-    async_did_close_worker();
+    begin_closing();
+}
 
-    // FIXME: Invoke a worker shutdown operation that implements the spec
-    m_worker_host = nullptr;
-
-    die();
+void ConnectionFromClient::begin_closing()
+{
+    if (m_worker_host)
+        m_worker_host->terminate();
+    else
+        Web::HTML::main_thread_event_loop().destroy_once_script_has_finished();
 }
 
 void ConnectionFromClient::die()
 {
-    // FIXME: When handling multiple workers in the same process,
-    //     this logic needs to be smarter (only when all workers are dead, etc).
+    if (m_shutdown_finished)
+        return;
+
+    // NB: Script waiting on a nested event loop would run on with a closed connection, and it cannot be stopped from
+    //     here. Nothing else would end this process either, as the client that could is gone.
+    if (Web::HTML::main_thread_event_loop().is_spinning())
+        Core::Process::terminate_immediately(0);
+
+    begin_closing();
+}
+
+void ConnectionFromClient::did_lose_peer_during_sync_request()
+{
+    // NB: Whatever made the request cannot be unwound from here, and it cannot carry on without a response.
     Core::Process::terminate_immediately(0);
+}
+
+void ConnectionFromClient::release_agent_state()
+{
+    if (is_open())
+        async_did_close_worker();
+
+    if (m_worker_host)
+        m_worker_host->run_closing_steps();
+    m_worker_host = nullptr;
+
+    m_transformers.clear();
+    m_pending_transform_inits.clear();
+    m_requested_files.clear();
+    m_request_server_died_callback_for_testing = nullptr;
+    on_request_server_connection = nullptr;
+    on_image_decoder_connection = nullptr;
+    if (m_compositor_connection)
+        m_compositor_connection->on_compositor_lost = nullptr;
+    m_page_host = nullptr;
+}
+
+void ConnectionFromClient::finish_shutdown()
+{
+    m_shutdown_finished = true;
+    m_compositor_connection = nullptr;
+
+    // NB: What the worker reported last still has to reach the client.
+    transport().flush();
 }
 
 void ConnectionFromClient::request_file(Web::FileRequest request)
@@ -167,6 +211,10 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     // closed the connection — e.g. because the page terminated the worker while this process was still starting — shut
     // down right away, rather than handle startup messages and make sync requests on a closed connection.
     set_peer_owns_this_process(true);
+
+    Web::HTML::main_thread_event_loop().set_on_destroyed([] {
+        Core::EventLoop::current().quit(0);
+    });
 }
 
 ConnectionFromClient::~ConnectionFromClient() = default;
@@ -303,7 +351,7 @@ void ConnectionFromClient::run_transform_init(u64 transform_id, Web::HTML::Seria
     m_transformers.set(transform_id, GC::make_root(transformer));
 
     // Return transformed frames to the parent over IPC. Capturing `this` is safe because
-    // the connection outlives the transformer; close_worker tears it down via die().
+    // the connection outlives the heap the transformer is in.
     auto write_encoded_data = GC::create_function(realm.heap(), [this, transform_id](JS::Value chunk) {
         auto* frame = chunk.is_object() ? Web::Bindings::impl_from<Web::WebRTC::RTCEncodedAudioFrame>(&chunk.as_object()) : nullptr;
         if (!frame) {
