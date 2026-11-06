@@ -520,21 +520,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             layout.property_lookup_cache_entry_type_add_own_property as i32,
             miss,
         );
-        // Extensible objects that may cache property additions, without a
-        // magical length (whose additions depend on the key).
-        let flags = layout.object_flag_is_extensible
-            | layout.object_flag_may_interfere
+        // Objects that may cache property additions, without a magical length
+        // (whose additions depend on the key).
+        let flags = layout.object_flag_may_interfere
             | layout.object_flag_requires_slow_add_own_property
             | layout.object_flag_has_magical_length;
         self.masm
             .load16(scratch, &Address::new(object, offsets.object_flags as i32));
-        self.masm.and32_imm(scratch, scratch, u32::from(flags));
-        self.masm.branch32_imm(
-            Condition::NotEqual,
-            scratch,
-            i32::from(layout.object_flag_is_extensible),
-            miss,
-        );
+        self.masm
+            .branch_test32(Condition::NonZero, scratch, u32::from(flags), miss);
         let valid_chain = self.masm.new_label();
         self.masm
             .load64(shape, &Address::new(entry, fields.prototype_chain_validity));

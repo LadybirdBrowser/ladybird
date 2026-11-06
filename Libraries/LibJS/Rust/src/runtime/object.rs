@@ -1423,7 +1423,6 @@ impl Object {
         let from_shape = from.shape();
         if !(self.shape() == new_object_shape
             && self.indexed_storage_kind() == IndexedStorageKind::None
-            && self.extensible()
             && self.eligible_for_own_property_enumeration_fast_path()
             && !self.has_intrinsic_accessors()
             && !self.may_interfere_with_indexed_property_access()
@@ -1542,7 +1541,6 @@ impl Object {
             && excluded_values.is_empty()
             && self.shape() == current_realm().new_object_shape()
             && self.indexed_storage_kind() == IndexedStorageKind::None
-            && self.extensible()
             && self.eligible_for_own_property_enumeration_fast_path()
             && !self.has_intrinsic_accessors()
             && !self.may_interfere_with_indexed_property_access()

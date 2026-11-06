@@ -3262,10 +3262,9 @@ fn put_by_id_adds_properties_through_property_caches() {
     };
     assert_eq!(add(&mut fake, FLAG_IS_EXTENSIBLE), 0);
     assert_eq!(fake.properties[3], value::TRUE);
-    // Objects that are not extensible, may interfere with indexed accesses,
-    // require slow additions or have a magical length are left to the probe.
+    // Objects that may interfere with indexed accesses, require slow
+    // additions or have a magical length are left to the probe.
     for flags in [
-        0,
         FLAG_IS_EXTENSIBLE | FLAG_MAY_INTERFERE,
         FLAG_IS_EXTENSIBLE | FLAG_REQUIRES_SLOW_ADD_OWN_PROPERTY,
         FLAG_IS_EXTENSIBLE | FLAG_HAS_MAGICAL_LENGTH,
