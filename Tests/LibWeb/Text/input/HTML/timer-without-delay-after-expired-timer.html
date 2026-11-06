@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        setTimeout(() => println("expired timer"), 1);
+
+        const start = performance.now();
+        while (performance.now() - start < 5) { }
+
+        setTimeout(() => {
+            println("timer without a delay");
+            done();
+        }, 0);
+    });
+</script>

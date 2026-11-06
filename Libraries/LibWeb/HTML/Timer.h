@@ -44,6 +44,9 @@ public:
     void restart(i32 milliseconds);
     bool is_active() const;
 
+    // Runs what the timer runs when it fires, without waiting for the clock.
+    void fire_now();
+
     void set_callback(Function<void()>);
     void set_interval(i32 milliseconds);
 
@@ -59,6 +62,7 @@ public:
     // neither queues a task. Running the task releases the claim.
     [[nodiscard]] bool claim_firing();
     void release_firing() { m_has_queued_firing = false; }
+    bool has_queued_firing() const { return m_has_queued_firing; }
 
 private:
     Timer(i32 milliseconds, Function<void()> callback, i32 id, Repeating, TimerThrottlingClass, double deadline);

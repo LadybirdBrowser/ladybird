@@ -162,6 +162,7 @@ private:
         No,
     };
     WebIDL::ExceptionOr<i32> run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
+    bool has_expired_timer_yet_to_fire(double now);
     void run_steps_after_a_timeout_impl(i32 timeout, TimerThrottlingClass, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat = Repeat::No);
     bool document_is_hidden() const;
     bool timers_are_throttled() const;
@@ -177,6 +178,7 @@ private:
 
     IDAllocator m_timer_id_allocator;
     HashMap<int, GC::Ref<Timer>> m_timers;
+    double m_earliest_timer_deadline { NumericLimits<double>::max() };
 
     // The interval between the wake-ups a hidden document holds its delayed timers back to; a test can shorten it.
     double m_hidden_document_timer_wake_up_interval { 1000 };
