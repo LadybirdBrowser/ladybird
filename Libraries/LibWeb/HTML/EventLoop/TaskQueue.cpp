@@ -64,7 +64,7 @@ void TaskQueue::add(GC::Ref<Task> task)
         m_idle_tasks.append(*task);
     else
         m_tasks.append(*task);
-    m_event_loop->schedule();
+    m_event_loop->schedule_for_queued_task();
 }
 
 // A task that is runnable, and that no rendering update in flight holds back.
