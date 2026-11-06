@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    body {
+        font: 20px monospace;
+    }
+    .margin {
+        margin-right: 20px;
+    }
+    .padding {
+        padding-right: 20px;
+    }
+    .border {
+        border-right: 20px solid black;
+    }
+    .negative {
+        margin-left: -20px;
+    }
+    .shrink-to-fit {
+        display: inline-block;
+    }
+    .narrow {
+        width: 60px;
+    }
+</style>
+<div><span class="margin"><b>a </b> </span>X</div>
+<div><span class="padding"><b>a </b> </span>X</div>
+<div><span class="border"><b>a </b> </span>X</div>
+<div><span class="margin"> </span>X</div>
+<div><span class="margin"><span class="margin"> </span> </span>X</div>
+<div>a <span class="margin"></span> X</div>
+<div><span class="margin"><b>a </b> </span> <span class="negative">X</span></div>
+<div class="shrink-to-fit"><span class="margin"><b>a </b> </span>X</div>
+<div class="narrow"><span class="margin"><b>a </b> </span>XXXX</div>
