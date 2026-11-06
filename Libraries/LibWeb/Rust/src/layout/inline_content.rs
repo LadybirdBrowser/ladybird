@@ -29,6 +29,26 @@ pub struct InlineContent {
     pub writing_mode: u8,
     /// The pieces of each inline box, by box.
     pub inline_boxes: InlineBoxIndex,
+    /// The fragments of each node, by node.
+    pub text_fragments: TextFragmentIndex,
+}
+
+/// The indices of each node's fragments in its line root's content, which queries that start from a node look up in a
+/// line root with many fragments. Most line roots are never asked, so the index is built the first time one is.
+#[derive(Default)]
+pub struct TextFragmentIndex(std::sync::OnceLock<InlineBoxIndex>);
+
+// NB: The index follows from the fragments, so a copy builds its own, and it does not tell two contents apart.
+impl Clone for TextFragmentIndex {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+
+impl PartialEq for TextFragmentIndex {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
 }
 
 /// The indices of each inline box's pieces in its line root's content, in line order, which painting and geometry
@@ -53,11 +73,14 @@ fn inline_box_order(node: NodeSlotId) -> (u32, u8) {
 
 impl InlineBoxIndex {
     fn of(pieces: &[InlineBoxPieceRecord]) -> Self {
-        let mut pieces_by_box: Vec<(NodeSlotId, u32)> = pieces
-            .iter()
+        Self::of_nodes(pieces.iter().map(|piece| piece.node))
+    }
+
+    fn of_nodes(nodes: impl Iterator<Item = NodeSlotId>) -> Self {
+        let mut pieces_by_box: Vec<(NodeSlotId, u32)> = nodes
             .enumerate()
-            .filter(|(_, piece)| !piece.node.is_invalid())
-            .map(|(index, piece)| (piece.node, index as u32))
+            .filter(|(_, node)| !node.is_invalid())
+            .map(|(index, node)| (node, index as u32))
             .collect();
         pieces_by_box.sort_unstable_by_key(|&(node, index)| (inline_box_order(node), index));
         let mut index = Self {
@@ -279,6 +302,7 @@ impl InlineContent {
             lines,
             fragments,
             inline_boxes: InlineBoxIndex::of(&pieces),
+            text_fragments: TextFragmentIndex::default(),
             inline_box_pieces: pieces,
             items: Vec::new(),
             lines_after_clamp_point_rect: data.lines_after_clamp_point_rect,
@@ -356,6 +380,15 @@ impl InlineContent {
     /// Indexes the pieces of each inline box again, after they were renumbered or given to other boxes.
     pub(crate) fn index_inline_boxes(&mut self) {
         self.inline_boxes = InlineBoxIndex::of(&self.inline_box_pieces);
+        self.text_fragments = TextFragmentIndex::default();
+    }
+
+    /// The indices of the fragments of `node`, in fragment order.
+    pub(crate) fn fragment_indices_of(&self, node: NodeSlotId) -> &[u32] {
+        self.text_fragments
+            .0
+            .get_or_init(|| InlineBoxIndex::of_nodes(self.fragments.iter().map(|fragment| fragment.layout_node)))
+            .piece_indices_of(node)
     }
 
     fn drop_repeated_placeholder_pieces(&mut self) {

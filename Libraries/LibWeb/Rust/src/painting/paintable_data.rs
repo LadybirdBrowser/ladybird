@@ -276,6 +276,12 @@ impl CommittedSideData {
     pub(crate) fn fragments(&self) -> &[FragmentRecord] {
         self.inline_content.as_ref().map_or(&[], |content| &content.fragments)
     }
+    /// For a line root, the indices of the fragments of `node` among its fragments, in fragment order.
+    pub(crate) fn fragment_indices_of(&self, node: NodeSlotId) -> &[u32] {
+        self.inline_content
+            .as_ref()
+            .map_or(&[], |content| content.fragment_indices_of(node))
+    }
     pub(crate) fn inline_box_pieces(&self) -> &[InlineBoxPieceRecord] {
         self.inline_content
             .as_ref()
