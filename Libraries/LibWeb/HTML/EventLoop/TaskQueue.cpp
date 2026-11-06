@@ -5,6 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <LibCore/ThreadEventQueue.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -80,6 +81,7 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
 
     ScopeGuard run_discard_steps_guard { [&] { run_discard_steps(); } };
 
+    GC::Ptr<Task> rendering_task_that_yielded;
     for (auto it = m_tasks.begin(); it != m_tasks.end();) {
         auto& task = *it;
 
@@ -92,6 +94,12 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
         // the tasks after it wait behind it until the update has finished.
         if (task.source() == Task::Source::Rendering && m_event_loop->holds_rendering_opportunity())
             return nullptr;
+
+        if (task.source() == Task::Source::Rendering && is_runnable_now(task) && m_event_loop->rendering_task_yields_to_document_loading()) {
+            rendering_task_that_yielded = &task;
+            ++it;
+            continue;
+        }
 
         if (is_runnable_now(task)) {
             if (m_last_added_task.ptr() == &task)
@@ -107,6 +115,16 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
         }
 
         ++it;
+    }
+
+    // NB: What has been posted to the platform event loop may be what queues the task that the rendering task yields to.
+    if (rendering_task_that_yielded) {
+        if (Core::ThreadEventQueue::current().has_pending_events())
+            return nullptr;
+        if (m_last_added_task.ptr() == rendering_task_that_yielded.ptr())
+            m_last_added_task = {};
+        m_tasks.remove(*rendering_task_that_yielded);
+        return rendering_task_that_yielded;
     }
 
     for (auto it = m_idle_tasks.begin(); it != m_idle_tasks.end();) {

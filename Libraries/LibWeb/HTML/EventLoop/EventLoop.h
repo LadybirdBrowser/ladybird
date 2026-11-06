@@ -12,6 +12,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/OwnPtr.h>
 #include <AK/Queue.h>
+#include <AK/Time.h>
 #include <LibCore/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
@@ -215,6 +216,8 @@ public:
     // The serial number of the first rendering update that may gather a resize observation of `document` made now. A
     // task beside a rendering update whose style and layout of the document have yet to run comes after the whole of it.
     u64 first_rendering_update_to_gather_resize_observations_of(DOM::Document const&) const;
+    // Whether the rendering task lets the tasks behind it go first, for a document to finish loading.
+    bool rendering_task_yields_to_document_loading() const;
     // A rendering task that would find a rendering update not yet finished keeps its place in the queue until the update
     // has finished, rather than wait for it. One that finds a frame still in flight runs beside it.
     bool holds_rendering_opportunity() const;
@@ -314,6 +317,7 @@ private:
     bool m_rendering_task_queued { false };
     bool m_input_events_task_queued { false };
     bool m_rendering_update_requested { false };
+    MonotonicTime m_rendering_task_queued_time { MonotonicTime::now_coarse() };
 
     RenderingSchedulerCounters m_rendering_scheduler_counters;
     RenderingSchedulerCounters m_rendering_scheduler_counters_at_last_update;

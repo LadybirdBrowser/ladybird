@@ -249,7 +249,7 @@ bool EventLoop::run_one_turn_of_the_processing_model()
 
     // AD-HOC: Beside an idle event loop, whose rendering updates run a document's animations, the render clock's lanes
     //         only hover what is under the pointer.
-    if (!oldest_task)
+    if (!oldest_task && !task_queue->has_runnable_tasks())
         note_clock_lanes(ClockAnimations::Hold);
 
     if (oldest_task) {
@@ -438,6 +438,7 @@ bool EventLoop::rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp fr
     //         opportunity instead of one global task per page local root.
     VERIFY(!m_rendering_task_queued);
     m_rendering_task_queued = true;
+    m_rendering_task_queued_time = MonotonicTime::now();
     queue_a_task(Task::Source::Rendering, this, nullptr, *m_rendering_task_function);
     ++m_rendering_scheduler_counters.opportunities_that_queued_a_task;
     return true;
@@ -1584,6 +1585,26 @@ bool EventLoop::has_frame_in_flight() const
 bool EventLoop::lays_out_rendering_update_in_flight() const
 {
     return m_rendering_update_in_flight && m_rendering_update_in_flight->layout_flew;
+}
+
+// AD-HOC: A rendering update of a document that is still loading lays out content that is about to change, and a first
+//         layout can take long. The event loop may choose its task queues freely, so the tasks that take the document
+//         to DOMContentLoaded go first, for a short while. Without this, the first layout of a large document runs
+//         between the last of its bytes and the steps after them, as the rendering task is queued first.
+bool EventLoop::rendering_task_yields_to_document_loading() const
+{
+    static constexpr auto maximum_time_to_yield = AK::Duration::from_milliseconds(4);
+
+    if (m_spin_depth > 0 || MonotonicTime::now() - m_rendering_task_queued_time >= maximum_time_to_yield)
+        return false;
+    return any_of(m_documents, [](auto const& document) {
+        return document
+            && document->readiness() != DocumentReadyState::Complete
+            && document->load_timing_info().dom_content_loaded_event_start_time == 0
+            && !document->has_layout_box()
+            && !document->is_initial_about_blank()
+            && document->is_fully_active();
+    });
 }
 
 bool EventLoop::holds_rendering_opportunity() const
