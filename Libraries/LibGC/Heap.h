@@ -150,7 +150,6 @@ public:
     void register_sweep_callback(AK::Function<void()>);
 
     void register_cell_allocator(Badge<CellAllocator>, CellAllocator&);
-    CellAllocator& cell_allocator_for(Badge<CellAllocatorDescriptorBase>, CellAllocatorDescriptorBase&);
 
     void uproot_cell(Cell* cell);
     void uproot_cell(ForeignCell* cell) { uproot_cell(as_cell(cell)); }
@@ -196,10 +195,21 @@ private:
         return *cell;
     }
 
+    CellAllocator& cell_allocator_for(CellAllocatorDescriptorBase& descriptor)
+    {
+        auto index = descriptor.index();
+        if (index < m_cell_allocators_by_descriptor_index.size()) [[likely]] {
+            if (auto* allocator = m_cell_allocators_by_descriptor_index[index].ptr()) [[likely]]
+                return *allocator;
+        }
+        return create_cell_allocator(descriptor);
+    }
+    CellAllocator& create_cell_allocator(CellAllocatorDescriptorBase&);
+
     template<typename T>
     Cell* allocate_cell()
     {
-        static_assert(requires { T::cell_allocator.for_heap(*this).allocate_cell(*this); }, "GC cell type must declare its own allocator using GC_DECLARE_ALLOCATOR(ClassName)");
+        static_assert(requires { cell_allocator_for(T::cell_allocator).allocate_cell(*this); }, "GC cell type must declare its own allocator using GC_DECLARE_ALLOCATOR(ClassName)");
         static_assert(IsSame<T, typename decltype(T::cell_allocator)::CellType>,
             "GC cell allocator type mismatch");
 
@@ -217,7 +227,7 @@ private:
     {
         VERIFY(!m_collecting_garbage);
         will_allocate(descriptor.cell_size(), triggers_collection);
-        return descriptor.for_heap(*this).allocate_cell(*this);
+        return cell_allocator_for(descriptor).allocate_cell(*this);
     }
 
     // Cells allocated during incremental sweep in a block that the sweep has
@@ -323,7 +333,7 @@ private:
     bool m_should_collect_on_every_allocation { false };
 
     CellAllocator::List m_all_cell_allocators;
-    HashMap<CellAllocatorDescriptorBase*, NonnullOwnPtr<CellAllocator>> m_cell_allocators_by_type;
+    Vector<OwnPtr<CellAllocator>> m_cell_allocators_by_descriptor_index;
 
     RootImpl::List m_roots;
     RootVectorBase::List m_root_vectors;

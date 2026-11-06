@@ -203,7 +203,7 @@ struct Allocators {
     entities: Vec<*mut c_void>,
 }
 
-// The allocators are only handles, which LibGC only uses from the thread of the heap it allocates from.
+// The allocators are only handles: LibGC never changes them, and keeps what it allocates with in each heap.
 unsafe impl Send for Allocators {}
 unsafe impl Sync for Allocators {}
 

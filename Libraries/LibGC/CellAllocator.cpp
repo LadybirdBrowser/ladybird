@@ -5,13 +5,46 @@
  */
 
 #include <AK/Badge.h>
+#include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Vector.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
 
 namespace GC {
+
+// Descriptors are shared by the heaps of all threads, so they keep no per-heap state. Each has an index instead, which
+// keeps the tables of the heaps dense: the indices of descriptors that went away are used again.
+struct DescriptorIndices {
+    Mutex mutex;
+    size_t next_index { 0 };
+    Vector<size_t> free_indices;
+};
+
+static DescriptorIndices& descriptor_indices()
+{
+    static AK::NeverDestroyed<DescriptorIndices> indices;
+    return *indices;
+}
+
+CellAllocatorDescriptorBase::CellAllocatorDescriptorBase(CellTypeInfo const& type_info, StringView class_name, void const* foreign_type)
+    : m_type_info(type_info)
+    , m_class_name(class_name)
+    , m_foreign_type(foreign_type)
+{
+    auto& indices = descriptor_indices();
+    MutexLocker locker { indices.mutex };
+    m_index = indices.free_indices.is_empty() ? indices.next_index++ : indices.free_indices.take_last();
+}
+
+void CellAllocatorDescriptorBase::release_index()
+{
+    auto& indices = descriptor_indices();
+    MutexLocker locker { indices.mutex };
+    indices.free_indices.append(m_index);
+}
 
 BlockAllocator& CellAllocator::shared_block_allocator()
 {
@@ -38,16 +71,6 @@ CellAllocator::~CellAllocator()
     };
     reclaim_all(m_full_blocks);
     reclaim_all(m_usable_blocks);
-}
-
-CellAllocator& CellAllocatorDescriptorBase::for_heap(Heap& heap)
-{
-    if (m_last_heap == &heap) [[likely]]
-        return *m_last_allocator;
-    auto& allocator = heap.cell_allocator_for({}, *this);
-    m_last_heap = &heap;
-    m_last_allocator = &allocator;
-    return allocator;
 }
 
 Cell* CellAllocator::allocate_cell_slow(Heap& heap)

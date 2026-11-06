@@ -304,11 +304,15 @@ void Heap::set_default_heap_for_testing(Heap& heap)
     s_the = &heap;
 }
 
-CellAllocator& Heap::cell_allocator_for(Badge<CellAllocatorDescriptorBase>, CellAllocatorDescriptorBase& descriptor)
+CellAllocator& Heap::create_cell_allocator(CellAllocatorDescriptorBase& descriptor)
 {
-    return *m_cell_allocators_by_type.ensure(&descriptor, [&] {
-        return make<CellAllocator>(descriptor);
-    });
+    auto index = descriptor.index();
+    if (index >= m_cell_allocators_by_descriptor_index.size())
+        m_cell_allocators_by_descriptor_index.resize(index + 1);
+    auto& allocator = m_cell_allocators_by_descriptor_index[index];
+    VERIFY(!allocator);
+    allocator = make<CellAllocator>(descriptor);
+    return *allocator;
 }
 
 Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots, BecomeProcessDefault become_process_default)
@@ -325,8 +329,6 @@ Heap::~Heap()
 {
     collect_garbage(CollectionType::CollectEverything);
 
-    for (auto& entry : m_cell_allocators_by_type)
-        entry.key->forget_heap({}, *this);
     while (auto* allocator = m_all_cell_allocators.first())
         m_all_cell_allocators.remove(*allocator);
 
@@ -354,7 +356,7 @@ void Heap::add_stats(AK::JsonObject& values) const
     values.set("gc.allocated_bytes_since_gc"sv, m_allocated_bytes_since_last_gc);
     values.set("gc.heap_blocks"sv, m_live_heap_blocks.size());
     values.set("gc.heap_block_bytes"sv, m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE);
-    values.set("gc.cell_allocators"sv, m_cell_allocators_by_type.size());
+    values.set("gc.cell_allocators"sv, m_all_cell_allocators.size_slow());
     values.set("gc.threshold_bytes"sv, m_gc_bytes_threshold);
     values.set("gc.live_cell_bytes"sv, m_stats->live_cell_bytes);
     values.set("gc.live_external_bytes"sv, m_stats->live_external_bytes);

@@ -70,6 +70,8 @@ public:
         : CellAllocatorDescriptorBase(type_info, class_name, foreign_type)
     {
     }
+
+    ~CAPICellAllocator() { release_index(); }
 };
 
 class RootGatheringVisitor final : public Cell::Visitor {
@@ -156,7 +158,7 @@ struct CAPI {
     static_assert(sizeof(RawPtr<Cell>) == sizeof(Cell*));
     static_assert(offsetof(CellAllocator::LocalFreeCells, free_list) == 0);
     static_assert(sizeof(FlatPtr) == sizeof(void*));
-    static CellAllocator::LocalFreeCells* local_free_cells(Heap& heap, CellAllocatorDescriptorBase& descriptor) { return descriptor.for_heap(heap).local_free_cells({}); }
+    static CellAllocator::LocalFreeCells* local_free_cells(Heap& heap, CellAllocatorDescriptorBase& descriptor) { return heap.cell_allocator_for(descriptor).local_free_cells({}); }
     static void set_foreign_context(Heap& heap, void* context) { heap.m_foreign_context = context; }
     static void* foreign_context(Heap& heap) { return heap.m_foreign_context; }
     static void defer_gc(Heap& heap) { heap.defer_gc(); }
