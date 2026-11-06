@@ -645,9 +645,31 @@ void HTMLOrSVGScriptElement::prepare_script()
     }
 }
 
+void HTMLOrSVGScriptElement::set_script_text_from_parser()
+{
+    // https://w3c.github.io/trusted-types/dist/spec/#setting-slot-values-from-parser
+    // NOTE: The above algorithm doesn’t account for the case when the script element’s content is changed mid-parse.
+    //       Implementors must ensure they protect against this case.
+    //       See https://github.com/w3c/trusted-types/issues/507.
+    if (m_children_changed_by_api)
+        return;
+
+    m_script_text = as_element().child_text_content();
+}
+
+void HTMLOrSVGScriptElement::ParserChildrenChangeScope::begin_changing_children(DOM::Element& element)
+{
+    m_script_element = as_if<HTMLOrSVGScriptElement>(element);
+    if (m_script_element)
+        m_was_changing_children = exchange(m_script_element->m_parser_is_changing_children, true);
+}
+
 // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:children-changed-steps
 void HTMLOrSVGScriptElement::script_element_children_changed(DOM::Node::ChildrenChangedMetadata const& metadata)
 {
+    if (!m_parser_is_changing_children)
+        m_children_changed_by_api = true;
+
     // AD-HOC: Avoid running script on child removal, matching the behaviour of other browsers.
     //         We also do not run script on child mutation, matching the behaviour of chromium and webkit.
     //         See: https://github.com/whatwg/html/issues/12279

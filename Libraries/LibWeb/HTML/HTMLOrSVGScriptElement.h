@@ -9,14 +9,17 @@
 
 #include <AK/Badge.h>
 #include <AK/Function.h>
+#include <AK/Noncopyable.h>
 #include <AK/Utf16String.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
 #include <LibWeb/HTML/Scripting/Script.h>
 #include <LibWeb/HTML/Scripting/ScriptFetchOptions.h>
+#include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
@@ -51,6 +54,31 @@ public:
 
     void set_source_line_number(Badge<HTMLParser>, size_t source_line_number) { m_source_line_number = source_line_number; }
     void set_string_text(Utf16View value) { m_script_text = Utf16String::from_utf16(value); }
+    void set_script_text_from_parser();
+
+    class ParserChildrenChangeScope {
+        AK_MAKE_NONCOPYABLE(ParserChildrenChangeScope);
+        AK_MAKE_NONMOVABLE(ParserChildrenChangeScope);
+
+    public:
+        explicit ParserChildrenChangeScope(DOM::Node& parent)
+        {
+            if (auto* element = as_if<DOM::Element>(parent); element && element->local_name() == TagNames::script)
+                begin_changing_children(*element);
+        }
+
+        ~ParserChildrenChangeScope()
+        {
+            if (m_script_element)
+                m_script_element->m_parser_is_changing_children = m_was_changing_children;
+        }
+
+    private:
+        void begin_changing_children(DOM::Element&);
+
+        HTMLOrSVGScriptElement* m_script_element { nullptr };
+        bool m_was_changing_children { false };
+    };
 
     virtual DOM::Element& as_element() = 0;
     virtual DOM::Element const& as_element() const = 0;
@@ -142,6 +170,9 @@ private:
 
     // https://www.w3.org/TR/trusted-types/#htmlscriptelement-script-text
     Utf16String m_script_text;
+
+    bool m_parser_is_changing_children { false };
+    bool m_children_changed_by_api { false };
 };
 
 }
