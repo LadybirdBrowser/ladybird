@@ -1,0 +1,13 @@
+Ladybird keeps the character geometry of each text node from one
+build of the accessibility tree to the next. On every build, it checks
+that geometry against the line content layout kept and that content’s
+position, and computes it again when either changed. The other engines
+have layout notify accessibility instead. WebKit’s RenderBlockFlow calls
+AXObjectCache::onTextRunsChanged(), which queues an AXProperty::TextRuns
+update for the node in its AXIsolatedTree. Blink’s LayoutText calls
+AXObjectCacheImpl::InlineTextBoxesUpdated() when its inline text boxes
+change, which marks the object dirty. Gecko keeps text geometry in its
+CacheDomain::TextBounds domain, which any Text or Bounds update brings
+along (GetCacheDomainsQueueUpdateSuperset() in DocAccessible). Ladybird
+checks rather than gets notified, since its layout doesn’t report which
+boxes changed to the code that builds the tree.
