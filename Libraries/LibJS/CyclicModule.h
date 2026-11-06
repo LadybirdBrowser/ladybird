@@ -19,7 +19,7 @@ namespace JS {
 // 16.2.1.5 Cyclic Module Records, https://tc39.es/ecma262/#cyclic-module-record
 class JS_API CyclicModule : public Module {
 public:
-    Vector<ModuleRequest> const& requested_modules() const;
+    Vector<ModuleRequest> requested_modules() const;
 
 protected:
     // 16.2.1.7 GetImportedModule ( referrer, request ), https://tc39.es/ecma262/#sec-GetImportedModule

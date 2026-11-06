@@ -5,9 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
-#include <AK/NonnullOwnPtr.h>
-#include <LibGC/WeakHashMap.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/ScriptAndModuleABIConversions.h>
 
@@ -15,26 +12,15 @@ namespace JS {
 
 using namespace EmbeddingABI;
 
-// requested_modules() hands out [[RequestedModules]] by reference, so the facade keeps a copy of each module's, which
-// never change, for as long as the module lives.
-static GC::WeakHashMap<CyclicModule, NonnullOwnPtr<Vector<ModuleRequest>>>& requested_modules_of_live_cyclic_modules()
+Vector<ModuleRequest> CyclicModule::requested_modules() const
 {
-    static NeverDestroyed<GC::WeakHashMap<CyclicModule, NonnullOwnPtr<Vector<ModuleRequest>>>> requested_modules;
-    return *requested_modules;
-}
-
-Vector<ModuleRequest> const& CyclicModule::requested_modules() const
-{
-    auto& requested_modules = requested_modules_of_live_cyclic_modules().ensure(*this, [this] {
-        auto* module = module_to_abi(*this);
-        auto requested_module_count = js_module_requested_module_count(module);
-        auto requests = make<Vector<ModuleRequest>>();
-        requests->ensure_capacity(requested_module_count);
-        for (size_t index = 0; index < requested_module_count; ++index)
-            requests->unchecked_append(module_request_from_abi(*js_module_requested_module(module, index)));
-        return requests;
-    });
-    return *requested_modules;
+    auto* module = module_to_abi(*this);
+    auto requested_module_count = js_module_requested_module_count(module);
+    Vector<ModuleRequest> requests;
+    requests.ensure_capacity(requested_module_count);
+    for (size_t index = 0; index < requested_module_count; ++index)
+        requests.unchecked_append(module_request_from_abi(*js_module_requested_module(module, index)));
+    return requests;
 }
 
 GC::Ref<Module> CyclicModule::get_imported_module(ModuleRequest const& request)
