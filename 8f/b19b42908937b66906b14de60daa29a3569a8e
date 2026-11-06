@@ -1,0 +1,8 @@
+Ladybird’s CSS.registerProperty() accepts light-dark() and system
+colors in a <color> initial value, as the other engines do. Blink’s
+CSSValue::IsComputationallyIndependent() returns true for identifiers
+and for a CSSLightDarkValuePair. Gecko parses an initial value with
+DISALLOW_COMPUTATIONALLY_DEPENDENT, which only font- and container-
+relative length units check. And WebKit’s ComputedStyleDependencies::
+isComputationallyIndependent() looks only at dependencies on other
+properties, containers and anchors, which colors don’t add.
