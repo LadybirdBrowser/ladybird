@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 100px; height: 40px; border: 0; }
+</style>
+<iframe srcdoc="<style>body { margin: 0 } a { display: block; height: 20px }</style><a href='https://example.com/link'></a>"></iframe>
+<script>
+    // The iframe's document goes before the main thread hears of the move its lane told of the link for.
+    asyncTest(async done => {
+        const iframe = document.querySelector("iframe");
+        await srcdocLoaded(iframe);
+        await twoFramesLanded();
+
+        await whileLaneHovers(async frameTime => {
+            internals.injectHoverPointer(50, 10, frameTime + 16, 1);
+            iframe.contentWindow.internals.injectClockTick(frameTime + 24);
+            println(`the lane finds: ${internals.hoveredLink()}`);
+
+            const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+            iframe.srcdoc = "<p>Another document</p>";
+            await loaded;
+            println(`after the document went: ${internals.hoveredLink()}`);
+        }, [document, iframe.contentDocument]);
+        done();
+    });
+</script>

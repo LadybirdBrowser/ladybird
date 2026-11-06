@@ -2264,6 +2264,21 @@ String const& Document::serialized_base_url() const
     return *m_serialized_base_url;
 }
 
+HoverLinkReporter& Document::hover_link_reporter()
+{
+    if (!m_hover_link_reporter)
+        m_hover_link_reporter = HoverLinkReporter::create(page().hover_link(), unique_id());
+    return *m_hover_link_reporter;
+}
+
+void Document::update_hover_link_base()
+{
+    auto& reporter = hover_link_reporter();
+    auto encoding = encoding_or_default();
+    if (!reporter.resolves_as(serialized_base_url(), encoding))
+        reporter.set_base(base_url(), move(encoding));
+}
+
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
 Optional<URL::URL> Document::encoding_parse_url(Utf16View url) const
 {

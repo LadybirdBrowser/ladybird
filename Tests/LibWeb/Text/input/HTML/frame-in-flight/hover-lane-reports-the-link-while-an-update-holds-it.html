@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #link { display: block; width: 100px; height: 100px; }
+    #link:hover { width: 150px; }
+    #filler { height: 100px; }
+</style>
+<div id="filler"></div>
+<a id="link" href="https://example.com/link"></a>
+<script>
+    // A rendering update that took the lanes in, whose frame is still in flight, holds the lane from presenting. The
+    // link is not in a frame, so a move beside the held frame tells of the link it is over all the same.
+    asyncTest(async done => {
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+        });
+        const result = await whileRecordingInFlight(() => {
+            filler.style.height = "120px";
+        }, async schedulerState => {
+            internals.injectHoverPointer(50, 150, performance.now());
+            return { schedulerState, link: internals.hoveredLink(), hovered: link.matches(":hover") };
+        });
+        println(`frame scheduler while held: ${result.schedulerState}`);
+        println(`link beside the held frame: ${result.link}`);
+        println(`link matches :hover beside the held frame: ${result.hovered}`);
+        await twoFramesLanded();
+        await nextTask();
+        println(`link once the frame landed: ${internals.hoveredLink()}`);
+        done();
+    });
+</script>

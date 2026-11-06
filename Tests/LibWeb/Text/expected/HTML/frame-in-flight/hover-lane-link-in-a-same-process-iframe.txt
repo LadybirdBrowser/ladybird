@@ -1,0 +1,6 @@
+a link beside the iframe: https://example.com/outer/link
+a link in the iframe: https://example.com/inner/link
+no link in the iframe: null
+back on the link beside it: https://example.com/outer/link
+back on the link in the iframe: https://example.com/inner/link
+after the iframe's document went: null

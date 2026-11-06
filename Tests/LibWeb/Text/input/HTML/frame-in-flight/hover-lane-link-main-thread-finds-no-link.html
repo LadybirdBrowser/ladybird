@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    a, div { display: block; width: 100px; height: 20px; }
+</style>
+<a href="https://example.com/link"></a>
+<div id="plain"></div>
+<script>
+    // The lane tells of the link in the frame on screen, while the task has moved another element under the pointer,
+    // one the main thread had hovered already. Its move hovers nothing new, and still ends the link.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        internals.mouseMove(50, 30);
+        println(`the main thread hovers: ${internals.hoveredLink()}`);
+        await twoFramesLanded();
+
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 10, frameTime + 16);
+            println(`the lane finds: ${internals.hoveredLink()}`);
+
+            document.body.prepend(plain);
+            internals.mouseMove(50, 10);
+            println(`the main thread finds: ${internals.hoveredLink()}`);
+        });
+        done();
+    });
+</script>

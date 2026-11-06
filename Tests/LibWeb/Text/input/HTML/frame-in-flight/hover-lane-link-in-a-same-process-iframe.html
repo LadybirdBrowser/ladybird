@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<base href="https://example.com/outer/">
+<style>
+    body { margin: 0; }
+    a, div { display: block; width: 100px; height: 20px; }
+    iframe { display: block; width: 100px; height: 40px; border: 0; }
+</style>
+<a href="link"></a>
+<div></div>
+<iframe srcdoc="<base href='https://example.com/inner/'><style>body { margin: 0 } a, div { display: block; height: 20px }</style><a href='link'></a><div></div>"></iframe>
+<script>
+    // The lanes of a document and of a same-process iframe in it tell of one link between them, each resolving what it
+    // finds against the base URL of its own document. Replacing the iframe's document ends the link its lane told of.
+    asyncTest(async done => {
+        const iframe = document.querySelector("iframe");
+        await srcdocLoaded(iframe);
+        await twoFramesLanded();
+
+        await whileLaneHovers(frameTime => {
+            let time = frameTime;
+            const hover = (name, y) => {
+                time += 16;
+                internals.injectHoverPointer(50, y, time, 1);
+                iframe.contentWindow.internals.injectClockTick(time + 8);
+                println(`${name}: ${internals.hoveredLink()}`);
+            };
+
+            hover("a link beside the iframe", 10);
+            hover("a link in the iframe", 50);
+            hover("no link in the iframe", 70);
+            hover("back on the link beside it", 10);
+            hover("back on the link in the iframe", 50);
+        }, [document, iframe.contentDocument]);
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = "<p>Another document</p>";
+        await loaded;
+        println(`after the iframe's document went: ${internals.hoveredLink()}`);
+        done();
+    });
+</script>

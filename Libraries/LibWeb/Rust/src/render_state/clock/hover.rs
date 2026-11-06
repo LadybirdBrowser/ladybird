@@ -40,6 +40,8 @@ pub struct FfiHoverPlanInputs {
     pub chrome_metrics: FfiChromeMetrics,
     /// The cursor of the document's page, which the hover asks to show the cursor of what it hovers.
     pub page_cursor: FfiPageCursor,
+    /// What tells the document's page the link the hover is over.
+    pub link_reporter: FfiHoverLinkReporter,
     /// The timings the host runs the effects of elements on without sampling them, as the compositor runs them: the
     /// element's style node, the effect's identity, and the timing, an `FfiEffectTiming`, by effect.
     pub effect_timing_nodes: *const u32,
@@ -127,6 +129,87 @@ impl Drop for PageCursor {
     }
 }
 
+/// What tells a document's page the link a hover is over, which the host hands a hover with its plan: the calls that
+/// reach it from any thread. It is retained for as long as a plan holds it.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiHoverLinkReporter {
+    pub reporter: *const std::ffi::c_void,
+    pub retain: Option<unsafe extern "C" fn(*const std::ffi::c_void)>,
+    pub release: Option<unsafe extern "C" fn(*const std::ffi::c_void)>,
+    /// Whether the given style node is a link.
+    pub is_link: Option<unsafe extern "C" fn(*const std::ffi::c_void, u32) -> bool>,
+    /// Tells the page of the link the given style node is, or of no link where it is none.
+    pub report: Option<unsafe extern "C" fn(*const std::ffi::c_void, u32)>,
+    /// Tells the page that the pointer left the document, which ends the link it showed over the document.
+    pub withdraw: Option<unsafe extern "C" fn(*const std::ffi::c_void)>,
+}
+
+/// What tells a document's page the link a hover is over, which a plan holds a reference to.
+struct HoverLinkReporter(FfiHoverLinkReporter);
+
+// SAFETY: The reporter takes calls from any thread, and is retained and released atomically.
+unsafe impl Send for HoverLinkReporter {}
+// SAFETY: As above.
+unsafe impl Sync for HoverLinkReporter {}
+
+impl HoverLinkReporter {
+    /// A reference to the reporter `ffi` names, or none where it names none.
+    ///
+    /// # Safety
+    ///
+    /// `ffi.reporter` must point at a live reporter, which `ffi.retain` and `ffi.release` reference, or be null.
+    unsafe fn retained(ffi: FfiHoverLinkReporter) -> Option<Self> {
+        if ffi.reporter.is_null()
+            || ffi.release.is_none()
+            || ffi.is_link.is_none()
+            || ffi.report.is_none()
+            || ffi.withdraw.is_none()
+        {
+            return None;
+        }
+        let retain = ffi.retain?;
+        // SAFETY: Guaranteed by the caller.
+        unsafe { retain(ffi.reporter) };
+        Some(Self(ffi))
+    }
+
+    /// Whether `element` is a link.
+    fn is_link(&self, element: StyleNodeID) -> bool {
+        // SAFETY: The reference keeps the reporter live.
+        self.0
+            .is_link
+            .is_some_and(|is_link| unsafe { is_link(self.0.reporter, element.raw()) })
+    }
+
+    /// Tells the page of the link `link` describes, as an element's lookup answers: the link, none for no link, and
+    /// nothing at all where only the host knows, which tells as it handles the move.
+    fn report(&self, link: Option<Option<StyleNodeID>>) {
+        let (Some(link), Some(report)) = (link, self.0.report) else {
+            return;
+        };
+        // SAFETY: The reference keeps the reporter live.
+        unsafe { report(self.0.reporter, link.map_or(0, StyleNodeID::raw)) };
+    }
+
+    /// Tells the page that the pointer left the document.
+    fn withdraw(&self) {
+        if let Some(withdraw) = self.0.withdraw {
+            // SAFETY: The reference keeps the reporter live.
+            unsafe { withdraw(self.0.reporter) };
+        }
+    }
+}
+
+impl Drop for HoverLinkReporter {
+    fn drop(&mut self) {
+        if let Some(release) = self.0.release {
+            // SAFETY: The reference was retained in `retained`, and is released once.
+            unsafe { release(self.0.reporter) };
+        }
+    }
+}
+
 /// The immutable inputs needed to hit test the presented frame and resolve its predefined cursors.
 struct ReadOnlyHoverFrame {
     rows: crate::painting::published_frame::PublishedRows,
@@ -148,6 +231,8 @@ pub(crate) struct HoverPlan {
     style: Option<(StyleNodeID, Arc<SealedStyleInputs>)>,
     /// The cursor of the document's page.
     page_cursor: Option<PageCursor>,
+    /// What tells the document's page the link the hover is over.
+    link_reporter: Option<HoverLinkReporter>,
     /// The timings the host runs effects on without sampling them, which the descriptions of their elements' effects
     /// hold from before: the step a hover decides over the transitions they run reads them.
     effect_timings: Vec<(StyleNodeID, u64, FfiEffectTiming)>,
@@ -161,8 +246,8 @@ impl HoverPlan {
     /// # Safety
     ///
     /// `inputs.scroll_offsets` must point at `inputs.scroll_offset_count` offsets, or be null, the effect timing
-    /// arrays at `inputs.effect_timing_count` entries each, or be null, and `inputs.page_cursor` must name a live page
-    /// cursor, or none.
+    /// arrays at `inputs.effect_timing_count` entries each, or be null, `inputs.page_cursor` must name a live page
+    /// cursor, or none, and `inputs.link_reporter` a live link reporter, or none.
     pub(crate) unsafe fn from_ffi(inputs: &FfiHoverPlanInputs) -> Self {
         let scroll_offsets = if inputs.scroll_offsets.is_null() {
             Vec::new()
@@ -199,6 +284,8 @@ impl HoverPlan {
             style: None,
             // SAFETY: Guaranteed by the caller.
             page_cursor: unsafe { PageCursor::retained(inputs.page_cursor) },
+            // SAFETY: Guaranteed by the caller.
+            link_reporter: unsafe { HoverLinkReporter::retained(inputs.link_reporter) },
             effect_timings,
             selection_drag: super::selection::SelectionDrag::new(
                 inputs.selection_drag_anchor,
@@ -206,6 +293,24 @@ impl HoverPlan {
                 inputs.selection_drag_anchor_child,
                 inputs.selection_drag_scrollport,
             ),
+        }
+    }
+
+    /// Tells the page of the link around what `hit` landed on.
+    fn report_link_of_hit(&self, state: &RenderState, hit: CursorHit) {
+        if let Some(reporter) = &self.link_reporter {
+            reporter.report(
+                state
+                    .engine_ref()
+                    .hover_enclosing_link(hit.element, |element| reporter.is_link(element)),
+            );
+        }
+    }
+
+    /// Tells the page that the pointer left the document.
+    fn pointer_left(&self) {
+        if let Some(reporter) = &self.link_reporter {
+            reporter.withdraw();
         }
     }
 
@@ -641,13 +746,18 @@ impl Lane {
             return left_to_host;
         };
         let placed = pointer.buttons == 0 && !(pointer.scrolled_since_frame && self.scroll_offsets.is_empty());
-        if placed
+        if pointer.position.is_none() {
+            plan.pointer_left();
+        } else if placed
             && let Some(position) = pointer.position
             && let Ok(HoverTarget::Element(hit)) = self.hit_test(state, &plan, position, frame_time_nanoseconds)
-            && let Some(page_cursor) = &plan.page_cursor
-            && let Some(cursor) = cursor_for_hit(state, hit)
         {
-            page_cursor.request(cursor);
+            plan.report_link_of_hit(state, hit);
+            if let Some(page_cursor) = &plan.page_cursor
+                && let Some(cursor) = cursor_for_hit(state, hit)
+            {
+                page_cursor.request(cursor);
+            }
         }
         self.plan.hover = Some(plan);
         left_to_host
@@ -694,12 +804,17 @@ impl Lane {
         // The cursor shows what the pointer is over in the frame on screen, whether the hover moves or the host hovers
         // the move: the host shows the cursor of what it finds there as it handles the move. A move handed to an iframe
         // shows the cursor its lane finds.
-        if !matches!(hovered, Err(HoverDeclined::Handed(_)))
-            && let Some(page_cursor) = &plan.page_cursor
+        if pointer.position.is_none() {
+            plan.pointer_left();
+        } else if !matches!(hovered, Err(HoverDeclined::Handed(_)))
             && let Some(hit) = cursor_hit
-            && let Some(cursor) = cursor_for_hit(state, hit)
         {
-            page_cursor.request(cursor);
+            plan.report_link_of_hit(state, hit);
+            if let Some(page_cursor) = &plan.page_cursor
+                && let Some(cursor) = cursor_for_hit(state, hit)
+            {
+                page_cursor.request(cursor);
+            }
         }
         self.plan.hover = Some(plan);
         if logs_hover() {
@@ -1196,6 +1311,7 @@ impl Lane {
         let mut nested = None;
         let target = (|| {
             let Some(position) = pointer.position else {
+                plan.pointer_left();
                 return Some(None);
             };
             if pointer.scrolled_since_frame && self.scroll_offsets.is_empty() {
@@ -1273,6 +1389,13 @@ impl Lane {
                 }
                 Self::element_for_dispatch_in(&source, item.hit_node, StyleNodeID::from_raw(identity.style_node)?)
             }?;
+            if let Some(reporter) = &plan.link_reporter {
+                reporter.report(
+                    frame
+                        .cursors
+                        .enclosing_link(target, |element| reporter.is_link(element)),
+                );
+            }
             use crate::css::css_enums::cursor_predefined;
             let style = source.node(item.hit_node)?.style()?;
             let cursor = style.inherited_ui().cursor.as_slice().first()?;
@@ -1650,6 +1773,26 @@ pub extern "C" fn document_host_inject_pointer(
             buttons,
             scrolled_since_frame: false,
             input_event_id,
+        },
+        frame_time_nanoseconds,
+    );
+    super::settle_lanes_for_testing();
+}
+
+/// Hands the clock lanes of `host`'s document the pointer leaving it, ticks them at `frame_time_nanoseconds`, and waits
+/// as [`document_host_inject_pointer`] does. For a test.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_inject_pointer_left(
+    host: &crate::render_state::DocumentHost,
+    frame_time_nanoseconds: i64,
+) {
+    super::settle_lanes_for_testing();
+    host.clock_ticks().inject_pointer(
+        PendingPointer {
+            position: None,
+            buttons: 0,
+            scrolled_since_frame: false,
+            input_event_id: 0,
         },
         frame_time_nanoseconds,
     );

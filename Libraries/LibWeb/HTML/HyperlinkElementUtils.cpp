@@ -400,6 +400,7 @@ void HyperlinkElementUtils::href_content_attribute_changed()
 {
     m_url = {};
     m_should_invalidate_style_after_url_change = false;
+    hyperlink_element_utils_element().update_hover_link();
     CSS::Invalidation::invalidate_style_after_hyperlink_state_change(hyperlink_element_utils_element());
 }
 

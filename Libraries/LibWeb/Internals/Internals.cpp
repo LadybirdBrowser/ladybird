@@ -2682,6 +2682,13 @@ void Internals::inject_hover_pointer(double x, double y, Optional<double> frame_
     Layout::RustFFI::document_host_inject_pointer(document.layout_node_arena().host(), static_cast<float>(x * device_pixels_per_css_pixel), static_cast<float>(y * device_pixels_per_css_pixel), buttons, static_cast<i64>(frame_time * 1'000'000.0), input_event_id.value_or(0));
 }
 
+void Internals::inject_hover_pointer_left(double frame_time_ms)
+{
+    auto& document = window().associated_document();
+    auto frame_time = document.relevant_settings_object().time_origin() + frame_time_ms;
+    Layout::RustFFI::document_host_inject_pointer_left(document.layout_node_arena().host(), static_cast<i64>(frame_time * 1'000'000));
+}
+
 void Internals::note_animated_content_moved_under_pointer(double frame_time_ms)
 {
     auto& document = window().associated_document();

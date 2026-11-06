@@ -1,0 +1,8 @@
+text in a link: https://example.com/absolute
+a relative link: https://example.com/base/relative?query=1
+an anchor without href: null
+back on a link: https://example.com/absolute
+no link: null
+a link around a slot: https://example.com/base/slot
+a link in editable content: null
+a link that is an editing host: null
