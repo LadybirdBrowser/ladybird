@@ -4,6 +4,7 @@
     body { margin: 0 }
     .stack { position: relative; width: 200px; height: 40px; font: 20px/40px monospace }
     .stack > * { position: absolute; inset: 0; width: 200px; height: 40px; margin: 0; padding: 0; border: 0 }
+    .opaque-pseudo::after { content: ""; position: absolute; inset: 0; background: white }
 </style>
 <script>
     const image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4YWMDAAMQAUEiFmcFAAAAAElFTkSuQmCC";
@@ -14,17 +15,25 @@
         "stacked-transparent": `<div></div><div></div>`,
         "caption": `<div>caption</div>`,
         "link": `<a href="https://example.com/overlay"></a>`,
+        "gradient": `<div style="background: linear-gradient(transparent, black)"></div>`,
+        "sourceless-image": `<img alt="">`,
         "opaque": `<div style="background: white"></div>`,
+        "opaque-pseudo-element": `<div class="opaque-pseudo"></div>`,
+        "background-image": `<div style="background-image: url(${image})"></div>`,
         "listener": `<div class="with-listener"></div>`,
         "editable": `<div contenteditable>text</div>`,
         "text-input": `<input>`,
         "canvas": `<canvas></canvas>`,
         "iframe": `<iframe></iframe>`,
+        "video-under-transparent": `<video></video><div></div>`,
+        "editable-under-transparent": `<div contenteditable>text</div><div></div>`,
     };
     for (const [name, overlay] of Object.entries(overlays))
         document.write(`<div class="stack" id="${name}"><img src="${image}">${overlay}</div>`);
     document.write(`<div id="listening-ancestor"><div class="stack" id="ancestor-listener"><img src="${image}"><div></div></div></div>`);
     document.write(`<div class="stack" id="selected-caption"><img src="${image}"><div>selected caption</div></div>`);
+    document.write(`<div class="stack" id="selected-input-caption"><img src="${image}"><div>selected <input size="1"></div></div>`);
+    document.write(`<div class="stack" id="window-listener"><img src="${image}"><div></div></div>`);
 </script>
 <script>
     test(() => {
@@ -59,5 +68,15 @@
         getSelection().selectAllChildren(caption.lastChild);
         rightClickAt(caption);
         println(`right-click over selected-caption: ${describe()}`);
+
+        const inputCaption = document.getElementById('selected-input-caption');
+        getSelection().selectAllChildren(inputCaption.lastChild);
+        rightClickAt(inputCaption);
+        println(`right-click over selected-input-caption: ${describe()}`);
+        getSelection().removeAllRanges();
+
+        window.addEventListener('contextmenu', noop);
+        rightClickAt(document.getElementById('window-listener'));
+        println(`right-click over window-listener: ${describe()}`);
     });
 </script>
