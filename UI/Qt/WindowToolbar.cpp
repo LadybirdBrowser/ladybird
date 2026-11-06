@@ -540,13 +540,12 @@ static constexpr int TOOLBAR_LOCATION_EDIT_MARGIN = 6;
 // The address field's focus ring reaches 3 px past its edge. With the toolbar's spacing, this room also puts the
 // downloads button 6 px after the field.
 static constexpr int TOOLBAR_LOCATION_FOCUS_RING_ROOM = 4;
-static constexpr int TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN = 4;
 
-// NB: Unless window controls follow it, the address field ends the toolbar, and the room for its focus ring takes the
-//     place of some of the toolbar's margin.
+// NB: Window controls run to the window's edge. Without them, the address field ends the toolbar, and the room for its
+//     focus ring takes the place of some of the toolbar's margin.
 static constexpr int toolbar_right_margin(bool has_custom_window_controls)
 {
-    return has_custom_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN - TOOLBAR_LOCATION_FOCUS_RING_ROOM;
+    return has_custom_window_controls ? 0 : TOOLBAR_HORIZONTAL_MARGIN - TOOLBAR_LOCATION_FOCUS_RING_ROOM;
 }
 static constexpr int DOWNLOADS_POPOVER_WIDTH = 380;
 static constexpr int DOWNLOADS_POPOVER_MAX_HEIGHT = 360;

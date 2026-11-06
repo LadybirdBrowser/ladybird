@@ -95,6 +95,8 @@ static constexpr int HORIZONTAL_WINDOW_ITEM_CENTER = 18;
 static constexpr int HORIZONTAL_WINDOW_CONTROL_HEIGHT = 2 * (HORIZONTAL_WINDOW_ITEM_CENTER - (HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT));
 // The first item on the strip is as far from the window's edge as the traffic lights are from its corner on macOS.
 static constexpr int HORIZONTAL_TAB_STRIP_LEADING_MARGIN = use_native_macos_window_controls() ? NATIVE_MACOS_WINDOW_CONTROLS_INSET : 13;
+// The window controls run to the window's edge.
+static constexpr int HORIZONTAL_TAB_STRIP_TRAILING_MARGIN = use_native_macos_window_controls() ? 8 : 0;
 // Horizontal tabs shrink until they are just wide enough for their favicon, and past that the strip scrolls. Below the
 // padded width, a tab gives up the room around its card and its content, until only its favicon is left.
 static constexpr int HORIZONTAL_TAB_MIN_WIDTH = 20;
@@ -4151,7 +4153,7 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
 {
     m_tab_bar_row->setMinimumHeight(HORIZONTAL_TAB_STRIP_HEIGHT);
     m_tab_bar_row_layout->setSpacing(0);
-    m_tab_bar_row_layout->setContentsMargins(HORIZONTAL_TAB_STRIP_LEADING_MARGIN, HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT, 8, 0);
+    m_tab_bar_row_layout->setContentsMargins(HORIZONTAL_TAB_STRIP_LEADING_MARGIN, HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT, HORIZONTAL_TAB_STRIP_TRAILING_MARGIN, 0);
 
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_EXPANDED_PROPERTY, false);
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_BUTTON_PROPERTY, true);
@@ -4362,8 +4364,6 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
     set_dynamic_property_if_needed(*m_vertical_tab_bar_column, VERTICAL_TABS_POSITION_PROPERTY, vertical_tabs_position_property_value(m_vertical_tabs_position));
 
     m_vertical_tab_bar_column_layout->setSpacing(0);
-    if (auto* window_controls_layout = m_window_controls->layout())
-        window_controls_layout->setContentsMargins(0, 0, 0, 0);
     update_vertical_tabs_column_margins();
 
     update_vertical_tabs_button_layout();

@@ -68,6 +68,7 @@ static constexpr auto TAB_CLOSE_BUTTON_POSITION = QTabBar::RightSide;
 static constexpr int LADYBIRD_MENU_WIDTH = 280;
 static constexpr int WINDOW_RESIZE_BORDER_WIDTH = 6;
 static constexpr int WINDOW_RESIZE_CORNER_WIDTH = WINDOW_RESIZE_BORDER_WIDTH * 2;
+static constexpr int MENU_BAR_LEADING_ROOM = 8;
 #if defined(AK_OS_MACOS)
 // NB: AppKit puts the traffic lights 10 px in, so they move this far to sit NATIVE_MACOS_WINDOW_CONTROLS_INSET in.
 static constexpr int NATIVE_WINDOW_CONTROL_X_OFFSET = NATIVE_MACOS_WINDOW_CONTROLS_INSET - 10;
@@ -1312,6 +1313,13 @@ void BrowserWindow::create_menu_bar_window_controls()
         m_menu_bar_maximize_window_button = window_control_buttons.maximize;
         m_menu_bar_close_window_button = window_control_buttons.close;
         menuBar()->setCornerWidget(m_menu_bar_window_controls, Qt::TopRightCorner);
+
+        // NB: A menu bar insets its corner widgets by its leading padding, so the room before the first menu comes from
+        //     a corner widget of its own, and the window controls can reach the window's edge.
+        auto* leading_room = new QWidget(menuBar());
+        auto* leading_room_layout = new QHBoxLayout(leading_room);
+        leading_room_layout->setContentsMargins(MENU_BAR_LEADING_ROOM, 0, 0, 0);
+        menuBar()->setCornerWidget(leading_room, Qt::TopLeftCorner);
 
         connect(m_menu_bar_minimize_window_button, &QToolButton::clicked, this, [this] {
             showMinimized();
