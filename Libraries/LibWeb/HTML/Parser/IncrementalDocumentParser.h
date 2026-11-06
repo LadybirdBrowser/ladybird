@@ -47,6 +47,7 @@ private:
     ErrorOr<bool> change_encoding(StringView);
 
     void feed_parser();
+    void queue_task_to_feed_parser();
     void finish_body();
     void decode_and_process(size_t length);
     void release_encoding_change_buffers();
@@ -76,6 +77,8 @@ private:
     size_t m_decoded_byte_count { 0 };
     Utf16StringBuilder m_source;
     bool m_body_is_exhausted { false };
+    bool m_has_queued_task_to_feed_parser { false };
+    u32 m_times_yielded_to_event_loop { 0 };
     bool m_processed_implied_eof { false };
 };
 
