@@ -147,7 +147,7 @@ fn exec_into_internal<I: crate::vm::Input>(
     match regex.0.exec_into_input(input, start_pos, out) {
         VmResult::Match => 1,
         VmResult::NoMatch => 0,
-        VmResult::LimitExceeded => -1,
+        VmResult::LimitExceeded | VmResult::Interrupted => -1,
     }
 }
 
@@ -157,7 +157,7 @@ fn test_internal<I: crate::vm::Input>(regex: &RustRegex, input: I, start_pos: us
     match regex.0.test_input(input, start_pos) {
         VmResult::Match => 1,
         VmResult::NoMatch => 0,
-        VmResult::LimitExceeded => -1,
+        VmResult::LimitExceeded | VmResult::Interrupted => -1,
     }
 }
 

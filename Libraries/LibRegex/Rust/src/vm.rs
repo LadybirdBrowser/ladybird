@@ -12,10 +12,33 @@
 //! Spec:
 //! - <https://tc39.es/ecma262/#sec-pattern-semantics>
 //! - <https://tc39.es/ecma262/#sec-regexpbuiltinexec>
+use core::cell::Cell;
+use core::sync::atomic::{AtomicBool, Ordering};
+
 use crate::bytecode::*;
 
 /// Maximum number of steps before aborting (prevents ReDoS).
 const MATCH_LIMIT: u64 = 10_000_000;
+
+/// How many steps a match runs between looks at the interrupt flag of its thread.
+const INTERRUPT_POLL_INTERVAL: u64 = 1 << 20;
+
+thread_local! {
+    static INTERRUPT_FLAG: Cell<*const AtomicBool> = const { Cell::new(core::ptr::null()) };
+}
+
+/// Makes matches on this thread give up as if they reached their limit once `flag` is set. MATCH_LIMIT only limits one
+/// start position, so without this a catastrophic pattern can keep going for as long as its input is long. `flag` may be
+/// null, and otherwise must stay valid until it is replaced.
+pub fn set_interrupt_flag_of_this_thread(flag: *const AtomicBool) {
+    INTERRUPT_FLAG.set(flag);
+}
+
+fn is_interrupted() -> bool {
+    let flag = INTERRUPT_FLAG.get();
+    // SAFETY: The flag stays valid until it is replaced.
+    !flag.is_null() && unsafe { &*flag }.load(Ordering::Relaxed)
+}
 
 /// Tri-state result from a single VM execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,6 +46,8 @@ pub enum VmResult {
     Match,
     NoMatch,
     LimitExceeded,
+    /// Like LimitExceeded, but the search ends here instead of going on at the next start position.
+    Interrupted,
 }
 
 pub trait Input: Copy {
@@ -566,7 +591,7 @@ pub fn find_all_with_scratch<I: Input>(
                     count += 1;
                     pos = next_search_position(match_start, match_end);
                 }
-                VmResult::LimitExceeded => return -2,
+                VmResult::LimitExceeded | VmResult::Interrupted => return -2,
                 VmResult::NoMatch => {
                     pos = candidate_pos + 1;
                 }
@@ -587,7 +612,7 @@ pub fn find_all_with_scratch<I: Input>(
                 }
                 return -1;
             }
-            VmResult::LimitExceeded => return -2,
+            VmResult::LimitExceeded | VmResult::Interrupted => return -2,
             VmResult::NoMatch => return 0,
         }
     }
@@ -613,7 +638,7 @@ pub fn find_all_with_scratch<I: Input>(
                     count += 1;
                     pos = next_search_position(match_start, match_end);
                 }
-                VmResult::LimitExceeded => return -2,
+                VmResult::LimitExceeded | VmResult::Interrupted => return -2,
                 VmResult::NoMatch => {
                     pos = candidate_pos + 1;
                 }
@@ -638,7 +663,7 @@ pub fn find_all_with_scratch<I: Input>(
                 count += 1;
                 pos = next_search_position(match_start, match_end);
             }
-            VmResult::LimitExceeded => return -2,
+            VmResult::LimitExceeded | VmResult::Interrupted => return -2,
             VmResult::NoMatch => {
                 pos = candidate_pos + 1;
             }
@@ -735,6 +760,7 @@ fn execute_into_impl<I: Input>(
                     return VmResult::Match;
                 }
                 VmResult::LimitExceeded => hit_limit = true,
+                VmResult::Interrupted => return VmResult::Interrupted,
                 VmResult::NoMatch => {}
             }
             pos = candidate_pos + 1;
@@ -762,6 +788,7 @@ fn execute_into_impl<I: Input>(
                     return VmResult::Match;
                 }
                 VmResult::LimitExceeded => hit_limit = true,
+                VmResult::Interrupted => return VmResult::Interrupted,
                 VmResult::NoMatch => {}
             }
             pos = candidate_pos + 1;
@@ -784,6 +811,7 @@ fn execute_into_impl<I: Input>(
                 return VmResult::Match;
             }
             VmResult::LimitExceeded => hit_limit = true,
+            VmResult::Interrupted => return VmResult::Interrupted,
             VmResult::NoMatch => {}
         }
         pos = candidate_pos + 1;
@@ -1400,7 +1428,14 @@ struct Vm<'a, I: Input> {
     /// The old values of the registers written so far, most recent last. A saved state records the length of this
     /// trail, and backtracking to it undoes the writes after that point, so saving a state costs nothing per register.
     register_trail: &'a mut Vec<RegisterUndo>,
+    /// The steps so far, across all start positions.
     steps: u64,
+    /// Where the steps reach MATCH_LIMIT for the current start position.
+    step_limit: u64,
+    /// Where the steps next look at the interrupt flag.
+    next_interrupt_poll: u64,
+    /// The sooner of the two above, so that a step has one comparison to make.
+    next_checkpoint: u64,
     modifiers: ActiveModifiers,
     modifier_stack: &'a mut Vec<ActiveModifiers>,
     /// The changes to the modifier stack so far, most recent last. A saved state records the length of this trail, and
@@ -1433,6 +1468,9 @@ impl<'a, I: Input> Vm<'a, I> {
             backtrack_stack: &mut scratch.backtrack_stack,
             register_trail: &mut scratch.register_trail,
             steps: 0,
+            step_limit: MATCH_LIMIT,
+            next_interrupt_poll: INTERRUPT_POLL_INTERVAL,
+            next_checkpoint: INTERRUPT_POLL_INTERVAL.min(MATCH_LIMIT),
             modifiers: ActiveModifiers {
                 ignore_case: program.ignore_case,
                 multiline: program.multiline,
@@ -1465,7 +1503,8 @@ impl<'a, I: Input> Vm<'a, I> {
         self.registers.fill(-1);
         self.backtrack_stack.clear();
         self.register_trail.clear();
-        self.steps = 0;
+        self.step_limit = self.steps + MATCH_LIMIT;
+        self.next_checkpoint = self.next_interrupt_poll.min(self.step_limit);
         self.modifiers = ActiveModifiers {
             ignore_case: self.program.ignore_case,
             multiline: self.program.multiline,
@@ -1476,6 +1515,20 @@ impl<'a, I: Input> Vm<'a, I> {
         self.backward = false;
         self.bt_floor = 0;
         self.lookaround_depth = 0;
+    }
+
+    /// Decides how a match goes on at `next_checkpoint`: it does not if the result says so.
+    #[cold]
+    fn reach_checkpoint(&mut self) -> Option<VmResult> {
+        if self.steps >= self.step_limit {
+            return Some(VmResult::LimitExceeded);
+        }
+        if is_interrupted() {
+            return Some(VmResult::Interrupted);
+        }
+        self.next_interrupt_poll = self.steps + INTERRUPT_POLL_INTERVAL;
+        self.next_checkpoint = self.next_interrupt_poll.min(self.step_limit);
+        None
     }
 
     fn run(&mut self) -> VmResult {
@@ -1495,8 +1548,10 @@ impl<'a, I: Input> Vm<'a, I> {
         let input_len = input.len();
         'vm_loop: loop {
             self.steps += 1;
-            if self.steps >= MATCH_LIMIT {
-                return VmResult::LimitExceeded;
+            if self.steps >= self.next_checkpoint
+                && let Some(result) = self.reach_checkpoint()
+            {
+                return result;
             }
 
             let pc = self.pc as usize;
@@ -1867,8 +1922,10 @@ impl<'a, I: Input> Vm<'a, I> {
         let num_instructions = instructions.len();
         'vm_loop: loop {
             self.steps += 1;
-            if self.steps >= MATCH_LIMIT {
-                return VmResult::LimitExceeded;
+            if self.steps >= self.next_checkpoint
+                && let Some(result) = self.reach_checkpoint()
+            {
+                return result;
             }
 
             let pc = self.pc as usize;
@@ -2333,8 +2390,8 @@ impl<'a, I: Input> Vm<'a, I> {
         self.pos = saved_pos;
         self.backtrack_stack.truncate(saved_bt_len);
 
-        if body_result == VmResult::LimitExceeded {
-            return Some(VmResult::LimitExceeded);
+        if matches!(body_result, VmResult::LimitExceeded | VmResult::Interrupted) {
+            return Some(body_result);
         }
         let body_matched = body_result == VmResult::Match;
 
