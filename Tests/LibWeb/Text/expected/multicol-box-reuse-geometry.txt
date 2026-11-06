@@ -1,0 +1,126 @@
+own padding end past the column end after block-in-inline lines, lead 0: height 90: 0,0 200x0 | 0,0 200x30 | 0,30 200x60 | 0,30 40.6875x10 + 0,40 200x10 + 0,50 26.515625x10 | 0,40 200x10 | 210,0 200x40 | 210,40 200x30
+own padding end past the column end after block-in-inline lines, lead 15: height 105: 0,0 200x15 | 0,15 200x30 | 0,45 200x60 | 0,45 40.6875x10 + 0,55 200x10 + 0,65 26.515625x10 | 0,55 200x10 | 210,0 200x40 | 210,40 200x30
+own padding end past the column end after block-in-inline lines, lead 30: height 120: 0,0 200x30 | 0,30 200x30 | 0,60 200x60 | 0,60 40.6875x10 + 0,70 200x10 + 0,80 26.515625x10 | 0,70 200x10 | 210,0 200x40 | 210,40 200x30
+own padding end past the column end after block-in-inline lines, lead 45: height 130: 0,0 200x45 | 0,45 200x30 | 210,0 200x60 | 210,0 40.6875x10 + 210,10 200x10 + 210,20 26.515625x10 | 210,10 200x10 | 210,60 200x40 | 210,100 200x30
+own padding end past the column end after block-in-inline lines, lead 60: height 130: 0,0 200x60 | 0,60 200x30 | 210,0 200x60 | 210,0 40.6875x10 + 210,10 200x10 + 210,20 26.515625x10 | 210,10 200x10 | 210,60 200x40 | 210,100 200x30
+own padding end past the column end after block-in-inline lines, lead 75: height 130: 0,0 200x75 | 0,75 200x30 | 210,0 200x60 | 210,0 40.6875x10 + 210,10 200x10 + 210,20 26.515625x10 | 210,10 200x10 | 210,60 200x40 | 210,100 200x30
+avoid box with overflowing lines after an empty formatting context, lead 0: height 50: 0,0 200x0 | 0,0 200x40 | 0,40 200x0 | 0,40 200x10 | 210,0 200x30
+avoid box with overflowing lines after an empty formatting context, lead 15: height 48: 0,0 200x15 | 0,15 200x32.5 + 210,0 200x7.5 | 210,7.5 200x0 | 210,7.5 200x10 | 210,17.5 200x30
+avoid box with overflowing lines after an empty formatting context, lead 30: height 55: 0,0 200x30 | 0,30 200x25 + 210,0 200x15 | 210,15 200x0 | 210,15 200x10 | 210,25 200x30
+avoid box with overflowing lines after an empty formatting context, lead 45: height 63: 0,0 200x45 | 0,45 200x17.5 + 210,0 200x22.5 | 210,22.5 200x0 | 210,22.5 200x10 | 210,32.5 200x30
+avoid box with overflowing lines after an empty formatting context, lead 60: height 70: 0,0 200x60 | 0,60 200x10 + 210,0 200x30 | 210,30 200x0 | 210,30 200x10 | 210,40 200x30
+avoid box with overflowing lines after an empty formatting context, lead 75: height 78: 0,0 200x75 | 0,75 200x2.5 + 210,0 200x37.5 | 210,37.5 200x0 | 210,37.5 200x10 | 210,47.5 200x30
+clear box with a float and a negative margin, lead 0: height 130: 0,0 30x30 | 0,0 200x0 | 0,0 200x40 | 0,-10 200x10 | 0,-10 30x90 | 0,-10 200x10 | 0,0 200x30
+clear box with a float and a negative margin, lead 15: height 145: 0,0 30x30 | 0,0 200x15 | 0,15 200x40 | 0,5 200x10 | 0,5 30x90 | 0,5 200x10 | 0,15 200x30
+clear box with a float and a negative margin, lead 30: height 160: 0,0 30x30 | 0,0 200x30 | 0,30 200x40 | 0,20 200x10 | 0,20 30x90 | 0,20 200x10 | 0,30 200x30
+clear box with a float and a negative margin, lead 45: height 175: 0,0 30x30 | 0,0 200x45 | 0,45 200x40 | 0,35 200x10 | 0,35 30x90 | 0,35 200x10 | 0,45 200x30
+clear box with a float and a negative margin, lead 60: height 190: 0,0 30x30 | 0,0 200x60 | 0,60 200x40 | 0,50 200x10 | 0,50 30x90 | 0,50 200x10 | 0,60 200x30
+clear box with a float and a negative margin, lead 75: height 205: 0,0 30x30 | 0,0 200x75 | 0,75 200x40 | 0,65 200x10 | 0,65 30x90 | 0,65 200x10 | 0,75 200x30
+float past the end of the box that contains it, lead 0: height 110: 0,0 200x0 | 0,0 200x30 | 0,30 200x20 | 0,30 30x80 | 0,50 200x40 | 0,90 200x20
+float past the end of the box that contains it, lead 15: height 125: 0,0 200x15 | 0,15 200x30 | 0,45 200x20 | 0,45 30x80 | 0,65 200x40 | 0,105 200x20
+float past the end of the box that contains it, lead 30: height 140: 0,0 200x30 | 0,30 200x30 | 0,60 200x20 | 0,60 30x80 | 0,80 200x40 | 0,120 200x20
+float past the end of the box that contains it, lead 45: height 80: 0,0 200x45 | 0,45 200x30 | 210,0 200x20 | 210,0 30x80 | 210,20 200x40 | 210,60 200x20
+float past the end of the box that contains it, lead 60: height 85: 0,0 200x60 | 0,60 200x25 + 210,0 200x5 | 210,5 200x20 | 210,5 30x80 | 210,25 200x40 | 210,65 200x20
+float past the end of the box that contains it, lead 75: height 93: 0,0 200x75 | 0,75 200x17.5 + 210,0 200x12.5 | 210,12.5 200x20 | 210,12.5 30x80 | 210,32.5 200x40 | 210,72.5 200x20
+descendant box past the end of its fixed-height parent, lead 0: height 60: 0,0 200x0 | 0,0 200x30 | 0,30 200x20 + 210,0 200x0 | 0,30 200x30 + 210,0 200x60 | 210,0 200x40 | 210,40 200x20
+descendant box past the end of its fixed-height parent, lead 15: height 70: 0,0 200x15 | 0,15 200x30 | 0,45 200x20 + 210,0 200x0 | 0,45 200x25 + 210,0 200x65 | 210,0 200x40 | 210,40 200x20
+descendant box past the end of its fixed-height parent, lead 30: height 80: 0,0 200x30 | 0,30 200x30 | 0,60 200x20 + 210,0 200x0 | 0,60 200x20 + 210,0 200x70 | 210,0 200x40 | 210,40 200x20
+descendant box past the end of its fixed-height parent, lead 45: height 88: 0,0 200x45 | 0,45 200x30 | 0,75 200x12.5 + 210,0 200x7.5 | 0,75 200x12.5 + 210,0 200x77.5 | 210,7.5 200x40 | 210,47.5 200x20
+descendant box past the end of its fixed-height parent, lead 60: height 90: 0,0 200x60 | 0,60 200x30 | 210,0 200x20 | 210,0 200x90 | 210,20 200x40 | 210,60 200x20
+descendant box past the end of its fixed-height parent, lead 75: height 103: 0,0 200x75 | 0,75 200x27.5 + 210,0 200x2.5 | 210,2.5 200x20 | 210,2.5 200x90 | 210,22.5 200x40 | 210,62.5 200x20
+lines past the end of their fixed-height parent, lead 0: height 80: 0,0 200x0 | 0,0 200x30 | 0,30 200x20 + 210,0 200x0 | 210,0 200x40 | 210,40 200x20
+lines past the end of their fixed-height parent, lead 15: height 85: 0,0 200x15 | 0,15 200x30 | 0,45 200x20 + 210,0 200x0 | 210,0 200x40 | 210,40 200x20
+lines past the end of their fixed-height parent, lead 30: height 90: 0,0 200x30 | 0,30 200x30 | 0,60 200x20 + 210,0 200x0 | 210,0 200x40 | 210,40 200x20
+lines past the end of their fixed-height parent, lead 45: height 100: 0,0 200x45 | 0,45 200x30 | 0,75 200x20 + 210,0 200x0 | 210,0 200x40 | 210,40 200x20
+lines past the end of their fixed-height parent, lead 60: height 110: 0,0 200x60 | 0,60 200x30 | 0,90 200x20 + 210,0 200x0 | 210,0 200x40 | 210,40 200x20
+lines past the end of their fixed-height parent, lead 75: height 120: 0,0 200x75 | 0,75 200x30 | 210,0 200x20 | 210,20 200x40 | 210,60 200x20
+orphans and widows at a moving boundary, lead 0: height 148: 0,0 200x0 | 0,0 200x100 | 0,105 200x42.5 + 210,0 200x40 | 210,45 200x100
+orphans and widows at a moving boundary, lead 15: height 155: 0,0 200x15 | 0,15 200x100 | 0,120 200x35 + 210,0 200x50 | 210,55 200x100
+orphans and widows at a moving boundary, lead 30: height 165: 0,0 200x30 | 0,30 200x100 | 0,135 200x30 + 210,0 200x50 | 210,55 200x100
+orphans and widows at a moving boundary, lead 45: height 180: 0,0 200x45 | 0,45 200x100 | 0,150 200x30 + 210,0 200x50 | 210,55 200x100
+orphans and widows at a moving boundary, lead 60: height 185: 0,0 200x60 | 0,60 200x100 | 210,0 200x80 | 210,85 200x100
+orphans and widows at a moving boundary, lead 75: height 185: 0,0 200x75 | 0,75 200x100 | 210,0 200x80 | 210,85 200x100
+early break before a descendant of a kept box, lead 0: height 110: 0,0 200x0 | 0,0 200x20 | 0,20 200x90 + 210,0 200x20 | 0,20 200x20 | 0,40 200x20 | 0,60 200x50 | 210,0 200x20 | 210,20 200x30
+early break before a descendant of a kept box, lead 15: height 120: 0,0 200x15 | 0,15 200x20 | 0,35 200x85 + 210,0 200x90 | 0,35 200x20 | 210,0 200x20 | 210,20 200x50 | 210,70 200x20 | 210,90 200x30
+early break before a descendant of a kept box, lead 30: height 120: 0,0 200x30 | 0,30 200x20 | 0,50 200x70 + 210,0 200x90 | 0,50 200x20 | 210,0 200x20 | 210,20 200x50 | 210,70 200x20 | 210,90 200x30
+early break before a descendant of a kept box, lead 45: height 103: 0,0 200x45 | 0,45 200x20 | 0,65 200x37.5 + 210,0 200x72.5 | 0,65 200x20 | 0,85 200x17.5 + 210,0 200x2.5 | 210,2.5 200x50 | 210,52.5 200x20 | 210,72.5 200x30
+early break before a descendant of a kept box, lead 60: height 110: 0,0 200x60 | 0,60 200x20 | 0,80 200x30 + 210,0 200x80 | 0,80 200x20 | 0,100 200x10 + 210,0 200x10 | 210,10 200x50 | 210,60 200x20 | 210,80 200x30
+early break before a descendant of a kept box, lead 75: height 118: 0,0 200x75 | 0,75 200x20 | 0,95 200x22.5 + 210,0 200x87.5 | 0,95 200x20 | 0,115 200x2.5 + 210,0 200x17.5 | 210,17.5 200x50 | 210,67.5 200x20 | 210,87.5 200x30
+column spanner between rows, lead 0: height 110: 0,0 200x0 | 0,0 200x40 | 210,0 200x30 | 0,40 410x15 | 0,55 200x30 | 0,90 200x20 + 210,55 200x30 | 210,90 200x0
+column spanner between rows, lead 15: height 125: 0,0 200x15 | 0,15 200x40 | 210,0 200x30 | 0,55 410x15 | 0,70 200x30 | 0,105 200x20 + 210,70 200x30 | 210,105 200x15
+column spanner between rows, lead 30: height 135: 0,0 200x30 | 0,30 200x25 + 210,0 200x20 | 210,25 200x30 | 0,55 410x15 | 0,70 200x30 | 0,105 200x30 + 210,70 200x20 | 210,95 200x30
+column spanner between rows, lead 45: height 150: 0,0 200x45 | 0,45 200x20 + 210,0 200x20 | 210,25 200x30 | 0,65 410x15 | 0,80 200x30 | 0,115 200x35 + 210,80 200x20 | 210,105 200x45
+column spanner between rows, lead 60: height 175: 0,0 200x60 | 210,0 200x40 | 210,45 200x30 | 0,75 410x15 | 0,90 200x30 | 0,125 200x50 | 210,90 200x60
+column spanner between rows, lead 75: height 178: 0,0 200x75 | 210,0 200x40 | 210,45 200x30 | 0,77.5 410x15 | 0,92.5 200x30 | 0,127.5 200x50 | 210,92.5 200x75
+max-height clamps the columns, lead 0: height 70: 0,0 200x70 | 0,0 95x0 | 0,0 95x70 + 105,0 95x50 | 210,0 95x70 + 315,0 95x20 | 315,25 95x45 + 420,0 95x70 + 525,0 95x40 | 525,45 95x25 + 630,0 95x40
+max-height clamps the columns, lead 15: height 70: 0,0 200x70 | 0,0 95x15 | 0,15 95x55 + 105,0 95x70 | 210,0 95x70 + 315,0 95x20 | 315,25 95x45 + 420,0 95x70 + 525,0 95x40 | 525,45 95x25 + 630,0 95x40
+max-height clamps the columns, lead 30: height 70: 0,0 200x70 | 0,0 95x30 | 0,30 95x40 + 105,0 95x70 + 210,0 95x20 | 210,25 95x45 + 315,0 95x50 | 420,0 95x70 + 525,0 95x70 + 630,0 95x20 | 630,25 95x45 + 735,0 95x20
+max-height clamps the columns, lead 45: height 70: 0,0 200x70 | 0,0 95x45 | 0,45 95x25 + 105,0 95x70 + 210,0 95x30 | 210,35 95x35 + 315,0 95x60 | 420,0 95x70 + 525,0 95x70 + 630,0 95x20 | 630,25 95x45 + 735,0 95x20
+max-height clamps the columns, lead 60: height 70: 0,0 200x70 | 0,0 95x60 | 105,0 95x70 + 210,0 95x50 | 315,0 95x70 + 420,0 95x20 | 420,25 95x45 + 525,0 95x70 + 630,0 95x40 | 630,45 95x25 + 735,0 95x40
+max-height clamps the columns, lead 75: height 70: 0,0 200x70 | 0,0 95x70 + 105,0 95x5 | 105,5 95x65 + 210,0 95x60 | 315,0 95x70 + 420,0 95x20 | 420,25 95x45 + 525,0 95x70 + 630,0 95x40 | 630,45 95x25 + 735,0 95x40
+column-fill auto with an indefinite height, lead 0: height 160: 0,0 200x160 | 0,0 95x0 | 0,0 95x90 | 105,0 95x60 | 105,0 95x60 | 105,65 95x90
+column-fill auto with an indefinite height, lead 15: height 160: 0,0 200x160 | 0,0 95x15 | 0,15 95x90 | 105,0 95x60 | 105,0 95x60 | 105,65 95x90
+column-fill auto with an indefinite height, lead 30: height 160: 0,0 200x160 | 0,0 95x30 | 0,30 95x90 | 105,0 95x60 | 105,0 95x60 | 105,65 95x90
+column-fill auto with an indefinite height, lead 45: height 160: 0,0 200x160 | 0,0 95x45 | 0,45 95x90 | 105,0 95x60 | 105,0 95x60 | 105,65 95x90
+column-fill auto with an indefinite height, lead 60: height 160: 0,0 200x160 | 0,0 95x60 | 0,60 95x90 | 105,0 95x60 | 105,0 95x60 | 105,65 95x90
+column-fill auto with an indefinite height, lead 75: height 170: 0,0 200x170 | 0,0 95x75 | 0,75 95x90 | 105,0 95x60 | 105,0 95x60 | 105,65 95x90
+floats beside text across columns, lead 0: height 115: 0,0 200x0 | 0,0 30x35 | 0,0 200x40 | 0,45 200x40 | 0,90 30x25 | 0,90 200x25 + 210,0 200x20 | 210,25 200x50
+floats beside text across columns, lead 15: height 130: 0,0 200x15 | 0,15 30x35 | 0,15 200x40 | 0,60 200x40 | 0,105 30x25 | 0,105 200x25 + 210,0 200x20 | 210,25 200x50
+floats beside text across columns, lead 30: height 145: 0,0 200x30 | 0,30 30x35 | 0,30 200x40 | 0,75 200x40 | 0,120 30x25 | 0,120 200x25 + 210,0 200x20 | 210,25 200x50
+floats beside text across columns, lead 45: height 120: 0,0 200x45 | 0,45 30x35 | 0,45 200x40 | 0,90 200x30 + 210,0 200x20 | 210,25 30x25 | 210,25 200x40 | 210,70 200x50
+floats beside text across columns, lead 60: height 125: 0,0 200x60 | 0,60 30x35 | 0,60 200x40 | 0,105 200x20 + 210,0 200x20 | 210,25 30x25 | 210,25 200x40 | 210,70 200x50
+floats beside text across columns, lead 75: height 140: 0,0 200x75 | 0,75 30x35 | 0,75 200x40 | 0,120 200x20 + 210,0 200x20 | 210,25 30x25 | 210,25 200x40 | 210,70 200x50
+collapsing margins at column starts, lead 0: height 90: 0,0 200x0 | 0,20 200x15 | 0,20 200x15 | 0,55 200x30 | 0,55 200x30 | 210,0 200x25 | 210,0 200x25 | 210,43 200x30
+collapsing margins at column starts, lead 15: height 100: 0,0 200x15 | 0,35 200x15 | 0,35 200x15 | 0,70 200x30 | 0,70 200x30 | 210,0 200x25 | 210,0 200x25 | 210,43 200x30
+collapsing margins at column starts, lead 30: height 115: 0,0 200x30 | 0,50 200x15 | 0,50 200x15 | 0,85 200x30 | 0,85 200x30 | 210,0 200x25 | 210,0 200x25 | 210,43 200x30
+collapsing margins at column starts, lead 45: height 116: 0,0 200x45 | 0,65 200x15 | 0,65 200x15 | 210,0 200x30 | 210,0 200x30 | 210,43 200x25 | 210,43 200x25 | 210,86 200x30
+collapsing margins at column starts, lead 60: height 120: 0,0 200x60 | 0,80 200x15 | 0,80 200x15 | 210,0 200x30 | 210,0 200x30 | 210,43 200x25 | 210,43 200x25 | 210,86 200x30
+collapsing margins at column starts, lead 75: height 128: 0,0 200x75 | 0,95 200x15 | 0,95 200x15 | 210,0 200x30 | 210,0 200x30 | 210,43 200x25 | 210,43 200x25 | 210,86 200x30
+list items with outside markers, lead 0: height 110: 0,0 200x0 | 0,0 200x110 + 210,0 200x100 | 20,0 180x30 | 20,30 180x60 | 20,90 180x20 | 230,0 180x70 | 230,70 180x30
+list items with outside markers, lead 15: height 120: 0,0 200x15 | 0,15 200x105 + 210,0 200x120 | 20,15 180x30 | 20,45 180x60 | 230,0 180x20 | 230,20 180x70 | 230,90 180x30
+list items with outside markers, lead 30: height 120: 0,0 200x30 | 0,30 200x90 + 210,0 200x120 | 20,30 180x30 | 20,60 180x60 | 230,0 180x20 | 230,20 180x70 | 230,90 180x30
+list items with outside markers, lead 45: height 135: 0,0 200x45 | 0,45 200x90 + 210,0 200x120 | 20,45 180x30 | 20,75 180x60 | 230,0 180x20 | 230,20 180x70 | 230,90 180x30
+list items with outside markers, lead 60: height 140: 0,0 200x60 | 0,60 200x80 + 210,0 200x140 | 20,60 180x30 | 20,90 180x50 + 230,0 180x20 | 230,20 180x20 | 230,40 180x70 | 230,110 180x30
+list items with outside markers, lead 75: height 145: 0,0 200x75 | 0,75 200x70 + 210,0 200x140 | 20,75 180x30 | 20,105 180x40 + 230,0 180x20 | 230,20 180x20 | 230,40 180x70 | 230,110 180x30
+wrappers around boxes crossing every column, lead 0: height 115: 0,0 200x115 + 210,0 200x110 | 0,0 200x115 + 210,0 200x110 | 0,0 200x0 | 0,0 200x30 | 0,35 200x40 | 0,80 200x10 | 0,95 200x20 + 210,0 200x30 | 210,35 200x30 | 210,70 200x40
+wrappers around boxes crossing every column, lead 15: height 130: 0,0 200x130 + 210,0 200x110 | 0,0 200x130 + 210,0 200x110 | 0,0 200x15 | 0,15 200x30 | 0,50 200x40 | 0,95 200x10 | 0,110 200x20 + 210,0 200x30 | 210,35 200x30 | 210,70 200x40
+wrappers around boxes crossing every column, lead 30: height 130: 0,0 200x130 + 210,0 200x130 | 0,0 200x130 + 210,0 200x130 | 0,0 200x30 | 0,30 200x30 | 0,65 200x40 | 0,110 200x10 | 210,0 200x50 | 210,55 200x30 | 210,90 200x40
+wrappers around boxes crossing every column, lead 45: height 138: 0,0 200x137.5 + 210,0 200x130 | 0,0 200x137.5 + 210,0 200x130 | 0,0 200x45 | 0,45 200x30 | 0,80 200x40 | 0,125 200x10 | 210,0 200x50 | 210,55 200x30 | 210,90 200x40
+wrappers around boxes crossing every column, lead 60: height 145: 0,0 200x145 + 210,0 200x145 | 0,0 200x145 + 210,0 200x145 | 0,0 200x60 | 0,60 200x30 | 0,95 200x40 | 210,0 200x10 | 210,15 200x50 | 210,70 200x30 | 210,105 200x40
+wrappers around boxes crossing every column, lead 75: height 153: 0,0 200x152.5 + 210,0 200x145 | 0,0 200x152.5 + 210,0 200x145 | 0,0 200x75 | 0,75 200x30 | 0,110 200x40 | 210,0 200x10 | 210,15 200x50 | 210,70 200x30 | 210,105 200x40
+positioned boxes inside kept boxes, lead 0: height 100: 0,0 200x0 | 0,0 200x30 | 0,20 200x30 | 0,20 200x30 | 0,70 200x30 | 0,70 200x30 | 20,70 10x90 | 210,0 200x10 | 210,0 200x10 | 210,15 10x10 | 210,15 200x40
+positioned boxes inside kept boxes, lead 15: height 90: 0,0 200x15 | 0,15 200x30 | 0,35 200x30 | 0,35 200x30 | 210,0 200x30 | 210,0 200x30 | 230,0 10x90 | 210,35 200x10 | 210,35 200x10 | 210,50 10x10 | 210,50 200x40
+positioned boxes inside kept boxes, lead 30: height 98: 0,0 200x30 | 0,30 200x30 | 0,50 200x30 | 0,50 200x30 | 210,0 200x30 | 210,0 200x30 | 230,0 10x90 | 210,35 200x10 | 210,35 200x10 | 210,50 10x10 | 210,50 200x40
+positioned boxes inside kept boxes, lead 45: height 110: 0,0 200x45 | 0,45 200x30 | 0,65 200x30 | 0,65 200x30 | 210,0 200x30 | 210,0 200x30 | 230,0 10x90 | 210,35 200x10 | 210,35 200x10 | 210,50 10x10 | 210,50 200x40
+positioned boxes inside kept boxes, lead 60: height 125: 0,0 200x60 | 0,60 200x30 | 0,80 200x30 | 0,80 200x30 | 210,0 200x30 | 210,0 200x30 | 230,0 10x90 | 210,35 200x10 | 210,35 200x10 | 210,50 10x10 | 210,50 200x40
+positioned boxes inside kept boxes, lead 75: height 125: 0,0 200x75 | 0,75 200x30 | 210,-15 200x30 | 210,-15 200x30 | 210,35 200x30 | 210,35 200x30 | 230,35 10x90 | 210,70 200x10 | 210,70 200x10 | 210,85 10x10 | 210,85 200x40
+forced breaks inside and at the start of kept boxes, lead 0: height 80: 0,0 200x80 + 210,0 200x20 | 0,0 200x20 | 210,0 200x20 | 210,20 200x0 | 210,20 200x30 | 210,20 200x15 | 210,35 200x15 | 420,0 200x30 | 420,35 200x40
+forced breaks inside and at the start of kept boxes, lead 15: height 80: 0,0 200x80 + 210,0 200x20 | 0,0 200x20 | 210,0 200x20 | 210,20 200x15 | 210,35 200x30 | 210,35 200x15 | 210,50 200x15 | 420,0 200x30 | 420,35 200x40
+forced breaks inside and at the start of kept boxes, lead 30: height 80: 0,0 200x80 + 210,0 200x20 | 0,0 200x20 | 210,0 200x20 | 210,20 200x30 | 210,50 200x30 | 210,50 200x15 | 210,65 200x15 | 420,0 200x30 | 420,35 200x40
+forced breaks inside and at the start of kept boxes, lead 45: height 95: 0,0 200x95 + 210,0 200x20 | 0,0 200x20 | 210,0 200x20 | 210,20 200x45 | 210,65 200x30 | 210,65 200x15 | 210,80 200x15 | 420,0 200x30 | 420,35 200x40
+forced breaks inside and at the start of kept boxes, lead 60: height 110: 0,0 200x110 + 210,0 200x20 | 0,0 200x20 | 210,0 200x20 | 210,20 200x60 | 210,80 200x30 | 210,80 200x15 | 210,95 200x15 | 420,0 200x30 | 420,35 200x40
+forced breaks inside and at the start of kept boxes, lead 75: height 125: 0,0 200x125 + 210,0 200x20 | 0,0 200x20 | 210,0 200x20 | 210,20 200x75 | 210,95 200x30 | 210,95 200x15 | 210,110 200x15 | 420,0 200x30 | 420,35 200x40
+boxes beside a float in the measure pass landing in a column without it, lead 0: height 70: 0,0 410x70 | 0,0 200x0 | 0,0 30x80 | 0,0 200x20 | 0,25 200x20 | 0,50 200x20 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20
+boxes beside a float in the measure pass landing in a column without it, lead 15: height 70: 0,0 410x70 | 0,0 200x15 | 0,15 30x80 | 0,15 200x20 | 0,40 200x20 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20 | 420,25 200x20
+boxes beside a float in the measure pass landing in a column without it, lead 30: height 70: 0,0 410x70 | 0,0 200x30 | 0,30 30x80 | 0,30 200x20 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20
+boxes beside a float in the measure pass landing in a column without it, lead 45: height 70: 0,0 410x70 | 0,0 200x45 | 0,45 30x80 | 0,45 200x20 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20
+boxes beside a float in the measure pass landing in a column without it, lead 60: height 70: 0,0 410x70 | 0,0 200x60 | 0,60 30x80 | 210,0 200x10 | 210,15 200x20 | 210,40 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20 | 630,0 200x20
+boxes beside a float in the measure pass landing in a column without it, lead 75: height 70: 0,0 410x70 | 0,0 200x70 + 210,0 200x5 | 210,5 30x80 | 210,5 200x20 | 210,30 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20 | 630,0 200x20 | 630,25 200x20
+clearance only in the measure pass, lead 0: height 70: 0,0 410x70 | 0,0 30x90 | 0,0 200x70 | 210,0 200x5 | 210,-15 200x10 | 210,-15 30x20 | 210,-15 200x10 | 210,-5 200x20
+clearance only in the measure pass, lead 15: height 70: 0,0 410x70 | 0,0 30x93 | 0,0 200x70 | 210,0 200x5 | 210,-18 200x10 | 210,-18 30x20 | 210,-18 200x10 | 210,-8 200x20
+clearance only in the measure pass, lead 30: height 70: 0,0 410x70 | 0,0 30x96 | 0,0 200x70 | 210,0 200x5 | 210,-21 200x10 | 210,-21 30x20 | 210,-21 200x10 | 210,-11 200x20
+clearance only in the measure pass, lead 45: height 70: 0,0 410x70 | 0,0 30x99 | 0,0 200x70 | 210,0 200x5 | 210,-24 200x10 | 210,-24 30x20 | 210,-24 200x10 | 210,-14 200x20
+clearance only in the measure pass, lead 60: height 70: 0,0 410x70 | 0,0 30x102 | 0,0 200x70 | 210,0 200x5 | 210,-27 200x10 | 210,-27 30x20 | 210,-27 200x10 | 210,-17 200x20
+clearance only in the measure pass, lead 75: height 70: 0,0 410x70 | 0,0 30x105 | 0,0 200x70 | 210,0 200x5 | 210,-30 200x10 | 210,-30 30x20 | 210,-30 200x10 | 210,-20 200x20
+percentage block sizes in a wrapper that breaks, lead 0: height 130: 0,0 200x130 + 210,0 200x110 | 0,0 200x0 | 0,0 200x48 | 0,48 200x72 | 0,120 200x10 + 210,0 200x50 | 210,50 200x24 | 210,110 200x20
+percentage block sizes in a wrapper that breaks, lead 15: height 130: 0,0 200x130 + 210,0 200x110 | 0,0 200x15 | 0,15 200x48 | 0,63 200x67 + 210,0 200x5 | 210,5 200x60 | 210,65 200x24 | 210,110 200x20
+percentage block sizes in a wrapper that breaks, lead 30: height 130: 0,0 200x130 + 210,0 200x110 | 0,0 200x30 | 0,30 200x48 | 0,78 200x52 + 210,0 200x20 | 210,20 200x60 | 210,80 200x24 | 210,110 200x20
+percentage block sizes in a wrapper that breaks, lead 45: height 130: 0,0 200x130 + 210,0 200x110 | 0,0 200x45 | 0,45 200x48 | 0,93 200x37 + 210,0 200x35 | 210,35 200x60 | 210,95 200x24 | 210,110 200x20
+percentage block sizes in a wrapper that breaks, lead 60: height 134: 0,0 200x134 + 210,0 200x106 | 0,0 200x60 | 0,60 200x48 | 0,108 200x26 + 210,0 200x46 | 210,46 200x60 | 210,106 200x24 | 210,106 200x20
+percentage block sizes in a wrapper that breaks, lead 75: height 149: 0,0 200x149 + 210,0 200x91 | 0,0 200x75 | 0,75 200x48 | 0,123 200x26 + 210,0 200x46 | 210,46 200x60 | 210,106 200x24 | 210,91 200x20
+empty boxes and size containment, lead 0: height 82: 0,0 200x0 | 0,7 200x0 | 0,7 200x30 | 0,42 200x40 | 0,82 200x0 | 210,0 200x40 | 210,45 200x15 | 210,60 200x10
+empty boxes and size containment, lead 15: height 97: 0,0 200x15 | 0,22 200x0 | 0,22 200x30 | 0,57 200x40 | 0,97 200x0 | 210,0 200x40 | 210,45 200x15 | 210,60 200x10
+empty boxes and size containment, lead 30: height 110: 0,0 200x30 | 0,37 200x0 | 0,37 200x30 | 210,0 200x40 | 210,40 200x0 | 210,40 200x40 | 210,85 200x15 | 210,100 200x10
+empty boxes and size containment, lead 45: height 110: 0,0 200x45 | 0,52 200x0 | 0,52 200x30 | 210,0 200x40 | 210,40 200x0 | 210,40 200x40 | 210,85 200x15 | 210,100 200x10
+empty boxes and size containment, lead 60: height 110: 0,0 200x60 | 0,67 200x0 | 0,67 200x30 | 210,0 200x40 | 210,40 200x0 | 210,40 200x40 | 210,85 200x15 | 210,100 200x10
+empty boxes and size containment, lead 75: height 116: 0,0 200x75 | 0,82 200x0 | 0,82 200x30 | 210,0 200x40 | 210,40 200x0 | 210,40 200x40 | 210,85 200x15 | 210,100 200x10

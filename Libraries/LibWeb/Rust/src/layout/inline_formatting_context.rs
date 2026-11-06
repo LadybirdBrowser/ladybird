@@ -2621,6 +2621,12 @@ impl<'context> InlineFormattingContext<'context> {
             line_builder.update_last_line(false);
         }
 
+        if self.parent.keeps_column_box_layouts()
+            && let Some(last_line) = self.line_data().line_boxes.iter().rfind(|line| !line.is_empty())
+        {
+            self.parent
+                .note_column_content_block_end(self.content_box_position_in_bfc_root().y + last_line.block_end);
+        }
         let mut lines_are_fragmented = false;
         let mut kept_lines_end = None;
         if let Some(fragmentation) = fragmentation {

@@ -1,0 +1,3 @@
+list items in a wrapper that crosses every column: wrapper=0 item-0=0 item-1=2 item-2=2 item-3=2 item-4=0 item-5=3 item-6=3 item-7=3 item-8=0 item-9=2 item-10=2 item-11=2
+paragraphs directly in the container: paragraph-0=2 paragraph-1=2 paragraph-2=2 paragraph-3=2 paragraph-4=0 paragraph-5=3 paragraph-6=3 paragraph-7=3 paragraph-8=0 paragraph-9=2 paragraph-10=2 paragraph-11=2
+a box growing changes where the boxes after it land: grown-0=3 grown-1=3 grown-2=3 grown-3=0 grown-4=2 grown-5=2 grown-6=2 grown-7=0 grown-8=2 grown-9=2 grown-10=2 grown-11=2

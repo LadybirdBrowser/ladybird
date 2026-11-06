@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 10px/10px SerenitySans; }
+    p { margin: 0 0 5px; }
+    .case { columns: 2; column-gap: 10px; width: 410px; margin-bottom: 20px; }
+    .left { float: left; width: 30px; }
+</style>
+<div id="cases"></div>
+<script>
+    const words = count => Array.from({ length: count }, (_, index) => `word${index}`).join(" ");
+    const block = height => `<div style="height: ${height}px"></div>`;
+    const lines = count => `<p>${words(count * 6)}</p>`;
+
+    const scenarios = {
+        "own padding end past the column end after block-in-inline lines": lead =>
+            `${block(lead)}${block(30)}<div style="padding-bottom: 30px"><span>one two<div style="height: 10px"></div>three</span></div>${block(40)}${block(30)}`,
+        "avoid box with overflowing lines after an empty formatting context": lead =>
+            `${block(lead)}${block(40)}<div style="overflow: hidden; height: 0"></div><div style="break-inside: avoid; height: 10px">${words(120)}</div>${block(30)}`,
+        "clear box with a float and a negative margin": lead =>
+            `<div class="left" style="height: 30px"></div>${block(lead)}${block(40)}<div style="clear: both"><div class="left" style="height: 90px"></div><div style="margin-top: -50px; height: 10px"></div></div>${block(30)}`,
+        "float past the end of the box that contains it": lead =>
+            `${block(lead)}${block(30)}<div style="height: 20px"><div class="left" style="height: 80px"></div></div>${block(40)}${block(20)}`,
+        "descendant box past the end of its fixed-height parent": lead =>
+            `${block(lead)}${block(30)}<div style="height: 20px"><div style="height: 90px"></div></div>${block(40)}${block(20)}`,
+        "lines past the end of their fixed-height parent": lead =>
+            `${block(lead)}${block(30)}<div style="height: 20px">${words(60)}</div>${block(40)}${block(20)}`,
+        "orphans and widows at a moving boundary": lead =>
+            `${block(lead)}<p style="orphans: 3; widows: 3">${words(50)}</p><p style="orphans: 3; widows: 3">${words(40)}</p><p style="orphans: 3; widows: 3">${words(50)}</p>`,
+        "early break before a descendant of a kept box": lead =>
+            `${block(lead)}${block(20)}<div>${block(20)}<div style="break-after: avoid; height: 20px"></div><div style="break-inside: avoid; height: 50px"></div>${block(20)}</div>${block(30)}`,
+        "column spanner between rows": lead =>
+            `${block(lead)}${lines(3)}${lines(2)}<div style="column-span: all; height: 15px"></div>${lines(2)}${lines(4)}${block(lead)}`,
+        "max-height clamps the columns": lead =>
+            `<div style="columns: 2; column-gap: 10px; max-height: 70px">${block(lead)}${lines(4)}${lines(3)}${lines(5)}${lines(2)}</div>`,
+        "column-fill auto with an indefinite height": lead =>
+            `<div style="column-fill: auto; columns: 2">${block(lead)}${lines(3)}<div style="break-before: column">${lines(2)}</div>${lines(3)}</div>`,
+        "floats beside text across columns": lead =>
+            `${block(lead)}<div class="left" style="height: 35px"></div>${lines(3)}${lines(3)}<div class="left" style="height: 25px"></div>${lines(3)}${lines(4)}`,
+        "collapsing margins at column starts": lead =>
+            `${block(lead)}<div style="margin: 12px 0"><div style="margin: 20px 0; height: 15px"></div></div><div style="margin: 6px 0">${lines(2)}</div><div style="margin: 18px 0"><div style="margin-top: -5px; height: 25px"></div></div><div style="margin: 9px 0; height: 30px"></div>`,
+        "list items with outside markers": lead =>
+            `${block(lead)}<ol style="margin: 0; padding-left: 20px"><li>${words(12)}</li><li>${words(24)}</li><li>${words(6)}</li><li>${words(30)}</li><li>${words(12)}</li></ol>`,
+        "wrappers around boxes crossing every column": lead =>
+            `<div><div>${block(lead)}${lines(2)}${lines(3)}${lines(1)}${lines(4)}${lines(2)}${lines(3)}</div></div>`,
+        "positioned boxes inside kept boxes": lead =>
+            `${block(lead)}${lines(2)}<div style="position: relative; top: -15px">${lines(2)}</div><div style="position: relative">${lines(2)}<div style="position: absolute; top: 0; left: 20px; width: 10px; height: 90px"></div></div><div>${lines(1)}<div style="position: absolute; width: 10px; height: 10px"></div></div>${lines(3)}`,
+        "forced breaks inside and at the start of kept boxes": lead =>
+            `<div>${block(20)}<div style="break-before: column; height: 20px"></div></div>${block(lead)}<div>${block(15)}<div style="break-after: column; height: 15px"></div></div>${lines(2)}${lines(3)}`,
+        "boxes beside a float in the measure pass landing in a column without it": lead =>
+            `<div style="columns: 2; column-gap: 10px; width: 410px; max-height: 70px">${block(lead)}<div class="left" style="height: 80px"></div>${lines(1)}<p>${words(8)}</p><p>${words(8)}</p><p>${words(8)}</p><p>${words(8)}</p><p>${words(8)}</p><p>${words(8)}</p></div>`,
+        "clearance only in the measure pass": lead =>
+            `<div style="columns: 2; column-gap: 10px; width: 410px; max-height: 70px"><div class="left" style="height: ${90 + lead / 5}px"></div>${block(70)}${block(5)}<div style="clear: both"><div class="left" style="height: 20px"></div><div style="margin-top: ${-20 - lead / 5}px; height: 10px"></div></div>${block(20)}</div>`,
+        "percentage block sizes in a wrapper that breaks": lead =>
+            `<div style="height: 240px">${block(lead)}<div style="height: 20%"></div><div style="height: 30%"></div><div style="height: 25%"></div><div style="height: 10%"></div></div>${block(20)}`,
+        "empty boxes and size containment": lead =>
+            `${block(lead)}<div style="margin: 7px 0"></div>${lines(2)}<div style="contain: size; height: 40px">${words(60)}</div><div></div>${lines(3)}<div style="contain: size; height: 15px"></div>${lines(1)}`,
+    };
+
+    promiseTest(async () => {
+        if (document.readyState !== "complete") {
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        }
+        await document.fonts.ready;
+
+        const cases = document.getElementById("cases");
+        const built = [];
+        for (const [name, contents] of Object.entries(scenarios)) {
+            for (const lead of [0, 15, 30, 45, 60, 75]) {
+                const container = document.createElement("div");
+                container.className = "case";
+                container.innerHTML = contents(lead);
+                cases.append(container);
+                built.push({ name, lead, container });
+            }
+        }
+
+        const rectsIn = (element, origin) =>
+            [...element.getClientRects()]
+                .map(rect => `${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`)
+                .join(" + ");
+        const output = built.map(({ name, lead, container }) => {
+            const origin = container.getBoundingClientRect();
+            const boxes = [...container.querySelectorAll("*")].map(element => rectsIn(element, origin));
+            return `${name}, lead ${lead}: height ${container.offsetHeight}: ${boxes.join(" | ")}`;
+        });
+        cases.remove();
+        output.forEach(line => println(line));
+    });
+</script>
