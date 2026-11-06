@@ -12,6 +12,7 @@
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Root.h>
+#include <LibHTTP/Cache/Utilities.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/ScriptCompilation.h>
 #include <LibJS/SourceCode.h>
@@ -31,6 +32,7 @@
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
+#include <LibWeb/HTML/Scripting/CompiledScriptCache.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
@@ -60,6 +62,27 @@ static ByteBuffer take_body_bytes_as_byte_buffer(Fetch::Infrastructure::FetchAlg
     return body_bytes.get<Core::ImmutableBytes>().copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
 }
 
+// The key that a script compiled from a response is stored under, if the rules of HTTP caching let a cache store the
+// response, and the request has a partition to store it in.
+static Optional<CompiledScriptCacheKey> compiled_script_cache_key(Fetch::Infrastructure::Request const& request, URL::URL const& url, u32 status_code, HTTP::HeaderList const& response_headers, JS::ProgramType type, size_t line_number_offset)
+{
+    if (!Fetch::Fetching::http_memory_cache_enabled() || request.cache_mode() == HTTP::CacheMode::NoStore)
+        return {};
+    if (!HTTP::is_cacheable(request.method(), request.header_list()) || !HTTP::is_cacheable(status_code, response_headers))
+        return {};
+
+    auto partition = Fetch::Fetching::http_cache_partition(request);
+    if (!partition.has_value())
+        return {};
+
+    return CompiledScriptCacheKey {
+        .partition = partition.release_value(),
+        .url_without_fragment = HTTP::serialize_url_for_cache_storage(url),
+        .program_type = type,
+        .line_number_offset = line_number_offset,
+    };
+}
+
 // Submit parsing and top-level bytecode generation to the thread pool, then bounce back to the main thread via
 // deferred_invoke once the worker is done, and on to a task of the settings object's global there. Syntax errors still
 // come back as a ParsedProgram so the main thread can report them through the same Script/ModuleScript construction
@@ -67,10 +90,14 @@ static ByteBuffer take_body_bytes_as_byte_buffer(Fetch::Infrastructure::FetchAlg
 // still happen on the main thread.
 // NB: The SourceCode stays on the main thread inside the heap-allocated callback. The worker thread only receives its
 //     code, which is thread-safe to share.
-static void compile_off_thread(EnvironmentSettingsObject& settings_object, NonnullRefPtr<JS::SourceCode const> source_code, JS::ProgramType type, size_t line_number_offset, Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)> on_compiled)
+// With a cache key, a program that the cache of compiled scripts has for the source code skips all of this, and
+// otherwise the program goes there before anything runs it.
+static void compile_off_thread(EnvironmentSettingsObject& settings_object, NonnullRefPtr<JS::SourceCode const> source_code, JS::ProgramType type, size_t line_number_offset, Optional<CompiledScriptCacheKey> cache_key, Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)> on_compiled)
 {
     // Take the code the parser needs while still on the main thread.
     auto source_text = source_code->code();
+
+    auto cached_program = cache_key.has_value() ? CompiledScriptCache::the().find(*cache_key, source_text) : OptionalNone {};
 
     // Capture source_code in the callback so it stays alive on the main thread and is available for materialization.
     // The script runs in a task of the settings object's global, so never beside a rendering update in flight that holds
@@ -86,14 +113,28 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Nonnu
             }));
         });
 
+    if (cached_program.has_value()) {
+        (*callback)(OffThreadCompiledProgram { .compiled = cached_program.release_value() });
+        delete callback;
+        return;
+    }
+
     auto& main_thread_event_loop = Core::EventLoop::current();
 
-    Threading::ThreadPool::the().submit([source_text = move(source_text), type, line_number_offset, callback, &main_thread_event_loop]() mutable {
-        OffThreadCompiledProgram result { .parsed = JS::ParsedProgram::parse(move(source_text), type, line_number_offset) };
+    Threading::ThreadPool::the().submit([source_text = move(source_text), type, line_number_offset, cache_key = move(cache_key), callback, &main_thread_event_loop]() mutable {
+        OffThreadCompiledProgram result { .parsed = JS::ParsedProgram::parse(source_text, type, line_number_offset) };
         if (result.parsed && !result.parsed.has_errors())
             result.compiled = JS::CompiledProgram::compile(move(result.parsed));
 
-        main_thread_event_loop.deferred_invoke([result = move(result), callback]() mutable {
+        main_thread_event_loop.deferred_invoke([result = move(result), source_text = move(source_text), cache_key = move(cache_key), callback]() mutable {
+            if (cache_key.has_value() && result.compiled) {
+                // NB: Another load of the script may have stored it while this one compiled.
+                if (auto cached_program = CompiledScriptCache::the().find(*cache_key, source_text); cached_program.has_value())
+                    result.compiled = cached_program.release_value();
+                else
+                    CompiledScriptCache::the().store(cache_key.release_value(), move(source_text), result.compiled);
+            }
+
             (*callback)(move(result));
             delete callback;
         });
@@ -465,7 +506,9 @@ void fetch_classic_script(JS::Realm& realm, URL::URL const& url, EnvironmentSett
         auto filename = request->url().to_byte_string();
         auto source_code = JS::SourceCode::create(utf16_string_from_url_ascii(filename.view()), move(source_text));
 
-        compile_off_thread(settings_object, move(source_code), JS::ProgramType::Script, 1,
+        auto cache_key = compiled_script_cache_key(request, request->url(), response->status(), response->header_list(), JS::ProgramType::Script, 1);
+
+        compile_off_thread(settings_object, move(source_code), JS::ProgramType::Script, 1, move(cache_key),
             [response_url = move(response_url), filename = move(filename),
                 muted_errors, on_complete_root = move(on_complete_root),
                 settings_root = move(settings_root)](auto result, auto source_code) mutable {
@@ -835,7 +878,9 @@ void fetch_single_module_script(JS::Realm& realm,
                 auto module_type_string = module_type;
                 auto source_code = JS::SourceCode::create(utf16_string_from_url_ascii(url_string.view()), move(source_text));
 
-                compile_off_thread(settings_object, move(source_code), JS::ProgramType::Module, 0,
+                auto cache_key = compiled_script_cache_key(request, url, internal_response->status(), internal_response->header_list(), JS::ProgramType::Module, 0);
+
+                compile_off_thread(settings_object, move(source_code), JS::ProgramType::Module, 0, move(cache_key),
                     [url = move(url), url_string = move(url_string), response_url = move(response_url),
                         module_type_string = move(module_type_string),
                         options, settings_root = move(settings_root)](auto result, auto source_code) mutable {

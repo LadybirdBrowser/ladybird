@@ -59,6 +59,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
+#include <LibWeb/HTML/Scripting/CompiledScriptCache.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -213,15 +214,20 @@ private:
     HashMap<Utf16String, NonnullRefPtr<HTTP::MemoryCache>> m_cache;
 };
 
-// https://fetch.spec.whatwg.org/#determine-the-http-cache-partition
-static RefPtr<HTTP::MemoryCache> determine_the_http_cache_partition(Infrastructure::Request const& request)
+Optional<Utf16String> http_cache_partition(Infrastructure::Request const& request)
 {
-    // 1. Let key be the result of determining the network partition key given request.
     auto key = Infrastructure::determine_the_network_partition_key(request);
 
     // NB: We partition this cache like RequestServer's disk cache, which a request from a document with an opaque
     //     origin does not use.
-    auto partition = key.has_value() ? key->disk_cache_partition() : OptionalNone {};
+    return key.has_value() ? key->disk_cache_partition() : OptionalNone {};
+}
+
+// https://fetch.spec.whatwg.org/#determine-the-http-cache-partition
+static RefPtr<HTTP::MemoryCache> determine_the_http_cache_partition(Infrastructure::Request const& request)
+{
+    // 1. Let key be the result of determining the network partition key given request.
+    auto partition = http_cache_partition(request);
 
     // 2. If key is null, then return null.
     if (!partition.has_value())
@@ -3545,6 +3551,7 @@ bool http_memory_cache_enabled()
 void clear_http_memory_cache()
 {
     HTTPCache::the().clear_cache();
+    HTML::CompiledScriptCache::the().clear();
 }
 
 void update_javascript_bytecode_cache_in_http_memory_cache(Utf16String const& partition, URL::URL const& url, ByteString const& method, HTTP::HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes javascript_bytecode_cache)

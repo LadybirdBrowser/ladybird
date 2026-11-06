@@ -576,6 +576,7 @@ set(SOURCES
     HTML/SanitizerConfiguration.cpp
     HTML/Scripting/Agent.cpp
     HTML/Scripting/ClassicScript.cpp
+    HTML/Scripting/CompiledScriptCache.cpp
     HTML/Scripting/ConsoleInputCompletion.cpp
     HTML/Scripting/DevToolsLoggedObjects.cpp
     HTML/Scripting/DevToolsObjectTable.cpp
