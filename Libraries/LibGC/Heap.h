@@ -52,12 +52,12 @@ class GC_API Heap {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    enum class BecomeProcessDefault {
+    enum class BecomeThreadDefault {
         No,
         Yes,
     };
 
-    explicit Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots, BecomeProcessDefault = BecomeProcessDefault::Yes);
+    explicit Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots, BecomeThreadDefault = BecomeThreadDefault::Yes);
     ~Heap();
 
     static Heap& the();

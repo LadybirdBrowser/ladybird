@@ -95,7 +95,7 @@ unsafe extern "C" {
     pub fn gc_heap_create(
         gather_roots: GCGatherRootsCallback,
         context: *mut c_void,
-        become_process_default: bool,
+        become_thread_default: bool,
     ) -> *mut GCHeap;
     pub fn gc_heap_destroy(heap: *mut GCHeap);
     // NB: The functions that take a reference to the heap have no other preconditions.

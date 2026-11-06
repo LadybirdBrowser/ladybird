@@ -49,8 +49,16 @@ static_assert(to_underlying(Promise::RejectionOperation::Handle) == JS_PROMISE_R
 static_assert(sizeof(Value) == sizeof(JSValue));
 static_assert(sizeof(JSScriptOrModule) == sizeof(ScriptOrModule));
 
-VM* VM::s_the = nullptr;
-static size_t s_vm_count = 0;
+#if defined(AK_OS_WINDOWS)
+static thread_local VM* s_the = nullptr;
+
+VM& VM::the()
+{
+    return *s_the;
+}
+#else
+constinit thread_local VM* VM::s_the = nullptr;
+#endif
 
 static JSVM* vm_abi(VM const& vm)
 {
@@ -279,11 +287,10 @@ static constexpr JSVmHostHooks s_host_hook_thunks {
 
 NonnullRefPtr<VM> VM::create()
 {
-    // NOTE: We only allow a single VM instance per process.
+    // NOTE: We only allow a single VM instance per thread.
     //       However, test runners need to create and destroy VMs repeatedly,
     //       so we allow recreating the VM as long as the previous one was destroyed.
-    VERIFY(s_vm_count == 0);
-    ++s_vm_count;
+    VERIFY(!s_the);
 
     ErrorMessages error_messages {};
     error_messages[to_underlying(ErrorMessage::OutOfMemory)] = Utf16String::from_utf16(ErrorType::OutOfMemory.message());
@@ -299,7 +306,7 @@ VM::VM(ErrorMessages error_messages)
     // The embedder's C++ cells live in the VM's heap, and a SharedArrayBuffer of a fixed length lives in memory that
     // other processes can map.
     JSVmOptions options {
-        .become_process_default_heap = true,
+        .become_thread_default_heap = true,
         .shared_memory_shared_array_buffers = true,
     };
     VERIFY(js_vm_construct_at(m_engine_storage, sizeof(m_engine_storage), alignof(VM), &options));
@@ -313,6 +320,8 @@ VM::VM(ErrorMessages error_messages)
 
 VM::~VM()
 {
+    VERIFY(s_the == this);
+
     // The hooks and the agent may hold roots, which have to go before the heap does.
     js_vm_set_agent(vm_abi(*this), nullptr);
     js_vm_set_embedder(vm_abi(*this), nullptr, nullptr);
@@ -322,10 +331,7 @@ VM::~VM()
 
     js_vm_destroy_at(vm_abi(*this));
 
-    if (s_the == this)
-        s_the = nullptr;
-    --s_vm_count;
-    VERIFY(s_vm_count == 0);
+    s_the = nullptr;
 }
 
 void VM::unref() const

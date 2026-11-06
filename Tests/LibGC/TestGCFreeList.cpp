@@ -36,7 +36,7 @@ NEVER_INLINE void allocate_unreachable_cells(GC::Heap& heap, size_t count)
 
 TEST_CASE(a_corrupted_free_cell_link_leads_to_a_cell_of_the_same_block)
 {
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
     heap.set_incremental_sweep_enabled(false);
 
     // NB: The cells of a new block come in address order.

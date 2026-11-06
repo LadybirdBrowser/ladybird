@@ -47,8 +47,9 @@ const _: () = assert!(
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct JSVmOptions {
-    /// Makes the VM's heap the one GC::Heap::the() returns, so that C++ cells of the embedder are allocated from it.
-    pub become_process_default_heap: bool,
+    /// Makes the VM's heap the one GC::Heap::the() returns on this thread, so that C++ cells of the embedder are
+    /// allocated from it.
+    pub become_thread_default_heap: bool,
     /// Backs SharedArrayBuffers with shared memory, which other processes can map.
     pub shared_memory_shared_array_buffers: bool,
 }
@@ -56,7 +57,7 @@ pub struct JSVmOptions {
 impl From<JSVmOptions> for VmOptions {
     fn from(options: JSVmOptions) -> Self {
         Self {
-            become_process_default_heap: options.become_process_default_heap,
+            become_thread_default_heap: options.become_thread_default_heap,
             shared_memory_shared_array_buffers: options.shared_memory_shared_array_buffers,
         }
     }

@@ -229,14 +229,14 @@ uintptr_t gc_primitive_storage_cage_base(void)
     return js_primitive_storage_cage_base;
 }
 
-GCHeap* gc_heap_create(GCGatherRootsCallback gather_roots, void* context, bool become_process_default)
+GCHeap* gc_heap_create(GCGatherRootsCallback gather_roots, void* context, bool become_thread_default)
 {
     auto* heap = new Heap(
         [gather_roots, context](HashMap<Cell*, HeapRoot>& roots) {
             RootGatheringVisitor visitor { roots };
             gather_roots(context, reinterpret_cast<GCVisitor*>(static_cast<Cell::Visitor*>(&visitor)));
         },
-        become_process_default ? Heap::BecomeProcessDefault::Yes : Heap::BecomeProcessDefault::No);
+        become_thread_default ? Heap::BecomeThreadDefault::Yes : Heap::BecomeThreadDefault::No);
     CAPI::set_foreign_context(*heap, context);
     return reinterpret_cast<GCHeap*>(heap);
 }

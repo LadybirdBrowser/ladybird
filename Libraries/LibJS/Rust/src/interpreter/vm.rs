@@ -174,8 +174,9 @@ pub type OnUnimplementedPropertyAccess = fn(&Vm, &Object, &PropertyKey);
 /// How a VM is set up, which is fixed once it is created.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct VmOptions {
-    /// Makes the VM's heap the one GC::Heap::the() returns, so that the embedder's C++ cells are allocated from it.
-    pub become_process_default_heap: bool,
+    /// Makes the VM's heap the one GC::Heap::the() returns on this thread, so that the embedder's C++ cells are
+    /// allocated from it.
+    pub become_thread_default_heap: bool,
     /// Backs SharedArrayBuffers with shared memory, which other processes can map.
     pub shared_memory_shared_array_buffers: bool,
 }
@@ -767,7 +768,7 @@ impl Vm {
         vm.update_dispatch_tables();
         let context = storage.cast();
         // SAFETY: The VM stays at this address until it is dropped, and it destroys the heap before anything else.
-        let heap = unsafe { Heap::new(gather_roots, context, options.become_process_default_heap) };
+        let heap = unsafe { Heap::new(gather_roots, context, options.become_thread_default_heap) };
         // SAFETY: As above.
         unsafe { heap.register_sweep_callback(sweep, context) };
         vm.head.stack_base.set(heap.stack_bounds().0);

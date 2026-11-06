@@ -108,7 +108,7 @@ GC_API void gc_get_layout(GCLayout*);
 GC_API uintptr_t gc_heap_region_base(void);
 GC_API uintptr_t gc_primitive_storage_cage_base(void);
 
-GC_API GCHeap* gc_heap_create(GCGatherRootsCallback, void* context, bool become_process_default);
+GC_API GCHeap* gc_heap_create(GCGatherRootsCallback, void* context, bool become_thread_default);
 // Finalizes and destroys every remaining cell. Roots created with gc_root_create() must be destroyed first. The final
 // collection also runs every sweep callback and pending post-GC task, with gc_heap_is_collecting_everything() true,
 // so their contexts must stay valid until this returns; nothing they allocate then is destroyed.

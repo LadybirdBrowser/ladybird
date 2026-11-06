@@ -129,7 +129,17 @@ public:
     void ref() const { ++m_reference_count; }
     void unref() const;
 
+    // The VM of the calling thread. A thread that runs a VM creates and destroys it, and has at most one at a time.
+#if defined(AK_OS_WINDOWS)
+    static VM& the();
+#else
     ALWAYS_INLINE static VM& the() { return *s_the; }
+#endif
+
+    // A thread that runs a VM should have a stack of at least this size, which is what main threads usually get. The
+    // default for other threads can be far less (512 KiB on macOS), where recursion that works on the main thread would
+    // end in a RangeError.
+    static constexpr size_t MINIMUM_THREAD_STACK_SIZE = 8 * MiB;
 
     GC::Heap& heap() const { return *m_heap; }
 
@@ -487,7 +497,10 @@ private:
 
     void push_execution_context_growing_the_stack(ExecutionContext&);
 
-    static VM* s_the;
+#if !defined(AK_OS_WINDOWS)
+    // NB: Cell::vm() reads this all the time, so it stays inline where it can: a DLL cannot export a thread_local.
+    AK_TLS_INITIAL_EXEC static constinit thread_local VM* s_the;
+#endif
 
     mutable u32 m_reference_count { 1 };
     GC::Heap* m_heap { nullptr };
