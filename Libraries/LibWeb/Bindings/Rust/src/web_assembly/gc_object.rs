@@ -166,6 +166,8 @@ pub(crate) fn create_exported_gc_object(vm: &Vm, reference: u64) -> Gc<Object> {
         )
     }
     .upcast::<Object>();
+    // NB: [[IsExtensible]] is always false, which caches of property additions rely on the shape to tell.
+    object.set_non_extensible(vm);
 
     // 5. Set map[objectaddr] to object.
     set_host_object(cell, object);

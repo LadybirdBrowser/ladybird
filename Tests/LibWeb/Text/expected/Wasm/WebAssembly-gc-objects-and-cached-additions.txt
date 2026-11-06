@@ -1,0 +1,3 @@
+named: TypeError
+keyed: TypeError
+extensible: false, own keys: 0, x: 1
