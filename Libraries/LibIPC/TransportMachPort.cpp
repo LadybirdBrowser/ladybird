@@ -282,6 +282,8 @@ void TransportMachPort::mark_peer_eof()
     {
         MutexLocker locker(m_incoming_mutex);
         m_peer_eof = true;
+        if (m_incoming_message_observer)
+            m_incoming_message_observer({});
         should_write_notification = schedule_read_notification_if_needed_locked();
     }
     m_incoming_cv.broadcast();
@@ -602,6 +604,8 @@ void TransportMachPort::process_received_message(u8* buffer)
     bool should_write_notification = false;
     {
         MutexLocker locker(m_incoming_mutex);
+        if (m_incoming_message_observer)
+            m_incoming_message_observer(message->bytes.bytes());
         auto const was_empty = m_incoming_messages.is_empty();
         m_incoming_messages.append(move(message));
         if (was_empty)
@@ -610,6 +614,12 @@ void TransportMachPort::process_received_message(u8* buffer)
     m_incoming_cv.signal();
     if (should_write_notification)
         write_read_notification_byte();
+}
+
+void TransportMachPort::set_incoming_message_observer(Function<void(ReadonlyBytes)> observer)
+{
+    MutexLocker locker(m_incoming_mutex);
+    m_incoming_message_observer = move(observer);
 }
 
 void TransportMachPort::set_up_read_hook(Function<void()> hook)

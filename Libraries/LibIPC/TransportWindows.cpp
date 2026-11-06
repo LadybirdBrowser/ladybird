@@ -6,11 +6,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Checked.h>
 #include <AK/NumericLimits.h>
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
@@ -18,6 +20,7 @@
 #include <LibIPC/Limits.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibIPC/TransportWindows.h>
+#include <LibThreading/Thread.h>
 
 #include <AK/Windows.h>
 
@@ -43,6 +46,22 @@ static constexpr size_t MAX_UNPROCESSED_BUFFER_SIZE = 128 * MiB;
 
 // A send that cannot complete at once waits in slices this long, so that closing the transport ends the wait.
 static constexpr DWORD SEND_WAIT_SLICE_MS = 100;
+
+// WSAPoll() cannot wait for an event as well, so a wait on a socket looks at the event in slices this long.
+static constexpr INT SOCKET_WAIT_SLICE_MS = 100;
+
+// Lets the IO thread call the read hook on the owner's thread, as long as the transport is there.
+struct TransportWindows::ReadHookRelay : public AtomicRefCounted<ReadHookRelay> {
+    TransportWindows* transport { nullptr };
+    Atomic<bool> is_pending { false };
+};
+
+static HANDLE create_manual_reset_event()
+{
+    auto event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    VERIFY(event);
+    return event;
+}
 
 class OverlappedOperation {
     AK_MAKE_NONCOPYABLE(OverlappedOperation);
@@ -105,12 +124,18 @@ TransportWindows::TransportWindows(int handle, Kind kind)
 TransportWindows::~TransportWindows()
 {
     close();
+    for (auto* event : { m_incoming_event, m_io_thread_stop_event }) {
+        if (event)
+            CloseHandle(event);
+    }
 }
 
 void TransportWindows::set_up_read_hook(Function<void()> hook)
 {
     VERIFY(is_open());
     m_on_read_hook = move(hook);
+    if (m_io_thread)
+        return;
     m_read_notifier = Core::Notifier::construct(m_handle, Core::NotificationType::Read);
     m_read_notifier->on_activation = [this] {
         if (m_on_read_hook)
@@ -146,9 +171,103 @@ void TransportWindows::stop_watching()
         notifier->close();
 }
 
+void TransportWindows::set_incoming_message_observer(Function<void(ReadonlyBytes)> observer)
+{
+    {
+        MutexLocker locker(m_incoming_message_observer_mutex);
+        m_incoming_message_observer = move(observer);
+    }
+    if (!m_io_thread && is_open())
+        start_io_thread();
+}
+
+void TransportWindows::notify_incoming_message_observer(ReadonlyBytes bytes)
+{
+    MutexLocker locker(m_incoming_message_observer_mutex);
+    if (m_incoming_message_observer)
+        m_incoming_message_observer(bytes);
+}
+
+void TransportWindows::start_io_thread()
+{
+    m_incoming_event = create_manual_reset_event();
+    m_io_thread_stop_event = create_manual_reset_event();
+    m_read_hook_relay = adopt_ref(*new ReadHookRelay);
+    m_read_hook_relay->transport = this;
+    m_owner_event_loop = Core::EventLoop::current_weak();
+
+    // The notifier's own read of the handle would race the IO thread's reads.
+    stop_watching();
+
+    m_io_thread = Threading::Thread::construct("IPC IO"sv, [this] { return io_thread_loop(); });
+    m_io_thread->start();
+}
+
+// Must not be called with m_send_mutex held, as the IO thread may need it before it can stop.
+void TransportWindows::stop_io_thread()
+{
+    if (!m_io_thread || m_io_thread_has_stopped)
+        return;
+    SetEvent(m_io_thread_stop_event);
+    (void)m_io_thread->join();
+    m_io_thread_has_stopped = true;
+    m_read_hook_relay->transport = nullptr;
+}
+
+intptr_t TransportWindows::io_thread_loop()
+{
+    // NB: A pipe that holds data stays readable while this end is closing, so that alone must end the loop.
+    while (m_is_open.load(AK::MemoryOrder::memory_order_relaxed)) {
+        if (!wait_until_readable_or_signaled(m_io_thread_stop_event))
+            return 0;
+
+        Vector<NonnullOwnPtr<Message>> batch;
+        auto should_shutdown = read_and_parse_messages([&](NonnullOwnPtr<Message> message) {
+            batch.append(move(message));
+        });
+        bool const has_ended = should_shutdown == ShouldShutdown::Yes;
+        if (batch.is_empty() && !has_ended)
+            continue;
+
+        for (auto const& message : batch)
+            notify_incoming_message_observer(message->bytes.bytes());
+        if (has_ended)
+            notify_incoming_message_observer({});
+
+        {
+            MutexLocker locker(m_incoming_mutex);
+            m_incoming_messages.extend(move(batch));
+            if (has_ended)
+                m_incoming_has_ended = true;
+            SetEvent(m_incoming_event);
+        }
+        notify_read_hook();
+
+        if (has_ended)
+            return 0;
+    }
+    return 0;
+}
+
+void TransportWindows::notify_read_hook()
+{
+    if (m_read_hook_relay->is_pending.exchange(true))
+        return;
+    auto event_loop = m_owner_event_loop->take();
+    if (!event_loop.is_alive())
+        return;
+    event_loop->deferred_invoke([relay = m_read_hook_relay] {
+        relay->is_pending.store(false);
+        if (relay->transport && relay->transport->m_on_read_hook)
+            relay->transport->m_on_read_hook();
+    });
+    event_loop->wake();
+}
+
 void TransportWindows::close()
 {
     m_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
+    stop_io_thread();
     MutexLocker locker(m_send_mutex);
     stop_watching();
     if (m_handle != -1) {
@@ -162,8 +281,50 @@ void TransportWindows::close_after_sending_all_pending_messages()
     close();
 }
 
+// Returns false if the event was signaled first.
+bool TransportWindows::wait_until_readable_or_signaled(HANDLE event)
+{
+    if (m_kind == Kind::Socket) {
+        for (;;) {
+            WSAPOLLFD poll_fd {
+                .fd = static_cast<SOCKET>(m_handle),
+                .events = POLLRDNORM,
+                .revents = 0,
+            };
+            auto result = WSAPoll(&poll_fd, 1, SOCKET_WAIT_SLICE_MS);
+            VERIFY(result != SOCKET_ERROR);
+            if (result > 0)
+                return true;
+            if (WaitForSingleObject(event, 0) == WAIT_OBJECT_0)
+                return false;
+        }
+    }
+
+    // A zero-byte read completes once there is something to read, or once the pipe is broken.
+    OverlappedOperation operation;
+    static u8 s_zero_byte_buffer;
+    if (ReadFile(to_handle(m_handle), &s_zero_byte_buffer, 0, nullptr, operation.overlapped()))
+        return true;
+    if (GetLastError() != ERROR_IO_PENDING)
+        return true;
+    HANDLE events[] = { operation.event(), event };
+    if (WaitForMultipleObjects(2, events, FALSE, INFINITE) == WAIT_OBJECT_0)
+        return true;
+
+    // The read must have stopped writing to the OVERLAPPED before it goes away.
+    CancelIoEx(to_handle(m_handle), operation.overlapped());
+    DWORD bytes_read = 0;
+    GetOverlappedResult(to_handle(m_handle), operation.overlapped(), &bytes_read, TRUE);
+    return false;
+}
+
 void TransportWindows::wait_until_readable()
 {
+    if (m_io_thread) {
+        WaitForSingleObject(m_incoming_event, INFINITE);
+        return;
+    }
+
     if (m_kind == Kind::Socket) {
         WSAPOLLFD poll_fd {
             .fd = static_cast<SOCKET>(m_handle),
@@ -345,6 +506,28 @@ TransportWindows::ReadOutcome TransportWindows::read_some_without_waiting(Bytes 
 
 TransportWindows::ShouldShutdown TransportWindows::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)
 {
+    if (!m_io_thread) {
+        return read_and_parse_messages([&](NonnullOwnPtr<Message> message) {
+            callback(move(*message));
+        });
+    }
+
+    Vector<NonnullOwnPtr<Message>> messages;
+    bool has_ended = false;
+    {
+        MutexLocker locker(m_incoming_mutex);
+        messages = move(m_incoming_messages);
+        has_ended = m_incoming_has_ended;
+        if (!has_ended)
+            ResetEvent(m_incoming_event);
+    }
+    for (auto& message : messages)
+        callback(move(*message));
+    return has_ended ? ShouldShutdown::Yes : ShouldShutdown::No;
+}
+
+TransportWindows::ShouldShutdown TransportWindows::read_and_parse_messages(Function<void(NonnullOwnPtr<Message>)>&& callback)
+{
     auto should_shutdown = ShouldShutdown::No;
 
     // What the peer sent before hanging up is still here to be read, so only this end closing stops the reading.
@@ -404,7 +587,7 @@ TransportWindows::ShouldShutdown TransportWindows::read_as_many_messages_as_poss
         if (message_size.has_overflow() || message_size.value() > m_unprocessed_bytes.size() - index)
             break;
 
-        Message message;
+        auto message = make<Message>();
         Attachment section;
         if (header.attachment_count > 0) {
             HandleBrokerToken attachment_token = 0;
@@ -418,7 +601,7 @@ TransportWindows::ShouldShutdown TransportWindows::read_as_many_messages_as_poss
             if (payload_is_in_shared_memory)
                 section = attachments.value().take_last();
             for (auto& attachment : attachments.value())
-                message.attachments.enqueue(move(attachment));
+                message->attachments.enqueue(move(attachment));
         }
 
         auto const* payload = m_unprocessed_bytes.data() + index + sizeof(MessageHeader) + header.token_size();
@@ -436,7 +619,7 @@ TransportWindows::ShouldShutdown TransportWindows::read_as_many_messages_as_poss
             should_shutdown = ShouldShutdown::Yes;
             break;
         }
-        message.bytes = ReceivedMessageBytes::from_vector(move(payload_bytes));
+        message->bytes = ReceivedMessageBytes::from_vector(move(payload_bytes));
         callback(move(message));
         index = message_size.value() + index;
     }
@@ -469,6 +652,7 @@ TransportWindows::ShouldShutdown TransportWindows::read_as_many_messages_as_poss
 ErrorOr<TransportHandle> TransportWindows::release_for_transfer()
 {
     m_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
+    stop_io_thread();
     MutexLocker locker(m_send_mutex);
     stop_watching();
     if (m_handle == -1)
