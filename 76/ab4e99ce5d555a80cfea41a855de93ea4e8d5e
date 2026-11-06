@@ -1,0 +1,8 @@
+When a stylesheet link is disabled, Ladybird keeps its sheet aside,
+and puts it back if the link is enabled again before it starts another
+fetch. The other engines drop the sheet when the link is disabled,
+and load it again when the link is enabled, which their memory caches
+answer: Blink’s LinkStyle::SetDisabledState() clears the sheet and
+calls Process(), WebKit’s HTMLLinkElement::setDisabledState() calls
+clearSheet() and process(), and Gecko’s HTMLLinkElement::AfterSetAttr()
+forces UpdateStyleSheetInternal().
