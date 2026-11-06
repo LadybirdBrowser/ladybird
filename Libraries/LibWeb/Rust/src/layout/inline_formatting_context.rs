@@ -1641,6 +1641,8 @@ impl<'context> InlineFormattingContext<'context> {
             max_content_lines.append(self, items, prepared, index);
             min_content_lines.append(self, items, prepared, index);
         }
+        max_content_lines.append_pending_start_edges();
+        min_content_lines.append_pending_start_edges();
         let (max_content_inline_size, first_line_max_content) =
             max_content_lines.lines.finish_measurement_and_first_line();
         let min_content_inline_size = min_content_lines.lines.finish_measurement();
@@ -2029,6 +2031,7 @@ impl<'context> InlineFormattingContext<'context> {
         let mut leading_border = CssPixels::default();
         let mut leading_padding = CssPixels::default();
         let mut leading_right_to_left_end_margin = CssPixels::default();
+        let mut collapsed_whitespace_node = NodeSlotId::INVALID;
         let mut absolute_boxes = Vec::new();
         let mut previous_text_item_allows_overflow_break_after = false;
         let mut whitespace_measured_next_run = false;
@@ -2082,6 +2085,28 @@ impl<'context> InlineFormattingContext<'context> {
                 .last()
                 .is_none_or(|line| line.is_empty_or_ends_in_whitespace() || line.has_block_level_box);
             if item.is_collapsible_whitespace && line_starts_with_whitespace {
+                // NB: The whitespace disappears, but the inline boxes that end with it still end on this line.
+                collapsed_whitespace_node = item.node;
+                leading_margin += item.margin_start;
+                leading_border += item.border_start;
+                leading_padding += item.padding_start;
+                leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
+                let zero = CssPixels::default();
+                if item.margin_end != zero || item.border_end != zero || item.padding_end != zero {
+                    // NB: A box that ends here started on this line, so its start edges come before its end edges.
+                    line_builder.append_start_edges_of_collapsed_whitespace(
+                        item.node,
+                        std::mem::take(&mut leading_margin),
+                        std::mem::take(&mut leading_border),
+                        std::mem::take(&mut leading_padding),
+                    );
+                    line_builder.append_end_edges_of_collapsed_whitespace(
+                        item.node,
+                        item.margin_end,
+                        item.border_end,
+                        item.padding_end,
+                    );
+                }
                 if self.style(self.style_source(item.node)).text_wrap_mode() == text_wrap_mode::WRAP {
                     let next_inline_size = iterator.next_inline_run_size(self).unwrap_or_default();
                     if next_inline_size > CssPixels::default() {
@@ -2089,21 +2114,20 @@ impl<'context> InlineFormattingContext<'context> {
                         line_builder.break_if_needed(next_inline_size);
                     }
                 }
-                leading_margin += item.margin_start;
-                leading_border += item.border_start;
-                leading_padding += item.padding_start;
-                leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
                 continue;
             }
 
-            item.margin_start += leading_margin;
-            item.border_start += leading_border;
-            item.padding_start += leading_padding;
-            item.entered_right_to_left_end_margin += leading_right_to_left_end_margin;
-            leading_margin = CssPixels::default();
-            leading_border = CssPixels::default();
-            leading_padding = CssPixels::default();
-            leading_right_to_left_end_margin = CssPixels::default();
+            // NB: A float is not on the line, so the leading edges wait for the next item that is.
+            if item.type_ != inline_level_iterator::ItemType::FloatingElement {
+                item.margin_start += leading_margin;
+                item.border_start += leading_border;
+                item.padding_start += leading_padding;
+                item.entered_right_to_left_end_margin += leading_right_to_left_end_margin;
+                leading_margin = CssPixels::default();
+                leading_border = CssPixels::default();
+                leading_padding = CssPixels::default();
+                leading_right_to_left_end_margin = CssPixels::default();
+            }
 
             match item.type_ {
                 inline_level_iterator::ItemType::InlineEdge => {
@@ -2113,6 +2137,12 @@ impl<'context> InlineFormattingContext<'context> {
                     line_builder.append_inline_edge(&item);
                 }
                 inline_level_iterator::ItemType::ForcedBreak => {
+                    line_builder.append_start_edges_of_collapsed_whitespace(
+                        collapsed_whitespace_node,
+                        item.margin_start,
+                        item.border_start,
+                        item.padding_start,
+                    );
                     self.current_line_start.set(fragmentation::LinePosition {
                         item_index: item_index + 1,
                         offset_in_node: 0,
@@ -2197,6 +2227,12 @@ impl<'context> InlineFormattingContext<'context> {
                         || item.margin_start != CssPixels::default()
                         || item.border_start != CssPixels::default()
                         || item.padding_start != CssPixels::default();
+                    line_builder.append_start_edges_of_collapsed_whitespace(
+                        collapsed_whitespace_node,
+                        item.margin_start,
+                        item.border_start,
+                        item.padding_start,
+                    );
                     line_builder.append_static_position_marker(item.node, preceded);
                     absolute_boxes.push(item.node);
                 }
@@ -2335,6 +2371,15 @@ impl<'context> InlineFormattingContext<'context> {
                     line_builder.append_text_item(&mut item, iterator.prepared_content(), style);
                 }
             }
+        }
+        if iterator.items().is_empty() {
+            line_builder.append_start_edges_of_collapsed_whitespace(
+                collapsed_whitespace_node,
+                leading_margin,
+                leading_border,
+                leading_padding,
+            );
+            line_builder.keep_line_of_collapsed_whitespace_edges();
         }
         BrokenLines {
             absolute_boxes,
@@ -3177,6 +3222,7 @@ pub(super) struct LinesWithoutLineBoxes {
     first_line: Option<FirstLineMaxContent>,
     inline_size: CssPixels,
     has_fragments: bool,
+    has_edges_of_collapsed_whitespace: bool,
     ends_in_whitespace: bool,
     trailing_whitespace_wraps: bool,
     trailing_whitespace_inline_size: CssPixels,
@@ -3253,6 +3299,13 @@ impl LinesWithoutLineBoxes {
         }
     }
 
+    fn append_edges_of_collapsed_whitespace(&mut self, margin: CssPixels, border: CssPixels, padding: CssPixels) {
+        self.inline_size += margin + border + padding;
+        self.has_edges_of_collapsed_whitespace |= [margin, border, padding]
+            .iter()
+            .any(|edge| *edge != CssPixels::default());
+    }
+
     fn note_line(&mut self, inline_size: CssPixels) {
         let floats_beside_line = std::mem::take(&mut self.floats_beside_line);
         self.greatest_inline_size = self
@@ -3262,12 +3315,16 @@ impl LinesWithoutLineBoxes {
             .get_or_insert(floats_beside_line.beside_first_line(inline_size.max(CssPixels::default())));
         self.inline_size = CssPixels::default();
         self.has_fragments = false;
+        self.has_edges_of_collapsed_whitespace = false;
         self.ends_in_whitespace = false;
         self.trailing_whitespace_inline_size = CssPixels::default();
     }
 
     fn finish(&mut self) {
-        if self.has_fragments || !self.floats_beside_line.is_empty() {
+        if self.has_edges_of_collapsed_whitespace {
+            self.start_line_if_empty();
+        }
+        if self.has_fragments || self.has_edges_of_collapsed_whitespace || !self.floats_beside_line.is_empty() {
             self.note_line(self.inline_size - self.trailing_whitespace_inline_size);
             self.follows_forced_break = false;
         }
@@ -3338,6 +3395,8 @@ impl ContentSizingLines {
             std::mem::take(&mut self.previous_text_item_breaks_between_graphemes);
         let line_is_empty_or_ends_in_whitespace = self.lines.is_empty_or_ends_in_whitespace();
         if item.is_collapsible_whitespace && line_is_empty_or_ends_in_whitespace {
+            self.lines
+                .append_edges_of_collapsed_whitespace(item.margin_end, item.border_end, item.padding_end);
             if self.lines.breaks_before_next_fragment()
                 && matches!(
                     context.text_item_wrap_opportunity(
@@ -3384,7 +3443,11 @@ impl ContentSizingLines {
             item.margin_end,
         );
         match item.type_ {
-            inline_level_iterator::ItemType::ForcedBreak => self.lines.force_break(),
+            inline_level_iterator::ItemType::ForcedBreak => {
+                self.lines
+                    .append_edges_of_collapsed_whitespace(margin_start, border_start, padding_start);
+                self.lines.force_break();
+            }
             inline_level_iterator::ItemType::InlineEdge => {
                 self.lines.append(border_box_inline_size, false, CssPixels::default());
             }
@@ -3392,8 +3455,11 @@ impl ContentSizingLines {
                 self.lines
                     .append_atomic_inline(border_box_inline_size, self.container_wraps);
             }
-            // An absolutely positioned box only takes a static position, which the pending inline edges attach to.
-            inline_level_iterator::ItemType::AbsolutelyPositionedElement => {}
+            // An absolutely positioned box only takes a static position, which comes after the pending inline edges.
+            inline_level_iterator::ItemType::AbsolutelyPositionedElement => {
+                self.lines
+                    .append_edges_of_collapsed_whitespace(margin_start, border_start, padding_start);
+            }
             inline_level_iterator::ItemType::BlockLevelBox | inline_level_iterator::ItemType::FloatingElement => {
                 unreachable!(
                     "content sizing places floats beside lines and sizes block-level boxes as lines of their own"
@@ -3477,6 +3543,14 @@ impl ContentSizingLines {
                 }
             }
         }
+    }
+
+    fn append_pending_start_edges(&mut self) {
+        self.lines.append_edges_of_collapsed_whitespace(
+            std::mem::take(&mut self.pending_start_margin),
+            std::mem::take(&mut self.pending_start_border),
+            std::mem::take(&mut self.pending_start_padding),
+        );
     }
 
     fn append_float(&mut self, context: &InlineFormattingContext<'_>, item: &inline_level_iterator::Item) {
