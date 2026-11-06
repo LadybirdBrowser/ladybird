@@ -22,12 +22,24 @@ class MathMLAnchorElement final
 public:
     virtual ~MathMLAnchorElement() override;
 
+    virtual bool is_mathml_anchor_element() const override { return true; }
+
 private:
     MathMLAnchorElement(DOM::Document&, DOM::QualifiedName);
+
+    // ^DOM::Element
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     // ^HTML::HTMLHyperlinkElementUtils
     virtual DOM::Element& hyperlink_element_utils_element() override { return *this; }
     virtual DOM::Element const& hyperlink_element_utils_element() const override { return *this; }
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<MathML::MathMLAnchorElement>() const { return is_mathml_anchor_element(); }
 
 }

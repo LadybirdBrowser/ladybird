@@ -149,6 +149,7 @@
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
+#include <LibWeb/MathML/MathMLAnchorElement.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
@@ -3371,7 +3372,7 @@ bool Element::matches_placeholder_shown_pseudo_class() const
 bool Element::matches_link_pseudo_class() const
 {
     // All a elements that have an href attribute, and all area elements that have an href attribute, must match one of :link and :visited.
-    if (!is<HTML::HTMLAnchorElement>(*this) && !is<HTML::HTMLAreaElement>(*this) && !is<SVG::SVGAElement>(*this))
+    if (!is<HTML::HTMLAnchorElement>(*this) && !is<HTML::HTMLAreaElement>(*this) && !is<SVG::SVGAElement>(*this) && !is<MathML::MathMLAnchorElement>(*this))
         return false;
     return has_attribute(HTML::AttributeNames::href);
 }
