@@ -331,7 +331,12 @@ pub fn fd_from_file_port(port: MachPort) -> Result<OwnedFd, std::io::Error> {
         return Err(std::io::Error::last_os_error());
     }
     // NB: fileport_makefd() returned a new descriptor that nothing else owns.
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    let descriptor = unsafe { OwnedFd::from_raw_fd(fd) };
+    // NB: IPC::File::decode() makes its descriptors close-on-exec too.
+    if unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) } < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(descriptor)
 }
 
 pub const IPC_DATA_MESSAGE_ID: i32 = 0x4950_C001;
