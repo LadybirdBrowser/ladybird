@@ -820,7 +820,10 @@ impl<'pass> InlineContentPreparer<'pass> {
 
     fn exit_node_with_box_model_metrics(&mut self) {
         self.buffers.box_stack.pop().unwrap();
-        let event = InlineBoxEvent::leaving_innermost_box(self.inline_box_event_position());
+        // NB: The walk looks one node ahead, so a box usually ends while its last item is the current node. An inline
+        //     box as the current node has no item of its own, so nothing in the box comes with the next item.
+        let before_item = !self.current_node.is_invalid() && self.facts(self.current_node).is_fragmented_inline();
+        let event = InlineBoxEvent::leaving_innermost_box(self.inline_box_event_position(), before_item);
         self.buffers.box_events.push(event);
     }
 
@@ -1382,7 +1385,13 @@ impl<'context> RunItemResolver<'_, 'context> {
         self.accumulated_inline_size_for_tabs += advance;
     }
 
-    fn keep_inline_edge(&mut self, node: Node, sides: &used_values::RootInputCells, is_start: bool) {
+    fn keep_inline_edge(
+        &mut self,
+        node: Node,
+        sides: &used_values::RootInputCells,
+        is_start: bool,
+        takes_leading_metrics: bool,
+    ) {
         let reversed = self.context().facts(node).inline_axis_is_reverse();
         let (margin, border, padding) = if is_start != reversed {
             (sides.margin_left, sides.border_left, sides.padding_left)
@@ -1419,7 +1428,7 @@ impl<'context> RunItemResolver<'_, 'context> {
                 right_to_left_end_margin,
                 is_start,
                 is_low: is_start != reversed,
-                takes_leading_metrics: is_start,
+                takes_leading_metrics,
             });
         }
     }
@@ -1433,7 +1442,7 @@ impl<'context> RunItemResolver<'_, 'context> {
             self.next_box_event += 1;
             match event.entered_box() {
                 Some(node) => self.enter_node_with_box_model_metrics(node),
-                None => self.exit_node_with_box_model_metrics(),
+                None => self.exit_node_with_box_model_metrics(event.leaves_before_item()),
             }
         }
     }
@@ -1441,14 +1450,14 @@ impl<'context> RunItemResolver<'_, 'context> {
     fn enter_node_with_box_model_metrics(&mut self, node: Node) {
         self.entered_box_model_nodes.push(node);
         let sides = lay_out_entered_inline_box(self.context, node);
-        self.keep_inline_edge(node, &sides, true);
+        self.keep_inline_edge(node, &sides, true, true);
         self.box_model_node_stack.push(node);
     }
 
-    fn exit_node_with_box_model_metrics(&mut self) {
+    fn exit_node_with_box_model_metrics(&mut self, before_item: bool) {
         let node = self.box_model_node_stack.pop().unwrap();
         let sides = self.context().sides_of_entered_inline_box(node);
-        self.keep_inline_edge(node, &sides, false);
+        self.keep_inline_edge(node, &sides, false, before_item);
     }
 
     fn negative_right_to_left_end_margin(&self, node: Node, margin_left: CssPixels) -> CssPixels {
