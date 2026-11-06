@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
@@ -36,6 +37,15 @@ namespace Web::HTML {
 static GC::Ref<DOM::Event> create_event_for_element(DOM::Element& element, Utf16FlyString const& event_name)
 {
     return DOM::Event::create(event_name, HighResolutionTime::current_high_resolution_time(relevant_global_object(element)));
+}
+
+static bool is_in_a_use_element_shadow_tree(DOM::Node const& node)
+{
+    for (auto const* shadow_root = as_if<DOM::ShadowRoot>(node.root()); shadow_root && shadow_root->host(); shadow_root = as_if<DOM::ShadowRoot>(shadow_root->host()->root())) {
+        if (is<SVG::SVGUseElement>(*shadow_root->host()))
+            return true;
+    }
+    return false;
 }
 
 void HTMLOrSVGScriptElement::visit_script_element_edges(GC::Cell::Visitor& visitor)
@@ -224,6 +234,11 @@ void HTMLOrSVGScriptElement::prepare_script()
 
     // 1. If el's already started is true, then return.
     if (m_already_started)
+        return;
+
+    // AD-HOC: Scripts that a use element copies into its shadow tree are inert, matching other engines.
+    //         See https://github.com/w3c/svgwg/issues/876
+    if (is_in_a_use_element_shadow_tree(element))
         return;
 
     // 2. Let parser document be el's parser document.

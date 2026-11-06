@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc' 'strict-dynamic'">
+<title>Scripts cloned by an SVG use element don't execute</title>
+<link rel="help" href="https://svgwg.org/svg2-draft/struct.html#UseElement">
+<link rel="help" href="https://github.com/w3c/svgwg/issues/876">
+<script nonce="abc" src="../../../resources/testharness.js"></script>
+<script nonce="abc" src="../../../resources/testharnessreport.js"></script>
+<script nonce="abc">
+  window.typeChangedRuns = {
+    "svg-script": 0,
+    "html-script": 0,
+    "shadow-script": 0,
+    "root-html-script": 0,
+    "root-shadow-script": 0,
+  };
+  window.strictDynamicRuns = 0;
+</script>
+<svg>
+  <g id="g">
+    <script id="svg-script" type="text/x-not-js">typeChangedRuns["svg-script"]++</script>
+    <foreignObject width="100" height="100">
+      <script id="html-script" type="text/x-not-js">typeChangedRuns["html-script"]++</script>
+    </foreignObject>
+    <foreignObject width="100" height="100">
+      <div id="shadow-host">
+        <template shadowrootmode="open" shadowrootclonable>
+          <script id="shadow-script" type="text/x-not-js">typeChangedRuns["shadow-script"]++</script>
+        </template>
+      </div>
+    </foreignObject>
+  </g>
+  <foreignObject id="fo" width="100" height="100">
+    <script id="root-html-script" type="text/x-not-js">typeChangedRuns["root-html-script"]++</script>
+    <div id="root-shadow-host">
+      <template shadowrootmode="open" shadowrootclonable>
+        <script id="root-shadow-script" type="text/x-not-js">typeChangedRuns["root-shadow-script"]++</script>
+      </template>
+    </div>
+  </foreignObject>
+</svg>
+<script nonce="abc">
+  document.write('<svg><use href="#written-svg"/><g id="written-svg"><script href="support/use-script-strict-dynamic.js">');
+  document.documentElement.getBoundingClientRect();
+  document.write('</scr' + 'ipt></g></svg>');
+</script>
+<script nonce="abc">
+  document.write('<svg><use href="#written-html"/><g id="written-html"><foreignObject><script src="support/use-script-strict-dynamic.js">');
+  document.documentElement.getBoundingClientRect();
+  document.write('</scr' + 'ipt></foreignObject></g></svg>');
+</script>
+<script nonce="abc">
+  const loaded = new Promise(resolve => window.addEventListener("load", resolve));
+
+  for (const kind of Object.keys(typeChangedRuns)) {
+    promise_test(async function(t) {
+      const script = document.getElementById(kind) ||
+        document.getElementById("shadow-host").shadowRoot.getElementById(kind) ||
+        document.getElementById("root-shadow-host").shadowRoot.getElementById(kind);
+      script.setAttribute("type", "text/javascript");
+      const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+      use.setAttribute("href", kind.startsWith("root-") ? "#fo" : "#g");
+      document.querySelector("svg").appendChild(use);
+      t.add_cleanup(() => use.remove());
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise(resolve => step_timeout(resolve, 0));
+      assert_equals(typeChangedRuns[kind], 0, "Cloned script shouldn't run");
+    }, `Not-yet-started ${kind} cloned by a use element doesn't run`);
+  }
+
+  promise_test(async function() {
+    await loaded;
+    await new Promise(resolve => step_timeout(resolve, 0));
+    assert_equals(strictDynamicRuns, 0, "Cloned scripts shouldn't run");
+  }, "Scripts cloned by a use element while being parsed don't bypass 'strict-dynamic'");
+</script>
