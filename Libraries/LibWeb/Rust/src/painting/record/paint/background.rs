@@ -139,8 +139,21 @@ pub(crate) fn paint_resolved_background<O: Observer>(
 
     // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
     let needs_text_clip = resolved.needs_text_clip && !inputs.is_root_element;
+    let text_clip_fragments = if needs_text_clip {
+        text_clip_fragments(recorder, paintable)
+    } else {
+        Vec::new()
+    };
+    // With no text, nothing clipped to it shows: Paint just the layers clipped to some other box, without a mask.
+    let omit_text_clipped = needs_text_clip && text_clip_fragments.is_empty();
+    let needs_text_clip = needs_text_clip && !omit_text_clipped;
+    // A blending layer can't blend with the color under it when the color is left out.
+    let backdrop = match backdrop {
+        LayerBackdrop::OpaqueColorUnderLoneLayer(_) if omit_text_clipped => LayerBackdrop::IsolatedGroup,
+        backdrop => backdrop,
+    };
     if !backdrop.is_isolated_group() && !needs_text_clip {
-        paint_background_layers(recorder, paintable, inputs, backdrop);
+        paint_background_layers(recorder, paintable, inputs, backdrop, omit_text_clipped);
         return;
     }
 
@@ -157,12 +170,12 @@ pub(crate) fn paint_resolved_background<O: Observer>(
     };
     let mut group = recorder.recorder.begin_isolated_group();
     recorder.trace_paint(Operation::Named(Some(paintable), "background-group"), |recorder| {
-        paint_background_layers(recorder, paintable, inputs, backdrop);
+        paint_background_layers(recorder, paintable, inputs, backdrop, omit_text_clipped);
     });
     if needs_text_clip {
         recorder.recorder.begin_group_mask(&mut group);
         recorder.trace_paint(Operation::Named(Some(paintable), "background-text-mask"), |recorder| {
-            append_text_clip_paths(recorder, paintable);
+            append_text_clip_paths(recorder, &text_clip_fragments);
         });
     }
     recorder.recorder.finish_isolated_group(
@@ -178,6 +191,8 @@ fn paint_background_layers<O: Observer>(
     paintable: NodeSlotId,
     inputs: &BackgroundPaintInputs<'_>,
     backdrop: LayerBackdrop,
+    // Leaves out the color and the layers clipped to the text, which the caller found none of.
+    omit_text_clipped: bool,
 ) {
     let converter = recorder.converter;
     let resolved = &inputs.resolved;
@@ -237,7 +252,9 @@ fn paint_background_layers<O: Observer>(
         })
     };
 
-    if is_root_element {
+    if omit_text_clipped {
+        // The color is clipped to the text.
+    } else if is_root_element {
         recorder.recorder.fill_animated_background_color(
             converter.enclosing_device_rect(color_box.rect),
             color,
@@ -311,6 +328,9 @@ fn paint_background_layers<O: Observer>(
 
     // Background layers are ordered front-to-back, so we paint them in reverse.
     for layer in layers.iter().rev() {
+        if omit_text_clipped && layer.clip == css_enums::background_box::TEXT {
+            continue;
+        }
         let clip_box = background_box_for(layer.clip, border_box, padding, border);
         let css_clip_rect = clip_box.rect;
         let unshrunken_clip_rect = converter.rounded_device_rect(css_clip_rect);
@@ -1087,26 +1107,16 @@ fn source_rect_for_visible_image_part(
     )
 }
 
-fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
+fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, fragments: &[(NodeSlotId, usize)]) {
     let converter = recorder.converter;
     let scale = recorder.inputs.device_pixels_per_css_pixel;
 
-    let append_fragment = |recorder: &mut PaintRecorder<'_, O>, owner: NodeSlotId, fragment_index: usize| {
+    for &(owner, fragment_index) in fragments {
         let side = recorder.source.committed_side_data(owner);
         let fragment = &side.fragments()[fragment_index];
-        let is_text = recorder
-            .source
-            .node_kind_if_live(fragment.layout_node)
-            .is_some_and(node_facts::kind_is_text);
-        if !is_text {
-            return;
-        }
         let Some(run) = &fragment.glyph_run else {
-            return;
+            continue;
         };
-        if run.glyphs.is_empty() {
-            return;
-        }
         let fragment_absolute_rect = crate::painting::text_fragment::absolute_rect(recorder.source, fragment);
         let fragment_absolute_device_rect = converter.enclosing_device_rect(fragment_absolute_rect);
         let font_id = recorder.register_font(&run.font);
@@ -1139,6 +1149,26 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pain
             emission.glyph_bounding_rect,
             ForceDarkRole::None,
         );
+    }
+}
+
+/// The text fragments, in the paintable and its in-flow and floated descendants, whose glyphs the background is clipped
+/// to: each one as its owner and its index among the owner's fragments.
+fn text_clip_fragments<O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+) -> Vec<(NodeSlotId, usize)> {
+    let mut fragments = Vec::new();
+    let mut append_fragment = |owner: NodeSlotId, fragment_index: usize| {
+        let side = recorder.source.committed_side_data(owner);
+        let fragment = &side.fragments()[fragment_index];
+        let is_text = recorder
+            .source
+            .node_kind_if_live(fragment.layout_node)
+            .is_some_and(node_facts::kind_is_text);
+        if is_text && fragment.glyph_run.as_ref().is_some_and(|run| !run.glyphs.is_empty()) {
+            fragments.push((owner, fragment_index));
+        }
     };
 
     let data = recorder.data(paintable);
@@ -1153,7 +1183,7 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pain
             for piece_index in side.inline_box_piece_indices(paintable) {
                 let piece = &side.inline_box_pieces()[*piece_index as usize];
                 for fragment_index in piece.first_fragment_index..piece.first_fragment_index + piece.fragment_count {
-                    append_fragment(recorder, root, fragment_index as usize);
+                    append_fragment(root, fragment_index as usize);
                 }
             }
         }
@@ -1179,8 +1209,9 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pain
         if node_painting::has_lines(recorder.source, current) {
             let count = recorder.source.committed_side_data(current).fragments().len();
             for fragment_index in 0..count {
-                append_fragment(recorder, current, fragment_index);
+                append_fragment(current, fragment_index);
             }
         }
     }
+    fragments
 }
