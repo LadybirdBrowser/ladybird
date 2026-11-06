@@ -227,6 +227,10 @@ private:
 
     RefPtr<Gfx::Bitmap const> m_loaded_icon;
     RefPtr<CSS::StyleSheetState> m_loaded_style_sheet;
+    // The style sheet the link had when it was disabled, and the fetch generation then: enabling the link again before
+    // it starts another fetch puts the sheet back.
+    RefPtr<CSS::StyleSheetState> m_style_sheet_kept_while_disabled;
+    u64 m_style_sheet_kept_while_disabled_fetch_generation { 0 };
 
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
     GC::Ptr<DOM::DOMTokenList> m_sizes;

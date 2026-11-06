@@ -81,6 +81,7 @@ void HTMLLinkElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_blocking);
     visitor.visit(m_fetch_controller);
     visitor.visit(m_loaded_style_sheet);
+    visitor.visit(m_style_sheet_kept_while_disabled);
     visitor.visit(m_rel_list);
     visitor.visit(m_sizes);
 }
@@ -112,6 +113,7 @@ void HTMLLinkElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ance
 {
     Base::removed_from(is_subtree_root, old_ancestor, old_root);
     cancel_pending_stylesheet_processing();
+    m_style_sheet_kept_while_disabled = nullptr;
 
     if (m_loaded_style_sheet) {
         // NB: We can't use `old_root` here. When this link element is nested
@@ -296,9 +298,23 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
     if ((m_relationship & Relationship::Stylesheet) && m_loaded_style_sheet) {
         if (name == HTML::AttributeNames::disabled) {
             document_or_shadow_root_style_scope().remove_a_css_style_sheet(*m_loaded_style_sheet);
+            // AD-HOC: The link keeps the sheet aside while it's disabled, so that enabling it again before anything
+            //         else about it changes puts the sheet back at once, rather than leaving the link without a sheet
+            //         until a new fetch completes. Only a sheet from the link's latest fetch is kept.
+            if (m_loaded_style_sheet_fetch_generation == m_current_fetch_generation)
+                m_style_sheet_kept_while_disabled = m_loaded_style_sheet;
             m_loaded_style_sheet = nullptr;
         } else if (name == HTML::AttributeNames::media) {
             m_loaded_style_sheet->set_media(value.has_value() ? value->utf16_view() : u""sv);
+        }
+    }
+
+    if (name == HTML::AttributeNames::disabled && !value.has_value() && m_style_sheet_kept_while_disabled) {
+        auto sheet = m_style_sheet_kept_while_disabled.release_nonnull();
+        if ((m_relationship & Relationship::Stylesheet) && is_browsing_context_connected()
+            && m_style_sheet_kept_while_disabled_fetch_generation == m_current_fetch_generation) {
+            associate_style_sheet(sheet, sheet->is_origin_clean() ? CSS::StyleScope::OriginClean::Yes : CSS::StyleScope::OriginClean::No);
+            return;
         }
     }
 
@@ -347,6 +363,11 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
         if (fetch)
             fetch_and_process_linked_resource();
     }
+
+    // NB: Disabling the link starts a fetch, which its setup steps end right away, so the kept sheet belongs with the
+    //     generation that leaves.
+    if (name == HTML::AttributeNames::disabled && value.has_value() && m_style_sheet_kept_while_disabled)
+        m_style_sheet_kept_while_disabled_fetch_generation = m_current_fetch_generation;
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#contributes-a-script-blocking-style-sheet

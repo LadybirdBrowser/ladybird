@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    // A theme switcher disables every titled stylesheet link and then enables the one it wants. The link enabled again
+    // keeps its sheet the whole time, without fetching it again. A link whose href changed while it was disabled
+    // fetches its new sheet.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        async function stylesheet(name, color) {
+            return httpServer.createEcho("GET", `/link-stylesheet-disabled-and-enabled-again-${name}.css`, {
+                status: 200,
+                headers: { "Content-Type": "text/css" },
+                body: `#target { background-color: ${color} }`,
+            });
+        }
+        const bright = await stylesheet("bright", "rgb(0, 128, 0)");
+        const dark = await stylesheet("dark", "rgb(40, 40, 40)");
+        const blue = await stylesheet("blue", "rgb(0, 0, 255)");
+
+        const target = document.getElementById("target");
+        const state = () => `${document.styleSheets.length} sheets, background ${getComputedStyle(target).backgroundColor}`;
+        const links = [];
+        for (const [href, title, rel] of [[bright, "Bright", "stylesheet"], [dark, "Dark", "alternate stylesheet"]]) {
+            const link = document.createElement("link");
+            link.rel = rel;
+            link.href = href;
+            link.title = title;
+            const loaded = new Promise(resolve => (link.onload = resolve));
+            document.head.append(link);
+            links.push(link);
+            await loaded;
+        }
+        println(`after load: ${state()}`);
+
+        for (const link of links) {
+            link.disabled = true;
+            if (link.title === "Bright")
+                link.disabled = false;
+        }
+        println(`right after: ${state()}`);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        println(`next frame: ${state()}`);
+        const requests = await (await fetch(httpServer.recordedRequestCountURL(bright))).text();
+        println(`requests for the enabled sheet: ${requests}`);
+
+        const [brightLink] = links;
+        brightLink.disabled = true;
+        brightLink.href = blue;
+        const loaded = new Promise(resolve => (brightLink.onload = resolve));
+        brightLink.disabled = false;
+        await loaded;
+        println(`after its href changed while disabled: ${state()}`);
+        done();
+    });
+</script>
