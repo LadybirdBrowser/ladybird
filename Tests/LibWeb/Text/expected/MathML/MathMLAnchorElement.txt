@@ -1,2 +1,3 @@
 <a> tag inside <math> is: MathMLAnchorElement
 Its href is: http://example.com/
+Its href after removing the href attribute is: ""
