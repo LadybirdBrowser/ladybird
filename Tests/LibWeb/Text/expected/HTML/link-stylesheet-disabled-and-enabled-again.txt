@@ -1,0 +1,5 @@
+after load: 2 sheets, background rgb(0, 128, 0)
+right after: 1 sheets, background rgb(0, 128, 0)
+next frame: 1 sheets, background rgb(0, 128, 0)
+requests for the enabled sheet: 1
+after its href changed while disabled: 1 sheets, background rgb(0, 0, 255)
