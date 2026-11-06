@@ -1837,22 +1837,14 @@ impl<'a, U: Unit> Parser<'a, U> {
         self.scopes.last_mut().unwrap().has_eval = eval_in_parameters;
     }
 
-    /// Closes the function: resolves its scopes, collapses its free names, fills in its index row unless it has one
-    /// from the first parse, and drops its tree unless it is retained. Returns the function's node.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn end_function(
+    /// Closes the scopes of a function that scopes are tracked for, and works out what they say about it: its flags, and
+    /// the rows of its scope and of the scope of its body.
+    fn close_scopes_of_function(
         &mut self,
-        state: FunctionState,
-        end: u32,
-        parameter_count: u32,
-        length: u32,
-        params_start: u32,
-        parameters: u32,
-        body: u32,
+        state: &FunctionState,
         name: u32,
         is_expression_body: bool,
-    ) -> u32 {
-        let retained = self.retain;
+    ) -> (u32, u32, u32) {
         let mut flags = state.flags;
         let mut body_scope_row = NONE;
         let mut name_is_alone_in_its_scopes = true;
@@ -1942,6 +1934,35 @@ impl<'a, U: Unit> Parser<'a, U> {
         if self.might_need_arguments {
             flags |= function_flag::MENTIONS_ARGUMENTS;
         }
+        (flags, scope_row, body_scope_row)
+    }
+
+    /// Closes the function: resolves its scopes, collapses its free names, fills in its index row unless it has one
+    /// from the first parse, and drops its tree unless it is retained. Returns the function's node.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn end_function(
+        &mut self,
+        state: FunctionState,
+        end: u32,
+        parameter_count: u32,
+        length: u32,
+        params_start: u32,
+        parameters: u32,
+        body: u32,
+        name: u32,
+        is_expression_body: bool,
+    ) -> u32 {
+        let retained = self.retain;
+        let is_arrow = state.flags & function_flag::ARROW != 0;
+        let (mut flags, scope_row, body_scope_row) = if self.tracks_scopes {
+            self.close_scopes_of_function(&state, name, is_expression_body)
+        } else {
+            if state.has_body_scope {
+                self.close_scope();
+            }
+            self.close_scope();
+            (state.flags, NONE, NONE)
+        };
         self.summary_ordinal = state.summary_ordinal;
         if !self.is_reparsing() {
             if self.tok_end as usize + super::SOURCE_PADDING > self.len as usize {
