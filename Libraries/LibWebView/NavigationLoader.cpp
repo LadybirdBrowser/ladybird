@@ -8,6 +8,7 @@
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibRequests/RequestControlClient.h>
 #include <LibURL/Site.h>
 #include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
@@ -26,6 +27,9 @@
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/RequestServerSiteBindings.h>
+#include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebContentPage.h>
+#include <LibWebView/WorkerAgentManager.h>
 
 namespace WebView {
 
@@ -115,9 +119,36 @@ static Web::HTML::NavigationResponseBodyHandle* response_body_handle(Web::HTML::
     return response.body.get_pointer<Web::HTML::NavigationResponseBodyHandle>();
 }
 
+static bool response_body_was_fetched_by(Web::HTML::NavigationResponseBodyHandle const& body_handle, WebContentClient const& population_worker)
+{
+    return population_worker.request_server_site_bindings().has_connected_client(body_handle.request_server_client_id);
+}
+
 NavigationLoader::~NavigationLoader()
 {
     release_response_body();
+}
+
+// NB: The process that fetched the response reports the URLs it reached. Fetching never redirects a request to a
+//     file: URL, so one among them on a navigation the UI process did not admit to a file: URL is made up: the
+//     document it would create could read local files. Such a navigation creates an error document instead.
+void NavigationLoader::refuse_made_up_local_file_urls(WebContentClient const& population_worker, Web::HTML::NavigationPopulationResult& result) const
+{
+    if (m_request.history_entry.url.scheme() == "file"sv)
+        return;
+
+    auto is_file_url = [](URL::URL const& url) { return url.scheme() == "file"sv; };
+    auto names_a_local_file = result.redirected_url.has_value() && is_file_url(*result.redirected_url);
+    if (auto const* navigation_params = result.navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>()) {
+        names_a_local_file |= any_of(navigation_params->response.url_list, is_file_url);
+        if (navigation_params->request.has_value())
+            names_a_local_file |= any_of(navigation_params->request->url_list, is_file_url);
+    }
+    if (names_a_local_file) {
+        discard(population_worker, result);
+        result.navigation_params = Web::HTML::NavigationParamsNullOrError {};
+        result.redirected_url.clear();
+    }
 }
 
 void NavigationLoader::did_finish_navigation_params_creation(Web::HTML::NavigationPopulationResult result)
@@ -125,24 +156,6 @@ void NavigationLoader::did_finish_navigation_params_creation(Web::HTML::Navigati
     VERIFY(!m_result.has_value());
     VERIFY(!m_response_body_request);
     VERIFY(!m_completion_steps);
-
-    // NB: The process that fetched the response reports the URLs it reached. Fetching never redirects a request to a
-    //     file: URL, so one among them on a navigation the UI process did not admit to a file: URL is made up: the
-    //     document it would create could read local files. Such a navigation creates an error document instead.
-    if (m_request.history_entry.url.scheme() != "file"sv) {
-        auto is_file_url = [](URL::URL const& url) { return url.scheme() == "file"sv; };
-        auto names_a_local_file = result.redirected_url.has_value() && is_file_url(*result.redirected_url);
-        if (auto const* navigation_params = result.navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>()) {
-            names_a_local_file |= any_of(navigation_params->response.url_list, is_file_url);
-            if (navigation_params->request.has_value())
-                names_a_local_file |= any_of(navigation_params->request->url_list, is_file_url);
-        }
-        if (names_a_local_file) {
-            discard(result);
-            result.navigation_params = Web::HTML::NavigationParamsNullOrError {};
-            result.redirected_url.clear();
-        }
-    }
 
     Web::HTML::apply_navigation_population_result(m_request, result);
     m_result = move(result);
@@ -328,7 +341,7 @@ void NavigationLoader::check_the_responses_adherence_to_its_embedder_policy(Cano
     m_result->navigation_params = Web::HTML::NavigationParamsNullOrError { "Blocked by Cross-Origin-Embedder-Policy"_utf16 };
 }
 
-void NavigationLoader::acquire_response_body(Function<void(bool)> completion_steps)
+void NavigationLoader::acquire_response_body(WebContentClient const& population_worker, Function<void(bool)> completion_steps)
 {
     VERIFY(m_result.has_value());
     VERIFY(!m_response_body_request);
@@ -336,29 +349,30 @@ void NavigationLoader::acquire_response_body(Function<void(bool)> completion_ste
 
     m_completion_steps = move(completion_steps);
 
-    auto* body_handle = response_body_handle(*m_result);
+    auto const* body_handle = response_body_handle(*m_result);
     if (!body_handle) {
         did_acquire(true);
         return;
     }
+    if (!response_body_was_fetched_by(*body_handle, population_worker)) {
+        did_acquire(false);
+        return;
+    }
 
     // The response lives in the RequestServer of the client that fetched it.
-    auto request_server = RequestServerManager::the().instance_for_client(body_handle->request_server_client_id);
+    auto owner_client_id = body_handle->request_server_client_id;
+    auto request_server = RequestServerManager::the().instance_for_client(owner_client_id);
     if (!request_server) {
         did_acquire(false);
         return;
     }
-    auto request = request_server->ui_client().adopt_request(
-        body_handle->request_server_client_id,
-        body_handle->request_server_request_id,
-        Requests::RequestClient::TransferLease::Yes);
+    auto request = request_server->ui_client().adopt_request(owner_client_id, body_handle->request_server_request_id, Requests::RequestClient::TransferLease::Yes, owner_client_id);
     if (!request) {
         did_acquire(false);
         return;
     }
     m_response_body_request_server = request_server;
-    m_response_body_request_server_client_id = body_handle->request_server_client_id;
-    m_response_body_request_server_request_id = body_handle->request_server_request_id;
+    m_response_body_transfer_lease = Requests::RequestTransferLeaseKey { body_handle->request_server_client_id, body_handle->request_server_request_id };
 
     request->set_body_delivery_paused(true);
     set_response_body_callbacks(*request);
@@ -439,8 +453,43 @@ void NavigationLoader::move_response_body_to(RequestServerSiteBindings const& ho
     // The handle names the lease the host adopts, which is now the UI process's request in the host's RequestServer.
     body_handle->request_server_client_id = request_server.ui_client().request_server_client_id();
     body_handle->request_server_request_id = request->id();
-    m_response_body_request_server_client_id = body_handle->request_server_client_id;
-    m_response_body_request_server_request_id = body_handle->request_server_request_id;
+    m_response_body_transfer_lease = Requests::RequestTransferLeaseKey { body_handle->request_server_client_id, body_handle->request_server_request_id };
+}
+
+void NavigationLoader::let_host_adopt_response_body(WebContentPage const& host, Function<void()> steps)
+{
+    VERIFY(m_result.has_value());
+    VERIFY(!m_steps_after_adopter_designation);
+
+    auto* host_process = host.routed_connection();
+
+    // The host adopts the response through its client of the RequestServer that the body handle names.
+    Optional<int> host_client_id;
+    if (auto const* body_handle = response_body_handle(*m_result); body_handle && host_process)
+        host_client_id = host_process->request_server_site_bindings().client_id_for(body_handle->request_server_top_level_site);
+    if (!m_response_body_request || !m_response_body_request_server || m_response_body_request_server->is_retired() || !host_client_id.has_value()) {
+        steps();
+        return;
+    }
+
+    m_response_body_adopter_client_id = host_client_id;
+    m_steps_after_adopter_designation = move(steps);
+    auto designation = m_response_body_request_server->control_client().designate_request_adopter(*m_response_body_transfer_lease, *host_client_id);
+    auto weak_this = make_weak_ptr();
+    designation->when_resolved([weak_this](Empty) {
+        if (auto* loader = weak_this.ptr())
+            loader->did_designate_response_body_adopter();
+    });
+    designation->when_rejected([weak_this](Error&) {
+        if (auto* loader = weak_this.ptr())
+            loader->did_designate_response_body_adopter();
+    });
+}
+
+void NavigationLoader::did_designate_response_body_adopter()
+{
+    if (auto steps = move(m_steps_after_adopter_designation))
+        steps();
 }
 
 Web::HTML::NavigationPopulationResult NavigationLoader::take_result()
@@ -453,8 +502,7 @@ Web::HTML::NavigationPopulationResult NavigationLoader::take_result()
 
 bool NavigationLoader::response_body_matches(int request_server_client_id, u64 request_server_request_id) const
 {
-    return m_response_body_request_server_client_id == request_server_client_id
-        && m_response_body_request_server_request_id == request_server_request_id;
+    return m_response_body_transfer_lease == Requests::RequestTransferLeaseKey { request_server_client_id, request_server_request_id };
 }
 
 void NavigationLoader::reclaim_response_body_after_failed_handoff()
@@ -462,6 +510,7 @@ void NavigationLoader::reclaim_response_body_after_failed_handoff()
     if (!m_response_body_was_handed_off)
         return;
     m_response_body_was_handed_off = false;
+    m_response_body_adopter_client_id = {};
     release_response_body();
 }
 
@@ -502,16 +551,17 @@ void NavigationLoader::set_document(CanonicalDocument const& document, Canonical
         navigation_params->new_browsing_context_group_id = document.browsing_context().group()->id();
 }
 
-void NavigationLoader::discard(Web::HTML::NavigationPopulationResult& result)
+void NavigationLoader::discard(WebContentClient const& population_worker, Web::HTML::NavigationPopulationResult& result)
 {
-    auto* body_handle = response_body_handle(result);
-    if (!body_handle)
+    auto const* body_handle = response_body_handle(result);
+    if (!body_handle || !response_body_was_fetched_by(*body_handle, population_worker))
         return;
 
-    auto request_server = RequestServerManager::the().instance_for_client(body_handle->request_server_client_id);
+    auto owner_client_id = body_handle->request_server_client_id;
+    auto request_server = RequestServerManager::the().instance_for_client(owner_client_id);
     if (!request_server)
         return;
-    auto request = request_server->ui_client().adopt_request(body_handle->request_server_client_id, body_handle->request_server_request_id);
+    auto request = request_server->ui_client().adopt_request(owner_client_id, body_handle->request_server_request_id, Requests::RequestClient::TransferLease::No, owner_client_id);
     if (request)
         request->stop();
 }
