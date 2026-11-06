@@ -25,6 +25,7 @@ public:
     struct Report {
         ByteString name;
         String description;
+        Optional<String> url {};
         Optional<CrashReportReview::PreparedSubmission> earlier_attempt {};
     };
 
@@ -33,6 +34,11 @@ public:
     explicit CrashReportOutbox(CrashReportStore& = CrashReportStore::the());
 
     void send(Vector<Report>);
+
+    // Sends the report a review has open, for a review that shows the sending itself. Returns why nothing was sent, or
+    // nothing when the report is on its way. Only one place at a time can send a report, and it counts as being sent
+    // here for as long as it is on its way, whatever becomes of the review.
+    Optional<String> send_from_review(CrashReportReview&, String const& description, Optional<String> const& url);
 
     // A report on its way is no longer the user's to delete.
     void remove(ReadonlySpan<ByteString> names);
@@ -59,6 +65,7 @@ private:
     CrashReportReview m_review;
     Vector<Report> m_queue;
     Optional<ByteString> m_report_being_sent;
+    HashMap<ByteString, NonnullRefPtr<CrashReportSubmission>> m_submissions_from_reviews;
     HashMap<ByteString, Optional<CrashReportReview::PreparedSubmission>> m_could_not_send;
     bool m_report_being_sent_was_retried { false };
     Vector<CrashReportOutboxObserver&> m_observers;

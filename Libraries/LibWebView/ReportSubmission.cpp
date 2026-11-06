@@ -229,6 +229,8 @@ void ReportSubmission::cancel()
     if (auto request = move(m_request))
         request->stop();
     m_self_while_in_flight = nullptr;
+
+    did_finish();
 }
 
 void ReportSubmission::begin_attempt()
@@ -258,6 +260,7 @@ void ReportSubmission::fail_preparation(String reason)
     m_self_while_in_flight = nullptr;
     if (on_failed)
         on_failed(Failure::Preparation, move(reason));
+    did_finish();
 }
 
 void ReportSubmission::request_challenge()
@@ -442,6 +445,15 @@ void ReportSubmission::finish()
     m_self_while_in_flight = nullptr;
     if (on_sent)
         on_sent();
+    did_finish();
+}
+
+void ReportSubmission::did_finish()
+{
+    auto finished = move(on_finished);
+    on_finished = nullptr;
+    if (finished)
+        finished();
 }
 
 void ReportSubmission::fail(String reason, ShouldRetry should_retry, Optional<int> retry_after_ms)
@@ -458,6 +470,7 @@ void ReportSubmission::fail(String reason, ShouldRetry should_retry, Optional<in
         m_self_while_in_flight = nullptr;
         if (on_failed)
             on_failed(Failure::Sending, move(reason));
+        did_finish();
         return;
     }
 

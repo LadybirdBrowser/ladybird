@@ -219,6 +219,39 @@
                 box-shadow: inset 0 0 0 2px var(--link);
             }
 
+            .report-websites {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+
+                color: var(--body);
+                font-size: 12px;
+            }
+
+            .report-website-list {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                max-height: 96px;
+                overflow: auto;
+            }
+
+            .report-website {
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .report-website input {
+                margin: 0;
+            }
+
+            .report-website-address {
+                min-width: 0;
+                color: var(--muted);
+                overflow-wrap: anywhere;
+            }
+
             .report-footer {
                 display: flex;
                 align-items: center;
@@ -299,6 +332,10 @@
                         What were you doing? (optional)
                         <textarea maxlength="4096"></textarea>
                     </label>
+                    <div class="report-websites hidden">
+                        <span class="report-websites-title">Include website addresses</span>
+                        <div class="report-website-list"></div>
+                    </div>
                     <p class="report-text-note hidden"></p>
                     <pre class="report-text hidden"></pre>
                     <div class="report-footer">
@@ -364,9 +401,59 @@
                 return `${group.names.length} times · last ${when.charAt(0).toLowerCase()}${when.slice(1)}`;
             }
 
+            function tickedWebsites(card) {
+                const ticked = card.querySelectorAll(".report-website input:checked");
+                return new Set([...ticked].map(input => input.value));
+            }
+
+            function createWebsite(website, isOnlyWebsite) {
+                const label = document.createElement("label");
+                label.className = "report-website";
+
+                const input = document.createElement("input");
+                input.type = "checkbox";
+                input.value = website;
+                label.append(input);
+
+                if (isOnlyWebsite) label.append("Include website address");
+
+                const address = document.createElement("span");
+                address.className = "report-website-address";
+                address.textContent = website;
+                label.append(address);
+                return label;
+            }
+
+            // Every website that would be sent is listed with its own box, so nothing leaves that the user did not tick.
+            function updateWebsites(card, group) {
+                const list = card.querySelector(".report-website-list");
+                const key = JSON.stringify(group.websites);
+                if (list.dataset.websites !== key) {
+                    const ticked = tickedWebsites(card);
+                    list.dataset.websites = key;
+                    list.replaceChildren(
+                        ...group.websites.map(website => createWebsite(website, group.websites.length === 1))
+                    );
+                    list.querySelectorAll("input").forEach(input => {
+                        input.checked = ticked.has(input.value);
+                    });
+                }
+
+                list.querySelectorAll("input").forEach(input => {
+                    input.disabled = group.isSending;
+                });
+                card.querySelector(".report-websites").classList.toggle("hidden", group.websites.length === 0);
+                card.querySelector(".report-websites-title").classList.toggle("hidden", group.websites.length < 2);
+            }
+
             function reportsToSend(group, card) {
                 const description = card.querySelector("textarea").value;
-                return group.names.map(name => ({ name, description }));
+                const ticked = tickedWebsites(card);
+                return group.names.map((name, index) => ({
+                    name,
+                    description,
+                    includeWebsite: ticked.has(group.websiteOfEachReport[index]),
+                }));
             }
 
             function createCard(id) {
@@ -421,6 +508,8 @@
                     button.disabled = group.isSending;
                 });
                 card.querySelector("textarea").disabled = group.isSending;
+
+                updateWebsites(card, group);
 
                 const expanded =
                     card.classList.contains("expanded") || (groups.length === 1 && !collapsedByUser.has(group.id));

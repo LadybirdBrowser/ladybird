@@ -2346,7 +2346,6 @@ void Application::process_did_exit(Process&& process, Optional<int>)
     dbgln_if(WEBVIEW_PROCESS_DEBUG, "Process {} died, type: {}", process.pid(), process_name_from_type(process.type()));
 
     auto const& report_name = process.saved_crash_report_name();
-    auto crash_is_shown_in_tab = false;
 
     switch (process.type()) {
     case ProcessType::Compositor:
@@ -2381,10 +2380,8 @@ void Application::process_did_exit(Process&& process, Optional<int>)
     case ProcessType::WebContent:
         if (auto client = process.client<WebContentClient>()) {
             client->did_lose_process();
-            if (!report_name.is_empty()) {
+            if (!report_name.is_empty())
                 client->did_save_crash_report(report_name);
-                crash_is_shown_in_tab = client->has_crashed_views();
-            }
             m_web_content_clients.remove(client.release_nonnull());
         }
         break;
@@ -2399,14 +2396,8 @@ void Application::process_did_exit(Process&& process, Optional<int>)
     if (report_name.is_empty())
         return;
 
-    // The tab's crash screen already asks about this report. Every other crash is hidden from the user, so its report
-    // waits to be reviewed.
-    if (!crash_is_shown_in_tab) {
-        CrashReportOutbox::the().reports_changed();
-    } else if (!browser_options().headless_mode.has_value()) {
-        if (auto result = CrashReportStore::the().mark_seen(report_name); result.is_error())
-            warnln("Could not mark crash report as seen: {}", result.error());
-    }
+    // A report waits until it is answered, on a tab's crash screen or in the list of reports.
+    CrashReportOutbox::the().reports_changed();
 }
 
 static bool download_path_is_available(LexicalPath const& path)
@@ -2606,6 +2597,9 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
             if (auto result = private_session->session_store->remove_entries_accessed_since(options.since); result.is_error())
                 dbgln("Unable to remove closed private session entries: {}", result.error());
         }
+        if (auto result = CrashReportStore::the().remove_websites_saved_since(options.since); result.is_error())
+            dbgln("Unable to remove the websites of crash reports: {}", result.error());
+        CrashReportOutbox::the().reports_changed();
         did_change_history = true;
     }
 

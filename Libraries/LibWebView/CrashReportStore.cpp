@@ -42,7 +42,7 @@ ByteString CrashReportStore::default_directory()
     return LexicalPath::join(Core::StandardPaths::user_data_directory(), "Ladybird"sv, "CrashReports"sv).string();
 }
 
-// The browser's own store lives under the user data directory.
+// The browser's own store. It moves into the profile once the profile is known.
 CrashReportStore& CrashReportStore::the()
 {
     static NeverDestroyed<CrashReportStore> store { default_directory() };
@@ -209,6 +209,18 @@ static ErrorOr<void> move_report(Core::Directory const& from, Core::Directory co
     return Error::from_string_literal("Crash report no longer exists");
 }
 
+static constexpr auto website_suffix = ".website"sv;
+
+static ByteString website_file_name(StringView report_name)
+{
+    return ByteString::formatted("{}{}", report_name, website_suffix);
+}
+
+static void remove_website(Core::Directory const& directory, StringView report_name)
+{
+    (void)unlinkat(directory.fd(), website_file_name(report_name).characters(), 0);
+}
+
 static void move_all_reports(Core::Directory const& from, Core::Directory const& to)
 {
     Core::DirIterator iterator(from.path().string(), Core::DirIterator::SkipDots);
@@ -316,7 +328,23 @@ static void remove_reports_older_than(Core::Directory const& directory, Optional
         struct stat status {};
         if (!is_owned_regular_file_at(directory, name, status))
             continue;
-        if (!earliest_time.has_value() || UnixDateTime::from_unix_timespec(modified_time(status)) < *earliest_time)
+        if (!earliest_time.has_value() || UnixDateTime::from_unix_timespec(modified_time(status)) < *earliest_time) {
+            (void)unlinkat(directory.fd(), name.characters(), 0);
+            remove_website(directory, name);
+        }
+    }
+}
+
+// A website goes after its report, so stopping between the two can leave it behind without one.
+static void remove_orphaned_websites(Core::Directory const& directory)
+{
+    Core::DirIterator iterator(directory.path().string(), Core::DirIterator::SkipDots);
+    while (iterator.has_next()) {
+        auto name = iterator.next_path();
+        if (!name.ends_with(website_suffix))
+            continue;
+        struct stat status {};
+        if (!is_owned_regular_file_at(directory, name.substring(0, name.length() - website_suffix.length()), status))
             (void)unlinkat(directory.fd(), name.characters(), 0);
     }
 }
@@ -326,15 +354,10 @@ ErrorOr<void> CrashReportStore::remove_expired_reports(UnixDateTime now) const
     auto directory = TRY(open_report_directory(m_directory));
     auto earliest_time = now - maximum_unsent_report_age;
     remove_reports_older_than(directory, earliest_time);
+    remove_orphaned_websites(directory);
     if (auto seen_directory = TRY(open_seen_directory_if_exists(directory)); seen_directory.has_value())
         remove_reports_older_than(*seen_directory, earliest_time);
     return {};
-}
-
-bool CrashReportStore::has_pending_reports(UnixDateTime now) const
-{
-    auto names = pending_report_names(now);
-    return !names.is_error() && !names.value().is_empty();
 }
 
 ErrorOr<void> CrashReportStore::mark_seen(ByteString const& name) const
@@ -344,8 +367,32 @@ ErrorOr<void> CrashReportStore::mark_seen(ByteString const& name) const
     auto directory = TRY(open_report_directory(m_directory));
     auto seen_directory = TRY(open_seen_directory(directory));
     TRY(move_report(directory, seen_directory, name));
+    remove_website(directory, name);
     apply_retention(seen_directory, name);
     return {};
+}
+
+ErrorOr<void> CrashReportStore::save_website(ByteString const& name, StringView website) const
+{
+    if (!is_saved_report_name(name))
+        return Error::from_string_literal("Invalid crash report name");
+    auto directory = TRY(open_report_directory(m_directory));
+    auto file = TRY(directory.open(website_file_name(name), Core::File::OpenMode::Write | Core::File::OpenMode::Truncate | Core::File::OpenMode::NoFollow, 0600));
+    TRY(file->write_until_depleted(website.bytes()));
+    return {};
+}
+
+Optional<String> CrashReportStore::website(ByteString const& name) const
+{
+    if (!is_saved_report_name(name))
+        return {};
+    auto directory = open_report_directory(m_directory);
+    if (directory.is_error())
+        return {};
+    auto contents = read_owned_file(directory.value(), website_file_name(name));
+    if (contents.is_error() || contents.value().is_empty())
+        return {};
+    return String::from_utf8_with_replacement_character(contents.value().view());
 }
 
 ErrorOr<void> CrashReportStore::adopt_reports_from(ByteString const& directory) const
@@ -363,10 +410,28 @@ ErrorOr<void> CrashReportStore::adopt_reports_from(ByteString const& directory) 
     return {};
 }
 
+ErrorOr<void> CrashReportStore::remove_websites_saved_since(UnixDateTime since) const
+{
+    auto directory = TRY(open_report_directory(m_directory));
+    Core::DirIterator iterator(directory.path().string(), Core::DirIterator::SkipDots);
+    while (iterator.has_next()) {
+        auto name = iterator.next_path();
+        if (!name.ends_with(website_suffix))
+            continue;
+        struct stat status {};
+        if (!is_owned_regular_file_at(directory, name, status))
+            continue;
+        if (UnixDateTime::from_unix_timespec(modified_time(status)) >= since)
+            (void)unlinkat(directory.fd(), name.characters(), 0);
+    }
+    return {};
+}
+
 ErrorOr<void> CrashReportStore::remove_all_reports() const
 {
     auto directory = TRY(open_report_directory(m_directory));
     remove_reports_older_than(directory, {});
+    remove_orphaned_websites(directory);
     if (auto seen_directory = TRY(open_seen_directory_if_exists(directory)); seen_directory.has_value())
         remove_reports_older_than(*seen_directory, {});
     return {};
@@ -390,6 +455,7 @@ ErrorOr<void> CrashReportStore::remove_report(ByteString const& name) const
 
     auto directory = TRY(open_report_directory(m_directory));
     TRY(remove_from(directory));
+    remove_website(directory, name);
     if (auto seen_directory = TRY(open_seen_directory_if_exists(directory)); seen_directory.has_value())
         TRY(remove_from(*seen_directory));
     return {};
@@ -545,11 +611,13 @@ ErrorOr<CrashReportStore::SavedReport> CrashReportStore::saved_report(ByteString
 }
 
 ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names(UnixDateTime) const { return Vector<ByteString> {}; }
-bool CrashReportStore::has_pending_reports(UnixDateTime) const { return false; }
 ErrorOr<void> CrashReportStore::mark_seen(ByteString const&) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_report(ByteString const&) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_all_reports() const { return {}; }
 ErrorOr<void> CrashReportStore::adopt_reports_from(ByteString const&) const { return {}; }
+ErrorOr<void> CrashReportStore::save_website(ByteString const&, StringView) const { return {}; }
+Optional<String> CrashReportStore::website(ByteString const&) const { return {}; }
+ErrorOr<void> CrashReportStore::remove_websites_saved_since(UnixDateTime) const { return {}; }
 
 ErrorOr<ByteString> CrashReportStore::store_report(ProcessType, StringView, UnixDateTime) const
 {

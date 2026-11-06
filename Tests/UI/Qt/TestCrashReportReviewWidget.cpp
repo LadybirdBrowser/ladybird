@@ -359,3 +359,24 @@ TEST_CASE(answering_the_report_is_announced_once_the_choice_is_made)
     child<QPushButton>(widget, "CrashReportDeclineButton").click();
     EXPECT_EQ(answers, 1);
 }
+
+TEST_CASE(a_report_that_cannot_be_declined_stays_unanswered)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto name = write_report("2026-10-01T12-00-00Z"sv);
+    WebView::CrashReportStore store { test_directory() };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
+    auto answers = 0;
+    widget.on_answered = [&] { ++answers; };
+    MUST(widget.open_report(name));
+    widget.show();
+
+    // The list of crash reports can answer a report while its review is open.
+    MUST(store.remove_report(name));
+    child<QPushButton>(widget, "CrashReportDeclineButton").click();
+    EXPECT_EQ(answers, 0);
+    EXPECT(child<QLabel>(widget, "CrashReportValidation").isVisible());
+    EXPECT(child<QPushButton>(widget, "CrashReportSendButton").isVisible());
+}
