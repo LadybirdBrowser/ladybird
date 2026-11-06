@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
-#include <LibCore/Timer.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/Bitmap.h>
@@ -60,43 +58,15 @@
 
 namespace Web::HTML {
 
-// We batch handling of successfully fetched images to avoid interleaving 1 image, 1 layout, 1 image, 1 layout, etc.
-// The processing timer is 1ms instead of 0ms, since layout is driven by a 0ms timer, and if we use 0ms here,
-// the event loop will process them in insertion order. This is a bit of a hack, but it works.
-struct BatchingDispatcher {
-public:
-    BatchingDispatcher()
-        : m_timer(Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1), [this] { process(); }))
-    {
-    }
-
-    void enqueue(GC::Ptr<DOM::Document const> document, GC::Root<GC::Function<void()>> callback)
-    {
-        // NOTE: We don't want to flush the queue on every image load, since that would be slow.
-        //       However, we don't want to keep growing the batch forever either.
-        static constexpr size_t max_loads_to_batch_before_flushing = 16;
-
-        m_queue.append(Task::create(Task::Source::DOMManipulation, document, *callback));
-        if (m_queue.size() < max_loads_to_batch_before_flushing)
-            m_timer->restart();
-    }
-
-private:
-    void process()
-    {
-        auto queue = move(m_queue);
-        for (auto& task : queue)
-            task->execute();
-    }
-
-    NonnullRefPtr<Core::Timer> m_timer;
-    Vector<GC::Root<Task>> m_queue;
-};
-
-static BatchingDispatcher& batching_dispatcher()
+// NB: The steps of an image that finished loading run as a task of their own, in the order the images finished. An image
+//     can finish loading in a document that is not fully active, where a task of the document would never run. The steps
+//     run even if the document goes away first, as they end what delays a load event and may belong to another document
+//     by then.
+static void queue_image_task(GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
 {
-    static NeverDestroyed<BatchingDispatcher> dispatcher;
-    return *dispatcher;
+    if (document && !document->is_fully_active() && !document->is_decoded_svg())
+        document = nullptr;
+    main_thread_event_loop().task_queue().add(Task::create(Task::Source::DOMManipulation, document, steps, Task::Priority::Normal, steps));
 }
 
 void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_change()
@@ -758,12 +728,11 @@ void HTMLImageElement::decode(GC::Ref<WebIDL::Promise> promise) const
         }
 
         current_request.add_callbacks_without_delaying_the_load_event(
-            // AD-HOC: Enqueue on the batching dispatcher to preserve ordering relative to update_the_image_data's step
-            //         16, which also goes through the batching dispatcher. Otherwise decode() can resolve before the
-            //         current request transitions to CompletelyAvailable, leaving the image dimensions at zero when
-            //         callers inspect them.
+            // AD-HOC: Queue a task to preserve ordering relative to update_the_image_data's step 16, which is queued the
+            //         same way. Otherwise decode() can resolve before the current request transitions to
+            //         CompletelyAvailable, leaving the image dimensions at zero when callers inspect them.
             [weak_this, expected_request, queue_resolve_task, queue_reject_task] {
-                batching_dispatcher().enqueue(weak_this ? &weak_this->document() : nullptr, GC::create_function(GC::Heap::the(), [weak_this, expected_request, queue_resolve_task, queue_reject_task] {
+                queue_image_task(weak_this ? &weak_this->document() : nullptr, GC::create_function(GC::Heap::the(), [weak_this, expected_request, queue_resolve_task, queue_reject_task] {
                     if (!weak_this) {
                         queue_reject_task("Image element no longer available"_utf16);
                         return;
@@ -897,6 +866,9 @@ bool HTMLImageElement::uses_srcset_or_picture() const
 void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe_omit_events)
 {
     update_dimension_attribute_source(*this);
+
+    // NB: This selects a source for the viewport as it is, so only another viewport is a change in the environment.
+    m_last_seen_viewport_size = document().viewport_rect().size();
 
     auto update_the_image_data_count = ++m_update_the_image_data_count;
 
@@ -1344,9 +1316,9 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
 
     image_request->add_callbacks(
         [this, image_request, maybe_omit_events, url_string = captured_url_string, previous_url = captured_previous_url, originating_document, cache_key]() {
-            batching_dispatcher().enqueue(document(), GC::create_function(GC::Heap::the(), [this, image_request, maybe_omit_events, url_string, previous_url, originating_document, cache_key] {
+            queue_image_task(document(), GC::create_function(GC::Heap::the(), [this, image_request, maybe_omit_events, url_string, previous_url, originating_document, cache_key] {
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
-                //         between when the fetch completed and when this batched callback runs.
+                //         between when the fetch completed and when this task runs.
                 if (!document().is_fully_active()) {
                     m_load_event_delayer.clear();
                     return;
@@ -1465,7 +1437,7 @@ void HTMLImageElement::did_set_viewport_rect(CSSPixelRect const& viewport_rect)
         return;
     m_last_seen_viewport_size = viewport_rect.size();
     update_dimension_attribute_source(*this);
-    batching_dispatcher().enqueue(document(), GC::create_function(GC::Heap::the(), [this] {
+    queue_image_task(document(), GC::create_function(GC::Heap::the(), [this] {
         react_to_changes_in_the_environment();
     }));
 }
@@ -1614,7 +1586,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
                 // then set the pending request to null and abort these steps.
 
-                batching_dispatcher().enqueue(document(), GC::create_function(GC::Heap::the(), [step_16, selected_source = move(selected_source), image_request, key] {
+                queue_image_task(document(), GC::create_function(GC::Heap::the(), [step_16, selected_source = move(selected_source), image_request, key] {
                     // 7. Otherwise, response's unsafe response is image request's image data. It can be either CORS-same-origin
                     //    or CORS-cross-origin; this affects the image's interaction with other APIs (e.g., when used on a canvas).
                     VERIFY(image_request->shared_resource_request());
@@ -1891,7 +1863,7 @@ bool HTMLImageElement::is_image_pending() const
     // Every failure path of "update the image data" sets the broken state synchronously, so an
     // unavailable request on an element with a source is never final: it is either awaiting the
     // fetch, fetching, or awaiting delivery of a finished fetch's data (the successful-fetch
-    // callback is deferred through the batching dispatcher, during which is_fetching() is already
+    // callback is deferred through a queued task, during which is_fetching() is already
     // false). A picture parent alone does not count: an img with neither attribute never runs
     // "update the image data", so it must keep rendering its alt text.
     if (m_current_request->state() == ImageRequest::State::Unavailable) {
