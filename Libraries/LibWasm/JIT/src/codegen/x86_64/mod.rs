@@ -53,6 +53,10 @@ pub(crate) fn precision(ty: Type) -> Precision {
 }
 
 const SCRATCH: Gpr = Gpr(convention::SCRATCH_GPR);
+
+/// Where loop headers go. How a small loop lies across the windows and lines of code that the CPU fetches decides how
+/// fast it runs, which would otherwise change with anything added in front of it. This is worth 6% of CoreMark's score.
+const LOOP_ALIGNMENT: usize = 64;
 const SCRATCH_FPR: Fpr = Fpr(convention::SCRATCH_FPR - convention::FPR_BASE);
 const FP: Gpr = Gpr(convention::RBP);
 const SP: Gpr = Gpr(convention::RSP);
@@ -147,6 +151,9 @@ impl<'a> CodeGenerator<'a> {
         for block in 0..func.blocks.len() as BlockId {
             self.block = block;
             let label = self.block_labels[block as usize];
+            if func.is_loop_header(block) {
+                self.asm.align_code(LOOP_ALIGNMENT);
+            }
             self.asm.bind(label);
             // Phis in registers that have a slot too are stored there where they are defined.
             for phi in func.phis(block) {

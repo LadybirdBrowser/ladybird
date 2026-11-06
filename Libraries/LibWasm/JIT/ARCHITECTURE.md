@@ -258,7 +258,9 @@ Small innermost loops without calls lose their check (`passes/interrupt_checks.r
 by one towards a bound a step cannot go past: `<`, `>` or `!=` of an invariant bound. Everything wraps
 around here, so loops that step by more keep it. One known to run under 5000 times goes anywhere.
 Any other ends within 2^32 iterations, and goes only where a loop around it keeps its check, so that
-an interrupt takes as long as the rest of that loop at most.
+an interrupt takes as long as the rest of that loop at most. x86-64 aligns loop headers to 64 bytes,
+and code to the same: what lies in front of a small loop otherwise decides how it lies across what
+the CPU fetches. That is worth 6% of CoreMark's score.
 
 **Calls.** Every call goes through `FunctionHeader::native_entry`. A direct call of a function of
 the same instance passes the caller's instance and memory base; any other call (imports,
