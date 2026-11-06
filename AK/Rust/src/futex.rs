@@ -21,7 +21,7 @@ pub enum AtomicWaitResult {
 
 /// The word of a shared typed array element that Atomics.wait waits on, which is 4 or 8 bytes wide.
 #[derive(Clone, Copy)]
-pub(crate) enum WaitWord<'a> {
+pub enum WaitWord<'a> {
     Word32(&'a AtomicU32),
     Word64(&'a AtomicU64),
 }
@@ -208,7 +208,7 @@ fn errno() -> i32 {
 }
 
 #[cfg(target_os = "macos")]
-pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
+pub fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
     // Compare the value in userspace first. os_sync_wait_on_address reports a value mismatch as a *successful* return
     // (it has no EAGAIN). So, without this, the "not-equal" result would be unreachable; it also faults the shared page
     // in — avoiding a transient first-touch EFAULT below. A store landing between this read and the kernel's own
@@ -284,7 +284,7 @@ pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Dur
 }
 
 #[cfg(target_os = "macos")]
-pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
+pub fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
     // Waiters key on the low 32-bit half — so, wake with size 4 regardless of the notifying view's element size. That
     // lets a 4-byte notify wake an 8-byte waiter (and vice versa) at the same address — which the spec's single per-
     // address WaiterList requires.
@@ -314,7 +314,7 @@ pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
 }
 
 #[cfg(target_os = "linux")]
-pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
+pub fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
     // Compare the value in userspace first — so a zero or already-elapsed timeout still yields "not-equal" (which the
     // spec orders before "timed-out"), and so 8-byte waits share one compare.
     if !word_equals(word, expected) {
@@ -367,7 +367,7 @@ pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Dur
 }
 
 #[cfg(target_os = "linux")]
-pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
+pub fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
     // FUTEX_WAKE wakes a waiter even when the requested count is zero.
     if max_count == 0 {
         return 0;
@@ -393,12 +393,12 @@ pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
 
 // No native wait/wake primitive is wired up on this platform.
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
+pub fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
     waiter_list::wait(word, expected, timeout)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
+pub fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
     waiter_list::notify(word.as_ptr(), max_count)
 }
 

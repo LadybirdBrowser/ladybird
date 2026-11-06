@@ -6,6 +6,11 @@ edition = "2024"
 [lib]
 crate-type = ["rlib"]
 
+# After changing dependencies, regenerate the Flatpak sources:
+#   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+[dependencies]
+libc = "0.2"
+
 [build-dependencies]
 cc = "1"
 

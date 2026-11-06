@@ -16,7 +16,6 @@ use core::time::Duration;
 use libjs_runtime_macros::Trace;
 use num_bigint::BigInt as NumBigInt;
 
-use crate::futex::{self, AtomicWaitResult, WaitWord};
 use crate::gc::capi::{GC_PRIMITIVE_STORAGE_NULL_HANDLE, GCPrimitiveStorageHandle, gc_cell_type_info};
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
@@ -45,6 +44,7 @@ use crate::runtime::typed_array::TypedArrayBase;
 use crate::runtime::value::same_value;
 use crate::runtime::value_conversions;
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
+use ak::futex::{self, AtomicWaitResult, WaitWord};
 
 pub use crate::gc::primitive_storage::cage_base as primitive_storage_cage_base;
 pub use crate::gc::primitive_storage::{OutOfMemory, ZeroFillNewBytes};

@@ -19,10 +19,6 @@ mod rust_demangle;
 #[path = "../../../RustPanic.rs"]
 mod rust_panic;
 
-// NB: Atomics.wait and Atomics.notify's waiting and waking, which memory.atomic.wait and memory.atomic.notify share.
-#[path = "../../../LibJS/Rust/src/futex.rs"]
-mod futex;
-
 #[cfg(feature = "capi")]
 pub mod capi;
 pub mod runtime;

@@ -6,6 +6,7 @@
 
 //! Rust views of shared AK data structures.
 
+pub mod futex;
 mod generic_lexer;
 pub mod math;
 pub mod perf_map;

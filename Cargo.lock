@@ -86,6 +86,7 @@ name = "ak"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "libc",
 ]
 
 [[package]]

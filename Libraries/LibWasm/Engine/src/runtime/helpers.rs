@@ -12,8 +12,8 @@ use crate::abi::{
     ExecutionContext, FRAME_FUNCTION, FRAME_HEADER_SIZE, FRAME_INSTANCE, FRAME_RETURN_IP, FRAME_SAVED_FP, MemoryData,
     TableData,
 };
-use crate::futex::{self, AtomicWaitResult, WaitWord};
 use crate::validator::{CatchKind, NO_EXCEPTION_LOCAL, NOT_DELEGATED};
+use ak::futex::{self, AtomicWaitResult, WaitWord};
 
 export_runtime_functions! {
     wasm_runtime_memory_grow => memory_grow,
@@ -269,7 +269,7 @@ unsafe fn wait(context: *mut ExecutionContext) -> u64 {
         ));
         return crate::abi::WAIT_CANNOT_BLOCK;
     }
-    // NB: The waits and wakes are those of Atomics.wait and Atomics.notify (LibJS's futex), whose waiter lists are
+    // NB: The waits and wakes are those of Atomics.wait and Atomics.notify (ak::futex), whose waiter lists are
     //     the operating system's, per address: JavaScript and WebAssembly wake each other, as the memory model's
     //     single WaiterList per location requires.
     let word = unsafe {
