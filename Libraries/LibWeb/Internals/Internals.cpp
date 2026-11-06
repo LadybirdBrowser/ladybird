@@ -17,6 +17,7 @@
 #include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/System.h>
 #include <LibCore/TimeZone.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
@@ -2372,6 +2373,22 @@ Utf16String Internals::dump_site_isolation_process_tree()
 void Internals::crash_remote_frame_processes()
 {
     window().associated_document().page().client().crash_remote_frame_processes_for_testing();
+}
+
+i32 Internals::web_content_process_id()
+{
+    return Core::System::getpid();
+}
+
+u32 Internals::document_count_in_this_process()
+{
+    auto documents = HTML::main_thread_event_loop().documents_in_this_event_loop_matching([](auto const&) { return true; });
+    return documents.size();
+}
+
+void Internals::close_tab_through_ui_process()
+{
+    window().associated_document().page().client().close_tab_for_testing();
 }
 
 void Internals::stop_loading_through_ui_process()

@@ -226,6 +226,7 @@ private:
     virtual void page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id) override;
     virtual String dump_site_isolation_process_tree_for_testing() override;
     virtual void crash_remote_frame_processes_for_testing() override;
+    virtual void close_tab_for_testing() override;
     virtual void page_did_spoof_document_origin_for_testing(Web::HTML::EnvironmentSettingsObject const&, URL::Origin const&) override;
     virtual void stop_loading_through_ui_process_for_testing() override;
     virtual void reload_through_ui_process_for_testing(bool bypass_cache) override;

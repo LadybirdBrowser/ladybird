@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A closed tab goes from a process that other tabs keep alive: nothing of it keeps running or stays reachable.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        // A collection sweeps in slices, so a document goes some time after it. Collecting away from this script's stack
+        // keeps a stale value on that stack from keeping a closed tab's objects alive.
+        const settledDocumentCount = async () => {
+            let count = internals.documentCountInThisProcess();
+            for (let stableRounds = 0; stableRounds < 10; ++stableRounds) {
+                await internals.gcAsync();
+                await timeout(20);
+                if (internals.documentCountInThisProcess() !== count) {
+                    count = internals.documentCountInThisProcess();
+                    stableRounds = 0;
+                }
+            }
+            return count;
+        };
+
+        const collectUntilDocumentCountIs = async count => {
+            for (let attempt = 0; attempt < 1000; ++attempt) {
+                await internals.gcAsync();
+                if (internals.documentCountInThisProcess() <= count) return true;
+                await timeout(10);
+            }
+            return false;
+        };
+
+        // A worker's process goes on for a while after its owner closes it.
+        const stopsPinging = async (heard, pings) => {
+            for (let attempt = 0; attempt < 100; ++attempt) {
+                heard[pings] = 0;
+                await timeout(200);
+                if (heard[pings] === 0) return true;
+            }
+            return false;
+        };
+
+        const openTabAndHearFromIt = async closeRequestHandler => {
+            const channelName = `closed-tab-${uniqueID()}`;
+            const workerUrl = await httpServer.createEcho("GET", `/${channelName}-worker.js`, {
+                status: 200,
+                headers: { "Content-Type": "text/javascript" },
+                body: `const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                       setInterval(() => channel.postMessage({ type: "worker-ping" }), 10);`,
+            });
+            const tabUrl = await httpServer.createEcho("GET", `/${channelName}.html`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                    new Worker(${JSON.stringify(workerUrl)});
+                    setInterval(() => channel.postMessage({ type: "tab-ping" }), 10);
+                    channel.postMessage({ type: "blob-url", url: URL.createObjectURL(new Blob(["blob"])) });
+                    channel.onmessage = ({ data }) => { if (data.type === "close") { ${closeRequestHandler} } };
+                <\/script>`,
+            });
+
+            const channel = new BroadcastChannel(channelName);
+            const heard = { tabPings: 0, workerPings: 0, blobUrl: null };
+            channel.onmessage = ({ data }) => {
+                if (data.type === "tab-ping") ++heard.tabPings;
+                else if (data.type === "worker-ping") ++heard.workerPings;
+                else heard.blobUrl = data.url;
+            };
+
+            window.open(tabUrl, "_blank", "noopener");
+            while (!heard.tabPings || !heard.workerPings || !heard.blobUrl) await timeout(10);
+            return { channel, heard };
+        };
+
+        const closeTabAndReport = async (label, closeRequestHandler) => {
+            const documentCountWithoutTheTab = await settledDocumentCount();
+
+            const { channel, heard } = await openTabAndHearFromIt(closeRequestHandler);
+            println(`${label}: blob URL resolves while open: ${(await fetch(heard.blobUrl)).ok}`);
+
+            channel.postMessage({ type: "close" });
+            println(`${label}: documents collected: ${await collectUntilDocumentCountIs(documentCountWithoutTheTab)}`);
+
+            println(`${label}: tab stopped: ${await stopsPinging(heard, "tabPings")}`);
+            println(`${label}: worker stopped: ${await stopsPinging(heard, "workerPings")}`);
+
+            const blobUrlResolves = await fetch(heard.blobUrl).then(
+                () => true,
+                () => false
+            );
+            println(`${label}: blob URL revoked: ${!blobUrlResolves}`);
+            channel.close();
+        };
+
+        await closeTabAndReport("closed through the UI process", "internals.closeTabThroughUIProcess();");
+        await closeTabAndReport("closed by script", "window.close();");
+    });
+</script>

@@ -35,6 +35,7 @@ endpoint WebContentTestClient routed by Web::PageId page_id
     [NotRouted] did_request_tab_audibility_change_count_for_testing(Web::PageId page_id) => (u64 change_count)
     [NotRouted] did_request_has_populated_document_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) => (bool has_populated_document)
     did_request_crash_of_remote_frame_processes_for_testing(Web::PageId page_id) =|
+    did_request_close_tab_for_testing(Web::PageId page_id) =|
     did_request_stop_loading_for_testing(Web::PageId page_id) =|
     did_request_reload_for_testing(Web::PageId page_id, bool bypass_cache) =|
     did_request_traverse_history_by_delta_for_testing(Web::PageId page_id, i32 delta) =|

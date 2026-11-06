@@ -255,7 +255,7 @@ private:
     virtual void did_request_dismiss_dialog() override;
     virtual void did_request_document_cookie_version_index(Web::HTML::EnvironmentId environment_id, i64 document_id, String domain) override;
     virtual void did_set_cookie(Optional<Web::HTML::EnvironmentId>, URL::URL, HTTP::Cookie::ParsedCookie, HTTP::Cookie::Source) override;
-    virtual void did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls) override;
+    void did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls);
     Messages::WebContentClient::ConnectToStorageAreaResponse connect_to_storage_area(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id);
     virtual void did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
     virtual void did_consume_user_activation(Web::HTML::UserActivationConsumption consumption) override;
@@ -388,7 +388,6 @@ private:
     Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request);
     Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Web::HTML::EnvironmentId environment_id);
     virtual void did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message) override;
-    virtual void close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;
     virtual void rtc_transform_init(Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record) override;
     virtual void rtc_transform_teardown(Web::HTML::WorkerAgentId agent_id, u64 transform_id) override;
     virtual void rtc_transform_encoded_audio_frame(Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number) override;
@@ -407,6 +406,7 @@ private:
     Messages::WebContentTestClient::DidRequestTabIsHeardPlayingAudioForTestingResponse did_request_tab_is_heard_playing_audio_for_testing();
     Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse did_request_tab_audibility_change_count_for_testing();
     virtual void did_request_crash_of_remote_frame_processes_for_testing() override;
+    virtual void did_request_close_tab_for_testing() override;
     virtual void did_request_stop_loading_for_testing() override;
     virtual void did_request_reload_for_testing(bool bypass_cache) override;
     virtual void did_request_traverse_history_by_delta_for_testing(i32 delta) override;

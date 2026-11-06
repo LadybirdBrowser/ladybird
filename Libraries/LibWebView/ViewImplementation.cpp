@@ -142,9 +142,11 @@ ViewImplementation::~ViewImplementation()
 
     if (m_top_level_traversable) {
         m_top_level_traversable->discard_pending_host();
-        m_top_level_traversable->discard_representing_pages();
         if (page().is_open())
             page().client().close_page_of_closed_tab(page().id());
+        // NB: After closing the page, which can leave a page of another process hosting an iframe of the tab to represent
+        //     the tab to a popup of the tab in that process.
+        m_top_level_traversable->discard_representing_pages();
     }
 
     // A headless parent can own and destroy its child view without the child receiving a browsing-context-close
@@ -5740,7 +5742,7 @@ Function<void()> ViewImplementation::prepare_for_close_without_prompting()
     };
 }
 
-Function<void()> ViewImplementation::prepare_for_immediate_close()
+void ViewImplementation::prepare_for_immediate_close()
 {
     VERIFY(!needs_beforeunload_check());
 
@@ -5749,11 +5751,15 @@ Function<void()> ViewImplementation::prepare_for_immediate_close()
         set_debugger_paused(false);
     }
 
-    NonnullRefPtr closing_page = page();
-    closing_page->set_detached_close_pending(true);
-    return [closing_page = move(closing_page)] {
-        closing_page->async_request_close();
-    };
+    page().set_detached_close_pending(true);
+}
+
+// The way a frontend closes a tab with no beforeunload check to run: the view goes without waiting for its page.
+void ViewImplementation::close_tab_for_testing()
+{
+    prepare_for_immediate_close();
+    if (on_close)
+        on_close();
 }
 
 }

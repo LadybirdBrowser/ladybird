@@ -3341,11 +3341,6 @@ void WebContentPage::did_post_broadcast_channel_message(Web::HTML::PostedBroadca
         WorkerProcessManager::the().post_broadcast_channel_message(move(message), *settings, client().pid(), client().is_private());
 }
 
-void WebContentPage::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
-{
-    WorkerProcessManager::the().close_worker_agent(client(), agent_id, owner_token);
-}
-
 void WebContentPage::rtc_transform_init(Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record)
 {
     WorkerProcessManager::the().rtc_transform_init(client(), agent_id, transform_id, move(options_record));
@@ -3416,6 +3411,12 @@ Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResp
 {
     auto view = traversable().view();
     return view.has_value() ? view->playing_audio_indicator_change_count() : 0;
+}
+
+void WebContentPage::did_request_close_tab_for_testing()
+{
+    if (displays_tab())
+        view().close_tab_for_testing();
 }
 
 void WebContentPage::did_request_crash_of_remote_frame_processes_for_testing()
