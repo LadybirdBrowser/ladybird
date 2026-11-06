@@ -1,0 +1,3 @@
+instantiated a WebAssembly module
+opened worker-close-with-agent-state
+closing

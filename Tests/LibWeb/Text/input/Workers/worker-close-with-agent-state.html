@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Everything here leaves state in the worker's agent behind, which has to go before the worker's heap does.
+    promiseTest(async () => {
+        const script = `
+            (async () => {
+                const emptyModule = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]);
+                await WebAssembly.instantiate(emptyModule);
+                postMessage("instantiated a WebAssembly module");
+
+                const database = await new Promise((resolve, reject) => {
+                    const request = indexedDB.open("worker-close-with-agent-state");
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+                postMessage("opened " + database.name);
+
+                self.channel = new BroadcastChannel("worker-close-with-agent-state");
+                self.channel.onmessage = () => {};
+                self.blobURL = URL.createObjectURL(new Blob(["blob"]));
+                self.key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 128 }, true, ["encrypt"]);
+                self.usages = self.key.usages;
+                self.entryTypes = PerformanceObserver.supportedEntryTypes;
+                self.reader = new ReadableStream({ pull() {} }).getReader();
+                self.reader.read();
+                postMessage("closing");
+                close();
+            })().catch(error => postMessage("error: " + error));
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([script], { type: "text/javascript" })));
+        const messages = [];
+        worker.onmessage = event => messages.push(event.data);
+        await waitForCondition(() => messages.at(-1) === "closing" || String(messages.at(-1)).startsWith("error"));
+        for (const message of messages) println(message);
+    });
+</script>

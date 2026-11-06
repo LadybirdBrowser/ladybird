@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const url = URL.createObjectURL(new Blob([`postMessage("started");`], { type: "text/javascript" }));
+        for (let i = 0; i < 5; ++i) new Worker(url).terminate();
+
+        const survivor = new Worker(url);
+        const message = await new Promise(resolve => (survivor.onmessage = event => resolve(event.data)));
+        println(`Worker started after others were terminated: ${message}`);
+        survivor.terminate();
+    });
+</script>

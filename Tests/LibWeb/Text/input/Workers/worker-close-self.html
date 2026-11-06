@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const script = `
+            setTimeout(() => postMessage("timer ran"), 0);
+            postMessage("before close");
+            close();
+            postMessage("after close");
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([script], { type: "text/javascript" })));
+        const messages = [];
+        worker.onmessage = event => messages.push(event.data);
+        await waitForCondition(() => messages.length >= 2);
+        await timeout(50);
+        for (const message of messages) println(message);
+    });
+</script>
