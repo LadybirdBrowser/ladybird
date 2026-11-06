@@ -25,6 +25,7 @@ use super::message_port::MessagePort;
 use super::storage::{Storage, StorageType};
 use super::storage_event::{StorageEvent, StorageEventInit};
 use super::window::{PostedMessage, queue_posted_message, window_post_message_steps};
+use super::window_or_worker_global_scope::structured_clone;
 use crate::bindings::CallContext;
 use crate::bindings::conversions::UsvString;
 use crate::bindings::cpp_cell::CppCell;
@@ -605,4 +606,24 @@ pub unsafe extern "C" fn web_window_queue_posted_message(
         };
         queue_posted_message(vm, posted_message);
     }
+}
+
+/// # Safety
+///
+/// The VM and the realm must be live, and `transfer` must point to `count` live objects.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_structured_clone(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    value: u64,
+    transfer: *const *mut c_void,
+    count: usize,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the live VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    let cx = CallContext::new(vm, realm);
+    // SAFETY: The caller passes a live value and `count` live objects.
+    let (value, transfer) = unsafe { (Value::from_raw(value), objects_from_abi(vm, transfer, count)) };
+    let result = structured_clone(&cx, value, &transfer.values());
+    RawNativeFunctionResult::from_completion(result.map_err(|exception| exception.throw(&cx)))
 }

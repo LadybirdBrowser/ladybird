@@ -22,6 +22,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ScalingMode.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -253,22 +254,20 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap(JS::Realm& realm, Image
     create_image_bitmap_impl(realm, promise, image, sx, sy, sw, sh, move(options));
 }
 
-// https://html.spec.whatwg.org/multipage/structured-data.html#dom-structuredclone
-WebIDL::ExceptionOr<JS::Value> WindowOrWorkerGlobalScopeMixin::structured_clone(JS::Realm& realm, JS::Value value, Bindings::StructuredSerializeOptions const& options)
-{
-    // 1. Let serialized be ? StructuredSerializeWithTransfer(value, options["transfer"]).
-    auto serialized = TRY(HTML::structured_serialize_with_transfer(realm, value, options.transfer));
-
-    // 2. Let deserializeRecord be ? StructuredDeserializeWithTransfer(serialized, this's relevant realm).
-    auto deserialized = TRY(HTML::structured_deserialize_with_transfer(serialized, realm));
-
-    // 3. Return deserializeRecord.[[Deserialized]].
-    return deserialized.deserialized;
-}
-
 extern "C" {
 // Defined in Bindings/Rust/src/canvas_2d/exports.rs.
 bool web_canvas_2d_read_back_video_frame(void* video_wrapper, Optional<Gfx::DecodedImageFrame>* out_frame);
+// Defined in Bindings/Rust/src/html/exports.rs.
+JSCompletion web_rust_structured_clone(JSVM*, void* realm, JSValue, JSObject* const* transfer, size_t count);
+}
+
+// https://html.spec.whatwg.org/multipage/structured-data.html#dom-structuredclone
+WebIDL::ExceptionOr<JS::Value> WindowOrWorkerGlobalScopeMixin::structured_clone(JS::Realm& realm, JS::Value value, Bindings::StructuredSerializeOptions const& options)
+{
+    Vector<JSObject*> transfer;
+    for (auto const& object : options.transfer)
+        transfer.append(JS::HostABI::object_to_abi(object.ptr()));
+    return TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_clone(JS::HostABI::vm_to_abi(realm.vm()), &realm, JS::HostABI::value_to_abi(value), transfer.data(), transfer.size())));
 }
 
 static Compositor::CompositorHost* compositor_host_for(JS::Object& global_object)
