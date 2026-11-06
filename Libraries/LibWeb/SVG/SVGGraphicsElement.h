@@ -8,7 +8,6 @@
 #pragma once
 
 #include <LibGfx/Matrix4x4.h>
-#include <LibGfx/PaintStyle.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/SVG/AttributeParsing.h>

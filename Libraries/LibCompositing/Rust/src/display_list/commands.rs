@@ -1751,7 +1751,6 @@ pub enum Canvas2DPaintKind {
 }
 ffi_enum_bytes!(Canvas2DPaintKind as u8);
 
-// The values of Gfx::CanvasPatternPaintStyle::Repetition.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Canvas2DPatternRepetition {

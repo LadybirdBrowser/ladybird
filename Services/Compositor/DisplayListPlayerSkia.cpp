@@ -43,6 +43,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibGfx/Gradients.h>
 
 namespace Compositor {
 
@@ -106,20 +107,6 @@ static void clip_to_rounded_rect(SkCanvas& canvas, auto const& rect, Gfx::Corner
         canvas.clipRect(to_skia_rect(rect), clip_op, true);
 }
 
-static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
-{
-    SkScalar affine[6];
-    affine[0] = affine_transform.a();
-    affine[1] = affine_transform.b();
-    affine[2] = affine_transform.c();
-    affine[3] = affine_transform.d();
-    affine[4] = affine_transform.e();
-    affine[5] = affine_transform.f();
-
-    SkMatrix matrix;
-    matrix.setAffine(affine);
-    return matrix;
-}
 static SkM44 to_skia_matrix4x4(Gfx::FloatMatrix4x4 const& matrix)
 {
     return SkM44(

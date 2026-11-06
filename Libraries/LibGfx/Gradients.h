@@ -7,18 +7,9 @@
 #pragma once
 
 #include <AK/Math.h>
-#include <LibGfx/Color.h>
 #include <LibGfx/Size.h>
 
 namespace Gfx {
-
-struct ColorStop {
-    Color color;
-    float position = AK::NaN<float>;
-    Optional<float> transition_hint = {};
-
-    bool operator==(ColorStop const&) const = default;
-};
 
 inline float normalized_gradient_angle_radians(float gradient_angle)
 {

@@ -39,6 +39,21 @@ static_assert(to_underlying(PathVerb::Close) == to_underlying(SkPathVerb::kClose
 static_assert(sizeof(PathVerb) == sizeof(SkPathVerb));
 static_assert(sizeof(FloatPoint) == sizeof(SkPoint));
 
+SkMatrix to_skia_matrix(AffineTransform const& affine_transform)
+{
+    SkScalar affine[6];
+    affine[0] = affine_transform.a();
+    affine[1] = affine_transform.b();
+    affine[2] = affine_transform.c();
+    affine[3] = affine_transform.d();
+    affine[4] = affine_transform.e();
+    affine[5] = affine_transform.f();
+
+    SkMatrix matrix;
+    matrix.setAffine(affine);
+    return matrix;
+}
+
 SkPath to_skia_path(PathData const& data)
 {
     return SkPath::Raw(

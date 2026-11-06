@@ -23,7 +23,6 @@ set(SOURCES
     HostWebGLContext.cpp
     KeyboardScrollController.cpp
     OpenGLContext.cpp
-    PainterSkia.cpp
     PaintingSurface.cpp
     PausedDebuggerOverlay.cpp
     PictureInPictureControls.cpp
