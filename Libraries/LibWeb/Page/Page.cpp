@@ -1150,15 +1150,65 @@ void Page::unfullscreen_descendant_documents(Vector<GC::Root<HTML::Navigable>> c
 
 void Page::discard()
 {
+    if (m_has_been_discarded)
+        return;
+    m_has_been_discarded = true;
+
+    // Nothing answers a dialog of a closed tab anymore, and the process's event loop stays paused while it is open.
+    close_pending_dialog_of_discarded_page();
+
     // A tab closed while this page still displayed a document of it: the document goes without the unload the UI
     // process runs otherwise, as the documents of a top-level traversable being destroyed do.
-    for (auto const& navigable : local_roots()) {
-        if (auto document = navigable->active_document())
-            document->destroy_a_document_and_its_descendants();
-        navigable->set_has_been_destroyed();
-        navigable->remove_from_all_local_navigables();
+    auto navigables = local_roots();
+    if (navigables.is_empty()) {
+        finish_discarding();
+        return;
     }
 
+    m_local_roots_left_to_discard = navigables.size();
+    for (auto const& navigable : navigables) {
+        auto detach_navigable = GC::create_function(heap(), [this, navigable] {
+            navigable->set_has_been_destroyed();
+            navigable->remove_from_all_local_navigables();
+            if (--m_local_roots_left_to_discard == 0)
+                finish_discarding();
+        });
+
+        // NB: The task destroying a document only runs while the document is fully active, so its navigable can only
+        //     be detached after that task.
+        auto document = navigable->active_document();
+        if (document && !document->has_been_destroyed() && document->is_fully_active()) {
+            document->destroy_a_document_and_its_descendants(detach_navigable);
+            continue;
+        }
+        if (document && !document->has_been_destroyed())
+            document->destroy();
+        detach_navigable->function()();
+    }
+}
+
+void Page::close_pending_dialog_of_discarded_page()
+{
+    switch (m_pending_dialog) {
+    case PendingDialog::None:
+        break;
+    case PendingDialog::Alert:
+        alert_closed();
+        break;
+    case PendingDialog::BeforeUnload:
+        before_unload_closed(true);
+        break;
+    case PendingDialog::Confirm:
+        confirm_closed(false);
+        break;
+    case PendingDialog::Prompt:
+        prompt_closed({});
+        break;
+    }
+}
+
+void Page::finish_discarding()
+{
     // The navigables of other processes this page held no longer stand for anything here, and a WindowProxy a script
     // of another page holds for one of them is closed.
     GC::RootVector<GC::Ref<HTML::RemoteNavigable>> remote_navigables;

@@ -310,6 +310,11 @@ void LocalTraversableNavigable::run_ui_traversable_close_unload_task()
     // The UI process has already unloaded every descendant subtree.
     queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
         GC::create_function(heap(), [this] {
+            // NB: The UI process discards the page of a tab it let go of without waiting for this task, and the page
+            //     goes without the unload then.
+            if (page().has_been_discarded())
+                return;
+
             // 2. Unload document, passing along newDocument if it is not null.
             if (auto document = active_document())
                 document->unload();
