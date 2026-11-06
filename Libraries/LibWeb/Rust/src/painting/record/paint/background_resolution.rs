@@ -864,15 +864,18 @@ pub(crate) fn has_background_to_paint(
     })
 }
 
-/// The root background covers the viewport and the root's scrollable overflow. Moving the
-/// viewport inside that area does not change the recorded background; growing it does.
+/// The root background covers the viewport and everything it can scroll to. Moving the viewport
+/// inside that area does not change the recorded background; growing it does.
 pub(crate) fn root_background_canvas_rect(
     arena: &impl PaintRead,
     root: NodeSlotId,
     viewport_rect: CssPixelRect,
 ) -> CssPixelRect {
     let mut rect = viewport_rect;
-    if let Some(overflow_rect) = crate::painting::paintable_geometry::scrollable_overflow_rect(arena, root) {
+    // NB: The overflow of the viewport box, not of the root: a box positioned against the initial containing block
+    //     is overflow of the viewport alone, and the compositor scrolls to it without a new recording.
+    let viewport = arena.node_parent_if_live(root).unwrap_or(root);
+    if let Some(overflow_rect) = crate::painting::paintable_geometry::scrollable_overflow_rect(arena, viewport) {
         rect.unite(overflow_rect);
     }
     rect
