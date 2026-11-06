@@ -80,4 +80,7 @@ private:
     RefPtr<ReportSubmission> m_submission;
 };
 
+// A new issue on GitHub, with what we know of this build already filled in.
+WEBVIEW_API URL::URL new_bug_report_url();
+
 }
