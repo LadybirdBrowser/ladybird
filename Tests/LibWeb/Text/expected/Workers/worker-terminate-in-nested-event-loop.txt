@@ -1,0 +1,2 @@
+synchronous XMLHttpRequest: waiting
+importScripts(): waiting

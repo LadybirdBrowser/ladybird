@@ -1,0 +1,10 @@
+plain loop: stopped
+compiled loop: stopped
+finally: stopped
+catch: stopped
+generator: stopped
+async function: stopped
+promise jobs: stopped
+event handler: stopped
+regular expression: stopped
+WebAssembly: stopped

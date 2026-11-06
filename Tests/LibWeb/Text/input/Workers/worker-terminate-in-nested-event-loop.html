@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // NB: Each of these waits in a nested event loop, which only the abort gets it out of.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const slowURL = await server.createEcho("GET", "/worker-terminate-in-nested-event-loop", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "too late",
+            delay_ms: 3000,
+        });
+
+        const SCRIPTS = {
+            "synchronous XMLHttpRequest": `
+                const request = new XMLHttpRequest();
+                request.open("GET", ${JSON.stringify(slowURL)}, false);
+                postMessage("waiting");
+                request.send();
+                postMessage("too late");
+            `,
+            "importScripts()": `
+                postMessage("waiting");
+                importScripts(${JSON.stringify(slowURL)});
+                postMessage("too late");
+            `,
+        };
+
+        for (const [name, source] of Object.entries(SCRIPTS)) {
+            const worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+            const messages = [];
+            worker.onmessage = event => messages.push(event.data);
+            worker.onerror = () => messages.push("error");
+            await waitForCondition(() => messages.length >= 1);
+            await timeout(50);
+            worker.terminate();
+            await timeout(50);
+            println(`${name}: ${messages.join(", ")}`);
+        }
+    });
+</script>

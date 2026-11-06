@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // NB: The script of a worker that terminate() aborts stops ticking long before the UI process would kill the worker.
+    const TICK = `
+        const channel = new BroadcastChannel(self.name);
+        let nextTick = 0;
+        function tick() {
+            const now = performance.now();
+            if (now < nextTick) return;
+            nextTick = now + 5;
+            channel.postMessage("tick");
+        }
+    `;
+
+    const WASM_LOOP_AROUND_IMPORT = `
+        new WebAssembly.Instance(
+            new WebAssembly.Module(
+                new Uint8Array([
+                    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x02, 0x07, 0x01,
+                    0x01, 0x65, 0x01, 0x74, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x01,
+                    0x0a, 0x0b, 0x01, 0x09, 0x00, 0x03, 0x40, 0x10, 0x00, 0x0c, 0x00, 0x0b, 0x0b,
+                ])
+            ),
+            { e: { t: tick } }
+        ).exports.f();
+    `;
+
+    const SCRIPTS = {
+        "plain loop": "while (true) tick();",
+        "compiled loop": `
+            function hot() {
+                let sum = 0;
+                for (let i = 0; i < 100000; ++i) sum += i;
+                return sum;
+            }
+            while (true) {
+                hot();
+                tick();
+            }
+        `,
+        "finally": `
+            try {
+                while (true) tick();
+            } finally {
+                while (true) tick();
+            }
+        `,
+        "catch": `
+            while (true) {
+                try {
+                    while (true) tick();
+                } catch (error) {}
+            }
+        `,
+        "generator": `
+            function* forever() {
+                for (;;) {
+                    tick();
+                    yield;
+                }
+            }
+            for (const value of forever());
+        `,
+        "async function": `
+            (async () => {
+                for (;;) {
+                    tick();
+                    await 0;
+                }
+            })();
+        `,
+        "promise jobs": `
+            function again() {
+                tick();
+                Promise.resolve().then(again);
+            }
+            again();
+        `,
+        "event handler": `
+            self.onmessage = () => {
+                while (true) tick();
+            };
+            self.postMessage("ready");
+        `,
+        "regular expression": `
+            while (true) {
+                tick();
+                /(a+)+b/.test("a".repeat(25));
+            }
+        `,
+        "WebAssembly": WASM_LOOP_AROUND_IMPORT,
+    };
+
+    async function check(name, body) {
+        const channel = new BroadcastChannel(name);
+        let ticks = 0;
+        channel.onmessage = () => ++ticks;
+
+        const script = URL.createObjectURL(new Blob([TICK + body], { type: "text/javascript" }));
+        const worker = new Worker(script, { name });
+        worker.onerror = () => println(`${name}: error`);
+        worker.onmessage = () => worker.postMessage("go");
+        await waitForCondition(() => ticks >= 3, 5000, 1);
+
+        worker.terminate();
+        // NB: Nothing tells when the script of a terminated worker stopped, so this waits until no tick came for 50 ms.
+        //     A script that keeps running ticks every 5 ms.
+        let lastTicks = ticks;
+        let quietSince = performance.now();
+        const giveUpAt = quietSince + 5000;
+        while (performance.now() - quietSince < 50 && performance.now() < giveUpAt) {
+            await timeout(5);
+            if (ticks !== lastTicks) {
+                lastTicks = ticks;
+                quietSince = performance.now();
+            }
+        }
+        println(`${name}: ${performance.now() - quietSince >= 50 ? "stopped" : "still running"}`);
+        channel.close();
+    }
+
+    promiseTest(async () => {
+        for (const [name, body] of Object.entries(SCRIPTS)) await check(name, body);
+    });
+</script>
