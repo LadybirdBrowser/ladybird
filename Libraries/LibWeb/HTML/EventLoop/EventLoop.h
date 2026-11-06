@@ -174,6 +174,9 @@ public:
 
     double compute_deadline() const;
 
+    void did_run_idle_callback() { m_task_generation_of_last_idle_callback = m_task_generation; }
+    void did_request_idle_callback();
+
     enum class UpdateTheRendering {
         No,
         Yes,
@@ -275,6 +278,8 @@ private:
 
     GC::Ptr<Platform::Timer> m_system_event_loop_timer;
     GC::Ptr<Platform::Timer> m_idle_period_timer;
+    u64 m_task_generation_of_last_idle_callback { 0 };
+    bool m_idle_callback_requested_outside_idle_period { false };
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };

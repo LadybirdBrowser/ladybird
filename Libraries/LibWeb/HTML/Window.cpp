@@ -983,6 +983,7 @@ void Window::invoke_idle_callbacks()
         // 2. Let deadlineArg be a new IdleDeadline whose [get deadline time algorithm] is getDeadline.
         auto deadline_arg = RequestIdleCallback::IdleDeadline::create();
         // 3. Call callback with deadlineArg as its argument. If an uncaught runtime script error occurs, then report the exception.
+        event_loop.did_run_idle_callback();
         auto result = callback->invoke(deadline_arg);
         if (result.is_error())
             report_exception(result, principal_realm());
@@ -1012,6 +1013,7 @@ void Window::invoke_idle_callback_timeout(u32 handle)
     auto callback = taken.release_value();
 
     callback->clear_timeout_timer_id();
+    main_thread_event_loop().did_run_idle_callback();
 
     // 2.1. Remove callback from both window's list of idle request callbacks and the list of runnable idle callbacks.
     // NB: Taking the callback from whichever list contained it above implements this step, since it can only be in one.
@@ -2215,6 +2217,7 @@ u32 Window::request_idle_callback(IdleCallbackHandler callback, IdleRequestOptio
     // 4. Push callback to the end of window's list of idle request callbacks, associated with handle.
     auto idle_callback = GC::Heap::the().allocate<IdleCallback>(GC::create_function(GC::Heap::the(), move(callback)), handle);
     m_idle_request_callbacks.set(handle, idle_callback);
+    main_thread_event_loop().did_request_idle_callback();
 
     // 5. Return handle and then continue running this algorithm asynchronously.
 
