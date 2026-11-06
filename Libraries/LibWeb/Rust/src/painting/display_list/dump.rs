@@ -665,7 +665,7 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
         // The display list of a page holds none of the commands of the canvas 2D stream.
         DisplayListCommandType::Canvas2DFillPath
         | DisplayListCommandType::Canvas2DStrokePath
-        | DisplayListCommandType::Canvas2DDrawGlyphRun
+        | DisplayListCommandType::Canvas2DDrawGlyphRuns
         | DisplayListCommandType::Canvas2DClearRect
         | DisplayListCommandType::Canvas2DDrawImageFrame
         | DisplayListCommandType::Canvas2DDrawCanvas

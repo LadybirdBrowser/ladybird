@@ -141,16 +141,24 @@ impl<T: Transport> Recorder<T> {
         self.record(|tape| tape.stroke_path(path, paint, stroke, compositing));
     }
 
-    pub fn draw_glyph_run(
+    /// Draws the glyphs of a text as one draw. Each run is a font and how many of the next glyphs it draws.
+    pub fn draw_glyph_runs(
         &mut self,
-        font: &T::Font,
+        runs: &[(&T::Font, usize)],
         glyphs: &[DisplayListGlyph],
         translation: FloatPoint,
+        horizontal_scale: f32,
         paint: &Paint,
         compositing: &Compositing,
     ) {
-        let font_id = self.transport.add_font(font);
-        self.record(|tape| tape.draw_glyph_run(font_id, glyphs, translation, paint, compositing));
+        let runs: Vec<Canvas2DGlyphRun> = runs
+            .iter()
+            .map(|(font, glyph_count)| Canvas2DGlyphRun {
+                font_id: self.transport.add_font(font),
+                glyph_count: *glyph_count as u64,
+            })
+            .collect();
+        self.record(|tape| tape.draw_glyph_runs(&runs, glyphs, translation, horizontal_scale, paint, compositing));
     }
 
     pub fn clear_rect(&mut self, rect: FloatRect, color: Color) {
@@ -337,15 +345,17 @@ mod tests {
     }
 
     #[test]
-    fn a_glyph_run_adds_its_font_before_its_record_names_it() {
+    fn glyph_runs_add_their_fonts_before_their_record_names_them() {
+        let glyph = DisplayListGlyph {
+            position: FloatPoint { x: 0.0, y: 0.0 },
+            glyph_id: 3,
+        };
         let mut recorder = Recorder::new(FakeTransport::default());
-        recorder.draw_glyph_run(
-            &77,
-            &[DisplayListGlyph {
-                position: FloatPoint { x: 0.0, y: 0.0 },
-                glyph_id: 3,
-            }],
+        recorder.draw_glyph_runs(
+            &[(&77, 2), (&78, 1)],
+            &[glyph, glyph, glyph],
             FloatPoint { x: 1.0, y: 2.0 },
+            0.5,
             &Paint::Color(Color(0xff00_0000)),
             &Compositing::default(),
         );
@@ -353,12 +363,13 @@ mod tests {
             *recorder.transport.events.borrow(),
             [
                 Event::AddFont(77),
-                Event::Record(DisplayListCommandType::Canvas2DDrawGlyphRun)
+                Event::AddFont(78),
+                Event::Record(DisplayListCommandType::Canvas2DDrawGlyphRuns)
             ]
         );
-        let command = read_command::<Canvas2DDrawGlyphRun>(&payload_of(&recorder.transport.records.borrow()[0]));
-        assert_eq!(command.font_id, FontResourceId(77));
+        let command = read_command::<Canvas2DDrawGlyphRuns>(&payload_of(&recorder.transport.records.borrow()[0]));
         assert_eq!(command.translation, FloatPoint { x: 1.0, y: 2.0 });
+        assert_eq!(command.horizontal_scale, 0.5);
     }
 
     #[test]

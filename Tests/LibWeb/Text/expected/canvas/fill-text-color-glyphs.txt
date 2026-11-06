@@ -1,8 +1,8 @@
 alone: color ink: true
-mixed: first glyph: true, color ink: false
-maxWidth that fits: first glyph: true, color ink: false
-maxWidth that condenses: color ink inside: false, color ink outside: false
-shadow: color ink: false, shadow of the color glyph: false
-shadow on an earlier run: first glyph: true, color ink: false
-filter: first glyph: true, color ink: false
-copy: first glyph: true, color ink: false
+mixed: first glyph: true, color ink: true
+maxWidth that fits: first glyph: true, color ink: true
+maxWidth that condenses: color ink inside: true, color ink outside: false
+shadow: color ink: true, shadow of the color glyph: true
+shadow on an earlier run: first glyph: true, color ink: true
+filter: first glyph: true, color ink: true
+copy: first glyph: true, color ink: true
