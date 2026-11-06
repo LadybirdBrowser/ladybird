@@ -405,6 +405,12 @@ impl NameTables {
         }
     }
 
+    /// The fly string of a text with `hash`, which only takes the global table once per text of a script on this thread.
+    pub(super) fn fly_string_of_text(&mut self, text: Utf16View<'_>, hash: u64) -> &Utf16FlyString {
+        let id = self.script_names.text_id(text, hash);
+        &self.script_names.texts[id as usize]
+    }
+
     /// The fly string of a name, which only takes the global table once per name of a script on this thread.
     pub(super) fn fly_string_of(&mut self, tree: &SyntaxTree, name: Name) -> Utf16FlyString {
         self.script_names.fly_string(tree, name).clone()

@@ -258,6 +258,13 @@ impl<'t> Generator<'t> {
         ScopedOperand::plain(self.context.constants.add_string(value))
     }
 
+    /// A constant of the string `text`.
+    #[inline(always)]
+    pub(super) fn add_constant_string_view(&mut self, text: Utf16View<'_>) -> Operand {
+        let context = &mut *self.context;
+        context.constants.add_string_view(text, &mut context.names)
+    }
+
     pub(super) fn add_constant_bigint(&mut self, value: String) -> ScopedOperand {
         ScopedOperand::plain(self.context.constants.add_bigint(value))
     }
