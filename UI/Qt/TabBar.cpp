@@ -3227,7 +3227,7 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     if constexpr (use_native_macos_window_controls()) {
         m_window_controls = create_window_controls_spacer(*this, "LadybirdTabStripWindowControls", { NATIVE_MACOS_WINDOW_CONTROLS_WIDTH, HORIZONTAL_TAB_HEIGHT });
     } else {
-        auto window_control_buttons = create_window_control_buttons(*this, "LadybirdTabStripWindowControls", { 18, 18 }, { 46, HORIZONTAL_WINDOW_CONTROL_HEIGHT });
+        auto window_control_buttons = create_window_control_buttons(*this, "LadybirdTabStripWindowControls", { 16, 16 }, { HORIZONTAL_WINDOW_CONTROL_HEIGHT, HORIZONTAL_WINDOW_CONTROL_HEIGHT });
         m_window_controls = window_control_buttons.container;
         m_minimize_window_button = window_control_buttons.minimize;
         m_maximize_window_button = window_control_buttons.maximize;
