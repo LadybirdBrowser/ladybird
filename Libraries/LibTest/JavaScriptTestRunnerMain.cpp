@@ -26,6 +26,7 @@ bool g_collect_on_every_allocation = false;
 ByteString g_currently_running_test;
 HashMap<Utf16String, FunctionWithLength> s_exposed_global_functions;
 void (*g_main_hook)() = nullptr;
+void (*g_main_exit_hook)() = nullptr;
 HashMap<bool*, Tuple<ByteString, ByteString, char>> g_extra_args;
 IntermediateRunFileResult (*g_run_file)(ByteString const&, JS::Realm&, JS::ExecutionContext&) = nullptr;
 ByteString g_test_root;
@@ -199,6 +200,9 @@ int main(int argc, char** argv)
 
     Test::JS::TestRunner test_runner(test_root, common_path, print_times, print_progress, print_json, per_file, print_each_test);
     test_runner.run(test_globs);
+
+    if (g_main_exit_hook)
+        g_main_exit_hook();
 
     g_vm = nullptr;
 
