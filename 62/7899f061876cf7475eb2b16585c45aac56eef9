@@ -1,0 +1,16 @@
+Ladybird slices an SVG border image at its natural size, or at the
+border image area if it has none, and paints each piece from a tile it
+renders the whole image into at one scale, offset so that the piece
+fills it, then stretches and repeats. Blink, WebKit, and Gecko all
+slice it at that same size: Blink through StyleFetchedImage::ImageSize()
+and SVGImageForContainer::ConcreteObjectSize(), WebKit through
+Style::BorderImageSizing, whose default object size is the border image
+area, and Gecko through nsImageRenderer::ComputeConcreteSize() in
+nsCSSBorderImageRenderer. Each then draws a piece by scaling the vector
+content into it per axis: Blink in SVGImage::DrawInternal(), WebKit in
+SVGImage::drawImage(), and Gecko in ClippedImage::DrawSingleTile(). To
+repeat a piece, Blink records the scaled piece as a paint shader, and
+WebKit’s SVGImage::drawPattern() rasterizes the whole image before it
+patterns the piece. Rendering at one scale and stretching the tile is
+Ladybird’s own way: Its nested display lists can’t be scaled on each
+axis separately, as those engines’ drawing contexts can.
