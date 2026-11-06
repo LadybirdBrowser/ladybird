@@ -13,7 +13,9 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::rc::Rc;
+use std::sync::Arc;
 
+use ak::futex::WaitInterrupt;
 use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
@@ -516,6 +518,8 @@ pub struct Vm {
     pub jit_native_stack_limit: AtomicUsize,
     /// Set once script on this VM has to stop for good (see request_interrupt()). Any thread may set it.
     interrupt_requested: AtomicBool,
+    /// What wakes this VM's thread from Atomics.wait() for an interrupt.
+    wait_interrupt: Arc<WaitInterrupt>,
     /// The tables `VmHead::dispatch_tables` points to.
     pub(crate) own_dispatch_tables: VmDispatchTables,
     heap: OnceCell<Heap>,
@@ -691,6 +695,7 @@ impl Vm {
             },
             jit_native_stack_limit: AtomicUsize::new(0),
             interrupt_requested: AtomicBool::new(false),
+            wait_interrupt: Arc::new(WaitInterrupt::new()),
             own_dispatch_tables: VmDispatchTables::new(),
             heap: OnceCell::new(),
             _interpreter_stack_memory: interpreter_stack_memory,
@@ -888,8 +893,8 @@ impl Vm {
     ///
     /// Script costs nothing to run for this: the interpreter stops at its next dispatch, as every dispatch table entry
     /// becomes the fallback handler, and JIT code stops at its next call or loop back edge, which compare the stack
-    /// pointer with a limit anyway, so raising the limit past every stack pointer does it. Blocking native functions
-    /// poll the flag.
+    /// pointer with a limit anyway, so raising the limit past every stack pointer does it. A thread that sleeps on a word
+    /// of shared memory gets woken. This returns once it is awake.
     ///
     /// Script unwinds with interrupt_exception(), past every handler. The flag is never cleared: every later attempt to
     /// run code fails at once, which is what makes the places in native code that catch exceptions harmless. They can
@@ -899,6 +904,12 @@ impl Vm {
         self.jit_native_stack_limit.store(usize::MAX, Ordering::Relaxed);
         fence(Ordering::SeqCst);
         self.own_dispatch_tables.stop_dispatching();
+        self.wait_interrupt.interrupt();
+    }
+
+    /// What ends a wait of this VM's thread on a word of shared memory.
+    pub fn wait_interrupt(&self) -> &Arc<WaitInterrupt> {
+        &self.wait_interrupt
     }
     }
 

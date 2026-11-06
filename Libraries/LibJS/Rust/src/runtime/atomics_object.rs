@@ -256,8 +256,10 @@ fn do_wait(
         value as u64,
         typed_array.element_size(),
         wait_timeout,
+        vm.wait_interrupt(),
     );
     let result = match result {
+        AtomicWaitResult::Interrupted => return vm.throw_interrupt(),
         // 25. If waiterRecord.[[Result]] is "not-equal", return the String "not-equal".
         AtomicWaitResult::NotEqual => "not-equal",
         // 26. If waiterRecord.[[Result]] is "timed-out", return the String "timed-out".

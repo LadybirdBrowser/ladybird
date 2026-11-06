@@ -44,7 +44,7 @@ use crate::runtime::typed_array::TypedArrayBase;
 use crate::runtime::value::same_value;
 use crate::runtime::value_conversions;
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
-use ak::futex::{self, AtomicWaitResult, WaitWord};
+use ak::futex::{self, AtomicWaitResult, WaitInterrupt, WaitWord};
 
 pub use crate::gc::primitive_storage::cage_base as primitive_storage_cage_base;
 pub use crate::gc::primitive_storage::{OutOfMemory, ZeroFillNewBytes};
@@ -1560,6 +1560,7 @@ impl ArrayBuffer {
         expected: u64,
         size: usize,
         timeout: Option<Duration>,
+        interrupt: &WaitInterrupt,
     ) -> AtomicWaitResult {
         // NB: The data block stays borrowed while the agent waits, since the agent is the only one that could change it.
         let data_block = self.data_block.borrow();
@@ -1568,7 +1569,7 @@ impl ArrayBuffer {
             8 => WaitWord::Word64(data_block.atomic_at(byte_index)),
             _ => unreachable!("Atomics.wait waits on 4-byte or 8-byte elements"),
         };
-        futex::atomic_wait(word, expected, timeout)
+        futex::atomic_wait(word, expected, timeout, Some(interrupt))
     }
 
     /// Core::atomic_notify() on the word at `byte_index`.
