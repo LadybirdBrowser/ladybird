@@ -55,13 +55,23 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
     h ^ (h >> 32)
 }
 
+/// The key of a name of at most 16 bytes: its bytes in order, as two little-endian words.
+#[inline(always)]
 fn key_from_bytes(bytes: &[u8]) -> (u64, u64) {
-    let mut buffer = [0u8; 16];
-    buffer[..bytes.len()].copy_from_slice(bytes);
-    (
-        u64::from_le_bytes(buffer[..8].try_into().unwrap()),
-        u64::from_le_bytes(buffer[8..].try_into().unwrap()),
-    )
+    let word_at = |at: usize| u64::from_le_bytes(bytes[at..at + 8].try_into().unwrap());
+    let half_word_at = |at: usize| u64::from(u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()));
+    let length = bytes.len();
+    match length {
+        0 => (0, 0),
+        1..=3 => {
+            let (middle, last) = (length / 2, length - 1);
+            let word = u64::from(bytes[0]) | u64::from(bytes[middle]) << (middle * 8);
+            (word | u64::from(bytes[last]) << (last * 8), 0)
+        }
+        4..=7 => (half_word_at(0) | half_word_at(length - 4) << ((length - 4) * 8), 0),
+        8 => (word_at(0), 0),
+        _ => (word_at(0), word_at(length - 8) >> ((16 - length) * 8)),
+    }
 }
 
 impl Interner {
@@ -71,16 +81,7 @@ impl Interner {
     }
 
     fn with_tables(short: Vec<u32>, rows: usize, long_rows: usize, text_capacity: usize) -> Self {
-        let mut interner = Self {
-            short,
-            rows: vec![Row { k0: 0, k1: 0, id: NONE }; rows],
-            shift: 64 - rows.trailing_zeros(),
-            count: 0,
-            long_rows: vec![LongRow { hash: 0, id: NONE }; long_rows],
-            long_count: 0,
-            text: Vec::with_capacity(text_capacity),
-            spans: Vec::with_capacity(rows / 2),
-        };
+        let mut interner = Self::empty(short, rows, long_rows, text_capacity);
         for (word, _) in KEYWORDS {
             interner.intern_bytes(word.as_bytes());
         }
@@ -93,14 +94,40 @@ impl Interner {
         interner
     }
 
+    fn empty(short: Vec<u32>, rows: usize, long_rows: usize, text_capacity: usize) -> Self {
+        Self {
+            short,
+            rows: vec![Row { k0: 0, k1: 0, id: NONE }; rows],
+            shift: 64 - rows.trailing_zeros(),
+            count: 0,
+            long_rows: vec![LongRow { hash: 0, id: NONE }; long_rows],
+            long_count: 0,
+            text: Vec::with_capacity(text_capacity),
+            spans: Vec::with_capacity(rows / 2),
+        }
+    }
+
     /// An interner that gives the names of an earlier parse the ids they had, sized to stay around with a source of any
-    /// size. `names` yields them in id order, and starts with the names that every interner starts with.
+    /// size. `names` yields them in id order, none of them twice, and starts with the names that every interner starts
+    /// with.
     pub fn with_names<'a>(names: impl ExactSizeIterator<Item = &'a [u8]>) -> Self {
         let rows = (names.len() * 2).next_power_of_two();
-        let mut interner = Self::with_tables(Vec::new(), rows, 1 << 4, names.len() * 8);
-        for (id, name) in names.enumerate() {
-            let interned = interner.intern_bytes(name);
-            debug_assert_eq!(interned as usize, id);
+        let mut interner = Self::empty(Vec::new(), rows, 1 << 4, names.len() * 8);
+        let mask = rows - 1;
+        for name in names {
+            if name.len() > 16 {
+                interner.intern_bytes(name);
+                continue;
+            }
+            let id = interner.add_name(name);
+            let (k0, k1) = key_from_bytes(name);
+            let mut index = (hash_key(k0, k1) >> interner.shift) as usize;
+            // NB: The names are all different, so the first free row is the one.
+            while interner.rows[index].id != NONE {
+                index = (index + 1) & mask;
+            }
+            interner.rows[index] = Row { k0, k1, id };
+            interner.count += 1;
         }
         interner
     }
