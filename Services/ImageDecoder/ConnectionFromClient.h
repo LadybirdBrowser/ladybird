@@ -9,7 +9,9 @@
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/Mutex.h>
+#include <AK/RefCounted.h>
 #include <ImageDecoder/Forward.h>
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
 #include <ImageDecoder/ImageDecoderServerEndpoint.h>
@@ -51,6 +53,13 @@ public:
         Mutex decoder_mutex;
     };
 
+    // A client and the further clients it connects, which share its animation sessions. Nothing here reaches the
+    // clients of other groups, and the sessions go once the last client of the group is gone.
+    struct ClientGroup : public RefCounted<ClientGroup> {
+        HashTable<ConnectionFromClient*> clients;
+        HashMap<i64, NonnullRefPtr<AnimationSession>> animation_sessions;
+    };
+
 private:
     struct PendingJob : public AtomicRefCounted<PendingJob> {
         void cancel() { m_canceled.store(true, AK::MemoryOrder::memory_order_relaxed); }
@@ -62,7 +71,7 @@ private:
 
     using FrameDecodeResult = Vector<Gfx::ImageFrameDescriptor>;
 
-    explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
+    explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RefPtr<ClientGroup> = nullptr);
 
     virtual void decode_image(Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type, i64 request_id) override;
     virtual Messages::ImageDecoderServer::DecodeFirstFrameSynchronouslyResponse decode_first_frame_synchronously(Core::AnonymousBuffer, Optional<ByteString> mime_type) override;
@@ -74,6 +83,7 @@ private:
     NonnullRefPtr<PendingJob> start_decode_image_job(i64 request_id, Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type);
     NonnullRefPtr<PendingJob> start_frame_decode_job(i64 session_id, NonnullRefPtr<AnimationSession>, u32 start_frame_index, u32 end_index);
 
+    NonnullRefPtr<ClientGroup> m_group;
     HashMap<i64, NonnullRefPtr<PendingJob>> m_pending_jobs;
     HashMap<i64, NonnullRefPtr<PendingJob>> m_pending_frame_jobs;
 };
