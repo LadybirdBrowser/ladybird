@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        // We need to do this spoofing later in the event loop so that we don't end up
+        // telling the test runner the wrong URL in page_did_finish_loading.
+        spoofCurrentURL("https://example.com/indexeddb-open-during-upgradeneeded-waits-for-upgrade.html");
+
+        // A second open() made from the first one's upgradeneeded handler waits until the upgrade is done: Its
+        // success comes after the first request's, and it can start a transaction then. The upgrade writes records,
+        // so its transaction is still live when the second request would otherwise succeed.
+        const dbName = "test-open-during-upgradeneeded-" + Date.now() + Math.random();
+        const deleteRequest = indexedDB.deleteDatabase(dbName);
+        deleteRequest.onsuccess = deleteRequest.onerror = () => {
+            const first = indexedDB.open(dbName, 1);
+            first.onupgradeneeded = event => {
+                println("first: upgradeneeded");
+                const store = event.target.result.createObjectStore("kv");
+                for (let i = 0; i < 200; ++i)
+                    store.put(`value ${i}`, `key ${i}`);
+
+                const second = indexedDB.open(dbName);
+                second.onsuccess = event => {
+                    println("second: success");
+                    try {
+                        event.target.result.transaction("kv", "readonly");
+                        println("second: transaction() OK");
+                    } catch (error) {
+                        println(`second: transaction() threw ${error.name}`);
+                    }
+                    done();
+                };
+                second.onerror = () => {
+                    println(`second: error ${second.error}`);
+                    done();
+                };
+            };
+            first.onsuccess = () => println("first: success");
+        };
+    }, 0);
+});
+</script>
