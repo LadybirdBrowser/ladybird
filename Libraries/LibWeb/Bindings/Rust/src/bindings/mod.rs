@@ -35,7 +35,6 @@ pub(crate) mod realm_data;
 pub(crate) mod services;
 pub(crate) mod setlike;
 pub(crate) mod structured_data;
-pub(crate) mod transport;
 
 use core::ptr::NonNull;
 

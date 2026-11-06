@@ -34,14 +34,11 @@
 using namespace Web;
 using namespace Web::HTML;
 
-// A Mach port name and its disposition on Apple, and a descriptor elsewhere.
-struct TransferAttachment {
-    int value;
-    u32 disposition;
-};
 using ReceiveTransferPayload = void (*)(void*, ReadonlyBytes, TransferAttachment const*, size_t);
 
-static Vector<IPC::Attachment> adopt_attachments(TransferAttachment const* raw, size_t count)
+namespace Web::HTML {
+
+Vector<IPC::Attachment> adopt_transfer_attachments(TransferAttachment const* raw, size_t count)
 {
     Vector<IPC::Attachment> attachments;
     for (size_t i = 0; i < count; ++i) {
@@ -60,8 +57,7 @@ static Vector<IPC::Attachment> adopt_attachments(TransferAttachment const* raw, 
     return attachments;
 }
 
-template<typename Receive>
-static auto hand_over_payload(ReadonlyBytes bytes, Vector<IPC::Attachment> attachments, void* context, Receive receive)
+Vector<TransferAttachment> release_transfer_attachments(Vector<IPC::Attachment> attachments)
 {
     Vector<TransferAttachment> raw;
     for (auto& attachment : attachments) {
@@ -72,7 +68,9 @@ static auto hand_over_payload(ReadonlyBytes bytes, Vector<IPC::Attachment> attac
         raw.append({ attachment.to_fd(), 0 });
 #endif
     }
-    return receive(context, bytes, raw.data(), raw.size());
+    return raw;
+}
+
 }
 
 extern "C" {
@@ -96,11 +94,7 @@ void web_structured_serialize_image_bitmap_pixels_destroy(ImageBitmapSharedPixel
 
 TransferDataEncoder* web_structured_serialize_transfer_data_holder_create(ReadonlyBytes, TransferAttachment const*, size_t);
 void web_structured_serialize_transfer_data_holder_take(TransferDataEncoder*, void*, ReceiveTransferPayload);
-void web_structured_serialize_transfer_handle_take(IPC::TransportHandle*, void*, ReceiveTransferPayload);
-IPC::Transport* web_structured_serialize_transfer_handle_create_transport(ReadonlyBytes, TransferAttachment const*, size_t);
 bool web_structured_serialize_validate_shared_memory(int, size_t);
-bool web_bindings_message_port_transport_send(IPC::Transport*, ReadonlyBytes, TransferAttachment const*, size_t);
-bool web_bindings_message_port_transport_read_messages(IPC::Transport*, void*, bool (*)(void*, ReadonlyBytes, TransferAttachment const*, size_t));
 SerializedTransferRecord* web_structured_serialize_transfer_record_create(ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t, TransferDataEncoder* const*, size_t);
 void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord*);
 void web_structured_serialize_transfer_record_take(SerializedTransferRecord*, void*, void (*)(void*, ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t), void (*)(void*, TransferDataEncoder*));
@@ -224,34 +218,15 @@ TransferDataEncoder* web_structured_serialize_transfer_data_holder_create(Readon
 {
     IPC::MessageDataType data;
     MUST(data.try_append(bytes.data(), bytes.size()));
-    return new TransferDataEncoder(IPC::MessageBuffer { move(data), adopt_attachments(attachments, count) });
+    return new TransferDataEncoder(IPC::MessageBuffer { move(data), adopt_transfer_attachments(attachments, count) });
 }
 
 void web_structured_serialize_transfer_data_holder_take(TransferDataEncoder* holder, void* context, ReceiveTransferPayload receive)
 {
     auto owner = adopt_own(*holder);
     auto buffer = owner->take_buffer();
-    hand_over_payload(buffer.data().span(), buffer.take_attachments(), context, receive);
-}
-
-void web_structured_serialize_transfer_handle_take(IPC::TransportHandle* handle, void* context, ReceiveTransferPayload receive)
-{
-    auto owner = adopt_own(*handle);
-    IPC::MessageBuffer buffer;
-    IPC::Encoder encoder(buffer);
-    MUST(encoder.encode(*owner));
-    hand_over_payload(buffer.data().span(), buffer.take_attachments(), context, receive);
-}
-
-IPC::Transport* web_structured_serialize_transfer_handle_create_transport(ReadonlyBytes bytes, TransferAttachment const* attachments, size_t count)
-{
-    FixedMemoryStream stream(bytes);
-    Queue<IPC::Attachment> queue;
-    for (auto& attachment : adopt_attachments(attachments, count))
-        queue.enqueue(move(attachment));
-    IPC::Decoder decoder(stream, queue);
-    auto handle = MUST(decoder.decode<IPC::TransportHandle>());
-    return MUST(handle.create_transport()).leak_ptr();
+    auto attachments = release_transfer_attachments(buffer.take_attachments());
+    receive(context, buffer.data().span(), attachments.data(), attachments.size());
 }
 
 bool web_structured_serialize_validate_shared_memory(int descriptor, size_t size)
@@ -263,33 +238,6 @@ bool web_structured_serialize_validate_shared_memory(int descriptor, size_t size
     if (buffer.is_error())
         return false;
     return !buffer.value().validate_backing_size().is_error();
-}
-
-bool web_bindings_message_port_transport_send(IPC::Transport* transport, ReadonlyBytes bytes, TransferAttachment const* attachments, size_t count)
-{
-    IPC::MessageDataType data;
-    MUST(data.try_append(bytes.data(), bytes.size()));
-    IPC::MessageBuffer buffer { move(data), adopt_attachments(attachments, count) };
-    if (auto result = buffer.transfer_message(*transport); result.is_error()) {
-        dbgln("Failed to post message: {}", result.error());
-        return false;
-    }
-    return true;
-}
-
-bool web_bindings_message_port_transport_read_messages(IPC::Transport* transport, void* context, bool (*receive)(void*, ReadonlyBytes, TransferAttachment const*, size_t))
-{
-    bool failed_to_decode = false;
-    auto should_shutdown = transport->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
-        // The peer is treated as gone after a malformed record. Later messages still release all their attachments.
-        if (failed_to_decode)
-            return;
-        Vector<IPC::Attachment> attachments;
-        while (!message.attachments.is_empty())
-            attachments.append(message.attachments.dequeue());
-        failed_to_decode = !hand_over_payload(message.bytes.bytes(), move(attachments), context, receive);
-    });
-    return failed_to_decode || should_shutdown == IPC::Transport::ShouldShutdown::Yes;
 }
 
 // Takes over the descriptors and the data holders.

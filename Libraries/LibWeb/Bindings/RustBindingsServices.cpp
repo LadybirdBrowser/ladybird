@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibIPC/Transport.h>
-#include <LibIPC/TransportHandle.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Realm.h>
@@ -112,13 +110,6 @@ void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_e
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
-IPC::Transport* web_bindings_message_port_transport_create_paired(IPC::TransportHandle** out_remote_handle);
-void web_bindings_message_port_transport_destroy(IPC::Transport*);
-IPC::TransportHandle* web_bindings_message_port_transport_release_for_transfer(IPC::Transport*);
-void web_bindings_message_port_transport_set_up_read_hook(IPC::Transport*, void* state, void (*steps)(void*));
-bool web_bindings_message_port_transport_is_open(IPC::Transport*);
-void web_bindings_message_port_transport_close(IPC::Transport*);
-void web_bindings_message_port_transport_close_after_sending_all_pending_messages(IPC::Transport*);
 
 void* web_css_wrap_object(void* realm, void* cell);
 void* web_css_realm_document(void* realm);
@@ -284,44 +275,6 @@ bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origi
         on_origin(ctx, &ffi_origin);
     });
     return true;
-}
-
-IPC::Transport* web_bindings_message_port_transport_create_paired(IPC::TransportHandle** out_remote_handle)
-{
-    auto paired = MUST(IPC::Transport::create_paired());
-    *out_remote_handle = new IPC::TransportHandle(move(paired.remote_handle));
-    return paired.local.leak_ptr();
-}
-
-void web_bindings_message_port_transport_destroy(IPC::Transport* transport)
-{
-    delete transport;
-}
-
-// The rights of the transport's end as a handle, handed over, after its IO thread stops.
-IPC::TransportHandle* web_bindings_message_port_transport_release_for_transfer(IPC::Transport* transport)
-{
-    return new IPC::TransportHandle(MUST(transport->release_for_transfer()));
-}
-
-void web_bindings_message_port_transport_set_up_read_hook(IPC::Transport* transport, void* state, void (*steps)(void*))
-{
-    transport->set_up_read_hook([state, steps] { steps(state); });
-}
-
-bool web_bindings_message_port_transport_is_open(IPC::Transport* transport)
-{
-    return transport->is_open();
-}
-
-void web_bindings_message_port_transport_close(IPC::Transport* transport)
-{
-    transport->close();
-}
-
-void web_bindings_message_port_transport_close_after_sending_all_pending_messages(IPC::Transport* transport)
-{
-    transport->close_after_sending_all_pending_messages();
 }
 
 JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason)
