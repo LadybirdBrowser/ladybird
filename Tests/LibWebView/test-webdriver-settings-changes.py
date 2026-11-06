@@ -92,9 +92,9 @@ def run_test(webdriver_binary):
                 document.querySelector('#dns-server').value = 'unfinished.example';
             """)
 
-            changes = change("setAppearance", {"showBookmarksBar": "never"})
+            changes = change("setAppearance", {"showBookmarksBar": "always"})
             assert set(changes) == {"appearance"}, changes
-            assert changes["appearance"]["showBookmarksBar"] == "never"
+            assert changes["appearance"]["showBookmarksBar"] == "always"
             assert script("""
                 return draftInput === document.getElementById(draftInput.id)
                     && draftInput === document.activeElement && draftInput.value === '999'
