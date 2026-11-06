@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+<meta charset="utf-8"/>
+<title>href click</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#attributes-common-to-html-and-mathml-elements">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript">
+<link rel="match" href="../../../../../expected/wpt-import/mathml/relations/html5-tree/href-click-001-ref.html"/>
+<meta name="assert" content="Verify that a click on a link moves to the target.">
+<script type="text/javascript">
+  function test()
+  {
+    // Click the <a href=> tag, it should scroll to the green target.
+    var event = new MouseEvent('click', {bubbles: true, cancelable: true});
+    document.getElementById('link').dispatchEvent(event);
+
+    // Click the <mrow href=> tag, it should not scroll to the target.
+    var event2 = new MouseEvent('click', {bubbles: true, cancelable: true});
+    document.getElementById('notALink').dispatchEvent(event2);
+
+    document.documentElement.className = "";
+  }
+</script>
+</head>
+<body onload="test()">
+
+  <p>This test passes if you see a green square.</p>
+
+  <div style="width: 150px; height: 150px; overflow: hidden">
+    <math>
+      <a id="link" href="#target">
+        <mspace id="space" width="150px" height="150px" style="background: red"/>
+      </a>
+      <mrow id="notALink" href="#badTarget"></mrow>
+    </math>
+    <div style="height: 500px;"></div>
+    <math id="target">
+      <mspace width="150px" height="154px" style="background: green"/>
+    </math>
+    <div style="height: 500px;"></div>
+    <math id="badTarget">
+      <mspace width="150px" height="154px" style="background: red"/>
+    </math>
+  </div>
+
+</body>
+</html>

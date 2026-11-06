@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test dynamic change of the href attribute</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#attributes-common-to-html-and-mathml-elements">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript">
+<link rel="help" href="https://github.com/w3c/mathml-core/issues/142">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+</head>
+<body>
+  <p>To test manually, click the blue rectangle.</p>
+  <p>
+    <math>
+      <mspace width="50px" height="10px" style="background: gray"></mspace>
+      <a id="target" href="javascript:badHandler()" style="background: blue">
+        <mspace width="50px" height="10px"></mspace>
+      </a>
+      <mspace width="50px" height="10px" style="background: gray"></mspace>
+    </math>
+  </p>
+  <a id="badTarget" href="javascript:badHandler()">DON'T CLICK ME</a>
+  <script>
+    var t = async_test("Click element with href");
+    function handler() { t.done(); }
+    function badHandler() {
+      t.step(() => { assert_unreached("Bad handler executed"); });
+      t.done();
+    }
+
+    // Modify the href attribute to execute the 'good' handler.
+    let target = document.getElementById("target");
+    target.setAttribute("href", "javascript:handler()");
+
+    test_driver.click(target).then(() => {
+      return test_driver.click(document.getElementById("badTarget"));
+    }).catch(() => {
+      t.step(() => { assert_unreached("Click failed"); });
+      t.done();
+    });
+  </script>
+</body>
+</html>
