@@ -9,12 +9,12 @@
 #include <AK/BinarySearch.h>
 #include <AK/Checked.h>
 #include <AK/Debug.h>
+#include <AK/Diagnostics.h>
 #include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
-#include <AK/NeverDestroyed.h>
 #include <AK/NumberFormat.h>
 #include <AK/Platform.h>
 #include <AK/ScopeGuard.h>
@@ -100,8 +100,9 @@ i32 libgc_log_level()
 }
 
 // Per-phase timings recorded during a single collect_garbage() call. We keep
-// these at file scope (instead of threading more parameters through the GC's
-// internal helpers) since GC is single-threaded, guarded by m_collecting_garbage.
+// these per thread (instead of threading more parameters through the GC's
+// internal helpers) since a heap only collects on its own thread, guarded by
+// m_collecting_garbage.
 struct PhaseTimings {
     // Top-level phases.
     i64 gather_roots_us { 0 };
@@ -134,7 +135,7 @@ struct PhaseTimings {
     i64 sweep_block_reclassify_us { 0 };
     i64 sweep_update_threshold_us { 0 };
 };
-PhaseTimings g_phase_timings;
+thread_local PhaseTimings g_phase_timings;
 
 // Stats gathered during sweep_dead_cells() and consumed by the report printer
 // in collect_garbage().
@@ -146,7 +147,7 @@ struct SweepStats {
     size_t live_external_bytes { 0 };
     size_t freed_block_count { 0 };
 };
-SweepStats g_sweep_stats;
+thread_local SweepStats g_sweep_stats;
 
 struct IncrementalSweepBatchStats {
     size_t blocks_swept { 0 };
@@ -163,15 +164,20 @@ struct IncrementalSweepStats {
 
 IncrementalSweepStats& incremental_sweep_stats()
 {
-    static NeverDestroyed<IncrementalSweepStats> stats;
-    return *stats;
+    // NB: Free each thread's batches when that thread exits.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local IncrementalSweepStats stats)
+#else
+    static thread_local IncrementalSweepStats stats;
+#endif
+    return stats;
 }
 
-bool g_next_incremental_sweep_should_report { false };
+thread_local bool g_next_incremental_sweep_should_report { false };
 
 // Set by collect_garbage() while a reported collection is in flight. Used by
 // the GC's helpers to decide whether they should record subphase timings.
-bool g_recording_phase_timings { false };
+thread_local bool g_recording_phase_timings { false };
 
 void print_gc_report(i64 total_us, size_t live_block_count)
 {
