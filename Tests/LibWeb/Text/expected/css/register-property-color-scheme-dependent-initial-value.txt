@@ -1,0 +1,4 @@
+light-dark(black, white): OK
+Canvas: OK
+light-dark(Canvas, CanvasText): OK
+1em: SyntaxError

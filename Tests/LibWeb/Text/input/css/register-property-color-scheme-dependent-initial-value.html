@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // System colors and light-dark() are computationally independent, although the color scheme decides what they
+    // compute to: https://github.com/w3c/csswg-drafts/issues/12735
+    test(() => {
+        const cases = [
+            ["<color>", "light-dark(black, white)"],
+            ["<color>", "Canvas"],
+            ["<color>", "light-dark(Canvas, CanvasText)"],
+            ["<length>", "1em"],
+        ];
+        cases.forEach(([syntax, initialValue], index) => {
+            try {
+                CSS.registerProperty({ name: `--p${index}`, syntax, inherits: false, initialValue });
+                println(`${initialValue}: OK`);
+            } catch (error) {
+                println(`${initialValue}: ${error.name}`);
+            }
+        });
+    });
+</script>
