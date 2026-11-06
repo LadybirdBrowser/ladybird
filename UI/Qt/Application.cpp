@@ -11,6 +11,7 @@
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NotificationBackend.h>
 #include <LibWebView/PageTranslation.h>
+#include <LibWebView/PictureInPictureManager.h>
 #if defined(AK_OS_MACOS)
 #    include <LibWebView/MicrophoneAuthorizerMacOS.h>
 #    include <LibWebView/NotificationBackendMacOS.h>
@@ -593,6 +594,9 @@ Application::~Application()
     }
     for (auto& window : windows)
         delete window.data();
+
+    // A Picture-in-Picture window is a widget too, so it must also go before the QApplication does.
+    WebView::PictureInPictureManager::the().destroy_all_windows();
 }
 
 void Application::show_process_manager()

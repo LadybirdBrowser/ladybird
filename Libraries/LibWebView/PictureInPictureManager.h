@@ -36,6 +36,9 @@ public:
     void close_window_and_its_page(WebContentPage&);
     void video_size_did_change(WebContentPage&, Gfx::IntSize);
 
+    // Windows need the application to be destroyed, and this manager outlives it, so the application ends them first.
+    void destroy_all_windows();
+
     bool document_has_open_window(CanonicalNavigable const&) const;
     void active_documents_did_change();
 
@@ -57,6 +60,7 @@ private:
 
     Vector<Window> m_windows;
     Vector<NonnullOwnPtr<PictureInPictureWindow>> m_retired_windows;
+    Vector<NonnullOwnPtr<PictureInPictureWindow>> m_closed_windows;
 };
 
 }
