@@ -397,10 +397,9 @@ pub(crate) enum MathStretchSizeConstraint {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ParticipationInParentFormattingContext {
     BlockLevel,
-    /// A float, which its parent block formatting context sizes against the floats beside the content box of its
-    /// containing block, placed here.
+    /// A float, which its parent block formatting context sizes against the floats beside it before the run and places
+    /// after it. The run lays the float out from its own origin.
     Float {
-        containing_block_position_in_bfc_root: FfiCssPixelPoint,
         /// Whether the float is a flex container that resolves its own automatic block size in its available space,
         /// which its parent finds ahead of the float's inline size.
         flex_container_resolves_its_own_automatic_block_size: bool,
