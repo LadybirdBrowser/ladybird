@@ -181,6 +181,14 @@ pub(crate) fn vm_stack_limit_of_this_thread() -> Option<usize> {
 }
 
 impl ScriptData {
+    pub(crate) fn retains_compiled_functions(&self) -> bool {
+        self.retains_compiled_functions.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn add_retained_code_size(&self, size: usize) {
+        self.retained_code_size.fetch_add(size, Ordering::Relaxed);
+    }
+
     pub(crate) fn set_retains_compiled_functions(&self, retains_compiled_functions: bool) {
         self.retains_compiled_functions
             .store(retains_compiled_functions, Ordering::Relaxed);
