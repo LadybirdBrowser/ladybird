@@ -69,6 +69,10 @@
 #include <QStandardPaths>
 #include <QTimer>
 
+#if defined(AK_OS_MACOS)
+#    include <QUtiMimeConverter>
+#endif
+
 #if defined(AK_OS_WINDOWS)
 #    include <AK/Windows.h>
 #    include <LibCore/TimeZoneWatcher.h>
@@ -579,6 +583,34 @@ private:
     QAction* m_quit_action { nullptr };
 };
 
+#if defined(AK_OS_MACOS)
+// Qt stores a MIME type it has no converter for under a private type that only Qt applications can read. This puts PNG
+// data on the pasteboard as public.png, for other applications to paste. The bytes pass through undecoded, as they may
+// come from a page.
+class PNGMimeConverter final : public QUtiMimeConverter {
+public:
+    virtual QString utiForMime(QString const& mime) const override
+    {
+        return mime == "image/png" ? QStringLiteral("public.png") : QString {};
+    }
+
+    virtual QString mimeForUti(QString const& uti) const override
+    {
+        return uti == "public.png" ? QStringLiteral("image/png") : QString {};
+    }
+
+    virtual QVariant convertToMime(QString const&, QList<QByteArray> const& data, QString const&) const override
+    {
+        return data.isEmpty() ? QVariant {} : QVariant { data.first() };
+    }
+
+    virtual QList<QByteArray> convertFromMime(QString const&, QVariant const& data, QString const&) const override
+    {
+        return { data.toByteArray() };
+    }
+};
+#endif
+
 Application::Application() = default;
 Application::~Application()
 {
@@ -652,6 +684,10 @@ Core::EventLoop& Application::create_platform_event_loop()
         qputenv("NO_AT_BRIDGE", "1");
 #endif
         m_application = make<LadybirdQApplication>(arguments());
+#if defined(AK_OS_MACOS)
+        // NB: Qt owns its converters, and deletes them along with the QApplication.
+        new PNGMimeConverter;
+#endif
 #if defined(AK_OS_LINUX)
         QGuiApplication::setDesktopFileName(QStringLiteral("org.ladybird.Ladybird"));
         Ladybird::clip_translucent_windows_that_cannot_blend();
