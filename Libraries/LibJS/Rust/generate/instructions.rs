@@ -71,21 +71,12 @@ fn generate_rust_code(
     Ok(())
 }
 
-/// The operands of the instruction called `name` that a specialization looks at. The emitter only
-/// holds back `Mov` for specializations of several instructions, which this makes sure stays all it has to do.
+/// The operands of the instruction called `name` that a specialization looks at.
 fn specializable_operands(name: &str, specializations: &[Specialization]) -> Vec<String> {
     let mut operands = Vec::new();
     for specialization in specializations {
-        assert!(
-            specialization.components.len() == 1
-                || specialization
-                    .components
-                    .iter()
-                    .all(|component| component.bytecode == "Mov"),
-            "only Mov may specialize as part of a sequence"
-        );
-        if name != "Mov" && specialization.components[0].bytecode == name {
-            for parameter in &specialization.components[0].parameters {
+        if name != "Mov" && specialization.bytecode == name {
+            for parameter in &specialization.parameters {
                 let operand = rust_field_name(&parameter.name);
                 if !operands.contains(&operand) {
                     operands.push(operand);
@@ -149,15 +140,7 @@ fn generate_specialization_selector(
     specialized_ops: &[SpecializedInstruction],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut order = (0..specializations.len()).collect::<Vec<_>>();
-    order.sort_by_key(|index| {
-        let specialization = &specializations[*index];
-        let constraint_count = specialization
-            .components
-            .iter()
-            .map(|component| component.parameters.len())
-            .sum::<usize>();
-        std::cmp::Reverse((specialization.components.len(), constraint_count))
-    });
+    order.sort_by_key(|index| std::cmp::Reverse(specializations[*index].parameters.len()));
 
     writeln!(w, "#[allow(unused_variables)]")?;
     writeln!(w, "#[allow(clippy::clone_on_copy)]")?;
@@ -166,71 +149,50 @@ fn generate_specialization_selector(
     writeln!(w, "#[allow(clippy::unnecessary_unwrap)]")?;
     writeln!(
         w,
-        "pub fn specialize_instruction_sequence<'a>(instructions: impl Iterator<Item = &'a Instruction> + Clone, constants: &[super::executable_data::ConstantValue]) -> Option<(Instruction, usize)> {{"
-    )?;
-    // Most instructions start no sequence at all, which one look at the first of them tells.
-    let mut first_ops = specializations
-        .iter()
-        .map(|specialization| format!("Instruction::{} {{ .. }}", specialization.components[0].bytecode))
-        .collect::<Vec<_>>();
-    first_ops.sort();
-    first_ops.dedup();
-    writeln!(
-        w,
-        "    if !matches!(instructions.clone().next(), Some({})) {{ return None; }}",
-        first_ops.join(" | ")
+        "pub fn specialize_instruction(instruction: &Instruction, constants: &[super::executable_data::ConstantValue]) -> Option<Instruction> {{"
     )?;
     for index in order {
         let specialization = &specializations[index];
         let specialized_op = &specialized_ops[index];
-        let component_count = specialization.components.len();
-        writeln!(w, "    let mut candidate = instructions.clone();")?;
-        writeln!(w, "    if let (")?;
-        for (component_index, component) in specialization.components.iter().enumerate() {
-            let op = &component.bytecode;
-            let base_op = ops
-                .iter()
-                .find(|definition| definition.name == *op)
-                .expect("specialization bytecodes are validated");
-            let bindings = user_fields(base_op)
-                .iter()
-                .map(|field| rust_field_name(&field.name))
-                .map(|name| format!("{name}: c{component_index}_{name}"))
-                .collect::<Vec<_>>();
-            writeln!(w, "        Some(Instruction::{op} {{ {} }}),", bindings.join(", "))?;
-        }
-        writeln!(w, "    ) = (")?;
-        for _ in &specialization.components {
-            writeln!(w, "        candidate.next(),")?;
-        }
-        writeln!(w, "    ) {{")?;
+        let op = &specialization.bytecode;
+        let base_op = ops
+            .iter()
+            .find(|definition| definition.name == *op)
+            .expect("specialization bytecodes are validated");
+        let bindings = user_fields(base_op)
+            .iter()
+            .map(|field| rust_field_name(&field.name))
+            .collect::<Vec<_>>();
+        writeln!(
+            w,
+            "    if let Instruction::{op} {{ {} }} = instruction {{",
+            bindings.join(", ")
+        )?;
 
         let mut conditions = Vec::new();
         let mut extracted_values = Vec::new();
-        for (component_index, component) in specialization.components.iter().enumerate() {
-            for parameter in &component.parameters {
-                let operand = format!("c{component_index}_{}", parameter.name);
-                match &parameter.constraint {
-                    SpecializationConstraint::Int32 => {
-                        let value = format!("specialized_c{component_index}_{}", parameter.name);
-                        writeln!(
-                            w,
-                            "            let {value} = constants.get({operand}.index() as usize).and_then(|constant| match constant {{"
-                        )?;
-                        writeln!(
-                            w,
-                            "                super::executable_data::ConstantValue::Number(number) if number.fract() == 0.0 && *number >= i32::MIN as f64 && *number <= i32::MAX as f64 && number.to_bits() != (-0.0_f64).to_bits() => Some(*number as i32),"
-                        )?;
-                        writeln!(w, "                _ => None,")?;
-                        writeln!(w, "            }});")?;
-                        conditions.push(format!("{operand}.is_constant() && {value}.is_some()"));
-                        extracted_values.push(value);
-                    }
-                    SpecializationConstraint::Undefined => {
-                        conditions.push(format!(
-                            "{operand}.is_constant() && matches!(constants.get({operand}.index() as usize), Some(super::executable_data::ConstantValue::Undefined))"
-                        ));
-                    }
+        for parameter in &specialization.parameters {
+            let operand = &parameter.name;
+            match &parameter.constraint {
+                SpecializationConstraint::Int32 => {
+                    let value = format!("specialized_{operand}");
+                    writeln!(
+                        w,
+                        "            let {value} = constants.get({operand}.index() as usize).and_then(|constant| match constant {{"
+                    )?;
+                    writeln!(
+                        w,
+                        "                super::executable_data::ConstantValue::Number(number) if number.fract() == 0.0 && *number >= i32::MIN as f64 && *number <= i32::MAX as f64 && number.to_bits() != (-0.0_f64).to_bits() => Some(*number as i32),"
+                    )?;
+                    writeln!(w, "                _ => None,")?;
+                    writeln!(w, "            }});")?;
+                    conditions.push(format!("{operand}.is_constant() && {value}.is_some()"));
+                    extracted_values.push(value);
+                }
+                SpecializationConstraint::Undefined => {
+                    conditions.push(format!(
+                        "{operand}.is_constant() && matches!(constants.get({operand}.index() as usize), Some(super::executable_data::ConstantValue::Undefined))"
+                    ));
                 }
             }
         }
@@ -243,34 +205,29 @@ fn generate_specialization_selector(
         }
         writeln!(
             w,
-            "                return Some((Instruction::{} {{",
+            "                return Some(Instruction::{} {{",
             specialized_op.definition.name
         )?;
         for field in &specialized_op.definition.fields {
             let field_name = rust_field_name(&field.name);
-            let mut source = None;
-            for (component_index, component) in specialized_op.components.iter().enumerate() {
-                for (parameter, binding) in &component.parameters {
-                    if binding == &SpecializedParameterBinding::Field(field_name.clone()) {
-                        source = Some(if field.ty == "i32" {
-                            format!("specialized_c{component_index}_{parameter}")
-                        } else {
-                            format!("(*c{component_index}_{parameter}).clone()")
-                        });
-                        break;
-                    }
-                }
-                if source.is_some() {
-                    break;
-                }
-            }
-            writeln!(
-                w,
-                "                    {field_name}: {},",
-                source.expect("every specialized field has a source")
-            )?;
+            let parameter = specialized_op
+                .parameters
+                .iter()
+                .find_map(|(parameter, binding)| {
+                    (binding == &SpecializedParameterBinding::Field(field_name.clone())).then_some(parameter)
+                })
+                .expect("every specialized field has a source");
+            let is_int32 = specialization.parameters.iter().any(|specialized| {
+                &specialized.name == parameter && matches!(specialized.constraint, SpecializationConstraint::Int32)
+            });
+            let source = if is_int32 {
+                format!("specialized_{parameter}")
+            } else {
+                format!("(*{parameter}).clone()")
+            };
+            writeln!(w, "                    {field_name}: {source},")?;
         }
-        writeln!(w, "                }}, {component_count}));")?;
+        writeln!(w, "                }});")?;
         if !conditions.is_empty() {
             writeln!(w, "            }}")?;
         }

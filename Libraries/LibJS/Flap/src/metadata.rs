@@ -147,14 +147,9 @@ pub struct SpecializationParameter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SpecializationComponent {
+pub struct Specialization {
     pub bytecode: String,
     pub parameters: Vec<SpecializationParameter>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Specialization {
-    pub components: Vec<SpecializationComponent>,
     pub name: Option<String>,
 }
 
@@ -165,31 +160,23 @@ pub enum SpecializedParameterBinding {
 }
 
 #[derive(Debug, Clone)]
-pub struct SpecializedComponentLayout {
-    pub bytecode: String,
-    pub parameters: HashMap<String, SpecializedParameterBinding>,
-}
-
-#[derive(Debug, Clone)]
 pub struct SpecializedInstruction {
     pub definition: InstructionDefinition,
-    pub components: Vec<SpecializedComponentLayout>,
+    pub bytecode: String,
+    pub parameters: HashMap<String, SpecializedParameterBinding>,
 }
 
 pub fn specialization_name(specialization: &Specialization) -> String {
     if let Some(name) = &specialization.name {
         return name.clone();
     }
-    let mut name = String::new();
-    for component in &specialization.components {
-        name.push_str(&component.bytecode);
-        for parameter in &component.parameters {
-            name.push_str(&parameter.name[..1].to_ascii_uppercase());
-            name.push_str(&parameter.name[1..]);
-            match parameter.constraint {
-                SpecializationConstraint::Int32 => name.push_str("Int32"),
-                SpecializationConstraint::Undefined => name.push_str("Undefined"),
-            }
+    let mut name = specialization.bytecode.clone();
+    for parameter in &specialization.parameters {
+        name.push_str(&parameter.name[..1].to_ascii_uppercase());
+        name.push_str(&parameter.name[1..]);
+        match parameter.constraint {
+            SpecializationConstraint::Int32 => name.push_str("Int32"),
+            SpecializationConstraint::Undefined => name.push_str("Undefined"),
         }
     }
     name
@@ -559,10 +546,8 @@ fn parse_specialization(source_name: &str, line: usize, source: &str) -> Result<
         index: 0,
     };
     parser.expect("specialize")?;
-    let mut components = vec![parser.parse_component()?];
-    while parser.consume("+") {
-        components.push(parser.parse_component()?);
-    }
+    let bytecode = parser.identifier("bytecode name")?.to_string();
+    let parameters = parser.parse_parameters()?;
     let name = if parser.consume("as") {
         Some(parser.identifier("specialization name")?.to_string())
     } else {
@@ -572,7 +557,11 @@ fn parse_specialization(source_name: &str, line: usize, source: &str) -> Result<
     if parser.index != tokens.len() {
         return Err(parser.error("unexpected token after specialization declaration"));
     }
-    Ok(Specialization { components, name })
+    Ok(Specialization {
+        bytecode,
+        parameters,
+        name,
+    })
 }
 
 fn tokenize_specialization(source_name: &str, line: usize, source: &str) -> Result<Vec<String>, ParseError> {
@@ -589,7 +578,7 @@ fn tokenize_specialization(source_name: &str, line: usize, source: &str) -> Resu
         if character.is_whitespace() {
             continue;
         }
-        if matches!(character, '(' | ')' | ',' | ':' | '+' | ';') {
+        if matches!(character, '(' | ')' | ',' | ':' | ';') {
             tokens.push(character.to_string());
         } else {
             return Err(ParseError::new(
@@ -648,8 +637,7 @@ impl SpecializationParser<'_> {
         Ok(&self.tokens[self.index - 1])
     }
 
-    fn parse_component(&mut self) -> Result<SpecializationComponent, ParseError> {
-        let bytecode = self.identifier("bytecode name")?.to_string();
+    fn parse_parameters(&mut self) -> Result<Vec<SpecializationParameter>, ParseError> {
         self.expect("(")?;
         let mut parameters = Vec::new();
         while !self.consume(")") {
@@ -662,7 +650,7 @@ impl SpecializationParser<'_> {
             }
             self.expect(",")?;
         }
-        Ok(SpecializationComponent { bytecode, parameters })
+        Ok(parameters)
     }
 
     fn parse_constraint(&mut self) -> Result<SpecializationConstraint, ParseError> {
@@ -872,69 +860,59 @@ pub fn derive_specialized_instructions(
 
     for specialization in specializations {
         let name = specialization_name(specialization);
+        let op = ops_by_name.get(specialization.bytecode.as_str()).ok_or_else(|| {
+            format!(
+                "specialization references unknown bytecode '{}'",
+                specialization.bytecode
+            )
+        })?;
+        let constraints = specialization
+            .parameters
+            .iter()
+            .map(|parameter| (parameter.name.as_str(), &parameter.constraint))
+            .collect::<HashMap<_, _>>();
         let mut fields = Vec::new();
-        let mut components = Vec::with_capacity(specialization.components.len());
-        let is_fused = specialization.components.len() > 1;
-        for (component_index, component) in specialization.components.iter().enumerate() {
-            let op = ops_by_name
-                .get(component.bytecode.as_str())
-                .ok_or_else(|| format!("specialization references unknown bytecode '{}'", component.bytecode))?;
-            let constraints = component
-                .parameters
-                .iter()
-                .map(|parameter| (parameter.name.as_str(), &parameter.constraint))
-                .collect::<HashMap<_, _>>();
-            let mut parameters = HashMap::new();
+        let mut parameters = HashMap::new();
 
-            for field in user_fields(op) {
-                let source_name = field.name.strip_prefix("m_").unwrap_or(&field.name);
-                let constraint = constraints.get(source_name).copied();
-                let binding = match constraint {
-                    Some(SpecializationConstraint::Undefined) => SpecializedParameterBinding::Undefined,
-                    constraint => {
-                        let specialized_name = if is_fused {
-                            format!("c{component_index}_{source_name}")
-                        } else {
-                            source_name.to_string()
-                        };
-                        let ty = match constraint {
-                            Some(SpecializationConstraint::Int32) => "i32",
-                            _ => field.ty.as_str(),
-                        };
-                        fields.push(Field {
-                            name: format!("m_{specialized_name}"),
-                            ty: ty.to_string(),
-                            is_array: field.is_array,
-                            mode: field.mode,
-                        });
-                        SpecializedParameterBinding::Field(specialized_name)
-                    }
-                };
-                parameters.insert(source_name.to_string(), binding);
-            }
-            components.push(SpecializedComponentLayout {
-                bytecode: component.bytecode.clone(),
-                parameters,
-            });
+        for field in user_fields(op) {
+            let source_name = field.name.strip_prefix("m_").unwrap_or(&field.name);
+            let constraint = constraints.get(source_name).copied();
+            let binding = match constraint {
+                Some(SpecializationConstraint::Undefined) => SpecializedParameterBinding::Undefined,
+                constraint => {
+                    let ty = match constraint {
+                        Some(SpecializationConstraint::Int32) => "i32",
+                        _ => field.ty.as_str(),
+                    };
+                    fields.push(Field {
+                        name: format!("m_{source_name}"),
+                        ty: ty.to_string(),
+                        is_array: field.is_array,
+                        mode: field.mode,
+                    });
+                    SpecializedParameterBinding::Field(source_name.to_string())
+                }
+            };
+            parameters.insert(source_name.to_string(), binding);
         }
 
-        let last_component = specialization
-            .components
-            .last()
-            .expect("specializations contain at least one component");
         let mut definition = InstructionDefinition {
             name,
             parent: "Instruction".to_string(),
             fields,
-            is_terminator: ops_by_name[last_component.bytecode.as_str()].is_terminator,
-            falls_through: ops_by_name[last_component.bytecode.as_str()].falls_through,
+            is_terminator: op.is_terminator,
+            falls_through: op.falls_through,
             layout: OpLayout::default(),
             array: None,
             opcode: None,
             is_fallback: false,
         };
         validate_op(&mut definition)?;
-        derived.push(SpecializedInstruction { definition, components });
+        derived.push(SpecializedInstruction {
+            definition,
+            bytecode: specialization.bytecode.clone(),
+            parameters,
+        });
     }
 
     Ok(derived)
@@ -1058,29 +1036,24 @@ handler Second() { dispatch_next; }
     }
 
     #[test]
-    fn parses_specializations_of_arbitrary_length() {
+    fn parses_specializations() {
         let specializations = parse_specializations(
             "test.flap",
             r#"
 specialize Add(rhs: Int32);
-specialize Increment()
-    + JumpLessThan(rhs: Int32);
-specialize Mov() + Add(rhs: Undefined)
-    + JumpIf(condition: Int32) as HotLoop;
-specialize A() + B() + C() + D();
+specialize JumpIf(
+    condition: Int32) as HotLoop;
 "#,
         )
         .unwrap();
 
-        assert_eq!(specializations.len(), 4);
-        assert_eq!(specializations[1].components.len(), 2);
+        assert_eq!(specializations.len(), 2);
+        assert_eq!(specializations[0].bytecode, "Add");
         assert_eq!(
-            specializations[1].components[1].parameters[0].constraint,
+            specializations[0].parameters[0].constraint,
             SpecializationConstraint::Int32
         );
-        assert_eq!(specializations[2].components.len(), 3);
-        assert_eq!(specializations[2].name.as_deref(), Some("HotLoop"));
-        assert_eq!(specializations[3].components.len(), 4);
+        assert_eq!(specializations[1].name.as_deref(), Some("HotLoop"));
     }
 
     #[test]
@@ -1088,24 +1061,20 @@ specialize A() + B() + C() + D();
         let specializations = parse_specializations(
             "test.flap",
             r#"
-specialize Increment() # Continue with the comparison.
-    + JumpLessThan( # Only the right-hand side is constant.
-        rhs: Int32); # End the declaration.
+specialize JumpLessThan( # Only the right-hand side is constant.
+    rhs: Int32); # End the declaration.
 "#,
         )
         .unwrap();
 
         assert_eq!(specializations.len(), 1);
-        assert_eq!(specializations[0].components.len(), 2);
+        assert_eq!(specializations[0].parameters.len(), 1);
     }
 
     #[test]
-    fn derives_compact_single_and_fused_instruction_layouts() {
+    fn derives_compact_instruction_layouts() {
         let source = r#"
 handler Add(dst: out Operand, lhs: in Operand, rhs: in Operand) {
-    dispatch_next;
-}
-handler Increment(dst: inout Operand) {
     dispatch_next;
 }
 handler Mov(dst: out Operand, src: in Operand) {
@@ -1116,7 +1085,7 @@ handler JumpLessThan(lhs: in Operand, rhs: in Operand, target: Label) @terminato
 }
 specialize Add(rhs: Int32);
 specialize Mov(src: Undefined);
-specialize Increment() + JumpLessThan(rhs: Int32);
+specialize JumpLessThan(rhs: Int32);
 "#;
         let ops = parse_flap_metadata("test.flap", source).unwrap();
         let specializations = parse_specializations("test.flap", source).unwrap();
@@ -1142,11 +1111,8 @@ specialize Increment() + JumpLessThan(rhs: Int32);
                 .collect::<Vec<_>>(),
             [("m_dst", "Operand")]
         );
-        assert_eq!(
-            derived[1].components[0].parameters["src"],
-            SpecializedParameterBinding::Undefined
-        );
-        assert_eq!(derived[2].definition.name, "IncrementJumpLessThanRhsInt32");
+        assert_eq!(derived[1].parameters["src"], SpecializedParameterBinding::Undefined);
+        assert_eq!(derived[2].definition.name, "JumpLessThanRhsInt32");
         assert_eq!(
             derived[2]
                 .definition
@@ -1154,44 +1120,12 @@ specialize Increment() + JumpLessThan(rhs: Int32);
                 .iter()
                 .map(|field| (field.name.as_str(), field.ty.as_str()))
                 .collect::<Vec<_>>(),
-            [
-                ("m_c0_dst", "Operand"),
-                ("m_c1_lhs", "Operand"),
-                ("m_c1_rhs", "i32"),
-                ("m_c1_target", "Label"),
-            ]
+            [("m_lhs", "Operand"), ("m_rhs", "i32"), ("m_target", "Label")]
         );
         assert!(derived[2].definition.is_terminator);
         assert_eq!(
-            derived[2].components[1].parameters["lhs"],
-            SpecializedParameterBinding::Field("c1_lhs".to_string())
-        );
-    }
-
-    #[test]
-    fn qualifies_field_names_across_fused_components() {
-        let source = r#"
-handler Copy(dst: out Operand) { dispatch_next; }
-handler Convert(dst: out Operand) { dispatch_next; }
-handler Use(dst1: in Operand) { dispatch_next; }
-specialize Copy() + Convert() + Use();
-"#;
-        let ops = parse_flap_metadata("test.flap", source).unwrap();
-        let specializations = parse_specializations("test.flap", source).unwrap();
-        let derived = derive_specialized_instructions(&ops, &specializations).unwrap();
-
-        assert_eq!(
-            derived[0]
-                .definition
-                .fields
-                .iter()
-                .map(|field| field.name.as_str())
-                .collect::<Vec<_>>(),
-            ["m_c0_dst", "m_c1_dst", "m_c2_dst1"]
-        );
-        assert_eq!(
-            derived[0].components[2].parameters["dst1"],
-            SpecializedParameterBinding::Field("c2_dst1".to_string())
+            derived[2].parameters["lhs"],
+            SpecializedParameterBinding::Field("lhs".to_string())
         );
     }
 

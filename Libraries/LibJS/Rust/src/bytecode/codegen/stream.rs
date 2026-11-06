@@ -28,7 +28,7 @@ use crate::bytecode::constant_fold::try_constant_fold_unary;
 use crate::bytecode::executable_data::ConstantValue;
 use crate::bytecode::executable_data::ExceptionHandler;
 use crate::bytecode::instruction::Instruction;
-use crate::bytecode::instruction::specialize_instruction_sequence;
+use crate::bytecode::instruction::specialize_instruction;
 use crate::bytecode::instruction::typed as op;
 use crate::bytecode::instruction::typed::TypedInstruction;
 use crate::bytecode::operand::*;
@@ -583,11 +583,8 @@ impl Generator<'_> {
 
     #[inline(never)]
     fn put_specialized(&mut self, instruction: &Instruction, watched: Operand) -> u32 {
-        let specialized = specialize_instruction_sequence([instruction].into_iter(), &self.context.constants.values);
-        let instruction = match &specialized {
-            Some((specialized, _)) => specialized,
-            None => instruction,
-        };
+        let specialized = specialize_instruction(instruction, &self.context.constants.values);
+        let instruction = specialized.as_ref().unwrap_or(instruction);
         self.encode_into_stream(
             |strict, encoder| instruction.encode_into_block(strict, encoder),
             watched,

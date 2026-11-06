@@ -8,12 +8,12 @@
 
 use super::ast::{
     Block, Declaration, ElseContinuation, Expression, ExpressionKind, HandlerDeclaration, Parameter, Pattern, Program,
-    ScalarMatchArm, Statement, StatementKind, ValueMatchArm,
+    ScalarMatchArm, StatementKind, ValueMatchArm,
 };
 use super::diagnostic::{Diagnostic, SourceLocation, SourceSpan};
 use crate::hash::HashMap;
 use crate::metadata::{SpecializedInstruction, SpecializedParameterBinding};
-use crate::types::{BlockTemperature, ParameterMode, Type};
+use crate::types::{ParameterMode, Type};
 
 pub(crate) fn expand_declarative_specializations(
     filename: &str,
@@ -58,9 +58,8 @@ pub(crate) fn expand_declarative_specializations(
         let mut parameters = Vec::<Parameter>::new();
         for field in &specialization.definition.fields {
             let field_name = field.name.strip_prefix("m_").unwrap_or(&field.name);
-            let source_parameter = specialization.components.iter().find_map(|component| {
-                let handler = handlers.get(&component.bytecode)?;
-                component.parameters.iter().find_map(|(source_name, binding)| {
+            let source_parameter = handlers.get(&specialization.bytecode).and_then(|handler| {
+                specialization.parameters.iter().find_map(|(source_name, binding)| {
                     if binding != &SpecializedParameterBinding::Field(field_name.to_string()) {
                         return None;
                     }
@@ -93,105 +92,64 @@ pub(crate) fn expand_declarative_specializations(
             });
         }
 
-        let mut component_bodies = Vec::with_capacity(specialization.components.len());
-        for component in &specialization.components {
-            let handler = handlers.get(&component.bytecode).ok_or_else(|| {
-                Diagnostic::new(
-                    filename,
-                    fallback_span,
-                    format!("specialization references unknown handler '{}'", component.bytecode),
-                )
-            })?;
-            for (source_name, binding) in &component.parameters {
-                if binding != &SpecializedParameterBinding::Undefined {
-                    continue;
-                }
-                let source_parameter = handler
-                    .parameters
-                    .iter()
-                    .find(|parameter| parameter.name == *source_name)
-                    .ok_or_else(|| {
-                        Diagnostic::new(
-                            filename,
-                            handler.span,
-                            format!(
-                                "specialization parameter '{}.{source_name}' has no source parameter",
-                                component.bytecode
-                            ),
-                        )
-                    })?;
-                if source_parameter.mode != ParameterMode::In {
-                    return Err(Diagnostic::new(
-                        filename,
-                        source_parameter.span,
-                        format!(
-                            "cannot constrain output parameter '{}.{source_name}' to Undefined",
-                            component.bytecode
-                        ),
-                    ));
-                }
+        let handler = handlers.get(&specialization.bytecode).ok_or_else(|| {
+            Diagnostic::new(
+                filename,
+                fallback_span,
+                format!(
+                    "specialization references unknown handler '{}'",
+                    specialization.bytecode
+                ),
+            )
+        })?;
+        for (source_name, binding) in &specialization.parameters {
+            if binding != &SpecializedParameterBinding::Undefined {
+                continue;
             }
-            let substitutions = component
+            let source_parameter = handler
                 .parameters
                 .iter()
-                .map(|(source_name, binding)| {
-                    let expression = match binding {
-                        SpecializedParameterBinding::Field(name) => ExpressionKind::Name(name.clone()),
-                        SpecializedParameterBinding::Undefined => ExpressionKind::Name("Value<Undefined>".to_string()),
-                    };
-                    (source_name.clone(), expression)
-                })
-                .collect::<HashMap<_, _>>();
-            let mut body = handler.body.clone();
-            substitute_block_parameters(&mut body, &substitutions);
-            component_bodies.push(body);
-        }
-
-        let span = component_bodies.first().map(|body| body.span).unwrap_or(fallback_span);
-        let body = if component_bodies.len() == 1 {
-            component_bodies.pop().unwrap()
-        } else {
-            let continuation_names = (0..component_bodies.len())
-                .map(|index| format!("__specialization_component_{index}"))
-                .collect::<Vec<_>>();
-            let mut statements = Vec::with_capacity(component_bodies.len() + 1);
-            for (index, mut body) in component_bodies.into_iter().enumerate() {
-                if let Some(next) = continuation_names.get(index + 1) {
-                    replace_dispatch_next(&mut body, next);
-                }
-                statements.push(Statement::new(
-                    StatementKind::Continuation {
-                        name: continuation_names[index].clone(),
-                        temperature: BlockTemperature::Default,
-                        parameters: Vec::new(),
-                        body,
-                    },
-                    span,
+                .find(|parameter| parameter.name == *source_name)
+                .ok_or_else(|| {
+                    Diagnostic::new(
+                        filename,
+                        handler.span,
+                        format!(
+                            "specialization parameter '{}.{source_name}' has no source parameter",
+                            specialization.bytecode
+                        ),
+                    )
+                })?;
+            if source_parameter.mode != ParameterMode::In {
+                return Err(Diagnostic::new(
+                    filename,
+                    source_parameter.span,
+                    format!(
+                        "cannot constrain output parameter '{}.{source_name}' to Undefined",
+                        specialization.bytecode
+                    ),
                 ));
             }
-            statements.push(Statement::new(
-                StatementKind::ContinuationJump {
-                    target: continuation_names[0].clone(),
-                    arguments: Vec::new(),
-                },
-                span,
-            ));
-            Block {
-                statements,
-                value: None,
-                span,
-            }
-        };
-        let temperature = match specialization.components.as_slice() {
-            [component] => handlers[&component.bytecode].temperature,
-            _ => BlockTemperature::Default,
-        };
+        }
+        let substitutions = specialization
+            .parameters
+            .iter()
+            .map(|(source_name, binding)| {
+                let expression = match binding {
+                    SpecializedParameterBinding::Field(name) => ExpressionKind::Name(name.clone()),
+                    SpecializedParameterBinding::Undefined => ExpressionKind::Name("Value<Undefined>".to_string()),
+                };
+                (source_name.clone(), expression)
+            })
+            .collect::<HashMap<_, _>>();
+        let mut body = handler.body.clone();
+        substitute_block_parameters(&mut body, &substitutions);
         program.declarations.push(Declaration::Handler(HandlerDeclaration {
             name: specialization.definition.name.clone(),
             parameters,
-            temperature,
+            temperature: handler.temperature,
+            span: body.span,
             body,
-            span,
         }));
     }
     Ok(())
@@ -356,71 +314,13 @@ fn substitute_block_parameters(block: &mut Block, substitutions: &HashMap<String
     }
 }
 
-fn replace_dispatch_next(block: &mut Block, next: &str) {
-    for statement in &mut block.statements {
-        if matches!(
-            &statement.kind,
-            StatementKind::Expression(Expression {
-                kind: ExpressionKind::Name(name),
-                ..
-            }) if name == "dispatch_next"
-        ) || matches!(
-            &statement.kind,
-            StatementKind::Expression(Expression {
-                kind: ExpressionKind::Call { callee, arguments },
-                ..
-            }) if callee == "dispatch_next" && arguments.is_empty()
-        ) {
-            statement.kind = StatementKind::ContinuationJump {
-                target: next.to_string(),
-                arguments: Vec::new(),
-            };
-            continue;
-        }
-        match &mut statement.kind {
-            StatementKind::GuardLet { failure, .. }
-            | StatementKind::FallibleCall { failure, .. }
-            | StatementKind::Guard { failure, .. } => replace_dispatch_in_else(failure, next),
-            StatementKind::ValueMatch { arms, fallback, .. } => {
-                for arm in arms {
-                    replace_dispatch_next(&mut arm.body, next);
-                }
-                replace_dispatch_next(&mut fallback.body, next);
-            }
-            StatementKind::ScalarMatch { arms, fallback, .. } => {
-                for arm in arms {
-                    replace_dispatch_next(&mut arm.body, next);
-                }
-                replace_dispatch_next(fallback, next);
-            }
-            StatementKind::Continuation { body, .. } | StatementKind::While { body, .. } => {
-                replace_dispatch_next(body, next);
-            }
-            StatementKind::If {
-                then_body, else_body, ..
-            } => {
-                replace_dispatch_next(then_body, next);
-                if let Some(else_body) = else_body {
-                    replace_dispatch_next(else_body, next);
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-fn replace_dispatch_in_else(continuation: &mut ElseContinuation, next: &str) {
-    if let ElseContinuation::Block { body, .. } = continuation {
-        replace_dispatch_next(body, next);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::BlockTemperature;
 
     #[test]
-    fn preserves_single_component_handler_temperature() {
+    fn preserves_handler_temperature() {
         let source = "handler Source(src: Operand) @cold { dispatch_next; }";
         let mut program = super::super::parser::parse("test.flap", source).unwrap();
         let operations = crate::metadata::parse_flap_metadata("test.flap", source).unwrap();
@@ -463,7 +363,8 @@ mod tests {
                 opcode: None,
                 is_fallback: false,
             },
-            components: Vec::new(),
+            bytecode: String::new(),
+            parameters: std::collections::HashMap::new(),
         }];
 
         let error = expand_declarative_specializations("test.flap", &mut program, &specializations).unwrap_err();
@@ -494,13 +395,11 @@ mod tests {
                 opcode: None,
                 is_fallback: false,
             },
-            components: vec![crate::metadata::SpecializedComponentLayout {
-                bytecode: "Source".to_string(),
-                parameters: std::collections::HashMap::from([(
-                    "missing".to_string(),
-                    SpecializedParameterBinding::Field("field".to_string()),
-                )]),
-            }],
+            bytecode: "Source".to_string(),
+            parameters: std::collections::HashMap::from([(
+                "missing".to_string(),
+                SpecializedParameterBinding::Field("field".to_string()),
+            )]),
         }];
 
         let error = expand_declarative_specializations("test.flap", &mut program, &specializations).unwrap_err();
