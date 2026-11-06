@@ -487,6 +487,63 @@ settings.
 - Downloads are also in the Ladybird menu. The Ladybird button itself never shows download
   state.
 
+### Feedback (alpha and nightly builds)
+
+- A Feedback button at the right end of the toolbar, after the star and Downloads: 32 × 28,
+  speech bubble with an exclamation mark (a plain bubble reads as comments), tooltip "Send feedback". Shown in alpha and nightly builds only,
+  can be hidden in Settings → Feedback, and removed for release.
+- A small amber dot (`#D9800F` light, `#F2A33A` dark, 7 px with a 2 px toolbar-colored ring)
+  appears on it while crash reports are waiting. Not the icon color (it fuses with the glyph),
+  not the accent, not green (green means an update is ready), no count.
+- Clicking it opens a panel directly below it, right-aligned to it:
+  1. Report a problem with this site (the site report flow, prefilled with the address):
+     only on a website
+  2. Report a bug: opens GitHub's new-issue page in a new tab, prefilled with version, OS
+     and build where possible
+  3. Crash reports, "2 to review": only while reports are waiting; opens the review page
+
+### Crash reports
+
+- Nothing is ever sent without the person choosing to. Settings → Feedback → Crash reports:
+  - Ask me (default): reports are kept on this computer until reviewed.
+  - Never send: nothing is kept at all; no dot, no list, no files on disk.
+- Crash reports live only in Settings → Feedback, not also under Privacy. Below the choice,
+  while reports are waiting: "17 reports waiting" with a Review reports button.
+- If the Feedback button is hidden and the mode is Ask me, reports are still kept, and
+  Settings → Feedback is the only place they surface. No other reminder appears.
+- After the alpha, the Feedback button and its switch go away; the Feedback section stays,
+  with the crash reports setting, so it doesn't move between versions.
+- A helper process that crashes and recovers on its own (GPU, network) shows no UI. The
+  report is saved locally and waits behind the Feedback button.
+- A crash the person saw (a tab's content) gets "Send crash report" next to Reload on the
+  crashed-tab page. Left unanswered, its report waits in the list like any other.
+- A tab crash's website is saved on this computer next to its report, never inside it, and
+  never from a private window. Credentials and the fragment are dropped, and clearing history
+  deletes it. It is only sent if the person ticks "Include website address". A group with more
+  than one lists them under "Include website addresses", each with its own checkbox, off by
+  default.
+- Never a popup, and never anything at startup about earlier sessions.
+- If repeated crashes make Ladybird change behavior (for example, falling back to software
+  rendering), say so once, in the Feedback panel.
+- Unsent reports delete themselves after 30 days. At most 100 wait at once; the oldest go first.
+- The review page (about:crashes) is a list, not one report at a time:
+  - Title "Crash reports" with a muted "17 not sent"; Delete all and Send all at the top right.
+  - Each report is its own card (12 px radius, `tile` fill, 8 px apart), never rows in one
+    shared box: they are separate things to send or delete, not parts of a whole.
+  - One row per crash, named in plain words ("Graphics process", "Page on example.com", or
+    "Page on 2 websites" when a group spans sites) with when it happened. Identical crashes
+    (same process, signature and stack) collapse into one row; a report with no stack keeps a
+    row of its own:
+    "Graphics process · 14 times · last 2 hours ago".
+  - Rows have Delete and Send. Clicking a row expands it in place: optional "What were you
+    doing?" note, "Include website address" (off by default) when one was saved, a one-line summary of what's included with Show report, Delete and Send.
+  - Show report on a group of identical crashes shows the latest, under "Showing the latest of 14.
+    The others are the same crash."
+  - With a single report, the list has one row, already expanded.
+  - No button has default focus; sending is always a deliberate click.
+  - Sent or deleted rows disappear. An empty list says "No crash reports waiting".
+  - A "Crash report settings" link at the bottom goes to Settings → Feedback.
+
 ### Ladybird menu
 
 - 280 px wide, 6 px padding, 26 px rows. Groups, in order:
@@ -572,6 +629,7 @@ never shows "about:blank".
 | Site settings icon | The two slider knobs slide past each other while the panel is open, 240 ms |
 | Star | The fill pops in (100 → 112 → 100%) when bookmarking; removing just fades the fill |
 | Downloads | The arrow drops in from 4 px above when the button appears; bobs 2 px once when a download finishes |
+| Feedback | The waiting-reports dot scales in (0 → 100%, base, enter) when the first report is saved. Later reports while the dot is showing change nothing, and the icon itself never moves, so a crash loop can't animate the toolbar. |
 | New tab (+) | No motion. The new tab appearing is the feedback. |
 | Ladybird button | No motion. Only its fill changes on hover, press and while the menu is open. |
 
