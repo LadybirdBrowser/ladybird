@@ -9,10 +9,12 @@
 #include "TestWeb.h"
 #include "TestWebView.h"
 
+#include <AK/GenericShorthands.h>
 #include <AK/LexicalPath.h>
 #include <LibCore/System.h>
 
 #if !defined(AK_OS_WINDOWS)
+#    include <signal.h>
 #    include <sys/wait.h>
 #endif
 
@@ -20,6 +22,7 @@ namespace TestWeb {
 
 static ByteString format_elapsed_time(UnixDateTime run_start_time);
 static ByteString format_exit_status(Optional<int> exit_status);
+static bool exit_status_is_crash(Optional<int> exit_status);
 static void setup_capture_notifier(RefPtr<Core::Notifier>& notifier, Core::File& file, bool drain_available, Function<void(StringView)> on_output);
 static bool drain_capture_output(Core::File& file, bool drain_available, Function<void(StringView)> const& on_output);
 
@@ -50,6 +53,8 @@ TestRunCapture::TestRunCapture()
             { process.type(), process.pid() },
             m_stderr_capture.original_fd.value_or(STDERR_FILENO),
             ByteString::formatted("test-web: process exited: {}\n", format_exit_status(exit_status)));
+        if (process.type() == WebView::ProcessType::WebWorker && exit_status_is_crash(exit_status))
+            ++m_crashed_worker_process_count;
         m_previous_on_process_exited(move(process), exit_status);
     };
 
@@ -136,6 +141,24 @@ static ByteString format_exit_status(Optional<int> exit_status)
     if (WIFSTOPPED(*exit_status))
         return ByteString::formatted("stopped by signal {}", WSTOPSIG(*exit_status));
     return ByteString::formatted("raw wait status {}", *exit_status);
+#endif
+}
+
+bool exit_status_is_crash(Optional<int> exit_status)
+{
+#if defined(AK_OS_WINDOWS)
+    (void)exit_status;
+    return false;
+#else
+    if (!exit_status.has_value())
+        return false;
+
+    // NB: A crash handler ends the process with a status of 128 plus the signal.
+    if (WIFEXITED(*exit_status))
+        return WEXITSTATUS(*exit_status) >= 128;
+
+    // NB: The UI process kills a worker that does not exit in time, so being killed is no crash.
+    return WIFSIGNALED(*exit_status) && !first_is_one_of(WTERMSIG(*exit_status), SIGKILL, SIGTERM);
 #endif
 }
 
