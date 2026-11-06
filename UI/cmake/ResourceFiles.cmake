@@ -34,6 +34,7 @@ set(ABOUT_PAGES
     about.html
     blocking.html
     bookmarks.html
+    crashes.html
     downloads.html
     history.html
     newtab.html
