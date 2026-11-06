@@ -36,31 +36,21 @@ public:
     size_t cell_size() const { return m_type_info.cell_size; }
     void const* foreign_type() const { return m_foreign_type; }
 
-    CellAllocator& for_heap(Heap&);
-
-    void forget_heap(Badge<Heap>, Heap& heap)
-    {
-        if (m_last_heap == &heap) {
-            m_last_heap = nullptr;
-            m_last_allocator = nullptr;
-        }
-    }
+    // Where each heap keeps its allocator for this descriptor, see Heap::cell_allocator_for().
+    size_t index() const { return m_index; }
 
 protected:
-    CellAllocatorDescriptorBase(CellTypeInfo const& type_info, StringView class_name, void const* foreign_type = nullptr)
-        : m_type_info(type_info)
-        , m_class_name(class_name)
-        , m_foreign_type(foreign_type)
-    {
-    }
+    CellAllocatorDescriptorBase(CellTypeInfo const& type_info, StringView class_name, void const* foreign_type = nullptr);
+
+    // A descriptor that goes away while the process lives must call this, so that its index does not go to waste. No
+    // heap may have an allocator for it any more.
+    void release_index();
 
 private:
     CellTypeInfo const& m_type_info;
     Optional<StringView> m_class_name;
     void const* m_foreign_type { nullptr };
-
-    Heap* m_last_heap { nullptr };
-    CellAllocator* m_last_allocator { nullptr };
+    size_t m_index { 0 };
 };
 
 class GC_API CellAllocator {
