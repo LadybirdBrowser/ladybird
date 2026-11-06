@@ -179,6 +179,17 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
                 escaped.insert(root.index());
             }
         }
+        // A frame state that refers to a candidate describes it as a virtual object with the shape it has there,
+        // so it escapes where that shape isn't known: at a loop header that only a back edge reaches, e.g.
+        if let Some(frame_state) = data.frame_state {
+            for value in frame_state_values(graph, frame_state) {
+                if let Some(root) = roots.get(&value).copied()
+                    && !shapes_before.contains_key(&(*node, root))
+                {
+                    escaped.insert(root.index());
+                }
+            }
+        }
     }
     // Loads of properties of candidates, as (candidate, offset).
     let loaded = placed
@@ -238,8 +249,8 @@ fn merge_shapes<'a>(mut exits: impl Iterator<Item = &'a Shapes>, escaped: &mut B
 }
 
 /// The shape and property count each object candidate has where each node
-/// uses it, as (node, candidate). Objects whose shapes differ between paths
-/// joining, or around a loop, escape.
+/// uses it, or its frame state refers to it, as (node, candidate). Objects
+/// whose shapes differ between paths joining, or around a loop, escape.
 fn shapes_before_uses(
     graph: &Graph,
     candidates: &HashSet<NodeId>,
@@ -260,8 +271,12 @@ fn shapes_before_uses(
         entries[index] = shapes.clone();
         for node in block.nodes() {
             let data = graph.node(node);
-            for input in &data.inputs {
-                if let Some(root) = roots.get(input)
+            let referred = data
+                .frame_state
+                .map(|frame_state| frame_state_values(graph, frame_state))
+                .unwrap_or_default();
+            for value in data.inputs.iter().chain(&referred) {
+                if let Some(root) = roots.get(value)
                     && let Some(shape) = shapes.get(root)
                 {
                     before.insert((node, *root), *shape);
@@ -302,6 +317,15 @@ fn shapes_before_uses(
         }
     }
     before
+}
+
+/// The values the frame states in the chain `frame_state` starts refer to.
+fn frame_state_values(graph: &Graph, frame_state: FrameStateId) -> Vec<NodeId> {
+    graph
+        .frame_state_chain(frame_state)
+        .into_iter()
+        .flat_map(|id| graph.frame_state(id).values.iter().map(|(_, value)| *value))
+        .collect()
 }
 
 /// The value of each property of each replaced object at one point.
