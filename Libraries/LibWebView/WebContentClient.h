@@ -101,6 +101,7 @@ public:
     BrowsingSession& session() const { return *m_session; }
 
     RequestServerSiteBindings& request_server_site_bindings() { return m_request_server_site_bindings; }
+    RequestServerSiteBindings const& request_server_site_bindings() const { return m_request_server_site_bindings; }
     void remove_blob_url_entries();
 
     void connect_test_endpoint(NonnullOwnPtr<IPC::Transport>);

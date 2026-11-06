@@ -56,6 +56,11 @@ bool RequestServerSiteBindings::has_client(int client_id) const
     return any_of(m_site_client_ids, [&](auto const& entry) { return entry.value == client_id; });
 }
 
+void RequestServerSiteBindings::did_disconnect(int client_id)
+{
+    m_connected_client_ids.remove(client_id);
+}
+
 void RequestServerSiteBindings::bind_sites_of(CanonicalDocument const& document)
 {
     auto top_level_origin = document.top_level_origin();
@@ -159,6 +164,7 @@ ErrorOr<RequestServerClientConnection> RequestServerSiteBindings::connect_client
     VERIFY(session);
 
     auto connection = TRY(RequestServerManager::the().connect_new_client(instance, *session, RequestServer::SiteBinding::Bound));
+    m_connected_client_ids.set(connection.client_id);
     if (top_level_site.has_value()) {
         m_site_client_ids.set(*top_level_site, connection.client_id);
         for (auto const& site : m_sites) {

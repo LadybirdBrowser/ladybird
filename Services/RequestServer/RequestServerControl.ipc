@@ -17,6 +17,9 @@ endpoint RequestServerControl
     // is synchronous, so the binding is in place before the UI process lets the client's process host such a document.
     bind_client_to_site(int client_id, Utf16String top_level_site, Optional<Utf16String> frame_site) => ()
 
+    // A bound client may adopt a leased request once per designation.
+    designate_request_adopter(u64 designation_id, int source_client_id, u64 source_request_id, int adopter_client_id) =|
+
     set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings) =|
 
     // use_tls: enable DNS over TLS

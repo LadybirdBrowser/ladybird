@@ -140,6 +140,7 @@ if (NOT WIN32)
         TestRendererAttentionClaims.cpp
         TestRendererCookieAccess.cpp
         TestRendererOriginClaims.cpp
+        TestRendererResponseBodyClaims.cpp
         TestRendererViolationReports.cpp
         TestRequestServerClientSessions.cpp
         TestRequestServerDiskCaches.cpp

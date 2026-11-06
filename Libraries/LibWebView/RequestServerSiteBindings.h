@@ -13,6 +13,7 @@
 #include <AK/Utf16String.h>
 #include <AK/WeakPtr.h>
 #include <LibURL/Forward.h>
+#include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
@@ -26,7 +27,7 @@ struct RequestServerClientConnection;
 //
 // NB: Bindings last for the life of the process and are never revoked. A process that has hosted a site's document may
 //     have kept anything that document could reach, so leaving the site grants it nothing it lacked.
-class RequestServerSiteBindings {
+class WEBVIEW_API RequestServerSiteBindings {
     AK_MAKE_NONCOPYABLE(RequestServerSiteBindings);
     AK_MAKE_NONMOVABLE(RequestServerSiteBindings);
 
@@ -45,6 +46,11 @@ public:
     Optional<int> client_id() const { return m_client_id; }
     Optional<int> client_id_for(Optional<Utf16String> const& top_level_site) const;
     bool has_client(int client_id) const;
+
+    // Whether client_id is a connected RequestServer client of the process, either a current client or an earlier one.
+    bool has_connected_client(int client_id) const { return m_connected_client_ids.contains(client_id); }
+
+    void did_disconnect(int client_id);
 
     // Binds the process to the sites of a document, before it is told to host it.
     void bind_sites_of(CanonicalDocument const&);
@@ -86,6 +92,7 @@ private:
     WeakPtr<BrowsingSession> m_session;
     Optional<int> m_client_id;
     HashMap<Utf16String, int> m_site_client_ids;
+    HashTable<int> m_connected_client_ids;
     HashTable<Site, SiteTraits> m_sites;
 };
 

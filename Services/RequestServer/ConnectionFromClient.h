@@ -59,6 +59,8 @@ public:
     struct RequestTransferLease {
         NonnullRefPtr<ConnectionFromClient> owner;
         u64 request_id { 0 };
+        // The bound client that may adopt the request, until it does or disconnects.
+        Optional<int> adopter_client_id {};
     };
 
     using RequestTransferLeaseMap = HashMap<Requests::RequestTransferLeaseKey, RequestTransferLease>;
@@ -87,7 +89,7 @@ private:
     virtual Messages::RequestServer::IsSupportedProtocolResponse is_supported_protocol(ByteString) override;
     virtual Messages::RequestServer::GetClientIdResponse get_client_id() override;
     virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, Optional<HTTP::NetworkIsolationKey>, HTTP::Cookie::IncludeCredentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id, HTTP::Cookie::SameSiteContext) override;
-    virtual void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease) override;
+    virtual void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease, Optional<int> owner_client_id) override;
     virtual void release_request_transfer_lease(int source_client_id, u64 source_request_id) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(u64 request_id) override;
     virtual Messages::RequestServer::ExportRequestResponse export_request(u64 request_id) override;
