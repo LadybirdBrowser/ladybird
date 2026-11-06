@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    @font-face {
+        font-family: ColorEmoji;
+        src: url("../../../Ref/data/fonts/NotoColorEmoji-Regular_subset.ttf");
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    // The first font has no glyph for the emoji, so the text falls back to a color font whose glyphs have no outlines.
+    const EMOJI = "\u{1FAE8}";
+    const MIXED_TEXT = `xx${EMOJI}`;
+
+    function drawText(setUp, draw) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 300;
+        canvas.height = 100;
+        const context = canvas.getContext("2d");
+        context.font = "40px Ahem, ColorEmoji";
+        setUp(context);
+        draw(context);
+        return context;
+    }
+
+    function hasPixel(context, from, to, predicate) {
+        const data = context.getImageData(from, 0, to - from, context.canvas.height).data;
+        for (let i = 0; i < data.length; i += 4) {
+            if (predicate(data[i], data[i + 1], data[i + 2], data[i + 3]))
+                return true;
+        }
+        return false;
+    }
+
+    function hasColorInk(context, from = 0, to = context.canvas.width) {
+        return hasPixel(context, from, to, (r, g, b, a) => a > 128 && r - b > 64);
+    }
+
+    function hasShadowInk(context, from, to) {
+        return hasPixel(context, from, to, (r, g, b, a) => a > 128 && b > 200 && r < 40);
+    }
+
+    // The middle of the first glyph, which is a black square.
+    function firstGlyphIsBlack(context) {
+        const [r, g, b, a] = context.getImageData(30, 45, 1, 1).data;
+        return a === 255 && r === 0 && g === 0 && b === 0;
+    }
+
+    promiseTest(async () => {
+        await Promise.all([document.fonts.load("40px Ahem", "x"), document.fonts.load("40px ColorEmoji", EMOJI)]);
+
+        let context = drawText(() => {}, context => context.fillText(EMOJI, 10, 60));
+        println(`alone: color ink: ${hasColorInk(context)}`);
+
+        context = drawText(() => {}, context => context.fillText(MIXED_TEXT, 10, 60));
+        println(`mixed: first glyph: ${firstGlyphIsBlack(context)}, color ink: ${hasColorInk(context)}`);
+
+        context = drawText(() => {}, context => context.fillText(MIXED_TEXT, 10, 60, 280));
+        println(`maxWidth that fits: first glyph: ${firstGlyphIsBlack(context)}, color ink: ${hasColorInk(context)}`);
+
+        context = drawText(() => {}, context => context.fillText(MIXED_TEXT, 10, 60, 60));
+        println(
+            `maxWidth that condenses: color ink inside: ${hasColorInk(context, 0, 71)}, color ink outside: ${hasColorInk(context, 72, 300)}`
+        );
+
+        context = drawText(
+            context => {
+                context.shadowColor = "blue";
+                context.shadowOffsetX = 120;
+            },
+            context => context.fillText(MIXED_TEXT, 10, 60)
+        );
+        println(`shadow: color ink: ${hasColorInk(context)}, shadow of the color glyph: ${hasShadowInk(context, 215, 300)}`);
+
+        // The shadow of the second run lands on the first run, which is only right if all shadows go below all text.
+        context = drawText(
+            context => {
+                context.shadowColor = "blue";
+                context.shadowOffsetX = -60;
+            },
+            context => context.fillText(`x${EMOJI}`, 10, 60)
+        );
+        println(`shadow on an earlier run: first glyph: ${firstGlyphIsBlack(context)}, color ink: ${hasColorInk(context)}`);
+
+        // As with a shadow, the filter must see the text as a whole, or the shadow of the second run covers the first.
+        context = drawText(
+            context => (context.filter = "drop-shadow(-60px 0 0 blue)"),
+            context => context.fillText(`x${EMOJI}`, 10, 60)
+        );
+        println(`filter: first glyph: ${firstGlyphIsBlack(context)}, color ink: ${hasColorInk(context)}`);
+
+        // Each draw with the copy operator clears the canvas, so the text has to be one draw.
+        context = drawText(
+            context => (context.globalCompositeOperation = "copy"),
+            context => context.fillText(MIXED_TEXT, 10, 60)
+        );
+        println(`copy: first glyph: ${firstGlyphIsBlack(context)}, color ink: ${hasColorInk(context)}`);
+    });
+</script>
