@@ -104,6 +104,8 @@ pub struct Val {
     pub is_const: bool,
     /// A `var` binding, which is known to be initialized.
     pub is_var: bool,
+    /// The binding of a declaration, which this write gives its first value. An assignment to a binding doesn't.
+    pub initializes: bool,
 }
 
 impl Val {
@@ -1057,6 +1059,7 @@ impl Generator<'_> {
             is_global: false,
             is_const: false,
             is_var: false,
+            initializes: false,
         });
     }
 
@@ -1395,7 +1398,7 @@ impl Generator<'_> {
                 .stream
                 .values
                 .iter()
-                .any(|value| value.kind == ValKind::LocalTarget && value.a == local);
+                .any(|value| value.kind == ValKind::LocalTarget && value.initializes && value.a == local);
             if is_being_initialized {
                 let empty = self.context.constants.add_empty();
                 self.put(op::Mov { dst: local, src: empty });
@@ -1618,6 +1621,7 @@ impl Generator<'_> {
             is_global: false,
             is_const: false,
             is_var: false,
+            initializes: false,
         });
     }
 
@@ -1730,6 +1734,7 @@ impl Generator<'_> {
             is_global: false,
             is_const: false,
             is_var: false,
+            initializes: false,
         });
     }
 
@@ -1744,6 +1749,7 @@ impl Generator<'_> {
             is_global: false,
             is_const: false,
             is_var: false,
+            initializes: false,
         });
     }
 
@@ -2339,6 +2345,7 @@ impl Generator<'_> {
             is_global: false,
             is_const: false,
             is_var: false,
+            initializes: false,
         });
     }
 
@@ -2529,6 +2536,7 @@ impl Generator<'_> {
                 is_global: false,
                 is_const,
                 is_var: false,
+                initializes: false,
             });
             return;
         }
@@ -2564,6 +2572,7 @@ impl Generator<'_> {
             is_global: ident.is_global,
             is_const,
             is_var: ident.declaration_kind == Some(DeclarationKind::Var),
+            initializes: false,
         });
     }
 
@@ -3590,6 +3599,7 @@ impl Generator<'_> {
             is_global: ident.is_global,
             is_const: false,
             is_var: false,
+            initializes: true,
         });
     }
 
