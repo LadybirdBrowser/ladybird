@@ -1,0 +1,52 @@
+Implementation note: translating pages
+
+Ladybird splits a page into paragraph units over its rendered content,
+ending a paragraph at a block, an inline-block, or a line break, and
+keeps a paragraph’s inline elements with tokens the translation carries
+over to the translated words. WebKit’s TextManipulationController does
+the same, driven by Safari’s WBSTranslationWebpageContentExtractor: Its
+ParagraphContentIterator and isEnclosingItemBoundaryElement() split
+rendered text into paragraph items of identified tokens, and its
+observeParagraphs() reaches into author shadow roots but not user-agent
+ones, as Ladybird’s scan does.
+
+Rebuilding a paragraph follows WebKit’s updateInsertions(): The first
+use of an element is the element itself, and a second use is a shallow
+clone. WebKit also copies the event listeners not created from markup
+onto the clone, with copyEventListenersNotCreatedFromMarkupToTarget();
+Ladybird doesn’t yet. Gecko’s TranslationsDocument sends each subtree
+that has no block-like descendants as HTML with temporary IDs (by its
+getIsBlockLike() and nodeNeedsSubdividing()), and its updateElement()
+deep-clones a repeated element instead.
+
+The exclusions follow Gecko’s CONTENT_EXCLUDED_TAGS for code, kbd, samp,
+and var, its handling of translate=no and the “notranslate” class, and
+its exclusion of editable content and of content declared in another
+language; WebKit leaves exclusions to its client. The attributes are the
+ones in WebKit’s isAttributeForTextManipulation(), and Gecko’s rule in
+TRANSLATABLE_ATTRIBUTES that a button’s value is translated but a submit
+button’s isn’t applies too — except to a submit button with no name,
+whose value isn’t submitted. Gecko’s updateElement() also keeps the
+text of an option as its value before translating it, as Ladybird does.
+
+Translating the text in the viewport first, and hidden text last,
+matches Gecko’s intersection-observer priorities; WebKit supplies the
+geometry, and Safari’s scheduling isn’t in the source. The root’s lang
+attribute becomes the target language, as it does in Gecko, which sets
+document.documentElement.lang, and in Safari, whose extractor has
+_updateHTMLLanguageAttributesIfNeeded:. Showing the original reloads the
+page, as it does in Gecko (TranslationsParent.restorePage()) and Safari
+(WBSTranslationContext’s reloadPageInOriginalLanguage). Continuing on
+the next page of the same site in the same language matches Safari’s
+isContinuedTranslationEnabled and _previousPageHighLevelDomain, while
+Chromium’s LanguageState::InTranslateNavigation() continues on any link
+the user follows to a page in the same language, whatever its site.
+
+The language sample is up to 4,096 UTF-16 code units of the text in the
+page’s tree, the length of Gecko’s #TEXT_SAMPLE_TARGET_CODE_UNITS. But
+Gecko samples the rendered text, and Ladybird the text in the tree, so
+taking the sample never lays the page out. A detection counts only with
+at least 25 characters of text and a probability above 0.7: Chromium’s
+kMinimumContentLengthBytes and kTFLiteReliabilityThreshold. Chromium’s
+page translation itself runs in a script it downloads, so how it
+extracts and rebuilds text isn’t in its source.
