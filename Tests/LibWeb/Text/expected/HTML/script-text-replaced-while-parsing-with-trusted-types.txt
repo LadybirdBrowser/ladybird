@@ -1,0 +1,2 @@
+Inline script under require-trusted-types-for: ran
+Inline script whose text a mutation observer replaced while parsing: blocked

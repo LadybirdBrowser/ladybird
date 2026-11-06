@@ -406,7 +406,7 @@ bool HTMLParser::process_script_end_tag_from_rust_parser(HTMLScriptElement& scri
 
     // https://w3c.github.io/trusted-types/dist/spec/#setting-slot-values-from-parser
     // Set script’s script text value to its child text content.
-    script.set_string_text(script.child_text_content());
+    script.set_script_text_from_parser();
 
     // If the active speculative HTML parser is null, then prepare the script element script.
     // This might cause some script to execute, which might cause new characters to be inserted into the tokenizer,
@@ -2924,6 +2924,7 @@ struct NodeAndOffset {
 
 static void insert_node_for_parser(DOM::Node& parent, DOM::Node& node, DOM::Node* child)
 {
+    HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { parent };
     if (!parent.is_tracked_by_style_engine()) {
         parent.parser_insert_before(node, child);
         return;
@@ -3013,6 +3014,7 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u
 
     auto data = text_node_data_from_span(ReadonlySpan<char> { reinterpret_cast<char const*>(data_ptr), data_len });
     if (auto* previous_text = as_if<DOM::Text>(insertion_location.previous_child())) {
+        HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { parent_node };
         (void)previous_text->append_data(data);
         return;
     }
@@ -3290,8 +3292,7 @@ extern "C" bool ladybird_html_parser_is_shadow_host(size_t node)
 extern "C" void ladybird_html_parser_set_script_text_from_parser(size_t element)
 {
     // Set script's script text value to its child text content.
-    auto& script = as<HTMLScriptElement>(node_from_html_parser_ffi(element));
-    script.set_string_text(script.child_text_content());
+    as<HTMLScriptElement>(node_from_html_parser_ffi(element)).set_script_text_from_parser();
 }
 
 }

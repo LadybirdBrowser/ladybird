@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const observerURL = await server.createEcho("GET", "/script-text-replaced-while-parsing-observer.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `new MutationObserver((records, observer) => {
+                const script = document.getElementById("target");
+                if (script && script.firstChild) {
+                    observer.disconnect();
+                    script.firstChild.data = 'parent.postMessage("replaced", "*");';
+                }
+            }).observe(document.documentElement, { subtree: true, childList: true });`,
+        });
+        const doneURL = await server.createEcho("GET", "/script-text-replaced-while-parsing-done.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `parent.postMessage("done", "*");`,
+        });
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const documentURL = await server.createEcho("GET", "/script-text-replaced-while-parsing.html", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+                "Content-Security-Policy": "require-trusted-types-for 'script'",
+            },
+            body: `<!DOCTYPE html>
+                ${scriptStartTag}>parent.postMessage("untouched", "*");${scriptEndTag}
+                ${scriptStartTag} src="${observerURL}">${scriptEndTag}
+                ${scriptStartTag} id="target">parent.postMessage("original", "*");${scriptEndTag}
+                ${scriptStartTag} src="${doneURL}">${scriptEndTag}`,
+        });
+
+        const received = [];
+        const finished = new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.data === "done") {
+                    resolve();
+                } else {
+                    received.push(event.data);
+                }
+            });
+        });
+        const frame = document.createElement("iframe");
+        frame.src = documentURL;
+        document.body.appendChild(frame);
+        await finished;
+
+        const untouched = received.includes("untouched") ? "ran" : "blocked";
+        const replaced = received.includes("replaced") ? "ran" : "blocked";
+        println(`Inline script under require-trusted-types-for: ${untouched}`);
+        println(`Inline script whose text a mutation observer replaced while parsing: ${replaced}`);
+    });
+</script>
