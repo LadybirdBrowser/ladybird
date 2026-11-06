@@ -2334,16 +2334,19 @@ impl LayoutNodeArena {
         payloads: Option<LayoutStyleRef>,
         previous_payloads: Option<Option<LayoutStyleRef>>,
     ) {
+        let keeps_layout_inputs = match previous_payloads {
+            Some(previous) => {
+                self.forget_last_successful_position_option_after_fallback_sensitive_change(slot, previous, payloads);
+                self.style_move_keeps_layout_inputs(slot, previous, payloads)
+            }
+            None => true,
+        };
         if self.set_node_style(slot, style_record, payloads) {
             self.refresh_style_flags(slot);
         }
         self.publish_new_size_container_geometry(slot);
         self.enroll_node_for_svg_paint_resources_sync(slot);
-        let Some(previous_payloads) = previous_payloads else {
-            return;
-        };
-        self.forget_last_successful_position_option_after_fallback_sensitive_change(slot, previous_payloads, payloads);
-        if !self.style_move_keeps_layout_inputs(slot, previous_payloads, payloads) {
+        if !keeps_layout_inputs {
             self.invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(slot);
         }
     }
@@ -2723,19 +2726,16 @@ impl LayoutNodeArena {
         relayout: StyleRelayout,
     ) -> Option<HostStyle> {
         let index = row.slot_index() as usize;
+        let previous = self.style_records[index];
         let host_style = match self.style_record_pins[index] {
-            ArenaStylePin::Sampled => {
-                let previous = self.style_records[index];
-                self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
-                None
-            }
-            pin => Some(HostStyle {
-                record: self.style_records[index],
-                pin,
-            }),
+            ArenaStylePin::Sampled => None,
+            pin => Some(HostStyle { record: previous, pin }),
         };
         self.style_record_pins[index] = ArenaStylePin::Sampled;
         self.show_style(row, self.node_style_node(row), sample, relayout);
+        if host_style.is_none() {
+            self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
+        }
         host_style
     }
 
@@ -2777,7 +2777,6 @@ impl LayoutNodeArena {
             "a box shows a sample until its host's style is restored"
         );
         let sample = self.style_records[index];
-        self.with_style_engine(|engine| engine.unpin_layout_style_record(sample));
         let HostStyle { record, pin } = host_style;
         let payloads = self.with_style_store(|engine| {
             LayoutStyleRef::of_groups(
@@ -2793,6 +2792,7 @@ impl LayoutNodeArena {
             DerivedStyleRecord { record, payloads },
             relayout,
         );
+        self.with_style_engine(|engine| engine.unpin_layout_style_record(sample));
     }
 
     /// Shows `style` in `row`, whose pin the caller set, as the host's install of a row of a box that styles no anonymous

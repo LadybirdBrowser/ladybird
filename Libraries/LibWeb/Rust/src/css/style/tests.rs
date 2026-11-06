@@ -5,8 +5,15 @@
  */
 
 use super::instrumentation::Counter;
+use super::layout_style::DerivedStyleRecord;
 use super::pipeline::rule_store::{DeclarationBlockID, SheetListStart};
 use super::*;
+use crate::css::animated_overlay::AnimatedOverlay;
+use crate::css::computed_value_types::{ComputedSize, SizingValues};
+use crate::css::computed_values::{DefaultGroups, StyleGroups};
+use crate::css::table_group_builder::group_index;
+use crate::layout::node_data::{LayoutStyleRef, NodeKind, NodeSlotId};
+use crate::layout::{LayoutNodeArena, StyleRelayout};
 
 fn native_rules(source: &str) -> std::rc::Rc<crate::css::rule::NativeRuleList> {
     use crate::css::css_tokenizer::TokenizerInput;
@@ -1276,6 +1283,154 @@ fn records_left_unreachable_under_a_lease_are_reclaimed_once_it_drops() {
     drop(lease);
     engine.free_style_records_kept_for_leases();
     assert!(!engine.computed_group_sets.final_style_record_is_live(first));
+}
+
+struct StyleReplacement {
+    arena: LayoutNodeArena,
+    engine: Box<StyleEngine>,
+    target: computed::ComputedStyleTarget,
+    row: NodeSlotId,
+    base: u64,
+    cached_fragment_epoch: u32,
+}
+
+impl StyleReplacement {
+    fn new() -> Self {
+        let mut engine = Box::new(StyleEngine::new());
+        let mut nodes = [0];
+        engine.allocate_style_nodes(&mut nodes);
+        let node = StyleNodeID::from_raw(nodes[0]).unwrap();
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        let base = engine.install_test_record(target, None, None, 0).raw();
+        let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine(StyleEngineHandle::from_raw(&raw mut *engine));
+        let row = arena.allocate_unbound();
+        arena.stamp_dom_row(row, NodeKind::BlockContainer, Some(node));
+        arena.bind_row(row);
+        arena.stamp_published_style(row, base);
+        Self {
+            arena,
+            engine,
+            target,
+            row,
+            base,
+            cached_fragment_epoch: 0,
+        }
+    }
+
+    fn overlay(&mut self, groups: &StyleGroups) -> DerivedStyleRecord {
+        let overlay = AnimatedOverlay::default();
+        let record = self
+            .engine
+            .computed_group_sets
+            .publish_animation_overlay(self.target, 1, HostShared::new(&raw const overlay), Some(groups), false)
+            .unwrap()
+            .style_record
+            .raw();
+        let pinned = DerivedStyleRecord::pin(&mut self.engine, record);
+        self.engine.computed_group_sets.publish_animation_overlay(
+            self.target,
+            0,
+            HostShared::new(std::ptr::null()),
+            None,
+            false,
+        );
+        assert_eq!(Arc::strong_count(self.engine.host_record(record).unwrap()), 1);
+        pinned
+    }
+
+    fn cache_layout(&mut self) {
+        self.cached_fragment_epoch = self.arena.data(self.row).fragment_cache_epoch;
+    }
+
+    fn keeps_cached_layout(&self) -> bool {
+        self.arena.data(self.row).fragment_cache_epoch == self.cached_fragment_epoch
+    }
+}
+
+impl Drop for StyleReplacement {
+    fn drop(&mut self) {
+        self.arena
+            .free_subtree(self.row)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        self.arena.set_style_engine(StyleEngineHandle::null());
+    }
+}
+
+fn groups_with_width(width: f64) -> StyleGroups {
+    let mut groups = DefaultGroups::default().groups().clone();
+    // SAFETY: SIZING names SizingValues, and write_group gives this style its own copy.
+    unsafe {
+        groups.write_group::<SizingValues>(group_index::SIZING, |sizing| {
+            sizing.width = ComputedSize::from_data(&RetainedStyleValueData::from_owned(StyleValueData::Length {
+                value: width,
+                unit: crate::css::style_compute::px_length_unit(),
+            }));
+        });
+    }
+    groups
+}
+
+#[test]
+fn replacing_a_published_overlay_compares_it_before_releasing_its_last_pin() {
+    for changes_layout in [false, true] {
+        let mut test = StyleReplacement::new();
+        let groups = if changes_layout {
+            groups_with_width(100.0)
+        } else {
+            DefaultGroups::default().groups().clone()
+        };
+        let previous = test.overlay(&groups);
+        drop(groups);
+        test.arena.stamp_published_style(test.row, previous.record);
+        test.engine.unpin_layout_style_record(previous.record);
+        test.cache_layout();
+        let payloads = LayoutStyleRef::of_groups(test.engine.style_record_payloads(test.base).unwrap());
+
+        test.arena
+            .install_style_record(test.row, test.base, Some(payloads), Some(Some(previous.payloads)));
+
+        assert_eq!(test.arena.node_style_record(test.row), test.base);
+        assert_eq!(test.keeps_cached_layout(), !changes_layout);
+        assert!(test.engine.host_record(previous.record).is_none());
+    }
+}
+
+#[test]
+fn replacing_and_restoring_samples_keep_the_previous_record_through_comparison() {
+    let mut test = StyleReplacement::new();
+    let first = test.overlay(&groups_with_width(100.0));
+    let host_style = test
+        .arena
+        .install_sample_beside_anonymous_boxes(test.row, first, StyleRelayout::ByLayoutAffectingGroups)
+        .expect("the first sample takes the host's style");
+    test.cache_layout();
+
+    let second = test.overlay(&groups_with_width(200.0));
+    assert!(
+        test.arena
+            .install_sample_beside_anonymous_boxes(test.row, second, StyleRelayout::ByLayoutAffectingGroups)
+            .is_none()
+    );
+    assert!(test.engine.host_record(first.record).is_none());
+    assert!(test.engine.host_record(second.record).is_some());
+    assert!(!test.keeps_cached_layout());
+
+    let same = DerivedStyleRecord::pin(&mut test.engine, second.record);
+    test.cache_layout();
+    assert!(
+        test.arena
+            .install_sample_beside_anonymous_boxes(test.row, same, StyleRelayout::ByLayoutAffectingGroups)
+            .is_none()
+    );
+    assert!(test.keeps_cached_layout());
+    assert!(test.engine.host_record(second.record).is_some());
+
+    test.arena
+        .restore_host_style(test.row, host_style, StyleRelayout::ByLayoutAffectingGroups);
+    assert_eq!(test.arena.node_style_record(test.row), test.base);
+    assert!(!test.keeps_cached_layout());
+    assert!(test.engine.host_record(second.record).is_none());
 }
 
 #[test]
