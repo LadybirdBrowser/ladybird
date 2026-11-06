@@ -1,0 +1,18 @@
+While an assistive technology consumes the accessibility tree,
+Ladybird keeps each element’s final name and description between
+builds of the tree. It drops them on any change to a node the element
+contains. It drops a labelable element’s on a change that touches a
+label, a labelable element, or an id or for attribute, and those of
+the elements with aria-labelledby or aria-describedby on a change
+inside any element whose ID they reference. The other engines track
+which elements depend on which more precisely. WebKit keeps a computed
+AXProperty::AccessibilityText in each AXIsolatedObject, and updates
+it when handleTextChanged() walks the changed node’s ancestors and the
+objects labelForObjects() returns. Blink doesn’t keep a final name in
+the renderer, but serializes only the AXObjects marked dirty, which
+AXRelationCache::UpdateRelatedText() finds through the ancestors and
+its reverse maps of aria-labelledby and aria-describedby targets.
+Gecko caches each RemoteAccessible’s direct name in the parent
+process, and computes a name from content or relations there when
+asked; EventQueue::PushNameOrDescriptionChange() finds the dependents
+through mDependentIDsHashes.
