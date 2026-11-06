@@ -3414,9 +3414,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         debug_assert_eq!(plan.fc_type, formatting_context::FormattingContextType::Block);
         Some(formatting_context::ChildRunShape {
             node,
-            fc_type: plan.fc_type,
-            input: plan.input,
-            root_cells: cells,
+            key: fc_run_cache::FcRunCacheKey {
+                fc_type: plan.fc_type,
+                input: plan.input,
+                root_cells: cells,
+            },
             root_containing_block: plan.root_containing_block,
         })
     }

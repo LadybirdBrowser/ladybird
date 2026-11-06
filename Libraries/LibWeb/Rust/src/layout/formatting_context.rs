@@ -2031,6 +2031,11 @@ pub(super) fn run_formatting_context(
             false,
         );
     }
+    let key = fc_run_cache::FcRunCacheKey {
+        fc_type,
+        input,
+        root_cells,
+    };
     let attempt = fc_run_cache::FcRunCacheAttempt::probe(
         box_,
         subgrid_parent.is_some(),
@@ -2038,18 +2043,16 @@ pub(super) fn run_formatting_context(
         should_collect_devtools_layout_data,
         false,
         &callbacks,
-        &fc_run_cache::FcRunCacheProbe::new(fc_type, &input, root_cells),
+        &key,
     );
     run_formatting_context_after_probe(
         parent_collects_fragments,
-        root_cells,
         box_,
         root_containing_block,
         subgrid_parent,
-        fc_type,
         should_collect_devtools_layout_data,
         callbacks,
-        input,
+        &key,
         table_inline_layout,
         attempt,
     )
@@ -2058,19 +2061,21 @@ pub(super) fn run_formatting_context(
 #[allow(clippy::too_many_arguments)]
 fn run_formatting_context_after_probe(
     parent_collects_fragments: bool,
-    root_cells: used_values::RootInputCells,
     box_: Node,
     root_containing_block: Node,
     subgrid_parent: Option<&grid_formatting_context::SubgridParent>,
-    fc_type: FormattingContextType,
     should_collect_devtools_layout_data: bool,
     callbacks: LayoutPass<'_>,
-    input: LayoutInput,
+    key: &fc_run_cache::FcRunCacheKey,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
     attempt: Result<fc_run_cache::FcRunCacheAttempt, fc_run_cache::FcRunCacheHit>,
 ) -> ChildLayout {
-    let builds_fragments = run_builds_fragments(&input, parent_collects_fragments);
-    let cache_probe = fc_run_cache::FcRunCacheProbe::new(fc_type, &input, root_cells);
+    let fc_run_cache::FcRunCacheKey {
+        fc_type,
+        ref input,
+        root_cells,
+    } = *key;
+    let builds_fragments = run_builds_fragments(input, parent_collects_fragments);
     let cache_attempt = match attempt {
         Ok(attempt) => attempt,
         Err(hit) => {
@@ -2087,7 +2092,7 @@ fn run_formatting_context_after_probe(
                 &callbacks,
                 parent_collects_fragments,
                 box_,
-                &input,
+                input,
                 root_cells,
                 RunOutputsHandle::Stored(hit.entry),
                 true,
@@ -2108,7 +2113,7 @@ fn run_formatting_context_after_probe(
             fc_type,
             should_collect_devtools_layout_data,
             callbacks,
-            &input,
+            input,
             None,
             table_inline_layout.clone(),
             None,
@@ -2123,7 +2128,7 @@ fn run_formatting_context_after_probe(
         fc_type,
         should_collect_devtools_layout_data,
         callbacks,
-        &input,
+        input,
         previous_line_data,
         table_inline_layout,
         None,
@@ -2136,7 +2141,7 @@ fn run_formatting_context_after_probe(
             &callbacks,
             box_,
             root_cells,
-            &input,
+            input,
             &outputs,
             |callbacks, other_root_cells, other_input| {
                 execute_formatting_context_run(
@@ -2156,12 +2161,12 @@ fn run_formatting_context_after_probe(
             },
         );
     }
-    let outputs = cache_attempt.conclude(&callbacks, box_, &cache_probe, outputs);
+    let outputs = cache_attempt.conclude(&callbacks, box_, key, outputs);
     child_layout_from_outputs(
         &callbacks,
         parent_collects_fragments,
         box_,
-        &input,
+        input,
         root_cells,
         outputs,
         false,
@@ -3126,10 +3131,8 @@ fn is_childless_box_sized_in_parent_run(facts: NodeFacts<'_>, created_fc_type: O
 
 pub(crate) struct ChildRunJob {
     child: Node,
-    fc_type: FormattingContextType,
+    key: fc_run_cache::FcRunCacheKey,
     root_containing_block: Node,
-    input: LayoutInput,
-    root_cells: used_values::RootInputCells,
     parent_collects_fragments: bool,
     should_collect_devtools_layout_data: bool,
     attempt: Result<fc_run_cache::FcRunCacheAttempt, fc_run_cache::FcRunCacheHit>,
@@ -3185,21 +3188,24 @@ pub(crate) fn plan_child_run(
         percentage_block_insets_of_containing_block_have_definite_basis,
     );
     let parent_collects_fragments = run.fragments.is_some();
+    let key = fc_run_cache::FcRunCacheKey {
+        fc_type,
+        input,
+        root_cells: child_input_cells,
+    };
     let attempt = fc_run_cache::FcRunCacheAttempt::probe(
         child,
         false,
-        run_builds_fragments(&input, parent_collects_fragments),
+        run_builds_fragments(&key.input, parent_collects_fragments),
         run.should_collect_devtools_layout_data,
         false,
         &run.callbacks,
-        &fc_run_cache::FcRunCacheProbe::new(fc_type, &input, child_input_cells),
+        &key,
     );
     PlannedChildRun::Job(ChildRunJob {
         child,
-        fc_type,
+        key,
         root_containing_block,
-        input,
-        root_cells: child_input_cells,
         parent_collects_fragments,
         should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
         attempt,
@@ -3290,14 +3296,12 @@ impl ChildRunsLaidOutAhead {
 pub(crate) fn lay_out_child_run_job(callbacks: LayoutPass<'_>, job: ChildRunJob) -> ChildLayout {
     run_formatting_context_after_probe(
         job.parent_collects_fragments,
-        job.root_cells,
         job.child,
         job.root_containing_block,
         None,
-        job.fc_type,
         job.should_collect_devtools_layout_data,
         callbacks,
-        job.input,
+        &job.key,
         None,
         job.attempt,
     )
@@ -3306,11 +3310,11 @@ pub(crate) fn lay_out_child_run_job(callbacks: LayoutPass<'_>, job: ChildRunJob)
 pub(crate) fn shape_would_reuse_stored_run(callbacks: &LayoutPass<'_>, shape: &ChildRunShape) -> bool {
     fc_run_cache::FcRunCacheAttempt::would_reuse_stored_run(
         shape.node,
-        run_builds_fragments(&shape.input, false),
+        run_builds_fragments(&shape.key.input, false),
         false,
         true,
         callbacks,
-        &fc_run_cache::FcRunCacheProbe::new(shape.fc_type, &shape.input, shape.root_cells),
+        &shape.key,
     )
 }
 
@@ -3354,9 +3358,11 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
     );
     ChildRunShape {
         node: cell,
-        fc_type: plan.fc_type,
-        input: plan.input,
-        root_cells: cell_input_cells,
+        key: fc_run_cache::FcRunCacheKey {
+            fc_type: plan.fc_type,
+            input: plan.input,
+            root_cells: cell_input_cells,
+        },
         root_containing_block: plan.root_containing_block,
     }
 }
@@ -3364,15 +3370,14 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ChildRunShape {
     pub(crate) node: Node,
-    pub(crate) fc_type: FormattingContextType,
-    pub(crate) input: LayoutInput,
-    pub(crate) root_cells: used_values::RootInputCells,
+    pub(crate) key: fc_run_cache::FcRunCacheKey,
     pub(crate) root_containing_block: Node,
 }
 
 impl ChildRunShape {
     pub(crate) fn lays_out_at(&self, inline_size: CssPixels, constraints: ContainingBlockConstraints) -> bool {
-        self.root_cells.content_inline_size == inline_size && self.input.containing_block_constraints == constraints
+        self.key.root_cells.content_inline_size == inline_size
+            && self.key.input.containing_block_constraints == constraints
     }
 }
 
@@ -3411,10 +3416,12 @@ impl ChildRunShape {
         debug_assert_eq!(input.participation, ParticipationInParentFormattingContext::Root);
         Self {
             node,
-            fc_type: independent_formatting_context_type(node, callbacks),
             root_containing_block: callbacks.containing_block_for_child_run(node, &input.participation),
-            input,
-            root_cells,
+            key: fc_run_cache::FcRunCacheKey {
+                fc_type: independent_formatting_context_type(node, callbacks),
+                input,
+                root_cells,
+            },
         }
     }
 }
@@ -3477,12 +3484,15 @@ pub(crate) fn lay_out_measurement_root_for_its_result(
 pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: ChildRunShape) -> ChildLayoutResult {
     let ChildRunShape {
         node,
-        fc_type,
-        input,
-        root_cells,
+        key,
         root_containing_block,
     } = shape;
-    let builds_fragments = run_builds_fragments(&input, false);
+    let fc_run_cache::FcRunCacheKey {
+        fc_type,
+        ref input,
+        root_cells,
+    } = key;
+    let builds_fragments = run_builds_fragments(input, false);
     let lay_out = |callbacks: LayoutPass<'_>, root_cells, input: &LayoutInput, previous_line_data| {
         execute_formatting_context_run(
             builds_fragments,
@@ -3507,31 +3517,23 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
         result
     };
     if callbacks.reads_no_memoized_layout() {
-        return result_with_host_findings(RunOutputsHandle::Owned(lay_out(callbacks, root_cells, &input, None)));
+        return result_with_host_findings(RunOutputsHandle::Owned(lay_out(callbacks, root_cells, input, None)));
     }
     // NB: The only shapes of table cells are those laid out ahead of the intrinsic block padding their table hands them.
     let runs_ahead_of_intrinsic_block_padding = builds_fragments && NodeFacts::new(&callbacks, node).is_table_cell();
-    let cache_probe = fc_run_cache::FcRunCacheProbe::new(fc_type, &input, root_cells);
-    let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
-        node,
-        false,
-        builds_fragments,
-        false,
-        true,
-        &callbacks,
-        &cache_probe,
-    ) {
-        Ok(attempt) => attempt,
-        Err(hit) => {
-            let action = if runs_ahead_of_intrinsic_block_padding {
-                "READ RESULT AHEAD OF INTRINSIC BLOCK PADDING"
-            } else {
-                "READ RESULT"
-            };
-            let _trace = callbacks.layout_trace().run(node, fc_type, || action);
-            return result_with_host_findings(RunOutputsHandle::Stored(hit.entry));
-        }
-    };
+    let cache_attempt =
+        match fc_run_cache::FcRunCacheAttempt::probe(node, false, builds_fragments, false, true, &callbacks, &key) {
+            Ok(attempt) => attempt,
+            Err(hit) => {
+                let action = if runs_ahead_of_intrinsic_block_padding {
+                    "READ RESULT AHEAD OF INTRINSIC BLOCK PADDING"
+                } else {
+                    "READ RESULT"
+                };
+                let _trace = callbacks.layout_trace().run(node, fc_type, || action);
+                return result_with_host_findings(RunOutputsHandle::Stored(hit.entry));
+            }
+        };
     let action = if runs_ahead_of_intrinsic_block_padding {
         "RUN AHEAD OF INTRINSIC BLOCK PADDING"
     } else {
@@ -3540,8 +3542,8 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
     let _trace = callbacks.layout_trace().run(node, fc_type, || action);
     let previous_line_data = cache_attempt.previous_line_data();
     let discarded_outputs =
-        run_repeatability::lay_out_discarded_run(&callbacks, |callbacks| lay_out(callbacks, root_cells, &input, None));
-    let outputs = lay_out(callbacks, root_cells, &input, previous_line_data);
+        run_repeatability::lay_out_discarded_run(&callbacks, |callbacks| lay_out(callbacks, root_cells, input, None));
+    let outputs = lay_out(callbacks, root_cells, input, previous_line_data);
     if let Some(discarded_outputs) = &discarded_outputs {
         run_repeatability::verify_repeated_run(node, discarded_outputs, &outputs);
     }
@@ -3550,12 +3552,12 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
             &callbacks,
             node,
             root_cells,
-            &input,
+            input,
             &outputs,
             |callbacks, other_root_cells, other_input| lay_out(callbacks, other_root_cells, &other_input, None),
         );
     }
-    let outputs = cache_attempt.conclude(&callbacks, node, &cache_probe, outputs);
+    let outputs = cache_attempt.conclude(&callbacks, node, &key, outputs);
     result_with_host_findings(outputs)
 }
 
