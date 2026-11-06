@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<script>
+    const gif = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+
+    function loadInto(picture, insert) {
+        return new Promise(resolve => {
+            const source = document.createElement("source");
+            source.srcset = gif;
+            const image = document.createElement("img");
+            image.onload = () => resolve(image.currentSrc === gif);
+            insert(picture, source, image);
+        });
+    }
+
+    asyncTest(async done => {
+        const picture = document.createElement("picture");
+        document.body.append(picture);
+        println(`append: ${await loadInto(picture, (picture, source, image) => picture.append(source, image))}`);
+        println(`replaceChildren: ${await loadInto(picture, (picture, source, image) => picture.replaceChildren(source, image))}`);
+        done();
+    });
+</script>

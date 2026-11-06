@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 89 tests
 
-87 Pass
-2 Fail
+88 Pass
+1 Fail
 Pass	<img data-expect="">
 Pass	<img src="" data-expect="">
 Pass	<img src="data:,a" data-expect="data:,a">
@@ -92,4 +92,4 @@ Pass	<picture><img data-expect=""><source srcset="data:,b"></picture>
 Pass	<picture><span><source srcset="data:,b"><img data-expect=""></span></picture>
 Pass	<picture><span><source srcset="data:,b"><img src="data:,a" data-expect="data:,a"></span></picture>
 Pass	<picture><source srcset="data:,b"><span><img src="data:,a" data-expect="data:,a"></span></picture>
-Fail	<picture><source srcset="data:,b"><img data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b"><img data-expect="data:,b"></picture>

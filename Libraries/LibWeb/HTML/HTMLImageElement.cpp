@@ -226,8 +226,10 @@ void HTMLImageElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* ol
 
     // 1. If isSubtreeRoot is true and oldAncestor is a picture element, then count this as a relevant mutation for
     //    removedNode.
-    if (is_subtree_root == IsSubtreeRoot::Yes && is<HTMLPictureElement>(old_ancestor))
+    if (is_subtree_root == IsSubtreeRoot::Yes && is<HTMLPictureElement>(old_ancestor)) {
+        m_is_child_of_picture = false;
         update_the_image_data();
+    }
 
     // 2. Set removedNode's last auto-sizes width to null.
     m_last_auto_sizes_width = {};
@@ -267,10 +269,18 @@ void HTMLImageElement::set_dimension_attribute_source(DOM::Element const* source
     }
 }
 
+// https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:html-element-insertion-steps
 void HTMLImageElement::inserted()
 {
     Base::inserted();
     update_dimension_attribute_source(*this);
+
+    // The img HTML element insertion steps, given insertedNode, are:
+    // 1. If insertedNode's parent is a picture element, then, count this as a relevant mutation for insertedNode.
+    // INTEROP: Other browsers and WPT only count this for an img that is inserted into its picture, not for one whose
+    //          picture is inserted somewhere else.
+    if (is<HTMLPictureElement>(parent()) && !exchange(m_is_child_of_picture, true))
+        update_the_image_data();
 }
 
 bool HTMLImageElement::is_presentational_hint(Utf16FlyString const& name) const
