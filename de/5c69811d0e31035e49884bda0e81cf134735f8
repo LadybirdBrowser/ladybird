@@ -1,0 +1,9 @@
+With “background-clip: text” and no text, Ladybird paints none of the
+background that’s clipped to the text, which the other engines get from
+an empty text mask: Blink’s BoxPainterBase::PaintFillLayerTextFillBox()
+draws the background and masks it with a kDstIn layer that it fills
+with the text, in PaintTextClipMask(). WebKit’s BackgroundPainter paints
+the text into a mask for FillBox::Text, in paintMaskForTextFillBox(),
+and clips the background to it. And Gecko’s GenerateAndPushTextMask()
+shades the element’s text frames into an A8 mask, then blends the
+background through that mask.
