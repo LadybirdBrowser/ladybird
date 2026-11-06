@@ -194,14 +194,16 @@ pub struct ExecutableData {
     pub local_variable_metadata: BlockSlice<LocalVariableMetadata>,
     pub length_identifier: Option<PropertyKeyTableIndex>,
     /// What linking reads, and nothing after it (see [`ExecutableData::release_link_inputs()`]).
-    pub property_key_table: Box<[ak::Utf16FlyString]>,
-    pub constants: Box<[ConstantValue]>,
-    pub shared_function_data: Box<[PendingSharedFunctionData]>,
-    pub class_blueprints: Box<[PendingClassBlueprint]>,
+    pub property_key_table: BlockSlice<ak::Utf16FlyString>,
+    pub constants: BlockSlice<ConstantValue>,
+    pub shared_function_data: BlockSlice<PendingSharedFunctionData>,
+    pub class_blueprints: BlockSlice<PendingClassBlueprint>,
     /// What turns the source offsets of a source map that has them into lines and columns.
     pub position_source: Option<Arc<crate::parser::SourcePositions>>,
     /// The memory of everything above that running the code reads, which gets dropped before it.
     pub tables: SliceBlock,
+    /// The memory of what only linking reads.
+    pub link_tables: SliceBlock,
 }
 
 fn constant_memory_size(constant: &ConstantValue) -> usize {
@@ -270,9 +272,10 @@ impl ExecutableData {
     /// Frees what only linking reads, for an executable that is the last to hold this code, so that code nothing can
     /// link again costs no more than what running it reads.
     pub fn release_link_inputs(&mut self) {
-        self.property_key_table = Box::default();
-        self.constants = Box::default();
-        self.shared_function_data = Box::default();
-        self.class_blueprints = Box::default();
+        self.property_key_table = BlockSlice::empty();
+        self.constants = BlockSlice::empty();
+        self.shared_function_data = BlockSlice::empty();
+        self.class_blueprints = BlockSlice::empty();
+        self.link_tables = SliceBlock::empty();
     }
 }

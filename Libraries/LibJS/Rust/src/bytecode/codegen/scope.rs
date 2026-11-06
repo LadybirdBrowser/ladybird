@@ -21,9 +21,11 @@ use crate::ast::LocalType;
 use crate::ast::Name;
 use crate::ast::Resolution;
 use crate::ast::SyntaxTree;
+use crate::bytecode::executable_data::ConstantValue;
 use crate::bytecode::executable_data::ExecutableData;
 use crate::bytecode::executable_data::FunctionSfdMetadata;
 use crate::bytecode::executable_data::LocalVariableMetadata;
+use crate::bytecode::executable_data::PendingClassBlueprint;
 use crate::bytecode::executable_data::PendingSharedFunctionData;
 use crate::bytecode::executable_data::PrecompiledFunction;
 use crate::bytecode::instruction::typed as op;
@@ -1912,8 +1914,14 @@ impl Generator<'_> {
             self.context.scope.scope_resolutions = entries;
             enclosing_code
         };
-        let mut shared_function_data: Vec<PendingSharedFunctionData> = Vec::with_capacity(nested_count);
-        for nested in 0..nested_count {
+        self.seal_stream();
+        let mut link_block = SliceBlock::builder(
+            SliceBlock::room_for::<PendingSharedFunctionData>(nested_count)
+                + SliceBlock::room_for::<PendingClassBlueprint>(self.class_blueprints.len())
+                + SliceBlock::room_for::<ConstantValue>(self.context.constants.values.len())
+                + self.context.names.room_for_link_tables(),
+        );
+        let shared_function_data = link_block.slice((0..nested_count).map(|nested| {
             let nested_function = &mut self.context.scope.nested_functions[nested];
             let row = nested_function.row;
             let is_eager = nested_function.is_eager;
@@ -1939,19 +1947,19 @@ impl Generator<'_> {
             let mut pending = crate::compile::pending_function_of_row(script, row, name, environment, &enclosing_code);
             pending.class_field_initializer_name = field_name;
             pending.should_eager_compile = is_eager;
-            shared_function_data.push(pending);
-        }
+            pending
+        }));
 
-        self.seal_stream();
         let scope = &self.context.scope;
         let variable_name_count = scope.locals.len() + scope.parameters.len();
         let other_tables_size = self.context.names.room_for_tables()
             + SliceBlock::room_for::<ak::Utf16FlyString>(variable_name_count)
             + SliceBlock::room_for::<LocalVariableMetadata>(scope.locals.len());
         let (assembled, mut block) = self.finish_stream(other_tables_size);
-        let (identifier_table, property_key_table, string_table) = self.context.names.take_tables(tree, &mut block);
+        let (identifier_table, property_key_table, string_table) =
+            self.context.names.take_tables(tree, &mut block, &mut link_block);
         let context = &mut *self.context;
-        let constants: Box<[_]> = context.constants.values.drain(..).collect();
+        let constants = link_block.slice(context.constants.values.drain(..));
         let scope = &context.scope;
         let local_variable_metadata = block.slice(scope.locals.iter().map(|local| LocalVariableMetadata {
             is_mutable: local.is_mutable,
@@ -1999,10 +2007,11 @@ impl Generator<'_> {
             length_identifier: self.length_identifier,
             property_key_table,
             constants,
-            shared_function_data: shared_function_data.into(),
-            class_blueprints: std::mem::take(&mut self.class_blueprints).into(),
+            shared_function_data,
+            class_blueprints: link_block.slice(std::mem::take(&mut self.class_blueprints).into_iter()),
             position_source: Some(script.positions.clone()),
             tables: block.finish(),
+            link_tables: link_block.finish(),
         };
         let this_from_environment = this_comes_from_environment(flags);
         PrecompiledFunction {

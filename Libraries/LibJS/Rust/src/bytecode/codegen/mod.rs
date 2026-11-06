@@ -124,7 +124,7 @@ pub fn compile_program(input: &ProgramInput<'_>) -> Result<ExecutableData, OutOf
     };
     tree.give_back_memory();
     let mut executable = Arc::into_inner(compiled?.executable).expect("nothing else holds on to new code");
-    for pending in &mut executable.shared_function_data {
+    for pending in executable.shared_function_data.iter_mut() {
         if pending.should_eager_compile {
             pending.precompiled_function =
                 crate::compile::compile_function(&pending.description.payload, false, input.stack_limit)
