@@ -177,15 +177,25 @@ pub(crate) fn for_each_fragment_of_nodes(
     node_slots: &[NodeSlotId],
     mut callback: impl FnMut(NodeSlotId, u32, &FragmentRecord) -> bool,
 ) {
+    // OPTIMIZATION: Up to this many fragments, a scan costs less than building an index would.
+    const MAX_FRAGMENTS_TO_SCAN: usize = 32;
+
     for &node in node_slots {
         let Some(block) = containing_block_paintable_of_node(layout_arena, node) else {
             continue;
         };
-        for (index, fragment) in layout_arena.committed_side_data(block).fragments().iter().enumerate() {
-            if fragment.layout_node != node {
-                continue;
+        let side_data = layout_arena.committed_side_data(block);
+        let fragments = side_data.fragments();
+        if fragments.len() <= MAX_FRAGMENTS_TO_SCAN {
+            for (index, fragment) in fragments.iter().enumerate() {
+                if fragment.layout_node == node && !callback(block, index as u32, fragment) {
+                    return;
+                }
             }
-            if !callback(block, index as u32, fragment) {
+            continue;
+        }
+        for &index in side_data.fragment_indices_of(node) {
+            if !callback(block, index, &fragments[index as usize]) {
                 return;
             }
         }

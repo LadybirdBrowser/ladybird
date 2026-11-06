@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    #block {
+        font: 16px SerenitySans;
+        width: 200px;
+    }
+</style>
+<div id="block"></div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const block = document.getElementById("block");
+        for (let i = 0; i < 40; ++i) {
+            const span = document.createElement("span");
+            span.textContent = `word${i} `;
+            block.appendChild(span);
+        }
+        const longText = document.createTextNode("this text is long enough to wrap over more than one line of the block ");
+        block.insertBefore(longText, block.children[20]);
+
+        function rects(node) {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            return Array.from(range.getClientRects()).map(rect => `${rect.x},${rect.y},${rect.width},${rect.height}`).join(" ");
+        }
+
+        println(`first span: ${rects(block.children[0].firstChild)}`);
+        println(`last span: ${rects(block.children[39].firstChild)}`);
+        println(`long text: ${rects(longText)}`);
+        println(`whole block: ${rects(block).split(" ").length} rects`);
+    });
+</script>
