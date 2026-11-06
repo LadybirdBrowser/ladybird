@@ -725,6 +725,9 @@ mod native {
 
     const CHUNK_SIZE: usize = 16 << 20;
 
+    /// Where the code of a function starts, which the alignment of its loops relies on.
+    const CODE_ALIGNMENT: usize = 64;
+
     /// How many compiles a store installs between looking for modules that died.
     const SWEEP_INTERVAL: usize = 64;
 
@@ -767,7 +770,7 @@ mod native {
         }
 
         fn has_room(&self, length: usize) -> bool {
-            self.used.next_multiple_of(16) + length <= self.size
+            self.used.next_multiple_of(CODE_ALIGNMENT) + length <= self.size
         }
 
         /// Copies `code` in and returns its address, or None if the pages could not be made writable, which leaves them
@@ -775,7 +778,7 @@ mod native {
         // NB: On macOS, switching the thread's view of the code cannot fail.
         #[cfg_attr(target_os = "macos", allow(clippy::unnecessary_wraps))]
         fn add(&mut self, code: &[u8]) -> Option<u64> {
-            let start = self.used.next_multiple_of(16);
+            let start = self.used.next_multiple_of(CODE_ALIGNMENT);
             debug_assert!(start + code.len() <= self.size);
             #[cfg(target_os = "macos")]
             unsafe {
