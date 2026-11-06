@@ -42,6 +42,7 @@ from Generators.libweb_bindings.rust_names import rust_identifier
 from Generators.libweb_bindings.rust_names import rust_local_name
 from Generators.libweb_bindings.rust_overloads import write_constructor_overload_resolution
 from Generators.libweb_bindings.rust_overloads import write_operation_overload_resolution
+from Generators.libweb_bindings.rust_structured_serialize import write_rust_serializable_dispatch
 from Generators.libweb_bindings.rust_to_idl_value import rust_default_value
 from Generators.libweb_bindings.rust_to_idl_value import rust_to_idl_value
 from Generators.libweb_bindings.rust_to_idl_value import write_any_interface_from_js
@@ -88,9 +89,8 @@ SUPPORTED_INTERFACE_EXTENDED_ATTRIBUTES = {
     "LegacyNoInterfaceObject",
     "NavigatorCompatibilityMode",
     "SecureContext",
-    # NB: The implementation implements structured_data::Serializable, whose steps StructuredSerialize of LibWeb's C++
-    #     runs through the entry points that write_rust_structured_data_entry_points() writes, or
-    #     structured_data::Transferable, whose steps crate::html::structured_serialize runs.
+    # NB: The implementation implements structured_data::Serializable or structured_data::Transferable, whose steps
+    #     crate::html::structured_serialize runs.
     "Serializable",
     "Transferable",
 }
@@ -1132,7 +1132,6 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
     use crate::bindings::callback::{CallbackFunction, CallbackInterface, PromiseCallbackFunction};
     use crate::bindings::event_target::{event_handler_attribute, set_event_handler_attribute};
     use crate::bindings::promise::WebIdlPromise;
-    use crate::bindings::structured_data;
     use crate::bindings::{CallContext, WebIdlResult, with_custom_element_reactions};
 """
 
@@ -1481,7 +1480,6 @@ def write_rust_interface(
     }}
 """
         )
-    write_rust_structured_data_entry_points(out, interface)
     out.write("}\n")
 
 
@@ -2021,47 +2019,6 @@ def write_rust_static_operation(
     out.write("    }\n")
 
 
-def write_rust_structured_data_entry_points(out: TextIO, interface: Interface) -> None:
-    """The entry points through which StructuredSerialize of LibWeb's C++ runs the steps of an interface that is
-    serializable, which Meta/Generators/libweb_bindings/structured_serialize.py declares."""
-    if "Serializable" in interface.extended_attributes:
-        out.write(
-            f"""
-    /// The serialization steps of the interface, for StructuredSerialize of LibWeb's C++.
-    ///
-    /// # Safety
-    ///
-    /// The pointers must be the VM, a live realm, the live cell of an object of the interface, and a lent writer.
-    #[unsafe(no_mangle)]
-    pub unsafe extern "C" fn {rust_entry_point_name(interface, "serialization_steps")}(
-        vm: *mut c_void,
-        realm: *mut c_void,
-        cell: *mut c_void,
-        serialized: *mut c_void,
-        for_storage: bool,
-    ) -> RawNativeFunctionResult {{
-        // SAFETY: The caller passes live pointers.
-        unsafe {{ structured_data::serialization_steps::<Implementation>(vm, realm, cell, serialized, for_storage) }}
-    }}
-
-    /// The deserialization steps of the interface, which return the wrapper of the new object.
-    ///
-    /// # Safety
-    ///
-    /// The pointers must be the VM, a live realm, and a lent reader.
-    #[unsafe(no_mangle)]
-    pub unsafe extern "C" fn {rust_entry_point_name(interface, "deserialization_steps")}(
-        vm: *mut c_void,
-        realm: *mut c_void,
-        serialized: *mut c_void,
-    ) -> RawNativeFunctionResult {{
-        // SAFETY: The caller passes live pointers.
-        unsafe {{ structured_data::deserialization_steps::<Implementation>(vm, realm, serialized) }}
-    }}
-"""
-        )
-
-
 def write_this_implementation(out: TextIO, context: GenerationContext, interface: Interface) -> None:
     """The function that finds what an attribute or an operation of the interface runs on. For an interface that
     others inherit from, that is an object of any of them, which the implementation of each reaches the inherited
@@ -2498,6 +2455,7 @@ def write_rust_bindings(
             write_rust_namespace(out, context, interface)
         else:
             write_rust_interface(out, context, module, interface, values[interface.name])
+    write_rust_serializable_dispatch(out, intrinsics, values)
     write_rust_wrap_for_cpp(out, context, usage)
 
 

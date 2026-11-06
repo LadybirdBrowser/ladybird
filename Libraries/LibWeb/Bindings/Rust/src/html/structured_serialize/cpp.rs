@@ -16,8 +16,7 @@ use core::ptr::NonNull;
 
 use libjs_rust::api::{ArrayBuffer, DeferGc, Gc, Object, RawNativeFunctionResult, Realm, Value, into_raw_descriptor};
 
-use crate::bindings::structured_data::{SerializationReader, SerializationWriter};
-use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::bindings::{Exception, WebIdlResult};
 use crate::html::structured_serialize::message_record::{MessageRecord, SharedMemory};
 use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
 
@@ -55,21 +54,10 @@ unsafe extern "C" {
     fn web_structured_serialize_current_settings_object_cross_origin_isolated_capability() -> bool;
     fn web_structured_serialize_realm_agent_cluster(realm: *mut c_void, agent_cluster: &mut u64) -> bool;
 
-    fn web_structured_serialize_is_platform_object(object: *mut c_void) -> bool;
-    fn web_structured_serialize_serializable_interface_name(object: *mut c_void, interface_name: &mut u16) -> bool;
-    fn web_structured_serialize_serialization_steps(
-        realm: *mut c_void,
-        object: *mut c_void,
-        serialized: *mut c_void,
-        for_storage: bool,
-    ) -> RawNativeFunctionResult;
+    fn web_structured_serialize_cpp_interface_name(object: *mut c_void, interface_name: &mut u16) -> bool;
+
     fn web_structured_serialize_is_exposed(interface_name: u16, realm: *mut c_void) -> bool;
     fn web_structured_serialize_serializable_steps(interface_name: u16) -> u8;
-    fn web_structured_serialize_deserialize_rust_platform_object(
-        interface_name: u16,
-        realm: *mut c_void,
-        serialized: *mut c_void,
-    ) -> RawNativeFunctionResult;
 
     fn web_structured_serialize_gather_image_bitmap_pixels(
         transfer_list: *const *mut c_void,
@@ -317,39 +305,12 @@ pub(crate) fn realm_agent_cluster(realm: Gc<Realm>) -> Option<u64> {
         .then_some(agent_cluster)
 }
 
-/// https://webidl.spec.whatwg.org/#dfn-platform-object
-pub(crate) fn is_platform_object(object: Gc<Object>) -> bool {
-    // SAFETY: The object is live.
-    unsafe { web_structured_serialize_is_platform_object(object_into_abi(object)) }
-}
-
-/// The identifier of the primary interface of the object, a Bindings::InterfaceName, if it is a platform object that
-/// is a serializable object.
-pub(crate) fn serializable_interface_name(object: Gc<Object>) -> Option<u16> {
+/// The primary interface of a C++ implementation object, if the object wraps one.
+pub(crate) fn cpp_serializable_interface_name(object: Gc<Object>) -> Option<u16> {
     let mut interface_name = 0;
-    // SAFETY: The object is live.
-    unsafe { web_structured_serialize_serializable_interface_name(object_into_abi(object), &mut interface_name) }
+    // SAFETY: The object is live, and the call writes the identifier.
+    unsafe { web_structured_serialize_cpp_interface_name(object_into_abi(object), &mut interface_name) }
         .then_some(interface_name)
-}
-
-/// The serialization steps of the primary interface of the serializable platform object, which C++ runs through the
-/// bindings of the interface, given the writer, which it passes on.
-pub(crate) fn serialization_steps(
-    cx: &CallContext,
-    object: Gc<Object>,
-    serialized: &mut SerializationWriter,
-    for_storage: bool,
-) -> WebIdlResult<()> {
-    // SAFETY: The realm and the object are live, and the writer is lent for the call.
-    completion(unsafe {
-        web_structured_serialize_serialization_steps(
-            cx.realm().as_ptr().cast(),
-            object_into_abi(object),
-            core::ptr::from_mut(serialized).cast(),
-            for_storage,
-        )
-    })?;
-    Ok(())
 }
 
 /// https://webidl.spec.whatwg.org/#dfn-exposed
@@ -383,23 +344,6 @@ pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {
         4 => SerializableSteps::RTCEncodedAudioFrame,
         steps => unreachable!("LibWeb names no serializable steps {steps}"),
     }
-}
-
-/// The deserialization steps of an interface implemented in Rust, which create the new instance in the realm from what
-/// they read, and which C++ runs through the bindings of the interface, given the reader, which it passes on.
-pub(crate) fn deserialize_rust_platform_object(
-    interface_name: u16,
-    realm: Gc<Realm>,
-    serialized: &mut SerializationReader,
-) -> WebIdlResult<Value> {
-    // SAFETY: The realm is live, and the reader is lent for the call.
-    completion(unsafe {
-        web_structured_serialize_deserialize_rust_platform_object(
-            interface_name,
-            realm.as_ptr().cast(),
-            core::ptr::from_mut(serialized).cast(),
-        )
-    })
 }
 
 /// HTML::ImageBitmapSharedPixels that this owns: the shared memory that a transfer gathers the pixels of its

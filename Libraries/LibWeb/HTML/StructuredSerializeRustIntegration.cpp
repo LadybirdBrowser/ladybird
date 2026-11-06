@@ -17,6 +17,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/RustSerialization.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -57,12 +58,9 @@ bool web_structured_serialize_current_settings_object_agent_cluster(u64* agent_c
 bool web_structured_serialize_current_settings_object_cross_origin_isolated_capability();
 bool web_structured_serialize_realm_agent_cluster(void* realm, u64* agent_cluster);
 
-bool web_structured_serialize_is_platform_object(JSObject*);
-bool web_structured_serialize_serializable_interface_name(JSObject*, u16* interface_name);
-JSCompletion web_structured_serialize_serialization_steps(void* realm, JSObject*, void* serialized, bool for_storage);
+bool web_structured_serialize_cpp_interface_name(JSObject*, u16* interface_name);
 bool web_structured_serialize_is_exposed(u16 interface_name, void* realm);
 u8 web_structured_serialize_serializable_steps(u16 interface_name);
-JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 interface_name, void* realm, void* serialized);
 
 ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(JSObject* const* transfer_list, size_t count, u32 buffer_index, int* shared_memory, size_t* size);
 void web_structured_serialize_image_bitmap_pixels_destroy(ImageBitmapSharedPixels*);
@@ -88,13 +86,6 @@ void web_structured_serialize_transfer_data_decoder_destroy(TransferDataDecoder*
 static JS::Realm& realm_from_abi(void* realm)
 {
     return *static_cast<JS::Realm*>(realm);
-}
-
-static JSCompletion void_completion_to_abi(JS::Realm& realm, WebIDL::ExceptionOr<void> result)
-{
-    if (result.is_exception())
-        return Bindings::completion_to_abi(realm, WebIDL::ExceptionOr<JS::Value> { result.release_error() });
-    return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { JS::js_undefined() });
 }
 
 static JS::ArrayBuffer& array_buffer_from_abi(JSObject* array_buffer)
@@ -200,25 +191,13 @@ bool web_structured_serialize_realm_agent_cluster(void* realm, u64* agent_cluste
     return true;
 }
 
-bool web_structured_serialize_is_platform_object(JSObject* object)
+bool web_structured_serialize_cpp_interface_name(JSObject* object, u16* interface_name)
 {
-    return Bindings::is_platform_object(*JS::HostABI::object_from_abi(object));
-}
-
-bool web_structured_serialize_serializable_interface_name(JSObject* object, u16* interface_name)
-{
-    auto serializable = Bindings::serializable_from_object(*JS::HostABI::object_from_abi(object));
-    if (!serializable.has_value())
+    auto* wrappable = Bindings::wrappable_impl_from(JS::HostABI::object_from_abi(object));
+    if (!wrappable)
         return false;
-    *interface_name = to_underlying(serializable->interface_name);
+    *interface_name = to_underlying(wrappable->interface_name());
     return true;
-}
-
-JSCompletion web_structured_serialize_serialization_steps(void* realm, JSObject* object, void* serialized, bool for_storage)
-{
-    auto serializable = Bindings::serializable_from_object(*JS::HostABI::object_from_abi(object));
-    VERIFY(serializable.has_value());
-    return void_completion_to_abi(realm_from_abi(realm), serializable->serialization_steps(serialized, for_storage));
 }
 
 bool web_structured_serialize_is_exposed(u16 interface_name, void* realm)
@@ -241,15 +220,6 @@ u8 web_structured_serialize_serializable_steps(u16 interface_name)
         VERIFY(Bindings::serializable_interface_is_implemented_in_rust(static_cast<Bindings::InterfaceName>(interface_name)));
         return to_underlying(SerializableSteps::Rust);
     }
-}
-
-JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 interface_name, void* realm, void* serialized)
-{
-    auto& js_realm = realm_from_abi(realm);
-    auto object = Bindings::deserialize_rust_platform_object(static_cast<Bindings::InterfaceName>(interface_name), js_realm, serialized);
-    if (object.is_exception())
-        return Bindings::completion_to_abi(js_realm, WebIDL::ExceptionOr<JS::Value> { object.release_error() });
-    return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { object.release_value() });
 }
 
 // AD-HOC: Gather the pixels of the transferred ImageBitmaps in one buffer of shared memory. Without it, as when there

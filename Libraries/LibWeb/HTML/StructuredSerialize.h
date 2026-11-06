@@ -127,27 +127,6 @@ WEB_API WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_w
 
 namespace Web::Bindings {
 
-class RustInterfaceCell;
-
-// A platform object that is a serializable object: an implementation object of an interface implemented in C++, whose
-// steps run in Rust over its fields, or the cell of an object of an interface implemented in Rust, whose steps the Rust
-// bindings run.
-struct SerializablePlatformObject {
-    GC::Ptr<RustInterfaceCell> rust_object { nullptr };
-    InterfaceName interface_name;
-    GC::Ptr<JS::Realm> realm;
-
-    // NB: The record that the steps write is the Rust SerializationWriter that the serialization passes on.
-    WebIDL::ExceptionOr<void> serialization_steps(void* serialized, bool for_storage) const;
-};
-
-WEB_API Optional<SerializablePlatformObject> serializable_from_object(JS::Object&);
-WEB_API bool is_platform_object(JS::Object const&);
-
-// The deserialization steps of an interface implemented in Rust create its object from what they read, rather than
-// fill in an object that was created before them. The record that they read is the Rust SerializationReader that the
-// deserialization passes on.
 WEB_API bool serializable_interface_is_implemented_in_rust(InterfaceName);
-WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(InterfaceName, JS::Realm&, void* serialized);
 
 }

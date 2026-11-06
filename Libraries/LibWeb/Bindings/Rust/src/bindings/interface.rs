@@ -25,7 +25,7 @@ use libjs_rust::api::{
     Attribute, DeferGc, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, ExternalMemorySize,
     FunctionObject, Gc, HostObject, JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey,
     RawNativeFunction, RawNativeFunctionPointer, Realm, Throw, ThrowCompletionOr, Trace, Value, Vm, get_function_realm,
-    host_data_of, is_host_instance_of,
+    host_class_of, host_data_of, is_host_instance_of,
 };
 
 use crate::bindings::CallContext;
@@ -237,6 +237,11 @@ pub(crate) fn implementation_if<T: Interface>(wrapper: Gc<Object>) -> Option<Ref
 /// The object of the interface that the object is a wrapper of, if it is one.
 pub(crate) fn implementation_if_wrapper<T: Interface>(object: Gc<Object>) -> Option<Ref<T>> {
     is_host_instance_of(&object, T::wrapper_class()).then(|| implementation_of(object))
+}
+
+/// Whether the object is a wrapper of exactly this interface, and not of one that inherits from it.
+pub(crate) fn is_exact_wrapper<T: Interface>(object: Gc<Object>) -> bool {
+    host_class_of(&object).is_some_and(|class| core::ptr::eq(class, T::wrapper_class()))
 }
 
 /// An object of the interface converted from a JS value, https://webidl.spec.whatwg.org/#js-interface

@@ -17,6 +17,7 @@ pub(crate) mod exports;
 pub(crate) mod memory;
 pub(crate) mod message_record;
 pub(crate) mod reader;
+pub(crate) mod serializable;
 pub(crate) mod transfer_data_holder;
 pub(crate) mod writer;
 
@@ -43,13 +44,13 @@ use crate::html::offscreen_canvas;
 use crate::html::structured_serialize::cpp::{
     OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, current_settings_object_agent_cluster,
     current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
-    deserialize_rust_platform_object, gather_image_bitmap_pixels, is_exposed, is_platform_object, realm_agent_cluster,
-    serializable_interface_name, serializable_interface_storage_identifier, serializable_payload_version,
-    serializable_steps, serialization_steps,
+    gather_image_bitmap_pixels, is_exposed, realm_agent_cluster, serializable_interface_storage_identifier,
+    serializable_payload_version, serializable_steps,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
+use crate::html::structured_serialize::serializable::serializable_interface_name;
 use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::streams::readable_stream::ReadableStream;
@@ -809,7 +810,7 @@ impl<'memory> Serializer<'_, '_, 'memory> {
                 deep = true;
             }
             // 18. Otherwise, if value has an [[ErrorData]] internal slot and value is not a platform object:
-            else if object.downcast::<libjs_rust::api::Error>().is_some() && !is_platform_object(object) {
+            else if object.downcast::<libjs_rust::api::Error>().is_some() && !object.is_platform_object() {
                 // 1. Let name be ? Get(value, "name").
                 let name = object.get(vm, &vm.names.name)?;
 
@@ -887,7 +888,7 @@ impl<'memory> Serializer<'_, '_, 'memory> {
                 deep = true;
             }
             // 21. Otherwise, if value is a platform object, then throw a "DataCloneError" DOMException.
-            else if is_platform_object(object) {
+            else if object.is_platform_object() {
                 return Err(data_clone_error("Cannot serialize platform objects"));
             }
             // 22. Otherwise, if IsCallable(value) is true, then throw a "DataCloneError" DOMException.
@@ -1001,9 +1002,9 @@ impl<'memory> Serializer<'_, '_, 'memory> {
                         )?;
                     }
                     SerializableSteps::Rust => {
-                        let realm = self.realm.unwrap_or_else(|| object.shape().realm());
-                        serialization_steps(
-                            &CallContext::new(vm, realm),
+                        serializable::serialization_steps(
+                            interface_name,
+                            vm,
                             object,
                             &mut SerializationWriter::new(self),
                             self.for_storage,
@@ -1594,9 +1595,11 @@ impl Deserializer<'_, '_, '_> {
                             &mut SerializationReader::new(self),
                         )?)
                     }
-                    SerializableSteps::Rust => {
-                        deserialize_rust_platform_object(interface_name, realm, &mut SerializationReader::new(self))?
-                    }
+                    SerializableSteps::Rust => serializable::deserialization_steps(
+                        interface_name,
+                        self.cx,
+                        &mut SerializationReader::new(self),
+                    )?,
                 };
                 self.memory.set(memory_index, value);
                 return Ok(value);
@@ -1804,7 +1807,7 @@ pub(crate) fn structured_serialize_with_transfer(
         else {
             // 1. Assert: transferable is a platform object that is a transferable object.
             let platform_object = platform_object.expect("transferable is a transferable object");
-            assert!(is_platform_object(*transferable));
+            assert!(transferable.is_platform_object());
 
             // 2. Let interfaceName be the identifier of the primary interface of transferable.
             let interface_name = platform_object.primary_interface();

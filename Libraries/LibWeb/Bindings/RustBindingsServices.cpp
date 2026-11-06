@@ -55,14 +55,6 @@ GC::Ref<JS::HostObject> wrap_rust_interface_object(WrapperWorld& wrapper_world, 
 constexpr JSHostClass web_bindings_rust_interface_wrapper_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "RustInterface"sv,
     nullptr, nullptr, nullptr, JS_HOST_CLASS_IS_PLATFORM_OBJECT);
 
-RustInterfaceCell* rust_interface_cell_of_wrapper(JS::Object& object, JSHostClass const& wrapper_host_class)
-{
-    auto* wrapper = as_if<JS::HostObject>(object);
-    if (!wrapper || &wrapper->host_class() != &wrapper_host_class)
-        return nullptr;
-    return GC::static_cell_cast<RustInterfaceCell>(JS::host_data_of(object).ptr());
-}
-
 bool rust_interface_object_implements_interface(JS::Object const& object, StringView interface_name)
 {
     auto const* wrapper = as_if<JS::HostObject>(object);
