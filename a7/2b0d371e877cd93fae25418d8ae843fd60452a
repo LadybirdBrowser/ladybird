@@ -1,0 +1,9 @@
+Ladybird’s drawingBufferWidth and drawingBufferHeight report the canvas
+size clamped to between 1 and the largest the drawing buffer supports,
+which is the size the buffer is allocated at. The other engines do the
+same: Blink’s WebGLRenderingContextBase::ClampedCanvasSize() clamps each
+dimension to between 1 and the maximum viewport dimension, and its
+drawingBufferWidth() reads the size of the drawing buffer. WebKit’s
+clampedCanvasSize() constrains the size between 1x1 and the maximum
+viewport dimensions. And Gecko’s ClientWebGLContext::SetDimensions()
+makes a width or height of 0 into 1.
