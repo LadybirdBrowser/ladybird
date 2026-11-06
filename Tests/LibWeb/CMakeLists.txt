@@ -15,11 +15,9 @@ set(TEST_SOURCES
     TestAudioWorkletPipe.cpp
     TestBlobBytes.cpp
     TestContentBlocker.cpp
-    TestControlMessageQueue.cpp
     TestCSSDecodeBytes.cpp
     TestCSSIDSpeed.cpp
     TestCSSPropertyList.cpp
-    TestDump.cpp
     TestEventLoop.cpp
     TestFaviconDecoding.cpp
     TestFetchAlgorithms.cpp
@@ -36,7 +34,6 @@ set(TEST_SOURCES
     TestHighResolutionTime.cpp
     TestHTMLTokenizer.cpp
     TestImageData.cpp
-    TestInitialLoadTracker.cpp
     TestInlineStyle.cpp
     TestLoaderConfig.cpp
     TestMimeSniff.cpp
