@@ -17,12 +17,13 @@
 #include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/PaintStyle.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 
+class SkColorSpace;
 class SkImage;
 class SkImageFilter;
+class SkPaint;
 class SkPath;
 template<typename T>
 class sk_sp;
@@ -68,16 +69,20 @@ private:
     ENUMERATE_CANVAS_2D_COMMANDS(DECLARE_PLAY_COMMAND)
 #undef DECLARE_PLAY_COMMAND
 
+    void clear_rect(Gfx::FloatRect const&, Gfx::Color);
     void draw_image(SkImage const&, Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::ScalingMode, Compositing::Canvas2DCompositing const&);
 
     ReadonlyBytes inline_data(Compositing::DisplayListDataSpan) const;
     SkPath path_from(Compositing::DisplayListDataSpan) const;
     sk_sp<SkImageFilter> image_filter_from(Compositing::Canvas2DCompositing const&) const;
-    RefPtr<Gfx::PaintStyle> paint_style_from(Compositing::Canvas2DPaint const&) const;
+    // The colors of a canvas are in the color space of its surface.
+    SkColorSpace* surface_color_space() const;
+    // Has no value if the image of a pattern can't be resolved.
+    Optional<SkPaint> paint_from(Compositing::Canvas2DPaint const& style, Compositing::Canvas2DCompositing const&) const;
 
     Gfx::ColorSpace m_color_space;
     NonnullRefPtr<Gfx::PaintingSurface> m_surface;
-    NonnullOwnPtr<Gfx::PainterSkia> m_painter;
+    int m_initial_save_count { 0 };
     Resolvers m_resolvers;
     // The payload of the record that plays, which the spans of its command address.
     ReadonlyBytes m_payload;

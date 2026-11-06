@@ -29,7 +29,6 @@ set(SOURCES
     RustProcessState.cpp
     ImageFormats/JPEGWriter.cpp
     ImageFormats/PNGWriter.cpp
-    PaintStyle.cpp
     Palette.cpp
     PathData.cpp
     Point.cpp

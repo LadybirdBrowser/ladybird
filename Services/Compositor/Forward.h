@@ -8,7 +8,6 @@
 
 namespace Gfx {
 
-class PainterSkia;
 class PaintingSurface;
 class SkiaBackendContext;
 

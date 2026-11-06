@@ -11,9 +11,11 @@
 #include <AK/Assertions.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
-#include <LibGfx/PaintStyle.h>
+#include <LibGfx/Forward.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/StrokeStyle.h>
 #include <LibGfx/WindingRule.h>
@@ -23,6 +25,7 @@
 #include <core/SkColorType.h>
 #include <core/SkImage.h>
 #include <core/SkImageFilter.h>
+#include <core/SkMatrix.h>
 #include <core/SkPaint.h>
 #include <core/SkPath.h>
 #include <core/SkSamplingOptions.h>
@@ -139,6 +142,7 @@ constexpr SkSamplingOptions to_skia_sampling_options(ScalingMode scaling_mode)
     VERIFY_NOT_REACHED();
 }
 
+SkMatrix to_skia_matrix(AffineTransform const&);
 SkPath to_skia_path(PathData const&);
 SkPath skia_path_from_serialized_bytes(ReadonlyBytes);
 // Builds the SkImageFilter tree a serialized filter graph describes; `image_frame` supplies the
