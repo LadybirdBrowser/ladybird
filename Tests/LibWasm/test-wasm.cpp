@@ -136,7 +136,6 @@ public:
         return entity;
     }
 
-    // NB: Like the last store, the last roots are left for the process to reclaim, since the heap is gone at exit.
     static Vector<GC::Root<GC::ForeignCell>>& roots()
     {
         static NeverDestroyed<Vector<GC::Root<GC::ForeignCell>>> roots;
@@ -240,6 +239,11 @@ GC_DEFINE_ALLOCATOR(WebAssemblyModule);
 Wasm::Runtime::Store* WebAssemblyModule::s_store;
 HashMap<ImportName, Wasm::Runtime::Extern> WebAssemblyModule::s_spec_test_namespace;
 
+}
+
+TESTJS_MAIN_HOOK()
+{
+    ::Test::JS::g_main_exit_hook = WebAssemblyModule::reset_store;
 }
 
 TESTJS_RUN_FILE_FUNCTION(ByteString const&, JS::Realm&, JS::ExecutionContext&)

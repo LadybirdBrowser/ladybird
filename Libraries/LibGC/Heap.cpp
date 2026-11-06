@@ -336,6 +336,10 @@ Heap::~Heap()
 {
     VERIFY(is_on_owner_thread());
     collect_garbage(CollectionType::CollectEverything);
+
+    // A root that outlives its heap would reach into freed memory when it goes.
+    VERIFY(m_roots.is_empty());
+
     free_weak_blocks();
 
     while (auto* allocator = m_all_cell_allocators.first())

@@ -106,6 +106,8 @@ struct FunctionWithLength {
 extern HashMap<Utf16String, FunctionWithLength> s_exposed_global_functions;
 extern ByteString g_test_root_fragment;
 extern void (*g_main_hook)();
+// Runs before the VM goes away, which nothing may keep roots into.
+extern void (*g_main_exit_hook)();
 extern HashMap<bool*, Tuple<ByteString, ByteString, char>> g_extra_args;
 
 struct ParserError {
