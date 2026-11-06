@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<!-- With accessibility updates asked for, a change to the page serializes its accessibility tree. That took a stack
+     frame per nesting level, and 8000 levels overflowed an 8 MiB stack. -->
+<body>
+<script>
+    internals.setAccessibilityInterested();
+    let deepest = document.body;
+    for (let depth = 0; depth < 8000; ++depth)
+        deepest = deepest.appendChild(document.createElement("div"));
+    deepest.textContent = "leaf";
+    document.body.offsetHeight;
+</script>
+</body>
