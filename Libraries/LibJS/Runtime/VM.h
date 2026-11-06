@@ -158,6 +158,12 @@ public:
     [[nodiscard]] Debugger* debugger();
     [[nodiscard]] Debugger const* debugger() const;
 
+    // Stops script on this VM for good: it unwinds past every handler, finally blocks included, up to the native code
+    // that ran it, and nothing runs on this VM anymore. Native code sees a thrown exception, and whatever it tries to
+    // run next throws one as well. Any thread may call this, as long as the VM stays alive until it returns.
+    void request_interrupt();
+    [[nodiscard]] bool interrupt_requested() const;
+
 #define __JS_ENUMERATE(SymbolName, snake_name)                 \
     GC::Ref<Symbol> well_known_symbol_##snake_name() const     \
     {                                                          \

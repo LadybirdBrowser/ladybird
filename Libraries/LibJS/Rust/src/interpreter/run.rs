@@ -100,7 +100,11 @@ impl Vm {
             this_register.set(context_ref.this_value.get());
         }
 
-        if self.interpreter_stack().is_exhausted() || self.did_reach_stack_space_limit() {
+        if self.interrupt_requested() {
+            context_ref
+                .register(register::EXCEPTION)
+                .set(self.interrupt_exception());
+        } else if self.interpreter_stack().is_exhausted() || self.did_reach_stack_space_limit() {
             let Err(throw) =
                 self.throw_completion::<()>(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[])
             else {
@@ -578,7 +582,14 @@ impl Vm {
 
     /// Unwinds to the innermost handler of an exception thrown at `program_counter` in the running frame, leaving
     /// frames the interpreter entered without returning to the runtime.
+    ///
+    /// Once the VM is interrupted, whatever was thrown becomes the interrupt exception, which no handler catches, not
+    /// even a finally block: it unwinds to the native caller, and no script runs on the way.
     pub fn handle_exception(&self, mut program_counter: u32, exception: Value) -> HandleExceptionResponse {
+        if self.interrupt_requested() {
+            return self.unwind_for_interrupt();
+        }
+
         // An exception that unwinds out to a native caller enters here again in the frame that called it, so remember
         // only where it was first thrown.
         if !self.is_last_throw(exception) {
@@ -669,6 +680,28 @@ impl Vm {
                 debugger.did_finish_exception_propagation(exception);
             }
             return HandleExceptionResponse::ExitFromExecutable;
+        }
+    }
+
+    /// Like handle_exception() for a thrown interrupt: leaves frames the interpreter entered, up to one that a native
+    /// caller waits for. A native caller that goes on to run code gets the same exception, as the VM stays interrupted.
+    #[cold]
+    #[inline(never)]
+    fn unwind_for_interrupt(&self) -> HandleExceptionResponse {
+        let exception = self.interrupt_exception();
+        loop {
+            let context_pointer = self
+                .running_execution_context()
+                .expect("an exception is thrown in a running frame");
+            // SAFETY: The running context is live until it is deallocated below.
+            let context = unsafe { context_pointer.as_ref() };
+            let caller_frame = context.caller_frame.get();
+            if context.returns_to_native_caller.get() || caller_frame.is_null() {
+                context.register(register::EXCEPTION).set(exception);
+                return HandleExceptionResponse::ExitFromExecutable;
+            }
+            self.interpreter_stack().deallocate(context_pointer.as_ptr().cast());
+            self.head.running_execution_context.set(caller_frame);
         }
     }
 }

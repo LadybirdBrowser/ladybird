@@ -232,6 +232,29 @@ pub unsafe extern "C" fn js_vm_set_source_text_syntaxes(vm: *mut JSVM, stack_fra
     );
 }
 
+/// Stops script on the VM for good: it unwinds past every handler, and nothing runs on the VM from then on. Any thread
+/// may call this.
+///
+/// # Safety
+///
+/// `vm` must stay alive until this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_request_interrupt(vm: *mut JSVM) {
+    // SAFETY: The caller keeps the VM alive, and the call only touches its atomics.
+    unsafe { vm_from_abi(vm) }.request_interrupt();
+}
+
+/// Whether js_vm_request_interrupt() was called on the VM. Any thread may call this.
+///
+/// # Safety
+///
+/// `vm` must stay alive until this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_interrupt_requested(vm: *mut JSVM) -> bool {
+    // SAFETY: The caller keeps the VM alive, and the call only touches its atomics.
+    unsafe { vm_from_abi(vm) }.interrupt_requested()
+}
+
 /// Makes `agent` the surrounding agent of the VM: its [[CanBlock]] says whether Atomics.wait() may block, and await in
 /// native code spins its event loop until the awaited promise settles. Without an agent, which a null `agent` sets,
 /// Atomics.wait() may block and await runs the VM's own queue of promise jobs, which is empty if an enqueue_promise_job

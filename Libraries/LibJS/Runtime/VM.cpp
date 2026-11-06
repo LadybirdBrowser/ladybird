@@ -444,6 +444,16 @@ bool VM::debugging_enabled() const
     return js_debugger_is_enabled(vm_abi(*this));
 }
 
+void VM::request_interrupt()
+{
+    js_vm_request_interrupt(vm_abi(*this));
+}
+
+bool VM::interrupt_requested() const
+{
+    return js_vm_interrupt_requested(vm_abi(*this));
+}
+
 Debugger* VM::debugger()
 {
     if (!debugging_enabled())

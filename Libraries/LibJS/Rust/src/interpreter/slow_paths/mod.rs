@@ -1296,8 +1296,8 @@ impl RuntimeFunctions for Runtime {
         control::debugger_check_breakpoint(vm, pc);
     }
 
-    fn fallback_handler(_vm: &Vm, pc: u32, _instruction: *const u8) -> SlowPathControl {
-        control::fallback_handler(pc)
+    fn fallback_handler(vm: &Vm, pc: u32, _instruction: *const u8) -> SlowPathControl {
+        control::fallback_handler(vm, pc)
     }
 
     fn new_array(

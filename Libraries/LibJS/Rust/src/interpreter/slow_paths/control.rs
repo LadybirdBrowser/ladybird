@@ -127,9 +127,12 @@ pub fn debugger_check_breakpoint(vm: &Vm, pc: u32) {
     debugger.set_did_pause_before_current_instruction(did_pause);
 }
 
-pub fn fallback_handler(_pc: u32) -> SlowPathControl {
-    // NB: Every bytecode opcode has a DSL handler, so this should never run.
-    unreachable!("every bytecode opcode has a handler")
+/// Every dispatch table entry of an interrupted VM leads here, which stops the interpreter (see
+/// `Vm::request_interrupt()`).
+pub fn fallback_handler(vm: &Vm, pc: u32) -> SlowPathControl {
+    // NB: Every bytecode opcode has a DSL handler, so nothing else gets here.
+    assert!(vm.interrupt_requested(), "every bytecode opcode has a handler");
+    handle_asm_exception(vm, pc, vm.interrupt_exception())
 }
 
 /// The array of an array literal with `elements`, where the empty value is a hole.
