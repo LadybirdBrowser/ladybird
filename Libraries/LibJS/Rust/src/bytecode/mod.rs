@@ -29,7 +29,6 @@
 
 #[cfg(not(test))]
 pub mod class_blueprint;
-#[path = "codegen/mod.rs"]
 pub mod codegen;
 pub mod constant;
 pub mod constant_fold;
