@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+pre {
+    font: 13px monospace;
+    margin: 0;
+}
+</style>
+<pre id="text">	pkgname	=</pre>
+<pre>	<span id="pkgname">pkgname</span>	<span id="equals">=</span></pre>
+<script>
+    // The text after a tab is where the tab stop puts it, both for the text itself and for ranges in it.
+    test(() => {
+        const text = document.getElementById("text").firstChild;
+        const rangeRect = (start, end) => {
+            const range = document.createRange();
+            range.setStart(text, start);
+            range.setEnd(text, end);
+            return range.getBoundingClientRect();
+        };
+        const pkgname = document.getElementById("pkgname").getBoundingClientRect();
+        const equals = document.getElementById("equals").getBoundingClientRect();
+        println(`word after a leading tab: ${rangeRect(1, 8).left === pkgname.left && rangeRect(1, 8).width === pkgname.width}`);
+        println(`text after a tab mid-line: ${rangeRect(9, 10).left === equals.left}`);
+    });
+</script>

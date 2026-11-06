@@ -1,0 +1,2 @@
+word after a leading tab: true
+text after a tab mid-line: true
