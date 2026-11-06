@@ -19,7 +19,7 @@ mod vector;
 pub(crate) use vector::{is_vector_shift, vector_constant_inputs, vector_temps};
 
 use crate::RuntimeInfo;
-use crate::asm::x86_64::{Assembler, BitwiseOp, Cond, Precision, VexOperand};
+use crate::asm::x86_64::{Assembler, BitwiseOp, BranchGroups, Cond, Precision, VexOperand};
 use crate::asm::{Address, Fpr, Gpr, Label, Width};
 use crate::convention::{self, Register};
 use crate::ir::{BlockId, FloatCondition, Func, IntCondition, NONE, Op, Type, Value};
@@ -107,6 +107,12 @@ pub struct CodeGenerator<'a> {
     /// The block whose code is being generated.
     block: BlockId,
     exception_sites: Vec<u32>,
+}
+
+impl BranchGroups for CodeGenerator<'_> {
+    fn branch_assembler(&mut self) -> &mut Assembler {
+        &mut self.asm
+    }
 }
 
 impl<'a> CodeGenerator<'a> {
@@ -544,22 +550,39 @@ impl<'a> CodeGenerator<'a> {
     /// A branch on an integer condition, inverted where the taken successor comes next and needs no moves, or is a
     /// loop header the edge needs moves into, so that those moves are inline rather than in a stub that jumps again.
     fn branch_on(&mut self, cond: Cond) {
+        self.compare_and_branch_on(cond, |_| {});
+    }
+
+    /// A `branch_on()` of what `compare` sets the flags for. The compare stays right in front of the branch, which it
+    /// macro-fuses with, so that padding for the branch goes before them both.
+    fn compare_and_branch_on(&mut self, cond: Cond, compare: impl Fn(&mut Self)) {
         let block = self.block;
         let data = self.func.blocks[block as usize];
         let successors = self.func.successors(block);
         let (taken, fallthrough) = (successors[0], successors[1]);
         if taken == block + 1 && self.allocation.edge(data.successors_start).is_empty() {
             let label = self.edge_label(data.successors_start + 1, fallthrough);
-            self.asm.jcc(cond.invert(), label);
+            self.branch_group(|generator| {
+                compare(generator);
+                generator.asm.jcc(cond.invert(), label);
+            });
             return;
         }
         if self.func.is_loop_header(taken) && !self.allocation.edge(data.successors_start).is_empty() {
             let label = self.edge_label(data.successors_start + 1, fallthrough);
-            self.asm.jcc(cond.invert(), label);
+            self.branch_group(|generator| {
+                compare(generator);
+                generator.asm.jcc(cond.invert(), label);
+            });
             self.jump(0);
             return;
         }
-        self.branch(|generator, taken, _| generator.asm.jcc(cond, taken));
+        self.branch(|generator, taken, _| {
+            generator.branch_group(|generator| {
+                compare(generator);
+                generator.asm.jcc(cond, taken);
+            });
+        });
     }
 
     fn lower_terminator(&mut self, value: Value) {
@@ -570,13 +593,15 @@ impl<'a> CodeGenerator<'a> {
             Op::Jump => self.jump(0),
             Op::Branch => {
                 let register = gpr(record.inputs[0]);
-                self.asm.test_rr(Width::W32, register, register);
-                self.branch_on(Cond::NotEqual);
+                self.compare_and_branch_on(Cond::NotEqual, |generator| {
+                    generator.asm.test_rr(Width::W32, register, register);
+                });
             }
             Op::BranchCompare => {
                 let ty = func.node(node.args[0]).ty;
-                self.compare(ty, record.inputs[0], record.inputs[1], node.args[1]);
-                self.branch_on(condition(IntCondition::from_flags(node.flags)));
+                self.compare_and_branch_on(condition(IntCondition::from_flags(node.flags)), |generator| {
+                    generator.compare(ty, record.inputs[0], record.inputs[1], node.args[1]);
+                });
             }
             Op::BranchFloatCompare => {
                 let ty = func.node(node.args[0]).ty;
