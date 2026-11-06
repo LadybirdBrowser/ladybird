@@ -530,7 +530,6 @@ static ButtonType* create_toolbar_button(QWidget& parent, QAction& action)
     return button;
 }
 
-static constexpr int TOOLBAR_HORIZONTAL_MARGIN = 8;
 // The buttons in the toolbar sit close together, while the address field keeps a wider gap on either side.
 static constexpr int TOOLBAR_SPACING = 2;
 // The separator after the collapsed sidebar's buttons keeps a little more room on either side.

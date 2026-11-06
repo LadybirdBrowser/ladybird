@@ -19,6 +19,8 @@ static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_GAP = 14;
 // The Ladybird button keeps 24 px clear to the traffic lights before it.
 // NB: The traffic lights reach 3 px past the room kept for them.
 static constexpr int LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP = 27;
+// The toolbar's contents start this far in from its leading edge.
+static constexpr int TOOLBAR_HORIZONTAL_MARGIN = 8;
 // Empty parts of a widget with this property move the window, and a double click on them maximizes it.
 static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 
