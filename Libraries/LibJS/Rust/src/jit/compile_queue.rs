@@ -90,7 +90,19 @@ impl CompileQueue {
                                 continue;
                             }
                         };
-                        let result = libjs_jit::compile(&snapshot);
+                        let compiled = {
+                            let _scratch = ak::ScratchHeapScope::enter();
+                            libjs_jit::compile(&snapshot)
+                        };
+                        // NB: Nearly all a compile allocates is gone when it ends. The code it leaves
+                        //     outlives it, and would keep the pages of its temporary data if it stayed
+                        //     there, so it moves out of the scratch heap here.
+                        #[allow(
+                            clippy::map_clone,
+                            clippy::redundant_clone,
+                            reason = "the copy is what moves the code out of the scratch heap"
+                        )]
+                        let result = compiled.map(|code| code.clone());
                         if result_sender.send((id, result)).is_err() {
                             return;
                         }

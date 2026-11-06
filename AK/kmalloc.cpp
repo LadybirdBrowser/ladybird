@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/Platform.h>
 #include <AK/kmalloc.h>
 
@@ -85,6 +86,15 @@ void ak_kmalloc_collect()
 {
 }
 
+void* ak_enter_scratch_heap()
+{
+    return nullptr;
+}
+
+void ak_leave_scratch_heap(void*)
+{
+}
+
 #else
 
 #    if defined(AK_OS_LINUX) || defined(AK_OS_MACOS)
@@ -114,6 +124,7 @@ void* ak_kmalloc(size_t size)
 
 static thread_local mi_heap_t* s_buffer_heap = nullptr;
 static thread_local mi_heap_t* s_string_heap = nullptr;
+static thread_local mi_heap_t* s_scratch_heap = nullptr;
 
 static mi_heap_t* heap_for_partition(HeapPartition partition)
 {
@@ -178,14 +189,34 @@ void ak_kfree(void* ptr)
 
 void ak_kmalloc_collect()
 {
+    // NB: In a scratch heap, mi_collect() would collect that heap again instead of the thread's own.
+    VERIFY(!s_scratch_heap || mi_heap_get_default() != s_scratch_heap);
+
     // mi_collect() only visits the calling thread's default heap, so the thread-local partitions have to be collected
     // separately. The remaining partitions are shared between threads and are left to their owners.
     if (s_buffer_heap)
         mi_heap_collect(s_buffer_heap, true);
     if (s_string_heap)
         mi_heap_collect(s_string_heap, true);
+    if (s_scratch_heap)
+        mi_heap_collect(s_scratch_heap, true);
 
     mi_collect(true);
+}
+
+void* ak_enter_scratch_heap()
+{
+    if (!s_scratch_heap)
+        s_scratch_heap = mi_heap_new();
+    // NB: Without a heap of its own, the work allocates from the thread's heap as usual.
+    if (!s_scratch_heap)
+        return mi_heap_get_default();
+    return mi_heap_set_default(s_scratch_heap);
+}
+
+void ak_leave_scratch_heap(void* previous_heap)
+{
+    mi_heap_set_default(static_cast<mi_heap_t*>(previous_heap));
 }
 
 #endif
