@@ -1,6 +1,5 @@
 if (BUILD_TESTING AND NOT WIN32)
     if (APPLE OR LINUX)
-        ladybird_python_test(test-bytecode-cache-blob-is-file-backed.py ARGS $<TARGET_FILE:WebDriver>)
         ladybird_python_test(test-devtools-catch-up-layout.py ARGS $<TARGET_FILE:ladybird>)
         ladybird_python_test(test-devtools-client-follows-the-tab.py ARGS $<TARGET_FILE:ladybird>)
         ladybird_python_test(test-iframe-console.py ARGS $<TARGET_FILE:ladybird>)
