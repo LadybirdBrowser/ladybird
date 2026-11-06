@@ -184,3 +184,148 @@ test("block-level function named arguments with arguments object reached through
     }
     expect(g(1, 2)).toEqual([2, "function"]);
 });
+
+test("var named arguments shares the binding of the arguments object", () => {
+    function capturedBeforeDeclaration() {
+        const length = (() => arguments.length)();
+        var arguments;
+        return [length, arguments.length];
+    }
+    expect(capturedBeforeDeclaration(1, 2)).toEqual([2, 2]);
+
+    function capturedAfterDeclaration() {
+        var arguments;
+        return (() => arguments.length)();
+    }
+    expect(capturedAfterDeclaration(1, 2)).toBe(2);
+
+    function assignedThroughArrowFunction() {
+        var arguments;
+        const assign = () => {
+            arguments = "assigned";
+        };
+        assign();
+        return arguments;
+    }
+    expect(assignedThroughArrowFunction()).toBe("assigned");
+
+    function capturedFunctionDeclaration() {
+        const type = (() => typeof arguments)();
+        function arguments() {}
+        return type;
+    }
+    expect(capturedFunctionDeclaration()).toBe("function");
+
+    function capturedBlockFunction() {
+        const before = (() => typeof arguments)();
+        {
+            function arguments() {}
+        }
+        return [before, typeof arguments];
+    }
+    expect(capturedBlockFunction()).toEqual(["object", "function"]);
+
+    function blockFunctionWithParameterExpression(first = 1) {
+        const before = (() => typeof arguments)();
+        {
+            function arguments() {}
+        }
+        return [before, typeof arguments];
+    }
+    expect(blockFunctionWithParameterExpression()).toEqual(["object", "function"]);
+
+    function laterBindingsKeepTheirPlaces() {
+        var arguments;
+        var first = 1;
+        var second = 2;
+        const read = () => [first, second];
+        first++;
+        return read();
+    }
+    expect(laterBindingsKeepTheirPlaces()).toEqual([2, 2]);
+});
+
+test("lexical declaration named arguments takes the place of the arguments object", () => {
+    function captured() {
+        const before = (() => {
+            try {
+                return arguments;
+            } catch (error) {
+                return error.name;
+            }
+        })();
+        let arguments = 1;
+        return [before, arguments];
+    }
+    expect(captured(1)).toEqual(["ReferenceError", 1]);
+
+    function reachedThroughDirectEval() {
+        const before = (() => {
+            try {
+                return eval("typeof arguments");
+            } catch (error) {
+                return error.name;
+            }
+        })();
+        let arguments = 1;
+        return [before, (() => arguments)()];
+    }
+    expect(reachedThroughDirectEval()).toEqual(["ReferenceError", 1]);
+
+    function laterBindingsStayDeclared() {
+        const before = (() => {
+            try {
+                return arguments;
+            } catch (error) {
+                return error.name;
+            }
+        })();
+        let arguments = 1;
+        var other = 2;
+        const read = () => other;
+        return [before, read()];
+    }
+    expect(laterBindingsStayDeclared()).toEqual(["ReferenceError", 2]);
+});
+
+test("mapped arguments object in the strict code of a class", () => {
+    function computedKey(first) {
+        class C {
+            [arguments[0]]() {}
+        }
+        return Object.getOwnPropertyNames(C.prototype);
+    }
+
+    function heritage(first) {
+        const C = class extends arguments[0] {};
+        return Object.getPrototypeOf(C) === first;
+    }
+
+    function assignment(first) {
+        class C {
+            [(arguments[0] = "assigned")]() {}
+        }
+        return first;
+    }
+
+    function arrowInKey(first) {
+        class C {
+            [(() => arguments[0])()]() {}
+        }
+        return Object.getOwnPropertyNames(C.prototype);
+    }
+
+    function withEnvironment(first) {
+        const capture = () => this;
+        class C {
+            [arguments[0]]() {}
+        }
+        return Object.getOwnPropertyNames(C.prototype);
+    }
+
+    expect(computedKey("key")).toEqual(["constructor", "key"]);
+    expect(heritage(Object)).toBeTrue();
+    expect(assignment("original")).toBe("assigned");
+    expect(arrowInKey("key")).toEqual(["constructor", "key"]);
+    expect(withEnvironment("key")).toEqual(["constructor", "key"]);
+});

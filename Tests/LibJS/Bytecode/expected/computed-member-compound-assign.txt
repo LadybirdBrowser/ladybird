@@ -1,5 +1,5 @@
-$01294703 computed-member-compound-assign.js:15:1
-  Registers: 9
+$fe6555f3 computed-member-compound-assign.js:15:1
+  Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
@@ -8,19 +8,20 @@ $01294703 computed-member-compound-assign.js:15:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `compound_computed`
-  [  18] NewObject dst:reg7
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, compound_computed, arguments:[reg7, String("x")]
-  [  50] GetGlobal value_feedback:2, dst:reg7, `compound_then_assign`
-  [  60] NewObject dst:reg8
-  [  70] InitObjectLiteralProperty object:reg8, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  88] CacheObjectShape object:reg8
-  [  98] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, compound_then_assign, arguments:[reg8, String("x")]
-  [  c0] End value:reg6
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `compound_computed`
+  [  28] NewObject dst:reg7
+  [  38] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, String("x")]
+  [  60] GetGlobal value_feedback:2, dst:reg6, `compound_then_assign`
+  [  70] NewObject dst:reg7
+  [  80] InitObjectLiteralProperty object:reg7, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  98] CacheObjectShape object:reg7
+  [  a8] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, String("x")]
+  [  d0] End value:reg5
 
 
-compound_computed$a50f1bab computed-member-compound-assign.js:7:14
-  Registers: 9
+compound_computed$7b93fbbb computed-member-compound-assign.js:7:14
+  Registers: 8
   Blocks:    1
   Constants:
     [0] = Int32(1)
@@ -28,17 +29,16 @@ compound_computed$a50f1bab computed-member-compound-assign.js:7:14
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:arg0
-  [  18] ThrowIfNullish src:reg5
-  [  20] ToPrimitiveWithStringHint dst:reg6, value:arg1
-  [  30] GetByValue value_feedback:0, keyed_feedback:0, dst:reg7, base:reg5, property:reg6 (obj[reg6])
-  [  50] AddRhsInt32 arith_feedback:0, dst:reg8, lhs:reg7, rhs:1
-  [  60] PutByValue keyed_feedback:1, base:reg5, property:reg6, src:reg8, kind:Normal
-  [  80] End value:Undefined
+  [   8] ThrowIfNullish src:arg0
+  [  10] ToPrimitiveWithStringHint dst:reg5, value:arg1
+  [  20] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:arg0, property:reg5
+  [  40] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg6, rhs:1
+  [  50] PutByValue keyed_feedback:1, base:arg0, property:reg5, src:reg7, kind:Normal
+  [  70] End value:Undefined
 
 
-compound_then_assign$223bcf74 computed-member-compound-assign.js:11:13
-  Registers: 9
+compound_then_assign$abe99b2c computed-member-compound-assign.js:11:13
+  Registers: 8
   Blocks:    1
   Constants:
     [0] = Int32(0)
@@ -46,12 +46,10 @@ compound_then_assign$223bcf74 computed-member-compound-assign.js:11:13
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:arg0
-  [  18] ThrowIfNullish src:reg5
-  [  20] ToPrimitiveWithStringHint dst:reg6, value:arg1
-  [  30] GetByValue value_feedback:0, keyed_feedback:0, dst:reg7, base:reg5, property:reg6 (imag[reg6])
-  [  50] AddRhsInt32 arith_feedback:0, dst:reg8, lhs:reg7, rhs:0
-  [  60] PutByValue keyed_feedback:1, base:reg5, property:reg6, src:reg8, kind:Normal
-  [  80] Mov2 c0_dst:reg8, c0_src:arg0, c1_dst:reg5, c1_src:arg1
-  [  98] PutByValue keyed_feedback:2, base:reg8, property:reg5, src:arg1, kind:Normal (imag[reg5])
-  [  b8] End value:Undefined
+  [   8] ThrowIfNullish src:arg0
+  [  10] ToPrimitiveWithStringHint dst:reg5, value:arg1
+  [  20] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:arg0, property:reg5
+  [  40] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg6, rhs:0
+  [  50] PutByValue keyed_feedback:1, base:arg0, property:reg5, src:reg7, kind:Normal
+  [  70] PutByValue keyed_feedback:2, base:arg0, property:arg1, src:arg1, kind:Normal
+  [  90] End value:Undefined

@@ -1,4 +1,4 @@
-$6c6bb70b do-while-register-allocation.js:15:1
+$69a7c5fb do-while-register-allocation.js:15:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,13 +6,14 @@ $6c6bb70b do-while-register-allocation.js:15:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `test`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, test
-  [  38] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `test`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  48] End value:reg5
 
 
-test$62b23a07 do-while-register-allocation.js:9:5
-  Registers: 9
+test$dda5d10a do-while-register-allocation.js:8:9
+  Registers: 7
   Blocks:    3
   Locals:    i~0
   Constants:
@@ -22,20 +23,20 @@ test$62b23a07 do-while-register-allocation.js:9:5
 
 block0:
   [   0] Enter
-  [   8] Mov2 c0_dst:i~0, c0_src:Undefined, c1_dst:i~0, c1_src:Int32(0)
-  [  20] GetGlobal value_feedback:0, dst:reg6, `foo`
-  [  30] NewArray dst:reg7
-  [  40] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+  [   8] Mov dst:i~0, src:Undefined
+  [  18] Mov dst:i~0, src:Int32(0)
+  [  28] GetGlobal value_feedback:0, dst:reg5, `foo`
+  [  38] NewArray dst:reg6
+  [  48] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined, arguments:[reg6]
 
 block1:
-  [  68] GetGlobal value_feedback:2, dst:reg7, `bar`
-  [  78] Mov dst:reg8, src:i~0
-  [  88] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
-  [  b0] PostfixIncrement arith_feedback:1, dst:reg6, src:i~0
-  [  c0] JumpLessThanLoopRhsInt32 arith_feedback:0, lhs:i~0, rhs:7, true_target:block1, false_target:block2
+  [  70] GetGlobal value_feedback:2, dst:reg5, `bar`
+  [  80] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg5, this_value:Undefined, arguments:[i~0]
+  [  a8] Increment arith_feedback:0, dst:i~0
+  [  b0] JumpLessThanLoopRhsInt32 arith_feedback:1, lhs:i~0, rhs:7, true_target:block1, false_target:block2
 
 block2:
-  [  d8] End value:Undefined
+  [  c8] End value:Undefined
 
 
 foo$14c42854 do-while-register-allocation.js:2:5

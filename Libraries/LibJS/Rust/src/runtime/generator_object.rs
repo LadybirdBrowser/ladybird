@@ -59,7 +59,7 @@ impl GeneratingFunction {
             GeneratingFunction::Ecmascript(function) => function
                 .bytecode_executable()
                 .expect("a generating function is compiled before it is called"),
-            GeneratingFunction::NativeJavaScriptBacked(function) => function.bytecode_executable(vm),
+            GeneratingFunction::NativeJavaScriptBacked(function) => function.bytecode_executable(vm).must(),
         }
     }
 }

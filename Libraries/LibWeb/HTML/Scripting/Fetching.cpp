@@ -60,37 +60,17 @@ static ByteBuffer take_body_bytes_as_byte_buffer(Fetch::Infrastructure::FetchAlg
     return body_bytes.get<Core::ImmutableBytes>().copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
 }
 
-static JS::OffThreadCompilationCallbacks thread_pool_compilation_callbacks()
-{
-    auto& main_thread_event_loop = Core::EventLoop::current();
-    return {
-        .submit_work = [](Function<void()> work) { Threading::ThreadPool::the().submit(move(work)); },
-        .post_to_main_thread = [&main_thread_event_loop](Function<void()> task) { main_thread_event_loop.deferred_invoke(move(task)); },
-    };
-}
-
-static void compile_remaining_module_functions_off_thread(ModuleScript& module_script, NonnullRefPtr<JS::SourceCode const> source_code)
-{
-    module_script.record().visit(
-        [](Empty) { },
-        [](GC::Ref<JS::SyntheticModule>) { },
-        [](GC::Ref<JS::HostModule>) { },
-        [source_code = move(source_code)](GC::Ref<JS::SourceTextModule> module) mutable {
-            JS::compile_remaining_functions_off_thread(*module, move(source_code), thread_pool_compilation_callbacks());
-        });
-}
-
 // Submit parsing and top-level bytecode generation to the thread pool, then bounce back to the main thread via
 // deferred_invoke once the worker is done, and on to a task of the settings object's global there. Syntax errors still
 // come back as a ParsedProgram so the main thread can report them through the same Script/ModuleScript construction
 // paths; successful programs come back as CompiledProgram artifacts whose GC-backed Executable materialization must
 // still happen on the main thread.
-// NB: The SourceCode stays on the main thread inside the heap-allocated callback. The worker thread only receives a view
-//     of its code, which stays unchanged while the SourceCode lives.
+// NB: The SourceCode stays on the main thread inside the heap-allocated callback. The worker thread only receives its
+//     code, which is thread-safe to share.
 static void compile_off_thread(EnvironmentSettingsObject& settings_object, NonnullRefPtr<JS::SourceCode const> source_code, JS::ProgramType type, size_t line_number_offset, Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)> on_compiled)
 {
-    // Extract the view the parser needs while still on the main thread.
-    auto source_text = source_code->code().utf16_view();
+    // Take the code the parser needs while still on the main thread.
+    auto source_text = source_code->code();
 
     // Capture source_code in the callback so it stays alive on the main thread and is available for materialization.
     // The script runs in a task of the settings object's global, so never beside a rendering update in flight that holds
@@ -108,8 +88,8 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Nonnu
 
     auto& main_thread_event_loop = Core::EventLoop::current();
 
-    Threading::ThreadPool::the().submit([source_text, type, line_number_offset, callback, &main_thread_event_loop]() {
-        OffThreadCompiledProgram result { .parsed = JS::ParsedProgram::parse(source_text, type, line_number_offset) };
+    Threading::ThreadPool::the().submit([source_text = move(source_text), type, line_number_offset, callback, &main_thread_event_loop]() mutable {
+        OffThreadCompiledProgram result { .parsed = JS::ParsedProgram::parse(move(source_text), type, line_number_offset) };
         if (result.parsed && !result.parsed.has_errors())
             result.compiled = JS::CompiledProgram::compile(move(result.parsed));
 
@@ -492,8 +472,6 @@ void fetch_classic_script(JS::Realm& realm, URL::URL const& url, EnvironmentSett
                 auto script = result.compiled
                     ? ClassicScript::create_from_pre_compiled(move(filename), source_code, *settings_root, move(response_url), move(result.compiled), muted_errors)
                     : ClassicScript::create_from_pre_parsed(move(filename), source_code, *settings_root, move(response_url), move(result.parsed), muted_errors);
-                if (auto script_record = script->script_record())
-                    JS::compile_remaining_functions_off_thread(*script_record, move(source_code), thread_pool_compilation_callbacks());
                 on_complete_root->function()(script);
             });
     };
@@ -864,10 +842,8 @@ void fetch_single_module_script(JS::Realm& realm,
                         auto module_script = result.compiled
                             ? ModuleScript::create_from_pre_compiled(url_string, source_code, *settings_root, move(response_url), move(result.compiled)).release_value_but_fixme_should_propagate_errors()
                             : ModuleScript::create_from_pre_parsed(url_string, source_code, *settings_root, move(response_url), move(result.parsed)).release_value_but_fixme_should_propagate_errors();
-                        if (module_script) {
+                        if (module_script)
                             module_script->set_fetch_options(options);
-                            compile_remaining_module_functions_off_thread(*module_script, move(source_code));
-                        }
                         settings_root->module_map().complete_fetch(url, module_type_string, module_script);
                     });
                 return;

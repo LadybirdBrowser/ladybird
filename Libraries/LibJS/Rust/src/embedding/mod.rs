@@ -23,7 +23,6 @@ pub mod abi_types;
 pub mod array;
 pub mod array_buffer;
 pub mod bigint;
-pub mod bytecode_cache;
 pub mod collections;
 pub mod compile;
 pub mod completion;

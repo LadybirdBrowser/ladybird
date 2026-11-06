@@ -104,7 +104,7 @@ pub unsafe extern "C" fn js_script_parse(
             host_defined_slot_from_abi(host_defined),
         )
     };
-    let source: Vec<u16> = source.code_units().collect();
+    let source = source.to_utf16_string();
     match Script::parse_with_host_defined(
         vm,
         &source,

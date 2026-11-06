@@ -8,8 +8,9 @@
 
 use ak::{Utf16FlyString, Utf16String};
 
+use crate::bytecode::codegen::DisposableResourceKind;
+use crate::bytecode::codegen::stream::Finally;
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
-use crate::bytecode::generator::{DisposableResourceKind, FinallyContext};
 use crate::bytecode::op;
 use crate::debugger::PauseReason;
 use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm_exception};
@@ -664,7 +665,7 @@ pub fn add_disposable_resource(
 /// completion if its type is the throw type of a finally context, and a normal one otherwise. The resources are
 /// disposed of the same way for every other type.
 fn completion_of_scope(completion_type: Value, completion_value: Value) -> Completion {
-    if completion_type.is_int32() && completion_type.as_i32() == FinallyContext::THROW {
+    if completion_type.is_int32() && completion_type.as_i32() == Finally::THROW {
         Completion::new(CompletionType::Throw, completion_value)
     } else {
         Completion::normal(Value::UNDEFINED)

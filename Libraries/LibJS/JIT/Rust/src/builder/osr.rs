@@ -15,10 +15,11 @@
 //! Each back edge gets an entry block without predecessors that loads the
 //! slots live into the back edge instruction from the frame and then runs the
 //! instruction itself, or jumps to its block where the instruction starts it
-//! (as the tests at the bottom of loops do). Where the instruction jumps to the
-//! update step of a for loop, which leads to the loop's header, the entry runs
-//! that step itself instead. Its edges are forward edges into the loop and the
-//! loop exit, so the values it loaded meet the other paths in phis.
+//! (as the tests at the bottom of loops do). Where the instruction jumps to a
+//! block that leads to the loop's header and nowhere else, like the body of a
+//! for loop whose test is a constant, the entry runs that block itself instead.
+//! Its edges are forward edges into the loop and the loop exit, so the values
+//! it loaded meet the other paths in phis.
 //!
 //! Generators and async functions resume the same way: a suspended frame holds
 //! every value live at the continuation it resumes at (see `build_suspend()`),
@@ -119,9 +120,10 @@ impl GraphBuilder<'_> {
             //     Unconditional back edges jump to their loop's header
             //     directly instead, since entering a block of the loop
             //     other than its header would make the loop irreducible.
-            //     Those of loops whose update step has a block of its own
-            //     (like for loops with a continue) jump to that step, which
-            //     the entry runs itself before it continues at the header.
+            //     Those that jump to a block leading to the header (like the
+            //     body of a for loop whose test is a constant, where the test
+            //     is the header) have the entry run that block itself before
+            //     it continues at the header.
             let opcode = self.function.instructions[index].instruction.opcode();
             let own_block = self
                 .function
@@ -132,9 +134,9 @@ impl GraphBuilder<'_> {
             if let Some(own_block) = own_block {
                 self.end_with_jump(own_block)?;
                 targets.push(own_block);
-            } else if let Some(update_block) = self.update_block_of_back_edge(index) {
-                self.build_bytecode_block(update_block)?;
-                targets.extend(self.function.cfg.blocks[update_block].successors.iter().copied());
+            } else if let Some(block_before_header) = self.block_before_header_of_back_edge(index) {
+                self.build_bytecode_block(block_before_header)?;
+                targets.extend(self.function.cfg.blocks[block_before_header].successors.iter().copied());
             } else {
                 match self.build_instruction()? {
                     Flow::Ended => {}
@@ -274,7 +276,7 @@ impl GraphBuilder<'_> {
 
     /// The block that the unconditional back edge at instruction `index` jumps
     /// to, if it is no loop header and leads to one and nowhere else.
-    fn update_block_of_back_edge(&self, index: usize) -> Option<BlockIndex> {
+    fn block_before_header_of_back_edge(&self, index: usize) -> Option<BlockIndex> {
         let instruction = &self.function.instructions[index].instruction;
         if instruction.opcode() != OpCode::JumpLoop {
             return None;

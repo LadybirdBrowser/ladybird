@@ -21,7 +21,7 @@ jit.compile(addOnOddIterations);
 // CHECK: CheckInt32
 // CHECK-PASS: representation selection
 // CHECK: loop:
-// CHECK-NEXT: :int32 = Phi
 // CHECK-NEXT: [[STEP:v[0-9]+]]:int32 = Phi
+// CHECK-NEXT: :int32 = Phi
 // CHECK: Int32WrappingAdd ({{v[0-9]+}}, [[STEP]])
 // CHECK: osr entry at pc

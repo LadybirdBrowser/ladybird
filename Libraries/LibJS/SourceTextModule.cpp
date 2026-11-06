@@ -30,34 +30,4 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(U
     return record_or_parser_errors_from_abi<SourceTextModule>(module, errors);
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
-{
-    ParserErrorCollector errors;
-    auto utf16_filename = filename_to_utf16(filename);
-    auto* module = js_bytecode_cache_create_module(
-        vm_to_abi(realm.vm()),
-        decoded_bytecode_cache_to_abi(*bytecode_cache),
-        source_code_to_abi(*source_code),
-        realm_to_abi(realm),
-        utf16_view_to_abi(utf16_filename.utf16_view()),
-        host_defined.ptr(),
-        errors.sink());
-    return record_or_parser_errors_from_abi<SourceTextModule>(module, errors);
-}
-
-void SourceTextModule::begin_bytecode_cache_generation()
-{
-    js_bytecode_cache_module_begin_generation(vm_to_abi(vm()), module_to_abi(*this));
-}
-
-void SourceTextModule::finish_bytecode_cache_generation_without_install()
-{
-    js_bytecode_cache_module_finish_generation_without_install(vm_to_abi(vm()), module_to_abi(*this));
-}
-
-void SourceTextModule::install_generated_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
-{
-    js_bytecode_cache_module_install_generated(vm_to_abi(vm()), module_to_abi(*this), decoded_bytecode_cache_to_abi(*bytecode_cache), source_code_to_abi(*source_code));
-}
-
 }

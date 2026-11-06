@@ -1,4 +1,4 @@
-$9431c529 right-shift-by-zero.js:5:1
+$916dd419 right-shift-by-zero.js:5:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,9 +7,10 @@ $9431c529 right-shift-by-zero.js:5:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `foo`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[Double(1.5)]
-  [  40] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `foo`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Double(1.5)]
+  [  50] End value:reg5
 
 
 foo$17881964 right-shift-by-zero.js:2:5

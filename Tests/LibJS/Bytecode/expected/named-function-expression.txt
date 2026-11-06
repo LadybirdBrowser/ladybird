@@ -1,16 +1,20 @@
-$e2be3867 named-function-expression.js:4:6
+$12b60500 named-function-expression.js:4:1
   Registers: 8
   Blocks:    1
+  Constants:
+    [0] = Undefined
 
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  28] CreateVariable `Oops`, is_immutable:true, is_global:false, is_strict:false
-  [  38] NewFunction dst:reg6, shared_function_data_index:0
-  [  50] InitializeLexicalBinding `Oops`, src:reg6
-  [  68] SetLexicalEnvironment environment:reg4
-  [  70] SetGlobal `Oops`, src:reg6
-  [  80] GetGlobal value_feedback:0, dst:reg5, `Oops`
-  [  90] GetById value_feedback:1, dst:reg7, base:reg5, `x` (Oops.x)
-  [  a8] End value:reg7
+  [  10] Mov dst:reg5, src:Undefined
+  [  20] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  38] CreateVariable `Oops`, is_immutable:true, is_global:false, is_strict:false
+  [  48] NewFunction dst:reg6, shared_function_data_index:0
+  [  60] InitializeLexicalBinding `Oops`, src:reg6
+  [  78] SetLexicalEnvironment environment:reg4
+  [  80] SetGlobal `Oops`, src:reg6
+  [  90] Mov dst:reg5, src:reg6
+  [  a0] GetGlobal value_feedback:0, dst:reg6, `Oops`
+  [  b0] GetById value_feedback:1, dst:reg5, base:reg6, `x`
+  [  c8] End value:reg5

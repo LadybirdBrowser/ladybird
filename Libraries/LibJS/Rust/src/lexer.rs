@@ -34,10 +34,11 @@
 //! type, because escaped keywords have different semantics (they can be
 //! used as identifiers in some contexts).
 
-use crate::ast::Utf16String;
 use crate::token::Token;
 use crate::token::TokenType;
 use crate::u32_from_usize;
+use crate::utf16::Utf16View;
+use ak::Utf16String;
 
 /// State for tracking template literal nesting.
 #[derive(Clone)]
@@ -46,19 +47,8 @@ struct TemplateState {
     open_bracket_count: u32,
 }
 
-/// Saved lexer state for lookahead and backtracking.
-pub(crate) struct SavedLexerState {
-    position: usize,
-    current_code_unit: u16,
-    eof: bool,
-    line_number: u32,
-    line_column: u32,
-    current_token_type: TokenType,
-    template_states: Vec<TemplateState>,
-}
-
 pub struct Lexer<'a> {
-    source: &'a [u16],
+    source: Utf16View<'a>,
     /// 1-based index into `source`: always one past `current_code_unit`.
     /// Subtract 1 to get the 0-based index of the current code unit.
     position: usize,
@@ -68,9 +58,7 @@ pub struct Lexer<'a> {
     line_column: u32,
     current_token_type: TokenType,
     regex_is_in_character_class: bool,
-    allow_html_comments: bool,
     template_states: Vec<TemplateState>,
-    saved_states: Vec<SavedLexerState>,
 }
 
 // Unicode constants used by the lexical grammar.
@@ -122,14 +110,15 @@ fn is_utf16_low_surrogate(cu: u16) -> bool {
 
 /// Decode a code point from a UTF-16 slice starting at `pos`.
 /// Returns (code_point, number_of_code_units_consumed).
-fn decode_code_point(source: &[u16], pos: usize) -> (u32, usize) {
-    if pos >= source.len() {
+fn decode_code_point(source: Utf16View<'_>, pos: usize) -> (u32, usize) {
+    let length = source.length_in_code_units();
+    if pos >= length {
         return (0xFFFD, 1);
     }
-    let cu = source[pos];
-    if is_utf16_high_surrogate(cu) && pos + 1 < source.len() && is_utf16_low_surrogate(source[pos + 1]) {
+    let cu = source.code_unit_at(pos);
+    if is_utf16_high_surrogate(cu) && pos + 1 < length && is_utf16_low_surrogate(source.code_unit_at(pos + 1)) {
         let hi = cu as u32;
-        let lo = source[pos + 1] as u32;
+        let lo = source.code_unit_at(pos + 1) as u32;
         let cp = 0x10000 + ((hi - 0xD800) << 10) + (lo - 0xDC00);
         (cp, 2)
     } else {
@@ -396,7 +385,7 @@ fn parse_three_char_token(ch0: u16, ch1: u16, ch2: u16) -> TokenType {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(source: &'a [u16], line_number: u32, line_column: u32) -> Self {
+    pub fn new(source: Utf16View<'a>, line_number: u32, line_column: u32) -> Self {
         let mut lexer = Lexer {
             source,
             position: 0,
@@ -406,30 +395,7 @@ impl<'a> Lexer<'a> {
             line_column,
             current_token_type: TokenType::Eof,
             regex_is_in_character_class: false,
-            allow_html_comments: true,
             template_states: Vec::new(),
-            saved_states: Vec::new(),
-        };
-        lexer.consume();
-        lexer
-    }
-
-    pub fn new_at_offset(source: &'a [u16], offset: usize, line_number: u32, line_column: u32) -> Self {
-        let mut lexer = Lexer {
-            source,
-            position: offset,
-            current_code_unit: 0,
-            eof: false,
-            line_number,
-            // consume() below will bump line_column by one; pre-decrement so
-            // the post-consume state has line_column equal to the column of
-            // the character at `offset`.
-            line_column: line_column.saturating_sub(1),
-            current_token_type: TokenType::Eof,
-            regex_is_in_character_class: false,
-            allow_html_comments: true,
-            template_states: Vec::new(),
-            saved_states: Vec::new(),
         };
         lexer.consume();
         lexer
@@ -445,14 +411,8 @@ impl<'a> Lexer<'a> {
             .expect("template_states must not be empty")
     }
 
-    // https://tc39.es/ecma262/#sec-html-like-comments
-    // HTML-like comments are only recognized in Script (not Module) code.
-    pub fn disallow_html_comments(&mut self) {
-        self.allow_html_comments = false;
-    }
-
     fn source_len(&self) -> usize {
-        self.source.len()
+        self.source.length_in_code_units()
     }
 
     fn consume(&mut self) {
@@ -469,8 +429,9 @@ impl<'a> Lexer<'a> {
         }
 
         if self.is_line_terminator() {
-            let second_char_of_crlf =
-                self.position > 1 && self.source[self.position - 2] == ch(b'\r') && self.current_code_unit == ch(b'\n');
+            let second_char_of_crlf = self.position > 1
+                && self.source.code_unit_at(self.position - 2) == ch(b'\r')
+                && self.current_code_unit == ch(b'\n');
 
             if !second_char_of_crlf {
                 self.line_number += 1;
@@ -479,7 +440,7 @@ impl<'a> Lexer<'a> {
         } else {
             if is_utf16_high_surrogate(self.current_code_unit)
                 && self.position < self.source_len()
-                && is_utf16_low_surrogate(self.source[self.position])
+                && is_utf16_low_surrogate(self.source.code_unit_at(self.position))
             {
                 self.position += 1;
                 if self.position >= self.source_len() {
@@ -493,7 +454,7 @@ impl<'a> Lexer<'a> {
             self.line_column += 1;
         }
 
-        self.current_code_unit = self.source[self.position];
+        self.current_code_unit = self.source.code_unit_at(self.position);
         self.position += 1;
     }
 
@@ -550,7 +511,7 @@ impl<'a> Lexer<'a> {
         if pos >= self.source_len() {
             return None;
         }
-        if self.source[pos] != ch(b'u') {
+        if self.source.code_unit_at(pos) != ch(b'u') {
             return None;
         }
         let pos = pos + 1;
@@ -558,14 +519,14 @@ impl<'a> Lexer<'a> {
             return None;
         }
 
-        if self.source[pos] == ch(b'{') {
+        if self.source.code_unit_at(pos) == ch(b'{') {
             let mut cp: u32 = 0;
             let mut i = pos + 1;
             if i >= self.source_len() {
                 return None;
             }
-            while i < self.source_len() && self.source[i] != ch(b'}') {
-                let cu = self.source[i];
+            while i < self.source_len() && self.source.code_unit_at(i) != ch(b'}') {
+                let cu = self.source.code_unit_at(i);
                 if !is_ascii_hex_digit(cu) {
                     return None;
                 }
@@ -575,7 +536,7 @@ impl<'a> Lexer<'a> {
                 }
                 i += 1;
             }
-            if i >= self.source_len() || self.source[i] != ch(b'}') {
+            if i >= self.source_len() || self.source.code_unit_at(i) != ch(b'}') {
                 return None;
             }
             let consumed = i + 1 - (self.position - 1);
@@ -586,7 +547,7 @@ impl<'a> Lexer<'a> {
             }
             let mut cp: u32 = 0;
             for i in 0..4 {
-                let cu = self.source[pos + i];
+                let cu = self.source.code_unit_at(pos + i);
                 if !is_ascii_hex_digit(cu) {
                     return None;
                 }
@@ -631,9 +592,13 @@ impl<'a> Lexer<'a> {
 
     /// Re-scan the source from `scan_start` (1-based position) to `self.position`
     /// and build a decoded identifier value. Only called when escapes are present.
-    fn build_identifier_value(&self, scan_start: usize) -> Utf16String {
-        let raw = &self.source[scan_start - 1..self.position - 1];
-        let mut result = Utf16String(Vec::with_capacity(raw.len()));
+    fn build_identifier_value(&self, scan_start: usize) -> Vec<u16> {
+        let raw: Vec<u16> = self
+            .source
+            .substring_view(scan_start - 1, self.position - scan_start)
+            .code_units()
+            .collect();
+        let mut result = Vec::with_capacity(raw.len());
         let mut i = 0;
         while i < raw.len() {
             if raw[i] == ch(b'\\') {
@@ -650,7 +615,7 @@ impl<'a> Lexer<'a> {
                         if i < raw.len() {
                             i += 1; // skip '}'
                         }
-                        encode_utf16(cp, &mut result.0);
+                        encode_utf16(cp, &mut result);
                     } else {
                         let mut cp: u32 = 0;
                         for _ in 0..4 {
@@ -659,11 +624,11 @@ impl<'a> Lexer<'a> {
                                 i += 1;
                             }
                         }
-                        encode_utf16(cp, &mut result.0);
+                        encode_utf16(cp, &mut result);
                     }
                 }
             } else {
-                result.0.push(raw[i]);
+                result.push(raw[i]);
                 i += 1;
             }
         }
@@ -716,14 +681,16 @@ impl<'a> Lexer<'a> {
         if self.position >= self.source_len() {
             return false;
         }
-        self.current_code_unit == a && self.source[self.position] == b
+        self.current_code_unit == a && self.source.code_unit_at(self.position) == b
     }
 
     fn match3(&self, a: u16, b: u16, c: u16) -> bool {
         if self.position + 1 >= self.source_len() {
             return false;
         }
-        self.current_code_unit == a && self.source[self.position] == b && self.source[self.position + 1] == c
+        self.current_code_unit == a
+            && self.source.code_unit_at(self.position) == b
+            && self.source.code_unit_at(self.position + 1) == c
     }
 
     fn match4(&self, a: u16, b: u16, c: u16, d: u16) -> bool {
@@ -731,16 +698,16 @@ impl<'a> Lexer<'a> {
             return false;
         }
         self.current_code_unit == a
-            && self.source[self.position] == b
-            && self.source[self.position + 1] == c
-            && self.source[self.position + 2] == d
+            && self.source.code_unit_at(self.position) == b
+            && self.source.code_unit_at(self.position + 1) == c
+            && self.source.code_unit_at(self.position + 2) == d
     }
 
     fn match_numeric_literal_separator_followed_by(&self, check: fn(u16) -> bool) -> bool {
         if self.position >= self.source_len() {
             return false;
         }
-        self.current_code_unit == ch(b'_') && check(self.source[self.position])
+        self.current_code_unit == ch(b'_') && check(self.source.code_unit_at(self.position))
     }
 
     // https://tc39.es/ecma262/#sec-comments
@@ -755,8 +722,8 @@ impl<'a> Lexer<'a> {
     // HashbangComment :: `#!` SingleLineCommentChars?
     fn is_line_comment_start(&self, line_has_token_yet: bool) -> bool {
         self.match2(ch(b'/'), ch(b'/'))
-            || (self.allow_html_comments && self.match4(ch(b'<'), ch(b'!'), ch(b'-'), ch(b'-')))
-            || (self.allow_html_comments && !line_has_token_yet && self.match3(ch(b'-'), ch(b'-'), ch(b'>')))
+            || (self.match4(ch(b'<'), ch(b'!'), ch(b'-'), ch(b'-')))
+            || (!line_has_token_yet && self.match3(ch(b'-'), ch(b'-'), ch(b'>')))
             || (self.match2(ch(b'#'), ch(b'!')) && self.position == 1)
     }
 
@@ -772,7 +739,7 @@ impl<'a> Lexer<'a> {
         is_ascii_digit(self.current_code_unit)
             || (self.current_code_unit == ch(b'.')
                 && self.position < self.source_len()
-                && is_ascii_digit(self.source[self.position]))
+                && is_ascii_digit(self.source.code_unit_at(self.position)))
     }
 
     // https://tc39.es/ecma262/#sec-lexical-and-regexp-grammars
@@ -1035,7 +1002,7 @@ impl<'a> Lexer<'a> {
                 let has_escape = self.scan_identifier_body(len);
                 if has_escape {
                     let decoded = self.build_identifier_value(value_start);
-                    identifier_value = Some(decoded);
+                    identifier_value = Some(Utf16String::from_utf16(&decoded));
                 }
                 token_type = TokenType::PrivateIdentifier;
             } else {
@@ -1056,10 +1023,13 @@ impl<'a> Lexer<'a> {
                 } else {
                     token_type = TokenType::Identifier;
                 }
-                identifier_value = Some(decoded);
+                identifier_value = Some(Utf16String::from_utf16(&decoded));
             } else {
-                let source_slice = &self.source[value_start - 1..self.position - 1];
-                if let Some(kw) = keyword_from_str(source_slice) {
+                let keyword = self
+                    .source
+                    .substring_view(value_start - 1, self.position - value_start)
+                    .with_utf16_code_units(keyword_from_str);
+                if let Some(kw) = keyword {
                     token_type = kw;
                 } else {
                     token_type = TokenType::Identifier;
@@ -1144,7 +1114,7 @@ impl<'a> Lexer<'a> {
                     self.consume();
                     if self.current_code_unit == ch(b'\r')
                         && self.position < self.source_len()
-                        && self.source[self.position] == ch(b'\n')
+                        && self.source.code_unit_at(self.position) == ch(b'\n')
                     {
                         self.consume();
                     }
@@ -1181,8 +1151,8 @@ impl<'a> Lexer<'a> {
 
             if !found_token && self.position + 1 < self.source_len() {
                 let ch0 = self.current_code_unit;
-                let ch1 = self.source[self.position];
-                let ch2 = self.source[self.position + 1];
+                let ch1 = self.source.code_unit_at(self.position);
+                let ch2 = self.source.code_unit_at(self.position + 1);
                 let tt = parse_three_char_token(ch0, ch1, ch2);
                 if tt != TokenType::Invalid {
                     found_token = true;
@@ -1195,7 +1165,7 @@ impl<'a> Lexer<'a> {
 
             if !found_token && self.position < self.source_len() {
                 let ch0 = self.current_code_unit;
-                let ch1 = self.source[self.position];
+                let ch1 = self.source.code_unit_at(self.position);
                 let tt = parse_two_char_token(ch0, ch1);
                 if tt != TokenType::Invalid {
                     // https://tc39.es/ecma262/#sec-punctuators
@@ -1203,7 +1173,7 @@ impl<'a> Lexer<'a> {
                     // This prevents `a?.3:b` from being parsed as optional chaining.
                     if !(tt == TokenType::QuestionMarkPeriod
                         && self.position + 1 < self.source_len()
-                        && is_ascii_digit(self.source[self.position + 1]))
+                        && is_ascii_digit(self.source.code_unit_at(self.position + 1)))
                     {
                         found_token = true;
                         token_type = tt;
@@ -1240,9 +1210,10 @@ impl<'a> Lexer<'a> {
         self.current_token_type = token_type;
 
         let trivia_has_line_terminator = if trivia_start > 0 && value_start > trivia_start {
-            self.source[trivia_start - 1..value_start - 1]
-                .iter()
-                .any(|&cu| cu == ch(b'\n') || cu == ch(b'\r') || cu == LINE_SEPARATOR || cu == PARAGRAPH_SEPARATOR)
+            self.source
+                .substring_view(trivia_start - 1, value_start - trivia_start)
+                .code_units()
+                .any(|cu| cu == ch(b'\n') || cu == ch(b'\r') || cu == LINE_SEPARATOR || cu == PARAGRAPH_SEPARATOR)
         } else {
             false
         };
@@ -1259,96 +1230,6 @@ impl<'a> Lexer<'a> {
             trivia_has_line_terminator,
             identifier_value,
             message: token_message,
-        }
-    }
-
-    // === State accessors for parser save/restore ===
-
-    pub fn position(&self) -> usize {
-        self.position
-    }
-
-    pub fn line_number(&self) -> u32 {
-        self.line_number
-    }
-
-    pub fn line_column(&self) -> u32 {
-        self.line_column
-    }
-
-    pub fn restore(&mut self, position: usize, line_number: u32, line_column: u32) {
-        self.position = position;
-        self.line_number = line_number;
-        self.line_column = line_column;
-        self.eof = position > self.source_len();
-        // position is one past current_code_unit, so restore from position - 1
-        if position > 0 && position <= self.source_len() {
-            self.current_code_unit = self.source[position - 1];
-        } else {
-            self.current_code_unit = 0;
-        }
-    }
-
-    pub fn save_state(&mut self) {
-        self.saved_states.push(SavedLexerState {
-            position: self.position,
-            current_code_unit: self.current_code_unit,
-            eof: self.eof,
-            line_number: self.line_number,
-            line_column: self.line_column,
-            current_token_type: self.current_token_type,
-            template_states: self.template_states.clone(),
-        });
-    }
-
-    pub fn load_state(&mut self) {
-        let state = self.saved_states.pop().expect("No saved lexer state");
-        self.position = state.position;
-        self.current_code_unit = state.current_code_unit;
-        self.eof = state.eof;
-        self.line_number = state.line_number;
-        self.line_column = state.line_column;
-        self.current_token_type = state.current_token_type;
-        self.template_states = state.template_states;
-    }
-
-    pub fn discard_saved_state(&mut self) {
-        self.saved_states.pop();
-    }
-
-    /// Re-lex the current Slash or SlashEquals token as a regex literal.
-    pub fn force_slash_as_regex(&mut self) -> Token {
-        let has_equals = self.current_token_type == TokenType::SlashEquals;
-
-        assert!(self.position > 0);
-        let mut value_start = self.position - 1;
-
-        // Capture line position at the start of the '/' token, before consuming the regex body.
-        let token_line_number = self.line_number;
-        let mut token_line_column = self.line_column.saturating_sub(1);
-
-        if has_equals {
-            value_start -= 1;
-            self.position -= 1;
-            self.current_code_unit = ch(b'=');
-            token_line_column = token_line_column.saturating_sub(1);
-        }
-
-        let token_type = self.consume_regex_literal();
-        self.current_token_type = token_type;
-
-        Token {
-            token_type,
-            trivia_start: 0,
-            trivia_len: 0,
-            value_start: u32_from_usize(value_start.saturating_sub(1)),
-            value_len: u32_from_usize(self.position - value_start),
-            line_number: token_line_number,
-            line_column: token_line_column,
-            offset: u32_from_usize(value_start.saturating_sub(1)),
-            trivia_has_line_terminator: false,
-            identifier_value: None,
-            message: None,
         }
     }
 }

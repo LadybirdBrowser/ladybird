@@ -1,22 +1,23 @@
-$091ab4cd class-computed-field-lhs-name.js:1:1
-  Registers: 7
+$90d14739 class-computed-field-lhs-name.js:1:5
+  Registers: 8
   Blocks:    1
   Constants:
-    [0] = Int32(1)
-    [1] = Int32(2)
-    [2] = Int32(3)
-    [3] = Undefined
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
+    [3] = Int32(3)
 
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (C), element_keys:[element_keys:Int32(3)]
-  [  60] SetGlobal `C`, src:reg6
-  [  70] GetGlobal value_feedback:0, dst:reg5, `C`
-  [  80] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg5, C
-  [  a0] End value:reg6
+  [  10] Mov dst:reg5, src:Undefined
+  [  20] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0, is_catch_environment:false
+  [  38] SetLexicalEnvironment environment:reg4
+  [  40] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0 (C), element_keys:[element_keys:Int32(3)]
+  [  70] SetGlobal `C`, src:reg6
+  [  80] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  90] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
+  [  b0] End value:reg5
 
 
 C$638b9046

@@ -1,66 +1,66 @@
-$bdbbce45 sequential-try-blocks.js:17:1
-  Registers: 10
+$b56ffb15 sequential-try-blocks.js:17:1
+  Registers: 9
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `console`
-  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
-  [  30] GetGlobal value_feedback:2, dst:reg9, `sequentialTryCatch`
-  [  40] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:Undefined, sequentialTryCatch
-  [  60] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  88] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  28] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  40] GetGlobal value_feedback:2, dst:reg8, `sequentialTryCatch`
+  [  50] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
+  [  70] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  98] End value:reg5
 
 
-sequentialTryCatch$0d4847fe sequential-try-blocks.js:2:5
-  Registers: 8
-  Blocks:    5
-  Locals:    e~0, e~1, result~2
+sequentialTryCatch$d96d6fd5 sequential-try-blocks.js:2:9
+  Registers: 6
+  Blocks:    6
+  Locals:    result~0, e~1, e~2
   Constants:
     [0] = String("")
-    [1] = String("b")
-    [2] = String("a")
-    [3] = Int32(1)
-    [4] = String("d")
+    [1] = String("a")
+    [2] = Int32(1)
+    [3] = <Empty>
+    [4] = String("b")
     [5] = String("c")
     [6] = Int32(2)
+    [7] = String("d")
 
 block0:
   [   0] Enter
-  [   8] Mov dst:result~2, src:String("")
-  [  18] Jump target:block2
+  [   8] Mov dst:result~0, src:String("")
 
 block1:
-  [  20] Catch value_feedback:0, dst:reg5
-  [  28] Mov2 c0_dst:e~0, c0_src:reg5, c1_dst:reg6, c1_src:result~2
-  [  40] Add arith_feedback:0, dst:reg7, lhs:reg6, rhs:String("b")
-  [  50] Mov dst:result~2, src:reg7
-  [  60] Jump target:block4
+  [  18] Add arith_feedback:0, dst:result~0, lhs:result~0, rhs:String("a")
+  [  28] Throw src:Int32(1)
 
 block2:
-  [  68] Mov dst:reg5, src:result~2
-  [  78] Add arith_feedback:1, dst:reg7, lhs:reg5, rhs:String("a")
-  [  88] Mov dst:result~2, src:reg7
-  [  98] Throw src:Int32(1)
+  [  30] Catch value_feedback:0, dst:reg5
+  [  38] Mov dst:e~1, src:<Empty>
+  [  48] Mov dst:e~1, src:reg5
+  [  58] Add arith_feedback:1, dst:result~0, lhs:result~0, rhs:String("b")
+  [  68] Jump target:block3
 
 block3:
-  [  a0] Catch value_feedback:1, dst:reg7
-  [  a8] Mov2 c0_dst:e~1, c0_src:reg7, c1_dst:reg5, c1_src:result~2
-  [  c0] Add arith_feedback:2, dst:reg6, lhs:reg5, rhs:String("d")
-  [  d0] Mov dst:result~2, src:reg6
-  [  e0] Return value:result~2
+  [  70] Add arith_feedback:2, dst:result~0, lhs:result~0, rhs:String("c")
+  [  80] Throw src:Int32(2)
 
 block4:
-  [  e8] Mov dst:reg7, src:result~2
-  [  f8] Add arith_feedback:3, dst:reg6, lhs:reg7, rhs:String("c")
-  [ 108] Mov dst:result~2, src:reg6
-  [ 118] Throw src:Int32(2)
+  [  88] Catch value_feedback:1, dst:reg5
+  [  90] Mov dst:e~2, src:<Empty>
+  [  a0] Mov dst:e~2, src:reg5
+  [  b0] Add arith_feedback:3, dst:result~0, lhs:result~0, rhs:String("d")
+  [  c0] Jump target:block5
+
+block5:
+  [  c8] Return value:result~0
 
 Exception handlers:
-  [  68 ..   a0] => handler block1
-  [  e8 ..  120] => handler block3
+  [  18 ..   30] => handler block2
+  [  70 ..   88] => handler block4
 
 
 "abcd"

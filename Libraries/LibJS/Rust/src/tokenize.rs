@@ -9,6 +9,7 @@
 use crate::lexer::Lexer;
 use crate::token::TokenCategory;
 use crate::token::TokenType;
+use crate::utf16::Utf16View;
 
 /// A token, with the trivia (whitespace and comments) before it. Offsets and lengths count UTF-16 code units.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,7 +23,7 @@ pub struct SourceToken {
 }
 
 /// The tokens of `source`, ending with its end-of-file token, whose trivia is whatever follows the last token.
-pub fn tokenize(source: &[u16]) -> SourceTokens<'_> {
+pub fn tokenize(source: Utf16View<'_>) -> SourceTokens<'_> {
     SourceTokens {
         lexer: Lexer::new(source, 1, 0),
         reached_end_of_file: false,

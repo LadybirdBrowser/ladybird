@@ -1234,17 +1234,17 @@ fn parse_and_run(
     let mut result: ThrowCompletionOr<Value> = Ok(Value::UNDEFINED);
     // Like Utf16String::from_utf8(), this stops the process for a source that is not valid UTF-8, which the caller
     // has ruled out.
-    let utf16_source = utf16_from_wtf8(source).expect("the source is valid UTF-8");
+    let source_text = Utf16String::from_utf8(core::str::from_utf8(source).expect("the source is valid UTF-8"));
 
     let program_type = if options.as_module {
         ProgramType::Module
     } else {
         ProgramType::Script
     };
-    let mut parsed = parse(&utf16_source, program_type, 1);
+    let mut parsed = parse(&source_text, program_type, 1);
     if parsed.has_errors() {
         let error = ParserError::all_from_parsed_program(&parsed).swap_remove(0);
-        let hint = error.source_location_hint(&utf16_source, b' ', b'^');
+        let hint = error.source_location_hint(&source_text.to_utf16(), b' ', b'^');
         if !hint.is_empty() {
             standard_output::outln(&Utf16View::Utf16(&hint).to_wtf8());
         }
@@ -1262,10 +1262,7 @@ fn parse_and_run(
             let _ = stdout.write_all(b"\n");
             let _ = stdout.flush();
         }
-        let source_code = SourceCode::create(
-            Utf16String::from_utf8(source_name),
-            Utf16String::from_utf16(&utf16_source),
-        );
+        let source_code = SourceCode::create(Utf16String::from_utf8(source_name), source_text);
         if !options.as_module {
             let script = Script::create_from_parsed_with_filename(vm, parsed, source_code, realm, source_name);
             if !parse_only {
@@ -1702,7 +1699,7 @@ mod repl {
         //    - <N>.<P>
         //        where N is the complete name of a variable and
         //        P is part of the name of one of its properties
-        let mut lexer = Lexer::new(&code, 1, 0);
+        let mut lexer = Lexer::new(Utf16View::Utf16(&code), 1, 0);
         let mut last_token_has_trivia = loop {
             let token = lexer.next();
             if token.token_type == TokenType::Eof {
@@ -1831,7 +1828,7 @@ mod repl {
     fn update_line_level_for_line(line: &[u16]) -> bool {
         let mut label_state = LabelState::NotInLabelOrObjectKey;
 
-        let mut lexer = Lexer::new(line, 1, 0);
+        let mut lexer = Lexer::new(Utf16View::Utf16(line), 1, 0);
         loop {
             let token = lexer.next();
             match token.token_type {

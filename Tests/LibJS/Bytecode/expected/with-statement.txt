@@ -1,4 +1,4 @@
-$d0083583 with-statement.js:7:1
+$cd444473 with-statement.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,13 +6,14 @@ $d0083583 with-statement.js:7:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `withBlock`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, withBlock
-  [  38] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `withBlock`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  48] End value:reg5
 
 
-withBlock$927ba86b with-statement.js:2:15
-  Registers: 10
+withBlock$345aed1d with-statement.js:2:9
+  Registers: 9
   Blocks:    1
   Locals:    obj~0
   Constants:
@@ -22,16 +23,17 @@ withBlock$927ba86b with-statement.js:2:15
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] NewObject dst:obj~0
-  [  20] InitObjectLiteralProperty object:obj~0, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
-  [  38] CacheObjectShape object:obj~0
-  [  48] EnterObjectEnvironment dst:reg5, object:obj~0
-  [  58] DynamicGetBinding value_feedback:0, dst:reg7, `console`
-  [  68] GetById value_feedback:1, dst:reg8, base:reg7, `log` (console.log)
-  [  80] DynamicGetBinding value_feedback:2, dst:reg9, `x`
-  [  90] Call value_feedback:3, call_feedback:0, dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [  b8] SetLexicalEnvironment environment:reg4
-  [  c0] End value:Undefined
+  [  10] NewObject dst:reg5
+  [  20] InitObjectLiteralProperty object:reg5, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
+  [  38] CacheObjectShape object:reg5
+  [  48] Mov dst:obj~0, src:reg5
+  [  58] EnterObjectEnvironment dst:reg5, object:obj~0
+  [  68] DynamicGetBinding value_feedback:0, dst:reg6, `console`
+  [  78] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  90] DynamicGetBinding value_feedback:2, dst:reg8, `x`
+  [  a0] Call value_feedback:3, call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  c8] SetLexicalEnvironment environment:reg4
+  [  d0] End value:Undefined
 
 
 42

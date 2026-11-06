@@ -338,11 +338,9 @@ pub fn compile_dynamic_function(
     kind: FunctionKind,
 ) -> Result<Gc<SharedFunctionInstanceData>, ParserError> {
     let source_code = SourceCode::create(Utf16String::default(), source_text.clone());
-    let mut full_source = Vec::with_capacity(source_code.length_in_code_units());
-    Utf16View::of_string(source_code.code()).append_to(&mut full_source);
-
-    let description = crate::compile::parse_dynamic_function(&full_source, parameters_string, body_parse_string, kind)
-        .and_then(crate::compile::ParsedDynamicFunction::into_description);
+    let description =
+        crate::compile::parse_dynamic_function(source_code.code(), parameters_string, body_parse_string, kind)
+            .and_then(crate::compile::ParsedDynamicFunction::into_description);
     let description = match description {
         Ok(description) => description,
         Err(errors) => {
@@ -355,7 +353,7 @@ pub fn compile_dynamic_function(
         }
     };
 
-    let function_data = SharedFunctionInstanceData::create(vm, description, Some(&source_code));
+    let function_data = SharedFunctionInstanceData::create(vm, &description, description.strict, Some(&source_code));
     function_data.set_source_text_owner(source_text.clone());
     Ok(function_data)
 }

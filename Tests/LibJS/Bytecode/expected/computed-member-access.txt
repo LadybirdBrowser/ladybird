@@ -1,19 +1,21 @@
-$bfb12ce8 computed-member-access.js:12:1
-  Registers: 9
+$b1dd7798 computed-member-access.js:12:1
+  Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
-    [1] = Int32(0)
+    [1] = Int32(1)
+    [2] = Int32(0)
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `computed_read`
-  [  18] NewPrimitiveArray dst:reg7, elements:[1]
-  [  30] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
-  [  58] GetGlobal value_feedback:2, dst:reg7, `computed_read_expression`
-  [  68] NewPrimitiveArray dst:reg8, elements:[1]
-  [  80] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
-  [  a8] End value:reg6
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `computed_read`
+  [  28] NewPrimitiveArray dst:reg7, elements:[1]
+  [  40] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  68] GetGlobal value_feedback:2, dst:reg6, `computed_read_expression`
+  [  78] NewPrimitiveArray dst:reg7, elements:[1]
+  [  90] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, Int32(0)]
+  [  b8] End value:reg5
 
 
 computed_read$f0ef6ac1 computed-member-access.js:5:5
@@ -24,7 +26,7 @@ computed_read$f0ef6ac1 computed-member-access.js:5:5
 
 block0:
   [   0] Enter
-  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:Int32(0) (a[Int32(0)])
+  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:Int32(0)
   [  28] Return value:reg5
 
 
@@ -34,5 +36,5 @@ computed_read_expression$c18fd380 computed-member-access.js:9:5
 
 block0:
   [   0] Enter
-  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:arg1 (a[arg1])
+  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:arg1
   [  28] Return value:reg5

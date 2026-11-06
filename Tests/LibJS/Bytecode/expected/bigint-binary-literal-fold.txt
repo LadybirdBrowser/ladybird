@@ -1,11 +1,14 @@
-$4e59e625
-  Registers: 5
+$6ed542b5 bigint-binary-literal-fold.js:1:1
+  Registers: 6
   Blocks:    1
   Constants:
-    [0] = BigInt(3n)
-    [1] = BigInt(1n)
+    [0] = Undefined
+    [1] = BigInt(3n)
     [2] = BigInt(1n)
+    [3] = BigInt(1n)
 
 block0:
   [   0] Enter
-  [   8] End value:BigInt(1n)
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] Mov dst:reg5, src:BigInt(1n)
+  [  28] End value:reg5

@@ -1,5 +1,5 @@
-$80e4413e annex-b-function-in-if.js:13:1
-  Registers: 11
+$7e20502e annex-b-function-in-if.js:13:1
+  Registers: 9
   Blocks:    1
   Constants:
     [0] = Undefined
@@ -8,55 +8,44 @@ $80e4413e annex-b-function-in-if.js:13:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `console`
-  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
-  [  30] GetGlobal value_feedback:2, dst:reg9, `annexBFunctionInIf`
-  [  40] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
-  [  68] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  90] GetGlobal value_feedback:5, dst:reg6, `console`
-  [  a0] GetById value_feedback:6, dst:reg8, base:reg6, `log` (console.log)
-  [  b8] GetGlobal value_feedback:7, dst:reg10, `annexBFunctionInIf`
-  [  c8] Call value_feedback:8, call_feedback:2, dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
-  [  f0] Call value_feedback:9, call_feedback:3, dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 118] End value:reg7
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  28] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  40] GetGlobal value_feedback:2, dst:reg8, `annexBFunctionInIf`
+  [  50] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Bool(true)]
+  [  78] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  a0] GetGlobal value_feedback:5, dst:reg6, `console`
+  [  b0] GetById value_feedback:6, dst:reg7, base:reg6, `log`
+  [  c8] GetGlobal value_feedback:7, dst:reg8, `annexBFunctionInIf`
+  [  d8] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Bool(false)]
+  [ 100] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [ 128] End value:reg5
 
 
-annexBFunctionInIf$6dccc7b1 annex-b-function-in-if.js:2:5
-  Registers: 8
+annexBFunctionInIf$c86c2a51 annex-b-function-in-if.js:2:10
+  Registers: 6
   Blocks:    4
+  Locals:    inner~0, inner~1, inner~2
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
-  [  20] InitializeVariableBinding `inner`, src:Undefined
-  [  38] JumpFalse condition:arg0, target:block2
+  [   8] Mov dst:inner~0, src:Undefined
+  [  18] JumpFalse condition:arg0, target:block2
 
 block1:
-  [  48] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  60] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
-  [  70] NewFunction dst:reg6, shared_function_data_index:0
-  [  88] InitializeLexicalBinding `inner`, src:reg6
-  [  a0] GetBinding value_feedback:0, dst:reg6, `inner`
-  [  b8] SetVariableBinding `inner`, src:reg6
-  [  d0] SetLexicalEnvironment environment:reg4
-  [  d8] Jump target:block3
+  [  28] NewFunction dst:inner~1, shared_function_data_index:0
+  [  40] Mov dst:inner~0, src:inner~1
+  [  50] Jump target:block3
 
 block2:
-  [  e0] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  f8] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
-  [ 108] NewFunction dst:reg6, shared_function_data_index:1
-  [ 120] InitializeLexicalBinding `inner`, src:reg6
-  [ 138] GetBinding value_feedback:1, dst:reg6, `inner`
-  [ 150] SetVariableBinding `inner`, src:reg6
-  [ 168] SetLexicalEnvironment environment:reg4
+  [  58] NewFunction dst:inner~2, shared_function_data_index:1
+  [  70] Mov dst:inner~0, src:inner~2
 
 block3:
-  [ 170] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg6, this_value:reg7, `inner`
-  [ 188] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg6, this_value:reg7, inner
-  [ 1a8] Return value:reg5
+  [  80] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
+  [  a0] Return value:reg5
 
 
 inner$3192ffc2 annex-b-function-in-if.js:4:13

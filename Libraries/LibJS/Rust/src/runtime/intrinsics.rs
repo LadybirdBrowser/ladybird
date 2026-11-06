@@ -167,7 +167,6 @@ use crate::runtime::weak_set_constructor::WeakSetConstructor;
 use crate::runtime::weak_set_prototype::WeakSetPrototype;
 use crate::runtime::wrap_for_valid_iterator_prototype::WrapForValidIteratorPrototype;
 use crate::source_code::SourceCode;
-use crate::utf16::Utf16View;
 
 /// Declares the intrinsics' slots, which all start out empty.
 macro_rules! define_intrinsics {
@@ -855,9 +854,7 @@ pub(crate) fn parse_builtin_file<'vm>(
                     Utf16String::from_utf8("BuiltinFile"),
                     Utf16String::from_utf8(script_text),
                 );
-                let mut source = Vec::with_capacity(code.length_in_code_units());
-                Utf16View::of_string(code.code()).append_to(&mut source);
-                let parsed = crate::compile::parse_builtin_file(&source);
+                let parsed = crate::compile::parse_builtin_file(code.code());
                 Rc::new((code, parsed))
             })
             .clone()
@@ -866,7 +863,12 @@ pub(crate) fn parse_builtin_file<'vm>(
 
     let shared_data_list = MarkedVec::new(vm);
     for description in crate::compile::describe_builtin_file_functions(parsed) {
-        shared_data_list.push(SharedFunctionInstanceData::create(vm, description, Some(code)));
+        shared_data_list.push(SharedFunctionInstanceData::create(
+            vm,
+            &description,
+            description.strict,
+            Some(code),
+        ));
     }
     shared_data_list
 }

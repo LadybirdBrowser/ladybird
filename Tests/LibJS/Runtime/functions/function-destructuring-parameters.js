@@ -179,3 +179,41 @@ describe("evaluating", () => {
         expect(testFunction({ b: 42 })).toBe("2742");
     });
 });
+
+describe("names of a parameter's binding pattern are uninitialized until they are bound", () => {
+    test("read by an initializer", () => {
+        function arrayPattern([a = b, b]) {}
+        function objectPattern({ a = b, b }) {}
+        function earlierPattern([a = b], [b]) {}
+        function plainParameter(a = b, [b]) {}
+        function typeofName([a = typeof b, b]) {}
+        const arrow = ([a = b, b]) => {};
+
+        expect(() => arrayPattern([])).toThrow(ReferenceError);
+        expect(() => objectPattern({})).toThrow(ReferenceError);
+        expect(() => earlierPattern([], [])).toThrow(ReferenceError);
+        expect(() => plainParameter(undefined, [])).toThrow(ReferenceError);
+        expect(() => typeofName([])).toThrow(ReferenceError);
+        expect(() => arrow([])).toThrow(ReferenceError);
+    });
+
+    test("assigned by an initializer", () => {
+        function assigned([a = (b = 1), b]) {}
+        function updated([a = b++, b]) {}
+
+        expect(() => assigned([])).toThrow(ReferenceError);
+        expect(() => updated([])).toThrow(ReferenceError);
+    });
+
+    test("read once they are bound", () => {
+        function arrayPattern([a, b = a]) {
+            return b;
+        }
+        function objectPattern({ a, b = a }, c = b) {
+            return c;
+        }
+
+        expect(arrayPattern([1])).toBe(1);
+        expect(objectPattern({ a: 2 })).toBe(2);
+    });
+});

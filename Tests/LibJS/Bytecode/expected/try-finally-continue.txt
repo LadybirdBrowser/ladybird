@@ -1,165 +1,141 @@
-$78986e0e try-finally-continue.js:13:1
-  Registers: 11
+$80e4413e try-finally-continue.js:13:1
+  Registers: 9
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `console`
-  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
-  [  30] GetGlobal value_feedback:2, dst:reg9, `continueThroughFinally`
-  [  40] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:Undefined, continueThroughFinally
-  [  60] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  88] GetGlobal value_feedback:5, dst:reg6, `console`
-  [  98] GetById value_feedback:6, dst:reg8, base:reg6, `log` (console.log)
-  [  b0] GetGlobal value_feedback:7, dst:reg10, `breakThroughFinally`
-  [  c0] Call value_feedback:8, call_feedback:2, dst:reg9, callee:reg10, this_value:Undefined, breakThroughFinally
-  [  e0] Call value_feedback:9, call_feedback:3, dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 108] End value:reg7
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  28] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  40] GetGlobal value_feedback:2, dst:reg8, `continueThroughFinally`
+  [  50] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
+  [  70] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  98] GetGlobal value_feedback:5, dst:reg6, `console`
+  [  a8] GetById value_feedback:6, dst:reg7, base:reg6, `log`
+  [  c0] GetGlobal value_feedback:7, dst:reg8, `breakThroughFinally`
+  [  d0] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined
+  [  f0] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [ 118] End value:reg5
 
 
-continueThroughFinally$9f101dc6 try-finally-continue.js:2:5
-  Registers: 9
-  Blocks:    15
-  Locals:    i~0, result~1
+continueThroughFinally$3ce638b2 try-finally-continue.js:2:9
+  Registers: 8
+  Blocks:    12
+  Locals:    result~0, i~1
   Constants:
     [0] = Int32(0)
-    [1] = Int32(3)
-    [2] = Int32(1)
+    [1] = Int32(1)
+    [2] = Int32(2)
     [3] = Int32(10)
-    [4] = Int32(2)
-    [5] = Undefined
+    [4] = Int32(3)
 
 block0:
   [   0] Enter
-  [   8] Mov2 c0_dst:result~1, c0_src:Int32(0), c1_dst:i~0, c1_src:Int32(0)
-  [  20] Jump target:block3
+  [   8] Mov dst:result~0, src:Int32(0)
+  [  18] Mov dst:i~1, src:Int32(0)
+  [  28] Jump target:block10
 
 block1:
-  [  28] Jump target:block7
+  [  30] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:i~1, rhs:1, true_target:block2, false_target:block3
 
 block2:
-  [  30] PostfixIncrement arith_feedback:1, dst:reg5, src:i~0
+  [  48] Mov dst:reg5, src:Int32(2)
+  [  58] Jump target:block5
 
 block3:
-  [  40] JumpLessThanLoopRhsInt32 arith_feedback:0, lhs:i~0, rhs:3, true_target:block1, false_target:block4
+  [  60] Add arith_feedback:1, dst:result~0, lhs:result~0, rhs:i~1
+  [  70] Mov dst:reg5, src:Int32(0)
+  [  80] Jump target:block5
 
 block4:
-  [  58] Return value:result~1
+  [  88] Catch value_feedback:0, dst:reg6
+  [  90] Mov dst:reg5, src:Int32(1)
 
 block5:
-  [  60] Catch value_feedback:0, dst:reg6
-  [  68] Mov dst:reg5, src:Int32(1)
+  [  a0] AddRhsInt32 arith_feedback:2, dst:result~0, lhs:result~0, rhs:10
+  [  b0] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg5, rhs:0, true_target:block9, false_target:block6
 
 block6:
-  [  78] Mov dst:reg8, src:result~1
-  [  88] AddRhsInt32 arith_feedback:4, dst:reg7, lhs:reg8, rhs:10
-  [  98] Mov dst:result~1, src:reg7
-  [  a8] JumpStrictlyEqualsRhsInt32 arith_feedback:5, lhs:reg5, rhs:0, true_target:block10, false_target:block11
+  [  c8] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [  c0] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:i~0, rhs:1, true_target:block8, false_target:block9
+  [  e0] Jump target:block9
 
 block8:
-  [  d8] Mov dst:reg5, src:Int32(3)
-  [  e8] JumpLoop target:block6
+  [  e8] Throw src:reg6
 
 block9:
-  [  f0] Mov dst:reg7, src:result~1
-  [ 100] Add arith_feedback:3, dst:reg8, lhs:reg7, rhs:i~0
-  [ 110] Mov2 c0_dst:result~1, c0_src:reg8, c1_dst:reg5, c1_src:Int32(0)
-  [ 128] JumpLoop target:block6
+  [  f0] Increment arith_feedback:5, dst:i~1
 
 block10:
-  [ 130] JumpLoop target:block2
+  [  f8] JumpLessThanLoopRhsInt32 arith_feedback:6, lhs:i~1, rhs:3, true_target:block1, false_target:block11
 
 block11:
-  [ 138] JumpStrictlyEqualsLoopRhsInt32 arith_feedback:6, lhs:reg5, rhs:3, true_target:block2, false_target:block12
-
-block12:
-  [ 150] JumpStrictlyEqualsRhsInt32 arith_feedback:7, lhs:reg5, rhs:2, true_target:block13, false_target:block14
-
-block13:
-  [ 168] Return value:reg6
-
-block14:
-  [ 170] Throw src:reg6
+  [ 110] Return value:result~0
 
 Exception handlers:
-  [  c0 ..  130] => handler block5
+  [  30 ..   88] => handler block4
 
 
-breakThroughFinally$39a8852a try-finally-continue.js:16:5
-  Registers: 9
-  Blocks:    15
-  Locals:    i~0, result~1
+breakThroughFinally$e163e2ce try-finally-continue.js:16:9
+  Registers: 8
+  Blocks:    12
+  Locals:    result~0, i~1
   Constants:
     [0] = Int32(0)
-    [1] = Int32(10)
+    [1] = Int32(2)
     [2] = Int32(1)
-    [3] = Int32(2)
-    [4] = Int32(3)
-    [5] = Int32(100)
-    [6] = Undefined
+    [3] = Int32(100)
+    [4] = Int32(10)
 
 block0:
   [   0] Enter
-  [   8] Mov2 c0_dst:result~1, c0_src:Int32(0), c1_dst:i~0, c1_src:Int32(0)
-  [  20] Jump target:block3
+  [   8] Mov dst:result~0, src:Int32(0)
+  [  18] Mov dst:i~1, src:Int32(0)
+  [  28] Jump target:block10
 
 block1:
-  [  28] Jump target:block7
+  [  30] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:i~1, rhs:2, true_target:block2, false_target:block3
 
 block2:
-  [  30] PostfixIncrement arith_feedback:1, dst:reg5, src:i~0
+  [  48] Mov dst:reg5, src:Int32(2)
+  [  58] Jump target:block5
 
 block3:
-  [  40] JumpLessThanLoopRhsInt32 arith_feedback:0, lhs:i~0, rhs:10, true_target:block1, false_target:block4
+  [  60] Add arith_feedback:1, dst:result~0, lhs:result~0, rhs:i~1
+  [  70] Mov dst:reg5, src:Int32(0)
+  [  80] Jump target:block5
 
 block4:
-  [  58] Return value:result~1
+  [  88] Catch value_feedback:0, dst:reg6
+  [  90] Mov dst:reg5, src:Int32(1)
 
 block5:
-  [  60] Catch value_feedback:0, dst:reg6
-  [  68] Mov dst:reg5, src:Int32(1)
+  [  a0] AddRhsInt32 arith_feedback:2, dst:result~0, lhs:result~0, rhs:100
+  [  b0] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg5, rhs:0, true_target:block9, false_target:block6
 
 block6:
-  [  78] Mov dst:reg8, src:result~1
-  [  88] AddRhsInt32 arith_feedback:4, dst:reg7, lhs:reg8, rhs:100
-  [  98] Mov dst:result~1, src:reg7
-  [  a8] JumpStrictlyEqualsRhsInt32 arith_feedback:5, lhs:reg5, rhs:0, true_target:block10, false_target:block11
+  [  c8] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [  c0] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:i~0, rhs:2, true_target:block8, false_target:block9
+  [  e0] Jump target:block11
 
 block8:
-  [  d8] Mov dst:reg5, src:Int32(3)
-  [  e8] JumpLoop target:block6
+  [  e8] Throw src:reg6
 
 block9:
-  [  f0] Mov dst:reg7, src:result~1
-  [ 100] Add arith_feedback:3, dst:reg8, lhs:reg7, rhs:i~0
-  [ 110] Mov2 c0_dst:result~1, c0_src:reg8, c1_dst:reg5, c1_src:Int32(0)
-  [ 128] JumpLoop target:block6
+  [  f0] Increment arith_feedback:5, dst:i~1
 
 block10:
-  [ 130] JumpLoop target:block2
+  [  f8] JumpLessThanLoopRhsInt32 arith_feedback:6, lhs:i~1, rhs:10, true_target:block1, false_target:block11
 
 block11:
-  [ 138] JumpStrictlyEqualsLoopRhsInt32 arith_feedback:6, lhs:reg5, rhs:3, true_target:block4, false_target:block12
-
-block12:
-  [ 150] JumpStrictlyEqualsRhsInt32 arith_feedback:7, lhs:reg5, rhs:2, true_target:block13, false_target:block14
-
-block13:
-  [ 168] Return value:reg6
-
-block14:
-  [ 170] Throw src:reg6
+  [ 110] Return value:result~0
 
 Exception handlers:
-  [  c0 ..  130] => handler block5
+  [  30 ..   88] => handler block4
 
 
 32

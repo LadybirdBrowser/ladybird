@@ -1,0 +1,5 @@
+Paused at <ladybird>/Tests/LibJS/Debugger/input/block-scopes.js:11:1 (entry)
+Paused at <ladybird>/Tests/LibJS/Debugger/input/block-scopes.js:5:9 (debugger statement)
+2
+Paused at <ladybird>/Tests/LibJS/Debugger/input/block-scopes.js:7:5 (debugger statement)
+1

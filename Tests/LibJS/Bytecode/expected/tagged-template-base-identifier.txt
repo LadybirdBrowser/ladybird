@@ -1,21 +1,23 @@
-$7ca8f805 tagged-template-base-identifier.js:1:1
+$1a7f12f1 tagged-template-base-identifier.js:1:5
   Registers: 9
   Blocks:    1
   Constants:
-    [0] = String("")
+    [0] = Undefined
+    [1] = String("")
 
 block0:
   [   0] Enter
-  [   8] NewObject dst:reg5
-  [  18] NewFunction dst:reg6, shared_function_data_index:0 (f)
-  [  30] InitObjectLiteralProperty object:reg5, `f`, src:reg6, shape_cache_index:0, property_slot:0
-  [  48] CacheObjectShape object:reg5
-  [  58] SetGlobal `obj`, src:reg5
-  [  68] GetGlobal value_feedback:0, dst:reg5, `obj`
-  [  78] GetById value_feedback:1, dst:reg6, base:reg5, `f` (obj.f)
-  [  90] GetTemplateObject dst:reg7, strings:[String(""), String("")]
-  [  b0] Call value_feedback:2, call_feedback:0, dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
-  [  d8] End value:reg8
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] NewObject dst:reg6
+  [  28] NewFunction dst:reg7, shared_function_data_index:0 (f)
+  [  40] InitObjectLiteralProperty object:reg6, `f`, src:reg7, shape_cache_index:0, property_slot:0
+  [  58] CacheObjectShape object:reg6
+  [  68] SetGlobal `obj`, src:reg6
+  [  78] GetGlobal value_feedback:0, dst:reg6, `obj`
+  [  88] GetById value_feedback:1, dst:reg7, base:reg6, `f`
+  [  a0] GetTemplateObject dst:reg8, strings:[String(""), String("")]
+  [  c0] Call value_feedback:2, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  e8] End value:reg5
 
 
 f$705b4581 tagged-template-base-identifier.js:3:9

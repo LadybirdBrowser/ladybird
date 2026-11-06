@@ -1,4 +1,4 @@
-$b865a0be default-param-self-reference.js:2:1
+$b5a1afae default-param-self-reference.js:2:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,12 +7,13 @@ $b865a0be default-param-self-reference.js:2:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
-  [  40] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  50] End value:reg5
 
 
-f$55f1a862 default-param-self-reference.js:1:16
+f$b0fa3bce default-param-self-reference.js:1:12
   Registers: 5
   Blocks:    3
   Constants:
@@ -26,7 +27,6 @@ block0:
 block1:
   [  18] Mov dst:arg0, src:<Empty>
   [  28] ThrowIfTDZ src:arg0
-  [  30] Mov dst:arg0, src:arg0
 
 block2:
-  [  40] End value:Undefined
+  [  30] End value:Undefined

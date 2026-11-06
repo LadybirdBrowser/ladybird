@@ -1,4 +1,4 @@
-$9a6e7215 nested-member-base-identifier.js:9:1
+$a2ba4545 nested-member-base-identifier.js:9:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -7,17 +7,18 @@ $9a6e7215 nested-member-base-identifier.js:9:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `assign_nested`
-  [  18] NewObject dst:reg7
-  [  28] InitObjectLiteralProperty object:reg7, `shader`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  40] CacheObjectShape object:reg7
-  [  50] NewArray dst:reg8, elements:[reg7]
-  [  68] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, assign_nested, arguments:[reg8, Int32(1)]
-  [  90] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `assign_nested`
+  [  28] NewObject dst:reg7
+  [  38] InitObjectLiteralProperty object:reg7, `shader`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  50] CacheObjectShape object:reg7
+  [  60] NewArray dst:reg8, elements:[reg7]
+  [  78] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg8, Int32(1)]
+  [  a0] End value:reg5
 
 
 assign_nested$93cc3898 nested-member-base-identifier.js:6:8
-  Registers: 7
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = Int32(1)
@@ -27,6 +28,6 @@ assign_nested$93cc3898 nested-member-base-identifier.js:6:8
 block0:
   [   0] Enter
   [   8] SubRhsInt32 arith_feedback:0, dst:reg5, lhs:arg1, rhs:1
-  [  18] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:arg0, property:reg5 (arr[reg5])
-  [  38] PutById base:reg6, `shader`, src:Int32(0), kind:Normal (arr.shader)
+  [  18] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:reg5
+  [  38] PutById base:reg5, `shader`, src:Int32(0), kind:Normal
   [  58] End value:Undefined

@@ -92,6 +92,7 @@ jit.compile(addActions);
 // CHECK-NOT: BoxFloat64
 // CHECK: [[START:v[0-9]+]]:int32 = CheckFloat64Int32 ([[ELEMENT]])
 // CHECK: loop:
+// CHECK-NEXT: :int32 = Phi
 // CHECK-NEXT: [[I:v[0-9]+]]:int32 = Phi ([[START]], {{v[0-9]+}})
 // CHECK-NOT: CheckInt32 ({{v[0-9]+}})
 // CHECK: CheckBounds ([[I]], {{[^)]+}})

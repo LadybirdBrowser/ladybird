@@ -76,7 +76,7 @@ fn caller_mode_of(strict: Strict) -> CallerMode {
 
 /// Executable::get_string().
 fn get_string(vm: &Vm, index: StringTableIndex) -> Utf16FlyString {
-    vm.current_executable().string_table[index.0 as usize].clone()
+    vm.current_executable().string_table()[index.0 as usize].clone()
 }
 
 /// Value::as_array_exotic_object(): the arguments the bytecode collected into an Array for a call.
@@ -130,13 +130,17 @@ fn internal_construct(
 }
 
 /// What FunctionObject::get_stack_frame_info() reports for a call of `function` with `argument_count` arguments.
-fn stack_frame_info_for_call(vm: &Vm, function: Gc<FunctionObject>, argument_count: u32) -> StackFrameInfo {
+fn stack_frame_info_for_call(
+    vm: &Vm,
+    function: Gc<FunctionObject>,
+    argument_count: u32,
+) -> ThrowCompletionOr<StackFrameInfo> {
     let mut stack_frame_info = StackFrameInfo {
         argument_count,
         ..Default::default()
     };
-    function.get_stack_frame_info(vm, &mut stack_frame_info);
-    stack_frame_info
+    function.get_stack_frame_info(vm, &mut stack_frame_info)?;
+    Ok(stack_frame_info)
 }
 
 fn argument_count_of(count: usize) -> u32 {
@@ -257,6 +261,14 @@ fn throw_type_error_for_asm_callee(
         );
     }
 
+    let program_counter = vm.running_execution_context_ref().program_counter.get();
+    if let Some(text) = vm.current_executable().callee_text_at(program_counter) {
+        return vm.throw_completion(
+            ErrorKind::TypeError,
+            ErrorType::IsNotAEvaluatedFrom,
+            &[&callee, &callee_type, &text],
+        );
+    }
     vm.throw_completion(ErrorKind::TypeError, ErrorType::IsNotA, &[&callee, &callee_type])
 }
 
@@ -321,7 +333,7 @@ pub(crate) fn execute_asm_call(
     let function = callee.as_function();
 
     let argument_count = argument_count_of(arguments.len());
-    let stack_frame_info = stack_frame_info_for_call(vm, function, argument_count);
+    let stack_frame_info = stack_frame_info_for_call(vm, function, argument_count)?;
 
     let stack = vm.interpreter_stack();
     let stack_mark = stack.top.get();
@@ -436,7 +448,7 @@ fn call_direct_eval_impl(
     let function = callee.as_function();
 
     let argument_count = argument_count_of(arguments.len());
-    let stack_frame_info = stack_frame_info_for_call(vm, function, argument_count);
+    let stack_frame_info = stack_frame_info_for_call(vm, function, argument_count)?;
 
     let stack = vm.interpreter_stack();
     let stack_mark = stack.top.get();
@@ -508,7 +520,7 @@ fn call_with_argument_array_impl(
     let argument_array = as_array_exotic_object(arguments);
     let argument_array_length = argument_array.indexed_array_like_size();
 
-    let stack_frame_info = stack_frame_info_for_call(vm, function, argument_array_length);
+    let stack_frame_info = stack_frame_info_for_call(vm, function, argument_array_length)?;
 
     let stack = vm.interpreter_stack();
     let stack_mark = stack.top.get();
@@ -721,7 +733,7 @@ pub fn super_call_with_argument_array(
     };
     let argument_array_length = u32::try_from(argument_array_length).expect("the argument count fits in u32");
 
-    let stack_frame_info = stack_frame_info_for_call(vm, function, argument_array_length);
+    let stack_frame_info = asm_try!(vm, pc, stack_frame_info_for_call(vm, function, argument_array_length));
 
     let stack = vm.interpreter_stack();
     let stack_mark = stack.top.get();

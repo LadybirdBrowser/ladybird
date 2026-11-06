@@ -1,33 +1,33 @@
-$99fa450e regex-literals.js:2:1
+$42e0243a regex-literals.js:2:5
   Registers: 7
   Blocks:    1
   Constants:
-    [0] = Int32(1)
-    [1] = Undefined
+    [0] = Undefined
+    [1] = Int32(1)
     [2] = String("abc123")
 
 block0:
   [   0] Enter
-  [   8] NewRegExp dst:reg5, foo, 
-  [  18] DynamicInitializeLexicalBinding `a`, src:reg5
-  [  28] NewRegExp dst:reg5, bar, gi
-  [  38] DynamicInitializeLexicalBinding `b`, src:reg5
-  [  48] NewRegExp dst:reg5, baz, i
-  [  58] AddLhsInt32 arith_feedback:0, dst:reg6, lhs:1, rhs:reg5
-  [  68] DynamicInitializeLexicalBinding `c`, src:reg6
-  [  78] GetGlobal value_feedback:0, dst:reg5, `matchDigits`
-  [  88] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg5, this_value:Undefined, matchDigits, arguments:[String("abc123")]
-  [  b0] End value:reg6
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] NewRegExp dst:reg6, foo, 
+  [  28] DynamicInitializeLexicalBinding `a`, src:reg6
+  [  38] NewRegExp dst:reg6, bar, gi
+  [  48] DynamicInitializeLexicalBinding `b`, src:reg6
+  [  58] NewRegExp dst:reg6, baz, i
+  [  68] AddLhsInt32 arith_feedback:0, dst:reg6, lhs:1, rhs:reg6
+  [  78] DynamicInitializeLexicalBinding `c`, src:reg6
+  [  88] GetGlobal value_feedback:0, dst:reg6, `matchDigits`
+  [  98] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[String("abc123")]
+  [  c0] End value:reg5
 
 
-matchDigits$cfe7cda7 regex-literals.js:8:5
-  Registers: 9
+matchDigits$cd23dc97 regex-literals.js:8:5
+  Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] NewRegExp dst:reg6, \d+, g
-  [  18] GetById value_feedback:0, dst:reg7, base:reg6, `test`
-  [  30] Mov dst:reg8, src:arg0
-  [  40] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, <object>.test, arguments:[reg8]
-  [  68] Return value:reg5
+  [   8] NewRegExp dst:reg5, \d+, g
+  [  18] GetById value_feedback:0, dst:reg6, base:reg5, `test`
+  [  30] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:reg5, arguments:[arg0]
+  [  58] Return value:reg5

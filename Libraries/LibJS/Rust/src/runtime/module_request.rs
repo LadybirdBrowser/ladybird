@@ -75,16 +75,11 @@ impl ModuleRequest {
     /// The ModuleRequest a module request of the frontend stands for: the attributes of a request that has any are
     /// sorted.
     pub fn from_frontend(request: &ast::ModuleRequest) -> Self {
-        let specifier = Utf16FlyString::from_utf16(&request.module_specifier);
+        let specifier = Utf16View::of_string(&request.module_specifier).to_utf16_fly_string();
         let attributes: Vec<ImportAttribute> = request
             .attributes
             .iter()
-            .map(|attribute| {
-                ImportAttribute::new(
-                    Utf16String::from_utf16(&attribute.key),
-                    Utf16String::from_utf16(&attribute.value),
-                )
-            })
+            .map(|attribute| ImportAttribute::new(attribute.key.clone(), attribute.value.clone()))
             .collect();
         if attributes.is_empty() {
             return Self::new(specifier);

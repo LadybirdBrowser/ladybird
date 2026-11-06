@@ -6,31 +6,25 @@
 
 //! # LibJS
 //!
-//! LibJS's frontend and runtime. The frontend parses JavaScript into an AST and compiles it to bytecode, which the
+//! LibJS's frontend and runtime. The frontend parses JavaScript into a syntax tree and compiles it to bytecode, which the
 //! runtime runs in the Flap-generated interpreter, on cells allocated from LibGC.
 //!
 //! ## Architecture
 //!
 //! ```text
-//! Source code (UTF-16)
+//! Source code (Latin-1 or UTF-16)
 //!     │
 //!     ▼
 //! ┌─────────────────────────────────────────────────────┐
-//! │  Lexer (lexer.rs)                                   │
-//! │  Tokenizes UTF-16 source into Token stream          │
+//! │  Parser (parser/)                                   │
+//! │  Lexes and parses into flat columns, analyzes       │
+//! │  scopes, and resolves identifiers                   │
 //! └──────────────────────┬──────────────────────────────┘
-//!                        │ tokens
+//!                        │ syntax tree (ast.rs)
 //!                        ▼
 //! ┌─────────────────────────────────────────────────────┐
-//! │  Parser (parser.rs + parser/*.rs)                   │
-//! │  Recursive descent with precedence climbing         │
-//! │  Builds AST (ast.rs)                                │
-//! └──────────────────────┬──────────────────────────────┘
-//!                        │ AST
-//!                        ▼
-//! ┌─────────────────────────────────────────────────────┐
-//! │  Codegen (bytecode/codegen.rs)                      │
-//! │  Walks AST, emits bytecode via Generator            │
+//! │  Codegen (bytecode/codegen/)                        │
+//! │  Sweeps the rows of the tree, emits bytecode        │
 //! └──────────────────────┬──────────────────────────────┘
 //!                        │ assembled bytecode
 //!                        ▼
@@ -46,16 +40,11 @@
 //! - `host.rs` — Functions every embedding runtime provides to the frontend
 //! - `token.rs` — Token types
 //! - `tokenize.rs` — Tokens of a source without parsing it, for syntax highlighting
-//! - `lexer.rs` — Tokenizer: UTF-16 input → Token stream
-//! - `parser.rs` — Parser state, helpers, token consumption
-//! - `parser/expressions.rs` — Expression parsing (precedence climbing)
-//! - `parser/statements.rs` — Statement parsing (if, for, while, etc.)
-//! - `parser/declarations.rs` — Functions, classes, variables, modules
-//! - `ast.rs` — AST type definitions
+//! - `lexer.rs` — Tokenizer: UTF-16 input → Token stream, for tokenize.rs
+//! - `parser/` — The parser, the columns of its syntax tree, scope analysis and identifier resolution
+//! - `ast.rs` — The syntax tree and the typed views that everything after the parser reads it through
 //! - `bytecode/` — Bytecode generator, instruction types, and dumper
-//! - `bytecode_cache.rs` — Serialization of compiled programs for the bytecode cache
 //! - `breakpoint_positions.rs` — Where in a source a debugger can stop
-//! - `scope_collector.rs` — Scope analysis
 //! - `interpreter/`, `runtime/`, `gc/`, `layout/`, `embedding/` — The runtime and its embedding ABI
 
 #[cfg(feature = "allocator")]
@@ -99,10 +88,8 @@ pub mod ast_dump;
 #[cfg(not(test))]
 pub mod breakpoint;
 pub mod breakpoint_positions;
-#[cfg(not(test))]
 pub mod build_configuration;
 pub mod bytecode;
-pub mod bytecode_cache;
 pub mod compile;
 #[cfg(not(test))]
 pub mod console;
@@ -146,14 +133,13 @@ mod layout_forward;
 pub mod lexer;
 #[cfg(not(test))]
 pub mod lexical_path;
+#[path = "parser/mod.rs"]
 pub mod parser;
-#[cfg(not(test))]
 pub mod parser_error;
 #[cfg(not(test))]
 pub mod random;
 #[cfg(not(test))]
 pub mod runtime;
-pub mod scope_collector;
 #[cfg(not(test))]
 pub mod script;
 #[cfg(not(test))]
@@ -168,7 +154,6 @@ pub mod token;
 pub mod tokenize;
 #[cfg(not(test))]
 pub mod unicode;
-#[cfg(not(test))]
 pub mod utf16;
 #[cfg(not(test))]
 pub mod utilities;

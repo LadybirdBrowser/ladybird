@@ -1,4 +1,4 @@
-$c7fd0018 annexb-var-coordinate-with-default-param.js:12:1
+$c5390f08 annexb-var-coordinate-with-default-param.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,14 +6,16 @@ $c7fd0018 annexb-var-coordinate-with-default-param.js:12:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f
-  [  38] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  48] End value:reg5
 
 
-f$bf4d852d annexb-var-coordinate-with-default-param.js:4:5
-  Registers: 10
+f$7d6f9ea4 annexb-var-coordinate-with-default-param.js:3:12
+  Registers: 7
   Blocks:    3
+  Locals:    g~0, g~1
   Constants:
     [0] = Int32(1)
     [1] = Undefined
@@ -22,40 +24,33 @@ f$bf4d852d annexb-var-coordinate-with-default-param.js:4:5
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  28] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  38] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [   8] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [  18] GetLexicalEnvironment dst:reg4
+  [  20] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  48] Mov dst:arg0, src:Int32(1)
+  [  30] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  58] InitializeLexicalBinding `x`, src:arg0
-  [  70] CreateVariable `g`, is_immutable:false, is_global:false, is_strict:false
-  [  80] InitializeVariableBinding `g`, src:Undefined
-  [  98] CreateLexicalEnvironment dst:reg6, parent:reg5, capacity:1, is_catch_environment:false
-  [  b0] CreateVariable `y`, is_immutable:false, is_global:false, is_strict:false
-  [  c0] InitializeLexicalBinding `y`, src:Int32(2)
-  [  d8] CreateLexicalEnvironment dst:reg7, parent:reg6, capacity:1, is_catch_environment:false
-  [  f0] CreateMutableBinding environment:reg7, `g`, can_be_deleted:false
-  [ 100] NewFunction dst:reg8, shared_function_data_index:0
-  [ 118] InitializeLexicalBinding `g`, src:reg8
-  [ 130] GetBinding value_feedback:0, dst:reg8, `g`
-  [ 148] SetVariableBinding `g`, src:reg8
-  [ 160] SetLexicalEnvironment environment:reg6
-  [ 168] GetCalleeAndThisFromEnvironment value_feedback:1, callee:reg8, this_value:reg9, `g`
-  [ 180] Call value_feedback:2, call_feedback:0, dst:reg7, callee:reg8, this_value:reg9, g
-  [ 1a0] Return value:reg7
+  [  40] InitializeLexicalBinding `x`, src:arg0
+  [  58] CreateVariableEnvironment capacity:1
+  [  60] GetLexicalEnvironment dst:reg5
+  [  68] Mov dst:g~0, src:Undefined
+  [  78] CreateVariable `y`, is_immutable:false, is_global:false, is_strict:false
+  [  88] InitializeLexicalBinding `y`, src:Int32(2)
+  [  a0] NewFunction dst:g~1, shared_function_data_index:0
+  [  b8] Mov dst:g~0, src:g~1
+  [  c8] Call value_feedback:0, call_feedback:0, dst:reg6, callee:g~0, this_value:Undefined
+  [  e8] Return value:reg6
 
 
 g$27f07b98 annexb-var-coordinate-with-default-param.js:7:13
-  Registers: 8
+  Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
   [   8] GetBinding value_feedback:0, dst:reg5, `x`
   [  20] GetBinding value_feedback:1, dst:reg6, `y`
-  [  38] Add arith_feedback:0, dst:reg7, lhs:reg5, rhs:reg6
-  [  48] Return value:reg7
+  [  38] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  48] Return value:reg5

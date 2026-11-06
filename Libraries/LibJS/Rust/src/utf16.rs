@@ -313,6 +313,7 @@ impl<'a> Utf16View<'a> {
 
     /// Mirrors AK::Utf16String::to_lowercase() without a locale, which LibUnicode implements with ICU's full case
     /// mapping in the default locale.
+    #[cfg(not(test))]
     pub fn to_lowercase(self) -> Utf16String {
         if let Self::Ascii(units) = self {
             return Utf16String::from_ascii_with(units.len(), |storage| {
@@ -326,6 +327,7 @@ impl<'a> Utf16View<'a> {
 
     /// Mirrors AK::Utf16String::to_uppercase() without a locale, which LibUnicode implements with ICU's full case
     /// mapping in the default locale.
+    #[cfg(not(test))]
     pub fn to_uppercase(self) -> Utf16String {
         if let Self::Ascii(units) = self {
             return Utf16String::from_ascii_with(units.len(), |storage| {
@@ -339,6 +341,18 @@ impl<'a> Utf16View<'a> {
 }
 
 /// Mirrors AK::TrimMode.
+impl<'a> From<&'a Utf16String> for Utf16View<'a> {
+    fn from(string: &'a Utf16String) -> Self {
+        Self::of_string(string)
+    }
+}
+
+impl From<Utf16View<'_>> for Utf16String {
+    fn from(view: Utf16View<'_>) -> Self {
+        view.to_utf16_string()
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TrimMode {
     Left,
@@ -721,6 +735,30 @@ impl PartialEq for Utf16View<'_> {
 }
 
 impl Eq for Utf16View<'_> {}
+
+impl<'a> From<&'a [u16]> for Utf16View<'a> {
+    fn from(units: &'a [u16]) -> Self {
+        Self::Utf16(units)
+    }
+}
+
+impl<'a> From<&'a Vec<u16>> for Utf16View<'a> {
+    fn from(units: &'a Vec<u16>) -> Self {
+        Self::Utf16(units)
+    }
+}
+
+impl<'a> From<&Utf16View<'a>> for Utf16View<'a> {
+    fn from(view: &Utf16View<'a>) -> Self {
+        *view
+    }
+}
+
+impl PartialEq<&[u16]> for Utf16View<'_> {
+    fn eq(&self, other: &&[u16]) -> bool {
+        self.code_units().eq(other.iter().copied())
+    }
+}
 
 impl PartialEq<str> for Utf16View<'_> {
     fn eq(&self, other: &str) -> bool {

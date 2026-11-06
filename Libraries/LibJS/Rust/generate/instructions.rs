@@ -21,23 +21,21 @@ use flapc::metadata::user_fields;
 use flapc::rust_bytecode::InstructionSet;
 use flapc::rust_bytecode::count_field_name;
 use flapc::rust_bytecode::generate_encode_method;
-use flapc::rust_bytecode::generate_encoded_size_method;
 use flapc::rust_bytecode::generate_field_reads;
 use flapc::rust_bytecode::generate_instruction_enum;
 use flapc::rust_bytecode::generate_instruction_is_terminator_from_opcode;
 use flapc::rust_bytecode::generate_instruction_length_from_bytes;
 use flapc::rust_bytecode::generate_instruction_name_from_opcode;
-use flapc::rust_bytecode::generate_is_terminator_method;
 use flapc::rust_bytecode::generate_num_opcodes_const;
 use flapc::rust_bytecode::generate_opcode_enum;
-use flapc::rust_bytecode::generate_opcode_method;
+use flapc::rust_bytecode::generate_typed_instructions;
 use flapc::rust_bytecode::rust_field_name;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 
 /// Path prefix of the `read_u32` / `read_u64` helpers used by generated field reads.
-const READER: &str = "super::validator::";
+const READER: &str = "super::operand::";
 
 fn generate_rust_code(
     mut w: impl Write,
@@ -55,16 +53,47 @@ fn generate_rust_code(
     generate_num_opcodes_const(&mut w, ops)?;
     generate_instruction_enum(&mut w, ops, "Debug, Clone")?;
     generate_instruction_impl(&mut w, ops)?;
-    generate_instruction_length_from_bytes(&mut w, ops, "super::validator::ValidationErrorKind")?;
+    generate_instruction_length_from_bytes(&mut w, ops, "super::operand::InstructionLengthError")?;
     generate_instruction_name_from_opcode(&mut w, ops)?;
     generate_instruction_feedback_slots_from_bytes(&mut w, ops)?;
     generate_instruction_dump_from_bytes(&mut w, ops)?;
     generate_visit_labels_from_bytes(&mut w, ops)?;
     generate_instruction_is_terminator_from_opcode(&mut w, ops)?;
-    generate_validate_instruction(&mut w, ops)?;
     generate_specialization_selector(&mut w, ops, specializations, specialized_ops)?;
+    generate_typed_instructions(
+        &mut w,
+        ops,
+        "typed",
+        "crate::bytecode::codegen::emitter::BlockEncoder<'_>",
+        &|name| specializable_operands(name, specializations),
+    )?;
 
     Ok(())
+}
+
+/// The operands of the instruction called `name` that a specialization looks at. The emitter only
+/// holds back `Mov` for specializations of several instructions, which this makes sure stays all it has to do.
+fn specializable_operands(name: &str, specializations: &[Specialization]) -> Vec<String> {
+    let mut operands = Vec::new();
+    for specialization in specializations {
+        assert!(
+            specialization.components.len() == 1
+                || specialization
+                    .components
+                    .iter()
+                    .all(|component| component.bytecode == "Mov"),
+            "only Mov may specialize as part of a sequence"
+        );
+        if name != "Mov" && specialization.components[0].bytecode == name {
+            for parameter in &specialization.components[0].parameters {
+                let operand = rust_field_name(&parameter.name);
+                if !operands.contains(&operand) {
+                    operands.push(operand);
+                }
+            }
+        }
+    }
+    operands
 }
 
 /// Emits `instruction_feedback_slots_from_bytes()`, which reads the feedback slot indices of the instruction at
@@ -137,7 +166,19 @@ fn generate_specialization_selector(
     writeln!(w, "#[allow(clippy::unnecessary_unwrap)]")?;
     writeln!(
         w,
-        "pub fn specialize_instruction_sequence<'a>(instructions: impl Iterator<Item = &'a Instruction> + Clone, constants: &[super::generator::ConstantValue]) -> Option<(Instruction, usize)> {{"
+        "pub fn specialize_instruction_sequence<'a>(instructions: impl Iterator<Item = &'a Instruction> + Clone, constants: &[super::executable_data::ConstantValue]) -> Option<(Instruction, usize)> {{"
+    )?;
+    // Most instructions start no sequence at all, which one look at the first of them tells.
+    let mut first_ops = specializations
+        .iter()
+        .map(|specialization| format!("Instruction::{} {{ .. }}", specialization.components[0].bytecode))
+        .collect::<Vec<_>>();
+    first_ops.sort();
+    first_ops.dedup();
+    writeln!(
+        w,
+        "    if !matches!(instructions.clone().next(), Some({})) {{ return None; }}",
+        first_ops.join(" | ")
     )?;
     for index in order {
         let specialization = &specializations[index];
@@ -178,7 +219,7 @@ fn generate_specialization_selector(
                         )?;
                         writeln!(
                             w,
-                            "                super::generator::ConstantValue::Number(number) if number.fract() == 0.0 && *number >= i32::MIN as f64 && *number <= i32::MAX as f64 && number.to_bits() != (-0.0_f64).to_bits() => Some(*number as i32),"
+                            "                super::executable_data::ConstantValue::Number(number) if number.fract() == 0.0 && *number >= i32::MIN as f64 && *number <= i32::MAX as f64 && number.to_bits() != (-0.0_f64).to_bits() => Some(*number as i32),"
                         )?;
                         writeln!(w, "                _ => None,")?;
                         writeln!(w, "            }});")?;
@@ -187,7 +228,7 @@ fn generate_specialization_selector(
                     }
                     SpecializationConstraint::Undefined => {
                         conditions.push(format!(
-                            "{operand}.is_constant() && matches!(constants.get({operand}.index() as usize), Some(super::generator::ConstantValue::Undefined))"
+                            "{operand}.is_constant() && matches!(constants.get({operand}.index() as usize), Some(super::executable_data::ConstantValue::Undefined))"
                         ));
                     }
                 }
@@ -533,350 +574,19 @@ fn generate_visit_labels_from_bytes(
     Ok(())
 }
 
-fn emit_scalar_field_check(
-    mut w: impl Write,
-    field_name: &str,
-    ty: &str,
-    offset: usize,
-) -> Result<(), Box<dyn std::error::Error>> {
-    match ty {
-        "Operand" => writeln!(w, "            validate_operand(read_u32(bytes, at + {offset}), ctx)?;")?,
-        "Optional<Operand>" => writeln!(
-            w,
-            "            validate_optional_operand(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "Label" => writeln!(w, "            validate_label(read_u32(bytes, at + {offset}), ctx)?;")?,
-        "Optional<Label>" => {
-            // Encoded as 8 bytes: u32 value + u8 has_value + 3 bytes pad.
-            writeln!(w, "            if bytes[at + {offset} + 4] != 0 {{")?;
-            writeln!(
-                w,
-                "                validate_label(read_u32(bytes, at + {offset}), ctx)?;"
-            )?;
-            writeln!(w, "            }}")?;
-        }
-        "IdentifierTableIndex" => writeln!(
-            w,
-            "            validate_identifier_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "Optional<IdentifierTableIndex>" => writeln!(
-            w,
-            "            validate_optional_identifier_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "StringTableIndex" => writeln!(
-            w,
-            "            validate_string_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "Optional<StringTableIndex>" => writeln!(
-            w,
-            "            validate_optional_string_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "PropertyKeyTableIndex" => writeln!(
-            w,
-            "            validate_property_key_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "PropertyLookupCacheIndex" => writeln!(
-            w,
-            "            validate_property_lookup_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "GlobalVariableCacheIndex" => writeln!(
-            w,
-            "            validate_global_variable_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "EnvironmentCoordinateCacheIndex" => writeln!(
-            w,
-            "            validate_environment_coordinate_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "TemplateObjectCacheIndex" => writeln!(
-            w,
-            "            validate_template_object_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "ObjectShapeCacheIndex" => writeln!(
-            w,
-            "            validate_object_shape_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "ObjectPropertyIteratorCacheIndex" => writeln!(
-            w,
-            "            validate_object_property_iterator_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "EnvironmentShapeCacheIndex" => writeln!(
-            w,
-            "            validate_environment_shape_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "ArithFeedbackIndex" => writeln!(
-            w,
-            "            validate_arith_feedback_index(read_u16(bytes, at + {offset}), ctx)?;"
-        )?,
-        "ValueFeedbackIndex" => writeln!(
-            w,
-            "            validate_value_feedback_index(read_u16(bytes, at + {offset}), ctx)?;"
-        )?,
-        "CallFeedbackIndex" => writeln!(
-            w,
-            "            validate_call_feedback_index(read_u16(bytes, at + {offset}), ctx)?;"
-        )?,
-        "KeyedFeedbackIndex" => writeln!(
-            w,
-            "            validate_keyed_feedback_index(read_u16(bytes, at + {offset}), ctx)?;"
-        )?,
-        "u32" => {
-            // The handler signature gives us no first-class types for SFD,
-            // class-blueprint, or object-shape cache references stored as u32.
-            // Recognize the canonical field names so these still get
-            // range-checked.
-            if field_name == "m_shared_function_data_index" {
-                writeln!(
-                    w,
-                    "            validate_shared_function_data_index(read_u32(bytes, at + {offset}), ctx)?;"
-                )?;
-            } else if field_name == "m_class_blueprint_index" {
-                writeln!(
-                    w,
-                    "            validate_class_blueprint_index(read_u32(bytes, at + {offset}), ctx)?;"
-                )?;
-            } else if field_name == "m_shape_cache_index" {
-                writeln!(
-                    w,
-                    "            validate_object_shape_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-                )?;
-            }
-        }
-        "Completion::Type" => writeln!(
-            w,
-            "            validate_completion_type(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "IteratorHint" => writeln!(
-            w,
-            "            validate_iterator_hint(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "EnvironmentMode" => writeln!(
-            w,
-            "            validate_environment_mode(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "PutKind" => writeln!(
-            w,
-            "            validate_put_kind(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "ArgumentsKind" => writeln!(
-            w,
-            "            validate_arguments_kind(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "FunctionNamePrefix" => writeln!(
-            w,
-            "            validate_function_name_prefix(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        // bool, i32, u64, Value, EnvironmentCoordinate, Builtin: no per-field
-        // bound applied here.
-        _ => {}
-    }
-    Ok(())
-}
-
-fn emit_array_elem_check(mut w: impl Write, ty: &str) -> Result<(), Box<dyn std::error::Error>> {
-    match ty {
-        "Operand" => writeln!(w, "                validate_operand(read_u32(bytes, __off), ctx)?;")?,
-        "Optional<Operand>" => writeln!(
-            w,
-            "                validate_optional_operand(read_u32(bytes, __off), ctx)?;"
-        )?,
-        "Value" => {
-            // Trailing Value array (NewPrimitiveArray): no per-element check;
-            // the count was already bounded against the instruction length.
-        }
-        other => panic!("Array element type not supported: {other}"),
-    }
-    Ok(())
-}
-
-fn generate_validate_instruction(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    let layouts = compute_layouts(ops);
-
-    writeln!(
-        w,
-        "/// Per-opcode field validation, dispatched by Pass 2 of the validator."
-    )?;
-    writeln!(
-        w,
-        "pub fn validate_instruction(opcode: u8, ctx: &super::validator::ValidationContext, at: usize) -> Result<(), super::validator::ValidationErrorKind> {{"
-    )?;
-    writeln!(w, "    use super::validator::*;")?;
-    writeln!(w, "    let bytes = ctx.bytes;")?;
-    writeln!(w, "    match opcode {{")?;
-
-    for (i, op) in ops.iter().enumerate() {
-        let layout = layouts.get(&op.name).expect("layout missing for op");
-        let arrays: Vec<&Field> = op.fields.iter().filter(|f| f.is_array).collect();
-        let has_array = !arrays.is_empty();
-
-        // Map each count field's name to the array it sizes, so we can skip
-        // the count field when emitting scalar checks (it gets read alongside
-        // the array bound below) and avoid duplicate work.
-        let mut count_field_names: std::collections::HashSet<String> = std::collections::HashSet::new();
-        for af in &arrays {
-            count_field_names.insert(count_field_name(op, af).to_string());
-        }
-
-        let op_name = &op.name;
-        writeln!(w, "        {i} => {{ // {op_name}")?;
-
-        for f in &op.fields {
-            if f.is_array {
-                continue;
-            }
-            if f.name == "m_type" || f.name == "m_strict" || f.name == "m_length" {
-                continue;
-            }
-            if count_field_names.contains(&f.name) {
-                continue;
-            }
-            let offset = *layout.field_offsets.get(&f.name).expect("missing field offset");
-            emit_scalar_field_check(&mut w, &f.name, &f.ty, offset)?;
-        }
-
-        if has_array {
-            let m_length_offset = *layout
-                .field_offsets
-                .get("m_length")
-                .expect("variable-length op missing m_length");
-            // All variable-length bytecodes carry exactly one trailing
-            // array; if that ever changes, this loop validates each independently.
-            for af in &arrays {
-                let array_offset = *layout.field_offsets.get(&af.name).expect("missing array offset");
-                let count_field = count_field_name(op, af);
-                let count_offset = *layout
-                    .field_offsets
-                    .get(count_field)
-                    .expect("missing count field offset");
-                let elem_size = field_type_info(&af.ty).size;
-
-                writeln!(
-                    w,
-                    "            let __m_length = read_u32(bytes, at + {m_length_offset}) as usize;"
-                )?;
-                writeln!(
-                    w,
-                    "            let __count = read_u32(bytes, at + {count_offset}) as usize;"
-                )?;
-                writeln!(
-                    w,
-                    "            let __array_bytes = __count.saturating_mul({elem_size});"
-                )?;
-                writeln!(
-                    w,
-                    "            if {array_offset}usize.saturating_add(__array_bytes) > __m_length {{"
-                )?;
-                writeln!(w, "                return Err(ValidationErrorKind::InvalidLength);")?;
-                writeln!(w, "            }}")?;
-                writeln!(w, "            let __array_off = at + {array_offset};")?;
-                writeln!(w, "            for __i in 0..__count {{")?;
-                writeln!(w, "                let __off = __array_off + __i * {elem_size};")?;
-                emit_array_elem_check(&mut w, &af.ty)?;
-                writeln!(w, "            }}")?;
-            }
-        }
-
-        writeln!(w, "        }}")?;
-    }
-
-    writeln!(w, "        _ => {{}}")?;
-    writeln!(w, "    }}")?;
-    writeln!(w, "    Ok(())")?;
-    writeln!(w, "}}")?;
-    writeln!(w)?;
-
-    Ok(())
-}
-
 fn generate_instruction_impl(
     mut w: impl Write,
     ops: &[InstructionDefinition],
 ) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(w, "impl Instruction {{").unwrap();
-    generate_opcode_method(&mut w, ops)?;
-    generate_is_terminator_method(&mut w, ops)?;
-    generate_encode_method(&mut w, ops)?;
-    generate_encoded_size_method(&mut w, ops)?;
-    generate_visit_operands_method(&mut w, ops)?;
+    generate_encode_method(
+        &mut w,
+        ops,
+        "encode_into_block",
+        "crate::bytecode::codegen::emitter::BlockEncoder<'_>",
+    )?;
     generate_visit_labels_method(&mut w, ops)?;
     writeln!(w, "    }}")?;
-    Ok(())
-}
-
-fn generate_visit_operands_method(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "    /// Visit all `Operand` fields (for operand rewriting).")?;
-    writeln!(
-        w,
-        "    pub fn visit_operands(&mut self, visitor: &mut dyn FnMut(&mut Operand)) {{"
-    )?;
-    writeln!(w, "        match self {{")?;
-
-    for op in ops {
-        let fields = user_fields(op);
-        let operand_fields: Vec<&&Field> = fields
-            .iter()
-            .filter(|f| f.ty == "Operand" || f.ty == "Optional<Operand>")
-            .collect();
-
-        if operand_fields.is_empty() {
-            let pat = if fields.is_empty() {
-                format!("Instruction::{}", op.name)
-            } else {
-                format!("Instruction::{} {{ .. }}", op.name)
-            };
-            writeln!(w, "            {pat} => {{}}")?;
-            continue;
-        }
-
-        // Bind the operand fields
-        let bindings: Vec<String> = fields
-            .iter()
-            .map(|f| {
-                let rname = rust_field_name(&f.name);
-                if f.ty == "Operand" || f.ty == "Optional<Operand>" {
-                    rname
-                } else {
-                    format!("{rname}: _")
-                }
-            })
-            .collect();
-        writeln!(
-            w,
-            "            Instruction::{} {{ {} }} => {{",
-            op.name,
-            bindings.join(", ")
-        )?;
-
-        for f in &operand_fields {
-            let rname = rust_field_name(&f.name);
-            if f.is_array {
-                if f.ty == "Optional<Operand>" {
-                    writeln!(
-                        w,
-                        "                for op in {rname}.iter_mut().flatten() {{ visitor(op); }}"
-                    )?;
-                } else {
-                    writeln!(w, "                for item in {rname}.iter_mut() {{ visitor(item); }}")?;
-                }
-            } else if f.ty == "Optional<Operand>" {
-                writeln!(w, "                if let Some(op) = {rname} {{ visitor(op); }}")?;
-            } else {
-                writeln!(w, "                visitor({rname});")?;
-            }
-        }
-
-        writeln!(w, "            }}")?;
-    }
-
-    writeln!(w, "        }}")?;
-    writeln!(w, "    }}")?;
-    writeln!(w)?;
-
     Ok(())
 }
 

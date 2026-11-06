@@ -1,24 +1,25 @@
-$632db05a computed-string-to-ById.js:17:1
-  Registers: 9
+$5ae1dd2a computed-string-to-ById.js:17:1
+  Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `get_string_prop`
-  [  18] NewObject dst:reg7
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, get_string_prop, arguments:[reg7]
-  [  50] GetGlobal value_feedback:2, dst:reg7, `set_string_prop`
-  [  60] NewObject dst:reg8
-  [  70] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, set_string_prop, arguments:[reg8]
-  [  98] GetGlobal value_feedback:4, dst:reg7, `get_index_prop`
-  [  a8] NewArray dst:reg8
-  [  b8] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:Undefined, get_index_prop, arguments:[reg8]
-  [  e0] GetGlobal value_feedback:6, dst:reg7, `get_length_prop`
-  [  f0] NewArray dst:reg8
-  [ 100] Call value_feedback:7, call_feedback:3, dst:reg6, callee:reg7, this_value:Undefined, get_length_prop, arguments:[reg8]
-  [ 128] End value:reg6
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `get_string_prop`
+  [  28] NewObject dst:reg7
+  [  38] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  60] GetGlobal value_feedback:2, dst:reg6, `set_string_prop`
+  [  70] NewObject dst:reg7
+  [  80] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  a8] GetGlobal value_feedback:4, dst:reg6, `get_index_prop`
+  [  b8] NewArray dst:reg7
+  [  c8] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  f0] GetGlobal value_feedback:6, dst:reg6, `get_length_prop`
+  [ 100] NewArray dst:reg7
+  [ 110] Call value_feedback:7, call_feedback:3, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [ 138] End value:reg5
 
 
 get_string_prop$d3f03c93 computed-string-to-ById.js:5:5
@@ -29,12 +30,12 @@ get_string_prop$d3f03c93 computed-string-to-ById.js:5:5
 
 block0:
   [   0] Enter
-  [   8] GetById value_feedback:0, dst:reg5, base:arg0, `hello` (o.hello)
+  [   8] GetById value_feedback:0, dst:reg5, base:arg0, `hello`
   [  20] Return value:reg5
 
 
-set_string_prop$592a21c7 computed-string-to-ById.js:8:16
-  Registers: 6
+set_string_prop$50de4e97 computed-string-to-ById.js:8:16
+  Registers: 5
   Blocks:    1
   Constants:
     [0] = String("hello")
@@ -43,9 +44,8 @@ set_string_prop$592a21c7 computed-string-to-ById.js:8:16
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:arg0
-  [  18] PutById base:reg5, `hello`, src:Int32(42), kind:Normal (o.hello)
-  [  38] End value:Undefined
+  [   8] PutById base:arg0, `hello`, src:Int32(42), kind:Normal
+  [  28] End value:Undefined
 
 
 get_index_prop$a54df54e computed-string-to-ById.js:11:5
@@ -56,7 +56,7 @@ get_index_prop$a54df54e computed-string-to-ById.js:11:5
 
 block0:
   [   0] Enter
-  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:String("0") (o[String("0")])
+  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:String("0")
   [  28] Return value:reg5
 
 
@@ -68,5 +68,5 @@ get_length_prop$0563fe89 computed-string-to-ById.js:14:5
 
 block0:
   [   0] Enter
-  [   8] GetLength value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0 (o.length)
+  [   8] GetLength value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0
   [  20] Return value:reg5

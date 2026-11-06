@@ -195,7 +195,7 @@ pub struct Token {
     pub trivia_has_line_terminator: bool,
     /// Decoded identifier value, set when the identifier contains unicode
     /// escape sequences (e.g. `l\u0065t` → `let`).
-    pub identifier_value: Option<crate::ast::Utf16String>,
+    pub identifier_value: Option<ak::Utf16String>,
     /// Error message for Invalid tokens (e.g. "Unterminated multi-line comment").
     pub message: Option<String>,
 }

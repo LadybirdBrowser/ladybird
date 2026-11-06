@@ -1,4 +1,4 @@
-$e5c27a28 int32-binary-specializations.js:20:1
+$e8866b38 int32-binary-specializations.js:20:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,9 +7,10 @@ $e5c27a28 int32-binary-specializations.js:20:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal value_feedback:0, dst:reg6, `int32_binary_specializations`
-  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, int32_binary_specializations, arguments:[Int32(8)]
-  [  40] End value:reg5
+  [   8] Mov dst:reg5, src:Undefined
+  [  18] GetGlobal value_feedback:0, dst:reg6, `int32_binary_specializations`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(8)]
+  [  50] End value:reg5
 
 
 int32_binary_specializations$61f68510 int32-binary-specializations.js:2:5

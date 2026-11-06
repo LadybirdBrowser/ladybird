@@ -52,3 +52,11 @@ test("delete optional-chaining property references", () => {
 
     expect(delete { inner: null }?.inner?.value).toBeTrue();
 });
+
+test("delete of an optional chain", () => {
+    function deleteAll(object) {
+        return [delete object?.x, object, delete object?.["y"], delete object?.z.w];
+    }
+    expect(deleteAll({ x: 1, y: 2, z: { w: 3 } })).toEqual([true, { z: {} }, true, true]);
+    expect(deleteAll(null)).toEqual([true, null, true, true]);
+});

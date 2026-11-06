@@ -82,7 +82,7 @@ pub fn count_field_name<'a>(op: &'a InstructionDefinition, array_field: &Field) 
 
 /// A Rust expression reading a field of type `ty` from `bytes` at the byte
 /// offset `offset` (itself a Rust expression). `reader` is the path prefix of
-/// the `read_u32` / `read_u64` helpers, for example `"super::validator::"`.
+/// the `read_u32` / `read_u64` helpers, for example `"super::operand::"`.
 pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
     match ty {
         "bool" => format!("bytes[{offset}] != 0"),
@@ -375,13 +375,20 @@ pub fn generate_encoded_size_method(mut w: impl Write, ops: &[InstructionDefinit
 
 /// Emit `Instruction::encode()`, which serializes an instruction into bytes
 /// in the struct layout of its fields. Must be called inside an `impl Instruction`.
-pub fn generate_encode_method(mut w: impl Write, ops: &[InstructionDefinition]) -> GeneratorResult {
+pub fn generate_encode_method(
+    mut w: impl Write,
+    ops: &[InstructionDefinition],
+    method_name: &str,
+    encoder_type: &str,
+) -> GeneratorResult {
     writeln!(
         w,
         "    /// Encode this instruction into bytes in the struct layout of its fields."
     )?;
-    writeln!(w, "    pub fn encode(&self, strict: bool, buf: &mut Vec<u8>) {{")?;
-    writeln!(w, "        let start = buf.len();")?;
+    writeln!(
+        w,
+        "    pub fn {method_name}(&self, strict: bool, encoder: &mut {encoder_type}) {{"
+    )?;
     writeln!(w, "        match self {{")?;
 
     for op in ops {
@@ -400,105 +407,7 @@ pub fn generate_encode_method(mut w: impl Write, ops: &[InstructionDefinition]) 
             )?;
         }
 
-        // Write header: opcode (u8) + strict (u8) = 2 bytes
-        writeln!(w, "                buf.push(OpCode::{} as u8);", op.name)?;
-        writeln!(w, "                buf.push(strict as u8);")?;
-
-        // Track offset for the struct layout.
-        // We iterate ALL fields (including m_type, m_strict, m_length) for
-        // accurate alignment but only emit writes for user fields.
-        let mut offset: usize = 2;
-
-        // Iterate all non-array fields in declaration order
-        for f in &op.fields {
-            if f.is_array {
-                continue;
-            }
-            // m_type and m_strict are already written as the header
-            if f.name == "m_type" || f.name == "m_strict" {
-                continue;
-            }
-
-            let info = field_type_info(&f.ty);
-            let field_offset = op.layout.field_offsets[&f.name];
-            assert!(
-                field_offset >= offset,
-                "{}: tracked offset {offset} passed layout offset {field_offset} for {}",
-                op.name,
-                f.name
-            );
-            let pad = field_offset - offset;
-            if pad > 0 {
-                writeln!(w, "                buf.extend_from_slice(&[0u8; {pad}]);")?;
-            }
-            offset = field_offset;
-
-            if f.name == "m_length" {
-                // Write placeholder (patched at end for variable-length instructions)
-                writeln!(
-                    w,
-                    "                buf.extend_from_slice(&[0u8; 4]); // m_length placeholder"
-                )?;
-            } else {
-                let rname = rust_field_name(&f.name);
-                emit_field_write(&mut w, &rname, info.kind, false)?;
-            }
-            offset += info.size;
-        }
-
-        // Write trailing array elements
-        if let Some(array) = &op.array {
-            let field = &op.fields[array.field_index];
-            let info = field_type_info(&field.ty);
-            let rname = rust_field_name(&field.name);
-            assert!(
-                array.offset >= offset,
-                "{}: tracked offset {offset} passed array offset {} for {}",
-                op.name,
-                array.offset,
-                field.name
-            );
-            let pad = array.offset - offset;
-            if pad > 0 {
-                writeln!(w, "                buf.extend_from_slice(&[0u8; {pad}]);")?;
-            }
-
-            writeln!(w, "                for item in {rname} {{")?;
-            emit_field_write(&mut w, "item", info.kind, true)?;
-            writeln!(w, "                }}")?;
-            writeln!(
-                w,
-                "                let target = ({} + {}.len() * {} + 7) & !7;",
-                op.layout.minimum_size, rname, array.element_size
-            )?;
-            writeln!(
-                w,
-                "                while (buf.len() - start) < target {{ buf.push(0); }}"
-            )?;
-
-            let m_length_offset = op
-                .layout
-                .m_length_offset
-                .expect("the parser requires m_length for array ops");
-            writeln!(w, "                let total_len = (buf.len() - start) as u32;")?;
-            writeln!(
-                w,
-                "                buf[start + {}..start + {}].copy_from_slice(&total_len.to_ne_bytes());",
-                m_length_offset,
-                m_length_offset + 4
-            )?;
-        } else {
-            let final_size = op.layout.size.expect("fixed op missing encoded size");
-            assert!(
-                final_size >= offset,
-                "{}: tracked offset {offset} passed final size {final_size}",
-                op.name
-            );
-            let tail_pad = final_size - offset;
-            if tail_pad > 0 {
-                writeln!(w, "                buf.extend_from_slice(&[0u8; {tail_pad}]);")?;
-            }
-        }
+        generate_encode_body(&mut w, op)?;
 
         writeln!(w, "            }}")?;
     }
@@ -509,65 +418,244 @@ pub fn generate_encode_method(mut w: impl Write, ops: &[InstructionDefinition]) 
     Ok(())
 }
 
-/// Emit code to write a field value into `w`.
-///
-/// All bindings from pattern matching and loop iteration are references (`&T`).
-/// Rust auto-derefs for method calls, but explicit `*` is needed for casts
-/// and direct pushes of Copy types.
-fn emit_field_write(mut w: impl Write, name: &str, kind: &str, is_loop_item: bool) -> GeneratorResult {
-    let prefix = " ".repeat(if is_loop_item { 20 } else { 16 });
-    match kind {
-        "bool" => writeln!(w, "{prefix}buf.push(*{name} as u8);")?,
-        "u8" => writeln!(w, "{prefix}buf.push(*{name});")?,
-        "i32" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
-        "u16" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
-        "u32" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
-        "u64" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
-        "operand" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.raw().to_ne_bytes());")?,
-        "optional_operand" => {
-            writeln!(w, "{prefix}match {name} {{")?;
-            writeln!(
-                w,
-                "{prefix}    Some(op) => buf.extend_from_slice(&op.raw().to_ne_bytes()),"
-            )?;
-            writeln!(
-                w,
-                "{prefix}    None => buf.extend_from_slice(&Operand::INVALID.to_ne_bytes()),"
-            )?;
-            writeln!(w, "{prefix}}}")?;
+/// Emit the statements that encode `op`, whose fields are bound by reference.
+fn generate_encode_body(mut w: impl Write, op: &InstructionDefinition) -> GeneratorResult {
+    // The fixed part of the instruction goes through one buffer of its exact size.
+    let fixed_size = match &op.array {
+        Some(array) => array.offset,
+        None => op.layout.size.expect("fixed op missing encoded size"),
+    };
+    writeln!(w, "                let mut out = [0u8; {fixed_size}];")?;
+    writeln!(w, "                out[0] = OpCode::{} as u8;", op.name)?;
+    writeln!(w, "                out[1] = strict as u8;")?;
+
+    // We iterate ALL fields (including m_type, m_strict, m_length) for
+    // accurate alignment but only emit writes for user fields.
+    for f in &op.fields {
+        if f.is_array || f.name == "m_type" || f.name == "m_strict" || f.name == "m_length" {
+            continue;
         }
-        "label" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.0.to_ne_bytes());")?,
+        let info = field_type_info(&f.ty);
+        let field_offset = op.layout.field_offsets[&f.name];
+        assert!(
+            field_offset + info.size <= fixed_size,
+            "{}: field {} does not fit the fixed part",
+            op.name,
+            f.name
+        );
+        emit_field_store(&mut w, &rust_field_name(&f.name), info.kind, field_offset)?;
+    }
+    writeln!(w, "                let start = encoder.bytes.len();")?;
+    writeln!(w, "                encoder.bytes.extend_from_slice(&out);")?;
+
+    // Write trailing array elements
+    if let Some(array) = &op.array {
+        let field = &op.fields[array.field_index];
+        let info = field_type_info(&field.ty);
+        let rname = rust_field_name(&field.name);
+
+        writeln!(w, "                for item in {rname} {{")?;
+        emit_field_write(&mut w, "item", info.kind)?;
+        writeln!(w, "                }}")?;
+        writeln!(
+            w,
+            "                let target = ({} + {}.len() * {} + 7) & !7;",
+            op.layout.minimum_size, rname, array.element_size
+        )?;
+        writeln!(w, "                encoder.bytes.resize(start + target, 0);")?;
+
+        let m_length_offset = op
+            .layout
+            .m_length_offset
+            .expect("the parser requires m_length for array ops");
+        writeln!(w, "                let total_len = target as u32;")?;
+        writeln!(
+            w,
+            "                encoder.bytes[start + {}..start + {}].copy_from_slice(&total_len.to_ne_bytes());",
+            m_length_offset,
+            m_length_offset + 4
+        )?;
+    } else {
+        writeln!(w, "                let _ = start;")?;
+    }
+
+    Ok(())
+}
+
+/// Emit a module with a plain struct for every instruction, for code that knows which instruction it writes: the fields
+/// are those of `Instruction`, with a slice for a trailing array, so writing one takes no allocation and no enum.
+/// `specializable_operands` names the operands of an instruction whose value may select a specialized form.
+pub fn generate_typed_instructions(
+    mut w: impl Write,
+    ops: &[InstructionDefinition],
+    module_name: &str,
+    encoder_type: &str,
+    specializable_operands: &dyn Fn(&str) -> Vec<String>,
+) -> GeneratorResult {
+    writeln!(w, "pub mod {module_name} {{")?;
+    writeln!(w, "use super::*;")?;
+    writeln!(w)?;
+    writeln!(w, "pub trait TypedInstruction {{")?;
+    writeln!(w, "    const OPCODE: OpCode;")?;
+    writeln!(w, "    const IS_TERMINATOR: bool;")?;
+    writeln!(
+        w,
+        "    /// Whether an operand that is a constant may select a specialized form."
+    )?;
+    writeln!(w, "    fn may_specialize(&self) -> bool;")?;
+    writeln!(w, "    fn encode(&self, strict: bool, encoder: &mut {encoder_type});")?;
+    writeln!(w, "    fn to_instruction(&self) -> Instruction;")?;
+    writeln!(w, "}}")?;
+    writeln!(w)?;
+    for op in ops {
+        let fields = user_fields(op);
+        let has_array = fields.iter().any(|f| f.is_array);
+        let lifetime = if has_array { "<'a>" } else { "" };
+        let anonymous_lifetime = if has_array { "<'_>" } else { "" };
+        writeln!(w, "#[derive(Clone, Copy)]")?;
+        if fields.is_empty() {
+            writeln!(w, "pub struct {} {{}}", op.name)?;
+        } else {
+            writeln!(w, "pub struct {}{lifetime} {{", op.name)?;
+            for f in &fields {
+                let info = field_type_info(&f.ty);
+                let r_name = rust_field_name(&f.name);
+                if f.is_array {
+                    writeln!(w, "    pub {}: &'a [{}],", r_name, info.rust_type)?;
+                } else {
+                    writeln!(w, "    pub {}: {},", r_name, info.rust_type)?;
+                }
+            }
+            writeln!(w, "}}")?;
+        }
+        writeln!(w, "impl TypedInstruction for {}{anonymous_lifetime} {{", op.name)?;
+        writeln!(w, "    const OPCODE: OpCode = OpCode::{};", op.name)?;
+        writeln!(w, "    const IS_TERMINATOR: bool = {};", op.is_terminator)?;
+        let operands = specializable_operands(&op.name);
+        writeln!(w, "    #[inline(always)]")?;
+        if operands.is_empty() {
+            writeln!(w, "    fn may_specialize(&self) -> bool {{ false }}")?;
+        } else {
+            let tests = operands
+                .iter()
+                .map(|operand| format!("self.{operand}.is_constant()"))
+                .collect::<Vec<_>>();
+            writeln!(w, "    fn may_specialize(&self) -> bool {{ {} }}", tests.join(" || "))?;
+        }
+        writeln!(w, "    #[inline(always)]")?;
+        writeln!(w, "    fn encode(&self, strict: bool, encoder: &mut {encoder_type}) {{")?;
+        if !fields.is_empty() {
+            let bindings: Vec<String> = fields.iter().map(|f| rust_field_name(&f.name)).collect();
+            writeln!(w, "                let Self {{ {} }} = self;", bindings.join(", "))?;
+            for f in fields.iter().filter(|f| f.is_array) {
+                let name = rust_field_name(&f.name);
+                writeln!(w, "                let {name} = *{name};")?;
+            }
+        }
+        generate_encode_body(&mut w, op)?;
+        writeln!(w, "    }}")?;
+        writeln!(w, "    #[inline(always)]")?;
+        writeln!(w, "    fn to_instruction(&self) -> Instruction {{")?;
+        if fields.is_empty() {
+            writeln!(w, "        Instruction::{}", op.name)?;
+        } else {
+            let values: Vec<String> = fields
+                .iter()
+                .map(|f| {
+                    let name = rust_field_name(&f.name);
+                    if f.is_array {
+                        format!("{name}: self.{name}.to_vec()")
+                    } else {
+                        format!("{name}: self.{name}")
+                    }
+                })
+                .collect();
+            writeln!(w, "        Instruction::{} {{ {} }}", op.name, values.join(", "))?;
+        }
+        writeln!(w, "    }}")?;
+        writeln!(w, "}}")?;
+    }
+    writeln!(w, "}}")?;
+    writeln!(w)?;
+    Ok(())
+}
+
+/// Emit code to store a field of the fixed part of an instruction into `out` at `offset`.
+///
+/// All bindings from pattern matching are references (`&T`). Rust auto-derefs for method calls, but explicit `*` is
+/// needed for casts and direct stores of Copy types.
+fn emit_field_store(mut w: impl Write, name: &str, kind: &str, offset: usize) -> GeneratorResult {
+    let prefix = " ".repeat(16);
+    let store = |value: &str, size: usize| format!("out[{offset}..{}].copy_from_slice(&{value});", offset + size);
+    match kind {
+        "bool" => writeln!(w, "{prefix}out[{offset}] = *{name} as u8;")?,
+        "u8" => writeln!(w, "{prefix}out[{offset}] = *{name};")?,
+        "i32" | "u32" => writeln!(w, "{prefix}{}", store(&format!("{name}.to_ne_bytes()"), 4))?,
+        "u16" => writeln!(w, "{prefix}{}", store(&format!("{name}.to_ne_bytes()"), 2))?,
+        "u64" => writeln!(w, "{prefix}{}", store(&format!("{name}.to_ne_bytes()"), 8))?,
+        "operand" => writeln!(
+            w,
+            "{prefix}{}",
+            store(&format!("encoder.operand(*{name}, {offset}).to_ne_bytes()"), 4)
+        )?,
+        "optional_operand" => {
+            let value = format!("{name}.map_or(Operand::INVALID, |op| encoder.operand(op, {offset})).to_ne_bytes()");
+            writeln!(w, "{prefix}{}", store(&value, 4))?;
+        }
+        "label" => {
+            writeln!(w, "{prefix}encoder.note_label({offset});")?;
+            writeln!(w, "{prefix}{}", store(&format!("{name}.0.to_ne_bytes()"), 4))?;
+        }
         "optional_label" => {
             // Optional<Label> layout: u32 value, bool has_value, 3 bytes padding = 8 bytes total
-            writeln!(w, "{prefix}match {name} {{")?;
-            writeln!(w, "{prefix}    Some(lbl) => {{")?;
-            writeln!(w, "{prefix}        buf.extend_from_slice(&lbl.0.to_ne_bytes());")?;
-            writeln!(w, "{prefix}        buf.push(1); buf.push(0); buf.push(0); buf.push(0);")?;
-            writeln!(w, "{prefix}    }}")?;
-            writeln!(w, "{prefix}    None => {{")?;
-            writeln!(w, "{prefix}        buf.extend_from_slice(&0u32.to_ne_bytes());")?;
-            writeln!(w, "{prefix}        buf.push(0); buf.push(0); buf.push(0); buf.push(0);")?;
-            writeln!(w, "{prefix}    }}")?;
+            writeln!(w, "{prefix}if let Some(lbl) = {name} {{")?;
+            writeln!(w, "{prefix}    encoder.note_label({offset});")?;
+            writeln!(w, "{prefix}    {}", store("lbl.0.to_ne_bytes()", 4))?;
+            writeln!(w, "{prefix}    out[{}] = 1;", offset + 4)?;
             writeln!(w, "{prefix}}}")?;
         }
-        "u32_newtype" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.0.to_ne_bytes());")?,
+        "u32_newtype" => writeln!(w, "{prefix}{}", store(&format!("{name}.0.to_ne_bytes()"), 4))?,
         "optional_u32_newtype" => {
-            writeln!(w, "{prefix}match {name} {{")?;
-            writeln!(
-                w,
-                "{prefix}    Some(idx) => buf.extend_from_slice(&idx.0.to_ne_bytes()),"
-            )?;
-            writeln!(
-                w,
-                "{prefix}    None => buf.extend_from_slice(&0xFFFF_FFFFu32.to_ne_bytes()),"
-            )?;
-            writeln!(w, "{prefix}}}")?;
+            let value = format!("{name}.map_or(0xFFFF_FFFFu32, |idx| idx.0).to_ne_bytes()");
+            writeln!(w, "{prefix}{}", store(&value, 4))?;
         }
         "env_coord" => {
-            writeln!(w, "{prefix}buf.extend_from_slice(&{name}.hops.to_ne_bytes());")?;
-            writeln!(w, "{prefix}buf.extend_from_slice(&{name}.index.to_ne_bytes());")?;
+            writeln!(w, "{prefix}{}", store(&format!("{name}.hops.to_ne_bytes()"), 4))?;
+            writeln!(
+                w,
+                "{prefix}out[{}..{}].copy_from_slice(&{name}.index.to_ne_bytes());",
+                offset + 4,
+                offset + 8
+            )?;
         }
         other => panic!("Unknown encoding kind: {other}"),
+    }
+
+    Ok(())
+}
+
+/// Emit code to append an element of the trailing array of an instruction, a reference, to the encoder.
+fn emit_field_write(mut w: impl Write, name: &str, kind: &str) -> GeneratorResult {
+    let prefix = " ".repeat(20);
+    match kind {
+        "bool" => writeln!(w, "{prefix}encoder.bytes.push(*{name} as u8);")?,
+        "u8" => writeln!(w, "{prefix}encoder.bytes.push(*{name});")?,
+        "i32" | "u16" | "u32" | "u64" => {
+            writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&{name}.to_ne_bytes());")?
+        }
+        "operand" => {
+            writeln!(w, "{prefix}let raw = encoder.operand(*{name}, 0);")?;
+            writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&raw.to_ne_bytes());")?;
+        }
+        "optional_operand" => {
+            writeln!(
+                w,
+                "{prefix}let raw = {name}.map_or(Operand::INVALID, |op| encoder.operand(op, 0));"
+            )?;
+            writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&raw.to_ne_bytes());")?;
+        }
+        "u32_newtype" => writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&{name}.0.to_ne_bytes());")?,
+        other => panic!("Unknown array element encoding kind: {other}"),
     }
 
     Ok(())
