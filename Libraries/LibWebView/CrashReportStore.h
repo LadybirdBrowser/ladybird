@@ -8,6 +8,8 @@
 
 #include <AK/ByteString.h>
 #include <AK/Error.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibWebView/Forward.h>
@@ -38,10 +40,15 @@ public:
 
     ErrorOr<SavedReport> saved_report(ByteString const& name) const;
 
+    // The website a waiting report's crash happened on. It sits next to the report rather than in it, so that it stays
+    // on this computer unless the user chooses to include it.
+    ErrorOr<void> save_website(ByteString const& name, StringView website) const;
+    Optional<String> website(ByteString const& name) const;
+    ErrorOr<void> remove_websites_saved_since(UnixDateTime) const;
+
     // The reports waiting to be reviewed, newest first. A report of a crash from before the hard cutoff date
     // (October 2, 2026 20:00 UTC) or more than 30 days before `now` is never pending.
     ErrorOr<Vector<ByteString>> pending_report_names(UnixDateTime now = UnixDateTime::now()) const;
-    bool has_pending_reports(UnixDateTime now = UnixDateTime::now()) const;
 
     // Seen reports move into a subdirectory, where the newest of them are kept for reference and never offered again.
     ErrorOr<void> mark_seen(ByteString const& name) const;

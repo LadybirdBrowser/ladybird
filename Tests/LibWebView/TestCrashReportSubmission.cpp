@@ -16,6 +16,7 @@
 #include <LibCore/File.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
+#include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/CrashReportReview.h>
 
 using namespace ReportServerTest;
@@ -142,7 +143,7 @@ TEST_CASE(crash_report_submission)
 
     // Once the server has a report, the local copy has done its job.
     VERIFY(!FileSystem::exists(LexicalPath::join(reports_directory, "Seen"sv, name).string()));
-    VERIFY(!store.has_pending_reports());
+    VERIFY(MUST(store.pending_report_names()).is_empty());
 
     // A request the server rejects would be rejected again, so it ends the submission until the user tries again.
     server.requests.clear();
@@ -209,6 +210,36 @@ TEST_CASE(crash_report_submission)
     Core::EventLoop::current().spin_until([&] { return server.has_answered_everything() && !FileSystem::exists(LexicalPath::join(reports_directory, "Seen"sv, name).string()); });
     VERIFY(server.requests.size() == 2);
     VERIFY(server.requests[1].path == "/api/v1/reports"sv);
+
+    // Only one place sends a report at a time, and a report sent from a review counts as on its way until it has gone,
+    // even when the review goes first.
+    WebView::CrashReportOutbox outbox { store };
+    name = write_report(reports_directory, "2026-10-01T15-00-00Z-WebContent-abc123.txt"sv);
+    {
+        WebView::CrashReportReview first_review { store };
+        WebView::CrashReportReview second_review { store };
+        MUST(first_review.open(name));
+        MUST(second_review.open(name));
+        server.respond_with(challenge("fifth"sv));
+        server.respond_with({ 200, R"({"receipt":"receipt-4"})", {} });
+        VERIFY(!outbox.send_from_review(first_review, ""_string, {}).has_value());
+        VERIFY(outbox.is_sending(name));
+        VERIFY(outbox.send_from_review(second_review, ""_string, {}).has_value());
+    }
+    Core::EventLoop::current().spin_until([&] { return !outbox.is_sending(name); });
+    VERIFY(MUST(store.pending_report_names()).is_empty());
+
+    // Choosing to keep nothing stops what a review has started.
+    name = write_report(reports_directory, "2026-10-01T16-00-00Z-WebContent-abc123.txt"sv);
+    {
+        WebView::CrashReportReview review_to_stop { store };
+        MUST(review_to_stop.open(name));
+        VERIFY(!outbox.send_from_review(review_to_stop, ""_string, {}).has_value());
+        VERIFY(outbox.is_sending(name));
+        outbox.discard_all();
+        VERIFY(!outbox.is_sending(name));
+    }
+    VERIFY(MUST(store.pending_report_names()).is_empty());
 
     outln("PASS: Crash reports reach the report server in the format it expects");
 }

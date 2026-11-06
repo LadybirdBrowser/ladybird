@@ -7,6 +7,7 @@
 #include <AK/Hex.h>
 #include <AK/WeakPtr.h>
 #include <LibCrypto/Hash/SHA2.h>
+#include <LibURL/URL.h>
 #include <LibWebView/CrashReportDiagnostics.h>
 #include <LibWebView/CrashReportReview.h>
 
@@ -29,7 +30,7 @@ CrashReportReview::CrashReportReview(CrashReportStore& store)
 
 CrashReportReview::~CrashReportReview() = default;
 
-ErrorOr<CrashReportReview::Report> CrashReportReview::open(ByteString const& report_name, MarkAsSeen mark_as_seen)
+ErrorOr<CrashReportReview::Report> CrashReportReview::open(ByteString const& report_name)
 {
     VERIFY(!m_submission);
 
@@ -40,12 +41,6 @@ ErrorOr<CrashReportReview::Report> CrashReportReview::open(ByteString const& rep
     m_prepared_url = {};
 
     auto saved_report = TRY(m_store.saved_report(report_name));
-
-    // Without this, a report closed rather than answered would come back on every launch.
-    if (mark_as_seen == MarkAsSeen::Yes) {
-        if (auto result = m_store.mark_seen(report_name); result.is_error())
-            warnln("Could not mark crash report as seen: {}", result.error());
-    }
 
     m_report_name = report_name;
     m_text_digest = sha256_hex(saved_report.text.bytes());
@@ -96,6 +91,20 @@ ErrorOr<ByteString> CrashReportReview::report_text() const
 {
     VERIFY(!m_report_name.is_empty());
     return TRY(m_store.saved_report(m_report_name)).text;
+}
+
+Optional<String> CrashReportReview::website_from_url(URL::URL const& url)
+{
+    if (url.scheme() != "http"sv && url.scheme() != "https"sv)
+        return {};
+
+    auto website = url;
+    website.set_username(""sv);
+    website.set_password(""sv);
+    auto serialized_website = website.serialize(URL::ExcludeFragment::Yes);
+    if (serialized_website.bytes().size() > maximum_url_bytes)
+        return {};
+    return serialized_website;
 }
 
 Optional<String> CrashReportReview::validate(StringView description, Optional<StringView> url)
@@ -178,6 +187,13 @@ void CrashReportReview::set_prepared_submission(PreparedSubmission submission)
 {
     m_prepared_manifest = move(submission.manifest);
     m_prepared_description = move(submission.description);
+    m_prepared_url = move(submission.url);
+}
+
+ErrorOr<void> CrashReportReview::decline()
+{
+    VERIFY(!m_report_name.is_empty());
+    return m_store.mark_seen(m_report_name);
 }
 
 // The report stays on the device, and sending it again sends the same submission, which the server recognizes if the

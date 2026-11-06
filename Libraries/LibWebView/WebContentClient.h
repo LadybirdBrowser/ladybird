@@ -158,8 +158,6 @@ public:
 
     void did_lose_process();
     void did_save_crash_report(ByteString const& report_name);
-    // Whether a tab was told this process was lost, and so shows its crash.
-    bool has_crashed_views() const { return !m_crashed_view_ids.is_empty(); }
     ErrorOr<void> reconnect_to_compositor_process(Badge<Application>);
     ErrorOr<void> recreate_compositor_contexts(Badge<Application>);
     // The user let the page at the URL capture audio. The process's AudioServer hears of the permission before this

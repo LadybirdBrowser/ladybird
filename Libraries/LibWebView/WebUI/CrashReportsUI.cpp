@@ -9,6 +9,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <LibCrypto/Hash/SHA2.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/CrashReportDiagnostics.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/WebUI/CrashReportsUI.h>
@@ -38,6 +39,14 @@ static StringView plain_process_name(StringView process)
     return "Ladybird"sv;
 }
 
+static Optional<String> website_host(String const& website)
+{
+    auto url = URL::Parser::basic_parse(website);
+    if (!url.has_value() || !url->host().has_value())
+        return {};
+    return MUST(String::from_utf8(url->serialized_host()));
+}
+
 void CrashReportsUI::register_interfaces()
 {
     register_interface("loadReports"sv, [this](auto const&) {
@@ -64,9 +73,12 @@ void CrashReportsUI::load_reports()
 {
     struct Group {
         ByteString id;
-        StringView process;
+        String process;
         Optional<UnixDateTime> last_crashed_at;
         Vector<ByteString> names;
+        Vector<String> websites;
+        Vector<Optional<String>> website_of_each_report;
+        Vector<String> hosts;
     };
 
     auto& store = CrashReportStore::the();
@@ -83,7 +95,7 @@ void CrashReportsUI::load_reports()
     HashMap<ByteString, size_t> group_indices;
     for (auto const& name : names) {
         ByteString signature { "Unreadable"sv };
-        StringView process = "Unreadable report"sv;
+        String process = "Unreadable report"_string;
         Optional<UnixDateTime> crashed_at;
 
         // A report that cannot be read still counts as waiting, so it gets a row of its own to delete it from.
@@ -92,7 +104,7 @@ void CrashReportsUI::load_reports()
         } else {
             auto diagnostics = CrashReportDiagnostics::parse(report.value().text);
             signature = diagnostics.signature();
-            process = plain_process_name(diagnostics.header("Process"sv));
+            process = MUST(String::from_utf8(plain_process_name(diagnostics.header("Process"sv))));
             crashed_at = diagnostics.crashed_at;
         }
 
@@ -102,10 +114,23 @@ void CrashReportsUI::load_reports()
                 .process = process,
                 .last_crashed_at = crashed_at,
                 .names = {},
+                .websites = {},
+                .website_of_each_report = {},
+                .hosts = {},
             });
             return groups.size() - 1;
         });
-        groups[index].names.append(name);
+        auto& group = groups[index];
+        group.names.append(name);
+
+        auto website = store.website(name);
+        group.website_of_each_report.append(website);
+        if (website.has_value()) {
+            if (auto host = website_host(*website); host.has_value() && !group.hosts.contains_slow(*host))
+                group.hosts.append(host.release_value());
+            if (!group.websites.contains_slow(*website))
+                group.websites.append(website.release_value());
+        }
     }
 
     JsonArray serialized_groups;
@@ -122,10 +147,28 @@ void CrashReportsUI::load_reports()
 
         JsonObject serialized_group;
         serialized_group.set("id"sv, String::from_utf8_with_replacement_character(group.id));
-        serialized_group.set("process"sv, group.process);
+        // A row only names a site when that is the whole truth about the websites it would send.
+        if (group.hosts.size() == 1)
+            serialized_group.set("process"sv, MUST(String::formatted("{} on {}", group.process, group.hosts.first())));
+        else if (group.hosts.size() > 1)
+            serialized_group.set("process"sv, MUST(String::formatted("{} on {} websites", group.process, group.hosts.size())));
+        else
+            serialized_group.set("process"sv, group.process);
         if (group.last_crashed_at.has_value())
             serialized_group.set("lastCrashedAt"sv, group.last_crashed_at->milliseconds_since_epoch());
         serialized_group.set("names"sv, move(serialized_names));
+
+        JsonArray serialized_websites;
+        for (auto const& website : group.websites)
+            serialized_websites.must_append(website);
+        serialized_group.set("websites"sv, move(serialized_websites));
+
+        // In the order of the names, so that the page can tell which reports a ticked website belongs to.
+        JsonArray serialized_website_of_each_report;
+        for (auto const& website : group.website_of_each_report)
+            serialized_website_of_each_report.must_append(website.has_value() ? JsonValue { *website } : JsonValue {});
+        serialized_group.set("websiteOfEachReport"sv, move(serialized_website_of_each_report));
+
         serialized_group.set("isSending"sv, is_sending);
         serialized_group.set("couldNotSend"sv, could_not_send);
         serialized_groups.must_append(move(serialized_group));
@@ -145,8 +188,15 @@ void CrashReportsUI::send_reports(JsonValue const& data)
             return;
         auto name = value.as_object().get_string("name"sv);
         auto description = value.as_object().get_string("description"sv);
-        if (name.has_value())
-            reports.append({ name->to_byte_string(), description.has_value() ? *description : String {} });
+        if (!name.has_value())
+            return;
+
+        // The website only ever leaves this computer because the user ticked its box for this report.
+        auto report_name = name->to_byte_string();
+        Optional<String> url;
+        if (value.as_object().get_bool("includeWebsite"sv).value_or(false))
+            url = CrashReportStore::the().website(report_name);
+        reports.append({ move(report_name), description.has_value() ? *description : String {}, move(url) });
     });
 
     CrashReportOutbox::the().send(move(reports));

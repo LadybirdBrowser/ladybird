@@ -60,6 +60,26 @@ void CrashReportOutbox::send(Vector<Report> reports)
     reports_changed();
 }
 
+Optional<String> CrashReportOutbox::send_from_review(CrashReportReview& review, String const& description, Optional<String> const& url)
+{
+    auto name = review.report_name();
+    if (is_sending(name))
+        return "This report is already being sent."_string;
+
+    if (auto reason = review.send(description, url); reason.has_value())
+        return reason;
+
+    if (auto* submission = review.submission()) {
+        submission->on_finished = [this, name] {
+            m_submissions_from_reviews.remove(name);
+            reports_changed();
+        };
+        m_submissions_from_reviews.set(name, *submission);
+    }
+    reports_changed();
+    return {};
+}
+
 void CrashReportOutbox::send_next()
 {
     while (!m_report_being_sent.has_value() && !m_queue.is_empty()) {
@@ -67,14 +87,14 @@ void CrashReportOutbox::send_next()
         m_report_being_sent = report.name;
         m_report_being_sent_was_retried = false;
 
-        if (auto opened = m_review.open(report.name, CrashReportReview::MarkAsSeen::No); opened.is_error()) {
+        if (auto opened = m_review.open(report.name); opened.is_error()) {
             warnln("Could not open crash report {}: {}", report.name, opened.error());
             report_failed();
             continue;
         }
         if (report.earlier_attempt.has_value())
             m_review.set_prepared_submission(report.earlier_attempt.release_value());
-        if (auto reason = m_review.send(report.description, {}); reason.has_value()) {
+        if (auto reason = m_review.send(report.description, report.url); reason.has_value()) {
             warnln("Could not send crash report {}: {}", report.name, *reason);
             report_failed();
         }
@@ -104,6 +124,9 @@ void CrashReportOutbox::discard_all()
     m_could_not_send.clear();
     m_review.cancel_sending();
     m_report_being_sent.clear();
+    auto submissions_from_reviews = move(m_submissions_from_reviews);
+    for (auto& submission : submissions_from_reviews)
+        submission.value->cancel();
     if (auto result = m_store.remove_all_reports(); result.is_error())
         warnln("Could not delete crash reports: {}", result.error());
     reports_changed();
@@ -112,6 +135,7 @@ void CrashReportOutbox::discard_all()
 bool CrashReportOutbox::is_sending(ByteString const& name) const
 {
     return m_report_being_sent == name
+        || m_submissions_from_reviews.contains(name)
         || any_of(m_queue, [&](auto const& report) { return report.name == name; });
 }
 

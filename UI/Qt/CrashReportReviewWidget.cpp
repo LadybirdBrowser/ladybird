@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWebView/CrashReportOutbox.h>
 #include <UI/Qt/CrashReportReviewWidget.h>
 #include <UI/Qt/ReportReview.h>
 #include <UI/Qt/StringUtils.h>
@@ -165,11 +166,21 @@ CrashReportReviewWidget::CrashReportReviewWidget(QString exit_text, QWidget* par
     layout->addWidget(m_report_text_page);
 
     QObject::connect(send_button, &QPushButton::clicked, this, [this] { send(); });
-    QObject::connect(decline_button, &QPushButton::clicked, this, [this] { show_declined(); });
-    QObject::connect(m_retry_button, &QPushButton::clicked, this, [this] {
-        show_progress(WebView::ReportSubmission::Stage::Preparing);
-        VERIFY(!m_review.send(m_description, m_url).has_value());
+    QObject::connect(decline_button, &QPushButton::clicked, this, [this] {
+        if (WebView::CrashReportOutbox::the().is_sending(m_review.report_name())) {
+            show_already_sending();
+            return;
+        }
+        if (auto result = m_review.decline(); result.is_error()) {
+            warnln("Could not mark crash report as seen: {}", result.error());
+            m_validation->setText(tr("This report could not be declined. It may already have been sent or deleted."));
+            m_validation->show();
+            return;
+        }
+        WebView::CrashReportOutbox::the().reports_changed();
+        show_declined();
     });
+    QObject::connect(m_retry_button, &QPushButton::clicked, this, [this] { start_sending(); });
     QObject::connect(m_cancel_button, &QPushButton::clicked, this, [this] {
         m_review.cancel_sending();
         show_page(*m_review_page);
@@ -257,8 +268,21 @@ void CrashReportReviewWidget::send()
     }
 
     m_validation->hide();
+    start_sending();
+}
+
+void CrashReportReviewWidget::start_sending()
+{
     show_progress(WebView::ReportSubmission::Stage::Preparing);
-    VERIFY(!m_review.send(m_description, m_url).has_value());
+    if (WebView::CrashReportOutbox::the().send_from_review(m_review, m_description, m_url).has_value())
+        show_already_sending();
+}
+
+// The list of crash reports took this report on first, so there is nothing left to answer here.
+void CrashReportReviewWidget::show_already_sending()
+{
+    m_progress->hide();
+    show_outcome(tr("Report already on its way"), tr("This report is being sent from the list of crash reports."));
 }
 
 void CrashReportReviewWidget::show_page(QWidget& page)

@@ -55,6 +55,8 @@ protected:
 
 private:
     void send();
+    void start_sending();
+    void show_already_sending();
     void update_chrome_style();
     void show_page(QWidget&);
     void show_report_text();

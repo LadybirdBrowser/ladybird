@@ -102,6 +102,22 @@ TEST_CASE(a_name_cannot_reach_outside_the_store)
     EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-WebContent-abc.12.txt"sv));
 }
 
+TEST_CASE(a_website_left_without_its_report_is_removed)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto store = test_store();
+    auto name = report_name("2026-10-05T12-00-00Z"sv);
+    write_file(name, "A report\n"sv);
+    write_file(ByteString::formatted("{}.website", name), "https://example.com/"sv);
+    write_file(ByteString::formatted("{}.website", report_name("2026-10-05T12-00-01Z"sv)), "https://example.org/"sv);
+
+    MUST(store.remove_expired_reports(now));
+    EXPECT(store.website(name).has_value());
+    EXPECT_EQ(directory_entries().size(), 2u);
+}
+
 TEST_CASE(pending_reports_are_listed_newest_first)
 {
     cleanup();
@@ -140,10 +156,10 @@ TEST_CASE(a_seen_report_is_no_longer_pending)
     write_file(name, "A report\n"sv);
     auto store = test_store();
 
-    EXPECT(store.has_pending_reports(now));
+    EXPECT(!MUST(store.pending_report_names(now)).is_empty());
     MUST(store.mark_seen(name));
     MUST(store.mark_seen(name));
-    EXPECT(!store.has_pending_reports(now));
+    EXPECT(MUST(store.pending_report_names(now)).is_empty());
     EXPECT(directory_entries().is_empty());
     EXPECT_EQ(directory_entries("Seen"sv), Vector<ByteString> { name });
 
@@ -151,7 +167,7 @@ TEST_CASE(a_seen_report_is_no_longer_pending)
     EXPECT_EQ(MUST(store.saved_report(name)).text, "A report\n"sv);
 
     write_file(report_name("2026-03-05T05-06-07Z"sv), "Another report\n"sv);
-    EXPECT(store.has_pending_reports(now));
+    EXPECT(!MUST(store.pending_report_names(now)).is_empty());
 }
 
 TEST_CASE(a_report_from_before_the_hard_cutoff_date_is_not_pending)
@@ -186,11 +202,11 @@ TEST_CASE(a_report_older_than_30_days_is_not_pending)
 
     auto in_30_days = UnixDateTime::from_unix_time_parts(2026, 11, 4, 12, 0, 0, 0);
     EXPECT_EQ(MUST(store.pending_report_names(in_30_days)), Vector<ByteString> { fresh });
-    EXPECT(store.has_pending_reports(in_30_days));
+    EXPECT(!MUST(store.pending_report_names(in_30_days)).is_empty());
 
     auto later = in_30_days + AK::Duration::from_seconds(1);
     EXPECT(MUST(store.pending_report_names(later)).is_empty());
-    EXPECT(!store.has_pending_reports(later));
+    EXPECT(MUST(store.pending_report_names(later)).is_empty());
 }
 
 TEST_CASE(unsent_reports_are_deleted_after_30_days)

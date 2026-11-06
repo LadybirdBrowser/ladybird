@@ -31,6 +31,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/CanonicalSessionHistoryEntry.h>
+#include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/CrashReportReview.h>
 #include <LibWebView/ErrorHTML.h>
 #include <LibWebView/FaviconStore.h>
@@ -4385,6 +4386,14 @@ void ViewImplementation::did_save_crash_report(ByteString report_name)
     if (!m_crash_state.has_value())
         return;
     m_crash_state->report_name = move(report_name);
+
+    // It stays on this computer unless the user chooses to include it, and a private window leaves no trace of it.
+    if (auto website = crash_report_website(); website.has_value() && is_private() == IsPrivate::No) {
+        if (auto result = CrashReportStore::the().save_website(m_crash_state->report_name, *website); result.is_error())
+            warnln("Could not save the website of a crash report: {}", result.error());
+        CrashReportOutbox::the().reports_changed();
+    }
+
     if (on_crash_report_saved)
         on_crash_report_saved();
 }
@@ -4406,13 +4415,7 @@ Optional<String> ViewImplementation::crash_report_website() const
 {
     if (!m_crash_state.has_value())
         return {};
-    auto const& failed_url = m_crash_state->failed_url;
-    if (failed_url.scheme() != "http"sv && failed_url.scheme() != "https"sv)
-        return {};
-    auto serialized_url = failed_url.serialize();
-    if (serialized_url.bytes().size() > CrashReportReview::maximum_url_bytes)
-        return {};
-    return serialized_url;
+    return CrashReportReview::website_from_url(m_crash_state->failed_url);
 }
 
 String ViewImplementation::force_dark_host() const
