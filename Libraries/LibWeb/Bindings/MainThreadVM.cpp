@@ -10,10 +10,12 @@
 
 #include <AK/NeverDestroyed.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCore/ThreadEventQueue.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/DeferGC.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/SystemTheme.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -40,13 +42,16 @@
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
+#include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Location.h>
+#include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -62,8 +67,13 @@
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
+#include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/Platform/ThreadPoolWork.h>
+#include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -727,6 +737,44 @@ void initialize_main_thread_vm(HTML::AgentType type)
 
         return default_host_grow_shared_array_buffer(buffer, new_byte_length);
     };
+}
+
+extern "C" void web_rust_shut_down_agent(JSVM*);
+
+void shut_down_agent()
+{
+    auto& vm = main_thread_vm();
+
+    // What the agent keeps outside its heap refers to cells in it, so that goes while the heap is alive.
+    Platform::discard_thread_pool_completions();
+    Fetch::Fetching::disarm_all_body_stream_wakes();
+    HTML::clear_message_event_ports_caches();
+    PerformanceTimeline::clear_supported_entry_types_caches();
+    Crypto::clear_crypto_key_caches();
+    ServiceWorker::clear_service_worker_container_ready_promise_caches();
+    PermissionsAPI::PermissionStore::the().forget_statuses();
+
+    // An event that is still queued can hold roots as well, and a stopped request only lets go of its roots in one. As
+    // the task queues discard everything by now, no script runs from these. What a deferred invocation of LibWeb is for
+    // has to go undone, as the worker that it was for has run its closing steps.
+    Platform::EventLoopPlugin::set_discard_deferred_invocations_on_this_thread(true);
+    auto& event_queue = Core::ThreadEventQueue::current();
+    for (;;) {
+        if (ResourceLoader::is_initialized())
+            ResourceLoader::the().stop_all_requests();
+        if (!event_queue.has_pending_events())
+            break;
+        event_queue.process();
+    }
+    Platform::EventLoopPlugin::set_discard_deferred_invocations_on_this_thread(false);
+
+    web_rust_shut_down_agent(JS::HostABI::vm_to_abi(vm));
+    ResourceLoader::shut_down();
+
+    // NB: The VM stays reachable while it is destroyed, as the finalizers of the cells in its heap use it.
+    vm.unref();
+    vm.unref();
+    (void)main_thread_vm_ptr().leak_ref();
 }
 
 JS::VM& main_thread_vm()

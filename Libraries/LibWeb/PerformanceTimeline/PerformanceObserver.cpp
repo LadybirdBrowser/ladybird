@@ -35,6 +35,11 @@ static Bindings::WrapperWorldWeakValueCacheMap<JS::Object, JS::Object>& supporte
     return *caches;
 }
 
+void clear_supported_entry_types_caches()
+{
+    supported_entry_types_caches().clear();
+}
+
 static Bindings::WrapperWorldWeakValueCache<JS::Object>& supported_entry_types_cache_for(JS::Object& global_object)
 {
     return supported_entry_types_caches().cache_for(global_object);

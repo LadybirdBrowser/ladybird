@@ -210,7 +210,7 @@ thread_local! {
 
 impl Agent {
     /// The agent of the current thread, which the first use on it creates. Each thread is one agent with one VM and one
-    /// heap, which the agent outlives.
+    /// heap, which outlive it: shut_down() ends it before they go.
     pub(crate) fn the(vm: &Vm) -> &'static Agent {
         if let Some(agent) = AGENT.get() {
             return agent;
@@ -253,6 +253,18 @@ impl Agent {
         }));
         AGENT.set(Some(agent));
         agent
+    }
+
+    /// Ends the agent of the current thread, if it has one, while its heap is alive. The store and the root of the
+    /// JavaScript exception tag point into the heap, and whatever cells of the store remain go with the heap.
+    pub(crate) fn shut_down() {
+        let Some(agent) = AGENT.take() else {
+            return;
+        };
+        // SAFETY: The root belongs to the agent, which is going away, and the heap it is in is alive.
+        unsafe { gc_root_destroy(agent._js_tag_root.as_ptr()) };
+        // SAFETY: the() leaked this box, and AGENT held the only way to reach the agent.
+        drop(unsafe { Box::from_raw(std::ptr::from_ref(agent).cast_mut()) });
     }
 
     /// The agent of the current thread, which must have one.

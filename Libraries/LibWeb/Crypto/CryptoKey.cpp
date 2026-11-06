@@ -57,6 +57,15 @@ static CryptoKeyCacheEntry& cache_for(CryptoKey& key)
     return caches.last();
 }
 
+}
+
+void clear_crypto_key_caches()
+{
+    crypto_key_caches().clear();
+}
+
+namespace {
+
 static JS::ThrowCompletionOr<GC::Ref<JS::Uint8Array>> create_uint8_array_from_bytes(JS::Realm& realm, ReadonlyBytes bytes)
 {
     auto array = TRY(JS::Uint8Array::create(realm, bytes.size()));

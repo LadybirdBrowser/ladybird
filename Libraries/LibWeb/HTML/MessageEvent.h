@@ -88,4 +88,7 @@ private:
     Vector<GC::Ref<MessagePort>> m_ports;
 };
 
+// For an agent that goes away, whose weak references the cache would keep beyond the end of its heap.
+void clear_message_event_ports_caches();
+
 }

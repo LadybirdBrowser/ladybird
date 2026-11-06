@@ -32,6 +32,9 @@ class WEB_API ResourceLoader : public Core::EventReceiver {
 public:
     static void initialize(GC::Heap&);
     static bool is_initialized();
+
+    // Forgets the loader, once its requests are stopped.
+    static void shut_down();
     static ResourceLoader& the();
 
     static void set_proxy_autoconfig_url(URL::URL);
@@ -45,6 +48,9 @@ public:
     using OnDataReceived = GC::Function<void(Requests::ResponseData data)>;
     using OnCachedBodyAvailable = GC::Function<void(Core::ImmutableBytes data)>;
     using OnComplete = GC::Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message)>;
+
+    // A request keeps roots into the heap of the agent that made it.
+    void stop_all_requests();
 
     RefPtr<Fetch::Engine::NetworkTransportHandle> load(LoadRequest&, GC::Root<OnHeadersReceived>, GC::Root<OnDataReceived>, GC::Root<OnCachedBodyAvailable>, GC::Root<OnComplete>, Requests::RequestClient::TransferLease = Requests::RequestClient::TransferLease::No);
 

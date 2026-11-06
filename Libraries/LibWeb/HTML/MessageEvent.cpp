@@ -27,6 +27,11 @@ static Bindings::WrapperWorldWeakValueCacheMap<MessageEvent, JS::Array>& message
     return *caches;
 }
 
+void clear_message_event_ports_caches()
+{
+    message_event_ports_caches().clear();
+}
+
 static void clear_ports_cache(MessageEvent& event)
 {
     message_event_ports_caches().cache_for(event).clear();

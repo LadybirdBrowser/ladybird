@@ -62,4 +62,7 @@ private:
     GC::Ref<HTML::EnvironmentSettingsObject> m_service_worker_client;
 };
 
+// For an agent that goes away, whose weak references the cache would keep beyond the end of its heap.
+void clear_service_worker_container_ready_promise_caches();
+
 }

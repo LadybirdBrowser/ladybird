@@ -142,6 +142,14 @@ thread_local! {
     };
 }
 
+/// Forgets the channels of the thread's agent, whose references into its heap have to go before the heap does.
+pub(crate) fn forget_broadcast_channels_of_agent() {
+    BROADCAST_CHANNELS.with_borrow_mut(|channels| {
+        channels.channels.clear();
+        channels.live_after_pruning = 0;
+    });
+}
+
 fn relevant_settings_object_origin(realm: Gc<Realm>) -> Origin {
     unsafe extern "C" fn on_origin(ctx: *mut c_void, ffi_origin: *const FfiOrigin) {
         // SAFETY: ctx is the origin below, and LibWeb lends the origin for the call.

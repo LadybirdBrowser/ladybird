@@ -60,6 +60,19 @@ void ResourceLoader::initialize(GC::Heap& heap)
     resource_loader() = adopt_ref(*new ResourceLoader(heap));
 }
 
+void ResourceLoader::shut_down()
+{
+    resource_loader() = nullptr;
+}
+
+void ResourceLoader::stop_all_requests()
+{
+    // NB: A stopped request removes itself from the set.
+    auto active_requests = m_active_requests;
+    for (auto const& request : active_requests)
+        request->stop();
+}
+
 bool ResourceLoader::is_initialized()
 {
     return resource_loader() != nullptr;

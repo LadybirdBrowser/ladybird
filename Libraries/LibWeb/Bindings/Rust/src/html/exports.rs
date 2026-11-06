@@ -415,6 +415,21 @@ pub unsafe extern "C" fn web_rust_message_port_disentangle_ports_of_realm(vm: *m
     MessagePort::disentangle_ports_of_realm(vm, realm);
 }
 
+/// Releases what the thread's agent keeps outside its heap, for an agent that goes away.
+///
+/// # Safety
+///
+/// `vm` must be the live VM of the thread, whose heap has to stay alive through the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_shut_down_agent(vm: *mut c_void) {
+    // SAFETY: The caller passes the live VM.
+    let vm = unsafe { &*vm.cast::<Vm>() };
+    MessagePort::shut_down_ports_of_agent(vm);
+    crate::html::broadcast_channel::forget_broadcast_channels_of_agent();
+    crate::web_assembly::Agent::shut_down();
+    crate::indexed_db::internal::storage::shut_down_storage();
+}
+
 /// Steps 6 to 9 of BroadcastChannel's postMessage(), for a message that another process posted, whose channel name
 /// C++ hands over.
 ///

@@ -23,6 +23,9 @@ class BodyStreamPullSource;
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, BodyStreamWakeToken);
 
 // Delivers a channel's wakes to the pull source registered under its token, on the loop that created it.
+// Lets go of every pull source that is waiting for a wake on this thread, for an agent that goes away.
+void disarm_all_body_stream_wakes();
+
 class BodyStreamWakeSink final : public Engine::FetchByteChannelConsumerSink {
 public:
     static NonnullRefPtr<BodyStreamWakeSink> create();

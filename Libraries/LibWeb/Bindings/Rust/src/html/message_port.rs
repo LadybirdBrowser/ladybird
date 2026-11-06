@@ -226,6 +226,21 @@ impl MessagePort {
         }
     }
 
+    /// Disentangles every port of the thread's agent and forgets them, for an agent that goes away. A port roots itself
+    /// while it can receive messages, and that root has to go before the heap does.
+    pub(crate) fn shut_down_ports_of_agent(vm: &Vm) {
+        let ports = MarkedVec::new(vm);
+        MESSAGE_PORTS.with_borrow_mut(|message_ports| {
+            for port in message_ports.ports.drain(..).filter_map(|port| port.get()) {
+                ports.push(port);
+            }
+            message_ports.live_after_pruning = 0;
+        });
+        for port in ports.values().iter() {
+            port.disentangle();
+        }
+    }
+
     // https://html.spec.whatwg.org/multipage/web-messaging.html#ports-and-garbage-collection
     // When a MessagePort object o is entangled, user agents must either act as if o's entangled MessagePort object has a
     // strong reference to o, or as if o's relevant global object has a strong reference to o.
