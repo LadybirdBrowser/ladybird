@@ -105,6 +105,12 @@ void EventLoop::visit_edges(Visitor& visitor)
 
 void EventLoop::schedule()
 {
+    m_turn_requested_without_a_task = true;
+    schedule_for_queued_task();
+}
+
+void EventLoop::schedule_for_queued_task()
+{
     if (!m_system_event_loop_timer) {
         m_system_event_loop_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), [this] {
             process();
@@ -169,6 +175,8 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
 
 void EventLoop::process()
 {
+    m_turn_requested_without_a_task = false;
+
     if (execution_paused())
         return;
 
@@ -189,8 +197,15 @@ void EventLoop::process()
     }
 
     // If there are eligible tasks in the queue, schedule a new round of processing. :^)
-    if (has_runnable_tasks || (!m_microtask_queue.is_empty() && !m_performing_a_microtask_checkpoint))
+    if (has_runnable_tasks || (!m_microtask_queue.is_empty() && !m_performing_a_microtask_checkpoint)) {
         schedule();
+        return;
+    }
+
+    // NB: A task that the turns above have run may have armed the timer for itself. What asked for a turn without
+    //     queueing a task still gets one.
+    if (m_system_event_loop_timer && !m_turn_requested_without_a_task)
+        m_system_event_loop_timer->stop();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model

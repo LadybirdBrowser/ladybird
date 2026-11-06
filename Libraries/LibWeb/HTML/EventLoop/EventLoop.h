@@ -141,6 +141,7 @@ public:
     u64 task_generation() const { return m_task_generation; }
 
     void schedule();
+    void schedule_for_queued_task();
 
     void perform_a_microtask_checkpoint();
 
@@ -283,6 +284,7 @@ private:
     u64 m_task_generation_of_last_idle_callback { 0 };
     bool m_idle_callback_requested_outside_idle_period { false };
     bool m_may_have_idle_callbacks { false };
+    bool m_turn_requested_without_a_task { false };
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };
