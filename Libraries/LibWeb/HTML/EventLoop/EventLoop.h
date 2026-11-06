@@ -148,7 +148,6 @@ public:
     // is what resumes the run a worker steps.
     void set_on_destroyed(Function<void()> on_destroyed) { m_on_destroyed = move(on_destroyed); }
     void destroy_once_script_has_finished();
-    bool is_spinning() const { return m_spin_depth > 0; }
 
     void perform_a_microtask_checkpoint();
 
