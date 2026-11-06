@@ -5794,10 +5794,15 @@ void EventHandler::reset_hover_for_document_replacement(Badge<HTML::LocalNavigab
     m_mouse_pointer.capture_target = nullptr;
     m_mouse_pointer.buttons = 0;
     m_additional_pointers.clear();
+    // A hover of the render clock shows the frame on screen, which may be of the outgoing document for a while yet. It
+    // must not bring back a link of that document once the client has heard that the hover ended.
+    auto document = m_navigable->active_document();
+    if (document)
+        document->hover_link_reporter().retire();
     if (m_navigable->page().hover_reporting_navigable() == m_navigable)
         report_hovered_node_to_client(nullptr);
     // A hover of the render clock may have told of a link there, of which no handler has heard yet.
-    if (auto document = m_navigable->active_document())
+    if (document)
         m_navigable->page().hover_link().withdraw(document->unique_id());
 }
 

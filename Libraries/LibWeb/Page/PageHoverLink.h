@@ -78,6 +78,10 @@ public:
     // Tells the page that the pointer left the document. From any thread.
     void withdraw();
 
+    // Tells the page of no more links, as the document is being replaced. A hover of the render clock shows the frame on
+    // screen, which may still be of this document after the client has heard that its hover ended.
+    void retire();
+
 private:
     HoverLinkReporter(NonnullRefPtr<PageHoverLink>, UniqueNodeID document);
 
@@ -89,6 +93,7 @@ private:
     URL::URL m_base_url;
     Utf16String m_encoding;
     String m_encoding_name;
+    bool m_is_retired { false };
 };
 
 }

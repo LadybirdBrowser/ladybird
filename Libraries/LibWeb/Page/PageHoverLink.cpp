@@ -104,19 +104,26 @@ bool HoverLinkReporter::is_link(u32 element) const
 
 void HoverLinkReporter::report(u32 element)
 {
+    // NB: The lock keeps the string live here, so this thread takes no reference to it. And it keeps a report from
+    //     coming after retire(), and so after the hover of a replaced document has ended.
+    MutexLocker locker(m_mutex);
+    if (m_is_retired)
+        return;
     Optional<URL::URL> url;
-    {
-        // NB: The lock keeps the string live here, so this thread takes no reference to it.
-        MutexLocker locker(m_mutex);
-        if (auto link = m_links.find(element); link != m_links.end())
-            url = URL::Parser::basic_parse(link->value.utf16_view(), m_base_url, m_encoding_name.bytes_as_string_view());
-    }
+    if (auto link = m_links.find(element); link != m_links.end())
+        url = URL::Parser::basic_parse(link->value.utf16_view(), m_base_url, m_encoding_name.bytes_as_string_view());
     m_hover_link->request(move(url), m_document);
 }
 
 void HoverLinkReporter::withdraw()
 {
     m_hover_link->withdraw(m_document);
+}
+
+void HoverLinkReporter::retire()
+{
+    MutexLocker locker(m_mutex);
+    m_is_retired = true;
 }
 
 }
