@@ -1,0 +1,9 @@
+Ladybird lays a background image of an inline box broken across lines
+out over one strip as long as all of the box’s pieces, and each piece
+paints its own slice of it. Blink does the same, in its
+InlineBoxFragmentPainterBase::PaintRectForImageStrip(), which offsets
+each fragment by the width of the fragments before it. WebKit does in
+InlineBoxPainter::paintFillLayer(). And Gecko’s InlineBackgroundData::
+GetContinuousRect() gives each continuation the joined rect of all of
+them. Ladybird doesn’t implement “box-decoration-break: clone” yet,
+so pieces keep their own backgrounds under it, as before.
