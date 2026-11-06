@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -133,21 +134,18 @@ void ConnectionFromClient::close_worker()
 
 void ConnectionFromClient::begin_closing()
 {
-    if (m_worker_host)
+    if (m_worker_host) {
         m_worker_host->terminate();
-    else
-        Web::HTML::main_thread_event_loop().destroy_once_script_has_finished();
+        return;
+    }
+    Web::Bindings::main_thread_vm().request_interrupt();
+    Web::HTML::main_thread_event_loop().destroy_once_script_has_finished();
 }
 
 void ConnectionFromClient::die()
 {
     if (m_shutdown_finished)
         return;
-
-    // NB: Script waiting on a nested event loop would run on with a closed connection, and it cannot be stopped from
-    //     here. Nothing else would end this process either, as the client that could is gone.
-    if (Web::HTML::main_thread_event_loop().is_spinning())
-        Core::Process::terminate_immediately(0);
 
     begin_closing();
 }
@@ -214,6 +212,24 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 
     Web::HTML::main_thread_event_loop().set_on_destroyed([] {
         Core::EventLoop::current().quit(0);
+    });
+
+    // NB: The thread that handles close_worker() may be stuck in script, so that message and the loss of the client have
+    //     to abort the script from the IO thread, for this thread to get to them at all.
+    auto& agent = *static_cast<Web::HTML::Agent*>(Web::Bindings::main_thread_vm().agent());
+    this->transport().set_incoming_message_observer([script_abort_handle = agent.script_abort_handle()](ReadonlyBytes message) {
+        struct [[gnu::packed]] Header {
+            u32 endpoint_magic;
+            i32 message_id;
+        };
+        if (!message.is_empty()) {
+            if (message.size() < sizeof(Header))
+                return;
+            auto const& header = *reinterpret_cast<Header const*>(message.data());
+            if (header.endpoint_magic != WebWorkerServerEndpoint::static_magic() || header.message_id != Messages::WebWorkerServer::CloseWorker::static_message_id())
+                return;
+        }
+        script_abort_handle->abort_script();
     });
 }
 
