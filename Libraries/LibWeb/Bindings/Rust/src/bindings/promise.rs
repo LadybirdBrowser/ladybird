@@ -530,9 +530,9 @@ unsafe impl<C: Trace> Trace for CapturedSteps<C> {
     }
 }
 
-impl<C: Trace + Copy + 'static> DeferredSteps for CapturedSteps<C> {
+impl<C: Trace + Clone + 'static> DeferredSteps for CapturedSteps<C> {
     fn run(&self, vm: &Vm) {
-        (self.steps)(vm, self.captures);
+        (self.steps)(vm, self.captures.clone());
     }
 }
 
@@ -554,7 +554,7 @@ impl EmbedderValue for PendingSteps {
     const CLASS: &'static EmbedderClass<Self> = &PENDING_STEPS_CLASS;
 }
 
-fn pending_steps<C: Trace + Copy + 'static>(vm: &Vm, captures: C, steps: fn(&Vm, C)) -> *mut c_void {
+pub(crate) fn pending_steps<C: Trace + Clone + 'static>(vm: &Vm, captures: C, steps: fn(&Vm, C)) -> *mut c_void {
     PENDING_STEPS_CLASS
         .allocate(vm, |_| {
             let steps: Box<dyn DeferredSteps> = Box::new(CapturedSteps { captures, steps });
@@ -564,7 +564,7 @@ fn pending_steps<C: Trace + Copy + 'static>(vm: &Vm, captures: C, steps: fn(&Vm,
         .cast()
 }
 
-unsafe extern "C" fn run_pending_steps(vm: *mut c_void, cell: *mut c_void) {
+pub(crate) unsafe extern "C" fn run_pending_steps(vm: *mut c_void, cell: *mut c_void) {
     // SAFETY: LibWeb passes the VM and the cell that pending_steps() made, which it kept alive.
     let (vm, cell) = unsafe {
         (
