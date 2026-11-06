@@ -1053,8 +1053,19 @@ impl<'pass> InlineContentPreparer<'pass> {
         let mut tab_stop = None;
         if chunk.has_breaking_tab {
             let style = text_context.style;
+            // https://drafts.csswg.org/css-text-3/#tab-size-property
+            // "Represents the measure as a multiple of the advance width of the space character (U+0020) of the
+            // nearest block container ancestor of the preserved tab, including its associated letter-spacing and
+            // word-spacing."
+            // NB: That's the space of the block container's first available font, whatever font the tab itself would
+            //     be drawn with. The zeros that set the least distance to a tab stop are of that font too.
+            let text_font = self
+                .style(self.block_container)
+                .font()
+                .first_available_font()
+                .expect("layout read a font group that never received a frozen font list");
             let tab_inline_size = if style.tab_size_is_number() {
-                let space = font.glyph_width(b' ' as u32);
+                let space = text_font.glyph_width(b' ' as u32);
                 CssPixels::nearest_value_for(
                     style.tab_size_number() * (space + text_context.word_spacing + text_context.letter_spacing) as f64,
                 )
@@ -1070,7 +1081,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             tab_stop = Some(PreparedTabStop {
                 tab_count: u32::try_from(tab_count).expect("tab counts fit in 32 bits"),
                 tab_inline_size,
-                zero_advance: font.glyph_width(b'0' as u32),
+                zero_advance: text_font.glyph_width(b'0' as u32),
                 upright_advance: None,
             });
         }

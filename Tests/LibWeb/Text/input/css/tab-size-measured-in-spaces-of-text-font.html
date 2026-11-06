@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../../Ref/data/fonts/Ahem.ttf");
+}
+
+pre {
+    font: 10px Ahem;
+    margin: 0;
+}
+</style>
+<pre>	<span id="after-tab">x</span></pre>
+<pre><span>        </span><span id="after-spaces">x</span></pre>
+<pre style="tab-size: 4">	<span id="after-tab-4">x</span></pre>
+<pre><span>    </span><span id="after-spaces-4">x</span></pre>
+<pre style="font-family: monospace">	<span id="after-tab-in-ahem-span" style="font-family: Ahem">x</span></pre>
+<pre style="font-family: monospace"><span id="ahem-span" style="font-family: Ahem">	x</span></pre>
+<pre style="font-family: monospace"><span>        </span><span id="after-monospace-spaces">x</span></pre>
+<script>
+    // A tab stop is measured in spaces of the text's own font, whichever font the tab itself would be drawn with.
+    asyncTest(async done => {
+        await document.fonts.ready;
+        const left = id => document.getElementById(id).getBoundingClientRect().left;
+        println(`tab-size 8 reaches 8 spaces: ${left("after-tab") === left("after-spaces")}`);
+        println(`tab-size 4 reaches 4 spaces: ${left("after-tab-4") === left("after-spaces-4")}`);
+        // The spaces are those of the nearest block container, not of an inline box around the tab.
+        const range = document.createRange();
+        const ahemText = document.getElementById("ahem-span").firstChild;
+        range.setStart(ahemText, 1);
+        range.setEnd(ahemText, 2);
+        println(`a tab in an inline box uses the block container's spaces: ${range.getBoundingClientRect().left === left("after-monospace-spaces")}`);
+        println(`a tab stop of 8 spaces is 80px: ${left("after-tab") - document.getElementById("after-tab").parentElement.getBoundingClientRect().left}px`);
+        done();
+    });
+</script>
