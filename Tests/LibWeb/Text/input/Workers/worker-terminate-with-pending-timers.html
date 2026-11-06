@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const script = `
+            setTimeout(() => postMessage("timeout fired"), 40);
+            setInterval(() => postMessage("interval fired"), 40);
+            setTimeout(() => {}, 1000000);
+            postMessage("armed");
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([script], { type: "text/javascript" })));
+        const messages = [];
+        worker.onmessage = event => messages.push(event.data);
+        await waitForCondition(() => messages.length >= 1);
+        worker.terminate();
+        await timeout(100);
+        for (const message of messages) println(message);
+    });
+</script>

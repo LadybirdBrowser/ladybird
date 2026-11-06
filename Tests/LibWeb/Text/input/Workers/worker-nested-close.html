@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const script = `
+            const nestedScript = 'setInterval(() => postMessage("nested tick"), 1);';
+            const nested = new Worker(URL.createObjectURL(new Blob([nestedScript], { type: "text/javascript" })));
+            nested.onmessage = () => {
+                nested.onmessage = null;
+                postMessage("nested worker is running");
+                close();
+            };
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([script], { type: "text/javascript" })));
+        const message = await new Promise(resolve => (worker.onmessage = event => resolve(event.data)));
+        println(message);
+    });
+</script>

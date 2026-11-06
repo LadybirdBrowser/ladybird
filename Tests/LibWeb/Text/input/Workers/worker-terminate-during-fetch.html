@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const slowURL = await server.createEcho("GET", "/worker-terminate-during-fetch", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "too late",
+            delay_ms: 5000,
+        });
+
+        const script = `
+            onmessage = event => {
+                fetch(event.data).then(response => response.text()).then(text => postMessage(text));
+                postMessage("fetching");
+            };
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([script], { type: "text/javascript" })));
+        const messages = [];
+        worker.onmessage = event => messages.push(event.data);
+        worker.postMessage(slowURL);
+        await waitForCondition(() => messages.length >= 1);
+        worker.terminate();
+        await timeout(50);
+        for (const message of messages) println(message);
+    });
+</script>

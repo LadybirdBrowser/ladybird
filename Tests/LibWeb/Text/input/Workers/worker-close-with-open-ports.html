@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const script = `
+            const channel = new MessageChannel();
+            channel.port1.onmessage = () => {};
+            onmessage = event => {
+                const port = event.ports[0];
+                port.onmessage = () => {
+                    port.postMessage("last message");
+                    close();
+                };
+                port.postMessage("ready");
+            };
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([script], { type: "text/javascript" })));
+        const channel = new MessageChannel();
+        const messages = [];
+        channel.port1.onmessage = event => {
+            messages.push(event.data);
+            if (event.data === "ready") channel.port1.postMessage("close now");
+        };
+        worker.postMessage("port", [channel.port2]);
+        await waitForCondition(() => messages.length >= 2);
+        for (const message of messages) println(message);
+
+        // The port is entangled with nothing now, so this goes nowhere and must not fail.
+        channel.port1.postMessage("anyone there?");
+        await timeout(50);
+        println("Done");
+    });
+</script>

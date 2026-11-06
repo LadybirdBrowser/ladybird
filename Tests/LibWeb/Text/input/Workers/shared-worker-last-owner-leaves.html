@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const name = uniqueID();
+        const script = `
+            onconnect = event => {
+                const port = event.ports[0];
+                port.onmessage = () => port.postMessage("hello from the shared worker");
+                port.start();
+            };
+        `;
+        const scriptURL = await server.createEcho("GET", "/shared-worker-last-owner-leaves.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript", "Access-Control-Allow-Origin": "*" },
+            body: script,
+        });
+        const pageURL = await server.createEcho("GET", "/shared-worker-last-owner-leaves.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>
+                const worker = new SharedWorker(${JSON.stringify(scriptURL)}, ${JSON.stringify(name)});
+                worker.port.onmessage = event => parent.postMessage(event.data, "*");
+                worker.port.postMessage("hello");
+            <\/script>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        const message = new Promise(resolve => (window.onmessage = event => resolve(event.data)));
+        iframe.src = pageURL;
+        document.body.appendChild(iframe);
+        println(await message);
+
+        // This drops the last owner, which ends the worker.
+        iframe.remove();
+        await timeout(50);
+        println("Done");
+    });
+</script>
