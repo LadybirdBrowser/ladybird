@@ -354,34 +354,57 @@ impl SharedFunctionInstanceData {
         strict: bool,
         source_code: Option<&Rc<SourceCode>>,
     ) -> Gc<SharedFunctionInstanceData> {
+        Self::create_from_owned_description(vm, description.clone(), strict, source_code)
+    }
+
+    fn create_from_owned_description(
+        vm: &Vm,
+        description: SharedFunctionDescription,
+        strict: bool,
+        source_code: Option<&Rc<SourceCode>>,
+    ) -> Gc<SharedFunctionInstanceData> {
+        let SharedFunctionDescription {
+            name,
+            function_kind,
+            function_length,
+            formal_parameter_count,
+            is_arrow,
+            has_simple_parameter_list,
+            source_text_offset,
+            source_text_length,
+            uses_this,
+            uses_this_from_environment,
+            payload,
+            ..
+        } = description;
         let shared = vm.heap().allocate(|defer| {
             Self::new(
                 defer,
-                description.function_kind,
-                description.name.clone(),
-                description.function_length,
-                description.formal_parameter_count,
+                function_kind,
+                name,
+                function_length,
+                formal_parameter_count,
                 strict,
-                description.is_arrow,
-                description.has_simple_parameter_list,
+                is_arrow,
+                has_simple_parameter_list,
                 Vec::new(),
-                Some(description.payload.clone()),
+                Some(payload),
             )
         });
         shared.update_can_inline_call();
 
         // Set parsing insights that must be available before lazy compilation.
-        shared.set_uses_this(description.uses_this);
+        shared.set_uses_this(uses_this);
         shared.set_metadata_bit(
             asm_call_metadata::THIS_VALUE_NEEDS_ENVIRONMENT_RESOLUTION,
-            description.uses_this_from_environment,
+            uses_this_from_environment,
         );
-        if description.uses_this_from_environment && !description.is_arrow {
+        if uses_this_from_environment && !is_arrow {
             shared.set_function_environment_needed(true);
         }
 
         shared.storage.source_code.set(source_code.cloned());
-        shared.initialize_source_text_range(description.source_text_offset, description.source_text_length);
+        shared.initialize_source_text_range(source_text_offset, source_text_length);
         shared
     }
 
@@ -442,6 +465,24 @@ impl SharedFunctionInstanceData {
         }
         if let Some(precompiled) = &pending.precompiled_function {
             shared.set_precompiled_bytecode_executable(precompiled.clone());
+        }
+        shared
+    }
+
+    /// create_from_pending_shared_function_data() for what nothing links again, which moves into the shared data.
+    pub fn create_from_owned_pending_shared_function_data(
+        vm: &Vm,
+        pending: PendingSharedFunctionData,
+        is_strict: bool,
+        source_code: Option<&Rc<SourceCode>>,
+    ) -> Gc<SharedFunctionInstanceData> {
+        let strict = pending.is_strict_in(is_strict);
+        let shared = Self::create_from_owned_description(vm, pending.description, strict, source_code);
+        if let Some((name, is_private)) = &pending.class_field_initializer_name {
+            shared.set_class_field_initializer_name_from_utf16(&name.to_utf16(), *is_private);
+        }
+        if let Some(precompiled) = pending.precompiled_function {
+            shared.set_precompiled_bytecode_executable(precompiled);
         }
         shared
     }

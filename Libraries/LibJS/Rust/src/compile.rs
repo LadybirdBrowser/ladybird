@@ -1144,6 +1144,7 @@ pub struct FunctionPayload {
 
 /// What a runtime needs to create a SharedFunctionInstanceData for one function, none of which takes the function's own
 /// tree to know. `payload` is what compile_function() turns into bytecode when the function is first called.
+#[derive(Clone)]
 pub struct SharedFunctionDescription {
     /// Empty for an anonymous function.
     pub name: ak::Utf16FlyString,
