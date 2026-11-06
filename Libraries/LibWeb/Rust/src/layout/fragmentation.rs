@@ -221,6 +221,32 @@ pub(crate) struct LineRootFragmentation {
     pub(crate) break_before_is_avoided: bool,
 }
 
+/// The layout of a box in the pass that measures the contents of a multicol container, which later passes over the
+/// columns place wherever the box stays unbroken.
+pub(super) struct ColumnBoxLayout {
+    pub(super) entry: std::sync::Arc<in_flow_block_cache::InFlowBlockEntry>,
+    pub(super) fragment: std::sync::Arc<fragment_tree::Fragment>,
+    /// How far a column has to reach below the start of the box's border box for nothing in the box to break.
+    pub(super) block_size_that_stays_unbroken: CssPixels,
+}
+
+#[derive(Default)]
+pub(crate) struct ColumnBoxLayouts {
+    layouts_by_slot: RefCell<HashMap<u32, Rc<ColumnBoxLayout>>>,
+}
+
+impl ColumnBoxLayouts {
+    pub(super) fn keep(&self, node: Node, layout: ColumnBoxLayout) {
+        self.layouts_by_slot
+            .borrow_mut()
+            .insert(node.slot_index(), Rc::new(layout));
+    }
+
+    pub(super) fn layout_of(&self, node: Node) -> Option<Rc<ColumnBoxLayout>> {
+        self.layouts_by_slot.borrow().get(&node.slot_index()).cloned()
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FragmentainerOutcome {
     pub(crate) outgoing: Option<Rc<BlockBreakToken>>,
@@ -236,6 +262,9 @@ pub(crate) struct FragmentainerContext {
     pub(crate) honors_forced_breaks: bool,
     pub(crate) incoming: Option<Rc<BlockBreakToken>>,
     pub(crate) inline_items: Rc<inline_level_iterator::InlineItemCache>,
+    pub(crate) box_layouts: Rc<ColumnBoxLayouts>,
+    /// Whether this run keeps the layouts of its boxes for the passes after it, which place them instead.
+    pub(crate) keeps_box_layouts: bool,
     pub(crate) early_break_before: Option<Node>,
     pub(crate) allows_early_break_requests: bool,
     outcome: RefCell<FragmentainerOutcome>,
@@ -245,11 +274,14 @@ pub(crate) struct FragmentainerContext {
 }
 
 impl FragmentainerContext {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         block_size: Option<CssPixels>,
         honors_forced_breaks: bool,
         incoming: Option<Rc<BlockBreakToken>>,
         inline_items: Rc<inline_level_iterator::InlineItemCache>,
+        box_layouts: Rc<ColumnBoxLayouts>,
+        keeps_box_layouts: bool,
         early_break_before: Option<Node>,
         allows_early_break_requests: bool,
     ) -> Self {
@@ -258,6 +290,8 @@ impl FragmentainerContext {
             honors_forced_breaks,
             incoming,
             inline_items,
+            box_layouts,
+            keeps_box_layouts,
             early_break_before,
             allows_early_break_requests,
             outcome: RefCell::new(FragmentainerOutcome::default()),

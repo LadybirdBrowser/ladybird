@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; font: 10px/10px SerenitySans; }
+    .list { columns: 3; column-gap: 10px; width: 310px; }
+    ol { margin: 0; padding: 0 0 0 20px; }
+    p { margin: 0 0 5px; }
+</style>
+<div class="list" id="in-wrapper"></div>
+<div class="list" id="direct"></div>
+<div class="list" id="grows"></div>
+<script>
+    const words = count => Array.from({ length: count }, (_, index) => `word${index}`).join(" ");
+    const lengths = [12, 24, 6, 18, 30, 12, 6, 24, 18, 12, 30, 6];
+
+    promiseTest(async () => {
+        if (document.readyState !== "complete") {
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        }
+        await document.fonts.ready;
+        const byId = id => document.getElementById(id);
+        byId("in-wrapper").innerHTML = `<ol id="wrapper">${lengths.map((length, index) => `<li id="item-${index}">${words(length)}</li>`).join("")}</ol>`;
+        byId("direct").innerHTML = lengths.map((length, index) => `<p id="paragraph-${index}">${words(length)}</p>`).join("");
+        byId("grows").innerHTML = lengths.map((length, index) => `<p id="grown-${index}">${words(length)}</p>`).join("");
+
+        const output = [];
+        const report = (name, work, watchedIds) => {
+            const replays = id => work.events.filter(event => event.event === "reuse in-flow subtree" && event.box.endsWith(`#${id}`)).length;
+            output.push(`${name}: ${watchedIds.map(id => `${id}=${replays(id)}`).join(" ")}`);
+        };
+        const ids = prefix => lengths.map((_, index) => `${prefix}-${index}`);
+
+        report("list items in a wrapper that crosses every column", layoutWork(() => {
+            byId("in-wrapper").style.width = "340px";
+        }), ["wrapper", ...ids("item")]);
+        report("paragraphs directly in the container", layoutWork(() => {
+            byId("direct").style.width = "340px";
+        }), ids("paragraph"));
+        report("a box growing changes where the boxes after it land", layoutWork(() => {
+            byId("grown-1").firstChild.data = words(60);
+        }), ids("grown"));
+
+        output.forEach(line => println(line));
+    });
+</script>
