@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/list-item-outside-marker-outside-padding-and-border-ref.html">
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+
+body {
+    margin: 0;
+    font: 20px/20px Ahem;
+}
+
+/* An outside marker is placed outside the list item's border box, so the start padding and border of the list item
+   move its contents but not its marker. */
+ol {
+    margin: 0 0 0 100px;
+    padding: 0;
+}
+
+.padding {
+    padding-left: 40px;
+}
+
+.border-and-padding {
+    border-left: 10px solid transparent;
+    padding-left: 20px;
+}
+
+[dir="rtl"] {
+    margin: 0 100px 0 0;
+}
+
+[dir="rtl"] .padding {
+    padding-left: 0;
+    padding-right: 40px;
+}
+</style>
+<ol>
+    <li class="padding">XX</li>
+    <li class="border-and-padding">XX</li>
+</ol>
+<ol dir="rtl">
+    <li class="padding">XX</li>
+</ol>
