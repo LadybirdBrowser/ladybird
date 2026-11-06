@@ -75,7 +75,7 @@ private:
     void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) override;
     void pop_mask(Compositing::ReplayMask const&, Compositing::EffectNodeIndex) override;
     void pop() override;
-    void push_device_space_plane_clip(Gfx::Path const&) override;
+    void push_device_space_plane_clip(ReadonlySpan<Gfx::FloatVector3> polygon_vertices) override;
 
     void clip_path(SkPath, Gfx::WindingRule, bool anti_aliased);
 
