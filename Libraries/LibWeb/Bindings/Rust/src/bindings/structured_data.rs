@@ -10,7 +10,7 @@
 //!
 //! The algorithms of crate::html::structured_serialize call the steps of such an interface directly through the
 //! generated Rust dispatch. Those steps write and read the record of the algorithm.
-//! The algorithms run the transfer steps and the transfer-receiving steps themselves, which write and read the C++
+//! The algorithms run the transfer steps and the transfer-receiving steps themselves, which write and read the Rust
 //! data holders of the transfer. Unlike an object of an interface implemented in C++, which is created before its
 //! deserialization steps fill it in, an object of an interface implemented in Rust is what its deserialization steps
 //! and its transfer-receiving steps return.
@@ -21,43 +21,23 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libipc_rust::{Decode, DecodeError, Decoder, Encode};
-use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, Realm, Value, Vm};
+use libjs_rust::api::{Gc, MarkedVec, Object, Realm, Value, Vm};
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
 use crate::bindings::interface::{ConstructedObject, Interface, Ref, implementation_of, wrap};
 use crate::bindings::transport::TransportHandle;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
-    ImageBitmapSharedPixels, OwnedSerializedTransferRecord, SharedPixelBuffers, TransferDataDecoder,
-    data_clone_error_from_serialization_error,
+    ImageBitmapSharedPixels, SharedPixelBuffers, data_clone_error_from_serialization_error,
 };
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
-use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
+use crate::html::structured_serialize::transfer_data_holder::{TransferDataHolder, TransferPayload};
 use crate::html::structured_serialize::transfer_record::{TransferRecord, TransferRecordRef};
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::html::structured_serialize::{
     Deserializer, Serializer, decode_serializable_object_header, encode_serializable_object_header,
     structured_deserialize_with_transfer_internal, structured_serialize_with_transfer,
 };
-
-unsafe extern "C" {
-    fn web_bindings_transfer_data_encode_records(data_holder: *mut c_void, records: *const *mut c_void, count: usize);
-    fn web_bindings_transfer_data_encode_transport_handle(data_holder: *mut c_void, handle: *mut c_void);
-    fn web_bindings_transfer_data_extend(data_holder: *mut c_void, holder: *mut c_void);
-    fn web_bindings_transfer_data_decode_records(
-        data_holder: *mut c_void,
-        realm: *mut c_void,
-        offset: &mut usize,
-        records: *mut c_void,
-        append: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    ) -> RawNativeFunctionResult;
-    fn web_bindings_transfer_data_decode_transport_handle(
-        data_holder: *mut c_void,
-        realm: *mut c_void,
-        offset: &mut usize,
-        out_handle: &mut *mut c_void,
-    ) -> RawNativeFunctionResult;
-}
 
 /// The record of a structured serialization, which the serialization steps of an object write to, and the serialization
 /// that the sub-serializations of the steps run in.
@@ -284,27 +264,21 @@ impl<'a> TransferDataWriter<'a> {
 
     /// Writes the records of structured serializations with transfer, as a list.
     pub(crate) fn write_records(&mut self, cx: &CallContext, records: &[TransferRecordRef]) {
-        let carriers: Vec<_> = records
-            .iter()
-            .map(|&record| TransferRecord::into_cpp(record, cx.vm()))
-            .collect();
-        let records: Vec<*mut c_void> = carriers.iter().map(|record| record.record().as_raw()).collect();
-        // SAFETY: The carrier is live, and the call borrows the records.
-        unsafe {
-            web_bindings_transfer_data_encode_records(
-                self.data_holder.carrier().as_raw(),
-                records.as_ptr(),
-                records.len(),
-            );
-        }
+        self.data_holder.with_encoder(|encoder| {
+            encoder.encode_size(records.len())?;
+            for &record in records {
+                TransferRecord::encode_into(record, cx.vm(), encoder)?;
+            }
+            Ok(())
+        });
     }
 
     /// Writes the handle of one end of an IPC transport, whose rights the data holder takes.
     pub(crate) fn write_transport_handle(&mut self, handle: TransportHandle) {
-        // SAFETY: The carrier is live, and the call borrows the handle.
-        unsafe {
-            web_bindings_transfer_data_encode_transport_handle(self.data_holder.carrier().as_raw(), handle.as_raw());
-        }
+        self.data_holder.with_encoder(|encoder| {
+            handle.encode_into(encoder);
+            Ok(())
+        });
     }
 
     /// Writes ! StructuredSerializeWithTransfer(value, « value ») as the data holder of value, which is all that the
@@ -312,8 +286,7 @@ impl<'a> TransferDataWriter<'a> {
     pub(crate) fn write_transferred_value(&mut self, cx: &CallContext, value: Value) -> WebIdlResult<()> {
         let record = structured_serialize_with_transfer(cx, value, &[value.as_object()])?;
         for holder in record.data_holders.borrow_mut().drain(..) {
-            // SAFETY: The outer carrier is live, and the call takes the nested holder.
-            unsafe { web_bindings_transfer_data_extend(self.data_holder.carrier().as_raw(), holder.into_raw()) };
+            self.data_holder.extend(holder);
         }
         TransferRecord::discard(record);
         Ok(())
@@ -321,44 +294,30 @@ impl<'a> TransferDataWriter<'a> {
 }
 
 /// The data holder of a received object, which its transfer-receiving steps read from, in the realm that the object is
-/// created in. Rust reads its bytes, which an HTML::TransferDataDecoder that C++ lends holds, and C++ decodes the values
-/// that have attachments at the offset that Rust has read to. What the steps read that the data holder does not hold
-/// throws a "DataCloneError" DOMException.
+/// created in. What the steps read that the data holder does not hold throws a "DataCloneError" DOMException.
 pub(crate) struct TransferDataReader<'a> {
-    decoder: TransferDataDecoder,
-    bytes: &'a [u8],
-    offset: usize,
+    decoder: Decoder<'a>,
     realm: Gc<Realm>,
     shared_pixels: Option<&'a SharedPixelBuffers<'a>>,
 }
 
 impl<'a> TransferDataReader<'a> {
-    /// # Safety
-    ///
-    /// `decoder` must be lent for `'a`.
-    pub(crate) unsafe fn new(decoder: TransferDataDecoder, realm: Gc<Realm>) -> Self {
+    pub(crate) fn new(payload: &'a mut TransferPayload, realm: Gc<Realm>) -> Self {
         Self {
-            decoder,
-            // SAFETY: The caller lends the decoder for 'a.
-            bytes: unsafe { decoder.bytes() },
-            offset: 0,
+            decoder: Decoder::new(&payload.bytes, core::mem::take(&mut payload.attachments)),
             realm,
             shared_pixels: None,
         }
     }
 
-    /// # Safety
-    ///
-    /// The decoder must be lent for 'a, alongside the shared pixel context.
-    pub(crate) unsafe fn with_shared_pixels(
-        decoder: TransferDataDecoder,
+    pub(crate) fn with_shared_pixels(
+        payload: &'a mut TransferPayload,
         realm: Gc<Realm>,
         shared_pixels: &'a SharedPixelBuffers<'a>,
     ) -> Self {
-        // SAFETY: The caller lends the decoder for 'a.
         Self {
             shared_pixels: Some(shared_pixels),
-            ..unsafe { Self::new(decoder, realm) }
+            ..Self::new(payload, realm)
         }
     }
 
@@ -373,17 +332,10 @@ impl<'a> TransferDataReader<'a> {
         self.realm
     }
 
-    /// The data holder as the C ABI of an interface's C++ class takes it.
-    pub(crate) fn as_raw(&self) -> *mut c_void {
-        self.decoder.as_raw()
-    }
-
     fn decoded<T>(&mut self, read: impl FnOnce(&mut Decoder<'a>) -> Result<T, DecodeError>) -> WebIdlResult<T> {
-        let mut decoder = Decoder::new(&self.bytes[self.offset..], []);
-        let value = read(&mut decoder)
-            .map_err(|_| data_clone_error_from_serialization_error(self.realm, "Unable to decode transfer data"))?;
-        self.offset = self.bytes.len() - decoder.remaining_bytes();
-        Ok(value)
+        read(&mut self.decoder).map_err(|error| {
+            data_clone_error_from_serialization_error(self.realm, &format!("Unable to decode transfer data: {error:?}"))
+        })
     }
 
     pub(crate) fn read<T: Decode>(&mut self) -> WebIdlResult<T> {
@@ -404,43 +356,26 @@ impl<'a> TransferDataReader<'a> {
 
     /// Reads what TransferDataWriter::write_records() writes.
     pub(crate) fn read_records<'vm>(&mut self, vm: &'vm Vm) -> WebIdlResult<MarkedVec<'vm, TransferRecordRef>> {
-        unsafe extern "C" fn append(context: *mut c_void, record: *mut c_void) {
-            // SAFETY: read_records() lends its VM and rooted list; C++ hands the carrier over.
-            let (vm, records) = unsafe { &*context.cast::<(&Vm, &MarkedVec<'_, TransferRecordRef>)>() };
-            let carrier = unsafe { OwnedSerializedTransferRecord::from_raw(record) };
-            records.push(TransferRecord::from_cpp(vm, carrier.record()));
-        }
         let records = MarkedVec::new(vm);
-        let mut context = (vm, &records);
-        // SAFETY: The decoder, realm, context and rooted list live for the call.
-        unsafe {
-            web_bindings_transfer_data_decode_records(
-                self.as_raw(),
-                self.realm.as_ptr().cast(),
-                &mut self.offset,
-                (&raw mut context).cast(),
-                append,
-            )
+        let result = self.decoded(|decoder| {
+            let count = decoder.decode_size()?;
+            for _ in 0..count {
+                records.push(TransferRecord::decode(vm, decoder)?);
+            }
+            Ok(())
+        });
+        if let Err(exception) = result {
+            for &record in records.values().iter() {
+                TransferRecord::discard(record);
+            }
+            return Err(exception);
         }
-        .into_completion()?;
         Ok(records)
     }
 
     /// Reads what TransferDataWriter::write_transport_handle() writes.
     pub(crate) fn read_transport_handle(&mut self) -> WebIdlResult<TransportHandle> {
-        let mut handle = core::ptr::null_mut();
-        // SAFETY: The data holder is lent for the steps, and the realm is live.
-        unsafe {
-            web_bindings_transfer_data_decode_transport_handle(
-                self.as_raw(),
-                self.realm.as_ptr().cast(),
-                &mut self.offset,
-                &mut handle,
-            )
-        }
-        .into_completion()?;
-        // SAFETY: LibWeb hands over the handle it read.
-        Ok(unsafe { TransportHandle::from_raw(handle) })
+        self.decoded(TransportHandle::decode)
     }
 
     /// ! StructuredDeserializeWithTransfer(dataHolder, the current Realm).[[Deserialized]] for what

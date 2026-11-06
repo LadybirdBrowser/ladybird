@@ -27,7 +27,7 @@ public:
     [[nodiscard]] static GC::Ref<MessagePort> create(JS::Realm&);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports:transfer-receiving-steps
-    [[nodiscard]] static GC::Ref<MessagePort> create_from_transfer(JS::Realm&, TransferDataDecoder&);
+    [[nodiscard]] static GC::Ref<MessagePort> create_from_transfer(JS::Realm&, TransferDataEncoder&&);
 
     static void disentangle_ports_of_realm(JS::Realm&);
 

@@ -34,9 +34,8 @@ use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi, r
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::dom::event::EventInit;
 use crate::html::structured_serialize::cpp::SerializedTransferRecord;
-use crate::html::structured_serialize::cpp::TransferDataDecoder;
 use crate::html::structured_serialize::message_record::MessageRecord;
-use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
+use crate::html::structured_serialize::transfer_data_holder::{TransferDataHolder, TransferPayload};
 use crate::html::structured_serialize::transfer_record::TransferRecord;
 use crate::storage_api::storage_area_mirror::StorageEndpointType;
 use crate::storage_api::storage_bottle::{obtain_a_local_storage_bottle_map, obtain_a_session_storage_bottle_map};
@@ -372,7 +371,7 @@ pub unsafe extern "C" fn web_rust_message_port_transfer_steps(
     let data_holder = TransferDataHolder::new();
     let result = MessagePort::transfer_steps(&port, &mut cx, &mut TransferDataWriter::new(&data_holder, realm, None));
     if result.is_ok() {
-        *out_data_holder = data_holder.into_carrier().into_raw();
+        *out_data_holder = data_holder.finish().into_cpp();
     }
     RawNativeFunctionResult::from_completion(
         result
@@ -386,19 +385,17 @@ pub unsafe extern "C" fn web_rust_message_port_transfer_steps(
 ///
 /// # Safety
 ///
-/// `vm` must be the live VM, `realm` a live realm, and `data_holder` an HTML::TransferDataDecoder that C++ lends for
-/// the call.
+/// `vm` must be the live VM, `realm` a live realm, and `data_holder` an HTML::TransferDataEncoder that C++ hands over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_message_port_transfer_receiving_steps(
     vm: *mut c_void,
     realm: *mut c_void,
     data_holder: *mut c_void,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the live VM and a live realm, and lends the data holder for the call.
-    let ((vm, realm), decoder) = unsafe { (realm_arguments(vm, realm), TransferDataDecoder::from_raw(data_holder)) };
+    // SAFETY: The caller passes the live VM and a live realm, and hands over the data holder.
+    let ((vm, realm), mut payload) = unsafe { (realm_arguments(vm, realm), TransferPayload::from_cpp(data_holder)) };
     let mut cx = CallContext::new(vm, realm);
-    // SAFETY: The caller lends the data holder for the call.
-    let mut data_holder = unsafe { TransferDataReader::new(decoder, realm) };
+    let mut data_holder = TransferDataReader::new(&mut payload, realm);
     let result = MessagePort::transfer_receiving_steps(&mut cx, &mut data_holder);
     RawNativeFunctionResult::from_completion(
         result

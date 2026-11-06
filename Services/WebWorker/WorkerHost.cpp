@@ -267,8 +267,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         //         (step 5) to connect_shared_worker_impl. Each connecting page gets its own pair
         //         since the connect event fires once per owner, not once at worker startup.
         if (!is_shared) {
-            Web::HTML::TransferDataDecoder decoder { move(message_port_data) };
-            inside_port = Web::HTML::MessagePort::create_from_transfer(realm, decoder);
+            inside_port = Web::HTML::MessagePort::create_from_transfer(realm, move(message_port_data));
 
             // 1. Set inside port's message event target to worker global scope.
             inside_port->set_message_event_target(*worker_global_scope);
@@ -378,8 +377,7 @@ void WorkerHost::connect_shared_worker_impl(Web::HTML::TransferDataEncoder messa
     // 11.5.5. Let insidePort be a new MessagePort in insideSettings's realm.
     // 11.5.6. Entangle outsidePort and insidePort.
     auto& realm = m_inside_settings->realm();
-    Web::HTML::TransferDataDecoder decoder { move(message_port_data) };
-    auto inside_port = Web::HTML::MessagePort::create_from_transfer(realm, decoder);
+    auto inside_port = Web::HTML::MessagePort::create_from_transfer(realm, move(message_port_data));
 
     // 11.5.7. Queue a global task on the DOM manipulation task source given workerGlobalScope to
     //         fire an event named connect at workerGlobalScope, using MessageEvent, with the data

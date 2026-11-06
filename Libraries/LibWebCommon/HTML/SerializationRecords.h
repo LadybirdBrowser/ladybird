@@ -127,22 +127,6 @@ public:
         return m_encoder.encode(value);
     }
 
-    // The size of a list, as the encoding of a Vector begins.
-    ErrorOr<void> encode_size(size_t size)
-    {
-        VERIFY(!m_buffer_has_been_taken);
-        return m_encoder.encode_size(size);
-    }
-
-    // Bytes that are already in the encoding, which the Rust data holders write.
-    ErrorOr<void> append(ReadonlyBytes bytes)
-    {
-        VERIFY(!m_buffer_has_been_taken);
-        return m_encoder.append(bytes.data(), bytes.size());
-    }
-
-    void extend(TransferDataEncoder const&);
-
     IPC::MessageBuffer const& buffer() const;
     IPC::MessageBuffer take_buffer() const;
 

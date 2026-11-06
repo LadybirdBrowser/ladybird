@@ -15,10 +15,15 @@ use libjs_rust::api::{
     ArrayBuffer, DeferGc, EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, Trace, Vm, into_raw_descriptor,
 };
 
-use super::cpp::{OwnedSerializedTransferRecord, SerializedTransferRecord, TransferDataCarrier, objects_into_abi};
-use super::message_record::MessageRecord;
+use super::cpp::{OwnedSerializedTransferRecord, SerializedTransferRecord, objects_into_abi};
+use super::message_record::{MessageRecord, SharedMemory};
+use super::transfer_data_holder::TransferPayload;
+use libipc_rust::wire::File;
+use libipc_rust::{DecodeError, Decoder, EncodeError, Encoder};
+use libjs_rust::api::{AsSharedMemory, owned_from_raw_descriptor, raw_descriptor};
 
 unsafe extern "C" {
+    fn web_structured_serialize_validate_shared_memory(descriptor: c_int, size: usize) -> bool;
     fn web_structured_serialize_transfer_record_create(
         bytes: ak::Span<'_, u8>,
         array_buffers: *const *mut c_void,
@@ -50,7 +55,7 @@ unsafe extern "C" {
 pub(crate) struct TransferRecord {
     pub(crate) serialized: GcRefCell<Option<MessageRecord>>,
     #[gc(untraced)]
-    pub(crate) data_holders: RefCell<Vec<TransferDataCarrier>>,
+    pub(crate) data_holders: RefCell<Vec<TransferPayload>>,
 }
 
 static TRANSFER_RECORD_CLASS: EmbedderClass<TransferRecord> = EmbedderClass::new("SerializedTransferRecord");
@@ -70,7 +75,7 @@ impl TransferRecord {
     pub(crate) fn create(
         vm: &Vm,
         build: impl FnOnce(&DeferGc<'_>) -> MessageRecord,
-        data_holders: Vec<TransferDataCarrier>,
+        data_holders: Vec<TransferPayload>,
     ) -> TransferRecordRef {
         TRANSFER_RECORD_CLASS.allocate(vm, |defer_gc| Self {
             serialized: GcRefCell::new(Some(build(defer_gc))),
@@ -91,7 +96,7 @@ impl TransferRecord {
                 .data_holders
                 .borrow_mut()
                 .drain(..)
-                .map(TransferDataCarrier::into_raw)
+                .map(TransferPayload::into_cpp)
                 .collect();
             // SAFETY: The call borrows bytes and live buffers, and takes every descriptor and holder. GC remains
             //         deferred until the C++ carrier roots the buffer aliases.
@@ -110,11 +115,82 @@ impl TransferRecord {
         })
     }
 
+    /// The IPC encoding of a SerializedTransferRecord, without its same-process SharedArrayBuffers.
+    pub(crate) fn encode_into(record: TransferRecordRef, vm: &Vm, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        DeferGc::scope(vm, |_| {
+            let message = record.serialized.replace(None).expect("a record is handed over once");
+            encoder.encode(message.bytes.as_slice())?;
+            let holders = core::mem::take(&mut *record.data_holders.borrow_mut());
+            encoder.encode_owned(holders)?;
+            encoder.encode_size(message.shared_memory.len())?;
+            for memory in message.shared_memory {
+                encoder.encode(&true)?;
+                encoder.encode(&(memory.size as u64))?;
+                let raw = into_raw_descriptor(memory.descriptor);
+                #[cfg(unix)]
+                let descriptor = unsafe { std::os::fd::FromRawFd::from_raw_fd(raw) };
+                #[cfg(windows)]
+                let descriptor = unsafe { libipc_rust::transport_windows::OwnedDescriptor::from_raw(raw) };
+                encoder.encode_owned(File(descriptor))?;
+            }
+            Ok(())
+        })
+    }
+
+    pub(crate) fn decode(vm: &Vm, decoder: &mut Decoder<'_>) -> Result<TransferRecordRef, DecodeError> {
+        let bytes = decoder.decode::<Vec<u8>>()?;
+        let holders = decoder.decode::<Vec<TransferPayload>>()?;
+        let count = decoder.decode_size()?;
+        let mut shared_memory = Vec::new();
+        let mut keep_prefix = true;
+        for _ in 0..count {
+            if !decoder.decode::<bool>()? {
+                // Match importing an invalid C++ AnonymousBuffer: its missing descriptor truncates the side table.
+                keep_prefix = false;
+                continue;
+            }
+            let size = usize::try_from(decoder.decode::<u64>()?)
+                .map_err(|_| DecodeError::InvalidValue("shared memory size does not fit"))?;
+            let File(descriptor) = decoder.decode::<File>()?;
+            #[cfg(unix)]
+            let raw = std::os::fd::IntoRawFd::into_raw_fd(descriptor);
+            #[cfg(windows)]
+            let raw = descriptor.into_raw();
+            // SAFETY: File hands its descriptor over to the shared-memory owner.
+            let memory = SharedMemory {
+                descriptor: unsafe { owned_from_raw_descriptor(raw) },
+                size,
+            };
+            // The native backing size and seal checks must run before any bitmap or ArrayBuffer can map the claim.
+            // SAFETY: The owner keeps the descriptor open for validation.
+            if !unsafe {
+                web_structured_serialize_validate_shared_memory(
+                    raw_descriptor(memory.descriptor.as_shared_memory()),
+                    size,
+                )
+            } {
+                return Err(DecodeError::InvalidValue("invalid shared memory backing"));
+            }
+            if keep_prefix {
+                shared_memory.push(memory);
+            }
+        }
+        Ok(Self::create(
+            vm,
+            |_| MessageRecord {
+                bytes,
+                shared_array_buffers: Vec::new(),
+                shared_memory,
+            },
+            holders,
+        ))
+    }
+
     pub(crate) fn from_cpp(vm: &Vm, record: SerializedTransferRecord) -> TransferRecordRef {
         struct Received<'a> {
             defer_gc: &'a DeferGc<'a>,
             message: Option<MessageRecord>,
-            holders: Vec<TransferDataCarrier>,
+            holders: Vec<TransferPayload>,
         }
 
         unsafe extern "C" fn receive(
@@ -154,7 +230,7 @@ impl TransferRecord {
             unsafe {
                 (*context.cast::<Received<'_>>())
                     .holders
-                    .push(TransferDataCarrier::from_raw(holder));
+                    .push(TransferPayload::from_cpp(holder));
             };
         }
 

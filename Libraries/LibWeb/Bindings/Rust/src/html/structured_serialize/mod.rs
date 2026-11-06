@@ -1829,7 +1829,7 @@ pub(crate) fn structured_serialize_with_transfer(
         }
 
         // 6. Append dataHolder to transferDataHolders.
-        transfer_data_holders.push(data_holder.into_carrier());
+        transfer_data_holders.push(data_holder.finish());
     }
 
     // 6. Let result be { [[Serialized]]: serialized, [[TransferDataHolders]]: transferDataHolders, [[InterfaceNames]]: an empty ordered set, [[AgentCluster]]: null }.
@@ -1881,14 +1881,13 @@ pub(crate) fn structured_deserialize_with_transfer<'vm>(
 
     // 5. For each transferDataHolder of serializeWithTransferResult.[[TransferDataHolders]]:
     let transfer_data_holders = core::mem::take(&mut *serialize_with_transfer_result.data_holders.borrow_mut());
-    for transfer_data_holder in transfer_data_holders {
+    for mut transfer_data_holder in transfer_data_holders {
         // NB: The transfer writes no empty data holder.
-        let decoder = transfer_data_holder
-            .into_decoder()
-            .ok_or_else(|| data_clone_error("Empty transfer data holder"))?;
-        // SAFETY: The decoder lives for the loop body.
+        if transfer_data_holder.bytes.is_empty() {
+            return Err(data_clone_error("Empty transfer data holder"));
+        }
         let mut data_holder =
-            unsafe { TransferDataReader::with_shared_pixels(decoder.decoder(), target_realm, &shared_pixels) };
+            TransferDataReader::with_shared_pixels(&mut transfer_data_holder, target_realm, &shared_pixels);
 
         // 1. Let value be an uninitialized value.
         let value = structured_deserialize_with_transfer_internal(cx, &mut data_holder)?;

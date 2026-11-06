@@ -813,7 +813,6 @@ class Timer;
 class TimeRanges;
 class ToggleEvent;
 class TrackEvent;
-class TransferDataDecoder;
 class UserActivation;
 class UserScrollGestureHold;
 class ValidityState;
