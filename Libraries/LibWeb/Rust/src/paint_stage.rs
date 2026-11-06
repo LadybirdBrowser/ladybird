@@ -49,7 +49,10 @@ struct PaintStage {
 fn the_paint_thread() -> &'static PaintThread {
     static PAINT_THREAD: OnceLock<PaintThread> = OnceLock::new();
     PAINT_THREAD.get_or_init(|| PaintThread {
-        thread: StageThread::spawn("Paint"),
+        thread: StageThread::spawn(
+            "Paint",
+            crate::render_state::release_unused_memory_of_style_layout_threads,
+        ),
         stage: StageCell(RefCell::default()),
     })
 }

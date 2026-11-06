@@ -137,6 +137,20 @@ static SLOT: LazyLock<Slot> = LazyLock::new(|| Slot {
     style_layout_pool: Arc::new(crate::style_layout_pool::StyleLayoutPool::of_process()),
 });
 
+/// Has the style and layout threads of the process give back the memory they freed, which they keep until they
+/// allocate again. Each does so between its jobs, and this does not wait for them. The Paint and Render threads both
+/// ask for this when they go idle, as either can stay busy for long while the workers have nothing to do.
+#[cfg(feature = "allocator")]
+pub(crate) fn release_unused_memory_of_style_layout_threads() {
+    if let Some(pool) = SLOT.style_layout_pool.started() {
+        pool.spawn_broadcast(|_| ak::release_unused_allocator_memory());
+    }
+}
+
+/// Standalone Rust tests do not link the C++ allocator, so there is nothing to release.
+#[cfg(not(feature = "allocator"))]
+pub(crate) fn release_unused_memory_of_style_layout_threads() {}
+
 /// The style data every document's style engine shares with the others, which any thread reaches without the slot: only
 /// what it guards itself is written once it is made.
 pub(crate) fn process_style() -> &'static Arc<crate::css::style::ProcessStyle> {
