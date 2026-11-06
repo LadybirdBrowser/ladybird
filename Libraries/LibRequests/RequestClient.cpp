@@ -207,6 +207,14 @@ void RequestClient::request_requires_network(u64 request_id)
     }
 }
 
+void RequestClient::request_upload_progress(u64 request_id, u64 bytes_sent)
+{
+    if (auto request = m_requests.get(request_id); request.has_value()) {
+        if ((*request)->on_upload_progress)
+            (*request)->on_upload_progress(bytes_sent);
+    }
+}
+
 void RequestClient::request_started(u64 request_id, IPC::File response_file)
 {
     auto request = m_requests.get(request_id);

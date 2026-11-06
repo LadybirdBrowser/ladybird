@@ -127,6 +127,9 @@ public:
     bool notify_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 cookie_request_id, StringView cookie);
     bool notify_stored_response_cookies_and_hsts_policy(Badge<ControlConnectionFromClient>, u64 store_request_id);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
+
+    // Tells the client how much of the request body has been sent.
+    void did_send_request_body_bytes(u64 bytes_sent);
     void retry_after_aia(Badge<ConnectionFromClient>);
     AIACollector* aia_collector() const { return m_aia_collector.ptr(); }
 
@@ -343,6 +346,8 @@ private:
     MonotonicTime m_last_activity_time { MonotonicTime::now() };
     NonnullRefPtr<HTTP::HeaderList> m_request_headers;
     ByteBuffer m_request_body;
+    u64 m_reported_request_body_bytes { 0 };
+    Optional<MonotonicTime> m_last_request_body_report_time;
 
     HTTP::Cookie::IncludeCredentials m_include_credentials { HTTP::Cookie::IncludeCredentials::Yes };
 

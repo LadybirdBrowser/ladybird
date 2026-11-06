@@ -48,6 +48,11 @@ void NetworkTransportHandle::set_on_requires_network(Function<void()> on_require
     m_request->on_requires_network = move(on_requires_network);
 }
 
+void NetworkTransportHandle::set_on_upload_progress(Function<void(u64 bytes_sent)> on_upload_progress)
+{
+    m_request->on_upload_progress = move(on_upload_progress);
+}
+
 void NetworkTransportHandle::set_on_teardown(Function<void(Requests::Request::TeardownReason)> on_teardown)
 {
     m_request->on_teardown = move(on_teardown);

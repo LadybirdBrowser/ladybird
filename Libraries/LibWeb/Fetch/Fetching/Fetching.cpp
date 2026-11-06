@@ -3041,10 +3041,27 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
         // 4. Incrementally read request’s body given processBodyChunk, processEndOfBody, processBodyError, and
         //    fetchParams’s task destination.
-        // AD-HOC: A request holds its body's source and length but not its stream. A body with a source is read as its
-        //         stream would give it, as one chunk of the whole source, and a body without one through the reader
-        //         fetch() acquired for its stream.
-        if (auto const& source = body->source(); source.has_value()) {
+        // AD-HOC: A request holds its body's source and length but not its stream. A body with a source is read in the
+        //         chunks RequestServer reports sending it in, when it goes over the network, and otherwise as one
+        //         chunk of the whole source. A body without a source is read through the reader fetch() acquired for
+        //         its stream.
+        auto const& source = body->source();
+        if (source.has_value() && source->size() > 0 && network_transport) {
+            network_transport->set_on_upload_progress([fetch_params = NonnullRefPtr { fetch_params }, process_body_chunk, process_end_of_body = GC::Root { process_end_of_body }, length = source->size(), bytes_read = u64 { 0 }](u64 bytes_sent) mutable {
+                bytes_sent = min(bytes_sent, length);
+                if (bytes_sent <= bytes_read)
+                    return;
+                auto chunk_length = bytes_sent - bytes_read;
+                bytes_read = bytes_sent;
+
+                auto controller = fetch_params->controller();
+                Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(GC::Heap::the(), [process_body_chunk, chunk_length] {
+                    process_body_chunk(chunk_length);
+                }));
+                if (bytes_read == length)
+                    Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::Ref { *process_end_of_body });
+            });
+        } else if (source.has_value()) {
             if (auto length = source->size(); length > 0) {
                 Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.controller()->task_destination(), GC::create_function(GC::Heap::the(), [process_body_chunk, length] {
                     process_body_chunk(length);

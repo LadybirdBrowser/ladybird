@@ -1,0 +1,12 @@
+File: more than one loaded value: true
+File: loaded never decreases: true
+File: first progress before the end: true
+File: load true
+File: loadend true
+File: status 200
+FormData: more than one loaded value: true
+FormData: loaded never decreases: true
+FormData: first progress before the end: true
+FormData: load true
+FormData: loadend true
+FormData: status 200
