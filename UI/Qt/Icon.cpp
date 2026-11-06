@@ -304,6 +304,8 @@ static constexpr auto DOCUMENT_ICON_PATH = "M3.5 1.5h5l4 4v9h-9zM8.5 1.5v4h4"sv;
 static constexpr auto COMPOSITOR_ICON_PATH = "M5.5 6.5h9v7h-9zM5.5 9.5h-4v-7h9v4"sv;
 static constexpr auto IMAGE_ICON_PATH = "M2.5 2.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM1.5 11.5l3.5-3.5 5.5 5.5M9.5 9.5l2-2 3 3M10.5 5.5v.01"sv;
 static constexpr auto FOLDER_ICON_PATH = "M2.5 2.5h3l2 2h6a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"sv;
+static constexpr auto FEEDBACK_ICON_PATH = "M3.5 1.5h8a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-4l-3 3v-3h-1a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2zM7.5 3.5v3M7.5 8.5v.01"sv;
+static constexpr auto EXTERNAL_LINK_ICON_PATH = "M6.5 2.5h-3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9.5 1.5h4v4M13.5 1.5l-6 6"sv;
 
 // The window controls of Windows and Linux are drawn on a 10 px box in the middle of the icon.
 static constexpr auto WINDOW_MINIMIZE_ICON_PATH = "M3.5 8.5h9"sv;
@@ -383,6 +385,10 @@ static StringView chrome_icon_path(ChromeIcon icon)
         return WARNING_ICON_PATH;
     case ChromeIcon::Pause:
         return PAUSE_ICON_PATH;
+    case ChromeIcon::Feedback:
+        return FEEDBACK_ICON_PATH;
+    case ChromeIcon::ExternalLink:
+        return EXTERNAL_LINK_ICON_PATH;
     case ChromeIcon::ZoomOut:
         return ZOOM_OUT_ICON_PATH;
     case ChromeIcon::Sidebar:

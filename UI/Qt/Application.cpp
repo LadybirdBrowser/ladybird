@@ -1182,6 +1182,14 @@ void Application::display_crash_report_notification(ByteString const& report_nam
     m_crash_report_notifier.offer(report_name);
 }
 
+void Application::update_feedback_buttons()
+{
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget))
+            window->toolbar().update_feedback_button();
+    }
+}
+
 void Application::review_crash_report(ByteString const& report_name)
 {
     if (!m_active_window)

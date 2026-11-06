@@ -54,6 +54,8 @@ enum class ChromeIcon {
     Image,
     Warning,
     Pause,
+    Feedback,
+    ExternalLink,
     ZoomOut,
     Sidebar,
     SidebarRight,

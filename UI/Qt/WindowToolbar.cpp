@@ -8,13 +8,16 @@
  */
 
 #include <AK/kmalloc.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CrashReportStore.h>
 #include <LibWebView/DownloadPresentation.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
+#include <UI/Qt/FeedbackPopover.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/LadybirdButton.h>
 #include <UI/Qt/Menu.h>
@@ -511,6 +514,77 @@ private:
     QVariantAnimation m_ring_fade;
 };
 
+// The feedback button ends the toolbar of builds that are still being tested, and opens the ways to send feedback. A
+// dot marks it while crash reports wait to be reviewed.
+class FeedbackButton final : public ToolbarButton {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    explicit FeedbackButton(QWidget* parent)
+        : ToolbarButton(parent)
+    {
+        setObjectName("LadybirdFeedbackButton");
+        setToolTip("Send feedback");
+        setAccessibleName("Send feedback");
+        // NB: The button stays checked while the popover is open.
+        setCheckable(true);
+        setAutoRaise(true);
+        setFocusPolicy(Qt::NoFocus);
+        setIconSize({ TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE });
+        setFixedSize(TOOLBAR_BUTTON_SIZE);
+        setAttribute(Qt::WA_LayoutUsesWidgetRect);
+
+        m_dot_animation.setDuration(Motion::BASE);
+        m_dot_animation.setEasingCurve(Motion::enter_easing());
+        m_dot_animation.setStartValue(0.0);
+        m_dot_animation.setEndValue(1.0);
+        QObject::connect(&m_dot_animation, &QVariantAnimation::valueChanged, this, [this](QVariant const& value) {
+            m_dot_scale = value.toDouble();
+            update();
+        });
+    }
+
+    void set_crash_reports_waiting(bool crash_reports_waiting)
+    {
+        if (m_crash_reports_waiting == crash_reports_waiting)
+            return;
+        m_crash_reports_waiting = crash_reports_waiting;
+        setAccessibleName(crash_reports_waiting ? "Send feedback, crash reports waiting" : "Send feedback");
+
+        // A dot that is already there when a window opens was not just earned, so it does not animate.
+        m_dot_animation.stop();
+        m_dot_scale = 1;
+        if (crash_reports_waiting && isVisible() && !SystemAppearance::prefers_reduced_motion()) {
+            m_dot_scale = 0;
+            m_dot_animation.start();
+        }
+        update();
+    }
+
+private:
+    virtual void paintEvent(QPaintEvent* event) override
+    {
+        ToolbarButton::paintEvent(event);
+        if (!m_crash_reports_waiting)
+            return;
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        auto palette = Theme::chrome_palette(*this);
+        QPointF dot_center { width() - 9.5, 7.5 };
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(Theme::chrome(palette).toolbar);
+        painter.drawEllipse(dot_center, 5.5 * m_dot_scale, 5.5 * m_dot_scale);
+        // NB: In the icon's color, the dot would fuse with the glyph it sits on.
+        painter.setBrush(ChromeStyle::is_dark(palette) ? QColor(0xF2, 0xA3, 0x3A) : QColor(0xD9, 0x80, 0x0F));
+        painter.drawEllipse(dot_center, 3.5 * m_dot_scale, 3.5 * m_dot_scale);
+    }
+
+    bool m_crash_reports_waiting { false };
+    QVariantAnimation m_dot_animation;
+    qreal m_dot_scale { 1 };
+};
+
 template<typename ButtonType = ToolbarButton>
 static ButtonType* create_toolbar_button(QWidget& parent, QAction& action)
 {
@@ -546,6 +620,7 @@ static constexpr int toolbar_right_margin(bool has_custom_window_controls)
 {
     return has_custom_window_controls ? 0 : TOOLBAR_HORIZONTAL_MARGIN - TOOLBAR_LOCATION_FOCUS_RING_ROOM;
 }
+static constexpr auto REPORT_BUG_URL = "https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml"sv;
 static constexpr int DOWNLOADS_POPOVER_WIDTH = 380;
 static constexpr int DOWNLOADS_POPOVER_MAX_HEIGHT = 360;
 class ElidedLabel final : public QLabel {
@@ -975,6 +1050,15 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
         show_downloads_popover();
     });
 
+    if constexpr (has_feedback_button) {
+        m_feedback_button = new FeedbackButton(m_toolbar);
+        QObject::connect(m_feedback_button, &QToolButton::clicked, this, [this] {
+            // NB: The button only stays checked while the popover is open, which showing it sees to.
+            m_feedback_button->setChecked(m_feedback_popover && m_feedback_popover->isVisible());
+            show_feedback_popover();
+        });
+    }
+
     m_navigate_back_action.action().setEnabled(false);
     m_navigate_forward_action.action().setEnabled(false);
     m_reload_action = create_application_action(*this, application.reload_action());
@@ -1072,6 +1156,8 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(location_edit_container, 1);
     toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
+    if (m_feedback_button)
+        toolbar_layout->addWidget(m_feedback_button, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_performance_monitor, 0, Qt::AlignVCenter);
 
     if constexpr (!use_native_macos_window_controls()) {
@@ -1084,6 +1170,7 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     recreate_icons();
     update_chrome_style();
     set_window_controls_visible(false);
+    update_feedback_button();
 }
 
 WindowToolbar::~WindowToolbar() = default;
@@ -1307,6 +1394,8 @@ void WindowToolbar::update_chrome_style()
     setStyleSheet(ChromeStyle::toolbar_container_style_sheet(Theme::chrome_palette(*this)));
     if (m_downloads_popover)
         m_downloads_popover->update_chrome_style(palette());
+    if (m_feedback_popover)
+        m_feedback_popover->update_chrome_style(palette());
     m_is_updating_chrome_style = false;
 }
 
@@ -1318,6 +1407,8 @@ void WindowToolbar::recreate_icons()
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, Theme::chrome_palette(*this), activity, TOOLBAR_ICON_SIZE));
     m_stop_action->setIcon(create_chrome_icon(ChromeIcon::Stop, Theme::chrome_palette(*this), activity, TOOLBAR_ICON_SIZE));
     m_downloads_button->setIcon(create_chrome_icon(ChromeIcon::Download, Theme::chrome_palette(*this), activity, TOOLBAR_ICON_SIZE));
+    if (m_feedback_button)
+        m_feedback_button->setIcon(create_chrome_icon(ChromeIcon::Feedback, Theme::chrome_palette(*this), activity, TOOLBAR_ICON_SIZE));
     update_window_control_icons();
 }
 
@@ -1355,6 +1446,54 @@ void WindowToolbar::update_downloads_popover()
 
     if (m_downloads_popover->set_downloads(WebView::Application::the().file_downloader().downloads_of_session(m_is_private)))
         position_downloads_popover();
+}
+
+void WindowToolbar::update_feedback_button()
+{
+    if (m_feedback_button)
+        m_feedback_button->set_crash_reports_waiting(WebView::CrashReportStore::the().has_pending_reports());
+}
+
+void WindowToolbar::show_feedback_popover()
+{
+    if (!m_feedback_popover) {
+        m_feedback_popover = new FeedbackPopover(this);
+        m_feedback_popover->on_visibility_change = [this](bool visible) {
+            m_feedback_button->setChecked(visible);
+        };
+        m_feedback_popover->on_report_site = [this] {
+            if (m_tab)
+                m_tab->view().report_website_issue();
+        };
+        m_feedback_popover->on_report_bug = [this] {
+            browser_window().new_tab_from_url(URL::Parser::basic_parse(REPORT_BUG_URL).release_value(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
+        };
+        m_feedback_popover->on_review_crash_reports = [] {
+            auto names = WebView::CrashReportStore::the().pending_report_names();
+            if (!names.is_error() && !names.value().is_empty())
+                Application::the().review_crash_report(names.value().first());
+            Application::the().update_feedback_buttons();
+        };
+    }
+
+    QString reportable_host;
+    if (m_tab && m_tab->view().can_report_website_issue()) {
+        if (m_tab->url().host().has_value())
+            reportable_host = qstring_from_ak_string(m_tab->url().serialized_host());
+    }
+    auto names = WebView::CrashReportStore::the().pending_report_names();
+    auto crash_report_count = names.is_error() ? 0 : names.value().size();
+    m_feedback_button->set_crash_reports_waiting(crash_report_count > 0);
+
+    m_feedback_popover->update_chrome_style(palette());
+    m_feedback_popover->set_reportable_host(reportable_host);
+    m_feedback_popover->set_crash_report_count(crash_report_count);
+    m_feedback_popover->card().layout()->activate();
+    m_feedback_popover->adjustSize();
+    move_popover_below(*m_feedback_popover, *m_feedback_button, PopoverAlignment::Trailing);
+    m_feedback_popover->show();
+    move_popover_below(*m_feedback_popover, *m_feedback_button, PopoverAlignment::Trailing);
+    m_feedback_popover->raise();
 }
 
 // The downloads hang from the downloads button. Without any, the downloads page opens instead.
