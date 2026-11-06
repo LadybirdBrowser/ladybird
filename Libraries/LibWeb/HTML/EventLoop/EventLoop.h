@@ -144,6 +144,12 @@ public:
     void schedule();
     void schedule_for_queued_task();
 
+    // A worker event loop is destroyed once its worker's closing flag is set and the script on it has finished, which
+    // is what resumes the run a worker steps.
+    void set_on_destroyed(Function<void()> on_destroyed) { m_on_destroyed = move(on_destroyed); }
+    void destroy_once_script_has_finished();
+    bool is_spinning() const { return m_spin_depth > 0; }
+
     void perform_a_microtask_checkpoint();
 
     // NB: Style and layout run no script. A temporary execution context they use ends with an empty stack, which would
@@ -342,6 +348,11 @@ private:
     u64 m_rendering_update_serial { 0 };
     // How deep the event loop is spun inside a task.
     size_t m_spin_depth { 0 };
+
+    bool destroy_if_requested();
+
+    bool m_destruction_requested { false };
+    Function<void()> m_on_destroyed;
 };
 
 WEB_API EventLoop& main_thread_event_loop();
