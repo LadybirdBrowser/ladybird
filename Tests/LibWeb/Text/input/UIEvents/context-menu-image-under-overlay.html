@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0 }
+    .stack { position: relative; width: 200px; height: 40px; font: 20px/40px monospace }
+    .stack > * { position: absolute; inset: 0; width: 200px; height: 40px; margin: 0; padding: 0; border: 0 }
+</style>
+<script>
+    const image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4YWMDAAMQAUEiFmcFAAAAAElFTkSuQmCC";
+    const overlays = {
+        "transparent": `<div></div>`,
+        "translucent": `<div style="background: rgb(0 0 0 / 50%)"></div>`,
+        "faded-opaque": `<div style="background: black; opacity: 0.5"></div>`,
+        "stacked-transparent": `<div></div><div></div>`,
+        "caption": `<div>caption</div>`,
+        "link": `<a href="https://example.com/overlay"></a>`,
+        "opaque": `<div style="background: white"></div>`,
+        "listener": `<div class="with-listener"></div>`,
+        "editable": `<div contenteditable>text</div>`,
+        "text-input": `<input>`,
+        "canvas": `<canvas></canvas>`,
+        "iframe": `<iframe></iframe>`,
+    };
+    for (const [name, overlay] of Object.entries(overlays))
+        document.write(`<div class="stack" id="${name}"><img src="${image}">${overlay}</div>`);
+    document.write(`<div id="listening-ancestor"><div class="stack" id="ancestor-listener"><img src="${image}"><div></div></div></div>`);
+    document.write(`<div class="stack" id="selected-caption"><img src="${image}"><div>selected caption</div></div>`);
+</script>
+<script>
+    test(() => {
+        // A right-click finds an image beneath layers the user can see through. Layers that hide the image, that the
+        // page listens on, or that have a menu of their own keep it.
+        const describe = () => {
+            const request = internals.takeContextMenuRequest();
+            if (!request)
+                return 'no request';
+            const link = request.linkURL ? ` link=${request.linkURL}` : '';
+            return `${request.kind} target=${request.target.nodeName}${link}`;
+        };
+        const rightClickAt = element => {
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + 10;
+            const y = rect.top + rect.height / 2;
+            internals.mouseDown(x, y, 1, 2);
+            internals.mouseUp(x, y, 2);
+        };
+
+        const noop = () => {};
+        document.querySelector('.with-listener').addEventListener('contextmenu', noop);
+        document.getElementById('listening-ancestor').addEventListener('contextmenu', noop);
+
+        for (const name of [...Object.keys(overlays), 'ancestor-listener']) {
+            rightClickAt(document.getElementById(name));
+            println(`right-click over ${name}: ${describe()}`);
+            getSelection().removeAllRanges();
+        }
+
+        const caption = document.getElementById('selected-caption');
+        getSelection().selectAllChildren(caption.lastChild);
+        rightClickAt(caption);
+        println(`right-click over selected-caption: ${describe()}`);
+    });
+</script>
