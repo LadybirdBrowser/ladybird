@@ -27,4 +27,16 @@ void MathMLAnchorElement::attribute_changed(Utf16FlyString const& name, Optional
         href_content_attribute_changed();
 }
 
+bool MathMLAnchorElement::is_focusable() const
+{
+    return (Base::is_focusable() || has_attribute(AttributeNames::href)) && meets_focusable_area_rendering_requirements();
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
+i32 MathMLAnchorElement::default_tab_index_value() const
+{
+    // 3. Return 0 if this is [...] MathML a element [...]; otherwise −1.
+    return 0;
+}
+
 }
