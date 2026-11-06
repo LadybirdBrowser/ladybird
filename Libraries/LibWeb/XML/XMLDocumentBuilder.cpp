@@ -153,7 +153,6 @@ void XMLDocumentBuilder::element_start(Utf16FlyString const& name, Vector<XML::L
 
     if (m_current_node->is_html_template_element()) {
         // When an XML parser would append a node to a template element, it must instead append it to the template element's template contents (a DocumentFragment node).
-        m_template_node_stack.append(*m_current_node);
         MUST(static_cast<HTML::HTMLTemplateElement&>(*m_current_node).content()->append_child(node));
     } else {
         MUST(m_current_node->append_child(node));
@@ -188,6 +187,7 @@ void XMLDocumentBuilder::element_start(Utf16FlyString const& name, Vector<XML::L
         }
     }
 
+    m_open_elements.append(node);
     m_current_node = node.ptr();
 }
 
@@ -240,12 +240,12 @@ void XMLDocumentBuilder::element_end(Utf16FlyString const& name)
         script_element.process_the_script_element();
     };
 
-    auto* parent = m_current_node->parent_node();
-    if (parent && parent->is_document_fragment()) {
-        auto template_parent_node = m_template_node_stack.take_last();
-        parent = template_parent_node.ptr();
+    (void)m_open_elements.take_last();
+    if (m_open_elements.is_empty()) {
+        m_current_node = m_document.ptr();
+    } else {
+        m_current_node = m_open_elements.last().ptr();
     }
-    m_current_node = parent;
 }
 
 void XMLDocumentBuilder::text(StringView data)
@@ -294,7 +294,7 @@ void XMLDocumentBuilder::processing_instruction(Utf16FlyString const& target, Ut
 void XMLDocumentBuilder::document_end()
 {
     // When an XML parser reaches the end of its input, it must stop parsing, following the same rules as the HTML parser.
-    m_template_node_stack.clear();
+    m_open_elements.clear();
     m_current_node = nullptr;
 
     HTML::HTMLParser::the_end(m_document, nullptr);
