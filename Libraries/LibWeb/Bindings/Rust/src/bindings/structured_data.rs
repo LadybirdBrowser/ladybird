@@ -8,9 +8,8 @@
 //! https://html.spec.whatwg.org/multipage/structured-data.html#serializable-objects and
 //! https://html.spec.whatwg.org/multipage/structured-data.html#transferable-objects
 //!
-//! The algorithms of crate::html::structured_serialize run the serialization steps of such an interface through
-//! LibWeb's C++, which dispatches to the entry points that the generated bindings of the interface define, which call
-//! the functions here. Those steps write and read the record of the algorithm, which it passes through C++ to them.
+//! The algorithms of crate::html::structured_serialize call the steps of such an interface directly through the
+//! generated Rust dispatch. Those steps write and read the record of the algorithm.
 //! The algorithms run the transfer steps and the transfer-receiving steps themselves, which write and read the C++
 //! data holders of the transfer. Unlike an object of an interface implemented in C++, which is created before its
 //! deserialization steps fill it in, an object of an interface implemented in Rust is what its deserialization steps
@@ -22,12 +21,12 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libipc_rust::{Decode, DecodeError, Decoder, Encode};
-use libjs_rust::api::{Gc, RawNativeFunctionResult, Realm, ThrowCompletionOr, Value};
+use libjs_rust::api::{Gc, Object, RawNativeFunctionResult, Realm, Value, Vm};
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
-use crate::bindings::interface::{ConstructedObject, Interface, Ref, cell_from_abi, realm_arguments, wrap};
+use crate::bindings::interface::{ConstructedObject, Interface, Ref, implementation_of, wrap};
 use crate::bindings::transport::TransportHandle;
-use crate::bindings::{CallContext, WebIdlResult};
+use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
     ImageBitmapSharedPixels, OwnedSerializedTransferRecord, TransferDataDecoder,
     data_clone_error_from_serialization_error,
@@ -432,55 +431,23 @@ pub(crate) trait Transferable: Interface {
     fn transfer_receiving_steps(cx: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Ref<Self>>;
 }
 
-/// The completion of steps, as the entry points return it to C++.
-fn completion(cx: &CallContext, result: WebIdlResult<Value>) -> RawNativeFunctionResult {
-    let result: ThrowCompletionOr<Value> = result.map_err(|exception| exception.throw(cx));
-    RawNativeFunctionResult::from_completion(result)
-}
-
-/// The wrapper in the realm of the call context of the object that steps created.
-fn wrap_new_object<T: Interface>(cx: &CallContext, object: impl ConstructedObject<T>) -> Value {
-    Value::from_object(wrap(cx, object.into_object(cx.vm())))
-}
-
-/// The entry point of the serialization steps of `T`.
-///
-/// # Safety
-///
-/// The pointers must be the VM, a live realm, the live cell of an object of `T`, and the SerializationWriter that
-/// crate::html::structured_serialize lends through C++.
-pub(crate) unsafe fn serialization_steps<T: Serializable>(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    cell: *mut c_void,
-    serialized: *mut c_void,
+pub(crate) fn serialization_steps<T: Serializable>(
+    vm: &Vm,
+    object: Gc<Object>,
+    serialized: &mut SerializationWriter,
     for_storage: bool,
-) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM, a live realm and a live cell of an object of T.
-    let ((vm, realm), object) = unsafe { (realm_arguments(vm, realm), cell_from_abi::<T>(cell)) };
-    let mut cx = CallContext::new(vm, realm);
-    // SAFETY: The caller passes the writer that the serialization lends for the steps.
-    let serialized = unsafe { &mut *serialized.cast::<SerializationWriter<'_, '_>>() };
-    let result = object.serialization_steps(&mut cx, serialized, for_storage);
-    completion(&cx, result.map(|()| Value::UNDEFINED))
+) -> WebIdlResult<()> {
+    let mut cx = CallContext::new(vm, object.shape().realm());
+    implementation_of::<T>(object)
+        .serialization_steps(&mut cx, serialized, for_storage)
+        .map_err(|exception| Exception::Thrown(exception.throw(&cx)))
 }
 
-/// The entry point of the deserialization steps of `T`, which returns the wrapper of the new object.
-///
-/// # Safety
-///
-/// The pointers must be the VM, a live realm, and the SerializationReader that crate::html::structured_serialize
-/// lends through C++.
-pub(crate) unsafe fn deserialization_steps<T: Serializable>(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    serialized: *mut c_void,
-) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    let mut cx = CallContext::new(vm, realm);
-    // SAFETY: The caller passes the reader that the deserialization lends for the steps.
-    let serialized = unsafe { &mut *serialized.cast::<SerializationReader<'_, '_>>() };
-    let result = T::deserialization_steps(&mut cx, serialized);
-    completion(&cx, result.map(|implementation| wrap_new_object(&cx, implementation)))
+pub(crate) fn deserialization_steps<T: Serializable>(
+    cx: &CallContext,
+    serialized: &mut SerializationReader,
+) -> WebIdlResult<Value> {
+    let mut cx = CallContext::new(cx.vm(), cx.realm());
+    let object = T::deserialization_steps(&mut cx, serialized)?;
+    Ok(Value::from_object(wrap(&cx, object.into_object(cx.vm()))))
 }

@@ -51,10 +51,6 @@ concept RustInterfaceHandle = IsBaseOf<RustInterfaceCell, T> && GC::IsForeignCel
 
 WEB_API GC::Ref<JS::HostObject> wrap_rust_interface_object(WrapperWorld&, JS::Realm& preferred_realm, InterfaceName, RustInterfaceCell&);
 
-// The cell of the object, if it is a wrapper of exactly the interface whose wrappers are of the class, and not of an
-// interface that inherits from it.
-WEB_API RustInterfaceCell* rust_interface_cell_of_wrapper(JS::Object&, JSHostClass const& wrapper_host_class);
-
 // Whether the object is a wrapper of an object of an interface implemented in Rust that is or inherits from the
 // interface with the name, as Wrappable::implements_interface() says for the objects of the interfaces implemented in
 // C++.
