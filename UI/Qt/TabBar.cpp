@@ -4989,8 +4989,14 @@ void TabBarButton::paintEvent(QPaintEvent*)
     // The speaker in the sidebar and both badges in the collapsed sidebar take the icon color, rather than the tabs'
     // quieter one.
     auto takes_icon_color = m_placement == Placement::RailBadge || (m_placement == Placement::SidebarRow && m_role == Role::Audio);
+    auto icon_mode = isEnabled() ? QIcon::Normal : QIcon::Disabled;
     if (takes_icon_color && isEnabled() && ChromeStyle::window_activity(*this) == ChromeStyle::WindowActivity::Active)
-        option.icon = QIcon(icon().pixmap(iconSize(), devicePixelRatioF(), QIcon::Active));
+        icon_mode = QIcon::Active;
+
+    // NB: The style would draw the icon into a whole number of logical pixels. Where that isn't a whole number of device
+    //     pixels, 14 px at 1.25x for one, the picture is resampled to fit and comes out blurry, so it is drawn here.
+    auto icon_pixmap = icon().pixmap(iconSize(), devicePixelRatioF(), icon_mode);
+    option.icon = {};
 
     QStylePainter painter(this);
     painter.setOpacity(m_opacity);
@@ -5011,6 +5017,7 @@ void TabBarButton::paintEvent(QPaintEvent*)
     }
 
     painter.drawControl(QStyle::CE_PushButton, option);
+    painter.drawPixmap(QStyle::alignedRect(layoutDirection(), Qt::AlignCenter, iconSize(), rect()).topLeft(), icon_pixmap);
 }
 
 }
