@@ -1246,8 +1246,7 @@ fn shared(node: CalcNode) -> Arc<CalcNode> {
 
 /// Creates a numeric leaf for a dimension: kind selects the dimension in the
 /// order number, angle, flex, frequency, length, percentage, resolution, time.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_calc_node_create_numeric_dimension(kind: u8, value: f64, unit: u8) -> *const CalcNode {
+pub(crate) fn calc_node_create_numeric_dimension(kind: u8, value: f64, unit: u8) -> *const CalcNode {
     let numeric = match kind {
         0 => CalcNumericValue::Number {
             value,

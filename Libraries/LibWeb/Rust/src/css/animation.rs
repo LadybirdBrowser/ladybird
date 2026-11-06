@@ -129,13 +129,6 @@ const STROKE_DASHARRAY_RANGES: &[NumericRangeOverride] = &[
     },
 ];
 
-#[repr(C)]
-pub struct FfiAnimationValueResult {
-    pub value: *const StyleValueData,
-    pub handled: bool,
-}
-
-/// The Rust-side form of `FfiAnimationValueResult`, which owns its value.
 pub(crate) struct AnimationValueResult {
     pub(crate) value: Option<RetainedStyleValueData>,
     pub(crate) handled: bool,
@@ -145,16 +138,6 @@ impl AnimationValueResult {
     /// The value of a handled result.
     pub(crate) fn into_value(self) -> Option<RetainedStyleValueData> {
         self.value.filter(|_| self.handled)
-    }
-
-    /// Transfers the value's reference to the C++ caller.
-    fn into_ffi(self) -> FfiAnimationValueResult {
-        FfiAnimationValueResult {
-            value: self
-                .value
-                .map_or(std::ptr::null(), |value| StyleValueArc::into_raw(value.into_arc())),
-            handled: self.handled,
-        }
     }
 }
 
@@ -9385,29 +9368,6 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
         }
     }
     custom_final_values.into_iter().collect()
-}
-
-/// Attempt Rust-owned style value interpolation without consulting C++ or the DOM.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_interpolate_scalar_style_value(
-    context: Option<&FfiAnimationContext>,
-    property_id: u16,
-    from: &StyleValueData,
-    to: &StyleValueData,
-    delta: f32,
-) -> FfiAnimationValueResult {
-    interpolate_value(context, property_id, from, to, delta).into_ffi()
-}
-
-/// Test-only bridge for exercising Rust-owned style value composition without constructing an
-/// animation batch. Production animation evaluation uses `evaluate_animations`.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_test_composite_style_value(
-    underlying: &StyleValueData,
-    animated: &StyleValueData,
-    operation: FfiCompositeOperation,
-) -> FfiAnimationValueResult {
-    composite_scalar_value(underlying, animated, operation).into_ffi()
 }
 
 #[cfg(test)]

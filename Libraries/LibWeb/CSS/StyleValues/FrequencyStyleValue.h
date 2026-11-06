@@ -16,10 +16,6 @@ namespace Web::CSS {
 
 class FrequencyStyleValue final : public DimensionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<FrequencyStyleValue const> create(Frequency frequency)
-    {
-        return adopt_ref(*new (nothrow) FrequencyStyleValue(move(frequency)));
-    }
     virtual ~FrequencyStyleValue() override = default;
 
     Frequency frequency() const { return Frequency(m_value->frequency.value, static_cast<FrequencyUnit>(m_value->frequency.unit)); }
@@ -31,11 +27,6 @@ private:
 
     explicit FrequencyStyleValue(StyleValueFFI::StyleValueData const* data)
         : DimensionStyleValue(Type::Frequency, data)
-    {
-    }
-
-    explicit FrequencyStyleValue(Frequency frequency)
-        : DimensionStyleValue(Type::Frequency, StyleValueFFI::rust_style_value_create_frequency(frequency.raw_value(), to_underlying(frequency.unit())))
     {
     }
 };

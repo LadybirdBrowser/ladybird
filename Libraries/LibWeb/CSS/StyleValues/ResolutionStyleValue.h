@@ -13,10 +13,6 @@ namespace Web::CSS {
 
 class ResolutionStyleValue : public DimensionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<ResolutionStyleValue const> create(Resolution resolution)
-    {
-        return adopt_ref(*new (nothrow) ResolutionStyleValue(move(resolution)));
-    }
     virtual ~ResolutionStyleValue() override = default;
 
     Resolution resolution() const { return Resolution(m_value->resolution.value, static_cast<ResolutionUnit>(m_value->resolution.unit)); }
@@ -28,11 +24,6 @@ private:
 
     explicit ResolutionStyleValue(StyleValueFFI::StyleValueData const* data)
         : DimensionStyleValue(Type::Resolution, data)
-    {
-    }
-
-    explicit ResolutionStyleValue(Resolution resolution)
-        : DimensionStyleValue(Type::Resolution, StyleValueFFI::rust_style_value_create_resolution(resolution.raw_value(), to_underlying(resolution.unit())))
     {
     }
 };
