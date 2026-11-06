@@ -6,11 +6,10 @@
 
 #include <AK/Endian.h>
 #include <AK/GenericShorthands.h>
-#include <LibCore/EventLoop.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
-#include <LibThreading/ThreadPool.h>
 #include <LibWeb/CSS/FontLoading.h>
+#include <LibWeb/Platform/ThreadPoolWork.h>
 
 namespace Web::CSS {
 
@@ -80,20 +79,10 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_vector_font(ByteBuffer cons
 
 void prepare_vector_font_data_off_thread(ByteBuffer data, Function<void(ErrorOr<Core::AnonymousBuffer>)>&& on_complete)
 {
-    // Keep the callback on the origin thread so any GC roots it captures are
-    // also destroyed there.
-    auto* callback = new Function<void(ErrorOr<Core::AnonymousBuffer>)>(move(on_complete));
-    auto& origin_event_loop = Core::EventLoop::current();
-
-    Threading::ThreadPool::the().submit(
-        [data = move(data), callback, &origin_event_loop]() mutable {
-            auto result = WOFF2::convert_to_ttf(data);
-
-            origin_event_loop.deferred_invoke([callback, result = move(result)]() mutable {
-                (*callback)(move(result));
-                delete callback;
-            });
-        });
+    auto convert = [data = move(data)] {
+        return WOFF2::convert_to_ttf(data);
+    };
+    Platform::run_on_thread_pool<ErrorOr<Core::AnonymousBuffer>>(move(convert), move(on_complete));
 }
 
 }
