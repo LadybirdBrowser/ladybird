@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .fixed {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+    }
+    .sheet {
+        display: flex;
+        max-height: 50%;
+        overflow: hidden;
+    }
+    .layer {
+        display: flex;
+    }
+    .column {
+        width: 100px;
+        height: 100%;
+        overflow: auto;
+    }
+    .content {
+        height: 3000px;
+    }
+</style>
+<div class="fixed">
+    <div class="sheet">
+        <div class="layer">
+            <div class="column">
+                <div class="content"></div>
+            </div>
+        </div>
+    </div>
+</div>
