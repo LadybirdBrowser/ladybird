@@ -22,6 +22,8 @@ class MathMLAnchorElement final
 public:
     virtual ~MathMLAnchorElement() override;
 
+    virtual Optional<URL::Origin> extract_an_origin() const override { return hyperlink_element_utils_extract_an_origin(); }
+
     virtual bool is_mathml_anchor_element() const override { return true; }
 
     // ^EventTarget
