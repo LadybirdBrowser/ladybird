@@ -1494,7 +1494,11 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             outln("Results: file://{}/index.html", app.results_directory);
     }
 
-    return display.fail_count + display.timeout_count + display.crashed_count + tests_remaining;
+    auto crashed_worker_process_count = test_run_capture.crashed_worker_process_count();
+    if (crashed_worker_process_count > 0)
+        warnln("test-web: {} WebWorker process(es) crashed, see the helper process logs", crashed_worker_process_count);
+
+    return display.fail_count + display.timeout_count + display.crashed_count + tests_remaining + crashed_worker_process_count;
 }
 
 static void handle_signal(int signal)
