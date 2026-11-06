@@ -425,7 +425,6 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     // from it in the layout tree: the node adopts it as its own.
     bool const installed_by_render_state = style_record_installed_by_render_state(*this, style_record_identity);
     bool const changes_published_record = m_style_record_identity != style_record_identity || m_has_layout_derived_style;
-    release_pinned_style_record();
     m_background_images.clear();
     m_mask_images.clear();
     m_border_image_source.clear();
@@ -439,6 +438,7 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
         publish_style_record_to_node_data();
     else
         did_update_style_record();
+    release_pinned_style_record();
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     // A style change can introduce the properties that make a node carry replaced-content facts,
     // such as size containment arriving on a kept layout node.
@@ -597,7 +597,6 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
         return;
 
     bool should_repin_style_record = m_style_record_pinned_for_cxx_consumers;
-    release_pinned_style_record();
     m_background_images.clear();
     m_mask_images.clear();
     m_border_image_source.clear();
@@ -607,6 +606,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
         adopt_style_record_installed_by_render_state();
     else
         publish_style_record_to_node_data();
+    release_pinned_style_record();
     if (should_repin_style_record)
         pin_style_record_for_cxx_consumers();
 
