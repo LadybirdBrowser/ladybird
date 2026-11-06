@@ -124,7 +124,7 @@ impl LayoutNodeArena {
             node,
             PaintDamage::SCROLL_METADATA | PaintDamage::DRAW_OVERLAY | PaintDamage::HIT_OVERLAY,
         );
-        // The root background covers the viewport united with the root's overflow.
+        // The root background covers the viewport united with the overflow of the viewport box.
         if self.node_kind_if_live(node) == Some(NodeKind::Viewport)
             && let Some(source) = self.paint_state().root_background_source
         {
