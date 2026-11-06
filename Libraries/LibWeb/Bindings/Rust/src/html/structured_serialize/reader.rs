@@ -25,10 +25,12 @@ use libwebcommon_rust::html::serialization_records::{DecodeError, DecodedString,
 
 use crate::bindings::WebIdlResult;
 use crate::html::structured_serialize::cpp::{
-    ReceivedIPCSerializationRecord, data_clone_error_from_serialization_error, is_ipc_interface,
-    serializable_interface_name_from_storage_identifier,
+    ReceivedIPCSerializationRecord, data_clone_error_from_serialization_error,
 };
 use crate::html::structured_serialize::message_record::{MessageRecord, SharedMemory};
+use crate::html::structured_serialize::serializable::{
+    is_ipc_interface, serializable_interface_name_from_storage_identifier,
+};
 
 /// Where the record keeps the SharedArrayBuffers that it shares.
 #[derive(Clone, Copy)]

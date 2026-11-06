@@ -6,8 +6,8 @@
 
 //! What structured serialization asks of LibWeb's C++ code, which implements it in
 //! Libraries/LibWeb/HTML/StructuredSerializeRustIntegration.cpp: the C++ records that the serializations hand their
-//! bytes over to and the deserializations read the bytes of, the registry of serializable interfaces, the platform
-//! objects, and the side tables that SharedArrayBuffers are shared through.
+//! bytes over to and the deserializations read the bytes of, C++ platform objects, and the side tables that
+//! SharedArrayBuffers are shared through.
 
 use core::ffi::{c_int, c_void};
 use core::marker::PhantomData;
@@ -28,15 +28,6 @@ unsafe extern "C" {
         count: usize,
     );
     fn web_structured_serialize_set_storage_record(record: *mut c_void, data: ak::Span<'_, u8>);
-    fn web_structured_serialize_is_ipc_interface(interface_name: u16) -> bool;
-    fn web_structured_serialize_interface_storage_identifier(
-        interface_name: u16,
-        identifier: &mut ak::Span<'static, u8>,
-    ) -> bool;
-    fn web_structured_serialize_interface_name_from_storage_identifier(
-        identifier: ak::Span<'_, u8>,
-        interface_name: &mut u16,
-    ) -> bool;
 
     fn web_structured_serialize_ipc_record_data(record: *const c_void, data: &mut ak::Span<'static, u8>);
     fn web_structured_serialize_ipc_record_shared_array_buffer(
@@ -48,8 +39,6 @@ unsafe extern "C" {
         message: ak::Span<'_, u8>,
     ) -> RawNativeFunctionResult;
 
-    fn web_structured_serialize_serializable_payload_version() -> u64;
-
     fn web_structured_serialize_current_settings_object_agent_cluster(agent_cluster: &mut u64) -> bool;
     fn web_structured_serialize_current_settings_object_cross_origin_isolated_capability() -> bool;
     fn web_structured_serialize_realm_agent_cluster(realm: *mut c_void, agent_cluster: &mut u64) -> bool;
@@ -57,7 +46,6 @@ unsafe extern "C" {
     fn web_structured_serialize_cpp_interface_name(object: *mut c_void, interface_name: &mut u16) -> bool;
 
     fn web_structured_serialize_is_exposed(interface_name: u16, realm: *mut c_void) -> bool;
-    fn web_structured_serialize_serializable_steps(interface_name: u16) -> u8;
 
     fn web_structured_serialize_gather_image_bitmap_pixels(
         transfer_list: *const *mut c_void,
@@ -163,31 +151,6 @@ impl StorageSerializationRecord {
     }
 }
 
-/// Whether IPC records can contain this interface, including interfaces that cannot be stored.
-pub(crate) fn is_ipc_interface(interface_name: u16) -> bool {
-    // SAFETY: The call takes an interface identifier by value.
-    unsafe { web_structured_serialize_is_ipc_interface(interface_name) }
-}
-
-/// The identifier of the serializable interface that a storage record holds, from LibWeb's registry of them, if the
-/// Bindings::InterfaceName names one.
-pub(crate) fn serializable_interface_storage_identifier(interface_name: u16) -> Option<&'static [u8]> {
-    let mut identifier = ak::Span::default();
-    // SAFETY: The call writes a span of static storage to the local.
-    unsafe { web_structured_serialize_interface_storage_identifier(interface_name, &mut identifier) }
-        .then(|| identifier.as_slice())
-}
-
-/// The Bindings::InterfaceName of the serializable interface with the identifier, if LibWeb's registry has one.
-pub(crate) fn serializable_interface_name_from_storage_identifier(identifier: &[u8]) -> Option<u16> {
-    let mut interface_name = 0;
-    // SAFETY: The call borrows the identifier, and writes to the local.
-    unsafe {
-        web_structured_serialize_interface_name_from_storage_identifier(ak::Span::new(identifier), &mut interface_name)
-    }
-    .then_some(interface_name)
-}
-
 /// An HTML::IPCSerializationRecord that C++ lends for a deserialization to read.
 #[derive(Clone, Copy)]
 pub(crate) struct ReceivedIPCSerializationRecord<'a> {
@@ -276,13 +239,6 @@ pub(crate) fn data_clone_error_from_serialization_error(realm: Gc<Realm>, messag
     }
 }
 
-/// HTML::serializable_payload_version: the per-interface payload version that a storage record holds after the
-/// interface name of every serializable object.
-pub(crate) fn serializable_payload_version() -> u64 {
-    // SAFETY: The call has no arguments.
-    unsafe { web_structured_serialize_serializable_payload_version() }
-}
-
 /// The agent cluster of the current settings object, if it has one.
 pub(crate) fn current_settings_object_agent_cluster() -> Option<u64> {
     let mut agent_cluster = 0;
@@ -317,33 +273,6 @@ pub(crate) fn cpp_serializable_interface_name(object: Gc<Object>) -> Option<u16>
 pub(crate) fn is_exposed(interface_name: u16, realm: Gc<Realm>) -> bool {
     // SAFETY: The realm is live.
     unsafe { web_structured_serialize_is_exposed(interface_name, realm.as_ptr().cast()) }
-}
-
-/// Whose steps serialize and deserialize the objects of a serializable interface.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SerializableSteps {
-    /// The steps of an interface implemented in Rust, which its bindings run.
-    Rust,
-    /// The steps of DOMException, which run in crate::webidl::dom_exception.
-    DOMException,
-    /// The steps of QuotaExceededError, which run in crate::webidl::quota_exceeded_error.
-    QuotaExceededError,
-    /// The steps of CryptoKey, which run in crate::crypto::crypto_key.
-    CryptoKey,
-    /// The steps of RTCEncodedAudioFrame, which run in crate::webrtc::rtc_encoded_audio_frame.
-    RTCEncodedAudioFrame,
-}
-
-pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {
-    // SAFETY: The call takes a value.
-    match unsafe { web_structured_serialize_serializable_steps(interface_name) } {
-        0 => SerializableSteps::Rust,
-        1 => SerializableSteps::DOMException,
-        2 => SerializableSteps::QuotaExceededError,
-        3 => SerializableSteps::CryptoKey,
-        4 => SerializableSteps::RTCEncodedAudioFrame,
-        steps => unreachable!("LibWeb names no serializable steps {steps}"),
-    }
 }
 
 /// HTML::ImageBitmapSharedPixels that this owns: the shared memory that a transfer gathers the pixels of its

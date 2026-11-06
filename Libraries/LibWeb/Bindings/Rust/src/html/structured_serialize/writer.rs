@@ -19,10 +19,9 @@ use ak::{Utf16String, Utf16StringUnits};
 use libjs_rust::api::{ArrayBuffer, BigInt, DataBlockStorage, DeferGc, Gc, MarkedVec, Vm};
 use libwebcommon_rust::html::serialization_records::{RecordEncoder, SerializationType};
 
-use crate::html::structured_serialize::cpp::{
-    IPCSerializationRecord, StorageSerializationRecord, serializable_interface_storage_identifier,
-};
+use crate::html::structured_serialize::cpp::{IPCSerializationRecord, StorageSerializationRecord};
 use crate::html::structured_serialize::message_record::{MessageRecord, SharedMemory};
+use crate::html::structured_serialize::serializable::serializable_interface_storage_identifier;
 
 /// The record of a structured serialization, which the serialization writes its values to.
 pub(crate) struct StructuredSerializeWriter<'vm> {

@@ -25,34 +25,20 @@
 
 // What the Rust implementation of structured serialization asks of LibWeb's C++ code, declared on the Rust side in
 // Libraries/LibWeb/Bindings/Rust/src/html/structured_serialize/cpp.rs. C++ keeps the records that the serializations
-// hand their bytes over to and the deserializations read the bytes of, the registry of serializable interfaces, the
-// platform objects, and the side tables that SharedArrayBuffers are shared through.
+// hand their bytes over to and the deserializations read the bytes of, C++ platform objects, and the side tables
+// that SharedArrayBuffers are shared through.
 
 using namespace Web;
 using namespace Web::HTML;
-
-// Whose steps serialize and deserialize the objects of a serializable interface.
-enum class SerializableSteps : u8 {
-    Rust,
-    DOMException,
-    QuotaExceededError,
-    CryptoKey,
-    RTCEncodedAudioFrame,
-};
 
 extern "C" {
 
 void web_structured_serialize_set_ipc_record(IPCSerializationRecord*, ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t count);
 void web_structured_serialize_set_storage_record(StorageSerializationRecord*, ReadonlyBytes data);
-bool web_structured_serialize_interface_storage_identifier(u16 interface_name, ReadonlyBytes* identifier);
-bool web_structured_serialize_is_ipc_interface(u16 interface_name);
-bool web_structured_serialize_interface_name_from_storage_identifier(ReadonlyBytes identifier, u16* interface_name);
 
 void web_structured_serialize_ipc_record_data(IPCSerializationRecord const*, ReadonlyBytes* data);
 JSObject* web_structured_serialize_ipc_record_shared_array_buffer(IPCSerializationRecord const*, u32 side_table_index);
 JSCompletion web_structured_serialize_data_clone_error_from_serialization_error(void* realm, ReadonlyBytes message);
-
-u64 web_structured_serialize_serializable_payload_version();
 
 bool web_structured_serialize_current_settings_object_agent_cluster(u64* agent_cluster);
 bool web_structured_serialize_current_settings_object_cross_origin_isolated_capability();
@@ -60,7 +46,6 @@ bool web_structured_serialize_realm_agent_cluster(void* realm, u64* agent_cluste
 
 bool web_structured_serialize_cpp_interface_name(JSObject*, u16* interface_name);
 bool web_structured_serialize_is_exposed(u16 interface_name, void* realm);
-u8 web_structured_serialize_serializable_steps(u16 interface_name);
 
 ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(JSObject* const* transfer_list, size_t count, u32 buffer_index, int* shared_memory, size_t* size);
 void web_structured_serialize_image_bitmap_pixels_destroy(ImageBitmapSharedPixels*);
@@ -112,37 +97,6 @@ void web_structured_serialize_set_storage_record(StorageSerializationRecord* rec
     record->data = MUST(ByteBuffer::copy(data));
 }
 
-bool web_structured_serialize_interface_storage_identifier(u16 interface_name, ReadonlyBytes* identifier)
-{
-    for (auto const& entry : serializable_storage_registry()) {
-        if (entry.interface_name == static_cast<Bindings::InterfaceName>(interface_name)) {
-            *identifier = entry.identifier.bytes();
-            return true;
-        }
-    }
-    return false;
-}
-
-bool web_structured_serialize_is_ipc_interface(u16 interface_name)
-{
-    // Encoded audio frames can be cloned between agents, but cannot be stored.
-    if (static_cast<Bindings::InterfaceName>(interface_name) == Bindings::InterfaceName::RTCEncodedAudioFrame)
-        return true;
-    ReadonlyBytes identifier;
-    return web_structured_serialize_interface_storage_identifier(interface_name, &identifier);
-}
-
-bool web_structured_serialize_interface_name_from_storage_identifier(ReadonlyBytes identifier, u16* interface_name)
-{
-    for (auto const& entry : serializable_storage_registry()) {
-        if (entry.identifier.bytes() == identifier) {
-            *interface_name = to_underlying(entry.interface_name);
-            return true;
-        }
-    }
-    return false;
-}
-
 void web_structured_serialize_ipc_record_data(IPCSerializationRecord const* record, ReadonlyBytes* data)
 {
     *data = record->data.span();
@@ -161,11 +115,6 @@ JSCompletion web_structured_serialize_data_clone_error_from_serialization_error(
     auto& js_realm = realm_from_abi(realm);
     auto error = AK::Error::from_string_view(StringView { message });
     return Bindings::completion_to_abi(js_realm, WebIDL::ExceptionOr<JS::Value> { data_clone_error_from_serialization_error(js_realm, error) });
-}
-
-u64 web_structured_serialize_serializable_payload_version()
-{
-    return serializable_payload_version;
 }
 
 bool web_structured_serialize_current_settings_object_agent_cluster(u64* agent_cluster)
@@ -203,23 +152,6 @@ bool web_structured_serialize_cpp_interface_name(JSObject* object, u16* interfac
 bool web_structured_serialize_is_exposed(u16 interface_name, void* realm)
 {
     return Bindings::is_exposed(static_cast<Bindings::InterfaceName>(interface_name), realm_from_abi(realm));
-}
-
-u8 web_structured_serialize_serializable_steps(u16 interface_name)
-{
-    switch (static_cast<Bindings::InterfaceName>(interface_name)) {
-    case Bindings::InterfaceName::DOMException:
-        return to_underlying(SerializableSteps::DOMException);
-    case Bindings::InterfaceName::QuotaExceededError:
-        return to_underlying(SerializableSteps::QuotaExceededError);
-    case Bindings::InterfaceName::CryptoKey:
-        return to_underlying(SerializableSteps::CryptoKey);
-    case Bindings::InterfaceName::RTCEncodedAudioFrame:
-        return to_underlying(SerializableSteps::RTCEncodedAudioFrame);
-    default:
-        VERIFY(Bindings::serializable_interface_is_implemented_in_rust(static_cast<Bindings::InterfaceName>(interface_name)));
-        return to_underlying(SerializableSteps::Rust);
-    }
 }
 
 // AD-HOC: Gather the pixels of the transferred ImageBitmaps in one buffer of shared memory. Without it, as when there

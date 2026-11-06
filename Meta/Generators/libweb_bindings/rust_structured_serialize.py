@@ -10,6 +10,29 @@ from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import rust_interface_path
 from Utils.webidl_parser import Interface
 
+# These strings are persisted in storage records. IDL decoration alone does not mean the wire format supports an interface.
+STORAGE_IDENTIFIERS = (
+    "Blob",
+    "CryptoKey",
+    "DOMException",
+    "DOMMatrix",
+    "DOMMatrixReadOnly",
+    "DOMPoint",
+    "DOMPointReadOnly",
+    "DOMQuad",
+    "DOMRect",
+    "DOMRectReadOnly",
+    "File",
+    "FileList",
+    "ImageBitmap",
+    "ImageData",
+    "Module",
+    "QuotaExceededError",
+)
+
+# The serializable interfaces implemented in C++ whose steps run in Rust.
+CPP_INTERFACES_WITH_RUST_STEPS = ("CryptoKey", "DOMException", "QuotaExceededError", "RTCEncodedAudioFrame")
+
 
 def write_rust_serializable_dispatch(out: TextIO, interfaces: List[Interface], values: Dict[str, int]) -> None:
     serializable = sorted(
@@ -17,7 +40,6 @@ def write_rust_serializable_dispatch(out: TextIO, interfaces: List[Interface], v
         key=lambda interface: interface.name,
     )
     rust_interfaces = [interface for interface in serializable if is_implemented_in_rust(interface)]
-    cpp_interfaces = [interface for interface in serializable if not is_implemented_in_rust(interface)]
     out.write(
         """
 pub(crate) mod serializable_objects {
@@ -25,9 +47,10 @@ pub(crate) mod serializable_objects {
     use crate::bindings::{CallContext, WebIdlResult};
     use crate::bindings::interface::is_exact_wrapper;
     use crate::bindings::structured_data::{self, SerializationReader, SerializationWriter};
+    use crate::html::structured_serialize::serializable::{SerializableRegistryEntry, SerializableSteps};
 
     const CPP_INTERFACES: &[u16] = &["""
-        + ", ".join(str(values[interface.name]) for interface in cpp_interfaces)
+        + ", ".join(str(values[name]) for name in CPP_INTERFACES_WITH_RUST_STEPS)
         + """];
 
     pub(crate) fn rust_interface_name(object: Gc<Object>) -> Option<u16> {
@@ -81,6 +104,39 @@ pub(crate) mod serializable_objects {
         )
     out.write(
         """            _ => unreachable!("the interface is a Rust serializable interface"),
+        }
+    }
+
+    pub(crate) const STORAGE_INTERFACES: &[SerializableRegistryEntry] = &[
+"""
+    )
+    for name in STORAGE_IDENTIFIERS:
+        out.write(f'        SerializableRegistryEntry {{ interface_name: {values[name]}, identifier: b"{name}" }},\n')
+    out.write(
+        f"""    ];
+
+    pub(crate) fn serializable_interface_storage_identifier(interface_name: u16) -> Option<&'static [u8]> {{
+        STORAGE_INTERFACES.iter().find(|entry| entry.interface_name == interface_name).map(|entry| entry.identifier)
+    }}
+
+    pub(crate) fn serializable_interface_name_from_storage_identifier(identifier: &[u8]) -> Option<u16> {{
+        STORAGE_INTERFACES.iter().find(|entry| entry.identifier == identifier).map(|entry| entry.interface_name)
+    }}
+
+    pub(crate) fn is_ipc_interface(interface_name: u16) -> bool {{
+        interface_name == {values["RTCEncodedAudioFrame"]} || serializable_interface_storage_identifier(interface_name).is_some()
+    }}
+
+    pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {{
+        match interface_name {{
+"""
+    )
+    for name in CPP_INTERFACES_WITH_RUST_STEPS:
+        out.write(f"            {values[name]} => SerializableSteps::{name},\n")
+    for interface in rust_interfaces:
+        out.write(f"            {values[interface.name]} => SerializableSteps::Rust,\n")
+    out.write(
+        """            _ => unreachable!("the interface has serialization steps"),
         }
     }
 }

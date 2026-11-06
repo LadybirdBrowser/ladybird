@@ -30,7 +30,6 @@ from Generators.libweb_bindings.intrinsics import write_wrapper_factory_implemen
 from Generators.libweb_bindings.json_conversions import write_dictionary_json_conversions
 from Generators.libweb_bindings.json_conversions import write_dictionary_json_declarations
 from Generators.libweb_bindings.rust_usage import DefinitionUsage
-from Generators.libweb_bindings.structured_serialize import write_structured_serialize_bindings_implementation
 from Generators.libweb_bindings.to_idl_value import dictionaries_in_dependency_order
 from Generators.libweb_bindings.to_idl_value import write_dictionary_conversion
 from Generators.libweb_bindings.to_idl_value import write_dictionary_declaration
@@ -361,14 +360,6 @@ def main() -> int:
         rust_bindings_path, rust_bindings.write_rust_bindings, context, usage, interface_sets.intrinsics
     )
     output_files.append(rust_bindings_path)
-
-    structured_serialize_bindings_implementation_path = output_directory / "StructuredSerializeBindings.cpp"
-    write_generated_file(
-        structured_serialize_bindings_implementation_path,
-        write_structured_serialize_bindings_implementation,
-        interface_sets.intrinsics,
-    )
-    output_files.append(structured_serialize_bindings_implementation_path)
 
     if arguments.depfile is not None:
         generate_depfile(arguments.depfile, dependency_paths, output_files)

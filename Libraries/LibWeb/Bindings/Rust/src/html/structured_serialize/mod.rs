@@ -42,15 +42,17 @@ use crate::html::image_bitmap::ImageBitmap;
 use crate::html::message_port::MessagePort;
 use crate::html::offscreen_canvas;
 use crate::html::structured_serialize::cpp::{
-    OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, current_settings_object_agent_cluster,
+    OwnedSerializedTransferRecord, SerializedTransferRecord, current_settings_object_agent_cluster,
     current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
-    gather_image_bitmap_pixels, is_exposed, realm_agent_cluster, serializable_interface_storage_identifier,
-    serializable_payload_version, serializable_steps,
+    gather_image_bitmap_pixels, is_exposed, realm_agent_cluster,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
-use crate::html::structured_serialize::serializable::serializable_interface_name;
+use crate::html::structured_serialize::serializable::{
+    SERIALIZABLE_PAYLOAD_VERSION, SerializableSteps, serializable_interface_name,
+    serializable_interface_storage_identifier, serializable_steps,
+};
 use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::streams::readable_stream::ReadableStream;
@@ -1067,7 +1069,7 @@ pub(crate) fn encode_serializable_object_header(
     serialized.encode_u8(ValueTag::SerializableObject as u8);
     serialized.encode_interface_name(interface_name);
     if serialized.serialization_type() == SerializationType::Storage {
-        serialized.encode_u64(serializable_payload_version());
+        serialized.encode_u64(SERIALIZABLE_PAYLOAD_VERSION);
     }
     Ok(())
 }
@@ -1082,7 +1084,7 @@ pub(crate) fn decode_serializable_object_header(
         return Err(data_clone_error("Unexpected serializable object"));
     }
     if serialized.serialization_type() == SerializationType::Storage
-        && serialized.decode_u64()? != serializable_payload_version()
+        && serialized.decode_u64()? != SERIALIZABLE_PAYLOAD_VERSION
     {
         return Err(data_clone_error("Unsupported serializable payload version"));
     }
@@ -1563,7 +1565,7 @@ impl Deserializer<'_, '_, '_> {
                     return Err(data_clone_error("Unsupported type"));
                 }
 
-                if version.is_some_and(|version| version != serializable_payload_version()) {
+                if version.is_some_and(|version| version != SERIALIZABLE_PAYLOAD_VERSION) {
                     return Err(data_clone_error_from_serialization_error(
                         realm,
                         "Unsupported serializable payload version",
