@@ -1,0 +1,12 @@
+Ladybird processes a document’s Link header preloads before the
+document is its navigable’s active document, and answers if their
+requests have a cross-site ancestor for the navigable being navigated.
+Blink only issues them after the commit, in DocumentLoader::
+CreateParserPostCommit(), and computes the network isolation of a
+pending commit from the navigating frame, in RenderFrameHostImpl::
+ComputeIsolationInfoForSubresourcesForPendingCommit(). WebKit issues
+them from FrameLoader::receivedFirstData(), once LocalFrame::
+setDocument() has installed the new document. And Gecko issues them
+through PreloadService::PreloadLinkHeader() with the new document as
+the loading context, which is first-party for a top-level window. So
+all three send a same-site page’s cookies with them.
