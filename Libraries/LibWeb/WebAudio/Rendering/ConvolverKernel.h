@@ -20,6 +20,7 @@ public:
     static RefPtr<ConvolverKernel> create(AudioBufferContents const&, size_t partition_size, bool normalize);
     ~ConvolverKernel();
 
+    void const* rust_kernel() const { return m_kernel; }
     size_t channel_count() const;
     size_t partition_count() const;
     size_t bin_count() const;
@@ -45,17 +46,18 @@ public:
     static NonnullRefPtr<ConvolverDelayLine> create(ConvolverKernel const&);
     ~ConvolverDelayLine();
 
+    void const* rust_delay_line() const { return m_delay_line; }
     size_t length() const;
     Span<float> real(size_t channel);
     Span<float> imag(size_t channel);
 
 private:
-    explicit ConvolverDelayLine(void* delay_line)
+    explicit ConvolverDelayLine(void const* delay_line)
         : m_delay_line(delay_line)
     {
     }
 
-    void* m_delay_line { nullptr };
+    void const* m_delay_line { nullptr };
 };
 
 }

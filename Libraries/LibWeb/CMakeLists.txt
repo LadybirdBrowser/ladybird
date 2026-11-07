@@ -961,6 +961,7 @@ set(SOURCES
     WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
     WebAudio/Rendering/AnalyserRenderNode.cpp
+    WebAudio/Rendering/AudioData.cpp
     WebAudio/Rendering/AudioBus.cpp
     WebAudio/Rendering/AudioWorkletPipe.cpp
     WebAudio/Rendering/AudioWorkletRenderNode.cpp

@@ -128,8 +128,8 @@ intptr_t OfflineAudioRenderer::render_thread_main()
         m_graph.render_quantum(context);
 
         // Copy the destination's captured output into the rendered buffer.
-        if (auto* destination_node = m_graph.destination()) {
-            auto const& destination_output = destination_node->output(0);
+        if (auto maybe_destination_output = m_graph.destination_output(); maybe_destination_output.has_value()) {
+            auto const& destination_output = *maybe_destination_output;
             auto frames_to_copy = min(m_quantum_size, m_length - current_frame);
             for (size_t channel_index = 0; channel_index < m_number_of_channels; ++channel_index) {
                 if (channel_index >= destination_output.channel_count())

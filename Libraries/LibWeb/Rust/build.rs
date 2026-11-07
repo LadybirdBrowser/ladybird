@@ -2476,6 +2476,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ConvolverDelayLine",
         "AudioParamTimeline",
         "RenderAudioParam",
+        "RenderGraph",
+        "NodeHandle",
+        "AudioBufferContents",
+        "PeriodicWaveData",
+        "WaveShaperCurve",
+        "ControlMessage",
+        "ControlMessageQueue",
+        "ControlMessages",
     ] {
         web_audio_config.export.rename.insert(name.into(), "void".into());
         web_audio_config.export.exclude.push(name.into());
@@ -2496,6 +2504,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/web_audio/rendering/audio_bus.rs"),
             manifest_dir.join("src/web_audio/rendering/convolver_kernel.rs"),
             manifest_dir.join("src/web_audio/rendering/render_node.rs"),
+            manifest_dir.join("src/web_audio/rendering/render_graph.rs"),
+            manifest_dir.join("src/web_audio/rendering/render_nodes.rs"),
+            manifest_dir.join("src/web_audio/rendering/node_message.rs"),
+            manifest_dir.join("src/web_audio/rendering/audio_data.rs"),
+            manifest_dir.join("src/web_audio/control_message.rs"),
+            manifest_dir.join("src/web_audio/control_message_queue.rs"),
         ],
         &out_dir,
         Path::new("WebAudio/RustFFI.h"),

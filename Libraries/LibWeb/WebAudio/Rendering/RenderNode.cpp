@@ -5,10 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/WebAudio/RustFFI.h>
 #include <LibWeb/WebAudio/Rendering/RenderGraph.h>
 #include <LibWeb/WebAudio/Rendering/RenderNode.h>
-
+#include <LibWeb/WebAudio/RustFFI.h>
 namespace Web::WebAudio::Rendering {
 
 RenderAudioParam::RenderAudioParam(NonnullRefPtr<AudioParamTimeline> timeline, float min_value, float max_value, Bindings::AutomationRate automation_rate)
@@ -48,74 +47,56 @@ void RenderAudioParam::compute(RenderGraph& graph, RenderContext const& context,
     RustFFI::RenderContext rust_context { context.sample_rate, context.quantum_size, context.quantum_start_frame };
     RustFFI::web_audio_render_param_compute(m_param, &graph, [](void* graph, u64 source, size_t output_index, RustFFI::RenderContext const* context) -> void const* {
         RenderContext render_context { context->sample_rate, context->quantum_size, context->quantum_start_frame };
-        auto const* bus = static_cast<RenderGraph*>(graph)->pull_output(source, output_index, render_context);
-        return bus ? bus->rust_bus() : nullptr;
-    }, &rust_context, output);
+        auto bus = static_cast<RenderGraph*>(graph)->pull_output(source, output_index, render_context);
+        return bus.has_value() ? bus->rust_bus() : nullptr; }, &rust_context, output);
 }
 
 RenderNode::RenderNode(NodeID node_id, size_t input_count, size_t output_count, size_t quantum_size, size_t output_channel_count)
-    : m_node_id(node_id)
+    : m_external(true)
 {
-    m_input_connections.resize(input_count);
-    m_input_buses.ensure_capacity(input_count);
-    for (size_t input_index = 0; input_index < input_count; ++input_index)
-        m_input_buses.unchecked_append(AudioBus { 1, quantum_size });
-    m_outputs.ensure_capacity(output_count);
-    for (size_t output_index = 0; output_index < output_count; ++output_index)
-        m_outputs.unchecked_append(AudioBus { output_channel_count, quantum_size });
+    m_node = RustFFI::web_audio_node_create_external(node_id.value(), input_count, output_count, quantum_size, output_channel_count, this, {
+                                                                                                                                               .process = [](void* node, void const* graph, RustFFI::RenderContext const* context) {
+            RenderGraph borrowed_graph(const_cast<void*>(graph), false);
+            RenderContext render_context { context->sample_rate, context->quantum_size, context->quantum_start_frame };
+            static_cast<RenderNode*>(node)->process(borrowed_graph, render_context); },
+                                                                                                                                               .set_ring = [](void* node, void* ring, u32 channel_count) { static_cast<RenderNode*>(node)->handle_message(NodeMessage { SetMediaStreamSourceRing { {}, static_cast<Audio::SpscAudioFrameRing*>(ring), channel_count } }); },
+                                                                                                                                               .for_each_param = [](void* node, void* context, void (*callback)(void*, void const*)) { static_cast<RenderNode*>(node)->for_each_param([&](RenderAudioParam& param) { callback(context, param.rust_param()); }); },
+                                                                                                                                               .ended = [](void* node) { return static_cast<RenderNode*>(node)->take_ended_notification(); },
+                                                                                                                                               .destroy = [](void* node) { if (static_cast<RenderNode*>(node)->m_transferred) delete static_cast<RenderNode*>(node); },
+                                                                                                                                           });
 }
-
-void RenderNode::set_outgoing_connections(Vector<OutgoingNodeConnection> node_connections, Vector<OutgoingParamConnection> param_connections)
+RenderNode::RenderNode(void* node)
+    : m_node(node)
 {
-    m_outgoing_node_connections = move(node_connections);
-    m_outgoing_param_connections = move(param_connections);
 }
-
-// Pulls and mixes all connections to the given input into a single bus with the input's computed number of channels.
-// Unconnected inputs are mixed as a single channel of silence.
-// https://webaudio.github.io/web-audio-api/#computednumberofchannels
-AudioBus const& RenderNode::pull_input(RenderGraph& graph, RenderContext const& context, size_t input_index)
+RenderNode::~RenderNode()
 {
-    auto& connections = m_input_connections[input_index];
-    auto& input_bus = m_input_buses[input_index];
-
-    auto& source_buses = m_pulled_source_buses;
-    source_buses.clear_with_capacity();
-    for (auto const& connection : connections) {
-        if (auto const* bus = graph.pull_output(connection.source, connection.output_index, context))
-            source_buses.append(bus);
-    }
-
-    if (source_buses.is_empty()) {
-        input_bus.set_channel_count(1);
-        input_bus.zero();
-        return input_bus;
-    }
-
-    size_t computed_number_of_channels = 0;
-    switch (m_channel_count_mode) {
-    case Bindings::ChannelCountMode::Max:
-    case Bindings::ChannelCountMode::ClampedMax:
-        // "max": computedNumberOfChannels is the maximum of the number of channels of all connections to an input.
-        //        In this mode channelCount is ignored.
-        // "clamped-max": computedNumberOfChannels is determined as for "max" and then clamped to a maximum value of
-        //                the given channelCount.
-        for (auto const* bus : source_buses)
-            computed_number_of_channels = max(computed_number_of_channels, bus->channel_count());
-        if (m_channel_count_mode == Bindings::ChannelCountMode::ClampedMax)
-            computed_number_of_channels = min(computed_number_of_channels, m_channel_count);
-        break;
-    case Bindings::ChannelCountMode::Explicit:
-        // "explicit": computedNumberOfChannels is the exact value as specified by the channelCount.
-        computed_number_of_channels = m_channel_count;
-        break;
-    }
-
-    input_bus.set_channel_count(computed_number_of_channels);
-    input_bus.zero();
-    for (auto const* bus : source_buses)
-        input_bus.sum_from(*bus, m_channel_interpretation);
-    return input_bus;
+    if (m_owned)
+        RustFFI::web_audio_node_destroy(m_node);
+}
+void* RenderNode::release_rust_node()
+{
+    m_owned = false;
+    m_transferred = true;
+    return m_node;
+}
+NodeID RenderNode::node_id() const { return RustFFI::web_audio_node_id(m_node); }
+size_t RenderNode::input_count() const { return RustFFI::web_audio_node_input_count(m_node); }
+size_t RenderNode::output_count() const { return RustFFI::web_audio_node_output_count(m_node); }
+AudioBus RenderNode::output(size_t index) const { return AudioBus::borrow(RustFFI::web_audio_node_output(m_node, index)); }
+size_t RenderNode::channel_count() const { return RustFFI::web_audio_node_channel_count(m_node); }
+Bindings::ChannelCountMode RenderNode::channel_count_mode() const { return static_cast<Bindings::ChannelCountMode>(RustFFI::web_audio_node_channel_count_mode(m_node)); }
+Bindings::ChannelInterpretation RenderNode::channel_interpretation() const { return static_cast<Bindings::ChannelInterpretation>(RustFFI::web_audio_node_channel_interpretation(m_node)); }
+void RenderNode::set_channel_count(size_t count) { RustFFI::web_audio_node_set_channel_count(m_node, count); }
+void RenderNode::set_channel_count_mode(Bindings::ChannelCountMode mode) { RustFFI::web_audio_node_set_channel_count_mode(m_node, static_cast<RustFFI::ChannelCountMode>(mode)); }
+void RenderNode::set_channel_interpretation(Bindings::ChannelInterpretation interpretation) { RustFFI::web_audio_node_set_channel_interpretation(m_node, static_cast<RustFFI::ChannelInterpretation>(interpretation)); }
+size_t RenderNode::outgoing_node_connection_count() const { return RustFFI::web_audio_node_outgoing_node_connection_count(m_node); }
+size_t RenderNode::outgoing_param_connection_count() const { return RustFFI::web_audio_node_outgoing_param_connection_count(m_node); }
+bool RenderNode::has_input_connections(size_t input) const { return RustFFI::web_audio_node_has_input_connections(m_node, input); }
+AudioBus RenderNode::pull_input(RenderGraph& graph, RenderContext const& context, size_t input_index)
+{
+    RustFFI::RenderContext render_context { context.sample_rate, context.quantum_size, context.quantum_start_frame };
+    return AudioBus::borrow(const_cast<void*>(RustFFI::web_audio_node_pull_input(m_node, graph.rust_graph(), &render_context, input_index)));
 }
 
 }

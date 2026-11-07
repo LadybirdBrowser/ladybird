@@ -35,7 +35,7 @@ void MediaStreamSourceRenderNode::handle_message(NodeMessage const& message)
 
 void MediaStreamSourceRenderNode::process(RenderGraph&, RenderContext const& context)
 {
-    auto& source_output = output(0);
+    auto source_output = output(0);
 
     // The number of channels of the output corresponds to the number of channels of the track.
     source_output.set_channel_count(m_channel_count);

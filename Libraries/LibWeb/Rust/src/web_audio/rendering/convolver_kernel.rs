@@ -7,6 +7,7 @@
 
 #![allow(clippy::needless_range_loop)]
 
+use std::cell::UnsafeCell;
 use std::sync::Arc;
 
 use ak::{Span, SpanMut};
@@ -185,10 +186,13 @@ impl ConvolverKernel {
 // control thread and handed over together with the kernel, keeping allocation off the rendering thread.
 pub struct ConvolverDelayLine {
     length: usize,
-    real: [Vec<f32>; Self::MAX_CHANNEL_COUNT],
-    imag: [Vec<f32>; Self::MAX_CHANNEL_COUNT],
+    real: [UnsafeCell<Vec<f32>>; Self::MAX_CHANNEL_COUNT],
+    imag: [UnsafeCell<Vec<f32>>; Self::MAX_CHANNEL_COUNT],
 }
 
+// SAFETY: Delay-line samples are only accessed by the rendering thread after transfer.
+unsafe impl Send for ConvolverDelayLine {}
+unsafe impl Sync for ConvolverDelayLine {}
 impl ConvolverDelayLine {
     // The input to a ConvolverNode is mono or stereo and cannot be increased.
     // https://webaudio.github.io/web-audio-api/#ConvolverNode
@@ -196,9 +200,19 @@ impl ConvolverDelayLine {
 
     pub fn create(kernel: &ConvolverKernel) -> Self {
         let length = kernel.partition_count() + 1;
-        let real = std::array::from_fn(|_| vec![0.; length * kernel.bin_count()]);
-        let imag = std::array::from_fn(|_| vec![0.; length * kernel.bin_count()]);
+        let real = std::array::from_fn(|_| UnsafeCell::new(vec![0.; length * kernel.bin_count()]));
+        let imag = std::array::from_fn(|_| UnsafeCell::new(vec![0.; length * kernel.bin_count()]));
         Self { length, real, imag }
+    }
+
+    #[allow(clippy::mut_from_ref)]
+    pub(crate) unsafe fn real_shared(&self, channel: usize) -> &mut [f32] {
+        unsafe { &mut *self.real[channel].get() }
+    }
+
+    #[allow(clippy::mut_from_ref)]
+    pub(crate) unsafe fn imag_shared(&self, channel: usize) -> &mut [f32] {
+        unsafe { &mut *self.imag[channel].get() }
     }
 
     pub fn length(&self) -> usize {
@@ -206,11 +220,11 @@ impl ConvolverDelayLine {
     }
 
     pub fn real(&mut self, channel: usize) -> &mut [f32] {
-        &mut self.real[channel]
+        self.real[channel].get_mut()
     }
 
     pub fn imag(&mut self, channel: usize) -> &mut [f32] {
-        &mut self.imag[channel]
+        self.imag[channel].get_mut()
     }
 }
 
@@ -286,13 +300,13 @@ pub(crate) unsafe extern "C" fn web_audio_convolver_kernel_partition_imag(
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_create(
     kernel: *const ConvolverKernel,
-) -> *mut ConvolverDelayLine {
-    Box::into_raw(Box::new(ConvolverDelayLine::create(unsafe { &*kernel })))
+) -> *const ConvolverDelayLine {
+    Arc::into_raw(Arc::new(ConvolverDelayLine::create(unsafe { &*kernel })))
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_destroy(delay_line: *mut ConvolverDelayLine) {
-    drop(unsafe { Box::from_raw(delay_line) });
+pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_destroy(delay_line: *const ConvolverDelayLine) {
+    drop(unsafe { Arc::from_raw(delay_line) });
 }
 
 #[unsafe(no_mangle)]
@@ -302,22 +316,22 @@ pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_length(delay_line
 
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_real(
-    delay_line: *mut ConvolverDelayLine,
+    delay_line: *const ConvolverDelayLine,
     channel: usize,
     output: *mut SpanMut<'static, f32>,
 ) {
     unsafe {
-        *output = SpanMut::new((&mut *delay_line).real(channel));
+        *output = SpanMut::new((&*delay_line).real_shared(channel));
     }
 }
 
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_imag(
-    delay_line: *mut ConvolverDelayLine,
+    delay_line: *const ConvolverDelayLine,
     channel: usize,
     output: *mut SpanMut<'static, f32>,
 ) {
     unsafe {
-        *output = SpanMut::new((&mut *delay_line).imag(channel));
+        *output = SpanMut::new((&*delay_line).imag_shared(channel));
     }
 }

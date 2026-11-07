@@ -1,343 +1,66 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
-
-#include <AK/Array.h>
-#include <AK/FixedArray.h>
-#include <AK/Math.h>
-#include <AK/NonnullRefPtr.h>
-#include <AK/Optional.h>
-#include <AK/RefPtr.h>
-#include <AK/Vector.h>
-#include <LibWeb/WebAudio/Rendering/AudioData.h>
-#include <LibWeb/WebAudio/Rendering/BiquadCoefficients.h>
-#include <LibWeb/WebAudio/Rendering/ConvolverKernel.h>
-#include <LibWeb/WebAudio/Rendering/FFT.h>
 #include <LibWeb/WebAudio/Rendering/RenderNode.h>
-
 namespace Web::WebAudio::Rendering {
 
-// Captures the mixed input signal so the renderer can copy it into the rendered buffer.
-// https://webaudio.github.io/web-audio-api/#AudioDestinationNode
 class DestinationRenderNode final : public RenderNode {
 public:
     DestinationRenderNode(NodeID, size_t channel_count, size_t quantum_size);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
 };
-
-// https://webaudio.github.io/web-audio-api/#GainNode
 class GainRenderNode final : public RenderNode {
 public:
     GainRenderNode(NodeID, size_t quantum_size, NonnullRefPtr<RenderAudioParam> gain);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-    virtual void for_each_param(Function<void(RenderAudioParam&)> const& callback) override { callback(*m_gain); }
-
-private:
-    NonnullRefPtr<RenderAudioParam> m_gain;
-    Vector<float> m_gain_values;
 };
-
-// Base class for source nodes that are scheduled with start() and stop().
-// https://webaudio.github.io/web-audio-api/#AudioScheduledSourceNode
-class ScheduledSourceRenderNode : public RenderNode {
-public:
-    using RenderNode::RenderNode;
-
-    virtual void process(RenderGraph&, RenderContext const&) override final;
-    virtual void handle_message(NodeMessage const&) override;
-    virtual bool take_ended_notification() override { return exchange(m_ended_pending, false); }
-
-protected:
-    virtual void process_source(RenderGraph&, RenderContext const&) = 0;
-
-    bool has_started() const { return m_start_time.has_value(); }
-    double start_time() const { return m_start_time.value(); }
-    double stop_time() const { return m_stop_time; }
-
-    bool is_active_at(double time) const
-    {
-        return m_start_time.has_value() && time >= *m_start_time && time < m_stop_time && !m_content_ended;
-    }
-
-    // Playback naturally ran out of content before the scheduled stop time, e.g. a non-looping buffer finished.
-    void set_content_ended() { m_content_ended = true; }
-    bool content_ended() const { return m_content_ended; }
-
-    // Marks this node as ended once the quantum has advanced past the stop time or the content was exhausted.
-    void update_ended_state(RenderContext const&);
-
-private:
-    Optional<double> m_start_time;
-    double m_stop_time { AK::Infinity<double> };
-    bool m_start_time_needs_clamping { false };
-    bool m_content_ended { false };
-    bool m_ended { false };
-    bool m_ended_pending { false };
-};
-
-// https://webaudio.github.io/web-audio-api/#ConstantSourceNode
-class ConstantSourceRenderNode final : public ScheduledSourceRenderNode {
+class ConstantSourceRenderNode final : public RenderNode {
 public:
     ConstantSourceRenderNode(NodeID, size_t quantum_size, NonnullRefPtr<RenderAudioParam> offset);
-
-    virtual void process_source(RenderGraph&, RenderContext const&) override;
-    virtual void for_each_param(Function<void(RenderAudioParam&)> const& callback) override { callback(*m_offset); }
-
-private:
-    NonnullRefPtr<RenderAudioParam> m_offset;
-    Vector<float> m_offset_values;
 };
-
-// https://webaudio.github.io/web-audio-api/#OscillatorNode
-class OscillatorRenderNode final : public ScheduledSourceRenderNode {
+class OscillatorRenderNode final : public RenderNode {
 public:
     OscillatorRenderNode(NodeID, size_t quantum_size, NonnullRefPtr<RenderAudioParam> frequency, NonnullRefPtr<RenderAudioParam> detune);
-
-    virtual void process_source(RenderGraph&, RenderContext const&) override;
-    virtual void handle_message(NodeMessage const&) override;
-    virtual void for_each_param(Function<void(RenderAudioParam&)> const& callback) override
-    {
-        callback(*m_frequency);
-        callback(*m_detune);
-    }
-
-private:
-    float sample_waveform(double phase, double frequency, double nyquist_frequency) const;
-
-    NonnullRefPtr<RenderAudioParam> m_frequency;
-    NonnullRefPtr<RenderAudioParam> m_detune;
-    Vector<float> m_frequency_values;
-    Vector<float> m_detune_values;
-    Bindings::OscillatorType m_type { Bindings::OscillatorType::Sine };
-    RefPtr<PeriodicWaveData> m_periodic_wave;
-    float m_periodic_wave_scale { 1.f };
-    double m_phase { 0 };
 };
-
-// https://webaudio.github.io/web-audio-api/#AudioBufferSourceNode
-class AudioBufferSourceRenderNode final : public ScheduledSourceRenderNode {
+class AudioBufferSourceRenderNode final : public RenderNode {
 public:
     AudioBufferSourceRenderNode(NodeID, size_t quantum_size, NonnullRefPtr<RenderAudioParam> playback_rate, NonnullRefPtr<RenderAudioParam> detune);
-
-    virtual void process_source(RenderGraph&, RenderContext const&) override;
-    virtual void handle_message(NodeMessage const&) override;
-    virtual void for_each_param(Function<void(RenderAudioParam&)> const& callback) override
-    {
-        callback(*m_playback_rate);
-        callback(*m_detune);
-    }
-
-private:
-    float sample_buffer(size_t channel, double playhead_frames, double loop_start_frame, double loop_end_frame) const;
-
-    NonnullRefPtr<RenderAudioParam> m_playback_rate;
-    NonnullRefPtr<RenderAudioParam> m_detune;
-    Vector<float> m_playback_rate_values;
-    Vector<float> m_detune_values;
-
-    RefPtr<AudioBufferContents> m_buffer;
-    bool m_loop { false };
-    double m_loop_start { 0 };
-    double m_loop_end { 0 };
-
-    double m_offset { 0 };
-    Optional<double> m_duration;
-
-    // Playback position within the buffer contents, in buffer sample frames.
-    double m_playhead { 0 };
-    bool m_playhead_valid { false };
-    double m_played_time { 0 };
 };
-
-// https://webaudio.github.io/web-audio-api/#DelayNode
 class DelayRenderNode final : public RenderNode {
 public:
     DelayRenderNode(NodeID, size_t quantum_size, NonnullRefPtr<RenderAudioParam> delay_time, double max_delay_time);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-    virtual void for_each_param(Function<void(RenderAudioParam&)> const& callback) override { callback(*m_delay_time); }
-
-private:
-    NonnullRefPtr<RenderAudioParam> m_delay_time;
-    Vector<float> m_delay_values;
-    double m_max_delay_time { 0 };
-    Vector<Vector<float>> m_history;
-    size_t m_write_index { 0 };
 };
-
-// https://webaudio.github.io/web-audio-api/#StereoPannerNode
 class StereoPannerRenderNode final : public RenderNode {
 public:
     StereoPannerRenderNode(NodeID, size_t quantum_size, NonnullRefPtr<RenderAudioParam> pan);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-    virtual void for_each_param(Function<void(RenderAudioParam&)> const& callback) override { callback(*m_pan); }
-
-private:
-    NonnullRefPtr<RenderAudioParam> m_pan;
-    Vector<float> m_pan_values;
 };
-
-// https://webaudio.github.io/web-audio-api/#ChannelSplitterNode
 class ChannelSplitterRenderNode final : public RenderNode {
 public:
     ChannelSplitterRenderNode(NodeID, size_t quantum_size, size_t number_of_outputs);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
 };
-
-// https://webaudio.github.io/web-audio-api/#ChannelMergerNode
 class ChannelMergerRenderNode final : public RenderNode {
 public:
     ChannelMergerRenderNode(NodeID, size_t quantum_size, size_t number_of_inputs);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
 };
-
-// https://webaudio.github.io/web-audio-api/#BiquadFilterNode
 class BiquadFilterRenderNode final : public RenderNode {
 public:
     BiquadFilterRenderNode(NodeID, size_t quantum_size, NonnullRefPtr<RenderAudioParam> frequency, NonnullRefPtr<RenderAudioParam> detune, NonnullRefPtr<RenderAudioParam> q, NonnullRefPtr<RenderAudioParam> gain);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-    virtual void handle_message(NodeMessage const&) override;
-    virtual void for_each_param(Function<void(RenderAudioParam&)> const& callback) override
-    {
-        callback(*m_frequency);
-        callback(*m_detune);
-        callback(*m_q);
-        callback(*m_gain);
-    }
-
-private:
-    struct FilterState {
-        double x1 { 0 };
-        double x2 { 0 };
-        double y1 { 0 };
-        double y2 { 0 };
-    };
-
-    NonnullRefPtr<RenderAudioParam> m_frequency;
-    NonnullRefPtr<RenderAudioParam> m_detune;
-    NonnullRefPtr<RenderAudioParam> m_q;
-    NonnullRefPtr<RenderAudioParam> m_gain;
-    Vector<float> m_frequency_values;
-    Vector<float> m_detune_values;
-    Vector<float> m_q_values;
-    Vector<float> m_gain_values;
-    Bindings::BiquadFilterType m_type { Bindings::BiquadFilterType::Lowpass };
-    Vector<FilterState> m_filter_states;
 };
-
-// https://webaudio.github.io/web-audio-api/#IIRFilterNode
 class IIRFilterRenderNode final : public RenderNode {
 public:
     IIRFilterRenderNode(NodeID, size_t quantum_size, Vector<double> feedforward, Vector<double> feedback);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-
-private:
-    // The previous inputs and outputs of the filter for one channel, as ring buffers indexed by the frame number.
-    static constexpr size_t history_size = 32;
-    struct FilterState {
-        Array<double, history_size> inputs {};
-        Array<double, history_size> outputs {};
-    };
-
-    Vector<double> m_feedforward;
-    Vector<double> m_feedback;
-    Vector<FilterState> m_filter_states;
-    size_t m_position { 0 };
 };
-
-// https://webaudio.github.io/web-audio-api/#WaveShaperNode
 class WaveShaperRenderNode final : public RenderNode {
 public:
     WaveShaperRenderNode(NodeID, size_t quantum_size);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-    virtual void handle_message(NodeMessage const&) override;
-
-private:
-    // A lowpass FIR filter that passes the lower half of its band, which is the band of the signal at half its sample
-    // rate. Up-sampling by 2 filters the input with zeros between its samples, and down-sampling by 2 keeps every other
-    // sample of the filtered signal.
-    static constexpr size_t half_band_filter_length = 31;
-    struct HalfBandFilter {
-        float process(float sample);
-
-        Array<float, half_band_filter_length * 2> history {};
-        size_t position { 0 };
-    };
-
-    struct ChannelState {
-        Array<HalfBandFilter, 2> up_sampling_filters;
-        Array<HalfBandFilter, 2> down_sampling_filters;
-    };
-
-    static Array<float, half_band_filter_length> const& half_band_filter_coefficients();
-    float shape(float sample) const;
-    void up_sample(HalfBandFilter&, ReadonlySpan<float> input, Span<float> output);
-    void down_sample(HalfBandFilter&, ReadonlySpan<float> input, Span<float> output);
-
-    RefPtr<WaveShaperCurve> m_curve;
-    Bindings::OverSampleType m_oversample { Bindings::OverSampleType::None };
-    Vector<ChannelState> m_channel_states;
-    Vector<float> m_two_times_samples;
-    Vector<float> m_four_times_samples;
 };
-
-// Convolves the input with an impulse response. The head of the impulse response is convolved directly, and the rest
-// through uniformly partitioned overlap-save convolution: every quantum, the window spanning the previous and the
-// current quantum is transformed and pushed into a frequency delay line, whose spectra are then multiplied with the
-// impulse response partitions and summed. That keeps the cost per quantum constant and adds no latency, at the price of
-// transforming a window that is only half new each time.
-// https://webaudio.github.io/web-audio-api/#ConvolverNode
 class ConvolverRenderNode final : public RenderNode {
 public:
     ConvolverRenderNode(NodeID, size_t quantum_size);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-    virtual void handle_message(NodeMessage const&) override;
-
-private:
-    // Which impulse response channel is convolved with which input channel, and where the result is summed into.
-    // https://webaudio.github.io/web-audio-api/#Convolution-channel-configurations
-    struct Route {
-        size_t input_channel { 0 };
-        size_t kernel_channel { 0 };
-        size_t output_channel { 0 };
-    };
-
-    FFT m_fft;
-
-    RefPtr<ConvolverKernel> m_kernel;
-    RefPtr<ConvolverDelayLine> m_delay_line;
-
-    // The slot of the delay line that holds the spectrum of the current quantum's window.
-    size_t m_delay_line_index { 0 };
-
-    // The previous and the current quantum's samples for each input channel, which the direct convolution reaches back
-    // into and which the transform consumes as a whole.
-    Array<FixedArray<float>, ConvolverDelayLine::MAX_CHANNEL_COUNT> m_window;
-    size_t m_input_channel_count { 0 };
-
-    FixedArray<float> m_transform_real;
-    FixedArray<float> m_transform_imag;
-
-    // The partition sums are accumulated in double precision: a long impulse response adds up hundreds of partitions
-    // per bin, and single precision loses too much of the quiet parts of the result.
-    FixedArray<double> m_accumulator_real;
-    FixedArray<double> m_accumulator_imag;
 };
-
-// https://webaudio.github.io/web-audio-api/#PannerNode
 class PannerRenderNode final : public RenderNode {
 public:
     struct Params {
@@ -359,30 +82,11 @@ public:
         NonnullRefPtr<RenderAudioParam> up_y;
         NonnullRefPtr<RenderAudioParam> up_z;
     };
-
     PannerRenderNode(NodeID, size_t quantum_size, Params, ListenerParams);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-    virtual void handle_message(NodeMessage const&) override;
-    virtual void for_each_param(Function<void(RenderAudioParam&)> const& callback) override;
-
-private:
-    Params m_params;
-    ListenerParams m_listener_params;
-    SetPannerParameters m_config;
-
-    // One buffer of computed values per panner and listener param, in the order of the Params and ListenerParams
-    // struct members.
-    Vector<Vector<float>> m_param_values;
 };
-
-// Passes the input through unchanged; used for nodes whose processing is not implemented yet but which should not
-// silence the signal path, like DynamicsCompressorNode.
 class PassthroughRenderNode final : public RenderNode {
 public:
     PassthroughRenderNode(NodeID, size_t quantum_size);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
 };
 
 }

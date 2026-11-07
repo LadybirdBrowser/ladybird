@@ -135,7 +135,7 @@ void ScriptProcessorNode::process_block(size_t block, u64 start_frame)
         return;
     }
     for (size_t channel = 0; channel < config.output_channel_count; ++channel)
-        output->channels[channel].span().copy_to(pipe.output_channel(block, channel));
+        output->channels[channel].copy_to(pipe.output_channel(block, channel));
     pipe.hand_block_back_to_rendering_thread(block, true);
 }
 
