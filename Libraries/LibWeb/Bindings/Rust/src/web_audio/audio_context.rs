@@ -238,7 +238,7 @@ impl AudioContext {
                 .context
                 .queue_a_media_element_task(cx.vm(), context, |_, context| {
                     // 1. Set the state attribute of the AudioContext to "running".
-                    context.context.set_control_state(AudioContextState::Running);
+                    context.context.set_state(AudioContextState::Running);
 
                     // 2. Fire an event named statechange at the AudioContext.
                     context.context.dispatch_statechange();
@@ -316,7 +316,7 @@ impl AudioContext {
         // NB: The bindings create the promise.
 
         // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
-        if self.context.state_value() == AudioContextState::Closed {
+        if self.context.control_state() == AudioContextState::Closed {
             reject_promise_with_exception(
                 cx.vm(),
                 promise,
@@ -410,7 +410,7 @@ impl AudioContext {
                     // 7.5.4: If the state attribute of the AudioContext is not already "running":
                     if context.context.state_value() != AudioContextState::Running {
                         // 7.5.4.1: Set the state attribute of the AudioContext to "running".
-                        context.context.set_control_state(AudioContextState::Running);
+                        context.context.set_state(AudioContextState::Running);
 
                         // 7.5.4.2: queue a media element task to fire an event named statechange at the AudioContext.
                         context.context.queue_a_media_element_task(vm, context, |_, context| {
@@ -432,7 +432,7 @@ impl AudioContext {
         }
 
         // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
-        if self.context.state_value() == AudioContextState::Closed {
+        if self.context.control_state() == AudioContextState::Closed {
             reject_promise_with_exception(
                 cx.vm(),
                 promise,
@@ -485,7 +485,7 @@ impl AudioContext {
                     // 7.3.2: If the state attribute of the AudioContext is not already "suspended":
                     if context.context.state_value() != AudioContextState::Suspended {
                         // 7.3.2.1: Set the state attribute of the AudioContext to "suspended".
-                        context.context.set_control_state(AudioContextState::Suspended);
+                        context.context.set_state(AudioContextState::Suspended);
 
                         // 7.3.2.2: queue a media element task to fire an event named statechange at the AudioContext.
                         context.context.queue_a_media_element_task(vm, context, |_, context| {
@@ -496,9 +496,9 @@ impl AudioContext {
             });
     }
 
-    // https://www.w3.org/TR/webaudio/#dom-audiocontext-close
+    // https://webaudio.github.io/web-audio-api/#dom-audiocontext-close
     pub(crate) fn close(&self, cx: &mut CallContext, promise: WebIdlPromise) -> WebIdlResult<()> {
-        // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
+        // 1. If this’s relevant global object’s associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
         if !self.context.document_is_fully_active() {
             return Err(Exception::Dom(
                 "InvalidStateError",
@@ -506,8 +506,11 @@ impl AudioContext {
             ));
         }
 
+        // 2. Let promise be a new Promise.
+        // NB: The bindings create the promise.
+
         // 3. If the [[control thread state]] flag on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
-        if self.context.state_value() == AudioContextState::Closed {
+        if self.context.control_state() == AudioContextState::Closed {
             reject_promise_with_exception(
                 cx.vm(),
                 promise,
@@ -524,36 +527,42 @@ impl AudioContext {
 
         // 5. Queue a control message to close the AudioContext.
         self.run_control_message_to_close(cx.vm(), promise);
+
+        // 6. Return promise.
         Ok(())
     }
 
     fn run_control_message_to_close(&self, vm: &Vm, promise: WebIdlPromise) {
-        // 5.1: Attempt to release system resources.
+        // 1. Attempt to release system resources.
         self.context.shutdown_audio_worklet();
         if let Some(renderer) = &*self.renderer.borrow() {
             renderer.stop();
             renderer.set_client(None);
         }
 
-        // 5.2: Set the [[rendering thread state]] to "suspended".
+        // 2. Set the [[rendering thread state]] to suspended.
         self.context.set_rendering_state(AudioContextState::Suspended);
 
-        // FIXME: 5.3: If this control message is being run in a reaction to the document being unloaded, abort this algorithm.
-        // 5.4: queue a media element task to execute the following steps:
+        // 3. If this control message is being run in a reaction to the document being unloaded, abort this algorithm.
+        // NOTE: There is no need to notify the control thread in this case.
+        // NB: Document teardown releases the renderer directly.
+        // 4. queue a media element task to execute the following steps:
         self.context
             .queue_a_media_element_task(vm, (self.this(), promise), |vm, (context, promise)| {
                 with_temporary_execution_context_and_callbacks(promise_realm(promise), || {
-                    // 5.4.1: Resolve promise.
+                    // 4.1. Resolve promise.
                     resolve_promise(vm, promise, Value::UNDEFINED);
 
-                    // 5.4.2: If the state attribute of the AudioContext is not already "closed":
+                    // 4.2. If the state attribute of the AudioContext is not already "closed":
                     if context.context.state_value() != AudioContextState::Closed {
-                        // 5.4.2.1: Set the state attribute of the AudioContext to "closed".
-                        context.context.set_control_state(AudioContextState::Closed);
-                    }
+                        // 4.2.1. Set the state attribute of the AudioContext to "closed".
+                        context.context.set_state(AudioContextState::Closed);
 
-                    // 5.4.2.2: queue a media element task to fire an event named statechange at the AudioContext.
-                    context.context.dispatch_statechange();
+                        // 4.2.2. queue a media element task to fire an event named statechange at the AudioContext.
+                        context.context.queue_a_media_element_task(vm, context, |_, context| {
+                            context.context.dispatch_statechange();
+                        });
+                    }
                 });
             });
     }

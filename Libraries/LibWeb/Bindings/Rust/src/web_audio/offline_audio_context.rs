@@ -148,6 +148,7 @@ impl OfflineAudioContext {
 
         // 1. Set the [[control thread state]] for c to "suspended".
         c.context.set_control_state(AudioContextState::Suspended);
+        c.context.set_state(AudioContextState::Suspended);
 
         // 2. Set the [[rendering thread state]] for c to "suspended".
         c.context.set_rendering_state(AudioContextState::Suspended);
@@ -291,6 +292,7 @@ impl OfflineAudioContext {
 
         // AD-HOC: Other engines transition the context to "running" once rendering starts.
         self.context.set_control_state(AudioContextState::Running);
+        self.context.set_state(AudioContextState::Running);
         self.context.set_rendering_state(AudioContextState::Running);
         self.queue_a_statechange_event(vm);
         renderer.start_rendering();
@@ -308,6 +310,7 @@ impl OfflineAudioContext {
 
         // AD-HOC: Other engines transition the context to "closed" once rendering completes.
         self.context.set_control_state(AudioContextState::Closed);
+        self.context.set_state(AudioContextState::Closed);
         self.context.set_rendering_state(AudioContextState::Closed);
         self.queue_a_statechange_event(vm);
 
@@ -358,6 +361,7 @@ impl OfflineAudioContext {
 
     fn handle_suspended(&self, vm: &Vm, suspend_time: f64) {
         self.context.set_control_state(AudioContextState::Suspended);
+        self.context.set_state(AudioContextState::Suspended);
         self.context.set_rendering_state(AudioContextState::Suspended);
         let frame = (suspend_time * f64::from(self.context.sample_rate_value())).round() as u64;
 
@@ -415,6 +419,7 @@ impl OfflineAudioContext {
 
         // 4. Set the [[control thread state]] flag on the OfflineAudioContext to running.
         self.context.set_control_state(AudioContextState::Running);
+        self.context.set_state(AudioContextState::Running);
         self.context.set_rendering_state(AudioContextState::Running);
         self.queue_a_statechange_event(cx.vm());
 
