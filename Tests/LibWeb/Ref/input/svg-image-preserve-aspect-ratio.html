@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-image-preserve-aspect-ratio-ref.html">
+<style>
+    body { margin: 0; }
+    svg { display: block; image-rendering: pixelated; }
+</style>
+<svg width="200" height="120"><image width="180" height="100" preserveAspectRatio="none" href="data:image/webp;base64,UklGRioAAABXRUJQVlA4TB4AAAAvAUAAAB8gEEjaH3qN+RcQFPk/2vwHsqVgFyL6HwE="/></svg>
+<svg width="200" height="120"><defs><image id="i" width="180" height="100" preserveAspectRatio="none" href="data:image/webp;base64,UklGRioAAABXRUJQVlA4TB4AAAAvAUAAAB8gEEjaH3qN+RcQFPk/2vwHsqVgFyL6HwE="/></defs><use href="#i"/></svg>
+<svg width="200" height="120"><image width="180" height="100" preserveAspectRatio="xMinYMax meet" href="data:image/webp;base64,UklGRioAAABXRUJQVlA4TB4AAAAvAUAAAB8gEEjaH3qN+RcQFPk/2vwHsqVgFyL6HwE="/></svg>
+<svg width="200" height="120"><image width="180" height="100" preserveAspectRatio="xMaxYMin slice" href="data:image/webp;base64,UklGRioAAABXRUJQVlA4TB4AAAAvAUAAAB8gEEjaH3qN+RcQFPk/2vwHsqVgFyL6HwE="/></svg>
+<svg width="200" height="120"><image id="changed" width="180" height="100" href="data:image/webp;base64,UklGRioAAABXRUJQVlA4TB4AAAAvAUAAAB8gEEjaH3qN+RcQFPk/2vwHsqVgFyL6HwE="/></svg>
+<script>
+    document.getElementById("changed").setAttribute("preserveAspectRatio", "none");
+</script>

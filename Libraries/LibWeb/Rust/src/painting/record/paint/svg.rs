@@ -625,6 +625,43 @@ pub(crate) fn svg_image_unquantized_device_rect(
     )
 }
 
+// https://svgwg.org/svg2-draft/coords.html#PreserveAspectRatioAttribute
+// Where an image of `natural_size` is drawn to fit `image_rect` as its preserveAspectRatio says, taking its own size as
+// its view box.
+fn image_draw_rect(image_rect: FloatRect, natural_size: (f32, f32), align: u8, meet_or_slice: u8) -> FloatRect {
+    use crate::layout::svg_formatting_context::{
+        MEET_OR_SLICE_SLICE, PRESERVE_ASPECT_RATIO_NONE, PRESERVE_ASPECT_RATIO_X_MIN_Y_MIN,
+    };
+    // NB: With "none", the image is scaled non-uniformly to fill the rectangle exactly.
+    if natural_size.0 <= 0.0 || natural_size.1 <= 0.0 || align == PRESERVE_ASPECT_RATIO_NONE {
+        return image_rect;
+    }
+    let scale_x = image_rect.width / natural_size.0;
+    let scale_y = image_rect.height / natural_size.1;
+    // "meet" shows all of the image within the rectangle; "slice" covers all of the rectangle with the image.
+    let scale = if meet_or_slice == MEET_OR_SLICE_SLICE {
+        scale_x.max(scale_y)
+    } else {
+        scale_x.min(scale_y)
+    };
+    let width = natural_size.0 * scale;
+    let height = natural_size.1 * scale;
+    // NB: The alignments count up from xMinYMin through min, mid and max along x, then through min, mid and max along
+    //     y, each putting none, half or all of the space left over before the image.
+    let alignment = align.saturating_sub(PRESERVE_ASPECT_RATIO_X_MIN_Y_MIN);
+    let offset = |alignment_in_axis: u8, free_space: f32| match alignment_in_axis {
+        0 => 0.0,
+        1 => free_space / 2.0,
+        _ => free_space,
+    };
+    FloatRect::new(
+        image_rect.x + offset(alignment % 3, image_rect.width - width),
+        image_rect.y + offset(alignment / 3, image_rect.height - height),
+        width,
+        height,
+    )
+}
+
 pub(crate) fn paint_image_element<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
@@ -659,19 +696,12 @@ pub(crate) fn paint_image_element<O: Observer>(
         (Some(width), Some(height)) => (width.to_float(), height.to_float()),
         _ => (image_rect.width, image_rect.height),
     };
-    // FIXME: Respect the preserveAspectRatio attribute instead of assuming its default value.
-    let mut draw_rect = image_rect;
-    if natural_size.0 > 0.0 && natural_size.1 > 0.0 {
-        let contain_scale = (image_rect.width / natural_size.0).min(image_rect.height / natural_size.1);
-        let width = natural_size.0 * contain_scale;
-        let height = natural_size.1 * contain_scale;
-        draw_rect = FloatRect::new(
-            image_rect.x + image_rect.width / 2.0 - width / 2.0,
-            image_rect.y + image_rect.height / 2.0 - height / 2.0,
-            width,
-            height,
-        );
-    }
+    let draw_rect = image_draw_rect(
+        image_rect,
+        natural_size,
+        image.preserve_aspect_ratio_align,
+        image.preserve_aspect_ratio_meet_or_slice,
+    );
     if draw_rect.is_empty() {
         return;
     }

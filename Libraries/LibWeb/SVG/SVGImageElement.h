@@ -48,6 +48,7 @@ public:
 
     // ^Layout::ImageProvider
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
+    virtual SVG::PreserveAspectRatio preserve_aspect_ratio() const override;
 
 protected:
     SVGImageElement(DOM::Document&, DOM::QualifiedName);
