@@ -24,6 +24,8 @@ struct SimilarOriginWindowAgent : public Agent {
 
     static WEB_API NonnullOwnPtr<SimilarOriginWindowAgent> create(GC::Heap&);
 
+    virtual bool is_similar_origin_window_agent() const override { return true; }
+
     // https://dom.spec.whatwg.org/#mutation-observer-compound-microtask-queued-flag
     // Each similar-origin window agent has a mutation observer microtask queued (a boolean), which is initially false. [HTML]
     bool mutation_observer_microtask_queued { false };

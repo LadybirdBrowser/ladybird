@@ -53,7 +53,7 @@ struct IndexedDatabaseDocument {
 
 static JSVM* vm()
 {
-    return JS::HostABI::vm_to_abi(Bindings::main_thread_vm());
+    return JS::HostABI::vm_to_abi(JS::VM::the());
 }
 
 static String serialize_key_path(KeyPathAbi const& key_path)

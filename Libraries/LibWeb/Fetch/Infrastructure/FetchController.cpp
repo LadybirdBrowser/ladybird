@@ -222,7 +222,7 @@ void FetchController::stop_fetch()
     //         cancelling any queued fetch tasks and then ignoring any callbacks.
     auto ongoing_fetch_tasks = move(m_ongoing_fetch_tasks);
 
-    HTML::main_thread_event_loop().task_queue().remove_tasks_matching([&](auto const& task) {
+    HTML::current_event_loop().task_queue().remove_tasks_matching([&](auto const& task) {
         return ongoing_fetch_tasks.remove_all_matching([&](u64, HTML::TaskID task_id) {
             return task.id() == task_id;
         });

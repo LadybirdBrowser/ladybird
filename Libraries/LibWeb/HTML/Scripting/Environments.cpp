@@ -228,7 +228,7 @@ void clean_up_after_running_script(EnvironmentSettingsObject const& settings)
 
     // 3. If the JavaScript execution context stack is now empty, perform a microtask checkpoint. (If this runs scripts, these algorithms will be invoked reentrantly.)
     if (!vm.has_running_execution_context())
-        main_thread_event_loop().perform_a_microtask_checkpoint();
+        current_event_loop().perform_a_microtask_checkpoint();
 }
 
 static JS::ExecutionContext* top_most_script_having_execution_context(JS::VM& vm)
@@ -252,8 +252,8 @@ void prepare_to_run_callback(EnvironmentSettingsObject& settings)
 
     // 1. Push settings onto the backup incumbent settings object stack.
     // NOTE: The spec doesn't say which event loop's stack to put this on. However, all the examples of the incumbent settings object use iframes and cross browsing context communication to demonstrate the concept.
-    //       This means that it must rely on some global state that can be accessed by all browsing contexts, which is the main thread event loop.
-    HTML::main_thread_event_loop().push_onto_backup_incumbent_realm_stack(settings);
+    //       This means that it must rely on some global state that can be accessed by all browsing contexts, which is the event loop of their agent.
+    HTML::current_event_loop().push_onto_backup_incumbent_realm_stack(settings);
 
     // 2. Let context be the topmost script-having execution context.
     auto* context = top_most_script_having_execution_context(vm);
@@ -322,7 +322,7 @@ void clean_up_after_running_callback(EnvironmentSettingsObject const& settings)
     }
 
     // 3. Assert: the topmost entry of the backup incumbent realm stack is settings.
-    auto& event_loop = HTML::main_thread_event_loop();
+    auto& event_loop = HTML::current_event_loop();
     VERIFY(&event_loop.top_of_backup_incumbent_realm_stack() == &settings);
 
     // 4. Remove settings from the backup incumbent realm stack.
@@ -411,18 +411,18 @@ JS::Realm& incumbent_realm()
 
 GC::Ptr<EnvironmentSettingsObject> environment_settings_object_at(EnvironmentSettingsObjectAddress address)
 {
-    return main_thread_event_loop().environment_settings_object_at(address);
+    return current_event_loop().environment_settings_object_at(address);
 }
 
 GC::Ptr<EnvironmentSettingsObject> environment_settings_object_with_id(EnvironmentId const& id)
 {
-    return main_thread_event_loop().environment_settings_object_with_id(id);
+    return current_event_loop().environment_settings_object_with_id(id);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#incumbent-settings-object
 EnvironmentSettingsObject& incumbent_settings_object()
 {
-    auto& event_loop = HTML::main_thread_event_loop();
+    auto& event_loop = HTML::current_event_loop();
     auto& vm = event_loop.vm();
 
     // 1. Let context be the topmost script-having execution context.
@@ -472,14 +472,14 @@ EnvironmentSettingsObject& principal_realm_settings_object(JS::Realm& realm)
 EnvironmentSettingsObject& current_settings_object()
 {
     // Then, the current settings object is the environment settings object of the current realm.
-    return principal_realm_settings_object(*Bindings::main_thread_vm().current_realm());
+    return principal_realm_settings_object(*JS::VM::the().current_realm());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#current-global-object
 JS::Object& current_global_object()
 {
     // Similarly, the current global object is the global object of the current realm.
-    return Bindings::main_thread_vm().current_realm()->global_object();
+    return JS::VM::the().current_realm()->global_object();
 }
 
 Window& current_window()
@@ -652,7 +652,7 @@ WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(Window co
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-entry-realm
 JS::Realm& entry_realm()
 {
-    auto& event_loop = HTML::main_thread_event_loop();
+    auto& event_loop = HTML::current_event_loop();
     auto& vm = event_loop.vm();
 
     // With this in hand, we define the entry execution context to be the most recently pushed item in the JavaScript execution context stack that is a realm execution context.

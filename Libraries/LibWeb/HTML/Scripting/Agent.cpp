@@ -42,6 +42,11 @@ void Agent::detach_script_abort_handle()
         m_script_abort_handle->detach();
 }
 
+Agent& surrounding_agent()
+{
+    return *static_cast<Agent*>(JS::VM::the().agent());
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#relevant-agent
 Agent& relevant_agent(JS::Object const& object)
 {

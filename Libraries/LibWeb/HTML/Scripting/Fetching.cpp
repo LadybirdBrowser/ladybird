@@ -197,7 +197,7 @@ Utf16String module_type_from_module_request(JS::ModuleRequest const& module_requ
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolve-a-module-specifier
 WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, Utf16View specifier)
 {
-    auto& vm = Bindings::main_thread_vm();
+    auto& vm = JS::VM::the();
 
     // 1. Let settingsObject and baseURL be null.
     GC::Ptr<EnvironmentSettingsObject> settings_object;

@@ -90,7 +90,7 @@ void deliver_broadcast_channel_message_locally(BroadcastChannelMessage message)
     auto channel_name = Utf16String::from_utf16(message.channel_name.view());
     URL::RustIntegration::lend_origin_to_ffi(message.storage_key.origin, [&](URL::FFI::FfiOrigin const& storage_key_origin) {
         URL::RustIntegration::lend_origin_to_ffi(message.source_origin, [&](URL::FFI::FfiOrigin const& source_origin) {
-            web_rust_broadcast_channel_deliver_message_locally(JS::HostABI::vm_to_abi(Bindings::main_thread_vm()), &storage_key_origin, move(channel_name).into_raw(), &source_origin, message.serialized_message.data.span(), shared_memory.data(), shared_memory_sizes.data(), shared_memory.size());
+            web_rust_broadcast_channel_deliver_message_locally(JS::HostABI::vm_to_abi(JS::VM::the()), &storage_key_origin, move(channel_name).into_raw(), &source_origin, message.serialized_message.data.span(), shared_memory.data(), shared_memory_sizes.data(), shared_memory.size());
         });
     });
 }

@@ -142,6 +142,11 @@ EventLoop& main_thread_event_loop()
     return *static_cast<HTML::Agent*>(Bindings::main_thread_vm().agent())->event_loop;
 }
 
+EventLoop& current_event_loop()
+{
+    return *surrounding_agent().event_loop;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop
 void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
 {
@@ -1749,7 +1754,7 @@ void EventLoop::release_held_frames_for_testing()
 
 void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps)
 {
-    auto& event_loop = main_thread_event_loop();
+    auto& event_loop = current_event_loop();
     event_loop.run_upon_reaching_step_1(steps);
 }
 
@@ -1758,7 +1763,7 @@ TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
     if (!event_loop)
-        event_loop = main_thread_event_loop();
+        event_loop = current_event_loop();
 
     // FIXME: 2. If document was not given, set document to the implied document.
 
@@ -1798,7 +1803,7 @@ TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, G
 void queue_a_microtask(GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
-    auto& event_loop = HTML::main_thread_event_loop();
+    auto& event_loop = HTML::current_event_loop();
 
     // FIXME: 2. If document was not given, set document to the implied document.
 
@@ -1816,7 +1821,7 @@ void queue_a_microtask(GC::Ptr<DOM::Document const> document, GC::Ref<GC::Functi
 
 void perform_a_microtask_checkpoint()
 {
-    main_thread_event_loop().perform_a_microtask_checkpoint();
+    current_event_loop().perform_a_microtask_checkpoint();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#perform-a-microtask-checkpoint

@@ -18,7 +18,7 @@ use crate::bindings::conversions::{CppInterface, DOMStringOrDOMStringSequence};
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::indexed_db::cpp::{enqueue_post_gc_task, main_thread_event_loop};
+use crate::indexed_db::cpp::{current_event_loop, enqueue_post_gc_task};
 use crate::indexed_db::idb_object_store::{
     IDBObjectStore, constraint_error, invalid_state_error, not_found_error, transaction_inactive_error,
 };
@@ -429,7 +429,7 @@ impl IDBDatabase {
         let transaction = IDBTransaction::create(vm, *this, mode, options.durability, &scope_stores.values());
 
         // 8. Set transaction’s cleanup event loop to the current event loop.
-        transaction.set_cleanup_event_loop(vm, Some(main_thread_event_loop()));
+        transaction.set_cleanup_event_loop(vm, Some(current_event_loop()));
 
         Self::block_on_conflicting_transactions(*this, vm, transaction);
 
