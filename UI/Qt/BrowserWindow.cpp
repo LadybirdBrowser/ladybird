@@ -140,8 +140,11 @@ void FullscreenMode::enter(Tab* tab)
 
 void FullscreenMode::entered_fullscreen()
 {
-    if (m_fullscreen_tab && m_window->tab_index(m_fullscreen_tab) != -1)
-        m_exit_button->set_host(m_fullscreen_tab->url().host().has_value() ? qstring_from_ak_string(m_fullscreen_tab->url().serialized_host()) : QString {});
+    // NB: The toast is only for a page that went full screen: Esc and a click on it leave the page's full screen, and
+    //     neither leaves a window the user made full screen.
+    if (!m_fullscreen_tab || m_window->tab_index(m_fullscreen_tab) == -1)
+        return;
+    m_exit_button->set_host(m_fullscreen_tab->url().host().has_value() ? qstring_from_ak_string(m_fullscreen_tab->url().serialized_host()) : QString {});
     // Let button float in place for 3 times the time it takes to animate it in place.
     m_debounce.start(*this, button_animation_time() * 3);
     m_exit_button->animate_show();
@@ -215,8 +218,11 @@ ExitFullscreenButton::ExitFullscreenButton(QWidget* parent)
     m_hide_timer = new QTimer(this);
     m_hide_timer->setSingleShot(true);
     m_hide_timer->setInterval(FULLSCREEN_TOAST_VISIBLE_MS);
+    // NB: A toast under the pointer stays until the pointer leaves it, rather than for good.
     QObject::connect(m_hide_timer, &QTimer::timeout, this, [this] {
-        if (!underMouse())
+        if (underMouse())
+            m_hide_timer->start();
+        else
             hide();
     });
 }
