@@ -97,15 +97,20 @@ void SVGUseElement::inserted()
 {
     Base::inserted();
 
-    // A use element inside another use element's shadow tree is itself part of a clone, so it's left alone.
-    auto* containing_shadow_root = as_if<DOM::ShadowRoot>(root());
-    if (containing_shadow_root && containing_shadow_root->is_user_agent_internal())
-        return;
-
     // Only use elements in the document's node tree react to changes of the elements they reference, mirroring the
     // document-wide traversal this registry replaced.
     if (root().is_document())
         register_for_referenced_element_changes();
+}
+
+void SVGUseElement::post_connection()
+{
+    Base::post_connection();
+
+    // A use element inside another use element's shadow tree is itself part of a clone, so it's left alone.
+    auto* containing_shadow_root = as_if<DOM::ShadowRoot>(root());
+    if (containing_shadow_root && containing_shadow_root->is_user_agent_internal())
+        return;
 
     // The insertion that connected us may have inserted our referenced element along with us, with its insertion
     // steps running before ours, i.e. before we were registered to be notified about changes to it. Adoption also
@@ -114,8 +119,13 @@ void SVGUseElement::inserted()
     // resolving the reference again.
     if (!is_connected() || instance_root())
         return;
-    if (auto to_clone = referenced_element())
+    if (auto to_clone = referenced_element()) {
+        m_needs_parsing_complete_reclone = false;
+        auto insertion_generation = current_insertion_generation();
         clone_element_tree_as_our_shadow_tree(to_clone);
+        if (instance_root() && insertion_generation.has_value())
+            m_last_insertion_clone = { *insertion_generation, *to_clone };
+    }
 }
 
 void SVGUseElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
@@ -164,6 +174,7 @@ void SVGUseElement::register_for_referenced_element_changes()
 {
     if (m_list_node.is_in_list())
         return;
+    m_last_insertion_clone = {};
     document().register_svg_use_element({}, *this);
 }
 
@@ -219,28 +230,44 @@ bool SVGUseElement::is_referenced_element_same_document() const
     return m_href->equals(document().base_url(), URL::ExcludeFragment::Yes);
 }
 
-void SVGUseElement::svg_element_changed(SVGElement& svg_element)
+void SVGUseElement::svg_element_changed(SVGElement& svg_element, Optional<u64> insertion_generation)
 {
     auto to_clone = referenced_element();
     if (!to_clone) {
         return;
     }
 
+    if (has_already_applied_insertion_clone(to_clone, insertion_generation))
+        return;
+
     // NOTE: We need to check the ancestor because attribute_changed of a child doesn't call children_changed on the parent(s)
     if (to_clone == GC::Ref { svg_element } || to_clone->is_ancestor_of(svg_element)) {
         clone_element_tree_as_our_shadow_tree(to_clone);
+        if (instance_root() && insertion_generation.has_value())
+            m_last_insertion_clone = { *insertion_generation, *to_clone };
     }
 }
 
-void SVGUseElement::svg_element_changed_before_parsing_complete(SVGElement& svg_element)
+void SVGUseElement::svg_element_changed_before_parsing_complete(SVGElement& svg_element, Optional<u64> insertion_generation)
 {
     auto to_clone = referenced_element();
     if (!to_clone)
         return;
 
+    if (has_already_applied_insertion_clone(to_clone, insertion_generation))
+        return;
+
     // NOTE: We need to check the ancestor because attribute_changed of a child doesn't call children_changed on the parent(s)
     if (to_clone == GC::Ref { svg_element } || to_clone->is_ancestor_of(svg_element))
         m_needs_parsing_complete_reclone = true;
+}
+
+bool SVGUseElement::has_already_applied_insertion_clone(GC::Ptr<DOM::Element> target, Optional<u64> insertion_generation) const
+{
+    return instance_root()
+        && insertion_generation.has_value()
+        && m_last_insertion_clone.generation >= *insertion_generation
+        && m_last_insertion_clone.target.ptr() == target;
 }
 
 void SVGUseElement::svg_element_removed(SVGElement& svg_element)
@@ -251,6 +278,7 @@ void SVGUseElement::svg_element_removed(SVGElement& svg_element)
 
     auto id = decode_fragment_identifier(*m_href->fragment());
     if (svg_element.get_attribute_value("id"_utf16_fly_string) == id) {
+        m_last_insertion_clone = {};
         shadow_root()->remove_all_children();
     }
 }
@@ -310,7 +338,7 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
     m_resource_request_callbacks_id = m_resource_request->add_removable_callbacks(
         [this] {
             // A request that already finished calls back right away, which from adopted_from() is in the middle of the
-            // adoption. Only a connected use element builds its shadow tree; inserted() builds it otherwise.
+            // adoption. Only a connected use element builds its shadow tree; post_connection() builds it otherwise.
             if (is_connected())
                 clone_element_tree_as_our_shadow_tree(referenced_element());
             m_load_event_delayer.clear();

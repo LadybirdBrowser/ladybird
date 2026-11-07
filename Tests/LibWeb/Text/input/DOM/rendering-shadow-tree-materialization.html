@@ -1,0 +1,16 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const tagName of ["input", "textarea", "details", "meter", "progress", "select"]) {
+            const element = document.createElement(tagName);
+            document.body.appendChild(element);
+            println(`${tagName} connected before style: ${internals.hasShadowRoot(element)}`);
+
+            getComputedStyle(element).display;
+            println(`${tagName} after style: ${internals.hasShadowRoot(element)}`);
+
+            element.remove();
+        }
+    });
+</script>

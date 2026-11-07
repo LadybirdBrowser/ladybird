@@ -103,8 +103,6 @@ public:
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(DOM::Event const&) override;
 
-    virtual void form_associated_element_was_inserted() override;
-
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
     virtual void form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
@@ -161,6 +159,8 @@ private:
     virtual i32 default_tab_index_value() const override;
 
     virtual void computed_properties_changed() override;
+    virtual void prepare_for_style_computation() override { create_shadow_tree_if_needed(); }
+    virtual bool needs_preparation_for_style_computation() const override { return true; }
 
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     bool can_skip_children_changed_selectedness_update(ChildrenChangedMetadata const& metadata) const;

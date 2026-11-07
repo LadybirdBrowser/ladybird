@@ -82,12 +82,6 @@ double HTMLProgressElement::position() const
     return value() / max();
 }
 
-void HTMLProgressElement::inserted()
-{
-    Base::inserted();
-    create_shadow_tree_if_needed();
-}
-
 void HTMLProgressElement::create_shadow_tree_if_needed()
 {
     if (shadow_root())

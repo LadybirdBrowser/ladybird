@@ -160,11 +160,6 @@ WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool subt
     return {};
 }
 
-void HTMLTextAreaElement::form_associated_element_was_inserted()
-{
-    create_shadow_tree_if_needed();
-}
-
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-defaultvalue
 Utf16String HTMLTextAreaElement::default_value() const
 {
@@ -573,7 +568,7 @@ bool HTMLTextAreaElement::is_mutable() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#attr-textarea-placeholder
 Optional<Utf16String> HTMLTextAreaElement::placeholder_value() const
 {
-    if (!m_text_node || !m_text_node->data().is_empty())
+    if (!api_value().is_empty())
         return {};
     if (!has_attribute(HTML::AttributeNames::placeholder))
         return {};

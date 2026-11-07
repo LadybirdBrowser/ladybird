@@ -100,11 +100,16 @@ function appendShadowPartHost(fixture, options = {}) {
 function appendSvgUseDocumentStyledSubject(fixture) {
     const sourceId = `source-${appendSvgUseDocumentStyledSubject.nextId++}`;
     const useId = `use-${appendSvgUseDocumentStyledSubject.nextId++}`;
-    fixture.innerHTML = `<svg><defs><g id="${sourceId}" class="subject"></g></defs><use id="${useId}" href="#${sourceId}"></use></svg>`;
+    // Keep the source connected when the fixture is detached. Reconnecting the source would replace the use's
+    // shadow tree, discarding the clone mutations whose style invalidation these tests exercise.
+    const sourceFixture = makeSvgElement("svg");
+    sourceFixture.innerHTML = `<defs><g id="${sourceId}" class="subject"></g></defs>`;
+    document.body.appendChild(sourceFixture);
+    fixture.innerHTML = `<svg><use id="${useId}" href="#${sourceId}"></use></svg>`;
 
     document.body.offsetWidth;
     const use = document.getElementById(useId);
-    return internals.getShadowRoot(use).firstChild;
+    return { subject: internals.getShadowRoot(use).firstChild, sourceFixture };
 }
 appendSvgUseDocumentStyledSubject.nextId = 0;
 
@@ -116,6 +121,7 @@ function buildFixture(scope, selector, pseudoElement, options = {}) {
     let subject = makeSubject(options.subjectOptions);
     let target = subject;
     let ruleStyle = null;
+    let sourceFixture = null;
     let cleanup = () => {};
 
     if (scope === "document") {
@@ -215,7 +221,7 @@ function buildFixture(scope, selector, pseudoElement, options = {}) {
         addProbeStyle(outerShadowRoot, `x-host::part(foo)${selector}${pseudoElement}`, duplicateRuleCount);
     } else if (scope === "document-styled-use-shadow") {
         ruleStyle = addProbeStyle(document.head, `.subject${selector}${pseudoElement}`, duplicateRuleCount);
-        subject = appendSvgUseDocumentStyledSubject(fixture);
+        ({ subject, sourceFixture } = appendSvgUseDocumentStyledSubject(fixture));
         target = subject;
     } else {
         throw new Error(`Unknown scope ${scope}`);
@@ -224,6 +230,7 @@ function buildFixture(scope, selector, pseudoElement, options = {}) {
     cleanup = () => {
         ruleStyle?.remove();
         fixture.remove();
+        sourceFixture?.remove();
     };
     return { cleanup, fixture, subject, target };
 }
