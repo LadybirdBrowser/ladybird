@@ -931,18 +931,21 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     fn emit_prologue(&mut self) {
         self.annotate(CodeAnnotation::Prologue);
         let frame = self.frame;
-        self.masm.emit_prologue(&frame);
+        self.masm.emit_prologue_unprobed(&frame);
         // NB: The VM is in its pinned register already.
         self.masm.move64(self.pinned.frame, M::ARGUMENT_GPRS[1]);
-        let root_frame = self.local_address(self.locals.root_frame);
-        self.masm.store64(&root_frame, self.pinned.frame);
 
         // Exit to the interpreter (which runs the function on its own stack,
         // and reports overflows of that) if the native stack is nearly
-        // exhausted. No value lives in a register yet.
+        // exhausted. No value lives in a register yet. The locals are only
+        // touched once the frame is known to fit: on Windows, touching a
+        // frame that goes past the end of the stack would crash.
         let limit = Address::new(self.pinned.vm, self.runtime.offsets.vm_jit_native_stack_limit as i32);
         let resume = self.entry_resume;
         self.masm.branch_if_stack_pointer_below(&limit, resume);
+        self.masm.probe_frame(&frame);
+        let root_frame = self.local_address(self.locals.root_frame);
+        self.masm.store64(&root_frame, self.pinned.frame);
 
         // Materializing the frames of inlined calls must not run out of
         // interpreter stack, so exit if they would not all fit.

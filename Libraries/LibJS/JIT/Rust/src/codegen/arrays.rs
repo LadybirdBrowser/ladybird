@@ -26,7 +26,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let count = self.graph.node(node).inputs.len() - 3;
         let bytes = ((count * 8 + 15) & !15) as i64;
         if bytes != 0 {
-            self.masm.sub64_imm(M::STACK_POINTER, M::STACK_POINTER, bytes);
+            self.masm.allocate_stack(bytes);
         }
         for index in 0..count {
             let address = Address::new(M::STACK_POINTER, (index * 8) as i32);
