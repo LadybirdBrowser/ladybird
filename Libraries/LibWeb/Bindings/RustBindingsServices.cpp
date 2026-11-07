@@ -79,7 +79,6 @@ extern "C" {
 void* web_bindings_wrapper_world(void* realm, bool* is_main_world);
 JSObject* web_bindings_rust_wrapper_for(void* realm, void* cell);
 void web_bindings_set_rust_wrapper(void* realm, void* cell, JSObject* wrapper);
-JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason);
 void web_bindings_queue_a_microtask(void* realm, JSObject* function);
 void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, void*));
 void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
@@ -275,17 +274,6 @@ bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origi
         on_origin(ctx, &ffi_origin);
     });
     return true;
-}
-
-JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason)
-{
-    auto& realm = *static_cast<JS::Realm*>(current_realm);
-    auto promise_realm_this_value = JS::HostABI::value_from_abi(this_value);
-    if (promise_realm_this_value.is_nullish())
-        promise_realm_this_value = &realm.global_object();
-    auto& promise_realm = this_value_realm(realm, promise_realm_this_value);
-    auto promise = WebIDL::create_rejected_promise(promise_realm, JS::HostABI::value_from_abi(reason));
-    return JS::HostABI::object_to_abi(promise->promise().ptr());
 }
 
 void web_bindings_queue_a_microtask(void* realm, JSObject* function)

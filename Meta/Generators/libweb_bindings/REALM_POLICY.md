@@ -5,7 +5,8 @@ Generated bindings make one explicit realm decision per IDL member.
 - Instance operations and attributes default to the validated receiver realm
   (`this_object_realm`). This realm is used for implementation calls,
   DOMException wrapping, JavaScript return-value wrapping, and promise
-  creation/rejection for promise-typed members.
+  creation for promise-typed members. A promise-typed member that throws
+  rejects in the caller/current realm, as WebIDL specifies.
 - Generated pair-iterable, async-iterable, maplike, and setlike helpers use the
   receiver realm for iterator/container creation and wrapped values.
 - Static operations, constructors, and namespace members use the caller/current
