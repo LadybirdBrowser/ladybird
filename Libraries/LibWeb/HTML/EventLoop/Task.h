@@ -9,6 +9,7 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/IntrusiveList.h>
 #include <AK/RefCounted.h>
+#include <AK/kmalloc.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Export.h>
@@ -149,6 +150,8 @@ public:
 };
 
 struct WEB_API UniqueTaskSource {
+    AK_ALLOC_WITH_KMALLOC;
+
     UniqueTaskSource();
     ~UniqueTaskSource();
 

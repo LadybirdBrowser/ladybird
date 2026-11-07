@@ -69,7 +69,9 @@ impl ScriptProcessorPipe {
         }
     }
 
-    pub(crate) unsafe fn input_channel(&self, block: usize, channel: usize) -> (*mut f32, usize) {
+    /// # Safety
+    /// The caller must own the block until it finishes accessing the samples.
+    pub unsafe fn input_channel(&self, block: usize, channel: usize) -> (*mut f32, usize) {
         assert!(block < self.config.block_count);
         assert!(channel < self.config.input_channel_count);
         let offset = (block * self.config.input_channel_count + channel) * self.config.buffer_size;
@@ -77,7 +79,9 @@ impl ScriptProcessorPipe {
         (unsafe { samples.add(offset) }, self.config.buffer_size)
     }
 
-    pub(crate) unsafe fn output_channel(&self, block: usize, channel: usize) -> (*mut f32, usize) {
+    /// # Safety
+    /// The caller must own the block until it finishes accessing the samples.
+    pub unsafe fn output_channel(&self, block: usize, channel: usize) -> (*mut f32, usize) {
         assert!(block < self.config.block_count);
         assert!(channel < self.config.output_channel_count);
         let offset = (block * self.config.output_channel_count + channel) * self.config.buffer_size;
@@ -127,7 +131,9 @@ impl ScriptProcessorPipe {
         }
     }
 
-    pub(crate) unsafe fn hand_block_back_to_rendering_thread(&self, block: usize, has_output: bool) {
+    /// # Safety
+    /// The control thread must own the block and have finished accessing its samples.
+    pub unsafe fn hand_block_back_to_rendering_thread(&self, block: usize, has_output: bool) {
         unsafe {
             *self.blocks[block].has_output.get() = has_output;
         }

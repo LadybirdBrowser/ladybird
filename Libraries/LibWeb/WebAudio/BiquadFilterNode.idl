@@ -17,7 +17,7 @@ dictionary BiquadFilterOptions : AudioNodeOptions {
     float gain = 0;
 };
 
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface BiquadFilterNode : AudioNode {
     constructor (BaseAudioContext context, optional BiquadFilterOptions options = {});
     attribute BiquadFilterType type;

@@ -6,9 +6,9 @@ callback DecodeErrorCallback = undefined (DOMException error);
 callback DecodeSuccessCallback = undefined (AudioBuffer decodedData);
 
 // https://webaudio.github.io/web-audio-api/#BaseAudioContext
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface BaseAudioContext : EventTarget {
-    [DirectGetter] readonly attribute AudioDestinationNode destination;
+    readonly attribute AudioDestinationNode destination;
     readonly attribute float sampleRate;
     readonly attribute double currentTime;
     readonly attribute AudioListener listener;

@@ -8,10 +8,10 @@ dictionary OfflineAudioContextOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContext
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface OfflineAudioContext : BaseAudioContext {
-    constructor(OfflineAudioContextOptions contextOptions);
-    constructor(unsigned long numberOfChannels, unsigned long length, float sampleRate);
+    [ImplementedAs=construct_options] constructor(OfflineAudioContextOptions contextOptions);
+    [ImplementedAs=construct_channels] constructor(unsigned long numberOfChannels, unsigned long length, float sampleRate);
     // FIXME: startRendering is missing the chunkSize parameter.
     [CreatesPromise] Promise<AudioBuffer> startRendering();
     [CreatesPromise] Promise<undefined> resume();

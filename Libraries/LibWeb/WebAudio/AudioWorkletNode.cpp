@@ -6,293 +6,116 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/AbstractOperations.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/Realm.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/ErrorEvent.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/WebAudio/AudioParam.h>
-#include <LibWeb/WebAudio/AudioParamMap.h>
 #include <LibWeb/WebAudio/AudioWorklet.h>
 #include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
 #include <LibWeb/WebAudio/AudioWorkletNode.h>
-#include <LibWeb/WebAudio/BaseAudioContext.h>
-#include <LibWeb/WebAudio/Rendering/AudioWorkletRenderNode.h>
-#include <LibWeb/WebAudio/Rendering/RealtimeAudioRenderer.h>
-#include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebAudio/RustFFI.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::WebAudio {
 
-GC_DEFINE_ALLOCATOR(AudioWorkletNode);
+using DescriptorCallback = void (*)(void*, FlatPtr, float, float, float, RustFFI::AutomationRate);
+extern "C" bool web_audio_worklet_find_definition(AudioWorklet*, FlatPtr, void*, DescriptorCallback);
+extern "C" AudioWorkletGlobalScope* web_audio_worklet_global_scope(AudioWorklet*);
+extern "C" JS::Realm* web_audio_worklet_scope_realm(AudioWorkletGlobalScope*);
+extern "C" JSCompletion web_audio_worklet_clone_options(JSVM*, JS::Realm*, JS::Realm*, JS::Object*);
+extern "C" RustFFI::FfiSharedCppObject web_audio_worklet_create_pipe(RustFFI::WorkletPipeConfig, float, void const**);
+extern "C" void web_audio_worklet_set_pump(Rendering::AudioWorkletPipe*, AudioWorkletGlobalScope*, u64);
+extern "C" void web_audio_worklet_clear_pump(Rendering::AudioWorkletPipe*);
+extern "C" JS::FunctionObject* web_audio_worklet_processor_constructor(AudioWorkletGlobalScope*, FlatPtr);
+extern "C" void web_audio_worklet_set_pending_port(AudioWorkletGlobalScope*, HTML::MessagePort*);
+extern "C" void web_audio_worklet_clear_pending_data(AudioWorkletGlobalScope*);
+extern "C" void web_audio_worklet_add_processor_slot(AudioWorkletGlobalScope*, u64, JS::Object*, HTML::MessagePort*, AudioWorkletNode*, Rendering::AudioWorkletPipe*, ReadonlySpan<FlatPtr>);
+extern "C" void web_audio_worklet_queue_processor_error(AudioWorkletNode*, DOM::EventTarget*, DOM::EventTarget*, JSValue);
+extern "C" void web_rust_audio_worklet_node_fire_error(AudioWorkletNode*, JSValue);
 
-// https://webaudio.github.io/web-audio-api/#dom-audioworkletnode-audioworkletnode
-WebIDL::ExceptionOr<GC::Ref<AudioWorkletNode>> AudioWorkletNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Utf16String const& name, AudioWorkletNodeOptions const& options)
+bool web_audio_worklet_find_definition(AudioWorklet* worklet, FlatPtr name, void* context, DescriptorCallback descriptor_callback)
 {
-    auto& vm = realm.vm();
-
-    // 1. If nodeName does not exist as a key in the BaseAudioContext's node name to parameter descriptor
-    //    map, throw an InvalidStateError exception and abort these steps.
-    auto worklet = context->audio_worklet();
-    auto definition = worklet->find_definition(name);
+    auto definition = worklet->find_definition(Utf16String::from_raw(name));
     if (!definition.has_value())
-        return WebIDL::InvalidStateError::create(Utf16String::formatted("No AudioWorkletProcessor named '{}' is registered", name));
-
-    // https://webaudio.github.io/web-audio-api/#configuring-channels-with-audioworkletnodeoptions
-    // If both numberOfInputs and numberOfOutputs are zero, throw a NotSupportedError.
-    if (options.number_of_inputs == 0 && options.number_of_outputs == 0)
-        return WebIDL::NotSupportedError::create("AudioWorkletNode must have at least one input or output"_utf16);
-
-    // If outputChannelCount exists: throw an IndexSizeError if its length does not equal numberOfOutputs;
-    // throw a NotSupportedError if any entry is zero or greater than the supported maximum.
-    if (options.output_channel_count.has_value()) {
-        if (options.output_channel_count->size() != options.number_of_outputs)
-            return WebIDL::IndexSizeError::create("outputChannelCount length must equal numberOfOutputs"_utf16);
-        for (auto channel_count : *options.output_channel_count) {
-            if (channel_count == 0 || channel_count > BaseAudioContext::MAX_NUMBER_OF_CHANNELS)
-                return WebIDL::NotSupportedError::create("outputChannelCount entries must be between 1 and 32"_utf16);
-        }
-    }
-
-    auto worklet_scope_ptr = worklet->audio_worklet_global_scope();
-    VERIFY(worklet_scope_ptr);
-    auto& worklet_scope = *worklet_scope_ptr;
-
-    // 2. Let node be this value; initialize node's AudioNode base with context and options.
-    auto parameter_map = AudioParamMap::create();
-    auto node_port = HTML::MessagePort::create(HTML::relevant_realm(context->relevant_global_object()));
-    auto node = GC::Heap::the().allocate<AudioWorkletNode>(context, name, options.number_of_inputs, options.number_of_outputs, parameter_map, node_port);
-
-    AudioNodeDefaultOptions default_options;
-    default_options.channel_count = 2;
-    default_options.channel_count_mode = ChannelCountMode::Max;
-    default_options.channel_interpretation = ChannelInterpretation::Speakers;
-    TRY(node->initialize_audio_node_options(options, default_options));
-
-    // 3. Let map be a new AudioParamMap; for each descriptor in the parameter descriptors, create an
-    //    AudioParam and append it to map; apply parameterData overrides.
+        return false;
     for (auto const& descriptor : definition->parameter_descriptors) {
-        auto param = AudioParam::create(context, node, descriptor.default_value, descriptor.min_value, descriptor.max_value, descriptor.automation_rate);
-        if (options.parameter_data.has_value()) {
-            if (auto it = options.parameter_data->find(descriptor.name); it != options.parameter_data->end())
-                TRY(param->set_value(static_cast<float>(it->value)));
-        }
-        parameter_map->set_entry(descriptor.name, param);
+        Utf16FlyString key(descriptor.name);
+        descriptor_callback(context, key.raw_identity(), descriptor.default_value, descriptor.min_value, descriptor.max_value, static_cast<RustFFI::AutomationRate>(descriptor.automation_rate));
     }
-
-    // 4. Let messageChannel be a new MessageChannel (collapsed): node.port and the processor's port are
-    //    entangled; node.port's message queue is enabled immediately. The processor-side port stays
-    //    disabled until the processor constructor has returned, so messages posted before (or during)
-    //    construction are queued and delivered to listeners the constructor registered — even ones added
-    //    with addEventListener() and no explicit start().
-    auto processor_port = HTML::MessagePort::create(worklet_scope.realm());
-    node_port->entangle_with(*processor_port);
-    node_port->enable();
-
-    // 5. Let serializedProcessorOptions be StructuredSerialize(optionsObject's processorOptions).
-    // 6-7. (Deserialization happens into the worklet realm when building the processor's options object.)
-    auto& worklet_realm = worklet_scope.realm();
-    GC::Ptr<JS::Object> cloned_processor_options;
-    if (options.processor_options) {
-        auto record = TRY(HTML::structured_serialize(vm, options.processor_options, HTML::AllowSharedArrayBuffers::CrossOriginIsolatedOnly));
-        auto cloned_value = TRY(HTML::structured_deserialize(vm, record, worklet_realm));
-        VERIFY(cloned_value.is_object());
-        cloned_processor_options = &cloned_value.as_object();
-    }
-
-    GC::Ref<JS::Object> options_object = JS::Object::create(worklet_realm, worklet_realm.intrinsics().object_prototype());
-    MUST(options_object->create_data_property("numberOfInputs"_utf16_fly_string, JS::Value(options.number_of_inputs)));
-    MUST(options_object->create_data_property("numberOfOutputs"_utf16_fly_string, JS::Value(options.number_of_outputs)));
-    if (options.output_channel_count.has_value()) {
-        auto array = MUST(JS::Array::create(worklet_realm, options.output_channel_count->size()));
-        for (size_t i = 0; i < options.output_channel_count->size(); ++i)
-            MUST(array->create_data_property(JS::PropertyKey { i }, JS::Value(options.output_channel_count->at(i))));
-        MUST(options_object->create_data_property("outputChannelCount"_utf16_fly_string, array));
-    }
-    if (options.parameter_data.has_value()) {
-        auto parameter_data_object = JS::Object::create(worklet_realm, worklet_realm.intrinsics().object_prototype());
-        for (auto const& entry : *options.parameter_data)
-            MUST(parameter_data_object->create_data_property(JS::PropertyKey { Utf16FlyString(entry.key) }, JS::Value(entry.value)));
-        MUST(options_object->create_data_property("parameterData"_utf16_fly_string, parameter_data_object));
-    }
-    // processorOptions is always present; when omitted by the caller, Web Audio specifies an empty object.
-    if (cloned_processor_options)
-        MUST(options_object->create_data_property("processorOptions"_utf16_fly_string, cloned_processor_options));
-    else
-        MUST(options_object->create_data_property("processorOptions"_utf16_fly_string, JS::Object::create(worklet_realm, worklet_realm.intrinsics().object_prototype())));
-
+    return true;
+}
+AudioWorkletGlobalScope* web_audio_worklet_global_scope(AudioWorklet* worklet) { return worklet->audio_worklet_global_scope().ptr(); }
+JS::Realm* web_audio_worklet_scope_realm(AudioWorkletGlobalScope* scope) { return &scope->realm(); }
+JSCompletion web_audio_worklet_clone_options(JSVM* vm, JS::Realm* realm, JS::Realm* error_realm, JS::Object* options)
+{
+    auto record = HTML::structured_serialize(JS::HostABI::vm_from_abi(vm), options, HTML::AllowSharedArrayBuffers::CrossOriginIsolatedOnly);
+    if (record.is_error())
+        return JS::HostABI::throw_completion_to_abi(WebIDL::exception_to_throw_completion(JS::HostABI::vm_from_abi(vm), *error_realm, record.release_error()).value());
+    auto cloned = HTML::structured_deserialize(JS::HostABI::vm_from_abi(vm), record.value(), *realm);
+    if (cloned.is_error())
+        return JS::HostABI::throw_completion_to_abi(WebIDL::exception_to_throw_completion(JS::HostABI::vm_from_abi(vm), *error_realm, cloned.release_error()).value());
+    return JS::HostABI::normal_completion_to_abi(JS::HostABI::value_to_abi(cloned.release_value()));
+}
+RustFFI::FfiSharedCppObject web_audio_worklet_create_pipe(RustFFI::WorkletPipeConfig config, float sample_rate, void const** native_pipe)
+{
     Rendering::AudioWorkletPipe::Config pipe_config;
-    pipe_config.quantum_size = BaseAudioContext::render_quantum_size();
-    pipe_config.sample_rate = context->sample_rate();
-    pipe_config.input_count = options.number_of_inputs;
-    pipe_config.output_count = options.number_of_outputs;
-    // Reserve space for later input layout changes without allocating on the render thread.
-    for (WebIDL::UnsignedLong i = 0; i < options.number_of_inputs; ++i)
-        pipe_config.input_channel_capacity.append(BaseAudioContext::MAX_NUMBER_OF_CHANNELS);
-    pipe_config.output_channel_count_matches_input = options.number_of_inputs == 1
-        && options.number_of_outputs == 1 && !options.output_channel_count.has_value();
-    for (WebIDL::UnsignedLong i = 0; i < options.number_of_outputs; ++i) {
-        if (options.output_channel_count.has_value())
-            pipe_config.output_channel_capacity.append(options.output_channel_count->at(i));
-        else
-            pipe_config.output_channel_capacity.append(pipe_config.output_channel_count_matches_input ? BaseAudioContext::MAX_NUMBER_OF_CHANNELS : 1u);
-    }
-    pipe_config.param_count = definition->parameter_descriptors.size();
-    for (auto const& descriptor : definition->parameter_descriptors)
-        pipe_config.param_is_a_rate.append(descriptor.automation_rate == Bindings::AutomationRate::ARate);
-    auto ring_sizing = Rendering::AudioWorkletPipe::Config::ring_sizing_for_device_latency(
-        Rendering::RealtimeAudioRenderer::TARGET_LATENCY_MS, context->sample_rate(), pipe_config.quantum_size);
-    pipe_config.ring_capacity = ring_sizing.ring_capacity;
-    pipe_config.prime_level = ring_sizing.prime_level;
-
-    auto pipe = Rendering::AudioWorkletPipe::create(pipe_config, Core::EventLoop::current());
-    pipe->prime_outputs_with_silence(pipe_config.prime_level);
-    node->m_pipe = pipe;
-
-    // The pump trampoline holds the worklet scope via GC::Root (sanctioned non-GC-memory keepalive);
-    // it observes ShutDown through the pipe state and unregisters the slot.
-    pipe->set_pump_callback([scope_root = GC::make_root(worklet_scope), pipe, node_id = node->node_id()] {
-        scope_root->pump(node_id, *pipe);
-    });
-
-    // Create the render mirror. Channel configuration rides in the constructor (the graph drops
-    // SetChannelConfig messages that precede AddNode).
-    Vector<NonnullRefPtr<Rendering::RenderAudioParam>> render_params;
-    for (auto const& param : parameter_map->values())
-        render_params.append(param->render_param());
-    node->queue_render_node_creation(make<Rendering::AudioWorkletRenderNode>(node->node_id(),
-        options.number_of_inputs, options.number_of_outputs, pipe_config.quantum_size,
-        pipe_config.output_channel_capacity,
-        node->channel_count(), node->channel_count_mode(), node->channel_interpretation(),
-        pipe, move(render_params)));
-
-    // FIXME: Implement the spec's actively-processing keep-alive (drop this when the processor's
-    //        process() return value has been false and inputs are silent). For now a live worklet
-    //        node stays registered with the context until the context goes away.
-    context->add_playing_source(node);
-
-    // 8. Queue a control message to invoke the constructor of the corresponding AudioWorkletProcessor.
-    // NOTE: The worklet shares the window agent's event loop, so the control message becomes a queued
-    //       global task on the worklet global; the node constructor returns before user code runs.
-    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, worklet_realm.global_object(),
-        GC::create_function(realm.heap(), [node, scope = GC::Ref { worklet_scope }, processor_port, options_object] {
-            node->invoke_processor_constructor(scope, processor_port, options_object);
-        }));
-
-    return node;
+    pipe_config.quantum_size = config.quantum_size;
+    pipe_config.sample_rate = sample_rate;
+    pipe_config.input_count = config.input_count;
+    pipe_config.output_count = config.output_count;
+    for (auto capacity : config.input_channel_capacity)
+        pipe_config.input_channel_capacity.append(capacity);
+    for (auto capacity : config.output_channel_capacity)
+        pipe_config.output_channel_capacity.append(capacity);
+    pipe_config.output_channel_count_matches_input = config.output_channel_count_matches_input;
+    pipe_config.param_count = config.param_count;
+    for (auto is_a_rate : config.param_is_a_rate)
+        pipe_config.param_is_a_rate.append(is_a_rate);
+    pipe_config.ring_capacity = config.ring_capacity;
+    pipe_config.prime_level = config.prime_level;
+    auto pipe = Rendering::AudioWorkletPipe::create(move(pipe_config), Core::EventLoop::current());
+    *native_pipe = pipe->rust_pipe();
+    return { &pipe.leak_ref(), [](void* pipe) { static_cast<Rendering::AudioWorkletPipe*>(pipe)->ref(); }, [](void* pipe) { static_cast<Rendering::AudioWorkletPipe*>(pipe)->unref(); } };
 }
-
-AudioWorkletNode::AudioWorkletNode(GC::Ref<BaseAudioContext> context, Utf16String name, WebIDL::UnsignedLong number_of_inputs, WebIDL::UnsignedLong number_of_outputs, GC::Ref<AudioParamMap> parameter_map, GC::Ref<HTML::MessagePort> port)
-    : AudioNode(context)
-    , m_name(move(name))
-    , m_number_of_inputs(number_of_inputs)
-    , m_number_of_outputs(number_of_outputs)
-    , m_parameter_map(parameter_map)
-    , m_port(port)
+void web_audio_worklet_set_pump(Rendering::AudioWorkletPipe* pipe, AudioWorkletGlobalScope* scope, u64 node_id)
 {
+    pipe->set_pump_callback([scope_root = GC::make_root(*scope), pipe = NonnullRefPtr { *pipe }, node_id = NodeID(node_id)] { scope_root->pump(node_id, *pipe); });
 }
-
-AudioWorkletNode::~AudioWorkletNode() = default;
-
-// https://webaudio.github.io/web-audio-api/#instantiation-of-audioworkletprocessor
-void AudioWorkletNode::invoke_processor_constructor(GC::Ref<AudioWorkletGlobalScope> scope, GC::Ref<HTML::MessagePort> processor_port, GC::Ref<JS::Object> options_object)
+void web_audio_worklet_clear_pump(Rendering::AudioWorkletPipe* pipe) { pipe->clear_pump_callback(); }
+JS::FunctionObject* web_audio_worklet_processor_constructor(AudioWorkletGlobalScope* scope, FlatPtr name)
 {
-    auto& worklet_realm = scope->realm();
-    auto& vm = worklet_realm.vm();
-    HTML::TemporaryExecutionContext execution_context { worklet_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-
-    auto const* definition = scope->find_definition(m_name);
+    auto const* definition = scope->find_definition(Utf16String::from_raw(name));
     VERIFY(definition);
-
-    // 1. Set the pending processor construction data: the processor-side port.
-    scope->set_pending_processor_construction_data({ processor_port });
-
-    // 2. Construct the processor: Construct(processorCtor, « optionsObject »).
-    auto processor_or_error = JS::construct(vm, *definition->constructor, options_object);
-
-    // 3. Empty the pending processor construction data slot (a constructor that never chained to
-    //    super() leaves it populated).
-    (void)scope->take_pending_processor_construction_data();
-
-    if (processor_or_error.is_error()) {
-        m_processor_errored = true;
-        m_pipe->set_state(Rendering::AudioWorkletPipe::State::Failed);
-        fire_processor_error(processor_or_error.release_error().value());
-        return;
-    }
-
-    m_processor = processor_or_error.release_value();
-
-    Vector<Utf16String> parameter_names;
-    if (auto synced = context()->audio_worklet()->find_definition(m_name); synced.has_value()) {
-        for (auto const& descriptor : synced->parameter_descriptors)
-            parameter_names.append(descriptor.name);
-    }
-    scope->add_processor_slot({
-        .node_id = node_id(),
-        .processor = *m_processor,
-        .processor_port = processor_port,
-        .node = GC::Weak<AudioWorkletNode> { *this },
-        .pipe = *m_pipe,
-        .parameter_names = move(parameter_names),
-    });
-
-    // 4. Enable the processor-side port's message queue: pending messages posted since node construction
-    //    are now delivered, after the constructor had its chance to register listeners.
-    processor_port->enable();
+    return definition->constructor.ptr();
 }
-
-void AudioWorkletNode::finalize()
+void web_audio_worklet_set_pending_port(AudioWorkletGlobalScope* scope, HTML::MessagePort* port) { scope->set_pending_processor_construction_data({ *port }); }
+void web_audio_worklet_clear_pending_data(AudioWorkletGlobalScope* scope) { (void)scope->take_pending_processor_construction_data(); }
+void web_audio_worklet_add_processor_slot(AudioWorkletGlobalScope* scope, u64 node_id, JS::Object* processor, HTML::MessagePort* processor_port, AudioWorkletNode* node, Rendering::AudioWorkletPipe* pipe, ReadonlySpan<FlatPtr> raw_names)
 {
-    // Allocation-free: the base queues RemoveNode (destroying the render node on the audio thread at
-    // the next message drain), and the atomic state store tells the pump to drop the slot.
-    if (m_pipe) {
-        m_pipe->clear_pump_callback();
-        m_pipe->request_shutdown();
-    }
-    Base::finalize();
+    Vector<Utf16String> names;
+    names.ensure_capacity(raw_names.size());
+    for (auto raw_name : raw_names)
+        names.unchecked_append(Utf16String::from_raw(raw_name));
+    scope->add_processor_slot({ .node_id = NodeID(node_id), .processor = *processor, .processor_port = *processor_port, .node = GC::Weak<AudioWorkletNode> { *node }, .pipe = *pipe, .parameter_names = move(names) });
 }
-
-void AudioWorkletNode::fire_processor_error(JS::Value error)
+void web_audio_worklet_queue_processor_error(AudioWorkletNode* node, DOM::EventTarget* target, DOM::EventTarget* global, JSValue error)
 {
-    // https://webaudio.github.io/web-audio-api/#dom-audioworkletnode-onprocessorerror
-    // "...the processor will queue a task to fire an event named processorerror using ErrorEvent at the
-    //  associated AudioWorkletNode."
-    auto& node_realm = HTML::relevant_realm(context()->relevant_global_object());
+    auto& global_object = HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*global));
     HTML::ErrorEventInit event_init;
-    event_init.message = error.to_utf16_string_without_side_effects();
-    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, context()->relevant_global_object(),
-        GC::create_function(node_realm.heap(), [node = GC::Ref { *this }, event_init = move(event_init)] {
-            auto event = HTML::ErrorEvent::create(HTML::EventNames::processorerror, event_init,
-                HighResolutionTime::current_high_resolution_time(node->context()->relevant_global_object()));
-            node->dispatch_event(event);
+    event_init.message = JS::HostABI::value_from_abi(error).to_utf16_string_without_side_effects();
+    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object,
+        GC::create_function(GC::Heap::the(), [node = GC::make_root(*node), target, global, event_init = move(event_init)] {
+            auto& global_object = HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*global));
+            auto event = HTML::ErrorEvent::create(HTML::EventNames::processorerror, event_init, HighResolutionTime::current_high_resolution_time(global_object));
+            target->dispatch_event(event);
         }));
 }
-
-void AudioWorkletNode::set_onprocessorerror(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::processorerror, event_handler);
-}
-
-WebIDL::CallbackType* AudioWorkletNode::onprocessorerror()
-{
-    return event_handler_attribute(HTML::EventNames::processorerror);
-}
-
-void AudioWorkletNode::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_parameter_map);
-    visitor.visit(m_port);
-    visitor.visit(m_processor);
-}
+void AudioWorkletNode::fire_processor_error(JS::Value error) { web_rust_audio_worklet_node_fire_error(this, JS::HostABI::value_to_abi(error)); }
 
 }

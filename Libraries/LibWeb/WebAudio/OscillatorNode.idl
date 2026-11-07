@@ -16,7 +16,7 @@ dictionary OscillatorOptions : AudioNodeOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#OscillatorNode
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface OscillatorNode : AudioScheduledSourceNode {
     constructor(BaseAudioContext context, optional OscillatorOptions options = {});
     attribute OscillatorType type;

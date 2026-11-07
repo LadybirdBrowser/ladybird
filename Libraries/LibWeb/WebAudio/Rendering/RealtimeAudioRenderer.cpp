@@ -17,12 +17,12 @@ struct RealtimeAudioRendererCallbacks : AtomicRefCounted<RealtimeAudioRendererCa
     Function<void(Vector<NodeID> const&)> on_sources_ended;
 };
 
-NonnullRefPtr<RealtimeAudioRenderer> RealtimeAudioRenderer::create(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory> audio_output_factory)
+NonnullRefPtr<RealtimeAudioRenderer> RealtimeAudioRenderer::create(void const* control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory> audio_output_factory)
 {
-    return adopt_ref(*new RealtimeAudioRenderer(move(control_message_queue), destination_node_id, sample_rate, quantum_size, move(audio_output_factory)));
+    return adopt_ref(*new RealtimeAudioRenderer(control_message_queue, destination_node_id, sample_rate, quantum_size, move(audio_output_factory)));
 }
 
-RealtimeAudioRenderer::RealtimeAudioRenderer(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory> audio_output_factory)
+RealtimeAudioRenderer::RealtimeAudioRenderer(void const* control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory> audio_output_factory)
     : m_callbacks(adopt_ref(*new RealtimeAudioRendererCallbacks))
     , m_audio_output_factory(move(audio_output_factory))
 {
@@ -43,7 +43,7 @@ RealtimeAudioRenderer::RealtimeAudioRenderer(NonnullRefPtr<ControlMessageQueue> 
             callbacks.on_sources_ended(nodes);
         },
     };
-    m_renderer = RustFFI::web_audio_realtime_renderer_create(control_message_queue->rust_queue(), destination_node_id.value(), sample_rate, quantum_size, callbacks);
+    m_renderer = RustFFI::web_audio_realtime_renderer_create(control_message_queue, destination_node_id.value(), sample_rate, quantum_size, callbacks);
 }
 
 RealtimeAudioRenderer::~RealtimeAudioRenderer() { RustFFI::web_audio_realtime_renderer_destroy(m_renderer); }

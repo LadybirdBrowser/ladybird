@@ -1,46 +1,19 @@
 /*
  * Copyright (c) 2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibWeb/Bindings/MediaElementAudioSourceNode.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
-#include <LibWeb/WebAudio/AudioContext.h>
-#include <LibWeb/WebAudio/MediaElementAudioSourceNode.h>
-
 namespace Web::WebAudio {
 
-GC_DEFINE_ALLOCATOR(MediaElementAudioSourceNode);
-
-MediaElementAudioSourceNode::MediaElementAudioSourceNode(GC::Ref<AudioContext> context, GC::Ref<HTML::HTMLMediaElement> media_element)
-    : AudioNode(context)
-    , m_media_element(media_element)
-{
-}
-
-MediaElementAudioSourceNode::~MediaElementAudioSourceNode() = default;
-
-WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create(GC::Ref<AudioContext> context, GC::Ref<HTML::HTMLMediaElement> media_element)
-{
-    return GC::Heap::the().allocate<MediaElementAudioSourceNode>(context, media_element);
-}
-
-WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create_for_constructor(GC::Ref<AudioContext> context, GC::Ref<HTML::HTMLMediaElement> media_element)
-{
-    return create(context, media_element);
-}
-
-WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create_for_constructor(GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
-{
-    return create_for_constructor(context, *options.media_element);
-}
-
-void MediaElementAudioSourceNode::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_media_element);
-}
+extern "C" HTML::HTMLMediaElement* web_audio_media_element_from_wrapper(JS::Object*);
+extern "C" JS::Object* web_audio_media_element_wrap(JS::Realm*, HTML::HTMLMediaElement*);
+HTML::HTMLMediaElement* web_audio_media_element_from_wrapper(JS::Object* object) { return Bindings::impl_from<HTML::HTMLMediaElement>(object); }
+JS::Object* web_audio_media_element_wrap(JS::Realm* realm, HTML::HTMLMediaElement* object) { return Bindings::wrap(Bindings::host_defined_wrapper_world(*realm), *realm, GC::Ref { *object }).ptr(); }
 
 }

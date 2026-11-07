@@ -5,7 +5,7 @@ dictionary IIRFilterOptions : AudioNodeOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#IIRFilterNode
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface IIRFilterNode : AudioNode {
     constructor (BaseAudioContext context, IIRFilterOptions options);
     undefined getFrequencyResponse (Float32Array frequencyHz, Float32Array magResponse, Float32Array phaseResponse);

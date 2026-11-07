@@ -7,7 +7,7 @@
 
 use ak::math;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum BiquadFilterType {
     Lowpass,

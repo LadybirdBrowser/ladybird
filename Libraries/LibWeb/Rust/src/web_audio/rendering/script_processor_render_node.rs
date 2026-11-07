@@ -83,8 +83,10 @@ impl NodeProcessor for ScriptProcessorRenderNode {
     }
 }
 
+/// # Safety
+/// The pipe pointer must name a live `Arc` allocation for the call.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_script_processor(
+pub unsafe extern "C" fn web_audio_node_create_script_processor(
     node_id: u64,
     quantum_size: usize,
     pipe: *const ScriptProcessorPipe,

@@ -8,7 +8,7 @@ dictionary AudioBufferSourceOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#AudioBufferSourceNode
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface AudioBufferSourceNode : AudioScheduledSourceNode {
     constructor(BaseAudioContext context, optional AudioBufferSourceOptions options = {});
     attribute AudioBuffer? buffer;

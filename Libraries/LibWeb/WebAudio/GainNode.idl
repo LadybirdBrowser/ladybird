@@ -4,7 +4,7 @@ dictionary GainOptions : AudioNodeOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#GainNode
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface GainNode : AudioNode {
     constructor(BaseAudioContext context, optional GainOptions options = {});
     readonly attribute AudioParam gain;

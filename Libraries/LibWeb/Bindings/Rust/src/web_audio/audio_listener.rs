@@ -5,37 +5,35 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::ffi::c_void;
-
 use libjs_rust::api::{Trace, Vm};
 
 use super::audio_param::{AudioParam, AutomationRate, FixedAutomationRate};
-use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, cell_into_abi};
+use super::base_audio_context::AnyBaseAudioContext;
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#AudioListener
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct AudioListener {
-    forward_x: Ref<AudioParam>,
-    forward_y: Ref<AudioParam>,
-    forward_z: Ref<AudioParam>,
-    position_x: Ref<AudioParam>,
-    position_y: Ref<AudioParam>,
-    position_z: Ref<AudioParam>,
-    up_x: Ref<AudioParam>,
-    up_y: Ref<AudioParam>,
-    up_z: Ref<AudioParam>,
+    pub(crate) forward_x: Ref<AudioParam>,
+    pub(crate) forward_y: Ref<AudioParam>,
+    pub(crate) forward_z: Ref<AudioParam>,
+    pub(crate) position_x: Ref<AudioParam>,
+    pub(crate) position_y: Ref<AudioParam>,
+    pub(crate) position_z: Ref<AudioParam>,
+    pub(crate) up_x: Ref<AudioParam>,
+    pub(crate) up_y: Ref<AudioParam>,
+    pub(crate) up_z: Ref<AudioParam>,
 }
 
 impl Wrappable for AudioListener {}
 impl AudioListener {
-    pub(crate) fn create(vm: &Vm, context: CppCell) -> Ref<Self> {
+    pub(crate) fn create(vm: &Vm, context: AnyBaseAudioContext) -> Ref<Self> {
         allocate(vm, |_| Self {
             forward_x: AudioParam::create(
                 vm,
-                context.clone(),
+                context,
                 None,
                 0.,
                 f32::MIN,
@@ -45,7 +43,7 @@ impl AudioListener {
             ),
             forward_y: AudioParam::create(
                 vm,
-                context.clone(),
+                context,
                 None,
                 0.,
                 f32::MIN,
@@ -55,7 +53,7 @@ impl AudioListener {
             ),
             forward_z: AudioParam::create(
                 vm,
-                context.clone(),
+                context,
                 None,
                 -1.,
                 f32::MIN,
@@ -65,7 +63,7 @@ impl AudioListener {
             ),
             position_x: AudioParam::create(
                 vm,
-                context.clone(),
+                context,
                 None,
                 0.,
                 f32::MIN,
@@ -75,7 +73,7 @@ impl AudioListener {
             ),
             position_y: AudioParam::create(
                 vm,
-                context.clone(),
+                context,
                 None,
                 0.,
                 f32::MIN,
@@ -85,7 +83,7 @@ impl AudioListener {
             ),
             position_z: AudioParam::create(
                 vm,
-                context.clone(),
+                context,
                 None,
                 0.,
                 f32::MIN,
@@ -95,7 +93,7 @@ impl AudioListener {
             ),
             up_x: AudioParam::create(
                 vm,
-                context.clone(),
+                context,
                 None,
                 0.,
                 f32::MIN,
@@ -105,7 +103,7 @@ impl AudioListener {
             ),
             up_y: AudioParam::create(
                 vm,
-                context.clone(),
+                context,
                 None,
                 1.,
                 f32::MIN,
@@ -115,7 +113,7 @@ impl AudioListener {
             ),
             up_z: AudioParam::create(
                 vm,
-                context.clone(),
+                context,
                 None,
                 0.,
                 f32::MIN,
@@ -204,27 +202,4 @@ impl AudioListener {
         AudioParam::set_value(&self.up_z, cx, z_up)?;
         Ok(())
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_listener_create(vm: &Vm, context: *mut c_void) -> *mut c_void {
-    cell_into_abi(AudioListener::create(vm, unsafe { CppCell::from_raw(context) }))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_listener_param(cell: *mut c_void, index: usize) -> *mut c_void {
-    let listener: Ref<AudioListener> = unsafe { cell_from_abi(cell) };
-    let param = match index {
-        0 => listener.forward_x,
-        1 => listener.forward_y,
-        2 => listener.forward_z,
-        3 => listener.position_x,
-        4 => listener.position_y,
-        5 => listener.position_z,
-        6 => listener.up_x,
-        7 => listener.up_y,
-        8 => listener.up_z,
-        _ => unreachable!(),
-    };
-    cell_into_abi(param)
 }

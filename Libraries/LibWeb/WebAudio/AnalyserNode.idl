@@ -7,7 +7,7 @@ dictionary AnalyserOptions : AudioNodeOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#AnalyserNode
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface AnalyserNode : AudioNode {
     constructor (BaseAudioContext context, optional AnalyserOptions options = {});
     undefined getFloatFrequencyData (Float32Array array);

@@ -1,5 +1,5 @@
 // https://webaudio.github.io/web-audio-api/#AudioWorkletNode
-[Exposed=Window, SecureContext]
+[Exposed=Window, SecureContext, ImplementedIn=Rust]
 interface AudioWorkletNode : AudioNode {
     constructor(BaseAudioContext context, DOMString name, optional AudioWorkletNodeOptions options = {});
     readonly attribute AudioParamMap parameters;

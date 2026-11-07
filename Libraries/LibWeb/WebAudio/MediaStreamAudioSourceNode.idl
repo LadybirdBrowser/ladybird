@@ -4,7 +4,7 @@ dictionary MediaStreamAudioSourceOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#MediaStreamAudioSourceNode
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface MediaStreamAudioSourceNode : AudioNode {
     constructor (AudioContext context, MediaStreamAudioSourceOptions options);
     [SameObject] readonly attribute MediaStream mediaStream;
