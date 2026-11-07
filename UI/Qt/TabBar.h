@@ -56,6 +56,7 @@ class LadybirdButton;
 
 class TabPreviewPopup;
 class TabWidget;
+class WindowControlsReveal;
 
 static constexpr int TAB_ICON_SIZE = 16;
 
@@ -441,6 +442,7 @@ private:
     QToolButton* m_maximize_window_button { nullptr };
     QToolButton* m_close_window_button { nullptr };
     QWidget* m_window_controls { nullptr };
+    WindowControlsReveal* m_window_controls_reveal { nullptr };
     WindowToolbar* m_toolbar { nullptr };
     BookmarksBarContainer* m_bookmarks_bar { nullptr };
     QWidget* m_page_column { nullptr };

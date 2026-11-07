@@ -57,6 +57,7 @@ add_library(ladybird_impl STATIC
     WebContentView.cpp
     WindowCloseCoordinator.cpp
     WindowControlButton.cpp
+    WindowControlsReveal.cpp
     WindowScreenObserver.cpp
     WindowToolbar.cpp
 )
