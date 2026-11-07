@@ -45,8 +45,9 @@ pub use crate::runtime::abstract_operations::{
 pub use crate::runtime::agent::agent_can_suspend;
 pub use crate::runtime::array::Array;
 pub use crate::runtime::array_buffer::{
-    ArrayBuffer, DataBlock, DataBlockStorage, ExternalPrimitiveStorage, Order as ArrayBufferOrder,
-    Shared as ArrayBufferShared, SharedBackingStore, clone_array_buffer, create_byte_data_block, detach_array_buffer,
+    ArrayBuffer, DataBlock, DataBlockStorage, ExternalPrimitiveStorage, Order as ArrayBufferOrder, OutOfMemory,
+    OwnedBackingStore, Shared as ArrayBufferShared, SharedBackingStore, clone_array_buffer, create_byte_data_block,
+    detach_array_buffer,
 };
 pub use crate::runtime::big_int::BigInt;
 pub use crate::runtime::big_int_object::BigIntObject;
