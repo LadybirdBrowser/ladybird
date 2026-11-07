@@ -1,64 +1,32 @@
 /*
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Export.h>
+#include <LibWeb/Bindings/AudioListener.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/WebAudio/AudioParam.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::WebAudio {
 
-// https://webaudio.github.io/web-audio-api/#AudioListener
-class AudioListener final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(AudioListener, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(AudioListener);
+class AudioListener final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(AudioListener, audio_listener)
 
 public:
-    static constexpr size_t position_x_offset() { return offsetof(AudioListener, m_position_x); }
-    static constexpr size_t position_y_offset() { return offsetof(AudioListener, m_position_y); }
-    static constexpr size_t position_z_offset() { return offsetof(AudioListener, m_position_z); }
-    static constexpr size_t forward_x_offset() { return offsetof(AudioListener, m_forward_x); }
-    static constexpr size_t forward_y_offset() { return offsetof(AudioListener, m_forward_y); }
-    static constexpr size_t forward_z_offset() { return offsetof(AudioListener, m_forward_z); }
-    static constexpr size_t up_x_offset() { return offsetof(AudioListener, m_up_x); }
-    static constexpr size_t up_y_offset() { return offsetof(AudioListener, m_up_y); }
-    static constexpr size_t up_z_offset() { return offsetof(AudioListener, m_up_z); }
     static GC::Ref<AudioListener> create(GC::Ref<BaseAudioContext>);
-    virtual ~AudioListener() override;
-
-    GC::Ref<AudioParam> forward_x() const { return m_forward_x; }
-    GC::Ref<AudioParam> forward_y() const { return m_forward_y; }
-    GC::Ref<AudioParam> forward_z() const { return m_forward_z; }
-    GC::Ref<AudioParam> position_x() const { return m_position_x; }
-    GC::Ref<AudioParam> position_y() const { return m_position_y; }
-    GC::Ref<AudioParam> position_z() const { return m_position_z; }
-    GC::Ref<AudioParam> up_x() const { return m_up_x; }
-    GC::Ref<AudioParam> up_y() const { return m_up_y; }
-    GC::Ref<AudioParam> up_z() const { return m_up_z; }
-
-    WebIDL::ExceptionOr<void> set_position(float x, float y, float z);
-    WebIDL::ExceptionOr<void> set_orientation(float x, float y, float z, float x_up, float y_up, float z_up);
-
-private:
-    explicit AudioListener(GC::Ref<BaseAudioContext>);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    GC::Ref<AudioParam> m_forward_x;
-    GC::Ref<AudioParam> m_forward_y;
-    GC::Ref<AudioParam> m_forward_z;
-    GC::Ref<AudioParam> m_position_x;
-    GC::Ref<AudioParam> m_position_y;
-    GC::Ref<AudioParam> m_position_z;
-    GC::Ref<AudioParam> m_up_x;
-    GC::Ref<AudioParam> m_up_y;
-    GC::Ref<AudioParam> m_up_z;
+    GC::Ref<AudioParam> forward_x() const;
+    GC::Ref<AudioParam> forward_y() const;
+    GC::Ref<AudioParam> forward_z() const;
+    GC::Ref<AudioParam> position_x() const;
+    GC::Ref<AudioParam> position_y() const;
+    GC::Ref<AudioParam> position_z() const;
+    GC::Ref<AudioParam> up_x() const;
+    GC::Ref<AudioParam> up_y() const;
+    GC::Ref<AudioParam> up_z() const;
 };
 
 }

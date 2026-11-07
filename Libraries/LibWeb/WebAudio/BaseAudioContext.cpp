@@ -58,6 +58,11 @@ JSCompletion web_audio_verify_buffer_options(void* realm, u32 channels, u32 leng
     return JS::HostABI::normal_completion_to_abi(JS::HostABI::value_to_abi(JS::js_undefined()));
 }
 
+extern "C" double web_audio_context_current_time(BaseAudioContext*);
+extern "C" JS::Realm* web_audio_context_realm(BaseAudioContext*);
+double web_audio_context_current_time(BaseAudioContext* context) { return context->current_time(); }
+JS::Realm* web_audio_context_realm(BaseAudioContext* context) { return &context->relevant_settings_object().realm(); }
+
 static JS::Value audio_buffer(JS::Realm& realm, GC::Ptr<AudioBuffer> buffer)
 {
     if (!buffer)

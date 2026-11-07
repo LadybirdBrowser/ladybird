@@ -5,4 +5,7 @@
  */
 
 pub(crate) mod audio_buffer;
+pub(crate) mod audio_listener;
+pub(crate) mod audio_param;
+pub(crate) mod audio_param_map;
 pub(crate) mod periodic_wave;

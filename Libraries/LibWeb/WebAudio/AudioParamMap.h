@@ -6,33 +6,22 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/Utf16FlyString.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibGC/RootVector.h>
+#include <LibWeb/Bindings/AudioParamMap.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::WebAudio {
 
-// https://webaudio.github.io/web-audio-api/#AudioParamMap
-class WEB_API AudioParamMap final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(AudioParamMap, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(AudioParamMap);
+class WEB_API AudioParamMap final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(AudioParamMap, audio_param_map)
 
 public:
     static GC::Ref<AudioParamMap> create();
-
-    virtual ~AudioParamMap() override;
-
-    OrderedHashMap<Utf16FlyString, GC::Ref<AudioParam>> const& entries() const { return m_entries; }
-    void set_entry(Utf16FlyString key, GC::Ref<AudioParam> value) { m_entries.set(move(key), value); }
-
-private:
-    AudioParamMap();
-
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    OrderedHashMap<Utf16FlyString, GC::Ref<AudioParam>> m_entries;
+    void set_entry(Utf16FlyString key, GC::Ref<AudioParam> value);
+    GC::RootVector<GC::Ref<AudioParam>> values() const;
 };
 
 }

@@ -17,6 +17,11 @@ RenderAudioParam::RenderAudioParam(NonnullRefPtr<AudioParamTimeline> timeline, f
     static_assert(to_underlying(Bindings::AutomationRate::KRate) == to_underlying(RustFFI::AutomationRate::KRate));
 }
 
+RenderAudioParam::RenderAudioParam(void const* param)
+    : m_param(param)
+{
+}
+
 RenderAudioParam::~RenderAudioParam()
 {
     RustFFI::web_audio_render_param_destroy(m_param);

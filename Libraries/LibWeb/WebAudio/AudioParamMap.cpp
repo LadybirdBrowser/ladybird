@@ -4,64 +4,33 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibJS/Runtime/Map.h>
-#include <LibJS/Runtime/PrimitiveString.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/AudioParamMap.h>
-#include <LibWeb/WebAudio/BindingsGlue.h>
 
 namespace Web::WebAudio {
 
-GC_DEFINE_ALLOCATOR(AudioParamMap);
-
+extern "C" {
+void* web_rust_audio_param_map_create(JSVM*);
+void web_rust_audio_param_map_set_entry(JSVM*, void* map, FlatPtr key, void* param);
+void web_rust_audio_param_map_values(void* map, void* context, void (*callback)(void*, void*));
+}
 GC::Ref<AudioParamMap> AudioParamMap::create()
 {
-    return GC::Heap::the().allocate<AudioParamMap>();
+    return *static_cast<AudioParamMap*>(web_rust_audio_param_map_create(JS::HostABI::vm_to_abi(JS::VM::the())));
 }
-
-AudioParamMap::AudioParamMap() = default;
-AudioParamMap::~AudioParamMap() = default;
-
-void AudioParamMap::visit_edges(Cell::Visitor& visitor)
+void AudioParamMap::set_entry(Utf16FlyString key, GC::Ref<AudioParam> value)
 {
-    Base::visit_edges(visitor);
-    for (auto const& entry : m_entries)
-        visitor.visit(entry.value);
+    web_rust_audio_param_map_set_entry(JS::HostABI::vm_to_abi(JS::VM::the()), this, key.raw_identity(), value.ptr());
 }
-
-}
-
-namespace Web::Bindings {
-
-static JS::Value wrapped_param(JS::Realm& realm, GC::Ref<WebAudio::AudioParam> param)
+GC::RootVector<GC::Ref<AudioParam>> AudioParamMap::values() const
 {
-    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, param);
-}
-
-GC::Ref<JS::Map> map_entries(JS::Realm& realm, WebAudio::AudioParamMap& map)
-{
-    auto map_entries = JS::Map::create(realm);
-    for (auto const& entry : map.entries()) {
-        auto key = JS::PrimitiveString::create(realm.vm(), entry.key);
-        map_entries->map_set(JS::Value { key.ptr() }, wrapped_param(realm, entry.value));
-    }
-    return map_entries;
-}
-
-Optional<JS::Value> map_get(JS::Realm& realm, WebAudio::AudioParamMap& map, Utf16View key)
-{
-    auto it = map.entries().find(key);
-    if (it == map.entries().end())
-        return {};
-    return wrapped_param(realm, it->value);
-}
-
-bool map_has(WebAudio::AudioParamMap& map, Utf16View key)
-{
-    return map.entries().contains(key);
+    GC::RootVector<GC::Ref<AudioParam>> values;
+    web_rust_audio_param_map_values(const_cast<AudioParamMap*>(this), &values, [](void* context, void* param) {
+        static_cast<GC::RootVector<GC::Ref<AudioParam>>*>(context)->append(*static_cast<AudioParam*>(param));
+    });
+    return values;
 }
 
 }

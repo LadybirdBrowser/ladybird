@@ -1,86 +1,33 @@
 /*
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/CellAllocator.h>
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/WebAudio/AudioListener.h>
+#include <LibWeb/WebAudio/BaseAudioContext.h>
 
 namespace Web::WebAudio {
 
-GC_DEFINE_ALLOCATOR(AudioListener);
-
-AudioListener::AudioListener(GC::Ref<BaseAudioContext> context)
-    : m_forward_x(AudioParam::create(context, nullptr, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
-    , m_forward_y(AudioParam::create(context, nullptr, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
-    , m_forward_z(AudioParam::create(context, nullptr, -1.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
-    , m_position_x(AudioParam::create(context, nullptr, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
-    , m_position_y(AudioParam::create(context, nullptr, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
-    , m_position_z(AudioParam::create(context, nullptr, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
-    , m_up_x(AudioParam::create(context, nullptr, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
-    , m_up_y(AudioParam::create(context, nullptr, 1.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
-    , m_up_z(AudioParam::create(context, nullptr, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
-{
+extern "C" {
+void* web_rust_audio_listener_create(JSVM*, void* context);
+void* web_rust_audio_listener_param(void*, size_t index);
 }
-
 GC::Ref<AudioListener> AudioListener::create(GC::Ref<BaseAudioContext> context)
 {
-    return GC::Heap::the().allocate<AudioListener>(context);
+    return *static_cast<AudioListener*>(web_rust_audio_listener_create(JS::HostABI::vm_to_abi(JS::VM::the()), context.ptr()));
 }
-
-AudioListener::~AudioListener() = default;
-
-// https://webaudio.github.io/web-audio-api/#dom-audiolistener-setposition
-WebIDL::ExceptionOr<void> AudioListener::set_position(float x, float y, float z)
-{
-    // This method is DEPRECATED. It is equivalent to setting positionX.value, positionY.value, and
-    // positionZ.value directly with the given x, y, and z values, respectively.
-
-    // Consequently, if any of the positionX, positionY, and positionZ AudioParams for this AudioListener have an
-    // automation curve set using setValueCurveAtTime() at the time this method is called, a NotSupportedError MUST be
-    // thrown.
-
-    TRY(m_position_x->set_value(x));
-    TRY(m_position_y->set_value(y));
-    TRY(m_position_z->set_value(z));
-
-    return {};
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-audiolistener-setorientation
-WebIDL::ExceptionOr<void> AudioListener::set_orientation(float x, float y, float z, float x_up, float y_up, float z_up)
-{
-    // This method is DEPRECATED. It is equivalent to setting forwardX.value, forwardY.value,
-    // forwardZ.value, upX.value, upY.value, and upZ.value directly with the given x, y, z, xUp,
-    // yUp, and zUp values, respectively.
-
-    // Consequently, if any of the forwardX, forwardY, forwardZ, upX, upY and upZ AudioParams have an automation curve
-    // set using setValueCurveAtTime() at the time this method is called, a NotSupportedError MUST be thrown.
-
-    TRY(m_forward_x->set_value(x));
-    TRY(m_forward_y->set_value(y));
-    TRY(m_forward_z->set_value(z));
-    TRY(m_up_x->set_value(x_up));
-    TRY(m_up_y->set_value(y_up));
-    TRY(m_up_z->set_value(z_up));
-
-    return {};
-}
-
-void AudioListener::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_forward_x);
-    visitor.visit(m_forward_y);
-    visitor.visit(m_forward_z);
-    visitor.visit(m_position_x);
-    visitor.visit(m_position_y);
-    visitor.visit(m_position_z);
-    visitor.visit(m_up_x);
-    visitor.visit(m_up_y);
-    visitor.visit(m_up_z);
-}
+GC::Ref<AudioParam> AudioListener::forward_x() const { return *static_cast<AudioParam*>(web_rust_audio_listener_param(const_cast<AudioListener*>(this), 0)); }
+GC::Ref<AudioParam> AudioListener::forward_y() const { return *static_cast<AudioParam*>(web_rust_audio_listener_param(const_cast<AudioListener*>(this), 1)); }
+GC::Ref<AudioParam> AudioListener::forward_z() const { return *static_cast<AudioParam*>(web_rust_audio_listener_param(const_cast<AudioListener*>(this), 2)); }
+GC::Ref<AudioParam> AudioListener::position_x() const { return *static_cast<AudioParam*>(web_rust_audio_listener_param(const_cast<AudioListener*>(this), 3)); }
+GC::Ref<AudioParam> AudioListener::position_y() const { return *static_cast<AudioParam*>(web_rust_audio_listener_param(const_cast<AudioListener*>(this), 4)); }
+GC::Ref<AudioParam> AudioListener::position_z() const { return *static_cast<AudioParam*>(web_rust_audio_listener_param(const_cast<AudioListener*>(this), 5)); }
+GC::Ref<AudioParam> AudioListener::up_x() const { return *static_cast<AudioParam*>(web_rust_audio_listener_param(const_cast<AudioListener*>(this), 6)); }
+GC::Ref<AudioParam> AudioListener::up_y() const { return *static_cast<AudioParam*>(web_rust_audio_listener_param(const_cast<AudioListener*>(this), 7)); }
+GC::Ref<AudioParam> AudioListener::up_z() const { return *static_cast<AudioParam*>(web_rust_audio_listener_param(const_cast<AudioListener*>(this), 8)); }
 
 }
