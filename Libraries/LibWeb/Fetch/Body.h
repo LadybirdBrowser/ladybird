@@ -53,6 +53,7 @@ public:
     void form_data(GC::Ref<WebIDL::Promise>) const;
     void json(GC::Ref<WebIDL::Promise>) const;
     void text(GC::Ref<WebIDL::Promise>) const;
+    WebIDL::ExceptionOr<GC::Ref<Streams::ReadableStream>> text_stream(JS::Realm&) const;
 };
 
 [[nodiscard]] MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multipart_form_data(StringView input, MimeSniff::MimeType const& mime_type);

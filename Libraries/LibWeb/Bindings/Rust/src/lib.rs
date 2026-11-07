@@ -86,6 +86,8 @@ pub(crate) mod domurl;
     allow(dead_code, reason = "only the generated bindings use the interfaces")
 )]
 pub(crate) mod encoding;
+#[cfg(not(test))]
+pub(crate) mod fetch;
 #[cfg_attr(
     not(web_idl_bindings),
     allow(dead_code, reason = "only the generated bindings use the interfaces")

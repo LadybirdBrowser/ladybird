@@ -9,6 +9,7 @@
 #include <AK/TypeCasts.h>
 #include <LibHTTP/HTTP.h>
 #include <LibHTTP/HeaderList.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -30,6 +31,8 @@
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::Fetch {
+
+extern "C" void* web_rust_body_text_stream(JSVM*, void* realm, void* stream);
 
 // convertBytesToJSValue is an algorithm that takes a byte sequence and returns a JavaScript value or throws an exception
 using ConvertBytesToJSValueCallback = GC::Ref<GC::Function<WebIDL::ExceptionOr<JS::Value>(ByteBuffer bytes)>>;
@@ -217,6 +220,16 @@ void BodyMixin::text(GC::Ref<WebIDL::Promise> promise) const
         auto text = MUST(TextCodec::utf8_decode_to_utf16(bytes));
         return JS::PrimitiveString::create(realm.vm(), move(text));
     }));
+}
+
+// https://fetch.spec.whatwg.org/#dom-body-textstream
+WebIDL::ExceptionOr<GC::Ref<Streams::ReadableStream>> BodyMixin::text_stream(JS::Realm& realm) const
+{
+    // 1. If this is unusable, then throw a TypeError.
+    if (is_unusable())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Body is unusable"_utf16 };
+
+    return GC::Ref { *static_cast<Streams::ReadableStream*>(web_rust_body_text_stream(JS::HostABI::vm_to_abi(realm.vm()), &realm, body().ptr())) };
 }
 
 // https://andreubotella.github.io/multipart-form-data/#parse-a-multipart-form-data-name

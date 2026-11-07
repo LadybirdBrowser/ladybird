@@ -1,0 +1,11 @@
+Before close: {"value":"€","done":false}
+After close: {"value":"�","done":false}
+Closed: {"done":true}
+Disturbed body: TypeError
+Null body BYOB reader: TypeError
+Source error: Error: source failed; unchanged: true
+Cancellation: stop
+Invalid chunk: TypeError
+Cancellation error unchanged: true
+Receiver realm (null): true
+Receiver realm (text): true
