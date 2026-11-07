@@ -1768,7 +1768,8 @@ impl<'pass> TableFormattingContext<'pass> {
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
             let style = self.style(cell.box_);
-            if style.width().is_length() {
+            // "any of the cells spanning only that column"
+            if cell.column_span == 1 && style.width().is_length() {
                 self.columns[cell.column_index].is_constrained = true;
             }
             if style.height().is_length() {
@@ -2328,6 +2329,33 @@ impl<'pass> TableFormattingContext<'pass> {
                     (start..end).fold(CssPixels::default(), |sum, index| sum + self.track_min(axis, index));
                 // Define the baseline border spacing as the sum of the horizontal border-spacing for any columns spanned by the cell, other than the one in which the cell originates.
                 let spacing = track_spacing * (current_span - 1);
+                // AD-HOC: The spec gives what the cell needs beyond the baseline max-content size to all the columns it
+                //         spans, in proportion to their max-content sizes. Other browsers give it to the spanned columns
+                //         that aren't constrained, and give a constrained column only what it needs itself, unless all
+                //         the spanned columns are constrained.
+                let unconstrained_tracks = (start..end)
+                    .filter(|&index| axis == TrackAxis::Column && !self.columns[index].is_constrained)
+                    .collect::<Vec<_>>();
+                let growing_tracks = if unconstrained_tracks.is_empty() {
+                    (start..end).collect::<Vec<_>>()
+                } else {
+                    unconstrained_tracks
+                };
+                let growing_max = growing_tracks
+                    .iter()
+                    .fold(CssPixels::default(), |sum, &index| sum + self.track_max(axis, index));
+                let share_beyond_max = |index: usize, beyond_max: CssPixels| {
+                    if !growing_tracks.contains(&index) {
+                        CssPixels::default()
+                    } else if growing_max != CssPixels::default() {
+                        CssPixels::nearest_value_for(self.track_max(axis, index).to_double() / growing_max.to_double())
+                            * beyond_max
+                    } else {
+                        // AD-HOC: The spec does not define behavior when baseline is zero. We distribute equally.
+                        //         This matches how undefined ratios are handled elsewhere.
+                        beyond_max / growing_tracks.len()
+                    }
+                };
                 // Add contribution from all rows / columns, since we've weighted the gap to the desired spanned size by the the
                 // ratio of the max-content size based on cells of span up to N-1 of the row / column to the baseline max-content width.
                 for index in start..end {
@@ -2355,17 +2383,10 @@ impl<'pass> TableFormattingContext<'pass> {
                     // the product of:
                     // - the ratio of the max-content size based on cells of span up to N-1 of the column to the baseline max-content size
                     // - the outer min-content size of the cell minus the baseline max-content size and baseline border spacing, or 0 if this is negative
-                    if baseline_max != CssPixels::default() {
-                        min_contribution += CssPixels::nearest_value_for(
-                            self.track_max(axis, index).to_double() / baseline_max.to_double(),
-                        ) * (Self::cell_min(cell, axis) - baseline_max - spacing)
-                            .max(CssPixels::default());
-                    } else {
-                        // AD-HOC: The spec does not define behavior when baseline is zero. We distribute equally.
-                        //         This matches how undefined ratios are handled elsewhere.
-                        min_contribution +=
-                            (Self::cell_min(cell, axis) - spacing).max(CssPixels::default()) / current_span;
-                    }
+                    min_contribution += share_beyond_max(
+                        index,
+                        (Self::cell_min(cell, axis) - baseline_max - spacing).max(CssPixels::default()),
+                    );
 
                     // The contribution of the cell is the sum of:
                     // the max-content size of the column based on cells of span up to N-1
@@ -2373,17 +2394,10 @@ impl<'pass> TableFormattingContext<'pass> {
                     // and the product of:
                     // - the ratio of the max-content size based on cells of span up to N-1 of the column to the baseline max-content size
                     // - the outer max-content size of the cell minus the baseline max-content size and the baseline border spacing, or 0 if this is negative
-                    if baseline_max != CssPixels::default() {
-                        max_contribution += CssPixels::nearest_value_for(
-                            self.track_max(axis, index).to_double() / baseline_max.to_double(),
-                        ) * (Self::cell_max(cell, axis) - baseline_max - spacing)
-                            .max(CssPixels::default());
-                    } else {
-                        // AD-HOC: The spec does not define behavior when baseline is zero. We distribute equally,
-                        //         This matches how undefined ratios are handled elsewhere.
-                        max_contribution +=
-                            (Self::cell_max(cell, axis) - spacing).max(CssPixels::default()) / current_span;
-                    }
+                    max_contribution += share_beyond_max(
+                        index,
+                        (Self::cell_max(cell, axis) - baseline_max - spacing).max(CssPixels::default()),
+                    );
                     min_contributions[index] = min_contributions[index].max(min_contribution);
                     max_contributions[index] = max_contributions[index].max(max_contribution);
                 }
