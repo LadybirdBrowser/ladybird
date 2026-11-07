@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<style>
+    html, body { margin: 0; }
+    img { display: block; width: 10px; height: 10px; }
+    .scroller { overflow: scroll; width: 200px; height: 100px; }
+    .tall { height: 1000px; }
+    .scaled { transform: scale(2); transform-origin: 0 0; }
+</style>
+<body>
+<div id="stage"></div>
+<script src="../include.js"></script>
+<script>
+    const scrollerAt = (id, marginTop, content) =>
+        `<div class="scroller" id="${id}" style="margin-top: ${marginTop}px"><div class="tall">${content}</div></div>`;
+
+    const scenarios = [
+        {
+            name: "document scrolled",
+            html: `<div style="height: 3000px; padding-top: 300px"><img></div>`,
+            scroll: () => window.scrollTo(0, 100),
+        },
+        {
+            name: "scroller scrolled",
+            html: scrollerAt("a", 20, `<div style="padding-top: 200px"><img></div>`),
+            scroll: () => { a.scrollTop = 50; },
+        },
+        {
+            name: "scroller scrolled horizontally",
+            axis: "x",
+            html: `<div class="scroller" id="a"><div style="width: 1000px; padding-left: 200px"><img></div></div>`,
+            scroll: () => { a.scrollLeft = 50; },
+        },
+        {
+            name: "scroller scrolled past the origin",
+            html: scrollerAt("a", 20, `<div style="padding-top: 200px"><img></div>`),
+            scroll: () => { a.scrollTop = 300; },
+        },
+        {
+            name: "scale between two scrolled scrollers",
+            html: scrollerAt("a", 20, `<div class="scaled">${scrollerAt("b", 10, `<div style="padding-top: 200px"><img></div>`)}</div>`),
+            scroll: () => { a.scrollTop = 40; b.scrollTop = 30; },
+        },
+        {
+            name: "fixed in a transformed box in a scrolled scroller",
+            html: scrollerAt("a", 20, `<div style="transform: translate(0, 0); margin-top: 200px; height: 300px"><div style="position: fixed; top: 10px; left: 0"><img></div></div>`),
+            scroll: () => { a.scrollTop = 50; },
+        },
+        {
+            name: "fixed in a scrolled document",
+            html: `<div style="height: 3000px"><div style="position: fixed; top: 50px; left: 0"><img></div></div>`,
+            scroll: () => window.scrollTo(0, 100),
+        },
+        {
+            name: "stuck sticky in a scrolled scroller",
+            html: scrollerAt("a", 0, `<div style="padding-top: 50px; height: 400px"><div style="position: sticky; top: 5px"><img></div></div>`),
+            scroll: () => { a.scrollTop = 100; },
+        },
+        {
+            name: "sticky in fixed in a scrolled document",
+            html: `<div style="height: 3000px"><div style="position: fixed; top: 60px; left: 0; height: 100px; overflow: hidden"><div style="position: sticky; top: 0"><img></div></div></div>`,
+            scroll: () => window.scrollTo(0, 100),
+        },
+        {
+            name: "anchored to a box in a scrolled scroller",
+            html: scrollerAt("a", 20, `<div style="anchor-name: --anchor; margin-top: 200px; height: 10px"></div>`)
+                + `<div style="position: absolute; position-anchor: --anchor; top: anchor(bottom); left: 0"><img></div>`,
+            scroll: () => { a.scrollTop = 50; },
+        },
+    ];
+
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+    asyncTest(async done => {
+        const stage = document.getElementById("stage");
+        const results = [];
+        for (const scenario of scenarios) {
+            stage.innerHTML = scenario.html;
+            scenario.scroll();
+            await nextFrame();
+            await nextFrame();
+            const axis = scenario.axis ?? "y";
+            results.push(`${scenario.name}: ${axis}=${stage.querySelector("img")[axis]}`);
+            stage.innerHTML = "";
+            window.scrollTo(0, 0);
+        }
+        results.forEach(line => println(line));
+        done();
+    });
+</script>

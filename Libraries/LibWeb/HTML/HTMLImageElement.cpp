@@ -589,6 +589,17 @@ unsigned HTMLImageElement::natural_height() const
     return density_corrected_natural_width_and_height().height().to_int();
 }
 
+// INTEROP: Scrolling the document moves the result like scrolling any other scroll container does, rather than leaving
+//          it relative to the initial containing block origin.
+static CSSPixelPoint first_border_box_origin_ignoring_transforms(Layout::Node const& layout_node)
+{
+    auto& document = const_cast<DOM::Document&>(layout_node.document());
+    document.update_paint_and_hit_testing_properties_if_needed();
+    auto visual_context_tree = document.visual_context_tree();
+    auto offset = Painting::offset_to_viewport_ignoring_transforms(layout_node, Painting::rect_to_viewport_transform(document, visual_context_tree));
+    return Painting::absolute_border_box_rect(layout_node).location().translated(offset);
+}
+
 // https://drafts.csswg.org/cssom-view/#dom-htmlimageelement-x
 int HTMLImageElement::x() const
 {
@@ -602,11 +613,7 @@ int HTMLImageElement::x() const
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
-    // Scroll frames are created together with the visual context tree at the lazy resolution point,
-    // so resolve it before reading the enclosing scroll node below.
-    const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
-
-    return (Painting::absolute_border_box_rect(*layout_node).x() - Painting::cumulative_scroll_compensation(*layout_node).x()).to_int();
+    return first_border_box_origin_ignoring_transforms(*layout_node).x().to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-htmlimageelement-y
@@ -622,11 +629,7 @@ int HTMLImageElement::y() const
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
-    // Scroll frames are created together with the visual context tree at the lazy resolution point,
-    // so resolve it before reading the enclosing scroll node below.
-    const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
-
-    return (Painting::absolute_border_box_rect(*layout_node).y() - Painting::cumulative_scroll_compensation(*layout_node).y()).to_int();
+    return first_border_box_origin_ignoring_transforms(*layout_node).y().to_int();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-complete

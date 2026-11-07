@@ -314,12 +314,6 @@ Compositing::ContextRef accumulated_visual_context_for_descendants(Layout::Node 
     return row.has_value() ? row->accumulated_visual_context_for_descendants : Compositing::ContextRef {};
 }
 
-static Compositing::SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const& node)
-{
-    auto row = committed_row(node);
-    return row.has_value() ? row->enclosing_scroll_node_index : Compositing::VISUAL_VIEWPORT_NODE_INDEX;
-}
-
 Compositing::SpatialNodeIndex own_scroll_node_index(Layout::Node const& node)
 {
     auto row = committed_row(node);
@@ -898,19 +892,13 @@ CSSPixelRect bounding_client_rect(Layout::Node const& node, Layout::RustFFI::Ffi
     return rect;
 }
 
-CSSPixelPoint cumulative_scroll_compensation(Layout::Node const& node)
+CSSPixelPoint offset_to_viewport_ignoring_transforms(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
 {
-    auto const& document = node.document();
-    if (!document.has_committed_viewport_box())
+    Layout::RustFFI::FfiOptionalCssPixelPoint result;
+    Layout::RustFFI::layout_script_offset_to_viewport_ignoring_transforms(node.document_host(), committed_row_slot(node), rect_to_viewport_transform, &result);
+    if (!result.has_value)
         return {};
-    // NB: Taking the tree first brings the box's scroll node up to date with it, as for the visual contexts above.
-    auto visual_context_tree = document.visual_context_tree();
-    auto index = enclosing_scroll_node_index(node);
-    if (index == Compositing::VISUAL_VIEWPORT_NODE_INDEX)
-        return {};
-    auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto device_offset = visual_context_tree.cumulative_scroll_chain_offset(index, document.scroll_state_snapshot());
-    return { CSSPixels::nearest_value_for(device_offset.x() / pixel_ratio), CSSPixels::nearest_value_for(device_offset.y() / pixel_ratio) };
+    return { result.x, result.y };
 }
 
 }
