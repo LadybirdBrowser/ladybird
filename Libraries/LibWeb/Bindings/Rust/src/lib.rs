@@ -208,6 +208,11 @@ pub(crate) mod webrtc;
 )]
 pub(crate) mod xhr;
 
+#[cfg(not(test))]
+#[cfg_attr(not(web_idl_bindings), allow(dead_code))]
+#[allow(clippy::unnecessary_wraps)]
+pub(crate) mod web_audio;
+
 // The generators of the build script, whose tests run with those of the crate.
 #[cfg(test)]
 #[path = "../generate/webgl_constants.rs"]
