@@ -646,6 +646,8 @@ ErrorOr<TransportHandle> TransportWindows::release_for_transfer()
     stop_watching();
     if (m_handle == -1)
         return Error::from_errno(ENOTCONN);
+    // FIXME: Hand m_unprocessed_bytes to the new owner, as TransportSocket does. It holds the start of a message whose
+    //        rest stays in the pipe. Messages that an IO thread has queued are lost as well.
     return TransportHandle { File::adopt_fd(exchange(m_handle, -1)) };
 }
 

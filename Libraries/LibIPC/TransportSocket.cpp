@@ -62,9 +62,14 @@ ErrorOr<NonnullOwnPtr<TransportSocket>> TransportSocket::from_socket(NonnullOwnP
 
 ErrorOr<NonnullOwnPtr<TransportSocket>> TransportSocket::adopt_fd(int fd)
 {
+    return adopt_fd(fd, {}, {});
+}
+
+ErrorOr<NonnullOwnPtr<TransportSocket>> TransportSocket::adopt_fd(int fd, ByteBuffer unprocessed_bytes, Vector<Attachment> unprocessed_attachments)
+{
     auto socket = TRY(Core::LocalSocket::adopt_fd(fd));
     TRY(socket->set_blocking(false));
-    return make<TransportSocket>(move(socket));
+    return make<TransportSocket>(move(socket), move(unprocessed_bytes), move(unprocessed_attachments));
 }
 
 ErrorOr<TransportSocket::Paired> TransportSocket::create_paired()
@@ -322,10 +327,14 @@ void TransportSocket::set_share_io_thread_on_this_thread(bool share_io_thread)
     s_share_io_thread_on_this_thread = share_io_thread;
 }
 
-TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
+TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket, ByteBuffer unprocessed_bytes, Vector<Attachment> unprocessed_attachments)
     : m_socket(move(socket))
     , m_shares_io_thread(s_share_io_thread_on_this_thread)
+    , m_unprocessed_bytes(move(unprocessed_bytes))
 {
+    for (auto& attachment : unprocessed_attachments)
+        m_unprocessed_attachments.enqueue(move(attachment));
+
     // Disable the socket's built-in notifier. TransportSocket uses its own pipe-based notification mechanism on the IO
     // thread, so this notifier is unused. Otherwise, when the socket reaches EOF, this notifier is disabled from the IO
     // thread. In the Qt UI, this causes QSocketNotifier destruction to be deferred. If the socket is closed before the
@@ -968,7 +977,14 @@ ErrorOr<TransportHandle> TransportSocket::release_for_transfer()
     stop_io_thread(IOThreadState::SendPendingMessagesAndStop);
     MutexLocker locker(m_send_mutex);
     auto fd = TRY(m_socket->release_fd());
-    return TransportHandle { File::adopt_fd(fd) };
+
+    // NB: A read stops wherever the bytes on the socket happen to end, which is often inside a message. The rest of that
+    //     message is what the new owner reads first, so it needs this part to make sense of it.
+    Vector<Attachment> unprocessed_attachments;
+    TRY(unprocessed_attachments.try_ensure_capacity(m_unprocessed_attachments.size()));
+    while (!m_unprocessed_attachments.is_empty())
+        unprocessed_attachments.unchecked_append(m_unprocessed_attachments.dequeue());
+    return TransportHandle { File::adopt_fd(fd), move(m_unprocessed_bytes), move(unprocessed_attachments) };
 }
 
 }

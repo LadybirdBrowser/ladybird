@@ -283,10 +283,7 @@ impl<'a> TransferDataWriter<'a> {
             }
             TransferredTransport::Socket(handle) => {
                 self.write_bool(false);
-                self.data_holder.with_encoder(|encoder| {
-                    handle.encode_into(encoder);
-                    Ok(())
-                });
+                self.data_holder.with_encoder(|encoder| handle.encode_into(encoder));
             }
         }
     }
