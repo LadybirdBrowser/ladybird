@@ -6,6 +6,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
+#include <AK/GenericShorthands.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
@@ -1934,12 +1935,10 @@ private:
 
     JsonObject read_message_now()
     {
-        MUST(m_socket->set_blocking(true));
-        auto restore_nonblocking = ScopeGuard([&] { MUST(m_socket->set_blocking(false)); });
-
         ByteBuffer length_buffer;
         while (true) {
-            auto byte = MUST(m_socket->read_value<u8>());
+            u8 byte = 0;
+            read_until_filled({ &byte, 1 });
             if (byte == ':')
                 break;
             length_buffer.append(byte);
@@ -1950,12 +1949,33 @@ private:
 
         ByteBuffer message_buffer;
         message_buffer.resize(*length);
-        MUST(m_socket->read_until_filled(message_buffer));
+        read_until_filled(message_buffer);
 
         auto value = JsonValue::from_string(message_buffer);
         VERIFY(!value.is_error());
         VERIFY(value.value().is_object());
         return value.release_value().as_object();
+    }
+
+    // The server writes a large packet from its event loop as the socket drains, so keep pumping it while reading.
+    void read_until_filled(Bytes buffer)
+    {
+        auto is_filled = [&] {
+            while (!buffer.is_empty()) {
+                auto result = m_socket->read_some(buffer);
+                if (result.is_error()) {
+                    VERIFY(first_is_one_of(result.error().code(), EAGAIN, EWOULDBLOCK));
+                    return false;
+                }
+                if (result.value().is_empty()) {
+                    VERIFY(!m_socket->is_eof());
+                    return false;
+                }
+                buffer = buffer.slice(result.value().size());
+            }
+            return true;
+        };
+        spin_until(m_loop, move(is_filled), 10000_ms);
     }
 
     Core::EventLoop& m_loop;
@@ -2012,6 +2032,40 @@ static size_t source_actor_count(DevTools::DevToolsServer const& server)
             ++count;
     }
     return count;
+}
+
+TEST_CASE(devtools_server_does_not_block_on_a_client_that_is_slow_to_read)
+{
+    auto session = create_session();
+    auto& connection = *session->server->connection();
+
+    // Far larger than the socket buffers, so most of it has to wait for the client to read.
+    auto payload = MUST(String::repeated('a', 16 * MiB));
+
+    JsonObject large_message;
+    large_message.set("from"sv, "test"sv);
+    large_message.set("payload"sv, payload);
+    connection.send_message(large_message);
+
+    JsonObject small_message;
+    small_message.set("from"sv, "test"sv);
+    small_message.set("payload"sv, "small"sv);
+    connection.send_message(small_message);
+
+    pump(session->loop);
+    EXPECT(session->server->has_active_connection());
+
+    auto read_test_message = [&] {
+        while (true) {
+            auto message = session->client->read_message();
+            if (message.get_string("from"sv) == "test"sv)
+                return message;
+        }
+    };
+
+    EXPECT_EQ(read_test_message().get_string("payload"sv), payload);
+    EXPECT_EQ(read_test_message().get_string("payload"sv), "small"sv);
+    EXPECT(session->server->has_active_connection());
 }
 
 TEST_CASE(devtools_server_reports_connection_state)

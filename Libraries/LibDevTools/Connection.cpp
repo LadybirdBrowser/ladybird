@@ -6,20 +6,23 @@
 
 #include <AK/Checked.h>
 #include <AK/Debug.h>
+#include <AK/GenericShorthands.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <LibCore/EventLoop.h>
 #include <LibDevTools/Connection.h>
+#include <errno.h>
 
 namespace DevTools {
 
-NonnullRefPtr<Connection> Connection::create(NonnullOwnPtr<Core::BufferedTCPSocket> socket)
+NonnullRefPtr<Connection> Connection::create(NonnullOwnPtr<Core::TCPSocket> socket)
 {
     return adopt_ref(*new Connection(move(socket)));
 }
 
-Connection::Connection(NonnullOwnPtr<Core::BufferedTCPSocket> socket)
+Connection::Connection(NonnullOwnPtr<Core::TCPSocket> socket)
     : m_socket(move(socket))
+    , m_write_notifier(Core::Notifier::construct(m_socket->fd(), Core::Notifier::Type::Write))
 {
     (void)m_socket->set_blocking(false);
 
@@ -28,6 +31,11 @@ Connection::Connection(NonnullOwnPtr<Core::BufferedTCPSocket> socket)
             if (on_connection_closed)
                 on_connection_closed();
         }
+    };
+
+    m_write_notifier->set_enabled(false);
+    m_write_notifier->on_activation = [this]() {
+        flush_outgoing_packets();
     };
 }
 
@@ -45,16 +53,44 @@ void Connection::send_message(JsonValue const& message)
             dbgln("\x1b[1;32m<<\x1b[0m {}", serialized);
     }
 
-    // Temporarily enable blocking mode for large writes to avoid EAGAIN
-    (void)m_socket->set_blocking(true);
-    auto result = m_socket->write_until_depleted(MUST(String::formatted("{}:{}", serialized.byte_count(), serialized)));
-    (void)m_socket->set_blocking(false);
+    auto was_idle = m_outgoing_packets.is_empty();
+    m_outgoing_packets.enqueue(MUST(String::formatted("{}:{}", serialized.byte_count(), serialized)));
 
-    if (result.is_error()) {
-        warnln("DevTools: Failed to send message ({} bytes): {}", serialized.byte_count(), result.error());
-        if (on_connection_closed)
-            on_connection_closed();
+    if (was_idle)
+        flush_outgoing_packets();
+}
+
+void Connection::flush_outgoing_packets()
+{
+    while (!m_outgoing_packets.is_empty()) {
+        auto packet = m_outgoing_packets.head().bytes().slice(m_outgoing_packet_offset);
+
+        auto result = m_socket->write_some(packet);
+        if (result.is_error()) {
+            auto const& error = result.error();
+            if (error.is_errno() && first_is_one_of(error.code(), EAGAIN, EWOULDBLOCK, EINTR)) {
+                m_write_notifier->set_enabled(true);
+                return;
+            }
+
+            warnln("DevTools: Failed to send message ({} bytes): {}", m_outgoing_packets.head().byte_count(), error);
+            m_outgoing_packets.clear();
+            m_outgoing_packet_offset = 0;
+            m_write_notifier->set_enabled(false);
+
+            if (on_connection_closed)
+                on_connection_closed();
+            return;
+        }
+
+        m_outgoing_packet_offset += result.value();
+        if (m_outgoing_packet_offset == m_outgoing_packets.head().byte_count()) {
+            (void)m_outgoing_packets.dequeue();
+            m_outgoing_packet_offset = 0;
+        }
     }
+
+    m_write_notifier->set_enabled(false);
 }
 
 ErrorOr<void> Connection::read_available_data()
