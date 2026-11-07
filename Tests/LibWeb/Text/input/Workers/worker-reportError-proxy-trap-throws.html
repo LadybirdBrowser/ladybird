@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const SCRIPT = `
+        onerror = () => true;
+        reportError(
+            new Proxy(
+                {},
+                {
+                    getOwnPropertyDescriptor() {
+                        throw new Error("thrown by the trap");
+                    },
+                }
+            )
+        );
+        postMessage("reported");
+    `;
+
+    promiseTest(async () => {
+        const worker = new Worker(URL.createObjectURL(new Blob([SCRIPT], { type: "text/javascript" })));
+        println(await new Promise(resolve => (worker.onmessage = event => resolve(event.data))));
+    });
+</script>

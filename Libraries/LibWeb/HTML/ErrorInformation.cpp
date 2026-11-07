@@ -38,7 +38,9 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
             if (auto const* dom_exception = Bindings::dom_exception_from_object(*object))
                 return prefix_with_name(dom_exception->name().to_utf16_string(), dom_exception->message().to_utf16_string());
 
-            if (MUST(object->has_own_property(vm.names.message))) {
+            // NB: Whatever script threw must not get to run here, so stay away from the traps of a proxy. What is left is
+            //     a module namespace object whose binding of that name is not initialized yet.
+            if (auto has_message = object->is_proxy() ? false : object->has_own_property(vm.names.message); !has_message.is_error() && has_message.value()) {
                 auto message = object->get_without_side_effects(vm.names.message).to_utf16_string_without_side_effects();
                 if (is<JS::Error>(*object)) {
                     auto name = object->get_without_side_effects(vm.names.name);
