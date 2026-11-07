@@ -10,29 +10,28 @@
 #include <LibCore/BrowserVersion.h>
 #include <LibCore/System.h>
 #include <LibWebCommon/Loader/UserAgent.h>
-#include <LibWebView/Application.h>
 #include <LibWebView/BuildInformation.h>
-#include <LibWebView/WebUI/VersionUI.h>
+#include <UI/Qt/Application.h>
+#include <UI/Qt/VersionPage.h>
 
-namespace WebView {
+namespace Ladybird {
 
-void VersionUI::register_interfaces()
+void VersionPage::received_message(String const& name, JsonValue const&)
 {
-    register_interface("loadVersionInfo"sv, [this](auto const&) {
+    if (name == "loadVersionInfo"sv)
         load_version_info();
-    });
 }
 
-void VersionUI::load_version_info()
+void VersionPage::load_version_info()
 {
     static NeverDestroyed<String> browser_name = String::from_utf8_without_validation({ BROWSER_NAME, __builtin_strlen(BROWSER_NAME) });
     static NeverDestroyed<String> browser_version = String::from_utf8_without_validation({ BROWSER_VERSION, __builtin_strlen(BROWSER_VERSION) });
     static NeverDestroyed<String> release_stage = String::from_utf8_without_validation({ BROWSER_RELEASE_STAGE, __builtin_strlen(BROWSER_RELEASE_STAGE) });
     static NeverDestroyed<String> product_name = String::from_utf8_without_validation({ BROWSER_PRODUCT_NAME, __builtin_strlen(BROWSER_PRODUCT_NAME) });
-    static NeverDestroyed<String> browser_commit = String::from_utf8_without_validation(LADYBIRD_COMMIT.bytes());
+    static NeverDestroyed<String> browser_commit = String::from_utf8_without_validation(WebView::LADYBIRD_COMMIT.bytes());
     static NeverDestroyed<String> arch = String::from_utf8_without_validation({ CPU_STRING, __builtin_strlen(CPU_STRING) });
     static NeverDestroyed<String> platform_name = String::from_utf8_without_validation({ OS_STRING, __builtin_strlen(OS_STRING) });
-    static NeverDestroyed<String> command_line = MUST(String::join(' ', Application::the().command_line_arguments().strings));
+    static NeverDestroyed<String> command_line = Application::the().command_line();
     static NeverDestroyed<String> executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path())));
 
     JsonObject version_info;
@@ -46,7 +45,7 @@ void VersionUI::load_version_info()
     version_info.set("commandLine"_string, *command_line);
     version_info.set("executablePath"_string, *executable_path);
 
-    async_send_message("renderVersionInfo"sv, version_info);
+    send_message("renderVersionInfo"_string, move(version_info));
 }
 
 }

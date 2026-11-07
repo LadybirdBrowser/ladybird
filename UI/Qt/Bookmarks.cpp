@@ -32,8 +32,9 @@ Bookmarks::Bookmarks(BookmarkStore& store)
     create_menus();
     create_context_menus();
 
-    if (auto* hub = HubConnection::the_if_connected())
-        hub->async_add_web_ui_page("bookmarks"_string, "Bookmarks"_string);
+    Application::web_ui_pages().register_page("bookmarks"_string, "Bookmarks"_string, [](u64 web_ui_id) -> NonnullOwnPtr<WebUIPage> {
+        return make<BookmarksPage>(web_ui_id);
+    });
 
     HashTable<String> favicon_hashes;
     for (auto const& favicon_hash : m_store.favicon_hashes())
@@ -42,22 +43,6 @@ Bookmarks::Bookmarks(BookmarkStore& store)
 }
 
 Bookmarks::~Bookmarks() = default;
-
-void Bookmarks::page_opened(u64 web_ui_id)
-{
-    m_pages.set(web_ui_id, make<BookmarksPage>(web_ui_id));
-}
-
-void Bookmarks::page_received_message(u64 web_ui_id, String const& name, JsonValue const& data)
-{
-    if (auto* page = m_pages.get(web_ui_id).value_or(nullptr))
-        page->received_message(name, data);
-}
-
-void Bookmarks::page_closed(u64 web_ui_id)
-{
-    m_pages.remove(web_ui_id);
-}
 
 void Bookmarks::bookmarks_changed()
 {

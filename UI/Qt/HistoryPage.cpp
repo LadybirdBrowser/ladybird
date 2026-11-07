@@ -11,7 +11,6 @@
 #include <LibWebView/HistoryStore.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/HistoryPage.h>
-#include <UI/Qt/HubConnection.h>
 
 #include <algorithm>
 
@@ -54,7 +53,7 @@ static JsonObject serialize_history_entry(WebView::HistoryEntry const& entry)
 }
 
 HistoryPage::HistoryPage(u64 web_ui_id)
-    : m_web_ui_id(web_ui_id)
+    : WebUIPage(web_ui_id)
 {
 }
 
@@ -102,7 +101,7 @@ void HistoryPage::load_history_entries(JsonValue const& data)
     result.set("hasMore"sv, has_more);
     result.set("entries"sv, move(serialized_entries));
 
-    HubConnection::the().async_send_web_ui_message(m_web_ui_id, "loadHistoryEntries"_string, move(result));
+    send_message("loadHistoryEntries"_string, move(result));
 }
 
 void HistoryPage::remove_history_entry(JsonValue const& data)

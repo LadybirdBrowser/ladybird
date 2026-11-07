@@ -10,11 +10,11 @@
 #include <UI/Qt/Application.h>
 #include <UI/Qt/ApplicationActions.h>
 #include <UI/Qt/Bookmarks.h>
-#include <UI/Qt/BookmarksPage.h>
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/RemoteDownloads.h>
 #include <UI/Qt/RemoteView.h>
 #include <UI/Qt/Tab.h>
+#include <UI/Qt/WebUIPage.h>
 
 namespace Ladybird {
 
@@ -592,22 +592,17 @@ void HubConnection::app_open_new_window(Vector<URL::URL> urls)
 
 void HubConnection::web_ui_opened(u64 web_ui_id, String host)
 {
-    if (host == "bookmarks"sv)
-        Application::bookmarks().page_opened(web_ui_id);
-    else if (host == "history"sv)
-        Application::the().history_page_opened(web_ui_id);
+    Application::web_ui_pages().page_opened(web_ui_id, host);
 }
 
 void HubConnection::web_ui_message(u64 web_ui_id, String name, JsonValue data)
 {
-    Application::bookmarks().page_received_message(web_ui_id, name, data);
-    Application::the().history_page_received_message(web_ui_id, name, data);
+    Application::web_ui_pages().page_received_message(web_ui_id, name, data);
 }
 
 void HubConnection::web_ui_closed(u64 web_ui_id)
 {
-    Application::bookmarks().page_closed(web_ui_id);
-    Application::the().history_page_closed(web_ui_id);
+    Application::web_ui_pages().page_closed(web_ui_id);
 }
 
 void HubConnection::set_settings_from_hub(JsonValue const& settings)
