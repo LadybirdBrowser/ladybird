@@ -588,6 +588,19 @@ impl X86_64Abi {
 const SYSV_SAVED_REGISTERS: [(&str, i32); 5] = [("rbx", -24), ("r12", -32), ("r13", -40), ("r14", -48), ("r15", -56)];
 const WIN64_SAVED_REGISTERS: [&str; 7] = ["rbx", "rsi", "rdi", "r12", "r13", "r14", "r15"];
 
+/// What the Win64 prologue allocates below the saved registers: the interpreter's slots and the shadow space of its
+/// calls.
+const WIN64_STACK_ALLOCATION: usize = 56;
+
+/// How far below rbp the stack pointer ends up after the Win64 prologue. Handlers move the stack pointer around calls,
+/// but rbp stays, so the unwind info describes the frame by rbp. Otherwise a stack walk from any call that has a moved
+/// stack pointer below it would read the saved registers and the return address from the wrong place.
+const WIN64_FRAME_REGISTER_OFFSET: usize = 8 * WIN64_SAVED_REGISTERS.len() + WIN64_STACK_ALLOCATION;
+const _: () = assert!(
+    WIN64_FRAME_REGISTER_OFFSET.is_multiple_of(16) && WIN64_FRAME_REGISTER_OFFSET <= 240,
+    "UWOP_SET_FPREG encodes the offset in units of 16 bytes, up to 240"
+);
+
 fn emit_saved_registers(out: &mut String, abi: X86_64Abi) {
     if abi.is_win64() {
         for register in WIN64_SAVED_REGISTERS {
@@ -683,7 +696,7 @@ fn generate_exit_point(out: &mut String, fmt: ObjectFormat, abi: X86_64Abi) {
     // so only emit explicit epilogue annotations for ELF.
     w!(out, ".Lexit:");
     if abi.is_win64() {
-        w!(out, "    add rsp, 56");
+        w!(out, "    add rsp, {WIN64_STACK_ALLOCATION}");
     } else {
         w!(out, "    add rsp, 8");
     }
@@ -774,8 +787,9 @@ fn generate_entry_point(out: &mut String, program: &Program, abi: X86_64Abi) {
     w!(out, "    mov rbp, rsp");
     if abi.is_win64() {
         emit_saved_registers(out, abi);
-        w!(out, "    sub rsp, 56");
-        w!(out, "    .seh_stackalloc 56");
+        w!(out, "    sub rsp, {WIN64_STACK_ALLOCATION}");
+        w!(out, "    .seh_stackalloc {WIN64_STACK_ALLOCATION}");
+        w!(out, "    .seh_setframe rbp, {WIN64_FRAME_REGISTER_OFFSET}");
         w!(out, "    .seh_endprologue");
     } else {
         w!(out, "    .cfi_def_cfa_register rbp");
