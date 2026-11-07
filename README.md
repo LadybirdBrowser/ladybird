@@ -10,11 +10,12 @@
 
 We aim to build a complete, usable browser for the modern web.
 
-Ladybird uses a multi-process architecture with a main UI process, several WebContent renderer processes,
-an ImageDecoder process, and a RequestServer process.
+Ladybird uses a [multi-process architecture](Documentation/ProcessArchitecture.md) with a main UI process,
+WebContent renderer processes, and helper processes for tasks such as networking, image decoding, compositing and media.
 
-Image decoding and network connections are done out of process to be more robust against malicious content.
-Each tab has its own renderer process, which is sandboxed from the rest of the system.
+Documents from different sites run in separate renderer processes, each sandboxed from the rest of the system.
+Image decoding and network connections are done out of process, separately for each site, to be more robust against
+malicious content.
 
 At the moment, many core library support components are inherited from SerenityOS:
 
