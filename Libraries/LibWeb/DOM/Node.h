@@ -33,6 +33,7 @@
 namespace Web::DOM {
 
 class Document;
+class QualifiedName;
 
 }
 
@@ -320,8 +321,9 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<Node>> replace_child(GC::Ref<Node> node, GC::Ref<Node> child);
 
-    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(GC::Ptr<Document> document = nullptr, bool subtree = false, GC::Ptr<Node> parent = nullptr, GC::Ptr<HTML::CustomElementRegistry> fallback_registry = nullptr) const;
-    WebIDL::ExceptionOr<GC::Ref<Node>> clone_single_node(Document&, GC::Ptr<HTML::CustomElementRegistry> fallback_registry) const;
+    using CloneAttributeValue = Function<Utf16String(Element const&, QualifiedName const&, Utf16View)>;
+    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(GC::Ptr<Document> document = nullptr, bool subtree = false, GC::Ptr<Node> parent = nullptr, GC::Ptr<HTML::CustomElementRegistry> fallback_registry = nullptr, CloneAttributeValue const* = nullptr) const;
+    WebIDL::ExceptionOr<GC::Ref<Node>> clone_single_node(Document&, GC::Ptr<HTML::CustomElementRegistry> fallback_registry, CloneAttributeValue const*) const;
     WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(bool subtree);
 
     WebIDL::ExceptionOr<void> move_node(Node& new_parent, Node* child);

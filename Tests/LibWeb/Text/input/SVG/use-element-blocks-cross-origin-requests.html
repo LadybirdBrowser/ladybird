@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const crossOrigin = new URL(server.baseURL);
+        crossOrigin.hostname = uniqueLocalhostHostname("cross-origin");
+        const createSprite = path => server.createEcho("GET", path, {
+            status: 200,
+            headers: { "Content-Type": "image/svg+xml", "Access-Control-Allow-Origin": "*" },
+            body: '<svg xmlns="http://www.w3.org/2000/svg"><rect id="rect" width="20" height="20"/></svg>',
+        });
+        const sameOriginSprite = await createSprite("/same-origin.svg");
+        const directSprite = new URL(new URL(await createSprite("/direct.svg")).pathname, crossOrigin);
+        const redirectedSprite = new URL(new URL(await createSprite("/redirected.svg")).pathname, crossOrigin);
+        const redirect = await server.createEcho("GET", "/redirect", {
+            status: 302,
+            headers: { Location: redirectedSprite.href },
+            body: "",
+        });
+        const page = await server.createEcho("GET", "/page.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<svg><use id="same" href="${sameOriginSprite}#rect"/>
+                <use id="direct" href="${directSprite}#rect"/>
+                <use id="redirect" href="${redirect}#rect"/></svg>`,
+        });
+
+        const frame = document.createElement("iframe");
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        frame.src = page;
+        document.body.append(frame);
+        await loaded;
+
+        const width = id => frame.contentDocument.getElementById(id).getBBox().width;
+        const requestCount = async url => (await fetch(server.recordedRequestCountURL(url))).json();
+        println(`same-origin width: ${width("same")}`);
+        println(`direct width: ${width("direct")}, cross-origin requests: ${await requestCount(directSprite)}`);
+        println(`same-origin redirect requests: ${await requestCount(redirect)}`);
+        println(`redirect width: ${width("redirect")}, cross-origin requests: ${await requestCount(redirectedSprite)}`);
+        done();
+    });
+</script>

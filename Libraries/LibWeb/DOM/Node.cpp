@@ -1851,7 +1851,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
 }
 
 // https://dom.spec.whatwg.org/#concept-node-clone
-WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, bool subtree, GC::Ptr<Node> parent, GC::Ptr<HTML::CustomElementRegistry> fallback_registry) const
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, bool subtree, GC::Ptr<Node> parent, GC::Ptr<HTML::CustomElementRegistry> fallback_registry, CloneAttributeValue const* clone_attribute_value) const
 {
     // To clone a node given a node node and an optional document document (default node’s node document),
     // boolean subtree (default false), node-or-null parent (default null), and null or a CustomElementRegistry object
@@ -1863,7 +1863,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
     VERIFY(!is_document() || this == document.ptr());
 
     // 2. Let copy be the result of cloning a single node given node, document, and fallbackRegistry.
-    auto copy = TRY(clone_single_node(*document, fallback_registry));
+    auto copy = TRY(clone_single_node(*document, fallback_registry, clone_attribute_value));
 
     // 3. Run any cloning steps defined for node in other applicable specifications and pass node, copy, and subtree as
     //    parameters.
@@ -1878,7 +1878,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
     //    fallbackRegistry set to fallbackRegistry.
     if (subtree) {
         for (auto child = first_child(); child; child = child->next_sibling()) {
-            TRY(child->clone_node(document, subtree, copy, fallback_registry));
+            TRY(child->clone_node(document, subtree, copy, fallback_registry, clone_attribute_value));
         }
     }
 
@@ -1910,7 +1910,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
         // 7. For each child of node’s shadow root’s children, in tree order: clone a node given child with document set
         //    to document, subtree set to true, and parent set to copy’s shadow root.
         for (auto child = node_element->shadow_root()->first_child(); child; child = child->next_sibling()) {
-            TRY(child->clone_node(document, true, copy_element.shadow_root()));
+            TRY(child->clone_node(document, true, copy_element.shadow_root(), nullptr, clone_attribute_value));
         }
     }
 
@@ -2208,7 +2208,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 }
 
 // https://dom.spec.whatwg.org/#clone-a-single-node
-WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, GC::Ptr<HTML::CustomElementRegistry> fallback_registry) const
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, GC::Ptr<HTML::CustomElementRegistry> fallback_registry, CloneAttributeValue const* clone_attribute_value) const
 {
     // To clone a single node given a node node, document document, and null or a CustomElementRegistry object fallbackRegistry:
 
@@ -2237,7 +2237,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
         element->for_each_attribute([&](QualifiedName const& name, Utf16View value) {
             // 1. Let copyAttribute be the result of cloning a single node given attribute, document, and null.
             // 2. Append copyAttribute to copy.
-            element_copy->append_attribute(name, Utf16String::from_utf16(value));
+            element_copy->append_attribute(name, clone_attribute_value ? (*clone_attribute_value)(*element, name, value) : Utf16String::from_utf16(value));
         });
 
         // INTEROP: The copy takes the inline style declarations of node instead of having Content Security Policy

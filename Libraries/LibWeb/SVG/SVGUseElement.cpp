@@ -97,11 +97,6 @@ void SVGUseElement::inserted()
 {
     Base::inserted();
 
-    // A use element inside another use element's shadow tree is itself part of a clone, so it's left alone.
-    auto* containing_shadow_root = as_if<DOM::ShadowRoot>(root());
-    if (containing_shadow_root && containing_shadow_root->is_user_agent_internal())
-        return;
-
     // Only use elements in the document's node tree react to changes of the elements they reference, mirroring the
     // document-wide traversal this registry replaced.
     if (root().is_document())
@@ -204,14 +199,17 @@ void SVGUseElement::process_the_url(Optional<Utf16String> const& href)
     // a same-document URL reference, and processing the URL must continue as indicated in Identifying
     // the target element with the current document as the referenced document.
     m_href = document().encoding_parse_url(href.value_or({}));
-    if (!m_href.has_value())
-        return;
-
-    if (is_referenced_element_same_document()) {
+    if (m_href.has_value() && is_referenced_element_same_document()) {
         clone_element_tree_as_our_shadow_tree(referenced_element());
-    } else {
-        fetch_the_document(*m_href);
+        return;
     }
+
+    // If either the ‘use’ element or the referenced element is altered in a way that causes the ‘use’ element’s URL
+    // reference to become unresolved again, then the entire shadow tree for that use element is discarded.
+    clone_element_tree_as_our_shadow_tree(nullptr);
+
+    if (m_href.has_value())
+        fetch_the_document(*m_href);
 }
 
 bool SVGUseElement::is_referenced_element_same_document() const
@@ -305,8 +303,25 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
 
     stop_using_resource_request();
 
+    // https://svgwg.org/svg2-draft/struct.html#UseElement
+    // User agents may restrict external resource documents for security reasons. In particular, this specification
+    // does not allow cross-origin and data URL resource requests in ‘use’.
+    if (document_url.scheme() == "data"sv)
+        return;
+
+    // If the document containing the reference is being processed in secure static mode or secure animated mode,
+    // external file references are disallowed. Unless the reference is a data URL, the user agent must treat the
+    // reference as if there was a network error, making this an invalid reference.
+    if (document().is_decoded_svg())
+        return;
+
+    // For all other references, the "no-cors" state.
+    // NB: The same-origin fallback flag enforces the ‘use’ origin restriction across redirects.
+    auto request = HTML::create_potential_CORS_request(document_url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS, HTML::SameOriginFallbackFlag::Yes);
+    request->set_client(document().relevant_settings_object().address());
+
     m_load_event_delayer.emplace(document());
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), document_url, HTML::CORSSettingAttribute::NoCORS);
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *request);
     m_resource_request_callbacks_id = m_resource_request->add_removable_callbacks(
         [this] {
             // A request that already finished calls back right away, which from adopted_from() is in the middle of the
@@ -322,11 +337,8 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
             m_load_event_delayer.clear();
         });
 
-    if (m_resource_request->needs_fetching()) {
-        auto request = HTML::create_potential_CORS_request(document_url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
-        request->set_client(document().relevant_settings_object().address());
+    if (m_resource_request->needs_fetching())
         m_resource_request->fetch_resource(request);
-    }
 }
 
 // https://svgwg.org/svg2-draft/struct.html#UseShadowTree
@@ -340,8 +352,21 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_cl
     shadow_root()->set_uses_document_style_sheets(to_clone && is_referenced_element_same_document());
 
     if (to_clone && is_valid_reference_element(*to_clone)) {
+        // If the referenced element is in an external file, then all URL references in attributes and style properties
+        // must be made absolute as described in Generating the absolute URL, before copying the value to the element
+        // instances. The shadow tree itself uses the same document base URL as the document that includes it.
+        // FIXME: Make URL references in other attributes and style properties absolute.
+        DOM::Node::CloneAttributeValue make_url_references_absolute = [](DOM::Element const& element, DOM::QualifiedName const& name, Utf16View value) {
+            if (is<SVGUseElement>(element) && name.local_name() == AttributeNames::href
+                && (!name.namespace_().has_value() || name.namespace_() == Namespace::XLink)) {
+                if (auto url = element.document().encoding_parse_url(value); url.has_value())
+                    return Utf16String::from_utf8(url->serialize());
+            }
+            return Utf16String::from_utf16(value);
+        };
+
         // The ‘use’ element references another element, a copy of which is rendered in place of the ‘use’ in the document.
-        auto cloned_reference_node = MUST(to_clone->clone_node(nullptr, true));
+        auto cloned_reference_node = MUST(to_clone->clone_node(&document(), true, nullptr, nullptr, is_referenced_element_same_document() ? nullptr : &make_url_references_absolute));
         if (is<SVGSVGElement>(cloned_reference_node.ptr()) || is<SVGSymbolElement>(cloned_reference_node.ptr())) {
             auto& cloned_element = as<SVGElement>(*cloned_reference_node);
 
@@ -378,6 +403,12 @@ bool SVGUseElement::is_valid_reference_element(Element const& reference_element)
 bool SVGUseElement::would_create_circular_reference(Element const& target) const
 {
     auto visited = GC::Heap::the().allocate<GC::HeapHashTable<GC::Ref<Element const>>>();
+    for (auto* shadow_root = as_if<DOM::ShadowRoot>(root()); shadow_root && shadow_root->host(); shadow_root = as_if<DOM::ShadowRoot>(shadow_root->host()->root())) {
+        if (auto const* use = as_if<SVGUseElement>(*shadow_root->host())) {
+            if (auto referenced = use->referenced_element())
+                visited->table().set(*referenced);
+        }
+    }
     return would_create_circular_reference_impl(target, visited);
 }
 
