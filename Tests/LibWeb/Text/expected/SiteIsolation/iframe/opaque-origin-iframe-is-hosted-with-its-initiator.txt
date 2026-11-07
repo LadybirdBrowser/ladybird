@@ -1,3 +1,0 @@
-WebContent#0
-  iframe#0: local
-  iframe#1: local

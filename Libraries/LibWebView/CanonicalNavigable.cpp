@@ -874,10 +874,10 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
     if (mode == SiteIsolationMode::Disabled || (mode == SiteIsolationMode::TopLevel && parent()))
         return process_holding_navigable;
 
-    // An opaque origin keys an agent cluster of its own, which nothing but the documents it was created from can
-    // address: it goes with the initiator's agent. A traversable's document of an opaque origin that no such agent
-    // hosts, as a file's opened from the browser's UI is, keeps the process of a document of an opaque origin.
     if (document.origin().is_opaque()) {
+        // NB: Unsandboxed file origins can share a process under the local file isolation policy.
+        if (parent() && !document.origin().is_opaque_file_origin())
+            return nullptr;
         if (initiator_origin.has_value()) {
             if (auto initiator_agent = document.browsing_context().top_level_browsing_context().group()->similar_origin_window_agent_for(*initiator_origin)) {
                 if (auto process = initiator_agent->hosting_process())

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const sameOriginUrl = new URL(await httpTestServer().createEcho("GET", "/opaque-origin-frame", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html><p>child</p>",
+        }));
+        const crossSiteUrl = new URL(sameOriginUrl);
+        crossSiteUrl.hostname = uniqueLocalhostHostname("opaque-origin-frame");
+
+        function appendFrame({ src, srcdoc, sandbox }) {
+            const iframe = document.createElement("iframe");
+            if (sandbox !== undefined)
+                iframe.sandbox = sandbox;
+            if (srcdoc !== undefined)
+                iframe.srcdoc = srcdoc;
+            else
+                iframe.src = src;
+            const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+            document.body.appendChild(iframe);
+            return loaded.then(() => iframe);
+        }
+
+        await appendFrame({ src: sameOriginUrl, sandbox: "" });
+        await appendFrame({ src: crossSiteUrl, sandbox: "" });
+        await appendFrame({ srcdoc: "<p>sandboxed srcdoc</p>", sandbox: "" });
+        await appendFrame({ src: "data:text/html,<p>data</p>" });
+        const sameOriginFrame = await appendFrame({ src: sameOriginUrl, sandbox: "allow-same-origin" });
+
+        println(`allow-same-origin frame is accessible: ${sameOriginFrame.contentDocument?.body.textContent === "child"}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
