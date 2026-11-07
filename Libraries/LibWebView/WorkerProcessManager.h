@@ -28,11 +28,12 @@
 #include <LibWebCommon/Permissions/Permissions.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
+#include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
 
-class WorkerProcessManager {
+class WEBVIEW_API WorkerProcessManager {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
@@ -91,6 +92,8 @@ public:
     bool hosts_shared_worker(WebContentClient const&) const;
 
     size_t client_count() const { return m_agents.size(); }
+
+    void set_extended_lifetime_shared_worker_timeout_for_testing(AK::Duration timeout) { m_extended_lifetime_shared_worker_timeout = timeout; }
 
     void update_permission_snapshot(PermissionManager const&);
     Optional<URL::Origin> top_level_origin(Web::HTML::WorkerAgentId) const;
@@ -192,6 +195,9 @@ private:
     Web::HTML::WorkerAgentId m_next_agent_id { 0 };
     HashMap<Web::HTML::WorkerAgentId, WorkerAgent> m_agents;
     HashMap<SharedWorkerKey, Web::HTML::WorkerAgentId> m_shared_workers;
+
+    // https://html.spec.whatwg.org/multipage/workers.html#extended-lifetime-shared-worker-timeout
+    AK::Duration m_extended_lifetime_shared_worker_timeout { AK::Duration::from_seconds(30) };
 };
 
 }

@@ -146,6 +146,7 @@ if (NOT WIN32)
         TestRequestServerClientSessions.cpp
         TestRequestServerDiskCaches.cpp
         TestShadowTreeTooltipsAndLinks.cpp
+        TestSharedWorkerHost.cpp
         TestUserActivation.cpp
         TestViewSource.cpp
         TestWebCompatReport.cpp

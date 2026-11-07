@@ -29,9 +29,6 @@ namespace WebView {
 // less than a process, but still has a heap, JIT threads and connections to itself, and one page can start them all.
 static constexpr size_t maximum_worker_count_per_top_level_site = 64;
 
-// https://html.spec.whatwg.org/multipage/workers.html#extended-lifetime-shared-worker-timeout
-static constexpr auto extended_lifetime_shared_worker_timeout = AK::Duration::from_seconds(30);
-
 WorkerProcessManager& WorkerProcessManager::the()
 {
     static auto& manager = *new WorkerProcessManager;
@@ -828,7 +825,7 @@ void WorkerProcessManager::remove_agent(Web::HTML::WorkerAgentId agent_id, Agent
         auto& agent = maybe_agent->value;
         if (agent.extended_lifetime) {
             if (!agent.extended_lifetime_timer) {
-                agent.extended_lifetime_timer = Core::Timer::create_single_shot(extended_lifetime_shared_worker_timeout, [this, agent_id] {
+                agent.extended_lifetime_timer = Core::Timer::create_single_shot(m_extended_lifetime_shared_worker_timeout, [this, agent_id] {
                     remove_agent(agent_id, AgentRemovalCause::ExtendedLifetimeEnded);
                 });
                 agent.extended_lifetime_timer->start();
