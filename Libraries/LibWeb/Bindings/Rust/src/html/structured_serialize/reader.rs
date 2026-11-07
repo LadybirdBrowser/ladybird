@@ -205,7 +205,7 @@ impl<'a> StructuredSerializeReader<'a> {
         )))
     }
 
-    /// A new SharedArrayBuffer that shares the storage of the buffer at the index of the record's same-process side
+    /// A new SharedArrayBuffer that shares the storage of the buffer at the index of the record's same-agent side
     /// table, if there is such a buffer, and its storage can be shared.
     pub(crate) fn array_buffer_sharing_side_table_entry(
         &self,

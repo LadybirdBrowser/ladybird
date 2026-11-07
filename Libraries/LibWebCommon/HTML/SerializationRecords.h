@@ -25,18 +25,18 @@
 namespace Web::HTML {
 
 // NB: References that are only meaningful inside the process that produced a serialization record, such as LibWeb's
-//     same-process SharedArrayBuffer aliases. It is never IPC-encoded, and is opaque outside of LibWeb.
-class WEBCOMMON_API SameProcessSerializationSideTable : public RefCounted<SameProcessSerializationSideTable> {
+//     same-agent SharedArrayBuffer aliases. It is never IPC-encoded, and is opaque outside of LibWeb.
+class WEBCOMMON_API SameAgentSerializationSideTable : public RefCounted<SameAgentSerializationSideTable> {
 public:
-    virtual ~SameProcessSerializationSideTable();
+    virtual ~SameAgentSerializationSideTable();
 };
 
 struct IPCSerializationRecord {
     IPC::MessageDataType data;
 
-    // Same-process SharedArrayBuffer aliases. This is intentionally not IPC-encoded; cross-process
+    // Same-agent SharedArrayBuffer aliases. This is intentionally not IPC-encoded; cross-process
     // records fall back to the byte copy in `data`.
-    RefPtr<SameProcessSerializationSideTable const> same_process_side_table;
+    RefPtr<SameAgentSerializationSideTable const> same_agent_side_table;
 
     IPCSerializationRecord() = default;
     explicit IPCSerializationRecord(IPC::MessageDataType data)

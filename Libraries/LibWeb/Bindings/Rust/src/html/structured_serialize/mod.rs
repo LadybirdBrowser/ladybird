@@ -461,10 +461,10 @@ fn serialize_array_buffer(
             // 2. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "GrowableSharedArrayBuffer",
             //           [[ArrayBufferData]]: value.[[ArrayBufferData]], [[ArrayBufferByteLengthData]]: value.[[ArrayBufferByteLengthData]],
             //           [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]] }.
-            // To share with a same-process target, stash the source buffer in the side table. The byte copy keeps the
+            // To share with a same-agent target, stash the source buffer in the side table. The byte copy keeps the
             // wire format self-contained for records that cross a process boundary.
             // AD-HOC: A growable SharedArrayBuffer isn't backed by cross-process shared memory (its storage is
-            //         process-local) — so only a same-process target can share it. A record that crosses a process
+            //         process-local) — so only a same-agent target can share it. A record that crosses a process
             //         boundary hands the peer a copy.
             // FIXME: Share it across processes too: a max-sized shared mapping with a shared length word (#11682).
             data_holder.encode_u8(ValueTag::GrowableSharedArrayBuffer as u8);
