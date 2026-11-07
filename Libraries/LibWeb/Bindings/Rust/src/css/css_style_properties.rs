@@ -28,6 +28,13 @@ pub(crate) struct CSSPropertyAccessor {
     property_name: &'static str,
 }
 
+impl CSSPropertyAccessor {
+    /// The accessor's security check identifier, which differs from the attribute's only where that cannot matter.
+    pub(crate) fn property_name(&self) -> &'static str {
+        self.property_name
+    }
+}
+
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct CSSStyleProperties {

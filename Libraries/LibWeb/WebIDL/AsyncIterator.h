@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebIDL {
@@ -35,7 +36,7 @@ public:
     template<typename AsyncIteratorInterface>
     static JS::ThrowCompletionOr<GC::Ptr<JS::Object>> next(JS::Realm& realm, StringView interface_name)
     {
-        auto validation_result = validate_this<AsyncIteratorInterface>(realm, interface_name);
+        auto validation_result = validate_this<AsyncIteratorInterface>(realm, interface_name, u"next"sv);
 
         return validation_result.visit(
             [](GC::Ref<AsyncIteratorInterface> iterator) {
@@ -51,7 +52,7 @@ public:
     static JS::ThrowCompletionOr<GC::Ptr<JS::Object>> return_(JS::Realm& realm, StringView interface_name, JS::Value value)
     {
         auto return_promise_capability = WebIDL::create_promise(realm);
-        auto validation_result = validate_this<AsyncIteratorInterface>(realm, interface_name, return_promise_capability);
+        auto validation_result = validate_this<AsyncIteratorInterface>(realm, interface_name, u"return"sv, return_promise_capability);
 
         return validation_result.visit(
             [&](GC::Ref<AsyncIteratorInterface> iterator) {
@@ -74,7 +75,7 @@ protected:
 
 private:
     template<typename AsyncIteratorInterface>
-    static Variant<JS::Completion, GC::Ref<JS::Object>, GC::Ref<AsyncIteratorInterface>> validate_this(JS::Realm& realm, StringView interface_name, GC::Ptr<WebIDL::Promise> this_validation_promise_capability = {})
+    static Variant<JS::Completion, GC::Ref<JS::Object>, GC::Ref<AsyncIteratorInterface>> validate_this(JS::Realm& realm, StringView interface_name, Utf16View const& identifier, GC::Ptr<WebIDL::Promise> this_validation_promise_capability = {})
     {
         // NOTE: This defines the steps to validate `this` that are common between "next" and "return".
         auto& vm = realm.vm();
@@ -91,7 +92,7 @@ private:
         // 5. IfAbruptRejectPromise(object, thisValidationPromiseCapability).
         auto object = TRY_OR_REJECT(vm, this_validation_promise_capability, this_value.to_object(vm));
 
-        // FIXME: 6. If object is a platform object, then perform a security check, passing:
+        // 6. If object is a platform object, then perform a security check, passing:
         //     * the platform object object,
         //     * the identifier "next", and
         //     * the type "method".
@@ -99,6 +100,8 @@ private:
         //     If this threw an exception e, then:
         //         Perform ! Call(thisValidationPromiseCapability.[[Reject]], undefined, « e »).
         //         Return thisValidationPromiseCapability.[[Promise]].
+        // NB: The "return" method passes the identifier "return".
+        TRY_OR_REJECT(vm, this_validation_promise_capability, HTML::perform_a_security_check(vm, object, identifier, HTML::SecurityCheckType::Method));
 
         // 7. If object is not a default asynchronous iterator object for interface, then:
         auto* iterator = JS::host_data_if<AsyncIteratorInterface>(*object);

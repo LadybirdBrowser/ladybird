@@ -71,6 +71,15 @@ unsafe extern "C" {
         on_origin: unsafe extern "C" fn(*mut c_void, *const liburl_rust::FfiOrigin),
     ) -> bool;
 
+    /// HTML::perform_a_security_check() of the value, with the identifier, which is ASCII, and the
+    /// HTML::SecurityCheckType.
+    pub(crate) fn web_bindings_perform_a_security_check(
+        realm: *mut c_void,
+        platform_object: u64,
+        identifier: ak::Span<'_, u8>,
+        check_type: u8,
+    ) -> libjs_rust::api::RawNativeFunctionResult;
+
     /// The wrapper in the realm of a new DOMException with the name, which is ASCII, and the message, a borrowed
     /// AK::Utf16String.
     pub(crate) fn web_bindings_create_dom_exception(

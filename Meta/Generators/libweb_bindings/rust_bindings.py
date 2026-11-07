@@ -1080,10 +1080,9 @@ def write_rust_async_iterator(out: TextIO, context: GenerationContext, interface
     /// https://webidl.spec.whatwg.org/#es-asynchronous-iterable
     fn {async_iterator.function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         // 1. Let jsValue be ? ToObject(this value).
-        // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "%Symbol.asyncIterator%",
-        //    and "method".
+        // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "values", and "method".
         // 3. If jsValue does not implement definition, then throw a TypeError.
-        let (implementation, mut cx) = this_implementation(vm)?;
+        let (implementation, mut cx) = this_implementation(vm, "values", SecurityCheckType::Method)?;
 
         // 4. Let idlArgs be the result of converting arguments for an asynchronous iterator method given arguments.
 """
@@ -1139,7 +1138,7 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
         define_attribute, define_cached_attribute, define_constants, define_indexed_properties_iterator,
         define_interface_object_properties, define_operation, define_to_string_tag, define_unimplemented_property,
         define_value_iterator_properties, entry_point_arguments, implementation_if, implementation_of,
-        prototype_from_new_target, realm_is_secure_context, realm_is_window, set_dictionary_member,
+        SecurityCheckType, prototype_from_new_target, realm_is_secure_context, realm_is_window, set_dictionary_member,
         set_interface_prototype_object_prototype, this_object, to_interface,
     };
     use crate::bindings::async_iterable::{
@@ -1278,18 +1277,18 @@ def write_rust_interface(
         call = f"Implementation::{attribute.getter_method}(&implementation, &mut cx)"
         if attribute.attribute.inherit:
             call = inherited_attribute_getter_call(context, interface, attribute)
-        this_check = "this_implementation(vm)?"
+        this_check = f'this_implementation(vm, "{name}", SecurityCheckType::Getter)?'
         if is_promise_type(attribute.attribute.type) and not attribute.attribute.type.nullable:
             # https://webidl.spec.whatwg.org/#dfn-attribute-getter
-            this_check = """match this_implementation(vm) {
+            this_check = f"""match this_implementation(vm, "{name}", SecurityCheckType::Getter) {{
             Ok(this) => this,
             // If the attribute's type is a promise type, a this value that does not implement the interface rejects
             // a new promise.
-            Err(throw) => {
+            Err(throw) => {{
                 let realm = vm.current_realm().expect("a native function runs in a realm");
                 return Ok(Value::from_object(create_rejected_promise(vm, realm, throw.value()).promise()));
-            }
-        }"""
+            }}
+        }}"""
         receiver = "(implementation, mut cx)"
         caller_realm_context = ""
         if "NeedsCallerRealm" in attribute.attribute.extended_attributes:
@@ -1665,7 +1664,7 @@ def write_default_to_json(out: TextIO, context: GenerationContext, interface: In
     out.write(
         f"""
     fn {function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
-        this_implementation(vm)?;
+        this_implementation(vm, "toJSON", SecurityCheckType::Method)?;
         let realm = vm.current_realm().expect("a native function runs in a realm");
         let cx = CallContext::new(vm, realm);
         // 4. Let result be OrdinaryObjectCreate(%Object.prototype%).
@@ -1989,7 +1988,7 @@ def write_rust_stringifier(out: TextIO, function: str, method: str) -> None:
     out.write(
         f"""
     fn {function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
-        let (implementation, mut cx) = this_implementation(vm)?;
+        let (implementation, mut cx) = this_implementation(vm, "toString", SecurityCheckType::Method)?;
         let result = Implementation::{method}(&implementation, &mut cx)
             .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         result.to_js(&cx)
@@ -2065,8 +2064,12 @@ def write_this_implementation(out: TextIO, context: GenerationContext, interface
         out.write(
             """
     /// The object that an attribute or an operation runs on, and the context it runs in.
-    fn this_implementation(vm: &Vm) -> ThrowCompletionOr<(Ref<Implementation>, CallContext<'_>)> {
-        let (object, realm) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME)?;
+    fn this_implementation<'vm>(
+        vm: &'vm Vm,
+        identifier: &str,
+        check_type: SecurityCheckType,
+    ) -> ThrowCompletionOr<(Ref<Implementation>, CallContext<'vm>)> {
+        let (object, realm) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME, identifier, check_type)?;
         Ok((implementation_of(object), CallContext::new(vm, realm)))
     }
 """
@@ -2128,8 +2131,12 @@ def write_this_implementation(out: TextIO, context: GenerationContext, interface
     }}
 
     /// The object that an attribute or an operation runs on, and the context it runs in.
-    fn this_implementation(vm: &Vm) -> ThrowCompletionOr<(Receiver, CallContext<'_>)> {{
-        let (object, realm) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME)?;
+    fn this_implementation<'vm>(
+        vm: &'vm Vm,
+        identifier: &str,
+        check_type: SecurityCheckType,
+    ) -> ThrowCompletionOr<(Receiver, CallContext<'vm>)> {{
+        let (object, realm) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME, identifier, check_type)?;
         Ok((receiver_of(object), CallContext::new(vm, realm)))
     }}
 """
@@ -2143,7 +2150,7 @@ def write_rust_event_handler_attribute(out: TextIO, attribute: RustAttribute) ->
     out.write(
         f"""
     pub(super) fn {attribute.getter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
-        let (implementation, _) = this_implementation(vm)?;
+        let (implementation, _) = this_implementation(vm, "{attribute.attribute.name}", SecurityCheckType::Getter)?;
         let object: &Implementation = &implementation;
         Ok(event_handler_attribute(object, "{attribute.event_type}"))
     }}
@@ -2154,7 +2161,7 @@ def write_rust_event_handler_attribute(out: TextIO, attribute: RustAttribute) ->
             f"""
     fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let value = vm.argument(0);
-        let (implementation, mut cx) = this_implementation(vm)?;
+        let (implementation, mut cx) = this_implementation(vm, "{attribute.attribute.name}", SecurityCheckType::Setter)?;
         Implementation::{attribute.setter_method}(&implementation, &mut cx, value);
         Ok(Value::UNDEFINED)
     }}
@@ -2165,7 +2172,7 @@ def write_rust_event_handler_attribute(out: TextIO, attribute: RustAttribute) ->
         f"""
     fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let value = vm.argument(0);
-        let (implementation, _) = this_implementation(vm)?;
+        let (implementation, _) = this_implementation(vm, "{attribute.attribute.name}", SecurityCheckType::Setter)?;
         let object: &Implementation = &implementation;
         set_event_handler_attribute(object, "{attribute.event_type}", value);
         Ok(Value::UNDEFINED)
@@ -2202,7 +2209,7 @@ def write_css_property_accessors(out: TextIO) -> None:
     out.write(
         """
     fn property_getter(vm: &Vm, property: &crate::css::css_style_properties::CSSPropertyAccessor) -> ThrowCompletionOr<Value> {
-        let (implementation, mut cx) = this_implementation(vm)?;
+        let (implementation, mut cx) = this_implementation(vm, property.property_name(), SecurityCheckType::Getter)?;
         let result = Implementation::property_value(&implementation, &mut cx, property)
             .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         result.to_js(&cx)
@@ -2210,7 +2217,7 @@ def write_css_property_accessors(out: TextIO) -> None:
 
     fn property_setter(vm: &Vm, property: &crate::css::css_style_properties::CSSPropertyAccessor) -> ThrowCompletionOr<Value> {
         let value = vm.argument(0);
-        let (implementation, mut cx) = this_implementation(vm)?;
+        let (implementation, mut cx) = this_implementation(vm, property.property_name(), SecurityCheckType::Setter)?;
         let idl_value = to_dom_string_treating_null_as_empty(vm, value)?;
         with_custom_element_reactions(|| Implementation::set_property_value(&implementation, &mut cx, property, idl_value))
             .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
@@ -2257,7 +2264,7 @@ def write_rust_attribute_setter(
         f"""
     fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let value = vm.argument(0);
-        let {receiver} = this_implementation(vm)?;
+        let {receiver} = this_implementation(vm, "{attribute.attribute.name}", SecurityCheckType::Setter)?;
 {caller_realm_context}        {conversion}
         {call}
             .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
@@ -2274,7 +2281,7 @@ def write_rust_put_forwards_setter(out: TextIO, attribute: RustAttribute) -> Non
         f"""
     fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let value = vm.argument(0);
-        let (object, _) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME)?;
+        let (object, _) = this_object(vm, Implementation::wrapper_class(), Implementation::NAME, "{attribute.attribute.name}", SecurityCheckType::Setter)?;
         let receiver = object.get(vm, &PropertyKey::from_utf8("{attribute.attribute.name}"))?;
         if !receiver.is_object() {{
             return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&"{attribute.attribute.name}"]);
@@ -2300,9 +2307,14 @@ def write_rust_operation(
     what = f"{interface.name}.{name}()"
     steps = StringIO()
     if "NeedsCallerRealm" in operation.extended_attributes:
-        steps.write(f"        let (implementation, _) = this_implementation(vm)?;\n{CALLER_REALM_CONTEXT}")
+        steps.write(
+            f'        let (implementation, _) = this_implementation(vm, "{operation.name}", SecurityCheckType::Method)?;\n'
+            f"{CALLER_REALM_CONTEXT}"
+        )
     else:
-        steps.write("        let (implementation, mut cx) = this_implementation(vm)?;\n")
+        steps.write(
+            f'        let (implementation, mut cx) = this_implementation(vm, "{operation.name}", SecurityCheckType::Method)?;\n'
+        )
     write_argument_count_check(steps, name, overload.length)
     write_parameter_conversions(steps, what, operation.parameters, context)
     arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in operation.parameters)

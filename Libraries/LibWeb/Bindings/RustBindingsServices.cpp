@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactions.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
@@ -108,6 +109,7 @@ bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*));
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
+JSCompletion web_bindings_perform_a_security_check(void* realm, JSValue platform_object, ReadonlyBytes identifier, u8 type);
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 
 void* web_css_wrap_object(void* realm, void* cell);
@@ -252,6 +254,16 @@ JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, Fla
     auto& js_realm = *static_cast<JS::Realm*>(realm);
     auto exception = WebIDL::DOMException::create(FlyString::from_utf8_without_validation(name), Utf16String::from_raw(message));
     return JS::HostABI::object_to_abi(wrap(host_defined_wrapper_world(js_realm), js_realm, exception).ptr());
+}
+
+JSCompletion web_bindings_perform_a_security_check(void* realm, JSValue platform_object, ReadonlyBytes identifier, u8 type)
+{
+    auto& vm = static_cast<JS::Realm*>(realm)->vm();
+    auto identifier_string = Utf16String::from_utf8_without_validation(StringView { identifier });
+    auto result = HTML::perform_a_security_check(vm, JS::HostABI::value_from_abi(platform_object), identifier_string.utf16_view(), static_cast<HTML::SecurityCheckType>(type));
+    if (result.is_error())
+        return JS::HostABI::throw_completion_to_abi(result.error().value());
+    return JS::HostABI::normal_completion_to_abi(JS::HostABI::value_to_abi(JS::js_undefined()));
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#extract-an-origin

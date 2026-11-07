@@ -28,13 +28,13 @@
             for (const [name, member] of Object.entries(members)) {
                 const promise = member.call(crossOriginWindow);
                 const inCurrentRealm = promise.constructor === Promise && promise.constructor.constructor === Function;
-                let rejectedWithTypeError = false;
+                let reason = "fulfilled";
                 try {
                     await promise;
                 } catch (e) {
-                    rejectedWithTypeError = e instanceof TypeError;
+                    reason = `${e.name}, caller realm: ${e instanceof Object}`;
                 }
-                println(`${name}: ${inCurrentRealm} ${rejectedWithTypeError}`);
+                println(`${name}: ${inCurrentRealm}, rejected with ${reason}`);
             }
             done();
         };
