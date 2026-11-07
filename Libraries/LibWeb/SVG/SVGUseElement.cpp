@@ -279,12 +279,6 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element() const
     if (!data || !is<SVG::SVGDecodedImageData>(*data))
         return nullptr;
 
-    // https://svgwg.org/svg2-draft/struct.html#UseElement
-    // User agents may restrict external resource documents for security reasons. In particular, this specification
-    // does not allow cross-origin and data URL resource requests in ‘use’.
-    if (data->is_cors_cross_origin())
-        return nullptr;
-
     return as<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(decode_fragment_identifier(*m_href->fragment()));
 }
 
@@ -320,8 +314,19 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
     if (document_url.scheme() == "data"sv)
         return;
 
+    // If the document containing the reference is being processed in secure static mode or secure animated mode,
+    // external file references are disallowed. Unless the reference is a data URL, the user agent must treat the
+    // reference as if there was a network error, making this an invalid reference.
+    if (document().is_decoded_svg())
+        return;
+
+    // For all other references, the "no-cors" state.
+    // NB: The same-origin fallback flag enforces the ‘use’ origin restriction across redirects.
+    auto request = HTML::create_potential_CORS_request(document_url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS, HTML::SameOriginFallbackFlag::Yes);
+    request->set_client(document().relevant_settings_object().address());
+
     m_load_event_delayer.emplace(document());
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), document_url, HTML::CORSSettingAttribute::NoCORS);
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *request);
     m_resource_request_callbacks_id = m_resource_request->add_removable_callbacks(
         [this] {
             // A request that already finished calls back right away, which from adopted_from() is in the middle of the
@@ -337,11 +342,8 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
             m_load_event_delayer.clear();
         });
 
-    if (m_resource_request->needs_fetching()) {
-        auto request = HTML::create_potential_CORS_request(document_url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
-        request->set_client(document().relevant_settings_object().address());
+    if (m_resource_request->needs_fetching())
         m_resource_request->fetch_resource(request);
-    }
 }
 
 // https://svgwg.org/svg2-draft/struct.html#UseShadowTree
