@@ -8,7 +8,7 @@ use core::cell::{Cell, OnceCell, Ref, RefCell};
 use core::ffi::c_void;
 use core::ops::ControlFlow;
 use core::ptr::NonNull;
-use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering, fence};
+use core::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, AtomicUsize, Ordering, fence};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -174,6 +174,9 @@ pub type PromiseRejectionCallback = fn(&Vm, Gc<Promise>);
 /// VM::on_unimplemented_property_access, which [[GetOwnProperty]] calls for a missing property that was defined with
 /// Object::define_unimplemented_property.
 pub type OnUnimplementedPropertyAccess = fn(&Vm, &Object, &PropertyKey);
+
+static STACK_FRAME_SYNTAX: AtomicU8 = AtomicU8::new(StackFrameSyntax::Indented as u8);
+static NATIVE_FUNCTION_SOURCE_SYNTAX: AtomicU8 = AtomicU8::new(NativeFunctionSourceSyntax::SingleLine as u8);
 
 /// How a VM is set up, which is fixed once it is created.
 #[derive(Clone, Copy, Debug, Default)]
@@ -631,8 +634,6 @@ pub struct Vm {
     agent: Cell<AgentRecord>,
     /// How Error.prototype.stack writes its frames, and how Function.prototype.toString writes a built-in function:
     /// the embedder's choice, since scripts read both to tell engines apart.
-    stack_frame_syntax: Cell<StackFrameSyntax>,
-    native_function_source_syntax: Cell<NativeFunctionSourceSyntax>,
     saved_execution_context_stacks: RefCell<Vec<SavedExecutionContextStack>>,
     host_classes: RefCell<HostClassRegistry>,
     pub jit: JitState,
@@ -775,8 +776,6 @@ impl Vm {
             options,
             embedder: Cell::new(None),
             agent: Cell::new(AgentRecord::default()),
-            stack_frame_syntax: Cell::new(StackFrameSyntax::default()),
-            native_function_source_syntax: Cell::new(NativeFunctionSourceSyntax::default()),
             saved_execution_context_stacks: RefCell::new(Vec::new()),
             host_classes: RefCell::new(HashMap::default()),
             jit: JitState::new(JitOptions::from_environment()),
@@ -1369,20 +1368,17 @@ impl Vm {
     }
 
     pub fn stack_frame_syntax(&self) -> StackFrameSyntax {
-        self.stack_frame_syntax.get()
+        StackFrameSyntax::from_abi(STACK_FRAME_SYNTAX.load(Ordering::Relaxed))
     }
 
     pub fn native_function_source_syntax(&self) -> NativeFunctionSourceSyntax {
-        self.native_function_source_syntax.get()
+        NativeFunctionSourceSyntax::from_abi(NATIVE_FUNCTION_SOURCE_SYNTAX.load(Ordering::Relaxed))
     }
 
-    pub fn set_source_text_syntaxes(
-        &self,
-        stack_frames: StackFrameSyntax,
-        native_functions: NativeFunctionSourceSyntax,
-    ) {
-        self.stack_frame_syntax.set(stack_frames);
-        self.native_function_source_syntax.set(native_functions);
+    /// The embedder's choice for the whole process, as the engine that a page's script sees is the same in all its VMs.
+    pub fn set_source_text_syntaxes(stack_frames: StackFrameSyntax, native_functions: NativeFunctionSourceSyntax) {
+        STACK_FRAME_SYNTAX.store(stack_frames as u8, Ordering::Relaxed);
+        NATIVE_FUNCTION_SOURCE_SYNTAX.store(native_functions as u8, Ordering::Relaxed);
     }
 
     pub fn host_classes(&self) -> &RefCell<HostClassRegistry> {
