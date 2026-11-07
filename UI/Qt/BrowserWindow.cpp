@@ -536,8 +536,6 @@ void BrowserWindow::initialize_ladybird_menu()
     m_ladybird_menu->addAction(application.open_settings_action());
     m_ladybird_menu->addMenu(application.inspect_menu());
     m_ladybird_menu->addMenu(application.debug_menu());
-    m_ladybird_menu->addSeparator();
-
     m_ladybird_menu->addMenu(application.help_menu());
     // NB: On macOS, the application menu has Quit.
 #if !defined(AK_OS_MACOS)
