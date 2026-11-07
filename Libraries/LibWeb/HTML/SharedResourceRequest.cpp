@@ -190,7 +190,7 @@ void SharedResourceRequest::fetch_resource(NonnullRefPtr<Fetch::Infrastructure::
                 : request->url().basename().ends_with(".svg"sv);
             if (extracted_mime_type.has_value())
                 self->m_image_mime_type = extracted_mime_type->essence();
-            self->handle_successful_fetch(request->url(), is_svg_image ? IsSVGImage::Yes : IsSVGImage::No, move(data), image_data_is_cors_cross_origin);
+            self->handle_successful_fetch(response->url().value_or(request->url()), is_svg_image ? IsSVGImage::Yes : IsSVGImage::No, move(data), image_data_is_cors_cross_origin);
         });
         auto process_body_error = GC::create_function(GC::Heap::the(), [weak_this](JS::Value) {
             auto self = weak_this.ptr();

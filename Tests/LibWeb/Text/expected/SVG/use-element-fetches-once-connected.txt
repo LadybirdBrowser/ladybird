@@ -1,0 +1,3 @@
+requests while disconnected: 0
+requests once connected: 1
+width once connected: 20

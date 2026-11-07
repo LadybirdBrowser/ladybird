@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const createSprite = path => server.createEcho("GET", path, {
+            status: 200,
+            headers: { "Content-Type": "image/svg+xml" },
+            body: '<svg xmlns="http://www.w3.org/2000/svg"><rect id="rect" width="20" height="20"/></svg>',
+        });
+        const requestCount = async url => (await fetch(server.recordedRequestCountURL(url))).json();
+        const createUse = sprite => `const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+            use.setAttribute("href", "${sprite}#rect");`;
+
+        // NB: A fetch started by the frame's use element delays the frame's load event.
+        const loadFrame = async script => {
+            const frame = document.createElement("iframe");
+            const loaded = new Promise(resolve => frame.onload = resolve);
+            frame.srcdoc = `<svg></svg><script>${script}<\/script>`;
+            document.body.append(frame);
+            await loaded;
+            return frame.contentDocument;
+        };
+
+        const disconnectedSprite = await createSprite("/disconnected.svg");
+        await loadFrame(createUse(disconnectedSprite));
+        println(`requests while disconnected: ${await requestCount(disconnectedSprite)}`);
+
+        const connectedSprite = await createSprite("/connected.svg");
+        const frameDocument = await loadFrame(`${createUse(connectedSprite)} document.querySelector("svg").append(use);`);
+        println(`requests once connected: ${await requestCount(connectedSprite)}`);
+        println(`width once connected: ${frameDocument.querySelector("use").getBBox().width}`);
+    });
+</script>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const stalledToken = `stalled-${uniqueID()}`;
+        const blockerToken = `blocker-${uniqueID()}`;
+        const stalledSprite = await server.createEcho("GET", "/stalled.svg", {
+            status: 200,
+            headers: { "Content-Type": "image/svg+xml" },
+            body: '<svg xmlns="http://www.w3.org/2000/svg"><rect id="rect" width="20" height="20"/></svg>',
+            wait_for_unblock: stalledToken,
+        });
+        const sprite = await server.createEcho("GET", "/sprite.svg", {
+            status: 200,
+            headers: { "Content-Type": "image/svg+xml" },
+            body: `<svg xmlns="http://www.w3.org/2000/svg"><g id="a"><use href="${stalledSprite}#rect"/></g></svg>`,
+        });
+        const blocker = await server.createEcho("GET", "/blocker.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: "",
+            wait_for_unblock: blockerToken,
+        });
+
+        const frame = document.createElement("iframe");
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        frame.srcdoc = `<svg><use id="outer" href="${sprite}#a"/></svg>
+            <script src="${blocker}"><\/script>
+            <script>document.getElementById("outer").setAttribute("href", "#missing");<\/script>`;
+        document.body.append(frame);
+
+        // NB: The parser waits for the blocker script until the outer use element's instance has requested its sprite.
+        await server.waitForRequest(stalledSprite);
+        await fetch(`${server.baseURL}/unblock/${blockerToken}`);
+        await loaded;
+        println("loaded while the discarded instance's request is pending");
+        await fetch(`${server.baseURL}/unblock/${stalledToken}`);
+    });
+</script>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const sprite = await server.createEcho("GET", "/sprites/icon.svg", {
+            status: 200,
+            headers: { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" },
+            body: `<svg xmlns="http://www.w3.org/2000/svg">
+                <rect id="leaf" width="10" height="20"/>
+                <g id="icon"><use href="icon.svg#leaf"/></g>
+            </svg>`,
+        });
+        const redirect = await server.createEcho("GET", "/redirect", {
+            status: 302,
+            headers: { Location: sprite, "Cache-Control": "no-store" },
+            body: "",
+        });
+
+        const frame = document.createElement("iframe");
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        frame.srcdoc = `<svg>
+            <defs><rect id="leaf" width="40" height="40"/></defs>
+            <use id="instance" href="${redirect}#icon"/>
+        </svg>`;
+        document.body.append(frame);
+        await loaded;
+
+        const { width, height } = frame.contentDocument.getElementById("instance").getBBox();
+        const requests = await (await fetch(server.recordedRequestCountURL(sprite))).json();
+        println(`nested fragment: ${width}x${height}`);
+        println(`sprite requests: ${requests}`);
+        done();
+    });
+</script>

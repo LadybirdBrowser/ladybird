@@ -1,0 +1,2 @@
+nested fragment: 10x20
+sprite requests: 1

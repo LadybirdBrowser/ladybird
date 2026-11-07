@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/ElementRareData.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
@@ -36,6 +37,37 @@
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGElement);
+
+struct SVGElement::RareData final : DOM::Element::RareData {
+    AK_ALLOC_WITH_KMALLOC;
+
+    virtual void visit_edges(Cell::Visitor& visitor) override
+    {
+        DOM::Element::RareData::visit_edges(visitor);
+        visitor.visit(corresponding_element);
+    }
+
+    GC::Ptr<SVGElement const> corresponding_element;
+};
+
+OwnPtr<DOM::Node::RareData> SVGElement::create_rare_data() const
+{
+    return make<RareData>();
+}
+
+// https://svgwg.org/svg2-draft/struct.html#TermCorrespondingElement
+GC::Ptr<SVGElement const> SVGElement::corresponding_element() const
+{
+    auto const* data = static_cast<RareData const*>(rare_data());
+    if (!data)
+        return nullptr;
+    return data->corresponding_element;
+}
+
+void SVGElement::set_corresponding_element(Badge<SVGUseElement>, SVGElement const& corresponding_element)
+{
+    static_cast<RareData&>(ensure_rare_data()).corresponding_element = corresponding_element;
+}
 
 SVGElement::SVGElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : Element(document, move(qualified_name))

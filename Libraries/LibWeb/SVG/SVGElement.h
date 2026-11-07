@@ -42,6 +42,8 @@ public:
     bool is_in_never_rendered_subtree() const;
 
     GC::Ref<SVGAnimatedString> class_name();
+    GC::Ptr<SVGElement const> corresponding_element() const;
+    void set_corresponding_element(Badge<SVGUseElement>, SVGElement const&);
     GC::Ptr<SVGSVGElement> owner_svg_element();
     GC::Ptr<SVGSVGElement> outermost_svg_element();
     GC::Ptr<SVGElement> viewport_element();
@@ -91,6 +93,9 @@ protected:
     void mark_resource_box_referencing_elements_for_layout_update();
 
 private:
+    struct RareData;
+    virtual OwnPtr<DOM::Node::RareData> create_rare_data() const override;
+
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(Utf16FlyString const&) override { return *this; }
 

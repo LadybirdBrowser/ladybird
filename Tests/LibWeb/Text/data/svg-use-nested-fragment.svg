@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+    <rect id="leaf" width="10" height="20"/>
+    <g id="icon"><use href="#leaf"/></g>
+</svg>
