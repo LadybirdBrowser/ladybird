@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGfx/Bitmap.h>
@@ -43,6 +44,8 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListFontResource cons
     TRY(encoder.encode(font.point_size()));
     TRY(encoder.encode(font.variation_settings()));
     TRY(encoder.encode(font.features()));
+    TRY(encoder.encode(font.synthesis().bold));
+    TRY(encoder.encode(font.synthesis().oblique_angle));
     TRY(encoder.encode(font.is_invisible()));
     return {};
 }
@@ -55,8 +58,13 @@ ErrorOr<Compositing::DisplayListFontResource> decode(Decoder& decoder)
     auto point_size = TRY(decoder.decode<float>());
     auto variations = TRY(decoder.decode<Gfx::FontVariationSettings>());
     auto features = TRY(decoder.decode<Gfx::ShapeFeatures>());
+    Gfx::FontSynthesis synthesis;
+    synthesis.bold = TRY(decoder.decode<bool>());
+    synthesis.oblique_angle = TRY(decoder.decode<float>());
+    if (!__builtin_isfinite(synthesis.oblique_angle) || AK::fabs(synthesis.oblique_angle) > 90)
+        return Error::from_string_literal("Invalid synthetic oblique angle");
     auto invisible = TRY(decoder.decode<bool>());
-    auto font = invisible ? typeface->invisible_font(point_size, variations, features) : typeface->font(point_size, variations, features);
+    auto font = invisible ? typeface->invisible_font(point_size, variations, features, synthesis) : typeface->font(point_size, variations, features, synthesis);
 
     return Compositing::DisplayListFontResource {
         .id = id,

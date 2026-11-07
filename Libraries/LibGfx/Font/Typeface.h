@@ -57,15 +57,27 @@ struct SystemUIFontStyle {
     u8 slope;
 };
 
+// https://drafts.csswg.org/css-fonts-4/#font-synthesis-intro
+// How a font is drawn bolder or slanted than its face, where the face lacks the weight or style asked for.
+struct FontSynthesis {
+    bool bold { false };
+    // The angle of a synthetic oblique, in degrees; positive slants the glyphs' tops toward the end of the line.
+    float oblique_angle { 0 };
+
+    bool operator==(FontSynthesis const&) const = default;
+};
+
 struct FontCacheKey {
     float point_size;
     Vector<FontVariationAxis> axes;
     Gfx::ShapeFeatures shape_features;
+    FontSynthesis synthesis;
 
     // Sizes and values compare by their bits, as the hash reads them, so that a key with NaN finds itself.
     bool operator==(FontCacheKey const& other) const
     {
-        if (bit_cast<u32>(point_size) != bit_cast<u32>(other.point_size) || axes.size() != other.axes.size() || shape_features != other.shape_features)
+        if (bit_cast<u32>(point_size) != bit_cast<u32>(other.point_size) || axes.size() != other.axes.size() || shape_features != other.shape_features
+            || synthesis.bold != other.synthesis.bold || bit_cast<u32>(synthesis.oblique_angle) != bit_cast<u32>(other.synthesis.oblique_angle))
             return false;
         for (size_t index = 0; index < axes.size(); ++index) {
             if (axes[index].tag != other.axes[index].tag || bit_cast<u32>(axes[index].value) != bit_cast<u32>(other.axes[index].value))
@@ -80,6 +92,7 @@ struct FontCacheKey {
         for (auto const& axis : axes)
             h = pair_int_hash(h, pair_int_hash(axis.tag.to_u32(), bit_cast<u32>(axis.value)));
         h = pair_int_hash(h, Traits<Gfx::ShapeFeatures>::hash(shape_features));
+        h = pair_int_hash(h, pair_int_hash(synthesis.bold, bit_cast<u32>(synthesis.oblique_angle)));
         return h;
     }
 };
@@ -121,9 +134,9 @@ public:
     RefPtr<FontDataBacking> font_data_backing() const { return m_font_data; }
     u32 collection_index() const { return m_ttc_index; }
 
-    [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;
+    [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}, FontSynthesis synthesis = {}) const;
     // A font that measures and shapes text like font() but draws nothing. Each call makes a new font.
-    [[nodiscard]] NonnullRefPtr<Font> invisible_font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;
+    [[nodiscard]] NonnullRefPtr<Font> invisible_font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}, FontSynthesis synthesis = {}) const;
 
     void set_system_font_identifier(SystemFontIdentifier identifier) { m_system_font_identifier = identifier; }
     Optional<SystemFontIdentifier> system_font_identifier() const { return m_system_font_identifier; }

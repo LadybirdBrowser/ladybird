@@ -7,6 +7,7 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/Math.h>
 #include <AK/NumericLimits.h>
 #include <AK/TypeCasts.h>
 #include <AK/Utf16String.h>
@@ -43,13 +44,14 @@ public:
     FFI::FfiMathData data {};
 };
 
-Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, FontVariationSettings const variations, ShapeFeatures const& features)
+Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, FontVariationSettings const variations, ShapeFeatures const& features, FontSynthesis synthesis)
     : m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
     , m_typeface(move(typeface))
     , m_point_width(point_width)
     , m_point_height(point_height)
     , m_font_variation_settings(move(variations))
     , m_shape_features(features)
+    , m_synthesis(synthesis)
 {
     m_pixel_size = m_point_height * (DEFAULT_DPI / POINTS_PER_INCH);
     m_style = m_typeface->style_for_variations(m_font_variation_settings.to_sorted_list());
@@ -125,7 +127,7 @@ float Font::width(Utf16View const& view) const { return measure_text_width(view,
 
 NonnullRefPtr<Font> Font::invisible_variant() const
 {
-    return m_typeface->invisible_font(m_point_height, m_font_variation_settings, m_shape_features);
+    return m_typeface->invisible_font(m_point_height, m_font_variation_settings, m_shape_features, m_synthesis);
 }
 
 float Font::pixel_size() const
@@ -180,6 +182,9 @@ hb_font_t* Font::create_harfbuzz_font() const
 
         hb_font_set_variations(font, hb_list.data(), hb_list.size());
     }
+    // NB: HarfBuzz slants the glyph outlines and extents it reports, so that text is measured as it's drawn.
+    if (m_synthesis.oblique_angle != 0)
+        hb_font_set_synthetic_slant(font, AK::tan(AK::to_radians(m_synthesis.oblique_angle)));
     hb_font_make_immutable(font);
     return font;
 }
