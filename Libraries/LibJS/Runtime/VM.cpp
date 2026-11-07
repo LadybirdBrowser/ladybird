@@ -56,6 +56,11 @@ VM& VM::the()
 {
     return *s_the;
 }
+
+bool VM::exists_on_this_thread()
+{
+    return s_the != nullptr;
+}
 #else
 constinit thread_local VM* VM::s_the = nullptr;
 #endif

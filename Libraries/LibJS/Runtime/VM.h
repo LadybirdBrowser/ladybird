@@ -132,8 +132,10 @@ public:
     // The VM of the calling thread. A thread that runs a VM creates and destroys it, and has at most one at a time.
 #if defined(AK_OS_WINDOWS)
     static VM& the();
+    static bool exists_on_this_thread();
 #else
     ALWAYS_INLINE static VM& the() { return *s_the; }
+    ALWAYS_INLINE static bool exists_on_this_thread() { return s_the != nullptr; }
 #endif
 
     // A thread that runs a VM should have a stack of at least this size, which is what main threads usually get. The
