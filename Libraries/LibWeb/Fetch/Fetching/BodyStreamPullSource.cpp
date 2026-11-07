@@ -226,8 +226,8 @@ void BodyStreamPullSource::on_pull_wake()
 
     // 3. Queue a fetch task to run the following steps, with fetchParams’s task destination:
     // NB: This task stays queued when the fetch is stopped.
-    auto steps = GC::create_function(heap(), [this] {
-        run_pull_task();
+    auto steps = GC::create_function(heap(), GC::captures(*this), [](BodyStreamPullSource& self) {
+        self.run_pull_task();
     });
     if (m_fetch_controller) {
         Infrastructure::queue_fetch_task(m_fetch_controller->task_destination(), steps);
@@ -375,12 +375,12 @@ GC::Ref<Infrastructure::Body> create_body_from_channel(JS::Realm& realm, GC::Ptr
     auto pull_source = GC::Heap::the().allocate<BodyStreamPullSource>(realm, fetch_controller, stream, move(channel), *wake_sink);
 
     // 11. Let pullAlgorithm be the following steps:
-    auto pull_algorithm = GC::create_function(GC::Heap::the(), [pull_source]() {
+    auto pull_algorithm = GC::create_function(GC::Heap::the(), GC::captures(pull_source), [](GC::Ref<BodyStreamPullSource> pull_source) {
         return pull_source->pull();
     });
 
     // 12. Let cancelAlgorithm be an algorithm that aborts fetchParams’s controller with reason, given reason.
-    auto cancel_algorithm = GC::create_function(GC::Heap::the(), [pull_source](JS::Value reason) {
+    auto cancel_algorithm = GC::create_function(GC::Heap::the(), GC::captures(pull_source), [](GC::Ref<BodyStreamPullSource> pull_source, JS::Value reason) {
         return pull_source->cancel(reason);
     });
 
@@ -388,7 +388,7 @@ GC::Ref<Infrastructure::Body> create_body_from_channel(JS::Realm& realm, GC::Ptr
     stream->set_up_with_byte_reading_support(realm, pull_algorithm, cancel_algorithm);
     pull_source->watch_channel();
 
-    auto read_resource_header = GC::create_function(GC::Heap::the(), [pull_source](Infrastructure::Body::ResourceHeaderCallback on_resource_header) {
+    auto read_resource_header = GC::create_function(GC::Heap::the(), GC::captures(pull_source), [](GC::Ref<BodyStreamPullSource> pull_source, Infrastructure::Body::ResourceHeaderCallback on_resource_header) {
         pull_source->read_resource_header(on_resource_header);
     });
     return Infrastructure::Body::create_over_arriving_bytes(stream, read_resource_header);

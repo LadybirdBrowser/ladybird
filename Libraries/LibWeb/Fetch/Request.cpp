@@ -32,7 +32,7 @@ static GC::Ref<Streams::TransformStream> create_an_identity_transform_stream(HTM
 
     // 2. Set up transformStream with transformAlgorithm set to an algorithm which, given chunk, enqueues chunk in
     //    transformStream.
-    auto transform_algorithm = GC::create_function(GC::Heap::the(), [&realm, transform_stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+    auto transform_algorithm = GC::create_function(GC::Heap::the(), GC::captures(realm, transform_stream), [](auto& realm, auto& transform_stream, JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
         if (auto result = transform_stream->enqueue(chunk); result.is_error())
             return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());

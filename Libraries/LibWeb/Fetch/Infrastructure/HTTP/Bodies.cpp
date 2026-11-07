@@ -109,8 +109,8 @@ void Body::wait_for_sniff_bytes(SniffBytesCallback on_ready)
         return;
     auto reader = unread->reader;
     m_resource_header = ReadingResourceHeader {};
-    reader->function()(GC::create_function(heap(), [body = GC::Ref { *this }](Core::ImmutableBytes bytes, SniffOutcome outcome) {
-        body->did_read_resource_header(move(bytes), outcome);
+    reader->function()(GC::create_function(heap(), GC::captures(*this), [](Body& body, Core::ImmutableBytes bytes, SniffOutcome outcome) {
+        body.did_read_resource_header(move(bytes), outcome);
     }));
 }
 
@@ -119,9 +119,9 @@ void Body::did_read_resource_header(Core::ImmutableBytes bytes, SniffOutcome out
     VERIFY(m_resource_header.has<ReadingResourceHeader>());
     m_resource_header = ReadResourceHeader { move(bytes), outcome };
 
-    auto steps = GC::create_function(heap(), [body = GC::Ref { *this }] {
-        auto callback = exchange(body->m_sniff_bytes_callback, nullptr);
-        callback->function()(*body->sniff_bytes_if_available());
+    auto steps = GC::create_function(heap(), GC::captures(*this), [](Body& body) {
+        auto callback = exchange(body.m_sniff_bytes_callback, nullptr);
+        callback->function()(*body.sniff_bytes_if_available());
     });
     HTML::queue_a_task(HTML::Task::Source::Networking, HTML::current_event_loop(), nullptr, steps);
 }
@@ -152,19 +152,19 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
         task_destination = HTML::ParallelQueue::create();
 
     // 2. Let successSteps given a byte sequence bytes be to queue a fetch task to run processBody given bytes, with taskDestination.
-    auto success_steps = [process_body, task_destination](ByteBuffer bytes) {
-        queue_fetch_task(task_destination, GC::create_function(GC::Heap::the(), [process_body, bytes = move(bytes)]() mutable {
+    auto success_steps = GC::create_function(GC::Heap::the(), GC::captures(process_body, task_destination), [](ProcessBodyCallback process_body, TaskDestination const& task_destination, ByteBuffer bytes) {
+        queue_fetch_task(task_destination, GC::create_function(GC::Heap::the(), GC::captures(process_body, move(bytes)), [](ProcessBodyCallback process_body, ByteBuffer& bytes) {
             process_body->function()(move(bytes));
         }));
-    };
+    });
 
     // 3. Let errorSteps optionally given an exception exception be to queue a fetch task to run processBodyError given
     //    exception, with taskDestination.
-    auto error_steps = [process_body_error, task_destination](JS::Value exception) {
-        queue_fetch_task(task_destination, GC::create_function(GC::Heap::the(), [process_body_error, exception]() {
+    auto error_steps = GC::create_function(GC::Heap::the(), GC::captures(process_body_error, task_destination), [](ProcessBodyErrorCallback process_body_error, TaskDestination const& task_destination, JS::Value exception) {
+        queue_fetch_task(task_destination, GC::create_function(GC::Heap::the(), GC::captures(process_body_error, exception), [](ProcessBodyErrorCallback process_body_error, JS::Value exception) {
             process_body_error->function()(exception);
         }));
-    };
+    });
 
     // 4. Let reader be the result of getting a reader for body’s stream. If that threw an exception, then run errorSteps
     //    with that exception and return.
@@ -172,12 +172,12 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
 
     if (reader.is_exception()) {
         auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, reader.release_error());
-        error_steps(throw_completion.release_value());
+        error_steps->function()(throw_completion.release_value());
         return;
     }
 
     // 5. Read all bytes from reader, given successSteps and errorSteps.
-    reader.value()->read_all_bytes(GC::create_function(GC::Heap::the(), move(success_steps)), GC::create_function(GC::Heap::the(), move(error_steps)));
+    reader.value()->read_all_bytes(success_steps, error_steps);
 }
 
 // https://fetch.spec.whatwg.org/#body-incrementally-read

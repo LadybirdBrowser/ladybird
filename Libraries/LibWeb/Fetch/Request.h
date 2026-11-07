@@ -40,6 +40,7 @@ public:
     virtual ~Request() override;
 
     // ^BodyMixin
+    virtual GC::Cell const& this_impl() const override { return *this; }
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const override;
     virtual GC::Ptr<Infrastructure::Body> body_impl() override;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const override;
