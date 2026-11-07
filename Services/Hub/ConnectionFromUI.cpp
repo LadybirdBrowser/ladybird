@@ -315,6 +315,50 @@ void ConnectionFromUI::pip_did_close(u64 view_id, bool video_keeps_playing)
         window->did_close(video_keeps_playing);
 }
 
+void ConnectionFromUI::geolocation_position(u64 id, Core::GeolocationCoordinates coordinates)
+{
+    if (auto* provider = GeolocationProviderInUI::the())
+        provider->did_receive_position(id, move(coordinates));
+}
+
+void ConnectionFromUI::geolocation_error(u64 id, Core::GeolocationError error)
+{
+    if (auto* provider = GeolocationProviderInUI::the())
+        provider->did_receive_error(id, move(error));
+}
+
+void ConnectionFromUI::geolocation_authorization_changed(Core::GeolocationAuthorization authorization)
+{
+    if (auto* provider = GeolocationProviderInUI::the())
+        provider->did_change_authorization(authorization);
+}
+
+void ConnectionFromUI::translator_language_detected(u64 request_id, Optional<String> language)
+{
+    if (auto* translator = TranslatorInUI::the())
+        translator->did_detect_language(request_id, move(language));
+}
+
+void ConnectionFromUI::translator_target_languages_ready(u64 request_id, Vector<WebView::Translator::TargetLanguage> target_languages)
+{
+    if (auto* translator = TranslatorInUI::the())
+        translator->did_get_target_languages(request_id, move(target_languages));
+}
+
+void ConnectionFromUI::translator_translation_finished(u64 request_id, Optional<Vector<Web::TranslationRun>> runs)
+{
+    if (auto* translator = TranslatorInUI::the())
+        translator->did_translate(request_id, move(runs));
+}
+
+void ConnectionFromUI::system_time_zone_changed()
+{
+    WebView::WebContentClient::for_each_client([](WebView::WebContentClient& client) {
+        client.async_system_time_zone_changed();
+        return IterationDecision::Continue;
+    });
+}
+
 void ConnectionFromUI::notification_shown(u64 id)
 {
     if (auto* backend = NotificationBackendInUI::the(); backend && backend->on_shown)
@@ -494,7 +538,6 @@ static WebView::SessionStore& session_store_of(WebView::IsPrivate is_private)
 
 Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
 {
-    auto& application = Application::the();
     auto const& options = Application::browser_options();
 
     InitialState state;
@@ -506,7 +549,6 @@ Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
     state.raw_urls = options.raw_urls;
     state.crash_report_directory = WebView::CrashReportStore::the().directory();
     state.devtools_port = options.devtools_port;
-    state.has_translator = application.translator() != nullptr;
     auto const& profile = Application::profile();
     state.profile_identifier = profile.identifier();
     state.profile_identity = profile.paths().identity;

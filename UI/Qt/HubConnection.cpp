@@ -465,6 +465,142 @@ void HubConnection::notification_close(u64 id)
     Application::the().notification_backend().close(id);
 }
 
+Core::GeolocationProvider* HubConnection::ensure_geolocation_provider()
+{
+    if (m_geolocation_provider)
+        return m_geolocation_provider.ptr();
+
+    auto provider = Core::GeolocationProvider::create();
+    if (provider.is_error()) {
+        dbgln("Unable to create the geolocation provider: {}", provider.error());
+        return nullptr;
+    }
+    m_geolocation_provider = provider.release_value();
+    m_geolocation_provider->on_authorization_change = [this] {
+        async_geolocation_authorization_changed(m_geolocation_provider->authorization());
+    };
+    async_geolocation_authorization_changed(m_geolocation_provider->authorization());
+    return m_geolocation_provider.ptr();
+}
+
+static Core::GeolocationError geolocation_provider_unavailable_error()
+{
+    return { Core::GeolocationError::Type::PositionUnavailable, "The location provider is not available"_string };
+}
+
+// NB: Our provider tells the Hub of changes to the system's authorization from when it exists, so the Hub has it made
+//     as soon as it needs the location rather than with the first position request.
+void HubConnection::geolocation_start()
+{
+    (void)ensure_geolocation_provider();
+}
+
+void HubConnection::geolocation_request_position(u64 id)
+{
+    auto* provider = ensure_geolocation_provider();
+    if (!provider) {
+        async_geolocation_error(id, geolocation_provider_unavailable_error());
+        return;
+    }
+    auto request = provider->request_current_position(
+        [this, id](Core::GeolocationCoordinates coordinates) {
+            m_geolocation_requests.remove(id);
+            async_geolocation_position(id, coordinates);
+        },
+        [this, id](Core::GeolocationError error) {
+            m_geolocation_requests.remove(id);
+            async_geolocation_error(id, error);
+        });
+    if (request.is_error()) {
+        async_geolocation_error(id, request.release_error());
+        return;
+    }
+    m_geolocation_requests.set(id, request.value());
+}
+
+void HubConnection::geolocation_cancel_position_request(u64 id)
+{
+    if (auto request = m_geolocation_requests.take(id); request.has_value())
+        m_geolocation_provider->cancel_current_position_request(*request);
+}
+
+void HubConnection::geolocation_start_watching(u64 id)
+{
+    auto* provider = ensure_geolocation_provider();
+    if (!provider) {
+        async_geolocation_error(id, geolocation_provider_unavailable_error());
+        return;
+    }
+    auto watch = provider->start_watching_position(
+        [this, id](Core::GeolocationCoordinates coordinates) { async_geolocation_position(id, coordinates); },
+        [this, id](Core::GeolocationError error) { async_geolocation_error(id, error); });
+    if (watch.is_error()) {
+        async_geolocation_error(id, watch.release_error());
+        return;
+    }
+    m_geolocation_watches.set(id, watch.value());
+}
+
+void HubConnection::geolocation_stop_watching(u64 id)
+{
+    if (auto watch = m_geolocation_watches.take(id); watch.has_value())
+        m_geolocation_provider->stop_watching_position(*watch);
+}
+
+void HubConnection::translator_detect_language(u64 request_id, Web::TranslationLanguageSample sample)
+{
+    auto* translator = Application::the().translator();
+    if (!translator) {
+        async_translator_language_detected(request_id, {});
+        return;
+    }
+    translator->detect_language(sample, [this, request_id](Optional<String> language) {
+        async_translator_language_detected(request_id, language);
+    });
+}
+
+void HubConnection::translator_target_languages(u64 request_id, String source_language, Vector<String> candidates)
+{
+    auto* translator = Application::the().translator();
+    if (!translator) {
+        async_translator_target_languages_ready(request_id, {});
+        return;
+    }
+    translator->target_languages(source_language, candidates, [this, request_id](Vector<WebView::Translator::TargetLanguage> target_languages) {
+        async_translator_target_languages_ready(request_id, target_languages);
+    });
+}
+
+void HubConnection::translator_create_session(u64 session_id, String source_language, String target_language)
+{
+    if (auto* translator = Application::the().translator())
+        m_translator_sessions.set(session_id, translator->create_session(source_language, target_language));
+}
+
+void HubConnection::translator_close_session(u64 session_id)
+{
+    if (auto session = m_translator_sessions.take(session_id); session.has_value())
+        Application::the().translator()->close_session(*session);
+}
+
+void HubConnection::translator_translate(u64 request_id, u64 session_id, Web::TranslationUnit unit)
+{
+    auto session = m_translator_sessions.get(session_id);
+    if (!session.has_value()) {
+        async_translator_translation_finished(request_id, {});
+        return;
+    }
+    Application::the().translator()->translate(*session, move(unit), [this, request_id](Optional<Vector<Web::TranslationRun>> runs) {
+        async_translator_translation_finished(request_id, runs);
+    });
+}
+
+void HubConnection::translator_open_language_download_settings()
+{
+    if (auto* translator = Application::the().translator())
+        translator->open_language_download_settings();
+}
+
 void HubConnection::app_focus_view_from_notification(u64 view_id)
 {
     Application::the().focus_view_from_notification(view_id);

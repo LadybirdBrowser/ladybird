@@ -3043,8 +3043,9 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
 
 bool Application::sites_can_ask_for_location() const
 {
-    // NB: Tests get their positions from emulation, so they need no provider.
-    auto has_location_source = Core::GeolocationProvider::is_available() || web_content_options().is_test_mode == IsTestMode::Yes;
+    // NB: Tests and WebDriver sessions get their positions from emulation, so they need no provider.
+    auto has_location_source = Core::GeolocationProvider::is_available() || web_content_options().is_test_mode == IsTestMode::Yes
+        || browser_options().webdriver_browser_endpoint.has_value();
     return settings().location_policy() == LocationPolicy::Ask && has_location_source;
 }
 

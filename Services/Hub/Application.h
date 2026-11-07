@@ -61,6 +61,8 @@ public:
     virtual void notify_webdriver_window_created(String const& handle) override;
     void set_ui_info(Hub::UIInfo);
     StringView ui_mach_server_name() const { return m_ui_mach_server_name; }
+    bool ui_has_location_source() const;
+    bool ui_has_translator() const;
     void did_resolve_external_url_handler(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird);
     void launch_external_url(u64 handler_id, URL::URL const&, Function<void(bool)>) const;
     void did_launch_external_url(u64 request_id, bool launched);

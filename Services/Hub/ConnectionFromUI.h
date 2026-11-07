@@ -126,6 +126,13 @@ private:
     virtual void notification_failed(u64 id) override;
     virtual void notification_clicked(u64 id) override;
     virtual void notification_closed(u64 id, bool by_user) override;
+    virtual void geolocation_position(u64 id, Core::GeolocationCoordinates coordinates) override;
+    virtual void geolocation_error(u64 id, Core::GeolocationError error) override;
+    virtual void geolocation_authorization_changed(Core::GeolocationAuthorization authorization) override;
+    virtual void system_time_zone_changed() override;
+    virtual void translator_language_detected(u64 request_id, Optional<String> language) override;
+    virtual void translator_target_languages_ready(u64 request_id, Vector<WebView::Translator::TargetLanguage> target_languages) override;
+    virtual void translator_translation_finished(u64 request_id, Optional<Vector<Web::TranslationRun>> runs) override;
     virtual void external_url_handler_resolved(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird) override;
     virtual void external_url_launched(u64 request_id, bool launched) override;
     virtual void omnibox_open(u64 client_id, WebView::IsPrivate is_private) override;
