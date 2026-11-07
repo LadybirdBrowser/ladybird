@@ -1,0 +1,3 @@
+opacity-pulse: 0
+color-pulse: 0
+filter-pulse: 0
