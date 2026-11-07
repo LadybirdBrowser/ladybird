@@ -38,8 +38,11 @@ GC_API FlatPtr js_heap_region_base = 0;
 
 namespace GC {
 
-// Every BlockAllocator takes 2 MiB chunks from one process-wide reserved
-// region, and carves 16 KiB HeapBlock slots out of those chunks.
+// Every BlockAllocator takes 16 KiB HeapBlock slots from one process-wide
+// reserved region, which commits them 2 MiB at a time. A slot that was never
+// used belongs to nobody, so the allocators can all take their slots from the
+// same chunk, and a pool for a type that only needs one block costs one block.
+// A slot that was used stays with the allocator that took it.
 //
 // Per-block madvise() is deferred to a single global background "decommit
 // worker" so it never costs us GC pause time, and slots that are recycled
@@ -97,17 +100,22 @@ public:
 
     // This process-global region is shared by every Heap, and heaps allocate blocks on their own threads while the
     // decommit worker prepares the next chunk ahead of time, so the chunk bookkeeping is under a lock.
-    void* allocate_chunk()
+    void* take_unused_block()
     {
-        u8* chunk = nullptr;
+        u8* block = nullptr;
+        bool took_chunk = false;
         {
             MutexLocker locker(m_mutex);
-            chunk = exchange(m_prepared_chunk, nullptr);
-            if (!chunk)
-                chunk = commit_next_chunk();
+            if (m_next_unused_block == m_unused_blocks_end) {
+                take_chunk();
+                took_chunk = true;
+            }
+            block = m_next_unused_block;
+            m_next_unused_block += HeapBlock::BLOCK_SIZE;
         }
-        request_prepared_chunk();
-        return chunk;
+        if (took_chunk)
+            request_prepared_chunk();
+        return block;
     }
 
     // Commits the next chunk and faults its pages in, so that the first touches of its blocks take no page faults
@@ -117,7 +125,7 @@ public:
         u8* chunk = nullptr;
         {
             MutexLocker locker(m_mutex);
-            // NB: Running out of the region is left to allocate_chunk(), on the thread that needs another chunk.
+            // NB: Running out of the region is left to take_unused_block(), on the thread that needs another chunk.
             if (m_prepared_chunk || m_next_chunk_offset > LAST_CHUNK_OFFSET)
                 return;
             chunk = commit_next_chunk();
@@ -174,11 +182,36 @@ private:
         return chunk;
     }
 
+    void take_chunk()
+    {
+        auto* chunk = exchange(m_prepared_chunk, nullptr);
+        if (!chunk)
+            chunk = commit_next_chunk();
+
+#if defined(MADV_FREE_REUSE) && defined(MADV_FREE_REUSABLE)
+        // Mark the whole chunk reusable upfront so MADV_FREE_REUSE pairs
+        // symmetrically when its blocks are handed out. (Linux and Windows
+        // fall through with no-op.)
+        if (madvise(chunk, CHUNK_SIZE, MADV_FREE_REUSABLE) < 0) {
+            perror("madvise(MADV_FREE_REUSABLE)");
+            VERIFY_NOT_REACHED();
+        }
+#endif
+
+        ASAN_POISON_MEMORY_REGION(chunk, CHUNK_SIZE);
+
+        m_next_unused_block = chunk;
+        m_unused_blocks_end = chunk + CHUNK_SIZE;
+    }
+
     u8* m_base { nullptr };
     Mutex m_mutex;
     size_t m_next_chunk_offset { FIRST_CHUNK_OFFSET };
-    // A committed chunk whose pages are faulted in already, which the next allocate_chunk() takes.
+    // A committed chunk whose pages are faulted in already, which is the next one that blocks come from.
     u8* m_prepared_chunk { nullptr };
+    // The blocks of the current chunk that were never used.
+    u8* m_next_unused_block { nullptr };
+    u8* m_unused_blocks_end { nullptr };
 };
 
 static HeapRegion& heap_region()
@@ -496,25 +529,7 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
     }
 
     if (block == nullptr) {
-        // Both pools empty: commit a fresh 2 MiB chunk and slice it.
-        auto* chunk_base = heap_region().allocate_chunk();
-
-#if defined(MADV_FREE_REUSE) && defined(MADV_FREE_REUSABLE)
-        // Mark the whole chunk reusable upfront so MADV_FREE_REUSE pairs
-        // symmetrically when slots are popped from m_blocks later. (Linux
-        // and Windows fall through with no-op.)
-        if (madvise(chunk_base, CHUNK_SIZE, MADV_FREE_REUSABLE) < 0) {
-            perror("madvise(MADV_FREE_REUSABLE)");
-            VERIFY_NOT_REACHED();
-        }
-#endif
-
-        ASAN_POISON_MEMORY_REGION(chunk_base, CHUNK_SIZE);
-
-        MutexLocker locker(m_mutex);
-        for (size_t i = 0; i < BLOCKS_PER_CHUNK; ++i)
-            m_blocks.append(static_cast<u8*>(chunk_base) + i * HeapBlock::BLOCK_SIZE);
-        block = m_blocks.take_last();
+        block = heap_region().take_unused_block();
         needs_madvise_reuse = true;
     }
 

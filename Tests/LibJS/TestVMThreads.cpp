@@ -7,6 +7,8 @@
 #include <AK/Array.h>
 #include <AK/Atomic.h>
 #include <AK/ByteString.h>
+#include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/StackInfo.h>
 #include <AK/Time.h>
 #include <AK/Utf16String.h>
@@ -14,8 +16,12 @@
 #include <LibCore/Environment.h>
 #include <LibCore/System.h>
 #include <LibGC/BlockAllocator.h>
+#include <LibGC/DeferGC.h>
+#include <LibGC/HeapBlock.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
@@ -147,6 +153,108 @@ TEST_CASE(heap_blocks_come_back_when_vms_go_away)
     // NB: Timing can make the threads of a round overlap more than those of the first one, so allow for a few chunks.
     //     A round that leaked its blocks would take more than all of this.
     EXPECT(GC::BlockAllocator::heap_region_committed_end() <= committed_end + 16 * MiB);
+}
+
+namespace {
+
+// What a block holds, in terms that mean the same in every heap: the descriptor of a Rust type goes with its heap.
+struct BlockContents {
+    void const* type { nullptr };
+    size_t cell_size { 0 };
+
+    bool operator==(BlockContents const&) const = default;
+};
+
+}
+
+static HashMap<FlatPtr, BlockContents> contents_of_blocks(GC::Heap& heap)
+{
+    HashMap<FlatPtr, BlockContents> blocks;
+    heap.for_each_block([&](GC::HeapBlock& block) {
+        auto const* foreign_type = block.foreign_type();
+        auto const* type = foreign_type ? foreign_type : &block.cell_allocator().descriptor();
+        blocks.set(bit_cast<FlatPtr>(&block), { type, block.cell_size() });
+        return IterationDecision::Continue;
+    });
+    return blocks;
+}
+
+static void run_script(JS::VM& vm, JS::Realm& realm, StringView source)
+{
+    auto source_text = Utf16String::from_utf8_without_validation(source.bytes());
+    auto script = JS::Script::parse(source_text.utf16_view(), realm);
+    VERIFY(!script.is_error());
+    VERIFY(!vm.run(script.value()).is_error());
+}
+
+TEST_CASE(block_addresses_stay_with_their_type_across_vms)
+{
+    // Keeps what it allocates, as the blocks are looked at while the VM still has them.
+    static constexpr auto FIRST_SCRIPT = R"(
+        globalThis.kept = [];
+        for (let i = 0; i < 40000; ++i)
+            kept.push({ i }, [i], `string-${i}`, () => i, new Map(), Symbol("s"));
+    )"sv;
+    // Different types, in different amounts.
+    static constexpr auto SECOND_SCRIPT = R"(
+        globalThis.kept = [];
+        for (let i = 0; i < 40000; ++i)
+            kept.push(new Date(i), new Set([i]), new Uint8Array(4), /a/g, new Error("e"), `string-${i}`, { i, j: i, k: i, l: i });
+    )"sv;
+
+    HashMap<FlatPtr, BlockContents> first_blocks;
+    run_on_vm_threads(1, [&] {
+        auto vm = JS::VM::create();
+        vm->heap().set_incremental_sweep_enabled(false);
+        auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+        run_script(*vm, *root_execution_context->realm, FIRST_SCRIPT);
+        first_blocks = contents_of_blocks(vm->heap());
+    });
+
+    run_on_vm_threads(1, [&] {
+        auto vm = JS::VM::create();
+        vm->heap().set_incremental_sweep_enabled(false);
+        auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+        run_script(*vm, *root_execution_context->realm, SECOND_SCRIPT);
+
+        size_t reused_blocks = 0;
+        for (auto const& [address, contents] : contents_of_blocks(vm->heap())) {
+            auto first_contents = first_blocks.get(address);
+            if (!first_contents.has_value())
+                continue;
+            ++reused_blocks;
+            EXPECT(first_contents.value() == contents);
+        }
+        // Realms, shapes and strings, at least.
+        EXPECT(reused_blocks > 10);
+    });
+}
+
+TEST_CASE(a_host_class_keeps_its_blocks_across_vms)
+{
+    static JSHostClass const host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "TestHostObject"sv, nullptr, nullptr, nullptr, 0);
+
+    auto allocate_host_objects = [](JS::VM& vm) {
+        auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(vm);
+        GC::DeferGC defer_gc { vm.heap() };
+        HashTable<FlatPtr> blocks;
+        while (blocks.size() < 16) {
+            auto object = JS::HostObject::create(*root_execution_context->realm, host_class, nullptr);
+            blocks.set(bit_cast<FlatPtr>(GC::HeapBlock::from_cell(GC::as_cell(object.ptr()))));
+        }
+        return blocks;
+    };
+
+    HashTable<FlatPtr> first_blocks;
+    run_on_vm_threads(1, [&] {
+        auto vm = JS::VM::create();
+        first_blocks = allocate_host_objects(*vm);
+    });
+    run_on_vm_threads(1, [&] {
+        auto vm = JS::VM::create();
+        for (auto block : allocate_host_objects(*vm))
+            EXPECT(first_blocks.contains(block));
+    });
 }
 
 // Scripts that never end by themselves. Those that set `reached` show what an interrupt must not let run.

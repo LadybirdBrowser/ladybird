@@ -10,6 +10,7 @@
 #include <AK/ConditionVariable.h>
 #include <AK/Mutex.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibGC/Forward.h>
 
 namespace GC {
@@ -21,8 +22,11 @@ enum class DeferDecommit {
 
 class DecommitWorker;
 
+// The blocks of one type of cell in all heaps, see CellAllocatorDescriptorBase::block_allocator().
 class GC_API BlockAllocator {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     BlockAllocator();
     ~BlockAllocator();
 
