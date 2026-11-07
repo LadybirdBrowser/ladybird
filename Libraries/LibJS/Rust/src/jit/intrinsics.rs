@@ -9,6 +9,7 @@
 //! code then exits to the interpreter, which runs the instruction itself.
 
 use ak::Utf16FlyString;
+use libjs_runtime_macros::jit_abi;
 
 use crate::bytecode::executable::{KeyedPropertyLookup, KeyedPropertyLookupCache, PropertyLookupCacheEntryType};
 use crate::gc::class::GcCell;
@@ -34,6 +35,7 @@ use crate::utf16::{has_fly_string_storage, to_utf16_fly_string};
 ///
 /// `items` points to `item_count` live, aligned values on the caller's native
 /// stack, outside any object's element storage, for the duration of the call.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_array_splice(
     vm: &Vm,
     receiver: u64,
@@ -186,6 +188,7 @@ fn has_own_string_property(vm: &Vm, object: Gc<Object>, name: &Utf16FlyString) -
 /// `Object.prototype.hasOwnProperty` called on `object` with `key`.
 ///
 /// JIT code calls this with its VM.
+#[jit_abi]
 pub extern "C" fn libjs_jit_has_own_property(vm: &Vm, object: u64, key: u64) -> u64 {
     let (object, key) = (Value::from_bits(object), Value::from_bits(key));
     if !object.is_object() || !has_ordinary_lookups(object.as_object()) {
@@ -210,6 +213,7 @@ pub extern "C" fn libjs_jit_has_own_property(vm: &Vm, object: u64, key: u64) -> 
 /// `key in object`.
 ///
 /// JIT code calls this with its VM.
+#[jit_abi]
 pub extern "C" fn libjs_jit_has_property(vm: &Vm, key: u64, object: u64) -> u64 {
     let (key_value, object) = (Value::from_bits(key), Value::from_bits(object));
     let index_key = key_value.is_int32() && key_value.as_i32() >= 0;
@@ -264,6 +268,7 @@ pub extern "C" fn libjs_jit_has_property(vm: &Vm, key: u64, object: u64) -> u64 
 /// empty value otherwise.
 ///
 /// JIT code calls this with its VM.
+#[jit_abi]
 pub extern "C" fn libjs_jit_open_array_iteration(vm: &Vm, iterable: u64) -> u64 {
     let iterable = Value::from_bits(iterable);
     if !iterable.is_object() {

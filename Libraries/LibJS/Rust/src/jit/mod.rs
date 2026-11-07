@@ -84,7 +84,8 @@ fn frames_above(vm: &Vm, frame: NonNull<ExecutionContext>) -> Option<Vec<NonNull
 
 /// What calls of an executable without JIT code enter through its slot in the JIT entry table.
 pub fn not_compiled_call_entry() -> *const core::ffi::c_void {
-    entry_exit::libjs_jit_not_compiled_call_entry as *const core::ffi::c_void
+    libjs_runtime_macros::jit_function_address!(entry_exit::libjs_jit_not_compiled_call_entry)
+        as *const core::ffi::c_void
 }
 
 /// Which interpreter handlers an executable's frames run with. Each tier's value is the index of its dispatch table

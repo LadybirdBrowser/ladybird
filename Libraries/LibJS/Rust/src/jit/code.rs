@@ -53,11 +53,19 @@ pub struct JitResult {
 
 /// `entry(VM*, ExecutionContext* frame)`: the frame is fully built for its executable, at pc 0 with Enter not run yet
 /// (or, for an on-stack replacement entry, at the loop back edge the entry is for).
+#[cfg(not(all(target_arch = "x86_64", windows)))]
 pub type JitEntry = unsafe extern "C" fn(*const Vm, *mut ExecutionContext) -> JitResult;
+#[cfg(all(target_arch = "x86_64", windows))]
+pub type JitEntry = unsafe extern "sysv64" fn(*const Vm, *mut ExecutionContext) -> JitResult;
 
 /// `JitResult trampoline(VM*, ExecutionContext* frame, JitEntry entry)`: how native code calls JIT code (see
 /// `libjs_jit::codegen::generate_entry_trampoline()`), which expects the VM in its pinned register.
+#[cfg(not(all(target_arch = "x86_64", windows)))]
 pub type EntryTrampoline = unsafe extern "C" fn(*const Vm, *mut ExecutionContext, JitEntry) -> JitResult;
+// NB: JIT code uses the System V calling convention on Windows too. Native code that calls it with that convention
+//     keeps the registers that are callee-saved only on Windows, and gets the result in two registers.
+#[cfg(all(target_arch = "x86_64", windows))]
+pub type EntryTrampoline = unsafe extern "sysv64" fn(*const Vm, *mut ExecutionContext, JitEntry) -> JitResult;
 
 /// Where an executable is in its JIT compilation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -11,6 +11,7 @@ use core::ptr::NonNull;
 
 use libjs_abi::register;
 use libjs_jit::code::SiteKind;
+use libjs_runtime_macros::jit_abi;
 
 use super::code::{
     CompileState, EXIT_COUNT_BEFORE_DISCARD, EXIT_COUNT_BEFORE_DISCARD_FROM_LOOP, EntryStatus, JitEntry, JitResult,
@@ -39,6 +40,7 @@ pub fn can_enter_jit_code(vm: &Vm, executable: &Executable) -> bool {
 /// # Safety
 ///
 /// JIT code calls this with its VM and the frame it built for the callee.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_not_compiled_call_entry(vm: *const Vm, frame: *mut ExecutionContext) -> JitResult {
     // SAFETY: JIT code passes its live VM.
     let vm = unsafe { &*vm };
@@ -221,6 +223,7 @@ pub fn helper_enter_jit_code(vm: &Vm) -> i64 {
 /// # Safety
 ///
 /// JIT code calls this with its VM, its frame, one of its code's exit or leave sites and the registers it saved.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_exit(
     vm: *const Vm,
     frame: *mut ExecutionContext,
@@ -256,6 +259,7 @@ fn call_site_callee_frame(vm: &Vm, root: NonNull<ExecutionContext>) -> NonNull<E
 /// # Safety
 ///
 /// Compiled code calls this with its VM, its frame, one of its code's inlined call sites and its frame pointer.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_push_inlined_call_frames(
     vm: *const Vm,
     frame: *mut ExecutionContext,
@@ -276,6 +280,7 @@ pub unsafe extern "C" fn libjs_jit_push_inlined_call_frames(
 ///
 /// Compiled code calls this with its VM, its frame, one of its code's inlined call sites, its frame pointer and the
 /// callee's status.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_finish_inlined_direct_call(
     vm: *const Vm,
     frame: *mut ExecutionContext,
@@ -306,6 +311,7 @@ pub unsafe extern "C" fn libjs_jit_finish_inlined_direct_call(
 ///
 /// Compiled code calls this with its VM, its frame, one of its code's inlined call sites, its frame pointer and the
 /// exception.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_inlined_raw_native_exception(
     vm: *const Vm,
     frame: *mut ExecutionContext,
@@ -330,6 +336,7 @@ pub unsafe extern "C" fn libjs_jit_inlined_raw_native_exception(
 /// # Safety
 ///
 /// JIT code calls this with its VM and its frame.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_create_arguments(vm: *const Vm, frame: *mut ExecutionContext, mapped: u32) -> u64 {
     // SAFETY: JIT code passes live pointers.
     let (vm, frame) = unsafe { (&*vm, &*frame) };

@@ -10,6 +10,7 @@
 //! declines, having done nothing observable.
 
 use libjs_jit::snapshot::Intrinsic;
+use libjs_runtime_macros::{jit_abi, jit_function_address};
 
 use crate::interpreter::vm::Vm;
 use crate::layout::value::Value;
@@ -22,22 +23,22 @@ use crate::utf16::TrimMode;
 /// The address of the runtime helper of `intrinsic`, or 0 if JIT code calls it in another way. Every intrinsic with a
 /// `HelperCall` has a helper here.
 pub fn address(intrinsic: Intrinsic) -> u64 {
-    let helper: *const () = match intrinsic {
-        Intrinsic::StringPrototypeIndexOf => string_index_of as *const (),
-        Intrinsic::StringPrototypeLastIndexOf => string_last_index_of as *const (),
-        Intrinsic::StringPrototypeIncludes => string_includes as *const (),
-        Intrinsic::StringPrototypeStartsWith => string_starts_with as *const (),
-        Intrinsic::StringPrototypeEndsWith => string_ends_with as *const (),
-        Intrinsic::StringPrototypeSlice => string_slice as *const (),
-        Intrinsic::StringPrototypeSubstring => string_substring as *const (),
-        Intrinsic::StringPrototypeToLowerCase => string_to_lowercase as *const (),
-        Intrinsic::StringPrototypeToUpperCase => string_to_uppercase as *const (),
-        Intrinsic::StringPrototypeTrim => string_trim as *const (),
-        Intrinsic::StringPrototypeTrimStart => string_trim_start as *const (),
-        Intrinsic::StringPrototypeTrimEnd => string_trim_end as *const (),
-        Intrinsic::RegExpPrototypeExec => regexp_exec as *const (),
-        Intrinsic::MapPrototypeGet => map_get as *const (),
-        Intrinsic::MapPrototypeHas => map_has as *const (),
+    match intrinsic {
+        Intrinsic::StringPrototypeIndexOf => jit_function_address!(string_index_of),
+        Intrinsic::StringPrototypeLastIndexOf => jit_function_address!(string_last_index_of),
+        Intrinsic::StringPrototypeIncludes => jit_function_address!(string_includes),
+        Intrinsic::StringPrototypeStartsWith => jit_function_address!(string_starts_with),
+        Intrinsic::StringPrototypeEndsWith => jit_function_address!(string_ends_with),
+        Intrinsic::StringPrototypeSlice => jit_function_address!(string_slice),
+        Intrinsic::StringPrototypeSubstring => jit_function_address!(string_substring),
+        Intrinsic::StringPrototypeToLowerCase => jit_function_address!(string_to_lowercase),
+        Intrinsic::StringPrototypeToUpperCase => jit_function_address!(string_to_uppercase),
+        Intrinsic::StringPrototypeTrim => jit_function_address!(string_trim),
+        Intrinsic::StringPrototypeTrimStart => jit_function_address!(string_trim_start),
+        Intrinsic::StringPrototypeTrimEnd => jit_function_address!(string_trim_end),
+        Intrinsic::RegExpPrototypeExec => jit_function_address!(regexp_exec),
+        Intrinsic::MapPrototypeGet => jit_function_address!(map_get),
+        Intrinsic::MapPrototypeHas => jit_function_address!(map_has),
         Intrinsic::FunctionPrototypeApply
         | Intrinsic::FunctionPrototypeCall
         | Intrinsic::ArrayPrototypePush
@@ -52,9 +53,8 @@ pub fn address(intrinsic: Intrinsic) -> u64 {
         | Intrinsic::TypedArrayPrototypeLength
         | Intrinsic::MathMax
         | Intrinsic::MathMin
-        | Intrinsic::MathImul => return 0,
-    };
-    helper as u64
+        | Intrinsic::MathImul => 0,
+    }
 }
 
 /// The string of a value JIT code checked to be a string.
@@ -71,6 +71,7 @@ fn int32(value: Value) -> u64 {
 }
 
 /// `string.indexOf(search_string, position)`.
+#[jit_abi]
 extern "C" fn string_index_of(_vm: &Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
     let (string_value, search_string) = (string(string_value), string(search_string));
     int32(StringPrototype::index_of_string(
@@ -81,16 +82,19 @@ extern "C" fn string_index_of(_vm: &Vm, string_value: u64, search_string: u64, p
 }
 
 /// `string.toLowerCase()`.
+#[jit_abi]
 extern "C" fn string_to_lowercase(vm: &Vm, string_value: u64) -> u64 {
     StringPrototype::to_lowercase_string(vm, string(string_value).as_string()).0
 }
 
 /// `string.toUpperCase()`.
+#[jit_abi]
 extern "C" fn string_to_uppercase(vm: &Vm, string_value: u64) -> u64 {
     StringPrototype::to_uppercase_string(vm, string(string_value).as_string()).0
 }
 
 /// `string.lastIndexOf(search_string, position)`.
+#[jit_abi]
 extern "C" fn string_last_index_of(_vm: &Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
     let (string_value, search_string) = (string(string_value), string(search_string));
     int32(StringPrototype::last_index_of_string(
@@ -101,6 +105,7 @@ extern "C" fn string_last_index_of(_vm: &Vm, string_value: u64, search_string: u
 }
 
 /// `string.includes(search_string, position)`.
+#[jit_abi]
 extern "C" fn string_includes(_vm: &Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
     let (string_value, search_string) = (string(string_value), string(search_string));
     u64::from(StringPrototype::includes_string(
@@ -111,6 +116,7 @@ extern "C" fn string_includes(_vm: &Vm, string_value: u64, search_string: u64, p
 }
 
 /// `string.startsWith(search_string, position)`.
+#[jit_abi]
 extern "C" fn string_starts_with(_vm: &Vm, string_value: u64, search_string: u64, position: i32) -> u64 {
     let (string_value, search_string) = (string(string_value), string(search_string));
     u64::from(StringPrototype::starts_with_string(
@@ -121,6 +127,7 @@ extern "C" fn string_starts_with(_vm: &Vm, string_value: u64, search_string: u64
 }
 
 /// `string.endsWith(search_string, end_position)`.
+#[jit_abi]
 extern "C" fn string_ends_with(_vm: &Vm, string_value: u64, search_string: u64, end_position: i32) -> u64 {
     let (string_value, search_string) = (string(string_value), string(search_string));
     u64::from(StringPrototype::ends_with_string(
@@ -131,32 +138,38 @@ extern "C" fn string_ends_with(_vm: &Vm, string_value: u64, search_string: u64, 
 }
 
 /// `string.slice(start, end)`.
+#[jit_abi]
 extern "C" fn string_slice(vm: &Vm, string_value: u64, start: i32, end: i32) -> u64 {
     StringPrototype::slice_string(vm, string(string_value).as_string(), f64::from(start), f64::from(end)).0
 }
 
 /// `string.substring(start, end)`.
+#[jit_abi]
 extern "C" fn string_substring(vm: &Vm, string_value: u64, start: i32, end: i32) -> u64 {
     StringPrototype::substring_string(vm, string(string_value).as_string(), f64::from(start), f64::from(end)).0
 }
 
 /// `string.trim()`.
+#[jit_abi]
 extern "C" fn string_trim(vm: &Vm, string_value: u64) -> u64 {
     trim_primitive_string(vm, string(string_value).as_string(), TrimMode::Both).0
 }
 
 /// `string.trimStart()`.
+#[jit_abi]
 extern "C" fn string_trim_start(vm: &Vm, string_value: u64) -> u64 {
     trim_primitive_string(vm, string(string_value).as_string(), TrimMode::Left).0
 }
 
 /// `string.trimEnd()`.
+#[jit_abi]
 extern "C" fn string_trim_end(vm: &Vm, string_value: u64) -> u64 {
     trim_primitive_string(vm, string(string_value).as_string(), TrimMode::Right).0
 }
 
 /// `regexp.exec(string)`, for a RegExp object `regexp` whose exec runs no code (see
 /// `regexp_builtin_exec_running_no_code()`).
+#[jit_abi]
 extern "C" fn regexp_exec(vm: &Vm, regexp: u64, string_value: u64) -> u64 {
     regexp_builtin_exec_running_no_code(vm, Value::from_bits(regexp), string(string_value).as_string())
         .map_or(Value::EMPTY.0, |result| result.0)
@@ -172,6 +185,7 @@ fn map(value: u64) -> Option<crate::layout::cell::Gc<Map>> {
 }
 
 /// `map.get(key)`, or the empty value if the `this` value is no Map.
+#[jit_abi]
 extern "C" fn map_get(_vm: &Vm, map_value: u64, key: u64) -> u64 {
     let Some(map) = map(map_value) else {
         return Value::EMPTY.0;
@@ -182,6 +196,7 @@ extern "C" fn map_get(_vm: &Vm, map_value: u64, key: u64) -> u64 {
 }
 
 /// `map.has(key)`, or the empty value if the `this` value is no Map.
+#[jit_abi]
 extern "C" fn map_has(_vm: &Vm, map_value: u64, key: u64) -> u64 {
     let Some(map) = map(map_value) else {
         return Value::EMPTY.0;

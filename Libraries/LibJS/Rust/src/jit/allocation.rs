@@ -18,6 +18,7 @@ use libjs_jit::snapshot::{
     ArrayAllocationInfo, CellId, ClosureTemplateSnapshot, EnvironmentTemplateSnapshot, FunctionAllocationInfo,
     LexicalEnvironmentTemplateSnapshot, ObjectAllocationInfo, ObjectSizeClass, RopeAllocationInfo, StorageSizeClass,
 };
+use libjs_runtime_macros::{jit_abi, jit_function_address};
 
 use super::offset;
 use crate::bytecode::executable::Executable;
@@ -115,7 +116,7 @@ pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>
         inline_storage_offset: offset(core::mem::offset_of!(Object, inline_named_storage)),
         plain_inline_storage_offset: offset(core::mem::offset_of!(Object, indexed_elements)),
         inline_capacity_offset: offset(core::mem::offset_of!(Object, inline_named_capacity)),
-        slow_path: libjs_jit_allocate_object as *const () as u64,
+        slow_path: jit_function_address!(libjs_jit_allocate_object),
         ..ObjectAllocationInfo::default()
     };
     // NB: Free lists are only popped inline where the heap gives their addresses (not in AddressSanitizer builds).
@@ -156,7 +157,7 @@ pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>
         storage_template: value_storage::cell_header_template().to_vec(),
         storage_values_offset: offset(VALUES_OFFSET),
         storage_capacity_offset: offset(value_storage::CAPACITY_OFFSET),
-        slow_path: libjs_jit_allocate_array as *const () as u64,
+        slow_path: jit_function_address!(libjs_jit_allocate_array),
     };
 
     let rope_template = rope_template(vm);
@@ -168,13 +169,13 @@ pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>
         rhs_offset: offset(ROPE_STRING_RHS_OFFSET),
         length_offset: offset(core::mem::offset_of!(PrimitiveString, length_in_utf16_code_units)),
         min_length: ROPE_STRING_MIN_LENGTH,
-        slow_path: libjs_jit_create_rope_string as *const () as u64,
+        slow_path: jit_function_address!(libjs_jit_create_rope_string),
     };
 
     let function = FunctionAllocationInfo {
         allocator: address(heap.local_free_list_of(EcmascriptFunctionObject::CLASS)),
         cell_size: size(size_of::<EcmascriptFunctionObject>()),
-        slow_path: libjs_jit_clone_function as *const () as u64,
+        slow_path: jit_function_address!(libjs_jit_clone_function),
     };
 
     AllocationInfos {
@@ -480,6 +481,7 @@ pub fn lexical_environment_templates(
 /// capacity)`: what CreateLexicalEnvironment without a catch environment creates, for JIT code.
 ///
 /// JIT code calls this with its VM, a live parent environment and the executable of its frame.
+#[jit_abi]
 pub extern "C" fn libjs_jit_create_lexical_environment(
     vm: &Vm,
     parent: Gc<Environment>,
@@ -570,6 +572,7 @@ pub fn closure_template_snapshots(
 /// undefined, with room for `reserve` properties inline if a size class has room for them.
 ///
 /// JIT code calls this with its VM and a live shape.
+#[jit_abi]
 pub extern "C" fn libjs_jit_allocate_object(vm: &Vm, shape: Gc<Shape>, reserve: u32) -> *mut Object {
     Object::create_with_premade_shape_and_reserve(vm, shape, reserve).as_ptr()
 }
@@ -579,6 +582,7 @@ pub extern "C" fn libjs_jit_allocate_object(vm: &Vm, shape: Gc<Shape>, reserve: 
 ///
 /// JIT code calls this with its VM and live non-empty strings, whose lengths add up to at least `ROPE_STRING_MIN_LENGTH`
 /// and less than `u32::MAX`.
+#[jit_abi]
 pub extern "C" fn libjs_jit_create_rope_string(
     vm: &Vm,
     lhs: Gc<PrimitiveString>,
@@ -591,6 +595,7 @@ pub extern "C" fn libjs_jit_create_rope_string(
 /// elements.
 ///
 /// JIT code calls this with its VM.
+#[jit_abi]
 pub extern "C" fn libjs_jit_allocate_array(vm: &Vm, count: u32) -> *mut Array {
     let realm = vm.current_realm().expect("JIT code runs in a realm");
     let array = Array::create(vm, realm, 0, None).must();
@@ -602,6 +607,7 @@ pub extern "C" fn libjs_jit_allocate_array(vm: &Vm, count: u32) -> *mut Array {
 /// PrivateEnvironment*)`: a closure like the sample of a closure template, with the given environments.
 ///
 /// JIT code calls this with its VM, a sample it embeds and live environments (or null private environment).
+#[jit_abi]
 pub extern "C" fn libjs_jit_clone_function(
     vm: &Vm,
     sample: Gc<EcmascriptFunctionObject>,

@@ -18,6 +18,7 @@ use libjs_jit::snapshot::{
     CellId, DynamicCallLayout, Float64FunctionAddresses, HelperCallAddresses, IntrinsicHelpers, RuntimeInfo,
     RuntimeLayout, RuntimeOffsets, TypeofStrings,
 };
+use libjs_runtime_macros::jit_function_address;
 
 use super::allocation::{AllocationInfos, FUNCTION_ENVIRONMENT_FREE_LIST_COUNT};
 use super::entry_table::{JIT_ENTRY_SLOT_MASK, JIT_ENTRY_TABLE_OWNERS_OFFSET};
@@ -498,44 +499,44 @@ pub fn runtime_info(
     let mut info = RuntimeInfo {
         no_htmldda_objects: !vm.jit.htmldda_objects_exist(),
         slow_paths: Arc::clone(&addresses.slow_paths),
-        jit_call: super::calls::libjs_jit_call as *const () as u64,
-        call_forwarding_arguments: super::calls::libjs_jit_call_forwarding_arguments as *const () as u64,
-        finish_direct_call: super::calls::libjs_jit_finish_direct_call as *const () as u64,
+        jit_call: jit_function_address!(super::calls::libjs_jit_call),
+        call_forwarding_arguments: jit_function_address!(super::calls::libjs_jit_call_forwarding_arguments),
+        finish_direct_call: jit_function_address!(super::calls::libjs_jit_finish_direct_call),
         raw_native_exception: addresses.raw_native_exception,
-        push_inlined_call_frames: super::entry_exit::libjs_jit_push_inlined_call_frames as *const () as u64,
-        finish_inlined_direct_call: super::entry_exit::libjs_jit_finish_inlined_direct_call as *const () as u64,
+        push_inlined_call_frames: jit_function_address!(super::entry_exit::libjs_jit_push_inlined_call_frames),
+        finish_inlined_direct_call: jit_function_address!(super::entry_exit::libjs_jit_finish_inlined_direct_call),
         inlined_raw_native_exception: if RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS {
-            super::entry_exit::libjs_jit_inlined_raw_native_exception as *const () as u64
+            jit_function_address!(super::entry_exit::libjs_jit_inlined_raw_native_exception)
         } else {
             0
         },
-        array_push: super::calls::libjs_jit_array_push as *const () as u64,
-        array_splice: super::intrinsics::libjs_jit_array_splice as *const () as u64,
-        store_holey_element: super::calls::libjs_jit_store_holey_element as *const () as u64,
-        slice_arguments: super::calls::libjs_jit_slice_arguments as *const () as u64,
-        open_array_iteration: super::intrinsics::libjs_jit_open_array_iteration as *const () as u64,
+        array_push: jit_function_address!(super::calls::libjs_jit_array_push),
+        array_splice: jit_function_address!(super::intrinsics::libjs_jit_array_splice),
+        store_holey_element: jit_function_address!(super::calls::libjs_jit_store_holey_element),
+        slice_arguments: jit_function_address!(super::calls::libjs_jit_slice_arguments),
+        open_array_iteration: jit_function_address!(super::intrinsics::libjs_jit_open_array_iteration),
         // NB: Filled in by capture_snapshot(), which lists the cells as embedded cells.
         array_iterator_next: None,
         array_iterator_return_watchpoint_set: None,
         array_iterator_next_watchpoint_set_address: None,
         array_iterator_method_watchpoint_set_address: None,
-        jit_exit: super::entry_exit::libjs_jit_exit as *const () as u64,
+        jit_exit: jit_function_address!(super::entry_exit::libjs_jit_exit),
         to_boolean: addresses.to_boolean,
-        primitive_to_string: super::calls::libjs_jit_primitive_to_string as *const () as u64,
+        primitive_to_string: jit_function_address!(super::calls::libjs_jit_primitive_to_string),
         helper_calls: HelperCallAddresses(super::helper_calls::address),
         float64_functions: Float64FunctionAddresses(super::calls::float64_function_address),
-        to_object: super::calls::libjs_jit_to_object as *const () as u64,
-        array_create: super::calls::libjs_jit_array_create as *const () as u64,
+        to_object: jit_function_address!(super::calls::libjs_jit_to_object),
+        array_create: jit_function_address!(super::calls::libjs_jit_array_create),
         intrinsic_helpers: IntrinsicHelpers {
-            has_own_property: super::intrinsics::libjs_jit_has_own_property as *const () as u64,
-            has_property: super::intrinsics::libjs_jit_has_property as *const () as u64,
+            has_own_property: jit_function_address!(super::intrinsics::libjs_jit_has_own_property),
+            has_property: jit_function_address!(super::intrinsics::libjs_jit_has_property),
         },
-        create_arguments: super::entry_exit::libjs_jit_create_arguments as *const () as u64,
+        create_arguments: jit_function_address!(super::entry_exit::libjs_jit_create_arguments),
         object_allocation: allocation.object,
         array_allocation: allocation.array,
         rope_allocation: allocation.rope,
         function_allocation: allocation.function,
-        create_lexical_environment: super::allocation::libjs_jit_create_lexical_environment as *const () as u64,
+        create_lexical_environment: jit_function_address!(super::allocation::libjs_jit_create_lexical_environment),
         realm: CellId(realm.as_ptr() as u64),
         array_prototype: CellId(realm.array_prototype().as_ptr() as u64),
         object_prototype: CellId(realm.object_prototype().as_ptr() as u64),
@@ -596,7 +597,7 @@ fn dynamic_call_layout(vm: &Vm) -> DynamicCallLayout {
         native_function_table_index_mask: NATIVE_FUNCTION_TABLE_INDEX_MASK,
         native_function_table_entry_size: offset(size_of::<NativeFunctionTableEntry>()),
         native_function_table_entry_function: offset(offset_of!(NativeFunctionTableEntry, function)),
-        prepare_call_environment: super::calls::libjs_jit_prepare_call_environment as *const () as u64,
+        prepare_call_environment: jit_function_address!(super::calls::libjs_jit_prepare_call_environment),
         shared_data_call_environment_template: offset(offset_of!(
             SharedFunctionInstanceData,
             call_environment_template
