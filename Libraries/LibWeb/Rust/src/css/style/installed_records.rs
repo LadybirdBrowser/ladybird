@@ -225,11 +225,34 @@ impl InstalledRecords {
             prop::PADDING_LEFT,
             prop::BACKGROUND_COLOR,
             prop::TRANSFORM,
+            // NB: Elements whose animations are staggered differ in these, which samples of them read from the style
+            //     they compose over.
+            prop::ANIMATION_DELAY,
+            prop::ANIMATION_DURATION,
         ] {
             crate::css::style_value::style_value_content_hash(
                 record.longhand(LonghandID::new(property)).optional_data(),
             )
             .hash(&mut hasher);
+        }
+        // NB: A sample of an element's animations answers with the longhands of the style it composes over, and holds
+        //     what the animations sampled in its groups only. So the values animations most often move are read from the
+        //     groups as well: Every sample of an animation derives a record that differs from the last in nothing else,
+        //     and records that share a key are told apart one comparison of their whole style at a time.
+        let values = crate::css::computed_value_views::ComputedValuesView::of(&record.payloads);
+        let effects = values.effects();
+        effects.opacity.to_bits().hash(&mut hasher);
+        let transform = values.transform();
+        for value in [
+            &effects.filter_style_value,
+            &transform.transformations,
+            &transform.translate,
+            &transform.rotate,
+            &transform.scale,
+            &values.background().background_color_style_value,
+            &values.inherited_text().color_style_value,
+        ] {
+            crate::css::style_value::style_value_content_hash(value.style_value()).hash(&mut hasher);
         }
         hasher.finish()
     }
@@ -344,6 +367,34 @@ mod tests {
             .with_pseudo_element_styles(PseudoElementStyles::from_bits(pseudo_element_styles))
     }
 
+    /// A record derived from `source` as a sample of an opacity animation is: holding the longhands of `source`, and
+    /// its groups but for an opacity of `opacity`.
+    fn sample_with_opacity(source: &Record, opacity: f32) -> Arc<Record> {
+        use crate::css::computed_value_types::EffectsValues;
+        use crate::css::table_group_builder::group_index;
+        let mut payloads = source.payloads.clone();
+        // SAFETY: EFFECTS names EffectsValues, and write_group gives this style its own copy.
+        unsafe {
+            payloads.write_group::<EffectsValues>(group_index::EFFECTS, |effects| effects.opacity = opacity);
+        }
+        Arc::new(Record::derived(source, &payloads))
+    }
+
+    /// A record of the initial values but for an animation-delay of `seconds`.
+    fn record_with_animation_delay(seconds: f64) -> Arc<Record> {
+        use crate::css::property_metadata::property_id as prop;
+        use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
+        Arc::new(Record::of_test_values(|property| {
+            if property == prop::ANIMATION_DELAY {
+                return RetainedStyleValueData::from_owned(StyleValueData::Time {
+                    unit: 0,
+                    value: seconds,
+                });
+            }
+            crate::css::style_compute::initial_value_handle(property).clone()
+        }))
+    }
+
     fn holder_of(records: &InstalledRecords, id: InstalledRecordID) -> &Arc<Record> {
         records.get(id).expect("the slot holds a record").record()
     }
@@ -357,6 +408,44 @@ mod tests {
         assert_ne!(first, second);
         assert_eq!(records.install_derived(&record(1), || 0), first);
         assert_eq!(records.install_derived(&record(2), || 0), second);
+    }
+
+    #[test]
+    fn samples_differing_only_in_opacity_take_keys_of_their_own() {
+        let mut records = InstalledRecords::default();
+        let base = record(0);
+        let opacities = [0.5, 0.6, 0.7];
+        let ids = opacities.map(|opacity| records.install_derived(&sample_with_opacity(&base, opacity), || 0));
+
+        let keys = opacities.map(|opacity| InstalledRecords::content_key(&sample_with_opacity(&base, opacity)));
+        assert_ne!(keys[0], keys[1]);
+        assert_ne!(keys[1], keys[2]);
+        assert_ne!(keys[0], keys[2]);
+        for (opacity, id) in opacities.into_iter().zip(ids) {
+            assert_eq!(records.install_derived(&sample_with_opacity(&base, opacity), || 0), id);
+        }
+    }
+
+    #[test]
+    fn samples_of_the_same_value_over_staggered_animations_take_keys_of_their_own() {
+        let mut records = InstalledRecords::default();
+        let (first_base, second_base) = (record_with_animation_delay(0.0), record_with_animation_delay(0.005));
+        let over_first = records.install_derived(&sample_with_opacity(&first_base, 0.5), || 0);
+        let over_second = records.install_derived(&sample_with_opacity(&second_base, 0.5), || 0);
+
+        assert_ne!(over_first, over_second);
+        assert_ne!(
+            InstalledRecords::content_key(&sample_with_opacity(&first_base, 0.5)),
+            InstalledRecords::content_key(&sample_with_opacity(&second_base, 0.5))
+        );
+        assert_eq!(
+            records.install_derived(&sample_with_opacity(&first_base, 0.5), || 0),
+            over_first
+        );
+        assert_eq!(
+            records.install_derived(&sample_with_opacity(&second_base, 0.5), || 0),
+            over_second
+        );
     }
 
     #[test]
