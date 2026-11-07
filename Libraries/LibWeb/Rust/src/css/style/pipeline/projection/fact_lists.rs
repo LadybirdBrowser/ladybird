@@ -19,7 +19,6 @@ use std::alloc::Layout;
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
-use std::sync::atomic::fence;
 
 /// Which optional atoms and lists an allocation holds.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
@@ -417,7 +416,8 @@ impl Drop for FactLists {
         if header.references.fetch_sub(1, Ordering::Release) != 1 {
             return;
         }
-        fence(Ordering::Acquire);
+        // NB: This load orders us after every earlier decrement, as a fence would. ThreadSanitizer does not model fences.
+        let _ = header.references.load(Ordering::Acquire);
         let layout = layout(header.present, Self::counts(header));
         // SAFETY: This was the last reference, so nothing reads the allocation after this.
         unsafe { std::alloc::dealloc(self.0.expect("the header was read").as_ptr().cast(), layout) };

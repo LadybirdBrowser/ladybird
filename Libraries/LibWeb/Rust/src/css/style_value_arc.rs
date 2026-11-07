@@ -10,7 +10,7 @@
 
 use crate::css::style_value::StyleValueData;
 use std::ptr::NonNull;
-use std::sync::atomic::{AtomicUsize, Ordering, fence};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[repr(C)]
 struct StyleValueAllocation {
@@ -143,7 +143,8 @@ impl StyleValueArc {
         if references.fetch_sub(1, Ordering::Release) != 1 {
             return None;
         }
-        fence(Ordering::Acquire);
+        // NB: This load orders us after every earlier decrement, as a fence would. ThreadSanitizer does not model fences.
+        let _ = references.load(Ordering::Acquire);
         // SAFETY: This was the last reference, which owns the allocation `new` made.
         let allocation = unsafe { Box::from_raw(Self::allocation(pointer)) };
         Some(allocation.data)
@@ -177,7 +178,8 @@ impl Drop for StyleValueArc {
         if references.fetch_sub(1, Ordering::Release) != 1 {
             return;
         }
-        fence(Ordering::Acquire);
+        // NB: This load orders us after every earlier decrement, as a fence would. ThreadSanitizer does not model fences.
+        let _ = references.load(Ordering::Acquire);
         // SAFETY: The last reference frees the allocation `new` made.
         drop(unsafe { Box::from_raw(Self::allocation(self.pointer.as_ptr())) });
     }

@@ -21,7 +21,7 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicPtr, AtomicU32, AtomicU64, Ordering, fence};
+use std::sync::atomic::{AtomicPtr, AtomicU32, AtomicU64, Ordering};
 
 #[derive(Clone)]
 pub(crate) struct DeclaredProperty {
@@ -525,7 +525,8 @@ impl Drop for SharedDeclarationBlock {
         if self.references.fetch_sub(1, Ordering::Release) != 1 {
             return;
         }
-        fence(Ordering::Acquire);
+        // NB: This load orders us after every earlier decrement, as a fence would. ThreadSanitizer does not model fences.
+        let _ = self.references.load(Ordering::Acquire);
         if let Some(cascade) = NonNull::new(self.cascade.load(Ordering::Acquire)) {
             // SAFETY: The block held the data, which it frees once.
             unsafe { BlockCascadeData::free(cascade) };

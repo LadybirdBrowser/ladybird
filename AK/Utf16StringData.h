@@ -120,7 +120,9 @@ public:
         if (old_reference_count != 1)
             return false;
 
-        atomic_thread_fence(memory_order_acquire);
+        // NB: Every decrement before ours is in one release sequence, so this load synchronizes with all of them, as an
+        //     acquire fence would. ThreadSanitizer sees a load, but it does not model fences.
+        (void)atomic_load(&m_header.reference_count, memory_order_acquire);
         delete this;
         return true;
     }
