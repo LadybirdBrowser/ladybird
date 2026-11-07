@@ -1054,7 +1054,7 @@ pub(crate) mod property_access {
             let target = NativeCallTarget {
                 function: CellId(0x9000),
                 realm: CellId(0xa000),
-                entry: 0xb000,
+                entry: core::num::NonZeroU64::new(0xb000),
                 direct_getter: validated.then_some(DirectGetterFields {
                     wrapper_implementation: 8,
                     implementation_value: 16,

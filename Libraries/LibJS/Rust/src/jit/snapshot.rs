@@ -7,6 +7,7 @@
 //! Snapshots of executables for compile jobs, captured on the main thread straight from the runtime's structures.
 //! A snapshot refers to cells only by address; the cells it captured are kept alive by whoever owns the job.
 
+use core::num::NonZeroU64;
 use libjs_abi::Builtin;
 use std::collections::HashMap;
 
@@ -341,11 +342,12 @@ fn direct_call_target(feedback: &CallFeedback) -> Option<(Gc<EcmascriptFunctionO
     function.can_inline_call().then_some((function, closures))
 }
 
-/// The target and entry of a call site if it is a native function that JIT code can call directly, in the frame the
-/// interpreter's call fast path builds for it. Function.prototype.call and apply forward their calls, which the runtime
-/// does for JIT code.
-fn native_call_target(vm: &Vm, feedback: &CallFeedback) -> Option<(Gc<NativeFunction>, u64)> {
-    if !RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS || feedback.flags.get() & call_feedback_flags::POLYMORPHIC != 0 {
+/// The target of a call site if it is a native function, which JIT code can call directly in the frame the
+/// interpreter's call fast path builds for it, or replace with an intrinsic, and the entry it calls it at, if it can:
+/// none where native functions do not return their completion in two registers, and JIT code leaves calls of them to
+/// the runtime. Function.prototype.call and apply forward their calls, which the runtime does for JIT code.
+fn native_call_target(vm: &Vm, feedback: &CallFeedback) -> Option<(Gc<NativeFunction>, Option<NonZeroU64>)> {
+    if feedback.flags.get() & call_feedback_flags::POLYMORPHIC != 0 {
         return None;
     }
     let function = feedback.target()?.downcast::<NativeFunction>()?;
@@ -353,11 +355,14 @@ fn native_call_target(vm: &Vm, feedback: &CallFeedback) -> Option<(Gc<NativeFunc
         if FunctionPrototype::is_call_function(vm, &raw) || FunctionPrototype::is_apply_function(vm, &raw) {
             return None;
         }
-        raw.native_function(vm)?
+        raw.native_function(vm)
     } else {
-        function.capturing_call_entry()?
+        function.capturing_call_entry()
     };
-    Some((function, entry as usize as u64))
+    let entry = entry
+        .filter(|_| RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS)
+        .and_then(|pointer| NonZeroU64::new(pointer as usize as u64));
+    Some((function, entry))
 }
 
 /// The words of an ECMAScript function its frames start with, which stay the same for its lifetime.
@@ -941,7 +946,7 @@ impl SnapshotBuilder<'_> {
             return None;
         }
         let native_function = function.downcast::<RawNativeFunction>()?;
-        let entry = native_function.native_function(self.vm)? as usize as u64;
+        let entry = NonZeroU64::new(native_function.native_function(self.vm)? as usize as u64)?;
         let direct_getter = function
             .downcast::<DirectGetterFunction>()
             .filter(|_| direct_getter_validated)
@@ -958,7 +963,7 @@ impl SnapshotBuilder<'_> {
         Some(NativeCallTarget {
             function: function_cell,
             realm: self.cell(native_function.realm()),
-            entry,
+            entry: Some(entry),
             direct_getter,
         })
     }
