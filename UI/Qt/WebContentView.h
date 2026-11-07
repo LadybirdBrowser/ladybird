@@ -218,10 +218,8 @@ signals:
     void urls_dropped(QList<QUrl> const&);
 
 private:
-    // ^Hub::ViewHost
-    virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint widget_position) override;
-
     // ^RemoteView
+    virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint widget_position) override;
     virtual Optional<ScreenRects> screen_rects() const override;
     virtual void update_zoom() override;
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) override;

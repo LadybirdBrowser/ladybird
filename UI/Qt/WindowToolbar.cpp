@@ -29,6 +29,7 @@
 #include <UI/Qt/Motion.h>
 #include <UI/Qt/PerformanceMonitorWidget.h>
 #include <UI/Qt/Popover.h>
+#include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/SystemAppearance.h>
 #include <UI/Qt/Theme.h>
@@ -1155,7 +1156,7 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     : QWidget(parent)
     , m_is_private(is_private)
 {
-    auto& application = WebView::Application::the();
+    auto& application = RemoteActions::the();
 
     setObjectName("LadybirdToolbarContainer");
     // NB: The style sheet paints the toolbar's background, which a QWidget subclass only draws when asked to.

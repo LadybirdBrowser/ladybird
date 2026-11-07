@@ -163,6 +163,7 @@ public:
     StringView text() const { return action_text_to_string_view(m_text); }
     void set_text(ActionText);
 
+    bool has_tooltip() const { return m_tooltip.has_value(); }
     StringView tooltip() const { return action_text_to_string_view(*m_tooltip); }
     void set_tooltip(ActionText);
 
@@ -261,6 +262,8 @@ public:
 
     void set_render_group_icon(bool render_group_icon) { m_render_group_icon = render_group_icon; }
     bool render_group_icon() const { return m_render_group_icon; }
+
+    bool is_group() const { return m_is_group; }
 
     bool visible() const { return m_visible; }
     void set_visible(bool);

@@ -18,6 +18,7 @@
 #elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
 #    include <LibWebView/NotificationBackendFreedesktop.h>
 #endif
+#include <Hub/ActionMirror.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
@@ -31,6 +32,7 @@
 #include <UI/Qt/PictureInPictureWindow.h>
 #include <UI/Qt/PlainText.h>
 #include <UI/Qt/ProcessManagerWindow.h>
+#include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/Theme.h>
@@ -312,7 +314,7 @@ public:
 
     void create_application_actions()
     {
-        auto& application = WebView::Application::the();
+        auto& application = RemoteActions::the();
 
         auto make_action = [&](QString const& text) {
             auto* action = new QAction(text, m_application_widget);
@@ -680,7 +682,9 @@ void Application::show_process_manager()
 
 void Application::create_platform_actions()
 {
-    hub().inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
+    RemoteActions::the().set_application_actions(Hub::ActionMirror::the().application_actions());
+
+    RemoteActions::the().inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
         show_process_manager();
     }));
 
@@ -1925,7 +1929,7 @@ void Application::on_recently_closed_entries_changed() const
 
 QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_window)
 {
-    auto& application = WebView::Application::the();
+    auto& application = RemoteActions::the();
     auto* menu_bar = new QMenuBar();
 
     auto* file_menu = menu_bar->addMenu("&File");

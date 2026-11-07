@@ -5,6 +5,7 @@
  */
 
 #include <UI/Qt/HubConnection.h>
+#include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteView.h>
 
 namespace Ladybird {
@@ -180,6 +181,27 @@ void HubConnection::view_request_dictionary_lookup(u64 view_id, WebView::Diction
 {
     if (auto* view = RemoteView::find(view_id); view && view->on_request_dictionary_lookup)
         view->on_request_dictionary_lookup(lookup, position);
+}
+
+void HubConnection::action_changed(Hub::ActionState state)
+{
+    RemoteActions::the().update(state);
+}
+
+void HubConnection::bookmarks_menu_changed(Vector<Hub::MenuEntry> entries)
+{
+void HubConnection::action_retired(u64 handle)
+{
+    RemoteActions::the().retire(handle);
+}
+
+    RemoteActions::the().set_bookmarks_menu(entries);
+}
+
+void HubConnection::view_show_context_menu(u64 view_id, Vector<Hub::MenuEntry> entries, Gfx::IntPoint widget_position)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_request_context_menu(entries, widget_position);
 }
 
 void HubConnection::view_update_zoom(u64 view_id)

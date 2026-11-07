@@ -11,14 +11,6 @@
 
 namespace Hub {
 
-// What a view needs from the UI that shows it.
-class ViewHost {
-public:
-    virtual ~ViewHost() = default;
-
-    virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint widget_position) = 0;
-};
-
 // A tab's view. It holds the tab's pages and everything else about them, and leaves showing them to its ViewHost.
 class View final : public WebView::ViewImplementation {
 public:
@@ -41,13 +33,6 @@ public:
 
     void initialize(Optional<WebView::CanonicalTraversable&>);
     InitialState initial_state_for_related_view() const;
-
-    void attach_host(ViewHost& host) { m_host = &host; }
-
-    ViewHost* host() const { return m_host; }
-
-    // The host is going away, and takes no more calls.
-    void detach_from_host() { m_host = nullptr; }
 
     ViewState current_state() const;
 
@@ -82,7 +67,6 @@ private:
 
     void forward_callbacks_to_ui(bool is_tab);
 
-    ViewHost* m_host { nullptr };
     Core::AnonymousBuffer m_system_theme;
     Optional<ScreenRects> m_screen_rects;
     Web::DevicePixelSize m_viewport_size;

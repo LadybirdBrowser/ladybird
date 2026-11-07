@@ -19,6 +19,7 @@ struct WebView::ViewImplementation::ScreenRects {
 // What the UI asks of the Hub.
 endpoint HubServer
 {
+    activate_action(u64 handle, Optional<bool> checked) =|
     view_answer(u64 view_id, u64 answer_id, bool answer) =|
     view_answer_permission_request(u64 view_id, u64 answer_id, Web::Permissions::PromptOutcome outcome) =|
     destroy_view(u64 view_id) =|

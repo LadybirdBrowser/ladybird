@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 
@@ -114,6 +115,11 @@ void ConnectionFromUI::view_answer_permission_request(u64 view_id, u64 answer_id
         view->did_get_permission_answer(answer_id, outcome);
         view->push_state_to_ui();
     }
+}
+
+void ConnectionFromUI::activate_action(u64 handle, Optional<bool> checked)
+{
+    ActionMirror::the().activate(handle, checked);
 }
 
 void ConnectionFromUI::destroy_view(u64 view_id)

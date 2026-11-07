@@ -5,7 +5,9 @@
  */
 
 #include <AK/HashMap.h>
+#include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
+#include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteView.h>
 
 namespace Ladybird {
@@ -25,15 +27,24 @@ RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_st
         m_view = &Hub::Application::the().create_view(move(initial_state));
     }
     m_view_id = m_view->view_id();
-    m_view->attach_host(*this);
     m_state = m_view->current_state();
+
+    auto actions = Hub::ActionMirror::the().view_actions(*m_view);
+    auto& remote_actions = RemoteActions::the();
+    m_navigate_back_action = remote_actions.action_for(actions.navigate_back_action);
+    m_navigate_forward_action = remote_actions.action_for(actions.navigate_forward_action);
+    m_toggle_bookmark_action = remote_actions.action_for(actions.toggle_bookmark_action);
+    m_reset_zoom_action = remote_actions.action_for(actions.reset_zoom_action);
+    m_bookmarks_bar_context_menu = remote_actions.menu_for(actions.bookmarks_bar_context_menu);
+    m_bookmark_context_menu = remote_actions.menu_for(actions.bookmark_context_menu);
+    m_bookmark_folder_context_menu = remote_actions.menu_for(actions.bookmark_folder_context_menu);
+
     s_views.set(m_view_id, this);
 }
 
 RemoteView::~RemoteView()
 {
     s_views.remove(m_view_id);
-    m_view->detach_from_host();
     if (auto* hub = HubConnection::the_if_connected())
         hub->async_destroy_view(m_view_id);
 
@@ -170,7 +181,21 @@ RemoteView* RemoteView::find(u64 view_id)
 
 RemoteView& RemoteView::of(WebView::ViewImplementation const& view)
 {
-    return static_cast<RemoteView&>(*static_cast<Hub::View const&>(view).host());
+    auto* remote_view = of_if_any(view);
+    VERIFY(remote_view);
+    return *remote_view;
+}
+
+RemoteView* RemoteView::of_if_any(WebView::ViewImplementation const& view)
+{
+    return find(view.view_id());
+}
+
+void RemoteView::did_request_context_menu(Vector<Hub::MenuEntry> const& entries, Gfx::IntPoint widget_position)
+{
+    // NB: The menu has to outlive this call, since the view may show it later.
+    m_context_menu = RemoteActions::the().menu_for(entries);
+    show_context_menu(*m_context_menu, widget_position);
 }
 
 }

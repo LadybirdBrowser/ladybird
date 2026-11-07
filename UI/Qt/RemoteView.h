@@ -15,7 +15,7 @@ namespace Ladybird {
 
 // The UI's side of a tab's view. The view itself lives in the Hub. This holds what the UI needs to show it, and offers
 // the rest of the UI the calls and callbacks that it takes to use the view.
-class RemoteView : public Hub::ViewHost {
+class RemoteView {
 public:
     using InputMethodState = WebView::ViewImplementation::InputMethodState;
     using NavigationListener = WebView::ViewImplementation::NavigationListener;
@@ -25,11 +25,16 @@ public:
 
     // Shows the view that the Hub has made, if any, or else makes a new one.
     RemoteView(Optional<u64> view_id, Hub::View::InitialState);
-    virtual ~RemoteView() override;
+    virtual ~RemoteView();
 
     // The UI's side of a view that the UI shows.
     static RemoteView& of(WebView::ViewImplementation const&);
     static RemoteView* find(u64 view_id);
+
+    // The view of the UI that shows a view of the Hub, if any.
+    static RemoteView* of_if_any(WebView::ViewImplementation const&);
+
+    void did_request_context_menu(Vector<Hub::MenuEntry> const&, Gfx::IntPoint widget_position);
 
     void set_state(Hub::ViewState state) { m_state = move(state); }
     void set_initial_state(Hub::ViewState state) { m_state = move(state); }
@@ -162,13 +167,13 @@ public:
     bool needs_beforeunload_check() const { return m_view->needs_beforeunload_check(); }
     u64 add_navigation_listener(NavigationListener);
     void remove_navigation_listener(u64 listener_id) { m_navigation_listeners.remove(listener_id); }
-    WebView::Menu& bookmarks_bar_context_menu() { return m_view->bookmarks_bar_context_menu(); }
-    WebView::Menu& bookmark_context_menu() { return m_view->bookmark_context_menu(); }
-    WebView::Menu& bookmark_folder_context_menu() { return m_view->bookmark_folder_context_menu(); }
-    WebView::Action& navigate_back_action() { return m_view->navigate_back_action(); }
-    WebView::Action& navigate_forward_action() { return m_view->navigate_forward_action(); }
-    WebView::Action& toggle_bookmark_action() { return m_view->toggle_bookmark_action(); }
-    WebView::Action& reset_zoom_action() { return m_view->reset_zoom_action(); }
+    WebView::Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
+    WebView::Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
+    WebView::Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
+    WebView::Action& navigate_back_action() { return *m_navigate_back_action; }
+    WebView::Action& navigate_forward_action() { return *m_navigate_forward_action; }
+    WebView::Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
+    WebView::Action& reset_zoom_action() { return *m_reset_zoom_action; }
     WebView::PageTranslation& page_translation() { return m_view->page_translation(); }
     WebView::WebContentPage& page() const { return m_view->page(); }
 
@@ -199,6 +204,7 @@ public:
     u64 backing_stores_page_id() const { return m_backing_stores_page_id; }
 
 protected:
+    virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint) { }
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
     virtual void release_backing_store(u64 page_id, i32 bitmap_id) { release_backing_store_to_page(page_id, bitmap_id); }
 
@@ -211,6 +217,16 @@ protected:
 
 private:
     Hub::View* m_view { nullptr };
+
+    RefPtr<WebView::Action> m_navigate_back_action;
+    RefPtr<WebView::Action> m_navigate_forward_action;
+    RefPtr<WebView::Action> m_toggle_bookmark_action;
+    RefPtr<WebView::Action> m_reset_zoom_action;
+    RefPtr<WebView::Menu> m_bookmarks_bar_context_menu;
+    RefPtr<WebView::Menu> m_bookmark_context_menu;
+    RefPtr<WebView::Menu> m_bookmark_folder_context_menu;
+    RefPtr<WebView::Menu> m_context_menu;
+
     u64 m_view_id { 0 };
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
     double m_device_pixel_ratio { 1.0 };
