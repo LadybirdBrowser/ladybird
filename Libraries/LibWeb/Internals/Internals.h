@@ -84,6 +84,7 @@ public:
     void fail_next_message_port_transfer(HTML::MessagePort&);
     bool message_ports_are_directly_entangled(HTML::MessagePort&, HTML::MessagePort&);
     String message_port_entanglement_kind(HTML::MessagePort&);
+    bool message_port_transport_is_closed(HTML::MessagePort&);
     GC::Ref<XHR::XMLHttpRequest> create_xml_http_request_for_document(DOM::Document&);
     Optional<Painting::HitTestResult> hit_test(double x, double y);
     GC::Ptr<JS::Object> hit_test_result(double x, double y);

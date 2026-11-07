@@ -66,6 +66,7 @@ public:
     static void give_up_on_parked_end(u64 parked_end_token);
 
     StringView entanglement_kind_for_testing() const;
+    bool transport_is_closed_for_testing() const;
     size_t pending_outgoing_message_count() const;
     void fail_next_transfer_for_testing();
 };

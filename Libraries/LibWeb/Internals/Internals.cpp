@@ -536,6 +536,11 @@ String Internals::message_port_entanglement_kind(HTML::MessagePort& port)
     return MUST(String::from_utf8(port.entanglement_kind_for_testing()));
 }
 
+bool Internals::message_port_transport_is_closed(HTML::MessagePort& port)
+{
+    return port.transport_is_closed_for_testing();
+}
+
 bool Internals::message_ports_are_directly_entangled(HTML::MessagePort& first, HTML::MessagePort& second)
 {
     return first.entangled_port().ptr() == &second && second.entangled_port().ptr() == &first;
