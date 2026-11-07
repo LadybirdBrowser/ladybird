@@ -43,7 +43,7 @@ public:
 
     GC::Ref<SVGAnimatedString> class_name();
     GC::Ptr<SVGElement const> corresponding_element() const;
-    void set_corresponding_element(Badge<SVGUseElement>, SVGElement const&);
+    void set_corresponding_element(Badge<SVGUseElement>, SVGElement&);
     GC::Ptr<SVGSVGElement> owner_svg_element();
     GC::Ptr<SVGSVGElement> outermost_svg_element();
     GC::Ptr<SVGElement> viewport_element();
@@ -104,6 +104,12 @@ private:
     Vector<CSS::StyleProperty> const& presentation_attribute_style() const;
     void update_presentation_attribute_style(Utf16FlyString const& name, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
     void publish_presentation_attribute_style();
+
+    enum class ElementInstancesToInvalidate {
+        All,
+        InDocument,
+    };
+    void invalidate_element_instances(ElementInstancesToInvalidate);
 
     GC::Ptr<SVGAnimatedString> m_class_name_animated_string;
 

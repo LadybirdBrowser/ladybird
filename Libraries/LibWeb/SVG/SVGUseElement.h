@@ -29,6 +29,7 @@ public:
     void svg_element_changed(SVGElement&);
     void svg_element_changed_before_parsing_complete(SVGElement&);
     void svg_element_removed(SVGElement&);
+    void element_instance_changed(Badge<SVGElement>);
 
     // AD-HOC: The spec states that the x, y, width and height IDL attributes reflect the respective computed values and their
     //         corresponding presentation attributes but other browsers reflect the attribute values instead - see
@@ -79,7 +80,7 @@ private:
 
     void request_reclone();
     void clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_clone);
-    static void link_to_corresponding_elements(SVGElement& instance, SVGElement const& original);
+    static void link_to_corresponding_elements(SVGElement& instance, SVGElement& original);
     bool is_valid_reference_element(Element const& reference_element) const;
     bool would_create_circular_reference(Element const& target) const;
     bool would_create_circular_reference_impl(Element const& target, GC::HeapHashTable<GC::Ref<Element const>>& visited) const;

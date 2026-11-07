@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <defs>
+        <g id="inner"><path d="M0,0 L10,10"/></g>
+        <g id="outer"><use href="#inner"/></g>
+        <g id="renamed"><path d="M0,0 L10,10"/></g>
+        <g id="detached"><path d="M0,0 L10,10"/></g>
+        <g id="nested-detached-inner"><path d="M0,0 L10,10"/></g>
+        <g id="nested-detached-outer"><use href="#nested-detached-inner"/></g>
+        <g id="nested-removed-inner"><path d="M0,0 L20,20"/></g>
+        <g id="nested-removed-outer"><use href="#nested-removed-inner"/></g>
+        <g id="removed-while-detached"><path d="M0,0 L10,10"/></g>
+    </defs>
+    <use id="use-outer" href="#outer"/>
+    <use id="use-renamed" href="#renamed"/>
+    <use id="use-detached" href="#detached"/>
+    <use id="use-nested-detached" href="#nested-detached-outer"/>
+    <use id="use-nested-removed" href="#nested-removed-outer"/>
+    <use id="use-removed-while-detached" href="#removed-while-detached"/>
+</svg>
+<script>
+    test(() => {
+        const lines = [];
+        const width = id => document.getElementById(id).getBBox().width;
+
+        document.querySelector("#inner path").setAttribute("d", "M0,0 L60,60");
+        lines.push(`Use of a group holding a use, after the inner target's path changed: ${width("use-outer")}`);
+
+        document.getElementById("renamed").removeAttribute("id");
+        lines.push(`Use whose referenced element lost its id: ${width("use-renamed")}`);
+
+        const use = document.getElementById("use-detached");
+        const svg = use.parentNode;
+        use.remove();
+        document.querySelector("#detached path").setAttribute("d", "M0,0 L70,70");
+        svg.append(use);
+        lines.push(`Use re-inserted after its target changed while it was removed: ${width("use-detached")}`);
+        document.querySelector("#detached path").setAttribute("d", "M0,0 L75,75");
+        lines.push(`Same use after a later change: ${width("use-detached")}`);
+
+        const nestedUse = document.getElementById("use-nested-detached");
+        nestedUse.remove();
+        document.querySelector("#nested-detached-inner path").setAttribute("d", "M0,0 L60,60");
+        svg.append(nestedUse);
+        lines.push(`Use of a group holding a use, re-inserted after the inner target changed while it was removed: ${width("use-nested-detached")}`);
+        document.querySelector("#nested-detached-inner path").setAttribute("d", "M0,0 L70,70");
+        lines.push(`Same use after a later change: ${width("use-nested-detached")}`);
+
+        document.getElementById("nested-removed-inner").remove();
+        lines.push(`Use of a group holding a use, after the inner target was removed: ${width("use-nested-removed")}`);
+
+        const useOfRemovedTarget = document.getElementById("use-removed-while-detached");
+        useOfRemovedTarget.remove();
+        document.getElementById("removed-while-detached").remove();
+        svg.append(useOfRemovedTarget);
+        lines.push(`Use re-inserted after its target was removed while the use was detached: ${width("use-removed-while-detached")}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

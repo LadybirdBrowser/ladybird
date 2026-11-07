@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml"
+     class="reftest-wait">
+  <metadata>
+    <title>SVG attributes gets synced properly on use shadow dom</title>
+    <h:link rel="match" href="../../../../../expected/wpt-import/svg/struct/reftests/sync-svg-attributes-ref.svg"/>
+  </metadata>
+  <g id="g">
+    <text y="100">The two texts should be on top of each other</text>
+  </g>
+  <use href="#g" fill="blue"/>
+  <script>
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.querySelector('#g > text').setAttribute('y', '20')
+      document.documentElement.classList.remove('reftest-wait');
+    }));
+  </script>
+</svg>
