@@ -379,7 +379,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     validate_engine_subclass_is_in_libjs(*record);
 
     remember_polymorphic_subclass(*record);
-    validate_claim_of_no_cell_edges(*record);
+    remember_claim_of_no_cell_edges(*record);
 
     auto& diag_engine = m_context.getDiagnostics();
     std::vector<clang::FieldDecl const*> fields_that_need_visiting;
@@ -1219,39 +1219,102 @@ static bool record_declares_no_cell_edges(clang::CXXRecordDecl const& record)
     };
     if (declares(&record))
         return true;
-    return !record.forallBases([&](clang::CXXRecordDecl const* base) { return !declares(base); });
+    // NB: forallBases() gives up on a dependent base, so the bases are walked here, skipping those not known yet.
+    for (auto const& base : record.bases()) {
+        auto const* base_record = base.getType()->getAsCXXRecordDecl();
+        base_record = base_record ? base_record->getDefinition() : nullptr;
+        if (base_record && record_declares_no_cell_edges(*base_record))
+            return true;
+    }
+    return false;
 }
 
-// Whether a value of this type holds an AK::Function, or a struct that holds one, whose captures no check can see.
-static bool type_holds_opaque_function(clang::QualType type, std::set<clang::CXXRecordDecl const*>& visited)
+enum class ClaimViolation {
+    GCPointer,
+    OpaqueFunction,
+};
+
+static bool is_owning_pointer(std::string const& template_name)
+{
+    return template_name == "AK::NonnullOwnPtr" || template_name == "AK::NonnullRefPtr" || template_name == "AK::OwnPtr" || template_name == "AK::RefPtr";
+}
+
+// Whether a value of this type holds what a type declared to hold no cell edges must not: a GC pointer, which nothing
+// would trace, or an AK::Function, whose captures no check can see. Roots and weak pointers need no tracing. A GC pointer
+// is looked for in what the value owns too, unless the pointee declares the claim itself and is checked on its own.
+// NB: An owned object's callbacks are its own API, such as those of libraries below LibGC, which can't keep a
+//     GC::Function. As with every AK::Function, what they capture must be rooted or weak.
+static bool record_violates_claim_of_no_cell_edges(clang::CXXRecordDecl const&, ClaimViolation, std::set<clang::CXXRecordDecl const*>& visited, PolymorphicSubclasses const&);
+
+static bool type_violates_claim_of_no_cell_edges(clang::QualType type, ClaimViolation violation, std::set<clang::CXXRecordDecl const*>& visited, PolymorphicSubclasses const& polymorphic_subclasses)
 {
     if (auto const* array = type->getAsArrayTypeUnsafe())
-        return type_holds_opaque_function(array->getElementType(), visited);
-    if (type->isPointerType() || type->isReferenceType())
-        return false;
+        return type_violates_claim_of_no_cell_edges(array->getElementType(), violation, visited, polymorphic_subclasses);
+
+    // NB: A raw pointer to a cell, or to something with cell edges such as the mixin of a cell, is an edge that nothing
+    //     traces. Whether a pointee that is only declared is one can't be seen.
+    if (type->isPointerType() || type->isReferenceType()) {
+        if (violation != ClaimViolation::GCPointer)
+            return false;
+        auto const* pointee = type->getPointeeCXXRecordDecl();
+        auto const* definition = pointee ? pointee->getDefinition() : nullptr;
+        return definition && (record_inherits_from_cell(*definition) || (!record_is_in_ak_or_gc(*definition) && type_has_visit_edges_method(definition)));
+    }
 
     if (auto instance = template_instance_of_type(type)) {
         if (instance->name == "AK::Function")
-            return true;
+            return violation == ClaimViolation::OpaqueFunction;
+        if (instance->name == "GC::Ptr" || instance->name == "GC::Ref" || instance->name == "GC::RawPtr" || instance->name == "GC::RawRef" || instance->name == "GC::Member" || instance->name == "GC::NonnullMember")
+            return violation == ClaimViolation::GCPointer;
+        if (is_owning_pointer(instance->name)) {
+            if (violation != ClaimViolation::GCPointer || instance->type_arguments.empty())
+                return false;
+            auto const* pointee = instance->type_arguments.front()->getAsCXXRecordDecl();
+            pointee = pointee ? pointee->getDefinition() : nullptr;
+            if (pointee && record_declares_no_cell_edges(*pointee))
+                return false;
+            if (type_violates_claim_of_no_cell_edges(instance->type_arguments.front(), violation, visited, polymorphic_subclasses))
+                return true;
+            // NB: The pointer may own a subclass of its pointee.
+            if (!pointee)
+                return false;
+            auto subclasses = polymorphic_subclasses.find(pointee->getCanonicalDecl());
+            if (subclasses == polymorphic_subclasses.end())
+                return false;
+            for (auto const* subclass : subclasses->second) {
+                if (record_declares_no_cell_edges(*subclass))
+                    continue;
+                if (record_violates_claim_of_no_cell_edges(*subclass, violation, visited, polymorphic_subclasses))
+                    return true;
+            }
+            return false;
+        }
         if (is_type_that_does_not_store_gc_pointers_by_value(instance->name))
             return false;
         for (auto const& type_argument : instance->type_arguments) {
-            if (type_holds_opaque_function(type_argument, visited))
+            if (type_violates_claim_of_no_cell_edges(type_argument, violation, visited, polymorphic_subclasses))
                 return true;
         }
     }
 
     auto const* record = type->getAsCXXRecordDecl();
-    if (!record || !record->isCompleteDefinition() || !visited.insert(record).second)
+    return record && record_violates_claim_of_no_cell_edges(*record, violation, visited, polymorphic_subclasses);
+}
+
+static bool record_violates_claim_of_no_cell_edges(clang::CXXRecordDecl const& record, ClaimViolation violation, std::set<clang::CXXRecordDecl const*>& visited, PolymorphicSubclasses const& polymorphic_subclasses)
+{
+    if (!record.isCompleteDefinition() || !visited.insert(&record).second)
         return false;
-    if (record_is_in_ak_or_gc(*record) || record_inherits_from_cell(*record))
+    if (record_is_nan_boxed_value(record))
+        return violation == ClaimViolation::GCPointer;
+    if (record_is_in_ak_or_gc(record) || record_inherits_from_cell(record))
         return false;
-    for (auto const& base : record->bases()) {
-        if (type_holds_opaque_function(base.getType(), visited))
+    for (auto const& base : record.bases()) {
+        if (type_violates_claim_of_no_cell_edges(base.getType(), violation, visited, polymorphic_subclasses))
             return true;
     }
-    for (auto const* field : record->fields()) {
-        if (type_holds_opaque_function(field->getType(), visited))
+    for (auto const* field : record.fields()) {
+        if (type_violates_claim_of_no_cell_edges(field->getType(), violation, visited, polymorphic_subclasses))
             return true;
     }
     return false;
@@ -1260,10 +1323,13 @@ static bool type_holds_opaque_function(clang::QualType type, std::set<clang::CXX
 // A GC::Function captures a type that declares that it holds no cell edges without tracing it, so the type must not hold
 // a GC pointer, which nothing would keep alive. Roots and weak pointers are fine, as they need no tracing. Nor may it hold
 // an AK::Function, whose captures could hold anything.
-void LibJSGCVisitor::validate_claim_of_no_cell_edges(clang::CXXRecordDecl const& record)
+// NB: Claims are checked once the translation unit is complete, when every instantiation of a class template that makes
+//     the claim, and every subclass of what a claimed type owns, is known.
+void LibJSGCVisitor::remember_claim_of_no_cell_edges(clang::CXXRecordDecl const& record)
 {
     clang::CXXRecordDecl const* claimed_record = nullptr;
     bool callbacks_hold_roots = false;
+    bool claim_covers_subclasses = false;
     if (auto const* specialization = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(&record)) {
         if (specialization->getSpecializationKind() != clang::TSK_ExplicitSpecialization || specialization->getSpecializedTemplate()->getQualifiedNameAsString() != "GC::IsUntracedCapture")
             return;
@@ -1273,41 +1339,89 @@ void LibJSGCVisitor::validate_claim_of_no_cell_edges(clang::CXXRecordDecl const&
             if (auto const* variable = llvm::dyn_cast<clang::VarDecl>(declaration); variable && variable->getName() == "callbacks_hold_roots")
                 callbacks_hold_roots = true;
         }
+        // NB: A partial specialization declares the claim for whatever its arguments hold, which is checked where they
+        //     make claims of their own.
         auto const& arguments = specialization->getTemplateArgs();
-        if (arguments.size() != 1 || arguments[0].getKind() != clang::TemplateArgument::Type)
+        if (llvm::isa<clang::ClassTemplatePartialSpecializationDecl>(specialization) || arguments.size() != 1 || arguments[0].getKind() != clang::TemplateArgument::Type || arguments[0].getAsType()->isDependentType())
             return;
         claimed_record = arguments[0].getAsType()->getAsCXXRecordDecl();
-    } else if (!record.isDependentContext() && record_declares_no_cell_edges(record)) {
+        // NB: Unlike a claim made in the class, which its subclasses inherit and make themselves, this one covers a
+        //     counted or owned pointer to the class, which may point to a subclass.
+        claim_covers_subclasses = true;
+    } else if (record_declares_no_cell_edges(record)) {
         claimed_record = &record;
     }
-    if (!claimed_record)
-        return;
-    claimed_record = claimed_record->getDefinition();
-    if (!claimed_record || claimed_record->isDependentContext())
-        return;
+    if (claimed_record)
+        m_claims_of_no_cell_edges.push_back({ claimed_record, callbacks_hold_roots, claim_covers_subclasses });
+}
 
+void LibJSGCVisitor::validate_claims_of_no_cell_edges()
+{
+    std::set<clang::CXXRecordDecl const*> validated;
+    auto validate = [&](clang::CXXRecordDecl const* record, bool callbacks_hold_roots, clang::CXXRecordDecl const* claiming_base = nullptr) {
+        if (record && record->isCompleteDefinition() && !record->isDependentContext() && validated.insert(record).second)
+            validate_claim_of_no_cell_edges(*record, callbacks_hold_roots, claiming_base);
+    };
+    for (auto const& claim : m_claims_of_no_cell_edges) {
+        if (auto const* class_template = claim.record->getDescribedClassTemplate()) {
+            for (auto const* specialization : class_template->specializations())
+                validate(specialization, claim.callbacks_hold_roots);
+            continue;
+        }
+        auto const* definition = claim.record->getDefinition();
+        validate(definition, claim.callbacks_hold_roots);
+        if (!claim.covers_subclasses || !definition)
+            continue;
+        // NB: A subclass that makes the claim itself is checked on its own.
+        auto subclasses = m_polymorphic_subclasses.find(definition->getCanonicalDecl());
+        if (subclasses == m_polymorphic_subclasses.end())
+            continue;
+        for (auto const* subclass : subclasses->second) {
+            if (!record_declares_no_cell_edges(*subclass))
+                validate(subclass, claim.callbacks_hold_roots, definition);
+        }
+    }
+}
+
+// NB: A subclass of a class whose counted or owned pointers are declared to hold no cell edges is checked with the claiming
+//     base, which is checked on its own.
+void LibJSGCVisitor::validate_claim_of_no_cell_edges(clang::CXXRecordDecl const& record, bool callbacks_hold_roots, clang::CXXRecordDecl const* claiming_base)
+{
+    auto const* claimed_record = &record;
     auto& diag_engine = m_context.getDiagnostics();
     auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 is declared to hold no cell edges, but its member %1 holds a GC pointer");
     auto record_name = name_for_diagnostic(m_context, *claimed_record);
+    if (claiming_base)
+        record_name += " (through its base " + name_for_diagnostic(m_context, *claiming_base) + ")";
     auto function_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 is declared to hold no cell edges, but its member %1 holds an AK::Function, whose captures can't be checked");
+    auto violates = [&](clang::QualType type, ClaimViolation violation) {
+        if (violation == ClaimViolation::OpaqueFunction && callbacks_hold_roots)
+            return false;
+        // NB: The claimed type is checked here already, wherever its members lead back to it, such as through the
+        //     template arguments of RefCounted<T>.
+        std::set<clang::CXXRecordDecl const*> visited { claimed_record };
+        if (claiming_base)
+            visited.insert(claiming_base);
+        return type_violates_claim_of_no_cell_edges(type, violation, visited, m_polymorphic_subclasses);
+    };
     for (auto const* field : claimed_record->fields()) {
-        std::set<clang::CXXRecordDecl const*> visited;
-        if (type_holds_gc_pointer(field->getType(), visited))
+        if (violates(field->getType(), ClaimViolation::GCPointer))
             diag_engine.Report(field->getLocation(), diag_id) << record_name << field->getName();
-        std::set<clang::CXXRecordDecl const*> visited_for_functions;
-        if (!callbacks_hold_roots && type_holds_opaque_function(field->getType(), visited_for_functions))
+        if (violates(field->getType(), ClaimViolation::OpaqueFunction))
             diag_engine.Report(field->getLocation(), function_diag_id) << record_name << field->getName();
     }
 
     // NB: A base that declares the claim itself is checked on its own.
     auto base_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 is declared to hold no cell edges, but its base %1 holds a GC pointer");
+    auto base_function_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 is declared to hold no cell edges, but its base %1 holds an AK::Function, whose captures can't be checked");
     for (auto const& base : claimed_record->bases()) {
         auto const* base_record = base.getType()->getAsCXXRecordDecl();
         if (base_record && record_declares_no_cell_edges(*base_record))
             continue;
-        std::set<clang::CXXRecordDecl const*> visited;
-        if (type_holds_gc_pointer(base.getType(), visited))
+        if (violates(base.getType(), ClaimViolation::GCPointer))
             diag_engine.Report(base.getBeginLoc(), base_diag_id) << record_name << base.getType();
+        if (violates(base.getType(), ClaimViolation::OpaqueFunction))
+            diag_engine.Report(base.getBeginLoc(), base_function_diag_id) << record_name << base.getType();
     }
 }
 
@@ -1383,11 +1497,6 @@ static bool is_value_wrapper(std::string const& template_name)
         "AK::Variant",
     };
     return template_names.contains(template_name);
-}
-
-static bool is_owning_pointer(std::string const& template_name)
-{
-    return template_name == "AK::NonnullOwnPtr" || template_name == "AK::NonnullRefPtr" || template_name == "AK::OwnPtr" || template_name == "AK::RefPtr";
 }
 
 static std::optional<clang::QualType> find_container_with_unscanned_gc_pointers(clang::QualType, std::set<clang::CXXRecordDecl const*>& visited, PolymorphicSubclasses const* subclasses_of_owned_types = nullptr);
@@ -1569,6 +1678,7 @@ void LibJSGCASTConsumer::HandleTranslationUnit(clang::ASTContext& context)
 {
     LibJSGCVisitor visitor { context, m_macro_map, m_detect_invalid_function_members };
     visitor.TraverseDecl(context.getTranslationUnitDecl());
+    visitor.validate_claims_of_no_cell_edges();
 }
 
 char const* LibJSCellMacro::type_name(Type type)

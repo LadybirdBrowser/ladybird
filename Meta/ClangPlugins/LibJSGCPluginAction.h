@@ -66,6 +66,8 @@ public:
     bool VisitCXXMethodDecl(clang::CXXMethodDecl*);
     bool VisitCXXConstructExpr(clang::CXXConstructExpr*);
     bool VisitClassTemplateDecl(clang::ClassTemplateDecl*);
+
+    void validate_claims_of_no_cell_edges();
     bool VisitVarDecl(clang::VarDecl*);
     bool VisitCXXForRangeStmt(clang::CXXForRangeStmt*);
     bool VisitFunctionDecl(clang::FunctionDecl*);
@@ -80,7 +82,8 @@ private:
     void validate_record_macros(clang::CXXRecordDecl const&);
     void validate_engine_subclass_is_in_libjs(clang::CXXRecordDecl const&);
     void validate_gc_members_of_polymorphic_record(clang::CXXRecordDecl const&);
-    void validate_claim_of_no_cell_edges(clang::CXXRecordDecl const&);
+    void remember_claim_of_no_cell_edges(clang::CXXRecordDecl const&);
+    void validate_claim_of_no_cell_edges(clang::CXXRecordDecl const&, bool callbacks_hold_roots, clang::CXXRecordDecl const* claiming_base = nullptr);
     void remember_polymorphic_subclass(clang::CXXRecordDecl const&);
     void validate_object_on_stack(clang::VarDecl const&, clang::SourceLocation);
     void validate_type_on_stack(clang::QualType, clang::SourceLocation);
@@ -90,6 +93,13 @@ private:
     LibJSCellMacroMap const& m_macro_map;
     bool m_detect_invalid_function_members;
     PolymorphicSubclasses m_polymorphic_subclasses;
+
+    struct ClaimOfNoCellEdges {
+        clang::CXXRecordDecl const* record;
+        bool callbacks_hold_roots;
+        bool covers_subclasses;
+    };
+    std::vector<ClaimOfNoCellEdges> m_claims_of_no_cell_edges;
 };
 
 class LibJSGCASTConsumer : public clang::ASTConsumer {
