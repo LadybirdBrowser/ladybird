@@ -1,0 +1,18 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 82 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 50 0+0+8] children: not-inline
+      BlockContainer <ul> at [49,17] [0+1+40 16 0+1+726] [16+1+0 48 0+1+16] children: not-inline
+        ListItemBox <li> at [49,17] [0+0+0 16 0+0+0] [0+0+0 48 0+0+0] children: inline
+          frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [49,17 13.84375x16] baseline: 12.796875
+          frag 1 from TextNode start: 0, length: 4, rect: [49,33 37.578125x16] baseline: 12.796875
+              "Text"
+          frag 2 from TextNode start: 5, length: 4, rect: [49,49 39.671875x16] baseline: 12.796875
+              "More"
+          ListItemMarkerBox <(anonymous)> at [49,17] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [49,17 13.84375x16] baseline: 12.796875
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x82] (z-index: auto)

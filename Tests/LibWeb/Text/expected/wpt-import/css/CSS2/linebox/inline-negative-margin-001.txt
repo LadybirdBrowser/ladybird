@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 13 tests
 
-12 Pass
-1 Fail
+13 Pass
 Pass	[data-expected-height] 1
 Pass	[data-expected-height] 2
 Pass	[data-expected-height] 3
 Pass	[data-expected-height] 4
 Pass	[data-expected-height] 5
 Pass	[data-expected-height] 6
-Fail	[data-expected-height] 7
+Pass	[data-expected-height] 7
 Pass	[data-expected-height] 8
 Pass	[data-expected-height] 9
 Pass	[data-expected-height] 10
