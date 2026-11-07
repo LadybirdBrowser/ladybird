@@ -74,6 +74,7 @@ public:
     void rtc_transform_teardown(WebContentClient&, Web::HTML::WorkerAgentId, u64 transform_id);
     void rtc_transform_encoded_audio_frame(WebContentClient&, Web::HTML::WorkerAgentId, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number);
     void remove_web_content_owner(WebContentClient&);
+    void remove_web_content_page_owner(WebContentClient&, Web::PageId);
     void remove_web_worker_owner(WebWorkerClient&);
 
     // The agent behind the source connection has delivered the message to its own channels. Every other agent gets it
@@ -81,6 +82,13 @@ public:
     void post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage, CanonicalEnvironmentSettingsObject const& source_settings, IPC::ConnectionBase const& source_connection, IsPrivate);
     void for_each_request_server_site_bindings(Function<IterationDecision(RequestServerSiteBindings&)> const&);
     ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, Web::PageId page_id);
+
+    // Those of a private session that is over, whose workers only their extended lifetime keeps, are not to meet the next
+    // one's documents.
+    void remove_private_workers_without_owners();
+
+    // A process goes on without pages for as long as it runs a shared worker, as the worker's owners can be anywhere.
+    bool hosts_shared_worker(WebContentClient const&) const;
 
     Optional<u64> exclusive_performance_owner(pid_t) const;
 
@@ -118,6 +126,7 @@ private:
     };
 
     StartedWorkerAgent start_worker_agent(Owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest, IsPrivate);
+    static bool owner_process_may_host_shared_worker(WebContentOwner const&, CanonicalEnvironmentSettingsObject const& outside_settings);
 
     void notify_worker_script_load_failure(Owner const&);
     void notify_worker_exception(Owner const&, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno);

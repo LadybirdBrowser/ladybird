@@ -53,7 +53,7 @@ public:
     void terminate_process();
 
     // The WebContent process that runs this worker on a thread. A worker with a process of its own has none.
-    RefPtr<WebContentClient> host() const { return m_host.strong_ref(); }
+    WebContentClient* host() const { return m_host.ptr(); }
     void set_host(WebContentClient&);
     bool runs_on_thread() const { return m_runs_on_thread; }
 

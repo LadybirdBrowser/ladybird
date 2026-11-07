@@ -191,13 +191,13 @@ public:
     Web::CompositorContextId allocate_compositor_context(Web::PageId page_id, Web::PagePresentationRegistration);
     Optional<Web::PageId> page_id_for_compositor_context_id(Web::CompositorContextId) const;
     bool has_requested_close() const { return m_requested_close; }
+    void close_server_if_unused();
 
     pid_t pid() const { return m_child_identity.pid; }
     u64 child_id() const { return m_child_identity.child_id; }
     void set_child_identity(ChildIdentity identity) { m_child_identity = identity; }
 
 private:
-    void close_server_if_unused();
     bool forget_compositor_context(Web::CompositorContextId);
     void destroy_all_compositor_contexts();
     void cancel_navigation_transactions();

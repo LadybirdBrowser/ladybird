@@ -321,6 +321,10 @@ void WebContentClient::close_page_of_closed_tab(Web::PageId page_id)
         // e.g. because the user requested a forced close.
         if (page->needs_beforeunload_check())
             page->set_detached_close_pending(false);
+        // NB: The process can stay alive for other pages or for a shared worker, and the document must not go on in it.
+        //     Its close steps run through the traversable that is going away, so it cannot close by itself.
+        if (!page->detached_close_pending() || WorkerProcessManager::the().hosts_shared_worker(*this))
+            page->async_discard_embedded_page();
         PictureInPictureManager::the().close_window_and_its_page(*page);
         // NB: Other tabs can keep the process alive, so its page has to go as well.
         page->async_discard_embedded_page();
@@ -450,12 +454,18 @@ Optional<CanonicalNavigable&> WebContentClient::hosted_navigable(Web::HTML::Cros
 
 void WebContentClient::close_server_if_unused()
 {
+    if (m_requested_close)
+        return;
+
     bool any_detached_close_pending = false;
     for (auto const& page : m_pages) {
         if (page.value->is_open())
             return;
         any_detached_close_pending |= page.value->detached_close_pending();
     }
+
+    if (WorkerProcessManager::the().hosts_shared_worker(*this))
+        return;
 
     if (!any_detached_close_pending) {
         if (m_detached_page_close_timer)

@@ -40,6 +40,7 @@
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/HTML/WorkerTypes.h>
 #include <LibWebCommon/Page/ContextMenuForInputEventsTarget.h>
 #include <LibWebCommon/Page/DragEvent.h>
 #include <LibWebCommon/Page/InputEvent.h>
@@ -80,6 +81,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     content_navigable_completely_finished_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     update_local_root_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state) =|
     close_server() =|
+    [NotRouted] start_worker_thread(IPC::TransportHandle worker_transport, Web::HTML::AgentType agent_type) =|
 
     [NotRouted] get_window_handle(Web::PageId page_id) => (String handle)
     set_window_handle(Web::PageId page_id, String handle) =|

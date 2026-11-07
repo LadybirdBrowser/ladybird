@@ -94,6 +94,7 @@ public:
     // Whether the document of an environment the page hosts has a cross-site ancestor, or nothing if the page hosts no
     // such environment.
     Optional<bool> hosted_environment_has_cross_site_ancestor(Web::HTML::EnvironmentId const& environment_id) const;
+    Optional<bool> hosted_environment_is_cross_origin_isolated(Web::HTML::EnvironmentId const& environment_id) const;
     bool hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const&) const;
     void spoof_document_origin_for_testing(Web::HTML::EnvironmentId const& environment_id, URL::Origin);
     // Clears the bottle an environment of this page names, the way the browser's own clearing does: through the jar.

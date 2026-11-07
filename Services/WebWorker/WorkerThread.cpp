@@ -37,7 +37,7 @@ bool is_worker_thread()
     return s_is_worker_thread;
 }
 
-static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle)
+static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web::HTML::AgentType agent_type)
 {
     s_is_worker_thread = true;
 
@@ -48,7 +48,7 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle)
     }
 
     Core::EventLoop event_loop;
-    Web::Bindings::initialize_agent(Web::HTML::AgentType::DedicatedWorker);
+    Web::Bindings::initialize_agent(agent_type);
 
     auto event_loop_reference = Core::EventLoop::current_weak();
     {
@@ -70,10 +70,10 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle)
     return exit_code;
 }
 
-ErrorOr<void> start_worker_thread(IPC::TransportHandle worker_handle)
+ErrorOr<void> start_worker_thread(IPC::TransportHandle worker_handle, Web::HTML::AgentType agent_type)
 {
-    auto thread = TRY(Threading::Thread::try_create("WebWorker"sv, [worker_handle = move(worker_handle)] {
-        return run_worker_thread(worker_handle);
+    auto thread = TRY(Threading::Thread::try_create("WebWorker"sv, [worker_handle = move(worker_handle), agent_type] {
+        return run_worker_thread(worker_handle, agent_type);
     }));
     thread->set_stack_size(JS::VM::MINIMUM_THREAD_STACK_SIZE);
 

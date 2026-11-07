@@ -105,6 +105,7 @@ private:
     virtual void content_navigable_completely_finished_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void update_local_root_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState) override;
     virtual void close_server() override;
+    virtual void start_worker_thread(IPC::TransportHandle worker_transport, Web::HTML::AgentType agent_type) override;
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(Web::PageId page_id) override;
     virtual void set_window_handle(Web::PageId page_id, String handle) override;
     virtual void run_webdriver_command(Web::PageId page_id, u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String name, JsonValue payload, Vector<String> arguments) override;

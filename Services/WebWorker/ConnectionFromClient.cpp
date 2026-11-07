@@ -303,7 +303,7 @@ Web::Page const& ConnectionFromClient::page() const
     return m_page_host->page();
 }
 
-void ConnectionFromClient::start_worker(URL::URL url, Web::HTML::WorkerType type, Web::HTML::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder implicit_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings, Web::HTML::AgentType agent_type, URL::Origin origin, Web::HTML::EnvironmentId environment_id)
+void ConnectionFromClient::start_worker(URL::URL url, Web::HTML::WorkerType type, Web::HTML::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder implicit_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings, Web::HTML::AgentType agent_type, URL::Origin origin, Web::HTML::EnvironmentId environment_id, bool has_process_to_itself)
 {
     m_worker_host = make_ref_counted<WorkerHost>(move(url), type, move(name));
 
@@ -318,7 +318,7 @@ void ConnectionFromClient::start_worker(URL::URL url, Web::HTML::WorkerType type
             run_transform_init(entry.key, move(entry.value));
     });
 
-    m_worker_host->run(page(), move(implicit_port), outside_settings, credentials, is_shared, move(origin), move(environment_id));
+    m_worker_host->run(page(), move(implicit_port), outside_settings, credentials, is_shared, move(origin), move(environment_id), has_process_to_itself);
 }
 
 void ConnectionFromClient::connect_shared_worker(Web::HTML::TransferDataEncoder message_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings)
