@@ -97,11 +97,6 @@ void SVGUseElement::inserted()
 {
     Base::inserted();
 
-    // A use element inside another use element's shadow tree is itself part of a clone, so it's left alone.
-    auto* containing_shadow_root = as_if<DOM::ShadowRoot>(root());
-    if (containing_shadow_root && containing_shadow_root->is_user_agent_internal())
-        return;
-
     // Only use elements in the document's node tree react to changes of the elements they reference, mirroring the
     // document-wide traversal this registry replaced.
     if (root().is_document())
@@ -357,8 +352,21 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_cl
     shadow_root()->set_uses_document_style_sheets(to_clone && is_referenced_element_same_document());
 
     if (to_clone && is_valid_reference_element(*to_clone)) {
+        // If the referenced element is in an external file, then all URL references in attributes and style properties
+        // must be made absolute as described in Generating the absolute URL, before copying the value to the element
+        // instances. The shadow tree itself uses the same document base URL as the document that includes it.
+        // FIXME: Make URL references in other attributes and style properties absolute.
+        DOM::Node::CloneAttributeValue make_url_references_absolute = [](DOM::Element const& element, DOM::QualifiedName const& name, Utf16View value) {
+            if (is<SVGUseElement>(element) && name.local_name() == AttributeNames::href
+                && (!name.namespace_().has_value() || name.namespace_() == Namespace::XLink)) {
+                if (auto url = element.document().encoding_parse_url(value); url.has_value())
+                    return Utf16String::from_utf8(url->serialize());
+            }
+            return Utf16String::from_utf16(value);
+        };
+
         // The ‘use’ element references another element, a copy of which is rendered in place of the ‘use’ in the document.
-        auto cloned_reference_node = MUST(to_clone->clone_node(&document(), true));
+        auto cloned_reference_node = MUST(to_clone->clone_node(&document(), true, nullptr, nullptr, is_referenced_element_same_document() ? nullptr : &make_url_references_absolute));
         if (is<SVGSVGElement>(cloned_reference_node.ptr()) || is<SVGSymbolElement>(cloned_reference_node.ptr())) {
             auto& cloned_element = as<SVGElement>(*cloned_reference_node);
 
@@ -395,6 +403,12 @@ bool SVGUseElement::is_valid_reference_element(Element const& reference_element)
 bool SVGUseElement::would_create_circular_reference(Element const& target) const
 {
     auto visited = GC::Heap::the().allocate<GC::HeapHashTable<GC::Ref<Element const>>>();
+    for (auto* shadow_root = as_if<DOM::ShadowRoot>(root()); shadow_root && shadow_root->host(); shadow_root = as_if<DOM::ShadowRoot>(shadow_root->host()->root())) {
+        if (auto const* use = as_if<SVGUseElement>(*shadow_root->host())) {
+            if (auto referenced = use->referenced_element())
+                visited->table().set(*referenced);
+        }
+    }
     return would_create_circular_reference_impl(target, visited);
 }
 
