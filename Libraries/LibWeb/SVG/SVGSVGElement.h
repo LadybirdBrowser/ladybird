@@ -37,7 +37,7 @@ public:
     virtual Optional<ViewBox> active_view_box() const override;
     virtual SVGFitToViewBox const* fit_to_view_box() const override { return this; }
 
-    void set_active_view_element(GC::Ptr<SVGViewElement> view_element);
+    void set_active_view(GC::Ptr<SVGViewElement>, Optional<ViewBox> view_specification_view_box);
 
     // AD-HOC: The spec states that the x, y, width and height IDL attributes reflect the respective computed values and their
     //         corresponding presentation attributes but other browsers reflect the attribute values instead - see
@@ -120,6 +120,9 @@ private:
 
     GC::Ptr<SVGViewElement> active_view_element() const { return m_active_view_element; }
 
+    // The view box of the active SVG view, given by a view element or a view specification.
+    Optional<ViewBox> active_view_box_of_svg_view() const;
+
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
 
@@ -134,6 +137,7 @@ private:
     mutable GC::Ptr<Geometry::DOMPointReadOnly> m_current_translate;
 
     GC::Ptr<SVGViewElement> m_active_view_element;
+    Optional<ViewBox> m_view_specification_view_box;
 
     GC::Ptr<SMILTimeContainer> m_time_container;
 };

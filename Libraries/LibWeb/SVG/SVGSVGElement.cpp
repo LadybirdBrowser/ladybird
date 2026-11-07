@@ -139,18 +139,81 @@ void SVGSVGElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16
     }
 }
 
+// The view box an SVG view specification gives, if fragment is one: the fragment is no view specification at all
+// when it doesn't follow the grammar, names an attribute more than once, or holds an attribute value that doesn't parse.
+// https://svgwg.org/svg2-draft/linking.html#SVGFragmentIdentifiersDefinitions
+static Optional<Optional<ViewBox>> view_box_of_view_specification(Utf16View fragment)
+{
+    // "SVGViewSpec ::= 'svgView(' SVGViewAttributes ')'"
+    constexpr auto prefix = u"svgView("sv;
+    if (!fragment.starts_with(prefix) || !fragment.ends_with(u")"sv))
+        return {};
+    // "Spaces are allowed in fragment specifications."
+    auto attributes = fragment.substring_view(prefix.length_in_code_units(), fragment.length_in_code_units() - prefix.length_in_code_units() - 1)
+                          .trim_ascii_whitespace();
+    if (attributes.is_empty())
+        return {};
+
+    // "SVGViewAttributes ::= SVGViewAttribute | SVGViewAttribute ';' SVGViewAttributes"
+    // "SVGViewAttribute ::= viewBoxSpec | preserveAspectRatioSpec | transformSpec | zoomAndPanSpec"
+    Optional<ViewBox> view_box;
+    bool has_view_box = false;
+    bool has_preserve_aspect_ratio = false;
+    bool has_transform = false;
+    bool has_zoom_and_pan = false;
+    bool is_valid = true;
+    attributes.for_each_split_view(';', SplitBehavior::KeepEmpty, [&](Utf16View attribute) {
+        attribute = attribute.trim_ascii_whitespace();
+        auto open_paren = attribute.find_code_unit_offset('(');
+        if (!open_paren.has_value() || *open_paren == 0 || !attribute.ends_with(u")"sv)) {
+            is_valid = false;
+            return IterationDecision::Break;
+        }
+        auto name = attribute.substring_view(0, *open_paren).trim_ascii_whitespace();
+        auto value = attribute.substring_view(*open_paren + 1, attribute.length_in_code_units() - *open_paren - 2);
+        auto take = [&](bool& seen, bool value_parses) {
+            if (seen || !value_parses)
+                is_valid = false;
+            seen = true;
+        };
+        if (name == u"viewBox"sv) {
+            view_box = parse_viewbox(value);
+            take(has_view_box, view_box.has_value());
+        } else if (name == u"preserveAspectRatio"sv) {
+            take(has_preserve_aspect_ratio, parse_preserve_aspect_ratio(value).has_value());
+        } else if (name == u"transform"sv) {
+            take(has_transform, parse_transform(value).has_value());
+        } else if (name == u"zoomAndPan"sv) {
+            auto keyword = value.trim_ascii_whitespace();
+            take(has_zoom_and_pan, keyword == u"disable"sv || keyword == u"magnify"sv);
+        } else {
+            is_valid = false;
+        }
+        return is_valid ? IterationDecision::Continue : IterationDecision::Break;
+    });
+    if (!is_valid)
+        return {};
+    return view_box;
+}
+
 void SVGSVGElement::children_changed(ChildrenChangedMetadata const&)
 {
-    // FIXME: Add support for all types of SVG fragment identifier.
+    // FIXME: Add support for the other types of SVG fragment identifier, and for the preserveAspectRatio, transform
+    //        and zoomAndPan of a view specification.
     //        See: https://svgwg.org/svg2-draft/linking.html#LinksIntoSVG
     if (auto url = document().url(); url.fragment().has_value()) {
-        if (auto referenced_element = get_element_by_id(decode_fragment_identifier(*url.fragment()))) {
+        auto fragment = decode_fragment_identifier(*url.fragment());
+        if (auto view_box = view_box_of_view_specification(fragment); view_box.has_value()) {
+            set_active_view({}, *view_box);
+            return;
+        }
+        if (auto referenced_element = get_element_by_id(fragment)) {
             if (auto* view_element = as_if<SVGViewElement>(*referenced_element)) {
-                set_active_view_element(*view_element);
+                set_active_view(*view_element, {});
                 return;
             }
         }
-        set_active_view_element({});
+        set_active_view({}, {});
     }
 }
 
@@ -178,20 +241,37 @@ void SVGSVGElement::update_fallback_view_box_for_svg_as_image()
     }
 }
 
-// The active view element is the one input to the published attribute facts that no attribute of this element names,
-// so changing it republishes them.
-void SVGSVGElement::set_active_view_element(GC::Ptr<SVGViewElement> view_element)
+// The active view is the one input to the published attribute facts that no attribute of this element names, so
+// changing it republishes them.
+void SVGSVGElement::set_active_view(GC::Ptr<SVGViewElement> view_element, Optional<ViewBox> view_specification_view_box)
 {
-    if (m_active_view_element == view_element)
+    auto same_view_box = [](Optional<ViewBox> const& a, Optional<ViewBox> const& b) {
+        if (a.has_value() != b.has_value())
+            return false;
+        return !a.has_value()
+            || (a->min_x == b->min_x && a->min_y == b->min_y && a->width == b->width && a->height == b->height);
+    };
+    if (m_active_view_element == view_element
+        && same_view_box(m_view_specification_view_box, view_specification_view_box))
         return;
     m_active_view_element = view_element;
+    m_view_specification_view_box = view_specification_view_box;
     publish_svg_attribute_facts();
+}
+
+Optional<ViewBox> SVGSVGElement::active_view_box_of_svg_view() const
+{
+    if (m_view_specification_view_box.has_value())
+        return m_view_specification_view_box;
+    if (m_active_view_element)
+        return m_active_view_element->view_box();
+    return {};
 }
 
 Optional<ViewBox> SVGSVGElement::active_view_box() const
 {
-    if (m_active_view_element && m_active_view_element->view_box().has_value())
-        return m_active_view_element->view_box().value();
+    if (auto view_box = active_view_box_of_svg_view(); view_box.has_value())
+        return view_box;
 
     if (auto view_box = SVGFitToViewBox::view_box(); view_box.has_value())
         return view_box;
@@ -389,9 +469,9 @@ WebIDL::ExceptionOr<GC::Ref<SVGTransform>> SVGSVGElement::create_svg_transform_f
 Optional<CSSPixelFraction> SVGSVGElement::view_box_natural_aspect_ratio(SVGSVGElement const& svg_root)
 {
     // 2. If an SVG View is active:
-    if (auto active_view_element = svg_root.active_view_element(); active_view_element && active_view_element->view_box().has_value()) {
+    if (auto active_view_box = svg_root.active_view_box_of_svg_view(); active_view_box.has_value()) {
         // 1. let viewbox be the viewbox defined by the active SVG View
-        auto view_box = active_view_element->view_box().value();
+        auto view_box = active_view_box.value();
 
         // 2. return viewbox.width / viewbox.height
         if (view_box.width != 0 && view_box.height != 0)
