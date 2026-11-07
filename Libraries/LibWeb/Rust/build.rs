@@ -2469,18 +2469,33 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut web_audio_config = base_config.clone();
     web_audio_config.namespaces = Some(vec!["Web".into(), "WebAudio".into(), "RustFFI".into()]);
-    for name in ["FFT", "AudioBus", "ConvolverKernel", "ConvolverDelayLine"] {
+    for name in [
+        "FFT",
+        "AudioBus",
+        "ConvolverKernel",
+        "ConvolverDelayLine",
+        "AudioParamTimeline",
+        "RenderAudioParam",
+    ] {
         web_audio_config.export.rename.insert(name.into(), "void".into());
         web_audio_config.export.exclude.push(name.into());
     }
-    web_audio_config.export.exclude.push("MAX_CHANNEL_COUNT".into());
+    web_audio_config.export.item_types = vec![
+        cbindgen::ItemType::Enums,
+        cbindgen::ItemType::Structs,
+        cbindgen::ItemType::Typedefs,
+        cbindgen::ItemType::OpaqueItems,
+        cbindgen::ItemType::Functions,
+    ];
     generate_ffi_header(
         web_audio_config,
         &[
+            manifest_dir.join("src/web_audio/audio_param_timeline.rs"),
             manifest_dir.join("src/web_audio/rendering/fft.rs"),
             manifest_dir.join("src/web_audio/rendering/biquad_coefficients.rs"),
             manifest_dir.join("src/web_audio/rendering/audio_bus.rs"),
             manifest_dir.join("src/web_audio/rendering/convolver_kernel.rs"),
+            manifest_dir.join("src/web_audio/rendering/render_node.rs"),
         ],
         &out_dir,
         Path::new("WebAudio/RustFFI.h"),

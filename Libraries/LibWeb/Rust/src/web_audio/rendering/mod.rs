@@ -9,6 +9,7 @@ pub mod audio_bus;
 pub mod biquad_coefficients;
 pub mod convolver_kernel;
 pub mod fft;
+pub mod render_node;
 
 #[cfg(test)]
 mod tests;

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -111,7 +112,7 @@ void RenderGraph::rebuild_incoming_connections()
         for (size_t input_index = 0; input_index < graph_node->input_count(); ++input_index)
             graph_node->input_connections(input_index).clear_with_capacity();
         graph_node->for_each_param([](RenderAudioParam& param) {
-            param.inputs().clear_with_capacity();
+            param.clear_inputs();
         });
     }
 
@@ -122,7 +123,7 @@ void RenderGraph::rebuild_incoming_connections()
                 destination_node->input_connections(connection.input_index).append({ node_id, connection.output_index });
         }
         for (auto const& connection : graph_node->outgoing_param_connections())
-            connection.destination->inputs().append({ node_id, connection.output_index });
+            connection.destination->add_input(node_id, connection.output_index);
     }
 }
 

@@ -31,6 +31,8 @@ public:
     Span<float> channel(size_t index);
     ReadonlySpan<float> channel(size_t index) const;
 
+    void const* rust_bus() const { return m_bus; }
+
     void zero();
     bool is_silent() const;
     void set_channel_count(size_t);
