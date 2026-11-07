@@ -774,6 +774,17 @@ void WorkerAgentManager::worker_did_close(Web::HTML::WorkerAgentId agent_id)
     });
 }
 
+void WorkerAgentManager::shared_worker_did_close(Web::HTML::WorkerAgentId agent_id)
+{
+    // NB: The script can run on, and its thread with it, but no constructor may connect to this worker any more.
+    auto maybe_agent = m_agents.find(agent_id);
+    if (maybe_agent == m_agents.end() || !maybe_agent->value.shared_worker_key.has_value())
+        return;
+    auto const& key = *maybe_agent->value.shared_worker_key;
+    if (m_shared_workers.get(key) == agent_id)
+        m_shared_workers.remove(key);
+}
+
 void WorkerAgentManager::worker_did_die(Web::HTML::WorkerAgentId agent_id)
 {
     auto maybe_agent = m_agents.find(agent_id);
@@ -850,7 +861,8 @@ void WorkerAgentManager::remove_agent(Web::HTML::WorkerAgentId agent_id, AgentRe
     if (agent.extended_lifetime_timer)
         Core::deferred_invoke([timer = move(agent.extended_lifetime_timer)] { });
 
-    if (agent.shared_worker_key.has_value())
+    // NB: A new worker may have taken this one's place by now.
+    if (agent.shared_worker_key.has_value() && m_shared_workers.get(*agent.shared_worker_key) == agent_id)
         m_shared_workers.remove(*agent.shared_worker_key);
 
     // NB: The owner of a page can be removing the agent from the destructor of the host, which nothing can take a

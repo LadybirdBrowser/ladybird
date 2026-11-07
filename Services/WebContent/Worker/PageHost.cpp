@@ -130,6 +130,11 @@ void PageHost::page_did_post_broadcast_channel_message(Web::HTML::PostedBroadcas
     m_client.async_did_post_broadcast_channel_message(message);
 }
 
+void PageHost::page_did_close_shared_worker()
+{
+    (void)m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidCloseSharedWorker>();
+}
+
 void PageHost::request_file(Web::FileRequest request)
 {
     m_client.request_file(move(request));
