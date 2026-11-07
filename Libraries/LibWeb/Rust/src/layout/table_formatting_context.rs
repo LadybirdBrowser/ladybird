@@ -1972,7 +1972,14 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn initialize_row_content_sizes(&mut self) {
-        let basis = self.table_constraints.block_basis();
+        // NB: A row's percentage block sizes resolve against the table's block size, which an auto-height table doesn't
+        //     have yet, so they count as 0px there: "the computed height (if definite, percentages being considered 0px)"
+        //     https://www.w3.org/TR/css-tables-3/#computing-the-table-height
+        let basis = if self.table_block_size_is_auto() {
+            CssPixels::default()
+        } else {
+            self.table_constraints.block_basis()
+        };
         for row_index in 0..self.rows.len() {
             let style = self.style(self.rows[row_index].box_);
             let min_size = style.min_height().to_px(basis);
@@ -3156,7 +3163,10 @@ impl<'pass> TableFormattingContext<'pass> {
                 continue;
             }
             let style = self.style(self.rows[row_index].box_);
-            if style.height().is_percentage() {
+            // NB: A percentage block size resolves against the table's, which an auto-height table doesn't have before
+            //     its rows are sized. So in such a table, a row with a percentage block size is sized as an auto row
+            //     is, as a cell with one is (see cell_has_resolvable_percentage_block_size()).
+            if style.height().is_percentage() && !self.table_block_size_is_auto() {
                 let used = style.height().to_px(table_percentage_basis);
                 self.rows[row_index].reference_block_size = self.rows[row_index].reference_block_size.max(used);
             }
@@ -3293,7 +3303,12 @@ impl<'pass> TableFormattingContext<'pass> {
             return;
         }
         let auto_rows = (0..self.rows.len())
-            .filter(|index| !self.rows[*index].is_collapsed && self.style(self.rows[*index].box_).height().is_auto())
+            .filter(|index| {
+                // NB: A row with a percentage block size counts as an auto row in an auto-height table.
+                let height = self.style(self.rows[*index].box_).height();
+                !self.rows[*index].is_collapsed
+                    && (height.is_auto() || (height.is_percentage() && self.table_block_size_is_auto()))
+            })
             .collect::<Vec<_>>();
         if self.table_block_size <= sum && sum != CssPixels::default() {
             // If the table block size is no larger than the sum of reference sizes, each final row block size is the
