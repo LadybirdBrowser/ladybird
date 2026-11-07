@@ -8,9 +8,11 @@
 #include <AK/QuickSort.h>
 #include <AK/kmalloc.h>
 #include <LibURL/InternalURLs.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/ProcessSnapshot.h>
 #include <UI/Qt/ChromeStyle.h>
+#include <UI/Qt/HubConnection.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/ProcessManagerWindow.h>
 #include <UI/Qt/StringUtils.h>
@@ -345,8 +347,8 @@ private:
 
 }
 
-ProcessManagerWindow::ProcessManagerWindow(WebView::ProcessManager& process_manager)
-    : m_process_manager(process_manager)
+ProcessManagerWindow::ProcessManagerWindow(Source source)
+    : m_source(AK::move(source))
 {
     setWindowFlags(Qt::Window);
 #if defined(AK_OS_MACOS)
@@ -620,7 +622,10 @@ void ProcessManagerWindow::refresh()
     if (m_is_updating_style)
         return;
 
-    auto processes = WebView::process_snapshots(m_process_manager);
+    auto processes = m_source.take_snapshots();
+    m_process_types.clear();
+    for (auto const& process : processes)
+        m_process_types.set(process.child_id, process.type);
     QLocale locale;
 
     HashMap<u64, WebView::ProcessSnapshot const*> processes_by_child_id;
@@ -966,9 +971,9 @@ void ProcessManagerWindow::update_actions()
         m_end_action->setEnabled(false);
         return;
     }
-    auto process = m_process_manager.find_child(item->data(PID, ChildIDRole).toULongLong());
-    m_copy_pid_action->setEnabled(process.has_value());
-    m_end_action->setEnabled(process.has_value() && process->type() != WebView::ProcessType::Browser);
+    auto process_type = m_process_types.get(item->data(PID, ChildIDRole).toULongLong());
+    m_copy_pid_action->setEnabled(process_type.has_value());
+    m_end_action->setEnabled(process_type.has_value() && *process_type != WebView::ProcessType::Browser);
 }
 
 void ProcessManagerWindow::end_selection()
@@ -992,10 +997,8 @@ void ProcessManagerWindow::end_selection()
     for (auto* item : items) {
         auto pid = static_cast<pid_t>(item->data(PID, Qt::UserRole).toLongLong());
         auto child_id = item->data(PID, ChildIDRole).toULongLong();
-        if (auto result = m_process_manager.terminate_child(child_id, Core::Process::TerminationMode::Forceful); result.is_error()) {
-            if (!result.error().is_errno() || result.error().code() != ESRCH)
-                QMessageBox::warning(this, tr("Unable to end process"), qformatted("Could not end process {}: {}", pid, result.error()));
-        }
+        if (!m_source.end_process(child_id))
+            QMessageBox::warning(this, tr("Unable to end process"), qformatted("Could not end process {}", pid));
     }
     m_processes->clearSelection();
     refresh();

@@ -10,7 +10,9 @@
 #include <Hub/HubServerEndpoint.h>
 #include <Hub/View.h>
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibRequests/Request.h>
 #include <LibWebView/Autocomplete.h>
+#include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/FileDownloader.h>
 
 namespace Hub {
@@ -18,7 +20,8 @@ namespace Hub {
 // The Hub's end of its connection to the UI.
 class ConnectionFromUI final
     : public IPC::ConnectionFromClient<HubClientEndpoint, HubServerEndpoint>
-    , public WebView::FileDownloaderObserver {
+    , public WebView::FileDownloaderObserver
+    , public WebView::CrashReportOutboxObserver {
     C_OBJECT(ConnectionFromUI);
 
 public:
@@ -36,7 +39,14 @@ public:
 private:
     explicit ConnectionFromUI(NonnullOwnPtr<IPC::Transport>);
 
+    // ^WebView::CrashReportOutboxObserver
+    virtual void crash_reports_changed() override;
+
     static View* find_view(u64 view_id);
+
+    // The reports that the UI has asked us to post, which it has no network to do itself.
+    HashMap<u64, NonnullRefPtr<Requests::Request>> m_report_posts;
+    u64 m_last_applied_settings_change_id { 0 };
 
     // The location bars of the UI each have one of these, which needs the network and the history.
     HashMap<u64, NonnullOwnPtr<WebView::Autocomplete>> m_omnibox_clients;
@@ -50,6 +60,50 @@ private:
     virtual void download_removed(u64 id, WebView::IsPrivate) override;
 
     // ^HubServerEndpoint
+    virtual Messages::HubServer::InitializeResponse initialize() override;
+    virtual Messages::HubServer::CreateViewResponse create_view(Hub::NewViewRequest request) override;
+    virtual Messages::HubServer::ViewDescriptionResponse view_description(u64 view_id) override;
+    virtual void ui_did_start() override;
+    virtual void post_report(u64 post_id, URL::URL url, Vector<HTTP::Header> headers, ByteString body) override;
+    virtual void cancel_report_post(u64 post_id) override;
+    virtual void open_bookmark_in_new_tab(String bookmark_id, Web::HTML::ActivateTab activate_tab) override;
+    virtual void toggle_devtools_enabled() override;
+    virtual void launch_devtools_client() override;
+    virtual void reset_private_browsing_session() override;
+    virtual void notify_compositor_gpu_presentation_unavailable() override;
+    virtual void ui_info_changed(Hub::UIInfo info) override;
+    virtual Messages::HubServer::ProcessSnapshotsResponse process_snapshots() override;
+    virtual Messages::HubServer::TerminateProcessResponse terminate_process(u64 child_id) override;
+    virtual Messages::HubServer::ViewNeedsBeforeunloadCheckResponse view_needs_beforeunload_check(u64 view_id) override;
+    virtual Messages::HubServer::ViewRecentHistoryEntriesResponse view_recent_history_entries(u64 view_id, u64 limit) override;
+    virtual Messages::HubServer::ViewSessionHistoryTraversalMenuItemsResponse view_session_history_traversal_menu_items(u64 view_id, i32 direction) override;
+    virtual Messages::HubServer::ViewSessionHistorySnapshotResponse view_session_history_snapshot(u64 view_id) override;
+    virtual Messages::HubServer::ViewRestoreSessionHistoryFromSnapshotResponse view_restore_session_history_from_snapshot(u64 view_id, WebView::SessionHistorySnapshot snapshot) override;
+    virtual Messages::HubServer::ViewHistoryStepAtDeltaResponse view_history_step_at_delta(u64 view_id, i32 delta) override;
+    virtual Messages::HubServer::ViewLookUpSelectedTextAtResponse view_look_up_selected_text_at(u64 view_id, Gfx::IntPoint position) override;
+    virtual Messages::HubServer::ViewPageDescriptionResponse view_page_description(u64 view_id) override;
+    virtual Messages::HubServer::ViewTranslationMenuResponse view_translation_menu(u64 view_id) override;
+    virtual Messages::HubServer::SessionWindowOpenedResponse session_window_opened(WebView::IsPrivate is_private) override;
+    virtual Messages::HubServer::SessionWindowClosingResponse session_window_closing(WebView::IsPrivate is_private, WebView::SessionStore::WindowClosing closing) override;
+    virtual void session_window_activated(WebView::IsPrivate is_private, WebView::SessionWindowId id) override;
+    virtual void session_window_geometry_changed(WebView::IsPrivate is_private, WebView::SessionWindowId id, WebView::SessionWindowGeometry geometry) override;
+    virtual Messages::HubServer::SessionTabOpenedResponse session_tab_opened(WebView::IsPrivate is_private, WebView::SessionStore::TabOpened opened) override;
+    virtual Messages::HubServer::SessionTabClosedResponse session_tab_closed(WebView::IsPrivate is_private, WebView::SessionStore::TabClosed closed) override;
+    virtual void session_tab_detached(WebView::IsPrivate is_private, WebView::SessionTabId id) override;
+    virtual void session_tab_moved(WebView::IsPrivate is_private, WebView::SessionStore::TabMoved moved) override;
+    virtual void session_tab_order_changed(WebView::IsPrivate is_private, WebView::SessionStore::TabOrderChanged changed) override;
+    virtual Messages::HubServer::SessionTabPinnedChangedResponse session_tab_pinned_changed(WebView::IsPrivate is_private, WebView::SessionTabId id, bool pinned) override;
+    virtual void session_active_tab_changed(WebView::IsPrivate is_private, WebView::SessionTabId id) override;
+    virtual void session_application_quitting(WebView::IsPrivate is_private) override;
+    virtual void session_application_quit_aborted(WebView::IsPrivate is_private) override;
+    virtual Messages::HubServer::SessionConsecutiveUncleanExitsResponse session_consecutive_unclean_exits(WebView::IsPrivate is_private) override;
+    virtual Messages::HubServer::SessionHasClosedUnitsResponse session_has_closed_units(WebView::IsPrivate is_private) override;
+    virtual Messages::HubServer::SessionTakeMostRecentlyClosedResponse session_take_most_recently_closed(WebView::IsPrivate is_private) override;
+    virtual Messages::HubServer::SessionRecentlyClosedUnitsResponse session_recently_closed_units(WebView::IsPrivate is_private, u64 limit) override;
+    virtual Messages::HubServer::SessionTakeClosedUnitResponse session_take_closed_unit(WebView::IsPrivate is_private, WebView::SessionWindowId id) override;
+    virtual Messages::HubServer::SessionTakeLaunchPlanResponse session_take_launch_plan(WebView::IsPrivate is_private) override;
+    virtual Messages::HubServer::SessionLoadTabHistoryResponse session_load_tab_history(WebView::IsPrivate is_private, WebView::SessionTabId id) override;
+    virtual Messages::HubServer::HistoryEntryForUrlResponse history_entry_for_url(WebView::IsPrivate is_private, URL::URL url) override;
     virtual void view_set_site_permission(u64 view_id, URL::Origin origin, Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) override;
     virtual void view_did_show_permission_prompt(u64 view_id, WebView::PermissionPromptRequest request) override;
     virtual void view_load_navigation(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation) override;
@@ -94,7 +148,7 @@ private:
     virtual void answer_clipboard_text(u64 request_id, Utf16String text) override;
     virtual void answer_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem item) override;
     virtual void answer_download_path(u64 request_id, Optional<ByteString> path) override;
-    virtual void update_settings(ByteString settings_json) override;
+    virtual void update_settings(u64 change_id, ByteString changes_json) override;
     virtual void activate_action(u64 handle, Optional<bool> checked) override;
     virtual void view_answer(u64 view_id, u64 answer_id, bool answer) override;
     virtual void view_answer_permission_request(u64 view_id, u64 answer_id, Web::Permissions::PromptOutcome outcome) override;

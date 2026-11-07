@@ -1119,9 +1119,9 @@ void Application::remove_content_blocker_list(Badge<SettingsUI>, StringView iden
     (void)FileSystem::remove(content_blocker_list_path(identifier), FileSystem::RecursionMode::Disallowed);
 }
 
-void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const
+void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab, ViewImplementation const* source_view) const
 {
-    if (auto view = open_blank_new_tab(activate_tab); view.has_value())
+    if (auto view = open_blank_new_tab(activate_tab, source_view); view.has_value())
         view->load(url);
 }
 
@@ -1143,9 +1143,9 @@ void Application::activate_or_open_tab_with_url(URL::URL const& url) const
         open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
 }
 
-void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) const
+void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab, ViewImplementation const* source_view) const
 {
-    if (auto view = open_blank_new_tab(activate_tab); view.has_value())
+    if (auto view = open_blank_new_tab(activate_tab, source_view); view.has_value())
         view->load(move(navigation));
 }
 

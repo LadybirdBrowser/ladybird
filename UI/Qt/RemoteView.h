@@ -28,12 +28,7 @@ public:
     RemoteView(Optional<u64> view_id, Hub::View::InitialState);
     virtual ~RemoteView();
 
-    // The UI's side of a view that the UI shows.
-    static RemoteView& of(WebView::ViewImplementation const&);
     static RemoteView* find(u64 view_id);
-
-    // The view of the UI that shows a view of the Hub, if any.
-    static RemoteView* of_if_any(WebView::ViewImplementation const&);
 
     void did_request_context_menu(Vector<Hub::MenuEntry> const&, Gfx::IntPoint widget_position);
 
@@ -57,9 +52,6 @@ public:
     void did_finish_handling_mouse_event(u64 input_id, Web::MouseEvent, Web::EventResult);
     void did_finish_handling_drag_event(u64 input_id, Web::DragEvent);
     void release_input(u64 input_id) { m_input_in_hub.remove(input_id); }
-
-    Hub::View& hub_view() { return *m_view; }
-    Hub::View const& hub_view() const { return *m_view; }
 
     WebView::IsPrivate is_private() const { return m_is_private; }
     URL::Origin permission_origin() const { return *m_state.permission_origin; }
@@ -99,7 +91,7 @@ public:
     Optional<ByteString> crash_report_name() const { return m_state.crash_report_name; }
     Optional<String> crash_report_website() const { return m_state.crash_report_website; }
     void traverse_the_history_to_step(i32 step) { HubConnection::the().async_view_traverse_the_history_to_step(view_id(), step); }
-    Vector<WebView::HistoryEntry> recent_history_entries(size_t limit) const { return m_view->recent_history_entries(limit); }
+    Vector<WebView::HistoryEntry> recent_history_entries(size_t limit) const;
     Optional<WebView::SessionTabId> session_tab_id() const { return m_session_tab_id; }
     void set_session_tab_id(WebView::SessionTabId session_tab_id)
     {
@@ -134,7 +126,7 @@ public:
     void update_interface_color_scheme() { HubConnection::the().async_view_update_interface_color_scheme(view_id()); }
     void update_system_theme(Core::AnonymousBuffer const& theme) { HubConnection::the().async_view_set_system_theme(view_id(), theme); }
     NonnullRefPtr<Core::Promise<ByteString>> selected_text();
-    bool look_up_selected_text_at(Gfx::IntPoint widget_position) { return m_view->look_up_selected_text_at(move(widget_position)); }
+    bool look_up_selected_text_at(Gfx::IntPoint widget_position);
     void find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity = CaseSensitivity::CaseInsensitive, bool highlight_all_matches = false) { HubConnection::the().async_view_find_in_page(view_id(), query, move(case_sensitivity), highlight_all_matches); }
     void find_in_page_next_match() { HubConnection::the().async_view_find_in_page_next_match(view_id()); }
     void find_in_page_previous_match() { HubConnection::the().async_view_find_in_page_previous_match(view_id()); }
@@ -180,7 +172,7 @@ public:
     void save_screenshot(Gfx::Bitmap const& bitmap) { HubConnection::the().async_view_save_screenshot(view_id(), bitmap.to_shareable_bitmap()); }
     void request_close() { HubConnection::the().async_view_request_close(view_id()); }
     void request_close_preflight(Function<void(bool)> on_complete);
-    bool needs_beforeunload_check() const { return m_view->needs_beforeunload_check(); }
+    bool needs_beforeunload_check() const;
     u64 add_navigation_listener(NavigationListener);
     void remove_navigation_listener(u64 listener_id) { m_navigation_listeners.remove(listener_id); }
     WebView::Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
@@ -194,9 +186,9 @@ public:
     bool is_translated() const { return m_state.is_translated; }
     WebView::Menu& translation_menu();
 
-    Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const { return m_view->session_history_traversal_menu_items(direction); }
-    WebView::SessionHistorySnapshot session_history_snapshot() const { return m_view->session_history_snapshot(); }
-    ErrorOr<void> restore_session_history_from_snapshot(WebView::SessionHistorySnapshot snapshot) { return m_view->restore_session_history_from_snapshot(move(snapshot)); }
+    Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
+    WebView::SessionHistorySnapshot session_history_snapshot() const;
+    ErrorOr<void> restore_session_history_from_snapshot(WebView::SessionHistorySnapshot);
     void exit_fullscreen() { HubConnection::the().async_view_exit_fullscreen(view_id()); }
     void deny_fullscreen_window() { HubConnection::the().async_view_deny_fullscreen_window(view_id()); }
     void set_is_fullscreen(Web::ViewportIsFullscreen is_fullscreen) { HubConnection::the().async_view_set_is_fullscreen(view_id(), is_fullscreen); }
@@ -232,7 +224,9 @@ protected:
     static Gfx::IntRect rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size) { return Hub::View::rect_fitting_frame(frame_size, target_size); }
 
 private:
+#ifndef LADYBIRD_HUB_IN_OWN_PROCESS
     Hub::View* m_view { nullptr };
+#endif
 
     RefPtr<WebView::Action> m_navigate_back_action;
     RefPtr<WebView::Action> m_navigate_forward_action;

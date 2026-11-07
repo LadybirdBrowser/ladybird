@@ -116,9 +116,8 @@ def run_test(webdriver_binary):
             ), "An update with no eligible lists left the button waiting for a notification"
 
             variable = script("""
-                const input = [...document.querySelectorAll('#config-list input[type=number]')]
-                    .find(input => input !== draftInput);
-                return {name: input.id, value: Number(input.value) + 1};
+                const input = document.querySelector('#config-list input[type=checkbox]');
+                return {name: input.id, value: !input.checked};
             """)
             changes = change("setConfigVariable", variable)
             assert set(changes) == {"configVariables", "configVariableDefinitions"}, changes

@@ -1,3 +1,4 @@
+#include <LibHTTP/Header.h>
 #include <AK/StringUtils.h>
 #include <Hub/HubClientEndpoint.h>
 #include <LibCore/AnonymousBuffer.h>
@@ -11,6 +12,10 @@
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebView/OmniboxEngagement.h>
+#include <LibWebView/HistoryStore.h>
+#include <LibWebView/ProcessSnapshot.h>
+#include <LibWebView/SessionHistory.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/ViewImplementation.h>
 
 [ExistingCpp]
@@ -29,9 +34,222 @@ struct WebView::OmniboxEngagement {
     UnixDateTime used_at;
 }
 
+[ExistingCpp]
+struct WebView::SessionWindowGeometry {
+    i32 x;
+    i32 y;
+    i32 width;
+    i32 height;
+    bool maximized;
+}
+
+[ExistingCpp]
+struct WebView::HistoryEntry {
+    String url;
+    Optional<String> title;
+    Optional<ByteBuffer> favicon_png;
+    i64 visit_count;
+    i64 direct_visit_count;
+    UnixDateTime last_visited_time;
+    UnixDateTime last_qualifying_visit_time;
+    UnixDateTime last_direct_visit_time;
+    double decayed_visit_score;
+    double decayed_direct_score;
+    UnixDateTime score_updated_at;
+}
+
+[ExistingCpp]
+struct WebView::SessionHistorySnapshot {
+    Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
+    Vector<i32> used_steps;
+    size_t current_used_step_index;
+}
+
+[ExistingCpp]
+struct WebView::SessionStore::TabOpened {
+    Optional<WebView::SessionWindowId> window_id;
+    URL::URL initial_url;
+    Optional<i64> insertion_index;
+    WebView::SessionStore::IsActive is_active;
+}
+
+[ExistingCpp]
+struct WebView::ClosedSessionTab {
+    URL::URL active_url;
+    Optional<WebView::SessionHistorySnapshot> history;
+    bool pinned;
+}
+
+[ExistingCpp]
+struct WebView::ClosedSessionUnit {
+    Vector<WebView::ClosedSessionTab> tabs;
+    i64 active_tab_index;
+    bool was_window;
+    Optional<WebView::SessionWindowId> source_window_id;
+    Optional<i64> source_tab_index;
+    WebView::ClosedSessionUnit::Origin origin;
+    Optional<WebView::SessionWindowGeometry> geometry;
+}
+
+[ExistingCpp]
+struct WebView::RecentlyClosedSessionUnit {
+    WebView::SessionWindowId id;
+    URL::URL active_url;
+    size_t tab_count;
+    bool was_window;
+    bool from_startup_recovery;
+    UnixDateTime closed_at;
+}
+
+[ExistingCpp]
+struct WebView::RestoredSessionTab {
+    WebView::SessionTabId tab_id;
+    URL::URL url;
+    bool pinned;
+}
+
+[ExistingCpp]
+struct WebView::RestoredSessionWindow {
+    WebView::SessionWindowId window_id;
+    Vector<WebView::RestoredSessionTab> tabs;
+    i64 active_tab_index;
+    Optional<WebView::SessionWindowGeometry> geometry;
+}
+
+[ExistingCpp]
+struct WebView::SessionStore::TabClosed {
+    WebView::SessionTabId tab_id;
+    UnixDateTime closed_at;
+    WebView::SessionStore::KeepForReopening keep_for_reopening;
+}
+
+[ExistingCpp]
+struct WebView::SessionStore::TabMoved {
+    WebView::SessionTabId tab_id;
+    WebView::SessionWindowId new_window_id;
+    i64 ordinal;
+}
+
+[ExistingCpp]
+struct WebView::SessionStore::TabOrderChanged {
+    WebView::SessionWindowId window_id;
+    Vector<WebView::SessionTabId> ordered_tabs;
+}
+
+[ExistingCpp]
+struct WebView::SessionStore::WindowClosing {
+    WebView::SessionWindowId window_id;
+    i64 active_tab_index;
+    UnixDateTime closed_at;
+}
+
+[ExistingCpp]
+struct WebView::ViewImplementation::SessionHistoryTraversalMenuItem {
+    i32 step;
+    String title;
+    String url;
+    Optional<ByteBuffer> favicon_png;
+}
+
+[ExistingCpp]
+struct WebView::ProcessPageSnapshot {
+    u64 view_id;
+    URL::URL url;
+    WebView::ProcessPageKind kind;
+    Optional<String> favicon_hash;
+}
+
+[ExistingCpp]
+struct WebView::ProcessTabSnapshot {
+    Utf16String title;
+    WebView::ProcessPageSnapshot page;
+}
+
+[ExistingCpp]
+struct WebView::ProcessFrameSnapshot {
+    URL::URL url;
+    bool is_sandboxed;
+}
+
+[ExistingCpp]
+struct WebView::ProcessSnapshot {
+    u64 child_id;
+    i32 pid;
+    WebView::ProcessType type;
+    Optional<Utf16String> title;
+    Optional<URL::URL> site_url;
+    Optional<u64> owner_child_id;
+    float cpu_percent;
+    u64 memory_usage_bytes;
+    Optional<WebView::ProcessPageSnapshot> page;
+    Vector<WebView::ProcessTabSnapshot> tabs;
+    Vector<WebView::ProcessFrameSnapshot> frames;
+}
+
+// What it takes to make a view, which the UI asks for when the user opens a tab.
+struct Hub::NewViewRequest {
+    WebView::IsPrivate is_private;
+    double device_pixel_ratio;
+    double maximum_frames_per_second;
+    Optional<u64> display_id;
+    Core::AnonymousBuffer system_theme;
+    Optional<WebView::ViewImplementation::ScreenRects> screen_rects;
+    Optional<u64> owner_view_id;
+    bool websites_prefer_dark;
+    bool is_tab;
+}
+
 // What the UI asks of the Hub.
 endpoint HubServer
 {
+    initialize() => (Hub::InitialState state)
+    create_view(Hub::NewViewRequest request) => (u64 view_id, Hub::ViewState state, Hub::ViewActions actions)
+    view_description(u64 view_id) => (Hub::ViewState state, Hub::ViewActions actions)
+    ui_did_start() =|
+    post_report(u64 post_id, URL::URL url, Vector<HTTP::Header> headers, ByteString body) =|
+    cancel_report_post(u64 post_id) =|
+
+    open_bookmark_in_new_tab(String bookmark_id, Web::HTML::ActivateTab activate_tab) =|
+    toggle_devtools_enabled() =|
+    launch_devtools_client() =|
+    reset_private_browsing_session() =|
+    notify_compositor_gpu_presentation_unavailable() =|
+    ui_info_changed(Hub::UIInfo info) =|
+
+    process_snapshots() => (Vector<WebView::ProcessSnapshot> processes)
+    terminate_process(u64 child_id) => (bool terminated)
+
+    view_needs_beforeunload_check(u64 view_id) => (bool needs_check)
+    view_recent_history_entries(u64 view_id, u64 limit) => (Vector<WebView::HistoryEntry> entries)
+    view_session_history_traversal_menu_items(u64 view_id, i32 direction) => (Vector<WebView::ViewImplementation::SessionHistoryTraversalMenuItem> items)
+    view_session_history_snapshot(u64 view_id) => (Optional<WebView::SessionHistorySnapshot> snapshot)
+    view_restore_session_history_from_snapshot(u64 view_id, WebView::SessionHistorySnapshot snapshot) => (bool restored)
+    view_history_step_at_delta(u64 view_id, i32 delta) => (Optional<i32> step)
+    view_look_up_selected_text_at(u64 view_id, Gfx::IntPoint position) => (bool looked_up)
+    view_page_description(u64 view_id) => (URL::URL url, String user_agent, Gfx::IntSize viewport_size, double device_pixel_ratio, double zoom_level)
+    view_translation_menu(u64 view_id) => (Vector<Hub::MenuEntry> entries)
+
+    session_window_opened(WebView::IsPrivate is_private) => (Optional<WebView::SessionWindowId> id)
+    session_window_closing(WebView::IsPrivate is_private, WebView::SessionStore::WindowClosing closing) => (bool succeeded)
+    session_window_activated(WebView::IsPrivate is_private, WebView::SessionWindowId id) =|
+    session_window_geometry_changed(WebView::IsPrivate is_private, WebView::SessionWindowId id, WebView::SessionWindowGeometry geometry) =|
+    session_tab_opened(WebView::IsPrivate is_private, WebView::SessionStore::TabOpened opened) => (Optional<WebView::SessionTabId> id)
+    session_tab_closed(WebView::IsPrivate is_private, WebView::SessionStore::TabClosed closed) => (bool succeeded)
+    session_tab_detached(WebView::IsPrivate is_private, WebView::SessionTabId id) =|
+    session_tab_moved(WebView::IsPrivate is_private, WebView::SessionStore::TabMoved moved) =|
+    session_tab_order_changed(WebView::IsPrivate is_private, WebView::SessionStore::TabOrderChanged changed) =|
+    session_tab_pinned_changed(WebView::IsPrivate is_private, WebView::SessionTabId id, bool pinned) => (bool succeeded)
+    session_active_tab_changed(WebView::IsPrivate is_private, WebView::SessionTabId id) =|
+    session_application_quitting(WebView::IsPrivate is_private) =|
+    session_application_quit_aborted(WebView::IsPrivate is_private) =|
+    session_consecutive_unclean_exits(WebView::IsPrivate is_private) => (u32 count)
+    session_has_closed_units(WebView::IsPrivate is_private) => (bool has_closed_units)
+    session_take_most_recently_closed(WebView::IsPrivate is_private) => (Optional<WebView::ClosedSessionUnit> unit)
+    session_recently_closed_units(WebView::IsPrivate is_private, u64 limit) => (Vector<WebView::RecentlyClosedSessionUnit> units)
+    session_take_closed_unit(WebView::IsPrivate is_private, WebView::SessionWindowId id) => (Optional<WebView::ClosedSessionUnit> unit)
+    session_take_launch_plan(WebView::IsPrivate is_private) => (Vector<WebView::RestoredSessionWindow> windows)
+    session_load_tab_history(WebView::IsPrivate is_private, WebView::SessionTabId id) => (Optional<WebView::SessionHistorySnapshot> history)
+    history_entry_for_url(WebView::IsPrivate is_private, URL::URL url) => (Optional<WebView::HistoryEntry> entry)
     view_set_site_permission(u64 view_id, URL::Origin origin, Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) =|
     view_did_show_permission_prompt(u64 view_id, WebView::PermissionPromptRequest request) =|
     view_load_navigation(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation) =|
@@ -76,7 +294,7 @@ endpoint HubServer
     answer_clipboard_text(u64 request_id, Utf16String text) =|
     answer_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem item) =|
     answer_download_path(u64 request_id, Optional<ByteString> path) =|
-    update_settings(ByteString settings_json) =|
+    update_settings(u64 change_id, ByteString changes_json) =|
     activate_action(u64 handle, Optional<bool> checked) =|
     view_answer(u64 view_id, u64 answer_id, bool answer) =|
     view_answer_permission_request(u64 view_id, u64 answer_id, Web::Permissions::PromptOutcome outcome) =|

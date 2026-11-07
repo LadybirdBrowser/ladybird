@@ -43,7 +43,6 @@ public:
     virtual Vector<String> platform_preferred_languages() const = 0;
     virtual Optional<Gfx::GpuDeviceIdentity> platform_presentation_gpu_device() const = 0;
     virtual Vector<u64> platform_presentation_drm_format_modifiers() const = 0;
-    virtual void rebuild_bookmarks_menu() const = 0;
 };
 
 // The browser itself: its state, and the helper processes that do its work.
@@ -59,6 +58,11 @@ public:
     void destroy_all_views() { m_views.clear(); }
 
     void set_active_view(Optional<u64> view_id);
+
+    // The UI has made its first windows and asked for what they start out showing.
+    void ui_did_start();
+    virtual void notify_webdriver_window_created(String const& handle) override;
+    void set_ui_info(Hub::UIInfo);
     void did_resolve_external_url_handler(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird);
     void launch_external_url(u64 handler_id, URL::URL const&, Function<void(bool)>) const;
     void did_launch_external_url(u64 request_id, bool launched);
@@ -72,17 +76,20 @@ public:
     void toggle_bookmark_without_asking(WebView::ViewImplementation& view) { WebView::Application::toggle_bookmark_for_view(view); }
 
 private:
-    explicit Application(ApplicationHost&);
+    explicit Application(ApplicationHost*);
+
+    Hub::UIInfo const* ui_info() const;
 
     // ^WebView::Application
     virtual Core::EventLoop& create_platform_event_loop() override;
+    virtual void create_platform_arguments(Core::ArgsParser&) override;
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab, WebView::ViewImplementation const* related_view = nullptr) const override;
-    virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const override;
+    virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab, WebView::ViewImplementation const* source_view = nullptr) const override;
     virtual void activate_or_open_tab_with_url(URL::URL const&) const override;
     virtual void open_urls_in_new_tabs(ReadonlySpan<URL::URL>) const override;
     virtual void open_url_in_new_window(URL::URL const&, WebView::IsPrivate) override;
-    virtual void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab) const override;
+    virtual void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab, WebView::ViewImplementation const* source_view = nullptr) const override;
     virtual void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor, WebView::IsPrivate) override;
     virtual NonnullRefPtr<Core::Promise<ByteString>> ask_user_for_download_path(ByteString const& file) const override;
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
@@ -132,8 +139,12 @@ private:
     virtual void rebuild_bookmarks_menu() const override;
 
     ApplicationHost* m_host { nullptr };
+    StringView m_encoded_ui_info;
+    mutable Optional<Hub::UIInfo> m_ui_info;
     HashMap<u64, NonnullOwnPtr<View>> m_views;
     Optional<u64> m_active_view_id;
+    bool m_ui_did_start { false };
+    Vector<String> m_webdriver_windows_awaiting_ui;
 
     // What the Hub waits to hear from the UI.
     mutable HashMap<u64, Function<void(Utf16String)>> m_pending_clipboard_text_reads;
@@ -143,6 +154,12 @@ private:
     mutable HashMap<u64, NonnullRefPtr<BookmarkPromise>> m_pending_bookmark_dialogs;
     mutable HashMap<u64, WebView::ExternalURLHandlerCallback> m_pending_external_url_handlers;
     mutable HashMap<u64, Function<void(bool)>> m_pending_external_url_launches;
+    struct NewTabSource {
+        Optional<u64> view_id;
+        WebView::IsPrivate is_private { WebView::IsPrivate::No };
+    };
+    NewTabSource new_tab_source(WebView::ViewImplementation const* source_view) const;
+
     mutable u64 m_next_ui_request_id { 1 };
 
     NonnullRefPtr<BookmarkPromise> display_bookmark_dialog(BookmarkDialogKind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id) const;

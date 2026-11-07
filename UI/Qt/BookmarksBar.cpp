@@ -17,6 +17,7 @@
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Motion.h>
+#include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/SystemAppearance.h>
 #include <UI/Qt/Tab.h>
@@ -333,7 +334,7 @@ void BookmarksBar::rebuild()
             slide_in(*button, layout.preferred_width);
     };
 
-    for (auto const& item : WebView::Application::the().bookmarks_menu().items()) {
+    for (auto const& item : RemoteActions::the().bookmarks_menu().items()) {
         item.visit(
             [&](NonnullRefPtr<WebView::Action> const& bookmark) {
                 if (bookmark->id() != WebView::ActionID::BookmarkItem)
@@ -479,13 +480,13 @@ bool BookmarksBar::handle_middle_mouse_click(QMouseEvent* event, QObject* item)
         extract_item_properties(action);
 
         if (m_selected_bookmark_menu_item_type == "bookmark")
-            WebView::Application::the().open_bookmark_in_new_tab(m_selected_bookmark_menu_item_id, activate_tab);
+            HubConnection::the().async_open_bookmark_in_new_tab(m_selected_bookmark_menu_item_id, activate_tab);
     } else if (auto* menu = as_if<QMenu>(item)) {
         if (auto* action = menu->actionAt(event->pos())) {
             extract_item_properties(action);
 
             if (m_selected_bookmark_menu_item_type == "bookmark")
-                WebView::Application::the().open_bookmark_in_new_tab(m_selected_bookmark_menu_item_id, activate_tab);
+                HubConnection::the().async_open_bookmark_in_new_tab(m_selected_bookmark_menu_item_id, activate_tab);
         }
     }
 

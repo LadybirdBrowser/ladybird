@@ -111,7 +111,13 @@ else()
     set(LADYBIRD_TARGET ladybird PRIVATE)
 endif()
 
-set(LADYBIRD_LIBS AK LibCore LibGfx LibIPC LibMain LibWebView LibURL LibWakeLock hubservice)
+set(LADYBIRD_LIBS AK LibCore LibGfx LibIPC LibMain LibWebView LibURL LibWakeLock hubipc)
+# NB: Where the Hub is a process of its own, the UI must not be able to reach into it.
+if (LINUX)
+    target_compile_definitions(${LADYBIRD_TARGET} LADYBIRD_HUB_IN_OWN_PROCESS)
+else()
+    list(APPEND LADYBIRD_LIBS hubservice)
+endif()
 target_link_libraries(${LADYBIRD_TARGET} ${LADYBIRD_LIBS})
 target_link_libraries(${LADYBIRD_TARGET} OpenSSL::Crypto OpenSSL::SSL)
 

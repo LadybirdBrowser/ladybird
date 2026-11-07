@@ -86,7 +86,7 @@ public:
         Vector<HTTP::Header> headers;
         ByteString body;
     };
-    using PostFunction = Function<void(URL::URL const&, Vector<HTTP::Header>, ByteString body, Function<void(PostResponse)>)>;
+    using PostFunction = Function<Function<void()>(URL::URL const&, Vector<HTTP::Header>, ByteString body, Function<void(PostResponse)>)>;
     // A process with no RequestServer of its own posts its reports through this.
     static void set_post_function(PostFunction);
 
@@ -141,12 +141,14 @@ private:
     u32 m_attempt { 1 };
 
     void arm_request_timeout();
+    void cancel_post();
     void did_receive_response(StringView activity, bool had_network_error, Optional<u32> response_code, HTTP::HeaderList const& response_headers, ReadonlyBytes body, Function<void(ByteString)> const& on_success);
 
     RefPtr<Requests::Request> m_request;
     RefPtr<Core::Timer> m_request_timeout;
     // Identifies the post made through the post function, so that a response to one given up on goes unnoticed.
     u64 m_post_serial { 0 };
+    Function<void()> m_cancel_post;
     RefPtr<Core::Timer> m_retry_timer;
 
     RefPtr<ReportSubmission> m_self_while_in_flight;

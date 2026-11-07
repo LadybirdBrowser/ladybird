@@ -191,7 +191,7 @@ public:
     // Unminimizes, raises and activates the window, so the user sees it in front.
     void bring_to_front();
     // The tab showing this view, if it's one of this window's.
-    Tab* tab_for_view(WebView::ViewImplementation const&) const;
+    Tab* tab_for_view(RemoteView const&) const;
     Tab& create_new_tab(Web::HTML::ActivateTab, Optional<u64> hub_view_id);
     bool is_window_close_approved() const { return m_window_close_approved; }
     void report_activation_to_session_store();

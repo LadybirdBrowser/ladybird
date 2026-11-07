@@ -8,6 +8,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibWebView/Application.h>
+#include <UI/Qt/HubConnection.h>
 #include <UI/Qt/WebContentView.h>
 
 #include <QColor>
@@ -117,7 +118,7 @@ void WebContentView::render(QRhiCommandBuffer* command_buffer)
     if (auto const* d3d_handle = paintable->shared_image_buffer->windows_d3d_handle()) {
         auto* imported_texture = imported_d3d_texture_for(*paintable->shared_image_buffer, *d3d_handle);
         if (!imported_texture) {
-            WebView::Application::the().notify_compositor_gpu_presentation_unavailable();
+            HubConnection::the().async_notify_compositor_gpu_presentation_unavailable();
             return;
         }
 

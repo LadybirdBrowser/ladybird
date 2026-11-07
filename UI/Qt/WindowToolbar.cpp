@@ -12,7 +12,6 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/DownloadPresentation.h>
-#include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/WebCompatReport.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
@@ -1267,7 +1266,6 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     m_performance_monitor = new PerformanceMonitorWidget(m_performance_monitor_row);
     performance_monitor_row_layout->addWidget(m_performance_monitor);
     performance_monitor_row_layout->addStretch(1);
-    (void)WebView::TabPerformanceMonitor::the();
     update_performance_monitor_row();
 
     m_sidebar_slot = new QWidget(m_toolbar);

@@ -4,18 +4,53 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Hex.h>
+#include <AK/MemoryStream.h>
+#include <AK/Queue.h>
 #include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/Proxies.h>
+#include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
+#include <LibIPC/Decoder.h>
 #include <LibWebView/WebContentPage.h>
 
 namespace Hub {
 
-Application::Application(ApplicationHost& host)
-    : m_host(&host)
+Application::Application(ApplicationHost* host)
+    : m_host(host)
 {
+}
+
+void Application::create_platform_arguments(Core::ArgsParser& args_parser)
+{
+    args_parser.add_option(m_encoded_ui_info, "What the UI tells the Hub to start with", "ui-info", 0, "hex");
+}
+
+Hub::UIInfo const* Application::ui_info() const
+{
+    if (!m_ui_info.has_value() && !m_encoded_ui_info.is_empty()) {
+        auto bytes = decode_hex(m_encoded_ui_info);
+        if (bytes.is_error())
+            return nullptr;
+        FixedMemoryStream stream { bytes.value().bytes() };
+        Queue<IPC::Attachment> attachments;
+        IPC::Decoder decoder { stream, attachments };
+        auto info = decoder.decode<Hub::UIInfo>();
+        if (info.is_error())
+            return nullptr;
+        m_ui_info = info.release_value();
+    }
+    return m_ui_info.has_value() ? &*m_ui_info : nullptr;
+}
+
+void Application::set_ui_info(Hub::UIInfo info)
+{
+    auto scrollbar_track_press_jumps_changed = !m_ui_info.has_value() || m_ui_info->scrollbar_track_press_jumps != info.scrollbar_track_press_jumps;
+    m_ui_info = move(info);
+    if (scrollbar_track_press_jumps_changed)
+        platform_scrollbar_track_press_behavior_changed();
 }
 
 View& Application::create_view(View::InitialState initial_state, Optional<WebView::CanonicalTraversable&> traversable)
@@ -25,6 +60,25 @@ View& Application::create_view(View::InitialState initial_state, Optional<WebVie
     m_views.set(view->view_id(), move(view));
     view_reference.initialize(traversable);
     return view_reference;
+}
+
+void Application::notify_webdriver_window_created(String const& handle)
+{
+    // NB: WebDriver drives a window from the moment it hears of it. So, it must not hear of one before the UI has asked for
+    //     what its windows start out showing, or that would replace the page WebDriver went to.
+    if (ConnectionFromUI::the() && !m_ui_did_start) {
+        m_webdriver_windows_awaiting_ui.append(handle);
+        return;
+    }
+    WebView::Application::notify_webdriver_window_created(handle);
+}
+
+void Application::ui_did_start()
+{
+    m_ui_did_start = true;
+    for (auto const& handle : m_webdriver_windows_awaiting_ui)
+        WebView::Application::notify_webdriver_window_created(handle);
+    m_webdriver_windows_awaiting_ui.clear();
 }
 
 void Application::set_active_view(Optional<u64> view_id)
@@ -53,16 +107,34 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     else if (auto active_view = active_web_view(); active_view.has_value())
         initial_state = static_cast<View&>(*active_view).initial_state_for_related_view();
     auto& view = const_cast<Application&>(*this).create_view(move(initial_state));
-    ui->async_app_open_view_in_new_tab(view.view_id(), view.is_private(), activate_tab);
+    Optional<u64> source_view_id;
+    if (related_view)
+        source_view_id = related_view->view_id();
+    ui->async_app_open_view_in_new_tab(view.view_id(), source_view_id, view.is_private(), activate_tab);
     return view;
 }
 
-void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const
+// NB: Which window a tab goes to must not depend on what is active once the UI reads the message. A tab must stay in
+//     the browsing session of the page that opened it. With no such page, the active view here is the one that was
+//     active when the UI sent what led to this, since the UI's messages arrive in order.
+Application::NewTabSource Application::new_tab_source(WebView::ViewImplementation const* source_view) const
 {
-    if (auto* ui = ConnectionFromUI::the())
-        ui->async_app_open_url_in_new_tab(url, activate_tab);
-    else
-        WebView::Application::open_url_in_new_tab(url, activate_tab);
+    auto active_view = active_web_view();
+    if (!source_view && active_view.has_value())
+        source_view = &*active_view;
+    if (!source_view)
+        return {};
+    return { source_view->view_id(), source_view->is_private() };
+}
+
+void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab, WebView::ViewImplementation const* source_view) const
+{
+    if (auto* ui = ConnectionFromUI::the()) {
+        auto source = new_tab_source(source_view);
+        ui->async_app_open_url_in_new_tab(url, activate_tab, source.view_id, source.is_private);
+    } else {
+        WebView::Application::open_url_in_new_tab(url, activate_tab, source_view);
+    }
 }
 
 void Application::activate_or_open_tab_with_url(URL::URL const& url) const
@@ -91,12 +163,14 @@ void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate
         ui->async_app_open_url_in_new_window(url, is_private);
 }
 
-void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) const
+void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab, WebView::ViewImplementation const* source_view) const
 {
-    if (auto* ui = ConnectionFromUI::the())
-        ui->async_app_open_navigation_in_new_tab(move(navigation), activate_tab);
-    else
-        WebView::Application::open_navigation_in_new_tab(move(navigation), activate_tab);
+    if (auto* ui = ConnectionFromUI::the()) {
+        auto source = new_tab_source(source_view);
+        ui->async_app_open_navigation_in_new_tab(move(navigation), activate_tab, source.view_id, source.is_private);
+    } else {
+        WebView::Application::open_navigation_in_new_tab(move(navigation), activate_tab, source_view);
+    }
 }
 
 void Application::open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private)
@@ -279,13 +353,13 @@ void Application::toggle_bookmark_for_view(WebView::ViewImplementation& view)
 void Application::read_bookmarks_for_all_tabs_in_current_window(Function<void(Vector<WebView::BookmarkItem::Bookmark>)> on_read) const
 {
     auto* ui = ConnectionFromUI::the();
-    if (!ui) {
+    if (!ui || !m_active_view_id.has_value()) {
         on_read({});
         return;
     }
     auto request_id = m_next_ui_request_id++;
     m_pending_bookmarks_for_all_tabs.set(request_id, move(on_read));
-    ui->async_app_read_bookmarks_for_all_tabs(request_id);
+    ui->async_app_read_bookmarks_for_all_tabs(request_id, *m_active_view_id);
 }
 
 void Application::did_read_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark> bookmarks)
@@ -369,11 +443,8 @@ NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_f
 
 void Application::rebuild_bookmarks_menu() const
 {
-    if (!m_host)
-        return;
     if (auto* ui = ConnectionFromUI::the())
         ui->async_bookmarks_menu_changed(ActionMirror::the().entries_of(const_cast<Application&>(*this).bookmarks_menu()));
-    m_host->rebuild_bookmarks_menu();
 }
 
 void Application::on_devtools_enabled() const
@@ -410,6 +481,8 @@ Optional<String> Application::ui_font_family() const
 {
     if (m_host)
         return m_host->ui_font_family();
+    if (auto const* info = ui_info())
+        return info->ui_font_family;
     return WebView::Application::ui_font_family();
 }
 
@@ -417,6 +490,8 @@ Web::CSS::PreferredColorScheme Application::interface_color_scheme() const
 {
     if (m_host)
         return m_host->interface_color_scheme();
+    if (auto const* info = ui_info())
+        return info->interface_color_scheme;
     return WebView::Application::interface_color_scheme();
 }
 
@@ -424,6 +499,8 @@ Optional<String> Application::system_font_family() const
 {
     if (m_host)
         return m_host->system_font_family();
+    if (auto const* info = ui_info())
+        return info->system_font_family;
     return WebView::Application::system_font_family();
 }
 
@@ -431,6 +508,8 @@ bool Application::supports_picture_in_picture() const
 {
     if (m_host)
         return m_host->supports_picture_in_picture();
+    if (auto const* info = ui_info())
+        return info->supports_picture_in_picture;
     return WebView::Application::supports_picture_in_picture();
 }
 
@@ -510,6 +589,8 @@ bool Application::supports_clipboard_type(WebView::Application::ClipboardType ty
 {
     if (m_host)
         return m_host->supports_clipboard_type(type);
+    if (auto const* info = ui_info())
+        return type == ClipboardType::Text || info->supports_selection_clipboard;
     return WebView::Application::supports_clipboard_type(type);
 }
 
@@ -517,6 +598,8 @@ bool Application::supports_system_menu_bar() const
 {
     if (m_host)
         return m_host->supports_system_menu_bar();
+    if (auto const* info = ui_info())
+        return info->supports_system_menu_bar;
     return WebView::Application::supports_system_menu_bar();
 }
 
@@ -524,6 +607,8 @@ bool Application::supports_vertical_tabs() const
 {
     if (m_host)
         return m_host->supports_vertical_tabs();
+    if (auto const* info = ui_info())
+        return info->supports_vertical_tabs;
     return WebView::Application::supports_vertical_tabs();
 }
 
@@ -531,6 +616,8 @@ bool Application::supports_private_browsing_windows() const
 {
     if (m_host)
         return m_host->supports_private_browsing_windows();
+    if (auto const* info = ui_info())
+        return info->supports_private_browsing_windows;
     return WebView::Application::supports_private_browsing_windows();
 }
 
@@ -538,6 +625,8 @@ bool Application::supports_client_side_window_decorations() const
 {
     if (m_host)
         return m_host->supports_client_side_window_decorations();
+    if (auto const* info = ui_info())
+        return info->supports_client_side_window_decorations;
     return WebView::Application::supports_client_side_window_decorations();
 }
 
@@ -545,6 +634,8 @@ bool Application::platform_reports_scroll_momentum() const
 {
     if (m_host)
         return m_host->platform_reports_scroll_momentum();
+    if (auto const* info = ui_info())
+        return info->reports_scroll_momentum;
     return WebView::Application::platform_reports_scroll_momentum();
 }
 
@@ -552,6 +643,8 @@ bool Application::platform_scrolls_elastically() const
 {
     if (m_host)
         return m_host->platform_scrolls_elastically();
+    if (auto const* info = ui_info())
+        return info->scrolls_elastically;
     return WebView::Application::platform_scrolls_elastically();
 }
 
@@ -559,6 +652,8 @@ bool Application::platform_scrollbar_track_press_jumps() const
 {
     if (m_host)
         return m_host->platform_scrollbar_track_press_jumps();
+    if (auto const* info = ui_info())
+        return info->scrollbar_track_press_jumps;
     return WebView::Application::platform_scrollbar_track_press_jumps();
 }
 
@@ -566,6 +661,8 @@ Vector<String> Application::platform_preferred_languages() const
 {
     if (m_host)
         return m_host->platform_preferred_languages();
+    if (auto const* info = ui_info())
+        return info->preferred_languages;
     return WebView::Application::platform_preferred_languages();
 }
 
@@ -573,6 +670,8 @@ Optional<Gfx::GpuDeviceIdentity> Application::platform_presentation_gpu_device()
 {
     if (m_host)
         return m_host->platform_presentation_gpu_device();
+    if (auto const* info = ui_info())
+        return info->presentation_gpu_device;
     return WebView::Application::platform_presentation_gpu_device();
 }
 
@@ -580,6 +679,8 @@ Vector<u64> Application::platform_presentation_drm_format_modifiers() const
 {
     if (m_host)
         return m_host->platform_presentation_drm_format_modifiers();
+    if (auto const* info = ui_info())
+        return info->presentation_drm_format_modifiers;
     return WebView::Application::platform_presentation_drm_format_modifiers();
 }
 

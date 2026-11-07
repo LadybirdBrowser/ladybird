@@ -5,6 +5,8 @@
  */
 
 #include <AK/JsonValue.h>
+#include <LibCore/Process.h>
+#include <LibWebView/CrashReportOutbox.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/RemoteActions.h>
@@ -37,8 +39,49 @@ HubConnection* HubConnection::the_if_connected()
     return s_the;
 }
 
+void HubConnection::did_initialize()
+{
+    m_did_initialize = true;
+    set_peer_owns_this_process(true);
+}
+
 void HubConnection::die()
 {
+    // NB: A Hub that ends before answering initialize() has just found that there is nothing for us to do.
+    if (!m_did_initialize)
+        return;
+
+    // The UI has nothing left to show without the Hub.
+    Core::Process::terminate_immediately(1);
+}
+
+void HubConnection::crash_reports_changed()
+{
+#ifdef LADYBIRD_HUB_IN_OWN_PROCESS
+    // NB: The Hub has an outbox of its own, and it is that one that saw the change. In one process there is only the one,
+    //     which has told its observers already, and telling them again here would have the Hub send this once more.
+    WebView::CrashReportOutbox::the().reports_changed();
+#endif
+}
+
+u64 HubConnection::post_report(URL::URL const& url, Vector<HTTP::Header> headers, ByteString body, Function<void(WebView::ReportSubmission::PostResponse)> on_response)
+{
+    auto post_id = m_next_report_post_id++;
+    m_report_posts.set(post_id, move(on_response));
+    async_post_report(post_id, url, move(headers), move(body));
+    return post_id;
+}
+
+void HubConnection::cancel_report_post(u64 post_id)
+{
+    m_report_posts.remove(post_id);
+    async_cancel_report_post(post_id);
+}
+
+void HubConnection::report_post_finished(u64 post_id, bool had_network_error, Optional<u32> response_code, Vector<HTTP::Header> response_headers, ByteString body)
+{
+    if (auto on_response = m_report_posts.take(post_id); on_response.has_value())
+        (*on_response)({ .had_network_error = had_network_error, .response_code = response_code, .headers = move(response_headers), .body = move(body) });
 }
 
 void HubConnection::view_install_backing_stores(u64 view_id, u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
@@ -187,9 +230,9 @@ void HubConnection::view_request_dictionary_lookup(u64 view_id, WebView::Diction
         view->on_request_dictionary_lookup(lookup, position);
 }
 
-void HubConnection::app_open_url_in_new_tab(URL::URL url, Web::HTML::ActivateTab activate_tab)
+void HubConnection::app_open_url_in_new_tab(URL::URL url, Web::HTML::ActivateTab activate_tab, Optional<u64> source_view_id, WebView::IsPrivate is_private)
 {
-    Application::the().open_url_in_new_tab(move(url), move(activate_tab));
+    Application::the().open_url_in_new_tab(url, activate_tab, source_view_id, is_private);
 }
 
 void HubConnection::app_open_url_in_new_window(URL::URL url, WebView::IsPrivate is_private)
@@ -197,9 +240,9 @@ void HubConnection::app_open_url_in_new_window(URL::URL url, WebView::IsPrivate 
     Application::the().open_url_in_new_window(move(url), move(is_private));
 }
 
-void HubConnection::app_open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab)
+void HubConnection::app_open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab, Optional<u64> source_view_id, WebView::IsPrivate is_private)
 {
-    Application::the().open_navigation_in_new_tab(move(navigation), move(activate_tab));
+    Application::the().open_navigation_in_new_tab(move(navigation), activate_tab, source_view_id, is_private);
 }
 
 void HubConnection::app_open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private)
@@ -247,9 +290,9 @@ void HubConnection::app_activate_or_open_tab_with_url(URL::URL url)
     Application::the().activate_or_open_tab_with_url(url);
 }
 
-void HubConnection::app_open_view_in_new_tab(u64 view_id, WebView::IsPrivate is_private, Web::HTML::ActivateTab activate_tab)
+void HubConnection::app_open_view_in_new_tab(u64 view_id, Optional<u64> source_view_id, WebView::IsPrivate is_private, Web::HTML::ActivateTab activate_tab)
 {
-    Application::the().open_view_in_new_tab(view_id, is_private, activate_tab);
+    Application::the().open_view_in_new_tab(view_id, source_view_id, is_private, activate_tab);
 }
 
 void HubConnection::app_display_error_dialog(String message)
@@ -305,9 +348,9 @@ void HubConnection::bookmarks_changed(ByteString bookmarks_json)
     Application::bookmark_store().replace_with_json(bookmarks.value(), WebView::BookmarkStore::PersistChange::No);
 }
 
-void HubConnection::app_read_bookmarks_for_all_tabs(u64 request_id)
+void HubConnection::app_read_bookmarks_for_all_tabs(u64 request_id, u64 view_id)
 {
-    async_answer_bookmarks_for_all_tabs(request_id, Application::the().bookmarks_for_all_tabs_in_current_window());
+    async_answer_bookmarks_for_all_tabs(request_id, Application::the().bookmarks_for_all_tabs_in_window_of_view(view_id));
 }
 
 void HubConnection::app_show_bookmark_popover()
@@ -465,12 +508,63 @@ void HubConnection::view_page_dumps(u64 view_id, u64 request_id, Optional<String
         view->did_get_page_dumps(request_id, move(dumps));
 }
 
-void HubConnection::settings_changed(ByteString settings_json)
+void HubConnection::app_open_urls(Vector<URL::URL> urls)
+{
+    if (auto& application = Application::the(); application.on_open_urls)
+        application.on_open_urls(urls);
+}
+
+void HubConnection::app_open_new_tab(Vector<URL::URL> urls)
+{
+    if (auto& application = Application::the(); application.on_new_tab)
+        application.on_new_tab(urls);
+}
+
+void HubConnection::app_open_new_window(Vector<URL::URL> urls)
+{
+    if (auto& application = Application::the(); application.on_new_window)
+        application.on_new_window(urls);
+}
+
+void HubConnection::set_settings_from_hub(JsonValue const& settings)
+{
+    m_last_known_settings = settings.as_object();
+}
+
+void HubConnection::send_settings_changes(JsonValue const& settings)
+{
+    auto changes = WebView::Settings::changes_between(m_last_known_settings, settings.as_object());
+    if (changes.is_empty())
+        return;
+
+    m_last_known_settings = settings.as_object();
+    auto change_id = m_next_settings_change_id++;
+    async_update_settings(change_id, JsonValue { changes }.serialized().to_byte_string());
+    m_unconfirmed_settings_changes.append({ change_id, move(changes) });
+}
+
+void HubConnection::settings_changed(ByteString settings_json, u64 last_applied_change_id)
 {
     auto settings = JsonValue::from_string(settings_json);
     if (settings.is_error() || !settings.value().is_object())
         return;
+
+    // NB: What the Hub sent can be older than a change made here, which must not go away until the Hub has it.
+    m_unconfirmed_settings_changes.remove_all_matching([&](auto const& change) { return change.id <= last_applied_change_id; });
+    auto& new_settings = settings.value().as_object();
+    for (auto const& change : m_unconfirmed_settings_changes)
+        WebView::Settings::apply_changes(new_settings, change.changes);
+    m_last_known_settings = new_settings;
+
+    auto current_settings = Application::settings().serialize_json();
+    if (WebView::Settings::changes_between(current_settings.as_object(), new_settings).is_empty())
+        return;
     Application::settings().replace_with_json(settings.value(), WebView::Settings::PersistChange::No);
+}
+
+void HubConnection::action_retired(u64 handle)
+{
+    RemoteActions::the().retire(handle);
 }
 
 void HubConnection::action_changed(Hub::ActionState state)
@@ -480,12 +574,8 @@ void HubConnection::action_changed(Hub::ActionState state)
 
 void HubConnection::bookmarks_menu_changed(Vector<Hub::MenuEntry> entries)
 {
-void HubConnection::action_retired(u64 handle)
-{
-    RemoteActions::the().retire(handle);
-}
-
     RemoteActions::the().set_bookmarks_menu(entries);
+    Application::the().rebuild_bookmarks_menu();
 }
 
 void HubConnection::view_show_context_menu(u64 view_id, Vector<Hub::MenuEntry> entries, Gfx::IntPoint widget_position)

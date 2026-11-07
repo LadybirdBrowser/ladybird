@@ -1535,7 +1535,7 @@ void Tab::show_site_settings_popover()
             m_window->new_tab_from_url(URL::Parser::basic_parse("about:settings#permissions"sv).release_value(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
         };
         m_site_settings_popover->on_report_broken_site = [] {
-            WebView::Application::the().report_website_issue_action().activate();
+            RemoteActions::the().report_website_issue_action().activate();
         };
         m_site_settings_popover->on_open_filter_lists = [this] {
             m_window->new_tab_from_url(URL::Parser::basic_parse("about:settings#blocking"sv).release_value(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());

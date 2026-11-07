@@ -275,6 +275,10 @@ public:
 
     JsonValue serialize_json() const;
 
+    // What turns one set of serialized settings into another, by top-level key. A key that is gone has the value null.
+    static JsonObject changes_between(JsonObject const& from, JsonObject const& to);
+    static void apply_changes(JsonObject& settings, JsonObject const& changes);
+
     bool first_run_complete() const { return m_first_run_complete; }
     ErrorOr<void> complete_first_run();
 
