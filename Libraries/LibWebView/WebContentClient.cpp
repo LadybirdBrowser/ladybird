@@ -810,7 +810,7 @@ Messages::WebContentClient::StartWorkerAgentResponse WebContentClient::start_wor
     if (auto* page = this->page(page_id))
         return page->start_worker_agent(move(request));
 
-    return Web::HTML::WorkerAgentId {};
+    return { Web::HTML::WorkerAgentId {}, Optional<IPC::TransportHandle> {} };
 }
 
 void WebContentClient::did_close_browsing_context(Web::PageId page_id)
@@ -1195,9 +1195,14 @@ void WebContentClient::did_host_document_of_site(Utf16String site)
     m_site_of_hosted_documents = move(site);
 }
 
-Messages::WebContentClient::RequestImageDecoderConnectionResponse WebContentClient::request_image_decoder_connection()
+Optional<IPC::TransportHandle> WebContentClient::connect_new_image_decoder_client()
 {
     return ImageDecoderManager::the().connect_requesting_process(child_id(), m_session, m_site_of_hosted_documents);
+}
+
+Messages::WebContentClient::RequestImageDecoderConnectionResponse WebContentClient::request_image_decoder_connection()
+{
+    return connect_new_image_decoder_client();
 }
 
 void WebContentClient::did_release_image_decoder()

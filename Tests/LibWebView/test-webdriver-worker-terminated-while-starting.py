@@ -62,7 +62,7 @@ def run_test(webdriver_binary):
             )
             assert status == 200, body
 
-            # Each worker's process is launched before its constructor returns, and is still starting up when
+            # Each worker's thread is started before its constructor returns, and is still starting up when
             # terminate() tears the worker down.
             status, payload, body = webdriver_helpers.request(
                 port,
@@ -91,14 +91,11 @@ def run_test(webdriver_binary):
             )
             assert status == 200 and payload == {"value": None}, body
 
-            deadline = time.monotonic() + webdriver_helpers.EVENT_TIMEOUT_SECONDS
-            while descendants_named(webdriver.pid, "WebWorker"):
-                if time.monotonic() >= deadline:
-                    raise AssertionError("A terminated worker's process never exited")
-                time.sleep(0.05)
+            assert not descendants_named(webdriver.pid, "WebWorker"), "A dedicated worker got a process"
 
+            # A worker that crashes on its way out takes the WebContent process that hosts it along.
             time.sleep(CRASH_REPORT_GRACE_SECONDS)
-            reports = list((profile / "data/CrashReports").glob("*-WebWorker-*.txt"))
+            reports = list((profile / "data/CrashReports").glob("*-WebContent-*.txt"))
             assert not reports, reports[0].read_text()
 
             webdriver_helpers.request(port, "DELETE", f"/session/{session}")

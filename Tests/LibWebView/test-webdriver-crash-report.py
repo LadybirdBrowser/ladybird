@@ -99,10 +99,10 @@ def run_test(webdriver_binary, process_name):
                         {
                             "script": """
                             const done = arguments[0];
-                            window.worker = new Worker(URL.createObjectURL(new Blob([
-                                "postMessage('ready'); onmessage = () => {};"
+                            window.worker = new SharedWorker(URL.createObjectURL(new Blob([
+                                "onconnect = ({ ports }) => ports[0].postMessage('ready');"
                             ], {type: 'text/javascript'})));
-                            worker.onmessage = () => done();
+                            worker.port.onmessage = () => done();
                             worker.onerror = () => done('worker failed');
                         """,
                             "args": [],

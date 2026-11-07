@@ -16,6 +16,11 @@
 
 namespace WebView {
 
+// What a WebContent process exits with, plus the signal, if a worker that runs on one of its threads crashes it. This
+// tells such a crash from one of the process's own: the tests that crash a WebContent process on purpose have only the
+// latter. It is above the 128 plus signal of an ordinary crash handler, so that it still reads as a crash.
+constexpr int worker_thread_crash_exit_status = 192;
+
 WEBCOMMON_API void platform_init(Optional<ByteString> ladybird_binary_path = {});
 WEBCOMMON_API ErrorOr<Vector<ByteString>> get_paths_for_helper_process(StringView process_name);
 

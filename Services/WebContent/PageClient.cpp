@@ -79,6 +79,7 @@
 #include <WebContent/TestConnection.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebDriverConnection.h>
+#include <WebWorker/WorkerThread.h>
 #include <WebContent/WebUIConnection.h>
 
 namespace WebContent {
@@ -2267,6 +2268,12 @@ Web::HTML::WorkerAgentId PageClient::start_worker_agent(Web::HTML::WorkerAgentSt
     if (!response) {
         dbgln("WebContent client disconnected during StartWorkerAgent. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
+    }
+
+    // NB: The UI process notices a transport that nobody takes up, and tells the owner that its worker is gone.
+    if (auto transport = response->take_thread_transport(); transport.has_value()) {
+        if (auto result = WebWorker::start_worker_thread(transport.release_value()); result.is_error())
+            dbgln("Unable to start a thread for a worker: {}", result.error());
     }
 
     return response->agent_id();

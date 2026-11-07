@@ -47,6 +47,7 @@
 #include <WebContent/PageClient.h>
 #include <WebContent/WebContentCompositorHost.h>
 #include <WebContent/WebDriverConnection.h>
+#include <WebWorker/WorkerThread.h>
 
 #include <openssl/thread.h>
 
@@ -79,7 +80,7 @@ static void crash_signal_handler(int signo)
     }
     warnln("\n\033[31;1mCRASH\033[0m: Received signal {} ({})", name, signo);
     dump_backtrace(2, 100);
-    Core::Process::terminate_immediately(128 + signo);
+    Core::Process::terminate_immediately((WebWorker::is_worker_thread() ? WebView::worker_thread_crash_exit_status : 128) + signo);
 }
 
 static void install_crash_signal_handlers()
@@ -320,6 +321,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         stats_log->start_sampling([&heap](JsonObject& values) {
             heap.add_stats(values);
             Web::HTML::main_thread_event_loop().add_stats(values);
+            values.set("workers.agents"sv, Web::Bindings::worker_agent_count());
             values.set("fonts.system_fallback_cache_entries"sv, Gfx::system_fallback_font_cache_size());
         });
     }

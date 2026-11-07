@@ -9,7 +9,11 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
 #include <LibGC/Function.h>
+#include <LibImageDecoderClient/Client.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibMediaClient/Client.h>
+#include <LibRequests/RequestClient.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Compositor/CompositorConnection.h>
@@ -30,19 +34,33 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/Platform/ImageCodecPlugin.h>
+#include <LibWeb/Platform/RemoteImageCodecPlugin.h>
 #include <LibWeb/WebRTC/RTCEncodedAudioFrame.h>
 #include <LibWeb/WebRTC/RTCRtpScriptTransformer.h>
 #include <LibWeb/WebRTC/RTCTransformEvent.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/PageHost.h>
 #include <WebWorker/WorkerHost.h>
+#include <WebWorker/WorkerThread.h>
 
 namespace WebWorker {
 
 void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle, int client_id, Optional<Utf16String> top_level_site)
 {
-    if (on_request_server_connection)
-        on_request_server_connection(handle, client_id, top_level_site);
+    // NB: Without a client a fetch fails as a network error, and without a loader it would take the whole process down.
+    if (!Web::ResourceLoader::is_initialized())
+        Web::ResourceLoader::initialize(JS::VM::the().heap());
+
+    auto connect = [&] -> ErrorOr<void> {
+        auto transport = TRY(handle.create_transport());
+        // Querying the client ID runs the event loop and could dispatch a request before the client is ready.
+        auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(transport), client_id));
+        Web::ResourceLoader::the().set_client(top_level_site, move(request_client));
+        return {};
+    };
+    if (auto result = connect(); result.is_error())
+        dbgln("Failed to connect to resource loader: {}", result.error());
 
     // A real connection loss defers this callback. Exercise the case where the replacement connection arrives before
     // that deferred callback runs.
@@ -76,8 +94,13 @@ ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_image_decod
 
 void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
 {
-    auto transport = MUST(handle.create_transport());
-    m_compositor_connection = adopt_ref(*new Web::Compositor::CompositorConnection(move(transport)));
+    // NB: This process may host a page too, so a worker without a compositor goes on without one.
+    auto transport_or_error = handle.create_transport();
+    if (transport_or_error.is_error()) {
+        dbgln("Failed to connect to the compositor: {}", transport_or_error.error());
+        return;
+    }
+    m_compositor_connection = adopt_ref(*new Web::Compositor::CompositorConnection(transport_or_error.release_value()));
     m_compositor_connection->on_compositor_lost = [this] {
         m_page_host->compositor_process_lost();
     };
@@ -153,7 +176,37 @@ void ConnectionFromClient::die()
 void ConnectionFromClient::did_lose_peer_during_sync_request()
 {
     // NB: Whatever made the request cannot be unwound from here, and it cannot carry on without a response.
-    Core::Process::terminate_immediately(0);
+    if (m_host == Host::Process)
+        Core::Process::terminate_immediately(0);
+
+    // NB: A thread cannot take its process with it, so the script stops instead, and the request fails. That is every
+    //     caller's to handle, as the connection is shut down from the event loop the script returns to.
+    m_script_abort_handle->abort_script();
+    deferred_invoke([this] {
+        shutdown();
+    });
+}
+
+void ConnectionFromClient::set_up_agent_services()
+{
+    MediaClient::Client::set_transport_factory([this] {
+        return request_media_server_transport();
+    });
+
+    // Many workers never decode an image, so the Browser connects this one to a decoder when it first has one to decode.
+    Web::Platform::ImageCodecPlugin::install(*new Web::Platform::RemoteImageCodecPlugin(
+        [this] -> ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> {
+            return try_make_ref_counted<ImageDecoderClient::Client>(TRY(request_image_decoder_transport()));
+        },
+        [this] { async_did_release_image_decoder(); }));
+}
+
+void ConnectionFromClient::shut_down_agent()
+{
+    release_agent_state();
+    MediaClient::Client::set_transport_factory(nullptr);
+    Web::Bindings::shut_down_agent();
+    finish_shutdown();
 }
 
 void ConnectionFromClient::release_agent_state()
@@ -169,8 +222,6 @@ void ConnectionFromClient::release_agent_state()
     m_pending_transform_inits.clear();
     m_requested_files.clear();
     m_request_server_died_callback_for_testing = nullptr;
-    on_request_server_connection = nullptr;
-    on_image_decoder_connection = nullptr;
     if (m_compositor_connection)
         m_compositor_connection->on_compositor_lost = nullptr;
     m_page_host = nullptr;
@@ -200,14 +251,16 @@ void ConnectionFromClient::blob_url_entry_removed(Utf16String url)
         Web::FileAPI::remove_entry_from_blob_url_store(*url_record);
 }
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, bool enable_test_mode)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, bool enable_test_mode, Host host)
     : IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport), 1)
     , m_page_host(PageHost::create(*this))
     , m_enable_test_mode(enable_test_mode)
+    , m_host(host)
+    , m_script_abort_handle(Web::HTML::surrounding_agent().script_abort_handle())
 {
-    // The UI process spawned this process to run one worker agent, and die() ends it. So, once the UI process has
-    // closed the connection — e.g. because the page terminated the worker while this process was still starting — shut
-    // down right away, rather than handle startup messages and make sync requests on a closed connection.
+    // The UI process started this worker agent, and die() ends it. So, once the UI process has closed the connection —
+    // e.g. because the page terminated the worker while it was still starting — shut down right away, rather than handle
+    // startup messages and make sync requests on a closed connection.
     set_peer_owns_this_process(true);
 
     Web::HTML::current_event_loop().set_on_destroyed([] {
@@ -216,8 +269,7 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 
     // NB: The thread that handles close_worker() may be stuck in script, so that message and the loss of the client have
     //     to abort the script from the IO thread, for this thread to get to them at all.
-    auto& agent = Web::HTML::surrounding_agent();
-    this->transport().set_incoming_message_observer([script_abort_handle = agent.script_abort_handle()](ReadonlyBytes message) {
+    this->transport().set_incoming_message_observer([script_abort_handle = m_script_abort_handle](ReadonlyBytes message) {
         struct [[gnu::packed]] Header {
             u32 endpoint_magic;
             i32 message_id;

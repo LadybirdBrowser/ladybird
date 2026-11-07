@@ -3350,8 +3350,8 @@ Messages::WebContentClient::StartWorkerAgentResponse WebContentPage::start_worke
 {
     // A page hosting an isolated iframe's document belongs to its tab's view as much as the view's own page does.
     auto outside_settings = hosted_environment(request.outside_settings.id);
-    auto agent_id = WorkerProcessManager::the().start_worker_agent(client(), m_id, outside_settings, move(request));
-    return { agent_id };
+    auto started_agent = WorkerProcessManager::the().start_worker_agent(client(), m_id, outside_settings, move(request));
+    return { started_agent.agent_id, move(started_agent.thread_transport) };
 }
 
 Messages::WebContentClient::DidRequestStorageUsageResponse WebContentPage::did_request_storage_usage(Web::HTML::EnvironmentId environment_id)
@@ -3365,7 +3365,7 @@ Messages::WebContentClient::DidRequestStorageUsageResponse WebContentPage::did_r
 void WebContentPage::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)
 {
     if (auto settings = hosted_environment(message.environment_id); settings.has_value())
-        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *settings, client().pid(), client().is_private());
+        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *settings, client(), client().is_private());
 }
 
 void WebContentPage::rtc_transform_init(Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record)

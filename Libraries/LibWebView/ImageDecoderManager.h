@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/HashTable.h>
+#include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
@@ -49,7 +49,7 @@ public:
     // Returns whether the process was served by the decoder of a site, and so has to disconnect from it.
     bool remove_client_from_decoder_of_site(u64 client_child_id);
 
-    // Lets go of the decoder of a process that has disconnected from it, which ends once no other process uses it.
+    // Lets go of one client that a process connected to its decoder, which ends once no process has a client left.
     void process_did_release_decoder(u64 client_child_id);
 
     void process_did_exit(u64 child_id);
@@ -59,7 +59,8 @@ private:
         NonnullRefPtr<ImageDecoderControlClient> control_client;
         WeakPtr<BrowsingSession> session;
         Optional<Utf16String> site;
-        HashTable<u64> client_child_ids;
+        // NB: The threads of a process each have a client of their own, and they let go of them one at a time.
+        HashMap<u64, size_t> client_counts;
     };
 
     Vector<Instance> m_instances;

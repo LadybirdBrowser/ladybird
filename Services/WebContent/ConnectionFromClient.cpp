@@ -113,6 +113,7 @@
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentCompositorHost.h>
 #include <WebContent/WebDriverBiDi.h>
+#include <WebWorker/WorkerThread.h>
 
 namespace WebContent {
 
@@ -455,7 +456,11 @@ void ConnectionFromClient::connect_to_web_ui(Web::PageId page_id, IPC::Transport
 
 void ConnectionFromClient::disconnect_from_image_decoder()
 {
-    static_cast<Web::Platform::RemoteImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).disconnect_client();
+    auto disconnect = [] {
+        static_cast<Web::Platform::RemoteImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).disconnect_client();
+    };
+    disconnect();
+    WebWorker::post_to_worker_threads(disconnect);
 }
 
 void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle handle, IPC::TransportHandle render_clock_handle)
@@ -1287,6 +1292,7 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
 
     if (request == "clear-cache") {
         Web::Fetch::Fetching::clear_http_memory_cache();
+        WebWorker::post_to_worker_threads(Web::Fetch::Fetching::clear_http_memory_cache);
         Web::CSS::StyleScope::release_kept_data();
         return;
     }

@@ -17,11 +17,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/SingleServer.h>
 #include <LibIPC/Transport.h>
-#include <LibIPC/TransportHandle.h>
-#include <LibImageDecoderClient/Client.h>
 #include <LibMain/Main.h>
-#include <LibMediaClient/Client.h>
-#include <LibRequests/RequestClient.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -29,14 +25,11 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/Platform/RemoteImageCodecPlugin.h>
 #include <LibWebCommon/WebView/Utilities.h>
 #include <Services/RendererSandbox.h>
 #include <WebWorker/ConnectionFromClient.h>
 
 #include <openssl/thread.h>
-
-static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle, Optional<int> client_id, Optional<Utf16String> const& top_level_site);
 
 static ErrorOr<Web::HTML::AgentType> agent_type_from_string(StringView type)
 {
@@ -136,22 +129,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>(mach_server_name, enable_test_mode));
 
+    client->set_up_agent_services();
+
     auto& heap = JS::VM::the().heap();
-    client->on_request_server_connection = [&heap](auto const& handle, auto client_id, auto const& top_level_site) {
-        if (auto result = connect_to_resource_loader(heap, handle, client_id, top_level_site); result.is_error())
-            dbgln("Failed to connect to resource loader: {}", result.error());
-    };
-    // Many workers never decode an image, so the Browser connects this one to a decoder when it first has one to decode.
-    Web::Platform::ImageCodecPlugin::install(*new Web::Platform::RemoteImageCodecPlugin(
-        [client] -> ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> {
-            return try_make_ref_counted<ImageDecoderClient::Client>(TRY(client->request_image_decoder_transport()));
-        },
-        [client] { client->async_did_release_image_decoder(); }));
-
-    MediaClient::Client::set_transport_factory([client] {
-        return client->request_media_server_transport();
-    });
-
     if (stats_log)
         stats_log->start_sampling([&heap](JsonObject& values) { heap.add_stats(values); });
 
@@ -160,26 +140,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // The worker has closed. This goes through its agent in order, as a thread that hosts a worker will have to, rather
     // than leave it all to the end of the process.
     stats_log = nullptr;
-    client->release_agent_state();
-    MediaClient::Client::set_transport_factory(nullptr);
-    Web::Bindings::shut_down_agent();
-    client->finish_shutdown();
+    client->shut_down_agent();
 
     // The client terminates a process that closes the connection, so the connection stays open until this process ends.
     (void)move(client).leak_ref();
 
     return exit_code;
-}
-
-static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle, Optional<int> client_id, Optional<Utf16String> const& top_level_site)
-{
-    auto transport = TRY(handle.create_transport());
-    // Querying the client ID runs the event loop and could dispatch a request before the client is ready.
-    auto request_client = client_id.has_value()
-        ? TRY(try_make_ref_counted<Requests::RequestClient>(move(transport), *client_id))
-        : TRY(try_make_ref_counted<Requests::RequestClient>(move(transport)));
-    if (!Web::ResourceLoader::is_initialized())
-        Web::ResourceLoader::initialize(heap);
-    Web::ResourceLoader::the().set_client(top_level_site, move(request_client));
-    return {};
 }
