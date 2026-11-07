@@ -35,6 +35,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWebCommon/MimeSniff/Resource.h>
 
 namespace Web::CSS {
@@ -194,6 +195,13 @@ void FontLoader::start_loading_next_source()
 
                 auto loader_handle = GC::make_root(GC::Ref(*loader));
                 prepare_vector_font_data_off_thread(move(bytes), [loader = move(loader_handle)](auto prepared_font_data) mutable {
+                // NB: The data comes back outside any task, so an SVG image's document isn't the one its shared window
+                //     is associated with anymore. Restore it, so the font load updates and repaints that document.
+                GC::Ptr<DOM::Document const> document;
+                if (loader->m_font_computer->has_document())
+                    document = &loader->m_font_computer->document();
+                auto svg_image_document_scope = SVG::ScopedSVGImageDocument::create_if_needed(document, SVG::ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage);
+
                 if (prepared_font_data.is_error()) {
                     // NB: If we have other sources available, try the next one.
                     if (loader->m_sources.is_empty()) {
