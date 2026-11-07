@@ -331,11 +331,11 @@ intptr_t TransportSocket::io_thread_loop()
                 break;
         }
 
+        notify_incoming_message_observer({});
+
         MutexLocker locker(m_incoming_mutex);
         m_peer_eof = true;
         m_incoming_eof = true;
-        if (m_incoming_message_observer)
-            m_incoming_message_observer({});
         m_incoming_cv.broadcast();
         notify_read_available();
     }
@@ -452,9 +452,17 @@ void TransportSocket::wait_until_incoming_is_current()
 void TransportSocket::wait_until_readable()
 {
     MutexLocker lock(m_incoming_mutex);
-    while (m_incoming_messages.is_empty() && m_io_thread_state == IOThreadState::Running) {
+    while (m_incoming_messages.is_empty() && m_io_thread_state == IOThreadState::Running && !m_wait_until_readable_interrupted) {
         m_incoming_cv.wait();
     }
+    m_wait_until_readable_interrupted = false;
+}
+
+void TransportSocket::interrupt_wait_until_readable()
+{
+    MutexLocker lock(m_incoming_mutex);
+    m_wait_until_readable_interrupted = true;
+    m_incoming_cv.broadcast();
 }
 
 static ErrorOr<NonnullRefPtr<AutoCloseFileDescriptor>> copy_payload_to_shared_memory(ReadonlyBytes payload)
@@ -766,11 +774,10 @@ TransportSocket::MoreToRead TransportSocket::read_incoming_messages()
 
     bool const peer_eof = m_peer_eof;
     if (!batch.is_empty() || peer_eof) {
+        for (auto const& message : batch)
+            notify_incoming_message_observer(message->bytes.bytes());
+
         MutexLocker locker(m_incoming_mutex);
-        if (m_incoming_message_observer) {
-            for (auto const& message : batch)
-                m_incoming_message_observer(message->bytes.bytes());
-        }
         if (!batch.is_empty())
             m_incoming_messages.extend(move(batch));
         // Publish EOF only after the final batch is appended — under the same lock the consumer drains with — so that a
@@ -786,8 +793,15 @@ TransportSocket::MoreToRead TransportSocket::read_incoming_messages()
 
 void TransportSocket::set_incoming_message_observer(Function<void(ReadonlyBytes)> observer)
 {
-    MutexLocker locker(m_incoming_mutex);
+    MutexLocker locker(m_incoming_message_observer_mutex);
     m_incoming_message_observer = move(observer);
+}
+
+void TransportSocket::notify_incoming_message_observer(ReadonlyBytes bytes)
+{
+    MutexLocker locker(m_incoming_message_observer_mutex);
+    if (m_incoming_message_observer)
+        m_incoming_message_observer(bytes);
 }
 
 TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)

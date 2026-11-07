@@ -25,6 +25,7 @@ struct HandleBrokerResponse;
 class HandleBrokerServer;
 class LocalHandleBroker;
 class Stub;
+class SyncRequestCanceller;
 class TransportHandle;
 
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS)

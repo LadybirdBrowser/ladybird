@@ -8,7 +8,11 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
+#include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
+#include <AK/Mutex.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Queue.h>
 #include <AK/ThreadID.h>
 #include <LibCore/EventReceiver.h>
@@ -18,6 +22,33 @@
 #include <LibIPC/Transport.h>
 
 namespace IPC {
+
+// Lets any thread end the sync requests of the thread this is installed on, on whichever connection they are. A request
+// that may fail then fails, now and from then on, rather than wait for a peer that may never answer. This is for a thread
+// that shares its process with others, so that it cannot just exit. Such a thread has no use for a request that cannot
+// fail, which would take the whole process along, so it may not make one; see send_sync().
+class SyncRequestCanceller final : public AtomicRefCounted<SyncRequestCanceller> {
+public:
+    static NonnullRefPtr<SyncRequestCanceller> create() { return adopt_ref(*new SyncRequestCanceller); }
+
+    // This stays the canceller of the current thread until the thread ends.
+    void install_on_this_thread();
+    static bool is_installed_on_this_thread();
+
+    void cancel();
+    bool is_cancelled() const { return m_cancelled.load(AK::MemoryOrder::memory_order_acquire); }
+
+private:
+    friend class ConnectionBase;
+
+    SyncRequestCanceller() = default;
+
+    void set_transport_waited_on(Transport*);
+
+    Atomic<bool> m_cancelled { false };
+    Mutex m_mutex;
+    Transport* m_transport_waited_on { nullptr };
+};
 
 class ConnectionBase : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(ConnectionBase);
@@ -62,6 +93,9 @@ public:
     template<typename RequestType, typename... Args>
     NonnullOwnPtr<typename RequestType::ResponseType> send_sync(Args&&... args)
     {
+        // NB: A peer that dies here ends this process, and nothing can stop this wait. A thread with a canceller has to
+        //     fail on its own, so all it asks for goes through send_sync_but_allow_failure().
+        VERIFY(!SyncRequestCanceller::is_installed_on_this_thread());
         MUST(post_sync_request(RequestType(forward<Args>(args)...)));
         auto response = wait_for_specific_endpoint_message<typename RequestType::ResponseType>();
         VERIFY(response);
@@ -73,14 +107,19 @@ public:
     {
         if (post_sync_request(RequestType(forward<Args>(args)...)).is_error())
             return nullptr;
-        return wait_for_specific_endpoint_message<typename RequestType::ResponseType>();
+        return wait_for_specific_endpoint_message<typename RequestType::ResponseType>(MayCancel::Yes);
     }
 
 protected:
+    enum class MayCancel {
+        No,
+        Yes,
+    };
+
     template<typename MessageType>
-    OwnPtr<MessageType> wait_for_specific_endpoint_message()
+    OwnPtr<MessageType> wait_for_specific_endpoint_message(MayCancel may_cancel = MayCancel::No)
     {
-        if (auto message = wait_for_specific_endpoint_message_impl(MessageType::ENDPOINT_MAGIC, MessageType::static_message_id()))
+        if (auto message = wait_for_specific_endpoint_message_impl(MessageType::ENDPOINT_MAGIC, MessageType::static_message_id(), may_cancel))
             return message.template release_nonnull<MessageType>();
         return {};
     }
@@ -91,7 +130,7 @@ protected:
     virtual OwnPtr<Message> try_parse_message(ReadonlyBytes, Queue<Attachment>&) = 0;
 
     ErrorOr<void> post_sync_request(Message const&);
-    OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id);
+    OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id, MayCancel = MayCancel::No);
     void wait_for_transport_to_become_readable();
     enum class PeerEOF {
         No,

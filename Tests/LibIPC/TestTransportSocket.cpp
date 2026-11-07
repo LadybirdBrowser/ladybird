@@ -225,6 +225,40 @@ TEST_CASE(a_sent_descriptor_is_closed_once_written)
     EXPECT(!descriptor_is_open(fd));
 }
 
+TEST_CASE(an_interrupted_wait_returns_with_nothing_to_read)
+{
+    TransportPair pair;
+    pair.receiver->interrupt_wait_until_readable();
+    pair.receiver->wait_until_readable();
+}
+
+// A worker's owner aborts its script from the observer, on the IO thread, and that interrupts what the worker waits for.
+TEST_CASE(an_incoming_message_observer_can_interrupt_a_wait)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA TransportPair pair;
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> observed { false };
+    pair.receiver->set_incoming_message_observer([&](ReadonlyBytes) {
+        pair.receiver->interrupt_wait_until_readable();
+        observed.store(true);
+    });
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA size_t received = 0;
+    pair.receiver->set_up_read_hook([&] {
+        (void)pair.receiver->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+            ++received;
+            while (!message.attachments.is_empty())
+                MUST(Core::System::close(message.attachments.dequeue().to_fd()));
+        });
+    });
+
+    (void)pair.post_with_descriptor('A');
+    spin_until(pair.loop, [&] {
+        return observed.load() && received == 1;
+    });
+    pair.receiver->set_incoming_message_observer({});
+}
+
 // A descriptor that another process sends us must not leak into a program that we exec() later.
 TEST_CASE(a_received_descriptor_is_close_on_exec)
 {

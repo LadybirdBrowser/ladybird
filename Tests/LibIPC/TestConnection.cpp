@@ -91,6 +91,7 @@ class TestConnection final : public IPC::ConnectionBase {
 public:
     using ConnectionBase::drain_messages_from_peer;
     using ConnectionBase::handle_messages;
+    using ConnectionBase::MayCancel;
     using ConnectionBase::PeerEOF;
     using ConnectionBase::post_sync_request;
     using ConnectionBase::wait_for_transport_to_become_readable;
@@ -103,9 +104,9 @@ public:
         m_unprocessed_messages.append(move(message));
     }
 
-    OwnPtr<IPC::Message> call_wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id)
+    OwnPtr<IPC::Message> call_wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id, MayCancel may_cancel = MayCancel::No)
     {
-        return wait_for_specific_endpoint_message_impl(endpoint_magic, message_id);
+        return wait_for_specific_endpoint_message_impl(endpoint_magic, message_id, may_cancel);
     }
 
 protected:
@@ -383,6 +384,39 @@ TEST_CASE(sync_wait_failure_does_not_dispatch_queued_messages)
     while (loop.pump(Core::EventLoop::WaitMode::PollForEvents) != 0)
         ;
     EXPECT_EQ(stub.handle_count(), 0u);
+}
+
+TEST_CASE(cancelled_thread_does_not_take_a_late_response)
+{
+    // NB: A canceller stays on its thread until that thread ends.
+    auto thread = Threading::Thread::construct("Cancelled"sv, [] -> intptr_t {
+        Core::EventLoop loop;
+
+        auto pair = MUST(IPC::Transport::create_paired());
+
+        CountingStub stub;
+        auto connection = TestConnection::construct(stub, move(pair.local));
+
+        auto canceller = IPC::SyncRequestCanceller::create();
+        EXPECT(!IPC::SyncRequestCanceller::is_installed_on_this_thread());
+        canceller->install_on_this_thread();
+        EXPECT(IPC::SyncRequestCanceller::is_installed_on_this_thread());
+        canceller->cancel();
+
+        // The response to the wait that was cancelled comes in, and the thread then makes a request of the same type.
+        connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID, 0, TEST_MAGIC + 1));
+        EXPECT(!connection->call_wait_for_specific_endpoint_message_impl(TEST_MAGIC + 1, TARGET_MESSAGE_ID, TestConnection::MayCancel::Yes));
+
+        connection->handle_messages();
+        EXPECT_EQ(stub.handle_count(), 0u);
+
+        connection->shutdown();
+        while (loop.pump(Core::EventLoop::WaitMode::PollForEvents) != 0)
+            ;
+        return 0;
+    });
+    thread->start();
+    TRY_OR_FAIL(thread->join());
 }
 
 TEST_CASE(async_posts_from_many_threads_all_arrive)

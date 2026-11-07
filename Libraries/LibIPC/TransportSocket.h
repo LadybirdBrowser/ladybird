@@ -112,6 +112,10 @@ public:
 
     void wait_until_readable();
 
+    // Makes wait_until_readable() return, even with nothing to read, now or if none is under way, the next time. Any
+    // thread may call this.
+    void interrupt_wait_until_readable();
+
     // Wait until everything posted so far has been written to the socket.
     void flush();
 
@@ -170,6 +174,7 @@ private:
     [[nodiscard]] MoreToRead read_incoming_messages();
     void parse_unprocessed_messages(Vector<NonnullOwnPtr<Message>>&);
     void notify_read_available();
+    void notify_incoming_message_observer(ReadonlyBytes);
     bool incoming_is_behind_socket() const;
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
@@ -187,6 +192,8 @@ private:
     Mutex m_incoming_mutex;
     ConditionVariable m_incoming_cv { m_incoming_mutex };
     Vector<NonnullOwnPtr<Message>> m_incoming_messages;
+    // NB: This has a lock of its own, as the observer may interrupt a wait, which takes m_incoming_mutex.
+    Mutex m_incoming_message_observer_mutex;
     Function<void(ReadonlyBytes)> m_incoming_message_observer;
     // True while the IO thread is between reading the socket and appending what it read.
     bool m_read_in_progress { false };
@@ -194,6 +201,7 @@ private:
     // batch of messages have been parsed and appended to m_incoming_messages under the same lock.
     bool m_incoming_eof { false };
     bool m_receive_loop_finished { false };
+    bool m_wait_until_readable_interrupted { false };
 
     static Atomic<u32> s_eof_drain_window_for_test_ms;
     static Atomic<bool> s_skip_inloop_read_for_test;

@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Diagnostics.h>
 #include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Vector.h>
@@ -14,6 +15,38 @@
 #include <LibIPC/Stub.h>
 
 namespace IPC {
+
+// NB: Drop each thread's reference when that thread exits.
+#ifdef AK_COMPILER_CLANG
+AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local RefPtr<SyncRequestCanceller> s_sync_request_canceller)
+#else
+static thread_local RefPtr<SyncRequestCanceller> s_sync_request_canceller;
+#endif
+
+void SyncRequestCanceller::install_on_this_thread()
+{
+    s_sync_request_canceller = *this;
+}
+
+bool SyncRequestCanceller::is_installed_on_this_thread()
+{
+    return s_sync_request_canceller;
+}
+
+void SyncRequestCanceller::cancel()
+{
+    m_cancelled.store(true, AK::MemoryOrder::memory_order_release);
+
+    MutexLocker locker(m_mutex);
+    if (m_transport_waited_on)
+        m_transport_waited_on->interrupt_wait_until_readable();
+}
+
+void SyncRequestCanceller::set_transport_waited_on(Transport* transport)
+{
+    MutexLocker locker(m_mutex);
+    m_transport_waited_on = transport;
+}
 
 ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Transport> transport, u32 local_endpoint_magic)
     : m_local_stub(local_stub)
@@ -210,11 +243,21 @@ ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
     return PeerEOF::No;
 }
 
-OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id)
+OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id, MayCancel may_cancel)
 {
     VERIFY(m_owner_thread_id.is_current_thread());
     TemporaryChange waiting_for_sync_response { m_is_waiting_for_sync_response, true };
     bool peer_disconnected_during_wait = false;
+
+    // NB: The canceller knows the transport before this thread looks at its flag, so it cannot slip in between that look
+    //     and the wait: if it does not find the transport, this thread sees the flag.
+    auto canceller = may_cancel == MayCancel::Yes ? s_sync_request_canceller : nullptr;
+    if (canceller)
+        canceller->set_transport_waited_on(m_transport.ptr());
+    ScopeGuard forget_transport = [&] {
+        if (canceller)
+            canceller->set_transport_waited_on(nullptr);
+    };
 
     auto take_matching_message = [&]() -> OwnPtr<IPC::Message> {
         for (size_t i = 0; i < m_unprocessed_messages.size(); ++i) {
@@ -228,6 +271,12 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
     };
 
     for (;;) {
+        // NB: Responses have no ID, so one that a cancelled wait left behind would pass for the response to the next
+        //     request of that type. A canceller stays cancelled, so nothing takes that response after this point. It
+        //     is not dispatched either, as it is not for this endpoint.
+        if (canceller && canceller->is_cancelled())
+            return {};
+
         // Double check we don't already have the event waiting for us.
         // Otherwise we might end up blocked for a while for no reason.
         if (auto message = take_matching_message())
