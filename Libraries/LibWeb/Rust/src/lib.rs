@@ -33,6 +33,7 @@ pub(crate) mod stage;
 pub(crate) mod stage_thread;
 pub(crate) mod style_layout_pool;
 pub(crate) mod svg;
+pub mod web_audio;
 
 // What libweb_bindings_rust, whose interfaces are implemented in Rust, uses of this crate.
 pub use css::font_feature_values::FontFeatureValuesRuleKind;

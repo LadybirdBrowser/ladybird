@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FixedArray.h>
+#include <AK/Noncopyable.h>
 #include <AK/Span.h>
 
 namespace Web::WebAudio::Rendering {
@@ -18,9 +18,11 @@ enum class FFTDirection {
 
 class FFT {
 public:
+    AK_MAKE_NONCOPYABLE(FFT);
     AK_ALLOC_WITH_KMALLOC;
 
     explicit FFT(size_t size);
+    ~FFT();
 
     size_t size() const { return m_size; }
 
@@ -28,8 +30,7 @@ public:
 
 private:
     size_t m_size { 0 };
-    FixedArray<float> m_twiddle_real;
-    FixedArray<float> m_twiddle_imag;
+    void* m_fft { nullptr };
 };
 
 }
