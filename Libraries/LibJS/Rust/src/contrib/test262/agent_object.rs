@@ -21,7 +21,7 @@ use crate::runtime::realm::Realm;
 
 #[cfg(unix)]
 use {
-    crate::contrib::test262::agents::{self, AgentFailure, AgentRole, BroadcastNumber},
+    crate::contrib::test262::agents::{self, AgentFailure, AgentRole, Broadcast, BroadcastNumber},
     crate::runtime::abstract_operations::call,
     crate::runtime::array_buffer::{ArrayBuffer, DataBlockStorage},
     crate::runtime::big_int::{BigInt, SignedBigInteger},
@@ -67,7 +67,6 @@ impl AgentObject {
         define("monotonicNow", raw_native!(AgentObject::monotonic_now), 0);
         define("sleep", raw_native!(AgentObject::sleep), 1);
 
-        // Agents run in processes of their own, which only Unix hosts set up.
         #[cfg(unix)]
         match agents::role() {
             AgentRole::Test => {
@@ -149,12 +148,15 @@ impl AgentObject {
                 "Agents cannot map a SharedArrayBuffer that is not in shared memory".to_string(),
             );
         };
-        agents::broadcast(
-            shared_memory.as_fd(),
-            shared_array_buffer.byte_length(),
-            object_id,
-            &number,
-        );
+        let byte_length = shared_array_buffer.byte_length();
+        agents::broadcast(|| {
+            Ok(Broadcast {
+                shared_memory: shared_memory.as_fd().try_clone_to_owned()?,
+                byte_length,
+                object_id,
+                number: number.clone(),
+            })
+        });
         Ok(Value::UNDEFINED)
     }
 
@@ -175,7 +177,6 @@ impl AgentObject {
             Err(AgentFailure::UncaughtException { name, message }) => {
                 vm.throw_completion_with_message(ErrorKind::Error, format!("An agent threw {name}: {message}"))
             }
-            Err(AgentFailure::Panic(message) | AgentFailure::Exited(message)) => panic!("{message}"),
         }
     }
 
@@ -188,7 +189,9 @@ impl AgentObject {
             );
         }
 
-        let broadcast = agents::receive_broadcast();
+        let Some(broadcast) = agents::receive_broadcast() else {
+            return vm.throw_interrupt();
+        };
         let realm = vm
             .current_realm()
             .expect("$262.agent.receiveBroadcast() runs in a realm");

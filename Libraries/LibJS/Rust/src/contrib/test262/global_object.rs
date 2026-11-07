@@ -9,6 +9,8 @@ use core::cell::Cell;
 use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
+#[cfg(unix)]
+use crate::contrib::test262::agents::{self, AgentRole};
 use crate::contrib::test262::dollar_262_object::Dollar262Object;
 use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
@@ -84,6 +86,11 @@ impl Test262GlobalObject {
 
     fn print(vm: &Vm) -> ThrowCompletionOr<Value> {
         let string = vm.argument(0).to_utf16_string(vm)?;
+        // NB: What a test prints is its result, which agents have no say in.
+        #[cfg(unix)]
+        if agents::role() == AgentRole::Agent {
+            return Ok(Value::UNDEFINED);
+        }
         outln(&Utf16View::of_string(&string).to_wtf8());
         Ok(Value::UNDEFINED)
     }
