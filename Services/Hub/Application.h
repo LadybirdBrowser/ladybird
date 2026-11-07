@@ -66,7 +66,6 @@ public:
     void did_resolve_external_url_handler(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird);
     void launch_external_url(u64 handler_id, URL::URL const&, Function<void(bool)>) const;
     void did_launch_external_url(u64 request_id, bool launched);
-    void did_read_keeps_omnibox_engagements(u64 request_id, bool keeps_engagements);
     void did_read_clipboard_text(u64 request_id, Utf16String);
     void did_read_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem);
     void did_get_download_path(u64 request_id, Optional<ByteString>);
@@ -81,7 +80,6 @@ private:
     virtual void create_platform_arguments(Core::ArgsParser&) override;
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab, WebView::ViewImplementation const* related_view = nullptr) const override;
-    virtual void read_keeps_omnibox_engagements(URL::URL const&, Function<void(bool)> on_read) const override;
     virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab, WebView::ViewImplementation const* source_view = nullptr) const override;
     virtual void activate_or_open_tab_with_url(URL::URL const&) const override;
     virtual void open_urls_in_new_tabs(ReadonlySpan<URL::URL>) const override;
@@ -148,7 +146,6 @@ private:
     NewTabSource new_tab_source(WebView::ViewImplementation const* source_view) const;
 
     mutable u64 m_next_ui_request_id { 1 };
-    mutable HashMap<u64, Function<void(bool)>> m_pending_omnibox_engagement_reads;
 };
 
 }

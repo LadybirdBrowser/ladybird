@@ -220,7 +220,6 @@ public:
     Utf16String const& title() const { return m_title; }
 
     void set_favicon(Badge<WebContentPage>, Optional<Gfx::Bitmap const&> favicon) { set_favicon(favicon); }
-    Optional<String> const& favicon_hash() const { return m_favicon_hash; }
 
     String const& handle() const { return m_window_handle; }
 
@@ -258,11 +257,9 @@ public:
     Optional<ByteString> crash_report_name() const;
     Optional<String> crash_report_website() const;
 
-    struct SessionHistoryTraversalMenuItem {
+    struct SessionHistoryTraversalItem {
         i32 step { 0 };
-        String title;
-        String url;
-        Optional<ByteBuffer> favicon_png;
+        URL::URL url;
     };
     static Web::UIEvents::KeyModifier history_traversal_key_modifier();
     void traverse_the_history_by_delta(
@@ -273,8 +270,7 @@ public:
         i32 step,
         CheckForCancelation = CheckForCancelation::Yes,
         Function<void()> on_ready = nullptr);
-    [[nodiscard]] Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
-    Vector<HistoryEntry> recent_history_entries(size_t limit) const;
+    [[nodiscard]] Vector<SessionHistoryTraversalItem> session_history_traversal_items(int direction) const;
 
     [[nodiscard]] SessionHistorySnapshot session_history_snapshot() const;
     [[nodiscard]] ErrorOr<void> restore_session_history_from_snapshot(SessionHistorySnapshot);
@@ -717,6 +713,10 @@ public:
 
     virtual void did_change_session_history(SessionHistorySnapshot const&, URL::URL const&) { }
 
+    // The application keeps browsing history: this view visited a page, or learned the title of one it visited.
+    virtual void did_visit_page(URL::URL const&, Optional<String> const&, HistoryVisitTransition) { }
+    virtual void did_change_visited_page_title(URL::URL const&, String const&) { }
+
     bool can_navigate_back() const { return m_can_navigate_back; }
     bool can_navigate_forward() const { return m_can_navigate_forward; }
 
@@ -899,7 +899,6 @@ protected:
     URL::URL m_displayed_url { URL::about_blank() };
     bool m_text_fragment_indication_is_visible { false };
     Utf16String m_title;
-    Optional<String> m_favicon_hash;
 
     struct CrashState {
         URL::URL failed_url;

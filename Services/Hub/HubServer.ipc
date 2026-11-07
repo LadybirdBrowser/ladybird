@@ -64,26 +64,9 @@ struct WebView::OmniboxEngagement {
 }
 
 [ExistingCpp]
-struct WebView::HistoryEntry {
-    String url;
-    Optional<String> title;
-    Optional<ByteBuffer> favicon_png;
-    i64 visit_count;
-    i64 direct_visit_count;
-    UnixDateTime last_visited_time;
-    UnixDateTime last_qualifying_visit_time;
-    UnixDateTime last_direct_visit_time;
-    double decayed_visit_score;
-    double decayed_direct_score;
-    UnixDateTime score_updated_at;
-}
-
-[ExistingCpp]
-struct WebView::ViewImplementation::SessionHistoryTraversalMenuItem {
+struct WebView::ViewImplementation::SessionHistoryTraversalItem {
     i32 step;
-    String title;
-    String url;
-    Optional<ByteBuffer> favicon_png;
+    URL::URL url;
 }
 
 [ExistingCpp]
@@ -91,7 +74,6 @@ struct WebView::ProcessPageSnapshot {
     u64 view_id;
     URL::URL url;
     WebView::ProcessPageKind kind;
-    Optional<String> favicon_hash;
 }
 
 [ExistingCpp]
@@ -141,11 +123,8 @@ endpoint HubServer
     create_view(Hub::NewViewRequest request) => (u64 view_id, Hub::ViewState state)
     view_description(u64 view_id) => (Hub::ViewState state)
     ui_did_start() =|
-    favicons_in_use(Vector<String> favicon_hashes) =|
-    answer_keeps_omnibox_engagements(u64 request_id, bool keeps_engagements) =|
     add_web_ui_page(String host, String title) =|
     send_web_ui_message(u64 web_ui_id, String name, JsonValue data) =|
-    favicons(Vector<String> favicon_hashes) => (Vector<Optional<ByteBuffer>> favicon_pngs)
     post_report(u64 post_id, URL::URL url, Vector<HTTP::Header> headers, ByteString body) =|
     cancel_report_post(u64 post_id) =|
 
@@ -169,15 +148,13 @@ endpoint HubServer
     terminate_process(u64 child_id) => (bool terminated)
 
     view_needs_beforeunload_check(u64 view_id) => (bool needs_check)
-    view_recent_history_entries(u64 view_id, u64 limit) => (Vector<WebView::HistoryEntry> entries)
-    view_session_history_traversal_menu_items(u64 view_id, i32 direction) => (Vector<WebView::ViewImplementation::SessionHistoryTraversalMenuItem> items)
+    view_session_history_traversal_items(u64 view_id, i32 direction) => (Vector<WebView::ViewImplementation::SessionHistoryTraversalItem> items)
     view_session_history_snapshot(u64 view_id) => (Optional<WebView::SessionHistorySnapshot> snapshot)
     view_restore_session_history_from_snapshot(u64 view_id, WebView::SessionHistorySnapshot snapshot) => (bool restored)
     view_history_step_at_delta(u64 view_id, i32 delta) => (Optional<i32> step)
     view_look_up_selected_text_at(u64 view_id, Gfx::IntPoint position) => (bool looked_up)
     view_page_description(u64 view_id) => (URL::URL url, String user_agent, Gfx::IntSize viewport_size, double device_pixel_ratio, double zoom_level)
 
-    history_entry_for_url(WebView::IsPrivate is_private, URL::URL url) => (Optional<WebView::HistoryEntry> entry)
     view_set_site_permission(u64 view_id, URL::Origin origin, Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) =|
     view_did_show_permission_prompt(u64 view_id, WebView::PermissionPromptRequest request) =|
     view_load_navigation(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation) =|

@@ -115,13 +115,14 @@ private:
     virtual void app_read_clipboard_item(u64 request_id) override;
     virtual void app_ask_user_for_download_path(u64 request_id, ByteString file) override;
     virtual void settings_changed(ByteString settings_json, u64 last_applied_change_id) override;
-    virtual void app_read_keeps_omnibox_engagements(u64 request_id, URL::URL url) override;
     virtual void web_ui_opened(u64 web_ui_id, String host) override;
     virtual void web_ui_message(u64 web_ui_id, String name, JsonValue data) override;
     virtual void web_ui_closed(u64 web_ui_id) override;
     virtual void view_request_context_menu(u64 view_id, WebView::ContextMenuRequest request) override;
     virtual void view_did_make_link_to_highlight(u64 view_id, Optional<URL::URL> url) override;
     virtual void view_session_history_changed(u64 view_id, WebView::SessionHistorySnapshot history, URL::URL url) override;
+    virtual void view_visited_page(u64 view_id, URL::URL url, Optional<String> title, WebView::HistoryVisitTransition transition) override;
+    virtual void view_visited_page_title_change(u64 view_id, URL::URL url, String title) override;
     virtual void view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon) override;
     virtual void view_request_before_unload(u64 view_id, u64 answer_id, String source) override;
     virtual void view_request_external_url_confirmation(u64 view_id, u64 answer_id, URL::URL url, URL::Origin initiator_origin, String application_name) override;

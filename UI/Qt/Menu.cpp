@@ -367,7 +367,7 @@ static void add_items_to_menu(QMenu& qmenu, WebView::Menu& menu)
 #endif
 }
 
-static QAction* create_session_history_traversal_menu_action(QMenu& menu, WebView::ViewImplementation::SessionHistoryTraversalMenuItem const& item)
+static QAction* create_session_history_traversal_menu_action(QMenu& menu, RemoteView::SessionHistoryTraversalMenuItem const& item)
 {
     static constexpr int const MENU_ICON_SIZE = 16;
 

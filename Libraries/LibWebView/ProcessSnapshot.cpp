@@ -59,7 +59,6 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
                 .view_id = view.view_id(),
                 .url = view.url(),
                 .kind = ProcessPageKind::TopLevel,
-                .favicon_hash = view.favicon_hash(),
             },
         });
         view.traversable().for_each_in_subtree([&](auto const& navigable) {
@@ -100,23 +99,11 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
                 .view_id = page->view->view_id(),
                 .url = page->url,
                 .kind = page->kind,
-                // NB: The view's favicon is its top-level page's, which an embedded frame of another site does not share.
-                .favicon_hash = page->kind == ProcessPageKind::TopLevel ? page->view->favicon_hash() : Optional<String> {},
             };
         }
         snapshots.append(move(snapshot));
     });
     return snapshots;
-}
-
-Optional<ByteBuffer> favicon_png_for_page(ProcessPageSnapshot const& page)
-{
-    if (!page.favicon_hash.has_value())
-        return {};
-    auto view = ViewImplementation::find_view_by_id(page.view_id);
-    if (!view.has_value())
-        return {};
-    return view->session().favicon_store->favicon_png(*page.favicon_hash);
 }
 
 bool end_process(ProcessManager& process_manager, u64 child_id)

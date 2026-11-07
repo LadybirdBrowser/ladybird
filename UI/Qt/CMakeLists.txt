@@ -33,6 +33,7 @@ add_library(ladybird_impl STATIC
     FeedbackPopover.cpp
     FindInPageWidget.cpp
     HiddenPageSizing.cpp
+    HistoryPage.cpp
     HubConnection.cpp
     Icon.cpp
     InputMethodUtils.cpp

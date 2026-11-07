@@ -38,6 +38,8 @@ static Ladybird::ProcessManagerWindow::Source source_for(WebView::ProcessManager
     return {
         .take_snapshots = [&manager] { return WebView::process_snapshots(manager); },
         .end_process = [&manager](u64 child_id) { return WebView::end_process(manager, child_id); },
+        .favicon_hash = {},
+        .favicon_png = {},
     };
 }
 

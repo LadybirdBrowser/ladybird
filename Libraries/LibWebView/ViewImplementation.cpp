@@ -180,11 +180,6 @@ pid_t ViewImplementation::web_content_pid() const
     return page().client().pid();
 }
 
-Vector<HistoryEntry> ViewImplementation::recent_history_entries(size_t limit) const
-{
-    return m_session->history_store->list_entries({}, 0, limit);
-}
-
 CanonicalTraversable& ViewImplementation::traversable() const
 {
     VERIFY(m_top_level_traversable);
@@ -421,17 +416,6 @@ void ViewImplementation::set_title(Utf16String title)
 
 void ViewImplementation::set_favicon(Optional<Gfx::Bitmap const&> favicon)
 {
-    m_favicon_hash.clear();
-
-    if (favicon.has_value()) {
-        if (auto favicon_png = Gfx::PNGWriter::encode(*favicon); !favicon_png.is_error())
-            m_favicon_hash = m_session->favicon_store->add_favicon(favicon_png.release_value());
-
-        if (m_favicon_hash.has_value()) {
-            m_session->history_store->update_favicon(url(), *m_favicon_hash);
-        }
-    }
-
     if (on_favicon_change)
         on_favicon_change(favicon);
 }
@@ -821,7 +805,7 @@ void ViewImplementation::did_finish_history_traversal(Web::HTML::CrossProcessId 
     dump_session_history("webcontent-history-traversal-complete"sv);
 }
 
-Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::session_history_traversal_menu_items(int direction) const
+Vector<ViewImplementation::SessionHistoryTraversalItem> ViewImplementation::session_history_traversal_items(int direction) const
 {
     VERIFY(direction == -1 || direction == 1);
 
@@ -829,21 +813,10 @@ Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::
     auto used_steps = session_history.used_steps();
     auto current_used_step_index = session_history.current_used_step_index();
 
-    Vector<SessionHistoryTraversalMenuItem> items;
+    Vector<SessionHistoryTraversalItem> items;
     auto append_item = [&](size_t target_step_index) {
         auto target_step = used_steps[target_step_index];
-        auto const& target_entry = *session_history.top_level_entry_for_step(target_step);
-        auto history_entry = m_session->history_store->entry_for_url(target_entry.url);
-        auto url = target_entry.url.serialize();
-        auto title = history_entry.has_value() && history_entry->title.has_value() && !history_entry->title->is_empty()
-            ? move(*history_entry->title)
-            : url;
-        items.append({
-            target_step,
-            move(title),
-            move(url),
-            history_entry.has_value() ? move(history_entry->favicon_png) : OptionalNone {},
-        });
+        items.append({ target_step, session_history.top_level_entry_for_step(target_step)->url });
     };
 
     if (direction < 0) {

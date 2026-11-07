@@ -1748,16 +1748,10 @@ ErrorOr<void> Application::launch_services()
                 : Database::MigrationOutcome::DatabaseTooNew;
         }
 
-        if (favicons_outcome == Database::MigrationOutcome::Success && history_outcome == Database::MigrationOutcome::Success) {
-            m_default_session->favicon_store = TRY(FaviconStore::create(history_database));
-            m_default_session->history_store = TRY(HistoryStore::create(history_database));
-            m_should_remove_unreferenced_favicons = true;
-        } else {
-            dbgln("History database was created by a newer Ladybird version; favicons and history will not be persisted this session");
+        // NB: The application keeps browsing history in this database. The omnibox reads it here too, so we migrate it
+        //     before the omnibox opens it.
+        if (favicons_outcome != Database::MigrationOutcome::Success || history_outcome != Database::MigrationOutcome::Success)
             history_database_directory = {};
-            m_default_session->favicon_store = FaviconStore::create();
-            m_default_session->history_store = HistoryStore::create(*m_default_session->favicon_store);
-        }
 
         // A headless run, a browser that WebDriver drives, and one that logs process statistics never join a browser
         // already running on their profile. Yet startup recovery would still rewrite the saved session, reset the
@@ -1768,8 +1762,6 @@ ErrorOr<void> Application::launch_services()
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is disabled, disabling browsing history");
 
         m_default_session->cookie_jar = CookieJar::create();
-        m_default_session->favicon_store = FaviconStore::create();
-        m_default_session->history_store = HistoryStore::create_disabled();
         m_default_session->hsts_store = HSTSStore::create();
         m_default_session->storage_jar = StorageJar::create();
         m_download_store = DownloadStore::create_disabled();
@@ -2454,7 +2446,6 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
     }
 
     if (options.delete_history == ClearBrowsingDataOptions::Delete::Yes) {
-        m_default_session->history_store->remove_entries_accessed_since(options.since);
         if (auto result = CrashReportStore::the().remove_websites_saved_since(options.since); result.is_error())
             dbgln("Unable to remove the websites of crash reports: {}", result.error());
         CrashReportOutbox::the().reports_changed();
@@ -2850,18 +2841,6 @@ void Application::download_content_blocker_list_if_needed(Badge<Application, Set
 }
 
 // The shared actions that depend on the page follow the active view, whichever tab or window made it the active one.
-// NB: Only the application knows which favicons it keeps for itself, so without one telling us, nothing is removed.
-void Application::remove_unreferenced_favicons(HashTable<String> referenced_hashes)
-{
-    if (!m_should_remove_unreferenced_favicons)
-        return;
-    m_should_remove_unreferenced_favicons = false;
-
-    for (auto& hash : m_default_session->history_store->referenced_favicon_hashes())
-        referenced_hashes.set(move(hash));
-    m_default_session->favicon_store->remove_unreferenced_favicons(referenced_hashes);
-}
-
 void Application::set_spell_checker(OwnPtr<SpellChecker> spell_checker)
 {
     m_spell_checker = move(spell_checker);

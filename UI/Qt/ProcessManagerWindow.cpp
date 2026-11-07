@@ -611,16 +611,20 @@ void ProcessManagerWindow::hideEvent(QHideEvent* event)
 
 QIcon ProcessManagerWindow::favicon_for(WebView::ProcessPageSnapshot const& page)
 {
-    if (!page.favicon_hash.has_value())
+    // NB: The view's favicon is its top-level page's, which an embedded frame of another site does not share.
+    Optional<String> favicon_hash;
+    if (page.kind == WebView::ProcessPageKind::TopLevel && m_source.favicon_hash)
+        favicon_hash = m_source.favicon_hash(page);
+    if (!favicon_hash.has_value())
         return create_chrome_icon(ChromeIcon::Globe, Theme::panel().body);
-    if (auto icon = m_favicons.get(*page.favicon_hash); icon.has_value())
+    if (auto icon = m_favicons.get(*favicon_hash); icon.has_value())
         return *icon;
     QIcon icon;
-    if (auto png = WebView::favicon_png_for_page(page); png.has_value())
+    if (auto png = m_source.favicon_png ? m_source.favicon_png(*favicon_hash) : Optional<ByteBuffer> {}; png.has_value())
         icon = favicon_with_rounded_corners(icon_from_png(png->bytes(), 16), 16);
     if (icon.isNull())
         icon = create_chrome_icon(ChromeIcon::Globe, Theme::panel().body);
-    m_favicons.set(*page.favicon_hash, icon);
+    m_favicons.set(*favicon_hash, icon);
     return icon;
 }
 

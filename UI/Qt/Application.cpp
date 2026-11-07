@@ -20,6 +20,8 @@
 #include <LibWebCommon/WebView/Utilities.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CrashReportStore.h>
+#include <LibWebView/FaviconStore.h>
+#include <LibWebView/HistoryStore.h>
 #include <LibWebView/NotificationBackend.h>
 #include <LibWebView/PageTranslation.h>
 #include <LibWebView/PictureInPictureManager.h>
@@ -49,6 +51,7 @@
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/ExternalURLHandler.h>
+#include <UI/Qt/HistoryPage.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/PictureInPictureWindow.h>
 #include <UI/Qt/PlainText.h>
@@ -800,6 +803,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(TRY(JsonValue::from_string(state.settings_json))));
     m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(state.config_directory, "Bookmarks.json"sv).string()));
     create_session_store(state.data_directory, state.persists_sessions);
+    create_history_store(state.data_directory, state.uses_sql_database);
     // NB: Reports stay in files, which both of us read. This process keeps its own for when it crashes, and the next
     //     launch recovers that the same as one of the Hub's.
     auto& crash_report_store = WebView::CrashReportStore::the();
@@ -964,6 +968,16 @@ void Application::show_process_manager()
             .take_snapshots = [] { return WebView::process_snapshots(WebView::Application::process_manager()); },
             .end_process = [](u64 child_id) { return WebView::end_process(WebView::Application::process_manager(), child_id); },
 #endif
+            .favicon_hash = [](WebView::ProcessPageSnapshot const& page) -> Optional<String> {
+                if (auto* view = RemoteView::find(page.view_id))
+                    return view->favicon_hash();
+                return {};
+            },
+            .favicon_png = [](String const& favicon_hash) {
+                // NB: A private window's favicons are in a store of their own, which the hash finds as well.
+                if (auto png = favicon_store(WebView::IsPrivate::No).favicon_png(favicon_hash); png.has_value())
+                    return png;
+                return favicon_store(WebView::IsPrivate::Yes).favicon_png(favicon_hash); },
         });
 #if defined(AK_OS_MACOS)
         // The traffic lights are centered in the Task Manager's title bar, which is 52 px tall.
@@ -988,6 +1002,7 @@ void Application::create_platform_actions()
     m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(WebView::Application::profile().paths().config, "Bookmarks.json"sv).string()));
     auto& hub = WebView::Application::the();
     create_session_store(WebView::Application::profile().paths().data, hub.persists_sessions());
+    create_history_store(WebView::Application::profile().paths().data, WebView::Application::browser_options().disable_sql_database == WebView::DisableSQLDatabase::No);
     m_application_actions = make<ApplicationActions>(ApplicationActions::PageOptions {
         .user_agent = hub.user_agent_string(),
         .navigator_compatibility_mode = hub.navigator_compatibility_mode(),
@@ -1004,6 +1019,8 @@ void Application::create_platform_actions()
             hub->send_settings_changes(settings);
     };
     m_bookmarks = make<Bookmarks>(*m_bookmark_store);
+    if (auto* hub = HubConnection::the_if_connected())
+        hub->async_add_web_ui_page("history"_string, "History"_string);
 
     m_open_task_manager_action = WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
         show_process_manager();
@@ -1243,6 +1260,81 @@ void Application::create_session_store(ByteString const& data_directory, bool pe
 #endif
 }
 
+void Application::create_history_store(ByteString const& data_directory, bool uses_sql_database)
+{
+    if (!uses_sql_database) {
+        m_favicon_store = WebView::FaviconStore::create();
+        m_history_store = WebView::HistoryStore::create_disabled();
+        return;
+    }
+
+    auto created = [&]() -> ErrorOr<bool> {
+        // The History database is shared by the favicon and history stores. Preflight both before applying either
+        // migration so a database that is too new remains untouched.
+        auto database = TRY(Database::Database::create(data_directory, "History"sv));
+        auto favicons_outcome = TRY(WebView::FaviconStore::migrate_schema(database, Database::MigrationMode::CheckOnly));
+        auto history_outcome = TRY(WebView::HistoryStore::migrate_schema(database, Database::MigrationMode::CheckOnly));
+        if (favicons_outcome != Database::MigrationOutcome::Success || history_outcome != Database::MigrationOutcome::Success)
+            return false;
+        if (TRY(WebView::FaviconStore::migrate_schema(database)) != Database::MigrationOutcome::Success)
+            return false;
+        if (TRY(WebView::HistoryStore::migrate_schema(database)) != Database::MigrationOutcome::Success)
+            return false;
+        m_favicon_store = TRY(WebView::FaviconStore::create(database));
+        m_history_store = TRY(WebView::HistoryStore::create(database));
+        return true;
+    }();
+    if (!created.is_error() && created.value()) {
+        m_should_remove_unreferenced_favicons = true;
+        return;
+    }
+
+    if (created.is_error())
+        dbgln("Unable to open the History database: {}", created.error());
+    else
+        dbgln("History database was created by a newer Ladybird version; favicons and history will not be persisted this session");
+    m_favicon_store = WebView::FaviconStore::create();
+    m_history_store = WebView::HistoryStore::create(*m_favicon_store);
+}
+
+WebView::FaviconStore& Application::favicon_store(WebView::IsPrivate is_private)
+{
+    if (is_private == WebView::IsPrivate::No)
+        return *s_the->m_favicon_store;
+    if (!s_the->m_private_favicon_store)
+        s_the->m_private_favicon_store = WebView::FaviconStore::create();
+    return *s_the->m_private_favicon_store;
+}
+
+// NB: The favicons of history and of bookmarks share a store, so it is only once the bookmarks are read that the
+//     ones nothing uses any more are known.
+void Application::remove_unreferenced_favicons(HashTable<String> referenced_hashes)
+{
+    if (!m_should_remove_unreferenced_favicons)
+        return;
+    m_should_remove_unreferenced_favicons = false;
+
+    for (auto& hash : m_history_store->referenced_favicon_hashes())
+        referenced_hashes.set(move(hash));
+    m_favicon_store->remove_unreferenced_favicons(referenced_hashes);
+}
+
+void Application::history_page_opened(u64 web_ui_id)
+{
+    m_history_pages.set(web_ui_id, make<HistoryPage>(web_ui_id));
+}
+
+void Application::history_page_received_message(u64 web_ui_id, String const& name, JsonValue const& data)
+{
+    if (auto page = m_history_pages.get(web_ui_id); page.has_value())
+        (*page)->received_message(name, data);
+}
+
+void Application::history_page_closed(u64 web_ui_id)
+{
+    m_history_pages.remove(web_ui_id);
+}
+
 SessionStore& Application::session_store(WebView::IsPrivate is_private)
 {
     if (is_private == WebView::IsPrivate::No)
@@ -1256,6 +1348,7 @@ SessionStore& Application::session_store(WebView::IsPrivate is_private)
 
 void Application::did_clear_history_since(UnixDateTime since)
 {
+    m_history_store->remove_entries_accessed_since(since);
     for (auto* store : { m_session_store.ptr(), m_private_session_store.ptr() }) {
         if (!store)
             continue;
@@ -1493,6 +1586,7 @@ void Application::finish_private_session_restart()
             view.clear_session_tab_id();
     });
     m_private_session_store = nullptr;
+    m_private_favicon_store = nullptr;
     open_new_window(WebView::IsPrivate::Yes);
 
     for (auto const& window : windows) {

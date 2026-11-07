@@ -13,7 +13,6 @@
 #include <LibRequests/RequestClient.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReportStore.h>
-#include <LibWebView/HistoryStore.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/PageTranslation.h>
 #include <LibWebView/ProcessSnapshot.h>
@@ -506,19 +505,6 @@ void ConnectionFromUI::open_microphone_system_settings()
     static_cast<WebView::Application&>(Application::the()).microphone_authorizer().open_system_settings();
 }
 
-void ConnectionFromUI::favicons_in_use(Vector<String> favicon_hashes)
-{
-    HashTable<String> referenced_hashes;
-    for (auto& favicon_hash : favicon_hashes)
-        referenced_hashes.set(move(favicon_hash));
-    Application::the().remove_unreferenced_favicons(move(referenced_hashes));
-}
-
-void ConnectionFromUI::answer_keeps_omnibox_engagements(u64 request_id, bool keeps_engagements)
-{
-    Application::the().did_read_keeps_omnibox_engagements(request_id, keeps_engagements);
-}
-
 void ConnectionFromUI::add_web_ui_page(String host, String title)
 {
     WebView::WebUI::add_application_page(move(host), move(title));
@@ -528,15 +514,6 @@ void ConnectionFromUI::send_web_ui_message(u64 web_ui_id, String name, JsonValue
 {
     if (auto* web_ui = WebView::ApplicationWebUI::find(web_ui_id))
         web_ui->send_to_page(name, data);
-}
-
-Messages::HubServer::FaviconsResponse ConnectionFromUI::favicons(Vector<String> favicon_hashes)
-{
-    Vector<Optional<ByteBuffer>> favicon_pngs;
-    favicon_pngs.ensure_capacity(favicon_hashes.size());
-    for (auto const& favicon_hash : favicon_hashes)
-        favicon_pngs.unchecked_append(Application::default_session().favicon_store->favicon_png(favicon_hash));
-    return favicon_pngs;
 }
 
 Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
@@ -559,6 +536,7 @@ Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
     state.config_directory = profile.paths().config;
     state.data_directory = profile.paths().data;
     state.persists_sessions = Application::the().persists_sessions();
+    state.uses_sql_database = options.disable_sql_database == WebView::DisableSQLDatabase::No;
     state.profile_identifier = profile.identifier();
     state.profile_identity = profile.paths().identity;
     state.profile_is_temporary = profile.is_temporary();
@@ -730,18 +708,11 @@ Messages::HubServer::ViewNeedsBeforeunloadCheckResponse ConnectionFromUI::view_n
     return view && view->needs_beforeunload_check();
 }
 
-Messages::HubServer::ViewRecentHistoryEntriesResponse ConnectionFromUI::view_recent_history_entries(u64 view_id, u64 limit)
+Messages::HubServer::ViewSessionHistoryTraversalItemsResponse ConnectionFromUI::view_session_history_traversal_items(u64 view_id, i32 direction)
 {
     if (auto* view = find_view(view_id))
-        return view->recent_history_entries(limit);
-    return Vector<WebView::HistoryEntry> {};
-}
-
-Messages::HubServer::ViewSessionHistoryTraversalMenuItemsResponse ConnectionFromUI::view_session_history_traversal_menu_items(u64 view_id, i32 direction)
-{
-    if (auto* view = find_view(view_id))
-        return view->session_history_traversal_menu_items(direction);
-    return Vector<WebView::ViewImplementation::SessionHistoryTraversalMenuItem> {};
+        return view->session_history_traversal_items(direction);
+    return Vector<WebView::ViewImplementation::SessionHistoryTraversalItem> {};
 }
 
 Messages::HubServer::ViewSessionHistorySnapshotResponse ConnectionFromUI::view_session_history_snapshot(u64 view_id)
@@ -783,11 +754,6 @@ Messages::HubServer::ViewPageDescriptionResponse ConnectionFromUI::view_page_des
         return { URL::URL {}, String {}, Gfx::IntSize {}, 1.0, 1.0 };
     auto page = WebView::WebCompatReport::describe_page(*view);
     return { move(page.url), move(page.user_agent), page.viewport_size, page.device_pixel_ratio, page.zoom_level };
-}
-
-Messages::HubServer::HistoryEntryForUrlResponse ConnectionFromUI::history_entry_for_url(WebView::IsPrivate is_private, URL::URL url)
-{
-    return Application::session_for_new_view(is_private)->history_store->entry_for_url(url);
 }
 
 void ConnectionFromUI::update_settings(u64 change_id, ByteString changes_json)

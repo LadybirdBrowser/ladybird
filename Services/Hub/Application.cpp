@@ -129,24 +129,6 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     return view;
 }
 
-void Application::read_keeps_omnibox_engagements(URL::URL const& url, Function<void(bool)> on_read) const
-{
-    auto* ui = ConnectionFromUI::the();
-    if (!ui) {
-        on_read(false);
-        return;
-    }
-    auto request_id = m_next_ui_request_id++;
-    m_pending_omnibox_engagement_reads.set(request_id, move(on_read));
-    ui->async_app_read_keeps_omnibox_engagements(request_id, url);
-}
-
-void Application::did_read_keeps_omnibox_engagements(u64 request_id, bool keeps_engagements)
-{
-    if (auto on_read = m_pending_omnibox_engagement_reads.take(request_id); on_read.has_value())
-        (*on_read)(keeps_engagements);
-}
-
 // NB: Which window a tab goes to must not depend on what is active once the UI reads the message. A tab must stay in
 //     the browsing session of the page that opened it. With no such page, the active view here is the one that was
 //     active when the UI sent what led to this, since the UI's messages arrive in order.

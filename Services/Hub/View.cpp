@@ -612,7 +612,6 @@ ViewState View::current_state() const
     state.url = url();
     state.displayed_url = displayed_url();
     state.title = title();
-    state.favicon_hash = favicon_hash();
     state.handle = handle();
     state.is_loading = is_loading();
     state.zoom_level = zoom_level();
@@ -716,6 +715,18 @@ void View::did_change_session_history(WebView::SessionHistorySnapshot const& his
 {
     if (auto* ui = ConnectionFromUI::the())
         ui->async_view_session_history_changed(view_id(), history, url);
+}
+
+void View::did_visit_page(URL::URL const& url, Optional<String> const& title, WebView::HistoryVisitTransition transition)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_visited_page(view_id(), url, title, transition);
+}
+
+void View::did_change_visited_page_title(URL::URL const& url, String const& title)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_visited_page_title_change(view_id(), url, title);
 }
 
 }

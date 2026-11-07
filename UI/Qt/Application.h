@@ -32,6 +32,8 @@ class QWidget;
 
 namespace Ladybird {
 
+class HistoryPage;
+
 class Bookmarks;
 class ProcessManagerWindow;
 
@@ -90,6 +92,15 @@ public:
 
     // The windows and tabs of each kind of window, which this run keeps for the next one unless they are private.
     static SessionStore& session_store(WebView::IsPrivate);
+
+    // Browsing history and the favicons it, the bookmarks and the open tabs show. Private windows keep no history.
+    static WebView::HistoryStore& history_store() { return *s_the->m_history_store; }
+    static WebView::FaviconStore& favicon_store(WebView::IsPrivate);
+    void remove_unreferenced_favicons(HashTable<String> referenced_hashes);
+
+    void history_page_opened(u64 web_ui_id);
+    void history_page_received_message(u64 web_ui_id, String const& name, JsonValue const& data);
+    void history_page_closed(u64 web_ui_id);
 
     virtual ~Application() override;
 
@@ -267,6 +278,7 @@ private:
     void on_recently_closed_entries_changed() const;
     void did_clear_history_since(UnixDateTime);
     void create_session_store(ByteString const& data_directory, bool persists_sessions);
+    void create_history_store(ByteString const& data_directory, bool uses_sql_database);
     void quit_for_signal();
 
     static Application* s_the;
@@ -297,6 +309,11 @@ private:
     OwnPtr<BookmarkStore> m_bookmark_store;
     OwnPtr<SessionStore> m_session_store;
     OwnPtr<SessionStore> m_private_session_store;
+    OwnPtr<WebView::FaviconStore> m_favicon_store;
+    OwnPtr<WebView::FaviconStore> m_private_favicon_store;
+    OwnPtr<WebView::HistoryStore> m_history_store;
+    bool m_should_remove_unreferenced_favicons { false };
+    HashMap<u64, NonnullOwnPtr<HistoryPage>> m_history_pages;
     Vector<int> m_session_signal_handlers;
     OwnPtr<Bookmarks> m_bookmarks;
     OwnPtr<ApplicationActions> m_application_actions;

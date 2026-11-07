@@ -13,7 +13,6 @@
 #include <LibWebView/WebUI/ApplicationWebUI.h>
 #include <LibWebView/WebUI/CrashReportsUI.h>
 #include <LibWebView/WebUI/DownloadsUI.h>
-#include <LibWebView/WebUI/HistoryUI.h>
 #include <LibWebView/WebUI/SettingsUI.h>
 #include <LibWebView/WebUI/VersionUI.h>
 
@@ -24,7 +23,6 @@ static constexpr auto s_pages = to_array<WebUI::Page>({
     { "blocking"sv, "Blocking"sv, WebUI::PageType::Static },
     { "crashes"sv, "Crash Reports"sv, WebUI::PageType::Dynamic },
     { "downloads"sv, "Downloads"sv, WebUI::PageType::Dynamic },
-    { "history"sv, "History"sv, WebUI::PageType::Dynamic },
     { "newtab"sv, "New Tab"sv, WebUI::PageType::Static },
     { "settings"sv, "Settings"sv, WebUI::PageType::Dynamic },
     { "services"sv, "Services"sv, WebUI::PageType::Static },
@@ -101,8 +99,6 @@ ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, Web::PageId page_
         web_ui = TRY(create_web_ui<CrashReportsUI>(client, page_id, move(host)));
     else if (page->host == "downloads"sv)
         web_ui = TRY(create_web_ui<DownloadsUI>(client, page_id, move(host)));
-    else if (page->host == "history"sv)
-        web_ui = TRY(create_web_ui<HistoryUI>(client, page_id, move(host)));
     else if (page->host.is_one_of("settings"sv, "welcome"sv))
         web_ui = TRY(create_web_ui<SettingsUI>(client, page_id, move(host)));
     else if (page->host == "version"sv)

@@ -9,8 +9,11 @@
 #    include <Hub/Application.h>
 #    include <LibWebView/PageTranslation.h>
 #endif
+#include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibURL/InternalURLs.h>
 #include <LibUnicode/DisplayNames.h>
+#include <LibWebView/FaviconStore.h>
+#include <LibWebView/HistoryStore.h>
 #include <LibWebView/PageTranslation.h>
 #include <LibWebView/Translator.h>
 #include <LibWebView/URL.h>
@@ -312,11 +315,6 @@ WebView::WebCompatReport::Page RemoteView::describe_page() const
     return { .url = page.take_url(), .user_agent = page.take_user_agent(), .viewport_size = page.viewport_size(), .device_pixel_ratio = page.device_pixel_ratio(), .zoom_level = page.zoom_level() };
 }
 
-Vector<WebView::HistoryEntry> RemoteView::recent_history_entries(size_t limit) const
-{
-    return HubConnection::the().view_recent_history_entries(view_id(), limit);
-}
-
 bool RemoteView::look_up_selected_text_at(Gfx::IntPoint widget_position)
 {
     return HubConnection::the().view_look_up_selected_text_at(view_id(), widget_position);
@@ -327,9 +325,9 @@ bool RemoteView::needs_beforeunload_check() const
     return HubConnection::the().view_needs_beforeunload_check(view_id());
 }
 
-Vector<RemoteView::SessionHistoryTraversalMenuItem> RemoteView::session_history_traversal_menu_items(int direction) const
+Vector<WebView::ViewImplementation::SessionHistoryTraversalItem> RemoteView::session_history_traversal_items(int direction) const
 {
-    return HubConnection::the().view_session_history_traversal_menu_items(view_id(), direction);
+    return HubConnection::the().view_session_history_traversal_items(view_id(), direction);
 }
 
 WebView::SessionHistorySnapshot RemoteView::session_history_snapshot() const
@@ -359,11 +357,6 @@ WebView::WebCompatReport::Page RemoteView::describe_page() const
     return WebView::WebCompatReport::describe_page(*m_view);
 }
 
-Vector<WebView::HistoryEntry> RemoteView::recent_history_entries(size_t limit) const
-{
-    return m_view->recent_history_entries(limit);
-}
-
 bool RemoteView::look_up_selected_text_at(Gfx::IntPoint widget_position)
 {
     return m_view->look_up_selected_text_at(widget_position);
@@ -374,9 +367,9 @@ bool RemoteView::needs_beforeunload_check() const
     return m_view->needs_beforeunload_check();
 }
 
-Vector<RemoteView::SessionHistoryTraversalMenuItem> RemoteView::session_history_traversal_menu_items(int direction) const
+Vector<WebView::ViewImplementation::SessionHistoryTraversalItem> RemoteView::session_history_traversal_items(int direction) const
 {
-    return m_view->session_history_traversal_menu_items(direction);
+    return m_view->session_history_traversal_items(direction);
 }
 
 WebView::SessionHistorySnapshot RemoteView::session_history_snapshot() const
@@ -407,6 +400,67 @@ void RemoteView::did_change_session_history(WebView::SessionHistorySnapshot hist
     if (!m_session_tab_id.has_value())
         return;
     Application::session_store(m_is_private).update_tab_state({ .tab_id = *m_session_tab_id, .history = move(history), .url = move(url) });
+}
+
+Vector<WebView::HistoryEntry> RemoteView::recent_history_entries(size_t limit) const
+{
+    if (is_private() == WebView::IsPrivate::Yes)
+        return {};
+    return Application::history_store().list_entries({}, 0, limit);
+}
+
+Vector<RemoteView::SessionHistoryTraversalMenuItem> RemoteView::session_history_traversal_menu_items(int direction) const
+{
+    Vector<SessionHistoryTraversalMenuItem> items;
+    for (auto& item : session_history_traversal_items(direction)) {
+        Optional<WebView::HistoryEntry> history_entry;
+        if (is_private() == WebView::IsPrivate::No)
+            history_entry = Application::history_store().entry_for_url(item.url);
+        auto url = item.url.serialize();
+        auto title = history_entry.has_value() && history_entry->title.has_value() && !history_entry->title->is_empty()
+            ? move(*history_entry->title)
+            : url;
+        items.append({
+            .step = item.step,
+            .title = move(title),
+            .url = move(url),
+            .favicon_png = history_entry.has_value() ? move(history_entry->favicon_png) : OptionalNone {},
+        });
+    }
+    return items;
+}
+
+void RemoteView::did_change_favicon(Optional<Gfx::Bitmap const&> favicon)
+{
+    m_favicon_hash.clear();
+    if (!favicon.has_value())
+        return;
+
+    if (auto favicon_png = Gfx::PNGWriter::encode(*favicon); !favicon_png.is_error())
+        m_favicon_hash = Application::favicon_store(is_private()).add_favicon(favicon_png.release_value());
+    if (!m_favicon_hash.has_value() || is_private() == WebView::IsPrivate::Yes)
+        return;
+
+    Application::history_store().update_favicon(url(), *m_favicon_hash);
+    Application::bookmark_store().update_favicon(url(), *m_favicon_hash);
+}
+
+void RemoteView::did_visit_page(URL::URL const& url, Optional<String> const& title, WebView::HistoryVisitTransition transition)
+{
+    if (is_private() == WebView::IsPrivate::No)
+        Application::history_store().record_visit(url, title, UnixDateTime::now(), transition);
+}
+
+void RemoteView::did_change_visited_page_title(URL::URL const& url, String const& title)
+{
+    if (is_private() == WebView::IsPrivate::No)
+        Application::history_store().update_title(url, title);
+}
+
+void RemoteView::did_finish_loading(URL::URL const& url)
+{
+    if (is_private() == WebView::IsPrivate::No && m_favicon_hash.has_value())
+        Application::history_store().update_favicon(url, *m_favicon_hash);
 }
 
 // The browser's own strings are English, so languages are named in English.

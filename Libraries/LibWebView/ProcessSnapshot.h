@@ -28,7 +28,6 @@ struct ProcessPageSnapshot {
     u64 view_id { 0 };
     URL::URL url;
     ProcessPageKind kind { ProcessPageKind::TopLevel };
-    Optional<String> favicon_hash;
 };
 
 // A tab whose page a WebContent process hosts.
@@ -63,7 +62,5 @@ WEBVIEW_API Vector<ProcessSnapshot> process_snapshots(ProcessManager&);
 
 // Ends a process, and is satisfied with one that is already gone. Returns false for one that could not be ended.
 WEBVIEW_API bool end_process(ProcessManager&, u64 child_id);
-
-WEBVIEW_API Optional<ByteBuffer> favicon_png_for_page(ProcessPageSnapshot const&);
 
 }
