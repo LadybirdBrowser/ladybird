@@ -38,6 +38,7 @@
 #include <UI/Qt/WindowControlButton.h>
 
 #include <QAbstractButton>
+#include <QActionGroup>
 #include <QApplication>
 #include <QContextMenuEvent>
 #include <QCursor>
@@ -589,6 +590,22 @@ void BrowserWindow::update_ladybird_menu_zoom_level()
     m_ladybird_menu_zoom_level->setText(qformatted("{}%", round_to<int>(m_current_tab->view().zoom_level() * 100)));
 }
 
+enum class TabLayoutChoice : u8 {
+    AlongTheTop,
+    DownTheLeftSide,
+    DownTheRightSide,
+    InTheSidebar,
+};
+
+static TabLayoutChoice tab_layout_choice(WebView::TabSettings const& tab_settings)
+{
+    if (!tab_settings.vertical_tabs_enabled)
+        return TabLayoutChoice::AlongTheTop;
+    if (tab_settings.everything_in_sidebar)
+        return TabLayoutChoice::InTheSidebar;
+    return tab_settings.vertical_tabs_position == WebView::VerticalTabsPosition::Right ? TabLayoutChoice::DownTheRightSide : TabLayoutChoice::DownTheLeftSide;
+}
+
 void BrowserWindow::initialize_window_context_menu()
 {
     m_window_context_menu = new QMenu(this);
@@ -609,21 +626,38 @@ void BrowserWindow::initialize_window_context_menu()
 
     m_window_context_menu->addSeparator();
 
-    m_toggle_vertical_tabs_action = m_window_context_menu->addAction(QString {});
-    QObject::connect(m_toggle_vertical_tabs_action, &QAction::triggered, this, [] {
-        auto tab_settings = Application::settings().tab_settings();
-        tab_settings.vertical_tabs_enabled = !tab_settings.vertical_tabs_enabled;
-        Application::settings().set_tab_settings(tab_settings);
-    });
+    // The tab layouts of Settings, with the sidebar's side made part of the choice.
+    auto* tab_layout_menu = m_window_context_menu->addMenu("Tab &Layout");
+    m_tab_layout_actions = new QActionGroup(this);
+    auto add_tab_layout = [&](char const* text, TabLayoutChoice choice) {
+        auto* action = tab_layout_menu->addAction(text);
+        action->setCheckable(true);
+        action->setData(to_underlying(choice));
+        m_tab_layout_actions->addAction(action);
+        QObject::connect(action, &QAction::triggered, this, [choice] {
+            auto tab_settings = Application::settings().tab_settings();
+            tab_settings.vertical_tabs_enabled = choice != TabLayoutChoice::AlongTheTop;
+            tab_settings.everything_in_sidebar = choice == TabLayoutChoice::InTheSidebar;
+            if (choice == TabLayoutChoice::DownTheLeftSide)
+                tab_settings.vertical_tabs_position = WebView::VerticalTabsPosition::Left;
+            else if (choice == TabLayoutChoice::DownTheRightSide)
+                tab_settings.vertical_tabs_position = WebView::VerticalTabsPosition::Right;
+            Application::settings().set_tab_settings(tab_settings);
+        });
+    };
+    add_tab_layout("Along the &Top", TabLayoutChoice::AlongTheTop);
+    add_tab_layout("Down the &Left Side", TabLayoutChoice::DownTheLeftSide);
+    add_tab_layout("Down the &Right Side", TabLayoutChoice::DownTheRightSide);
+    add_tab_layout("In the &Sidebar", TabLayoutChoice::InTheSidebar);
 }
 
 void BrowserWindow::show_window_context_menu(QPoint global_position)
 {
-    auto vertical_tabs_enabled = Application::settings().tab_settings().vertical_tabs_enabled;
-
     m_reopen_closed_tab_action->setEnabled(m_session->session_store->has_closed_units());
     m_always_on_top_action->setChecked(windowFlags().testFlag(Qt::WindowStaysOnTopHint));
-    m_toggle_vertical_tabs_action->setText(vertical_tabs_enabled ? "Switch to &Horizontal Tabs" : "Switch to &Vertical Tabs");
+    auto current_tab_layout = to_underlying(tab_layout_choice(Application::settings().tab_settings()));
+    for (auto* action : m_tab_layout_actions->actions())
+        action->setChecked(action->data().toInt() == current_tab_layout);
 
     execute_context_menu(*m_window_context_menu, global_position);
 }

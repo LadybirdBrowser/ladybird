@@ -337,7 +337,7 @@ private:
     QMenu* m_window_context_menu { nullptr };
     QAction* m_reopen_closed_tab_action { nullptr };
     QAction* m_always_on_top_action { nullptr };
-    QAction* m_toggle_vertical_tabs_action { nullptr };
+    QActionGroup* m_tab_layout_actions { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 
