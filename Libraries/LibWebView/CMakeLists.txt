@@ -114,8 +114,9 @@ if (APPLE)
         PlatformColorsMacOS.cpp
         ProcessReaper.cpp
         QuarantineMacOS.mm
+        StringConversionsMacOS.mm
     )
-    set_source_files_properties(MicrophoneAuthorizerMacOS.mm NotificationBackendMacOS.mm QuarantineMacOS.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+    set_source_files_properties(MicrophoneAuthorizerMacOS.mm NotificationBackendMacOS.mm QuarantineMacOS.mm StringConversionsMacOS.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 elseif (LINUX)
     list(APPEND SOURCES AudioDaemonSocket.cpp CrashReportPOSIX.cpp)
 endif()
