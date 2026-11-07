@@ -1132,17 +1132,13 @@ void vout(LogLevel log_level, StringView fmtstr, TypeErasedFormatParams& params,
 
 static StringView process_name_for_logging()
 {
-    // NOTE: We use AK::Format in the DynamicLoader and LibC, which cannot use thread-safe statics
-    // Also go to extraordinary lengths here to avoid strlen() on the process name every call to dbgln
+    // Go to extraordinary lengths here to avoid strlen() on the process name every call to dbgln
     static char process_name_buf[256] = {};
-    static StringView process_name;
-    static bool process_name_retrieved = false;
-    if (!process_name_retrieved) {
+    static StringView const process_name = [] {
         auto path = LexicalPath(process_name_helper());
-        process_name_retrieved = true;
         (void)path.title().copy_characters_to_buffer(process_name_buf, sizeof(process_name_buf));
-        process_name = { process_name_buf, strlen(process_name_buf) };
-    }
+        return StringView { process_name_buf, strlen(process_name_buf) };
+    }();
     return process_name;
 }
 
