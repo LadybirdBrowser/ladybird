@@ -551,7 +551,7 @@ How to build without the JIT, and how to turn it off and tune it at run time.
 ### 13.1 Building without the JIT
 
 The `ENABLE_JS_JIT` CMake option builds the JIT. It is on by default on x86-64 and AArch64 Linux and
-macOS, the platforms the JIT generates code for, and off elsewhere, Windows included. To build
+macOS and on x86-64 Windows, the platforms the JIT generates code for, and off elsewhere. To build
 without it:
 
 ```bash
