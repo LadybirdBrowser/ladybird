@@ -1,0 +1,28 @@
+{
+  "name": "mimalloc",
+  "version": "2.2.7",
+  "port-version": 1,
+  "description": "Compact general purpose allocator with excellent performance",
+  "homepage": "https://github.com/microsoft/mimalloc",
+  "license": "MIT",
+  "supports": "!uwp",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ],
+  "features": {
+    "override": {
+      "description": "Override the standard malloc interface (i.e. define entry points for 'malloc', 'free', etc)",
+      "supports": "!windows | !static"
+    },
+    "secure": {
+      "description": "Use full security mitigations (like guard pages, allocation randomization, double-free mitigation, and free-list corruption detection)"
+    }
+  }
+}

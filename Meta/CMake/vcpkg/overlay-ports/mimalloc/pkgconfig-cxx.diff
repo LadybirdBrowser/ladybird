@@ -1,0 +1,19 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5cc7ec5..578d235 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -680,8 +680,13 @@ endif()
+ 
+ 
+ # pkg-config file support
++set(mi_cxx_libraries "")
++if(MI_USE_CXX)
++  set(mi_cxx_libraries ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES})
++  list(REMOVE_ITEM mi_cxx_libraries ${CMAKE_C_IMPLICIT_LINK_LIBRARIES})
++endif()
+ set(mi_pc_libraries "")
+-foreach(item IN LISTS mi_libraries)
++foreach(item IN LISTS mi_libraries mi_cxx_libraries)
+   if(item MATCHES " *[-].*")
+     set(mi_pc_libraries "${mi_pc_libraries} ${item}")
+   else()

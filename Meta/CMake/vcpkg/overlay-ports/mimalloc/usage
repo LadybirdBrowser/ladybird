@@ -1,0 +1,9 @@
+mimalloc provides CMake targets:
+
+  find_package(mimalloc CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE $<IF:$<TARGET_EXISTS:mimalloc-static>,mimalloc-static,mimalloc>)
+
+To ensure the mimalloc-override.dll is loaded at runtime on Windows with
+dynamic linkage, it is suggested to insert some call to the mimalloc API
+in the main function, eg. `mi_version()`. Cf.
+https://github.com/microsoft/mimalloc/blob/dev/readme.md#dynamic-override-on-windows
