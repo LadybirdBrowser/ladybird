@@ -1,45 +1,28 @@
 /*
  * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/OfflineAudioCompletionEvent.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
-
-namespace Web::HTML {
-
-class Window;
-
-}
 
 namespace Web::WebAudio {
 
-using OfflineAudioCompletionEventInit = Bindings::OfflineAudioCompletionEventInit;
+struct OfflineAudioCompletionEventInit : DOM::EventInit {
+    GC::Ref<AudioBuffer> rendered_buffer;
+};
 
-class OfflineAudioCompletionEvent final : public DOM::Event {
-    WEB_WRAPPABLE(OfflineAudioCompletionEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(OfflineAudioCompletionEvent);
+class OfflineAudioCompletionEvent final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(OfflineAudioCompletionEvent, offline_audio_completion_event)
 
 public:
-    static constexpr size_t rendered_buffer_offset() { return offsetof(OfflineAudioCompletionEvent, m_rendered_buffer); }
-    static GC::Ref<OfflineAudioCompletionEvent> create(Utf16FlyString const& event_name, OfflineAudioCompletionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual ~OfflineAudioCompletionEvent() override;
-
-    GC::Ptr<AudioBuffer> rendered_buffer() const { return m_rendered_buffer; }
-
-private:
-    OfflineAudioCompletionEvent(Utf16FlyString const& event_name, OfflineAudioCompletionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    GC::Ptr<AudioBuffer> m_rendered_buffer;
+    static GC::Ref<DOM::Event> create(Utf16FlyString const& event_name, OfflineAudioCompletionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 };
 
 }
