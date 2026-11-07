@@ -730,7 +730,7 @@ Web::CSS::PreferredColorScheme Application::interface_color_scheme() const
 // Bookmarking the page from the menu or its shortcut does what the star in the address field does.
 void Application::toggle_bookmark_for_view(WebView::ViewImplementation& view)
 {
-    if (auto* tab = active_tab(); tab && &tab->view() == &view) {
+    if (auto* tab = active_tab(); tab && &tab->view().hub_view() == &view) {
         tab->show_bookmark_popover();
         return;
     }
@@ -1400,7 +1400,7 @@ void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Web
 Optional<WebView::ViewImplementation&> Application::active_web_view() const
 {
     if (auto* active_tab = this->active_tab())
-        return active_tab->view();
+        return active_tab->view().hub_view();
     return {};
 }
 
@@ -1452,7 +1452,7 @@ Optional<WebView::ViewImplementation&> Application::activate_tab_with_url(URL::U
             window->setWindowState(window->windowState() & ~Qt::WindowMinimized);
         window->raise();
         window->activateWindow();
-        return tab->view();
+        return tab->view().hub_view();
     }
     return {};
 }
@@ -1462,12 +1462,12 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     if (!m_active_window) {
         auto& window = const_cast<Application&>(*this).new_window({ WebView::Application::settings().new_tab_page_url() });
         if (auto* tab = window.current_tab())
-            return tab->view();
+            return tab->view().hub_view();
         return {};
     }
 
     auto& tab = active_window().create_new_tab(activate_tab, BrowserWindow::TabLocation::end());
-    return tab.view();
+    return tab.view().hub_view();
 }
 
 void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const

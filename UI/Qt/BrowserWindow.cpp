@@ -2108,7 +2108,7 @@ Tab* BrowserWindow::tab_for_view(WebView::ViewImplementation const& view) const
 {
     for (int index = 0; index < m_tabs_container->count(); ++index) {
         auto* tab = m_tabs_container->tab(index);
-        if (tab && &tab->view() == &view)
+        if (tab && &tab->view().hub_view() == &view)
             return tab;
     }
     return nullptr;

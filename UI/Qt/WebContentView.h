@@ -26,9 +26,9 @@
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/BrowsingSession.h>
-#include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebCompatReport.h>
 #include <UI/Qt/BackingStoreRelease.h>
+#include <UI/Qt/RemoteView.h>
 #include <UI/Qt/ScreenshotSelectionOverlay.h>
 
 #include <LibWebCommon/Page/QueuedInputEvent.h>
@@ -117,7 +117,7 @@ struct WebContentViewInitialState {
 
 class WebContentView final
     : public WebContentViewBase
-    , public WebView::ViewImplementation
+    , public RemoteView
 #if !defined(Q_OS_WIN)
     , public QAccessible::ActivationObserver
 #endif
@@ -168,7 +168,6 @@ public:
     void set_viewport_rect(Gfx::IntRect);
     void push_viewport_size();
     void set_device_pixel_ratio(double);
-    void set_zoom_level(double);
     void set_vertical_tab_overlay_insets(int left, int right);
     void set_bookmarks_bar_overlay_height(int);
     // How much the page is dimmed under a page dialog, from 0 to 1, where the page is presented above anything Qt paints
@@ -218,14 +217,11 @@ signals:
     void urls_dropped(QList<QUrl> const&);
 
 private:
-    // ^WebView::ViewImplementation
-    virtual void prepare_page_for_navigable(WebView::WebContentPage&) override;
+    // ^Hub::ViewHost
     virtual Core::AnonymousBuffer system_theme() override;
     virtual Optional<ScreenRects> screen_rects() const override;
     virtual void update_zoom() override;
     virtual Web::DevicePixelSize viewport_size() const override;
-    virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
-    virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
     virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint widget_position) override;
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) override;
 

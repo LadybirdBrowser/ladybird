@@ -111,7 +111,7 @@ else()
     set(LADYBIRD_TARGET ladybird PRIVATE)
 endif()
 
-set(LADYBIRD_LIBS AK LibCore LibGfx LibIPC LibMain LibWebView LibURL LibWakeLock)
+set(LADYBIRD_LIBS AK LibCore LibGfx LibIPC LibMain LibWebView LibURL LibWakeLock hubservice)
 target_link_libraries(${LADYBIRD_TARGET} ${LADYBIRD_LIBS})
 target_link_libraries(${LADYBIRD_TARGET} OpenSSL::Crypto OpenSSL::SSL)
 
