@@ -78,9 +78,11 @@ public:
         WebContent,
     };
 
-    void exit(ExitInitiatedBy);
+    // A page asking to leave names its tab, so a tab that already lost fullscreen can't end another tab's.
+    void exit(ExitInitiatedBy, Tab const* requesting_tab = nullptr);
     void enter(Tab* tab);
-    // Called after a window change event that has identifed the current window state to be fullscreen.
+    // Called after a window change event that has identifed the current window state to be fullscreen. Tells the tab
+    // that asked for fullscreen that it has it.
     void entered_fullscreen();
     bool is_api_fullscreen() const;
 signals:
