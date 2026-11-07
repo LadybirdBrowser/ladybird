@@ -1,0 +1,2 @@
+structuredClone: hello 3
+worker: hello 3
