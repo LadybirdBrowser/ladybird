@@ -33,6 +33,7 @@
 #include <UI/Qt/PlainText.h>
 #include <UI/Qt/ProcessManagerWindow.h>
 #include <UI/Qt/RemoteActions.h>
+#include <UI/Qt/RemoteDownloads.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/Theme.h>
@@ -689,6 +690,7 @@ void Application::create_platform_actions()
     };
 
     RemoteActions::the().set_application_actions(Hub::ActionMirror::the().application_actions());
+    RemoteDownloads::the().set_downloads(Hub::ConnectionFromUI::downloads());
 
     RemoteActions::the().inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
         show_process_manager();
@@ -1351,7 +1353,7 @@ void Application::cancel_quit()
 
 bool Application::confirm_stop_active_downloads(QWidget* parent)
 {
-    auto& downloader = hub().file_downloader();
+    auto& downloader = RemoteDownloads::the();
 
     if (downloader.has_unresumable_downloads()) {
         QMessageBox dialog(parent ? parent : active_window_if_any());

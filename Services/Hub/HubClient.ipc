@@ -12,6 +12,7 @@
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebView/AccessibilityTreeManager.h>
+#include <LibWebView/FileDownloader.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/TabPerformanceStats.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
@@ -147,6 +148,22 @@ struct Hub::ViewActions {
     Vector<Hub::MenuEntry> bookmark_folder_context_menu;
 }
 
+struct Hub::DownloadState {
+    u64 id;
+    WebView::IsPrivate is_private;
+    URL::URL url;
+    ByteString destination;
+    WebView::FileDownloader::DownloadStatus status;
+    u64 downloaded_size;
+    Optional<u64> total_size;
+    Optional<String> error;
+    bool can_resume;
+    u32 connection_count;
+    Optional<u64> bytes_per_second;
+    bool is_waiting_to_retry;
+    UnixDateTime created_time;
+}
+
 // What the UI needs to know about a view at any time, without having to ask.
 struct Hub::ViewState {
     URL::URL url;
@@ -178,6 +195,9 @@ struct Hub::ViewState {
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    download_added(Hub::DownloadState download) =|
+    download_updated(Hub::DownloadState download) =|
+    download_removed(u64 id, WebView::IsPrivate is_private) =|
     app_open_url_in_new_tab(URL::URL url, Web::HTML::ActivateTab activate_tab) =|
     app_open_url_in_new_window(URL::URL url, WebView::IsPrivate is_private) =|
     app_open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) =|

@@ -28,6 +28,7 @@
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Motion.h>
 #include <UI/Qt/Popover.h>
+#include <UI/Qt/RemoteDownloads.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/SystemAppearance.h>
 #if defined(AK_OS_MACOS)
@@ -1160,7 +1161,7 @@ bool BrowserWindow::close_tab(int index, WebView::SessionStore::KeepForReopening
 {
     cancel_window_close_preflight();
 
-    if (m_tabs_container->count() == 1 && Application::hub().file_downloader().has_active_downloads() && visible_browser_window_count() <= 1) {
+    if (m_tabs_container->count() == 1 && RemoteDownloads::the().has_active_downloads() && visible_browser_window_count() <= 1) {
         if (!Application::the().confirm_stop_active_downloads(this))
             return false;
     }
@@ -2028,7 +2029,7 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
             return;
         }
 
-        if (Application::hub().file_downloader().has_active_downloads()) {
+        if (RemoteDownloads::the().has_active_downloads()) {
             if (visible_browser_window_count() <= 1) {
                 if (!Application::the().confirm_stop_active_downloads(this)) {
                     event->ignore();

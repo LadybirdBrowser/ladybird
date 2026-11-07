@@ -12,6 +12,7 @@
 #include <LibWebView/Forward.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/Menu.h>
+#include <UI/Qt/RemoteDownloads.h>
 
 #include <QPointer>
 #include <QRect>
@@ -47,7 +48,7 @@ enum class ToolbarArrangement : u8 {
 // toolbar holds while that tab is shown.
 class WindowToolbar final
     : public QWidget
-    , public WebView::FileDownloaderObserver
+    , public RemoteDownloadsObserver
     , public WebView::SettingsObserver {
     Q_OBJECT
 

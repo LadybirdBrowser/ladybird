@@ -20,6 +20,13 @@ struct WebView::ViewImplementation::ScreenRects {
 // What the UI asks of the Hub.
 endpoint HubServer
 {
+    cancel_download(u64 id) =|
+    pause_download(u64 id) =|
+    resume_download(u64 id) =|
+    show_download_in_folder(u64 id) =|
+    prune_inactive_downloads(WebView::IsPrivate is_private) =|
+    pause_active_downloads() =|
+    cancel_unresumable_downloads() =|
     active_view_changed(Optional<u64> view_id) =|
     answer_clipboard_text(u64 request_id, Utf16String text) =|
     answer_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem item) =|

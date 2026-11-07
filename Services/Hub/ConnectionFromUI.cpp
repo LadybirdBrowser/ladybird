@@ -142,6 +142,85 @@ void ConnectionFromUI::answer_download_path(u64 request_id, Optional<ByteString>
     Application::the().did_get_download_path(request_id, move(path));
 }
 
+static DownloadState state_of_download(WebView::FileDownloader::Download const& download)
+{
+    DownloadState state;
+    state.id = download.id;
+    state.is_private = download.is_private;
+    state.url = download.url;
+    state.destination = download.destination.string();
+    state.status = download.status;
+    state.downloaded_size = download.downloaded_size;
+    state.total_size = download.total_size;
+    state.error = download.error;
+    state.can_resume = download.can_resume;
+    state.connection_count = download.connection_count;
+    state.bytes_per_second = download.bytes_per_second;
+    state.is_waiting_to_retry = download.is_waiting_to_retry;
+    state.created_time = download.created_time;
+    return state;
+}
+
+Vector<DownloadState> ConnectionFromUI::downloads()
+{
+    Vector<DownloadState> downloads;
+    for (auto const& download : Application::the().file_downloader().downloads())
+        downloads.append(state_of_download(download));
+    return downloads;
+}
+
+void ConnectionFromUI::download_added(WebView::FileDownloader::Download const& download)
+{
+    async_download_added(state_of_download(download));
+}
+
+void ConnectionFromUI::download_updated(WebView::FileDownloader::Download const& download)
+{
+    async_download_updated(state_of_download(download));
+}
+
+void ConnectionFromUI::download_removed(u64 id, WebView::IsPrivate is_private)
+{
+    async_download_removed(id, is_private);
+}
+
+void ConnectionFromUI::cancel_download(u64 id)
+{
+    Application::the().file_downloader().cancel_download(id);
+}
+
+void ConnectionFromUI::pause_download(u64 id)
+{
+    Application::the().file_downloader().pause_download(id);
+}
+
+void ConnectionFromUI::resume_download(u64 id)
+{
+    Application::the().file_downloader().resume_download(id);
+}
+
+void ConnectionFromUI::show_download_in_folder(u64 id)
+{
+    auto& application = static_cast<WebView::Application&>(Application::the());
+    if (auto download = application.file_downloader().download(id); download.has_value())
+        application.show_download_in_folder(*download);
+}
+
+void ConnectionFromUI::prune_inactive_downloads(WebView::IsPrivate is_private)
+{
+    (void)Application::the().file_downloader().prune_inactive_downloads(is_private);
+}
+
+void ConnectionFromUI::pause_active_downloads()
+{
+    Application::the().file_downloader().pause_active_downloads();
+}
+
+void ConnectionFromUI::cancel_unresumable_downloads()
+{
+    Application::the().file_downloader().cancel_unresumable_downloads();
+}
+
 void ConnectionFromUI::update_settings(ByteString settings_json)
 {
     auto settings = JsonValue::from_string(settings_json);

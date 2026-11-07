@@ -8,6 +8,7 @@
 #include <UI/Qt/Application.h>
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/RemoteActions.h>
+#include <UI/Qt/RemoteDownloads.h>
 #include <UI/Qt/RemoteView.h>
 
 namespace Ladybird {
@@ -278,6 +279,21 @@ void HubConnection::app_read_clipboard_item(u64 request_id)
 void HubConnection::app_ask_user_for_download_path(u64 request_id, ByteString file)
 {
     Application::the().ask_user_for_download_path(request_id, file);
+}
+
+void HubConnection::download_added(Hub::DownloadState download)
+{
+    RemoteDownloads::the().did_add(download);
+}
+
+void HubConnection::download_updated(Hub::DownloadState download)
+{
+    RemoteDownloads::the().did_update(download);
+}
+
+void HubConnection::download_removed(u64 id, WebView::IsPrivate is_private)
+{
+    RemoteDownloads::the().did_remove(id, is_private);
 }
 
 void HubConnection::settings_changed(ByteString settings_json)
