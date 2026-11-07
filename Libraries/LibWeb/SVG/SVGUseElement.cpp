@@ -276,6 +276,12 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element() const
     if (!data || !is<SVG::SVGDecodedImageData>(*data))
         return nullptr;
 
+    // https://svgwg.org/svg2-draft/struct.html#UseElement
+    // User agents may restrict external resource documents for security reasons. In particular, this specification
+    // does not allow cross-origin and data URL resource requests in ‘use’.
+    if (data->is_cors_cross_origin())
+        return nullptr;
+
     return as<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(decode_fragment_identifier(*m_href->fragment()));
 }
 
@@ -304,6 +310,12 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
     document_url.set_fragment({});
 
     stop_using_resource_request();
+
+    // https://svgwg.org/svg2-draft/struct.html#UseElement
+    // User agents may restrict external resource documents for security reasons. In particular, this specification
+    // does not allow cross-origin and data URL resource requests in ‘use’.
+    if (document_url.scheme() == "data"sv)
+        return;
 
     m_load_event_delayer.emplace(document());
     m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), document_url, HTML::CORSSettingAttribute::NoCORS);
@@ -341,7 +353,7 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_cl
 
     if (to_clone && is_valid_reference_element(*to_clone)) {
         // The ‘use’ element references another element, a copy of which is rendered in place of the ‘use’ in the document.
-        auto cloned_reference_node = MUST(to_clone->clone_node(nullptr, true));
+        auto cloned_reference_node = MUST(to_clone->clone_node(&document(), true));
         if (is<SVGSVGElement>(cloned_reference_node.ptr()) || is<SVGSymbolElement>(cloned_reference_node.ptr())) {
             auto& cloned_element = as<SVGElement>(*cloned_reference_node);
 
