@@ -281,7 +281,10 @@ bool web_dom_abort_signal_add_algorithm(DOM::AbortSignal* signal, JSObject* func
 {
     GC::Ref<JS::FunctionObject> algorithm = as<JS::FunctionObject>(*JS::HostABI::object_from_abi(function));
     auto algorithm_id = signal->add_abort_algorithm([algorithm] {
-        MUST(JS::call(algorithm->vm(), *algorithm, JS::js_undefined()));
+        // NB: The algorithm cannot fail, but it can run into the abort of the script that it calls.
+        auto& vm = algorithm->vm();
+        auto result = JS::call(vm, *algorithm, JS::js_undefined());
+        VERIFY(!result.is_error() || vm.interrupt_requested());
     });
     if (!algorithm_id.has_value())
         return false;
