@@ -10,7 +10,18 @@
 #include <AK/Types.h>
 #include <LibGC/Export.h>
 
+// Declares at global scope that a type holds no cell edges, so that a GC::Function may capture it untraced.
+#define GC_UNTRACED_CAPTURE(...)                \
+    template<>                                  \
+    struct GC::IsUntracedCapture<__VA_ARGS__> { \
+        static constexpr bool value = true;     \
+    }
+
 namespace GC {
+
+// Whether a type holds no cell edges, so that a GC::Function may capture it untraced. See LibGC/CaptureTraits.h.
+template<typename T>
+struct IsUntracedCapture;
 
 struct CAPI;
 class Cell;

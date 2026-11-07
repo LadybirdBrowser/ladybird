@@ -13,123 +13,16 @@
 #include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Variant.h>
+#include <LibGC/CaptureTraits.h>
 #include <LibGC/Cell.h>
 #include <LibGC/FunctionTable.h>
 #include <LibGC/Heap.h>
+#include <LibGC/Member.h>
 #include <LibGC/NanBoxedValue.h>
 #include <LibGC/Ptr.h>
 #include <typeinfo>
 
 namespace GC {
-
-template<typename T>
-class Weak;
-
-// A capture whose type the GC does not trace has to hold no cell edges at all. Non-GC objects keep the cells they use in
-// GC::Root, so owning and counted pointers to them hold no edges of the function either. A raw pointer is never one of
-// these, as it may point into a cell, such as at a mixin of one.
-template<typename T>
-struct IsUntracedCapture : FalseType { };
-
-template<typename T>
-requires(IsArithmetic<T> || IsEnum<T>)
-struct IsUntracedCapture<T> : TrueType { };
-
-template<>
-struct IsUntracedCapture<Empty> : TrueType { };
-
-template<>
-struct IsUntracedCapture<AK::String> : TrueType { };
-
-template<>
-struct IsUntracedCapture<AK::Utf16String> : TrueType { };
-
-template<>
-struct IsUntracedCapture<AK::FlyString> : TrueType { };
-
-template<>
-struct IsUntracedCapture<AK::Utf16FlyString> : TrueType { };
-
-template<>
-struct IsUntracedCapture<AK::ByteString> : TrueType { };
-
-template<size_t inline_capacity>
-struct IsUntracedCapture<AK::Detail::ByteBuffer<inline_capacity>> : TrueType { };
-
-template<typename T>
-struct IsUntracedCapture<Weak<T>> : TrueType { };
-
-template<typename T>
-requires(!IsCellLike<RemoveCV<T>>)
-struct IsUntracedCapture<AK::RefPtr<T>> : TrueType { };
-
-template<typename T>
-requires(!IsCellLike<RemoveCV<T>>)
-struct IsUntracedCapture<AK::NonnullRefPtr<T>> : TrueType { };
-
-template<typename T>
-requires(!IsCellLike<RemoveCV<T>>)
-struct IsUntracedCapture<AK::OwnPtr<T>> : TrueType { };
-
-template<typename T>
-requires(!IsCellLike<RemoveCV<T>>)
-struct IsUntracedCapture<AK::NonnullOwnPtr<T>> : TrueType { };
-
-template<typename T>
-struct IsUntracedCapture<Optional<T>> : IsUntracedCapture<T> { };
-
-template<typename T, size_t inline_capacity>
-struct IsUntracedCapture<Vector<T, inline_capacity>> : IsUntracedCapture<T> { };
-
-template<typename T, size_t size>
-struct IsUntracedCapture<Array<T, size>> : IsUntracedCapture<T> { };
-
-template<typename... Ts>
-struct IsUntracedCapture<Variant<Ts...>> {
-    static constexpr bool value = (IsUntracedCapture<Ts>::value && ...);
-};
-
-template<typename T>
-struct IsTracedCapture;
-
-// Every part of a capture is either traced or holds no cell edges, so nothing a function captures can keep a cell
-// that the GC does not see.
-template<typename T>
-inline constexpr bool IsCapturable = IsUntracedCapture<T>::value || IsTracedCapture<T>::value;
-
-template<typename T>
-struct IsTracedCapture {
-    static constexpr bool value = IsBaseOf<NanBoxedValue, T> || (!IsCellLike<T> && requires(T& value, Cell::Visitor& visitor) { value.visit_edges(visitor); });
-};
-
-template<typename T>
-struct IsTracedCapture<Ref<T>> : TrueType { };
-
-template<typename T>
-struct IsTracedCapture<Ptr<T>> : TrueType { };
-
-template<typename T>
-struct IsTracedCapture<Optional<T>> {
-    static constexpr bool value = IsCapturable<T>;
-};
-
-template<typename T, size_t inline_capacity>
-struct IsTracedCapture<Vector<T, inline_capacity>> {
-    static constexpr bool value = IsCapturable<T>;
-};
-
-template<typename... Ts>
-struct IsTracedCapture<Variant<Ts...>> {
-    static constexpr bool value = (IsCapturable<Ts> && ...);
-};
-
-template<typename T>
-requires(!IsCellLike<RemoveCV<T>>)
-struct IsTracedCapture<AK::RefPtr<T>> : IsTracedCapture<T> { };
-
-template<typename T>
-requires(!IsCellLike<RemoveCV<T>>)
-struct IsTracedCapture<AK::NonnullRefPtr<T>> : IsTracedCapture<T> { };
 
 namespace Detail {
 
@@ -145,10 +38,10 @@ struct CapturedCellReference {
 // A cell captured by pointer is held as a Ptr, and handed to the callable as a pointer again.
 template<typename T>
 struct CapturedCellPointer {
-    Ptr<T> cell;
+    T* cell;
 
-    T* get() { return cell.ptr(); }
-    void visit_edges(Cell::Visitor& visitor) const { visitor.visit(cell); }
+    T*& get() { return cell; }
+    void visit_edges(Cell::Visitor& visitor) const { visitor.visit(Ptr<T> { cell }); }
 };
 
 template<typename T>
@@ -208,6 +101,43 @@ struct CapturedRootStorage {
 template<typename T>
 struct CapturedRootStorage<Root<T>> {
     using Type = CapturedRoot<T>;
+};
+
+// A member of a cell is held as a pointer of its own, so that a function can name it as it is.
+template<typename T>
+struct CapturedMember {
+    CapturedMember(Member<T> const& member)
+        : cell(member.ptr())
+    {
+    }
+
+    Ptr<T> cell;
+
+    Ptr<T>& get() { return cell; }
+    void visit_edges(Cell::Visitor& visitor) const { visitor.visit(cell); }
+};
+
+template<typename T>
+struct CapturedNonnullMember {
+    CapturedNonnullMember(NonnullMember<T> const& member)
+        : cell(*member)
+    {
+    }
+
+    Ref<T> cell;
+
+    Ref<T>& get() { return cell; }
+    void visit_edges(Cell::Visitor& visitor) const { visitor.visit(cell); }
+};
+
+template<typename T>
+struct CapturedRootStorage<Member<T>> {
+    using Type = CapturedMember<T>;
+};
+
+template<typename T>
+struct CapturedRootStorage<NonnullMember<T>> {
+    using Type = CapturedNonnullMember<T>;
 };
 
 template<typename T, size_t inline_capacity>
@@ -379,9 +309,11 @@ public:
 
         static_assert(alignof(Box) <= FunctionTable::box_alignment);
 
+        // NB: The function is allocated before its box is made, so a collection that the allocation runs still finds the
+        //     captured values where the caller holds them.
         auto cell = heap.allocate<Function>();
         constexpr size_t box_size = sizeof...(Values) > 0 ? sizeof(Box) : 0;
-        auto allocation = heap.function_table().allocate(PreciseOperations<Callback, Box>::operations, box_size);
+        auto allocation = heap.function_table().allocate(CaptureOperations<Callback, Box>::operations, box_size);
         if constexpr (box_size > 0)
             captures.template make_box<Box>(allocation.box);
         cell->m_handle = allocation.handle;
@@ -438,7 +370,7 @@ private:
     };
 
     template<typename Callback, typename Box>
-    struct PreciseOperations {
+    struct CaptureOperations {
         static constexpr Operations operations {
             {
                 .signature = &Detail::function_signature<R(Args...)>,
