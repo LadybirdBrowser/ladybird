@@ -6,7 +6,7 @@ dictionary AudioBufferOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#AudioBuffer
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface AudioBuffer {
     constructor (AudioBufferOptions options);
     readonly attribute float sampleRate;

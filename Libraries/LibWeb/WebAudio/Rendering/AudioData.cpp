@@ -20,6 +20,14 @@ AudioBufferContents::AudioBufferContents(Vector<Vector<float>> samples, float ra
     for (size_t i = 0; i < samples.size(); ++i)
         RustFFI::web_audio_buffer_contents_channel(m_data, i, &channels[i]);
 }
+AudioBufferContents::AudioBufferContents(void const* data, size_t channel_count, float rate)
+    : sample_rate(rate)
+    , m_data(data)
+{
+    channels.resize(channel_count);
+    for (size_t i = 0; i < channel_count; ++i)
+        RustFFI::web_audio_buffer_contents_channel(m_data, i, &channels[i]);
+}
 AudioBufferContents::~AudioBufferContents() { RustFFI::web_audio_buffer_contents_destroy(m_data); }
 WaveShaperCurve::WaveShaperCurve(Vector<float> samples)
 {

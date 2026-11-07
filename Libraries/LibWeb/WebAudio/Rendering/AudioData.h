@@ -13,6 +13,7 @@ namespace Web::WebAudio::Rendering {
 
 struct AudioBufferContents : public AtomicRefCounted<AudioBufferContents> {
     AudioBufferContents(Vector<Vector<float>> channels, float sample_rate);
+    AudioBufferContents(void const* data, size_t channel_count, float sample_rate);
     ~AudioBufferContents();
     size_t length() const { return channels.is_empty() ? 0 : channels.first().size(); }
     double duration() const { return length() / static_cast<double>(sample_rate); }
