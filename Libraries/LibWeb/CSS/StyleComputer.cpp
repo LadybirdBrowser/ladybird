@@ -327,7 +327,7 @@ DOM::ShadowRoot* StyleComputer::shadow_root_for_tree_scope(TreeScopeID tree_scop
 void StyleComputer::prepare_elements_for_style_computation()
 {
     for (;;) {
-        auto elements = m_style_engine.take_elements_awaiting_first_style_computation();
+        auto elements = m_style_engine.take_elements_awaiting_preparation_for_style_computation();
         if (elements.is_empty())
             break;
         for (auto style_node : elements) {

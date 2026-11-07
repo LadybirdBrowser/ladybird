@@ -191,12 +191,12 @@ public:
     bool is_taking_in_pending_arrivals() const { return m_taking_in_pending_arrivals; }
     [[nodiscard]] TemporaryChange<bool> begin_taking_in_pending_arrivals() { return TemporaryChange<bool>(m_taking_in_pending_arrivals, true); }
     void defer_element_initial_features(DOM::Element&);
-    void note_element_awaiting_first_style_computation(DOM::Element&);
+    void note_element_awaiting_preparation_for_style_computation(DOM::Element&);
     void cancel_deferred_element_initial_features(DOM::Element&);
-    // Whether any element waits to have its initial features published, or to be prepared for its first style.
-    [[nodiscard]] bool has_elements_awaiting_initial_style_work() const { return !m_nodes_with_pending_initial_features.is_empty() || !m_nodes_awaiting_first_style_computation.is_empty(); }
+    // Whether any element waits to have its initial features published, or to be prepared for style computation.
+    [[nodiscard]] bool has_elements_awaiting_initial_style_work() const { return !m_nodes_with_pending_initial_features.is_empty() || !m_nodes_awaiting_preparation_for_style_computation.is_empty(); }
     Vector<StyleNodeID> take_deferred_element_initial_features();
-    HashTable<StyleNodeID> take_elements_awaiting_first_style_computation();
+    HashTable<StyleNodeID> take_elements_awaiting_preparation_for_style_computation();
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
     // Which longhand properties one of an element's own declarations covers, their canonical
@@ -477,7 +477,7 @@ private:
     //     longer holds its mark, DOM::Element::initial_style_features_pending().
     Vector<StyleNodeID> m_nodes_with_pending_initial_features;
     bool m_taking_in_pending_arrivals { false };
-    HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
+    HashTable<StyleNodeID> m_nodes_awaiting_preparation_for_style_computation;
 
     HashTable<StyleNodeID> m_parents_whose_children_changed_beside_flown_transaction;
     size_t m_pending_arrival_count { 0 };

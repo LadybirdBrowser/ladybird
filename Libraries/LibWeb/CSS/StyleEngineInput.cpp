@@ -978,7 +978,7 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
                 .relations = relations_of(*element, style_engine, arrival.tree_scope),
             };
             if (publication && element->is_connected()) {
-                style_engine.note_element_awaiting_first_style_computation(*element);
+                style_engine.note_element_awaiting_preparation_for_style_computation(*element);
                 publish_element_arrival(style_engine, *element, *publication, arriving);
             } else {
                 arriving_elements.append(arriving);

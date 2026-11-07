@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <g id="group"><rect width="40" height="10"/></g>
+    <use id="use" href="#target"/>
+</svg>
+<script>
+    test(() => {
+        const use = document.getElementById("use");
+        const widthBefore = use.getBBox().width;
+        document.getElementById("group").id = "target";
+        const widthAfter = use.getBBox().width;
+        println(`Use bounding box width before its referenced id exists: ${widthBefore}`);
+        println(`Use bounding box width once its referenced id exists: ${widthAfter}`);
+    });
+</script>

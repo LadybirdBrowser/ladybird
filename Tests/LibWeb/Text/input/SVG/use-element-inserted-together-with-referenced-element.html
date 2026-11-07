@@ -35,6 +35,7 @@
 
                 ({ svg, use } = makeSubtree("useBeforeTarget", "use-first"));
                 document.body.appendChild(svg);
+                internals.updateStyle();
                 println(`Use before referenced element: has instance root: ${!!internals.getShadowRoot(use).firstElementChild}`);
 
                 done();
