@@ -31,6 +31,12 @@ void HubConnection::die()
 {
 }
 
+void HubConnection::view_state_changed(u64 view_id, Hub::ViewState state)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->set_state(move(state));
+}
+
 void HubConnection::view_load_start(u64 view_id)
 {
     if (auto* view = RemoteView::find(view_id); view && view->on_load_start)
