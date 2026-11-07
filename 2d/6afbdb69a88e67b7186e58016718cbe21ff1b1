@@ -1,0 +1,5 @@
+Ladybird measures a box’s intrinsic block sizes at the box’s own
+resolved inline size. Blink does the same: Its block layout runs at
+the box’s used inline size, and ComputeBlockSizeForFragment() then
+resolves a fit-content, max-content, or min-content block size against
+the intrinsic block size that layout found.
