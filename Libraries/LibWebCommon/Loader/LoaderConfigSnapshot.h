@@ -16,7 +16,7 @@
 
 namespace Web {
 
-// Site compatibility data, whose URL patterns may only be matched on one thread.
+// Site compatibility data, which the agents of a process share across their threads.
 struct WEBCOMMON_API SharedSiteCompatibilityData final : public AtomicRefCounted<SharedSiteCompatibilityData> {
     explicit SharedSiteCompatibilityData(SiteCompatibilityData data)
         : data(move(data))

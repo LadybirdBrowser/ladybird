@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/JsonValue.h>
+#include <AK/Vector.h>
 #include <LibTest/TestCase.h>
+#include <LibThreading/Thread.h>
 #include <LibURL/Parser.h>
 #include <LibWebCommon/Loader/SiteCompatibility.h>
 
@@ -45,6 +48,31 @@ TEST_CASE(rule_matches_apex_and_subdomain_patterns)
     EXPECT(rule.matches(url("https://edition.news.example.com/article"sv)));
     EXPECT(!rule.matches(url("https://example.com.evil.test/article"sv)));
     EXPECT(!rule.matches(url("https://notexample.com/article"sv)));
+}
+
+// The agents of a process share these rules, each matching on its own thread.
+TEST_CASE(rule_matches_on_several_threads_at_once)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto rule = MUST(Web::SiteCompatibilityRule::create({ "https://*.example.com/*"_string }, {}));
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto matching_url = url("https://www.example.com/page"sv);
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<size_t> wrong_answers { 0 };
+
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t i = 0; i < 4; ++i) {
+        threads.append(Threading::Thread::construct("Matcher"sv, [&] -> intptr_t {
+            for (size_t round = 0; round < 20'000; ++round) {
+                if (!rule.matches(matching_url))
+                    wrong_answers.fetch_add(1);
+            }
+            return 0;
+        }));
+    }
+    for (auto& thread : threads)
+        thread->start();
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    EXPECT_EQ(wrong_answers.load(), 0u);
 }
 
 TEST_CASE(rule_transforms_user_agent)
