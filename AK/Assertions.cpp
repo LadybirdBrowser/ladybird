@@ -135,13 +135,63 @@ void AK::set_assertion_backtrace_callback(AssertionBacktraceCallback callback)
     __atomic_store_n(&s_assertion_backtrace_callback, callback, __ATOMIC_RELEASE);
 }
 
+#if defined(AK_HAS_CPPTRACE) && defined(AK_OS_WINDOWS) && ARCH(X86_64)
+// cpptrace walks the stack with StackWalk64(), which does not see the unwind info of code generated at run time, and
+// takes the values on the stack for return addresses from the first JIT frame on. This walks it like the dispatch of an
+// exception does, which sees that unwind info, and leaves only the symbols to cpptrace.
+[[gnu::noinline]] static cpptrace::stacktrace generate_stacktrace(unsigned frames_to_skip, unsigned max_depth)
+{
+    CONTEXT context {};
+    RtlCaptureContext(&context);
+
+    ULONG_PTR stack_low = 0;
+    ULONG_PTR stack_high = 0;
+    GetCurrentThreadStackLimits(&stack_low, &stack_high);
+
+    cpptrace::raw_trace trace;
+    // NB: This function is a frame of its own, which is no part of the trace.
+    auto frames_left_to_skip = frames_to_skip + 1;
+    auto frames_without_unwind_info = 0;
+    // NB: Unwinding the thread's first function leaves a program counter of 0.
+    while (trace.frames.size() < max_depth && context.Rip != 0 && context.Rsp >= stack_low && context.Rsp < stack_high && frames_without_unwind_info < 2) {
+        auto program_counter = context.Rip;
+        if (frames_left_to_skip > 0) {
+            --frames_left_to_skip;
+        } else {
+            // NB: A return address is that of what comes after the call, which may be in the next line or function.
+            trace.frames.push_back(program_counter - 1);
+        }
+
+        DWORD64 image_base = 0;
+        if (auto* function = RtlLookupFunctionEntry(program_counter, &image_base, nullptr)) {
+            frames_without_unwind_info = 0;
+            void* handler_data = nullptr;
+            DWORD64 establisher_frame = 0;
+            RtlVirtualUnwind(UNW_FLAG_NHANDLER, image_base, program_counter, function, &context, &handler_data, &establisher_frame, nullptr);
+        } else {
+            // NB: Code without unwind info is a leaf function, or a call through a bad pointer that faulted, and has its
+            //     return address on top of the stack. Two of those in a row mean the walk has gone off the rails, which
+            //     the frames of the Wasm interpreter make it do.
+            ++frames_without_unwind_info;
+            context.Rip = *reinterpret_cast<DWORD64*>(context.Rsp);
+            context.Rsp += sizeof(DWORD64);
+        }
+    }
+    return trace.resolve();
+}
+#endif
+
 extern "C" {
 
 #if defined(AK_HAS_CPPTRACE)
 void dump_backtrace(unsigned frames_to_skip, unsigned max_depth)
 {
     // We should be using cpptrace for everything but android.
+#    if defined(AK_OS_WINDOWS) && ARCH(X86_64)
+    auto stacktrace = generate_stacktrace(frames_to_skip, max_depth);
+#    else
     auto stacktrace = cpptrace::generate_trace(frames_to_skip, max_depth);
+#    endif
 
     for (auto& frame : stacktrace.frames) {
         if (frame.symbol.empty()) {
