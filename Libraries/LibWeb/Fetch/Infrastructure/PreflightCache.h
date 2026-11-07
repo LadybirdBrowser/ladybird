@@ -63,10 +63,14 @@ private:
         void update_max_age(AK::Duration max_age);
     };
 
+    void remove_expired_entries();
     void create_a_new_cache_entry(Request const&, AK::Duration max_age, Optional<ByteString> method, Optional<ByteString> header_name);
     Entry* method_cache_entry_match(Request const&, ByteString const& method);
     Entry* header_name_cache_entry_match(Request const&, ByteString const& header_name);
     static bool is_cache_entry_match(Entry const&, Request const&);
+
+    // The agents of a process share this cache.
+    Mutex m_mutex;
 
     // A CORS-preflight cache is a list of cache entries.
     Vector<Entry> m_entries;

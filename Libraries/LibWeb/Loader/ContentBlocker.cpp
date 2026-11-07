@@ -23,7 +23,7 @@ ContentBlocker::ContentBlocker() = default;
 
 ContentBlocker::~ContentBlocker()
 {
-    ContentBlocking::FFI::rust_content_blocker_free(m_engine);
+    ContentBlocking::FFI::rust_content_blocker_free(m_engine.load());
 }
 
 static StringView resource_type_to_adblock_request_type(ContentBlocker::ResourceType type)
@@ -155,8 +155,8 @@ ErrorOr<void> ContentBlocker::set_rules_from_bytes(ReadonlyBytes rules_bytes)
     //               rules to put in it, and every caller already treats a missing engine as "nothing is blocked".
     //               Drop the engine instead of rebuilding an empty one.
     if (rules_bytes.is_empty()) {
-        ContentBlocking::FFI::rust_content_blocker_free(m_engine);
-        m_engine = nullptr;
+        MutexLocker locker(m_mutex);
+        ContentBlocking::FFI::rust_content_blocker_free(m_engine.exchange(nullptr));
         m_has_cosmetic_rules = false;
         return {};
     }
@@ -167,8 +167,8 @@ ErrorOr<void> ContentBlocker::set_rules_from_bytes(ReadonlyBytes rules_bytes)
 
     auto has_cosmetic_rules = rules_contain_cosmetic_rules(rules_bytes);
 
-    ContentBlocking::FFI::rust_content_blocker_free(m_engine);
-    m_engine = engine;
+    MutexLocker locker(m_mutex);
+    ContentBlocking::FFI::rust_content_blocker_free(m_engine.exchange(engine));
     m_has_cosmetic_rules = has_cosmetic_rules;
     return {};
 }
@@ -185,7 +185,7 @@ bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url
 
 bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url, ResourceType resource_type) const
 {
-    if (!m_engine)
+    if (!has_rules())
         return false;
 
     if (url.scheme() == "data"sv)
@@ -196,8 +196,12 @@ bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url
     auto source_url_string = serialized_url_for_matching(normalized_source_url);
     auto request_type = resource_type_to_adblock_request_type(resource_type);
 
+    MutexLocker locker(m_mutex);
+    auto* engine = m_engine.load();
+    if (!engine)
+        return false;
     return ContentBlocking::FFI::rust_content_blocker_matches(
-        m_engine,
+        engine,
         url_string.bytes(),
         source_url_string.bytes(),
         request_type.bytes());
@@ -210,7 +214,7 @@ Utf16String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url) co
 
 Utf16String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, ReadonlySpan<Utf16FlyString> classes, ReadonlySpan<Utf16FlyString> ids) const
 {
-    if (!m_engine || !m_has_cosmetic_rules)
+    if (!has_cosmetic_rules())
         return {};
 
     auto url_string = serialized_url(url);
@@ -225,8 +229,12 @@ Utf16String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, Re
     auto classes_bytes = classes_string.value().bytes_as_string_view();
     auto ids_bytes = ids_string.value().bytes_as_string_view();
 
+    MutexLocker locker(m_mutex);
+    auto* engine = m_engine.load();
+    if (!engine)
+        return {};
     return take_rust_utf16_string(ContentBlocking::FFI::rust_content_blocker_cosmetic_css(
-        m_engine,
+        engine,
         url_string.bytes(),
         classes_bytes.bytes(),
         ids_bytes.bytes()));
@@ -234,7 +242,7 @@ Utf16String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, Re
 
 bool ContentBlocker::has_generic_cosmetic_selectors_for_url(URL::URL const& url, ReadonlySpan<Utf16FlyString> classes, ReadonlySpan<Utf16FlyString> ids) const
 {
-    if (!m_engine || !m_has_cosmetic_rules)
+    if (!has_cosmetic_rules())
         return false;
 
     auto url_string = serialized_url(url);
@@ -249,8 +257,12 @@ bool ContentBlocker::has_generic_cosmetic_selectors_for_url(URL::URL const& url,
     auto classes_bytes = classes_string.value().bytes_as_string_view();
     auto ids_bytes = ids_string.value().bytes_as_string_view();
 
+    MutexLocker locker(m_mutex);
+    auto* engine = m_engine.load();
+    if (!engine)
+        return false;
     return ContentBlocking::FFI::rust_content_blocker_has_generic_cosmetic_selectors(
-        m_engine,
+        engine,
         url_string.bytes(),
         classes_bytes.bytes(),
         ids_bytes.bytes());

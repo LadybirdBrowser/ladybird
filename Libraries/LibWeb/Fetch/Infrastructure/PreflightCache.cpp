@@ -70,7 +70,8 @@ void PreflightCache::create_a_new_cache_entry(Request const& request, AK::Durati
 // https://fetch.spec.whatwg.org/#concept-cache-match-method
 bool PreflightCache::is_a_method_cache_entry_match(Request const& request, ByteString const& method)
 {
-    evict_expired_entries();
+    MutexLocker locker(m_mutex);
+    remove_expired_entries();
 
     // There is a method cache entry match for method using request when there is a cache entry in the user agent’s
     // CORS-preflight cache for which there is a cache entry match with request and its method is method or `*`.
@@ -90,7 +91,8 @@ PreflightCache::Entry* PreflightCache::method_cache_entry_match(Request const& r
 
 void PreflightCache::cache_method(Request const& request, ByteString const& method, AK::Duration max_age)
 {
-    evict_expired_entries();
+    MutexLocker locker(m_mutex);
+    remove_expired_entries();
 
     if (auto* entry = method_cache_entry_match(request, method); entry != nullptr) {
         entry->update_max_age(max_age);
@@ -103,7 +105,8 @@ void PreflightCache::cache_method(Request const& request, ByteString const& meth
 // https://fetch.spec.whatwg.org/#concept-cache-match-header
 bool PreflightCache::is_a_header_name_cache_entry_match(Request const& request, ByteString const& header_name)
 {
-    evict_expired_entries();
+    MutexLocker locker(m_mutex);
+    remove_expired_entries();
 
     // There is a header-name cache entry match for headerName using request when there is a cache entry in the user
     // agent’s CORS-preflight cache for which there is a cache entry match with request and one of:
@@ -135,7 +138,8 @@ PreflightCache::Entry* PreflightCache::header_name_cache_entry_match(Request con
 
 void PreflightCache::cache_header_name(Request const& request, ByteString const& header_name, AK::Duration max_age)
 {
-    evict_expired_entries();
+    MutexLocker locker(m_mutex);
+    remove_expired_entries();
 
     if (auto* entry = header_name_cache_entry_match(request, header_name); entry != nullptr) {
         entry->update_max_age(max_age);
@@ -172,6 +176,12 @@ bool PreflightCache::is_cache_entry_match(Entry const& entry, Request const& req
 
 void PreflightCache::evict_expired_entries()
 {
+    MutexLocker locker(m_mutex);
+    remove_expired_entries();
+}
+
+void PreflightCache::remove_expired_entries()
+{
     m_entries.remove_all_matching([](Entry const& entry) {
         return entry.has_expired();
     });
@@ -181,6 +191,7 @@ void PreflightCache::evict_expired_entries()
 void PreflightCache::clear_cache_entries(Request const& request)
 {
     auto request_key = determine_the_network_partition_key(request);
+    MutexLocker locker(m_mutex);
 
     // To clear cache entries, given a request, remove any cache entries in the user agent’s CORS-preflight cache whose
     m_entries.remove_all_matching([&](Entry const& entry) {
