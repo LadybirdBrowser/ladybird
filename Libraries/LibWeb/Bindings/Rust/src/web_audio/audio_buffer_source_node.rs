@@ -240,6 +240,7 @@ impl AudioBufferSourceNode {
         Ok(())
     }
 
+    // https://webaudio.github.io/web-audio-api/#dom-audiobuffersourcenode-audiobuffersourcenode
     pub(crate) fn create(
         cx: &mut CallContext,
         context: AnyBaseAudioContext,
@@ -250,7 +251,7 @@ impl AudioBufferSourceNode {
 
         let node = allocate(cx.vm(), |defer_gc| Self {
             node: AudioScheduledSourceNode::new(defer_gc, context),
-            buffer: Cell::new(options.buffer.flatten()),
+            buffer: Cell::new(None),
             playback_rate: AudioParam::create(
                 cx.vm(),
                 context,
@@ -281,6 +282,8 @@ impl AudioBufferSourceNode {
         node.playback_rate.set_owner(AnyAudioNode::AudioBufferSourceNode(node));
         node.detune.set_owner(AnyAudioNode::AudioBufferSourceNode(node));
 
+        node.set_buffer(cx, options.buffer.flatten())?;
+
         // Default options for channel count and interpretation
         // https://webaudio.github.io/web-audio-api/#AudioBufferSourceNode
         let default_options = AudioNodeDefaultOptions {
@@ -305,7 +308,6 @@ impl AudioBufferSourceNode {
         Ok(node)
     }
 
-    // https://webaudio.github.io/web-audio-api/#dom-audiobuffersourcenode-audiobuffersourcenode
     pub(crate) fn construct(
         cx: &mut CallContext,
         context: AnyBaseAudioContext,
