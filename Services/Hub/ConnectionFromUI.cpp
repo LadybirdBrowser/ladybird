@@ -8,12 +8,23 @@
 
 namespace Hub {
 
+static ConnectionFromUI* s_the;
+
 ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<HubClientEndpoint, HubServerEndpoint>(*this, move(transport), 1)
 {
+    s_the = this;
 }
 
-ConnectionFromUI::~ConnectionFromUI() = default;
+ConnectionFromUI::~ConnectionFromUI()
+{
+    s_the = nullptr;
+}
+
+ConnectionFromUI* ConnectionFromUI::the()
+{
+    return s_the;
+}
 
 void ConnectionFromUI::die()
 {

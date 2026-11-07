@@ -20,6 +20,8 @@ class ConnectionFromUI final : public IPC::ConnectionFromClient<HubClientEndpoin
 public:
     virtual ~ConnectionFromUI() override;
 
+    static ConnectionFromUI* the();
+
     virtual void die() override;
 
 private:

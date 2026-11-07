@@ -67,6 +67,8 @@ private:
     virtual void did_accept_presented_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect) override;
     virtual void release_backing_store(i32 bitmap_id) override;
 
+    void forward_callbacks_to_ui();
+
     ViewHost* m_host { nullptr };
 };
 
