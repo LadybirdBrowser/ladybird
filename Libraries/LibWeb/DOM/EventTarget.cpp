@@ -742,7 +742,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(Utf16FlySt
 
         auto source_text = source_builder.to_string();
 
-        auto& vm = Bindings::main_thread_vm();
+        auto& vm = JS::VM::the();
 
         auto compiled_function = JS::CompiledDynamicFunction::compile(vm, source_text, parameters_string, body, JS::FunctionKind::Normal);
 

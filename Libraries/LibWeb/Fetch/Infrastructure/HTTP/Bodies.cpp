@@ -123,7 +123,7 @@ void Body::did_read_resource_header(Core::ImmutableBytes bytes, SniffOutcome out
         auto callback = exchange(body->m_sniff_bytes_callback, nullptr);
         callback->function()(*body->sniff_bytes_if_available());
     });
-    HTML::queue_a_task(HTML::Task::Source::Networking, HTML::main_thread_event_loop(), nullptr, steps);
+    HTML::queue_a_task(HTML::Task::Source::Networking, HTML::current_event_loop(), nullptr, steps);
 }
 
 // https://fetch.spec.whatwg.org/#concept-body-clone

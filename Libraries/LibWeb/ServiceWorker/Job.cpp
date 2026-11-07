@@ -444,7 +444,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         auto fetch_controller = fetch_job_script(*job, *request, move(fetch_algorithms_input), consume_body);
 
         // FIXME: This feels.. uncomfortable but it should work to block the current task until the fetch has progressed past our processResponse hook or aborted
-        auto& event_loop = job->client ? job->client->responsible_event_loop() : HTML::main_thread_event_loop();
+        auto& event_loop = job->client ? job->client->responsible_event_loop() : HTML::current_event_loop();
         event_loop.spin_until(GC::create_function(GC::Heap::the(), [fetch_controller, &process_response_completion_result]() -> bool {
             if (process_response_completion_result.has_value())
                 return true;

@@ -354,7 +354,13 @@ private:
     Function<void()> m_on_destroyed;
 };
 
+// The event loop of the window agent, from that agent's thread only. Code that a worker can reach has to use
+// current_event_loop().
 WEB_API EventLoop& main_thread_event_loop();
+
+// The event loop of the agent on the current thread.
+WEB_API EventLoop& current_event_loop();
+
 WEB_API void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps);
 WEB_API TaskID queue_a_task(HTML::Task::Source, GC::Ptr<EventLoop>, GC::Ptr<DOM::Document>, GC::Ref<GC::Function<void()>> steps, Task::Priority = Task::Priority::Normal, GC::Ptr<GC::Function<void()>> discard_steps = {});
 WEB_API TaskID queue_global_task(HTML::Task::Source, JS::Object&, GC::Ref<GC::Function<void()>> steps, Task::Priority = Task::Priority::Normal, GC::Ptr<GC::Function<void()>> discard_steps = {});

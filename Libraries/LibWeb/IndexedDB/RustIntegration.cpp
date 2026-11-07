@@ -39,7 +39,7 @@ JSObject* web_indexed_db_wrap_dom_exception(void* realm, void* exception);
 JSObject* web_indexed_db_create_dom_string_list(void* realm, FlatPtr const* strings, size_t count);
 void web_indexed_db_queue_a_database_task(void* cell, void (*steps)(JSVM*, void*));
 void web_indexed_db_run_in_parallel(void* cell, void (*steps)(JSVM*, void*));
-void* web_indexed_db_main_thread_event_loop();
+void* web_indexed_db_current_event_loop();
 void web_indexed_db_enqueue_check_pending_connection_wait(void* database);
 bool web_indexed_db_devtools_client_is_active(void* realm);
 IndexedDB::TransactionChanges* web_indexed_db_create_transaction_changes();
@@ -90,7 +90,7 @@ void web_indexed_db_queue_a_database_task(void* cell, void (*steps)(JSVM*, void*
     GC::Ref<GC::Cell> function = *static_cast<GC::Cell*>(cell);
     // NB: The task's captures, which the collector scans, keep the function alive until the steps run.
     HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(GC::Heap::the(), [function, steps] {
-        steps(JS::HostABI::vm_to_abi(Bindings::main_thread_vm()), function.ptr());
+        steps(JS::HostABI::vm_to_abi(JS::VM::the()), function.ptr());
     }));
 }
 
@@ -99,13 +99,13 @@ void web_indexed_db_run_in_parallel(void* cell, void (*steps)(JSVM*, void*))
     GC::Ref<GC::Cell> function = *static_cast<GC::Cell*>(cell);
     // NB: The function's captures, which the collector scans, keep the cell alive until the steps run.
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [function, steps] {
-        steps(JS::HostABI::vm_to_abi(Bindings::main_thread_vm()), function.ptr());
+        steps(JS::HostABI::vm_to_abi(JS::VM::the()), function.ptr());
     }));
 }
 
-void* web_indexed_db_main_thread_event_loop()
+void* web_indexed_db_current_event_loop()
 {
-    return &HTML::main_thread_event_loop();
+    return &HTML::current_event_loop();
 }
 
 void web_indexed_db_enqueue_check_pending_connection_wait(void* database)
@@ -113,7 +113,7 @@ void web_indexed_db_enqueue_check_pending_connection_wait(void* database)
     GC::Heap::the().enqueue_post_gc_task([database = GC::Weak<GC::Cell>(*static_cast<GC::Cell*>(database))] {
         if (!database)
             return;
-        web_rust_indexed_db_check_pending_connection_wait(JS::HostABI::vm_to_abi(Bindings::main_thread_vm()), database.ptr().ptr());
+        web_rust_indexed_db_check_pending_connection_wait(JS::HostABI::vm_to_abi(JS::VM::the()), database.ptr().ptr());
     });
 }
 

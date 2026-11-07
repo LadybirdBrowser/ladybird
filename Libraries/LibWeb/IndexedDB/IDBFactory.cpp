@@ -26,7 +26,7 @@ GC::Ref<IDBFactory> IDBFactory::create(JS::Realm& realm)
 
 bool cleanup_indexed_database_transactions(HTML::EventLoop& event_loop)
 {
-    return web_rust_indexed_db_cleanup_indexed_database_transactions(JS::HostABI::vm_to_abi(Bindings::main_thread_vm()), &event_loop);
+    return web_rust_indexed_db_cleanup_indexed_database_transactions(JS::HostABI::vm_to_abi(JS::VM::the()), &event_loop);
 }
 
 void close_all_database_connections(JS::Realm& realm)

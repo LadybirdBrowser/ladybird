@@ -83,7 +83,7 @@ void MediaSource::queue_a_media_source_task(GC::Ref<GC::Function<void()>> task)
     if (media_element_assigned_to() != nullptr)
         document = media_element_assigned_to()->document();
 
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, HTML::main_thread_event_loop(), document, task);
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, HTML::current_event_loop(), document, task);
 }
 
 bool MediaSource::ready_state_is_closed() const

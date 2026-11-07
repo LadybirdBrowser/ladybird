@@ -27,7 +27,7 @@ unsafe extern "C" {
     fn web_indexed_db_create_dom_string_list(realm: *mut c_void, strings: *const usize, count: usize) -> *mut c_void;
     fn web_indexed_db_queue_a_database_task(cell: *mut c_void, steps: unsafe extern "C" fn(*mut c_void, *mut c_void));
     fn web_indexed_db_run_in_parallel(cell: *mut c_void, steps: unsafe extern "C" fn(*mut c_void, *mut c_void));
-    fn web_indexed_db_main_thread_event_loop() -> *mut c_void;
+    fn web_indexed_db_current_event_loop() -> *mut c_void;
     fn web_indexed_db_enqueue_check_pending_connection_wait(database: *mut c_void);
     fn web_indexed_db_devtools_client_is_active(realm: *mut c_void) -> bool;
     fn web_indexed_db_create_transaction_changes() -> *mut c_void;
@@ -130,9 +130,9 @@ pub(crate) fn run_in_parallel(_: &Vm, steps: Function) {
 }
 
 /// https://html.spec.whatwg.org/multipage/webappapis.html#main-thread-event-loop
-pub(crate) fn main_thread_event_loop() -> CppCell {
+pub(crate) fn current_event_loop() -> CppCell {
     // SAFETY: LibWeb returns the live event loop.
-    unsafe { CppCell::from_raw(web_indexed_db_main_thread_event_loop()) }
+    unsafe { CppCell::from_raw(web_indexed_db_current_event_loop()) }
 }
 
 /// Checks the database's pending connection wait after the collection that runs a finalizer, if the database is still

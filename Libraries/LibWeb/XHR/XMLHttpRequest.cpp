@@ -1109,7 +1109,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
             //     deferred by nsAutoSyncOperation — so its timers and author microtasks hold as well.
             // AD-HOC: We don't update the rendering when pausing: That runs author callbacks (e.g., rAF callbacks),
             //         which must not run inside a blocked send() — itself possibly invoked from within a microtask.
-            auto pause_handle = HTML::main_thread_event_loop().pause(HTML::EventLoop::UpdateTheRendering::No);
+            auto pause_handle = HTML::current_event_loop().pause(HTML::EventLoop::UpdateTheRendering::No);
             Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), [processed_response, did_time_out]() {
                 return processed_response->value() || did_time_out->value();
             }));
