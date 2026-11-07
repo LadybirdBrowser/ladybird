@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontResolution.h>
 #include <LibWeb/CSS/StyleSheetState.h>
+#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
@@ -29,6 +30,7 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/StyleEngineRustFFI.h>
 #include <LibWebCommon/CSS/SystemColor.h>
 
 namespace Web::CSS {
@@ -454,6 +456,8 @@ ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> ComputedStyleWorkingSet:
                 .font_width = font_width(),
                 .feature_values = font_resolution_feature_values(),
                 .font_feature_values_scope = tree_scope,
+                .font_oblique_angle = font_oblique_angle(),
+                .font_synthesis = font_synthesis(),
             });
         m_cached_computed_font_list_scope = tree_scope;
         VERIFY(!m_cached_computed_font_list->is_empty());
@@ -526,6 +530,33 @@ double ComputedStyleWorkingSet::font_weight() const
 Percentage ComputedStyleWorkingSet::font_width() const
 {
     return Percentage { StyleValueFFI::rust_style_value_computed_percentage(effective_property_data(PropertyID::FontWidth)) };
+}
+
+// https://drafts.csswg.org/css-fonts-4/#valdef-font-style-oblique-angle
+// "The lack of an <angle> represents 14deg."
+double ComputedStyleWorkingSet::font_oblique_angle() const
+{
+    auto const& font_style = property(PropertyID::FontStyle).as_font_style();
+    if (font_style.font_style() != FontStyleKeyword::Oblique)
+        return 14;
+    auto angle = font_style.angle();
+    if (!angle || !angle->is_angle())
+        return 14;
+    return angle->as_angle().angle().to_degrees();
+}
+
+// Which synthesis the font-synthesis longhands forbid, in the encoding of the style engine's font resolution requests.
+u8 ComputedStyleWorkingSet::font_synthesis() const
+{
+    u8 synthesis = 0;
+    if (property(PropertyID::FontSynthesisWeight).to_keyword() == Keyword::None)
+        synthesis |= StyleEngineFFI::FONT_SYNTHESIS_NO_WEIGHT;
+    auto style = property(PropertyID::FontSynthesisStyle).to_keyword();
+    if (style == Keyword::None)
+        synthesis |= StyleEngineFFI::FONT_SYNTHESIS_STYLE_NONE << StyleEngineFFI::FONT_SYNTHESIS_STYLE_SHIFT;
+    else if (style == Keyword::ObliqueOnly)
+        synthesis |= StyleEngineFFI::FONT_SYNTHESIS_STYLE_OBLIQUE_ONLY << StyleEngineFFI::FONT_SYNTHESIS_STYLE_SHIFT;
+    return synthesis;
 }
 
 int ComputedStyleWorkingSet::font_slope() const

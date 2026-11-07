@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Synthetic bold must not add advance to zero-advance glyphs</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-synthesis-weight">
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#letter-spacing-property">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+@font-face {
+    /* resources/ChTestZeroWidthZero.woff has only a Regular face; U+0030 '0'
+       maps to a glyph whose advance width is 0, so any run of '0' is 0px wide.
+       Requesting bold has no bold face to use, so the UA synthesizes bold. */
+    font-family: "ChTestZeroWidthZero";
+    src: url("../css-values/resources/ChTestZeroWidthZero.woff") format("woff");
+}
+</style>
+<body>
+<script>
+// Lay out 100 zero-advance glyphs at the given weight and return the run width.
+// With no bold face present, the bold run gets synthetic bold; without the fix
+// each glyph was padded by font-size/36, making the run non-zero wide instead
+// of 0. A zero-advance glyph draws in place and must not advance the pen.
+function runWidth(weight) {
+    const span = document.createElement("span");
+    span.style.cssText = "display:inline-block; font-family:'ChTestZeroWidthZero';"
+        + " font-size:50px; white-space:nowrap; font-weight:" + weight;
+    span.textContent = "0".repeat(100);
+    document.body.appendChild(span);
+    const width = span.getBoundingClientRect().width;
+    span.remove();
+    return width;
+}
+
+promise_test(async () => {
+    await document.fonts.load("50px ChTestZeroWidthZero");
+    await document.fonts.ready;
+    assert_true(document.fonts.check("50px ChTestZeroWidthZero"), "the zero-advance font loaded");
+
+    assert_equals(runWidth("normal"), 0, "a run of zero-advance glyphs is 0px wide");
+    assert_equals(runWidth("bold"), 0, "synthetic bold must not add advance to zero-advance glyphs");
+}, "Synthetic bold does not give width to a zero-advance (empty) font");
+</script>
+</body>

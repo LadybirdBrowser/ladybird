@@ -119,6 +119,8 @@ private:
     double font_weight() const;
     Percentage font_width() const;
     int font_slope() const;
+    double font_oblique_angle() const;
+    u8 font_synthesis() const;
     ComputedValuesFFI::FfiComputedStyleMetadata& metadata() { return m_metadata; }
     ComputedValuesFFI::FfiComputedStyleMetadata const& metadata() const { return m_metadata; }
     void clear_computed_font_list_cache()

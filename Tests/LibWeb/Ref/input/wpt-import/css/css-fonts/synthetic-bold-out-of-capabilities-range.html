@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<title>Tests that font-weight with value outside of the 'wght' range support by the font does not synthesize bold faces.</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-prop-desc">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7999">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/synthetic-bold-out-of-capabilities-range-ref.html">
+<link rel="assert" title="Tests that of out of the range font-weight values for variable fonts does not cause synthetic bolding.">
+<style>
+    @font-face {
+        font-family: "Inter";
+        src: url('support/fonts/RobotoExtremo-VF-wght-400-500.subset.ttf');
+    }
+    .style900 {
+        font-family: "Inter";
+        font-size: 3em;
+        font-weight: 900;
+    }
+</style>
+
+<p class="style900">text</p>

@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Reference: 'font-synthesis:none' with a font that support small-caps</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<style>
+  @font-face {
+    font-family: fwf;
+    src: url(support/fonts/FontWithFancyFeatures.otf);
+  }
+  .test {
+     font: 2em/1 fwf;
+  }
+</style>
+
+<p>Test passes if there are four check marks (✓), and zero crosses (✗). </p>
+<p class="test">CCC C</p>

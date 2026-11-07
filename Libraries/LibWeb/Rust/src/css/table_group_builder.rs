@@ -3355,6 +3355,8 @@ unsafe fn build_font_group(
         font_family: retained(property_id::FONT_FAMILY),
         font_style: retained(property_id::FONT_STYLE),
         font_optical_sizing: retained(property_id::FONT_OPTICAL_SIZING),
+        font_synthesis_weight: retained(property_id::FONT_SYNTHESIS_WEIGHT),
+        font_synthesis_style: retained(property_id::FONT_SYNTHESIS_STYLE),
         font_feature_settings: retained(property_id::FONT_FEATURE_SETTINGS),
         font_kerning: retained(property_id::FONT_KERNING),
         font_language_override: retained(property_id::FONT_LANGUAGE_OVERRIDE),

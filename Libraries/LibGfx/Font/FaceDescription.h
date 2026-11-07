@@ -44,6 +44,12 @@ public:
     // The style of the face with these variations applied.
     FaceStyle style_for_variations(ReadonlySpan<FontVariationAxis>) const;
 
+    // Whether the face has a variation axis with this tag.
+    bool has_axis(u32 tag) const
+    {
+        return m_axes.contains([&](auto const& axis) { return axis.tag == tag; });
+    }
+
 private:
     struct VariationAxis {
         u32 tag { 0 };

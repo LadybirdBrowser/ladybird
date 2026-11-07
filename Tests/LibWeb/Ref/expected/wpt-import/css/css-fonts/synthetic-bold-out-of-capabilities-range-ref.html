@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<title>Tests that font-weight with value outside of the 'wght' range support by the font does not synthesize bold faces.</title>
+<style>
+    @font-face {
+        font-family: "Inter";
+        src: url('support/fonts/RobotoExtremo-VF-wght-400-500.subset.ttf');
+    }
+    .style600 {
+        font-family: "Inter";
+        font-size: 3em;
+        font-weight: 500;
+    }
+</style>
+
+<p class="style600">text</p>

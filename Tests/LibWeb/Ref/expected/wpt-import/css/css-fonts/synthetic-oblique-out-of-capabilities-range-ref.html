@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<title>Tests that font-style with angle outside of the 'slnt' range support by the font does not synthesize oblique faces.</title>
+<style>
+    @font-face {
+        font-family: "Inter";
+        src: url('support/fonts/Inter-VF.subset.ttf');
+    }
+    .style10 {
+        font-family: "Inter";
+        font-size: 3em;
+        font-style: oblique 10deg;
+    }
+</style>
+
+<p class="style10">text</p>

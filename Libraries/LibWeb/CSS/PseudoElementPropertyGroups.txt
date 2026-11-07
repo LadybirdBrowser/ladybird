@@ -90,7 +90,7 @@ custom
 
 [font-properties]
 # https://drafts.csswg.org/css-fonts/#property-index
-# FIXME: font-synthesis and longhands
+# FIXME: font-synthesis-small-caps and font-synthesis-position
 font
 font-family
 font-feature-settings
@@ -101,6 +101,9 @@ font-palette
 font-size
 font-size-adjust
 font-style
+font-synthesis
+font-synthesis-style
+font-synthesis-weight
 font-variant
 font-variant-alternates
 font-variant-caps

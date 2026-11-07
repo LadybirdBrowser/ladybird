@@ -608,6 +608,8 @@ impl Clone for FontValues {
             font_family: self.font_family.clone(),
             font_style: self.font_style.clone(),
             font_optical_sizing: self.font_optical_sizing.clone(),
+            font_synthesis_weight: self.font_synthesis_weight.clone(),
+            font_synthesis_style: self.font_synthesis_style.clone(),
             font_feature_settings: self.font_feature_settings.clone(),
             font_kerning: self.font_kerning.clone(),
             font_language_override: self.font_language_override.clone(),
@@ -652,6 +654,8 @@ impl PartialEq for FontValues {
             && self.font_family == other.font_family
             && self.font_style == other.font_style
             && self.font_optical_sizing == other.font_optical_sizing
+            && self.font_synthesis_weight == other.font_synthesis_weight
+            && self.font_synthesis_style == other.font_synthesis_style
             && self.font_feature_settings == other.font_feature_settings
             && self.font_kerning == other.font_kerning
             && self.font_language_override == other.font_language_override
@@ -4224,7 +4228,7 @@ const PAYLOAD_TYPED_LONGHANDS: [(u16, usize, usize, u8); 18] = {
 
 /// The longhands whose computed value a handle of their group's payload holds as it is, by the
 /// handle's offset: the group's values keep no second copy of them.
-const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 51] = {
+const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 53] = {
     use crate::css::computed_value_types::{BackgroundValues, EffectsValues, FontValues, MaskValues, SVGResetValues};
     use crate::css::property_metadata::property_id as p;
     use std::mem::offset_of;
@@ -4320,6 +4324,16 @@ const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 51] = {
             p::FONT_OPTICAL_SIZING,
             font,
             offset_of!(FontValues, font_optical_sizing),
+        ),
+        (
+            p::FONT_SYNTHESIS_WEIGHT,
+            font,
+            offset_of!(FontValues, font_synthesis_weight),
+        ),
+        (
+            p::FONT_SYNTHESIS_STYLE,
+            font,
+            offset_of!(FontValues, font_synthesis_style),
         ),
         (
             p::FONT_FEATURE_SETTINGS,
@@ -7202,6 +7216,8 @@ impl FontValues {
             font_family: initial(property_id::FONT_FAMILY),
             font_style: initial(property_id::FONT_STYLE),
             font_optical_sizing: initial(property_id::FONT_OPTICAL_SIZING),
+            font_synthesis_weight: initial(property_id::FONT_SYNTHESIS_WEIGHT),
+            font_synthesis_style: initial(property_id::FONT_SYNTHESIS_STYLE),
             font_feature_settings: initial(property_id::FONT_FEATURE_SETTINGS),
             font_kerning: initial(property_id::FONT_KERNING),
             font_language_override: initial(property_id::FONT_LANGUAGE_OVERRIDE),

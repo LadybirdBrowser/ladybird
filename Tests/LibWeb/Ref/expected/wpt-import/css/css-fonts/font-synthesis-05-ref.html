@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>CSS Test:  font-synthesis: initial value</title>
+<link rel="author" title="Chris Lilley" href="chris@w3.org">
+<style>
+    @font-face {
+				font-family: "test";
+				src: url(../../fonts/Lato-Medium.ttf);
+			}
+    .test {
+				font-family: "test";
+				font-size: 3em;
+                font-synthesis: weight style;
+                color: green;
+			}
+</style>
+
+<p>Test passes if the text below is green, not red.</p>
+<section class="test">
+    <p>Filler text</p>
+    <!-- Synthesis is allowed, but not required -->
+</section>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<title>CSS Fonts reference: synthetic bold does not separate a combining mark from its base in RTL</title>
+<link rel="author" title="Brent Fulgham" href="mailto:bfulgham@apple.com">
+
+<style>
+/* Same font, size, weight and direction as the test, so the same bold is
+   synthesized, but drawing each cluster's bars with one precomposed glyph instead
+   of a base plus marks, so no GPOS mark positioning is involved. */
+@font-face {
+    font-family: "mark-anchor-test";
+    src: url("../../fonts/mark-anchor-test.ttf") format("truetype");
+}
+div {
+    font-family: "mark-anchor-test";
+    font-size: 100px;
+    line-height: 150px;
+    font-weight: bold;
+    font-synthesis: weight;
+    direction: rtl;
+    white-space: nowrap;
+}
+</style>
+
+<p>Test passes if every black bar below is exactly as wide as, and right-aligned
+with, the bars above and below it in the same group &mdash; two groups in the
+middle row &mdash; and no bar is offset to the left of the others.</p>
+
+<div>&#x5D1;</div>
+<div>&#x5D1;&#x5D1;</div>
+<div>&#x5D2;</div>
+</html>

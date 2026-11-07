@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8"/>
+<title>CSS Test: font-synthesis style and weight</title>
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-synthesis-08-ref.html">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-synthesis">
+<meta name="assert" content="If ‘weight’/'style' is not specified for
+    font-synthesis property, user agents must not synthesize bold/italic faces">
+<style>
+    @font-face {
+        font-family: "lato";
+        src: url(../../fonts/Lato-Medium.ttf);
+    }
+    .test {
+        font-family: "lato";
+        font-size: 3em;
+        font-style: italic;
+        font-weight: bold;
+    }
+    .auto {
+        font-synthesis: weight style;
+    }
+    .none {
+        font-synthesis: none;
+    }
+    .weight {
+        font-synthesis: weight;
+    }
+    .style {
+        font-synthesis: style;
+    }
+</style>
+
+<!-- If a previous font-synthesis property and value was encountered by the
+    style engine, make sure that this newer value is correctly updated and not
+    confused with an earlier value due to incorrect caching. Appearance of the
+    4 section needs to differ in weight and style respectively. -->
+<section class="test">
+    <p class="auto">Filler text</p>
+    <p class="none">Filler text</p>
+    <p class="weight">Filler text</p>
+    <p class="style">Filler text</p>
+</section>

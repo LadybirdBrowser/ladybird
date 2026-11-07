@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<title>CSS Fonts reference: synthetic bold does not separate a combining mark from its base</title>
+<link rel="author" title="Brent Fulgham" href="mailto:bfulgham@apple.com">
+
+<style>
+/* Same font, size and weight as the test -- so the same synthesized bold is
+   applied -- but drawing each cluster's bars with a single precomposed glyph
+   instead of a base plus marks, so no GPOS mark positioning is involved. 'B' is
+   the bottom and middle bars, 'C' is all three. Each glyph is one typographic
+   character unit, exactly as each base-plus-marks cluster in the test is. */
+@font-face {
+    font-family: "mark-anchor-test";
+    src: url("../../fonts/mark-anchor-test.ttf") format("truetype");
+}
+div {
+    font-family: "mark-anchor-test";
+    font-size: 100px;
+    line-height: 150px;
+    font-weight: bold;
+    font-synthesis: weight;
+    white-space: nowrap;
+}
+</style>
+
+<p>Test passes if every black bar below is exactly as wide as, and left-aligned
+with, the bars above and below it in the same group &mdash; two groups in the
+middle row &mdash; and no bar is offset to the right of the others.</p>
+
+<div>&#x42;</div>
+<div>&#x42;&#x42;</div>
+<div>&#x43;</div>
+</html>

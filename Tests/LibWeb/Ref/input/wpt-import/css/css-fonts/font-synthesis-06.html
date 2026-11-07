@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSS Test: 'font-synthesis:none' with a font that support small-caps</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-synthesis">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-synthesis-06-ref.html">
+<meta name="assert" content="font-synthesis:none should not affect a font that supports small-caps">
+<style>
+  @font-face {
+    font-family: fwf;
+    src: url(support/fonts/FontWithFancyFeatures.otf);
+  }
+  .test {
+     font: 2em/1 fwf;
+     font-variant: small-caps;
+     font-synthesis: none;
+  }
+</style>
+
+<p>Test passes if there are four check marks (✓), and zero crosses (✗). </p>
+<p class="test">JJJ J</p>

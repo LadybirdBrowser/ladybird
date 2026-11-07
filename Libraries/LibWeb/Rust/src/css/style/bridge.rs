@@ -388,6 +388,12 @@ pub enum FontSizeAdjustKind {
 pub const FONT_RESOLUTION_FEATURE_INPUT_COUNT: usize = 11;
 const _: () = assert!(FontResolutionFeatureInput::TextRendering as usize + 1 == FONT_RESOLUTION_FEATURE_INPUT_COUNT);
 
+/// The bits of `FfiFontResolutionRequest::font_synthesis`.
+pub const FONT_SYNTHESIS_NO_WEIGHT: u8 = 1;
+pub const FONT_SYNTHESIS_STYLE_SHIFT: u8 = 1;
+pub const FONT_SYNTHESIS_STYLE_NONE: u8 = 1;
+pub const FONT_SYNTHESIS_STYLE_OBLIQUE_ONLY: u8 = 2;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct FfiFontResolutionRequest {
@@ -401,6 +407,11 @@ pub struct FfiFontResolutionRequest {
     pub font_weight: f64,
     pub font_width: f64,
     pub font_optical_sizing: u8,
+    /// The angle of the oblique style `font-style` asks for, in degrees: 14 for italic and for a bare `oblique`.
+    pub font_oblique_angle: f64,
+    /// Which synthesis the `font-synthesis` longhands forbid: `FONT_SYNTHESIS_NO_WEIGHT`, and the
+    /// `font-synthesis-style` value shifted by `FONT_SYNTHESIS_STYLE_SHIFT` (0 auto, 1 none, 2 oblique-only).
+    pub font_synthesis: u8,
     /// The computed `font-size-adjust`: its kind, the metric it normalizes (a
     /// `font_size_adjust_metric` value), and the number for `FontSizeAdjustKind::Number`. The
     /// metric and number are zero for `FontSizeAdjustKind::None`.

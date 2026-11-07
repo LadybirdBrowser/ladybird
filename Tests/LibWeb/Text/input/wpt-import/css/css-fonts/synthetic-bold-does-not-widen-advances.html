@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Synthetic bold must not change a run's measured advance width</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-synthesis-weight">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+@font-face {
+    /* Ahem has only a Regular face and every glyph advances exactly 1em, so at
+       font-size:100px an N-character run is exactly N*100px wide. Asking for
+       bold leaves the UA no bold face to use, so it synthesizes bold.
+       Deliberately not using an Ahem font that includes a bold face, since
+       a real bold face would switch synthesis off, making this test worthless. */
+    font-family: "SyntheticBoldAdvanceTest";
+    src: url("../../fonts/Ahem.ttf") format("truetype");
+}
+</style>
+<body>
+<script>
+// Emboldening is a painting effect: it must not change how wide the text
+// measures. The offset still belongs in painting and ink bounds; it must
+// not be included in the advance.
+function runWidth(text, weight, whiteSpace) {
+    const span = document.createElement("span");
+    span.style.cssText = "position:absolute; top:-9999px; left:0;"
+        + " display:inline-block; font-family:'SyntheticBoldAdvanceTest';"
+        + " font-size:100px; white-space:" + whiteSpace + "; font-weight:" + weight;
+    span.textContent = text;
+    document.body.appendChild(span);
+    const width = span.getBoundingClientRect().width;
+    span.remove();
+    return width;
+}
+
+async function loadTestFont() {
+    await document.fonts.load("100px SyntheticBoldAdvanceTest");
+    await document.fonts.ready;
+    assert_true(document.fonts.check("100px SyntheticBoldAdvanceTest"),
+        "the single-weight test font loaded");
+}
+
+// A run of only spaces needs white-space:pre; with nowrap it collapses to 0px
+// and the comparison below would hold vacuously.
+function widthTest(text, whiteSpace, description) {
+    promise_test(async () => {
+        await loadTestFont();
+        const normal = runWidth(text, "normal", whiteSpace);
+        assert_equals(normal, text.length * 100,
+            "sanity: at normal weight the run is 1em per glyph");
+        assert_equals(runWidth(text, "bold", whiteSpace), normal,
+            "synthesizing bold must not change the measured advance width");
+    }, description);
+}
+
+widthTest("X".repeat(20), "nowrap",
+    "Synthetic bold does not widen a run of inked glyphs");
+widthTest(" ".repeat(20), "pre",
+    "Synthetic bold does not widen a run of U+0020 spaces");
+widthTest("\u00a0".repeat(20), "nowrap",
+    "Synthetic bold does not widen a run of U+00A0 no-break spaces");
+</script>
+</body>

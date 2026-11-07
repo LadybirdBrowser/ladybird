@@ -42,12 +42,15 @@ unsafe extern "C" {
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct FontRequestScalars {
     font_size_raw: i32,
-    font_slope: i32,
     font_weight: u64,
     font_width: u64,
     font_size_adjust_value: u64,
     font_feature_values_scope: u32,
+    // NB: An f32's bits, which keep the request within its size.
+    font_oblique_angle: u32,
     font_optical_sizing: u8,
+    /// The slope in the low two bits, and the synthesis bits above them, which keeps the request within its size.
+    font_slope_and_synthesis: u8,
     font_size_adjust: FontSizeAdjustKind,
     font_size_adjust_metric: u8,
 }
@@ -56,12 +59,13 @@ impl FontRequestScalars {
     fn of(request: &FfiFontResolutionRequest) -> Self {
         Self {
             font_size_raw: request.font_size_raw,
-            font_slope: request.font_slope,
             font_weight: request.font_weight.to_bits(),
             font_width: request.font_width.to_bits(),
             font_size_adjust_value: request.font_size_adjust_value.to_bits(),
+            font_oblique_angle: (request.font_oblique_angle as f32).to_bits(),
             font_feature_values_scope: request.font_feature_values_scope,
             font_optical_sizing: request.font_optical_sizing,
+            font_slope_and_synthesis: (request.font_slope as u8 & 3) | (request.font_synthesis << 2),
             font_size_adjust: request.font_size_adjust,
             font_size_adjust_metric: request.font_size_adjust_metric,
         }
@@ -156,10 +160,12 @@ impl FontRequest {
                 None => [FfiHostHandle::from_pointer(std::ptr::null()); FONT_RESOLUTION_FEATURE_INPUT_COUNT],
             },
             font_size_raw: scalars.font_size_raw,
-            font_slope: scalars.font_slope,
+            font_slope: i32::from(scalars.font_slope_and_synthesis & 3),
             font_weight: f64::from_bits(scalars.font_weight),
             font_width: f64::from_bits(scalars.font_width),
             font_optical_sizing: scalars.font_optical_sizing,
+            font_oblique_angle: f64::from(f32::from_bits(scalars.font_oblique_angle)),
+            font_synthesis: scalars.font_slope_and_synthesis >> 2,
             font_size_adjust: scalars.font_size_adjust,
             font_size_adjust_metric: scalars.font_size_adjust_metric,
             font_size_adjust_value: f64::from_bits(scalars.font_size_adjust_value),
@@ -695,6 +701,8 @@ mod tests {
             font_weight: 400.0,
             font_width: 100.0,
             font_optical_sizing: 0,
+            font_oblique_angle: 14.0,
+            font_synthesis: 0,
             font_size_adjust: FontSizeAdjustKind::None,
             font_size_adjust_metric: 0,
             font_size_adjust_value: 0.0,
@@ -758,6 +766,8 @@ mod tests {
             font_weight: 700.0,
             font_width: 100.0,
             font_optical_sizing: 0,
+            font_oblique_angle: 14.0,
+            font_synthesis: 0,
             font_size_adjust: FontSizeAdjustKind::None,
             font_size_adjust_metric: 0,
             font_size_adjust_value: 0.0,

@@ -112,6 +112,10 @@ struct ComputedFontCacheKey {
     // The tree scope whose @font-feature-values the request reads, or the document's when its
     // font-variant-alternates name no feature values, so that alike requests share one answer.
     TreeScopeID font_feature_values_scope;
+    // The angle of the oblique style font-style asks for, in degrees.
+    double font_oblique_angle { 14 };
+    // Which synthesis the font-synthesis longhands forbid, as the style engine encodes it.
+    u8 font_synthesis { 0 };
 
     [[nodiscard]] bool operator==(ComputedFontCacheKey const& other) const = default;
 };
