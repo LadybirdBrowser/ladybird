@@ -19,6 +19,7 @@
 #include <LibWebView/ProcessSnapshot.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/WebCompatReport.h>
+#include <LibWebView/WebUI/ApplicationWebUI.h>
 
 namespace Hub {
 
@@ -32,9 +33,11 @@ ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
     Application::settings().on_persist = [this](JsonValue const& settings) {
         async_settings_changed(settings.serialized().to_byte_string(), m_last_applied_settings_change_id);
     };
-    Application::bookmark_store().on_persist = [this](JsonValue const& bookmarks) {
-        async_bookmarks_changed(bookmarks.serialized().to_byte_string());
-    };
+    WebView::ApplicationWebUI::set_callbacks({
+        .on_open = [this](u64 id, String const& host) { async_web_ui_opened(id, host); },
+        .on_message = [this](u64 id, String name, JsonValue data) { async_web_ui_message(id, move(name), move(data)); },
+        .on_close = [this](u64 id) { async_web_ui_closed(id); },
+    });
     (void)WebView::TabPerformanceMonitor::the();
 
     auto& browser_process = Application::the().browser_process();
@@ -45,8 +48,8 @@ ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
 
 ConnectionFromUI::~ConnectionFromUI()
 {
+    WebView::ApplicationWebUI::set_callbacks({});
     Application::settings().on_persist = nullptr;
-    Application::bookmark_store().on_persist = nullptr;
     auto& browser_process = Application::the().browser_process();
     browser_process.on_new_tab = nullptr;
     browser_process.on_new_window = nullptr;
@@ -248,29 +251,6 @@ void ConnectionFromUI::cancel_unresumable_downloads()
     Application::the().file_downloader().cancel_unresumable_downloads();
 }
 
-void ConnectionFromUI::update_bookmarks(ByteString bookmarks_json)
-{
-    auto bookmarks = JsonValue::from_string(bookmarks_json);
-    if (bookmarks.is_error() || !bookmarks.value().is_object())
-        return;
-    Application::bookmark_store().replace_with_json(bookmarks.value(), WebView::BookmarkStore::PersistChange::Yes);
-}
-
-void ConnectionFromUI::answer_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark> bookmarks)
-{
-    Application::the().did_read_bookmarks_for_all_tabs(request_id, move(bookmarks));
-}
-
-void ConnectionFromUI::answer_bookmark_dialog(u64 request_id, Optional<Hub::BookmarkDialogResult> result)
-{
-    Application::the().did_get_bookmark_dialog_result(request_id, move(result));
-}
-
-void ConnectionFromUI::bookmark_context_menu_item_changed(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id)
-{
-    Application::the().set_bookmark_context_menu_item(move(item_id), move(target_folder_id), move(parent_folder_id));
-}
-
 void ConnectionFromUI::omnibox_open(u64 client_id, WebView::IsPrivate is_private)
 {
     auto autocomplete = make<WebView::Autocomplete>(is_private);
@@ -285,10 +265,10 @@ void ConnectionFromUI::omnibox_close(u64 client_id)
     m_omnibox_clients.remove(client_id);
 }
 
-void ConnectionFromUI::omnibox_query(u64 client_id, u64 query_id, String query, u64 max_suggestions)
+void ConnectionFromUI::omnibox_query(u64 client_id, u64 query_id, String query, u64 max_suggestions, Vector<WebView::AutocompleteSuggestion> additional_suggestions)
 {
     if (auto* autocomplete = m_omnibox_clients.get(client_id).value_or(nullptr))
-        autocomplete->query_autocomplete_engine(query_id, move(query), max_suggestions);
+        autocomplete->query_autocomplete_engine(query_id, move(query), max_suggestions, move(additional_suggestions));
 }
 
 void ConnectionFromUI::omnibox_cancel(u64 client_id)
@@ -536,13 +516,45 @@ static WebView::SessionStore& session_store_of(WebView::IsPrivate is_private)
     return *Application::session_for_new_view(is_private)->session_store;
 }
 
+void ConnectionFromUI::favicons_in_use(Vector<String> favicon_hashes)
+{
+    HashTable<String> referenced_hashes;
+    for (auto& favicon_hash : favicon_hashes)
+        referenced_hashes.set(move(favicon_hash));
+    Application::the().remove_unreferenced_favicons(move(referenced_hashes));
+}
+
+void ConnectionFromUI::answer_keeps_omnibox_engagements(u64 request_id, bool keeps_engagements)
+{
+    Application::the().did_read_keeps_omnibox_engagements(request_id, keeps_engagements);
+}
+
+void ConnectionFromUI::add_web_ui_page(String host, String title)
+{
+    WebView::WebUI::add_application_page(move(host), move(title));
+}
+
+void ConnectionFromUI::send_web_ui_message(u64 web_ui_id, String name, JsonValue data)
+{
+    if (auto* web_ui = WebView::ApplicationWebUI::find(web_ui_id))
+        web_ui->send_to_page(name, data);
+}
+
+Messages::HubServer::FaviconsResponse ConnectionFromUI::favicons(Vector<String> favicon_hashes)
+{
+    Vector<Optional<ByteBuffer>> favicon_pngs;
+    favicon_pngs.ensure_capacity(favicon_hashes.size());
+    for (auto const& favicon_hash : favicon_hashes)
+        favicon_pngs.unchecked_append(Application::default_session().favicon_store->favicon_png(favicon_hash));
+    return favicon_pngs;
+}
+
 Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
 {
     auto const& options = Application::browser_options();
 
     InitialState state;
     state.settings_json = Application::settings().serialize_json().serialized().to_byte_string();
-    state.bookmarks_json = Application::bookmark_store().serialize_store().serialized().to_byte_string();
     state.actions = ActionMirror::the().application_actions();
     state.downloads = downloads();
     state.urls = options.urls;
@@ -550,6 +562,7 @@ Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
     state.crash_report_directory = WebView::CrashReportStore::the().directory();
     state.devtools_port = options.devtools_port;
     auto const& profile = Application::profile();
+    state.config_directory = profile.paths().config;
     state.profile_identifier = profile.identifier();
     state.profile_identity = profile.paths().identity;
     state.profile_is_temporary = profile.is_temporary();
@@ -621,11 +634,6 @@ void ConnectionFromUI::cancel_report_post(u64 post_id)
 {
     if (auto request = m_report_posts.take(post_id); request.has_value())
         (*request)->stop();
-}
-
-void ConnectionFromUI::open_bookmark_in_new_tab(String bookmark_id, Web::HTML::ActivateTab activate_tab)
-{
-    Application::the().open_bookmark_in_new_tab(bookmark_id, activate_tab);
 }
 
 void ConnectionFromUI::toggle_devtools_enabled()

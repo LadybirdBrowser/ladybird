@@ -91,11 +91,6 @@ private:
     virtual void external_url_launch(u64 handler_id, u64 request_id, URL::URL url) override;
     virtual void external_url_release_handler(u64 handler_id) override;
     virtual void omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions) override;
-    virtual void bookmarks_changed(ByteString bookmarks_json) override;
-    virtual void app_read_bookmarks_for_all_tabs(u64 request_id, u64 view_id) override;
-    virtual void app_show_bookmark_popover() override;
-    virtual void app_show_bookmark_context_menu(Gfx::IntPoint position, Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id) override;
-    virtual void app_display_bookmark_dialog(u64 request_id, Hub::BookmarkDialogKind kind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id) override;
     virtual void download_added(Hub::DownloadState download) override;
     virtual void download_updated(Hub::DownloadState download) override;
     virtual void download_removed(u64 id, WebView::IsPrivate is_private) override;
@@ -119,9 +114,12 @@ private:
     virtual void app_read_clipboard_item(u64 request_id) override;
     virtual void app_ask_user_for_download_path(u64 request_id, ByteString file) override;
     virtual void settings_changed(ByteString settings_json, u64 last_applied_change_id) override;
+    virtual void app_read_keeps_omnibox_engagements(u64 request_id, URL::URL url) override;
+    virtual void web_ui_opened(u64 web_ui_id, String host) override;
+    virtual void web_ui_message(u64 web_ui_id, String name, JsonValue data) override;
+    virtual void web_ui_closed(u64 web_ui_id) override;
     virtual void action_changed(Hub::ActionState state) override;
     virtual void action_retired(u64 handle) override;
-    virtual void bookmarks_menu_changed(Vector<Hub::MenuEntry> entries) override;
     virtual void view_show_context_menu(u64 view_id, Vector<Hub::MenuEntry> entries, Gfx::IntPoint widget_position) override;
     virtual void view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon) override;
     virtual void view_request_before_unload(u64 view_id, u64 answer_id, String source) override;

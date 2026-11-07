@@ -41,9 +41,8 @@ public:
     ClientID register_client(OnQueryComplete);
     void unregister_client(ClientID);
 
-    void query(ClientID, AutocompleteQueryID, String, size_t max_suggestions);
+    void query(ClientID, AutocompleteQueryID, String, size_t max_suggestions, Vector<AutocompleteSuggestion> additional_suggestions = {});
     void cancel(ClientID);
-    void update_bookmarks(Vector<AutocompleteBookmark>);
     void record_engagement(OmniboxEngagement);
 
 private:
@@ -62,6 +61,7 @@ private:
         AutocompleteQueryID query_id { 0 };
         String input;
         size_t max_suggestions { 0 };
+        Vector<AutocompleteSuggestion> additional_suggestions;
     };
 
     intptr_t worker_main(Optional<ByteString> history_database_directory);
@@ -76,7 +76,6 @@ private:
     ConditionVariable m_worker_condition { m_worker_mutex };
     HashMap<ClientID, Query> m_active_queries;
     Vector<Query> m_pending_queries;
-    Optional<Vector<AutocompleteBookmark>> m_pending_bookmarks;
     Vector<OmniboxEngagement> m_pending_engagements;
     Optional<ClientID> m_running_query_client_id;
     Database::Database* m_interruptible_database { nullptr };

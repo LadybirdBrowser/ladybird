@@ -46,7 +46,6 @@
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/BlobURLStore.h>
-#include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowserProcess.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/DownloadStore.h>
@@ -78,7 +77,6 @@ namespace WebView {
 
 struct ApplicationSettingsObserver;
 struct ApplicationPermissionManagerObserver;
-struct ApplicationBookmarkStoreObserver;
 
 class WEBVIEW_API Application : public DevTools::DevToolsDelegate {
     AK_MAKE_NONCOPYABLE(Application);
@@ -104,6 +102,11 @@ public:
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
 
     SpellChecker* spell_checker() { return m_spell_checker.ptr(); }
+    void remove_unreferenced_favicons(HashTable<String> referenced_hashes);
+
+    // Going through history, the application can have a reason to keep what was typed to reach a page.
+    virtual void read_keeps_omnibox_engagements(URL::URL const&, Function<void(bool)> on_read) const { on_read(false); }
+
     void set_spell_checker(OwnPtr<SpellChecker>);
 
     Translator* translator() { return m_translator.ptr(); }
@@ -177,10 +180,7 @@ public:
     String user_agent_string() const;
     Web::NavigatorCompatibilityMode navigator_compatibility_mode() const;
 
-    static BookmarkStore& bookmark_store() { return *the().m_bookmark_store; }
-    void update_bookmark_action_for_current_web_view();
     void update_actions_for_active_web_view();
-    void bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>);
 
     void background_networking_settings_changed(Badge<ApplicationSettingsObserver>);
 
@@ -205,26 +205,6 @@ public:
     ErrorOr<void> import_local_content_blocker_list(String name, String contents);
     void remove_content_blocker_list(Badge<SettingsUI>, StringView identifier);
     Optional<UnixDateTime> content_blocker_list_last_updated_at(StringView identifier) const;
-
-    struct BookmarkID {
-        String id;
-        Optional<String> target_folder_id;
-        Optional<String> parent_folder_id;
-    };
-    virtual Optional<BookmarkID> bookmark_item_id_for_context_menu() const { return {}; }
-    virtual void show_bookmark_context_menu(Gfx::IntPoint, Optional<BookmarkItem const&>, [[maybe_unused]] Optional<String const&> target_folder_id, [[maybe_unused]] Optional<String const&> parent_folder_id) { }
-
-    struct BookmarkDialogResult {
-        Variant<BookmarkItem::Bookmark, BookmarkItem::Folder> data;
-        Optional<String> target_folder_id;
-    };
-    using BookmarkPromise = Core::Promise<BookmarkDialogResult>;
-
-    virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id = {}) const;
-    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog([[maybe_unused]] BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const;
-
-    virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}, Optional<String const&> target_folder_id = {}) const;
-    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_folder_dialog([[maybe_unused]] BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const;
 
     static BrowsingSession& default_session() { return *the().m_default_session; }
 
@@ -304,7 +284,6 @@ public:
     Function<void()> on_compositor_process_death;
 
     virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
-    virtual Vector<ViewImplementation&> active_window_web_views() const { return {}; }
     virtual Optional<ViewImplementation&> activate_tab_with_url(URL::URL const&, URL::ExcludeFragment) const { return {}; }
 
     virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab, ViewImplementation const* = nullptr) const { return {}; }
@@ -316,10 +295,6 @@ public:
     virtual void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor, IsPrivate) { }
 
     virtual void resolve_external_url_handler(URL::URL const&, ExternalURLHandlerCallback callback) const { callback(nullptr); }
-
-    void open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab) const;
-    void open_bookmark_folder_in_new_tabs(String const& folder_id) const;
-    void open_bookmark_in_new_window(String const& bookmark_id, IsPrivate);
 
     Main::Arguments const& command_line_arguments() const { return m_arguments; }
 
@@ -415,12 +390,6 @@ public:
 
     Action& toggle_menu_bar_action() { return *m_toggle_menu_bar_action; }
 
-    Menu& bookmarks_menu() { return *m_bookmarks_menu; }
-    virtual void toggle_bookmark_for_view(ViewImplementation&);
-
-    Menu& show_bookmarks_bar_menu() { return *m_show_bookmarks_bar_menu; }
-    Action& toggle_bookmark_bar_action() { return *m_toggle_bookmark_bar_action; }
-
     Menu& history_menu() { return *m_history_menu; }
 
     Menu& inspect_menu() { return *m_inspect_menu; }
@@ -475,8 +444,6 @@ protected:
 
     virtual void update_tabs_display() const { }
 
-    virtual void rebuild_bookmarks_menu() const { }
-
     virtual void on_recently_closed_entries_changed() const { }
 
     virtual void on_devtools_enabled() const;
@@ -525,16 +492,6 @@ private:
     void update_vertical_tabs_action();
 
     WebDriverBrowserConnection* webdriver_browser_connection();
-
-    struct MenuData {
-        Menu& menu;
-        ReadonlySpan<BookmarkItem> items;
-        Optional<String const&> target_folder_id;
-    };
-    void create_bookmark_menu_items(Optional<MenuData> = {});
-
-    virtual Vector<BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const;
-    virtual void read_bookmarks_for_all_tabs_in_current_window(Function<void(Vector<BookmarkItem::Bookmark>)>) const;
 
     virtual Vector<DevTools::TabDescription> tab_list() const override;
     virtual Vector<DevTools::CSSProperty> css_property_list() const override;
@@ -636,10 +593,8 @@ private:
     OwnPtr<ApplicationPermissionManagerObserver> m_permission_manager_observer;
     RefPtr<Core::Timer> m_permission_expiry_timer;
 
-    OwnPtr<BookmarkStore> m_bookmark_store;
-    OwnPtr<ApplicationBookmarkStoreObserver> m_bookmark_store_observer;
-
     OwnPtr<AutocompleteService> m_autocomplete_service;
+    bool m_should_remove_unreferenced_favicons { false };
 
     Main::Arguments m_arguments;
     OwnPtr<Core::StatsLog> m_stats_log;
@@ -757,15 +712,6 @@ private:
     RefPtr<Action> m_toggle_vertical_tabs_expanded_action;
 
     RefPtr<Action> m_toggle_menu_bar_action;
-
-    RefPtr<Menu> m_bookmarks_menu;
-    RefPtr<Action> m_toggle_bookmark_action;
-    RefPtr<Menu> m_show_bookmarks_bar_menu;
-    RefPtr<Action> m_show_bookmarks_bar_always_action;
-    RefPtr<Action> m_show_bookmarks_bar_never_action;
-    RefPtr<Action> m_show_bookmarks_bar_on_hover_action;
-    RefPtr<Action> m_toggle_bookmark_bar_action;
-    size_t m_bookmarks_menu_static_size { 0 };
 
     RefPtr<Menu> m_history_menu;
 

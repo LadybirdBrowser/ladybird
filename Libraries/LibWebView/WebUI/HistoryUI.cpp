@@ -116,10 +116,12 @@ void HistoryUI::remove_history_entry(JsonValue const& data)
     if (!parsed_url.has_value())
         return;
 
-    auto remove_engagements = Application::bookmark_store().is_bookmarked(*parsed_url)
-        ? RemoveHistoryEntryEngagements::No
-        : RemoveHistoryEntryEngagements::Yes;
-    client().session().history_store->remove_entry_for_url(*parsed_url, remove_engagements);
+    Application::the().read_keeps_omnibox_engagements(*parsed_url, [self = NonnullRefPtr { *this }, url = *parsed_url](bool keeps_engagements) {
+        if (!self->has_client())
+            return;
+        auto remove_engagements = keeps_engagements ? RemoveHistoryEntryEngagements::No : RemoveHistoryEntryEngagements::Yes;
+        self->client().session().history_store->remove_entry_for_url(url, remove_engagements);
+    });
 }
 
 void HistoryUI::forget_history_site(JsonValue const& data)

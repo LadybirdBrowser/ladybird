@@ -33,6 +33,7 @@ public:
     enum class PageType {
         Static,
         Dynamic,
+        Application,
     };
 
     struct Page {
@@ -41,8 +42,12 @@ public:
         PageType type;
     };
 
-    static ReadonlySpan<Page> pages();
-    static Optional<Page const&> page_for_host(StringView);
+    static Vector<Page> pages();
+    static Optional<Page> page_for_host(StringView);
+
+    // Pages that the application adds are answered by the application, through an ApplicationWebUI.
+    static void add_application_page(String host, String title);
+
     static ErrorOr<RefPtr<WebUI>> create(WebContentClient&, Web::PageId page_id, String host);
     virtual ~WebUI();
 

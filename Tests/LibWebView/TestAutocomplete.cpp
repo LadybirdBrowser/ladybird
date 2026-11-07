@@ -10,6 +10,7 @@
 #include <LibTest/TestCase.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
+#include <LibWebView/AutocompleteRanker.h>
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/Settings.h>
 #include <stdlib.h>
@@ -89,53 +90,26 @@ TEST_CASE(autocomplete)
     auto app = TRY_OR_FAIL(environment.create_application<TestApplication>());
 
     WebView::Application::settings().set_search_engine_settings({});
-    WebView::Application::autocomplete_service().update_bookmarks({ {
-        .url = "https://ladybird.test/"_string,
-        .title = "Ladybird test bookmark"_string,
-        .folder = {},
-        .favicon_png = {},
-    } });
-
     auto saw_bookmark = false;
-    auto saw_bookmark_update = false;
-    auto requested_bookmark_update = false;
-    auto bookmark_update_completed = false;
+    auto bookmark_query_completed = false;
     {
         WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
-        auto query_returned = false;
         autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
             VERIFY(kind == WebView::AutocompleteResultKind::Final);
             saw_bookmark |= suggestions.contains([](auto const& suggestion) {
                 return suggestion.text == "https://ladybird.test/"sv;
             });
-            saw_bookmark_update |= suggestions.contains([](auto const& suggestion) {
-                return suggestion.text == "https://ladybird-updated.test/"sv;
-            });
-
-            if (saw_bookmark && !requested_bookmark_update) {
-                requested_bookmark_update = true;
-                WebView::Application::autocomplete_service().update_bookmarks({ {
-                    .url = "https://ladybird-updated.test/"_string,
-                    .title = "Updated test bookmark"_string,
-                    .folder = {},
-                    .favicon_png = {},
-                } });
-            }
-
-            if (!saw_bookmark_update)
-                return;
-            VERIFY(query_returned);
             autocomplete.cancel_pending_query();
-            bookmark_update_completed = true;
+            bookmark_query_completed = true;
         };
 
-        autocomplete.query_autocomplete_engine(1, "lady"_string);
-        query_returned = true;
-        Core::EventLoop::current().spin_until([&]() { return bookmark_update_completed; });
+        Vector<WebView::AutocompleteBookmark> bookmarks;
+        bookmarks.append({ .url = "https://ladybird.test/"_string, .title = "Ladybird test bookmark"_string, .folder = {}, .favicon_png = {} });
+        autocomplete.query_autocomplete_engine(1, "lady"_string, WebView::default_autocomplete_suggestion_limit, WebView::rank_bookmark_suggestions("lady"sv, bookmarks, 32));
+        Core::EventLoop::current().spin_until([&]() { return bookmark_query_completed; });
     }
 
     VERIFY(saw_bookmark);
-    VERIFY(saw_bookmark_update);
 
     auto saw_adaptive_result = false;
     {
@@ -201,12 +175,6 @@ TEST_CASE(autocomplete)
         Core::EventLoop::current().spin_until([&]() { return private_query_completed; });
     }
 
-    WebView::Application::autocomplete_service().update_bookmarks({ {
-        .url = "https://github.com/LadybirdBrowser/ladybird"_string,
-        .title = "GH"_string,
-        .folder = {},
-        .favicon_png = {},
-    } });
     auto short_bookmark_query_completed = false;
     {
         WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
@@ -225,7 +193,9 @@ TEST_CASE(autocomplete)
             autocomplete.cancel_pending_query();
             short_bookmark_query_completed = true;
         };
-        autocomplete.query_autocomplete_engine(5, "GH"_string);
+        Vector<WebView::AutocompleteBookmark> bookmarks;
+        bookmarks.append({ .url = "https://github.com/LadybirdBrowser/ladybird"_string, .title = "GH"_string, .folder = {}, .favicon_png = {} });
+        autocomplete.query_autocomplete_engine(5, "GH"_string, WebView::default_autocomplete_suggestion_limit, WebView::rank_bookmark_suggestions("GH"sv, bookmarks, 32));
         Core::EventLoop::current().spin_until([&]() { return short_bookmark_query_completed; });
     }
 

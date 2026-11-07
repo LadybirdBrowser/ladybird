@@ -10,13 +10,14 @@
 #include <Hub/View.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/WebCompatReport.h>
+#include <UI/Qt/BookmarkStore.h>
 #include <UI/Qt/HubConnection.h>
 
 namespace Ladybird {
 
 // The UI's side of a tab's view. The view itself lives in the Hub. This holds what the UI needs to show it, and offers
 // the rest of the UI the calls and callbacks that it takes to use the view.
-class RemoteView {
+class RemoteView : public BookmarkStoreObserver {
 public:
     using InputMethodState = WebView::ViewImplementation::InputMethodState;
     using NavigationListener = WebView::ViewImplementation::NavigationListener;
@@ -175,12 +176,10 @@ public:
     bool needs_beforeunload_check() const;
     u64 add_navigation_listener(NavigationListener);
     void remove_navigation_listener(u64 listener_id) { m_navigation_listeners.remove(listener_id); }
-    WebView::Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
-    WebView::Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
-    WebView::Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
     WebView::Action& navigate_back_action() { return *m_navigate_back_action; }
     WebView::Action& navigate_forward_action() { return *m_navigate_forward_action; }
     WebView::Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
+    void update_bookmark_action();
     WebView::Action& reset_zoom_action() { return *m_reset_zoom_action; }
     WebView::Action& translate_action() { return *m_translate_action; }
     bool is_translated() const { return m_state.is_translated; }
@@ -224,6 +223,8 @@ protected:
     static Gfx::IntRect rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size) { return Hub::View::rect_fitting_frame(frame_size, target_size); }
 
 private:
+    virtual void bookmarks_changed() override { update_bookmark_action(); }
+
 #ifndef LADYBIRD_HUB_IN_OWN_PROCESS
     Hub::View* m_view { nullptr };
 #endif
@@ -234,9 +235,6 @@ private:
     RefPtr<WebView::Action> m_reset_zoom_action;
     RefPtr<WebView::Action> m_translate_action;
     RefPtr<WebView::Menu> m_translation_menu;
-    RefPtr<WebView::Menu> m_bookmarks_bar_context_menu;
-    RefPtr<WebView::Menu> m_bookmark_context_menu;
-    RefPtr<WebView::Menu> m_bookmark_folder_context_menu;
     RefPtr<WebView::Menu> m_context_menu;
 
     u64 m_view_id { 0 };

@@ -10,6 +10,8 @@
 #    include <Hub/Application.h>
 #    include <LibWebView/PageTranslation.h>
 #endif
+#include <UI/Qt/Application.h>
+#include <UI/Qt/Bookmarks.h>
 #include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteView.h>
 
@@ -18,7 +20,8 @@ namespace Ladybird {
 static HashMap<u64, RemoteView*> s_views;
 
 RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_state)
-    : m_is_private(initial_state.is_private)
+    : BookmarkStoreObserver(Application::bookmark_store())
+    , m_is_private(initial_state.is_private)
     , m_device_pixel_ratio(initial_state.device_pixel_ratio)
     , m_display_id(initial_state.display_id)
 {
@@ -61,12 +64,13 @@ RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_st
     auto& remote_actions = RemoteActions::the();
     m_navigate_back_action = remote_actions.action_for(actions.navigate_back_action);
     m_navigate_forward_action = remote_actions.action_for(actions.navigate_forward_action);
-    m_toggle_bookmark_action = remote_actions.action_for(actions.toggle_bookmark_action);
+    m_toggle_bookmark_action = WebView::Action::create("Toggle Bookmark"sv, WebView::ActionID::ToggleBookmarkViaToolbar, [] {
+        Application::the().show_bookmark_popover();
+    });
     m_reset_zoom_action = remote_actions.action_for(actions.reset_zoom_action);
     m_translate_action = remote_actions.action_for(actions.translate_action);
-    m_bookmarks_bar_context_menu = remote_actions.menu_for(actions.bookmarks_bar_context_menu);
-    m_bookmark_context_menu = remote_actions.menu_for(actions.bookmark_context_menu);
-    m_bookmark_folder_context_menu = remote_actions.menu_for(actions.bookmark_folder_context_menu);
+
+    update_bookmark_action();
 
     s_views.set(m_view_id, this);
 }
@@ -89,6 +93,14 @@ RemoteView::~RemoteView()
         for (auto& it : page_dumps)
             it.value->reject(Error::from_errno(ECANCELED));
     });
+}
+
+void RemoteView::update_bookmark_action()
+{
+    auto is_bookmarked = Application::bookmark_store().is_bookmarked(url());
+    m_toggle_bookmark_action->set_tooltip(is_bookmarked ? "Remove bookmark"sv : "Bookmark this page"sv);
+    m_toggle_bookmark_action->set_engaged(is_bookmarked);
+    Application::bookmarks().update_toggle_bookmark_action();
 }
 
 void RemoteView::update_screen_rects()

@@ -69,7 +69,6 @@
 #include <LibWebCommon/WebView/PageInfo.h>
 #include <LibWebCommon/WebView/StorageSetResult.h>
 #include <LibWebCommon/WebView/ZoomLevel.h>
-#include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/ContentBlocking.h>
@@ -133,7 +132,6 @@ struct SitePermissionRow {
 
 class WEBVIEW_API ViewImplementation
     : public SettingsObserver
-    , public BookmarkStoreObserver
     , public Weakable<ViewImplementation> {
     friend class WebContentClient;
     friend class WebContentPage;
@@ -699,10 +697,6 @@ public:
     Function<void()> on_crash_report_saved;
     Function<void()> on_web_content_process_change_for_cross_site_navigation;
 
-    Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
-    Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
-    Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
-
     void did_request_page_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target, Optional<Utf16String> misspelled_word, Optional<u64> text_fragment_generation_id);
     void activate_spelling_menu_action_for_testing(Badge<WebContentPage>, WebContentPage& requesting_page, Web::SpellingMenuActionForTesting, u32 guess_index);
 
@@ -721,7 +715,6 @@ public:
 
     Action& navigate_back_action() { return *m_navigate_back_action; }
     Action& navigate_forward_action() { return *m_navigate_forward_action; }
-    Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
     Action& reset_zoom_action() { return *m_reset_zoom_action; }
 
     PageTranslation& page_translation() { return *m_page_translation; }
@@ -859,9 +852,6 @@ protected:
     virtual void geolocation_settings_changed() override;
     virtual void global_privacy_control_changed() override;
 
-    virtual void bookmarks_changed() override;
-    void update_bookmark_action();
-
     void initialize_context_menus();
     void open_context_menu(NonnullRefPtr<Menu>, Gfx::IntPoint content_position);
     NonnullRefPtr<Menu> create_page_context_menu(bool is_editable, Optional<String> const& selected_text, Optional<DictionaryLookup> const&, Gfx::IntPoint content_position);
@@ -932,14 +922,9 @@ protected:
     SpellChecker::DocumentTag spell_document_tag();
     Optional<SpellChecker::DocumentTag> m_spell_document_tag;
 
-    RefPtr<Menu> m_bookmarks_bar_context_menu;
-    RefPtr<Menu> m_bookmark_context_menu;
-    RefPtr<Menu> m_bookmark_folder_context_menu;
-
     RefPtr<Action> m_navigate_back_action;
     RefPtr<Action> m_navigate_forward_action;
 
-    RefPtr<Action> m_toggle_bookmark_action;
     OwnPtr<PageTranslation> m_page_translation;
 
     RefPtr<Action> m_reset_zoom_action;

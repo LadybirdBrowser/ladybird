@@ -20,7 +20,6 @@
 #include <LibHTTP/NetworkIsolationKey.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
-#include <LibWebView/BookmarkStore.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/HSTSStore.h>
@@ -155,7 +154,7 @@ TEST_CASE(temporary_profiles_are_unique_and_removed)
     remove_test_root();
 }
 
-TEST_CASE(profile_settings_and_bookmarks_are_isolated)
+TEST_CASE(profile_settings_are_isolated)
 {
     remove_test_root();
     auto first_profile = MUST(WebView::Profile::create({ .name = "first" }, roots()));
@@ -171,17 +170,6 @@ TEST_CASE(profile_settings_and_bookmarks_are_isolated)
     EXPECT_NE(first_settings_background_networking_enabled, second_settings.background_networking_enabled());
     EXPECT_EQ(first_settings_background_networking_enabled, WebView::Settings::create(first_settings_path).background_networking_enabled());
 
-    auto first_bookmarks_path = LexicalPath::join(first_profile.paths().config, "Bookmarks.json"sv).string();
-    auto second_bookmarks_path = LexicalPath::join(second_profile.paths().config, "Bookmarks.json"sv).string();
-    auto url = URL::Parser::basic_parse("https://profile-isolation.example/"sv).release_value();
-    auto first_bookmarks = WebView::BookmarkStore::create(first_bookmarks_path);
-    first_bookmarks.add_bookmark(url, {}, "favicon-hash"_string);
-    EXPECT(first_bookmarks.favicon_hashes().contains("favicon-hash"sv));
-    auto second_bookmarks = WebView::BookmarkStore::create(second_bookmarks_path);
-    EXPECT(!second_bookmarks.is_bookmarked(url));
-    auto reloaded_first_bookmarks = WebView::BookmarkStore::create(first_bookmarks_path);
-    EXPECT(reloaded_first_bookmarks.is_bookmarked(url));
-    EXPECT(reloaded_first_bookmarks.favicon_hashes().contains("favicon-hash"sv));
     remove_test_root();
 }
 

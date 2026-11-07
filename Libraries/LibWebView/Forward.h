@@ -21,7 +21,6 @@ class Autocomplete;
 class AutocompleteService;
 class BlobURLStore;
 class BrowsingSession;
-class BookmarkStore;
 class CanonicalBrowsingContext;
 class CanonicalBrowsingContextGroup;
 class CanonicalDocument;
@@ -77,7 +76,6 @@ class WebWorkerClient;
 class WebUI;
 
 struct DownloadRecord;
-struct BookmarkItem;
 struct BrowserOptions;
 struct ChangingNavigable;
 struct CookieStorageKey;

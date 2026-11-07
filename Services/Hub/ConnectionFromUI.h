@@ -61,12 +61,16 @@ private:
 
     // ^HubServerEndpoint
     virtual Messages::HubServer::InitializeResponse initialize() override;
+    virtual Messages::HubServer::FaviconsResponse favicons(Vector<String> favicon_hashes) override;
     virtual Messages::HubServer::CreateViewResponse create_view(Hub::NewViewRequest request) override;
     virtual Messages::HubServer::ViewDescriptionResponse view_description(u64 view_id) override;
     virtual void ui_did_start() override;
+    virtual void favicons_in_use(Vector<String> favicon_hashes) override;
+    virtual void answer_keeps_omnibox_engagements(u64 request_id, bool keeps_engagements) override;
+    virtual void add_web_ui_page(String host, String title) override;
+    virtual void send_web_ui_message(u64 web_ui_id, String name, JsonValue data) override;
     virtual void post_report(u64 post_id, URL::URL url, Vector<HTTP::Header> headers, ByteString body) override;
     virtual void cancel_report_post(u64 post_id) override;
-    virtual void open_bookmark_in_new_tab(String bookmark_id, Web::HTML::ActivateTab activate_tab) override;
     virtual void toggle_devtools_enabled() override;
     virtual void launch_devtools_client() override;
     virtual void reset_private_browsing_session() override;
@@ -137,13 +141,9 @@ private:
     virtual void external_url_launched(u64 request_id, bool launched) override;
     virtual void omnibox_open(u64 client_id, WebView::IsPrivate is_private) override;
     virtual void omnibox_close(u64 client_id) override;
-    virtual void omnibox_query(u64 client_id, u64 query_id, String query, u64 max_suggestions) override;
+    virtual void omnibox_query(u64 client_id, u64 query_id, String query, u64 max_suggestions, Vector<WebView::AutocompleteSuggestion> additional_suggestions) override;
     virtual void omnibox_cancel(u64 client_id) override;
     virtual void omnibox_record_engagement(u64 client_id, WebView::OmniboxEngagement engagement) override;
-    virtual void update_bookmarks(ByteString bookmarks_json) override;
-    virtual void answer_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark> bookmarks) override;
-    virtual void answer_bookmark_dialog(u64 request_id, Optional<Hub::BookmarkDialogResult> result) override;
-    virtual void bookmark_context_menu_item_changed(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id) override;
     virtual void cancel_download(u64 id) override;
     virtual void pause_download(u64 id) override;
     virtual void resume_download(u64 id) override;

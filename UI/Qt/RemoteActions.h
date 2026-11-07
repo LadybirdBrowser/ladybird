@@ -20,7 +20,6 @@ public:
     static RemoteActions& the();
 
     void set_application_actions(Hub::ApplicationActions const&);
-    void set_bookmarks_menu(ReadonlySpan<Hub::MenuEntry>);
 
     NonnullRefPtr<WebView::Action> action_for(Hub::ActionState const&);
     NonnullRefPtr<WebView::Menu> menu_for(ReadonlySpan<Hub::MenuEntry>);
@@ -44,7 +43,6 @@ public:
     WebView::Action& force_dark_action() { return *m_force_dark_action; }
     WebView::Action& toggle_vertical_tabs_expanded_action() { return *m_toggle_vertical_tabs_expanded_action; }
     WebView::Action& toggle_menu_bar_action() { return *m_toggle_menu_bar_action; }
-    WebView::Action& toggle_bookmark_bar_action() { return *m_toggle_bookmark_bar_action; }
     WebView::Action& view_source_action() { return *m_view_source_action; }
     WebView::Action& report_website_issue_action() { return *m_report_website_issue_action; }
 
@@ -52,8 +50,6 @@ public:
     WebView::Menu& color_scheme_menu() { return *m_color_scheme_menu; }
     WebView::Menu& contrast_menu() { return *m_contrast_menu; }
     WebView::Menu& motion_menu() { return *m_motion_menu; }
-    WebView::Menu& bookmarks_menu() { return *m_bookmarks_menu; }
-    WebView::Menu& show_bookmarks_bar_menu() { return *m_show_bookmarks_bar_menu; }
     WebView::Menu& history_menu() { return *m_history_menu; }
     WebView::Menu& inspect_menu() { return *m_inspect_menu; }
     WebView::Menu& debug_menu() { return *m_debug_menu; }
@@ -80,7 +76,6 @@ private:
     RefPtr<WebView::Action> m_force_dark_action;
     RefPtr<WebView::Action> m_toggle_vertical_tabs_expanded_action;
     RefPtr<WebView::Action> m_toggle_menu_bar_action;
-    RefPtr<WebView::Action> m_toggle_bookmark_bar_action;
     RefPtr<WebView::Action> m_view_source_action;
     RefPtr<WebView::Action> m_report_website_issue_action;
 
@@ -88,8 +83,6 @@ private:
     RefPtr<WebView::Menu> m_color_scheme_menu;
     RefPtr<WebView::Menu> m_contrast_menu;
     RefPtr<WebView::Menu> m_motion_menu;
-    RefPtr<WebView::Menu> m_bookmarks_menu;
-    RefPtr<WebView::Menu> m_show_bookmarks_bar_menu;
     RefPtr<WebView::Menu> m_history_menu;
     RefPtr<WebView::Menu> m_inspect_menu;
     RefPtr<WebView::Menu> m_debug_menu;

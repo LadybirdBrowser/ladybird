@@ -44,7 +44,7 @@ CanonicalDocument::CanonicalDocument(Web::HTML::CrossProcessId id, URL::URL crea
     , m_is_initial_about_blank(is_initial_about_blank)
 {
     if (m_creation_url.scheme() == "about"sv && m_creation_url.path_segment_count() == 1) {
-        if (auto page = WebUI::page_for_host(m_creation_url.path_segments().first()); page.has_value() && page->type == WebUI::PageType::Dynamic)
+        if (auto page = WebUI::page_for_host(m_creation_url.path_segments().first()); page.has_value() && page->type != WebUI::PageType::Static)
             m_web_ui_host = MUST(String::from_utf8(page->host));
     }
 }

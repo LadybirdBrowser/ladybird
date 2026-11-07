@@ -8,6 +8,8 @@
 #include <LibCore/Process.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/Bookmarks.h>
+#include <UI/Qt/BookmarksPage.h>
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteDownloads.h>
@@ -171,7 +173,11 @@ void HubConnection::view_open_new_view(u64 view_id, u64 new_view_id, Hub::ViewSt
 void HubConnection::view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon)
 {
     auto* view = RemoteView::find(view_id);
-    if (!view || !view->on_favicon_change)
+    if (!view)
+        return;
+    if (view->is_private() == WebView::IsPrivate::No && view->favicon_hash().has_value())
+        Application::bookmark_store().update_favicon(view->url(), *view->favicon_hash());
+    if (!view->on_favicon_change)
         return;
     if (favicon.has_value() && favicon->is_valid())
         view->on_favicon_change(*favicon->bitmap());
@@ -338,85 +344,6 @@ void HubConnection::download_updated(Hub::DownloadState download)
 void HubConnection::download_removed(u64 id, WebView::IsPrivate is_private)
 {
     RemoteDownloads::the().did_remove(id, is_private);
-}
-
-void HubConnection::bookmarks_changed(ByteString bookmarks_json)
-{
-    auto bookmarks = JsonValue::from_string(bookmarks_json);
-    if (bookmarks.is_error() || !bookmarks.value().is_object())
-        return;
-    Application::bookmark_store().replace_with_json(bookmarks.value(), WebView::BookmarkStore::PersistChange::No);
-}
-
-void HubConnection::app_read_bookmarks_for_all_tabs(u64 request_id, u64 view_id)
-{
-    async_answer_bookmarks_for_all_tabs(request_id, Application::the().bookmarks_for_all_tabs_in_window_of_view(view_id));
-}
-
-void HubConnection::app_show_bookmark_popover()
-{
-    Application::the().show_bookmark_popover();
-}
-
-void HubConnection::app_show_bookmark_context_menu(Gfx::IntPoint position, Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id)
-{
-    Optional<WebView::BookmarkItem const&> item;
-    if (item_id.has_value())
-        item = Application::bookmark_store().find_item_by_id(*item_id);
-    Application::the().show_bookmark_context_menu(position, item, target_folder_id, parent_folder_id);
-}
-
-void HubConnection::app_display_bookmark_dialog(u64 request_id, Hub::BookmarkDialogKind kind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id)
-{
-    auto& application = Application::the();
-    Optional<WebView::BookmarkItem const&> item;
-    if (item_id.has_value())
-        item = Application::bookmark_store().find_item_by_id(*item_id);
-
-    auto answer = [request_id](Optional<Hub::BookmarkDialogResult> result) {
-        if (auto* hub = HubConnection::the_if_connected())
-            hub->async_answer_bookmark_dialog(request_id, move(result));
-    };
-
-    RefPtr<Application::BookmarkPromise> promise;
-    switch (kind) {
-    case Hub::BookmarkDialogKind::AddBookmark:
-        promise = application.display_add_bookmark_dialog(folder_id);
-        break;
-    case Hub::BookmarkDialogKind::EditBookmark:
-        if (item.has_value())
-            promise = application.display_edit_bookmark_dialog(*item, folder_id);
-        break;
-    case Hub::BookmarkDialogKind::AddFolder:
-        promise = application.display_add_bookmark_folder_dialog(default_title, folder_id);
-        break;
-    case Hub::BookmarkDialogKind::EditFolder:
-        if (item.has_value())
-            promise = application.display_edit_bookmark_folder_dialog(*item, folder_id);
-        break;
-    }
-    if (!promise) {
-        answer({});
-        return;
-    }
-    promise->when_resolved([answer](WebView::Application::BookmarkDialogResult& result) {
-        Hub::BookmarkDialogResult answer_to_send;
-        answer_to_send.target_folder_id = result.target_folder_id;
-        result.data.visit(
-            [&](WebView::BookmarkItem::Bookmark const& bookmark) {
-                answer_to_send.url = bookmark.url;
-                answer_to_send.title = bookmark.title;
-                answer_to_send.favicon_hash = bookmark.favicon_hash;
-            },
-            [&](WebView::BookmarkItem::Folder const& folder) {
-                answer_to_send.is_folder = true;
-                answer_to_send.title = folder.title;
-            });
-        answer(move(answer_to_send));
-    });
-    promise->when_rejected([answer](Error const&) {
-        answer({});
-    });
 }
 
 void HubConnection::omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions)
@@ -662,6 +589,27 @@ void HubConnection::app_open_new_window(Vector<URL::URL> urls)
         application.on_new_window(urls);
 }
 
+void HubConnection::app_read_keeps_omnibox_engagements(u64 request_id, URL::URL url)
+{
+    async_answer_keeps_omnibox_engagements(request_id, Application::bookmark_store().is_bookmarked(url));
+}
+
+void HubConnection::web_ui_opened(u64 web_ui_id, String host)
+{
+    if (host == "bookmarks"sv)
+        Application::bookmarks().page_opened(web_ui_id);
+}
+
+void HubConnection::web_ui_message(u64 web_ui_id, String name, JsonValue data)
+{
+    Application::bookmarks().page_received_message(web_ui_id, name, data);
+}
+
+void HubConnection::web_ui_closed(u64 web_ui_id)
+{
+    Application::bookmarks().page_closed(web_ui_id);
+}
+
 void HubConnection::set_settings_from_hub(JsonValue const& settings)
 {
     m_last_known_settings = settings.as_object();
@@ -708,12 +656,6 @@ void HubConnection::action_changed(Hub::ActionState state)
     RemoteActions::the().update(state);
 }
 
-void HubConnection::bookmarks_menu_changed(Vector<Hub::MenuEntry> entries)
-{
-    RemoteActions::the().set_bookmarks_menu(entries);
-    Application::the().rebuild_bookmarks_menu();
-}
-
 void HubConnection::view_show_context_menu(u64 view_id, Vector<Hub::MenuEntry> entries, Gfx::IntPoint widget_position)
 {
     if (auto* view = RemoteView::find(view_id))
@@ -740,8 +682,13 @@ void HubConnection::view_navigation_load_finish(u64 view_id, URL::URL url)
 
 void HubConnection::view_state_changed(u64 view_id, Hub::ViewState state)
 {
-    if (auto* view = RemoteView::find(view_id))
+    if (auto* view = RemoteView::find(view_id)) {
+        // NB: Whether the page is bookmarked depends on its URL alone, and most state changes leave that as it is.
+        auto url_changed = view->url() != state.url;
         view->set_state(move(state));
+        if (url_changed)
+            view->update_bookmark_action();
+    }
 }
 
 void HubConnection::view_load_start(u64 view_id)

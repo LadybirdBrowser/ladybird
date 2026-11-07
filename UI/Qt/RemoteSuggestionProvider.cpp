@@ -5,6 +5,8 @@
  */
 
 #include <AK/HashMap.h>
+#include <UI/Qt/Application.h>
+#include <UI/Qt/Bookmarks.h>
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/RemoteSuggestionProvider.h>
 
@@ -34,7 +36,8 @@ RemoteSuggestionProvider* RemoteSuggestionProvider::find(u64 client_id)
 
 void RemoteSuggestionProvider::query(WebView::AutocompleteQueryID query_id, String query, size_t max_suggestions)
 {
-    HubConnection::the().async_omnibox_query(m_client_id, query_id, move(query), max_suggestions);
+    auto bookmarks = Application::bookmarks().suggestions_for(query, max_suggestions);
+    HubConnection::the().async_omnibox_query(m_client_id, query_id, move(query), max_suggestions, move(bookmarks));
 }
 
 void RemoteSuggestionProvider::cancel()

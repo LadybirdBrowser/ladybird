@@ -5,10 +5,10 @@
  */
 
 #include <LibWebView/Application.h>
-#include <LibWebView/BookmarkStore.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BookmarkDialog.h>
 #include <UI/Qt/BookmarkPopover.h>
+#include <UI/Qt/BookmarkStore.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/StringUtils.h>
 
@@ -30,7 +30,7 @@ struct BookmarkPlace {
     size_t sibling_count { 0 };
 };
 
-static Optional<BookmarkPlace> find_bookmark_place(ReadonlySpan<WebView::BookmarkItem> items, StringView id, Optional<String> folder_id = {})
+static Optional<BookmarkPlace> find_bookmark_place(ReadonlySpan<BookmarkItem> items, StringView id, Optional<String> folder_id = {})
 {
     for (auto const& item : items) {
         if (item.id == id)
@@ -43,7 +43,7 @@ static Optional<BookmarkPlace> find_bookmark_place(ReadonlySpan<WebView::Bookmar
     return {};
 }
 
-static size_t item_count_in_folder(ReadonlySpan<WebView::BookmarkItem> items, Optional<String> const& folder_id)
+static size_t item_count_in_folder(ReadonlySpan<BookmarkItem> items, Optional<String> const& folder_id)
 {
     if (!folder_id.has_value())
         return items.size();
