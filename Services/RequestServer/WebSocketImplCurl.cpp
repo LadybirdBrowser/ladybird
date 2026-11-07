@@ -81,6 +81,7 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
 
     if (auto root_certs = info.root_certificates_path(); root_certs.has_value())
         set_option(CURLOPT_CAINFO, root_certs->characters());
+    set_option(CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context);
 
     auto const origin_header = ByteString::formatted("Origin: {}", info.origin());
     curl_slist* curl_headers = curl_slist_append(nullptr, origin_header.characters());

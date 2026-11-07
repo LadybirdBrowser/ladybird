@@ -36,4 +36,7 @@ Optional<ByteString> build_curl_connect_to_entry(DNS::LookupResult const& dns_re
 Requests::NetworkError curl_code_to_network_error(int code);
 ErrorOr<void> initialize_libcurl();
 
+// A CURLOPT_SSL_CTX_FUNCTION. Its CURLOPT_SSL_CTX_DATA is the handle's AIACollector, or null to skip AIA.
+CURLcode configure_ssl_context(CURL*, void* ssl_context, void* aia_collector);
+
 }

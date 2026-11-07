@@ -26,7 +26,6 @@
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
-#include <openssl/ssl.h>
 #include <string.h>
 
 namespace RequestServer {
@@ -47,70 +46,6 @@ static ByteString url_without_credentials(URL::URL url)
     url.set_username(""sv);
     url.set_password(""sv);
     return url.to_byte_string();
-}
-
-#ifdef AK_OS_MACOS
-// curl parses the system's root certificates for every connection on macOS, because it keeps its store cache off when
-// verifying through the system trust APIs, and the parsed store costs about 1 MiB for as long as the connection lives.
-// So all connections share one parsed store, replaced as often as curl would replace a store it caches.
-static void share_certificate_store(SSL_CTX* ssl_context)
-{
-    // NB: A custom certificate is only trusted by the handles that set it, so those handles can't share a store.
-    if (!default_certificate_path().is_empty())
-        return;
-
-    static constexpr auto s_shared_store_lifetime = AK::Duration::from_seconds(24 * 60 * 60);
-    static X509_STORE* s_shared_store = nullptr;
-    static MonotonicTime s_shared_store_expiry = MonotonicTime::now_coarse();
-
-    auto now = MonotonicTime::now_coarse();
-    if (!s_shared_store || now >= s_shared_store_expiry) {
-        // NB: curl ignores errors when it loads the store. An empty store stays with this connection only, and the
-        //     next connection tries again.
-        auto* store = SSL_CTX_get_cert_store(ssl_context);
-        if (!store || sk_X509_OBJECT_num(X509_STORE_get0_objects(store)) == 0 || !X509_STORE_up_ref(store))
-            return;
-
-        X509_STORE_free(s_shared_store);
-        s_shared_store = store;
-        s_shared_store_expiry = now + s_shared_store_lifetime;
-        return;
-    }
-
-    // NB: The SSL_CTX takes over the reference, and frees the store curl just parsed for it.
-    if (X509_STORE_up_ref(s_shared_store))
-        SSL_CTX_set_cert_store(ssl_context, s_shared_store);
-}
-#endif
-
-static CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[maybe_unused]] void* aia_collector)
-{
-    // Everything below casts ssl_context to an SSL_CTX, which only holds when curl is built against OpenSSL.
-    [[maybe_unused]] static auto const curl_uses_openssl = [] {
-        auto const* version_info = curl_version_info(CURLVERSION_NOW);
-        VERIFY(version_info);
-        return version_info->ssl_version && StringView { version_info->ssl_version, strlen(version_info->ssl_version) }.starts_with("OpenSSL/"sv);
-    }();
-
-#if defined(SSL_OP_IGNORE_UNEXPECTED_EOF)
-    // Some HTTPS servers, including the Python server used by WPT, close the connection without sending the
-    // mandatory TLS close-notify alert. Other browsers treat such a post-handshake transport EOF as a clean TLS EOF
-    // for compatibility. Do the same while leaving curl responsible for detecting incomplete HTTP framing.
-    if (curl_uses_openssl)
-        SSL_CTX_set_options(static_cast<SSL_CTX*>(ssl_context), SSL_OP_IGNORE_UNEXPECTED_EOF);
-#endif
-
-#ifdef AK_OS_MACOS
-    if (curl_uses_openssl)
-        share_certificate_store(static_cast<SSL_CTX*>(ssl_context));
-#else
-    // curl keeps one SSL context callback per handle, and AIA has to run against the same SSL_CTX configured above. So
-    // both are applied here. The collector arrives as CURLOPT_SSL_CTX_DATA and is null on handles lacking AIA state.
-    if (curl_uses_openssl && aia_collector)
-        apply_aia_verification(static_cast<SSL_CTX*>(ssl_context), *static_cast<AIACollector*>(aia_collector));
-#endif
-
-    return CURLE_OK;
 }
 
 // https://everything.curl.dev/internals/content-encoding.html#supported-content-encodings
