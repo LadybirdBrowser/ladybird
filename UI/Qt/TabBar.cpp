@@ -3399,7 +3399,7 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
 
     m_vertical_tabs_toggle_button = new ChromeHeaderButton(m_vertical_tab_bar_column);
     m_vertical_tabs_toggle_button->setObjectName("LadybirdVerticalTabsToggleButton");
-    m_vertical_tabs_toggle_button->setDefaultAction(create_application_action(*this, Application::the().toggle_vertical_tabs_expanded_action()));
+    m_vertical_tabs_toggle_button->setDefaultAction(create_application_action(*this, Application::hub().toggle_vertical_tabs_expanded_action()));
     m_vertical_tabs_toggle_button->setAutoRaise(true);
     m_vertical_tabs_toggle_button->setFocusPolicy(Qt::NoFocus);
     m_vertical_tabs_toggle_button->setIconSize({ 16, 16 });

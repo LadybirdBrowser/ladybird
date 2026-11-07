@@ -59,17 +59,17 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto app = TRY(Ladybird::Application::create(arguments));
     Ladybird::ChromeStyle::install_application_style();
 #if defined(AK_OS_MACOS)
-    app->set_spell_checker(Ladybird::create_platform_spell_checker());
+    Ladybird::Application::hub().set_spell_checker(Ladybird::create_platform_spell_checker());
 #endif
 #if defined(LADYBIRD_HAS_TRANSLATOR)
-    app->set_translator(Ladybird::create_platform_translator());
+    Ladybird::Application::hub().set_translator(Ladybird::create_platform_translator());
 #endif
-    if (app->should_exit_after_profile_coordination()) {
+    if (Ladybird::Application::hub().should_exit_after_profile_coordination()) {
         outln("Opening in existing process");
         return 0;
     }
 
-    auto& browser_process = app->browser_process();
+    auto& browser_process = Ladybird::Application::hub().browser_process();
 
     if (auto const& browser_options = Ladybird::Application::browser_options(); !browser_options.headless_mode.has_value()) {
 #if defined(AK_OS_MACOS)
@@ -134,5 +134,5 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
     }
 
-    return app->execute();
+    return Ladybird::Application::hub().execute();
 }

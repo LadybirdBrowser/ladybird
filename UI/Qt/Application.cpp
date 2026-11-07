@@ -253,12 +253,12 @@ public:
 
     virtual bool event(QEvent* event) override
     {
-        auto& application = static_cast<Application&>(WebView::Application::the());
+        auto& application = Application::the();
         auto const event_type = event->type();
 
 #if defined(AK_OS_WINDOWS)
         static Optional<NativeWindowsTimeChangeEventFilter> time_change_event_filter {};
-        if (auto time_zone_watcher = application.time_zone_watcher(); !time_change_event_filter.has_value() && time_zone_watcher.has_value()) {
+        if (auto time_zone_watcher = Application::hub().time_zone_watcher(); !time_change_event_filter.has_value() && time_zone_watcher.has_value()) {
             time_change_event_filter.emplace(time_zone_watcher.value());
             installNativeEventFilter(&time_change_event_filter.value());
         }
@@ -602,9 +602,32 @@ public:
 };
 #endif
 
-Application::Application() = default;
+Application* Application::s_the = nullptr;
+
+ErrorOr<NonnullOwnPtr<Application>> Application::create(Main::Arguments const& arguments)
+{
+    auto application = adopt_own(*new Application);
+    application->m_hub = TRY(Hub::Application::create(arguments, static_cast<Hub::ApplicationHost&>(*application)));
+    return application;
+}
+
+Application::Application()
+{
+    s_the = this;
+}
+
 Application::~Application()
 {
+    // NB: The application tears down its processes as it goes, which must happen after the QApplication is gone, and
+    //     with nothing left here to call back into.
+    ScopeGuard tear_down_hub = [this] {
+        m_application = nullptr;
+        if (m_hub)
+            m_hub->detach_from_host();
+        m_hub = nullptr;
+        s_the = nullptr;
+    };
+
     // NB: A run stopped by a signal leaves its windows open for the next launch to recover. Their pages must still go
     //     before the QApplication does, since the processes torn down after it end their navigations, which updates
     //     their widgets.
@@ -625,7 +648,7 @@ Application::~Application()
 void Application::show_process_manager()
 {
     if (!m_process_manager_window) {
-        m_process_manager_window = make<ProcessManagerWindow>(process_manager());
+        m_process_manager_window = make<ProcessManagerWindow>(WebView::Application::process_manager());
 #if defined(AK_OS_MACOS)
         // The traffic lights are centered in the Task Manager's title bar, which is 52 px tall.
         m_process_manager_window->on_title_bar_change = [window = m_process_manager_window.ptr()] {
@@ -644,7 +667,7 @@ void Application::show_process_manager()
 
 void Application::create_platform_actions()
 {
-    WebView::Application::inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
+    hub().inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
         show_process_manager();
     }));
 
@@ -658,59 +681,54 @@ void Application::create_platform_actions()
     }
 }
 
-Core::EventLoop& Application::create_platform_event_loop()
+void Application::will_create_event_loop(Main::Arguments& arguments)
 {
-    if (!browser_options().headless_mode.has_value()) {
-        Core::EventLoopManager::install(*new EventLoopManagerQt);
+    Core::EventLoopManager::install(*new EventLoopManagerQt);
 #if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
-        // Prevent any competing AT-SPI2 bridge from attaching to our process. On GNOME/Fedora, Qt loads the libqgtk3
-        // platform-theme plugin by default — which pulls in libgtk-3 via DT_NEEDED. Once libgtk-3 is loaded, its init
-        // calls atk_bridge_adaptor_init(). And that registers an ATK app on the shared AT-SPI2 bus under *our* D-Bus
-        // name, hijacking it from QSpiAccessibleBridge. AT clients then see a GTK app with zero accessible children
-        // (because ATK has no widgets to expose in a Qt app) — and our entire accessibility tree is unreachable.
-        //
-        // So, we set NO_AT_BRIDGE=1 here — before libgtk-3 is loaded – to tell GTK's init code to skip the atk-bridge
-        // registration. The library is still linked, but the hijack doesn't happen; AT-SPI2 queries reach Qt's bridge
-        // (and therefore our WebContentViewAccessible) normally. Firefox's toolkit/xre/nsAppRunner.cpp does the same.
-        qputenv("NO_AT_BRIDGE", "1");
+    // Prevent any competing AT-SPI2 bridge from attaching to our process. On GNOME/Fedora, Qt loads the libqgtk3
+    // platform-theme plugin by default — which pulls in libgtk-3 via DT_NEEDED. Once libgtk-3 is loaded, its init
+    // calls atk_bridge_adaptor_init(). And that registers an ATK app on the shared AT-SPI2 bus under *our* D-Bus
+    // name, hijacking it from QSpiAccessibleBridge. AT clients then see a GTK app with zero accessible children
+    // (because ATK has no widgets to expose in a Qt app) — and our entire accessibility tree is unreachable.
+    //
+    // So, we set NO_AT_BRIDGE=1 here — before libgtk-3 is loaded – to tell GTK's init code to skip the atk-bridge
+    // registration. The library is still linked, but the hijack doesn't happen; AT-SPI2 queries reach Qt's bridge
+    // (and therefore our WebContentViewAccessible) normally. Firefox's toolkit/xre/nsAppRunner.cpp does the same.
+    qputenv("NO_AT_BRIDGE", "1");
 #endif
-        m_application = make<LadybirdQApplication>(arguments());
+    m_application = make<LadybirdQApplication>(arguments);
 #if defined(AK_OS_MACOS)
-        // NB: Qt owns its converters, and deletes them along with the QApplication.
-        new PNGMimeConverter;
+    // NB: Qt owns its converters, and deletes them along with the QApplication.
+    new PNGMimeConverter;
 #endif
 #if defined(AK_OS_LINUX)
-        QGuiApplication::setDesktopFileName(QStringLiteral("org.ladybird.Ladybird"));
-        Ladybird::clip_translucent_windows_that_cannot_blend();
+    QGuiApplication::setDesktopFileName(QStringLiteral("org.ladybird.Ladybird"));
+    Ladybird::clip_translucent_windows_that_cannot_blend();
 #endif
 #if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
-        install_orca_scripts();
+    install_orca_scripts();
 #endif
-    }
-
-    auto& event_loop = WebView::Application::create_platform_event_loop();
-
-    if (!browser_options().headless_mode.has_value()) {
-#if defined(AK_OS_LINUX)
-        Ladybird::initialize_external_url_handler(event_loop);
-#endif
-#if defined(AK_OS_MACOS)
-        Ladybird::on_scrollbar_track_press_behavior_change([this] {
-            platform_scrollbar_track_press_behavior_changed();
-        });
-#endif
-        static_cast<EventLoopImplementationQt&>(event_loop.impl()).set_main_loop();
-    }
-
-    return event_loop;
 }
 
-NonnullOwnPtr<WebView::MicrophoneAuthorizer> Application::create_microphone_authorizer()
+void Application::did_create_event_loop(Core::EventLoop& event_loop)
+{
+#if defined(AK_OS_LINUX)
+    Ladybird::initialize_external_url_handler(event_loop);
+#endif
+#if defined(AK_OS_MACOS)
+    Ladybird::on_scrollbar_track_press_behavior_change([] {
+        hub().platform_scrollbar_track_press_behavior_changed();
+    });
+#endif
+    static_cast<EventLoopImplementationQt&>(event_loop.impl()).set_main_loop();
+}
+
+OwnPtr<WebView::MicrophoneAuthorizer> Application::create_microphone_authorizer()
 {
 #if defined(AK_OS_MACOS)
     return make<WebView::MicrophoneAuthorizerMacOS>();
 #else
-    return WebView::Application::create_microphone_authorizer();
+    return {};
 #endif
 }
 
@@ -728,13 +746,13 @@ Web::CSS::PreferredColorScheme Application::interface_color_scheme() const
 }
 
 // Bookmarking the page from the menu or its shortcut does what the star in the address field does.
-void Application::toggle_bookmark_for_view(WebView::ViewImplementation& view)
+bool Application::show_bookmark_ui_for_view(WebView::ViewImplementation& view)
 {
     if (auto* tab = active_tab(); tab && &tab->view().hub_view() == &view) {
         tab->show_bookmark_popover();
-        return;
+        return true;
     }
-    WebView::Application::toggle_bookmark_for_view(view);
+    return false;
 }
 
 bool Application::platform_reports_scroll_momentum() const
@@ -791,13 +809,15 @@ Vector<u64> Application::platform_presentation_drm_format_modifiers() const
 #endif
 }
 
-#if !defined(AK_OS_MACOS)
 // On macOS, WebContent resolves system-ui with CoreText, so the system font family is not sent there.
 Optional<String> Application::system_font_family() const
 {
+#if defined(AK_OS_MACOS)
+    return {};
+#else
     return ui_font_family();
-}
 #endif
+}
 
 BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
 {
@@ -1308,7 +1328,7 @@ void Application::cancel_quit()
 
 bool Application::confirm_stop_active_downloads(QWidget* parent)
 {
-    auto& downloader = file_downloader();
+    auto& downloader = hub().file_downloader();
 
     if (downloader.has_unresumable_downloads()) {
         QMessageBox dialog(parent ? parent : active_window_if_any());
@@ -1333,8 +1353,6 @@ bool Application::confirm_stop_active_downloads(QWidget* parent)
 
 OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable& traversable, Gfx::IntSize video_size)
 {
-    if (browser_options().headless_mode.has_value())
-        return WebView::Application::create_picture_in_picture_window(requesting_page, traversable, video_size);
     return Ladybird::create_picture_in_picture_window(traversable, requesting_page.view(), video_size);
 }
 
@@ -1348,14 +1366,14 @@ static BrowserWindow* window_for_view(WebView::ViewImplementation const& view)
     return nullptr;
 }
 
-NonnullOwnPtr<WebView::NotificationBackend> Application::create_notification_backend()
+OwnPtr<WebView::NotificationBackend> Application::create_notification_backend()
 {
 #if defined(AK_OS_MACOS)
     return make<WebView::NotificationBackendMacOS>();
 #elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
     return make<WebView::NotificationBackendFreedesktop>();
 #else
-    return WebView::Application::create_notification_backend();
+    return {};
 #endif
 }
 
@@ -1580,17 +1598,12 @@ void Application::display_download_confirmation_dialog(StringView download_name,
 
 void Application::display_error_dialog(StringView error_message) const
 {
-    if (browser_options().headless_mode.has_value()) {
-        WebView::Application::display_error_dialog(error_message);
-        return;
-    }
-
     create_message_box(QMessageBox::Warning, error_message, active_window_if_any())->open();
 }
 
 void Application::open_download(WebView::FileDownloader::Download const& download) const
 {
-    auto path = download_file_path_for_frontend_action(download);
+    auto path = hub().download_file_path_for_frontend_action(download);
     if (path.is_error()) {
         display_error_dialog("Unable to open downloaded file: path cannot be represented by this frontend"sv);
         return;
@@ -1601,7 +1614,7 @@ void Application::open_download(WebView::FileDownloader::Download const& downloa
 
 void Application::show_download_in_folder(WebView::FileDownloader::Download const& download) const
 {
-    auto path = download_directory_path_for_frontend_action(download);
+    auto path = hub().download_directory_path_for_frontend_action(download);
     if (path.is_error()) {
         display_error_dialog("Unable to show downloaded file: path cannot be represented by this frontend"sv);
         return;
@@ -1612,11 +1625,6 @@ void Application::show_download_in_folder(WebView::FileDownloader::Download cons
 
 void Application::resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const
 {
-    if (browser_options().headless_mode.has_value()) {
-        WebView::Application::resolve_external_url_handler(url, move(callback));
-        return;
-    }
-
 #if defined(AK_OS_LINUX)
     Ladybird::resolve_external_url_handler(url, ak_string_from_qstring(QGuiApplication::desktopFileName()), move(callback));
 #elif defined(AK_OS_MACOS)
@@ -1640,9 +1648,6 @@ static QClipboard::Mode clipboard_mode(QClipboard const& clipboard, Application:
 
 bool Application::supports_clipboard_type(ClipboardType type) const
 {
-    if (browser_options().headless_mode.has_value())
-        return WebView::Application::supports_clipboard_type(type);
-
     switch (type) {
     case WebView::Application::ClipboardType::Text:
         return true;
@@ -1654,9 +1659,6 @@ bool Application::supports_clipboard_type(ClipboardType type) const
 
 Utf16String Application::clipboard_text(ClipboardType type) const
 {
-    if (browser_options().headless_mode.has_value())
-        return WebView::Application::clipboard_text(type);
-
     auto const* clipboard = QGuiApplication::clipboard();
     auto mode = clipboard_mode(*clipboard, type);
 
@@ -1665,11 +1667,6 @@ Utf16String Application::clipboard_text(ClipboardType type) const
 
 void Application::set_clipboard_text(String text, ClipboardType type)
 {
-    if (browser_options().headless_mode.has_value()) {
-        WebView::Application::set_clipboard_text(text, type);
-        return;
-    }
-
     auto* clipboard = QGuiApplication::clipboard();
     auto mode = clipboard_mode(*clipboard, type);
 
@@ -1678,9 +1675,6 @@ void Application::set_clipboard_text(String text, ClipboardType type)
 
 Web::Clipboard::SystemClipboardItem Application::clipboard_item() const
 {
-    if (browser_options().headless_mode.has_value())
-        return WebView::Application::clipboard_item();
-
     Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
     auto const* clipboard = QGuiApplication::clipboard();
 
@@ -1722,11 +1716,6 @@ Web::Clipboard::SystemClipboardItem Application::clipboard_item() const
 
 void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)
 {
-    if (browser_options().headless_mode.has_value()) {
-        WebView::Application::insert_clipboard_item(move(item));
-        return;
-    }
-
     auto* mime_data = new QMimeData();
     for (auto const& entry : item.system_clipboard_representations) {
         if (auto const* data = entry.data.get_pointer<ByteString>())
@@ -1904,18 +1893,14 @@ NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_f
     return display_add_or_edit_bookmark_folder_dialog(active_tab(), BookmarkDialog::Type::EditFolder, current_folder.folder().title, parent_folder_id, current_folder.id);
 }
 
-void Application::on_devtools_enabled() const
+void Application::did_enable_devtools() const
 {
-    WebView::Application::on_devtools_enabled();
-
     if (m_active_window)
         m_active_window->on_devtools_enabled();
 }
 
-void Application::on_devtools_disabled() const
+void Application::did_disable_devtools() const
 {
-    WebView::Application::on_devtools_disabled();
-
     if (m_active_window)
         m_active_window->on_devtools_disabled();
 }

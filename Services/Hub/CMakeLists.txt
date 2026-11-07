@@ -3,6 +3,7 @@ set(CMAKE_AUTORCC OFF)
 set(CMAKE_AUTOUIC OFF)
 
 set(SOURCES
+    Application.cpp
     View.cpp
 )
 

@@ -9,6 +9,7 @@
 #include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/Platform.h>
+#include <Hub/Application.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Application.h>
@@ -42,11 +43,23 @@ enum class ShowWindow {
 };
 
 class Application final
-    : public WebView::Application
+    : public Hub::ApplicationHost
     , public WebView::CrashReportOutboxObserver {
-    WEB_VIEW_APPLICATION(Application)
-
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    using BookmarkID = WebView::Application::BookmarkID;
+    using BookmarkPromise = WebView::Application::BookmarkPromise;
+    using ClipboardType = WebView::Application::ClipboardType;
+
+    static ErrorOr<NonnullOwnPtr<Application>> create(Main::Arguments const&);
+    static Application& the() { return *s_the; }
+    static Hub::Application& hub() { return Hub::Application::the(); }
+
+    static WebView::BrowserOptions const& browser_options() { return WebView::Application::browser_options(); }
+    static WebView::Settings& settings() { return WebView::Application::settings(); }
+    static WebView::Profile const& profile() { return WebView::Application::profile(); }
+
     virtual ~Application() override;
 
     Function<void(URL::URL)> on_open_file;
@@ -136,18 +149,17 @@ private:
     void finish_quit();
     void cancel_quit();
 
-    virtual Core::EventLoop& create_platform_event_loop() override;
+    virtual void will_create_event_loop(Main::Arguments&) override;
+    virtual void did_create_event_loop(Core::EventLoop&) override;
     virtual void create_platform_actions() override;
-    virtual NonnullOwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() override;
+    virtual OwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() override;
 
     virtual Optional<String> ui_font_family() const override;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const override;
-    virtual void toggle_bookmark_for_view(WebView::ViewImplementation&) override;
-#if !defined(AK_OS_MACOS)
+    virtual bool show_bookmark_ui_for_view(WebView::ViewImplementation&) override;
     virtual Optional<String> system_font_family() const override;
-#endif
 
-    virtual NonnullOwnPtr<WebView::NotificationBackend> create_notification_backend() override;
+    virtual OwnPtr<WebView::NotificationBackend> create_notification_backend() override;
     virtual void focus_page_from_notification(WebView::WebContentPage&) override;
     virtual void open_url_in_new_tab_from_notification(URL::URL const&, Web::PageId originating_page, WebView::CanonicalTraversable*, WebView::IsPrivate) override;
 
@@ -174,7 +186,6 @@ private:
     virtual void show_download_in_folder(WebView::FileDownloader::Download const&) const override;
 
     virtual void crash_reports_changed() override;
-    virtual bool captures_browser_crashes() const override { return true; }
 
     virtual bool supports_clipboard_type(ClipboardType) const override;
     virtual Utf16String clipboard_text(ClipboardType) const override;
@@ -212,10 +223,13 @@ private:
     virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}, Optional<String const&> target_folder_id = {}) const override;
     virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const override;
 
-    virtual void on_devtools_enabled() const override;
-    virtual void on_devtools_disabled() const override;
+    virtual void did_enable_devtools() const override;
+    virtual void did_disable_devtools() const override;
     virtual void on_recently_closed_entries_changed() const override;
 
+    static Application* s_the;
+
+    OwnPtr<Hub::Application> m_hub;
     OwnPtr<QApplication> m_application;
     BrowserWindow* m_active_window { nullptr };
     OwnPtr<ProcessManagerWindow> m_process_manager_window;
