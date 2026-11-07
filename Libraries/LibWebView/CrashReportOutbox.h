@@ -11,6 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibCore/Timer.h>
 #include <LibWebView/CrashReportReview.h>
 #include <LibWebView/Forward.h>
 
@@ -32,6 +33,9 @@ public:
     static CrashReportOutbox& the();
 
     explicit CrashReportOutbox(CrashReportStore& = CrashReportStore::the());
+
+    // NB: A timer needs the event loop manager, and an observer can create the outbox before the platform's is installed.
+    void start_removing_expired_reports();
 
     void send(Vector<Report>);
 
@@ -63,6 +67,7 @@ public:
 private:
     void send_next();
     void report_failed();
+    void remove_expired_reports();
 
     CrashReportStore& m_store;
     CrashReportReview m_review;
@@ -72,6 +77,7 @@ private:
     HashMap<ByteString, Optional<CrashReportReview::PreparedSubmission>> m_could_not_send;
     bool m_report_being_sent_was_retried { false };
     Vector<CrashReportOutboxObserver&> m_observers;
+    RefPtr<Core::Timer> m_expiry_timer;
 };
 
 class WEBVIEW_API CrashReportOutboxObserver {
