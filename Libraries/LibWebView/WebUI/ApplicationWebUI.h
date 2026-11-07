@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/WebUI.h>
 
@@ -19,7 +20,7 @@ class WEBVIEW_API ApplicationWebUI final : public WebUI {
 
 public:
     struct Callbacks {
-        Function<void(u64 id, String const& host)> on_open;
+        Function<void(u64 id, String const& host, IsPrivate)> on_open;
         Function<void(u64 id, String name, JsonValue data)> on_message;
         Function<void(u64 id)> on_close;
     };
@@ -30,6 +31,9 @@ public:
     virtual ~ApplicationWebUI() override;
 
     void send_to_page(String const& name, JsonValue const& data);
+
+    // NB: Some actions of a page, such as opening a download, need the user's own click in it.
+    bool consume_user_activation();
 
 private:
     virtual void register_interfaces() override;

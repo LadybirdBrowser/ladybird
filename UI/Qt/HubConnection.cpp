@@ -590,9 +590,9 @@ void HubConnection::app_open_new_window(Vector<URL::URL> urls)
         application.on_new_window(urls);
 }
 
-void HubConnection::web_ui_opened(u64 web_ui_id, String host)
+void HubConnection::web_ui_opened(u64 web_ui_id, String host, WebView::IsPrivate is_private)
 {
-    Application::web_ui_pages().page_opened(web_ui_id, host);
+    Application::web_ui_pages().page_opened(web_ui_id, host, is_private);
 }
 
 void HubConnection::web_ui_message(u64 web_ui_id, String name, JsonValue data)

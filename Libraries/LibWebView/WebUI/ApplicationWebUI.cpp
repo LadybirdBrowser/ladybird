@@ -6,6 +6,8 @@
 
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebContentPage.h>
 #include <LibWebView/WebUI/ApplicationWebUI.h>
 
 namespace WebView {
@@ -46,13 +48,21 @@ void ApplicationWebUI::register_interfaces()
     m_id = s_next_id++;
     web_uis().set(m_id, this);
     if (callbacks().on_open)
-        callbacks().on_open(m_id, host());
+        callbacks().on_open(m_id, host(), client().is_private());
 }
 
 void ApplicationWebUI::received_message(String name, JsonValue data)
 {
     if (has_client() && callbacks().on_message)
         callbacks().on_message(m_id, move(name), move(data));
+}
+
+bool ApplicationWebUI::consume_user_activation()
+{
+    if (!has_client())
+        return false;
+    auto* page = client().page(page_id());
+    return page && page->consume_transient_user_activation();
 }
 
 void ApplicationWebUI::send_to_page(String const& name, JsonValue const& data)

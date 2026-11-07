@@ -33,7 +33,7 @@ ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
         async_settings_changed(settings.serialized().to_byte_string(), m_last_applied_settings_change_id);
     };
     WebView::ApplicationWebUI::set_callbacks({
-        .on_open = [this](u64 id, String const& host) { async_web_ui_opened(id, host); },
+        .on_open = [this](u64 id, String const& host, WebView::IsPrivate is_private) { async_web_ui_opened(id, host, is_private); },
         .on_message = [this](u64 id, String name, JsonValue data) { async_web_ui_message(id, move(name), move(data)); },
         .on_close = [this](u64 id) { async_web_ui_closed(id); },
     });
@@ -187,6 +187,7 @@ static DownloadState state_of_download(WebView::FileDownloader::Download const& 
     state.bytes_per_second = download.bytes_per_second;
     state.is_waiting_to_retry = download.is_waiting_to_retry;
     state.created_time = download.created_time;
+    state.segments = Application::the().file_downloader().segment_progress(download.id);
     return state;
 }
 
@@ -226,6 +227,13 @@ void ConnectionFromUI::pause_download(u64 id)
 void ConnectionFromUI::resume_download(u64 id)
 {
     Application::the().file_downloader().resume_download(id);
+}
+
+void ConnectionFromUI::open_download(u64 id)
+{
+    auto& application = static_cast<WebView::Application&>(Application::the());
+    if (auto download = application.file_downloader().download(id); download.has_value())
+        application.open_download(*download);
 }
 
 void ConnectionFromUI::show_download_in_folder(u64 id)
@@ -482,6 +490,12 @@ void ConnectionFromUI::send_web_ui_message(u64 web_ui_id, String name, JsonValue
 {
     if (auto* web_ui = WebView::ApplicationWebUI::find(web_ui_id))
         web_ui->send_to_page(name, data);
+}
+
+Messages::HubServer::WebUiConsumeUserActivationResponse ConnectionFromUI::web_ui_consume_user_activation(u64 web_ui_id)
+{
+    auto* web_ui = WebView::ApplicationWebUI::find(web_ui_id);
+    return web_ui && web_ui->consume_user_activation();
 }
 
 Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()

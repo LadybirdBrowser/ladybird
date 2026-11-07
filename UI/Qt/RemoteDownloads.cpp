@@ -37,13 +37,17 @@ static RemoteDownloads::Download download_from(Hub::DownloadState const& state)
 void RemoteDownloads::set_downloads(ReadonlySpan<Hub::DownloadState> downloads)
 {
     m_downloads.clear();
-    for (auto const& download : downloads)
+    m_segments.clear();
+    for (auto const& download : downloads) {
         m_downloads.append(download_from(download));
+        m_segments.set(download.id, download.segments);
+    }
 }
 
 void RemoteDownloads::did_add(Hub::DownloadState const& state)
 {
     m_downloads.append(download_from(state));
+    m_segments.set(state.id, state.segments);
     for (auto& observer : m_observers)
         observer.download_added(m_downloads.last());
 }
@@ -54,6 +58,7 @@ void RemoteDownloads::did_update(Hub::DownloadState const& state)
         if (download.id != state.id)
             continue;
         download = download_from(state);
+        m_segments.set(state.id, state.segments);
         for (auto& observer : m_observers)
             observer.download_updated(download);
         return;
@@ -63,6 +68,7 @@ void RemoteDownloads::did_update(Hub::DownloadState const& state)
 void RemoteDownloads::did_remove(u64 id, WebView::IsPrivate is_private)
 {
     m_downloads.remove_first_matching([&](auto const& download) { return download.id == id; });
+    m_segments.remove(id);
     for (auto& observer : m_observers)
         observer.download_removed(id, is_private);
 }
@@ -109,6 +115,11 @@ void RemoteDownloads::pause_download(u64 id)
 void RemoteDownloads::resume_download(u64 id)
 {
     HubConnection::the().async_resume_download(id);
+}
+
+void RemoteDownloads::open(u64 id)
+{
+    HubConnection::the().async_open_download(id);
 }
 
 void RemoteDownloads::show_in_folder(u64 id)

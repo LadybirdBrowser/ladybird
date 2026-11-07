@@ -5,6 +5,7 @@
  */
 
 #include <LibWebView/WebUI.h>
+#include <LibWebView/WebUI/ApplicationWebUI.h>
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/WebUIPage.h>
 
@@ -16,6 +17,17 @@ void WebUIPage::send_message(String name, JsonValue data) const
         hub->async_send_web_ui_message(m_web_ui_id, move(name), move(data));
 }
 
+bool WebUIPage::consume_user_activation() const
+{
+#ifdef LADYBIRD_HUB_IN_OWN_PROCESS
+    auto* hub = HubConnection::the_if_connected();
+    return hub && hub->web_ui_consume_user_activation(m_web_ui_id);
+#else
+    auto* web_ui = WebView::ApplicationWebUI::find(m_web_ui_id);
+    return web_ui && web_ui->consume_user_activation();
+#endif
+}
+
 void WebUIPages::register_page(String host, String title, Factory factory)
 {
     // NB: The omnibox of this process suggests the pages too.
@@ -25,10 +37,10 @@ void WebUIPages::register_page(String host, String title, Factory factory)
     m_factories.set(move(host), move(factory));
 }
 
-void WebUIPages::page_opened(u64 web_ui_id, String const& host)
+void WebUIPages::page_opened(u64 web_ui_id, String const& host, WebView::IsPrivate is_private)
 {
     if (auto factory = m_factories.get(host); factory.has_value())
-        m_pages.set(web_ui_id, (*factory)(web_ui_id));
+        m_pages.set(web_ui_id, (*factory)(web_ui_id, is_private));
 }
 
 void WebUIPages::page_received_message(u64 web_ui_id, String const& name, JsonValue const& data)

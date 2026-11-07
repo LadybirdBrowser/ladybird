@@ -32,7 +32,7 @@ Bookmarks::Bookmarks(BookmarkStore& store)
     create_menus();
     create_context_menus();
 
-    Application::web_ui_pages().register_page("bookmarks"_string, "Bookmarks"_string, [](u64 web_ui_id) -> NonnullOwnPtr<WebUIPage> {
+    Application::web_ui_pages().register_page("bookmarks"_string, "Bookmarks"_string, [](u64 web_ui_id, WebView::IsPrivate) -> NonnullOwnPtr<WebUIPage> {
         return make<BookmarksPage>(web_ui_id);
     });
 

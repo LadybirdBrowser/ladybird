@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <Hub/HubClientEndpoint.h>
 #include <LibWebView/FileDownloader.h>
@@ -28,12 +29,14 @@ public:
 
     Vector<Download> downloads_of_session(WebView::IsPrivate) const;
     Optional<Download const&> download(u64 id) const;
+    Vector<WebView::FileDownloader::SegmentProgress> segment_progress(u64 id) const { return m_segments.get(id).value_or({}); }
     bool has_active_downloads() const;
     bool has_unresumable_downloads() const;
 
     void cancel_download(u64 id);
     void pause_download(u64 id);
     void resume_download(u64 id);
+    void open(u64 id);
     void show_in_folder(u64 id);
     void prune_inactive_downloads(WebView::IsPrivate);
     void pause_active_downloads();
@@ -43,6 +46,7 @@ private:
     friend class RemoteDownloadsObserver;
 
     Vector<Download> m_downloads;
+    HashMap<u64, Vector<WebView::FileDownloader::SegmentProgress>> m_segments;
     Vector<RemoteDownloadsObserver&> m_observers;
 };
 
