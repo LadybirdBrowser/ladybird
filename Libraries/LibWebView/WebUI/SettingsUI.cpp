@@ -46,6 +46,9 @@ static StringView config_variable_type_to_string(JsonValue::Type type)
 
 static bool should_show_config_variable(ConfigVariableID id)
 {
+    // NB: The Debug menu has the toggle for this one.
+    if (id == ConfigVariableID::ShowTabPerformanceMonitor)
+        return false;
     if (id == ConfigVariableID::ShowFeedbackButton)
         return !BROWSER_IS_FINAL_RELEASE;
     if (id == ConfigVariableID::UseClientSideWindowDecorations)

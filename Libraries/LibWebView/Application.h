@@ -425,6 +425,7 @@ public:
     void update_report_website_issue_action();
 
     Menu& debug_menu() { return *m_debug_menu; }
+    Action& show_tab_performance_monitor_action() { return *m_show_tab_performance_monitor_action; }
 
     FileDownloader& file_downloader() { return m_file_downloader; }
 
@@ -770,6 +771,7 @@ private:
     RefPtr<Menu> m_debug_menu;
     RefPtr<Action> m_show_line_box_borders_action;
     RefPtr<Action> m_show_caret_hit_test_debug_overlay_action;
+    RefPtr<Action> m_show_tab_performance_monitor_action;
     RefPtr<Action> m_enable_scripting_action;
     RefPtr<Action> m_block_pop_ups_action;
     StringView m_user_agent_string;

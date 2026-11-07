@@ -3,7 +3,8 @@
 
 # Tab performance monitor
 
-Enable **Show tab performance monitor** in **Settings → Advanced**, or set
+Enable **Show Tab Performance Monitor** in the **Debug** menu, which **Show
+Debug menu** in **Settings → Advanced** turns on, or set
 `debug.ui.show_tab_performance_monitor` to `true`. It defaults to `false`.
 The UI's toolbars display the current tab's statistics inline.
 Each tab retains its own CPU history while monitoring is enabled.
