@@ -17,8 +17,24 @@
 
 namespace Ladybird::Theme {
 
+static WebView::ThemePreference s_interface_theme { WebView::ThemePreference::System };
+
+void set_interface_theme(WebView::ThemePreference theme)
+{
+    s_interface_theme = theme;
+}
+
 bool is_dark()
 {
+    switch (s_interface_theme) {
+    case WebView::ThemePreference::Light:
+        return false;
+    case WebView::ThemePreference::Dark:
+        return true;
+    case WebView::ThemePreference::System:
+        break;
+    }
+
     auto color_scheme = QGuiApplication::styleHints()->colorScheme();
     if (color_scheme != Qt::ColorScheme::Unknown)
         return color_scheme == Qt::ColorScheme::Dark;

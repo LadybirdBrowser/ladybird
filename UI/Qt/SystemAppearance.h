@@ -32,11 +32,15 @@ public:
 
 signals:
     void changed();
+    // Our windows switched between the light and dark appearance, whether the system or the interface theme switched
+    // them.
+    void interface_appearance_changed();
 
 private:
     SystemAppearance();
 
     void update();
+    void update_interface_appearance(bool was_dark);
     bool query_system_prefers_dark() const;
     void observe_platform_changes();
 

@@ -400,7 +400,7 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
         m_omnibox.cursor_moved(at_end);
     });
 
-    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this] {
+    connect(&SystemAppearance::the(), &SystemAppearance::interface_appearance_changed, this, [this] {
         schedule_chrome_style_update();
     });
 }

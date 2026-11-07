@@ -16,6 +16,7 @@ class QWidget;
 namespace WebView {
 
 enum class ColorTheme : u8;
+enum class ThemePreference : u8;
 
 }
 
@@ -69,6 +70,10 @@ struct PanelColors {
 
 bool is_dark();
 bool has_increased_contrast();
+
+// The interface theme decides the appearance, as Qt's color scheme only follows it where the platform theme honors the
+// request.
+void set_interface_theme(WebView::ThemePreference);
 
 // The chrome and panel colors, and the accent, are derived from the color theme's base colors.
 void set_color_theme(WebView::ColorTheme);
