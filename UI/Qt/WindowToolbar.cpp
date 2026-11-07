@@ -1209,7 +1209,7 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     // The Ladybird button keeps as clear of the traffic lights as on the tab strip.
     auto sidebar_slot_leading_margin = 0;
     if constexpr (use_native_macos_window_controls())
-        sidebar_slot_leading_margin = NATIVE_MACOS_WINDOW_CONTROLS_INSET + NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP - (TOOLBAR_HORIZONTAL_MARGIN + NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + NATIVE_MACOS_WINDOW_CONTROLS_GAP + TOOLBAR_SPACING);
+        sidebar_slot_leading_margin = NATIVE_MACOS_WINDOW_CONTROLS_INSET + NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP - LADYBIRD_BUTTON_FOCUS_RING_ROOM - (TOOLBAR_HORIZONTAL_MARGIN + NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + NATIVE_MACOS_WINDOW_CONTROLS_GAP + TOOLBAR_SPACING);
     sidebar_slot_layout->setContentsMargins(sidebar_slot_leading_margin, 0, 0, 0);
     sidebar_slot_layout->setSpacing(TOOLBAR_SPACING);
     // NB: The separator sits where the open sidebar's edge does, so the toolbar's contents keep their place as it toggles.

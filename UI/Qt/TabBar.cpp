@@ -3235,7 +3235,8 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     m_ladybird_buttons = new QWidget(this);
     auto* ladybird_buttons_layout = new QHBoxLayout(m_ladybird_buttons);
     ladybird_buttons_layout->setContentsMargins(0, 0, 0, 0);
-    ladybird_buttons_layout->setSpacing(ALL_TABS_BUTTON_LEADING_GAP);
+    // NB: The Ladybird button's room for its focus ring takes part of the gap after it.
+    ladybird_buttons_layout->setSpacing(ALL_TABS_BUTTON_LEADING_GAP - LADYBIRD_BUTTON_FOCUS_RING_ROOM);
     ladybird_buttons_layout->addWidget(m_ladybird_button, 0, Qt::AlignVCenter);
     ladybird_buttons_layout->addWidget(m_all_tabs_button, 0, Qt::AlignVCenter);
     m_ladybird_buttons->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -3662,7 +3663,7 @@ void TabWidget::float_sidebar_buttons_while_toggling()
 
     auto& ladybird_buttons = *m_floating_ladybird_buttons;
     auto& toggle = *m_floating_sidebar_toggle;
-    auto ladybird_x = column_origin.x() + sidebar_ladybird_button_inset(vertical_tabs_hold_window_controls());
+    auto ladybird_x = column_origin.x() + sidebar_ladybird_button_inset(vertical_tabs_hold_window_controls()) - LADYBIRD_BUTTON_FOCUS_RING_ROOM;
     auto collapsed_toggle_x = ladybird_x + ladybird_buttons.width() + m_toolbar->sidebar_slot().layout()->spacing();
     auto at_edge_x = column_origin.x() + current_vertical_tabs_width() - vertical_tabs_side_margin(true) - SIDEBAR_TOGGLE_PAGE_SIDE_MARGIN - toggle.width();
     toggle.move(max(collapsed_toggle_x, at_edge_x), center_y(toggle));
@@ -4072,7 +4073,7 @@ int TabWidget::minimum_vertical_tabs_expanded_width() const
 {
     if (!use_native_macos_window_controls() || !m_ladybird_buttons)
         return VERTICAL_TABS_MIN_EXPANDED_WIDTH;
-    return NATIVE_MACOS_WINDOW_CONTROLS_INSET + NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP
+    return NATIVE_MACOS_WINDOW_CONTROLS_INSET + NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP - LADYBIRD_BUTTON_FOCUS_RING_ROOM
         + m_ladybird_buttons->sizeHint().width() + SIDEBAR_TOGGLE_MINIMUM_GAP + VERTICAL_TABS_TOGGLE_BUTTON_SIZE
         + SIDEBAR_TOGGLE_PAGE_SIDE_MARGIN + vertical_tabs_side_margin(true);
 }
@@ -4190,7 +4191,10 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
 {
     m_tab_bar_row->setMinimumHeight(HORIZONTAL_TAB_STRIP_HEIGHT);
     m_tab_bar_row_layout->setSpacing(0);
-    m_tab_bar_row_layout->setContentsMargins(HORIZONTAL_TAB_STRIP_LEADING_MARGIN, HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT, HORIZONTAL_TAB_STRIP_TRAILING_MARGIN, 0);
+    // NB: Without the traffic lights, the Ladybird button starts the strip, and its room for its focus ring takes part of
+    //     the strip's margin.
+    auto leading_margin = HORIZONTAL_TAB_STRIP_LEADING_MARGIN - (use_native_macos_window_controls() ? 0 : LADYBIRD_BUTTON_FOCUS_RING_ROOM);
+    m_tab_bar_row_layout->setContentsMargins(leading_margin, HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT, HORIZONTAL_TAB_STRIP_TRAILING_MARGIN, 0);
 
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_EXPANDED_PROPERTY, false);
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_BUTTON_PROPERTY, true);
@@ -4217,7 +4221,7 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
     };
     if constexpr (use_native_macos_window_controls()) {
         m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
-        m_tab_bar_row_layout->addSpacing(LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP);
+        m_tab_bar_row_layout->addSpacing(LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP - LADYBIRD_BUTTON_FOCUS_RING_ROOM);
         add_ladybird_buttons();
         m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignBottom);
         m_tab_bar_row_layout->addSpacing(new_tab_button_room);
@@ -4427,7 +4431,7 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
             top_row_layout->addStretch(1);
             top_row_layout->addWidget(m_ladybird_buttons, 0, Qt::AlignVCenter);
         } else {
-            top_row_layout->addSpacing(sidebar_ladybird_button_inset(vertical_tabs_hold_window_controls()) - vertical_tabs_side_margin(true));
+            top_row_layout->addSpacing(sidebar_ladybird_button_inset(vertical_tabs_hold_window_controls()) - vertical_tabs_side_margin(true) - LADYBIRD_BUTTON_FOCUS_RING_ROOM);
             top_row_layout->addWidget(m_ladybird_buttons, 0, Qt::AlignVCenter);
             top_row_layout->addStretch(1);
             top_row_layout->addSpacing(SIDEBAR_TOGGLE_MINIMUM_GAP);
@@ -4744,7 +4748,7 @@ void TabWidget::update_tab_layout()
     // NB: This is the room the window controls need, and not their width, which shrinks along with a strip that is too
     //     narrow for them. The minimum width below would then follow it down.
     if (!m_window_controls->isHidden())
-        controls_width += m_window_controls->sizeHint().expandedTo(m_window_controls->minimumSize()).width() + (use_native_macos_window_controls() ? LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP : 0);
+        controls_width += m_window_controls->sizeHint().expandedTo(m_window_controls->minimumSize()).width() + (use_native_macos_window_controls() ? LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP - LADYBIRD_BUTTON_FOCUS_RING_ROOM : 0);
 
     auto available_for_tabs = width() - controls_width;
     auto pinned_count = m_tab_bar->pinned_tab_count();
