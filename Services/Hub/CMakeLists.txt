@@ -4,8 +4,12 @@ set(CMAKE_AUTOUIC OFF)
 
 set(SOURCES
     Application.cpp
+    ConnectionFromUI.cpp
     View.cpp
 )
+
+compile_ipc(HubClient.ipc HubClientEndpoint.h)
+compile_ipc(HubServer.ipc HubServerEndpoint.h)
 
 add_library(hubservice STATIC ${SOURCES})
 

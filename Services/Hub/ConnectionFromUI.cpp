@@ -1,0 +1,330 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <Hub/ConnectionFromUI.h>
+
+namespace Hub {
+
+ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
+    : IPC::ConnectionFromClient<HubClientEndpoint, HubServerEndpoint>(*this, move(transport), 1)
+{
+}
+
+ConnectionFromUI::~ConnectionFromUI() = default;
+
+void ConnectionFromUI::die()
+{
+}
+
+View* ConnectionFromUI::find_view(u64 view_id)
+{
+    auto view = WebView::ViewImplementation::find_view_by_id(view_id);
+    if (!view.has_value())
+        return nullptr;
+    return static_cast<View*>(&view.value());
+}
+
+void ConnectionFromUI::view_load(u64 view_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_behavior)
+{
+    if (auto* view = find_view(view_id))
+        view->load(url, history_behavior);
+}
+
+void ConnectionFromUI::view_load_url_from_user_input(u64 view_id, URL::URL url)
+{
+    if (auto* view = find_view(view_id))
+        view->load_from_user_input(url);
+}
+
+void ConnectionFromUI::view_load_from_user_input(u64 view_id, ByteString input, Optional<URL::URL> fallback_url)
+{
+    if (auto* view = find_view(view_id))
+        view->load_from_user_input(input, move(fallback_url));
+}
+
+void ConnectionFromUI::view_load_html(u64 view_id, ByteString html)
+{
+    if (auto* view = find_view(view_id))
+        view->load_html(html);
+}
+
+void ConnectionFromUI::view_load_navigation_error_page(u64 view_id, ByteString html)
+{
+    if (auto* view = find_view(view_id))
+        view->load_navigation_error_page(html);
+}
+
+void ConnectionFromUI::view_find_in_page(u64 view_id, Utf16String query, AK::CaseSensitivity case_sensitivity, bool highlight_all_matches)
+{
+    if (auto* view = find_view(view_id))
+        view->find_in_page(query, case_sensitivity, highlight_all_matches);
+}
+
+void ConnectionFromUI::view_set_window_position(u64 view_id, Gfx::IntPoint position)
+{
+    if (auto* view = find_view(view_id))
+        view->set_window_position(position);
+}
+
+void ConnectionFromUI::view_set_window_size(u64 view_id, Gfx::IntSize size)
+{
+    if (auto* view = find_view(view_id))
+        view->set_window_size(size);
+}
+
+void ConnectionFromUI::view_set_system_visibility_state(u64 view_id, Web::HTML::VisibilityState visibility_state)
+{
+    if (auto* view = find_view(view_id))
+        view->set_system_visibility_state(visibility_state);
+}
+
+void ConnectionFromUI::view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory)
+{
+    if (auto* view = find_view(view_id))
+        view->set_presents_from_cpu_memory(presents_from_cpu_memory);
+}
+
+void ConnectionFromUI::view_set_has_system_focus(u64 view_id, bool has_system_focus)
+{
+    if (auto* view = find_view(view_id))
+        view->set_has_system_focus(has_system_focus);
+}
+
+void ConnectionFromUI::view_open_url_in_new_tab(u64 view_id, URL::URL url, Web::HTML::ActivateTab activate_tab)
+{
+    if (auto* view = find_view(view_id))
+        view->open_url_in_new_tab(url, activate_tab);
+}
+
+void ConnectionFromUI::view_open_url_in_new_window(u64 view_id, URL::URL url, WebView::IsPrivate is_private)
+{
+    if (auto* view = find_view(view_id))
+        view->open_url_in_new_window(url, is_private);
+}
+
+void ConnectionFromUI::view_set_next_history_visit_transition(u64 view_id, WebView::HistoryVisitTransition transition)
+{
+    if (auto* view = find_view(view_id))
+        view->set_next_history_visit_transition(transition);
+}
+
+void ConnectionFromUI::view_reload(u64 view_id, WebView::BypassCache bypass_cache)
+{
+    if (auto* view = find_view(view_id))
+        view->reload(bypass_cache);
+}
+
+void ConnectionFromUI::view_stop_loading(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->stop_loading();
+}
+
+void ConnectionFromUI::view_zoom_in(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->zoom_in();
+}
+
+void ConnectionFromUI::view_zoom_out(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->zoom_out();
+}
+
+void ConnectionFromUI::view_reset_zoom(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->reset_zoom();
+}
+
+void ConnectionFromUI::view_set_display_metadata(u64 view_id, Optional<u64> display_id, double maximum_frames_per_second)
+{
+    if (auto* view = find_view(view_id))
+        view->set_display_metadata(display_id, maximum_frames_per_second);
+}
+
+void ConnectionFromUI::view_update_screen_rects(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->update_screen_rects();
+}
+
+void ConnectionFromUI::view_set_scales_frames_to_fit(u64 view_id, bool scales_frames_to_fit)
+{
+    if (auto* view = find_view(view_id))
+        view->set_scales_frames_to_fit(scales_frames_to_fit);
+}
+
+void ConnectionFromUI::view_enable_picture_in_picture_controls(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->enable_picture_in_picture_controls();
+}
+
+void ConnectionFromUI::view_update_interface_color_scheme(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->update_interface_color_scheme();
+}
+
+void ConnectionFromUI::view_find_in_page_next_match(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->find_in_page_next_match();
+}
+
+void ConnectionFromUI::view_find_in_page_previous_match(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->find_in_page_previous_match();
+}
+
+void ConnectionFromUI::view_find_in_page_end(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->find_in_page_end();
+}
+
+void ConnectionFromUI::view_report_website_issue(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->report_website_issue();
+}
+
+void ConnectionFromUI::view_request_accessibility_tree(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->request_accessibility_tree();
+}
+
+void ConnectionFromUI::view_perform_accessibility_action(u64 view_id, i64 node_id, String action)
+{
+    if (auto* view = find_view(view_id))
+        view->perform_accessibility_action(node_id, action);
+}
+
+void ConnectionFromUI::view_clear_node_picker(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->clear_node_picker();
+}
+
+void ConnectionFromUI::view_node_picker_hover(u64 view_id, Web::DevicePixelPoint position)
+{
+    if (auto* view = find_view(view_id))
+        view->node_picker_hover(position);
+}
+
+void ConnectionFromUI::view_node_picker_pick(u64 view_id, Web::DevicePixelPoint position)
+{
+    if (auto* view = find_view(view_id))
+        view->node_picker_pick(position);
+}
+
+void ConnectionFromUI::view_node_picker_preview(u64 view_id, Web::DevicePixelPoint position)
+{
+    if (auto* view = find_view(view_id))
+        view->node_picker_preview(position);
+}
+
+void ConnectionFromUI::view_node_picker_cancel(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->node_picker_cancel();
+}
+
+void ConnectionFromUI::view_alert_closed(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->alert_closed();
+}
+
+void ConnectionFromUI::view_confirm_closed(u64 view_id, bool accepted)
+{
+    if (auto* view = find_view(view_id))
+        view->confirm_closed(accepted);
+}
+
+void ConnectionFromUI::view_prompt_closed(u64 view_id, Optional<Utf16String> response)
+{
+    if (auto* view = find_view(view_id))
+        view->prompt_closed(response);
+}
+
+void ConnectionFromUI::view_color_picker_update(u64 view_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
+{
+    if (auto* view = find_view(view_id))
+        view->color_picker_update(picked_color, state);
+}
+
+void ConnectionFromUI::view_date_picker_closed(u64 view_id, Optional<Utf16String> picked_value)
+{
+    if (auto* view = find_view(view_id))
+        view->date_picker_closed(picked_value);
+}
+
+void ConnectionFromUI::view_select_dropdown_closed(u64 view_id, Optional<u32> selected_item_id)
+{
+    if (auto* view = find_view(view_id))
+        view->select_dropdown_closed(selected_item_id);
+}
+
+void ConnectionFromUI::view_set_marked_text_from_input_method(u64 view_id, Utf16String text)
+{
+    if (auto* view = find_view(view_id))
+        view->set_marked_text_from_input_method(text);
+}
+
+void ConnectionFromUI::view_commit_text_from_input_method(u64 view_id, Utf16String text, i32 replacement_start, i32 replacement_length)
+{
+    if (auto* view = find_view(view_id))
+        view->commit_text_from_input_method(text, replacement_start, replacement_length);
+}
+
+void ConnectionFromUI::view_toggle_page_mute_state(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->toggle_page_mute_state();
+}
+
+void ConnectionFromUI::view_take_and_save_screenshot(u64 view_id, WebView::ViewImplementation::ScreenshotType screenshot_type)
+{
+    if (auto* view = find_view(view_id))
+        view->take_and_save_screenshot(screenshot_type);
+}
+
+void ConnectionFromUI::view_request_close(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->request_close();
+}
+
+void ConnectionFromUI::view_deny_fullscreen_window(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->deny_fullscreen_window();
+}
+
+void ConnectionFromUI::view_exit_fullscreen(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->exit_fullscreen();
+}
+
+void ConnectionFromUI::view_set_is_fullscreen(u64 view_id, Web::ViewportIsFullscreen is_fullscreen)
+{
+    if (auto* view = find_view(view_id))
+        view->set_is_fullscreen(is_fullscreen);
+}
+
+void ConnectionFromUI::view_reset_site_permissions(u64 view_id, URL::Origin origin)
+{
+    if (auto* view = find_view(view_id))
+        view->reset_site_permissions(origin);
+}
+
+}
