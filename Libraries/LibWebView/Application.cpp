@@ -1448,6 +1448,7 @@ void Application::reset_private_browsing_session()
     // NB: Those views own the session until they are deleted, so let go of it here. The private window opened next
     //     starts a new one rather than picking up what this was asked to clear.
     m_private_session.clear();
+    WorkerProcessManager::the().remove_private_workers_without_owners();
 }
 
 Web::CompositorContextId Application::allocate_compositor_context_id()
@@ -1657,6 +1658,11 @@ ErrorOr<NonnullRefPtr<WebContentPage>> Application::open_page_for_new_tab(IsPriv
         web_content_client = TRY(create_web_content_client(IsPrivate::No, allocate_page_id()));
     }
     return web_content_client->open_initial_page_for_new_top_level_traversable();
+}
+
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process_without_page(IsPrivate is_private)
+{
+    return create_web_content_client(is_private, allocate_page_id());
 }
 
 ErrorOr<Application::ChildFrameWebContentProcess> Application::launch_child_frame_web_content_process(IsPrivate is_private, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)

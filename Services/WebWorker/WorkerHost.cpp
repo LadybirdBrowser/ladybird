@@ -97,7 +97,7 @@ static Web::HTML::WorkerGlobalScope::Owner relevant_owner_to_add(Web::HTML::Seri
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::HTML::RequestCredentials credentials, bool is_shared, URL::Origin origin, Web::HTML::EnvironmentId environment_id)
+void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::HTML::RequestCredentials credentials, bool is_shared, URL::Origin origin, Web::HTML::EnvironmentId environment_id, bool has_process_to_itself)
 {
     m_is_shared = is_shared;
 
@@ -191,7 +191,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
                                  : Web::Fetch::Infrastructure::Request::Destination::Worker;
 
     // In both cases, let performFetch be the following perform the fetch hook given request, isTopLevel, and processCustomFetchResponse:
-    auto perform_fetch_function = [inside_settings, outside_settings, worker_global_scope, is_shared](NonnullRefPtr<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
+    auto perform_fetch_function = [inside_settings, outside_settings, worker_global_scope, is_shared, has_process_to_itself](NonnullRefPtr<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
         auto& realm = inside_settings->realm();
 
         Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Web::Fetch::Engine::BodyIntent::ConsumeForCallback };
@@ -213,7 +213,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
         // 3. Fetch request with processResponseConsumeBody set to the following steps given response response and
         //    null, failure, or a byte sequence bodyBytes:
-        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inside_settings, outside_settings, is_shared](auto response, auto body_bytes) {
+        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inside_settings, outside_settings, is_shared, has_process_to_itself](auto response, auto body_bytes) {
             // 1. Set worker global scope's url to response's URL.
             worker_global_scope->set_url(response->url().value_or({}));
 
@@ -235,9 +235,11 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             //    "concrete". The one chosen is implementation-defined.
             // AD-HOC: Nothing sets worker global scope's embedder policy. This reads its policy container's embedder
             //         policy instead. See https://github.com/whatwg/html/issues/11316.
-            // NB: This chooses "concrete", as the UI process does for a browsing context group.
+            // NB: This chooses "concrete", as the UI process does for a browsing context group, for a worker that has a
+            //     process to itself. The response comes too late to move a worker, and a process with anything else in it
+            //     cannot give this worker what "concrete" stands for.
             if (Web::HTML::is_compatible_with_cross_origin_isolation(worker_global_scope->policy_container()->embedder_policy.value) && is_shared)
-                inside_settings->set_agent_cluster_cross_origin_isolation_mode(Web::HTML::CrossOriginIsolationMode::Concrete);
+                inside_settings->set_agent_cluster_cross_origin_isolation_mode(has_process_to_itself ? Web::HTML::CrossOriginIsolationMode::Concrete : Web::HTML::CrossOriginIsolationMode::Logical);
 
             // 6. If the result of checking a global object's embedder policy with worker global scope, outside settings,
             //    and response is false, then set response to a network error.

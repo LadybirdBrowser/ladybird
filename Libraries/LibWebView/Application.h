@@ -264,6 +264,8 @@ public:
         NonnullRefPtr<WebContentClient> client;
         Web::PageId page_id { 0 };
     };
+    // For what may share a process with no page. It ends once nothing keeps it.
+    ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process_without_page(IsPrivate);
     ErrorOr<ChildFrameWebContentProcess> launch_child_frame_web_content_process(IsPrivate, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state);
     Web::PageId allocate_page_id();
     Web::HTML::CrossProcessIdAllocator allocate_cross_process_id_allocator();

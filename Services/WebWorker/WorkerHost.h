@@ -30,7 +30,7 @@ public:
     explicit WorkerHost(URL::URL url, Web::HTML::WorkerType type, String name);
     ~WorkerHost();
 
-    void run(GC::Ref<Web::Page>, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&, Web::HTML::RequestCredentials, bool is_shared, URL::Origin origin, Web::HTML::EnvironmentId environment_id);
+    void run(GC::Ref<Web::Page>, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&, Web::HTML::RequestCredentials, bool is_shared, URL::Origin origin, Web::HTML::EnvironmentId environment_id, bool has_process_to_itself);
     void connect_shared_worker(Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject);
 
     void terminate();

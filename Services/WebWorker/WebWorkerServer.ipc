@@ -33,7 +33,8 @@ endpoint WebWorkerServer {
                  Web::HTML::SerializedEnvironmentSettingsObject outside_settings,
                  Web::HTML::AgentType agent_type,
                  URL::Origin origin,
-                 Web::HTML::EnvironmentId environment_id) =|
+                 Web::HTML::EnvironmentId environment_id,
+                 bool has_process_to_itself) =|
 
     connect_shared_worker(Web::HTML::TransferDataEncoder message_port,
                           Web::HTML::SerializedEnvironmentSettingsObject outside_settings) =|

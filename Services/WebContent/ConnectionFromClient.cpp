@@ -383,6 +383,13 @@ void ConnectionFromClient::close_server()
     shutdown();
 }
 
+void ConnectionFromClient::start_worker_thread(IPC::TransportHandle worker_transport, Web::HTML::AgentType agent_type)
+{
+    // NB: The UI process notices a transport that nobody takes up, and tells the owners that their worker is gone.
+    if (auto result = WebWorker::start_worker_thread(move(worker_transport), agent_type); result.is_error())
+        dbgln("Unable to start a thread for a worker: {}", result.error());
+}
+
 Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_window_handle(Web::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())

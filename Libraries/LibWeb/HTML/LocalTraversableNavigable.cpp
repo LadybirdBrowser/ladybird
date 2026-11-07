@@ -311,8 +311,8 @@ void LocalTraversableNavigable::run_ui_traversable_close_unload_task()
     queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
         GC::create_function(heap(), [this] {
             // NB: The UI process discards the page of a tab it let go of without waiting for this task, and the page
-            //     goes without the unload then.
-            if (page().has_been_discarded())
+            //     goes without the unload then. A tab can also go while this task is queued.
+            if (page().has_been_discarded() || has_been_destroyed())
                 return;
 
             // 2. Unload document, passing along newDocument if it is not null.

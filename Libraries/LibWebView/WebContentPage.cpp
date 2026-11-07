@@ -650,6 +650,9 @@ void WebContentPage::close()
     PictureInPictureManager::the().close_window(*this);
     NotificationManager::the().page_did_close(*this);
     m_is_open = false;
+    // NB: The process can outlive the page, for the shared workers it runs, or for other pages.
+    if (m_client)
+        WorkerProcessManager::the().remove_web_content_page_owner(*m_client, m_id);
     // NB: Nothing finishes the input this page held, including a page discarded while its process hosts other pages.
     if (m_traversable) {
         if (auto view = m_traversable->view(); view.has_value())
@@ -3559,6 +3562,14 @@ void WebContentPage::did_remove_blob_url_entries(Web::HTML::EnvironmentId enviro
     if (!environment.has_value())
         return;
     client().session().blob_url_store->remove_entries(urls, environment->origin(), WeakPtr<WebContentClient> { client() });
+}
+
+Optional<bool> WebContentPage::hosted_environment_is_cross_origin_isolated(Web::HTML::EnvironmentId const& environment_id) const
+{
+    auto document = document_with_hosted_environment(environment_id);
+    if (!document.has_value())
+        return {};
+    return document->relevant_global_object().agent().agent_cluster_cross_origin_isolation_mode() != Web::HTML::CrossOriginIsolationMode::None;
 }
 
 Optional<bool> WebContentPage::hosted_environment_has_cross_site_ancestor(Web::HTML::EnvironmentId const& environment_id) const

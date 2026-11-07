@@ -10,6 +10,7 @@
 #include <LibIPC/File.h>
 #include <LibURL/Parser.h>
 #include <LibURL/Site.h>
+#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalNavigable.h>
@@ -19,6 +20,7 @@
 #include <LibWebView/Utilities.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebContentPage.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
 
@@ -192,7 +194,8 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
     // 11.6. Otherwise, in parallel, run a worker given worker, urlRecord, outsideSettings, outsidePort,
     //       and options.
     // AD-HOC: For DedicatedWorker there is no shared worker manager step. It always gets a fresh thread in the process
-    //         of its owner, or a fresh process if its owner has none to give.
+    //         of its owner. A shared worker's thread is in the process of the owner that starts it, if that process may
+    //         host it, and otherwise in a process of its own.
     auto agent_id = ++m_next_agent_id;
     RefPtr<WebContentClient> host;
     if (request.agent_type == Web::HTML::AgentType::DedicatedWorker) {
@@ -203,14 +206,22 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
             [](WebWorkerOwner const& web_worker_owner) -> RefPtr<WebContentClient> {
                 return web_worker_owner.client->host();
             });
+    } else if (auto const* web_content_owner = owner.client.get_pointer<WebContentOwner>(); web_content_owner && owner_process_may_host_shared_worker(*web_content_owner, *outside_settings)) {
+        host = web_content_owner->client.strong_ref();
     }
+    bool const host_has_only_this_worker = !host && request.agent_type == Web::HTML::AgentType::SharedWorker;
     Optional<IPC::TransportHandle> thread_transport;
     auto client_or_error = [&]() -> ErrorOr<NonnullRefPtr<WebWorkerClient>> {
         auto client = TRY([&]() -> ErrorOr<NonnullRefPtr<WebWorkerClient>> {
-            if (!host)
+            if (!host && !host_has_only_this_worker)
                 return launch_web_worker_process(request.agent_type, is_private, agent_id);
             auto transport = TRY(IPC::Transport::create_paired());
-            thread_transport = move(transport.remote_handle);
+            if (host_has_only_this_worker) {
+                host = TRY(Application::the().launch_web_content_process_without_page(is_private));
+                host->async_start_worker_thread(move(transport.remote_handle), request.agent_type);
+            } else {
+                thread_transport = move(transport.remote_handle);
+            }
             auto client = TRY(try_make_ref_counted<WebWorkerClient>(move(transport.local), is_private, agent_id));
             client->set_host(*host);
             return client;
@@ -248,6 +259,8 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
     // A worker the system cannot give a thread or a process fails to load, as one whose script cannot be fetched does.
     if (client_or_error.is_error()) {
         dbgln("Unable to start a worker: {}", client_or_error.error());
+        if (host_has_only_this_worker && host)
+            host->close_server_if_unused();
         notify_worker_script_load_failure(owner);
         return {};
     }
@@ -271,17 +284,9 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
     auto environment_id = inside_settings->id();
     client->set_site(URL::Site::serialize_for_partitioning(inside_settings->origin()));
 
-    // NB: The task manager lists the worker's process with the process that started it, and once that one is gone,
-    //     with the site of the worker's origin. A worker on a thread is part of a process that it lists already.
-    if (auto process = Application::process_manager().find_child(client->child_id()); !host && process.has_value()) {
-        owner.client.visit(
-            [&](WebContentOwner const& web_content_owner) {
-                if (web_content_owner.client)
-                    process->set_owner_child_id(web_content_owner.client->child_id());
-            },
-            [&](WebWorkerOwner const& web_worker_owner) {
-                process->set_owner_child_id(web_worker_owner.client->child_id());
-            });
+    // NB: The task manager lists a process with the site of its pages. One that has none left only runs on for its shared
+    //     workers, so it goes by the site of their origin.
+    if (auto process = Application::process_manager().find_child(client->child_id()); request.agent_type == Web::HTML::AgentType::SharedWorker && process.has_value()) {
         if (auto const& worker_origin = inside_settings->origin(); !worker_origin.is_opaque() && !worker_origin.is_file_origin())
             process->set_site_url(URL::Parser::basic_parse(worker_origin.serialize()));
     }
@@ -343,9 +348,39 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
 
     auto inside_origin = agent.inside_settings->origin();
     m_agents.set(agent_id, move(agent));
-    client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type, move(inside_origin), move(environment_id));
+    client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type, move(inside_origin), move(environment_id), host_has_only_this_worker);
 
     return { agent_id, move(thread_transport) };
+}
+
+// Sites decide what runs together in a process, as for the documents of CanonicalNavigable::process_to_host(). The worker's
+// origin is that of the document starting it, so the process of that document already holds the worker's site.
+bool WorkerProcessManager::owner_process_may_host_shared_worker(WebContentOwner const& owner, CanonicalEnvironmentSettingsObject const& outside_settings)
+{
+    if (!owner.client || owner.client->has_requested_close())
+        return false;
+    auto* page = owner.client->page(owner.page_id);
+    if (!page)
+        return false;
+
+    // NB: Nothing in a cross-origin isolated process may have been loaded without the consent of its origin. A shared
+    //     worker is in an agent cluster of its own, and needs no such consent unless its response says so.
+    if (page->hosted_environment_is_cross_origin_isolated(outside_settings.id()).value_or(true))
+        return false;
+
+    // NB: Isolating only top-level documents leaves a cross-site frame with the process of its parent's site.
+    if (site_isolation_mode() == SiteIsolationMode::TopLevel) {
+        auto top_level_origin = outside_settings.top_level_origin();
+        return top_level_origin.has_value() && top_level_origin->is_same_site(outside_settings.origin());
+    }
+    return true;
+}
+
+bool WorkerProcessManager::hosts_shared_worker(WebContentClient const& process) const
+{
+    return any_of(m_agents, [&](auto const& entry) {
+        return entry.value.agent_type == Web::HTML::AgentType::SharedWorker && entry.value.client->host() == &process;
+    });
 }
 
 void WorkerProcessManager::update_permission_snapshot(PermissionManager const& manager)
@@ -423,6 +458,38 @@ void WorkerProcessManager::remove_web_content_owner(WebContentClient& client)
 
     for (auto agent_id : agents_to_close)
         remove_agent(agent_id, AgentRemovalCause::OwnerSetEmptied);
+}
+
+void WorkerProcessManager::remove_web_content_page_owner(WebContentClient& client, Web::PageId page_id)
+{
+    Vector<Web::HTML::WorkerAgentId> agents_to_close;
+    for (auto& entry : m_agents) {
+        auto& agent = entry.value;
+        auto did_remove_owner = agent.owners.remove_all_matching([&](Owner const& owner) {
+            auto const* web_content_owner = owner.client.get_pointer<WebContentOwner>();
+            return web_content_owner && web_content_owner->client.ptr() == &client && web_content_owner->page_id == page_id;
+        });
+        if (!did_remove_owner)
+            continue;
+        forget_removed_outside_settings_owner(agent);
+        if (agent.owners.is_empty())
+            agents_to_close.append(agent.id);
+    }
+
+    for (auto agent_id : agents_to_close)
+        remove_agent(agent_id, AgentRemovalCause::OwnerSetEmptied);
+}
+
+void WorkerProcessManager::remove_private_workers_without_owners()
+{
+    Vector<Web::HTML::WorkerAgentId> agents_to_close;
+    for (auto const& entry : m_agents) {
+        if (entry.value.is_private == IsPrivate::Yes && entry.value.owners.is_empty())
+            agents_to_close.append(entry.key);
+    }
+
+    for (auto agent_id : agents_to_close)
+        remove_agent(agent_id, AgentRemovalCause::AgentTerminated);
 }
 
 void WorkerProcessManager::remove_web_worker_owner(WebWorkerClient& client)
@@ -783,6 +850,15 @@ void WorkerProcessManager::remove_agent(Web::HTML::WorkerAgentId agent_id, Agent
 
     if (agent.shared_worker_key.has_value())
         m_shared_workers.remove(*agent.shared_worker_key);
+
+    // NB: The owner of a page can be removing the agent from the destructor of the host, which nothing can take a
+    //     reference to any more.
+    if (agent.agent_type == Web::HTML::AgentType::SharedWorker && agent.client->host()) {
+        Core::deferred_invoke([host = agent.client->host()->make_weak_ptr<WebContentClient>()] {
+            if (auto process = host.strong_ref())
+                process->close_server_if_unused();
+        });
+    }
 
     agent.closing = true;
     if (!agent.client->is_open())
