@@ -81,7 +81,7 @@ ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> PNGImageDecoderPlugin::create(Readonl
         // NOTE: If we didn't fail in initialize(), that means we have size information.
         //       We can create a single-frame bitmap with that size and return it.
         //       This is weird, but kinda matches the behavior of other browsers.
-        auto bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Premultiplied, decoder->m_context->size));
+        auto bitmap = TRY(Bitmap::create_shareable(BitmapFormat::BGRA8888, AlphaType::Premultiplied, decoder->m_context->size));
         decoder->m_context->frame_descriptors.append({ move(bitmap), 0 });
         decoder->m_context->frame_count = 1;
         return decoder;
@@ -334,10 +334,19 @@ static void clear_frame_pixels(Bitmap& output_buffer, IntRect rect)
 
 ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop info_ptr)
 {
-    auto decode_frame = [&](IntSize frame_size) -> ErrorOr<NonnullRefPtr<Bitmap>> {
+    // NB: Only a frame that is handed out as it was decoded needs to be shareable. Animation frames are composed into
+    //     the output buffer first.
+    enum class DecodedFrameUse : u8 {
+        Output,
+        Composition,
+    };
+    auto decode_frame = [&](IntSize frame_size, DecodedFrameUse use) -> ErrorOr<NonnullRefPtr<Bitmap>> {
         // Allocate into the in_flight_bitmap member — so the bitmap survives a potential libpng longjmp out of
         // png_read_image() below.
-        in_flight_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
+        if (use == DecodedFrameUse::Output)
+            in_flight_bitmap = TRY(Bitmap::create_shareable(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
+        else
+            in_flight_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
 
         row_pointers.resize_and_keep_capacity(frame_size.height());
         for (auto i = 0; i < frame_size.height(); ++i)
@@ -386,7 +395,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             }
             auto frame_rect = IntRect { static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height) };
 
-            auto decoded_frame_bitmap = TRY(decode_frame({ width, height }));
+            auto decoded_frame_bitmap = TRY(decode_frame({ width, height }, DecodedFrameUse::Composition));
 
             if (!has_fcTL)
                 continue;
@@ -409,7 +418,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             }
 
             animation_frame_count++;
-            frame_descriptors.append({ TRY(output_buffer->clone()), duration_ms() });
+            frame_descriptors.append({ TRY(output_buffer->to_bitmap_backed_by_anonymous_buffer()), duration_ms() });
 
             switch (dispose_op) {
             case PNG_DISPOSE_OP_NONE:
@@ -432,7 +441,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
 
         // If we didn't find any valid animation frames with fcTL chunks, fall back to using the base IDAT data as a single frame.
         if (frame_count == 0) {
-            auto frame_bitmap = TRY(decode_frame(size));
+            auto frame_bitmap = TRY(decode_frame(size, DecodedFrameUse::Output));
             frame_descriptors.append({ move(frame_bitmap), 0 });
             frame_count = 1;
         }
@@ -441,7 +450,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         frame_count = 1;
         loop_count = 0;
 
-        auto decoded_frame_bitmap = TRY(decode_frame(size));
+        auto decoded_frame_bitmap = TRY(decode_frame(size, DecodedFrameUse::Output));
         frame_descriptors.append({ move(decoded_frame_bitmap), 0 });
     }
 

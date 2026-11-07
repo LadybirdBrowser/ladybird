@@ -78,6 +78,8 @@ public:
     virtual size_t frame_count() { return 1; }
     virtual size_t first_animated_frame_index() { return 0; }
 
+    // Frames are decoded in the ImageDecoder and handed to the processes that show them, so a plugin decodes each frame
+    // it returns straight into a shareable bitmap. The pixels then never sit in the decoder's own heap.
     virtual ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) = 0;
 
     // Returns the duration of a frame in milliseconds without decoding pixel data.
