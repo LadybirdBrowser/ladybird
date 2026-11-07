@@ -8,4 +8,5 @@ interface mixin Body {
     [CreatesPromise, NeedsCallerRealm, NewObject] Promise<FormData> formData();
     [CreatesPromise, NeedsCallerRealm, NewObject] Promise<any> json();
     [CreatesPromise, NeedsCallerRealm, NewObject] Promise<USVString> text();
+    [NewObject] ReadableStream textStream();
 };

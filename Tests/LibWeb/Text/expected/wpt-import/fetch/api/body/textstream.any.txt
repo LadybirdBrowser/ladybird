@@ -2,19 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-4 Pass
-10 Fail
-Fail	textStream method existence
-Fail	Response.textStream() basic functionality
-Fail	Request.textStream() basic functionality
-Fail	textStream() handles chunked byte stream input
+14 Pass
+Pass	textStream method existence
+Pass	Response.textStream() basic functionality
+Pass	Request.textStream() basic functionality
+Pass	textStream() handles chunked byte stream input
 Pass	Response.textStream() on consumed body throws TypeError
 Pass	Request.textStream() on consumed body throws TypeError
 Pass	Response.textStream() on locked body throws TypeError
 Pass	Request.textStream() on locked body throws TypeError
-Fail	Response.textStream() with null body
-Fail	Request.textStream() with null body
-Fail	Response.textStream() with empty body
-Fail	Response.textStream() ignores Content-Type charset (UTF-16LE)
-Fail	Request.textStream() ignores Content-Type charset (UTF-16LE)
-Fail	Response.textStream() ignores invalid Content-Type charset (invalid-charset)
+Pass	Response.textStream() with null body
+Pass	Request.textStream() with null body
+Pass	Response.textStream() with empty body
+Pass	Response.textStream() ignores Content-Type charset (UTF-16LE)
+Pass	Request.textStream() ignores Content-Type charset (UTF-16LE)
+Pass	Response.textStream() ignores invalid Content-Type charset (invalid-charset)

@@ -1,0 +1,84 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const decode = source => new Response(new ReadableStream(source)).textStream();
+
+    function errorName(callback) {
+        try {
+            callback();
+        } catch (error) {
+            return error.name;
+        }
+    }
+
+    asyncTest(async done => {
+        let controller;
+        const reader = decode({
+            start(value) {
+                controller = value;
+            },
+        }).getReader();
+        for (const bytes of [[0xef], [0xbb, 0xbf, 0xe2], [0x82], [0xac]]) controller.enqueue(new Uint8Array(bytes));
+        println(`Before close: ${JSON.stringify(await reader.read())}`);
+        controller.enqueue(new Uint8Array([0xe2, 0x82]));
+        controller.close();
+        println(`After close: ${JSON.stringify(await reader.read())}`);
+        println(`Closed: ${JSON.stringify(await reader.read())}`);
+
+        const disturbed = new Response("text");
+        const bodyReader = disturbed.body.getReader();
+        await bodyReader.read();
+        bodyReader.releaseLock();
+        println(`Disturbed body: ${errorName(() => disturbed.textStream())}`);
+
+        const empty = new Response().textStream();
+        println(`Null body BYOB reader: ${errorName(() => empty.getReader({ mode: "byob" }))}`);
+
+        const sourceError = new Error("source failed");
+        const failed = decode({
+            start(value) {
+                value.error(sourceError);
+            },
+        });
+        const readError = await failed
+            .getReader()
+            .read()
+            .catch(error => error);
+        println(`Source error: ${readError}; unchanged: ${readError === sourceError}`);
+
+        const canceled = Promise.withResolvers();
+        const cancelStream = decode({
+            cancel(reason) {
+                println(`Cancellation: ${reason}`);
+                canceled.resolve();
+            },
+        });
+        await cancelStream.cancel("stop");
+        await canceled.promise;
+
+        const invalidCanceled = Promise.withResolvers();
+        const invalid = decode({
+            start(value) {
+                value.enqueue("not bytes");
+            },
+            cancel: invalidCanceled.resolve,
+        });
+        const decodingError = await invalid
+            .getReader()
+            .read()
+            .catch(error => error);
+        println(`Invalid chunk: ${decodingError.name}`);
+        println(`Cancellation error unchanged: ${(await invalidCanceled.promise) === decodingError}`);
+
+        const frame = document.createElement("iframe");
+        document.body.append(frame);
+        const other = frame.contentWindow;
+        for (const body of [null, "text"]) {
+            const stream = Response.prototype.textStream.call(new other.Response(body));
+            println(`Receiver realm (${body}): ${stream instanceof other.ReadableStream}`);
+            await stream.cancel();
+        }
+        frame.remove();
+        done();
+    });
+</script>
