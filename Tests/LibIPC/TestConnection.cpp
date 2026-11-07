@@ -240,6 +240,58 @@ TEST_CASE(taking_unprocessed_messages_preserves_nested_batch_order_and_unrelated
     EXPECT(connection->take_unprocessed_messages(TEST_MAGIC, TARGET_MESSAGE_ID).is_empty());
 }
 
+TEST_CASE(shutdown_stops_current_dispatch_batch)
+{
+    Core::EventLoop loop;
+    auto pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+    CountingStub stub;
+    auto connection = TestConnection::construct(stub, move(pair.local));
+    stub.on_message = [&](IPC::Message const& message) {
+        if (message.message_id() == OTHER_MESSAGE_ID)
+            connection->shutdown();
+    };
+
+    connection->inject_unprocessed_message(make<TestMessage>(OTHER_MESSAGE_ID));
+    connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID));
+    connection->handle_messages();
+
+    EXPECT_EQ(stub.handle_count(), 1u);
+    EXPECT_EQ(connection->die_count(), 1u);
+    EXPECT(!connection->is_open());
+}
+
+TEST_CASE(shutdown_discards_pending_messages_from_all_batches)
+{
+    Core::EventLoop loop;
+    auto pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+    CountingStub stub;
+    auto connection = TestConnection::construct(stub, move(pair.local));
+
+    constexpr int shutdown_message_id = 3;
+    constexpr u32 response_endpoint_magic = TEST_MAGIC + 1;
+    Vector<int> dispatched;
+    stub.on_message = [&](IPC::Message const& message) {
+        dispatched.append(message.message_id());
+        if (message.message_id() == OTHER_MESSAGE_ID) {
+            connection->inject_unprocessed_message(make<TestMessage>(shutdown_message_id));
+            connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID));
+            connection->handle_messages();
+        } else if (message.message_id() == shutdown_message_id) {
+            connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID));
+            connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID, 0, response_endpoint_magic));
+            connection->shutdown();
+            EXPECT(connection->take_unprocessed_messages(TEST_MAGIC, TARGET_MESSAGE_ID).is_empty());
+            EXPECT(!connection->call_wait_for_specific_endpoint_message_impl(response_endpoint_magic, TARGET_MESSAGE_ID));
+        }
+    };
+
+    connection->inject_unprocessed_message(make<TestMessage>(OTHER_MESSAGE_ID));
+    connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID));
+    connection->handle_messages();
+
+    EXPECT_EQ(dispatched, (Vector<int> { OTHER_MESSAGE_ID, shutdown_message_id }));
+}
+
 TEST_CASE(anonymous_buffer_size_uses_64_bits)
 {
     constexpr size_t buffer_size = 4096;
@@ -313,6 +365,8 @@ TEST_CASE(sync_wait_failure_does_not_dispatch_queued_messages)
     auto connection = TestConnection::construct(stub, move(pair.local));
 
     connection->inject_unprocessed_message(make<TestMessage>(OTHER_MESSAGE_ID));
+    // Queue a deferred dispatch before the transport can observe EOF.
+    EXPECT_EQ(connection->drain_messages_from_peer(), TestConnection::PeerEOF::No);
 
     // Hang up the peer before waiting for the response.
     {
@@ -324,10 +378,11 @@ TEST_CASE(sync_wait_failure_does_not_dispatch_queued_messages)
     EXPECT(!response);
     EXPECT_EQ(stub.handle_count(), 0u);
 
-    // Drain the deferred invocations queued by the EOF drain; the thread's event queue outlives this
-    // test's scope, and the stub must not be dispatched to after it is destroyed.
+    // The wait may not shut down if EOF was seen before it started.
+    connection->shutdown();
     while (loop.pump(Core::EventLoop::WaitMode::PollForEvents) != 0)
         ;
+    EXPECT_EQ(stub.handle_count(), 0u);
 }
 
 TEST_CASE(async_posts_from_many_threads_all_arrive)
