@@ -387,23 +387,6 @@ pub unsafe extern "C" fn visual_context_tree_transform_rect_to_viewport(
 ///
 /// `tree` must be a live retained tree handle; `scroll_offsets` must address `scroll_offsets_len` points.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_cumulative_scroll_chain_offset(
-    tree: *const c_void,
-    spatial: SpatialNodeIndex,
-    scroll_offsets: *const libgfx_rust::FloatPoint,
-    scroll_offsets_len: usize,
-    out: &mut libgfx_rust::FloatPoint,
-) {
-    let tree = unsafe { tree_from_handle(tree) };
-    // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
-    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
-    *out = tree.cumulative_scroll_chain_offset(spatial, scroll_offsets);
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle; `scroll_offsets` must address `scroll_offsets_len` points.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_accumulated_matrix(
     tree: *const c_void,
     spatial: SpatialNodeIndex,

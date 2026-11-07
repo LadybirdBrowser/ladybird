@@ -446,16 +446,17 @@ pub extern "C" fn layout_script_has_sticky_positioned_inclusive_ancestor(
     })
 }
 
-/// The offset by which sticky positioning moves the box, as the sum of the offsets of the sticky positioned box and
-/// its sticky positioned ancestors.
-#[unsafe(no_mangle)]
-pub extern "C" fn layout_script_accumulated_sticky_offset(
+fn spatial_chain_offset_in_css_pixels(
     host: &DocumentHost,
     slot: NodeSlotId,
     rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
-    out: &mut crate::painting::ffi::FfiOptionalCssPixelPoint,
-) {
-    *out = read_rows(host, |arena| {
+    device_offset_of_spatial_chain: impl Fn(
+        &crate::painting::visual_context::VisualContextTree,
+        crate::painting::visual_context::SpatialNodeIndex,
+        &[libgfx_rust::FloatPoint],
+    ) -> libgfx_rust::FloatPoint,
+) -> crate::painting::ffi::FfiOptionalCssPixelPoint {
+    read_rows(host, |arena| {
         let mut result = crate::painting::ffi::FfiOptionalCssPixelPoint {
             has_value: false,
             x: CssPixels::from_raw(0),
@@ -468,15 +469,46 @@ pub extern "C" fn layout_script_accumulated_sticky_offset(
             return result;
         }
         let spatial = arena.paintable_data(slot).accumulated_visual_context.spatial;
-        let offset = transform
-            .visual_context_tree
-            .accumulated_sticky_offset(spatial, transform.scroll_offsets);
+        let offset = device_offset_of_spatial_chain(transform.visual_context_tree, spatial, transform.scroll_offsets);
         let inverse_pixel_ratio = 1.0 / transform.device_pixels_per_css_pixel;
         result.has_value = true;
         result.x = CssPixels::nearest_value_for_f32(offset.x * inverse_pixel_ratio);
         result.y = CssPixels::nearest_value_for_f32(offset.y * inverse_pixel_ratio);
         result
-    });
+    })
+}
+
+/// The offset by which sticky positioning moves the box, as the sum of the offsets of the sticky positioned box and
+/// its sticky positioned ancestors.
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_script_accumulated_sticky_offset(
+    host: &DocumentHost,
+    slot: NodeSlotId,
+    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
+    out: &mut crate::painting::ffi::FfiOptionalCssPixelPoint,
+) {
+    *out = spatial_chain_offset_in_css_pixels(
+        host,
+        slot,
+        rect_to_viewport_transform,
+        crate::painting::visual_context::VisualContextTree::accumulated_sticky_offset,
+    );
+}
+
+/// The offset by which scrolling, sticky positioning and anchor scroll shifts move the box, without its transforms.
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_script_offset_to_viewport_ignoring_transforms(
+    host: &DocumentHost,
+    slot: NodeSlotId,
+    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
+    out: &mut crate::painting::ffi::FfiOptionalCssPixelPoint,
+) {
+    *out = spatial_chain_offset_in_css_pixels(
+        host,
+        slot,
+        rect_to_viewport_transform,
+        crate::painting::visual_context::VisualContextTree::offset_to_viewport_ignoring_transforms,
+    );
 }
 
 #[unsafe(no_mangle)]

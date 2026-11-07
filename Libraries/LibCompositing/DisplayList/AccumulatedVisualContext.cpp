@@ -197,14 +197,6 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(SpatialN
     return rect;
 }
 
-Gfx::FloatPoint AccumulatedVisualContextTree::cumulative_scroll_chain_offset(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state) const
-{
-    auto scroll_offsets = scroll_state.device_offsets();
-    Gfx::FloatPoint offset;
-    Compositing::RustFFI::visual_context_tree_cumulative_scroll_chain_offset(m_rust_tree, index, scroll_offsets.data(), scroll_offsets.size(), &offset);
-    return offset;
-}
-
 Gfx::FloatMatrix4x4 AccumulatedVisualContextTree::accumulated_matrix(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
 {
     auto scroll_offsets = scroll_state.device_offsets();

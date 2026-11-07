@@ -1,0 +1,10 @@
+document scrolled: y=200
+scroller scrolled: y=170
+scroller scrolled horizontally: x=150
+scroller scrolled past the origin: y=-80
+scale between two scrolled scrollers: y=160
+fixed in a transformed box in a scrolled scroller: y=180
+fixed in a scrolled document: y=50
+stuck sticky in a scrolled scroller: y=5
+sticky in fixed in a scrolled document: y=60
+anchored to a box in a scrolled scroller: y=180

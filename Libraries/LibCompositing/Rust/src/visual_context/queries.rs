@@ -555,35 +555,28 @@ impl VisualContextTree {
         rect
     }
 
-    pub fn cumulative_scroll_chain_offset(&self, index: SpatialNodeIndex, scroll_offsets: &[FloatPoint]) -> FloatPoint {
-        let nearest_scroll_like_ancestor = |from: SpatialNodeIndex| -> Option<SpatialNodeIndex> {
-            let mut current = from;
-            while current != VISUAL_VIEWPORT_NODE_INDEX {
-                current = self.spatial_nodes[current.0 as usize].parent;
-                if current == VISUAL_VIEWPORT_NODE_INDEX {
-                    return None;
-                }
-                if self.spatial_nodes[current.0 as usize].data.is_scroll_like() {
-                    return Some(current);
-                }
-            }
-            None
-        };
-
+    /// How far the nodes on the spatial chain from `index` up to the viewport move a box when its transforms are left
+    /// out, in device pixels.
+    pub fn offset_to_viewport_ignoring_transforms(
+        &self,
+        index: SpatialNodeIndex,
+        scroll_offsets: &[FloatPoint],
+    ) -> FloatPoint {
         let mut offset = FloatPoint::default();
-        let mut current = Some(index);
-        while let Some(node_index) = current
-            && node_index != VISUAL_VIEWPORT_NODE_INDEX
-        {
-            let entry = device_offset_for_index(scroll_offsets, node_index);
-            offset = FloatPoint {
-                x: offset.x + entry.x,
-                y: offset.y + entry.y,
+        let mut current = index;
+        while current != VISUAL_VIEWPORT_NODE_INDEX {
+            let node = &self.spatial_nodes[current.0 as usize];
+            let node_offset = match &node.data {
+                SpatialData::Scroll(_) | SpatialData::Sticky(_) => device_offset_for_index(scroll_offsets, current),
+                SpatialData::AnchorScrollShift(shift) => shift.masked_offset(scroll_offsets),
+                SpatialData::Transform(_)
+                | SpatialData::Perspective(_)
+                | SpatialData::BackfaceVisibility(_)
+                | SpatialData::Dead => FloatPoint::default(),
             };
-            current = match &self.spatial_nodes[node_index.0 as usize].data {
-                SpatialData::Sticky(sticky) => Some(sticky.parent_sticky.unwrap_or(sticky.scroller)),
-                _ => nearest_scroll_like_ancestor(node_index),
-            };
+            offset.x += node_offset.x;
+            offset.y += node_offset.y;
+            current = node.parent;
         }
         offset
     }
@@ -1427,44 +1420,6 @@ mod tests {
         assert_eq!(
             tree.transform_rect_to_viewport(scroll_node, rect, &scroll_offsets, IncludeVisualViewportTransform::Yes),
             FloatRect::new(18.0, 36.0, 20.0, 20.0)
-        );
-    }
-
-    #[test]
-    fn the_cumulative_scroll_chain_offset_sums_entries_up_the_scroll_parent_chain() {
-        let mut tree = identity_tree();
-        let outer_scroll = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
-        let transformed = tree.append_spatial(
-            SpatialData::Transform(transform_data(FloatMatrix4x4::identity(), FloatPoint::default())),
-            outer_scroll,
-        );
-        let inner_scroll = tree.append_spatial(scroll(), transformed);
-        let sticky = tree.append_spatial(
-            SpatialData::Sticky(StickyData::unconstrained(
-                inner_scroll,
-                None,
-                NO_SCROLL_STATE_SLOT,
-                NodeSlotId::INVALID,
-                inner_scroll,
-            )),
-            inner_scroll,
-        );
-        let mut scroll_offsets = vec![FloatPoint::default(); 5];
-        scroll_offsets[outer_scroll.0 as usize] = point(0.0, -100.0);
-        scroll_offsets[inner_scroll.0 as usize] = point(0.0, -30.0);
-        scroll_offsets[sticky.0 as usize] = point(0.0, 5.0);
-
-        assert_eq!(
-            tree.cumulative_scroll_chain_offset(sticky, &scroll_offsets),
-            point(0.0, -125.0)
-        );
-        assert_eq!(
-            tree.cumulative_scroll_chain_offset(inner_scroll, &scroll_offsets),
-            point(0.0, -130.0)
-        );
-        assert_eq!(
-            tree.cumulative_scroll_chain_offset(VISUAL_VIEWPORT_NODE_INDEX, &scroll_offsets),
-            FloatPoint::default()
         );
     }
 
