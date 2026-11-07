@@ -302,6 +302,7 @@ static constexpr auto GLOBE_ICON_PATH = "M7.5 1.5a6 6 0 1 1 0 12a6 6 0 1 1 0-12z
 static constexpr auto MOON_ICON_PATH = "M13.39 9.15A6 6 0 1 1 6.54 2.08a5 5 0 0 0 6.85 7.07z"sv;
 static constexpr auto DOCUMENT_ICON_PATH = "M3.5 1.5h5l4 4v9h-9zM8.5 1.5v4h4"sv;
 static constexpr auto COMPOSITOR_ICON_PATH = "M5.5 6.5h9v7h-9zM5.5 9.5h-4v-7h9v4"sv;
+static constexpr auto HUB_ICON_PATH = "M7.5 5.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4zM7.5 1.5a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM7.5 11.5a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM2.5 6.5a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM12.5 6.5a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM7.5 3.5v2M7.5 9.5v2M3.5 7.5h2M9.5 7.5h2"sv;
 static constexpr auto IMAGE_ICON_PATH = "M2.5 2.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM1.5 11.5l3.5-3.5 5.5 5.5M9.5 9.5l2-2 3 3M10.5 5.5v.01"sv;
 static constexpr auto FOLDER_ICON_PATH = "M2.5 2.5h3l2 2h6a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"sv;
 static constexpr auto FEEDBACK_ICON_PATH = "M3.5 1.5h8a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-4l-3 3v-3h-1a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2zM7.5 3.5v3M7.5 8.5v.01"sv;
@@ -355,6 +356,8 @@ static StringView chrome_icon_path(ChromeIcon icon)
         return GLOBE_ICON_PATH;
     case ChromeIcon::Compositor:
         return COMPOSITOR_ICON_PATH;
+    case ChromeIcon::Hub:
+        return HUB_ICON_PATH;
     case ChromeIcon::Image:
         return IMAGE_ICON_PATH;
     case ChromeIcon::Download:

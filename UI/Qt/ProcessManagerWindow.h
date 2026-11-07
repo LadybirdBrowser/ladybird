@@ -90,6 +90,7 @@ private:
     QIcon m_document_icon;
     QIcon m_network_icon;
     QIcon m_compositor_icon;
+    QIcon m_hub_icon;
     QIcon m_image_icon;
     QIcon m_service_icon;
     HashMap<String, QIcon> m_favicons;
