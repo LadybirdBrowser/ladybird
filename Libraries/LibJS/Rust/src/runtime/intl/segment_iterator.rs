@@ -70,7 +70,8 @@ impl SegmentIterator {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.intrinsics().intl_segment_iterator_prototype(),
+                realm,
+                Some(realm.intrinsics().intl_segment_iterator_prototype()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
             iterating_segmenter: RefCell::new(Some(segmenter)),

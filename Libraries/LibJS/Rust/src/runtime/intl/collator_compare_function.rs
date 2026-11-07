@@ -62,7 +62,7 @@ impl Deref for CollatorCompareFunction {
 impl CollatorCompareFunction {
     pub fn create(vm: &Vm, realm: Gc<Realm>, collator: Gc<Collator>) -> Gc<CollatorCompareFunction> {
         realm.create_object(vm, |_| CollatorCompareFunction {
-            base: NativeFunction::new_with_prototype(vm, Self::CLASS, realm.function_prototype()),
+            base: NativeFunction::new_with_prototype(vm, Self::CLASS, realm, realm.function_prototype(), None),
             collator: Cell::new(collator),
         })
     }

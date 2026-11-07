@@ -604,11 +604,12 @@ define_native_function_class!(
 impl PromiseConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<PromiseConstructor> {
         realm.create_object(vm, |_| PromiseConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.Promise.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.Promise.as_string().clone()),
             ),
         })
     }
@@ -742,7 +743,7 @@ impl PromiseConstructor {
             realm,
             new_target,
             |intrinsics, vm| intrinsics.promise_prototype(vm),
-            |defer_gc, prototype| Promise::new(defer_gc, vm, Promise::CLASS, prototype),
+            |defer_gc, prototype| Promise::new(defer_gc, vm, realm, Promise::CLASS, prototype),
         )?;
 
         // 8. Let resolvingFunctions be CreateResolvingFunctions(promise).

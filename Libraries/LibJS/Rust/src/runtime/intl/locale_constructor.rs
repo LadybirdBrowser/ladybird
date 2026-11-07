@@ -367,11 +367,12 @@ impl LocaleConstructor {
     // 15.1 The Intl.Locale Constructor, https://tc39.es/ecma402/#sec-intl-locale-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<LocaleConstructor> {
         realm.create_object(vm, |_| LocaleConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.Locale.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.Locale.as_string().clone()),
             ),
         })
     }
@@ -424,7 +425,7 @@ impl LocaleConstructor {
             realm,
             new_target,
             Intrinsics::intl_locale_prototype,
-            |_, prototype| Locale::new(vm, prototype),
+            |_, prototype| Locale::new(vm, realm, prototype),
         )?;
 
         // 7. If tag is not a String and tag is not an Object, throw a TypeError exception.

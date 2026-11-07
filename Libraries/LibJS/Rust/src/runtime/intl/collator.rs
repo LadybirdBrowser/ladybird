@@ -18,6 +18,7 @@ use crate::runtime::abstract_operations::OptionType;
 use crate::runtime::intl::collator_compare_function::CollatorCompareFunction;
 use crate::runtime::intl::intl_object::{IntlObject, ResolutionOptionDescriptor};
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::realm::Realm;
 use crate::unicode::intl::{self as unicode, CaseFirst, Sensitivity, Usage};
 use crate::utf16::Utf16View;
 
@@ -64,9 +65,15 @@ impl Finalize for Collator {
 }
 
 impl Collator {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> Collator {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> Collator {
         Collator {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             locale: RefCell::default(),
             usage: Cell::new(Usage::Sort),
             sensitivity: Cell::new(Sensitivity::Variant),

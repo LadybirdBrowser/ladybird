@@ -41,13 +41,20 @@ impl Deref for DataView {
 impl DataView {
     pub fn new(
         vm: &Vm,
+        realm: Gc<Realm>,
         viewed_buffer: Gc<ArrayBuffer>,
         byte_length: ByteLength,
         byte_offset: usize,
         prototype: Gc<Object>,
     ) -> DataView {
         DataView {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             viewed_array_buffer: Cell::new(viewed_buffer),
             byte_length: Cell::new(byte_length),
             byte_offset: Cell::new(byte_offset),
@@ -63,7 +70,7 @@ impl DataView {
     ) -> Gc<DataView> {
         let prototype = realm.intrinsics().data_view_prototype(vm);
         realm.create_object(vm, |_| {
-            DataView::new(vm, viewed_buffer, byte_length, byte_offset, prototype)
+            DataView::new(vm, realm, viewed_buffer, byte_length, byte_offset, prototype)
         })
     }
 

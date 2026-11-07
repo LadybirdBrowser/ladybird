@@ -29,6 +29,7 @@ use crate::runtime::intl::intl_object::{IntlObject, ResolutionOptionDescriptor};
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::realm::Realm;
 use crate::runtime::temporal::instant::{Instant, NANOSECONDS_PER_MILLISECOND};
 use crate::runtime::temporal::plain_date::{PlainDate, create_iso_date_record};
 use crate::runtime::temporal::plain_date_time::{PlainDateTime, combine_iso_date_and_time_record};
@@ -135,9 +136,15 @@ impl Finalize for DateTimeFormat {
 }
 
 impl DateTimeFormat {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> DateTimeFormat {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> DateTimeFormat {
         DateTimeFormat {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             locale: RefCell::default(),
             calendar: RefCell::default(),
             numbering_system: RefCell::default(),

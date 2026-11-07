@@ -50,10 +50,16 @@ define_object_class!(WeakRef, extends: [Object], methods: {
 
 impl WeakRef {
     /// A WeakRef to `value`, an object or a symbol.
-    pub fn new(vm: &Vm, value: Value, prototype: Gc<Object>) -> WeakRef {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, value: Value, prototype: Gc<Object>) -> WeakRef {
         assert!(value.is_object() || value.is_symbol());
         WeakRef {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             value: Cell::new(value),
             last_execution_generation: Cell::new(vm.head.execution_generation.get()),
             vm_execution_generation: NonNull::from(&vm.head.execution_generation),
@@ -62,7 +68,7 @@ impl WeakRef {
 
     pub fn create(vm: &Vm, realm: Gc<Realm>, value: Value) -> Gc<WeakRef> {
         realm.create_object(vm, |_| {
-            WeakRef::new(vm, value, realm.intrinsics().weak_ref_prototype(vm))
+            WeakRef::new(vm, realm, value, realm.intrinsics().weak_ref_prototype(vm))
         })
     }
 

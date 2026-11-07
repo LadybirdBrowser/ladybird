@@ -45,11 +45,12 @@ impl PluralRulesConstructor {
     // 17.1 The Intl.PluralRules Constructor, https://tc39.es/ecma402/#sec-intl-pluralrules-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<PluralRulesConstructor> {
         realm.create_object(vm, |_| PluralRulesConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.PluralRules.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.PluralRules.as_string().clone()),
             ),
         })
     }
@@ -104,7 +105,7 @@ impl PluralRulesConstructor {
             realm,
             new_target,
             Intrinsics::intl_plural_rules_prototype,
-            |_, prototype| PluralRules::new(vm, prototype),
+            |_, prototype| PluralRules::new(vm, realm, prototype),
         )?;
 
         // 3. Let optionsResolution be ? ResolveOptions(%Intl.PluralRules%, %Intl.PluralRules%.[[LocaleData]], locales, options, « COERCE-OPTIONS »).

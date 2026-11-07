@@ -28,6 +28,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::{AkDouble, ErrorType};
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::realm::Realm;
 use crate::runtime::temporal::abstract_operations::{
     ArithmeticOperation, Disambiguation, Overflow, Precision, Sign, Unit, UnitCategory, apply_unsigned_rounding_mode,
     format_fractional_seconds, get_unsigned_rounding_mode, is_calendar_unit, larger_of_two_temporal_units,
@@ -135,13 +136,19 @@ fn normalize_field(value: f64) -> f64 {
 }
 
 impl Duration {
-    fn new(vm: &Vm, fields: DurationFields, prototype: Gc<Object>) -> Duration {
+    fn new(vm: &Vm, realm: Gc<Realm>, fields: DurationFields, prototype: Gc<Object>) -> Duration {
         // NOTE: The spec stores these fields as mathematical values. VERIFY() that we have finite, integral values in them,
         //       and normalize any negative zeros caused by floating point math. This is usually done using ℝ(𝔽(value)) at
         //       the call site.
         let fields = fields.map(normalize_field);
         Duration {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             years: fields.years,
             months: fields.months,
             weeks: fields.weeks,
@@ -1042,7 +1049,7 @@ pub fn create_temporal_duration(
         realm,
         new_target,
         Intrinsics::temporal_duration_prototype,
-        |_, prototype| Duration::new(vm, fields, prototype),
+        |_, prototype| Duration::new(vm, realm, fields, prototype),
     )?;
 
     // 14. Return object.

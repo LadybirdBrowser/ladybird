@@ -772,7 +772,13 @@ pub fn ordinary_create_from_constructor(
     intrinsic_default_prototype: IntrinsicDefaultPrototype,
 ) -> ThrowCompletionOr<Gc<Object>> {
     ordinary_create_from_constructor_of(vm, realm, constructor, intrinsic_default_prototype, |_, prototype| {
-        Object::new_with_prototype(vm, Object::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No)
+        Object::new_with_prototype(
+            vm,
+            Object::CLASS,
+            realm,
+            Some(prototype),
+            MayInterfereWithIndexedPropertyAccess::No,
+        )
     })
 }
 

@@ -123,11 +123,12 @@ impl<'vm> KeyedGroups<'vm> for ValueKeyedGroups<'vm> {
 impl MapConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<MapConstructor> {
         realm.create_object(vm, |_| MapConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.Map.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.Map.as_string().clone()),
             ),
         })
     }
@@ -185,7 +186,7 @@ impl MapConstructor {
             realm,
             new_target,
             Intrinsics::map_prototype,
-            |defer_gc, prototype| Map::new(defer_gc, vm, prototype),
+            |defer_gc, prototype| Map::new(defer_gc, vm, realm, prototype),
         )?;
 
         if vm.argument(0).is_nullish() {

@@ -25,6 +25,7 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::realm::Realm;
 use crate::runtime::temporal::abstract_operations::{
     ArithmeticOperation, DurationOperation, Overflow, SecondsPrecision, Unit, UnitGroup, format_time_string,
     get_difference_settings, get_temporal_overflow_option, parse_iso_date_time, round_number_to_increment,
@@ -66,9 +67,15 @@ impl core::ops::Deref for PlainTime {
 }
 
 impl PlainTime {
-    fn new(vm: &Vm, time: Time, prototype: Gc<Object>) -> PlainTime {
+    fn new(vm: &Vm, realm: Gc<Realm>, time: Time, prototype: Gc<Object>) -> PlainTime {
         PlainTime {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             time,
         }
     }
@@ -532,7 +539,7 @@ pub fn create_temporal_time(
         realm,
         new_target,
         Intrinsics::temporal_plain_time_prototype,
-        |_, prototype| PlainTime::new(vm, time, prototype),
+        |_, prototype| PlainTime::new(vm, realm, time, prototype),
     )?;
 
     // 4. Return object.

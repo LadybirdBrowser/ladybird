@@ -57,7 +57,8 @@ impl AsyncDisposableStackPrototype {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.object_prototype(),
+                realm,
+                Some(realm.object_prototype()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
         })
@@ -288,7 +289,7 @@ impl AsyncDisposableStackPrototype {
             realm,
             realm.intrinsics().async_disposable_stack_constructor(vm).upcast(),
             Intrinsics::async_disposable_stack_prototype,
-            |defer_gc, prototype| AsyncDisposableStack::new(defer_gc, vm, prototype),
+            |defer_gc, prototype| AsyncDisposableStack::new(defer_gc, vm, realm, prototype),
         )?;
 
         // 6. Set newAsyncDisposableStack.[[DisposeCapability]] to asyncDisposableStack.[[DisposeCapability]].

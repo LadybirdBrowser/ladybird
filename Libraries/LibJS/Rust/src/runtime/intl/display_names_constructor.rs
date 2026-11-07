@@ -42,11 +42,12 @@ impl DisplayNamesConstructor {
     // 12.1 The Intl.DisplayNames Constructor, https://tc39.es/ecma402/#sec-intl-displaynames-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DisplayNamesConstructor> {
         realm.create_object(vm, |_| DisplayNamesConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.DisplayNames.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.DisplayNames.as_string().clone()),
             ),
         })
     }
@@ -102,7 +103,7 @@ impl DisplayNamesConstructor {
             realm,
             new_target,
             Intrinsics::intl_display_names_prototype,
-            |_, prototype| DisplayNames::new(vm, prototype),
+            |_, prototype| DisplayNames::new(vm, realm, prototype),
         )?;
 
         // 3. Let optionsResolution be ? ResolveOptions(%Intl.DisplayNames%, %Intl.DisplayNames%.[[LocaleData]], locales, options, « REQUIRE-OPTIONS »).

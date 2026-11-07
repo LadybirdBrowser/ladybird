@@ -40,7 +40,8 @@ impl BigIntObject {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.intrinsics().bigint_prototype(vm),
+                realm,
+                Some(realm.intrinsics().bigint_prototype(vm)),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
             bigint,

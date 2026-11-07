@@ -56,11 +56,12 @@ impl Deref for IsHTMLDDA {
 impl IsHTMLDDA {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<IsHTMLDDA> {
         // NativeFunction without prototype is currently not possible (only due to the lack of a ctor that supports it)
-        let base = NativeFunction::new_with_name(
+        let base = NativeFunction::new_with_prototype(
             vm,
             Self::CLASS,
-            Utf16FlyString::from_utf8("IsHTMLDDA"),
+            realm,
             realm.function_prototype(),
+            Some(Utf16FlyString::from_utf8("IsHTMLDDA")),
         );
         base.set_is_htmldda(vm);
         realm.create_object(vm, |_| IsHTMLDDA { base })

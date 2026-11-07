@@ -89,7 +89,13 @@ impl FinalizationRegistry {
         prototype: Gc<Object>,
     ) -> FinalizationRegistry {
         FinalizationRegistry {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             realm,
             cleanup_callback,
             records: GcRefCell::new(FinalizationRecords::default()),

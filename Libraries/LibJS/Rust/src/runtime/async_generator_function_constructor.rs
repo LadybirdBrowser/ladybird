@@ -38,11 +38,12 @@ impl AsyncGeneratorFunctionConstructor {
         // NB: The spec has %Function% as the [[Prototype]] of %AsyncGeneratorFunction%, but this uses
         //     %Function.prototype%.
         realm.create_object(vm, |_| AsyncGeneratorFunctionConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.AsyncGeneratorFunction.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.AsyncGeneratorFunction.as_string().clone()),
             ),
         })
     }

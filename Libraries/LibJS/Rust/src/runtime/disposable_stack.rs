@@ -17,6 +17,7 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::runtime::abstract_operations::{DisposeCapability, new_dispose_capability};
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::realm::Realm;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Trace)]
 pub enum DisposableState {
@@ -50,9 +51,15 @@ impl Finalize for DisposableStack {
 
 impl DisposableStack {
     /// A pending stack with a new dispose capability.
-    pub fn new(_: &DeferGc<'_>, vm: &Vm, prototype: Gc<Object>) -> DisposableStack {
+    pub fn new(_: &DeferGc<'_>, vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> DisposableStack {
         DisposableStack {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             disposable_state: Cell::new(DisposableState::Pending),
             dispose_capability: GcRefCell::new(new_dispose_capability()),
         }

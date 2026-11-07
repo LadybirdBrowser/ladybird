@@ -58,11 +58,12 @@ impl IteratorConstructor {
     // 27.1.3.1 The Iterator Constructor, https://tc39.es/ecma262/#sec-iterator-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<IteratorConstructor> {
         realm.create_object(vm, |_| IteratorConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.Iterator.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.Iterator.as_string().clone()),
             ),
         })
     }
@@ -183,6 +184,7 @@ impl IteratorConstructor {
         // 5. Set wrapper.[[Iterated]] to iteratorRecord.
         let wrapper = Iterator::create(
             vm,
+            realm,
             realm.intrinsics().wrap_for_valid_iterator_prototype(),
             iterator_record,
         );

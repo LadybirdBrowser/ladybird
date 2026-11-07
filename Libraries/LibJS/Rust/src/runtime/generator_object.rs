@@ -189,13 +189,7 @@ impl GeneratorObject {
         execute: GeneratorExecuteFunction,
     ) -> GeneratorObject {
         GeneratorObject {
-            base: Object::new_with_realm_and_prototype(
-                vm,
-                class,
-                realm,
-                prototype,
-                MayInterfereWithIndexedPropertyAccess::No,
-            ),
+            base: Object::new_with_prototype(vm, class, realm, prototype, MayInterfereWithIndexedPropertyAccess::No),
             execution_context: GcRefCell::new(Some(execution_context)),
             generating_executable: Cell::new(None),
             yield_continuation: Cell::new(ExecutionContext::NO_YIELD_CONTINUATION),

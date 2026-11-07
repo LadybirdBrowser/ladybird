@@ -99,7 +99,7 @@ impl NativeJavaScriptBackedFunction {
         // 8. Set func.[[Realm]] to realm.
         // 9. Set func.[[InitialName]] to null.
         let function = realm.create_object(vm, |_| NativeJavaScriptBackedFunction {
-            base: NativeFunction::new_with_name(vm, Self::CLASS, shared_data.name(), prototype),
+            base: NativeFunction::new_with_prototype(vm, Self::CLASS, realm, prototype, Some(shared_data.name())),
             shared_function_instance_data: Cell::new(shared_data),
         });
 

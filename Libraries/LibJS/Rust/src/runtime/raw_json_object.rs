@@ -39,7 +39,13 @@ impl RawJSONObject {
         };
 
         realm.create_object(vm, |_| RawJSONObject {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
         })
     }
 }

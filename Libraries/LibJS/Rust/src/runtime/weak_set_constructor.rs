@@ -39,11 +39,12 @@ define_native_function_class!(
 impl WeakSetConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakSetConstructor> {
         realm.create_object(vm, |_| WeakSetConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.WeakSet.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.WeakSet.as_string().clone()),
             ),
         })
     }
@@ -83,7 +84,7 @@ impl WeakSetConstructor {
             realm,
             new_target,
             Intrinsics::weak_set_prototype,
-            |defer_gc, prototype| WeakSet::new(defer_gc, vm, prototype),
+            |defer_gc, prototype| WeakSet::new(defer_gc, vm, realm, prototype),
         )?;
 
         // 4. If iterable is either undefined or null, return set.

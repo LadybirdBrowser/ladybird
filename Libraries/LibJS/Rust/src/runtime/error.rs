@@ -147,17 +147,29 @@ pub fn error_data_of_error(object: &Object) -> Option<&ErrorData> {
 
 impl Error {
     /// An error with `prototype`, for `class`, which is Error or a class that extends it.
-    pub fn new(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> Error {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, class: &'static Class, prototype: Gc<Object>) -> Error {
         Error {
-            base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                class,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             error_data: ErrorData::new(vm),
         }
     }
 
     /// An error an Error constructor is creating: its stack leaves out the constructor's own frame.
-    pub fn new_in_constructor(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> Error {
+    pub fn new_in_constructor(vm: &Vm, realm: Gc<Realm>, class: &'static Class, prototype: Gc<Object>) -> Error {
         Error {
-            base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                class,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             error_data: ErrorData::new_in_constructor(vm),
         }
     }
@@ -170,14 +182,14 @@ impl Error {
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Error> {
         realm.create_object(vm, |_| {
-            Error::new(vm, Error::CLASS, realm.intrinsics().error_prototype(vm))
+            Error::new(vm, realm, Error::CLASS, realm.intrinsics().error_prototype(vm))
         })
     }
 
     /// An error with `prototype`, as OrdinaryCreateFromConstructor creates one for an error type of the embedder,
     /// whose prototype the realm's intrinsics do not have.
     pub fn create_with_prototype(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> Gc<Error> {
-        realm.create_object(vm, |_| Error::new(vm, Error::CLASS, prototype))
+        realm.create_object(vm, |_| Error::new(vm, realm, Error::CLASS, prototype))
     }
 
     pub fn create_with_message(vm: &Vm, realm: Gc<Realm>, message: Utf16String) -> Gc<Error> {
@@ -239,20 +251,20 @@ macro_rules! define_native_errors {
             }
 
             impl $class {
-                pub fn new(vm: &Vm, prototype: Gc<Object>) -> $class {
+                pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> $class {
                     $class {
-                        base: Error::new(vm, Self::CLASS, prototype),
+                        base: Error::new(vm, realm, Self::CLASS, prototype),
                     }
                 }
 
-                pub fn new_in_constructor(vm: &Vm, prototype: Gc<Object>) -> $class {
+                pub fn new_in_constructor(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> $class {
                     $class {
-                        base: Error::new_in_constructor(vm, Self::CLASS, prototype),
+                        base: Error::new_in_constructor(vm, realm, Self::CLASS, prototype),
                     }
                 }
 
                 pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<$class> {
-                    realm.create_object(vm, |_| $class::new(vm, realm.intrinsics().$prototype(vm)))
+                    realm.create_object(vm, |_| $class::new(vm, realm, realm.intrinsics().$prototype(vm)))
                 }
 
                 pub fn create_with_message(vm: &Vm, realm: Gc<Realm>, message: Utf16String) -> Gc<$class> {

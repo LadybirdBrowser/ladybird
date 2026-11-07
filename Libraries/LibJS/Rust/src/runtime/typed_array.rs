@@ -177,6 +177,7 @@ impl TypedArrayBase {
     /// the class of the typed array of `kind`.
     fn new(
         vm: &Vm,
+        realm: Gc<Realm>,
         class: &'static Class,
         prototype: Gc<Object>,
         array_length: usize,
@@ -184,7 +185,13 @@ impl TypedArrayBase {
         kind: Kind,
     ) -> TypedArrayBase {
         let element_size = kind.element_type().size() as u8;
-        let object = Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::Yes);
+        let object = Object::new_with_prototype(
+            vm,
+            class,
+            realm,
+            Some(prototype),
+            MayInterfereWithIndexedPropertyAccess::Yes,
+        );
         object.set_is_typed_array();
         let typed_array = TypedArrayBase {
             base: object,
@@ -1666,7 +1673,7 @@ macro_rules! define_typed_arrays {
                     let typed_array = realm.create_object(
                         vm,
                         |_| $class {
-                            base: TypedArrayBase::new(vm, Self::CLASS, prototype, length, array_buffer, Kind::$class),
+                            base: TypedArrayBase::new(vm, realm, Self::CLASS, prototype, length, array_buffer, Kind::$class),
                         },
                     );
                     typed_array.update_cached_data_offset(vm);
@@ -1692,7 +1699,7 @@ macro_rules! define_typed_arrays {
                     let typed_array = realm.create_object(
                         vm,
                         |_| $class {
-                            base: TypedArrayBase::new(vm, Self::CLASS, prototype, length, array_buffer, Kind::$class),
+                            base: TypedArrayBase::new(vm, realm, Self::CLASS, prototype, length, array_buffer, Kind::$class),
                         },
                     );
                     typed_array.update_cached_data_offset(vm);
@@ -1716,12 +1723,7 @@ macro_rules! define_typed_arrays {
                     realm.create_object(
                         vm,
                         |_| $prototype {
-                            base: Object::new_with_prototype(
-                                vm,
-                                Self::CLASS,
-                                typed_array_prototype,
-                                MayInterfereWithIndexedPropertyAccess::Yes,
-                            ),
+                            base: Object::new_with_prototype(vm, Self::CLASS, realm, Some(typed_array_prototype), MayInterfereWithIndexedPropertyAccess::Yes),
                         },
                     )
                 }
@@ -1758,12 +1760,7 @@ macro_rules! define_typed_arrays {
                     realm.create_object(
                         vm,
                         |_| $constructor {
-                            base: NativeFunction::new_with_name(
-                                vm,
-                                Self::CLASS,
-                                vm.names.$class.as_string().clone(),
-                                typed_array_constructor,
-                            ),
+                            base: NativeFunction::new_with_prototype(vm, Self::CLASS, realm, typed_array_constructor, Some(vm.names.$class.as_string().clone())),
                         },
                     )
                 }

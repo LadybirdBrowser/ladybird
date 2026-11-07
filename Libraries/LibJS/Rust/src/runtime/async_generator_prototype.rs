@@ -78,7 +78,8 @@ impl AsyncGeneratorPrototype {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.intrinsics().async_iterator_prototype(),
+                realm,
+                Some(realm.intrinsics().async_iterator_prototype()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
         })

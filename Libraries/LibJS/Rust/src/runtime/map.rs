@@ -138,16 +138,22 @@ impl Finalize for Map {
 }
 
 impl Map {
-    pub fn new(_: &DeferGc<'_>, vm: &Vm, prototype: Gc<Object>) -> Map {
+    pub fn new(_: &DeferGc<'_>, vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> Map {
         Map {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             storage: GcRefCell::new(MapStorage::default()),
         }
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Map> {
         realm.create_object(vm, |defer_gc| {
-            Map::new(defer_gc, vm, realm.intrinsics().map_prototype(vm))
+            Map::new(defer_gc, vm, realm, realm.intrinsics().map_prototype(vm))
         })
     }
 

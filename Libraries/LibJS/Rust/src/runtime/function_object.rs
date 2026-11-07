@@ -50,31 +50,15 @@ impl Deref for FunctionObject {
 }
 
 impl FunctionObject {
-    pub fn new_with_realm_and_prototype(
+    pub fn new_with_prototype(
         vm: &Vm,
         class: &'static Class,
         realm: Gc<Realm>,
         prototype: Option<Gc<Object>>,
         may_interfere_with_indexed_property_access: MayInterfereWithIndexedPropertyAccess,
     ) -> FunctionObject {
-        let object = Object::new_with_realm_and_prototype(
-            vm,
-            class,
-            realm,
-            prototype,
-            may_interfere_with_indexed_property_access,
-        );
-        object.set_is_function();
-        Self::from_object(object)
-    }
-
-    pub fn new_with_prototype(
-        vm: &Vm,
-        class: &'static Class,
-        prototype: Gc<Object>,
-        may_interfere_with_indexed_property_access: MayInterfereWithIndexedPropertyAccess,
-    ) -> FunctionObject {
-        let object = Object::new_with_prototype(vm, class, prototype, may_interfere_with_indexed_property_access);
+        let object =
+            Object::new_with_prototype(vm, class, realm, prototype, may_interfere_with_indexed_property_access);
         object.set_is_function();
         Self::from_object(object)
     }

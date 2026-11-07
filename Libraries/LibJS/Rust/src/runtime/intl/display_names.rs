@@ -25,6 +25,7 @@ use crate::runtime::intl::abstract_operations::{
 use crate::runtime::intl::intl_object::{IntlObject, ResolutionOptionDescriptor};
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::primitive_string::PrimitiveString;
+use crate::runtime::realm::Realm;
 use crate::unicode::intl::{self as unicode, LanguageDisplay, Style};
 use crate::utf16::Utf16View;
 
@@ -80,9 +81,15 @@ impl Deref for DisplayNames {
 }
 
 impl DisplayNames {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> DisplayNames {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> DisplayNames {
         DisplayNames {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             locale: RefCell::default(),
             style: Cell::new(Style::Long),
             type_: Cell::new(Type::Invalid),

@@ -32,21 +32,21 @@ impl Deref for SuppressedError {
 }
 
 impl SuppressedError {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> SuppressedError {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> SuppressedError {
         SuppressedError {
-            base: Error::new(vm, Self::CLASS, prototype),
+            base: Error::new(vm, realm, Self::CLASS, prototype),
         }
     }
 
-    pub fn new_in_constructor(vm: &Vm, prototype: Gc<Object>) -> SuppressedError {
+    pub fn new_in_constructor(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> SuppressedError {
         SuppressedError {
-            base: Error::new_in_constructor(vm, Self::CLASS, prototype),
+            base: Error::new_in_constructor(vm, realm, Self::CLASS, prototype),
         }
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SuppressedError> {
         realm.create_object(vm, |_| {
-            SuppressedError::new(vm, realm.intrinsics().suppressed_error_prototype(vm))
+            SuppressedError::new(vm, realm, realm.intrinsics().suppressed_error_prototype(vm))
         })
     }
 }

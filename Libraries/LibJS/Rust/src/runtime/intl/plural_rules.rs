@@ -19,6 +19,7 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::intl::intl_object::{IntlObject, ResolutionOptionDescriptor};
 use crate::runtime::intl::mathematical_value::MathematicalValue;
 use crate::runtime::intl::number_format::NumberFormatBase;
+use crate::runtime::realm::Realm;
 use crate::unicode::number_format::{self as unicode, PluralCategory, PluralForm};
 use crate::utf16::Utf16View;
 
@@ -42,9 +43,9 @@ impl Deref for PluralRules {
 }
 
 impl PluralRules {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> PluralRules {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> PluralRules {
         PluralRules {
-            base: NumberFormatBase::new(vm, Self::CLASS, prototype),
+            base: NumberFormatBase::new(vm, realm, Self::CLASS, prototype),
             type_: Cell::new(PluralForm::Cardinal),
         }
     }

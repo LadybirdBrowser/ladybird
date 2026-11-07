@@ -50,7 +50,8 @@ impl Intl {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.object_prototype(),
+                realm,
+                Some(realm.object_prototype()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
             // The Intl object has a [[FallbackSymbol]] internal slot, which is a new %Symbol% in the current realm

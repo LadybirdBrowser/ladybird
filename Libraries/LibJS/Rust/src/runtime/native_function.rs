@@ -102,34 +102,27 @@ impl NativeFunction {
         realm: Gc<Realm>,
         builtin: Option<Builtin>,
     ) -> NativeFunction {
-        let base = FunctionObject::new_with_realm_and_prototype(
-            vm,
-            class,
-            realm,
-            prototype,
-            MayInterfereWithIndexedPropertyAccess::No,
-        );
+        let base =
+            FunctionObject::new_with_prototype(vm, class, realm, prototype, MayInterfereWithIndexedPropertyAccess::No);
         base.set_builtin(builtin);
         Self::from_function_object(base, None, realm)
     }
 
-    // FIXME: m_realm is supposed to be the realm argument of CreateBuiltinFunction, or the current
-    //        Realm Record. The former is not something that's commonly used or we support, the
-    //        latter is impossible as no ExecutionContext exists when most NativeFunctions are created...
-
-    pub fn new_with_prototype(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> NativeFunction {
-        let base = FunctionObject::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No);
-        Self::from_function_object(base, None, prototype.shape().realm())
-    }
-
-    pub fn new_with_name(
+    pub fn new_with_prototype(
         vm: &Vm,
         class: &'static Class,
-        name: Utf16FlyString,
+        realm: Gc<Realm>,
         prototype: Gc<Object>,
+        name: Option<Utf16FlyString>,
     ) -> NativeFunction {
-        let base = FunctionObject::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No);
-        Self::from_function_object(base, Some(name), prototype.shape().realm())
+        let base = FunctionObject::new_with_prototype(
+            vm,
+            class,
+            realm,
+            Some(prototype),
+            MayInterfereWithIndexedPropertyAccess::No,
+        );
+        Self::from_function_object(base, name, realm)
     }
 
     fn from_function_object(base: FunctionObject, name: Option<Utf16FlyString>, realm: Gc<Realm>) -> NativeFunction {
@@ -232,11 +225,12 @@ impl NativeFunction {
     {
         CapturingNativeFunction::create(
             vm,
-            NativeFunction::new_with_name(
+            NativeFunction::new_with_prototype(
                 vm,
                 CapturingNativeFunction::CLASS,
-                name.clone(),
+                realm,
                 realm.function_prototype(),
+                Some(name.clone()),
             ),
             captures,
             behaviour,
@@ -728,14 +722,15 @@ impl RawNativeFunction {
         RawNativeFunction { base }
     }
 
-    pub fn new_with_name(
+    pub fn new_with_prototype(
         vm: &Vm,
         class: &'static Class,
+        realm: Gc<Realm>,
+        prototype: Gc<Object>,
         name: Utf16FlyString,
         native_function: RawNativeFunctionPointer,
-        prototype: Gc<Object>,
     ) -> RawNativeFunction {
-        let base = NativeFunction::new_with_name(vm, class, name, prototype);
+        let base = NativeFunction::new_with_prototype(vm, class, realm, prototype, Some(name));
         base.set_is_raw_native_function();
         base.raw_native_function_index
             .set(vm.register_native_function(NativeFunctionTableEntry {
@@ -775,7 +770,14 @@ impl RawNativeFunction {
         function: RawNativeFunctionPointer,
     ) -> Gc<RawNativeFunction> {
         allocate_object(vm, |_| {
-            Self::new_with_name(vm, Self::CLASS, name.clone(), function, realm.function_prototype())
+            Self::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                realm.function_prototype(),
+                name.clone(),
+                function,
+            )
         })
     }
 

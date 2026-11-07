@@ -134,9 +134,15 @@ impl Deref for Iterator {
 }
 
 impl Iterator {
-    pub fn create(vm: &Vm, prototype: Gc<Object>, iterated: Gc<IteratorRecord>) -> Gc<Iterator> {
+    pub fn create(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>, iterated: Gc<IteratorRecord>) -> Gc<Iterator> {
         allocate_object(vm, |_| Iterator {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             iterated: Cell::new(iterated),
         })
     }

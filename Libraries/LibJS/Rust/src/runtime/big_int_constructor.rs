@@ -38,11 +38,12 @@ define_native_function_class!(
 impl BigIntConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<BigIntConstructor> {
         realm.create_object(vm, |_| BigIntConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.BigInt.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.BigInt.as_string().clone()),
             ),
         })
     }

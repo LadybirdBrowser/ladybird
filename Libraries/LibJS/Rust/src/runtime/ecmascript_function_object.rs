@@ -553,7 +553,12 @@ impl EcmascriptFunctionObject {
             // a. Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%Object.prototype%").
             // NB: With room for the properties the constructor is known to add.
             let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::object_prototype)?;
-            this_argument = Some(Object::create_for_construct(vm, prototype, function.shared_data()));
+            this_argument = Some(Object::create_for_construct(
+                vm,
+                vm.current_realm().expect("a construction runs in a realm"),
+                prototype,
+                function.shared_data(),
+            ));
         }
 
         // 4. Let calleeContext be PrepareForOrdinaryCall(F, newTarget).

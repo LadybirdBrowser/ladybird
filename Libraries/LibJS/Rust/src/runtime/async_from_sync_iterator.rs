@@ -41,7 +41,8 @@ impl AsyncFromSyncIterator {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.intrinsics().async_from_sync_iterator_prototype(),
+                realm,
+                Some(realm.intrinsics().async_from_sync_iterator_prototype()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
             sync_iterator_record: Cell::new(sync_iterator_record),

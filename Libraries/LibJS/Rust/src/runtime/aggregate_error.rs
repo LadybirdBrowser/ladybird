@@ -32,21 +32,21 @@ impl Deref for AggregateError {
 }
 
 impl AggregateError {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> AggregateError {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> AggregateError {
         AggregateError {
-            base: Error::new(vm, Self::CLASS, prototype),
+            base: Error::new(vm, realm, Self::CLASS, prototype),
         }
     }
 
-    pub fn new_in_constructor(vm: &Vm, prototype: Gc<Object>) -> AggregateError {
+    pub fn new_in_constructor(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> AggregateError {
         AggregateError {
-            base: Error::new_in_constructor(vm, Self::CLASS, prototype),
+            base: Error::new_in_constructor(vm, realm, Self::CLASS, prototype),
         }
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AggregateError> {
         realm.create_object(vm, |_| {
-            AggregateError::new(vm, realm.intrinsics().aggregate_error_prototype(vm))
+            AggregateError::new(vm, realm, realm.intrinsics().aggregate_error_prototype(vm))
         })
     }
 }

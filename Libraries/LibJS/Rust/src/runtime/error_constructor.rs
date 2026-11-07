@@ -39,11 +39,12 @@ define_native_function_class!(
 impl ErrorConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ErrorConstructor> {
         realm.create_object(vm, |_| ErrorConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.Error.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.Error.as_string().clone()),
             ),
         })
     }
@@ -95,7 +96,7 @@ impl ErrorConstructor {
 
         // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%Error.prototype%", « [[ErrorData]] »).
         let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::error_prototype)?;
-        let error = realm.create_object(vm, |_| Error::new_in_constructor(vm, Error::CLASS, prototype));
+        let error = realm.create_object(vm, |_| Error::new_in_constructor(vm, realm, Error::CLASS, prototype));
 
         // 3. If message is not undefined, then
         if !message.is_undefined() {
@@ -158,12 +159,7 @@ macro_rules! define_native_error_constructors {
                     realm.create_object(
                         vm,
                         |_| $constructor {
-                            base: NativeFunction::new_with_name(
-                                vm,
-                                Self::CLASS,
-                                vm.names.$name.as_string().clone(),
-                                realm.intrinsics().error_constructor(vm).upcast(),
-                            ),
+                            base: NativeFunction::new_with_prototype(vm, Self::CLASS, realm, realm.intrinsics().error_constructor(vm).upcast(), Some(vm.names.$name.as_string().clone())),
                         },
                     )
                 }
@@ -208,7 +204,7 @@ macro_rules! define_native_error_constructors {
 
                     // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%NativeError.prototype%", « [[ErrorData]] »).
                     let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::$prototype)?;
-                    let error = realm.create_object(vm, |_| $class::new_in_constructor(vm, prototype));
+                    let error = realm.create_object(vm, |_| $class::new_in_constructor(vm, realm, prototype));
 
                     // 3. If message is not undefined, then
                     if !message.is_undefined() {

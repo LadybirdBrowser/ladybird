@@ -42,7 +42,8 @@ impl MapIteratorPrototype {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.intrinsics().iterator_prototype(vm),
+                realm,
+                Some(realm.intrinsics().iterator_prototype(vm)),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
         })

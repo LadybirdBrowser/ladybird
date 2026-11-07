@@ -44,11 +44,12 @@ impl RelativeTimeFormatConstructor {
     // 18.1 The Intl.RelativeTimeFormat Constructor, https://tc39.es/ecma402/#sec-intl-relativetimeformat-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<RelativeTimeFormatConstructor> {
         realm.create_object(vm, |_| RelativeTimeFormatConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.RelativeTimeFormat.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.RelativeTimeFormat.as_string().clone()),
             ),
         })
     }
@@ -103,7 +104,7 @@ impl RelativeTimeFormatConstructor {
             realm,
             new_target,
             Intrinsics::intl_relative_time_format_prototype,
-            |_, prototype| RelativeTimeFormat::new(vm, prototype),
+            |_, prototype| RelativeTimeFormat::new(vm, realm, prototype),
         )?;
 
         // 3. Let optionsResolution be ? ResolveOptions(%Intl.RelativeTimeFormat%, %Intl.RelativeTimeFormat%.[[LocaleData]], locales, options, « COERCE-OPTIONS »).

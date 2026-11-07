@@ -30,6 +30,7 @@ use crate::runtime::intl::number_format::{NumberFormat, partition_number_pattern
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::realm::Realm;
 use crate::runtime::temporal::duration::{Duration, duration_sign};
 use crate::unicode::intl::{self as unicode, Style as UnicodeStyle};
 use crate::utf16::{Utf16StringBuilder, Utf16View};
@@ -158,9 +159,15 @@ macro_rules! duration_unit_options_accessors {
 }
 
 impl DurationFormat {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> DurationFormat {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> DurationFormat {
         DurationFormat {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             locale: RefCell::default(),
             numbering_system: RefCell::default(),
             hour_minute_separator: RefCell::default(),

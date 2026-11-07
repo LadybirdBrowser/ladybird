@@ -204,7 +204,14 @@ fn construct_ecmascript_function_from_jit(
         // a. Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%Object.prototype%").
         // NB: With room for the properties the constructor is known to add.
         match get_prototype_from_constructor(vm, function.as_function_object_gc(), Intrinsics::object_prototype) {
-            Ok(prototype) => this_argument = Some(Object::create_for_construct(vm, prototype, function.shared_data())),
+            Ok(prototype) => {
+                this_argument = Some(Object::create_for_construct(
+                    vm,
+                    vm.current_realm().expect("a construction runs in a realm"),
+                    prototype,
+                    function.shared_data(),
+                ));
+            }
             Err(throw) => return handle_asm_exception(vm, site.pc, throw.value()),
         }
     }
