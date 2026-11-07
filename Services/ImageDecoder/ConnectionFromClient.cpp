@@ -23,6 +23,19 @@ static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
 static IDAllocator s_client_ids;
 
 static i64 s_next_session_id { 1 };
+static auto s_is_held_open_by_browser = ConnectionFromClient::IsHeldOpenByBrowser::No;
+
+static void exit_if_no_longer_needed()
+{
+    if (s_connections.is_empty() && s_is_held_open_by_browser == ConnectionFromClient::IsHeldOpenByBrowser::No)
+        Core::Process::terminate_immediately(0);
+}
+
+void ConnectionFromClient::set_is_held_open_by_browser(IsHeldOpenByBrowser is_held_open)
+{
+    s_is_held_open_by_browser = is_held_open;
+    exit_if_no_longer_needed();
+}
 
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, RefPtr<ClientGroup> group)
     : IPC::ConnectionFromClient<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(transport), s_client_ids.allocate())
@@ -50,9 +63,7 @@ void ConnectionFromClient::die()
     s_connections.remove(client_id);
     s_client_ids.deallocate(client_id);
 
-    if (s_connections.is_empty()) {
-        Core::Process::terminate_immediately(0);
-    }
+    exit_if_no_longer_needed();
 }
 
 static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<RefPtr<Gfx::Bitmap>>& bitmaps, Vector<u32>& durations)

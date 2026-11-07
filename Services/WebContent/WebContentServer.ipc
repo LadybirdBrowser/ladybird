@@ -93,7 +93,6 @@ endpoint WebContentServer routed by Web::PageId page_id
     connect_to_web_ui(Web::PageId page_id, IPC::TransportHandle handle) =|
     connect_to_request_server(IPC::TransportHandle handle, int client_id, Optional<Utf16String> top_level_site) =|
     connect_to_test_endpoint(IPC::TransportHandle handle) =|
-    connect_to_image_decoder(IPC::TransportHandle handle) =|
     connect_to_compositor_process(IPC::TransportHandle handle, IPC::TransportHandle render_clock_handle) =|
     compositor_process_reconnected() =|
     set_site_compatibility_data(JsonValue data) =|

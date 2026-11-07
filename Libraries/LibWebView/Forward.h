@@ -44,6 +44,8 @@ class FontService;
 class FontServiceHost;
 class HistoryStore;
 class HSTSStore;
+class ImageDecoderControlClient;
+class ImageDecoderManager;
 class Menu;
 class MicrophoneAuthorizer;
 class NavigationLoader;

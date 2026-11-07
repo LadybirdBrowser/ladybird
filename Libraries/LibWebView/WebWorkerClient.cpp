@@ -13,6 +13,7 @@
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/ImageDecoderManager.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
@@ -190,6 +191,11 @@ Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient:
         return OptionalNone {};
     }
     return move(connection.value().handle);
+}
+
+Messages::WebWorkerClient::RequestImageDecoderConnectionResponse WebWorkerClient::request_image_decoder_connection()
+{
+    return ImageDecoderManager::the().connect_requesting_process(child_id(), m_is_private);
 }
 
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)

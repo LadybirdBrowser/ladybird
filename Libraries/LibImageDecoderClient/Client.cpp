@@ -19,11 +19,13 @@ void Client::die()
     verify_event_loop();
     auto pending_promises = move(m_token_promises);
 
-    for (auto& promise : pending_promises)
-        promise.value->reject(Error::from_string_literal("ImageDecoder disconnected"));
-
+    // NB: A rejection may start another decode, so whoever holds this client must have let go of it by then. That may also
+    //     be the last reference to this client, so nothing here touches it after this.
     if (auto on_death = move(this->on_death))
         on_death();
+
+    for (auto& promise : pending_promises)
+        promise.value->reject(Error::from_string_literal("ImageDecoder disconnected"));
 }
 
 NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes encoded_data, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)

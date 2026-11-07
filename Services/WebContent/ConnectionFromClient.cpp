@@ -452,12 +452,6 @@ void ConnectionFromClient::connect_to_web_ui(Web::PageId page_id, IPC::Transport
     }
 }
 
-void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
-{
-    if (on_image_decoder_connection)
-        on_image_decoder_connection(handle);
-}
-
 void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle handle, IPC::TransportHandle render_clock_handle)
 {
     auto transport = MUST(handle.create_transport());
@@ -514,6 +508,14 @@ ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_webrtc_clie
     auto response = send_sync_but_allow_failure<Messages::WebContentClient::RequestWebrtcClientConnection>();
     if (!response || !response->handle().has_value())
         return Error::from_string_literal("The Browser did not launch a WebRTCClient");
+    return response->take_handle()->create_transport();
+}
+
+ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_image_decoder_transport()
+{
+    auto response = send_sync_but_allow_failure<Messages::WebContentClient::RequestImageDecoderConnection>();
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("The Browser did not connect an image decoder");
     return response->take_handle()->create_transport();
 }
 

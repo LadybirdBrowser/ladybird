@@ -57,3 +57,25 @@ TEST_CASE(a_reply_without_a_duration_for_every_bitmap_is_refused)
     EXPECT(!reply_is_accepted(bitmaps(1), { 10, 20 }, 0));
     EXPECT(!reply_is_accepted(bitmaps(3), { 10, 20 }, 1));
 }
+
+TEST_CASE(a_dying_client_is_let_go_of_before_its_decodes_are_rejected)
+{
+    Core::EventLoop event_loop;
+    auto paired = MUST(IPC::Transport::create_paired());
+    RefPtr<ImageDecoderClient::Client> client = adopt_ref(*new ImageDecoderClient::Client(move(paired.local)));
+
+    bool decode_was_rejected = false;
+    client->on_death = [&] { client = nullptr; };
+
+    Array<u8, 4> encoded_data {};
+    (void)client->decode_image(
+        encoded_data.span(),
+        [](ImageDecoderClient::DecodedImage&) -> ErrorOr<void> { return {}; },
+        [&](Error&) {
+            EXPECT(!client);
+            decode_was_rejected = true;
+        });
+
+    client->shutdown();
+    EXPECT(decode_was_rejected);
+}

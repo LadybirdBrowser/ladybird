@@ -4,6 +4,7 @@ set(CMAKE_AUTOUIC OFF)
 
 set(SOURCES
     ConnectionFromClient.cpp
+    ControlConnection.cpp
 )
 
 if (ANDROID)

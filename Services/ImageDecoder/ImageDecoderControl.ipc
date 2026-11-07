@@ -1,0 +1,7 @@
+#include <LibIPC/TransportHandle.h>
+
+endpoint ImageDecoderControl
+{
+    // Takes a new client, whose animation sessions are its own.
+    connect_new_client(IPC::TransportHandle handle) =|
+}

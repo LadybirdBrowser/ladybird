@@ -47,8 +47,11 @@ HashTable<pid_t> processes_of_type(WebView::ProcessType type)
 
 }
 
-// An ImageDecoder parses untrusted images, so each renderer has one of its own, and never sees another's images. A
-// decoder that crashes is replaced for its renderer alone.
+static constexpr auto page_with_image = "<!DOCTYPE html><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\">"sv;
+
+// An ImageDecoder parses untrusted images, so it is launched only for a process that has some to decode. Each such process
+// has one of its own, and never sees another's images. A decoder that crashes is replaced for its renderer alone, once the
+// renderer next has an image to decode.
 
 TEST_CASE(image_decoder_isolation)
 {
@@ -62,26 +65,43 @@ TEST_CASE(image_decoder_isolation)
     auto first_view = WebView::HeadlessWebView::create(theme, { 800, 600 });
     auto second_view = WebView::HeadlessWebView::create(theme, { 800, 600 });
 
-    auto renderers = processes_of_type(WebView::ProcessType::WebContent);
+    size_t first_view_loads = 0;
+    size_t second_view_loads = 0;
+    first_view->on_load_finish = [&](auto const&) { ++first_view_loads; };
+    second_view->on_load_finish = [&](auto const&) { ++second_view_loads; };
+    Core::EventLoop::current().spin_until([&] { return first_view_loads >= 1 && second_view_loads >= 1; });
+
+    // Nothing has had an image to decode yet.
+    VERIFY(processes_of_type(WebView::ProcessType::ImageDecoder).is_empty());
+
+    // The load event waits for the image, so its decoder has been launched by the time the load finishes.
+    first_view->load_html(page_with_image);
+    Core::EventLoop::current().spin_until([&] { return first_view_loads >= 2; });
+    VERIFY(processes_of_type(WebView::ProcessType::ImageDecoder).size() == 1);
+
+    second_view->load_html(page_with_image);
+    Core::EventLoop::current().spin_until([&] { return second_view_loads >= 2; });
     auto decoders = processes_of_type(WebView::ProcessType::ImageDecoder);
-    VERIFY(renderers.size() >= 2);
-    VERIFY(decoders.size() == renderers.size());
+    VERIFY(decoders.size() == 2);
 
     auto crashed_decoder = *decoders.begin();
     TRY_OR_FAIL(Core::System::kill(crashed_decoder, SIGKILL));
-
-    // The replacement is launched as the Browser learns that the decoder died, so this cannot finish without it.
     Core::EventLoop::current().spin_until([&] {
         return !processes_of_type(WebView::ProcessType::ImageDecoder).contains(crashed_decoder);
     });
 
-    // A spare renderer may have been launched meanwhile, with a decoder of its own.
+    // Both renderers decode again, and only the one that lost its decoder gets a new one.
+    first_view->load_html(page_with_image);
+    second_view->load_html(page_with_image);
+    Core::EventLoop::current().spin_until([&] { return first_view_loads >= 3 && second_view_loads >= 3; });
+
     auto decoders_after_crash = processes_of_type(WebView::ProcessType::ImageDecoder);
-    VERIFY(decoders_after_crash.size() == processes_of_type(WebView::ProcessType::WebContent).size());
+    VERIFY(decoders_after_crash.size() == 2);
+    VERIFY(!decoders_after_crash.contains(crashed_decoder));
     for (auto decoder : decoders) {
         if (decoder != crashed_decoder)
             VERIFY(decoders_after_crash.contains(decoder));
     }
 
-    outln("PASS: each renderer has an image decoder of its own, which is replaced alone when it crashes");
+    outln("PASS: each renderer gets an image decoder of its own when it needs one, which is replaced alone when it crashes");
 }

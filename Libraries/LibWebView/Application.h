@@ -125,6 +125,7 @@ public:
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const;
 
     static RequestServerManager& request_server_manager() { return *the().m_request_server_manager; }
+    static ImageDecoderManager& image_decoder_manager() { return *the().m_image_decoder_manager; }
     // The UI process's own client of the session's RequestServer with no site.
     static ErrorOr<NonnullRefPtr<Requests::RequestClient>> request_server_client(IsPrivate = IsPrivate::No);
     // The control connection of the default session's RequestServer with no site.
@@ -246,8 +247,6 @@ public:
     static IPC::HandleBrokerServer& handle_broker_server() { return *the().m_handle_broker_server; }
 #endif
 
-    // Runs the handler when the ImageDecoder with the given child ID exits.
-    void set_image_decoder_exit_handler(u64 child_id, Function<void()>);
 #if defined(AK_OS_MACOS)
     static IPC::TransportBootstrapMachServer& transport_bootstrap_server() { return the().m_transport_bootstrap_server; }
     void set_browser_process_transport_handler(Function<void(NonnullOwnPtr<IPC::Transport>)> handler);
@@ -674,7 +673,7 @@ private:
     WebDriverSessionConfig m_webdriver_session_config;
 
     OwnPtr<RequestServerManager> m_request_server_manager;
-    HashMap<u64, Function<void()>> m_image_decoder_exit_handlers;
+    OwnPtr<ImageDecoderManager> m_image_decoder_manager;
     RefPtr<CompositorClient> m_compositor_client;
     RefPtr<CompositorPresentationClient> m_compositor_presentation_client;
     u64 m_compositor_presentation_id { 0 };

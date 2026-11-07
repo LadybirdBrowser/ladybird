@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <ImageDecoder/ConnectionFromClient.h>
+#include <ImageDecoder/ControlConnection.h>
 #include <ImageDecoder/Sandbox.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
@@ -56,7 +56,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (!disable_sandbox)
         TRY(ImageDecoder::apply_sandbox(mach_server_name));
 
-    auto client = TRY(IPC::take_over_accepted_client_from_system_server<ImageDecoder::ConnectionFromClient>(mach_server_name));
+    auto client = TRY(IPC::take_over_accepted_client_from_system_server<ImageDecoder::ControlConnection>(mach_server_name));
 
     if (stats_log)
         stats_log->start_sampling();

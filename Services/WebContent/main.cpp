@@ -159,7 +159,6 @@ static void install_crash_signal_handlers()
 #endif
 
 static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle, Optional<int> client_id, Optional<Utf16String> const& top_level_site);
-static ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle);
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
@@ -300,10 +299,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (auto result = connect_to_resource_loader(heap, handle, client_id, top_level_site); result.is_error())
             dbgln("Failed to connect to resource loader: {}", result.error());
     };
-    webcontent_client->on_image_decoder_connection = [](auto const& handle) {
-        if (auto result = connect_to_image_decoder(handle); result.is_error())
-            dbgln("Failed to connect to image decoder: {}", result.error());
-    };
+    // Many processes never decode an image, so the Browser connects this one to a decoder when it first has one to decode.
+    Web::Platform::ImageCodecPlugin::install(*new Web::Platform::RemoteImageCodecPlugin([webcontent_client] -> ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> {
+        return try_make_ref_counted<ImageDecoderClient::Client>(TRY(webcontent_client->request_image_decoder_transport()));
+    }));
 
     MediaClient::Client::set_transport_factory([webcontent_client] {
         return webcontent_client->request_media_server_transport();
@@ -338,16 +337,5 @@ ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle co
     if (!Web::ResourceLoader::is_initialized())
         Web::ResourceLoader::initialize(heap);
     Web::ResourceLoader::the().set_client(top_level_site, move(request_client));
-    return {};
-}
-
-ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle)
-{
-    auto transport = TRY(handle.create_transport());
-    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(move(transport)));
-    if (Web::Platform::ImageCodecPlugin::is_initialized())
-        static_cast<Web::Platform::RemoteImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
-    else
-        Web::Platform::ImageCodecPlugin::install(*new Web::Platform::RemoteImageCodecPlugin(move(new_client)));
     return {};
 }

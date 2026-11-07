@@ -35,17 +35,8 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebWorkerClient>> launch_web_worker_p
 WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, HTTPDiskCacheMode);
 WEBVIEW_API void apply_dns_settings(Requests::RequestControlClient&);
 
-struct ImageDecoderConnection {
-    IPC::TransportHandle handle;
-    u64 child_id { 0 };
-};
-
-// Launches an ImageDecoder that serves a single renderer or worker, which talks to it over the returned handle.
-WEBVIEW_API ErrorOr<ImageDecoderConnection> launch_image_decoder_process();
-
-// Hands the client its ImageDecoder. If that decoder dies while the client is still connected, the client gets a new one.
-WEBVIEW_API void connect_to_image_decoder(WebContentClient&, ImageDecoderConnection);
-WEBVIEW_API void connect_to_image_decoder(WebWorkerClient&, ImageDecoderConnection);
+// Launches an ImageDecoder, which the given process is listed with.
+WEBVIEW_API ErrorOr<NonnullRefPtr<ImageDecoderControlClient>> launch_image_decoder_process(u64 owner_child_id);
 
 // Launches a WebRTCClient that serves the given renderer alone, which talks to it over the returned handle, and ends any
 // helper the renderer had before. The helper exits once that renderer's end of the transport is gone.

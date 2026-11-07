@@ -18,7 +18,10 @@ class WEB_API RemoteImageCodecPlugin final : public ImageCodecPlugin {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    explicit RemoteImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client>);
+    // Called for a client whenever one is needed and there is none, at first and after losing one.
+    using ConnectToImageDecoder = Function<ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>>()>;
+
+    explicit RemoteImageCodecPlugin(ConnectToImageDecoder);
     virtual ~RemoteImageCodecPlugin() override;
 
     virtual NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected) override;
@@ -29,11 +32,10 @@ public:
     virtual void connect_frame_client(IPC::TransportHandle) override;
     virtual u64 client_generation() const override { return m_client_generation; }
 
-    void set_client(NonnullRefPtr<ImageDecoderClient::Client>);
-
 private:
-    void setup_client_callbacks();
+    ImageDecoderClient::Client* ensure_client();
 
+    ConnectToImageDecoder m_connect_to_image_decoder;
     RefPtr<ImageDecoderClient::Client> m_client;
     u64 m_client_generation { 0 };
 };
