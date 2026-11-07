@@ -142,9 +142,21 @@ void FullscreenMode::enter(Tab* tab)
     if (m_fullscreen_tab && m_fullscreen_tab != tab)
         exit(ExitInitiatedBy::UI);
 
+    // NB: Another request from the tab that holds fullscreen, such as from another of its frames, keeps the window
+    //     state saved for the first one.
+    if (m_fullscreen_tab == tab) {
+        if (m_window->isFullScreen())
+            entered_fullscreen();
+        return;
+    }
+
     qApp->installEventFilter(this);
     m_fullscreen_tab = tab;
+    auto window_was_fullscreen = m_window->isFullScreen();
     m_window->enter_fullscreen();
+    // NB: A window the user already made full screen has no state change to report, so the page gets it at once.
+    if (window_was_fullscreen)
+        entered_fullscreen();
 }
 
 void FullscreenMode::entered_fullscreen()
@@ -1591,7 +1603,9 @@ void BrowserWindow::enter_fullscreen()
 {
     m_tabs_container->set_tab_bar_visible(false);
 
-    // NB: Only the full-screen state changes, so the window comes back maximized if it was.
+    // NB: Only the full-screen state changes, so the window comes back maximized if it was. And a window the user
+    //     already made full screen stays so after the page leaves full screen.
+    m_window_was_fullscreen_before_page = isFullScreen();
     setWindowState(windowState() | Qt::WindowFullScreen);
 
     m_tabs_container->update_bookmarks_bar_visibility();
@@ -1604,7 +1618,8 @@ void BrowserWindow::exit_fullscreen()
 
     m_tabs_container->set_tab_bar_visible(true);
 
-    setWindowState(windowState() & ~Qt::WindowFullScreen);
+    if (!m_window_was_fullscreen_before_page)
+        setWindowState(windowState() & ~Qt::WindowFullScreen);
 
     m_tabs_container->update_bookmarks_bar_visibility();
 }
