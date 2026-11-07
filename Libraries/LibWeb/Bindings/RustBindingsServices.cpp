@@ -294,7 +294,10 @@ void web_bindings_queue_a_microtask(void* realm, JSObject* function)
     GC::Ref<JS::FunctionObject> steps = as<JS::FunctionObject>(*JS::HostABI::object_from_abi(function));
     HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [js_realm, steps] {
         HTML::TemporaryExecutionContext execution_context { js_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-        MUST(JS::call(steps->vm(), *steps, JS::js_undefined()));
+        // NB: The steps cannot fail, but they can run into the abort of the script that they call.
+        auto& vm = steps->vm();
+        auto result = JS::call(vm, *steps, JS::js_undefined());
+        VERIFY(!result.is_error() || vm.interrupt_requested());
     }));
 }
 

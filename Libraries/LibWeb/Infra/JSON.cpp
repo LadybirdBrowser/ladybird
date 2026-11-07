@@ -154,9 +154,15 @@ String serialize_an_infra_value_to_a_json_string(JS::Realm& realm, JSONTopLevel 
     // 2. Return ! Call(%JSON.stringify%, undefined, « jsValue »).
     // Spec Note: Since no additional arguments are passed to %JSON.stringify%, the resulting string will have no
     //            whitespace inserted.
-    auto result = MUST(JS::call(vm, *realm.intrinsics().json_stringify_function(), JS::js_undefined(), js_value));
-    VERIFY(result.is_string());
-    return result.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
+    // NB: Script can get in here through toJSON on a prototype, and the abort of that script is the one thing that stops
+    //     this. Whoever asked is about to be stopped as well, and nobody will look at the string.
+    auto result = JS::call(vm, *realm.intrinsics().json_stringify_function(), JS::js_undefined(), js_value);
+    if (result.is_error()) {
+        VERIFY(vm.interrupt_requested());
+        return {};
+    }
+    VERIFY(result.value().is_string());
+    return result.value().as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-json-bytes
