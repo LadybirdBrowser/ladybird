@@ -1139,7 +1139,7 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
         define_attribute, define_cached_attribute, define_constants, define_indexed_properties_iterator,
         define_interface_object_properties, define_operation, define_to_string_tag, define_unimplemented_property,
         define_value_iterator_properties, entry_point_arguments, implementation_if, implementation_of,
-        prototype_from_new_target, realm_is_secure_context, realm_is_window, rejected_promise, set_dictionary_member,
+        prototype_from_new_target, realm_is_secure_context, realm_is_window, set_dictionary_member,
         set_interface_prototype_object_prototype, this_object, to_interface,
     };
     use crate::bindings::async_iterable::{
@@ -1152,7 +1152,7 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
     };
     use crate::bindings::callback::{CallbackFunction, CallbackInterface, PromiseCallbackFunction};
     use crate::bindings::event_target::{event_handler_attribute, set_event_handler_attribute};
-    use crate::bindings::promise::WebIdlPromise;
+    use crate::bindings::promise::{WebIdlPromise, create_rejected_promise};
     use crate::bindings::{CallContext, WebIdlResult, with_custom_element_reactions};
 """
 
@@ -1191,7 +1191,10 @@ def write_rust_operation_set(
     fn {operation_set.function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         // An exception that the overload resolution of an operation with a promise type throws rejects a new promise,
         // https://webidl.spec.whatwg.org/#dfn-create-operation-function
-        {resolution}(vm).or_else(|throw| Ok(rejected_promise(vm, throw)))
+        {resolution}(vm).or_else(|throw| {{
+            let realm = vm.current_realm().expect("a native function runs in a realm");
+            Ok(Value::from_object(create_rejected_promise(vm, realm, throw.value()).promise()))
+        }})
     }}
 """
         )
@@ -1282,7 +1285,10 @@ def write_rust_interface(
             Ok(this) => this,
             // If the attribute's type is a promise type, a this value that does not implement the interface rejects
             // a new promise.
-            Err(throw) => return Ok(rejected_promise(vm, throw)),
+            Err(throw) => {
+                let realm = vm.current_realm().expect("a native function runs in a realm");
+                return Ok(Value::from_object(create_rejected_promise(vm, realm, throw.value()).promise()));
+            }
         }"""
         receiver = "(implementation, mut cx)"
         caller_realm_context = ""
@@ -2043,7 +2049,10 @@ def write_rust_static_operation(
         // https://webidl.spec.whatwg.org/#dfn-create-operation-function
         let steps = || -> ThrowCompletionOr<Value> {{
 {textwrap.indent(steps.getvalue(), "    ")}        }};
-        steps().or_else(|throw| Ok(rejected_promise(vm, throw)))
+        steps().or_else(|throw| {{
+            let realm = vm.current_realm().expect("a native function runs in a realm");
+            Ok(Value::from_object(create_rejected_promise(vm, realm, throw.value()).promise()))
+        }})
 """
         )
     else:
@@ -2357,7 +2366,10 @@ def write_rust_operation(
         // https://webidl.spec.whatwg.org/#dfn-create-operation-function
         let steps = || -> ThrowCompletionOr<Value> {{
 {textwrap.indent(steps.getvalue(), "    ")}        }};
-        steps().or_else(|throw| Ok(rejected_promise(vm, throw)))
+        steps().or_else(|throw| {{
+            let realm = vm.current_realm().expect("a native function runs in a realm");
+            Ok(Value::from_object(create_rejected_promise(vm, realm, throw.value()).promise()))
+        }})
 """
         )
     else:

@@ -464,17 +464,9 @@ def write_operation(
     )
     if should_wrap_promise_rejections:
         includes.add("LibWeb/WebIDL/Promise.h")
-        if operation_invokes_as_static or interface.is_namespace or "NeedsCallerRealm" in operation.extended_attributes:
-            promise_realm_setup = "[[maybe_unused]] auto& promise_realm = realm;"
-        else:
-            promise_realm_setup = """auto promise_realm_this_value = vm.this_value();
-    if (promise_realm_this_value.is_nullish())
-        promise_realm_this_value = &realm.global_object();
-    [[maybe_unused]] auto& promise_realm = this_value_realm(realm, promise_realm_this_value);"""
         out.write(
-            f"""    {promise_realm_setup}
-
-    auto steps = [&realm, &vm]() -> JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> {{
+            """
+    auto steps = [&realm, &vm]() -> JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> {
         (void)realm;
 """
         )
@@ -577,10 +569,10 @@ def write_operation(
     // 1. If op has a return type that is a promise type, then return ! Call(%Promise.reject%, %Promise%, «E»).
     // 2. Otherwise, end these steps and allow the exception to propagate.
     if (maybe_R.is_throw_completion())
-        return WebIDL::create_rejected_promise(promise_realm, maybe_R.error_value())->promise();
+        return WebIDL::create_rejected_promise(realm, maybe_R.error_value())->promise();
 
     auto R = maybe_R.release_value();
-    return {to_javascript_value(operation.return_type, "R", includes, context, "promise_realm")};
+    return {to_javascript_value(operation.return_type, "R", includes, context, "realm")};
 }}
 
 """
@@ -641,7 +633,7 @@ def write_operation(
     // 1. If op has a return type that is a promise type, then return ! Call(%Promise.reject%, %Promise%, «E»).
     // 2. Otherwise, end these steps and allow the exception to propagate.
     if (maybe_R.is_throw_completion())
-        return WebIDL::create_rejected_promise(promise_realm, maybe_R.error_value())->promise();
+        return WebIDL::create_rejected_promise(realm, maybe_R.error_value())->promise();
 
     return maybe_R.release_value()->promise();
 }}
@@ -661,9 +653,9 @@ def write_operation(
     // 1. If op has a return type that is a promise type, then return ! Call(%Promise.reject%, %Promise%, «E»).
     // 2. Otherwise, end these steps and allow the exception to propagate.
     if (maybe_R.is_throw_completion())
-        return WebIDL::create_rejected_promise(promise_realm, maybe_R.error_value())->promise();
+        return WebIDL::create_rejected_promise(realm, maybe_R.error_value())->promise();
 
-    return {to_javascript_value(operation.return_type, "maybe_R.release_value()", includes, context, "promise_realm")};
+    return {to_javascript_value(operation.return_type, "maybe_R.release_value()", includes, context, "realm")};
 }}
 
 """

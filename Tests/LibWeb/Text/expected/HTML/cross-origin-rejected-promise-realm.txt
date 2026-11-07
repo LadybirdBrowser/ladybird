@@ -1,0 +1,8 @@
+cross-origin frame: true
+same-process frame: true
+Blob.prototype.text: true true
+FontFace.prototype.load: true true
+FontFace.prototype.loaded: true true
+FontFaceSet.prototype.ready: true true
+ReadableStream async iterator next: true true
+ReadableStream async iterator return: true true
