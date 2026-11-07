@@ -98,6 +98,14 @@ impl<T> CellRoot<T> {
             _cell: PhantomData,
         }
     }
+
+    pub fn cell(&self) -> Gc<T> {
+        // SAFETY: The root holds the live cell it was created with, of type T.
+        unsafe {
+            let cell = capi::gc_root_cell(self.root.as_ptr());
+            Gc::from_non_null(NonNull::new(cell.cast()).expect("a root holds a cell"))
+        }
+    }
 }
 
 impl<T> Drop for CellRoot<T> {
