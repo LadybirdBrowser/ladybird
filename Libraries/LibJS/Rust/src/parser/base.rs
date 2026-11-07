@@ -353,10 +353,10 @@ impl<'a, U: Unit> Parser<'a, U> {
     /// `source` must be followed by at least 64 units of zeros within the same allocation.
     pub unsafe fn new(source: &'a [U], module: bool, mode: Mode) -> Self {
         let estimated_nodes = match mode {
-            Mode::Lazy => (source.len() / 3 + 1024).min(1 << 16),
-            Mode::Full => source.len() / 3 + 1024,
+            Mode::Lazy => (source.len() / 3 + 16).min(1 << 16),
+            Mode::Full => source.len() / 3 + 16,
         };
-        let estimated_functions = source.len() / 128 + 16;
+        let estimated_functions = source.len() / 128;
         let mut parser = Self::with_capacities(
             source.as_ptr(),
             source.len(),
@@ -365,7 +365,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             Interner::new(source.len()),
             estimated_nodes,
             estimated_functions,
-            1 << 16,
+            (source.len() / 8 + 16).min(1 << 16),
         );
         if source.len() >= u32::MAX as usize - 64 {
             parser.len = 0;
@@ -451,7 +451,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             prev_end: 0,
             prev_start: 0,
             regex_body_end: 0,
-            name_buffer: Vec::with_capacity(256),
+            name_buffer: Vec::new(),
             interner,
             ast: Ast::with_capacity(estimated_nodes),
             index: FunctionIndex {
@@ -482,7 +482,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             module,
             strict: module,
             ctx: if module { ctx::CAN_AWAIT } else { 0 },
-            labels: Vec::with_capacity(64),
+            labels: Vec::new(),
             labels_base: 0,
             stack_limit: 0,
             recursion_depth: 0,
@@ -506,7 +506,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             ],
             uses: Vec::with_capacity(estimated_uses),
             decls: Vec::with_capacity(estimated_uses / 16),
-            scopes: Vec::with_capacity(256),
+            scopes: Vec::with_capacity((length / 64 + 1).min(256)),
             cur_scope: 0,
             cur_func: 0,
             next_scope: 1,

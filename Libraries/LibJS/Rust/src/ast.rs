@@ -285,6 +285,19 @@ pub(crate) struct NameTable {
 }
 
 impl NameTable {
+    pub(crate) fn from_parser_names<'a>(names: impl ExactSizeIterator<Item = &'a [u8]> + Clone) -> Self {
+        let ascii_bytes = names.clone().filter(|name| name.is_ascii()).map(<[u8]>::len).sum();
+        let mut table = Self {
+            spans: Vec::with_capacity(names.len()),
+            ascii_text: Vec::with_capacity(ascii_bytes),
+            ..Self::default()
+        };
+        for name in names {
+            table.push(name);
+        }
+        table
+    }
+
     pub(crate) fn memory_size(&self) -> usize {
         self.spans.capacity() * size_of::<NameSpan>()
             + self.ascii_text.capacity()
