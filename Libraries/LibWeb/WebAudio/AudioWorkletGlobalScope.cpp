@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/WebAudio/AudioWorklet.h>
 #include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
+#include <LibWeb/WebAudio/AudioWorkletNode.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -151,13 +152,6 @@ AudioWorkletGlobalScope::ProcessorDefinition const* AudioWorkletGlobalScope::fin
     return &it->value;
 }
 
-Optional<AudioWorkletGlobalScope::PendingProcessorConstructionData> AudioWorkletGlobalScope::take_pending_processor_construction_data()
-{
-    if (!m_pending_processor_construction_data.has_value())
-        return {};
-    return m_pending_processor_construction_data.release_value();
-}
-
 void AudioWorkletGlobalScope::set_pending_processor_construction_data(PendingProcessorConstructionData data)
 {
     m_pending_processor_construction_data = move(data);
@@ -170,8 +164,10 @@ void AudioWorkletGlobalScope::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_port);
     for (auto& definition : m_processor_definitions)
         visitor.visit(definition.value.constructor);
-    if (m_pending_processor_construction_data.has_value())
-        visitor.visit(m_pending_processor_construction_data->port);
+    if (m_pending_processor_construction_data.has_value()) {
+        visitor.visit(m_pending_processor_construction_data->node_reference);
+        visitor.visit(m_pending_processor_construction_data->transferred_port);
+    }
 }
 
 }

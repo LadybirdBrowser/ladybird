@@ -5,7 +5,13 @@ asyncTest(async done => {
     const context = new AudioContext({ sampleRate: 44100 });
     const url = URL.createObjectURL(new Blob([`
         class RateProcessor extends AudioWorkletProcessor {
-            constructor() { super(); this.port.postMessage(sampleRate); }
+            constructor() {
+                super();
+                let secondConstruction;
+                try { new AudioWorkletProcessor(); }
+                catch (error) { secondConstruction = error.name; }
+                this.port.postMessage({ sampleRate, secondConstruction });
+            }
             process() { throw new Error("processor failure"); }
         }
         registerProcessor("rate", RateProcessor);
@@ -24,8 +30,9 @@ asyncTest(async done => {
         const node = new AudioWorkletNode(context, "rate");
         // A running context may process the node before it is connected, so listen before anything else happens.
         const failure = new Promise(resolve => node.onprocessorerror = resolve);
-        const rate = await new Promise(resolve => node.port.onmessage = event => resolve(event.data));
-        println(`processor sample rate: ${rate}`);
+        const report = await new Promise(resolve => node.port.onmessage = event => resolve(event.data));
+        println(`processor sample rate: ${report.sampleRate}`);
+        println(`second construction: ${report.secondConstruction}`);
         node.connect(context.destination);
         await context.resume();
         await failure;

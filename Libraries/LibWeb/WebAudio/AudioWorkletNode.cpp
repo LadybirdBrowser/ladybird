@@ -29,7 +29,7 @@ extern "C" AudioWorkletGlobalScope* web_audio_worklet_global_scope(AudioWorklet*
 extern "C" JS::Realm* web_audio_worklet_scope_realm(AudioWorkletGlobalScope*);
 extern "C" JSCompletion web_audio_worklet_clone_options(JSVM*, JS::Realm*, JS::Realm*, JS::Object*);
 extern "C" JS::FunctionObject* web_audio_worklet_processor_constructor(AudioWorkletGlobalScope*, FlatPtr);
-extern "C" void web_audio_worklet_set_pending_port(AudioWorkletGlobalScope*, HTML::MessagePort*);
+extern "C" void web_audio_worklet_set_pending_data(AudioWorkletGlobalScope*, AudioWorkletNode*, HTML::MessagePort*);
 extern "C" void web_audio_worklet_clear_pending_data(AudioWorkletGlobalScope*);
 extern "C" void web_audio_worklet_set_current_frame(AudioWorkletGlobalScope*, u64);
 extern "C" void web_audio_worklet_queue_processor_error(AudioWorkletNode*, DOM::EventTarget*, DOM::EventTarget*, JSValue);
@@ -63,8 +63,11 @@ JS::FunctionObject* web_audio_worklet_processor_constructor(AudioWorkletGlobalSc
     VERIFY(definition);
     return definition->constructor.ptr();
 }
-void web_audio_worklet_set_pending_port(AudioWorkletGlobalScope* scope, HTML::MessagePort* port) { scope->set_pending_processor_construction_data({ *port }); }
-void web_audio_worklet_clear_pending_data(AudioWorkletGlobalScope* scope) { (void)scope->take_pending_processor_construction_data(); }
+void web_audio_worklet_set_pending_data(AudioWorkletGlobalScope* scope, AudioWorkletNode* node_reference, HTML::MessagePort* transferred_port)
+{
+    scope->set_pending_processor_construction_data({ *node_reference, *transferred_port });
+}
+void web_audio_worklet_clear_pending_data(AudioWorkletGlobalScope* scope) { scope->clear_pending_processor_construction_data(); }
 void web_audio_worklet_set_current_frame(AudioWorkletGlobalScope* scope, u64 current_frame) { scope->set_current_frame_and_time(current_frame, static_cast<double>(current_frame) / scope->sample_rate()); }
 void web_audio_worklet_queue_processor_error(AudioWorkletNode* node, DOM::EventTarget* target, DOM::EventTarget* global, JSValue error)
 {
