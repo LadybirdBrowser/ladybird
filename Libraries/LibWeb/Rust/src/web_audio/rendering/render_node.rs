@@ -306,7 +306,8 @@ impl RenderNodeData {
         source_buses.clear();
         for connection in connections {
             let bus = graph.pull_output(connection.source, connection.output_index, context);
-            if !bus.is_null() {
+            // A ScriptProcessorNode can supply an AudioBuffer with no channels.
+            if unsafe { bus.as_ref() }.is_some_and(|bus| bus.channel_count() != 0) {
                 source_buses.push(bus);
             }
         }
