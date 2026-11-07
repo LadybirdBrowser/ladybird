@@ -9,6 +9,7 @@
 #include <AK/JsonObject.h>
 #include <Hub/HubClientEndpoint.h>
 #include <Hub/HubServerEndpoint.h>
+#include <LibCore/GeolocationProvider.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibWebView/ReportSubmission.h>
 
@@ -37,9 +38,15 @@ public:
     void send_settings_changes(JsonValue const&);
 
 private:
+    Core::GeolocationProvider* ensure_geolocation_provider();
+
     bool m_did_initialize { false };
     u64 m_next_report_post_id { 1 };
     HashMap<u64, Function<void(WebView::ReportSubmission::PostResponse)>> m_report_posts;
+    OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
+    HashMap<u64, Core::GeolocationProvider::RequestId> m_geolocation_requests;
+    HashMap<u64, Core::GeolocationProvider::WatchId> m_geolocation_watches;
+    HashMap<u64, WebView::Translator::SessionId> m_translator_sessions;
 
     // The Hub owns the settings. The settings here are its last word, plus the changes it has yet to confirm.
     struct SettingsChange {
@@ -67,6 +74,17 @@ private:
     virtual void pip_close(u64 view_id) override;
     virtual void notification_show(u64 id, u64 page_id, Optional<u64> replaces, Web::NotificationsAPI::NotificationData data, String attribution, Optional<Gfx::ShareableBitmap> icon) override;
     virtual void notification_close(u64 id) override;
+    virtual void geolocation_start() override;
+    virtual void geolocation_request_position(u64 id) override;
+    virtual void geolocation_cancel_position_request(u64 id) override;
+    virtual void geolocation_start_watching(u64 id) override;
+    virtual void geolocation_stop_watching(u64 id) override;
+    virtual void translator_detect_language(u64 request_id, Web::TranslationLanguageSample sample) override;
+    virtual void translator_target_languages(u64 request_id, String source_language, Vector<String> candidates) override;
+    virtual void translator_create_session(u64 session_id, String source_language, String target_language) override;
+    virtual void translator_close_session(u64 session_id) override;
+    virtual void translator_translate(u64 request_id, u64 session_id, Web::TranslationUnit unit) override;
+    virtual void translator_open_language_download_settings() override;
     virtual void app_focus_view_from_notification(u64 view_id) override;
     virtual void app_open_url_in_new_tab_from_notification(URL::URL url, Optional<u64> view_id, WebView::IsPrivate is_private) override;
     virtual void external_url_resolve_handler(u64 request_id, URL::URL url) override;

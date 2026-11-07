@@ -93,6 +93,172 @@ void NotificationBackendInUI::close(u64 id)
         ui->async_notification_close(id);
 }
 
+static GeolocationProviderInUI* s_geolocation_provider = nullptr;
+
+GeolocationProviderInUI::GeolocationProviderInUI()
+{
+    s_geolocation_provider = this;
+    if (auto const* info = Application::the().ui_info(); info && info->location_authorization.has_value())
+        m_authorization = *info->location_authorization;
+    // NB: The UI's provider tells the Hub whenever the authorization changes, but only once it exists.
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_geolocation_start();
+}
+
+GeolocationProviderInUI::~GeolocationProviderInUI()
+{
+    s_geolocation_provider = nullptr;
+}
+
+GeolocationProviderInUI* GeolocationProviderInUI::the()
+{
+    return s_geolocation_provider;
+}
+
+ErrorOr<Core::GeolocationProvider::RequestId, Core::GeolocationError> GeolocationProviderInUI::request_current_position(SuccessCallback on_success, ErrorCallback on_error)
+{
+    auto id = m_next_id++;
+    m_clients.set(id, make_ref_counted<Client>(Kind::CurrentPosition, move(on_success), move(on_error)));
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_geolocation_request_position(id);
+    return id;
+}
+
+void GeolocationProviderInUI::cancel_current_position_request(RequestId id)
+{
+    if (!m_clients.remove(id))
+        return;
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_geolocation_cancel_position_request(id);
+}
+
+ErrorOr<Core::GeolocationProvider::WatchId, Core::GeolocationError> GeolocationProviderInUI::start_watching_position(SuccessCallback on_success, ErrorCallback on_error)
+{
+    auto id = m_next_id++;
+    m_clients.set(id, make_ref_counted<Client>(Kind::Watch, move(on_success), move(on_error)));
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_geolocation_start_watching(id);
+    return id;
+}
+
+void GeolocationProviderInUI::stop_watching_position(WatchId id)
+{
+    if (!m_clients.remove(id))
+        return;
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_geolocation_stop_watching(id);
+}
+
+void GeolocationProviderInUI::did_receive_position(u64 id, Core::GeolocationCoordinates coordinates)
+{
+    RefPtr<Client> client = m_clients.get(id).value_or(nullptr);
+    if (!client)
+        return;
+    if (client->kind == Kind::CurrentPosition)
+        m_clients.remove(id);
+    client->on_success(move(coordinates));
+}
+
+void GeolocationProviderInUI::did_receive_error(u64 id, Core::GeolocationError error)
+{
+    RefPtr<Client> client = m_clients.get(id).value_or(nullptr);
+    if (!client)
+        return;
+    if (client->kind == Kind::CurrentPosition)
+        m_clients.remove(id);
+    client->on_error(move(error));
+}
+
+void GeolocationProviderInUI::did_change_authorization(Core::GeolocationAuthorization authorization)
+{
+    m_authorization = authorization;
+    if (on_authorization_change)
+        on_authorization_change();
+}
+
+static TranslatorInUI* s_translator = nullptr;
+
+TranslatorInUI::TranslatorInUI()
+{
+    s_translator = this;
+}
+
+TranslatorInUI::~TranslatorInUI()
+{
+    s_translator = nullptr;
+}
+
+TranslatorInUI* TranslatorInUI::the()
+{
+    return s_translator;
+}
+
+void TranslatorInUI::detect_language(Web::TranslationLanguageSample const& sample, Function<void(Optional<String>)> on_complete)
+{
+    auto request_id = m_next_request_id++;
+    m_pending_detections.set(request_id, move(on_complete));
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_translator_detect_language(request_id, sample);
+}
+
+void TranslatorInUI::did_detect_language(u64 request_id, Optional<String> language)
+{
+    if (auto on_complete = m_pending_detections.take(request_id); on_complete.has_value())
+        (*on_complete)(move(language));
+}
+
+void TranslatorInUI::target_languages(String const& source_language, Vector<String> const& candidates, Function<void(Vector<TargetLanguage>)> on_complete)
+{
+    auto request_id = m_next_request_id++;
+    m_pending_target_languages.set(request_id, move(on_complete));
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_translator_target_languages(request_id, source_language, candidates);
+}
+
+void TranslatorInUI::did_get_target_languages(u64 request_id, Vector<TargetLanguage> target_languages)
+{
+    if (auto on_complete = m_pending_target_languages.take(request_id); on_complete.has_value())
+        (*on_complete)(move(target_languages));
+}
+
+// NB: The Hub never waits for the UI, so it picks the session's ID itself.
+WebView::Translator::SessionId TranslatorInUI::create_session(String const& source_language, String const& target_language)
+{
+    auto session_id = m_next_session_id++;
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_translator_create_session(session_id, source_language, target_language);
+    return session_id;
+}
+
+void TranslatorInUI::close_session(SessionId session_id)
+{
+    m_pending_translations.remove_all_matching([&](auto, auto const& translation) {
+        return translation.session_id == session_id;
+    });
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_translator_close_session(session_id);
+}
+
+void TranslatorInUI::translate(SessionId session_id, Web::TranslationUnit unit, Function<void(Optional<Vector<Web::TranslationRun>>)> on_complete)
+{
+    auto request_id = m_next_request_id++;
+    m_pending_translations.set(request_id, { session_id, move(on_complete) });
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_translator_translate(request_id, session_id, unit);
+}
+
+void TranslatorInUI::did_translate(u64 request_id, Optional<Vector<Web::TranslationRun>> runs)
+{
+    if (auto translation = m_pending_translations.take(request_id); translation.has_value())
+        translation->on_complete(move(runs));
+}
+
+void TranslatorInUI::open_language_download_settings()
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_translator_open_language_download_settings();
+}
+
 ExternalURLHandlerInUI::ExternalURLHandlerInUI(u64 handler_id, String application_name, bool is_ladybird)
     : ExternalURLHandler(move(application_name), is_ladybird)
     , m_handler_id(handler_id)

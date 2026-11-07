@@ -50,6 +50,18 @@ Hub::UIInfo const* Application::ui_info() const
     return m_ui_info.has_value() ? &*m_ui_info : nullptr;
 }
 
+bool Application::ui_has_location_source() const
+{
+    auto const* info = ui_info();
+    return info && info->has_location_source;
+}
+
+bool Application::ui_has_translator() const
+{
+    auto const* info = ui_info();
+    return info && info->has_translator;
+}
+
 void Application::set_ui_info(Hub::UIInfo info)
 {
     auto scrollbar_track_press_jumps_changed = !m_ui_info.has_value() || m_ui_info->scrollbar_track_press_jumps != info.scrollbar_track_press_jumps;

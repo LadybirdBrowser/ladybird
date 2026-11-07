@@ -264,13 +264,18 @@ private:
 
     Core::EventLoop* m_event_loop { nullptr };
     WebView::BrowserOptions m_browser_options;
-    bool m_has_translator { false };
     Optional<int> m_exit_status_if_done;
     Core::Platform::ProcessStatistics m_ui_process_statistics;
+#    if defined(AK_OS_MACOS)
+    OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
+#    endif
 #else
     OwnPtr<Hub::Application> m_hub;
     RefPtr<Hub::ConnectionFromUI> m_connection_from_ui;
 #endif
+    WebView::Translator* translator() { return m_translator.ptr(); }
+
+    OwnPtr<WebView::Translator> m_translator;
     OwnPtr<WebView::Settings> m_settings;
     OwnPtr<WebView::BookmarkStore> m_bookmark_store;
     RefPtr<HubConnection> m_hub_connection;

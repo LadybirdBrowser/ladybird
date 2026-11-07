@@ -1,5 +1,6 @@
 #include <LibHTTP/Header.h>
 #include <LibCompositing/Types.h>
+#include <LibCore/GeolocationAuthorization.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/GpuDeviceIdentity.h>
@@ -12,6 +13,7 @@
 #include <LibWebCommon/NotificationsAPI/NotificationData.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
+#include <LibWebCommon/Page/Translation.h>
 #include <LibWebCommon/WebView/DictionaryLookup.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/SelectItem.h>
@@ -219,6 +221,9 @@ struct Hub::UIInfo {
     Optional<String> system_font_family;
     Web::CSS::PreferredColorScheme interface_color_scheme;
     bool supports_picture_in_picture;
+    bool has_location_source;
+    bool has_translator;
+    Optional<Core::GeolocationAuthorization> location_authorization;
     bool supports_selection_clipboard;
     bool supports_system_menu_bar;
     bool supports_vertical_tabs;
@@ -242,7 +247,6 @@ struct Hub::InitialState {
     Vector<ByteString> raw_urls;
     ByteString crash_report_directory;
     Optional<u16> devtools_port;
-    bool has_translator;
     ByteString profile_identifier;
     ByteString profile_identity;
     bool profile_is_temporary;
@@ -294,6 +298,17 @@ endpoint HubClient
     pip_close(u64 view_id) =|
     notification_show(u64 id, u64 page_id, Optional<u64> replaces, Web::NotificationsAPI::NotificationData data, String attribution, Optional<Gfx::ShareableBitmap> icon) =|
     notification_close(u64 id) =|
+    geolocation_start() =|
+    geolocation_request_position(u64 id) =|
+    geolocation_cancel_position_request(u64 id) =|
+    geolocation_start_watching(u64 id) =|
+    geolocation_stop_watching(u64 id) =|
+    translator_detect_language(u64 request_id, Web::TranslationLanguageSample sample) =|
+    translator_target_languages(u64 request_id, String source_language, Vector<String> candidates) =|
+    translator_create_session(u64 session_id, String source_language, String target_language) =|
+    translator_close_session(u64 session_id) =|
+    translator_translate(u64 request_id, u64 session_id, Web::TranslationUnit unit) =|
+    translator_open_language_download_settings() =|
     app_focus_view_from_notification(u64 view_id) =|
     app_open_url_in_new_tab_from_notification(URL::URL url, Optional<u64> view_id, WebView::IsPrivate is_private) =|
     external_url_resolve_handler(u64 request_id, URL::URL url) =|
