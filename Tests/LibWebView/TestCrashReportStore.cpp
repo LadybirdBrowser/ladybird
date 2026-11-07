@@ -533,3 +533,52 @@ TEST_CASE(waiting_reports_are_limited_and_the_oldest_go_first)
     EXPECT(waiting.contains_slow(names.last()));
     EXPECT(!store.website(names.first()).has_value());
 }
+
+TEST_CASE(reports_that_could_not_be_adopted_are_still_removed)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto expired_name = report_name("2026-09-01T00-00-00Z"sv);
+    auto recent_name = report_name("2026-10-09T00-00-00Z"sv);
+    write_file(expired_name, "An expired report\n"sv, now - AK::Duration::from_seconds(31ll * 24 * 60 * 60));
+    write_file(recent_name, "A recent report\n"sv);
+
+    // A directory in the way of each report makes moving it fail.
+    auto profile_directory = LexicalPath::join(test_directory(), "Profile"sv).string();
+    MUST(Core::Directory::create(LexicalPath::join(profile_directory, expired_name), Core::Directory::CreateDirectories::Yes));
+    MUST(Core::Directory::create(LexicalPath::join(profile_directory, recent_name), Core::Directory::CreateDirectories::Yes));
+
+    WebView::CrashReportStore store { profile_directory };
+    MUST(store.adopt_reports_from(test_directory()));
+    auto left_behind = [](ByteString const& name) { return FileSystem::exists(LexicalPath::join(test_directory(), name).string()); };
+    EXPECT(left_behind(expired_name));
+    EXPECT(left_behind(recent_name));
+
+    MUST(store.remove_expired_reports(now));
+    EXPECT(!left_behind(expired_name));
+    EXPECT(left_behind(recent_name));
+
+    MUST(store.remove_all_reports());
+    EXPECT(!left_behind(recent_name));
+}
+
+TEST_CASE(failing_to_clean_up_the_adopted_directory_still_cleans_up_the_store)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto adopted_directory = LexicalPath::join(test_directory(), "Adopted"sv).string();
+    MUST(Core::Directory::create(adopted_directory, Core::Directory::CreateDirectories::Yes));
+
+    auto store = test_store();
+    MUST(store.adopt_reports_from(adopted_directory));
+    auto name = MUST(store.store_report(WebView::ProcessType::WebContent, "A report\n"sv, now));
+
+    // A file in place of the directory makes opening it fail.
+    MUST(FileSystem::remove(adopted_directory, FileSystem::RecursionMode::Allowed));
+    write_file("Adopted"sv, "Not a directory\n"sv);
+
+    EXPECT(store.remove_all_reports().is_error());
+    EXPECT(!FileSystem::exists(LexicalPath::join(test_directory(), name).string()));
+}

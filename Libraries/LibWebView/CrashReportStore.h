@@ -36,7 +36,7 @@ public:
     void set_directory(ByteString directory) { m_directory = move(directory); }
 
     // Moves in every saved report of another store, which is how reports from before they belonged to a profile arrive.
-    ErrorOr<void> adopt_reports_from(ByteString const& directory) const;
+    ErrorOr<void> adopt_reports_from(ByteString const& directory);
 
     ErrorOr<SavedReport> saved_report(ByteString const& name) const;
 
@@ -69,7 +69,10 @@ public:
     static bool is_saved_report_name(StringView);
 
 private:
+    ErrorOr<void> remove_reports(Optional<UnixDateTime> earliest_time) const;
+
     ByteString m_directory;
+    Optional<ByteString> m_adopted_directory;
 };
 
 }
