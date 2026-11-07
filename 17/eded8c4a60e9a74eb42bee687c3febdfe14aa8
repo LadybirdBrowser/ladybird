@@ -1,0 +1,10 @@
+Ladybird applies the root element’s scrollbar-color to the viewport’s
+scrollbar by reading it from the root element’s box when it paints that
+scrollbar. And WebKit does just the same, in its LocalFrameView::
+scrollbarColorStyle(), which resolves the colors from the document
+element renderer’s style. So does Gecko, whose nsLayoutUtils::
+StyleForScrollbar() uses the root element’s style for the viewport’s
+scrollbar. Blink instead copies the value into the LayoutView’s style,
+in StyleResolver::PropagateStyleToViewport(), along with scrollbar-width
+and scrollbar-gutter. So all three engines give the viewport’s scrollbar
+the root element’s colors.
