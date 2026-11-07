@@ -104,12 +104,14 @@ impl RenderAudioParam {
 
         // 1. paramIntrinsicValue will be calculated at each time, which is either the value set directly to the value
         //    attribute, or, if there are any automation events with times before or at this time, the value as calculated
-        //    from these events.
-        // NB: An a-rate parameter takes the exact value of the signal at each sample frame of the render quantum, while a
-        //     k-rate parameter uses the value of the very first sample frame for the entire quantum.
+        //    from these events. If automation events are removed from a given time range, then the paramIntrinsicValue
+        //    value will remain unchanged and stay at its previous value until either the value attribute is directly
+        //    set, or automation events are added for the time range.
+        // NB: A k-rate parameter uses the first sample frame for the entire quantum.
         let rate = self.automation_rate();
         if rate == AutomationRate::KRate {
-            let value = self.timeline.value_at_time(context.quantum_start_time());
+            self.timeline.sample(context.quantum_start_time(), 0., &mut output[..1]);
+            let value = output[0];
             output.fill(value);
         } else {
             self.timeline
@@ -117,8 +119,7 @@ impl RenderAudioParam {
         }
 
         // 2. Set [[current value]] to the value of paramIntrinsicValue at the beginning of this render quantum.
-        // NB: The render param keeps no [[current value]] slot of its own; the AudioParam's value getter reads the shared
-        //     automation timeline directly on the control thread.
+        // NB: Sampling updates the slot while holding the timeline lock.
 
         // 3. paramComputedValue is the sum of the paramIntrinsicValue value and the value of the input AudioParam
         //    buffer. If the sum is NaN, replace the sum with the defaultValue.

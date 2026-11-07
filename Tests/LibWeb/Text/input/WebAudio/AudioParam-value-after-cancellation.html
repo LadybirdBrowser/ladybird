@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const context = new OfflineAudioContext(1, 128, 48000);
+        const source = new ConstantSourceNode(context);
+        const gain = new GainNode(context);
+        source.connect(gain).connect(context.destination);
+        source.start();
+
+        gain.gain.value = 2;
+        gain.gain.setValueAtTime(3, 0);
+        gain.gain.cancelScheduledValues(0);
+        println(`Intrinsic gain before rendering: ${gain.gain.value}`);
+
+        const output = await context.startRendering();
+        println(`Intrinsic gain after rendering: ${gain.gain.value}`);
+        println(`Every sample uses the retained gain: ${output.getChannelData(0).every(sample => sample === 2)}`);
+    });
+</script>
