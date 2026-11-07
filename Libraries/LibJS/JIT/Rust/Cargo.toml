@@ -23,6 +23,7 @@ ak = { path = "../../../../AK/Rust" }
 farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
 iced-x86 = { version = "1.21", default-features = false, features = ["decoder", "intel", "std"] }
 libc = "0.2"
+libjs_runtime_macros = { path = "../../Rust/macros" }
 
 [lints]
 workspace = true

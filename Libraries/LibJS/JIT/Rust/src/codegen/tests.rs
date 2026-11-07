@@ -23,6 +23,7 @@ use crate::snapshot::FunctionFrameFields;
 use crate::snapshot::RuntimeLayout;
 use crate::snapshot::RuntimeOffsets;
 use crate::snapshot::Snapshot;
+use libjs_runtime_macros::jit_abi;
 use std::cell::RefCell;
 
 /// Words of the fake `ExecutionContext` before its slots.
@@ -238,6 +239,7 @@ struct SlowPathResult {
     value: u64,
 }
 
+#[jit_abi]
 extern "C" fn add_values(vm: *mut u64, pc: u32, dst: *mut u64, lhs: u64, rhs: u64) -> i64 {
     let control = continuation_after(vm, pc);
     if control >= 0 && control as u64 & CONTINUATION_BIT != 0 {
@@ -247,6 +249,7 @@ extern "C" fn add_values(vm: *mut u64, pc: u32, dst: *mut u64, lhs: u64, rhs: u6
     control
 }
 
+#[jit_abi]
 extern "C" fn jump_less_than(vm: *mut u64, pc: u32, lhs: u64, rhs: u64, if_true: u32, if_false: u32) -> i64 {
     if let Some((fail_pc, control)) = test_state(vm).borrow().fail
         && fail_pc == pc
@@ -256,23 +259,66 @@ extern "C" fn jump_less_than(vm: *mut u64, pc: u32, lhs: u64, rhs: u64, if_true:
     i64::from(if int(lhs) < int(rhs) { if_true } else { if_false })
 }
 
+/// Whether the slow path of the instruction at `instruction` takes every operand in a record, which has a word per
+/// field, as slow paths on Windows do, like its interpreter.
+///
+/// # Safety
+///
+/// `instruction` must point at an instruction.
+unsafe fn slow_path_takes_record(instruction: *const u8) -> bool {
+    // SAFETY: The caller keeps the contract.
+    let opcode = OpCode::from_u8(unsafe { *instruction }).expect("compiled code passes an instruction");
+    slow_path_layout(opcode).abi == SlowPathAbi::Record
+}
+
+/// An input of a slow path with scalar inputs and outputs in the record: the scalar `input` it got, or else, if the
+/// slow path of the instruction at `instruction` takes every operand in the record, the word of the record with that
+/// field.
+///
+/// # Safety
+///
+/// `instruction` must point at an instruction whose slow path's record has such a field at `index`, and `record` at
+/// the record.
+unsafe fn scalar_or_record_input(instruction: *const u8, record: *const u64, index: usize, input: u64) -> u64 {
+    // SAFETY: The caller keeps the contract.
+    unsafe {
+        if slow_path_takes_record(instruction) {
+            *record.add(index)
+        } else {
+            input
+        }
+    }
+}
+
 /// A fake `ToInt32` or `ToLength` slow path (scalar convention) that
-/// doubles its input.
+/// doubles its input. With records, `value` is the record, which has the
+/// destination and then the input.
+#[jit_abi]
 extern "C" fn to_int32(vm: *mut u64, pc: u32, instruction: *const u8, value: u64) -> SlowPathResult {
     // SAFETY: Compiled code passes a pointer to the instruction in the snapshot's bytecode.
     let opcode = unsafe { *instruction };
     assert!(opcode == OpCode::ToInt32 as u8 || opcode == OpCode::ToLength as u8);
+    let control = continuation_after(vm, pc);
+    // SAFETY: As above.
+    if unsafe { slow_path_takes_record(instruction) } {
+        let record = value as *mut u64;
+        // SAFETY: Compiled code passes the record in the JIT frame.
+        unsafe { *record = value::int32(int(*record.add(1)).wrapping_mul(2)) };
+        return SlowPathResult { control, value: 0 };
+    }
     SlowPathResult {
-        control: continuation_after(vm, pc),
+        control,
         value: value::int32(int(value).wrapping_mul(2)),
     }
 }
 
 /// A fake `Increment` slow path (scalar inputs, outputs in the record).
+#[jit_abi]
 extern "C" fn increment(vm: *mut u64, pc: u32, instruction: *const u8, outputs: *mut u64, dst: u64) -> i64 {
     // SAFETY: See `to_int32`; `outputs` is the record in the JIT frame.
     unsafe {
         assert_eq!(*instruction, OpCode::Increment as u8);
+        let dst = scalar_or_record_input(instruction, outputs, 0, dst);
         *outputs = value::int32(int(dst).wrapping_add(1));
     }
     continuation_after(vm, pc)
@@ -280,6 +326,7 @@ extern "C" fn increment(vm: *mut u64, pc: u32, instruction: *const u8, outputs: 
 
 /// A fake `ConcatString` slow path (scalar inputs, outputs in the record)
 /// that adds its operands.
+#[jit_abi]
 extern "C" fn concat_string(
     vm: *mut u64,
     pc: u32,
@@ -291,12 +338,15 @@ extern "C" fn concat_string(
     // SAFETY: See `to_int32`; `outputs` is the record in the JIT frame.
     unsafe {
         assert_eq!(*instruction, OpCode::ConcatString as u8);
+        let dst = scalar_or_record_input(instruction, outputs, 0, dst);
+        let src = scalar_or_record_input(instruction, outputs, 1, src);
         *outputs = value::int32(int(dst).wrapping_add(int(src)));
     }
     continuation_after(vm, pc)
 }
 
 /// A fake `NewArray` slow path (record convention) that sums its elements.
+#[jit_abi]
 extern "C" fn new_array(vm: *mut u64, pc: u32, instruction: *const u8, values: *mut u64) -> i64 {
     let Instruction::NewArray { elements, .. } = decoded(vm, pc) else {
         panic!("not a NewArray");
@@ -311,6 +361,7 @@ extern "C" fn new_array(vm: *mut u64, pc: u32, instruction: *const u8, values: *
 }
 
 /// A fake `libjs_jit_call` that "calls" an int32 callee by adding the arguments to it.
+#[jit_abi]
 extern "C" fn jit_call(vm: *mut u64, frame: *mut u64, pc: u32) -> i64 {
     let Instruction::Call {
         dst, callee, arguments, ..
@@ -343,6 +394,7 @@ fn fake_arguments_object(mapped: bool) -> u64 {
 }
 
 /// A fake `libjs_jit_create_arguments`.
+#[jit_abi]
 extern "C" fn create_arguments(vm: *mut u64, _frame: *mut u64, mapped: u32) -> u64 {
     test_state(vm).borrow_mut().arguments_created += 1;
     fake_arguments_object(mapped != 0)
@@ -350,6 +402,7 @@ extern "C" fn create_arguments(vm: *mut u64, _frame: *mut u64, mapped: u32) -> u
 
 /// A fake `libjs_jit_call_forwarding_arguments` that "calls" its function, an
 /// int32, by adding the frame's passed arguments to it.
+#[jit_abi]
 extern "C" fn call_forwarding_arguments(vm: *mut u64, frame: *mut u64, pc: u32) -> i64 {
     let Instruction::Call { dst, this_value, .. } = decoded(vm, pc) else {
         panic!("not a Call");
@@ -371,6 +424,7 @@ extern "C" fn call_forwarding_arguments(vm: *mut u64, frame: *mut u64, pc: u32) 
 /// A fake `asm_helper_to_boolean`, for values that are no strings, symbols
 /// or bigints: doubles by their value, and other values truthy unless they
 /// are undefined or null.
+#[jit_abi]
 extern "C" fn to_boolean(value: u64) -> u64 {
     const NAN_BASE_TAG: u64 = 0x7FF8;
     if (value >> 48) & NAN_BASE_TAG != NAN_BASE_TAG {
@@ -381,6 +435,7 @@ extern "C" fn to_boolean(value: u64) -> u64 {
 
 /// A fake `libjs_jit_exit` that writes the exit's values into the frame,
 /// like the runtime does. Leaves neither count as exits nor move the pc.
+#[jit_abi]
 extern "C" fn jit_exit(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *const u64) {
     if test_state(vm).borrow().exits[exit_index as usize].kind == SiteKind::Publish {
         publish_frames(vm, exit_index);
@@ -609,6 +664,22 @@ pub(super) mod fake_heap {
     fn region() -> &'static Region {
         static REGION: OnceLock<Region> = OnceLock::new();
         REGION.get_or_init(|| {
+            #[cfg(windows)]
+            // SAFETY: A fresh reservation that nothing else uses.
+            unsafe {
+                let reservation = ak::windows_code_memory::reserve(2 * REGION_SIZE);
+                assert!(!reservation.is_null());
+                let base = reservation.expose_provenance().next_multiple_of(REGION_SIZE);
+                assert!(ak::windows_code_memory::make_writable(
+                    core::ptr::with_exposed_provenance_mut(base),
+                    COMMITTED_SIZE,
+                ));
+                Region {
+                    base,
+                    next: Mutex::new(base + FIRST_CELL_OFFSET),
+                }
+            }
+            #[cfg(not(windows))]
             // SAFETY: A fresh reservation that nothing else uses.
             unsafe {
                 let reservation = libc::mmap(
@@ -684,31 +755,64 @@ pub(super) mod fake_heap {
             let mut hint = LOWEST_ADDRESS;
             loop {
                 assert!(hint + COMMITTED_SIZE <= REGION_SIZE, "no room for the low fake heap");
-                // NB: The address is only a hint, so this never replaces an
-                //     existing mapping, which MAP_FIXED_NOREPLACE would need
-                //     and only Linux has. The kernel places the mapping at the
-                //     hint if that is free, and anywhere else otherwise.
-                // SAFETY: A fresh private anonymous mapping.
-                let mapping = unsafe {
-                    libc::mmap(
-                        core::ptr::with_exposed_provenance_mut(hint),
-                        COMMITTED_SIZE,
-                        libc::PROT_READ | libc::PROT_WRITE,
-                        libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
-                        -1,
-                        0,
-                    )
-                };
-                assert_ne!(mapping, libc::MAP_FAILED);
-                let address = mapping.expose_provenance();
-                if address >= LOWEST_ADDRESS && address + COMMITTED_SIZE <= REGION_SIZE {
-                    return Region {
-                        base: address,
-                        next: Mutex::new(address),
+                #[cfg(windows)]
+                {
+                    const MEM_COMMIT_AND_RESERVE: u32 = 0x3000;
+                    const PAGE_READWRITE: u32 = 0x04;
+                    unsafe extern "system" {
+                        fn VirtualAlloc(
+                            address: *mut core::ffi::c_void,
+                            size: usize,
+                            allocation_type: u32,
+                            protect: u32,
+                        ) -> *mut core::ffi::c_void;
+                    }
+                    // NB: This fails if the address is taken.
+                    // SAFETY: Allocating memory at a given address replaces nothing.
+                    let mapping = unsafe {
+                        VirtualAlloc(
+                            core::ptr::with_exposed_provenance_mut(hint),
+                            COMMITTED_SIZE,
+                            MEM_COMMIT_AND_RESERVE,
+                            PAGE_READWRITE,
+                        )
                     };
+                    if !mapping.is_null() {
+                        let address = mapping.expose_provenance();
+                        return Region {
+                            base: address,
+                            next: Mutex::new(address),
+                        };
+                    }
                 }
-                // SAFETY: The mapping was just made, and nothing uses it.
-                assert_eq!(unsafe { libc::munmap(mapping, COMMITTED_SIZE) }, 0);
+                #[cfg(not(windows))]
+                {
+                    // NB: The address is only a hint, so this never replaces an
+                    //     existing mapping, which MAP_FIXED_NOREPLACE would need
+                    //     and only Linux has. The kernel places the mapping at the
+                    //     hint if that is free, and anywhere else otherwise.
+                    // SAFETY: A fresh private anonymous mapping.
+                    let mapping = unsafe {
+                        libc::mmap(
+                            core::ptr::with_exposed_provenance_mut(hint),
+                            COMMITTED_SIZE,
+                            libc::PROT_READ | libc::PROT_WRITE,
+                            libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
+                            -1,
+                            0,
+                        )
+                    };
+                    assert_ne!(mapping, libc::MAP_FAILED);
+                    let address = mapping.expose_provenance();
+                    if address >= LOWEST_ADDRESS && address + COMMITTED_SIZE <= REGION_SIZE {
+                        return Region {
+                            base: address,
+                            next: Mutex::new(address),
+                        };
+                    }
+                    // SAFETY: The mapping was just made, and nothing uses it.
+                    assert_eq!(unsafe { libc::munmap(mapping, COMMITTED_SIZE) }, 0);
+                }
                 hint += 1 << 30;
             }
         })
@@ -832,7 +936,7 @@ impl Machine {
         let trampoline = crate::asm::executable_code::ExecutableCode::new(
             &generate_entry_trampoline::<crate::asm::MacroAssembler>().expect("the trampoline assembles"),
         );
-        type Trampoline = extern "C" fn(*mut u64, *mut u64, u64) -> JitResult;
+        type Trampoline = extern "sysv64" fn(*mut u64, *mut u64, u64) -> JitResult;
         // SAFETY: The trampoline implements `Trampoline`, and compiled code
         // implements the JIT entry ABI.
         let enter: Trampoline = unsafe { trampoline.function() };
@@ -2507,7 +2611,7 @@ mod property_access {
 
         /// The fake growing helper, which leaves the value in the array's
         /// unused named property storage word.
-        extern "C" fn grow(array: *mut u64, value: u64) -> u64 {
+        extern "sysv64" fn grow(array: *mut u64, value: u64) -> u64 {
             // SAFETY: Compiled code passes a fake array of six words.
             unsafe { *array.add(2) = value };
             value::int32(99)
@@ -3257,6 +3361,7 @@ mod direct_calls {
     /// The JIT entry of a fake callee: records its frame and returns. Like
     /// compiled code, it publishes the frame (which direct calls do not)
     /// unless it returns.
+    #[jit_abi]
     extern "C" fn callee_entry(vm: *mut u64, frame: *mut u64) -> JitResult {
         // SAFETY: The callee frame is on the fake interpreter stack, with its
         // slot count in the header.
@@ -3276,6 +3381,7 @@ mod direct_calls {
     /// A fake `libjs_jit_finish_direct_call` that "runs" the callee to
     /// completion like the interpreter: it returns into the caller's
     /// destination and pops its frame.
+    #[jit_abi]
     pub(super) extern "C" fn finish_direct_call(vm: *mut u64, frame: *mut u64, pc: u32, status: u64) -> i64 {
         // SAFETY: The fake VM and frames are live.
         unsafe {
@@ -3519,7 +3625,7 @@ mod direct_calls {
 
         /// The call entry of executables without JIT code, like the
         /// runtime's: publishes the frame and has the interpreter run it.
-        extern "C" fn not_compiled_call_entry(vm: *mut u64, frame: *mut u64) -> JitResult {
+        extern "sysv64" fn not_compiled_call_entry(vm: *mut u64, frame: *mut u64) -> JitResult {
             // SAFETY: The fake VM is live.
             unsafe { *vm = frame as u64 };
             JitResult {
@@ -3974,7 +4080,7 @@ mod direct_calls {
         }
 
         /// A fake `libjs_jit_prepare_call_environment`.
-        extern "C" fn prepare_call_environment(vm: *mut u64, function: u64, this_argument: u64) -> JitResult {
+        extern "sysv64" fn prepare_call_environment(vm: *mut u64, function: u64, this_argument: u64) -> JitResult {
             let mut state = test_state(vm).borrow_mut();
             state.direct.prepared.push((function, this_argument));
             let (value, status) = state.direct.prepared_environment;
@@ -4235,7 +4341,7 @@ mod direct_calls {
 
         /// A fake raw native function: returns the sum of its `this` value
         /// and its arguments (as int32s), and records its frame.
-        extern "C" fn fake_native(vm: *mut u64) -> JitResult {
+        extern "sysv64" fn fake_native(vm: *mut u64) -> JitResult {
             // SAFETY: The running frame is the native frame on the fake
             // interpreter stack.
             unsafe {
@@ -4324,7 +4430,7 @@ mod direct_calls {
             let code = crate::asm::executable_code::ExecutableCode::new(&callee_code.code);
             let mut callee = Callee::new();
             // SAFETY: Compiled code implements the JIT entry ABI.
-            let entry: extern "C" fn(*mut u64, *mut u64) -> JitResult = unsafe { code.function() };
+            let entry: extern "sysv64" fn(*mut u64, *mut u64) -> JitResult = unsafe { code.function() };
             callee.set_entry(entry as *const () as u64);
             let mut target = callee.target(true, false);
             target.function.formal_parameter_count = callee_layout.number_of_arguments;

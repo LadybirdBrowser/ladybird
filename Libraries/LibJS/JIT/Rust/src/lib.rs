@@ -28,6 +28,10 @@ pub mod regalloc;
 pub mod snapshot;
 pub mod sparse_bitset;
 
+// NB: The tests get their memory on Windows from `ak::windows_code_memory`, which is for x86-64.
+#[cfg(all(test, windows, not(target_arch = "x86_64")))]
+compile_error!("the tests of the JIT run on Windows on x86-64 only");
+
 use bytecode::OpCode;
 use code::CompiledCode;
 use snapshot::Snapshot;

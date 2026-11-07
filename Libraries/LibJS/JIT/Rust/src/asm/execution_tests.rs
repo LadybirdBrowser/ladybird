@@ -35,8 +35,8 @@ struct Pair {
     status: u64,
 }
 
-type Binary = extern "C" fn(u64, u64) -> u64;
-type BinaryPair = extern "C" fn(u64, u64) -> Pair;
+type Binary = extern "sysv64" fn(u64, u64) -> u64;
+type BinaryPair = extern "sysv64" fn(u64, u64) -> Pair;
 
 const VALUES: [u64; 16] = [
     0,
@@ -558,7 +558,7 @@ fn compares_and_branches() {
 
 #[test]
 fn memory_compares() {
-    type Memory = extern "C" fn(*const u64, u64) -> u64;
+    type Memory = extern "sysv64" fn(*const u64, u64) -> u64;
     for condition in [
         Condition::Equal,
         Condition::NotEqual,
@@ -631,7 +631,7 @@ fn memory_compares() {
 
 #[test]
 fn additions_to_memory() {
-    type Add = extern "C" fn(*mut u64);
+    type Add = extern "sysv64" fn(*mut u64);
     for imm in IMMEDIATES.map(|imm| imm as i32) {
         let code = assemble(|masm| {
             masm.add32_to_memory_imm(&Address::new(RDI, 8), imm);
@@ -657,7 +657,7 @@ fn additions_to_memory() {
 
 #[test]
 fn loads_and_stores_of_128_bit_constants() {
-    type Store = extern "C" fn(*mut u64);
+    type Store = extern "sysv64" fn(*mut u64);
     let first = 0x0123_4567_89ab_cdef_fedc_ba98_7654_3210u128;
     let second = u128::MAX - 7;
     let code = assemble(|masm| {
@@ -684,7 +684,7 @@ fn loads_and_stores_of_128_bit_constants() {
 
 #[test]
 fn stack_pointer_comparisons() {
-    type Compare = extern "C" fn(*const u64) -> u64;
+    type Compare = extern "sysv64" fn(*const u64) -> u64;
     let code = assemble(|masm| {
         let below = masm.new_label();
         masm.branch_if_stack_pointer_below(&Address::new(RDI, 8), below);
@@ -765,7 +765,7 @@ fn bit_tests_and_select() {
         }
     }
 
-    type Select = extern "C" fn(u64, u64, u64, u64) -> u64;
+    type Select = extern "sysv64" fn(u64, u64, u64, u64) -> u64;
     let registers = [RDI, RSI, RDX, RCX];
     for condition in [Condition::LessThan, Condition::Equal, Condition::Above] {
         for dst in [RAX, RDI, RSI, RDX, RCX] {
@@ -822,7 +822,7 @@ fn bit_tests_and_select() {
 
 #[test]
 fn loads_and_stores() {
-    type Access = extern "C" fn(*mut u8, u64) -> u64;
+    type Access = extern "sysv64" fn(*mut u8, u64) -> u64;
     let mut memory = [0u8; 64];
     for (i, byte) in memory.iter_mut().enumerate() {
         *byte = (i as u8).wrapping_mul(37).wrapping_add(0x81);
@@ -983,7 +983,7 @@ fn same_double(a: f64, b: f64) -> bool {
 
 #[test]
 fn double_arithmetic() {
-    type DoubleBinary = extern "C" fn(f64, f64) -> f64;
+    type DoubleBinary = extern "sysv64" fn(f64, f64) -> f64;
     type Emit = fn(&mut MacroAssembler, Fpr, Fpr, Fpr);
     type Reference = fn(f64, f64) -> f64;
     let operations: [(&str, Emit, Reference); 12] = [
@@ -1049,9 +1049,9 @@ fn double_arithmetic() {
 
 #[test]
 fn double_conversions() {
-    type ToDouble = extern "C" fn(u64) -> f64;
-    type FromDouble = extern "C" fn(f64) -> u64;
-    type FromDoublePair = extern "C" fn(f64) -> Pair;
+    type ToDouble = extern "sysv64" fn(u64) -> f64;
+    type FromDouble = extern "sysv64" fn(f64) -> u64;
+    type FromDoublePair = extern "sysv64" fn(f64) -> Pair;
 
     let int32 = assemble(|masm| {
         masm.convert_int32_to_double(XMM0, RDI);
@@ -1141,7 +1141,7 @@ const ALL_DOUBLE_CONDITIONS: [DoubleCondition; 14] = [
 
 #[test]
 fn double_compares() {
-    type Compare = extern "C" fn(f64, f64) -> u64;
+    type Compare = extern "sysv64" fn(f64, f64) -> u64;
     for condition in ALL_DOUBLE_CONDITIONS {
         assert_eq!(condition.invert().invert(), condition);
         let branch = assemble(|masm| {
@@ -1171,7 +1171,7 @@ fn double_compares() {
     }
 }
 
-extern "C" fn helper(a: u64, b: u64, c: u64, d: u64, e: u64, f: u64) -> u64 {
+extern "sysv64" fn helper(a: u64, b: u64, c: u64, d: u64, e: u64, f: u64) -> u64 {
     #[repr(align(16))]
     struct Aligned(u8);
     let local = Aligned(0);
@@ -1184,7 +1184,7 @@ extern "C" fn helper(a: u64, b: u64, c: u64, d: u64, e: u64, f: u64) -> u64 {
 
 #[test]
 fn calls_with_frames() {
-    type Call = extern "C" fn(u64) -> Pair;
+    type Call = extern "sysv64" fn(u64) -> Pair;
     let frame = MacroAssembler::frame(GprSet::of(&[RBX, R12]), FprSet::EMPTY, 24);
     assert_eq!(frame.locals_size % 8, 0);
     let code = assemble(|masm| {
@@ -1214,7 +1214,7 @@ fn calls_with_frames() {
     );
 
     // A tail jump to the helper returns straight to our caller.
-    type Six = extern "C" fn(u64, u64, u64, u64, u64, u64) -> u64;
+    type Six = extern "sysv64" fn(u64, u64, u64, u64, u64, u64) -> u64;
     let code = assemble(|masm| {
         masm.add64_imm(RDI, RDI, 100);
         masm.jump_absolute(helper as *const () as u64);
@@ -1246,7 +1246,7 @@ fn calls_with_frames() {
 
 #[test]
 fn prologue_and_epilogue_preserve_callee_saved_registers() {
-    type Run = extern "C" fn() -> u64;
+    type Run = extern "sysv64" fn() -> u64;
     let callee_saved = <MacroAssembler as PortableMacroAssembler>::CALLEE_SAVED_GPRS;
     let checked: Vec<Gpr> = callee_saved.without(RSP).iter().collect();
     assert_eq!(checked, [RBX, RBP, R12, R13, R14, R15]);

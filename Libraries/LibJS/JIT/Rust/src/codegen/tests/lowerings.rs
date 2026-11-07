@@ -17,6 +17,7 @@ use crate::ir::Float64Function;
 use crate::snapshot::KeyedFeedbackSnapshot;
 use crate::snapshot::keyed_feedback_bits;
 use ak::math;
+use libjs_runtime_macros::jit_abi;
 
 /// What the fake slow paths here produce.
 const MARKER: u64 = (value::UNDEFINED_TAG as u64) << 48 | 0xDEAD_BEEF;
@@ -39,13 +40,29 @@ const INT32_RESULTS_FEEDBACK: u8 = 1 | 1 << 1 | 1 << 3;
 /// What `run_instruction_with()` results in for code that exited.
 const EXITED: u64 = (value::UNDEFINED_TAG as u64) << 48 | 0xE817;
 
+#[jit_abi]
 extern "C" fn marker_values(vm: *mut u64, pc: u32, dst: *mut u64, _lhs: u64, _rhs: u64) -> i64 {
     // SAFETY: Compiled code passes the address of a frame slot.
     unsafe { *dst = MARKER };
     continuation_after(vm, pc)
 }
 
-extern "C" fn marker_scalar(vm: *mut u64, pc: u32, _instruction: *const u8, _value: u64) -> SlowPathResult {
+/// With records, `value` is the record, whose outputs get the marker.
+#[jit_abi]
+extern "C" fn marker_scalar(vm: *mut u64, pc: u32, instruction: *const u8, value: u64) -> SlowPathResult {
+    // SAFETY: Compiled code passes a pointer to its instruction.
+    if unsafe { slow_path_takes_record(instruction) } {
+        let record = value as *mut u64;
+        // SAFETY: As above, and the record is in the JIT frame.
+        unsafe {
+            let opcode = OpCode::from_u8(*instruction).expect("compiled code passes an instruction");
+            for (index, field) in slow_path_layout(opcode).fields.iter().enumerate() {
+                if field.role == OperandRole::Out {
+                    *record.add(index) = MARKER;
+                }
+            }
+        }
+    }
     SlowPathResult {
         control: continuation_after(vm, pc),
         value: MARKER,
@@ -54,6 +71,7 @@ extern "C" fn marker_scalar(vm: *mut u64, pc: u32, _instruction: *const u8, _val
 
 /// A fake `libjs_jit_call` that writes `MARKER` into the destination of the
 /// `Call`.
+#[jit_abi]
 extern "C" fn marker_call(vm: *mut u64, frame: *mut u64, pc: u32) -> i64 {
     let Instruction::Call { dst, .. } = decoded(vm, pc) else {
         panic!("not a Call");
@@ -64,6 +82,7 @@ extern "C" fn marker_call(vm: *mut u64, frame: *mut u64, pc: u32) -> i64 {
 }
 
 /// Counts its calls, and writes `MARKER`.
+#[jit_abi]
 extern "C" fn marker_comparison(vm: *mut u64, pc: u32, dst: *mut u64, _lhs: u64, _rhs: u64) -> i64 {
     // SAFETY: The fake VM has a word for this, and compiled code passes the
     // address of a frame slot.
@@ -75,6 +94,7 @@ extern "C" fn marker_comparison(vm: *mut u64, pc: u32, dst: *mut u64, _lhs: u64,
 }
 
 /// Counts its calls, and jumps to the true target.
+#[jit_abi]
 extern "C" fn marker_jump(vm: *mut u64, _pc: u32, _lhs: u64, _rhs: u64, if_true: u32, _if_false: u32) -> i64 {
     // SAFETY: The fake VM has a word for this.
     unsafe { *vm.add(VM_SLOW_JUMPS_WORD) += 1 };
@@ -85,6 +105,7 @@ extern "C" fn marker_jump(vm: *mut u64, _pc: u32, _lhs: u64, _rhs: u64, if_true:
 /// calls in.
 const VM_SLOW_PUTS_WORD: usize = 9;
 
+#[jit_abi]
 extern "C" fn marker_put(
     vm: *mut u64,
     pc: u32,
@@ -103,6 +124,7 @@ extern "C" fn marker_put(
 
 /// Counts its calls like `marker_put`, and throws: the interpreter is to
 /// take over.
+#[jit_abi]
 extern "C" fn marker_throw(
     vm: *mut u64,
     _pc: u32,
@@ -118,11 +140,13 @@ extern "C" fn marker_throw(
 
 /// For reads of bindings, which only reach their slow paths where a binding
 /// is uninitialized: throws, and the interpreter is to take over.
+#[jit_abi]
 extern "C" fn throwing_binding_read(_vm: *mut u64, _pc: u32) -> SlowPathResult {
     SlowPathResult { control: -1, value: 0 }
 }
 
 /// For Increment and Decrement (one output) and their postfix forms (two).
+#[jit_abi]
 extern "C" fn marker_record(vm: *mut u64, pc: u32, instruction: *const u8, outputs: *mut u64, _input: u64) -> i64 {
     // SAFETY: `outputs` is the record in the JIT frame, with a word per field.
     unsafe {
@@ -151,6 +175,7 @@ const STRING_PROTOTYPE_CLASS: u64 = 0x7300;
 
 /// What the fake cache probes find: objects whose word 0 is 1 have the
 /// property 42 in every cache, and accept every store into their word 1.
+#[jit_abi]
 extern "C" fn fake_try_get_by_id_cache(base: u64, _cache: *const u64) -> u64 {
     let object = (base & ((1 << 48) - 1)) as *const u64;
     // SAFETY: The tests only probe with objects.
@@ -161,6 +186,7 @@ extern "C" fn fake_try_get_by_id_cache(base: u64, _cache: *const u64) -> u64 {
     }
 }
 
+#[jit_abi]
 extern "C" fn fake_try_put_by_id_cache(_vm: *mut u64, _pc: u32, _instruction: *const u8, values: *const u64) -> i64 {
     // SAFETY: The record has the base, then the value; the tests only probe
     // with objects.
@@ -3076,6 +3102,7 @@ struct FakeNativeResult {
 
 const NATIVE_GETTER_RESULT: u64 = (value::UNDEFINED_TAG as u64) << 48 | 0xFEED;
 
+#[jit_abi]
 extern "C" fn fake_native_getter(_vm: u64) -> FakeNativeResult {
     FakeNativeResult {
         value: NATIVE_GETTER_RESULT,
@@ -3192,6 +3219,7 @@ fn get_by_id_reads_direct_getter_wrappers_inline_from(compressed_field: bool) {
 /// argument it was called with.
 const VM_NATIVE_SETTER_CALL_WORDS: usize = 10;
 
+#[jit_abi]
 extern "C" fn fake_native_setter(vm: *mut u64) -> FakeNativeResult {
     // SAFETY: The VM's word 0 is the running frame, the setter's own, and the
     // fake VM has room for the words the call is recorded in.
@@ -3700,26 +3728,32 @@ fn math_builtin_calls() {
     }
 }
 
+#[jit_abi]
 extern "C" fn fake_exp(number: f64) -> f64 {
     math::exp(number)
 }
 
+#[jit_abi]
 extern "C" fn fake_log(number: f64) -> f64 {
     math::log(number)
 }
 
+#[jit_abi]
 extern "C" fn fake_sin(number: f64) -> f64 {
     math::sin(number)
 }
 
+#[jit_abi]
 extern "C" fn fake_cos(number: f64) -> f64 {
     math::cos(number)
 }
 
+#[jit_abi]
 extern "C" fn fake_tan(number: f64) -> f64 {
     math::tan(number)
 }
 
+#[jit_abi]
 extern "C" fn fake_pow(base: f64, exponent: f64) -> f64 {
     math::pow(base, exponent)
 }
@@ -4475,6 +4509,7 @@ const VM_ROPE_STRINGS_WORDS: [usize; 2] = [10, 11];
 
 /// The fake `RopeAllocationInfo::slow_path`: records its strings, and
 /// returns `ROPE_FROM_RUNTIME`.
+#[jit_abi]
 extern "C" fn fake_create_rope_string(vm: *mut u64, lhs: u64, rhs: u64) -> u64 {
     // SAFETY: The fake VM has room for the words the fakes here use.
     unsafe {

@@ -1819,6 +1819,7 @@ dependencies = [
  "flapc",
  "iced-x86",
  "libc",
+ "libjs_runtime_macros",
 ]
 
 [[package]]
