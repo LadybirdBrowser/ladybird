@@ -471,7 +471,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesGcmParams::from_value(J
     auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
 
     auto maybe_additional_data = Optional<ByteBuffer> {};
-    if (MUST(object.has_property("additionalData"_utf16_fly_string))) {
+    if (TRY(object.has_property("additionalData"_utf16_fly_string))) {
         auto additional_data_value = TRY(object.get("additionalData"_utf16_fly_string));
         if (!additional_data_value.is_object() || !(is<JS::TypedArrayBase>(additional_data_value.as_object()) || is<JS::ArrayBuffer>(additional_data_value.as_object()) || is<JS::DataView>(additional_data_value.as_object())))
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
@@ -479,7 +479,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesGcmParams::from_value(J
     }
 
     auto maybe_tag_length = Optional<u8> {};
-    if (MUST(object.has_property("tagLength"_utf16_fly_string))) {
+    if (TRY(object.has_property("tagLength"_utf16_fly_string))) {
         auto tag_length_value = TRY(object.get("tagLength"_utf16_fly_string));
         maybe_tag_length = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, tag_length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
@@ -711,7 +711,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacImportParams::from_val
     auto hash = TRY(hash_algorithm_identifier_from_value(realm, hash_value));
 
     auto maybe_length = Optional<WebIDL::UnsignedLong> {};
-    if (MUST(object.has_property("length"_utf16_fly_string))) {
+    if (TRY(object.has_property("length"_utf16_fly_string))) {
         auto length_value = TRY(object.get("length"_utf16_fly_string));
         maybe_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
@@ -730,7 +730,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacKeyGenParams::from_val
     auto hash = TRY(hash_algorithm_identifier_from_value(realm, hash_value));
 
     auto maybe_length = Optional<WebIDL::UnsignedLong> {};
-    if (MUST(object.has_property("length"_utf16_fly_string))) {
+    if (TRY(object.has_property("length"_utf16_fly_string))) {
         auto length_value = TRY(object.get("length"_utf16_fly_string));
         maybe_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
@@ -746,7 +746,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Ed448Params::from_value(JS
     auto& object = value.as_object();
 
     auto maybe_context = Optional<ByteBuffer> {};
-    if (MUST(object.has_property("context"_utf16_fly_string))) {
+    if (TRY(object.has_property("context"_utf16_fly_string))) {
         auto context_value = TRY(object.get("context"_utf16_fly_string));
         if (!context_value.is_object() || !(is<JS::TypedArrayBase>(context_value.as_object()) || is<JS::ArrayBuffer>(context_value.as_object()) || is<JS::DataView>(context_value.as_object())))
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
@@ -777,7 +777,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Argon2Params::from_value(J
     VERIFY(value.is_object());
     auto& object = value.as_object();
 
-    if (!MUST(object.has_property("nonce"_utf16_fly_string))) {
+    if (!TRY(object.has_property("nonce"_utf16_fly_string))) {
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "nonce");
     }
     auto nonce_value = TRY(object.get("nonce"_utf16_fly_string));
@@ -786,7 +786,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Argon2Params::from_value(J
     auto const nonce = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(nonce_value.as_object()));
 
     auto const extract_u32_value = [&](auto const& name) -> JS::ThrowCompletionOr<WebIDL::UnsignedLong> {
-        if (!MUST(object.has_property(name))) {
+        if (!TRY(object.has_property(name))) {
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, name);
         }
         auto key_value = TRY(object.get(name));
@@ -798,7 +798,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Argon2Params::from_value(J
     auto const passes = TRY(extract_u32_value("passes"_utf16_fly_string));
 
     auto maybe_version = Optional<u8> {};
-    if (MUST(object.has_property("version"_utf16_fly_string))) {
+    if (TRY(object.has_property("version"_utf16_fly_string))) {
         auto version_value = TRY(object.get("version"_utf16_fly_string));
         maybe_version = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, version_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
@@ -817,7 +817,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> CShakeParams::from_value(J
     VERIFY(value.is_object());
     auto& object = value.as_object();
 
-    if (!MUST(object.has_property("outputLength"_utf16_fly_string))) {
+    if (!TRY(object.has_property("outputLength"_utf16_fly_string))) {
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "outputLength");
     }
 
@@ -842,7 +842,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacParams::from_value(JS:
     auto& object = value.as_object();
 
     // 1. If the outputLength member is missing, throw a TypeError.
-    if (!MUST(object.has_property("outputLength"_utf16_fly_string))) {
+    if (!TRY(object.has_property("outputLength"_utf16_fly_string))) {
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "outputLength");
     }
 
@@ -866,7 +866,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacKeyGenParams::from_val
 
     // 1. If the length member is present, record its unsigned long value; otherwise leave it unset.
     auto maybe_length = Optional<WebIDL::UnsignedLong> {};
-    if (MUST(object.has_property("length"_utf16_fly_string))) {
+    if (TRY(object.has_property("length"_utf16_fly_string))) {
         auto length_value = TRY(object.get("length"_utf16_fly_string));
         maybe_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
@@ -885,7 +885,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacImportParams::from_val
 
     // 1. If the length member is present, record its unsigned long value; otherwise leave it unset.
     auto maybe_length = Optional<WebIDL::UnsignedLong> {};
-    if (MUST(object.has_property("length"_utf16_fly_string))) {
+    if (TRY(object.has_property("length"_utf16_fly_string))) {
         auto length_value = TRY(object.get("length"_utf16_fly_string));
         maybe_length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
@@ -10059,7 +10059,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AeadParams::from_value(JS:
     auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
 
     auto maybe_additional_data = Optional<ByteBuffer> {};
-    if (MUST(object.has_property("additionalData"_utf16_fly_string))) {
+    if (TRY(object.has_property("additionalData"_utf16_fly_string))) {
         auto additional_data_value = TRY(object.get("additionalData"_utf16_fly_string));
         if (!additional_data_value.is_object() || !(is<JS::TypedArrayBase>(additional_data_value.as_object()) || is<JS::ArrayBuffer>(additional_data_value.as_object()) || is<JS::DataView>(additional_data_value.as_object())))
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
@@ -10067,7 +10067,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AeadParams::from_value(JS:
     }
 
     auto maybe_tag_length = Optional<u8> {};
-    if (MUST(object.has_property("tagLength"_utf16_fly_string))) {
+    if (TRY(object.has_property("tagLength"_utf16_fly_string))) {
         auto tag_length_value = TRY(object.get("tagLength"_utf16_fly_string));
         maybe_tag_length = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, tag_length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }

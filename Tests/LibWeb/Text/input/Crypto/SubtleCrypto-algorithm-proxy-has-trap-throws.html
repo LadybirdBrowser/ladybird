@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = new Proxy(
+            { name: "AES-GCM", iv: new Uint8Array(12) },
+            {
+                has() {
+                    throw new Error("thrown by the trap");
+                },
+            }
+        );
+        const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 128 }, false, ["encrypt"]);
+        const result = await crypto.subtle.encrypt(algorithm, key, new Uint8Array(1)).catch(error => error.message);
+        println(result);
+    });
+</script>
