@@ -1,0 +1,10 @@
+An auto-width table with percentage columns grows until its other
+columns fit their max-content sizes in the share the percentages leave
+them, and fills its container once the percentages total 100% and
+another column has content. Blink does the same in its
+ComputeGridInlineMinMax(): With percent_sum at 100 and a nonzero
+non_percent_max_size_sum, the table’s max size is kTableMaxInlineSize.
+Below 100, it’s that sum times 100 / (100 - percent_sum). And Gecko’s
+BasicTableLayoutStrategy::ComputeIntrinsicISizes() computes the same
+pref_pct_expand: nscoord_MAX when pct_total is 1, and otherwise
+nonpct_pref_total / (1 - pct_total).
