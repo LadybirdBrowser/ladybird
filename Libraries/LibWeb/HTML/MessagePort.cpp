@@ -38,6 +38,7 @@ void web_rust_message_port_disentangle_ports_of_realm(JSVM*, void* realm);
 JSCompletion web_rust_message_port_transfer_steps(JSVM*, void* realm, void* port, bool may_leave_process, TransferDataEncoder** out_data_holder, u64* out_parked_end_token);
 void web_rust_message_port_give_up_on_parked_end(u64 token);
 void web_rust_message_port_entanglement_kind(void* port, ReadonlyBytes* out_kind);
+bool web_rust_message_port_transport_is_closed_for_testing(void* port);
 JSCompletion web_rust_message_port_transfer_receiving_steps(JSVM*, void* realm, TransferDataEncoder*);
 
 // Declared in Bindings/Rust/src/html/message_port.rs.
@@ -138,6 +139,11 @@ StringView MessagePort::entanglement_kind_for_testing() const
     ReadonlyBytes kind;
     web_rust_message_port_entanglement_kind(const_cast<MessagePort*>(this), &kind);
     return StringView { kind };
+}
+
+bool MessagePort::transport_is_closed_for_testing() const
+{
+    return web_rust_message_port_transport_is_closed_for_testing(const_cast<MessagePort*>(this));
 }
 
 size_t MessagePort::pending_outgoing_message_count() const

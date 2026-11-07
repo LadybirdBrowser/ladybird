@@ -1,0 +1,41 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const SCRIPT = `
+        onconnect = event => {
+            const port = event.ports[0];
+            port.onmessage = event => {
+                event.ports[0].close();
+                port.postMessage("closed");
+            };
+        };
+    `;
+
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    // NB: The port has no message queue enabled, so it stays around with a transport that it closed once its peer went.
+    promiseTest(async () => {
+        const scriptURL = URL.createObjectURL(new Blob([SCRIPT], { type: "text/javascript" }));
+        const worker = new SharedWorker(scriptURL, uniqueID());
+        const channel = new MessageChannel();
+        const closed = new Promise(resolve => (worker.port.onmessage = resolve));
+        worker.port.postMessage(null, [channel.port2]);
+        await closed;
+        println(`before: ${internals.messagePortEntanglementKind(channel.port1)}`);
+        // NB: Sending is what makes the port notice that its peer left the process, if it has not yet.
+        channel.port1.postMessage("into the void");
+        // NB: The port sees that its peer went whenever the close reaches it, so wait for that, but not forever.
+        for (let i = 0; i < 500 && !internals.messagePortTransportIsClosed(channel.port1); ++i) await sleep(10);
+        if (!internals.messagePortTransportIsClosed(channel.port1)) println("FAIL: the port did not see its peer go");
+
+        const carrier = new MessageChannel();
+        const received = new Promise(resolve => (carrier.port2.onmessage = event => resolve(event.ports[0])));
+        carrier.port1.postMessage(null, [channel.port1]);
+        const port = await received;
+        println(`after: ${internals.messagePortEntanglementKind(port)}`);
+
+        port.postMessage("still no one there");
+        port.start();
+        println("port was transferred");
+    });
+</script>

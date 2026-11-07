@@ -217,6 +217,14 @@ impl MessagePort {
         }
     }
 
+    /// Whether the port's transport closed, as it does once the port sees that its peer went, for tests.
+    pub(crate) fn transport_is_closed_for_testing(&self) -> bool {
+        self.transport
+            .borrow()
+            .as_ref()
+            .is_some_and(|transport| transport.is_closed.get())
+    }
+
     pub(crate) fn fail_next_transfer_for_testing(&self) {
         self.fail_next_transfer_for_testing.set(true);
     }
@@ -675,7 +683,7 @@ impl Transferable for MessagePort {
             .transport
             .borrow()
             .as_ref()
-            .map(MessagePortTransport::release_for_transfer);
+            .and_then(MessagePortTransport::release_for_transfer);
 
         // 2. Set dataHolder.[[PortMessageQueue]] to value's port message queue.
         // NB: Drain the transport into the queue first, so that the messages it received and a pending shutdown move
@@ -1128,22 +1136,26 @@ impl MessagePortTransport {
     }
 
     /// Takes this end back, for a data holder to carry to another agent. The IO thread of a socket stops first, so that
-    /// what the peer sends from then on arrives at the new owner, while what it sent before can still be read.
-    pub(crate) fn release_for_transfer(&self) -> TransferredTransport {
+    /// what the peer sends from then on arrives at the new owner, while what it sent before can still be read. A transport
+    /// that closed as its peer went has nothing to hand over.
+    pub(crate) fn release_for_transfer(&self) -> Option<TransferredTransport> {
+        if self.is_closed.get() {
+            return None;
+        }
         let mut connection = self.connection.borrow_mut();
         if let Connection::Socket(socket) = &*connection {
             // SAFETY: This owns the transport, and LibWeb hands over the handle.
-            return TransferredTransport::Socket(unsafe {
+            return Some(TransferredTransport::Socket(unsafe {
                 TransportHandle::from_raw(web_bindings_message_port_transport_release_for_transfer(
                     socket.raw.as_ptr(),
                 ))
-            });
+            }));
         }
         let Connection::Channel(end) = core::mem::replace(&mut *connection, Connection::Released) else {
             unreachable!("a transport is released once");
         };
         end.set_wake(None);
-        TransferredTransport::Channel(end)
+        Some(TransferredTransport::Channel(end))
     }
 
     /// Runs the steps with the state on the owner thread whenever messages arrive, for as long as the transport lives.

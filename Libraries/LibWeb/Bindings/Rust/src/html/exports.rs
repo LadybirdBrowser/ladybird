@@ -409,6 +409,17 @@ pub unsafe extern "C" fn web_rust_message_port_entanglement_kind(
     unsafe { out_kind.write(ak::Span::new(kind.as_bytes())) };
 }
 
+/// Whether the transport of the port closed, for tests.
+///
+/// # Safety
+///
+/// `port` must be a live cell of a MessagePort.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_message_port_transport_is_closed_for_testing(port: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live cell of a MessagePort.
+    unsafe { cell_from_abi::<MessagePort>(port) }.transport_is_closed_for_testing()
+}
+
 /// The transfer-receiving steps of a MessagePort that C++ runs outside StructuredDeserializeWithTransfer, which return
 /// the wrapper of the new MessagePort.
 ///

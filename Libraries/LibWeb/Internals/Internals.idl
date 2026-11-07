@@ -47,6 +47,8 @@ interface Internals {
     undefined failNextMessagePortTransfer(MessagePort port);
     boolean messagePortsAreDirectlyEntangled(MessagePort first, MessagePort second);
     DOMString messagePortEntanglementKind(MessagePort port);
+    // True once the transport of the port closed, as it does when the port sees that its peer went.
+    boolean messagePortTransportIsClosed(MessagePort port);
     XMLHttpRequest createXMLHttpRequestForDocument(Document document);
     [ImplementedAs=hit_test_result] object hitTest(double x, double y);
     object? takeContextMenuRequest();
