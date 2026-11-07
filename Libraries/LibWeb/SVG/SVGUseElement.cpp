@@ -204,14 +204,17 @@ void SVGUseElement::process_the_url(Optional<Utf16String> const& href)
     // a same-document URL reference, and processing the URL must continue as indicated in Identifying
     // the target element with the current document as the referenced document.
     m_href = document().encoding_parse_url(href.value_or({}));
-    if (!m_href.has_value())
-        return;
-
-    if (is_referenced_element_same_document()) {
+    if (m_href.has_value() && is_referenced_element_same_document()) {
         clone_element_tree_as_our_shadow_tree(referenced_element());
-    } else {
-        fetch_the_document(*m_href);
+        return;
     }
+
+    // If either the ‘use’ element or the referenced element is altered in a way that causes the ‘use’ element’s URL
+    // reference to become unresolved again, then the entire shadow tree for that use element is discarded.
+    clone_element_tree_as_our_shadow_tree(nullptr);
+
+    if (m_href.has_value())
+        fetch_the_document(*m_href);
 }
 
 bool SVGUseElement::is_referenced_element_same_document() const
