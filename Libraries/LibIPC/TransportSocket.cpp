@@ -10,6 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Types.h>
+#include <AK/kmalloc.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibIPC/Attachment.h>
@@ -37,6 +38,8 @@ static constexpr size_t READ_BUFFER_SIZE = 4096;
 
 // Maximum number of reads before the IO thread publishes what it has parsed and gets back to its other work
 static constexpr size_t MAX_READS_PER_ROUND = 16;
+
+static constexpr int IDLE_MEMORY_RELEASE_DELAY_IN_MILLISECONDS = 1000;
 
 Atomic<u32> TransportSocket::s_eof_drain_window_for_test_ms { 0 };
 Atomic<bool> TransportSocket::s_skip_inloop_read_for_test { false };
@@ -242,6 +245,7 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
 intptr_t TransportSocket::io_thread_loop()
 {
     Array<struct pollfd, 2> pollfds;
+    bool released_memory_since_last_wakeup = true;
     for (;;) {
         auto want_to_write = [&] {
             auto [bytes, fds] = m_send_queue->peek(1);
@@ -264,13 +268,22 @@ intptr_t TransportSocket::io_thread_loop()
 
         ErrorOr<int> result { 0 };
         do {
-            result = Core::System::poll(pollfds, -1);
+            result = Core::System::poll(pollfds, released_memory_since_last_wakeup ? -1 : IDLE_MEMORY_RELEASE_DELAY_IN_MILLISECONDS);
         } while (result.is_error() && result.error().code() == EINTR);
         if (result.is_error()) {
             dbgln("TransportSocket poll error: {}", result.error());
             m_io_thread_state = IOThreadState::Stopped;
             break;
         }
+
+        // NB: The messages this thread reads are freed by the thread that handles them, and the allocator keeps that
+        //     memory until this thread allocates again or collects, which an idle transport may never do.
+        if (result.value() == 0) {
+            ak_kmalloc_collect();
+            released_memory_since_last_wakeup = true;
+            continue;
+        }
+        released_memory_since_last_wakeup = false;
 
         if (pollfds[1].revents & POLLIN) {
             char buf[64];

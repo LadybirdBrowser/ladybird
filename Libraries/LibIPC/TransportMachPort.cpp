@@ -8,6 +8,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NumericLimits.h>
 #include <AK/Time.h>
+#include <AK/kmalloc.h>
 #include <LibCore/MachPort.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/Platform/ThreadQoS.h>
@@ -288,6 +289,8 @@ void TransportMachPort::mark_peer_eof()
         write_read_notification_byte();
 }
 
+static constexpr mach_msg_timeout_t IDLE_MEMORY_RELEASE_DELAY_IN_MILLISECONDS = 1000;
+
 intptr_t TransportMachPort::io_thread_loop()
 {
     static constexpr size_t RECV_BUFFER_SIZE = 65536;
@@ -300,6 +303,7 @@ intptr_t TransportMachPort::io_thread_loop()
     // behind a cursor until the whole backlog has gone, so a retry costs nothing per message still waiting.
     Vector<PendingMessage> backlog;
     size_t backlog_sent = 0;
+    bool released_memory_since_last_message = true;
 
     for (;;) {
         if (m_io_thread_state.load() == IOThreadState::Stopped)
@@ -345,13 +349,24 @@ intptr_t TransportMachPort::io_thread_loop()
         // Wait on the whole port set so one loop can handle peer messages, internal wakeups, and kernel
         // notifications like MACH_NOTIFY_NO_SENDERS.
         // With a backlog, the wait is short, so the sends are retried as the peer makes room.
-        auto const receive_options = MACH_RCV_MSG | MACH_RCV_LARGE | (backlog_is_empty ? 0 : MACH_RCV_TIMEOUT);
-        auto const receive_timeout = backlog_is_empty ? MACH_MSG_TIMEOUT_NONE : 1;
+        bool const waits_without_timeout = backlog_is_empty && released_memory_since_last_message;
+        auto const receive_options = MACH_RCV_MSG | MACH_RCV_LARGE | (waits_without_timeout ? 0 : MACH_RCV_TIMEOUT);
+        auto const receive_timeout = waits_without_timeout ? MACH_MSG_TIMEOUT_NONE
+            : backlog_is_empty                             ? IDLE_MEMORY_RELEASE_DELAY_IN_MILLISECONDS
+                                                           : 1;
         auto const ret = mach_msg(header, receive_options, 0, buffer.size(),
             m_port_set.port(), receive_timeout, MACH_PORT_NULL);
 
-        if (ret == MACH_RCV_TIMED_OUT)
+        if (ret == MACH_RCV_TIMED_OUT) {
+            // NB: The messages this thread receives are freed by the thread that handles them, and the allocator keeps
+            //     that memory until this thread allocates again or collects, which an idle transport may never do.
+            if (backlog_is_empty) {
+                ak_kmalloc_collect();
+                released_memory_since_last_message = true;
+            }
             continue;
+        }
+        released_memory_since_last_message = false;
 
         if (ret == MACH_RCV_TOO_LARGE) {
             auto needed_size = header->msgh_size + sizeof(mach_msg_trailer_t);
