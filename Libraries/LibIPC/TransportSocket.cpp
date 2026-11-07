@@ -7,6 +7,7 @@
 
 #include <AK/Checked.h>
 #include <AK/Mutex.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Types.h>
@@ -214,8 +215,116 @@ void SendQueue::release_drain_waiters()
     m_drained_cv.broadcast();
 }
 
+// The IO thread of the transports that share one. Polling several sockets means that a transport waits for the others
+// to get through a round, which is bounded, and takes no more than a transport with a thread of its own takes for itself.
+class SharedIOThread {
+    AK_MAKE_NONCOPYABLE(SharedIOThread);
+    AK_MAKE_NONMOVABLE(SharedIOThread);
+
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    static SharedIOThread& the()
+    {
+        static NeverDestroyed<SharedIOThread> shared_io_thread;
+        return *shared_io_thread;
+    }
+
+    SharedIOThread()
+    {
+        auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
+        m_wakeup_read_fd = fds[0];
+        m_wakeup_write_fd = fds[1];
+
+        // NB: Nothing waits for this thread, which goes with the process.
+        auto thread = Threading::Thread::construct("IPC IO"sv, [this] { return loop(); });
+        thread->start();
+        thread->detach();
+    }
+
+    void add(TransportSocket& transport)
+    {
+        {
+            MutexLocker locker(m_mutex);
+            m_transports.append(&transport);
+        }
+        wake();
+    }
+
+    void wake()
+    {
+        Array<u8, 1> bytes = { 0 };
+        (void)Core::System::write(m_wakeup_write_fd, bytes);
+    }
+
+private:
+    intptr_t loop()
+    {
+        Vector<TransportSocket*> transports;
+        Vector<TransportSocket*> polled_transports;
+        Vector<struct pollfd> pollfds;
+        for (;;) {
+            {
+                MutexLocker locker(m_mutex);
+                transports = m_transports;
+            }
+
+            polled_transports.clear_with_capacity();
+            pollfds.clear_with_capacity();
+            pollfds.append({ .fd = m_wakeup_read_fd, .events = POLLIN, .revents = 0 });
+            for (auto* transport : transports) {
+                if (auto events = transport->events_to_poll(); events.has_value()) {
+                    polled_transports.append(transport);
+                    pollfds.append({ .fd = transport->m_socket->fd().value(), .events = *events, .revents = 0 });
+                    continue;
+                }
+                {
+                    MutexLocker locker(m_mutex);
+                    m_transports.remove_first_matching([&](auto* other) { return other == transport; });
+                }
+                transport->finish_io();
+            }
+
+            ErrorOr<int> result { 0 };
+            do {
+                result = Core::System::poll(pollfds, -1);
+            } while (result.is_error() && result.error().code() == EINTR);
+            if (result.is_error()) {
+                dbgln("TransportSocket poll error: {}", result.error());
+                for (auto* transport : polled_transports)
+                    transport->m_io_thread_state = TransportSocket::IOThreadState::Stopped;
+                continue;
+            }
+
+            if (pollfds[0].revents & POLLIN) {
+                char buf[64];
+                // The wakeup pipe is non-blocking, so EAGAIN is possible if there's a spurious wakeup.
+                (void)Core::System::read(m_wakeup_read_fd, { buf, sizeof(buf) });
+            }
+
+            for (size_t i = 0; i < polled_transports.size(); ++i) {
+                if (pollfds[i + 1].revents != 0)
+                    polled_transports[i]->handle_polled_events(pollfds[i + 1].revents);
+            }
+        }
+    }
+
+    Mutex m_mutex;
+    Vector<TransportSocket*> m_transports;
+    int m_wakeup_read_fd { -1 };
+    int m_wakeup_write_fd { -1 };
+};
+
+static thread_local bool s_share_io_thread_on_this_thread { false };
+
+void TransportSocket::set_share_io_thread_on_this_thread(bool share_io_thread)
+{
+    s_share_io_thread_on_this_thread = share_io_thread;
+}
+
 TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
     : m_socket(move(socket))
+    , m_shares_io_thread(s_share_io_thread_on_this_thread)
 {
     // Disable the socket's built-in notifier. TransportSocket uses its own pipe-based notification mechanism on the IO
     // thread, so this notifier is unused. Otherwise, when the socket reaches EOF, this notifier is disabled from the IO
@@ -228,18 +337,72 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
 
     m_send_queue = adopt_ref(*new SendQueue);
 
-    auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
-    m_wakeup_io_thread_read_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[0]));
-    m_wakeup_io_thread_write_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[1]));
-
     {
         auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
         m_notify_hook_read_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[0]));
         m_notify_hook_write_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[1]));
     }
 
+    if (m_shares_io_thread) {
+        SharedIOThread::the().add(*this);
+        return;
+    }
+
+    auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
+    m_wakeup_io_thread_read_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[0]));
+    m_wakeup_io_thread_write_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[1]));
+
     m_io_thread = Threading::Thread::construct("IPC IO"sv, [this] { return io_thread_loop(); });
     m_io_thread->start();
+}
+
+Optional<short> TransportSocket::events_to_poll()
+{
+    auto want_to_write = [&] {
+        auto [bytes, fds] = m_send_queue->peek(1);
+        return !bytes.is_empty() || !fds.is_empty();
+    }();
+
+    auto state = m_io_thread_state.load();
+    if (state == IOThreadState::Stopped)
+        return {};
+    if (state == IOThreadState::SendPendingMessagesAndStop && !want_to_write) {
+        m_io_thread_state = IOThreadState::Stopped;
+        return {};
+    }
+
+    short events = POLLIN;
+    if (want_to_write)
+        events |= POLLOUT;
+    return events;
+}
+
+void TransportSocket::handle_polled_events(short events)
+{
+    if ((events & POLLIN) && !s_skip_inloop_read_for_test.load(AK::MemoryOrder::memory_order_relaxed))
+        (void)read_incoming_messages();
+
+    if (events & POLLHUP) {
+        m_io_thread_state = IOThreadState::Stopped;
+        return;
+    }
+
+    if (events & (POLLERR | POLLNVAL)) {
+        dbgln("TransportSocket poll: socket error (POLLERR or POLLNVAL)");
+        m_io_thread_state = IOThreadState::Stopped;
+        return;
+    }
+
+    if (events & POLLOUT) {
+        MutexLocker locker(m_send_mutex);
+        auto [bytes, fds] = m_send_queue->peek(4096);
+        if (!bytes.is_empty() || !fds.is_empty()) {
+            ReadonlyBytes remaining = bytes;
+            if (transfer_data(remaining, fds) == TransferState::SocketClosed) {
+                m_io_thread_state = IOThreadState::Stopped;
+            }
+        }
+    }
 }
 
 intptr_t TransportSocket::io_thread_loop()
@@ -247,23 +410,11 @@ intptr_t TransportSocket::io_thread_loop()
     Array<struct pollfd, 2> pollfds;
     bool released_memory_since_last_wakeup = true;
     for (;;) {
-        auto want_to_write = [&] {
-            auto [bytes, fds] = m_send_queue->peek(1);
-            return !bytes.is_empty() || !fds.is_empty();
-        }();
-
-        auto state = m_io_thread_state.load();
-        if (state == IOThreadState::Stopped)
+        auto events = events_to_poll();
+        if (!events.has_value())
             break;
-        if (state == IOThreadState::SendPendingMessagesAndStop && !want_to_write) {
-            m_io_thread_state = IOThreadState::Stopped;
-            break;
-        }
 
-        short events = POLLIN;
-        if (want_to_write)
-            events |= POLLOUT;
-        pollfds[0] = { .fd = m_socket->fd().value(), .events = events, .revents = 0 };
+        pollfds[0] = { .fd = m_socket->fd().value(), .events = *events, .revents = 0 };
         pollfds[1] = { .fd = m_wakeup_io_thread_read_fd->value(), .events = POLLIN, .revents = 0 };
 
         ErrorOr<int> result { 0 };
@@ -291,32 +442,15 @@ intptr_t TransportSocket::io_thread_loop()
             (void)Core::System::read(m_wakeup_io_thread_read_fd->value(), { buf, sizeof(buf) });
         }
 
-        if ((pollfds[0].revents & POLLIN) && !s_skip_inloop_read_for_test.load(AK::MemoryOrder::memory_order_relaxed))
-            (void)read_incoming_messages();
-
-        if (pollfds[0].revents & POLLHUP) {
-            m_io_thread_state = IOThreadState::Stopped;
-            break;
-        }
-
-        if (pollfds[0].revents & (POLLERR | POLLNVAL)) {
-            dbgln("TransportSocket poll: socket error (POLLERR or POLLNVAL)");
-            m_io_thread_state = IOThreadState::Stopped;
-            break;
-        }
-
-        if (pollfds[0].revents & POLLOUT) {
-            MutexLocker locker(m_send_mutex);
-            auto [bytes, fds] = m_send_queue->peek(4096);
-            if (!bytes.is_empty() || !fds.is_empty()) {
-                ReadonlyBytes remaining = bytes;
-                if (transfer_data(remaining, fds) == TransferState::SocketClosed) {
-                    m_io_thread_state = IOThreadState::Stopped;
-                }
-            }
-        }
+        handle_polled_events(pollfds[0].revents);
     }
 
+    finish_io();
+    return 0;
+}
+
+void TransportSocket::finish_io()
+{
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
     m_send_queue->release_drain_waiters();
     if (!m_is_being_transferred.load(AK::MemoryOrder::memory_order_acquire)) {
@@ -344,11 +478,14 @@ intptr_t TransportSocket::io_thread_loop()
         m_receive_loop_finished = true;
         m_incoming_cv.broadcast();
     }
-    return 0;
 }
 
 void TransportSocket::wake_io_thread()
 {
+    if (m_shares_io_thread) {
+        SharedIOThread::the().wake();
+        return;
+    }
     Array<u8, 1> bytes = { 0 };
     (void)Core::System::write(m_wakeup_io_thread_write_fd->value(), bytes);
 }
@@ -367,6 +504,12 @@ void TransportSocket::stop_io_thread(IOThreadState desired_state)
     auto state = m_io_thread_state.load(AK::MemoryOrder::memory_order_acquire);
     while (state != IOThreadState::Stopped && !m_io_thread_state.compare_exchange_strong(state, desired_state, AK::MemoryOrder::memory_order_acq_rel)) { }
     wake_io_thread();
+    if (m_shares_io_thread) {
+        MutexLocker locker(m_incoming_mutex);
+        while (!m_receive_loop_finished)
+            m_incoming_cv.wait();
+        return;
+    }
     if (m_io_thread && m_io_thread->needs_to_be_joined())
         (void)m_io_thread->join();
 }

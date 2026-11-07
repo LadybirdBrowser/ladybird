@@ -700,6 +700,76 @@ TEST_CASE(a_backlog_larger_than_one_read_round_is_delivered_after_peer_hangup)
     EXPECT(every_message_was_intact);
 }
 
+TEST_CASE(transports_that_share_an_io_thread_work_alone)
+{
+    Core::EventLoop loop;
+    auto post = [](IPC::TransportSocket& transport, u8 value) {
+        IPC::MessageDataType payload;
+        payload.append(value);
+        Vector<IPC::Attachment> attachments;
+        MUST(transport.post_message(move(payload), attachments));
+    };
+    auto read_one = [&](IPC::TransportSocket& transport) -> Optional<u8> {
+        Optional<u8> value;
+        spin_until(loop, [&] {
+            (void)transport.read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+                value = message.bytes.bytes()[0];
+            });
+            return value.has_value();
+        });
+        return value;
+    };
+
+    IPC::TransportSocket::set_share_io_thread_on_this_thread(true);
+    ScopeGuard stop_sharing = [] { IPC::TransportSocket::set_share_io_thread_on_this_thread(false); };
+
+    Vector<NonnullOwnPtr<IPC::TransportSocket>> local_ends;
+    Vector<NonnullOwnPtr<IPC::TransportSocket>> remote_ends;
+    for (size_t i = 0; i < 8; ++i) {
+        auto paired = TRY_OR_FAIL(IPC::TransportSocket::create_paired());
+        local_ends.append(move(paired.local));
+        remote_ends.append(TRY_OR_FAIL(paired.remote_handle.create_transport()));
+    }
+    for (size_t i = 0; i < local_ends.size(); ++i)
+        post(*local_ends[i], static_cast<u8>(i));
+    for (size_t i = 0; i < remote_ends.size(); ++i) {
+        EXPECT_EQ(read_one(*remote_ends[i]), static_cast<u8>(i));
+        post(*remote_ends[i], static_cast<u8>(i + 100));
+    }
+
+    // One that goes must not take the others with it, and its peer finds out.
+    local_ends.remove(3);
+    bool should_shut_down = false;
+    spin_until(loop, [&] {
+        should_shut_down = remote_ends[3]->read_as_many_messages_as_possible_without_blocking([](auto&&) { }) == IPC::TransportSocket::ShouldShutdown::Yes;
+        return should_shut_down;
+    });
+    remote_ends.remove(3);
+    for (size_t i = 0; i < local_ends.size(); ++i) {
+        auto expected = i < 3 ? i : i + 1;
+        EXPECT_EQ(read_one(*local_ends[i]), static_cast<u8>(expected + 100));
+    }
+
+    // A transport can leave its shared thread for another owner. The old owner hands on what it did read, and the new
+    // one gets the rest, so that each message arrives once and in order.
+    post(*local_ends[0], 42);
+    auto handle = TRY_OR_FAIL(remote_ends[0]->release_for_transfer());
+    Vector<u8> received;
+    (void)remote_ends[0]->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+        received.append(message.bytes.bytes()[0]);
+    });
+    remote_ends.remove(0);
+    auto new_owner = TRY_OR_FAIL(handle.create_transport());
+    post(*local_ends[0], 43);
+    spin_until(loop, [&] {
+        (void)new_owner->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+            received.append(message.bytes.bytes()[0]);
+        });
+        return received.size() >= 2;
+    });
+    EXPECT_EQ(received, (Vector<u8> { 42, 43 }));
+}
+
 TEST_CASE(read_hook_is_notified_on_peer_hangup)
 {
     Core::EventLoop loop;
