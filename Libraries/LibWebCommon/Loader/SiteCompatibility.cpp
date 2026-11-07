@@ -6,6 +6,8 @@
 
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <AK/Mutex.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
 #include <LibWebCommon/Loader/SiteCompatibility.h>
 
@@ -122,6 +124,12 @@ bool SiteCompatibilityRule::exposes_experimental_interface(StringView name) cons
 bool SiteCompatibilityRule::matches(URL::URL const& url) const
 {
     auto serialized_url = url.serialize();
+
+    // NB: Agents on different threads share these rules, and a compiled pattern keeps non-atomic state: each regex has
+    //     a reference count and the scratch space of its matcher. A match is short, and a fetch makes few of them.
+    static NeverDestroyed<Mutex> s_match_mutex;
+    MutexLocker locker(*s_match_mutex);
+
     for (auto const& pattern : m_compiled_patterns) {
         auto result = pattern.match(serialized_url, {});
         if (!result.is_error() && result.value().has_value())
