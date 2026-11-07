@@ -302,15 +302,18 @@ impl AudioContext {
         })
     }
 
-    // https://www.w3.org/TR/webaudio/#dom-audiocontext-resume
+    // https://webaudio.github.io/web-audio-api/#dom-audiocontext-resume
     pub(crate) fn resume(&self, cx: &mut CallContext, promise: WebIdlPromise) -> WebIdlResult<()> {
-        // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
+        // 1. If this’s relevant global object’s associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
         if !self.context.document_is_fully_active() {
             return Err(Exception::Dom(
                 "InvalidStateError",
                 Utf16String::from_ascii(b"Document is not fully active"),
             ));
         }
+
+        // 2. Let promise be a new Promise.
+        // NB: The bindings create the promise.
 
         // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
         if self.context.state_value() == AudioContextState::Closed {
@@ -325,20 +328,30 @@ impl AudioContext {
             return Ok(());
         }
 
-        // 4. Set [[suspended by user]] to true.
-        self.suspended_by_user.set(true);
+        // 4. Set [[suspended by user]] to false.
+        self.suspended_by_user.set(false);
 
-        // 5. If the context is not allowed to start, append promise to [[pending promises]] and [[pending resume promises]] and abort these steps, returning promise.
-        if self.allowed_to_start {
+        // FIXME: 5. If the context’s state attribute is "suspended" and the context’s [[control thread state]] is "interrupted", then:
+        // FIXME: 5.1. Queue a media element task to execute the following steps:
+        // FIXME: 5.1.1. Set the state attribute of the AudioContext to "interrupted".
+        // FIXME: 5.1.2. Set the [[state before interruption]] slot to "running".
+        // FIXME: 5.1.3. Queue a media element task to fire an event named statechange at the AudioContext.
+        // FIXME: 5.2. Reject the promise with InvalidStateError, abort these steps, returning promise.
+
+        // 6. If the context is not allowed to start, append promise to [[pending promises]] and [[pending resume promises]] and abort these steps, returning promise.
+        if !self.allowed_to_start {
             self.context.pending_promises.borrow_mut(cx.vm()).push(promise);
             self.pending_resume_promises.borrow_mut(cx.vm()).push(promise);
+            return Ok(());
         }
 
-        // 6. Set the [[control thread state]] on the AudioContext to running.
+        // 7. Set the [[control thread state]] on the AudioContext to running.
         self.context.set_control_state(AudioContextState::Running);
 
-        // 7. Queue a control message to resume the AudioContext.
+        // 8. Queue a control message to resume the AudioContext with promise.
         self.run_control_message_to_resume(cx.vm(), promise);
+
+        // 9. Return promise.
         Ok(())
     }
 
