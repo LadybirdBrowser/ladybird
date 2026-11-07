@@ -590,18 +590,10 @@ def write_attribute_getter(
     if attribute_type_is_promise:
         if getter_prelude or getter_cache_check:
             raise RuntimeError(f"Unsupported cached promise attribute '{attribute.name}' on '{interface.name}'")
-        if getter_realm_argument == "realm":
-            promise_realm_setup = "[[maybe_unused]] auto& promise_realm = realm;"
-        else:
-            promise_realm_setup = """auto promise_realm_this_value = vm.this_value();
-    if (promise_realm_this_value.is_nullish())
-        promise_realm_this_value = &realm.global_object();
-    [[maybe_unused]] auto& promise_realm = this_value_realm(realm, promise_realm_this_value);"""
         out.write(
             f"""JS_DEFINE_NATIVE_FUNCTION({receiver_class}::{attribute_getter_callback_name(attribute)})
 {{
     [[maybe_unused]] auto& realm = *vm.current_realm();
-    {promise_realm_setup}
 
     auto steps = [&]() -> JS::ThrowCompletionOr<GC::Ptr<WebIDL::Promise>> {{
         [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = nullptr;
@@ -631,11 +623,11 @@ def write_attribute_getter(
     auto maybe_R = steps();
 
     if (maybe_R.is_throw_completion())
-        return WebIDL::create_rejected_promise(promise_realm, maybe_R.error_value())->promise();
+        return WebIDL::create_rejected_promise(realm, maybe_R.error_value())->promise();
 
     auto R = maybe_R.release_value();
 
-    return {to_javascript_value(attribute.type, "R", includes, context, "promise_realm")};
+    return {to_javascript_value(attribute.type, "R", includes, context, "realm")};
 }}
 
 """

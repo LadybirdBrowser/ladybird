@@ -171,16 +171,6 @@ fn default_async_iterator_of<T: DefaultAsyncIteratorClasses>(object: Gc<Object>)
     unsafe { T::ASYNC_ITERATOR_CELL_CLASS.downcast(host_data) }
 }
 
-/// The realm that the "next" and "return" methods create their promise in, as LibWeb's C++ bindings do: the realm of
-/// the this value, or the current realm for a this value that is not an object.
-fn this_value_realm(vm: &Vm) -> Gc<Realm> {
-    let this_value = vm.this_value();
-    if this_value.is_object() {
-        return this_value.as_object().shape().realm();
-    }
-    vm.current_realm().expect("a native function runs in a realm")
-}
-
 /// The steps of a built-in function that the iterator creates, given its captures.
 type BuiltinSteps<C> = fn(&Vm, C) -> ThrowCompletionOr<Value>;
 
@@ -250,7 +240,8 @@ fn promise_of(object: Gc<Object>) -> Gc<Promise> {
 pub(crate) fn async_iterator_next<T: DefaultAsyncIteratorClasses>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let interface be the interface for which the asynchronous iterator prototype object exists.
     // 2. Let thisValidationPromiseCapability be ! NewPromiseCapability(%Promise%).
-    let this_validation_promise_capability = create_promise(vm, this_value_realm(vm));
+    let this_validation_promise_capability =
+        create_promise(vm, vm.current_realm().expect("a native function runs in a realm"));
 
     // 3. Let thisValue be the this value.
     // 4. Let object be Completion(ToObject(thisValue)).
@@ -379,7 +370,7 @@ pub(crate) fn async_iterator_return<T: DefaultAsyncIteratorClasses>(vm: &Vm) -> 
 
     // 1. Let interface be the interface for which the asynchronous iterator prototype object exists.
     // 2. Let returnPromiseCapability be ! NewPromiseCapability(%Promise%).
-    let return_promise_capability = create_promise(vm, this_value_realm(vm));
+    let return_promise_capability = create_promise(vm, vm.current_realm().expect("a native function runs in a realm"));
 
     // 3. Let thisValue be the this value.
     // 4. Let object be Completion(ToObject(thisValue)).
