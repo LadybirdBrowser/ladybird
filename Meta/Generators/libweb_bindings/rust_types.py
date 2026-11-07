@@ -373,7 +373,7 @@ def rust_enumeration_variant(value: str, enumeration: Enumeration) -> str:
     way."""
     variant = string_to_cpp_enum_name(value)
     is_plain = value.isascii() and value.isprintable() and '"' not in value and "\\" not in value
-    if not is_plain or not re.fullmatch(r"[A-Z][A-Za-z0-9]*", variant) or variant == "Self":
+    if not is_plain or not re.fullmatch(r"(?:[A-Z]|_[0-9])[A-Za-z0-9]*", variant) or variant == "Self":
         raise UnsupportedByRustBindings(
             f"The value {value!r} of the enumeration {enumeration.name} has no name that the Rust bindings can give "
             "its variant"
