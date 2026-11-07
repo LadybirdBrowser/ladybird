@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Ali Mohammad Pur <ali@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -39,6 +40,8 @@ namespace Web::WebAudio::Rendering {
 // Slots are accessed in place through the writer/reader views below, which are only valid inside the callback they
 // are passed to. A slot's unwritten regions keep stale data from the previous trip around the ring, so a writer
 // must set the channel counts it wants a reader to trust; the flags are cleared on every push.
+struct AudioWorkletPipeCallbacks;
+
 class WEB_API AudioWorkletPipe final : public AtomicRefCounted<AudioWorkletPipe> {
 public:
     struct Config {
@@ -147,6 +150,9 @@ public:
 
     static NonnullRefPtr<AudioWorkletPipe> create(Config, Core::EventLoop& main_thread_event_loop);
 
+    ~AudioWorkletPipe();
+    void const* rust_pipe() const { return m_pipe; }
+
     Config const& config() const { return m_config; }
 
     // Audio-thread side (input producer, output consumer):
@@ -190,170 +196,21 @@ public:
 
     // Either thread:
 
-    State state() const { return static_cast<State>(m_state.load(AK::MemoryOrder::memory_order_acquire)); }
-    void set_state(State state) { m_state.store(to_underlying(state), AK::MemoryOrder::memory_order_release); }
+    State state() const;
+    void set_state(State);
 
     // A single atomic store, so this is safe to call from a GC finalizer on either thread.
     void request_shutdown() { set_state(State::ShutDown); }
 
-    u64 underrun_count() const { return m_underrun_count.load(AK::MemoryOrder::memory_order_relaxed); }
-    u64 dropped_input_count() const { return m_dropped_input_count.load(AK::MemoryOrder::memory_order_relaxed); }
+    u64 underrun_count() const;
+    u64 dropped_input_count() const;
 
 private:
     AudioWorkletPipe(Config, Core::EventLoop& main_thread_event_loop);
 
-    static constexpr size_t slot_flags_offset = sizeof(u64);
-    static constexpr size_t slot_channel_counts_offset = sizeof(u64) + sizeof(u32);
-    static constexpr size_t slot_alignment = 64;
-    static constexpr u32 input_slot_flag_had_gap = 1u << 0;
-    static constexpr u32 output_slot_flag_processor_active = 1u << 0;
-
-    u8* input_slot(size_t counter) { return m_arena.data() + (counter & m_ring_index_mask) * m_input_slot_stride; }
-    u8* output_slot(size_t counter) { return m_arena.data() + m_output_region_offset + (counter & m_ring_index_mask) * m_output_slot_stride; }
-
-    struct Ring {
-        AK_CACHE_ALIGNED Atomic<size_t> tail { 0 }; // Producer-owned: the next slot to write.
-        AK_CACHE_ALIGNED Atomic<size_t> head { 0 }; // Consumer-owned: the next slot to read.
-    };
-
     Config m_config;
-    size_t m_ring_index_mask { 0 };
-
-    size_t m_input_slot_stride { 0 };
-    size_t m_output_slot_stride { 0 };
-    size_t m_output_region_offset { 0 };
-    Vector<size_t> m_input_samples_offset;
-    Vector<size_t> m_output_samples_offset;
-    Vector<size_t> m_param_block_offset;
-    Vector<size_t> m_param_block_length;
-    FixedArray<u8> m_arena;
-
-    Ring m_input_ring;
-    Ring m_output_ring;
-
-    Core::EventLoop& m_main_thread_event_loop;
-    Function<void()> m_pump_callback;
-    Atomic<bool> m_pump_scheduled { false };
-
-    Atomic<u8> m_state { to_underlying(State::Running) };
-    Atomic<u64> m_underrun_count { 0 };
-    Atomic<u64> m_dropped_input_count { 0 };
+    NonnullRefPtr<AudioWorkletPipeCallbacks> m_callbacks;
+    void const* m_pipe { nullptr };
 };
-
-inline u64& AudioWorkletPipe::InputSlotWriter::start_frame()
-{
-    return *reinterpret_cast<u64*>(m_slot);
-}
-
-inline void AudioWorkletPipe::InputSlotWriter::set_had_gap(bool had_gap)
-{
-    auto& flags = *reinterpret_cast<u32*>(m_slot + slot_flags_offset);
-    if (had_gap)
-        flags |= input_slot_flag_had_gap;
-    else
-        flags &= ~input_slot_flag_had_gap;
-}
-
-inline u32& AudioWorkletPipe::InputSlotWriter::actual_channel_count(size_t input)
-{
-    VERIFY(input < m_pipe.m_config.input_count);
-    return *reinterpret_cast<u32*>(m_slot + slot_channel_counts_offset + input * sizeof(u32));
-}
-
-inline Span<float> AudioWorkletPipe::InputSlotWriter::input_channel(size_t input, size_t channel)
-{
-    VERIFY(input < m_pipe.m_config.input_count);
-    VERIFY(channel < m_pipe.m_config.input_channel_capacity[input]);
-    auto* samples = reinterpret_cast<float*>(m_slot + m_pipe.m_input_samples_offset[input]) + channel * m_pipe.m_config.quantum_size;
-    return { samples, m_pipe.m_config.quantum_size };
-}
-
-inline Span<float> AudioWorkletPipe::InputSlotWriter::param_block(size_t param)
-{
-    VERIFY(param < m_pipe.m_config.param_count);
-    return { reinterpret_cast<float*>(m_slot + m_pipe.m_param_block_offset[param]), m_pipe.m_param_block_length[param] };
-}
-
-inline u64 AudioWorkletPipe::InputSlotReader::start_frame() const
-{
-    return *reinterpret_cast<u64 const*>(m_slot);
-}
-
-inline bool AudioWorkletPipe::InputSlotReader::had_gap() const
-{
-    return (*reinterpret_cast<u32 const*>(m_slot + slot_flags_offset) & input_slot_flag_had_gap) != 0;
-}
-
-inline u32 AudioWorkletPipe::InputSlotReader::actual_channel_count(size_t input) const
-{
-    VERIFY(input < m_pipe.m_config.input_count);
-    return *reinterpret_cast<u32 const*>(m_slot + slot_channel_counts_offset + input * sizeof(u32));
-}
-
-inline ReadonlySpan<float> AudioWorkletPipe::InputSlotReader::input_channel(size_t input, size_t channel) const
-{
-    VERIFY(input < m_pipe.m_config.input_count);
-    VERIFY(channel < m_pipe.m_config.input_channel_capacity[input]);
-    auto const* samples = reinterpret_cast<float const*>(m_slot + m_pipe.m_input_samples_offset[input]) + channel * m_pipe.m_config.quantum_size;
-    return { samples, m_pipe.m_config.quantum_size };
-}
-
-inline ReadonlySpan<float> AudioWorkletPipe::InputSlotReader::param_block(size_t param) const
-{
-    VERIFY(param < m_pipe.m_config.param_count);
-    return { reinterpret_cast<float const*>(m_slot + m_pipe.m_param_block_offset[param]), m_pipe.m_param_block_length[param] };
-}
-
-inline u64& AudioWorkletPipe::OutputSlotWriter::start_frame()
-{
-    return *reinterpret_cast<u64*>(m_slot);
-}
-
-inline void AudioWorkletPipe::OutputSlotWriter::set_processor_active(bool processor_active)
-{
-    auto& flags = *reinterpret_cast<u32*>(m_slot + slot_flags_offset);
-    if (processor_active)
-        flags |= output_slot_flag_processor_active;
-    else
-        flags &= ~output_slot_flag_processor_active;
-}
-
-inline u32& AudioWorkletPipe::OutputSlotWriter::actual_channel_count(size_t output)
-{
-    VERIFY(output < m_pipe.m_config.output_count);
-    return *reinterpret_cast<u32*>(m_slot + slot_channel_counts_offset + output * sizeof(u32));
-}
-
-inline Span<float> AudioWorkletPipe::OutputSlotWriter::output_channel(size_t output, size_t channel)
-{
-    VERIFY(output < m_pipe.m_config.output_count);
-    VERIFY(channel < m_pipe.m_config.output_channel_capacity[output]);
-    auto* samples = reinterpret_cast<float*>(m_slot + m_pipe.m_output_samples_offset[output]) + channel * m_pipe.m_config.quantum_size;
-    return { samples, m_pipe.m_config.quantum_size };
-}
-
-inline u64 AudioWorkletPipe::OutputSlotReader::start_frame() const
-{
-    return *reinterpret_cast<u64 const*>(m_slot);
-}
-
-inline bool AudioWorkletPipe::OutputSlotReader::processor_active() const
-{
-    return (*reinterpret_cast<u32 const*>(m_slot + slot_flags_offset) & output_slot_flag_processor_active) != 0;
-}
-
-inline u32 AudioWorkletPipe::OutputSlotReader::actual_channel_count(size_t output) const
-{
-    VERIFY(output < m_pipe.m_config.output_count);
-    return *reinterpret_cast<u32 const*>(m_slot + slot_channel_counts_offset + output * sizeof(u32));
-}
-
-inline ReadonlySpan<float> AudioWorkletPipe::OutputSlotReader::output_channel(size_t output, size_t channel) const
-{
-    VERIFY(output < m_pipe.m_config.output_count);
-    VERIFY(channel < m_pipe.m_config.output_channel_capacity[output]);
-    auto const* samples = reinterpret_cast<float const*>(m_slot + m_pipe.m_output_samples_offset[output]) + channel * m_pipe.m_config.quantum_size;
-    return { samples, m_pipe.m_config.quantum_size };
-}
 
 }

@@ -20,10 +20,11 @@ public:
     ControlMessageQueue();
     ~ControlMessageQueue();
     void enqueue(ControlMessage); // Called by the control thread.
-    void* drain();                // Called by the rendering thread.
+    void const* rust_queue() const { return m_queue; }
+    void* drain(); // Called by the rendering thread.
 
 private:
-    void* m_queue { nullptr };
+    void const* m_queue { nullptr };
 };
 
 }

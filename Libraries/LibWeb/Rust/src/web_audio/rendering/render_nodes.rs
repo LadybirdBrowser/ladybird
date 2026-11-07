@@ -51,18 +51,18 @@ fn cpp_max<T: PartialOrd + Copy>(a: T, b: T) -> T {
     if a < b { b } else { a }
 }
 
-struct BusRef(*mut AudioBus);
+pub(super) struct BusRef(pub(super) *mut AudioBus);
 
 impl BusRef {
-    unsafe fn channel_count(&self) -> usize {
+    pub(super) unsafe fn channel_count(&self) -> usize {
         unsafe { &*self.0 }.channel_count()
     }
 
-    unsafe fn set_channel_count(&self, count: usize) {
+    pub(super) unsafe fn set_channel_count(&self, count: usize) {
         unsafe { &mut *self.0 }.set_channel_count(count);
     }
 
-    unsafe fn zero(&self) {
+    pub(super) unsafe fn zero(&self) {
         unsafe { &mut *self.0 }.zero();
     }
 
@@ -70,17 +70,17 @@ impl BusRef {
         unsafe { &*self.0 }.is_silent()
     }
 
-    unsafe fn channel(&self, index: usize) -> &[f32] {
+    pub(super) unsafe fn channel(&self, index: usize) -> &[f32] {
         let (pointer, length) = unsafe { AudioBus::channel_pointer(self.0, index) };
         unsafe { ak::slice_from_raw_parts(pointer, length) }
     }
 
-    unsafe fn channel_mut(&self, index: usize) -> &mut [f32] {
+    pub(super) unsafe fn channel_mut(&self, index: usize) -> &mut [f32] {
         let (pointer, length) = unsafe { AudioBus::channel_pointer(self.0, index) };
         unsafe { ak::slice_from_raw_parts_mut(pointer, length) }
     }
 
-    unsafe fn copy_from(&self, source: &BusRef) {
+    pub(super) unsafe fn copy_from(&self, source: &BusRef) {
         unsafe { &mut *self.0 }.copy_from(unsafe { &*source.0 });
     }
 
@@ -89,7 +89,7 @@ impl BusRef {
     }
 }
 
-trait NodeProcessor: Send {
+pub(super) trait NodeProcessor: Send {
     unsafe fn process(&mut self, data: &RenderNodeData, graph: &RenderGraph, context: &RenderContext);
 
     fn handle_message(&mut self, _message: &NodeMessage) {}
@@ -128,7 +128,7 @@ impl<T: NodeProcessor> RenderNode for NativeRenderNode<T> {
     }
 }
 
-fn node_handle<T: NodeProcessor + 'static>(data: RenderNodeData, processor: T) -> *mut NodeHandle {
+pub(super) fn node_handle<T: NodeProcessor + 'static>(data: RenderNodeData, processor: T) -> *mut NodeHandle {
     Box::into_raw(Box::new(NodeHandle {
         node: Box::new(NativeRenderNode {
             data,

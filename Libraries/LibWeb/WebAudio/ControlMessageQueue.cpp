@@ -46,8 +46,7 @@ void ControlMessageQueue::enqueue(ControlMessage message)
         [](AddNode& add_node) -> void* {
             auto* node = add_node.node.leak_ptr();
             auto* rust_node = node->release_rust_node();
-            if (!node->is_external())
-                delete node;
+            delete node;
             return RustFFI::web_audio_message_add_node(rust_node);
         },
         [](RemoveNode const& value) -> void* { return RustFFI::web_audio_message_remove_node(value.node_id.value()); },

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -29,6 +30,8 @@ namespace Web::WebAudio::Rendering {
 // callback runs on the platform's audio thread and renders just enough render quanta to fill the device's buffer.
 // Progress is reported back to the control thread by posting events to the main thread's event loop.
 // https://webaudio.github.io/web-audio-api/#AudioContext
+struct RealtimeAudioRendererCallbacks;
+
 class WEB_API RealtimeAudioRenderer final : public AtomicRefCounted<RealtimeAudioRenderer> {
 public:
     // Device-buffer latency target. Public because AudioWorkletPipe derives its lookahead from the
@@ -48,7 +51,7 @@ public:
     void suspend();
     void stop();
 
-    u64 frames_rendered() const { return m_frames_rendered.load(); }
+    u64 frames_rendered() const;
 
     // The amount of audio the output device has played so far, in seconds.
     double output_time_played() const;
@@ -59,41 +62,11 @@ private:
     void prepare_to_start_rendering();
     void set_playback_stream(NonnullRefPtr<Audio::PlaybackStream>);
     ReadonlySpan<float> fill_output_buffer(Span<float>, MonotonicTime buffer_starts_playing_at);
-    void render_quantum_into_pending_samples();
 
-    // The output buffer most recently handed to the stream, and when its first frame plays.
-    struct OutputAnchor {
-        u64 first_frame_index { 0 };
-        u64 end_frame_index { 0 };
-        i64 plays_at_nanoseconds { 0 };
-    };
-
-    NonnullRefPtr<ControlMessageQueue> m_control_message_queue;
-    NodeID m_destination_node_id;
-    float m_sample_rate { 0 };
-    size_t m_quantum_size { 0 };
-
-    Core::EventLoop& m_main_thread_event_loop;
+    NonnullRefPtr<RealtimeAudioRendererCallbacks> m_callbacks;
     NonnullRefPtr<Media::AudioOutputFactory> m_audio_output_factory;
     RefPtr<Audio::PlaybackStream> m_playback_stream;
-
-    Function<void(Vector<NodeID> const&)> m_on_sources_ended;
-
-    Atomic<u64> m_frames_rendered { 0 };
-    Atomic<bool> m_suspended { false };
-    Atomic<bool> m_shutting_down { false };
-    SeqLock<OutputAnchor> m_output_anchor;
-
-    // State below is only used on the audio thread, except that the device configuration is recorded on the control
-    // thread after stream creation, before the first data request callback can run.
-    RenderGraph m_graph;
-    OwnPtr<AudioBus> m_device_bus;
-    size_t m_device_channel_count { 0 };
-    u32 m_device_sample_rate { 0 };
-    u64 m_frames_output { 0 };
-    double m_playhead_step { 1 };
-    double m_playhead { 0 };
-    Vector<float> m_pending_samples;
+    void const* m_renderer { nullptr };
 };
 
 }
