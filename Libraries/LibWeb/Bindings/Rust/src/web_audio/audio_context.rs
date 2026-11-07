@@ -475,6 +475,13 @@ impl AudioContext {
                     // 7.3.1: Resolve promise.
                     resolve_promise(vm, promise, Value::UNDEFINED);
 
+                    // AD-HOC: The spec omits removing a settled suspension promise from [[pending promises]].
+                    context
+                        .context
+                        .pending_promises
+                        .borrow_mut(vm)
+                        .retain(|pending| *pending != promise);
+
                     // 7.3.2: If the state attribute of the AudioContext is not already "suspended":
                     if context.context.state_value() != AudioContextState::Suspended {
                         // 7.3.2.1: Set the state attribute of the AudioContext to "suspended".
