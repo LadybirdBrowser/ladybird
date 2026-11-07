@@ -88,8 +88,9 @@ pub use crate::runtime::set::Set;
 pub use crate::runtime::set_iterator::SetIterator;
 pub use crate::runtime::string_object::StringObject;
 pub use crate::runtime::typed_array::{
-    Kind as TypedArrayKind, TypedArrayBase, TypedArrayWithBufferWitness, create_typed_array_on_buffer,
-    is_typed_array_out_of_bounds, make_typed_array_with_buffer_witness_record, typed_array_byte_length,
+    Kind as TypedArrayKind, TypedArrayBase, TypedArrayWithBufferWitness, create_typed_array,
+    create_typed_array_on_buffer, is_typed_array_out_of_bounds, make_typed_array_with_buffer_witness_record,
+    typed_array_byte_length, typed_array_length,
 };
 pub use crate::runtime::value::{number_to_string, same_value};
 pub use crate::utf16::{Utf16Display, to_well_formed};
