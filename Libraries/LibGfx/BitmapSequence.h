@@ -23,7 +23,6 @@ struct BitmapMetadata {
     Gfx::BitmapFormat format;
     Gfx::AlphaType alpha_type;
     Gfx::IntSize size;
-    size_t size_in_bytes;
 };
 
 }

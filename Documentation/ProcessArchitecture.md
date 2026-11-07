@@ -72,7 +72,7 @@ Each top-level site has a **RequestServer** of its own in each browsing session,
 
 ### Process: ImageDecoder
 
-This process decodes images (PNG, JPEG, BMP, ICO, PBM, etc.) into bitmaps. It is strongly sandboxed, and can do little more than receive encoded image data and return bitmaps to its clients.
+This process decodes images (PNG, JPEG, BMP, ICO, PBM, etc.) into bitmaps. It is strongly sandboxed, and can do little more than receive encoded image data and return bitmaps to its clients. It decodes into shared memory, which it hands to its clients as it is.
 
 A decoder sees the images of every process it serves, so a malicious image that takes one over gets at those images. With site isolation, the processes of a site share an **ImageDecoder**, because they hold nothing of any other site's that they could not fetch for themselves. The site is that of the documents a process hosts, not their top-level site, so a frame never shares a decoder with the site embedding it, unless it has an opaque origin, which keeps it in the process of the document that made it. Private browsing is kept apart. Any other process, such as one with no site, gets a decoder of its own, and a process that comes to host a second site leaves the decoder of the first.
 

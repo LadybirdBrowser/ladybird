@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Checked.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/BitmapSequence.h>
@@ -16,7 +15,7 @@ namespace Gfx {
 
 static BitmapMetadata get_metadata(Bitmap const& bitmap)
 {
-    return BitmapMetadata { .format = bitmap.format(), .alpha_type = bitmap.alpha_type(), .size = bitmap.size(), .size_in_bytes = bitmap.size_in_bytes() };
+    return BitmapMetadata { .format = bitmap.format(), .alpha_type = bitmap.alpha_type(), .size = bitmap.size() };
 }
 
 }
@@ -28,7 +27,6 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapMetadata const& metadata)
 {
     TRY(encoder.encode(static_cast<u32>(metadata.format)));
     TRY(encoder.encode(static_cast<u32>(metadata.alpha_type)));
-    TRY(encoder.encode(metadata.size_in_bytes));
     TRY(encoder.encode(metadata.size));
 
     return {};
@@ -47,12 +45,13 @@ ErrorOr<Gfx::BitmapMetadata> decode(Decoder& decoder)
         return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence alpha type");
     auto alpha_type = static_cast<Gfx::AlphaType>(raw_alpha_type);
 
-    auto size_in_bytes = TRY(decoder.decode<size_t>());
     auto size = TRY(decoder.decode<Gfx::IntSize>());
 
-    return Gfx::BitmapMetadata { format, alpha_type, size, size_in_bytes };
+    return Gfx::BitmapMetadata { format, alpha_type, size };
 }
 
+// Each bitmap travels in the shared memory that backs it, so the receiver maps the very pixels the sender wrote. A bitmap
+// in private memory is copied into shared memory first.
 template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapSequence const& bitmap_sequence)
 {
@@ -60,40 +59,19 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapSequence const& bitmap_sequenc
 
     Vector<Optional<Gfx::BitmapMetadata>> metadata;
     metadata.ensure_capacity(bitmaps.size());
-
-    Checked<size_t> total_buffer_size = 0;
-
-    for (auto const& bitmap_option : bitmaps) {
-        Optional<Gfx::BitmapMetadata> data = {};
-
-        if (bitmap_option) {
-            data = get_metadata(*bitmap_option);
-            total_buffer_size += data->size_in_bytes;
-        }
-
+    for (auto const& bitmap : bitmaps) {
+        Optional<Gfx::BitmapMetadata> data;
+        if (bitmap)
+            data = get_metadata(*bitmap);
         metadata.unchecked_append(data);
     }
-
-    VERIFY(!total_buffer_size.has_overflow());
-
     TRY(encoder.encode(metadata));
 
-    TRY(encoder.encode(total_buffer_size.value()));
-
-    if (total_buffer_size.value() > 0) {
-        // collate all of the bitmap data into one contiguous buffer
-        auto collated_buffer = TRY(Core::AnonymousBuffer::create_with_size(total_buffer_size.value()));
-
-        Bytes buffer_bytes = { collated_buffer.data<u8>(), collated_buffer.size() };
-        size_t write_offset = 0;
-        for (auto const& bitmap : bitmaps) {
-            if (bitmap) {
-                buffer_bytes.overwrite(write_offset, bitmap->scanline(0), bitmap->size_in_bytes());
-                write_offset += bitmap->size_in_bytes();
-            }
-        }
-
-        TRY(encoder.encode(collated_buffer));
+    for (auto const& bitmap : bitmaps) {
+        if (!bitmap)
+            continue;
+        auto shareable_bitmap = TRY(bitmap->to_bitmap_backed_by_anonymous_buffer());
+        TRY(encoder.encode(shareable_bitmap->anonymous_buffer()));
     }
 
     return {};
@@ -104,49 +82,26 @@ ErrorOr<Gfx::BitmapSequence> decode(Decoder& decoder)
 {
     auto metadata_list = TRY(decoder.decode<Vector<Optional<Gfx::BitmapMetadata>>>());
 
-    auto total_buffer_size = TRY(decoder.decode<size_t>());
-
-    Core::AnonymousBuffer collated_buffer;
-    if (total_buffer_size > 0)
-        collated_buffer = TRY(decoder.decode<Core::AnonymousBuffer>());
-
     Gfx::BitmapSequence result = {};
     auto& bitmaps = result.bitmaps;
     TRY(bitmaps.try_ensure_capacity(metadata_list.size()));
 
-    // Single-frame sequences can keep the transferred backing directly.
-    if (metadata_list.size() == 1 && metadata_list[0].has_value()) {
-        auto metadata = metadata_list[0].value();
-        if (!collated_buffer.is_valid() || metadata.size_in_bytes != total_buffer_size || metadata.size_in_bytes != collated_buffer.size())
-            return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence buffer data");
-
-        RefPtr<Gfx::Bitmap> bitmap = TRY(Gfx::Bitmap::create_with_anonymous_buffer(metadata.format, metadata.alpha_type, move(collated_buffer), metadata.size));
-        bitmaps.unchecked_append(move(bitmap));
-        return result;
-    }
-
-    ReadonlyBytes bytes = ReadonlyBytes(collated_buffer.data<u8>(), collated_buffer.size());
-    size_t bytes_read = 0;
-
-    // sequentially read each valid bitmap's data from the collated buffer
-    for (auto const& metadata_option : metadata_list) {
+    for (auto const& metadata : metadata_list) {
         RefPtr<Gfx::Bitmap> bitmap;
-
-        if (metadata_option.has_value()) {
-            auto metadata = metadata_option.value();
-            size_t size_in_bytes = metadata.size_in_bytes;
-
-            Checked<size_t> size_check = bytes_read;
-            size_check += size_in_bytes;
-            if (size_check.has_overflow() || size_check.value() > bytes.size())
+        if (metadata.has_value()) {
+            auto buffer = TRY(decoder.decode<Core::AnonymousBuffer>());
+            if (!buffer.is_valid())
                 return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence buffer data");
-
-            auto slice = bytes.slice(bytes_read, size_in_bytes);
-            bytes_read += size_in_bytes;
-            bitmap = TRY(Gfx::Bitmap::create_with_raw_data(metadata.format, metadata.alpha_type, slice, metadata.size));
+            // NB: A buffer that is too small is turned down below. One larger than a shareable bitmap of this size would
+            //     have is turned down here, as the receiver would keep all of it mapped for as long as the bitmap lives.
+            if (Gfx::Bitmap::size_would_overflow(metadata->format, metadata->size))
+                return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence size");
+            auto data_size = Gfx::Bitmap::size_in_bytes(Gfx::Bitmap::minimum_pitch(metadata->size.width(), metadata->format), metadata->size.height());
+            if (buffer.size() > round_up_to_power_of_two(data_size, PAGE_SIZE))
+                return Error::from_string_literal("IPC: Oversized Gfx::BitmapSequence buffer");
+            bitmap = TRY(Gfx::Bitmap::create_with_anonymous_buffer(metadata->format, metadata->alpha_type, move(buffer), metadata->size));
         }
-
-        bitmaps.append(bitmap);
+        bitmaps.unchecked_append(move(bitmap));
     }
 
     return result;
