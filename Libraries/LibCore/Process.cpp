@@ -380,7 +380,16 @@ static ErrorOr<pid_t> fork_and_exec(ProcessSpawnOptions const& options, Span<cha
 
     // CLONE_VFORK suspends this thread until the child calls exec() or exits.
     auto* child_stack_top = static_cast<u8*>(child_stack) + mapping_size;
+#    ifdef HAS_THREAD_SANITIZER
+    // NB: ThreadSanitizer handles clone() as a fork, and a child that shares our memory breaks its state. With a fork the
+    //     child cannot hand us an errno, so a failed exec only shows as the exit status of the child.
+    (void)child_stack_top;
+    auto pid = fork();
+    if (pid == 0)
+        _exit(spawned_child_main(&context));
+#    else
     auto pid = clone(spawned_child_main, child_stack_top, CLONE_VM | CLONE_VFORK | SIGCHLD, &context);
+#    endif
     auto saved_errno = errno;
 
     (void)pthread_sigmask(SIG_SETMASK, &context.parent_signal_mask, nullptr);
