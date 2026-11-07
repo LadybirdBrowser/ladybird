@@ -69,6 +69,8 @@ QColor chrome_separator(QPalette const&);
 QColor chrome_window_outline(QPalette const&);
 QColor chrome_accent();
 QColor chrome_muted_text(QPalette const&);
+// The amber dot that tells of waiting crash reports.
+QColor crash_reports_dot_color(QPalette const&);
 QFont chrome_title_font(QFont);
 
 QString style_sheet_color(QColor const&);
