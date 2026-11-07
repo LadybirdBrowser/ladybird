@@ -12,6 +12,8 @@ pub mod perf_map;
 mod scope_guard;
 mod slice;
 pub mod waiter_list;
+#[cfg(all(windows, target_arch = "x86_64"))]
+pub mod windows_code_memory;
 
 pub use generic_lexer::GenericLexer;
 pub use scope_guard::ScopeGuard;
