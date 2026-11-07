@@ -1,0 +1,10 @@
+A table column is constrained only by the cells that span it alone,
+and the width a spanning cell needs beyond its columns’ max-content
+sizes goes to the spanned columns that aren’t constrained. Blink does
+the same: ComputeSectionInlineConstraints() merges only colspan-1 cells
+into a column’s constraint, and DistributeColspanCellToColumnsAuto()
+hands the rest to DistributeInlineSizeToComputedInlineSizeAuto(),
+whose kAboveMax case grows only the auto columns. Gecko’s
+BasicTableLayoutStrategy::DistributeISizeToColumns() does too: In its
+FLEX_FLEX_LARGE case, only columns with neither a percentage nor a
+specified width (GetHasSpecifiedCoord()) take the extra width.
