@@ -190,8 +190,10 @@ void visit_capture_member(Visitor& visitor, T const& member)
 {
     static_assert(!IsRoot<T>, "A captured value can't hold a root");
     static_assert(IsCapturable<T>, "A member of a captured value must be traced, or hold no cell edges");
-    if constexpr (IsVisitable<T>::value)
+    if constexpr (!IsUntracedCapture<T>::value) {
+        static_assert(IsVisitable<T>::value, "A traced member of a captured value must be visitable");
         visitor.visit(member);
+    }
 }
 
 }
