@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // NB: The response comes too late to give the worker a process to itself, so its agent cluster is only logically
+    //     isolated: the worker's embedder policy holds, and crossOriginIsolated stays false.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const scriptURL = await server.createEcho("GET", "/shared-worker-coep-without-isolated-owner.js", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/javascript",
+                "Cross-Origin-Embedder-Policy": "require-corp",
+                "Cross-Origin-Resource-Policy": "cross-origin",
+            },
+            body: `
+                onconnect = event => {
+                    event.ports[0].postMessage(self.crossOriginIsolated);
+                };
+            `,
+        });
+        const pageURL = await server.createEcho("GET", "/shared-worker-coep-without-isolated-owner.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>
+                const worker = new SharedWorker(${JSON.stringify(scriptURL)}, ${JSON.stringify(uniqueID())});
+                worker.onerror = () => parent.postMessage("error", "*");
+                worker.port.onmessage = event => parent.postMessage({
+                    owner: self.crossOriginIsolated,
+                    worker: event.data,
+                }, "*");
+            <\/script>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        const message = new Promise(resolve => (window.onmessage = event => resolve(event.data)));
+        iframe.src = pageURL;
+        document.body.appendChild(iframe);
+        const result = await message;
+        println(`owner crossOriginIsolated: ${result.owner}`);
+        println(`worker crossOriginIsolated: ${result.worker}`);
+        iframe.remove();
+    });
+</script>
