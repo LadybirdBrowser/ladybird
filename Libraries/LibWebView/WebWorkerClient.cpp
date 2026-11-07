@@ -217,6 +217,16 @@ void WebWorkerClient::did_release_image_decoder()
     ImageDecoderManager::the().process_did_release_decoder(child_id());
 }
 
+Messages::WebWorkerClient::RequestCompositorConnectionResponse WebWorkerClient::request_compositor_connection()
+{
+    auto handle = Application::the().connect_new_compositor_canvas_client();
+    if (handle.is_error()) {
+        warnln("Unable to connect a worker to the compositor: {}", handle.error());
+        return Optional<IPC::TransportHandle> {};
+    }
+    return handle.release_value();
+}
+
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)
 {
     if (auto settings = hosted_environment(message.environment_id); settings.has_value())

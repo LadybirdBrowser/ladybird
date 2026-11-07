@@ -257,8 +257,6 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
         client->async_set_navigator_compatibility_mode(Application::the().navigator_compatibility_mode());
         client->async_set_preferred_languages(Application::settings().languages());
 
-        if (auto compositor_handle = Application::the().connect_new_compositor_canvas_client(); !compositor_handle.is_error())
-            client->async_connect_to_compositor(compositor_handle.release_value());
         return client;
     }();
     // A worker the system cannot give a thread fails to load, as one whose script cannot be fetched does.

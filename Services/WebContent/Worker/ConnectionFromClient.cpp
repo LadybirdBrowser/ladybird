@@ -91,10 +91,13 @@ ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_image_decod
     return response->take_handle()->create_transport();
 }
 
-void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
+void ConnectionFromClient::connect_to_compositor()
 {
     // NB: This process may host a page too, so a worker without a compositor goes on without one.
-    auto transport_or_error = handle.create_transport();
+    auto response = send_sync_but_allow_failure<Messages::WebWorkerClient::RequestCompositorConnection>();
+    if (!response || !response->handle().has_value())
+        return;
+    auto transport_or_error = response->take_handle()->create_transport();
     if (transport_or_error.is_error()) {
         dbgln("Failed to connect to the compositor: {}", transport_or_error.error());
         return;
@@ -103,12 +106,14 @@ void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
     m_compositor_connection->on_compositor_lost = [this] {
         m_page_host->compositor_process_lost();
     };
-
-    m_page_host->ensure_compositor_host();
 }
 
-Web::Compositor::CompositorConnection* ConnectionFromClient::compositor_process_connection() const
+Web::Compositor::CompositorConnection* ConnectionFromClient::compositor_process_connection()
 {
+    // NB: Few workers ever draw, so a worker connects when it first has something for the compositor. It asks once: a
+    //     compositor that goes away takes the worker's canvases along.
+    if (!exchange(m_did_ask_for_compositor_connection, true))
+        connect_to_compositor();
     if (!m_compositor_connection || !m_compositor_connection->is_open())
         return nullptr;
     return m_compositor_connection.ptr();
@@ -180,6 +185,8 @@ void ConnectionFromClient::did_lose_peer_during_sync_request()
 
 void ConnectionFromClient::set_up_agent_services()
 {
+    m_page_host->ensure_compositor_host();
+
     MediaClient::Client::set_transport_factory([this] {
         return request_media_server_transport();
     });
