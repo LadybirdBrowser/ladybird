@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
+#include <Hub/ConnectionFromUI.h>
 #include <LibCore/EventLoop.h>
 #include <LibWebView/WebContentPage.h>
 
@@ -66,6 +68,15 @@ void Application::toggle_bookmark_for_view(WebView::ViewImplementation& view)
     if (m_host && m_host->show_bookmark_ui_for_view(view))
         return;
     WebView::Application::toggle_bookmark_for_view(view);
+}
+
+void Application::rebuild_bookmarks_menu() const
+{
+    if (!m_host)
+        return;
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_bookmarks_menu_changed(ActionMirror::the().entries_of(const_cast<Application&>(*this).bookmarks_menu()));
+    m_host->rebuild_bookmarks_menu();
 }
 
 void Application::on_devtools_enabled() const
@@ -382,14 +393,6 @@ void Application::update_tabs_display() const
         m_host->update_tabs_display();
     else
         WebView::Application::update_tabs_display();
-}
-
-void Application::rebuild_bookmarks_menu() const
-{
-    if (m_host)
-        m_host->rebuild_bookmarks_menu();
-    else
-        WebView::Application::rebuild_bookmarks_menu();
 }
 
 void Application::show_bookmark_context_menu(Gfx::IntPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id)

@@ -26,6 +26,7 @@
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/JavaScriptDialog.h>
 #include <UI/Qt/LadybirdButton.h>
+#include <UI/Qt/RemoteActions.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -870,7 +871,7 @@ void Tab::initialize(Optional<u64> hub_view_id)
 
 void Tab::create_tab_context_menu()
 {
-    auto& application = WebView::Application::the();
+    auto& application = RemoteActions::the();
 
     auto* duplicate_tab_action = new QAction("&Duplicate Tab", this);
     QObject::connect(duplicate_tab_action, &QAction::triggered, this, [this]() {

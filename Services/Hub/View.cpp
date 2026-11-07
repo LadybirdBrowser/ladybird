@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/View.h>
@@ -673,8 +674,10 @@ void View::update_zoom()
 
 void View::show_context_menu(WebView::Menu& menu, Gfx::IntPoint widget_position)
 {
-    if (m_host)
-        m_host->show_context_menu(menu, widget_position);
+    if (auto* ui = ConnectionFromUI::the()) {
+        push_state_to_ui();
+        ui->async_view_show_context_menu(view_id(), ActionMirror::the().entries_of(menu), widget_position);
+    }
 }
 
 }

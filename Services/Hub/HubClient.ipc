@@ -12,6 +12,7 @@
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebView/AccessibilityTreeManager.h>
+#include <LibWebView/Menu.h>
 #include <LibWebView/TabPerformanceStats.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -66,6 +67,83 @@ struct WebView::ViewImplementation::InputMethodState {
     Optional<Web::DevicePixelRect> caret_rect;
 }
 
+enum Hub::MenuEntryKind : u8 {
+    Action,
+    Separator,
+    Submenu,
+    EndOfSubmenu,
+}
+
+struct Hub::ActionState {
+    u64 handle;
+    WebView::ActionID id;
+    String text;
+    Optional<String> tooltip;
+    bool enabled;
+    bool visible;
+    bool engaged;
+    Optional<bool> checked;
+    Optional<ByteBuffer> png_icon;
+    Vector<String> property_names;
+    Vector<String> property_values;
+}
+
+// A menu goes as a flat list, in which a submenu's entries follow its own, up to its end.
+struct Hub::MenuEntry {
+    Hub::MenuEntryKind kind;
+    Optional<Hub::ActionState> action;
+    String title;
+    bool visible;
+    bool is_group;
+    bool render_group_icon;
+    Vector<String> property_names;
+    Vector<String> property_values;
+}
+
+// The actions and menus of the application, which the UI shows in its windows.
+struct Hub::ApplicationActions {
+    Hub::ActionState reload_action;
+    Hub::ActionState reload_bypassing_cache_action;
+    Hub::ActionState copy_selection_action;
+    Hub::ActionState undo_action;
+    Hub::ActionState redo_action;
+    Hub::ActionState cut_selection_action;
+    Hub::ActionState paste_action;
+    Hub::ActionState select_all_action;
+    Hub::ActionState open_about_page_action;
+    Hub::ActionState open_downloads_page_action;
+    Hub::ActionState open_settings_page_action;
+    Hub::ActionState zoom_in_action;
+    Hub::ActionState zoom_out_action;
+    Hub::ActionState reset_zoom_action;
+    Hub::ActionState force_dark_action;
+    Hub::ActionState toggle_vertical_tabs_expanded_action;
+    Hub::ActionState toggle_menu_bar_action;
+    Hub::ActionState toggle_bookmark_bar_action;
+    Hub::ActionState view_source_action;
+    Hub::ActionState report_website_issue_action;
+    Vector<Hub::MenuEntry> zoom_menu;
+    Vector<Hub::MenuEntry> color_scheme_menu;
+    Vector<Hub::MenuEntry> contrast_menu;
+    Vector<Hub::MenuEntry> motion_menu;
+    Vector<Hub::MenuEntry> bookmarks_menu;
+    Vector<Hub::MenuEntry> show_bookmarks_bar_menu;
+    Vector<Hub::MenuEntry> history_menu;
+    Vector<Hub::MenuEntry> inspect_menu;
+    Vector<Hub::MenuEntry> debug_menu;
+}
+
+// The actions and menus of a view.
+struct Hub::ViewActions {
+    Hub::ActionState navigate_back_action;
+    Hub::ActionState navigate_forward_action;
+    Hub::ActionState toggle_bookmark_action;
+    Hub::ActionState reset_zoom_action;
+    Vector<Hub::MenuEntry> bookmarks_bar_context_menu;
+    Vector<Hub::MenuEntry> bookmark_context_menu;
+    Vector<Hub::MenuEntry> bookmark_folder_context_menu;
+}
+
 // What the UI needs to know about a view at any time, without having to ask.
 struct Hub::ViewState {
     URL::URL url;
@@ -97,6 +175,10 @@ struct Hub::ViewState {
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    action_changed(Hub::ActionState state) =|
+    action_retired(u64 handle) =|
+    bookmarks_menu_changed(Vector<Hub::MenuEntry> entries) =|
+    view_show_context_menu(u64 view_id, Vector<Hub::MenuEntry> entries, Gfx::IntPoint widget_position) =|
     view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon) =|
     view_request_before_unload(u64 view_id, u64 answer_id, String source) =|
     view_request_external_url_confirmation(u64 view_id, u64 answer_id, URL::URL url, URL::Origin initiator_origin, String application_name) =|
