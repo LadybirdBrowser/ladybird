@@ -2072,7 +2072,7 @@ QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_
             auto* translation_menu = view_menu->addMenu("&Translation");
             QObject::connect(translation_menu, &QMenu::aboutToShow, translation_menu, [translation_menu] {
                 if (auto* tab = Application::the().active_tab())
-                    repopulate_application_menu(*translation_menu, tab->view().page_translation().translation_menu());
+                    repopulate_application_menu(*translation_menu, tab->view().translation_menu());
                 else
                     translation_menu->clear();
             });

@@ -1530,9 +1530,9 @@ void WebContentView::start_web_compat_report()
         return;
 
     WebCompatReportCapture capture {
-        .page = WebView::WebCompatReport::describe_page(hub_view()),
+        .page = describe_page(),
         .screenshot = {},
-        .page_dumps = WebView::WebCompatReport::request_page_dumps(hub_view()),
+        .page_dumps = request_page_dumps(),
     };
     select_web_compat_report_screenshot([this, capture = AK::move(capture)](QImage screenshot) mutable {
         capture.screenshot = AK::move(screenshot);

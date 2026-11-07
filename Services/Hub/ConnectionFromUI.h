@@ -41,12 +41,31 @@ private:
     // The location bars of the UI each have one of these, which needs the network and the history.
     HashMap<u64, NonnullOwnPtr<WebView::Autocomplete>> m_omnibox_clients;
 
+    // A close that the UI got ready for, and finishes once the tab is gone from its window.
+    HashMap<u64, Function<void()>> m_prepared_closes;
+
     // ^WebView::FileDownloaderObserver
     virtual void download_added(WebView::FileDownloader::Download const&) override;
     virtual void download_updated(WebView::FileDownloader::Download const&) override;
     virtual void download_removed(u64 id, WebView::IsPrivate) override;
 
     // ^HubServerEndpoint
+    virtual void view_set_site_permission(u64 view_id, URL::Origin origin, Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) override;
+    virtual void view_did_show_permission_prompt(u64 view_id, WebView::PermissionPromptRequest request) override;
+    virtual void view_load_navigation(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation) override;
+    virtual void view_open_navigation_in_new_tab(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) override;
+    virtual void view_open_navigation_in_new_window(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) override;
+    virtual void view_traverse_the_history_to_step(u64 view_id, i32 step) override;
+    virtual void view_set_session_tab_id(u64 view_id, Optional<WebView::SessionTabId> session_tab_id) override;
+    virtual void view_file_picker_closed(u64 view_id, Vector<Web::HTML::SelectedFile> selected_files) override;
+    virtual void view_save_screenshot(u64 view_id, Gfx::ShareableBitmap bitmap) override;
+    virtual void view_request_selected_text(u64 view_id, u64 request_id) override;
+    virtual void view_request_close_preflight(u64 view_id, u64 request_id) override;
+    virtual void view_request_page_dumps(u64 view_id, u64 request_id) override;
+    virtual void view_prepare_for_immediate_close(u64 view_id) override;
+    virtual void view_prepare_for_close_without_prompting(u64 view_id, u64 close_id) override;
+    virtual void finish_prepared_close(u64 close_id) override;
+    virtual void open_microphone_system_settings() override;
     virtual void pip_did_resize(u64 view_id, Gfx::IntSize size) override;
     virtual void pip_did_close(u64 view_id, bool video_keeps_playing) override;
     virtual void notification_shown(u64 id) override;

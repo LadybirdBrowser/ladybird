@@ -7,6 +7,7 @@
 #include <AK/HashMap.h>
 #include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
+#include <LibWebView/PageTranslation.h>
 #include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteView.h>
 
@@ -35,6 +36,7 @@ RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_st
     m_navigate_forward_action = remote_actions.action_for(actions.navigate_forward_action);
     m_toggle_bookmark_action = remote_actions.action_for(actions.toggle_bookmark_action);
     m_reset_zoom_action = remote_actions.action_for(actions.reset_zoom_action);
+    m_translate_action = remote_actions.action_for(actions.translate_action);
     m_bookmarks_bar_context_menu = remote_actions.menu_for(actions.bookmarks_bar_context_menu);
     m_bookmark_context_menu = remote_actions.menu_for(actions.bookmark_context_menu);
     m_bookmark_folder_context_menu = remote_actions.menu_for(actions.bookmark_folder_context_menu);
@@ -172,6 +174,102 @@ void RemoteView::did_finish_handling_drag_event(u64 input_id, Web::DragEvent eve
     if (auto browser_data = m_input_in_hub.take(input_id); browser_data.has_value())
         event.browser_data = browser_data.release_value();
     on_finish_handling_drag_event(event);
+}
+
+NonnullRefPtr<Core::Promise<ByteString>> RemoteView::selected_text()
+{
+    auto promise = Core::Promise<ByteString>::construct();
+    auto request_id = m_next_request_id++;
+    m_pending_selected_text.set(request_id, promise);
+    HubConnection::the().async_view_request_selected_text(view_id(), request_id);
+    return promise;
+}
+
+void RemoteView::did_get_selected_text(u64 request_id, Optional<ByteString> text)
+{
+    auto promise = m_pending_selected_text.take(request_id);
+    if (!promise.has_value())
+        return;
+    if (text.has_value())
+        (*promise)->resolve(text.release_value());
+    else
+        (*promise)->reject(Error::from_errno(ECANCELED));
+}
+
+void RemoteView::request_close_preflight(Function<void(bool)> on_complete)
+{
+    auto request_id = m_next_request_id++;
+    m_pending_close_preflights.set(request_id, move(on_complete));
+    HubConnection::the().async_view_request_close_preflight(view_id(), request_id);
+}
+
+void RemoteView::did_finish_close_preflight(u64 request_id, bool may_close)
+{
+    if (auto on_complete = m_pending_close_preflights.take(request_id); on_complete.has_value())
+        (*on_complete)(may_close);
+}
+
+NonnullRefPtr<Core::Promise<String>> RemoteView::request_page_dumps()
+{
+    auto promise = Core::Promise<String>::construct();
+    auto request_id = m_next_request_id++;
+    m_pending_page_dumps.set(request_id, promise);
+    HubConnection::the().async_view_request_page_dumps(view_id(), request_id);
+    return promise;
+}
+
+void RemoteView::did_get_page_dumps(u64 request_id, Optional<String> dumps)
+{
+    auto promise = m_pending_page_dumps.take(request_id);
+    if (!promise.has_value())
+        return;
+    if (dumps.has_value())
+        (*promise)->resolve(dumps.release_value());
+    else
+        (*promise)->reject(Error::from_errno(ECANCELED));
+}
+
+static u64 s_next_close_id { 1 };
+
+static Function<void()> finish_prepared_close(u64 close_id)
+{
+    return [close_id] {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_finish_prepared_close(close_id);
+    };
+}
+
+Function<void()> RemoteView::prepare_for_close_without_prompting()
+{
+    auto close_id = s_next_close_id++;
+    HubConnection::the().async_view_prepare_for_close_without_prompting(view_id(), close_id);
+    return finish_prepared_close(close_id);
+}
+
+void RemoteView::prepare_for_immediate_close()
+{
+    HubConnection::the().async_view_prepare_for_immediate_close(view_id());
+}
+
+Optional<i32> RemoteView::history_step_at_delta(int delta) const
+{
+    auto const& traversable = m_view->traversable();
+    auto used_steps = traversable.session_history().used_steps();
+    auto step_index = traversable.effective_current_session_history_step_index() + delta;
+    if (step_index >= used_steps.size())
+        return {};
+    return used_steps[step_index];
+}
+
+WebView::WebCompatReport::Page RemoteView::describe_page() const
+{
+    return WebView::WebCompatReport::describe_page(*m_view);
+}
+
+WebView::Menu& RemoteView::translation_menu()
+{
+    m_translation_menu = RemoteActions::the().menu_for(Hub::ActionMirror::the().entries_of(m_view->page_translation().translation_menu()));
+    return *m_translation_menu;
 }
 
 RemoteView* RemoteView::find(u64 view_id)

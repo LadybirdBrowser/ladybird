@@ -9,6 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <Hub/View.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/WebCompatReport.h>
 #include <UI/Qt/HubConnection.h>
 
 namespace Ladybird {
@@ -40,6 +41,15 @@ public:
     void set_initial_state(Hub::ViewState state) { m_state = move(state); }
 
     void did_update_zoom() { update_zoom(); }
+    void did_get_selected_text(u64 request_id, Optional<ByteString>);
+    void did_finish_close_preflight(u64 request_id, bool may_close);
+    void did_get_page_dumps(u64 request_id, Optional<String>);
+
+    // The step of the session history that is this far from the current one, if there is one.
+    Optional<i32> history_step_at_delta(int delta) const;
+
+    WebView::WebCompatReport::Page describe_page() const;
+    NonnullRefPtr<Core::Promise<String>> request_page_dumps();
     void did_start_navigation_load(URL::URL const&);
     void did_finish_navigation_load(URL::URL const&);
 
@@ -54,12 +64,11 @@ public:
     WebView::IsPrivate is_private() const { return m_is_private; }
     URL::Origin permission_origin() const { return *m_state.permission_origin; }
     Vector<WebView::SitePermissionRow> site_permission_rows() const { return m_state.site_permission_rows; }
-    void set_site_permission(URL::Origin const& origin, Web::Permissions::PermissionName permission_name, Optional<WebView::PermissionDecision> decision) { m_view->set_site_permission(origin, permission_name, decision); }
+    void set_site_permission(URL::Origin const& origin, Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) { HubConnection::the().async_view_set_site_permission(view_id(), origin, name, decision); }
     void reset_site_permissions(URL::Origin const& origin) { HubConnection::the().async_view_reset_site_permissions(view_id(), origin); }
-    void did_show_permission_prompt(WebView::PermissionPromptRequest const& permission_prompt_request) { m_view->did_show_permission_prompt(permission_prompt_request); }
+    void did_show_permission_prompt(WebView::PermissionPromptRequest const& request) { HubConnection::the().async_view_did_show_permission_prompt(view_id(), request); }
     u64 view_id() const { return m_view_id; }
     pid_t web_content_pid() const { return m_state.web_content_pid; }
-    WebView::CanonicalTraversable& traversable() const { return m_view->traversable(); }
     URL::URL url() const { return m_state.url; }
     URL::URL const& displayed_url() const { return m_state.displayed_url; }
     Utf16String const& title() const { return m_state.title; }
@@ -76,9 +85,9 @@ public:
     void load_from_user_input(StringView input, Optional<URL::URL> fallback_url) { HubConnection::the().async_view_load_from_user_input(view_id(), input, move(fallback_url)); }
     void open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) { HubConnection::the().async_view_open_url_in_new_tab(view_id(), url, move(activate_tab)); }
     void open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private) { HubConnection::the().async_view_open_url_in_new_window(view_id(), url, move(is_private)); }
-    void load(Web::HTML::PreparedNavigationDescriptor navigation) { m_view->load(move(navigation)); }
-    void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) { m_view->open_navigation_in_new_tab(move(navigation), move(activate_tab)); }
-    void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) { m_view->open_navigation_in_new_window(move(navigation), move(is_private)); }
+    void load(Web::HTML::PreparedNavigationDescriptor navigation) { HubConnection::the().async_view_load_navigation(view_id(), move(navigation)); }
+    void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) { HubConnection::the().async_view_open_navigation_in_new_tab(view_id(), move(navigation), activate_tab); }
+    void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) { HubConnection::the().async_view_open_navigation_in_new_window(view_id(), move(navigation), is_private); }
     void set_next_history_visit_transition(WebView::HistoryVisitTransition transition) { HubConnection::the().async_view_set_next_history_visit_transition(view_id(), move(transition)); }
     void load_html(StringView html) { HubConnection::the().async_view_load_html(view_id(), html); }
     void load_navigation_error_page(StringView html) { HubConnection::the().async_view_load_navigation_error_page(view_id(), html); }
@@ -89,11 +98,19 @@ public:
     String crash_overlay_failed_url() const { return m_state.crash_overlay_failed_url; }
     Optional<ByteString> crash_report_name() const { return m_state.crash_report_name; }
     Optional<String> crash_report_website() const { return m_state.crash_report_website; }
-    void traverse_the_history_to_step(i32 step, WebView::CheckForCancelation check_for_cancelation = WebView::CheckForCancelation::Yes, Function<void()> on_ready = nullptr) { m_view->traverse_the_history_to_step(step, move(check_for_cancelation), move(on_ready)); }
+    void traverse_the_history_to_step(i32 step) { HubConnection::the().async_view_traverse_the_history_to_step(view_id(), step); }
     Vector<WebView::HistoryEntry> recent_history_entries(size_t limit) const { return m_view->recent_history_entries(limit); }
-    Optional<WebView::SessionTabId> session_tab_id() const { return m_view->session_tab_id(); }
-    void set_session_tab_id(WebView::SessionTabId session_tab_id) { m_view->set_session_tab_id(move(session_tab_id)); }
-    void clear_session_tab_id() { m_view->clear_session_tab_id(); }
+    Optional<WebView::SessionTabId> session_tab_id() const { return m_session_tab_id; }
+    void set_session_tab_id(WebView::SessionTabId session_tab_id)
+    {
+        m_session_tab_id = session_tab_id;
+        HubConnection::the().async_view_set_session_tab_id(view_id(), session_tab_id);
+    }
+    void clear_session_tab_id()
+    {
+        m_session_tab_id = {};
+        HubConnection::the().async_view_set_session_tab_id(view_id(), {});
+    }
     void zoom_in() { HubConnection::the().async_view_zoom_in(view_id()); }
     void zoom_out() { HubConnection::the().async_view_zoom_out(view_id()); }
     void reset_zoom() { HubConnection::the().async_view_reset_zoom(view_id()); }
@@ -116,7 +133,7 @@ public:
     String force_dark_host() const { return m_state.force_dark_host; }
     void update_interface_color_scheme() { HubConnection::the().async_view_update_interface_color_scheme(view_id()); }
     void update_system_theme(Core::AnonymousBuffer const& theme) { HubConnection::the().async_view_set_system_theme(view_id(), theme); }
-    NonnullRefPtr<Core::Promise<ByteString>> selected_text() { return m_view->selected_text(); }
+    NonnullRefPtr<Core::Promise<ByteString>> selected_text();
     bool look_up_selected_text_at(Gfx::IntPoint widget_position) { return m_view->look_up_selected_text_at(move(widget_position)); }
     void find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity = CaseSensitivity::CaseInsensitive, bool highlight_all_matches = false) { HubConnection::the().async_view_find_in_page(view_id(), query, move(case_sensitivity), highlight_all_matches); }
     void find_in_page_next_match() { HubConnection::the().async_view_find_in_page_next_match(view_id()); }
@@ -138,7 +155,7 @@ public:
     void prompt_closed(Optional<Utf16String> const& response) { HubConnection::the().async_view_prompt_closed(view_id(), response); }
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) { HubConnection::the().async_view_color_picker_update(view_id(), move(picked_color), move(state)); }
     void date_picker_closed(Optional<Utf16String> picked_value) { HubConnection::the().async_view_date_picker_closed(view_id(), move(picked_value)); }
-    void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files) { m_view->file_picker_closed(move(selected_files)); }
+    void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files) { HubConnection::the().async_view_file_picker_closed(view_id(), move(selected_files)); }
     void select_dropdown_closed(Optional<u32> const& selected_item_id) { HubConnection::the().async_view_select_dropdown_closed(view_id(), selected_item_id); }
     void set_marked_text_from_input_method(Utf16String const& text) { HubConnection::the().async_view_set_marked_text_from_input_method(view_id(), text); }
     void commit_text_from_input_method(Utf16String const& text, i32 replacement_start = 0, i32 replacement_length = 0) { HubConnection::the().async_view_commit_text_from_input_method(view_id(), text, replacement_start, replacement_length); }
@@ -160,9 +177,9 @@ public:
     Gfx::Color page_background_color() const { return m_state.page_background_color; }
     WebView::PageBackingStores const& backing_stores() const { return m_backing_stores; }
     void take_and_save_screenshot(ScreenshotType screenshot_type) { HubConnection::the().async_view_take_and_save_screenshot(view_id(), move(screenshot_type)); }
-    void save_screenshot(Gfx::Bitmap const& bitmap) { m_view->save_screenshot(bitmap); }
+    void save_screenshot(Gfx::Bitmap const& bitmap) { HubConnection::the().async_view_save_screenshot(view_id(), bitmap.to_shareable_bitmap()); }
     void request_close() { HubConnection::the().async_view_request_close(view_id()); }
-    void request_close_preflight(Function<void(bool)> on_complete) { m_view->request_close_preflight(move(on_complete)); }
+    void request_close_preflight(Function<void(bool)> on_complete);
     bool needs_beforeunload_check() const { return m_view->needs_beforeunload_check(); }
     u64 add_navigation_listener(NavigationListener);
     void remove_navigation_listener(u64 listener_id) { m_navigation_listeners.remove(listener_id); }
@@ -173,8 +190,9 @@ public:
     WebView::Action& navigate_forward_action() { return *m_navigate_forward_action; }
     WebView::Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
     WebView::Action& reset_zoom_action() { return *m_reset_zoom_action; }
-    WebView::PageTranslation& page_translation() { return m_view->page_translation(); }
-    WebView::WebContentPage& page() const { return m_view->page(); }
+    WebView::Action& translate_action() { return *m_translate_action; }
+    bool is_translated() const { return m_state.is_translated; }
+    WebView::Menu& translation_menu();
 
     Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const { return m_view->session_history_traversal_menu_items(direction); }
     WebView::SessionHistorySnapshot session_history_snapshot() const { return m_view->session_history_snapshot(); }
@@ -182,8 +200,8 @@ public:
     void exit_fullscreen() { HubConnection::the().async_view_exit_fullscreen(view_id()); }
     void deny_fullscreen_window() { HubConnection::the().async_view_deny_fullscreen_window(view_id()); }
     void set_is_fullscreen(Web::ViewportIsFullscreen is_fullscreen) { HubConnection::the().async_view_set_is_fullscreen(view_id(), is_fullscreen); }
-    Function<void()> prepare_for_close_without_prompting() { return m_view->prepare_for_close_without_prompting(); }
-    Function<void()> prepare_for_immediate_close() { return m_view->prepare_for_immediate_close(); }
+    Function<void()> prepare_for_close_without_prompting();
+    void prepare_for_immediate_close();
 
     bool scales_frames_to_fit() const { return m_scales_frames_to_fit; }
 
@@ -211,7 +229,6 @@ protected:
     void set_device_pixel_ratio_and_viewport(double device_pixel_ratio, Web::DevicePixelSize);
     virtual Optional<ScreenRects> screen_rects() const = 0;
     virtual void update_zoom() { }
-    WebView::MicrophoneAuthorizer& microphone_authorizer() const { return m_view->microphone_authorizer(); }
     static Gfx::IntRect rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size) { return Hub::View::rect_fitting_frame(frame_size, target_size); }
 
 private:
@@ -221,6 +238,8 @@ private:
     RefPtr<WebView::Action> m_navigate_forward_action;
     RefPtr<WebView::Action> m_toggle_bookmark_action;
     RefPtr<WebView::Action> m_reset_zoom_action;
+    RefPtr<WebView::Action> m_translate_action;
+    RefPtr<WebView::Menu> m_translation_menu;
     RefPtr<WebView::Menu> m_bookmarks_bar_context_menu;
     RefPtr<WebView::Menu> m_bookmark_context_menu;
     RefPtr<WebView::Menu> m_bookmark_folder_context_menu;
@@ -230,9 +249,14 @@ private:
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
     double m_device_pixel_ratio { 1.0 };
     Optional<u64> m_display_id;
+    Optional<WebView::SessionTabId> m_session_tab_id;
     bool m_scales_frames_to_fit { false };
     Hub::ViewState m_state;
     HashMap<u64, NavigationListener> m_navigation_listeners;
+    HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_selected_text;
+    HashMap<u64, Function<void(bool)>> m_pending_close_preflights;
+    HashMap<u64, NonnullRefPtr<Core::Promise<String>>> m_pending_page_dumps;
+    u64 m_next_request_id { 1 };
     u64 m_next_navigation_listener_id { 1 };
     WebView::PageBackingStores m_backing_stores;
     u64 m_backing_stores_page_id { 0 };
