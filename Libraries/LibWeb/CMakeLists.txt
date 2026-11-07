@@ -1129,6 +1129,7 @@ sync_rust_crate_ffi_headers(
     FFI_HEADERS
         HTML/Parser/RustFFI.h
         RustFFI.h
+        WebAudio/RustFFI.h
         SVG/ParserRustFFI.h
         SelectorRustFFI.h
         StyleValueRustFFI.h

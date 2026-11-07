@@ -2467,6 +2467,25 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let base_config = cbindgen::Config::from_file(manifest_dir.join("cbindgen.toml"))?;
 
+    let mut web_audio_config = base_config.clone();
+    web_audio_config.namespaces = Some(vec!["Web".into(), "WebAudio".into(), "RustFFI".into()]);
+    for name in ["FFT", "AudioBus", "ConvolverKernel", "ConvolverDelayLine"] {
+        web_audio_config.export.rename.insert(name.into(), "void".into());
+        web_audio_config.export.exclude.push(name.into());
+    }
+    web_audio_config.export.exclude.push("MAX_CHANNEL_COUNT".into());
+    generate_ffi_header(
+        web_audio_config,
+        &[
+            manifest_dir.join("src/web_audio/rendering/fft.rs"),
+            manifest_dir.join("src/web_audio/rendering/biquad_coefficients.rs"),
+            manifest_dir.join("src/web_audio/rendering/audio_bus.rs"),
+            manifest_dir.join("src/web_audio/rendering/convolver_kernel.rs"),
+        ],
+        &out_dir,
+        Path::new("WebAudio/RustFFI.h"),
+    );
+
     // CSS tokenizer header — namespace Web::CSS::Parser::FFI, CSS types only.
     let mut css_config = base_config.clone();
     css_config.namespaces = Some(vec![
