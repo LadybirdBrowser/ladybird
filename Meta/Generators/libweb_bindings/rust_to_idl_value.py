@@ -188,7 +188,7 @@ def rust_to_idl_value(
             )
         return f"<{rust_dictionary_path(dictionary, context)}>::from_js(vm, {value})"
     if isinstance(idl_type, IDLUnionType) and is_named_union(idl_type, context):
-        union_members_by_kind(idl_type, context, what)
+        members = union_members_by_kind(idl_type, context, what)
         # NB: The conversion of a named union is written once, for every parameter of its type.
         allowances = sorted(set(parameter_attributes) & {"AllowShared", "AllowResizable"})
         if allowances:
@@ -196,7 +196,10 @@ def rust_to_idl_value(
                 f"{what} has the extended attributes {allowances} on the union type {idl_type}, which the Rust "
                 "bindings only handle on the members of the union"
             )
-        return f"<{rust_union_path(idl_type, context, what)}>::from_js(vm, {value})"
+        path = rust_union_path(idl_type, context, what)
+        if members.names_numeric_argument:
+            return f'<{path}>::from_js_with_identifier(vm, {value}, "{identifier}")'
+        return f"<{path}>::from_js(vm, {value})"
     raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings do not convert to yet")
 
 
@@ -245,6 +248,18 @@ class UnionMembers:
     enumeration_types: List[IDLType] = field(default_factory=list)
     # The interfaces, implemented in either language, in the order of the union.
     interface_types: List[IDLType] = field(default_factory=list)
+
+    @property
+    def names_numeric_argument(self) -> bool:
+        return (
+            bool(self.enumeration_types)
+            and self.numeric_type is not None
+            and self.numeric_type.name
+            in (
+                "float",
+                "double",
+            )
+        )
 
 
 def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, what: str) -> UnionMembers:
@@ -708,7 +723,10 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
     numeric_type = members.numeric_type
     numeric_conversion = None
     if numeric_type is not None:
-        numeric_conversion = rust_to_idl_value(numeric_type, {}, "value", "value", context, what)
+        if members.names_numeric_argument:
+            numeric_conversion = f"to_{numeric_type.name}(vm, value, identifier)"
+        else:
+            numeric_conversion = rust_to_idl_value(numeric_type, {}, "value", "value", context, what)
         steps.append(
             f"""            // 13. If V is a Number, then:
             //     1. If types includes a numeric type, then return the result of converting V to that numeric type.
@@ -753,11 +771,16 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
             throw_no_union_types_matched(vm)
 """
         )
+    implementation = f"impl FromJs for {path}"
+    conversion = "fn from_js(vm: &Vm, value: Value)"
+    if members.names_numeric_argument:
+        implementation = f"impl {path}"
+        conversion = "pub(crate) fn from_js_with_identifier(vm: &Vm, value: Value, identifier: &str)"
     out.write(
         f"""
     /// The conversion of a JS value to the union {union_type}, https://webidl.spec.whatwg.org/#js-union
-    impl FromJs for {path} {{
-        fn from_js(vm: &Vm, value: Value) -> ThrowCompletionOr<Self> {{
+    {implementation} {{
+        {conversion} -> ThrowCompletionOr<Self> {{
 {"".join(steps)}        }}
     }}
 """
