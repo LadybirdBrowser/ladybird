@@ -25,7 +25,7 @@ enum class ContentBlockingState : u8 {
 // a script or an image.
 struct BlockedResource {
     String host;
-    StringView kind;
+    String kind;
 };
 
 struct ContentBlockingSnapshot {
