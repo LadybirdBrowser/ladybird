@@ -92,10 +92,15 @@ void SVGUseElement::inserted()
     // The insertion that connected us may have inserted our referenced element along with us, with its insertion
     // steps running before ours, i.e. before we were registered to be notified about changes to it. Adoption also
     // drops our shadow tree (see adopted_from()), we may now be in an author's shadow tree, and an external document
-    // may have finished loading while we were disconnected. If our shadow tree has not been populated yet, try
-    // resolving the reference again.
-    if (!is_connected() || instance_root())
+    // may have finished loading while we were disconnected. If our shadow tree has not been populated yet, or was
+    // copied from an element our reference no longer resolves to, try resolving the reference again.
+    if (!is_connected())
         return;
+    if (auto instance_root = this->instance_root()) {
+        if (instance_root->corresponding_element().ptr() != referenced_element().ptr())
+            request_reclone();
+        return;
+    }
 
     if (!m_href.has_value()) {
         process_the_url(href_value());
@@ -242,6 +247,17 @@ void SVGUseElement::svg_element_changed(SVGElement& svg_element)
 
     // NOTE: We need to check the ancestor because attribute_changed of a child doesn't call children_changed on the parent(s)
     if (to_clone == GC::Ref { svg_element } || to_clone->is_ancestor_of(svg_element))
+        request_reclone();
+}
+
+void SVGUseElement::element_instance_changed(Badge<SVGElement>)
+{
+    if (is_connected() && document().readiness() == HTML::DocumentReadyState::Loading) {
+        m_needs_parsing_complete_reclone = true;
+        return;
+    }
+
+    if (!m_reclone_pending)
         request_reclone();
 }
 
@@ -411,14 +427,14 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_cl
 }
 
 // https://svgwg.org/svg2-draft/struct.html#TermCorrespondingElement
-void SVGUseElement::link_to_corresponding_elements(SVGElement& instance, SVGElement const& original)
+void SVGUseElement::link_to_corresponding_elements(SVGElement& instance, SVGElement& original)
 {
     instance.set_corresponding_element({}, original);
 
     // NB: Only SVG children are paired up. Inserting a clone's HTML content can change it, for example when an option
     //     element updates a selectedcontent element.
     auto* instance_child = instance.first_child_of_type<SVGElement>();
-    for (auto const* original_child = original.first_child_of_type<SVGElement>(); original_child && instance_child; original_child = original_child->next_sibling_of_type<SVGElement>()) {
+    for (auto* original_child = original.first_child_of_type<SVGElement>(); original_child && instance_child; original_child = original_child->next_sibling_of_type<SVGElement>()) {
         link_to_corresponding_elements(*instance_child, *original_child);
         instance_child = instance_child->next_sibling_of_type<SVGElement>();
     }

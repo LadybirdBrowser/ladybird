@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+    <text y="20">The two texts should be on top of each other</text>
+    <text y="20" fill="blue">The two texts should be on top of each other</text>
+</svg>

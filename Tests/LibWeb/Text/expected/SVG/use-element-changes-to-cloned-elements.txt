@@ -1,0 +1,8 @@
+Use of a group holding a use, after the inner target's path changed: 60
+Use whose referenced element lost its id: 0
+Use re-inserted after its target changed while it was removed: 70
+Same use after a later change: 75
+Use of a group holding a use, re-inserted after the inner target changed while it was removed: 60
+Same use after a later change: 70
+Use of a group holding a use, after the inner target was removed: 0
+Use re-inserted after its target was removed while the use was detached: 0

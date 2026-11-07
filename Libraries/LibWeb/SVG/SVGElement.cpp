@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -47,7 +48,10 @@ struct SVGElement::RareData final : DOM::Element::RareData {
         visitor.visit(corresponding_element);
     }
 
-    GC::Ptr<SVGElement const> corresponding_element;
+    GC::Ptr<SVGElement> corresponding_element;
+
+    // https://svgwg.org/svg2-draft/struct.html#TermElementInstance
+    GC::WeakHashSet<SVGElement> element_instances;
 };
 
 OwnPtr<DOM::Node::RareData> SVGElement::create_rare_data() const
@@ -64,9 +68,10 @@ GC::Ptr<SVGElement const> SVGElement::corresponding_element() const
     return data->corresponding_element;
 }
 
-void SVGElement::set_corresponding_element(Badge<SVGUseElement>, SVGElement const& corresponding_element)
+void SVGElement::set_corresponding_element(Badge<SVGUseElement>, SVGElement& corresponding_element)
 {
     static_cast<RareData&>(ensure_rare_data()).corresponding_element = corresponding_element;
+    static_cast<RareData&>(corresponding_element.ensure_rare_data()).element_instances.set(*this);
 }
 
 SVGElement::SVGElement(DOM::Document& document, DOM::QualifiedName qualified_name)
@@ -467,9 +472,11 @@ void SVGElement::attribute_changed(Utf16FlyString const& local_name, Optional<Ut
     Base::attribute_changed(local_name, old_value, value, namespace_);
     HTMLOrSVGOrMathMLElement::attribute_changed(local_name, old_value, value, namespace_);
 
-    if (old_value != value)
+    if (old_value != value) {
         update_presentation_attribute_style(local_name, value, namespace_);
-    update_use_elements_that_reference_this();
+        invalidate_element_instances(ElementInstancesToInvalidate::All);
+        update_use_elements_that_reference_this();
+    }
     note_svg_paint_resource_description_may_have_changed();
 }
 
@@ -538,6 +545,7 @@ void SVGElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 
+    invalidate_element_instances(ElementInstancesToInvalidate::All);
     update_use_elements_that_reference_this();
     note_svg_paint_resource_description_may_have_changed();
 }
@@ -564,6 +572,27 @@ void SVGElement::update_use_elements_that_reference_this()
     }
 }
 
+void SVGElement::invalidate_element_instances(ElementInstancesToInvalidate element_instances_to_invalidate)
+{
+    auto* data = static_cast<RareData*>(rare_data());
+    if (!data)
+        return;
+
+    GC::RootVector<GC::Ref<SVGElement>> invalidated_element_instances;
+    for (auto& element_instance : data->element_instances) {
+        if (element_instances_to_invalidate == ElementInstancesToInvalidate::All || element_instance.shadow_including_root().is_document())
+            invalidated_element_instances.append(element_instance);
+    }
+
+    for (auto& element_instance : invalidated_element_instances) {
+        data->element_instances.remove(element_instance);
+        static_cast<RareData&>(*element_instance->rare_data()).corresponding_element = nullptr;
+        auto* shadow_root = as_if<DOM::ShadowRoot>(element_instance->root());
+        if (auto* use_element = shadow_root ? as_if<SVGUseElement>(shadow_root->host()) : nullptr)
+            use_element->element_instance_changed({});
+    }
+}
+
 void SVGElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
     Base::removed_from(is_subtree_root, old_ancestor, old_root);
@@ -574,6 +603,11 @@ void SVGElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor,
         return shadow_root && shadow_root->host() && is<SVGUseElement>(*shadow_root->host());
     };
 
+    if (auto* data = static_cast<RareData*>(rare_data()); data && data->corresponding_element && !is_use_element_shadow_root(root())) {
+        static_cast<RareData&>(*data->corresponding_element->rare_data()).element_instances.remove(*this);
+        data->corresponding_element = nullptr;
+    }
+
     // If this element is in a shadow root hosted by a use element,
     // it already represents a clone and is not itself referenced.
     // NB: We check both old_root (for when the element is removed from the shadow tree directly)
@@ -582,6 +616,7 @@ void SVGElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor,
         return;
 
     remove_from_use_element_that_reference_this();
+    invalidate_element_instances(ElementInstancesToInvalidate::InDocument);
 
     // A <mask>, <clipPath>, or <pattern> referenced via url(#id) is laid out as a resource box attached to the
     // referencing element's layout subtree. So it outlives this element's own DOM node. Rebuild those referencing
