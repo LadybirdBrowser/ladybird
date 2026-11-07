@@ -200,7 +200,7 @@ with tempfile.TemporaryDirectory() as directory:
             const editor = document.querySelector('#custom-content-blocker-filters');
             editor.value = 'unsaved rules';
             editor.dispatchEvent(new Event('input', {bubbles: true}));
-            document.querySelector('#tab-button-services').click();
+            document.querySelector('#tab-button-privacy').click();
         """,
                 "args": [],
             },
