@@ -1,5 +1,12 @@
 <!DOCTYPE html>
 <script>
-var sessionHistory = (typeof internals !== "undefined" && internals.dumpSessionHistory) ? internals.dumpSessionHistory() : "n/a";
-parent.postMessage({ type: "page-b-ready", sessionHistory: sessionHistory }, "*");
+// The history step to this page may still be in flight while it parses, so wait for it before reading the entries.
+(async () => {
+    var sessionHistory = "n/a";
+    if (typeof internals !== "undefined" && internals.dumpSessionHistory) {
+        await internals.flushSessionHistoryTraversalQueue();
+        sessionHistory = internals.dumpSessionHistory();
+    }
+    parent.postMessage({ type: "page-b-ready", sessionHistory: sessionHistory }, "*");
+})();
 </script>
