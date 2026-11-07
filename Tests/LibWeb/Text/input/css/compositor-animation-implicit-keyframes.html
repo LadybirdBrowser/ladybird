@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes opacity-pulse { 50% { opacity: 0.5; } }
+    @keyframes color-pulse { 50% { background-color: red; } }
+    @keyframes filter-pulse { 50% { filter: blur(2px); } }
+    div { width: 10px; height: 10px; background-color: blue; }
+</style>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        // Keyframes that leave out 0% and 100% take those values from the element's own style.
+        for (const name of ["opacity-pulse", "color-pulse", "filter-pulse"]) {
+            target.style.animation = `${name} 100s linear infinite`;
+            await Promise.all(target.getAnimations().map(animation => animation.ready));
+            internals.updateCompositorAnimations();
+            println(`${name}: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+            target.style.animation = "none";
+            internals.updateCompositorAnimations();
+        }
+        done();
+    });
+</script>
