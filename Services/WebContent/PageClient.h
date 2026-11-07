@@ -321,6 +321,7 @@ private:
     virtual void page_did_close() override;
     virtual void page_did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
     virtual void page_did_consume_user_activation(Web::HTML::UserActivationConsumption) override;
+    virtual void page_did_notify_about_user_activation(Web::HTML::CrossProcessId document_id) override;
     virtual void page_did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Web::HTML::StorageSerializationRecord const& navigation_api_state) override;
     virtual void page_did_update_session_history_entry_scroll_restoration_mode(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode) override;
     virtual void page_did_update_session_history_entry_document_state_navigable_target_name(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Utf16String const& navigable_target_name) override;

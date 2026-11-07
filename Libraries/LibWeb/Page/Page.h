@@ -932,6 +932,7 @@ public:
     virtual void page_did_request_unload_check(HTML::CrossProcessId, GC::Ref<GC::Function<void(HTML::CheckIfUnloadingIsCanceledResult)>>) { VERIFY_NOT_REACHED(); }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
     virtual void page_did_consume_user_activation([[maybe_unused]] HTML::UserActivationConsumption consumption) { }
+    virtual void page_did_notify_about_user_activation([[maybe_unused]] HTML::CrossProcessId document_id) { }
 
     virtual void request_file(FileRequest) = 0;
 

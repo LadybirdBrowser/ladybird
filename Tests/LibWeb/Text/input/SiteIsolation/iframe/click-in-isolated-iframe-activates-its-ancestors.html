@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A click in an isolated iframe gives activation to the windows of its ancestors, which another process hosts, but
+    // not to those of its cross-site siblings.
+    promiseTest(async () => {
+        const isolatedIframeUrl = async (name, body) => {
+            const url = new URL(
+                await httpTestServer().createEcho("GET", `/${name}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body,
+                })
+            );
+            url.hostname = uniqueLocalhostHostname(name);
+            return url;
+        };
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const addIframe = async url => {
+            const ready = nextMessage();
+            const iframe = document.createElement("iframe");
+            iframe.src = url;
+            document.body.appendChild(iframe);
+            await ready;
+            return iframe;
+        };
+
+        const askIframe = async (iframe, message) => {
+            const reply = nextMessage();
+            iframe.contentWindow.postMessage(message, "*");
+            return await reply;
+        };
+
+        const clickingIframe = await addIframe(
+            await isolatedIframeUrl(
+                "clicking-iframe",
+                `<!DOCTYPE html><body style="margin: 0; height: 100vh"><script>
+                    addEventListener("click", () => parent.postMessage(navigator.userActivation.isActive, "*"));
+                    parent.postMessage("ready", "*");
+                <\/script>`
+            )
+        );
+        const passiveIframe = await addIframe(
+            await isolatedIframeUrl(
+                "passive-iframe",
+                `<!DOCTYPE html><script>
+                    addEventListener("message", () => parent.postMessage(navigator.userActivation.hasBeenActive, "*"));
+                    parent.postMessage("ready", "*");
+                <\/script>`
+            )
+        );
+
+        println(`Top-level document has been active before the click: ${navigator.userActivation.hasBeenActive}`);
+        const rect = clickingIframe.getBoundingClientRect();
+        const click = nextMessage();
+        internals.clickThroughUIProcess(rect.left + 10, rect.top + 10);
+        println(`Clicking iframe has transient activation after its click: ${await click}`);
+
+        // The activation reaches this process after the click, by way of the UI process.
+        for (let attempts = 0; attempts < 600 && !navigator.userActivation.hasBeenActive; ++attempts)
+            await new Promise(resolve => setTimeout(resolve, 25));
+        println(`Top-level document has transient activation after the iframe's click: ${navigator.userActivation.isActive}`);
+        println(`Cross-site sibling iframe has been active after the iframe's click: ${await askIframe(passiveIframe, "query")}`);
+
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
