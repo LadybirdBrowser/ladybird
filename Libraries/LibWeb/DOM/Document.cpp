@@ -9257,6 +9257,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
     struct CompetingPropertyEffects {
         GC::Ptr<Animations::KeyframeEffect> winner;
         bool all_effects_use_replace { true };
+        u32 effect_count { 0 };
     };
     struct CompetingEffects {
         CompetingPropertyEffects opacity;
@@ -9596,6 +9597,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
             continue;
         auto& effects = competing_effects.ensure(*target);
         auto add_competing_effect = [&](CompetingPropertyEffects& property_effects) {
+            ++property_effects.effect_count;
             bool effect_produces_output = effect.is_in_effect();
             if (effect_produces_output && effect.composite() != Bindings::CompositeOperation::Replace)
                 property_effects.all_effects_use_replace = false;
@@ -9627,17 +9629,33 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
                 Bindings::CompositeOperationOrAuto::Replace);
         });
     };
+    // A keyframe that leaves a property out takes the underlying value, which is the output of the effects beneath the
+    // winner where there are any. The compositor only knows the element's own style.
+    auto winner_takes_the_underlying_value = [](Animations::KeyframeEffect& effect, auto is_property) {
+        auto const* key_frame_set = effect.key_frame_set();
+        if (!key_frame_set)
+            return false;
+        return any_of(key_frame_set->keyframes_by_key, [&](auto const& entry) {
+            return any_of(entry.properties, [&](auto const& property) {
+                return is_property(property.key.id()) && property.value.template has<Animations::KeyframeEffect::KeyFrameSet::UseInitial>();
+            });
+        });
+    };
     for (auto& [target, effects] : competing_effects) {
         (void)target;
-        auto validate_winner = [&](CompetingPropertyEffects& property_effects) {
+        auto validate_winner = [&](CompetingPropertyEffects& property_effects, auto is_property) {
             if (!property_effects.all_effects_use_replace
-                || (property_effects.winner && !winner_uses_replace_keyframes(*property_effects.winner)))
+                || (property_effects.winner && !winner_uses_replace_keyframes(*property_effects.winner))
+                || (property_effects.winner && property_effects.effect_count > 1 && winner_takes_the_underlying_value(*property_effects.winner, is_property)))
                 property_effects.winner = nullptr;
         };
-        validate_winner(effects.opacity);
-        validate_winner(effects.background_color);
-        validate_winner(effects.filter);
-        validate_winner(effects.transform);
+        auto is = [](CSS::PropertyID property_id) {
+            return [property_id](CSS::PropertyID id) { return id == property_id; };
+        };
+        validate_winner(effects.opacity, is(CSS::PropertyID::Opacity));
+        validate_winner(effects.background_color, is(CSS::PropertyID::BackgroundColor));
+        validate_winner(effects.filter, is(CSS::PropertyID::Filter));
+        validate_winner(effects.transform, is_transform_family_property);
     }
 
     // An opacity of 1 does not otherwise create an effects frame. Give an otherwise publishable opacity

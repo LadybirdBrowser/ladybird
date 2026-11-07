@@ -1,0 +1,2 @@
+over another animation: 0
+alone: 1
