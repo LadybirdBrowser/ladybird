@@ -3989,6 +3989,17 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         }
     }
 
+    /// The inline size at which to measure the intrinsic block sizes of `sized`: its own content inline size once
+    /// that's resolved, since its contents are laid out in it, and otherwise the available inline size.
+    fn inline_size_for_intrinsic_block_size(&self, sized: SizedBox<'_>, available_space: AvailableSpace) -> CssPixels {
+        let metrics = sized.metrics();
+        if metrics.has_definite_inline_size() {
+            metrics.content_inline_size()
+        } else {
+            available_space.inline_size.to_px_or_zero()
+        }
+    }
+
     pub(crate) fn calculate_fit_content_size(
         &self,
         sized: SizedBox<'_>,
@@ -4017,7 +4028,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 self.calculate_max_content_inline_size(sized, constraints)
             }
             SizingAxis::Block => {
-                let inline_size = available_space.inline_size.to_px_or_zero();
+                let inline_size = self.inline_size_for_intrinsic_block_size(sized, available_space);
                 // https://drafts.csswg.org/css-sizing-3/#fit-content-size
                 // If the available space in a given axis is definite,
                 // equal to clamp(min-content size, stretch-fit size, max-content size)
@@ -4389,9 +4400,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         } else if preferred_size.is_fit_content() {
             Some(self.calculate_fit_content_size(sized, SizingAxis::Block, available_space, constraints))
         } else if preferred_size.is_max_content() {
-            Some(self.calculate_max_content_block_size(sized, available_space.inline_size.to_px_or_zero(), constraints))
+            let inline_size = self.inline_size_for_intrinsic_block_size(sized, available_space);
+            Some(self.calculate_max_content_block_size(sized, inline_size, constraints))
         } else if preferred_size.is_min_content() {
-            Some(self.calculate_min_content_block_size(sized, available_space.inline_size.to_px_or_zero(), constraints))
+            let inline_size = self.inline_size_for_intrinsic_block_size(sized, available_space);
+            Some(self.calculate_min_content_block_size(sized, inline_size, constraints))
         } else {
             None
         };
