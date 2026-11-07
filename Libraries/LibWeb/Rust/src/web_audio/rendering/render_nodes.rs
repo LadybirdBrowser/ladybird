@@ -25,6 +25,7 @@ use super::fft::{FFT, FFTDirection};
 use super::node_message::*;
 use super::render_graph::RenderGraph;
 use super::render_node::*;
+use crate::web_audio::MAX_NUMBER_OF_CHANNELS;
 
 // Additive synthesis of the built-in oscillator waveforms is capped to keep the per-sample cost bounded for very low
 // fundamental frequencies.
@@ -1827,14 +1828,16 @@ impl NodeProcessor for PassthroughRenderNode {
 }
 
 pub fn create_destination_render_node(node_id: u64, quantum_size: usize, channel_count: usize) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, channel_count);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, channel_count);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     data.channel_count.set(channel_count);
     data.channel_count_mode.set(ChannelCountMode::Explicit);
     node_handle(data, DestinationRenderNode)
 }
 
 pub fn create_gain_render_node(node_id: u64, quantum_size: usize, gain: Arc<RenderAudioParam>) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(
         data,
         GainRenderNode {
@@ -1889,7 +1892,8 @@ pub fn create_audio_buffer_source_render_node(
     playback_rate: Arc<RenderAudioParam>,
     detune: Arc<RenderAudioParam>,
 ) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 0, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 0, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(
         data,
         AudioBufferSourceRenderNode {
@@ -1917,7 +1921,8 @@ pub fn create_delay_render_node(
     delay_time: Arc<RenderAudioParam>,
     max_delay_time: f64,
 ) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(
         data,
         DelayRenderNode {
@@ -1977,7 +1982,8 @@ pub fn create_biquad_filter_render_node(
     q: Arc<RenderAudioParam>,
     gain: Arc<RenderAudioParam>,
 ) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(
         data,
         BiquadFilterRenderNode {
@@ -1990,7 +1996,7 @@ pub fn create_biquad_filter_render_node(
             q_values: vec![0.; quantum_size],
             gain_values: vec![0.; quantum_size],
             r#type: BiquadFilterType::Lowpass,
-            filter_states: Vec::new(),
+            filter_states: Vec::with_capacity(MAX_NUMBER_OF_CHANNELS),
         },
     )
 }
@@ -2001,7 +2007,8 @@ pub fn create_iir_filter_render_node(
     feedforward: &[f64],
     feedback: &[f64],
 ) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     assert!(feedforward.len() < 32);
     assert!(feedback.len() < 32);
     node_handle(
@@ -2009,20 +2016,21 @@ pub fn create_iir_filter_render_node(
         IIRFilterRenderNode {
             feedforward: feedforward.to_vec(),
             feedback: feedback.to_vec(),
-            filter_states: Vec::new(),
+            filter_states: Vec::with_capacity(MAX_NUMBER_OF_CHANNELS),
             position: 0,
         },
     )
 }
 
 pub fn create_wave_shaper_render_node(node_id: u64, quantum_size: usize) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(
         data,
         WaveShaperRenderNode {
             curve: None,
             oversample: OverSampleType::None,
-            channel_states: Vec::new(),
+            channel_states: Vec::with_capacity(MAX_NUMBER_OF_CHANNELS),
             two_times_samples: vec![0.; quantum_size * 2],
             four_times_samples: vec![0.; quantum_size * 4],
         },
@@ -2030,7 +2038,8 @@ pub fn create_wave_shaper_render_node(node_id: u64, quantum_size: usize) -> Box<
 }
 
 pub fn create_convolver_render_node(node_id: u64, quantum_size: usize) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, 2);
     data.channel_count_mode.set(ChannelCountMode::ClampedMax);
     node_handle(
         data,
@@ -2085,6 +2094,7 @@ pub fn create_panner_render_node(
 }
 
 pub fn create_passthrough_render_node(node_id: u64, quantum_size: usize) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(data, PassthroughRenderNode)
 }

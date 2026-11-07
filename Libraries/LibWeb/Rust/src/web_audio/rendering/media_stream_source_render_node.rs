@@ -10,6 +10,7 @@ use super::node_message::NodeMessage;
 use super::render_graph::RenderGraph;
 use super::render_node::*;
 use super::render_nodes::{BusRef, NodeProcessor, node_handle};
+use crate::web_audio::MAX_NUMBER_OF_CHANNELS;
 
 // https://webaudio.github.io/web-audio-api/#MediaStreamAudioSourceNode
 struct MediaStreamSourceRenderNode {
@@ -79,7 +80,8 @@ pub unsafe fn create_media_stream_source_render_node(
     quantum_size: usize,
     callbacks: AudioFrameRingCallbacks,
 ) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 0, 1, quantum_size, 2);
+    let mut data = RenderNodeData::new(node_id, 0, 1, quantum_size, 2);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
 
     // NB: The control thread queues SetChannelConfig before AddNode and messages addressed to
     //     unknown nodes are dropped, so the constructor must establish the node's channel
@@ -94,7 +96,7 @@ pub unsafe fn create_media_stream_source_render_node(
             ring: None,
             ring_callbacks: callbacks,
             channel_count: 1,
-            interleaved_scratch: Vec::new(),
+            interleaved_scratch: Vec::with_capacity(quantum_size * MAX_NUMBER_OF_CHANNELS),
         },
     )
 }

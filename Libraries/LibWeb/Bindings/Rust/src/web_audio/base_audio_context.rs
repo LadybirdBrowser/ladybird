@@ -190,7 +190,7 @@ impl BaseAudioContext {
     // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer-numberofchannels
     // > An implementation MUST support at least 32 channels.
     // Other browsers appear to only allow 32 channels - so let's limit ourselves to that too.
-    pub(crate) const MAX_NUMBER_OF_CHANNELS: u32 = 32;
+    pub(crate) const MAX_NUMBER_OF_CHANNELS: u32 = libweb_rust::web_audio::MAX_NUMBER_OF_CHANNELS as u32;
 
     // https://webaudio.github.io/web-audio-api/#sample-rates
     // Implementations MUST support sample rates between 3000 Hz and 768000 Hz, inclusive. A NotSupportedError MUST
