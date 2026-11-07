@@ -319,9 +319,10 @@ public:
 
     Function const& function() const { return *this; }
 
-    virtual void finalize() override
+    // NB: The captured values die when the cell is swept, not when it is finalized, so that the finalizer of another dead
+    //     cell can still call this function.
+    GC_ALLOW_CELL_DESTRUCTOR virtual ~Function() override
     {
-        Base::finalize();
         if (!m_handle.is_valid())
             return;
         auto& table = heap().function_table();
