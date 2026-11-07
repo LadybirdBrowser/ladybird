@@ -405,8 +405,9 @@ public:
             index);
         while (word(STARTED_COUNT_WORD).load() == started)
             MUST(Core::System::sleep_ms(1));
-        // NB: Nothing tells when the thread got to sleep, and each test needs it to be there.
-        MUST(Core::System::sleep_ms(50));
+        // NB: A wait with a short timeout may be over before this sees it.
+        while (!has_result(index) && !m_vms[index].load()->is_waiting_on_shared_memory())
+            MUST(Core::System::sleep_ms(1));
     }
 
     // What Atomics.notify() returned, in a VM of its own.
@@ -512,7 +513,7 @@ TEST_CASE(a_notify_wakes_a_waiter_of_a_word_that_did_not_change)
 TEST_CASE(a_word_that_changes_without_a_notify_ends_no_wait)
 {
     SharedMemoryScripts scripts;
-    scripts.start_waiter(0, "300"sv);
+    scripts.start_waiter(0, "30"sv);
     scripts.word(WAIT_WORD).store(1);
     EXPECT_EQ(scripts.wait_for_result(0), RESULT_TIMED_OUT * 256 + 1);
 }

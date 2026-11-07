@@ -457,6 +457,11 @@ bool VM::interrupt_requested() const
     return js_vm_interrupt_requested(vm_abi(*this));
 }
 
+bool VM::is_waiting_on_shared_memory() const
+{
+    return js_vm_is_waiting_on_shared_memory(vm_abi(*this));
+}
+
 Debugger* VM::debugger()
 {
     if (!debugging_enabled())

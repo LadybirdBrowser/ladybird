@@ -247,6 +247,18 @@ pub unsafe extern "C" fn js_vm_interrupt_requested(vm: *mut JSVM) -> bool {
     unsafe { vm_from_abi(vm) }.interrupt_requested()
 }
 
+/// Whether the thread of the VM waits on a word of shared memory, on the list that a notify takes it off. Any thread may
+/// call this.
+///
+/// # Safety
+///
+/// `vm` must stay alive until this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_is_waiting_on_shared_memory(vm: *mut JSVM) -> bool {
+    // SAFETY: The caller keeps the VM alive, and the call only touches its agent waiter.
+    unsafe { vm_from_abi(vm) }.agent_waiter().is_waiting()
+}
+
 /// Makes `agent` the surrounding agent of the VM: its [[CanBlock]] says whether Atomics.wait() may block, and await in
 /// native code spins its event loop until the awaited promise settles. Without an agent, which a null `agent` sets,
 /// Atomics.wait() may block and await runs the VM's own queue of promise jobs, which is empty if an enqueue_promise_job
