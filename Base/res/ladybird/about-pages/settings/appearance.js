@@ -3,6 +3,7 @@ const showMenuBarGroup = document.querySelector("#show-menu-bar-group");
 const showBookmarksBar = document.querySelector("#show-bookmarks-bar");
 const interfaceTheme = document.querySelector("#interface-theme");
 const websiteColorScheme = document.querySelector("#website-color-scheme");
+const colorTheme = document.querySelector("#color-theme");
 
 function segmentedValue(control) {
     return control.querySelector("input:checked")?.value;
@@ -29,6 +30,7 @@ const loadSettings = settings => {
     showBookmarksBar.value = APPEARANCE.showBookmarksBar || "never";
     setSegmentedValue(interfaceTheme, APPEARANCE.interfaceTheme || "system");
     setSegmentedValue(websiteColorScheme, APPEARANCE.websiteColorScheme || "system");
+    setSegmentedValue(colorTheme, APPEARANCE.colorTheme || "neutral");
 };
 
 function saveAppearance() {
@@ -47,6 +49,11 @@ showBookmarksBar.addEventListener("change", () => {
 
 interfaceTheme.addEventListener("change", () => {
     APPEARANCE.interfaceTheme = segmentedValue(interfaceTheme);
+    saveAppearance();
+});
+
+colorTheme.addEventListener("change", () => {
+    APPEARANCE.colorTheme = segmentedValue(colorTheme);
     saveAppearance();
 });
 

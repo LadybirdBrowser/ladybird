@@ -44,11 +44,30 @@ enum class ThemePreference : u8 {
     Dark,
 };
 
+// The colors of the browser's own tabs, toolbars and menus. Each theme is made from one or two base colors.
+#define ENUMERATE_COLOR_THEMES(X) \
+    X(Neutral, "neutral")         \
+    X(Harbor, "harbor")           \
+    X(Glacier, "glacier")         \
+    X(Lagoon, "lagoon")           \
+    X(Moss, "moss")               \
+    X(Saffron, "saffron")         \
+    X(Copper, "copper")           \
+    X(Cherry, "cherry")           \
+    X(Blossom, "blossom")
+
+enum class ColorTheme : u8 {
+#define __ENUMERATE_COLOR_THEME(name, string) name,
+    ENUMERATE_COLOR_THEMES(__ENUMERATE_COLOR_THEME)
+#undef __ENUMERATE_COLOR_THEME
+};
+
 struct Appearance {
     bool show_menu_bar { false };
     ShowBookmarksBar show_bookmarks_bar { ShowBookmarksBar::Never };
     ThemePreference interface_theme { ThemePreference::System };
     ThemePreference website_color_scheme { ThemePreference::System };
+    ColorTheme color_theme { ColorTheme::Neutral };
 };
 
 struct ContentSettings {
