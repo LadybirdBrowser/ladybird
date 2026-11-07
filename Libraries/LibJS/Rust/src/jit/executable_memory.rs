@@ -133,6 +133,16 @@ impl Chunk {
         {
             let chunk = windows_code_memory::reserve(size);
             assert!(!chunk.is_null(), "reserving JIT code memory failed");
+            // NB: The range starts at the chunk's first code, whose prologue the unwind info then describes (see
+            //     `JitState::entry_trampoline()`).
+            let unwind_range = windows_code_memory::CodeRange {
+                start: CHUNK_HEADER_SIZE as u32,
+                end: u32::try_from(size).expect("a chunk of JIT code is smaller than 4 GiB"),
+                frame_layout: windows_code_memory::FrameLayout::RbpAtSavedRbp,
+            };
+            // SAFETY: The chunk was just reserved, so it has no unwind info yet and no code runs in it.
+            let added = unsafe { windows_code_memory::add_unwind_info(chunk, &[unwind_range]) };
+            assert!(added, "registering the unwind info of JIT code failed");
             Self {
                 start: chunk,
                 size,
@@ -194,6 +204,7 @@ impl Drop for Chunk {
         // SAFETY: As above.
         #[cfg(windows)]
         unsafe {
+            windows_code_memory::delete_unwind_info(self.start);
             windows_code_memory::release(self.start);
         }
     }

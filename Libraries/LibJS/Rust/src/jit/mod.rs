@@ -416,8 +416,15 @@ impl JitState {
             .get_or_init(|| {
                 let code = libjs_jit::codegen::generate_entry_trampoline::<libjs_jit::asm::MacroAssembler>()
                     .expect("the entry trampoline can be generated");
+                // NB: On Windows, the trampoline goes first in a chunk of its own, whose unwind info then describes
+                //     its prologue: native code calls it, and keeps no frame pointer that a stack walk from the
+                //     prologue could take for the trampoline's.
+                #[cfg(windows)]
+                let allocator = Rc::new(RefCell::new(CodeAllocator::default()));
+                #[cfg(not(windows))]
+                let allocator = Rc::clone(&self.code_allocator);
                 let memory = ExecutableMemory::allocate(
-                    &self.code_allocator,
+                    &allocator,
                     &[code.as_slice()],
                     &["entry trampoline"],
                     self.options.perf_map,
