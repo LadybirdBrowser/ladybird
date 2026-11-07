@@ -842,9 +842,9 @@ Optional<String> Application::system_font_family() const
 #endif
 }
 
-BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<u64> hub_view_id, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
+BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Optional<u64> hub_view_id, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
 {
-    auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, hub_view_id);
+    auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, hub_view_id);
 
     auto should_focus_location_editor = initial_urls.size() == 1 && initial_urls.first() == Application::settings().new_tab_page_url();
     if (should_focus_location_editor) {
@@ -937,7 +937,7 @@ BrowserWindow* Application::restore_previous_session(WindowConfiguration const& 
             ? window_configuration_for(*restored.geometry)
             : (i == plan.size() - 1 ? frontmost_window_configuration : configuration_for_new_window());
 
-        auto* window = new BrowserWindow({}, BrowserWindow::IsPopupWindow::No, WebView::IsPrivate::No, nullptr, {}, restored.window_id);
+        auto* window = new BrowserWindow({}, BrowserWindow::IsPopupWindow::No, WebView::IsPrivate::No, {}, restored.window_id);
         window->restore_tabs(restored.tabs, restored.active_tab_index);
         present_window(*window, configuration, ShowWindow::Yes);
         frontmost_window = window;
@@ -1438,13 +1438,6 @@ void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Web
     window->bring_to_front();
 }
 
-Optional<WebView::ViewImplementation&> Application::active_web_view() const
-{
-    if (auto* active_tab = this->active_tab())
-        return active_tab->view().hub_view();
-    return {};
-}
-
 Vector<WebView::BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_current_window() const
 {
     if (!m_active_window)
@@ -1478,7 +1471,7 @@ Vector<WebView::BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_c
     return bookmarks;
 }
 
-Optional<WebView::ViewImplementation&> Application::activate_tab_with_url(URL::URL const& url, URL::ExcludeFragment exclude_fragment) const
+Tab* Application::activate_tab_with_url(URL::URL const& url, URL::ExcludeFragment exclude_fragment) const
 {
     auto is_private = m_active_window ? m_active_window->is_private() : WebView::IsPrivate::No;
     for (auto* window : visible_browser_windows_active_first(m_active_window)) {
@@ -1493,22 +1486,30 @@ Optional<WebView::ViewImplementation&> Application::activate_tab_with_url(URL::U
             window->setWindowState(window->windowState() & ~Qt::WindowMinimized);
         window->raise();
         window->activateWindow();
-        return tab->view().hub_view();
+        return tab;
     }
-    return {};
+    return nullptr;
 }
 
-Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML::ActivateTab activate_tab) const
+void Application::activate_or_open_tab_with_url(URL::URL const& url)
 {
-    if (!m_active_window) {
-        auto& window = const_cast<Application&>(*this).new_window({ Application::settings().new_tab_page_url() });
-        if (auto* tab = window.current_tab())
-            return tab->view().hub_view();
-        return {};
-    }
+    if (auto* tab = activate_tab_with_url(url, URL::ExcludeFragment::Yes))
+        tab->view().load(url);
+    else
+        open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
+}
 
-    auto& tab = active_window().create_new_tab(activate_tab, BrowserWindow::TabLocation::end());
-    return tab.view().hub_view();
+void Application::open_view_in_new_tab(u64 view_id, WebView::IsPrivate is_private, Web::HTML::ActivateTab activate_tab)
+{
+    // NB: The window that is active now may not be the one the Hub saw, and a view can only live in a window of its own
+    //     privacy: it keeps the cookies and history it was made with, whatever the window shows.
+    for (auto* window : visible_browser_windows_active_first(m_active_window)) {
+        if (window->is_private() == is_private) {
+            window->create_new_tab(activate_tab, view_id);
+            return;
+        }
+    }
+    new_window({}, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private, view_id);
 }
 
 void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const
@@ -1556,7 +1557,7 @@ void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescri
 {
     if (!m_active_window) {
         auto url = navigation.url;
-        const_cast<Application&>(*this).new_window({ move(url) }, {}, BrowserWindow::IsPopupWindow::No, WebView::IsPrivate::No, nullptr, {}, ShowWindow::Yes, move(navigation));
+        const_cast<Application&>(*this).new_window({ move(url) }, {}, BrowserWindow::IsPopupWindow::No, WebView::IsPrivate::No, {}, ShowWindow::Yes, move(navigation));
         return;
     }
 
@@ -1567,29 +1568,25 @@ void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescri
 void Application::open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private)
 {
     auto url = navigation.url;
-    new_window({ move(url) }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private, nullptr, {}, ShowWindow::Yes, move(navigation));
+    new_window({ move(url) }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private, {}, ShowWindow::Yes, move(navigation));
 }
 
-NonnullRefPtr<Core::Promise<ByteString>> Application::ask_user_for_download_path(ByteString const& file) const
+void Application::ask_user_for_download_path(u64 request_id, ByteString const& file) const
 {
     auto* dialog = new QFileDialog(nullptr, "Select save location", QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setAcceptMode(QFileDialog::AcceptSave);
     dialog->selectFile(qstring_from_ak_string(file.view()));
 
-    auto promise = Core::Promise<ByteString>::construct();
-
-    QObject::connect(dialog, &QDialog::finished, [promise, dialog = QPointer { dialog }](auto result) {
-        if (result != QDialog::Accepted || !dialog || dialog->selectedFiles().isEmpty()) {
-            promise->reject(Error::from_errno(ECANCELED));
-            return;
-        }
-
-        promise->resolve(ak_byte_string_from_qstring(dialog->selectedFiles().first()));
+    QObject::connect(dialog, &QDialog::finished, [request_id, dialog = QPointer { dialog }](auto result) {
+        Optional<ByteString> path;
+        if (result == QDialog::Accepted && dialog && !dialog->selectedFiles().isEmpty())
+            path = ak_byte_string_from_qstring(dialog->selectedFiles().first());
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_answer_download_path(request_id, move(path));
     });
 
     dialog->open();
-    return promise;
 }
 
 static QMessageBox* create_message_box(QMessageBox::Icon icon, StringView text, QWidget* parent)
@@ -1604,7 +1601,7 @@ static QMessageBox* create_message_box(QMessageBox::Icon icon, StringView text, 
     return dialog;
 }
 
-void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const
+void Application::display_download_confirmation_dialog(StringView download_name, ByteString const& path) const
 {
     auto message = MUST(String::formatted("{} saved to: {}", download_name, path));
 
@@ -1612,7 +1609,7 @@ void Application::display_download_confirmation_dialog(StringView download_name,
 
     auto* open_folder_button = dialog->addButton(QMessageBox::Open);
     open_folder_button->setText("Open folder");
-    QObject::connect(open_folder_button, &QAbstractButton::clicked, [path_url = QUrl::fromLocalFile(qstring_from_ak_string(path.dirname()))] {
+    QObject::connect(open_folder_button, &QAbstractButton::clicked, [path_url = QUrl::fromLocalFile(qstring_from_ak_string(LexicalPath { path }.dirname()))] {
         QDesktopServices::openUrl(path_url);
     });
 
@@ -1624,26 +1621,9 @@ void Application::display_error_dialog(StringView error_message) const
     create_message_box(QMessageBox::Warning, error_message, active_window_if_any())->open();
 }
 
-void Application::open_download(WebView::FileDownloader::Download const& download) const
+void Application::open_file(String const& path) const
 {
-    auto path = hub().download_file_path_for_frontend_action(download);
-    if (path.is_error()) {
-        display_error_dialog("Unable to open downloaded file: path cannot be represented by this frontend"sv);
-        return;
-    }
-
-    QDesktopServices::openUrl(QUrl::fromLocalFile(qstring_from_ak_string(path.release_value())));
-}
-
-void Application::show_download_in_folder(WebView::FileDownloader::Download const& download) const
-{
-    auto path = hub().download_directory_path_for_frontend_action(download);
-    if (path.is_error()) {
-        display_error_dialog("Unable to show downloaded file: path cannot be represented by this frontend"sv);
-        return;
-    }
-
-    QDesktopServices::openUrl(QUrl::fromLocalFile(qstring_from_ak_string(path.release_value())));
+    QDesktopServices::openUrl(QUrl::fromLocalFile(qstring_from_ak_string(path)));
 }
 
 void Application::resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const
@@ -1855,10 +1835,11 @@ NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_di
     Optional<String> current_title;
     Optional<String> current_favicon_hash;
 
-    if (auto view = active_web_view(); view.has_value()) {
-        current_url = view->displayed_url();
-        current_title = view->title().to_utf8();
-        current_favicon_hash = view->favicon_hash();
+    if (auto* tab = active_tab(); tab && tab->is_loaded()) {
+        auto const& view = tab->view();
+        current_url = view.displayed_url();
+        current_title = view.title().to_utf8();
+        current_favicon_hash = view.favicon_hash();
     }
 
     return display_add_or_edit_bookmark_dialog(active_tab(), BookmarkDialog::Type::AddBookmark, current_url, current_title, current_favicon_hash, target_folder_id);
@@ -1914,6 +1895,15 @@ NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_fo
 NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const
 {
     return display_add_or_edit_bookmark_folder_dialog(active_tab(), BookmarkDialog::Type::EditFolder, current_folder.folder().title, parent_folder_id, current_folder.id);
+}
+
+void Application::report_active_view() const
+{
+    auto* hub = HubConnection::the_if_connected();
+    if (!hub)
+        return;
+    auto* tab = active_tab();
+    hub->async_active_view_changed(tab && tab->is_loaded() ? Optional<u64> { tab->view().view_id() } : Optional<u64> {});
 }
 
 void Application::did_enable_devtools() const

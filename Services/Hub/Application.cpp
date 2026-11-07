@@ -26,6 +26,210 @@ View& Application::create_view(View::InitialState initial_state, Optional<WebVie
     return view_reference;
 }
 
+void Application::set_active_view(Optional<u64> view_id)
+{
+    m_active_view_id = view_id;
+    update_actions_for_active_web_view();
+}
+
+Optional<WebView::ViewImplementation&> Application::active_web_view() const
+{
+    if (!m_active_view_id.has_value())
+        return {};
+    return WebView::ViewImplementation::find_view_by_id(*m_active_view_id);
+}
+
+Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML::ActivateTab activate_tab, WebView::ViewImplementation const* related_view) const
+{
+    auto* ui = ConnectionFromUI::the();
+    if (!ui)
+        return WebView::Application::open_blank_new_tab(activate_tab, related_view);
+
+    // NB: A tab opened for a page starts out like that page's view, with its privacy, whichever view is active by now.
+    View::InitialState initial_state;
+    if (related_view)
+        initial_state = static_cast<View const&>(*related_view).initial_state_for_related_view();
+    else if (auto active_view = active_web_view(); active_view.has_value())
+        initial_state = static_cast<View&>(*active_view).initial_state_for_related_view();
+    auto& view = const_cast<Application&>(*this).create_view(move(initial_state));
+    ui->async_app_open_view_in_new_tab(view.view_id(), view.is_private(), activate_tab);
+    return view;
+}
+
+void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_open_url_in_new_tab(url, activate_tab);
+    else
+        WebView::Application::open_url_in_new_tab(url, activate_tab);
+}
+
+void Application::activate_or_open_tab_with_url(URL::URL const& url) const
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_activate_or_open_tab_with_url(url);
+    else
+        WebView::Application::activate_or_open_tab_with_url(url);
+}
+
+void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
+{
+    auto* ui = ConnectionFromUI::the();
+    if (!ui) {
+        WebView::Application::open_urls_in_new_tabs(urls);
+        return;
+    }
+    Vector<URL::URL> urls_to_open;
+    urls_to_open.append(urls.data(), urls.size());
+    ui->async_app_open_urls_in_new_tabs(move(urls_to_open));
+}
+
+void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_open_url_in_new_window(url, is_private);
+}
+
+void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) const
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_open_navigation_in_new_tab(move(navigation), activate_tab);
+    else
+        WebView::Application::open_navigation_in_new_tab(move(navigation), activate_tab);
+}
+
+void Application::open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_open_navigation_in_new_window(move(navigation), is_private);
+}
+
+NonnullRefPtr<Core::Promise<ByteString>> Application::ask_user_for_download_path(ByteString const& file) const
+{
+    auto* ui = ConnectionFromUI::the();
+    if (!ui)
+        return WebView::Application::ask_user_for_download_path(file);
+
+    auto promise = Core::Promise<ByteString>::construct();
+    auto request_id = m_next_ui_request_id++;
+    m_pending_download_paths.set(request_id, promise);
+    ui->async_app_ask_user_for_download_path(request_id, file);
+    return promise;
+}
+
+void Application::did_get_download_path(u64 request_id, Optional<ByteString> path)
+{
+    auto promise = m_pending_download_paths.take(request_id);
+    if (!promise.has_value())
+        return;
+    if (path.has_value())
+        (*promise)->resolve(path.release_value());
+    else
+        (*promise)->reject(Error::from_errno(ECANCELED));
+}
+
+void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_display_download_confirmation_dialog(MUST(String::from_utf8(download_name)), path.string());
+    else
+        WebView::Application::display_download_confirmation_dialog(download_name, path);
+}
+
+void Application::display_error_dialog(StringView error_message) const
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_display_error_dialog(MUST(String::from_utf8(error_message)));
+    else
+        WebView::Application::display_error_dialog(error_message);
+}
+
+void Application::open_download(WebView::FileDownloader::Download const& download) const
+{
+    auto path = download_file_path_for_frontend_action(download);
+    if (path.is_error()) {
+        display_error_dialog("Unable to open downloaded file: path cannot be represented by this frontend"sv);
+        return;
+    }
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_open_file(path.release_value());
+}
+
+void Application::show_download_in_folder(WebView::FileDownloader::Download const& download) const
+{
+    auto path = download_directory_path_for_frontend_action(download);
+    if (path.is_error()) {
+        display_error_dialog("Unable to show downloaded file: path cannot be represented by this frontend"sv);
+        return;
+    }
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_open_file(path.release_value());
+}
+
+void Application::set_clipboard_text(String text, ClipboardType type)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_set_clipboard_text(move(text), type);
+    else
+        WebView::Application::set_clipboard_text(move(text), type);
+}
+
+void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_insert_clipboard_item(move(item));
+    else
+        WebView::Application::insert_clipboard_item(move(item));
+}
+
+void Application::read_clipboard_text(ClipboardType type, Function<void(Utf16String)> on_read) const
+{
+    auto* ui = ConnectionFromUI::the();
+    if (!ui) {
+        WebView::Application::read_clipboard_text(type, move(on_read));
+        return;
+    }
+    auto request_id = m_next_ui_request_id++;
+    m_pending_clipboard_text_reads.set(request_id, move(on_read));
+    ui->async_app_read_clipboard_text(request_id, type);
+}
+
+void Application::did_read_clipboard_text(u64 request_id, Utf16String text)
+{
+    if (auto on_read = m_pending_clipboard_text_reads.take(request_id); on_read.has_value())
+        (*on_read)(move(text));
+}
+
+void Application::read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)> on_read) const
+{
+    auto* ui = ConnectionFromUI::the();
+    if (!ui) {
+        WebView::Application::read_clipboard_item(move(on_read));
+        return;
+    }
+    auto request_id = m_next_ui_request_id++;
+    m_pending_clipboard_item_reads.set(request_id, move(on_read));
+    ui->async_app_read_clipboard_item(request_id);
+}
+
+void Application::did_read_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem item)
+{
+    if (auto on_read = m_pending_clipboard_item_reads.take(request_id); on_read.has_value())
+        (*on_read)(move(item));
+}
+
+void Application::update_tabs_display() const
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_update_tabs_display();
+}
+
+void Application::on_recently_closed_entries_changed() const
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_on_recently_closed_entries_changed();
+}
+
 void Application::destroy_view(u64 view_id)
 {
     m_views.remove(view_id);
@@ -82,15 +286,15 @@ void Application::rebuild_bookmarks_menu() const
 void Application::on_devtools_enabled() const
 {
     WebView::Application::on_devtools_enabled();
-    if (m_host)
-        m_host->did_enable_devtools();
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_did_enable_devtools();
 }
 
 void Application::on_devtools_disabled() const
 {
     WebView::Application::on_devtools_disabled();
-    if (m_host)
-        m_host->did_disable_devtools();
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_did_disable_devtools();
 }
 
 WebView::SessionLaunchPolicy Application::launch_restore_policy() const
@@ -166,72 +370,11 @@ OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_w
     return m_host->create_picture_in_picture_window(owner_view, view.view_id(), video_size);
 }
 
-Optional<WebView::ViewImplementation&> Application::active_web_view() const
-{
-    if (m_host)
-        return m_host->active_web_view();
-    return WebView::Application::active_web_view();
-}
-
 Vector<WebView::BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_current_window() const
 {
     if (m_host)
         return m_host->bookmarks_for_all_tabs_in_current_window();
     return {};
-}
-
-Optional<WebView::ViewImplementation&> Application::activate_tab_with_url(URL::URL const& url, URL::ExcludeFragment exclude_fragment) const
-{
-    if (m_host)
-        return m_host->activate_tab_with_url(url, exclude_fragment);
-    return WebView::Application::activate_tab_with_url(url, exclude_fragment);
-}
-
-Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML::ActivateTab activate_tab) const
-{
-    if (m_host)
-        return m_host->open_blank_new_tab(activate_tab);
-    return WebView::Application::open_blank_new_tab(activate_tab);
-}
-
-void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const
-{
-    if (m_host)
-        m_host->open_url_in_new_tab(url, activate_tab);
-    else
-        WebView::Application::open_url_in_new_tab(url, activate_tab);
-}
-
-void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
-{
-    if (m_host)
-        m_host->open_urls_in_new_tabs(move(urls));
-    else
-        WebView::Application::open_urls_in_new_tabs(move(urls));
-}
-
-void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private)
-{
-    if (m_host)
-        m_host->open_url_in_new_window(url, is_private);
-    else
-        WebView::Application::open_url_in_new_window(url, is_private);
-}
-
-void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) const
-{
-    if (m_host)
-        m_host->open_navigation_in_new_tab(move(navigation), activate_tab);
-    else
-        WebView::Application::open_navigation_in_new_tab(move(navigation), activate_tab);
-}
-
-void Application::open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private)
-{
-    if (m_host)
-        m_host->open_navigation_in_new_window(move(navigation), is_private);
-    else
-        WebView::Application::open_navigation_in_new_window(move(navigation), is_private);
 }
 
 void Application::resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const
@@ -242,80 +385,11 @@ void Application::resolve_external_url_handler(URL::URL const& url, WebView::Ext
         WebView::Application::resolve_external_url_handler(url, move(callback));
 }
 
-NonnullRefPtr<Core::Promise<ByteString>> Application::ask_user_for_download_path(ByteString const& file) const
-{
-    if (m_host)
-        return m_host->ask_user_for_download_path(file);
-    return WebView::Application::ask_user_for_download_path(file);
-}
-
-void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const
-{
-    if (m_host)
-        m_host->display_download_confirmation_dialog(move(download_name), path);
-    else
-        WebView::Application::display_download_confirmation_dialog(move(download_name), path);
-}
-
-void Application::display_error_dialog(StringView error_message) const
-{
-    if (m_host)
-        m_host->display_error_dialog(move(error_message));
-    else
-        WebView::Application::display_error_dialog(move(error_message));
-}
-
-void Application::open_download(WebView::FileDownloader::Download const& download) const
-{
-    if (m_host)
-        m_host->open_download(download);
-    else
-        WebView::Application::open_download(download);
-}
-
-void Application::show_download_in_folder(WebView::FileDownloader::Download const& download) const
-{
-    if (m_host)
-        m_host->show_download_in_folder(download);
-    else
-        WebView::Application::show_download_in_folder(download);
-}
-
 bool Application::supports_clipboard_type(WebView::Application::ClipboardType type) const
 {
     if (m_host)
         return m_host->supports_clipboard_type(type);
     return WebView::Application::supports_clipboard_type(type);
-}
-
-Utf16String Application::clipboard_text(WebView::Application::ClipboardType type) const
-{
-    if (m_host)
-        return m_host->clipboard_text(type);
-    return WebView::Application::clipboard_text(type);
-}
-
-void Application::set_clipboard_text(String text, WebView::Application::ClipboardType type)
-{
-    if (m_host)
-        m_host->set_clipboard_text(move(text), type);
-    else
-        WebView::Application::set_clipboard_text(move(text), type);
-}
-
-Web::Clipboard::SystemClipboardItem Application::clipboard_item() const
-{
-    if (m_host)
-        return m_host->clipboard_item();
-    return WebView::Application::clipboard_item();
-}
-
-void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)
-{
-    if (m_host)
-        m_host->insert_clipboard_item(move(item));
-    else
-        WebView::Application::insert_clipboard_item(move(item));
 }
 
 bool Application::supports_system_menu_bar() const
@@ -388,14 +462,6 @@ Vector<u64> Application::platform_presentation_drm_format_modifiers() const
     return WebView::Application::platform_presentation_drm_format_modifiers();
 }
 
-void Application::update_tabs_display() const
-{
-    if (m_host)
-        m_host->update_tabs_display();
-    else
-        WebView::Application::update_tabs_display();
-}
-
 void Application::show_bookmark_context_menu(Gfx::IntPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id)
 {
     if (m_host)
@@ -437,14 +503,6 @@ NonnullRefPtr<WebView::Application::BookmarkPromise> Application::display_edit_b
     if (m_host)
         return m_host->display_edit_bookmark_folder_dialog(current_folder, move(parent_folder_id));
     return WebView::Application::display_edit_bookmark_folder_dialog(current_folder, move(parent_folder_id));
-}
-
-void Application::on_recently_closed_entries_changed() const
-{
-    if (m_host)
-        m_host->on_recently_closed_entries_changed();
-    else
-        WebView::Application::on_recently_closed_entries_changed();
 }
 
 }

@@ -209,6 +209,12 @@ WebContentView::WebContentView(QWidget* window, Optional<u64> hub_view_id, WebCo
             show_tooltip(QCursor::pos(), qstring_from_ak_string(m_tooltip_text.value()), *this);
     });
 
+    // NB: The Hub made this view without knowing what the UI knows about the screens and its theme.
+    if (hub_view_id.has_value()) {
+        update_palette();
+        update_screen_rects();
+    }
+
     m_accessibility_manager = make<WebView::AccessibilityTreeManager>();
 
 #if defined(Q_OS_MACOS)

@@ -31,9 +31,6 @@ public:
     // Returns whether the UI took care of it, by asking the user.
     virtual bool show_bookmark_ui_for_view(WebView::ViewImplementation&) = 0;
 
-    virtual void did_enable_devtools() const = 0;
-    virtual void did_disable_devtools() const = 0;
-
     virtual void create_platform_actions() = 0;
     virtual Optional<String> ui_font_family() const = 0;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const = 0;
@@ -42,26 +39,9 @@ public:
     virtual void open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId originating_page, WebView::CanonicalTraversable* canonical_traversable, WebView::IsPrivate is_private) = 0;
     virtual bool supports_picture_in_picture() const = 0;
     virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::ViewImplementation& owner_view, u64 view_id, Gfx::IntSize video_size) = 0;
-    virtual Optional<WebView::ViewImplementation&> active_web_view() const = 0;
     virtual Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const = 0;
-    virtual Optional<WebView::ViewImplementation&> activate_tab_with_url(URL::URL const& url, URL::ExcludeFragment exclude_fragment) const = 0;
-    virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab activate_tab) const = 0;
-    virtual void open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const = 0;
-    virtual void open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const = 0;
-    virtual void open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private) = 0;
-    virtual void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) const = 0;
-    virtual void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) = 0;
     virtual void resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const = 0;
-    virtual NonnullRefPtr<Core::Promise<ByteString>> ask_user_for_download_path(ByteString const& file) const = 0;
-    virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const = 0;
-    virtual void display_error_dialog(StringView error_message) const = 0;
-    virtual void open_download(WebView::FileDownloader::Download const& download) const = 0;
-    virtual void show_download_in_folder(WebView::FileDownloader::Download const& download) const = 0;
     virtual bool supports_clipboard_type(WebView::Application::ClipboardType type) const = 0;
-    virtual Utf16String clipboard_text(WebView::Application::ClipboardType type) const = 0;
-    virtual void set_clipboard_text(String text, WebView::Application::ClipboardType type) = 0;
-    virtual Web::Clipboard::SystemClipboardItem clipboard_item() const = 0;
-    virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem item) = 0;
     virtual bool supports_system_menu_bar() const = 0;
     virtual bool supports_vertical_tabs() const = 0;
     virtual bool supports_private_browsing_windows() const = 0;
@@ -72,7 +52,6 @@ public:
     virtual Vector<String> platform_preferred_languages() const = 0;
     virtual Optional<Gfx::GpuDeviceIdentity> platform_presentation_gpu_device() const = 0;
     virtual Vector<u64> platform_presentation_drm_format_modifiers() const = 0;
-    virtual void update_tabs_display() const = 0;
     virtual void rebuild_bookmarks_menu() const = 0;
     virtual void show_bookmark_context_menu(Gfx::IntPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id) = 0;
     virtual Optional<WebView::Application::BookmarkID> bookmark_item_id_for_context_menu() const = 0;
@@ -80,7 +59,6 @@ public:
     virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const = 0;
     virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title, Optional<String const&> target_folder_id) const = 0;
     virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const = 0;
-    virtual void on_recently_closed_entries_changed() const = 0;
 };
 
 // The browser itself: its state, and the helper processes that do its work.
@@ -95,6 +73,11 @@ public:
     void destroy_view(u64 view_id);
     void destroy_all_views() { m_views.clear(); }
 
+    void set_active_view(Optional<u64> view_id);
+    void did_read_clipboard_text(u64 request_id, Utf16String);
+    void did_read_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem);
+    void did_get_download_path(u64 request_id, Optional<ByteString>);
+
     void toggle_bookmark_without_asking(WebView::ViewImplementation& view) { WebView::Application::toggle_bookmark_for_view(view); }
 
 private:
@@ -102,6 +85,25 @@ private:
 
     // ^WebView::Application
     virtual Core::EventLoop& create_platform_event_loop() override;
+    virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
+    virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab, WebView::ViewImplementation const* related_view = nullptr) const override;
+    virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const override;
+    virtual void activate_or_open_tab_with_url(URL::URL const&) const override;
+    virtual void open_urls_in_new_tabs(ReadonlySpan<URL::URL>) const override;
+    virtual void open_url_in_new_window(URL::URL const&, WebView::IsPrivate) override;
+    virtual void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab) const override;
+    virtual void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor, WebView::IsPrivate) override;
+    virtual NonnullRefPtr<Core::Promise<ByteString>> ask_user_for_download_path(ByteString const& file) const override;
+    virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
+    virtual void display_error_dialog(StringView error_message) const override;
+    virtual void open_download(WebView::FileDownloader::Download const&) const override;
+    virtual void show_download_in_folder(WebView::FileDownloader::Download const&) const override;
+    virtual void set_clipboard_text(String, ClipboardType) override;
+    virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem) override;
+    virtual void read_clipboard_text(ClipboardType, Function<void(Utf16String)>) const override;
+    virtual void read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)>) const override;
+    virtual void update_tabs_display() const override;
+    virtual void on_recently_closed_entries_changed() const override;
     virtual NonnullOwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() override;
     virtual NonnullOwnPtr<WebView::NotificationBackend> create_notification_backend() override;
     virtual void toggle_bookmark_for_view(WebView::ViewImplementation&) override;
@@ -117,26 +119,9 @@ private:
     virtual void open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId originating_page, WebView::CanonicalTraversable* canonical_traversable, WebView::IsPrivate is_private) override;
     virtual bool supports_picture_in_picture() const override;
     virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable& canonical_traversable, Gfx::IntSize video_size) override;
-    virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const override;
-    virtual Optional<WebView::ViewImplementation&> activate_tab_with_url(URL::URL const& url, URL::ExcludeFragment exclude_fragment) const override;
-    virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab activate_tab) const override;
-    virtual void open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const override;
-    virtual void open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const override;
-    virtual void open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private) override;
-    virtual void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) const override;
-    virtual void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) override;
     virtual void resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const override;
-    virtual NonnullRefPtr<Core::Promise<ByteString>> ask_user_for_download_path(ByteString const& file) const override;
-    virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
-    virtual void display_error_dialog(StringView error_message) const override;
-    virtual void open_download(WebView::FileDownloader::Download const& download) const override;
-    virtual void show_download_in_folder(WebView::FileDownloader::Download const& download) const override;
     virtual bool supports_clipboard_type(WebView::Application::ClipboardType type) const override;
-    virtual Utf16String clipboard_text(WebView::Application::ClipboardType type) const override;
-    virtual void set_clipboard_text(String text, WebView::Application::ClipboardType type) override;
-    virtual Web::Clipboard::SystemClipboardItem clipboard_item() const override;
-    virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem item) override;
     virtual bool supports_system_menu_bar() const override;
     virtual bool supports_vertical_tabs() const override;
     virtual bool supports_private_browsing_windows() const override;
@@ -147,7 +132,6 @@ private:
     virtual Vector<String> platform_preferred_languages() const override;
     virtual Optional<Gfx::GpuDeviceIdentity> platform_presentation_gpu_device() const override;
     virtual Vector<u64> platform_presentation_drm_format_modifiers() const override;
-    virtual void update_tabs_display() const override;
     virtual void rebuild_bookmarks_menu() const override;
     virtual void show_bookmark_context_menu(Gfx::IntPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id) override;
     virtual Optional<WebView::Application::BookmarkID> bookmark_item_id_for_context_menu() const override;
@@ -155,10 +139,16 @@ private:
     virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const override;
     virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title, Optional<String const&> target_folder_id) const override;
     virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const override;
-    virtual void on_recently_closed_entries_changed() const override;
 
     ApplicationHost* m_host { nullptr };
     HashMap<u64, NonnullOwnPtr<View>> m_views;
+    Optional<u64> m_active_view_id;
+
+    // What the Hub waits to hear from the UI.
+    mutable HashMap<u64, Function<void(Utf16String)>> m_pending_clipboard_text_reads;
+    mutable HashMap<u64, Function<void(Web::Clipboard::SystemClipboardItem)>> m_pending_clipboard_item_reads;
+    mutable HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_download_paths;
+    mutable u64 m_next_ui_request_id { 1 };
 };
 
 }

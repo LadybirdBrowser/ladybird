@@ -61,6 +61,7 @@ private:
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override { return content_position; }
     virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint widget_position) override;
+    virtual void read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)>) const override;
     virtual void did_accept_presented_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect) override;
     // NB: The UI hands a backing store back, once it no longer shows what is in it.
     virtual void release_backing_store(i32) override { }

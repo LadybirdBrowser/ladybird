@@ -2449,10 +2449,14 @@ void WebContentPage::did_request_clipboard_entries(u64 request_id)
         async_retrieved_clipboard_entries(request_id, items);
         return;
     }
-    if (auto item = view().clipboard_item(); !item.system_clipboard_representations.is_empty())
-        items.append(move(item));
-
-    async_retrieved_clipboard_entries(request_id, items);
+    view().read_clipboard_item([page = NonnullRefPtr { *this }, request_id](Web::Clipboard::SystemClipboardItem item) {
+        if (!page->is_open())
+            return;
+        Vector<Web::Clipboard::SystemClipboardItem> items;
+        if (!item.system_clipboard_representations.is_empty())
+            items.append(move(item));
+        page->async_retrieved_clipboard_entries(request_id, items);
+    });
 }
 
 void WebContentPage::did_request_spell_check(u64 request_id, Utf16String text)
@@ -3044,7 +3048,13 @@ void WebContentPage::did_request_media_context_menu(Web::HTML::CrossProcessId lo
 
 void WebContentPage::did_get_highlighted_source(String html)
 {
-    if (auto new_tab = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes); new_tab.has_value()) {
+    // NB: The source belongs to this page, so the new tab must have its privacy, whichever tab is active by now.
+    ViewImplementation* related_view = nullptr;
+    if (m_traversable) {
+        if (auto view = m_traversable->view(); view.has_value())
+            related_view = &view.value();
+    }
+    if (auto new_tab = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes, related_view); new_tab.has_value()) {
         new_tab->did_start_showing_page_source();
         new_tab->load_html(html);
     }
@@ -3280,8 +3290,10 @@ void WebContentPage::did_request_primary_paste()
 {
     if (!has_transient_user_activation())
         return;
-    auto text = Application::the().clipboard_text(Application::ClipboardType::Selection);
-    async_paste(text);
+    Application::the().read_clipboard_text(Application::ClipboardType::Selection, [page = NonnullRefPtr { *this }](Utf16String text) {
+        if (page->is_open())
+            page->async_paste(text);
+    });
 }
 
 void WebContentPage::did_update_primary_selection(String text)

@@ -741,6 +741,7 @@ protected:
     void did_commit_history_step();
 
     virtual Web::Clipboard::SystemClipboardItem clipboard_item() const;
+    virtual void read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)>) const;
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
 
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }

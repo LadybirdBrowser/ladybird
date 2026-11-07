@@ -149,7 +149,7 @@ public:
         int m_index { 0 };
     };
 
-    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<u64> hub_view_id = {}, Optional<WebView::SessionWindowId> restored_session_window_id = {});
+    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Optional<u64> hub_view_id = {}, Optional<WebView::SessionWindowId> restored_session_window_id = {});
     virtual ~BrowserWindow() override;
 
     WebContentView& view() const { return m_current_tab->view(); }
@@ -191,6 +191,7 @@ public:
     void bring_to_front();
     // The tab showing this view, if it's one of this window's.
     Tab* tab_for_view(WebView::ViewImplementation const&) const;
+    Tab& create_new_tab(Web::HTML::ActivateTab, Optional<u64> hub_view_id);
     bool is_window_close_approved() const { return m_window_close_approved; }
     void report_activation_to_session_store();
     void cancel_window_close_preflight();
@@ -271,7 +272,6 @@ private:
     virtual void appearance_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
-    Tab& create_new_tab(Web::HTML::ActivateTab, Optional<u64> hub_view_id);
     Tab& create_restored_tab(WebView::RestoredSessionTab const&, int index, bool defer);
     void initialize_tab(Tab*);
     void initialize_tab_view(Tab*);

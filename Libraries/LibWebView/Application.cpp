@@ -1125,6 +1125,16 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
         view->load(url);
 }
 
+void Application::read_clipboard_text(ClipboardType type, Function<void(Utf16String)> on_read) const
+{
+    on_read(clipboard_text(type));
+}
+
+void Application::read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)> on_read) const
+{
+    on_read(clipboard_item());
+}
+
 void Application::activate_or_open_tab_with_url(URL::URL const& url) const
 {
     if (auto view = activate_tab_with_url(url, URL::ExcludeFragment::Yes); view.has_value())
