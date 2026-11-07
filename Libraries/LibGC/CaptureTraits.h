@@ -65,14 +65,6 @@ struct IsUntracedCapture<AK::Detail::ByteBuffer<inline_capacity>> : TrueType { }
 template<typename T>
 struct IsUntracedCapture<Weak<T>> : TrueType { };
 
-// NB: A root traces itself, so a value that holds one, such as a generated dictionary, holds nothing for its owner to
-//     trace. GC::captures() of a root itself holds it as a pointer instead, so that a function never holds a root.
-template<typename T>
-struct IsUntracedCapture<Root<T>> : TrueType { };
-
-template<typename T, size_t inline_capacity>
-struct IsUntracedCapture<RootVector<T, inline_capacity>> : TrueType { };
-
 template<typename T>
 requires(!IsCellLike<RemoveCV<T>>)
 struct IsUntracedCapture<AK::WeakPtr<T>> : TrueType { };
@@ -180,11 +172,23 @@ template<typename T>
 requires(!IsCellLike<RemoveCV<T>>)
 struct IsTracedCapture<AK::NonnullRefPtr<T>> : IsTracedCapture<RemoveCV<T>> { };
 
+template<typename T>
+inline constexpr bool IsRoot = false;
+
+template<typename T>
+inline constexpr bool IsRoot<Root<T>> = true;
+
+template<typename T, size_t inline_capacity>
+inline constexpr bool IsRoot<RootVector<T, inline_capacity>> = true;
+
 // Visits a member of a value type, such as a generated dictionary, from its visit_edges(). Every member must be traced or
 // hold no cell edges, so that the value can be captured by a GC::Function.
+// NB: A root member would keep what it names alive for as long as the function lives, even through a cycle back to the
+//     function, so a value with one isn't capturable.
 template<typename Visitor, typename T>
 void visit_capture_member(Visitor& visitor, T const& member)
 {
+    static_assert(!IsRoot<T>, "A captured value can't hold a root");
     static_assert(IsCapturable<T>, "A member of a captured value must be traced, or hold no cell edges");
     if constexpr (IsVisitable<T>::value)
         visitor.visit(member);
