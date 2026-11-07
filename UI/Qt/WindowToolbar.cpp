@@ -655,8 +655,9 @@ static constexpr int FIELD_PANEL_DIVIDER_INSET = 8;
 static constexpr int FIELD_PANEL_LIST_PADDING = 6;
 
 // The address field floats over its place in the toolbar, in a panel that is a native child of the window wherever the
-// page is native. So the panel stacks above the native views of the sidebar and the page, and can grow over the page,
-// while the field keeps the keyboard focus.
+// page stays native under it. So the panel stacks above the native views of the sidebar and the page, and can grow over
+// the page, while the field keeps the keyboard focus. Elsewhere, the page steps aside while the panel is grown, and Qt
+// paints them both.
 class FieldPanel final : public QWidget {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -665,8 +666,7 @@ public:
         : QWidget(&window)
     {
         setObjectName("LadybirdFieldPanel");
-#if defined(AK_OS_MACOS) || defined(LADYBIRD_QT_USE_RHI_WIDGET) || defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
-        // The web view is native on these presentation paths, so the panel that grows over it must also be native.
+#if defined(AK_OS_MACOS) || defined(LADYBIRD_QT_USE_RHI_WIDGET)
         setAttribute(Qt::WA_DontCreateNativeAncestors);
         setAttribute(Qt::WA_NativeWindow);
 #endif

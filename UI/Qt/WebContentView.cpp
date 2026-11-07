@@ -1722,9 +1722,17 @@ void WebContentView::add_floating_surface(QWidget& surface)
     new FloatingSurfaceWatcher(surface, [this] { schedule_repaint(); });
 }
 
+void WebContentView::set_suggestions_over_page(bool suggestions_over_page)
+{
+    if (m_suggestions_over_page == suggestions_over_page)
+        return;
+    m_suggestions_over_page = suggestions_over_page;
+    schedule_repaint();
+}
+
 bool WebContentView::has_floating_surface_over_page() const
 {
-    return any_of(m_floating_surfaces, [](auto const& surface) { return surface && surface->isVisible(); });
+    return m_suggestions_over_page || any_of(m_floating_surfaces, [](auto const& surface) { return surface && surface->isVisible(); });
 }
 
 // Overlays are painted by Qt, underneath whatever presents the page on some platforms, which has to step aside for them.
