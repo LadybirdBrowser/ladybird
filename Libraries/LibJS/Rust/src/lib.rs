@@ -114,6 +114,8 @@ pub mod host;
 pub mod interpreter;
 #[cfg(all(not(test), feature = "jit"))]
 pub mod jit;
+#[cfg(all(feature = "jit", windows, not(target_arch = "x86_64")))]
+compile_error!("the JIT supports Windows on x86-64 only: build without the jit feature (ENABLE_JS_JIT=OFF)");
 // NB: Without the JIT, the runtime sees the same interface to it, with nothing behind it.
 #[cfg(all(not(test), not(feature = "jit")))]
 #[path = "jit/disabled.rs"]
