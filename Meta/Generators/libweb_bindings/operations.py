@@ -21,6 +21,7 @@ from Generators.libweb_bindings.glue_headers import bindings_glue_header_for_int
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_passes_realm_to_implementation
 from Generators.libweb_bindings.realms import member_realm_expr
+from Generators.libweb_bindings.security_checks import implementation_check
 from Generators.libweb_bindings.security_checks import interface_needs_security_check
 from Generators.libweb_bindings.security_checks import on_the_window
 from Generators.libweb_bindings.security_checks import perform_a_security_check
@@ -408,7 +409,7 @@ def write_stringifier(
 """
         )
     out.write(
-        f"""    auto* idl_object = TRY(impl_from(vm, this_value));
+        f"""    auto* idl_object = TRY({implementation_check("this_value", "toString", "method")});
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
     auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {stringifier_call}; }}));
     return {to_javascript_value(stringifier_type, "R", includes, context, "this_object_realm")};
@@ -485,7 +486,7 @@ def write_operation(
 
 """
             )
-        impl_from_this_value = "TRY(impl_from(vm, this_value))"
+        impl_from_this_value = f"TRY({implementation_check('this_value', operation.name, 'method')})"
         this_object_realm = "this_value.as_object().shape().realm()"
         if on_remote_window:
             out.write(f"    {the_remote_window(includes, 'this_value')}\n")
@@ -781,7 +782,7 @@ def write_default_to_json_operation(
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
         this_value = &realm.global_object();
-    [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
+    [[maybe_unused]] auto* idl_object = TRY({implementation_check("this_value", operation.name, "method")});
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 4. Let result be OrdinaryObjectCreate(%Object.prototype%).

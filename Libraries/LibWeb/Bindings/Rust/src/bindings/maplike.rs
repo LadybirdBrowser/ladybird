@@ -14,7 +14,9 @@ use libjs_rust::api::{
 
 use crate::bindings::CallContext;
 use crate::bindings::conversions::{ToJs, to_dom_string};
-use crate::bindings::interface::{Interface, define_attribute, define_operation, this_implementation};
+use crate::bindings::interface::{
+    Interface, SecurityCheckType, define_attribute, define_operation, this_implementation,
+};
 
 /// What the implementation of an interface with a maplike declaration, whose keys are strings, implements.
 pub(crate) trait Maplike: Interface {
@@ -84,7 +86,7 @@ pub(crate) fn context_of_map<'vm>(cx: &CallContext<'vm>, map: Gc<Map>) -> CallCo
 // https://webidl.spec.whatwg.org/#js-map-size
 pub(crate) fn map_size<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "size" and type "getter".
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+    let (_, implementation, cx) = this_implementation::<T>(vm, "size", SecurityCheckType::Getter)?;
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
     let map = implementation.map_entries(&cx);
@@ -93,8 +95,8 @@ pub(crate) fn map_size<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     Ok(Value::from_f64(map.map_size() as f64))
 }
 
-fn create_map_iterator<T: Maplike>(vm: &Vm, kind: PropertyKind) -> ThrowCompletionOr<Value> {
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+fn create_map_iterator<T: Maplike>(vm: &Vm, identifier: &str, kind: PropertyKind) -> ThrowCompletionOr<Value> {
+    let (_, implementation, cx) = this_implementation::<T>(vm, identifier, SecurityCheckType::Method)?;
     let map = implementation.map_entries(&cx);
     Ok(Value::from_object(
         MapIterator::create(vm, cx.realm(), map, kind).upcast::<Object>(),
@@ -106,7 +108,7 @@ pub(crate) fn map_iterator_entries<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Val
     // 1. Let O be the this value, implementation-checked against A with identifier "entries" and type "method".
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
     // 3. Return the result of creating a map iterator from map with kind "key+value".
-    create_map_iterator::<T>(vm, PropertyKind::KeyAndValue)
+    create_map_iterator::<T>(vm, "entries", PropertyKind::KeyAndValue)
 }
 
 // https://webidl.spec.whatwg.org/#js-map-keys
@@ -114,7 +116,7 @@ pub(crate) fn map_iterator_keys<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Value>
     // 1. Let O be the this value, implementation-checked against A with identifier "keys" and type "method".
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
     // 3. Return the result of creating a map iterator from map with kind "key".
-    create_map_iterator::<T>(vm, PropertyKind::Key)
+    create_map_iterator::<T>(vm, "keys", PropertyKind::Key)
 }
 
 // https://webidl.spec.whatwg.org/#js-map-values
@@ -122,13 +124,13 @@ pub(crate) fn map_iterator_values<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Valu
     // 1. Let O be the this value, implementation-checked against A with identifier "values" and type "method".
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
     // 3. Return the result of creating a map iterator from map with kind "value".
-    create_map_iterator::<T>(vm, PropertyKind::Value)
+    create_map_iterator::<T>(vm, "values", PropertyKind::Value)
 }
 
 // https://webidl.spec.whatwg.org/#js-map-forEach
 pub(crate) fn map_for_each<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "forEach" and type "method".
-    let (wrapper, implementation, cx) = this_implementation::<T>(vm)?;
+    let (wrapper, implementation, cx) = this_implementation::<T>(vm, "forEach", SecurityCheckType::Method)?;
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
     let map = implementation.map_entries(&cx);
@@ -165,8 +167,8 @@ pub(crate) fn map_for_each<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
 }
 
 /// The map entries of the this value, and the key argument converted to the key type and back to a JS value.
-fn entries_and_key<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<(Gc<Map>, Value)> {
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+fn entries_and_key<T: Maplike>(vm: &Vm, identifier: &str) -> ThrowCompletionOr<(Gc<Map>, Value)> {
+    let (_, implementation, cx) = this_implementation::<T>(vm, identifier, SecurityCheckType::Method)?;
     let map = implementation.map_entries(&cx);
     let key = to_dom_string(vm, vm.argument(0))?;
     Ok((map, key.to_js(&cx)?))
@@ -175,7 +177,7 @@ fn entries_and_key<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<(Gc<Map>, Value)> {
 // https://webidl.spec.whatwg.org/#js-map-get
 pub(crate) fn map_get<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "get" and type "method".
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+    let (_, implementation, cx) = this_implementation::<T>(vm, "get", SecurityCheckType::Method)?;
 
     // 3. Let keyType be the key type specified in the maplike declaration.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
@@ -194,7 +196,7 @@ pub(crate) fn map_has<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 3. Let keyType be the key type specified in the maplike declaration.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let key be keyArg converted to an IDL value of type keyType.
-    let (map, key) = entries_and_key::<T>(vm)?;
+    let (map, key) = entries_and_key::<T>(vm, "has")?;
 
     // 7. If map[key] exists, then return true, otherwise return false.
     Ok(Value::from_bool(map.map_has(key)))
@@ -203,7 +205,7 @@ pub(crate) fn map_has<T: Maplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
 // https://webidl.spec.whatwg.org/#js-map-set
 pub(crate) fn map_set<T: MaplikeDeclaration + WritableMaplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "set" and type "method".
-    let (wrapper, implementation, cx) = this_implementation::<T>(vm)?;
+    let (wrapper, implementation, cx) = this_implementation::<T>(vm, "set", SecurityCheckType::Method)?;
 
     // 3. Let keyType be the key type specified in the maplike declaration, and valueType be the value type.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
@@ -225,7 +227,7 @@ pub(crate) fn map_set<T: MaplikeDeclaration + WritableMaplike>(vm: &Vm) -> Throw
 // https://webidl.spec.whatwg.org/#js-map-delete
 pub(crate) fn map_delete<T: WritableMaplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "delete" and type "method".
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+    let (_, implementation, cx) = this_implementation::<T>(vm, "delete", SecurityCheckType::Method)?;
 
     // 3. Let keyType be the key type specified in the maplike declaration.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
@@ -241,7 +243,7 @@ pub(crate) fn map_delete<T: WritableMaplike>(vm: &Vm) -> ThrowCompletionOr<Value
 // https://webidl.spec.whatwg.org/#js-map-clear
 pub(crate) fn map_clear<T: WritableMaplike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "clear" and type "method".
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+    let (_, implementation, cx) = this_implementation::<T>(vm, "clear", SecurityCheckType::Method)?;
 
     // 3. Clear map.
     // NOTE: The map is preserved because there may be existing iterators, currently suspended, iterating over it.

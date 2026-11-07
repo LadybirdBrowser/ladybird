@@ -13,8 +13,8 @@ SecurityCheckType = Literal["method", "getter", "setter"]
 
 
 def interface_needs_security_check(context: GenerationContext, interface: Interface) -> bool:
-    # NOTE: The HTML Standard's security check returns early for any platform object that is not a Window or Location
-    #       object, so it only needs to be performed for members of interfaces that those objects implement.
+    # NB: Only a Window or Location object can fail the security check, so other interfaces' impl_from() performs it
+    #     only once their implementation check fails.
     for platform_interface_name in ("Window", "Location"):
         platform_interface = context.interfaces.get(platform_interface_name)
         if platform_interface is None:
@@ -25,6 +25,12 @@ def interface_needs_security_check(context: GenerationContext, interface: Interf
         ):
             return True
     return False
+
+
+# https://webidl.spec.whatwg.org/#implementation-check-an-object
+def implementation_check(js_value: Optional[str], identifier: str, type_: SecurityCheckType) -> str:
+    js_value_argument = f"{js_value}, " if js_value else ""
+    return f'impl_from(vm, {js_value_argument}u"{identifier}"sv, HTML::SecurityCheckType::{type_.capitalize()})'
 
 
 # https://webidl.spec.whatwg.org/#dfn-perform-a-security-check
