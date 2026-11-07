@@ -1,0 +1,2 @@
+structuredClone: 1000
+worker: 1000
