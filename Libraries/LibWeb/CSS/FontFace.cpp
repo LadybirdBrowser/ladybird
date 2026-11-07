@@ -7,6 +7,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
+#include <AK/Diagnostics.h>
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
@@ -40,6 +41,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/Timer.h>
@@ -394,16 +396,23 @@ void FontFaceState::reparse_connected_css_font_face_rule_descriptors()
         apply_descriptor(attribute.descriptor, *descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(attribute.descriptor)));
 }
 
+// A face belongs to the agent that made it, so an agent only finds its own.
 static HashMap<u64, FontFaceState*>& font_faces_by_id()
 {
-    static NeverDestroyed<HashMap<u64, FontFaceState*>> font_faces;
-    return *font_faces;
+    using FontFaces = HashMap<u64, FontFaceState*>;
+    // NB: Free what this thread kept when it exits.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local FontFaces font_faces)
+#else
+    static thread_local FontFaces font_faces;
+#endif
+    return font_faces;
 }
 
-static u64 s_next_font_face_id { 1 };
+static Atomic<u64, AK::MemoryOrder::memory_order_relaxed> s_next_font_face_id { 1 };
 
 FontFaceState::FontFaceState(GC::Ref<HTML::EnvironmentSettingsObject> environment)
-    : m_id(s_next_font_face_id++)
+    : m_id(s_next_font_face_id.fetch_add(1))
     , m_environment(environment)
     , m_status(FontFaceLoadStatus::Unloaded)
 {
@@ -452,11 +461,22 @@ private:
 
 static WantedWebFaces& wanted_web_faces()
 {
+    // NB: A thread without a VM is a stage thread, which only ever works for the window agent. The faces of a worker are
+    //     noted and taken on its own thread.
+    if (JS::VM::exists_on_this_thread() && !HTML::surrounding_agent().is_similar_origin_window_agent()) {
+        // NB: Free what this thread kept when it exits.
+#ifdef AK_COMPILER_CLANG
+        AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local WantedWebFaces wanted_by_worker)
+#else
+        static thread_local WantedWebFaces wanted_by_worker;
+#endif
+        return wanted_by_worker;
+    }
     static NeverDestroyed<WantedWebFaces> wanted;
     return *wanted;
 }
 
-static u32 s_deferred_web_face_load_depth { 0 };
+static thread_local u32 s_deferred_web_face_load_depth { 0 };
 
 void note_wanted_web_face(u64 face_id)
 {

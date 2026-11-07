@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Diagnostics.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/StyleSheetState.h>
@@ -104,7 +105,14 @@ void ImageStyleValueResource::notify_image_style_values_did_update()
 
 static HashMap<StyleValueFFI::StyleValueData const*, ImageStyleValue const*>& facades_by_rust_style_value_data()
 {
-    static auto& facades = *new HashMap<StyleValueFFI::StyleValueData const*, ImageStyleValue const*>;
+    // NB: A facade is not thread safe, so each thread has its own. Two agents that see the same data get a facade each.
+    using Facades = HashMap<StyleValueFFI::StyleValueData const*, ImageStyleValue const*>;
+    // NB: Free what this thread kept when it exits.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local Facades facades)
+#else
+    static thread_local Facades facades;
+#endif
     return facades;
 }
 
