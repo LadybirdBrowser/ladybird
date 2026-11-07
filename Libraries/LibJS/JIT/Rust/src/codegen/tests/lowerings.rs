@@ -314,12 +314,26 @@ fn run_program_with_snapshot(
     prepare_snapshot: impl FnOnce(&mut Snapshot),
     prepare: impl FnOnce(&mut Machine),
 ) -> (JitResult, Machine) {
+    let (snapshot, compiled) = compile_program(program, prepare_snapshot);
+    run_compiled_program(&snapshot, &compiled, arguments, prepare)
+}
+
+fn compile_program(program: &Program, prepare_snapshot: impl FnOnce(&mut Snapshot)) -> (Snapshot, CompiledCode) {
     let mut snapshot = crate::builder::tests::snapshot_for(program, layout());
     snapshot.runtime = marker_runtime();
     snapshot.executables[0].feedback.arith = vec![GENERAL_FEEDBACK];
     prepare_snapshot(&mut snapshot);
     let compiled = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true)
         .unwrap_or_else(|failure| panic!("compilation failed: {failure:?}"));
+    (snapshot, compiled)
+}
+
+fn run_compiled_program(
+    snapshot: &Snapshot,
+    compiled: &CompiledCode,
+    arguments: &[u64],
+    prepare: impl FnOnce(&mut Machine),
+) -> (JitResult, Machine) {
     let mut machine = Machine::new(layout(), arguments);
     // Room for the words the fakes here use.
     machine.vm.resize(12, 0);
@@ -328,7 +342,7 @@ fn run_program_with_snapshot(
     machine.executable[3] = NO_PROPERTY_CACHES.as_ptr() as u64;
     machine.frame[4] = machine.executable.as_ptr() as u64;
     prepare(&mut machine);
-    let result = machine.run(&snapshot, &compiled);
+    let result = machine.run(snapshot, compiled);
     (result, machine)
 }
 
@@ -1134,13 +1148,14 @@ fn conditional_jumps() {
                 });
                 let constants = crate::builder::tests::test_constants();
                 let (true_value, false_value) = (constants[1], constants[0]);
+                let (snapshot, compiled) = compile_program(&program, |_| {});
                 for lhs in &values {
                     for rhs_value in &values {
                         let (rhs_bits, rhs_is_immediate) = match rhs {
                             OperationInput::Operand(_) => (*rhs_value, false),
                             OperationInput::Int32(integer) => (value::int32(integer), true),
                         };
-                        let (result, machine) = run_program(&program, &[*lhs, *rhs_value], |_| {});
+                        let (result, machine) = run_compiled_program(&snapshot, &compiled, &[*lhs, *rhs_value], |_| {});
                         let expected = self::comparison(comparison, *lhs, rhs_bits, rhs_is_immediate);
                         let context = format!("{comparison:?} {lhs:#x} {rhs_bits:#x} loop {is_loop}");
                         let slow_jumps = machine.vm[VM_SLOW_JUMPS_WORD];
