@@ -24,6 +24,7 @@ use libjs_rust::api::{
 };
 use libweb_rust::web_audio::control_message::ControlMessage;
 use libweb_rust::web_audio::control_message_queue::ControlMessageQueue;
+use libweb_rust::web_audio::rendering::audio_worklet_pipe::{AudioWorkletPipe, WorkletPipeState};
 
 #[cfg(web_idl_bindings)]
 use super::analyser_node::{AnalyserNode, AnalyserOptions};
@@ -107,6 +108,9 @@ pub(crate) struct BaseAudioContext {
     control_message_queue: Arc<ControlMessageQueue>,
     playing_sources: GcRefCell<Vec<(u64, AnyAudioNode)>>,
     script_processor_nodes: RefCell<Vec<GcWeak<EmbedderCell<Wrapped<ScriptProcessorNode>>>>>,
+    audio_worklet_pipes: RefCell<Vec<Arc<AudioWorkletPipe>>>,
+
+    // Kept alive only while they can still produce audio; see visit_edges().
     media_stream_sources: RefCell<Vec<GcWeak<EmbedderCell<Wrapped<MediaStreamAudioSourceNode>>>>>,
     this: Cell<Option<AnyBaseAudioContext>>,
 }
@@ -178,7 +182,6 @@ unsafe extern "C" {
     fn web_audio_context_document_is_fully_active(global: *mut c_void) -> bool;
     fn web_audio_context_navigable_is_destroyed(global: *mut c_void) -> bool;
     fn web_audio_context_get_worklet(cell: *mut c_void) -> *mut c_void;
-    fn web_audio_context_shutdown_worklet(worklet: *mut c_void);
     fn web_audio_context_wrap_worklet(realm: *mut c_void, worklet: *mut c_void) -> *mut c_void;
 }
 
@@ -216,6 +219,7 @@ impl BaseAudioContext {
             control_message_queue: Arc::new(ControlMessageQueue::default()),
             playing_sources: GcRefCell::new(Vec::new()),
             script_processor_nodes: RefCell::new(Vec::new()),
+            audio_worklet_pipes: RefCell::new(Vec::new()),
             media_stream_sources: RefCell::new(Vec::new()),
             this: Cell::new(None),
         }
@@ -401,9 +405,18 @@ impl BaseAudioContext {
         Ok(unsafe { CppInterface::from_wrapper(Gc::<Object>::from_non_null(NonNull::new(wrapper.cast()).unwrap())) })
     }
 
+    pub(crate) fn add_audio_worklet_pipe(&self, pipe: Arc<AudioWorkletPipe>) {
+        let mut pipes = self.audio_worklet_pipes.borrow_mut();
+        pipes.retain(|pipe| pipe.state() != WorkletPipeState::ShutDown);
+        pipes.push(pipe);
+    }
+
+    // Marks every worklet node's pipe shut down and drops the pump slots; called when the context
+    // closes or its document stops being fully active.
     pub(crate) fn shutdown_audio_worklet(&self) {
-        if let Some(worklet) = &*self.audio_worklet.borrow() {
-            unsafe { web_audio_context_shutdown_worklet(worklet.as_ptr()) };
+        for pipe in self.audio_worklet_pipes.take() {
+            pipe.set_client(None);
+            pipe.set_state(WorkletPipeState::ShutDown);
         }
     }
 

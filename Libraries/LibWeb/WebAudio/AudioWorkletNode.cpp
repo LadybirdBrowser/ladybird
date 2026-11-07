@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
@@ -29,15 +28,11 @@ extern "C" bool web_audio_worklet_find_definition(AudioWorklet*, FlatPtr, void*,
 extern "C" AudioWorkletGlobalScope* web_audio_worklet_global_scope(AudioWorklet*);
 extern "C" JS::Realm* web_audio_worklet_scope_realm(AudioWorkletGlobalScope*);
 extern "C" JSCompletion web_audio_worklet_clone_options(JSVM*, JS::Realm*, JS::Realm*, JS::Object*);
-extern "C" RustFFI::FfiSharedCppObject web_audio_worklet_create_pipe(RustFFI::WorkletPipeConfig, float, void const**);
-extern "C" void web_audio_worklet_set_pump(Rendering::AudioWorkletPipe*, AudioWorkletGlobalScope*, u64);
-extern "C" void web_audio_worklet_clear_pump(Rendering::AudioWorkletPipe*);
 extern "C" JS::FunctionObject* web_audio_worklet_processor_constructor(AudioWorkletGlobalScope*, FlatPtr);
 extern "C" void web_audio_worklet_set_pending_port(AudioWorkletGlobalScope*, HTML::MessagePort*);
 extern "C" void web_audio_worklet_clear_pending_data(AudioWorkletGlobalScope*);
-extern "C" void web_audio_worklet_add_processor_slot(AudioWorkletGlobalScope*, u64, JS::Object*, HTML::MessagePort*, AudioWorkletNode*, Rendering::AudioWorkletPipe*, ReadonlySpan<FlatPtr>);
+extern "C" void web_audio_worklet_set_current_frame(AudioWorkletGlobalScope*, u64);
 extern "C" void web_audio_worklet_queue_processor_error(AudioWorkletNode*, DOM::EventTarget*, DOM::EventTarget*, JSValue);
-extern "C" void web_rust_audio_worklet_node_fire_error(AudioWorkletNode*, JSValue);
 
 bool web_audio_worklet_find_definition(AudioWorklet* worklet, FlatPtr name, void* context, DescriptorCallback descriptor_callback)
 {
@@ -62,32 +57,6 @@ JSCompletion web_audio_worklet_clone_options(JSVM* vm, JS::Realm* realm, JS::Rea
         return JS::HostABI::throw_completion_to_abi(WebIDL::exception_to_throw_completion(JS::HostABI::vm_from_abi(vm), *error_realm, cloned.release_error()).value());
     return JS::HostABI::normal_completion_to_abi(JS::HostABI::value_to_abi(cloned.release_value()));
 }
-RustFFI::FfiSharedCppObject web_audio_worklet_create_pipe(RustFFI::WorkletPipeConfig config, float sample_rate, void const** native_pipe)
-{
-    Rendering::AudioWorkletPipe::Config pipe_config;
-    pipe_config.quantum_size = config.quantum_size;
-    pipe_config.sample_rate = sample_rate;
-    pipe_config.input_count = config.input_count;
-    pipe_config.output_count = config.output_count;
-    for (auto capacity : config.input_channel_capacity)
-        pipe_config.input_channel_capacity.append(capacity);
-    for (auto capacity : config.output_channel_capacity)
-        pipe_config.output_channel_capacity.append(capacity);
-    pipe_config.output_channel_count_matches_input = config.output_channel_count_matches_input;
-    pipe_config.param_count = config.param_count;
-    for (auto is_a_rate : config.param_is_a_rate)
-        pipe_config.param_is_a_rate.append(is_a_rate);
-    pipe_config.ring_capacity = config.ring_capacity;
-    pipe_config.prime_level = config.prime_level;
-    auto pipe = Rendering::AudioWorkletPipe::create(move(pipe_config), Core::EventLoop::current());
-    *native_pipe = pipe->rust_pipe();
-    return { &pipe.leak_ref(), [](void* pipe) { static_cast<Rendering::AudioWorkletPipe*>(pipe)->ref(); }, [](void* pipe) { static_cast<Rendering::AudioWorkletPipe*>(pipe)->unref(); } };
-}
-void web_audio_worklet_set_pump(Rendering::AudioWorkletPipe* pipe, AudioWorkletGlobalScope* scope, u64 node_id)
-{
-    pipe->set_pump_callback([scope_root = GC::make_root(*scope), pipe = NonnullRefPtr { *pipe }, node_id = NodeID(node_id)] { scope_root->pump(node_id, *pipe); });
-}
-void web_audio_worklet_clear_pump(Rendering::AudioWorkletPipe* pipe) { pipe->clear_pump_callback(); }
 JS::FunctionObject* web_audio_worklet_processor_constructor(AudioWorkletGlobalScope* scope, FlatPtr name)
 {
     auto const* definition = scope->find_definition(Utf16String::from_raw(name));
@@ -96,14 +65,7 @@ JS::FunctionObject* web_audio_worklet_processor_constructor(AudioWorkletGlobalSc
 }
 void web_audio_worklet_set_pending_port(AudioWorkletGlobalScope* scope, HTML::MessagePort* port) { scope->set_pending_processor_construction_data({ *port }); }
 void web_audio_worklet_clear_pending_data(AudioWorkletGlobalScope* scope) { (void)scope->take_pending_processor_construction_data(); }
-void web_audio_worklet_add_processor_slot(AudioWorkletGlobalScope* scope, u64 node_id, JS::Object* processor, HTML::MessagePort* processor_port, AudioWorkletNode* node, Rendering::AudioWorkletPipe* pipe, ReadonlySpan<FlatPtr> raw_names)
-{
-    Vector<Utf16String> names;
-    names.ensure_capacity(raw_names.size());
-    for (auto raw_name : raw_names)
-        names.unchecked_append(Utf16String::from_raw(raw_name));
-    scope->add_processor_slot({ .node_id = NodeID(node_id), .processor = *processor, .processor_port = *processor_port, .node = GC::Weak<AudioWorkletNode> { *node }, .pipe = *pipe, .parameter_names = move(names) });
-}
+void web_audio_worklet_set_current_frame(AudioWorkletGlobalScope* scope, u64 current_frame) { scope->set_current_frame_and_time(current_frame, static_cast<double>(current_frame) / scope->sample_rate()); }
 void web_audio_worklet_queue_processor_error(AudioWorkletNode* node, DOM::EventTarget* target, DOM::EventTarget* global, JSValue error)
 {
     auto& global_object = HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*global));
@@ -116,6 +78,5 @@ void web_audio_worklet_queue_processor_error(AudioWorkletNode* node, DOM::EventT
             target->dispatch_event(event);
         }));
 }
-void AudioWorkletNode::fire_processor_error(JS::Value error) { web_rust_audio_worklet_node_fire_error(this, JS::HostABI::value_to_abi(error)); }
 
 }

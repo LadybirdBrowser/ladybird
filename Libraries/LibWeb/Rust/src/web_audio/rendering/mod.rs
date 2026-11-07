@@ -22,6 +22,8 @@ pub mod offline_audio_renderer;
 pub mod realtime_audio_renderer;
 
 pub mod audio_worklet_pipe;
+#[cfg(test)]
+mod audio_worklet_pipe_tests;
 pub mod pipe_callbacks;
 pub mod script_processor_pipe;
 
