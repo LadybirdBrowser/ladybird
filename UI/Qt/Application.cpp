@@ -682,6 +682,12 @@ void Application::show_process_manager()
 
 void Application::create_platform_actions()
 {
+    m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(WebView::Application::settings().serialize_json()));
+    m_settings->on_persist = [](JsonValue const& settings) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_update_settings(settings.serialized().to_byte_string());
+    };
+
     RemoteActions::the().set_application_actions(Hub::ActionMirror::the().application_actions());
 
     RemoteActions::the().inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
@@ -840,7 +846,7 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
 {
     auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, hub_view_id);
 
-    auto should_focus_location_editor = initial_urls.size() == 1 && initial_urls.first() == WebView::Application::settings().new_tab_page_url();
+    auto should_focus_location_editor = initial_urls.size() == 1 && initial_urls.first() == Application::settings().new_tab_page_url();
     if (should_focus_location_editor) {
         if (auto* tab = window->current_tab())
             tab->set_url_is_hidden(true);
@@ -890,7 +896,7 @@ void Application::present_window(BrowserWindow& window, WindowConfiguration cons
 WebView::SessionLaunchPolicy Application::launch_restore_policy() const
 {
     // Without the setting, only pinned tabs come back; with it, every window and tab does.
-    if (WebView::Application::settings().restore_previous_session())
+    if (Application::settings().restore_previous_session())
         return WebView::SessionLaunchPolicy::Everything;
     return WebView::SessionLaunchPolicy::PinnedOnly;
 }
@@ -961,7 +967,7 @@ void Application::offer_to_restore_unexpectedly_closed_tabs(BrowserWindow& windo
         QPointer<Tab> new_tab_page;
         if (window && window->tab_count() == 1) {
             auto* tab = window->tab_at(0);
-            if (tab->view().url() == WebView::Application::settings().new_tab_page_url() && !tab->view().navigate_back_action().enabled())
+            if (tab->view().url() == Application::settings().new_tab_page_url() && !tab->view().navigate_back_action().enabled())
                 new_tab_page = tab;
         }
 
@@ -978,7 +984,7 @@ void Application::offer_to_restore_unexpectedly_closed_tabs(BrowserWindow& windo
 
 void Application::open_startup_tabs(BrowserWindow& window, Vector<URL::URL> const& urls)
 {
-    auto const& new_tab_page_url = WebView::Application::settings().new_tab_page_url();
+    auto const& new_tab_page_url = Application::settings().new_tab_page_url();
     for (size_t i = 0; i < urls.size(); ++i) {
         auto& tab = window.new_tab_from_url(urls[i], i == 0 ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, BrowserWindow::TabLocation::end());
         if (urls.size() == 1 && urls[i] == new_tab_page_url) {
@@ -1016,7 +1022,7 @@ WindowConfiguration Application::configuration_for_new_window() const
         };
     }
 
-    auto const& window_settings = WebView::Application::settings().window_settings();
+    auto const& window_settings = Application::settings().window_settings();
     WindowConfiguration configuration {
         .width = window_settings.size.width(),
         .height = window_settings.size.height(),
@@ -1032,7 +1038,7 @@ WindowConfiguration Application::configuration_for_new_window() const
 void Application::open_new_tab()
 {
     if (!m_active_window) {
-        new_window({ WebView::Application::settings().new_tab_page_url() });
+        new_window({ Application::settings().new_tab_page_url() });
         return;
     }
 
@@ -1042,7 +1048,7 @@ void Application::open_new_tab()
 void Application::open_new_window(WebView::IsPrivate is_private)
 {
     // FIXME: Create a new tab page specific to private windows.
-    new_window({ WebView::Application::settings().new_tab_page_url() }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
+    new_window({ Application::settings().new_tab_page_url() }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
 }
 
 void Application::restart_private_browsing_session()
@@ -1129,7 +1135,7 @@ void Application::cancel_private_session_restart()
 void Application::focus_location_editor()
 {
     if (!m_active_window) {
-        new_window({ WebView::Application::settings().new_tab_page_url() });
+        new_window({ Application::settings().new_tab_page_url() });
         return;
     }
 
@@ -1495,7 +1501,7 @@ Optional<WebView::ViewImplementation&> Application::activate_tab_with_url(URL::U
 Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML::ActivateTab activate_tab) const
 {
     if (!m_active_window) {
-        auto& window = const_cast<Application&>(*this).new_window({ WebView::Application::settings().new_tab_page_url() });
+        auto& window = const_cast<Application&>(*this).new_window({ Application::settings().new_tab_page_url() });
         if (auto* tab = window.current_tab())
             return tab->view().hub_view();
         return {};

@@ -34,7 +34,6 @@ public:
     virtual void did_enable_devtools() const = 0;
     virtual void did_disable_devtools() const = 0;
 
-    virtual WebView::SessionLaunchPolicy launch_restore_policy() const = 0;
     virtual void create_platform_actions() = 0;
     virtual Optional<String> ui_font_family() const = 0;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const = 0;

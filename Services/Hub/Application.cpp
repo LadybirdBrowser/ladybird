@@ -95,9 +95,10 @@ void Application::on_devtools_disabled() const
 
 WebView::SessionLaunchPolicy Application::launch_restore_policy() const
 {
-    if (m_host)
-        return m_host->launch_restore_policy();
-    return WebView::Application::launch_restore_policy();
+    // Without the setting, only pinned tabs come back; with it, every window and tab does.
+    if (settings().restore_previous_session())
+        return WebView::SessionLaunchPolicy::Everything;
+    return WebView::SessionLaunchPolicy::PinnedOnly;
 }
 
 void Application::create_platform_actions()

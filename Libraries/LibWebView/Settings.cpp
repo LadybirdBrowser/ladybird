@@ -373,6 +373,271 @@ static bool config_variable_value_is_valid(ConfigVariableDefinition const& varia
     return true;
 }
 
+void Settings::load_from_json(JsonValue const& json_value)
+{
+    auto const& json = json_value.as_object();
+    m_first_run_complete = json.get_bool(FIRST_RUN_COMPLETE_KEY).value_or(false);
+
+    if (auto window_settings = json.get(WINDOW_SETTINGS_KEY); window_settings.has_value())
+        m_window_settings = parse_window_settings(*window_settings);
+
+    if (auto new_tab_page_url = json.get_string(NEW_TAB_PAGE_URL_KEY); new_tab_page_url.has_value()) {
+        if (auto parsed_new_tab_page_url = URL::Parser::basic_parse(*new_tab_page_url); parsed_new_tab_page_url.has_value())
+            m_new_tab_page_url = parsed_new_tab_page_url.release_value();
+    }
+
+    m_restore_previous_session = json.get_bool(RESTORE_PREVIOUS_SESSION_KEY).value_or(false);
+
+    if (auto languages = json.get(LANGUAGES_KEY); languages.has_value())
+        m_languages = parse_json_languages(*languages);
+
+    if (auto appearance = json.get(APPEARANCE_KEY); appearance.has_value())
+        m_appearance = parse_appearance(*appearance);
+
+    if (auto content_settings = json.get(CONTENT_SETTINGS_KEY); content_settings.has_value())
+        m_content_settings = parse_content_settings(*content_settings);
+
+    if (auto tab_settings = json.get(TAB_SETTINGS_KEY); tab_settings.has_value())
+        m_tab_settings = parse_tab_settings(*tab_settings);
+
+    if (auto browsing_behavior = json.get(BROWSING_BEHAVIOR_KEY); browsing_behavior.has_value())
+        m_browsing_behavior = parse_browsing_behavior(*browsing_behavior);
+
+    if (auto search_engine = json.get_object(SEARCH_ENGINE_KEY); search_engine.has_value()) {
+        if (auto custom_engines = search_engine->get_array(SEARCH_ENGINE_CUSTOM_KEY); custom_engines.has_value()) {
+            custom_engines->for_each([&](JsonValue const& engine) {
+                auto custom_engine = parse_custom_search_engine(engine);
+                if (!custom_engine.has_value() || find_search_engine_by_name(custom_engine->name).has_value())
+                    return;
+
+                m_custom_search_engines.append(custom_engine.release_value());
+            });
+        }
+
+        auto selected_engine = search_engine->get(SEARCH_ENGINE_SELECTION_KEY);
+        auto search_engine_name = selected_engine.has_value()
+            ? search_engine->get_string(SEARCH_ENGINE_SELECTION_KEY)
+            : search_engine->get_string(SEARCH_ENGINE_NAME_KEY);
+        if (search_engine_name.has_value())
+            m_search_engine_settings.engine = find_search_engine_by_name(*search_engine_name);
+
+        if (auto enabled = search_engine->get(SEARCH_SUGGESTIONS_ENABLED_KEY); enabled.has_value()) {
+            m_search_engine_settings.suggestions = enabled->is_bool() && enabled->as_bool();
+        } else if (m_search_engine_settings.engine.has_value() && m_search_engine_settings.engine->suggestions.has_value()) {
+            // NB: Only migrate suggestions when the old provider matches the selected search engine, so typed text
+            //     does not start going to a different provider without the user's consent.
+            if (auto legacy_engine = json.get_object("autocompleteEngine"sv); legacy_engine.has_value()) {
+                auto legacy_name = legacy_engine->get_string("name"sv);
+                m_search_engine_settings.suggestions = legacy_name.has_value()
+                    && legacy_name->is_one_of("DuckDuckGo"sv, "Google"sv, "Kagi"sv, "Yahoo"sv)
+                    && *legacy_name == m_search_engine_settings.engine->name;
+            }
+        }
+    }
+
+    auto load_site_setting = [&](AutoplaySiteSetting& site_setting, StringView key) {
+        auto saved_settings = json.get_object(key);
+        if (!saved_settings.has_value())
+            return;
+
+        if (auto policy = saved_settings->get_string(SITE_SETTING_POLICY_KEY); policy.has_value()) {
+            auto policy_utf16 = Utf16String::from_utf8_without_validation(*policy);
+            if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16.utf16_view()); parsed.has_value())
+                site_setting.policy = *parsed;
+        }
+
+        if (auto site_filters = saved_settings->get_array(SITE_SETTING_SITE_FILTERS_KEY); site_filters.has_value()) {
+            site_setting.site_filters.clear();
+
+            site_filters->for_each([&](auto const& site_filter) {
+                if (site_filter.is_string())
+                    site_setting.site_filters.set(site_filter.as_string());
+            });
+        }
+    };
+
+    load_site_setting(m_autoplay, AUTOPLAY_KEY);
+
+    // NB: The geolocationEnabled key this replaced was written on every save, so its false was rarely the user's
+    //     choice; it's ignored, and every profile starts out letting sites ask.
+    if (auto location_policy = json.get_string(LOCATION_POLICY_KEY); location_policy.has_value() && *location_policy == "block"sv)
+        m_location_policy = LocationPolicy::Block;
+    if (auto microphone_policy = json.get_string(MICROPHONE_POLICY_KEY); microphone_policy.has_value() && *microphone_policy == "block"sv)
+        m_microphone_policy = MicrophonePolicy::Block;
+    if (auto notifications_policy = json.get_string(NOTIFICATIONS_POLICY_KEY); notifications_policy.has_value() && *notifications_policy == "block"sv)
+        m_notifications_policy = NotificationsPolicy::Block;
+
+    if (auto browsing_data_settings = json.get(BROWSING_DATA_KEY); browsing_data_settings.has_value())
+        m_browsing_data_settings = parse_browsing_data_settings(*browsing_data_settings);
+
+    if (auto global_privacy_control = json.get_bool(GLOBAL_PRIVACY_CONTROL_KEY); global_privacy_control.has_value())
+        m_global_privacy_control = *global_privacy_control ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No;
+
+    if (auto crash_report_sending = json.get_string(CRASH_REPORT_SENDING_KEY); crash_report_sending.has_value())
+        m_crash_report_sending = crash_report_sending_from_string(*crash_report_sending);
+
+    if (auto background_networking = json.get_object(BACKGROUND_NETWORKING_KEY); background_networking.has_value()) {
+        if (auto enabled = background_networking->get_bool(BACKGROUND_NETWORKING_ENABLED_KEY); enabled.has_value())
+            m_background_networking_enabled = *enabled;
+
+        if (auto features = background_networking->get_object(BACKGROUND_NETWORKING_FEATURES_KEY); features.has_value()) {
+            if (auto filter_list_updates_enabled = features->get_bool(CONTENT_BLOCKER_SUBSCRIPTION_UPDATES_KEY); filter_list_updates_enabled.has_value())
+                m_filter_list_updates_enabled = *filter_list_updates_enabled;
+        }
+    }
+
+    if (auto content_blockers = json.get_object(CONTENT_BLOCKERS_KEY); content_blockers.has_value()) {
+        if (auto content_blocker_enabled = content_blockers->get_bool(CONTENT_BLOCKER_ENABLED_KEY); content_blocker_enabled.has_value())
+            m_content_blocker_enabled = *content_blocker_enabled;
+
+        if (auto sites = content_blockers->get_array(CONTENT_BLOCKER_DISABLED_SITES_KEY); sites.has_value()) {
+            sites->for_each([&](JsonValue const& entry) {
+                if (!entry.is_string())
+                    return;
+                if (auto host = Web::canonical_content_blocking_host(entry.as_string()); host.has_value())
+                    m_content_blocker_disabled_sites.set(host.release_value());
+            });
+        }
+
+        if (auto built_in_lists = content_blockers->get_object(CONTENT_BLOCKER_BUILT_IN_LISTS_KEY); built_in_lists.has_value()) {
+            for (auto& list : m_content_blocker_lists)
+                list.enabled = built_in_lists->get_bool(list.identifier).value_or(list.enabled);
+        }
+
+        for (auto key : { CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY, CONTENT_BLOCKER_LOCAL_LISTS_KEY }) {
+            auto lists = content_blockers->get_array(key);
+            if (!lists.has_value())
+                continue;
+            for (auto const& value : lists->values()) {
+                if (!value.is_object())
+                    continue;
+                auto identifier = value.as_object().get_string(CONTENT_BLOCKER_IDENTIFIER_KEY);
+                auto enabled = value.as_object().get_bool(CONTENT_BLOCKER_ENABLED_KEY);
+                auto source = value.as_object().get_string(key == CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY ? CONTENT_BLOCKER_URL_KEY : CONTENT_BLOCKER_NAME_KEY);
+                if (!identifier.has_value() || !is_valid_content_blocker_list_identifier(*identifier) || !enabled.has_value() || !source.has_value() || content_blocker_list(*identifier).has_value())
+                    continue;
+                Optional<URL::URL> url;
+                if (key == CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY) {
+                    url = URL::Parser::basic_parse(*source);
+                    if (!url.has_value() || !(url->scheme() == "http"sv || url->scheme() == "https"sv))
+                        continue;
+                }
+                m_content_blocker_lists.append({ *identifier, *source, move(url), *enabled });
+            }
+        }
+
+        if (auto filters = content_blockers->get_string(CONTENT_BLOCKER_CUSTOM_FILTERS_KEY); filters.has_value())
+            m_custom_content_blocker_filters = *filters;
+    }
+
+    if (auto dns_settings = json.get(DNS_SETTINGS_KEY); dns_settings.has_value())
+        m_dns_settings = parse_dns_settings(*dns_settings);
+
+    if (auto config_variables = json.get_object(CONFIG_VARIABLES_KEY); config_variables.has_value()) {
+        for (auto const& variable : config_variable_definitions()) {
+            if (auto value = config_variables->get(variable.name); value.has_value()) {
+                if (config_variable_value_is_valid(variable, *value))
+                    m_config_variables[static_cast<size_t>(variable.id)] = *value;
+            }
+        }
+    }
+}
+
+Settings Settings::create_from_json(JsonValue const& json)
+{
+    Settings settings { {} };
+    settings.load_from_json(json);
+    return settings;
+}
+
+void Settings::replace_with_json(JsonValue const& json, PersistChange persist_change)
+{
+    auto previous_config_variables = m_config_variables;
+    auto previous_settings = serialize_json();
+
+    // NB: Loading only sets what the JSON has, so what it leaves out must go back to its default first.
+    reset_to_defaults();
+    load_from_json(json);
+    if (persist_change == PersistChange::Yes)
+        persist_settings();
+
+    // NB: Observers can do a lot of work, such as reloading the content blocker lists or reconfiguring DNS, so they only
+    //     hear of what changed.
+    auto current_settings = serialize_json();
+    auto changed = [&](StringView key) {
+        auto previous = previous_settings.as_object().get(key);
+        auto current = current_settings.as_object().get(key);
+        if (previous.has_value() != current.has_value())
+            return true;
+        return previous.has_value() && !previous->equals(*current);
+    };
+    auto new_tab_page_url_changed = changed(NEW_TAB_PAGE_URL_KEY);
+    auto restore_previous_session_changed = changed(RESTORE_PREVIOUS_SESSION_KEY);
+    auto languages_changed = changed(LANGUAGES_KEY);
+    auto appearance_changed = changed(APPEARANCE_KEY);
+    auto content_settings_changed = changed(CONTENT_SETTINGS_KEY);
+    auto tab_settings_changed = changed(TAB_SETTINGS_KEY);
+    auto browsing_behavior_changed = changed(BROWSING_BEHAVIOR_KEY);
+    auto search_engine_settings_changed = changed(SEARCH_ENGINE_KEY);
+    auto autoplay_settings_changed = changed(AUTOPLAY_KEY);
+    auto browsing_data_settings_changed = changed(BROWSING_DATA_KEY);
+    auto global_privacy_control_changed = changed(GLOBAL_PRIVACY_CONTROL_KEY);
+    auto crash_report_sending_changed = changed(CRASH_REPORT_SENDING_KEY);
+    auto dns_settings_changed = changed(DNS_SETTINGS_KEY);
+    auto geolocation_settings_changed = changed(LOCATION_POLICY_KEY);
+    auto microphone_settings_changed = changed(MICROPHONE_POLICY_KEY);
+    auto notifications_settings_changed = changed(NOTIFICATIONS_POLICY_KEY);
+    auto background_networking_settings_changed = changed(BACKGROUND_NETWORKING_KEY);
+    auto content_blocker_settings_changed = changed(CONTENT_BLOCKERS_KEY);
+
+    for (auto& observer : m_observers) {
+        if (new_tab_page_url_changed)
+            observer.new_tab_page_url_changed();
+        if (restore_previous_session_changed)
+            observer.restore_previous_session_changed();
+        if (languages_changed)
+            observer.languages_changed();
+        if (appearance_changed)
+            observer.appearance_changed();
+        if (content_settings_changed)
+            observer.content_settings_changed();
+        if (tab_settings_changed)
+            observer.tab_settings_changed();
+        if (browsing_behavior_changed)
+            observer.browsing_behavior_changed();
+        if (search_engine_settings_changed)
+            observer.search_engine_settings_changed();
+        if (autoplay_settings_changed)
+            observer.autoplay_settings_changed();
+        if (browsing_data_settings_changed)
+            observer.browsing_data_settings_changed();
+        if (global_privacy_control_changed)
+            observer.global_privacy_control_changed();
+        if (crash_report_sending_changed)
+            observer.crash_report_sending_changed();
+        if (dns_settings_changed)
+            observer.dns_settings_changed();
+        if (geolocation_settings_changed)
+            observer.geolocation_settings_changed();
+        if (microphone_settings_changed)
+            observer.microphone_settings_changed();
+        if (notifications_settings_changed)
+            observer.notifications_settings_changed();
+        if (background_networking_settings_changed)
+            observer.background_networking_settings_changed();
+        if (content_blocker_settings_changed)
+            observer.content_blocker_settings_changed();
+    }
+
+    for (auto const& variable : config_variable_definitions()) {
+        auto index = static_cast<size_t>(variable.id);
+        if (m_config_variables[index].equals(previous_config_variables[index]))
+            continue;
+        for (auto& observer : m_observers)
+            observer.config_variable_changed(variable.id);
+    }
+}
+
 Settings Settings::create(ByteString settings_path, Vector<String> platform_languages)
 {
     Settings settings { move(settings_path) };
@@ -395,180 +660,23 @@ Settings Settings::create(ByteString settings_path, Vector<String> platform_lang
         return settings;
     }
 
-    settings.m_first_run_complete = settings_json.value().get_bool(FIRST_RUN_COMPLETE_KEY).value_or(false);
-
-    if (auto window_settings = settings_json.value().get(WINDOW_SETTINGS_KEY); window_settings.has_value())
-        settings.m_window_settings = parse_window_settings(*window_settings);
-
-    if (auto new_tab_page_url = settings_json.value().get_string(NEW_TAB_PAGE_URL_KEY); new_tab_page_url.has_value()) {
-        if (auto parsed_new_tab_page_url = URL::Parser::basic_parse(*new_tab_page_url); parsed_new_tab_page_url.has_value())
-            settings.m_new_tab_page_url = parsed_new_tab_page_url.release_value();
-    }
-
-    settings.m_restore_previous_session = settings_json.value().get_bool(RESTORE_PREVIOUS_SESSION_KEY).value_or(false);
-
-    if (auto languages = settings_json.value().get(LANGUAGES_KEY); languages.has_value())
-        settings.m_languages = parse_json_languages(*languages);
-
-    if (auto appearance = settings_json.value().get(APPEARANCE_KEY); appearance.has_value())
-        settings.m_appearance = parse_appearance(*appearance);
-
-    if (auto content_settings = settings_json.value().get(CONTENT_SETTINGS_KEY); content_settings.has_value())
-        settings.m_content_settings = parse_content_settings(*content_settings);
-
-    if (auto tab_settings = settings_json.value().get(TAB_SETTINGS_KEY); tab_settings.has_value())
-        settings.m_tab_settings = parse_tab_settings(*tab_settings);
-
-    if (auto browsing_behavior = settings_json.value().get(BROWSING_BEHAVIOR_KEY); browsing_behavior.has_value())
-        settings.m_browsing_behavior = parse_browsing_behavior(*browsing_behavior);
-
-    if (auto search_engine = settings_json.value().get_object(SEARCH_ENGINE_KEY); search_engine.has_value()) {
-        if (auto custom_engines = search_engine->get_array(SEARCH_ENGINE_CUSTOM_KEY); custom_engines.has_value()) {
-            custom_engines->for_each([&](JsonValue const& engine) {
-                auto custom_engine = parse_custom_search_engine(engine);
-                if (!custom_engine.has_value() || settings.find_search_engine_by_name(custom_engine->name).has_value())
-                    return;
-
-                settings.m_custom_search_engines.append(custom_engine.release_value());
-            });
-        }
-
-        auto selected_engine = search_engine->get(SEARCH_ENGINE_SELECTION_KEY);
-        auto search_engine_name = selected_engine.has_value()
-            ? search_engine->get_string(SEARCH_ENGINE_SELECTION_KEY)
-            : search_engine->get_string(SEARCH_ENGINE_NAME_KEY);
-        if (search_engine_name.has_value())
-            settings.m_search_engine_settings.engine = settings.find_search_engine_by_name(*search_engine_name);
-
-        if (auto enabled = search_engine->get(SEARCH_SUGGESTIONS_ENABLED_KEY); enabled.has_value()) {
-            settings.m_search_engine_settings.suggestions = enabled->is_bool() && enabled->as_bool();
-        } else if (settings.m_search_engine_settings.engine.has_value() && settings.m_search_engine_settings.engine->suggestions.has_value()) {
-            // NB: Only migrate suggestions when the old provider matches the selected search engine, so typed text
-            //     does not start going to a different provider without the user's consent.
-            if (auto legacy_engine = settings_json.value().get_object("autocompleteEngine"sv); legacy_engine.has_value()) {
-                auto legacy_name = legacy_engine->get_string("name"sv);
-                settings.m_search_engine_settings.suggestions = legacy_name.has_value()
-                    && legacy_name->is_one_of("DuckDuckGo"sv, "Google"sv, "Kagi"sv, "Yahoo"sv)
-                    && *legacy_name == settings.m_search_engine_settings.engine->name;
-            }
-        }
-    }
-
-    auto load_site_setting = [&](AutoplaySiteSetting& site_setting, StringView key) {
-        auto saved_settings = settings_json.value().get_object(key);
-        if (!saved_settings.has_value())
-            return;
-
-        if (auto policy = saved_settings->get_string(SITE_SETTING_POLICY_KEY); policy.has_value()) {
-            auto policy_utf16 = Utf16String::from_utf8_without_validation(*policy);
-            if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16.utf16_view()); parsed.has_value())
-                site_setting.policy = *parsed;
-        }
-
-        if (auto site_filters = saved_settings->get_array(SITE_SETTING_SITE_FILTERS_KEY); site_filters.has_value()) {
-            site_setting.site_filters.clear();
-
-            site_filters->for_each([&](auto const& site_filter) {
-                if (site_filter.is_string())
-                    site_setting.site_filters.set(site_filter.as_string());
-            });
-        }
-    };
-
-    load_site_setting(settings.m_autoplay, AUTOPLAY_KEY);
-
-    // NB: The geolocationEnabled key this replaced was written on every save, so its false was rarely the user's
-    //     choice; it's ignored, and every profile starts out letting sites ask.
-    if (auto location_policy = settings_json.value().get_string(LOCATION_POLICY_KEY); location_policy.has_value() && *location_policy == "block"sv)
-        settings.m_location_policy = LocationPolicy::Block;
-    if (auto microphone_policy = settings_json.value().get_string(MICROPHONE_POLICY_KEY); microphone_policy.has_value() && *microphone_policy == "block"sv)
-        settings.m_microphone_policy = MicrophonePolicy::Block;
-    if (auto notifications_policy = settings_json.value().get_string(NOTIFICATIONS_POLICY_KEY); notifications_policy.has_value() && *notifications_policy == "block"sv)
-        settings.m_notifications_policy = NotificationsPolicy::Block;
-
-    if (auto browsing_data_settings = settings_json.value().get(BROWSING_DATA_KEY); browsing_data_settings.has_value())
-        settings.m_browsing_data_settings = parse_browsing_data_settings(*browsing_data_settings);
-
-    if (auto global_privacy_control = settings_json.value().get_bool(GLOBAL_PRIVACY_CONTROL_KEY); global_privacy_control.has_value())
-        settings.m_global_privacy_control = *global_privacy_control ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No;
-
-    if (auto crash_report_sending = settings_json.value().get_string(CRASH_REPORT_SENDING_KEY); crash_report_sending.has_value())
-        settings.m_crash_report_sending = crash_report_sending_from_string(*crash_report_sending);
-
-    if (auto background_networking = settings_json.value().get_object(BACKGROUND_NETWORKING_KEY); background_networking.has_value()) {
-        if (auto enabled = background_networking->get_bool(BACKGROUND_NETWORKING_ENABLED_KEY); enabled.has_value())
-            settings.m_background_networking_enabled = *enabled;
-
-        if (auto features = background_networking->get_object(BACKGROUND_NETWORKING_FEATURES_KEY); features.has_value()) {
-            if (auto filter_list_updates_enabled = features->get_bool(CONTENT_BLOCKER_SUBSCRIPTION_UPDATES_KEY); filter_list_updates_enabled.has_value())
-                settings.m_filter_list_updates_enabled = *filter_list_updates_enabled;
-        }
-    }
-
-    if (auto content_blockers = settings_json.value().get_object(CONTENT_BLOCKERS_KEY); content_blockers.has_value()) {
-        if (auto content_blocker_enabled = content_blockers->get_bool(CONTENT_BLOCKER_ENABLED_KEY); content_blocker_enabled.has_value())
-            settings.m_content_blocker_enabled = *content_blocker_enabled;
-
-        if (auto sites = content_blockers->get_array(CONTENT_BLOCKER_DISABLED_SITES_KEY); sites.has_value()) {
-            sites->for_each([&](JsonValue const& entry) {
-                if (!entry.is_string())
-                    return;
-                if (auto host = Web::canonical_content_blocking_host(entry.as_string()); host.has_value())
-                    settings.m_content_blocker_disabled_sites.set(host.release_value());
-            });
-        }
-
-        if (auto built_in_lists = content_blockers->get_object(CONTENT_BLOCKER_BUILT_IN_LISTS_KEY); built_in_lists.has_value()) {
-            for (auto& list : settings.m_content_blocker_lists)
-                list.enabled = built_in_lists->get_bool(list.identifier).value_or(list.enabled);
-        }
-
-        for (auto key : { CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY, CONTENT_BLOCKER_LOCAL_LISTS_KEY }) {
-            auto lists = content_blockers->get_array(key);
-            if (!lists.has_value())
-                continue;
-            for (auto const& value : lists->values()) {
-                if (!value.is_object())
-                    continue;
-                auto identifier = value.as_object().get_string(CONTENT_BLOCKER_IDENTIFIER_KEY);
-                auto enabled = value.as_object().get_bool(CONTENT_BLOCKER_ENABLED_KEY);
-                auto source = value.as_object().get_string(key == CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY ? CONTENT_BLOCKER_URL_KEY : CONTENT_BLOCKER_NAME_KEY);
-                if (!identifier.has_value() || !is_valid_content_blocker_list_identifier(*identifier) || !enabled.has_value() || !source.has_value() || settings.content_blocker_list(*identifier).has_value())
-                    continue;
-                Optional<URL::URL> url;
-                if (key == CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY) {
-                    url = URL::Parser::basic_parse(*source);
-                    if (!url.has_value() || !(url->scheme() == "http"sv || url->scheme() == "https"sv))
-                        continue;
-                }
-                settings.m_content_blocker_lists.append({ *identifier, *source, move(url), *enabled });
-            }
-        }
-
-        if (auto filters = content_blockers->get_string(CONTENT_BLOCKER_CUSTOM_FILTERS_KEY); filters.has_value())
-            settings.m_custom_content_blocker_filters = *filters;
-    }
-
-    if (auto dns_settings = settings_json.value().get(DNS_SETTINGS_KEY); dns_settings.has_value())
-        settings.m_dns_settings = parse_dns_settings(*dns_settings);
-
-    if (auto config_variables = settings_json.value().get_object(CONFIG_VARIABLES_KEY); config_variables.has_value()) {
-        for (auto const& variable : config_variable_definitions()) {
-            if (auto value = config_variables->get(variable.name); value.has_value()) {
-                if (config_variable_value_is_valid(variable, *value))
-                    settings.m_config_variables[static_cast<size_t>(variable.id)] = *value;
-            }
-        }
-    }
+    settings.load_from_json(settings_json.value());
 
     return settings;
 }
 
 Settings::Settings(ByteString settings_path)
     : m_settings_path(move(settings_path))
-    , m_new_tab_page_url(URL::about_blank())
-    , m_languages(Web::default_preferred_languages())
 {
+    reset_to_defaults();
+}
+
+void Settings::reset_to_defaults()
+{
+    static_cast<SettingsData&>(*this) = SettingsData();
+    m_new_tab_page_url = URL::about_blank();
+    m_languages = Web::default_preferred_languages();
+
     for (auto const& variable : config_variable_definitions()) {
         m_config_variables[static_cast<size_t>(variable.id)] = variable.default_value;
     }
@@ -1493,8 +1601,13 @@ void Settings::persist_settings()
 {
     auto settings = serialize_json();
 
-    if (auto result = write_json_file(m_settings_path, settings); result.is_error())
-        warnln("Unable to persist Ladybird settings: {}", result.error());
+    if (!m_settings_path.is_empty()) {
+        if (auto result = write_json_file(m_settings_path, settings); result.is_error())
+            warnln("Unable to persist Ladybird settings: {}", result.error());
+    }
+
+    if (on_persist)
+        on_persist(settings);
 }
 
 void Settings::add_observer(Badge<SettingsObserver>, SettingsObserver& observer)

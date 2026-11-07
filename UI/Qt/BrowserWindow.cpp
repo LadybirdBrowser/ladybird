@@ -338,7 +338,8 @@ static QIcon const& app_icon(WebView::IsPrivate is_private)
 }
 
 BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<u64> hub_view_id, Optional<WebView::SessionWindowId> restored_session_window_id)
-    : m_is_private(is_private)
+    : WebView::SettingsObserver(Application::settings())
+    , m_is_private(is_private)
     , m_session(WebView::Application::session_for_new_view(is_private))
     , m_tabs_container(new TabWidget(is_private, this))
     , m_is_popup_window(is_popup_window)
@@ -746,7 +747,7 @@ void BrowserWindow::open_new_tab()
     // NB: With the focus already in the selected tab's address field, its focus ring moves to the new tab's field as it
     //     is, rather than fading in again.
     auto focus_ring_transition = focus_is_in_location_edit_of(*this) ? Tab::FocusRingTransition::Immediate : Tab::FocusRingTransition::FadeIn;
-    auto& tab = new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes, TabLocation::end());
+    auto& tab = new_tab_from_url(Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes, TabLocation::end());
     tab.set_url_is_hidden(true);
     tab.focus_location_editor(focus_ring_transition);
 }
@@ -866,7 +867,7 @@ FullscreenMode& BrowserWindow::fullscreen_mode()
 
 bool BrowserWindow::uses_client_side_decorations()
 {
-    return !use_native_macos_window_controls() && WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::UseClientSideWindowDecorations);
+    return !use_native_macos_window_controls() && Application::settings().config_variable_as_bool(WebView::ConfigVariableID::UseClientSideWindowDecorations);
 }
 
 bool BrowserWindow::has_chrome_in_titlebar()
@@ -1948,8 +1949,8 @@ void BrowserWindow::changeEvent(QEvent* event)
 
 void BrowserWindow::appearance_changed()
 {
-    SystemAppearance::the().apply_interface_theme(WebView::Application::settings().appearance().interface_theme);
-    SystemAppearance::the().apply_color_theme(WebView::Application::settings().appearance().color_theme);
+    SystemAppearance::the().apply_interface_theme(Application::settings().appearance().interface_theme);
+    SystemAppearance::the().apply_color_theme(Application::settings().appearance().color_theme);
     update_menu_bar_visibility();
 
     m_tabs_container->update_bookmarks_bar_visibility();
@@ -2054,7 +2055,7 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
 
     if (m_is_private == WebView::IsPrivate::No) {
         if (m_is_popup_window == IsPopupWindow::No) {
-            WebView::Application::settings().set_window_settings({
+            Application::settings().set_window_settings({
                 .position = Gfx::IntPoint { pos().x(), pos().y() },
                 .size = Gfx::IntSize { width(), height() },
                 .maximized = isMaximized(),
