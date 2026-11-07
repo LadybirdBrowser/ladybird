@@ -42,6 +42,8 @@ set(SOURCES
     HistoryDebug.cpp
     HistoryStore.cpp
     HSTSStore.cpp
+    ImageDecoderControlClient.cpp
+    ImageDecoderManager.cpp
     LingeringIndicator.cpp
     Menu.cpp
     NavigationLoader.cpp
@@ -130,6 +132,8 @@ set(GENERATED_SOURCES
     ${GENERATED_SOURCES}
     ../../Services/AudioServer/AudioServerControlClientEndpoint.h
     ../../Services/AudioServer/AudioServerControlEndpoint.h
+    ../../Services/ImageDecoder/ImageDecoderControlClientEndpoint.h
+    ../../Services/ImageDecoder/ImageDecoderControlEndpoint.h
     ../../Services/RequestServer/RequestClientEndpoint.h
     ../../Services/RequestServer/RequestServerEndpoint.h
     ../../Services/VideoDecoderServer/VideoDecoderServerControlClientEndpoint.h

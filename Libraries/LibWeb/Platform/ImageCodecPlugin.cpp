@@ -19,11 +19,6 @@ ImageCodecPlugin& ImageCodecPlugin::the()
     return *s_the;
 }
 
-bool ImageCodecPlugin::is_initialized()
-{
-    return s_the != nullptr;
-}
-
 void ImageCodecPlugin::install(ImageCodecPlugin& plugin)
 {
     VERIFY(!s_the);

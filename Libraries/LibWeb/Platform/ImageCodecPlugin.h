@@ -40,7 +40,6 @@ struct DecodedFirstFrame {
 class WEB_API ImageCodecPlugin {
 public:
     static ImageCodecPlugin& the();
-    static bool is_initialized();
     static void install(ImageCodecPlugin&);
 
     virtual ~ImageCodecPlugin();

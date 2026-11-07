@@ -231,6 +231,7 @@ private:
     virtual Messages::WebContentClient::RequestMediaServerConnectionResponse request_media_server_connection() override;
     virtual Messages::WebContentClient::RequestAudioServerConnectionResponse request_audio_server_connection() override;
     virtual Messages::WebContentClient::RequestWebrtcClientConnectionResponse request_webrtc_client_connection() override;
+    virtual Messages::WebContentClient::RequestImageDecoderConnectionResponse request_image_decoder_connection() override;
     virtual void request_video_presentation_channel() override;
     virtual void gamepad_play_effect(Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect effect) override;
     virtual void gamepad_stop_effects(Web::Gamepad::GamepadHandle handle) override;

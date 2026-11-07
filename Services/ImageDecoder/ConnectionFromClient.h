@@ -32,6 +32,13 @@ public:
 
     virtual void die() override;
 
+    // The decoder exits once the Browser has let go of it and its last client is gone.
+    enum class IsHeldOpenByBrowser : u8 {
+        No,
+        Yes,
+    };
+    static void set_is_held_open_by_browser(IsHeldOpenByBrowser);
+
     struct DecodeResult {
         bool is_animated = false;
         u32 loop_count = 0;

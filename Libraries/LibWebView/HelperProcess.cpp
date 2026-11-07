@@ -20,6 +20,7 @@
 #include <LibWebView/FontService.h>
 #include <LibWebView/FontServiceHost.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/ImageDecoderControlClient.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/VideoDecoderServerControlClient.h>
@@ -307,12 +308,15 @@ template<typename ClientType>
 static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process_for(u64 owner_child_id, StringView server_name, Vector<ByteString> arguments)
 {
     RefPtr<ClientType> client;
-    TRY(launch_helper_process(server_name, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
+    auto identity = TRY(launch_helper_process(server_name, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
         auto [process, new_client] = TRY(WebView::Process::spawn<ClientType>(WebView::process_type_from_name(server_name), options, capture_output));
         process.set_owner_child_id(owner_child_id);
         client = move(new_client);
         return move(process);
     }));
+
+    if constexpr (requires { client->set_child_identity(ChildIdentity {}); })
+        client->set_child_identity(identity);
     return client.release_nonnull();
 }
 
@@ -392,7 +396,7 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
     return client;
 }
 
-ErrorOr<ImageDecoderConnection> launch_image_decoder_process()
+ErrorOr<NonnullRefPtr<ImageDecoderControlClient>> launch_image_decoder_process(u64 owner_child_id)
 {
     auto const& browser_options = WebView::Application::browser_options();
 
@@ -404,40 +408,7 @@ ErrorOr<ImageDecoderConnection> launch_image_decoder_process()
         arguments.append(server.value());
     }
 
-    // The decoder parses untrusted images for one client, so it must not see the images of any other. The Browser
-    // does not talk to it, and hands its end of the transport to the client.
-    OwnPtr<IPC::Transport> transport;
-    auto identity = TRY(launch_helper_process("ImageDecoder"sv, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
-        auto [process, new_transport] = TRY(WebView::Process::spawn_with_transport(ProcessType::ImageDecoder, options, capture_output));
-        transport = move(new_transport);
-        return move(process);
-    }));
-
-    return ImageDecoderConnection { TRY(transport->release_for_transfer()), identity.child_id };
-}
-
-template<typename ClientType>
-static void connect_client_to_image_decoder(ClientType& client, ImageDecoderConnection decoder)
-{
-    auto process = Application::process_manager().find_child(decoder.child_id);
-    VERIFY(process.has_value());
-    process->set_owner_child_id(client.child_id());
-    client.async_connect_to_image_decoder(decoder.handle);
-
-    // A decoder exits by itself once its client is gone. One that dies before then is replaced, so a crash costs the
-    // client the images it was decoding at the time rather than every image after it.
-    Application::the().set_image_decoder_exit_handler(decoder.child_id, [weak_client = client.template make_weak_ptr<ClientType>()] {
-        auto client = weak_client.strong_ref();
-        if (!client || !client->is_open())
-            return;
-
-        auto new_decoder = launch_image_decoder_process();
-        if (new_decoder.is_error()) {
-            dbgln("Failed to replace a crashed image decoder: {}", new_decoder.error());
-            return;
-        }
-        connect_client_to_image_decoder(*client, new_decoder.release_value());
-    });
+    return launch_server_process_for<ImageDecoderControlClient>(owner_child_id, "ImageDecoder"sv, move(arguments));
 }
 
 ErrorOr<IPC::TransportHandle> launch_webrtc_client_process(WebContentClient& client)
@@ -465,7 +436,7 @@ ErrorOr<IPC::TransportHandle> launch_webrtc_client_process(WebContentClient& cli
     }
 
     // NB: The renderer's sandbox does not let it spawn processes, so the Browser launches the helper and hands its end
-    //     of the transport over, as it does for the ImageDecoder.
+    //     of the transport over.
     OwnPtr<IPC::Transport> transport;
     auto identity = TRY(launch_helper_process("WebRTCClient"sv, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
         auto [process, new_transport] = TRY(WebView::Process::spawn_with_transport(ProcessType::WebRTCClient, options, capture_output));
@@ -478,16 +449,6 @@ ErrorOr<IPC::TransportHandle> launch_webrtc_client_process(WebContentClient& cli
     process->set_owner_child_id(client.child_id());
 
     return transport->release_for_transfer();
-}
-
-void connect_to_image_decoder(WebContentClient& client, ImageDecoderConnection decoder)
-{
-    connect_client_to_image_decoder(client, move(decoder));
-}
-
-void connect_to_image_decoder(WebWorkerClient& client, ImageDecoderConnection decoder)
-{
-    connect_client_to_image_decoder(client, move(decoder));
 }
 
 ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process(u64 owner_child_id)

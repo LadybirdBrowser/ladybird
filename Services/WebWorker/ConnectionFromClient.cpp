@@ -57,17 +57,19 @@ void ConnectionFromClient::simulate_request_server_connection_loss_and_reconnect
     connect_to_request_server(move(replacement_handle), client_id, move(top_level_site));
 }
 
-void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
-{
-    if (on_image_decoder_connection)
-        on_image_decoder_connection(handle);
-}
-
 ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_media_server_transport()
 {
     auto response = send_sync_but_allow_failure<Messages::WebWorkerClient::RequestMediaServerConnection>();
     if (!response || !response->handle().has_value())
         return Error::from_string_literal("The Browser did not connect a media server");
+    return response->take_handle()->create_transport();
+}
+
+ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_image_decoder_transport()
+{
+    auto response = send_sync_but_allow_failure<Messages::WebWorkerClient::RequestImageDecoderConnection>();
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("The Browser did not connect an image decoder");
     return response->take_handle()->create_transport();
 }
 

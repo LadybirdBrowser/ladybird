@@ -106,6 +106,24 @@ def run_test(webdriver_binary, process_name):
                         },
                     )
                     assert status == 200 and payload == {"value": None}, body
+                elif process_name == "ImageDecoder":
+                    # A process gets its decoder when it first has an image to decode.
+                    status, payload, body = webdriver_helpers.request(
+                        port,
+                        "POST",
+                        f"/session/{session}/execute/async",
+                        {
+                            "script": """
+                            const done = arguments[0];
+                            window.image = new Image();
+                            image.onload = () => done();
+                            image.onerror = () => done('image failed');
+                            image.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                        """,
+                            "args": [],
+                        },
+                    )
+                    assert status == 200 and payload == {"value": None}, body
                 elif process_name == "Compositor":
                     wait_for_compositor(port, session)
                 crash_helper(webdriver.pid, process_name)

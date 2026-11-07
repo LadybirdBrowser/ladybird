@@ -37,6 +37,7 @@
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/ImageDecoderManager.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/NotificationManager.h>
 #include <LibWebView/PermissionManager.h>
@@ -1152,6 +1153,11 @@ Messages::WebContentClient::RequestWebrtcClientConnectionResponse WebContentClie
         return OptionalNone {};
     }
     return handle.release_value();
+}
+
+Messages::WebContentClient::RequestImageDecoderConnectionResponse WebContentClient::request_image_decoder_connection()
+{
+    return ImageDecoderManager::the().connect_requesting_process(child_id(), m_is_private);
 }
 
 Optional<u64> WebContentClient::exclusive_performance_owner() const
