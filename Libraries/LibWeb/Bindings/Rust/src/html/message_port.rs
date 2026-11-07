@@ -18,7 +18,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 use ak::Utf16String;
-use libipc_rust::{Attachment, DecodeError, Decoder, Encoder};
+use libipc_rust::{Attachment, DecodeError, Decoder, EncodeError, Encoder};
 use libjs_rust::api::{
     CellRoot, DeferGc, EmbedderCell, Gc, GcRefCell, GcWeak, MarkedVec, Object, Realm, Trace, Value, Vm,
     is_host_instance_of,
@@ -805,9 +805,11 @@ unsafe extern "C" {
 }
 
 /// The rights of one end of an IPC transport, which this owns until a data holder carries them to another agent, or a
-/// transport takes them.
+/// transport takes them. The rest is the start of a message that the last owner read off the transport: IPC::TransportHandle.
 pub(crate) struct TransportHandle {
     attachments: Vec<Attachment>,
+    unprocessed_bytes: Vec<u8>,
+    unprocessed_attachments: Vec<Attachment>,
 }
 
 impl TransportHandle {
@@ -827,8 +829,12 @@ impl TransportHandle {
         handle
     }
 
-    pub(crate) fn encode_into(self, encoder: &mut Encoder) {
+    pub(crate) fn encode_into(self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         append_attachments(encoder, self.attachments);
+        encoder.encode(self.unprocessed_bytes.as_slice())?;
+        encoder.encode_size(self.unprocessed_attachments.len())?;
+        append_attachments(encoder, self.unprocessed_attachments);
+        Ok(())
     }
 
     pub(crate) fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
@@ -862,12 +868,27 @@ impl TransportHandle {
             let _ = index;
             attachments.push(attachment);
         }
-        Ok(Self { attachments })
+        let unprocessed_bytes = decoder.decode::<Vec<u8>>()?;
+        let unprocessed_count = decoder.decode_size()?;
+        if decoder.remaining_attachments() < unprocessed_count {
+            return Err(DecodeError::MissingAttachment);
+        }
+        let unprocessed_attachments = (0..unprocessed_count)
+            .map(|_| decoder.take_attachment())
+            .collect::<Result<_, _>>()?;
+        Ok(Self {
+            attachments,
+            unprocessed_bytes,
+            unprocessed_attachments,
+        })
     }
 
     /// The IPC transport of the end that the handle holds the rights of, which it gives up.
     fn create_socket(self) -> SocketTransport {
-        TransferPayload::new(Vec::new(), self.attachments).with_raw(|bytes, attachments| {
+        let mut encoder = Encoder::new();
+        self.encode_into(&mut encoder).expect("a transport handle encodes");
+        let (bytes, attachments) = encoder.finish();
+        TransferPayload::new(bytes, attachments).with_raw(|bytes, attachments| {
             // SAFETY: The call takes every right, and LibWeb hands over the transport.
             unsafe {
                 SocketTransport::from_raw(web_bindings_transport_handle_create_transport(

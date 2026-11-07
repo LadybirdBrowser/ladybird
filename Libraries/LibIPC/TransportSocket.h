@@ -94,8 +94,10 @@ public:
     static ErrorOr<Paired> create_paired();
     static ErrorOr<NonnullOwnPtr<TransportSocket>> from_socket(NonnullOwnPtr<Core::LocalSocket> socket);
     static ErrorOr<NonnullOwnPtr<TransportSocket>> adopt_fd(int fd);
+    // The bytes and attachments are what the last owner read off the socket without seeing the end of the message.
+    static ErrorOr<NonnullOwnPtr<TransportSocket>> adopt_fd(int fd, ByteBuffer unprocessed_bytes, Vector<Attachment> unprocessed_attachments);
 
-    explicit TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket);
+    explicit TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket, ByteBuffer unprocessed_bytes = {}, Vector<Attachment> unprocessed_attachments = {});
     ~TransportSocket();
 
     // Makes the transports that this thread creates from now on share one IO thread with all others made this way, or
@@ -141,6 +143,8 @@ public:
     };
     ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&&);
 
+    // Whole messages that have been read stay here for the old owner to take, and anything newer reaches the new owner.
+    // A message read in part goes to the new owner, along with the handle.
     ErrorOr<TransportHandle> release_for_transfer();
 
     // Test seam: When set to a non-zero value, the IO thread wakes the consumer and then pauses for the given duration

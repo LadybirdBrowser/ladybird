@@ -148,7 +148,7 @@ impl CarriedChannelEnd {
         }
         encoder.encode(&transport.is_some())?;
         if let Some(transport) = transport {
-            transport.encode_into(encoder);
+            transport.encode_into(encoder)?;
         }
         Ok(())
     }

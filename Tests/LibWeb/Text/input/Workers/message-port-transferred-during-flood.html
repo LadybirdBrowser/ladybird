@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const MESSAGE_COUNT = 1000;
+    const MESSAGES_PER_OWNER = 50;
+
+    const SCRIPT = `
+        onconnect = event => {
+            const port = event.ports[0];
+            port.onmessage = event => {
+                const padding = "x".repeat(3001);
+                for (let i = 0; i < event.data; ++i) port.postMessage({ i, padding });
+            };
+        };
+    `;
+
+    function transferToNewOwner(port) {
+        const channel = new MessageChannel();
+        return new Promise(resolve => {
+            channel.port2.onmessage = event => resolve(event.ports[0]);
+            channel.port1.postMessage(null, [port]);
+        });
+    }
+
+    // NB: The port moves on while the worker sends, so the socket changes owner in the middle of a message most times.
+    promiseTest(async () => {
+        const scriptURL = URL.createObjectURL(new Blob([SCRIPT], { type: "text/javascript" }));
+        let port = new SharedWorker(scriptURL, uniqueID()).port;
+
+        let expected = 0;
+        let outOfOrder = 0;
+        let owners = 1;
+        let lastOwner = port;
+        await new Promise(resolve => {
+            function receiveWithOwner(owner) {
+                lastOwner = owner;
+                let received = 0;
+                owner.onmessage = async event => {
+                    if (event.data.i !== expected) ++outOfOrder;
+                    expected = event.data.i + 1;
+                    if (expected === MESSAGE_COUNT) {
+                        resolve();
+                        return;
+                    }
+                    if (++received === MESSAGES_PER_OWNER) {
+                        owner.onmessage = null;
+                        ++owners;
+                        receiveWithOwner(await transferToNewOwner(owner));
+                    }
+                };
+            }
+            port.postMessage(MESSAGE_COUNT);
+            receiveWithOwner(port);
+        });
+
+        println(`port: ${internals.messagePortEntanglementKind(lastOwner)}`);
+        println(`received: ${expected}`);
+        println(`out of order: ${outOfOrder}`);
+        println(`several owners: ${owners > 2}`);
+    });
+</script>

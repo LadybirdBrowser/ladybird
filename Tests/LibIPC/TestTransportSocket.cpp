@@ -770,6 +770,139 @@ TEST_CASE(transports_that_share_an_io_thread_work_alone)
     EXPECT_EQ(received, (Vector<u8> { 42, 43 }));
 }
 
+TEST_CASE(a_frame_cut_in_two_by_a_transfer_arrives_whole)
+{
+    Core::EventLoop loop;
+
+    int fds[2] {};
+    TRY_OR_FAIL(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+    ScopeGuard close_sender = [&] { MUST(Core::System::close(fds[1])); };
+    auto socket = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[0]));
+    MUST(socket->set_blocking(false));
+    IPC::TransportSocket transport(move(socket));
+
+    IPC::SocketMessageHeader header {
+        .type = IPC::SocketMessageHeader::Type::Payload,
+        .payload_size = 4,
+        .fd_count = 0,
+    };
+    EXPECT_EQ(TRY_OR_FAIL(Core::System::write(fds[1], ReadonlyBytes { reinterpret_cast<u8 const*>(&header), sizeof(header) })), sizeof(header));
+    Array<u8, 4> payload { 'a', 'b', 'c', 'd' };
+    EXPECT_EQ(TRY_OR_FAIL(Core::System::write(fds[1], payload.span().trim(2))), 2uz);
+
+    // The old owner has read the first half of the frame off the socket, and the second half is yet to come.
+    transport.wait_until_incoming_is_current();
+    auto handle = TRY_OR_FAIL(transport.release_for_transfer());
+    auto new_owner = TRY_OR_FAIL(handle.create_transport());
+    EXPECT_EQ(TRY_OR_FAIL(Core::System::write(fds[1], payload.span().slice(2))), 2uz);
+
+    ByteBuffer received;
+    spin_until(loop, [&] {
+        (void)new_owner->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+            received.append(message.bytes.bytes());
+        });
+        return !received.is_empty();
+    });
+    EXPECT_EQ(received.bytes(), ReadonlyBytes { payload });
+}
+
+TEST_CASE(descriptors_ahead_of_their_message_go_along_with_a_transfer)
+{
+    Core::EventLoop loop;
+
+    int fds[2] {};
+    TRY_OR_FAIL(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+    auto peer = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[1]));
+    auto socket = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[0]));
+    MUST(socket->set_blocking(false));
+    IPC::TransportSocket transport(move(socket));
+
+    IPC::SocketMessageHeader attachments_header {
+        .type = IPC::SocketMessageHeader::Type::Attachments,
+        .payload_size = 0,
+        .fd_count = 1,
+    };
+    auto attachments_bytes = ReadonlyBytes { reinterpret_cast<u8 const*>(&attachments_header), sizeof(attachments_header) };
+    auto first_descriptor = pipe_holding('a');
+    EXPECT_EQ(TRY_OR_FAIL(peer->send_message(attachments_bytes, 0, Vector<int, 1> { first_descriptor })), sizeof(attachments_header));
+    MUST(Core::System::close(first_descriptor));
+
+    // The old owner has taken the descriptor off the socket, and the message that claims it is yet to come.
+    transport.wait_until_incoming_is_current();
+    auto handle = TRY_OR_FAIL(transport.release_for_transfer());
+    auto new_owner = TRY_OR_FAIL(handle.create_transport());
+
+    IPC::SocketMessageHeader header {
+        .type = IPC::SocketMessageHeader::Type::Payload,
+        .payload_size = 1,
+        .fd_count = 2,
+    };
+    ByteBuffer frame;
+    frame.append(&header, sizeof(header));
+    frame.append('X');
+    auto second_descriptor = pipe_holding('b');
+    EXPECT_EQ(TRY_OR_FAIL(peer->send_message(frame.bytes(), 0, Vector<int, 1> { second_descriptor })), frame.size());
+    MUST(Core::System::close(second_descriptor));
+
+    Vector<u8> tags;
+    spin_until(loop, [&] {
+        (void)new_owner->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+            while (!message.attachments.is_empty()) {
+                auto fd = message.attachments.dequeue().to_fd();
+                tags.append(byte_in_descriptor(fd).value_or(0));
+                MUST(Core::System::close(fd));
+            }
+        });
+        return !tags.is_empty();
+    });
+    EXPECT_EQ(tags, (Vector<u8> { 'a', 'b' }));
+}
+
+TEST_CASE(messages_arrive_in_order_while_the_reader_is_transferred_again_and_again)
+{
+    Core::EventLoop loop;
+
+    auto paired = TRY_OR_FAIL(IPC::TransportSocket::create_paired());
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto sender = move(paired.local);
+    auto reader = TRY_OR_FAIL(paired.remote_handle.create_transport());
+
+    // NB: The padding makes a message end anywhere in a read of the transport.
+    static constexpr u32 message_count = 20000;
+    static constexpr size_t padding = 701;
+    auto sending_thread = Threading::Thread::construct("Sender"sv, [&sender] {
+        for (u32 i = 0; i < message_count; ++i) {
+            IPC::MessageDataType payload;
+            payload.resize(sizeof(i) + padding);
+            memcpy(payload.data(), &i, sizeof(i));
+            Vector<IPC::Attachment> attachments;
+            MUST(sender->post_message(move(payload), attachments));
+        }
+        return static_cast<intptr_t>(0);
+    });
+    sending_thread->start();
+
+    u32 next = 0;
+    bool in_order = true;
+    auto read_what_is_there = [&](IPC::TransportSocket& transport) {
+        (void)transport.read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+            u32 value = 0;
+            memcpy(&value, message.bytes.bytes().data(), sizeof(value));
+            in_order = in_order && value == next;
+            ++next;
+        });
+    };
+    spin_until(loop, [&] {
+        read_what_is_there(*reader);
+        auto handle = MUST(reader->release_for_transfer());
+        read_what_is_there(*reader);
+        reader = MUST(handle.create_transport());
+        return next >= message_count || !in_order; }, 30000_ms);
+    (void)sending_thread->join();
+
+    EXPECT(in_order);
+    EXPECT_EQ(next, message_count);
+}
+
 TEST_CASE(read_hook_is_notified_on_peer_hangup)
 {
     Core::EventLoop loop;
