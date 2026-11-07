@@ -177,6 +177,13 @@ static Optional<int> retry_after_ms(HTTP::HeaderList const& headers)
 // It can outlive whatever started it.
 ReportSubmission::ReportSubmission() = default;
 
+static ReportSubmission::PostFunction& s_post_function = *new ReportSubmission::PostFunction;
+
+void ReportSubmission::set_post_function(PostFunction post_function)
+{
+    s_post_function = move(post_function);
+}
+
 // A submission of a payload prepared in advance sends that payload, so a retry of it keeps its submission ID.
 NonnullRefPtr<ReportSubmission> ReportSubmission::create(Payload payload)
 {
@@ -216,6 +223,7 @@ void ReportSubmission::cancel()
     on_retry = nullptr;
     on_sent = nullptr;
     on_failed = nullptr;
+    ++m_post_serial;
 
     m_proof_cancelled.store(true);
     if (m_retry_timer) {
@@ -373,6 +381,20 @@ void ReportSubmission::post(StringView path, StringView activity, StringView con
         headers->set({ "X-Ladybird-Nonce"sv, ByteString::number(proof->nonce) });
     }
 
+    if (s_post_function) {
+        s_post_function(*url, headers->headers(), move(body),
+            [weak_this = make_weak_ptr<ReportSubmission>(), serial = ++m_post_serial, activity = ByteString { activity },
+                on_success = move(on_success)](PostResponse response) {
+                auto self = weak_this.strong_ref();
+                if (!self || self->m_post_serial != serial)
+                    return;
+                self->did_receive_response(activity, response.had_network_error, response.response_code,
+                    *HTTP::HeaderList::create(move(response.headers)), response.body.bytes(), on_success);
+            });
+        arm_request_timeout();
+        return;
+    }
+
     auto request_client = Application::request_server_client(IsPrivate::No);
     if (request_client.is_error()) {
         fail("Could not start the report request."_string, ShouldRetry::Yes);
@@ -385,18 +407,7 @@ void ReportSubmission::post(StringView path, StringView activity, StringView con
         return;
     }
 
-    m_request_timeout = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(request_timeout_ms),
-        [weak_this = make_weak_ptr<ReportSubmission>()] {
-            auto self = weak_this.strong_ref();
-            if (!self)
-                return;
-            auto request = move(self->m_request);
-            self->m_request_timeout = nullptr;
-            if (request)
-                request->stop();
-            self->fail("The report server did not respond in time."_string, ShouldRetry::Yes);
-        });
-    m_request_timeout->start();
+    arm_request_timeout();
 
     m_request->set_buffered_request_finished_callback(
         [weak_this = make_weak_ptr<ReportSubmission>(), activity = ByteString { activity },
@@ -408,9 +419,6 @@ void ReportSubmission::post(StringView path, StringView activity, StringView con
             auto self = weak_this.strong_ref();
             if (!self || !self->m_request)
                 return;
-            if (self->m_request_timeout)
-                self->m_request_timeout->stop();
-            self->m_request_timeout = nullptr;
 
             // A request cannot be destroyed from inside its own callback.
             Core::deferred_invoke([weak_this] {
@@ -418,18 +426,44 @@ void ReportSubmission::post(StringView path, StringView activity, StringView con
                     self->m_request = nullptr;
             });
 
-            if (network_error.has_value() || !response_code.has_value()) {
-                self->fail("Network error while contacting the report server."_string, ShouldRetry::Yes);
-                return;
-            }
-            if (*response_code < 200 || *response_code >= 300) {
-                self->fail(MUST(String::formatted("Report server returned {} while {}.", *response_code, activity)),
-                    is_transient_status(*response_code) ? ShouldRetry::Yes : ShouldRetry::No,
-                    retry_after_ms(response_headers));
-                return;
-            }
-            on_success(ByteString::copy(payload.bytes()));
+            self->did_receive_response(activity, network_error.has_value(), response_code, response_headers, payload.bytes(), on_success);
         });
+}
+
+void ReportSubmission::arm_request_timeout()
+{
+    m_request_timeout = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(request_timeout_ms),
+        [weak_this = make_weak_ptr<ReportSubmission>()] {
+            auto self = weak_this.strong_ref();
+            if (!self)
+                return;
+            auto request = move(self->m_request);
+            self->m_request_timeout = nullptr;
+            ++self->m_post_serial;
+            if (request)
+                request->stop();
+            self->fail("The report server did not respond in time."_string, ShouldRetry::Yes);
+        });
+    m_request_timeout->start();
+}
+
+void ReportSubmission::did_receive_response(StringView activity, bool had_network_error, Optional<u32> response_code, HTTP::HeaderList const& response_headers, ReadonlyBytes body, Function<void(ByteString)> const& on_success)
+{
+    if (m_request_timeout)
+        m_request_timeout->stop();
+    m_request_timeout = nullptr;
+
+    if (had_network_error || !response_code.has_value()) {
+        fail("Network error while contacting the report server."_string, ShouldRetry::Yes);
+        return;
+    }
+    if (*response_code < 200 || *response_code >= 300) {
+        fail(MUST(String::formatted("Report server returned {} while {}.", *response_code, activity)),
+            is_transient_status(*response_code) ? ShouldRetry::Yes : ShouldRetry::No,
+            retry_after_ms(response_headers));
+        return;
+    }
+    on_success(ByteString::copy(body));
 }
 
 void ReportSubmission::finish()
