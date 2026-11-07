@@ -376,6 +376,9 @@ private:
 
     void rebuild_layout();
     void rebuild_layout_for_horizontal_tabs();
+    bool sidebar_toggle_stays_in_corner() const;
+    void place_all_tabs_and_sidebar_toggle();
+    void place_sidebar_toggle_in_corner();
     void place_collapsed_sidebar_buttons();
     void float_sidebar_buttons_while_toggling();
     bool slides_page_with_toggling_sidebar() const;
@@ -385,7 +388,8 @@ private:
     int toolbar_row_height_while_toggling() const;
     void move_toolbar_with_toggling_sidebar();
     QWidget* m_floating_buttons_strip { nullptr };
-    QLabel* m_floating_ladybird_buttons { nullptr };
+    QLabel* m_floating_ladybird_button { nullptr };
+    QLabel* m_floating_all_tabs_button { nullptr };
     QLabel* m_floating_sidebar_toggle { nullptr };
     // Where the toolbar's slot for the buttons ends when the sidebar starts to open, in the window. The slot keeps
     // ending there until the sidebar is open, so the toolbar's other buttons stay in place under the sidebar.

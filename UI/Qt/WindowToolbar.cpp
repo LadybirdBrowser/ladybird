@@ -78,6 +78,16 @@ public:
 
     Function<void(Web::HTML::ActivateTab)> on_open_in_new_tab;
 
+    // NB: A style sheet that sets a button's minimum size resets it when the button is polished again, so the button
+    //     keeps the size as its size hint as well.
+    void set_size(QSize size)
+    {
+        m_size = size;
+        setFixedSize(size);
+    }
+
+    virtual QSize sizeHint() const override { return m_size.isValid() ? m_size : QToolButton::sizeHint(); }
+
     bool click_opens_in_new_tab() const
     {
         return can_open_in_new_tab() && QApplication::keyboardModifiers().testFlag(Qt::ControlModifier);
@@ -206,6 +216,7 @@ protected:
     }
 
 private:
+    QSize m_size;
     static constexpr int NUDGE_DURATION_MS = 180;
     static constexpr qreal NUDGE_DISTANCE = 2;
     static constexpr qreal NUDGE_PEAK_AT = 0.4;
@@ -624,7 +635,8 @@ static constexpr int TOOLBAR_LOCATION_EDIT_MARGIN = 6;
 static constexpr int TOOLBAR_LOCATION_FOCUS_RING_ROOM = 4;
 // In the open sidebar, the navigation buttons have a row of their own, above the address field, and the toolbar's other
 // buttons sit in a footer at its bottom.
-static constexpr int SIDEBAR_NAVIGATION_ROW_HEIGHT = 32;
+static constexpr QSize SIDEBAR_NAVIGATION_BUTTON_SIZE { 26, 28 };
+static constexpr int NAVIGATION_BUTTON_COUNT = 3;
 static constexpr int SIDEBAR_FIELD_TOP_MARGIN = 4;
 static constexpr int SIDEBAR_FIELD_BOTTOM_MARGIN = 8;
 static constexpr int SIDEBAR_FOOTER_HEIGHT = 40;
@@ -1210,6 +1222,7 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     }
 
     auto* navigation_button_cluster = new QWidget(m_toolbar);
+    navigation_button_cluster->setObjectName("LadybirdNavigationButtons");
     m_navigation_buttons = navigation_button_cluster;
     navigation_button_cluster->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
     auto* navigation_button_layout = new QHBoxLayout(navigation_button_cluster);
@@ -1293,8 +1306,35 @@ WindowToolbar::~WindowToolbar()
     delete m_field_panel.data();
 }
 
+int WindowToolbar::navigation_buttons_width_in_sidebar()
+{
+    return NAVIGATION_BUTTON_COUNT * SIDEBAR_NAVIGATION_BUTTON_SIZE.width();
+}
+
+int WindowToolbar::sidebar_footer_height()
+{
+    return SIDEBAR_FOOTER_HEIGHT;
+}
+
+void WindowToolbar::set_sidebar_footer_leading_room(int room)
+{
+    m_sidebar_footer_leading_room = room;
+    auto margins = m_sidebar_footer->layout()->contentsMargins();
+    margins.setLeft(room);
+    m_sidebar_footer->layout()->setContentsMargins(margins);
+}
+
+void WindowToolbar::size_navigation_buttons(QSize size, int spacing)
+{
+    for (auto* button : m_navigation_buttons->findChildren<QToolButton*>(Qt::FindDirectChildrenOnly))
+        static_cast<ToolbarButton*>(button)->set_size(size);
+    m_navigation_buttons->layout()->setSpacing(spacing);
+}
+
 void WindowToolbar::lay_out_as_row()
 {
+    size_navigation_buttons(TOOLBAR_BUTTON_SIZE, TOOLBAR_SPACING);
+
     auto* toolbar_layout = new QHBoxLayout(m_toolbar);
     toolbar_layout->setSpacing(TOOLBAR_SPACING);
     toolbar_layout->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, 0, toolbar_right_margin(false), 0);
@@ -1303,6 +1343,7 @@ void WindowToolbar::lay_out_as_row()
         toolbar_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_sidebar_slot, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_navigation_buttons, 0, Qt::AlignVCenter);
+    m_navigation_buttons->show();
     toolbar_layout->addWidget(&field_slot(), 1);
     toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
     if (m_feedback_button)
@@ -1316,20 +1357,15 @@ void WindowToolbar::lay_out_as_row()
     layout()->setContentsMargins(0, 0, 0, TOOLBAR_BOTTOM_LINE_HEIGHT);
 }
 
-// In the open sidebar, the navigation buttons get a row of their own, and the address field takes the sidebar's width
-// below them. The other buttons move to the footer at the sidebar's bottom.
+// In the open sidebar, the address field takes the sidebar's width below its top row, which holds the navigation buttons.
+// The other buttons move to the footer at the sidebar's bottom.
 void WindowToolbar::lay_out_in_sidebar()
 {
+    size_navigation_buttons(SIDEBAR_NAVIGATION_BUTTON_SIZE, 0);
+
     auto* toolbar_layout = new QVBoxLayout(m_toolbar);
     toolbar_layout->setSpacing(0);
     toolbar_layout->setContentsMargins(0, 0, 0, 0);
-
-    auto* navigation_row = new QHBoxLayout;
-    navigation_row->setContentsMargins(m_sidebar_inset, 0, m_sidebar_inset, 0);
-    navigation_row->addStrut(SIDEBAR_NAVIGATION_ROW_HEIGHT);
-    navigation_row->addWidget(m_navigation_buttons, 0, Qt::AlignVCenter);
-    navigation_row->addStretch(1);
-    toolbar_layout->addLayout(navigation_row);
 
     auto* field_row = new QHBoxLayout;
     // NB: The field's container leaves room for its focus ring all around, which the row's margins make up for.
@@ -1348,7 +1384,7 @@ void WindowToolbar::lay_out_in_sidebar()
     footer_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
     if (m_feedback_button)
         footer_layout->addWidget(m_feedback_button, 0, Qt::AlignVCenter);
-    footer_layout->setContentsMargins(m_sidebar_inset, 0, m_sidebar_inset, 0);
+    footer_layout->setContentsMargins(m_sidebar_footer_leading_room, 0, m_sidebar_inset, 0);
 
     layout()->setContentsMargins(0, 0, 0, 0);
 }
@@ -1560,8 +1596,7 @@ int WindowToolbar::height_in_sidebar() const
 {
     auto field_margins = m_location_edit_layout->contentsMargins();
     auto field_height = m_location_edit_container->sizeHint().height() - field_margins.top() - field_margins.bottom();
-    auto navigation_row_height = max(SIDEBAR_NAVIGATION_ROW_HEIGHT, m_navigation_buttons->sizeHint().height());
-    return navigation_row_height + SIDEBAR_FIELD_TOP_MARGIN + field_height + SIDEBAR_FIELD_BOTTOM_MARGIN;
+    return SIDEBAR_FIELD_TOP_MARGIN + field_height + SIDEBAR_FIELD_BOTTOM_MARGIN;
 }
 
 void WindowToolbar::set_contents_opacity(qreal opacity)
@@ -1590,6 +1625,8 @@ void WindowToolbar::apply_contents_opacity()
     };
     fade(*m_toolbar, m_contents_opacity);
     fade(*m_sidebar_footer, m_contents_opacity);
+    // NB: In the sidebar, the navigation buttons are in its top row rather than in the toolbar.
+    fade(*m_navigation_buttons, m_arrangement == ToolbarArrangement::Sidebar ? m_contents_opacity : 1);
     // NB: The field is in its panel rather than in the toolbar. The panel at rest looks like the toolbar under it, so only
     //     the field fades.
     fade(*m_location_edit_container, m_contents_opacity);
@@ -1756,8 +1793,11 @@ int WindowToolbar::lead_beside_collapsed_sidebar(QWidget const& ladybird_buttons
         lead += m_window_controls->width() + toolbar_spacing;
 
     auto slot_width = m_sidebar_slot->layout()->sizeHint().width();
+    auto slot_spacing = m_sidebar_slot->layout()->spacing();
     if (ladybird_buttons.parentWidget() != m_sidebar_slot)
-        slot_width += ladybird_buttons.sizeHint().width() + sidebar_toggle_size.width() + (2 * m_sidebar_slot->layout()->spacing());
+        slot_width += ladybird_buttons.sizeHint().width() + slot_spacing;
+    if (!sidebar_toggle_size.isEmpty() && ladybird_buttons.parentWidget() != m_sidebar_slot)
+        slot_width += sidebar_toggle_size.width() + slot_spacing;
     return lead + slot_width + toolbar_spacing;
 }
 
@@ -1858,8 +1898,10 @@ void WindowToolbar::update_chrome_style()
     m_is_updating_chrome_style = true;
     auto style_sheet = ChromeStyle::toolbar_container_style_sheet(Theme::chrome_palette(*this));
     setStyleSheet(style_sheet);
-    // NB: The sidebar's footer lies outside the toolbar while the sidebar holds it, so it takes the style sheet itself.
+    // NB: The sidebar's footer and top row lie outside the toolbar while the sidebar holds it, so what it shows there
+    //     takes the style sheet itself.
     m_sidebar_footer->setStyleSheet(style_sheet);
+    m_navigation_buttons->setStyleSheet(style_sheet);
     auto const& colors = Theme::chrome(Theme::chrome_palette(*this));
     auto row_palette = m_performance_monitor_row->palette();
     row_palette.setColor(QPalette::Window, colors.toolbar);
