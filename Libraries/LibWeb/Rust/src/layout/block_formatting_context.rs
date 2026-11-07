@@ -1855,7 +1855,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 + padding_right
                 + *margin_right;
 
-            if !facts.is_inline() {
+            // NB: The table box of an inline-level table keeps its inline-level display, but its wrapper holds it as a
+            //     block-level box, so it takes the wrapper's inline size as one would.
+            let sized_as_block_level = !facts.is_inline()
+                || (facts.is_table_box() && matches!(available_space.inline_size, AvailableSize::Definite(_)));
+            if sized_as_block_level {
                 // 10.3.3 Block-level, non-replaced elements in normal flow
                 // If 'width' is not 'auto' and 'border-left-width' + 'padding-left' + 'width' + 'padding-right' +
                 // 'border-right-width' (plus any of 'margin-left' or 'margin-right' that are not 'auto') is larger than the
