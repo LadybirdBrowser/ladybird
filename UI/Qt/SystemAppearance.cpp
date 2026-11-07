@@ -39,6 +39,9 @@ SystemAppearance::SystemAppearance()
 
     QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this] {
         update();
+        // While the interface theme is Light or Dark, our windows keep their appearance whatever Qt reports.
+        if (m_interface_theme == WebView::ThemePreference::System)
+            emit interface_appearance_changed();
     });
     // The chrome's colors depend on the contrast preference, but changing it does not change the application palette.
     QObject::connect(QGuiApplication::styleHints()->accessibility(), &QAccessibilityHints::contrastPreferenceChanged, this, [] {
@@ -61,7 +64,9 @@ void SystemAppearance::apply_interface_theme(WebView::ThemePreference theme)
 {
     if (theme == m_interface_theme)
         return;
+    auto was_dark = Theme::is_dark();
     m_interface_theme = theme;
+    Theme::set_interface_theme(theme);
 
     switch (theme) {
     case WebView::ThemePreference::System:
@@ -74,6 +79,22 @@ void SystemAppearance::apply_interface_theme(WebView::ThemePreference theme)
         QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
         break;
     }
+
+    // NB: Some platform themes, such as KDE's, ignore requests for a color scheme. Qt then neither changes its color
+    //     scheme nor tells anyone, so the chrome learns of the switch from us instead.
+    update_interface_appearance(was_dark);
+}
+
+void SystemAppearance::update_interface_appearance(bool was_dark)
+{
+    if (Theme::is_dark() == was_dark)
+        return;
+
+    // NB: Qt's color scheme can't tell whether Qt restyles the widgets: it is unchanged where the request was ignored
+    //     but the system already had the requested scheme, and elsewhere it only changes once the theme change has
+    //     been delivered.
+    notify_widgets_of_palette_change();
+    emit interface_appearance_changed();
 }
 
 void SystemAppearance::apply_color_theme(WebView::ColorTheme theme)

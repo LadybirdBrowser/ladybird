@@ -191,7 +191,7 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
             schedule_repaint();
         });
     };
-    QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, update_palette_soon);
+    QObject::connect(&SystemAppearance::the(), &SystemAppearance::interface_appearance_changed, this, update_palette_soon);
     QObject::connect(&SystemAppearance::the(), &SystemAppearance::changed, this, update_palette_soon);
 
     m_tooltip_hover_timer.setSingleShot(true);
@@ -1978,9 +1978,11 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
     auto palette_impl = Gfx::PaletteImpl::create_with_anonymous_buffer(theme);
     auto palette = Gfx::Palette(move(palette_impl));
 
-    // The widgets' palette follows the interface theme. When pages get the other appearance, they keep the colors of
-    // the theme file instead.
-    auto qt_palette_matches = ChromeStyle::is_dark(qt_palette) == dark;
+    // When the widgets' palette has the other appearance than pages get, pages keep the colors of the theme file instead.
+    // NB: The palette is judged by its own colors, as the platform theme may keep the system's palette whatever the
+    //     interface theme asks for.
+    auto qt_palette_is_dark = qt_palette.color(QPalette::Window).lightness() < 128;
+    auto qt_palette_matches = qt_palette_is_dark == dark;
     auto translate = [&](Gfx::ColorRole gfx_color_role, QPalette::ColorRole qt_color_role) {
         if (!qt_palette_matches)
             return;
