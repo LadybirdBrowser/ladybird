@@ -5832,16 +5832,24 @@ void EventHandler::report_hovered_link_to_client(GC::Ptr<DOM::Node> target)
 {
     auto& page = m_navigable->page();
 
-    Optional<URL::URL> hovered_link_url;
-    Optional<UniqueNodeID> hovered_document;
-    if (target) {
-        hovered_document = target->document().unique_id();
-        // NB: A link in editable content is text to edit, which clicking does not follow.
-        auto const* hovered_link_element = target->enclosing_link_element();
-        if (hovered_link_element && !hovered_link_element->hyperlink_element_utils_element().is_editable_or_editing_host())
-            hovered_link_url = target->document().encoding_parse_url(hovered_link_element->href());
+    // With no target, the pointer is over nothing of this handler's document: It left the view, or the iframe this
+    // handler is for, or the document is going away. So, end only a link asked for over this document. Another
+    // document's link stands — e.g., one of the page around an iframe the pointer just left, which a hover of the render
+    // clock may have reported before this handler heard that the pointer left.
+    if (!target) {
+        if (auto document = m_navigable->active_document())
+            page.hover_link().withdraw(document->unique_id());
+        if (page.hover_reporting_navigable() == m_navigable)
+            page.set_hover_reporting_navigable({}, nullptr);
+        return;
     }
-    page.hover_link().request(move(hovered_link_url), hovered_document);
+
+    Optional<URL::URL> hovered_link_url;
+    // NB: A link in editable content is text to edit, which clicking does not follow.
+    auto const* hovered_link_element = target->enclosing_link_element();
+    if (hovered_link_element && !hovered_link_element->hyperlink_element_utils_element().is_editable_or_editing_host())
+        hovered_link_url = target->document().encoding_parse_url(hovered_link_element->href());
+    page.hover_link().request(move(hovered_link_url), target->document().unique_id());
 
     // Whatever the client shows now, this handler reported — so the hover is this handler's to end.
     GC::Ptr<HTML::LocalNavigable> hover_reporting_navigable;
