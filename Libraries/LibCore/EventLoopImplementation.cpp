@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoopImplementation.h>
 #include <LibCore/ThreadEventQueue.h>
@@ -47,18 +48,26 @@ void EventLoopImplementation::deferred_invoke(Function<void()>&& invokee)
         wake();
 }
 
-static EventLoopManager* s_event_loop_manager = nullptr;
+static Atomic<EventLoopManager*> s_event_loop_manager { nullptr };
 EventLoopManager& EventLoopManager::the()
 {
-    if (!s_event_loop_manager)
-        s_event_loop_manager = new EventLoopManagerPlatform;
-    return *s_event_loop_manager;
+    if (auto* manager = s_event_loop_manager.load(AK::memory_order_acquire))
+        return *manager;
+
+    // NB: Threads can get here at the same time, and the first one to store its manager wins.
+    auto* manager = new EventLoopManagerPlatform;
+    EventLoopManager* existing_manager = nullptr;
+    if (s_event_loop_manager.compare_exchange_strong(existing_manager, manager, AK::memory_order_acq_rel))
+        return *manager;
+    delete manager;
+    return *existing_manager;
 }
 
 void EventLoopManager::install(Core::EventLoopManager& manager)
 {
-    VERIFY(!s_event_loop_manager);
-    s_event_loop_manager = &manager;
+    EventLoopManager* existing_manager = nullptr;
+    auto did_install = s_event_loop_manager.compare_exchange_strong(existing_manager, &manager, AK::memory_order_acq_rel);
+    VERIFY(did_install);
 }
 
 EventLoopManager::EventLoopManager() = default;
