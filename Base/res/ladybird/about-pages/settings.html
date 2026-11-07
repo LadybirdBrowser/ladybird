@@ -592,8 +592,13 @@
                 gap: 12px;
             }
 
+            /* The content column is centered in the room right of the sidebar, so a wide window doesn't leave it leaning
+               left. */
             .settings-content {
-                max-width: 712px;
+                box-sizing: border-box;
+                width: 100%;
+                max-width: 824px;
+                margin: 0 auto;
                 padding: 28px 56px;
             }
 
@@ -640,6 +645,13 @@
             .boxed-list .item-name .description {
                 margin: 0;
                 font-size: 12px;
+            }
+
+            /* A group's subheading. At regular weight, it would read as a setting with a missing control. */
+            #tab-layout-title,
+            #crash-reports-title,
+            .list-heading > span:first-child {
+                font-weight: 600;
             }
 
             .list-heading {
@@ -775,7 +787,7 @@
                 margin: 24px 0 2px;
                 font-size: 13px;
                 font-weight: 600;
-                color: var(--muted);
+                color: var(--text);
             }
 
             .card,
