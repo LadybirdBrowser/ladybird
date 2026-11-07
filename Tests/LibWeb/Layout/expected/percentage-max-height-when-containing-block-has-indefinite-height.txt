@@ -3,22 +3,22 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 98 0+1+8] children: not-inline
       BlockContainer <div.block.formatting-context> at [11,11] [0+1+0 778 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
         BlockContainer <div> at [12,12] [0+1+0 776 0+1+0] [0+1+0 16 0+1+0] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [12,12 40.671875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 5, rect: [12,12 40.671875x16] baseline: 13
               "block"
           TextNode <#text> (not painted)
       BlockContainer <div.inline.formatting-context> at [11,31] [0+1+0 778 0+1+0] [0+1+0 16 0+1+0] [BFC] children: inline
         InlineNode <div> at [12,31] [0+1+0 41.296875 0+1+0] [0+1+0 16 0+1+0]
-          frag 0 from TextNode start: 0, length: 6, rect: [12,31 41.296875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 6, rect: [12,31 41.296875x16] baseline: 13
               "inline"
           TextNode <#text> (not painted)
       Box <div.flex.formatting-context> at [11,49] flex-container(row) [0+1+0 778 0+1+0] [0+1+0 18 0+1+0] [FFC] children: not-inline
         BlockContainer <div> at [12,50] flex-item [0+1+0 29.09375 0+1+0] [0+1+0 16 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [12,50 29.09375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 4, rect: [12,50 29.09375x16] baseline: 13
               "flex"
           TextNode <#text> (not painted)
       Box <div.grid.formatting-context> at [11,69] [0+1+0 778 0+1+0] [0+1+0 18 0+1+0] [GFC] children: not-inline
         BlockContainer <div> at [12,70] [0+1+0 776 0+1+0] [0+1+0 16 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [12,70 28.8125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 4, rect: [12,70 28.8125x16] baseline: 13
               "grid"
           TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [10,88] [0+0+0 42.625 0+0+737.375] [0+0+0 20 0+0+0] [BFC] children: not-inline
@@ -26,7 +26,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <(anonymous)> at [11,89] table-row [0+0+0 40.625 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [11,89] table-cell [0+0+0 40.625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
               BlockContainer <div> at [12,90] [0+1+0 38.625 0+1+0] [0+1+0 16 0+1+0] children: inline
-                frag 0 from TextNode start: 0, length: 5, rect: [12,90 38.625x16] baseline: 12.796875
+                frag 0 from TextNode start: 0, length: 5, rect: [12,90 38.625x16] baseline: 13
                     "table"
                 TextNode <#text> (not painted)
 

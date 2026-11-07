@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 862x600]
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 499.203125 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 483.203125 0+0+8] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 499 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 483 0+0+8] children: inline
       frag 0 from VideoBox start: 0, length: 0, rect: [8,8 854x480] baseline: 480
       VideoBox <video> at [8,8] inline-block [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [8,8] [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] children: not-inline
@@ -16,7 +16,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <button.exit-picture-in-picture-button> at [381.78125,268.5] flex-item [0+0+16 106.453125 16+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
                 BlockContainer <(anonymous)> at [381.78125,268.5] flex-container(column) [0+0+0 106.453125 0+0+0] [0+0+0 32 0+0+0] [FFC] children: not-inline
                   BlockContainer <(anonymous)> at [381.78125,278] flex-item [0+0+0 106.453125 0+0+0] [0+0+0 13 0+0+0] [BFC] children: inline
-                    frag 0 from TextNode start: 0, length: 16, rect: [381.78125,278 106.453125x13] baseline: 10.390625
+                    frag 0 from TextNode start: 0, length: 16, rect: [381.78125,278 106.453125x13] baseline: 10
                         "Bring video back"
                     TextNode <#text> (not painted)
             Box <div.controls.visible> at [8,445] positioned flex-container(column) [0+0+0 854 0+0+0] [0+0+0 43 0+0+0] [FFC] children: not-inline
@@ -29,7 +29,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                   SVGSVGBox <svg.icon.play-pause-icon> at [16,457] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
                     SVGGeometryBox <path.play-path> at [6,5] [0+0+0 13 0+0+0] [0+0+0 14 0+0+0] children: not-inline
                 BlockContainer <span.timestamp> at [48,463] flex-item [0+0+0 77.8125 0+0+0] [0+0+0 12 0+0+0] [BFC] children: inline
-                  frag 0 from TextNode start: 0, length: 13, rect: [48,463 77.8125x12] baseline: 9.59375
+                  frag 0 from TextNode start: 0, length: 13, rect: [48,463 77.8125x12] baseline: 10
                       "00:00 / 00:12"
                   TextNode <#text> (not painted)
                 Box <button.control-button.mute-button.high> at [730,457] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
@@ -46,6 +46,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x499.203125] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x499] (z-index: auto)
   SC for BlockContainer<DIV>.timeline [8,445 854x5] (z-index: 1)
    SC for BlockContainer<DIV>.timeline-buffered [8,445 854x5] (z-index: auto)

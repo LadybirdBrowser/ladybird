@@ -5,23 +5,23 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div> at [8,8] table-box [0+0+0 55.359375 0+0+0] [0+0+0 144 0+0+0] [TFC] children: not-inline
           Box <(anonymous)> at [8,8] table-row [0+0+0 55.359375 0+0+0] [0+0+0 144 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 55.359375 0+0+0] [0+0+0 144 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 1, length: 4, rect: [8,8 28.40625x16] baseline: 12.796875
+              frag 0 from TextNode start: 1, length: 4, rect: [8,8 28.40625x16] baseline: 13
                   "well"
-              frag 1 from TextNode start: 6, length: 5, rect: [8,24 36.84375x16] baseline: 12.796875
+              frag 1 from TextNode start: 6, length: 5, rect: [8,24 36.84375x16] baseline: 13
                   "hello"
-              frag 2 from TextNode start: 12, length: 7, rect: [8,40 55.359375x16] baseline: 12.796875
+              frag 2 from TextNode start: 12, length: 7, rect: [8,40 55.359375x16] baseline: 13
                   "friends"
-              frag 3 from TextNode start: 20, length: 4, rect: [8,56 28.40625x16] baseline: 12.796875
+              frag 3 from TextNode start: 20, length: 4, rect: [8,56 28.40625x16] baseline: 13
                   "well"
-              frag 4 from TextNode start: 25, length: 5, rect: [8,72 36.84375x16] baseline: 12.796875
+              frag 4 from TextNode start: 25, length: 5, rect: [8,72 36.84375x16] baseline: 13
                   "hello"
-              frag 5 from TextNode start: 31, length: 7, rect: [8,88 55.359375x16] baseline: 12.796875
+              frag 5 from TextNode start: 31, length: 7, rect: [8,88 55.359375x16] baseline: 13
                   "friends"
-              frag 6 from TextNode start: 39, length: 4, rect: [8,104 28.40625x16] baseline: 12.796875
+              frag 6 from TextNode start: 39, length: 4, rect: [8,104 28.40625x16] baseline: 13
                   "well"
-              frag 7 from TextNode start: 44, length: 5, rect: [8,120 36.84375x16] baseline: 12.796875
+              frag 7 from TextNode start: 44, length: 5, rect: [8,120 36.84375x16] baseline: 13
                   "hello"
-              frag 8 from TextNode start: 50, length: 7, rect: [8,136 55.359375x16] baseline: 12.796875
+              frag 8 from TextNode start: 50, length: 7, rect: [8,136 55.359375x16] baseline: 13
                   "friends"
               TextNode <#text> (not painted)
 

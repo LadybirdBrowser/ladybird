@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 105.203125 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 105.203125 0+0+0] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 105 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 105 0+0+0] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [1,1 40x100] baseline: 102
       BlockContainer <div> at [1,1] inline-block [0+1+0 40 0+1+0] [0+1+0 100 0+1+0] [BFC] children: not-inline
         BlockContainer <div> at [1,1] floating [0+0+0 10 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
@@ -8,4 +8,4 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x105.203125] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x105] (z-index: auto)

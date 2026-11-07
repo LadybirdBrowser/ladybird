@@ -4,9 +4,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.outer> at [3,3] [0+1+0 766 0+1+28] [0+1+0 59 0+1+0] [GFC] children: not-inline
         Box <div.card> at [4,4] [0+1+0 245.328125 0+1+0] [0+1+0 57 0+1+0] [GFC] children: not-inline
           BlockContainer <p> at [5,5] [0+1+0 243.328125 0+1+0] [0+1+0 33 0+1+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 26, rect: [5,5 222.375x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 26, rect: [5,5 222.375x16] baseline: 13
                 "Some long text that should"
-            frag 1 from TextNode start: 27, length: 26, rect: [5,21 219.03125x16] baseline: 12.796875
+            frag 1 from TextNode start: 27, length: 26, rect: [5,21 219.03125x16] baseline: 13
                 "wrap over to the next line"
             TextNode <#text> (not painted)
 

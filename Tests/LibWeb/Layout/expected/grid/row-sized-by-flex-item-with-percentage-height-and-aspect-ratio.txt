@@ -9,7 +9,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <a> at [150,0] flex-container(row) [0+0+0 150 0+0+0] [0+0+0 112.5 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [150,0] flex-item [0+0+0 150 0+0+0] [0+0+0 112.5 0+0+0] [BFC] children: not-inline
       BlockContainer <p> at [0,112.5] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 40, rect: [0,112.5 341.84375x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 40, rect: [0,112.5 341.84375x16] baseline: 13
             "The paragraph must not overlap the grid."
         TextNode <#text> (not painted)
 

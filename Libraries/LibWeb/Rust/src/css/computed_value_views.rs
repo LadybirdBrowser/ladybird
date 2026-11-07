@@ -1436,12 +1436,14 @@ impl<'a> ComputedValuesView<'a> {
         self.font().line_height_used()
     }
 
+    // NB: Layout counts a font's ascent and descent in whole pixels, as it does for 'line-height: normal', so text
+    //     with a whole-pixel line height has its baseline on a pixel.
     pub(crate) fn font_ascent(self) -> f32 {
-        self.font().first_available_font_metrics().ascent
+        self.font().first_available_font_metrics().ascent.round_ties_even()
     }
 
     pub(crate) fn font_descent(self) -> f32 {
-        self.font().first_available_font_metrics().descent
+        self.font().first_available_font_metrics().descent.round_ties_even()
     }
 
     pub(crate) fn font_x_height(self) -> f32 {

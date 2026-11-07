@@ -13,30 +13,30 @@ AccumulatedVisualContext Tree:
 DisplayList:
 FillRectWithRoundedCorners@s1/e0 rect=[0,0 58x20] color=rgb(239, 239, 239)
 FillRoundedRectRing@s1/e0 rect=[0,0 58x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
-DrawGlyphRun@s1/e0 rect=[9,3 40x14] translation=[9,13.984375] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[9,3 40x14] translation=[9,14] color=rgb(0, 0, 0)
 FillRectWithRoundedCorners@s1/e0 rect=[0,30 130x24] color=rgb(239, 239, 239)
 FillRoundedRectRing@s1/e0 rect=[0,30 130x24] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
-DrawGlyphRun@s1/e0 rect=[5,35 120x14] translation=[5,45.984375] color=rgb(0, 128, 0)
+DrawGlyphRun@s1/e0 rect=[5,35 120x14] translation=[5,46] color=rgb(0, 128, 0)
 FillRectWithRoundedCorners@s1/e0 rect=[0,60 129x20] color=rgb(239, 239, 239)
 FillRoundedRectRing@s1/e0 rect=[0,60 129x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
-DrawGlyphRun@s1/e0 rect=[9,63 112x14] translation=[9,73.984375] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[9,63 112x14] translation=[9,74] color=rgb(0, 0, 0)
 FillRect@s1/e0 rect=[0,90 92x20] color=rgb(0, 255, 0)
 FillPath@s1/e0 path_bounding_rect=[0,90 92x20]
 FillPath@s1/e0 path_bounding_rect=[0,90 92x20]
-DrawGlyphRun@s1/e0 rect=[9,93 75x14] translation=[9,103.984375] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[9,93 75x14] translation=[9,104] color=rgb(0, 0, 0)
 FillRect@s1/e0 rect=[0,120 63x20] color=rgb(239, 239, 239)
 FillPath@s1/e0 path_bounding_rect=[0,120 63x20]
 FillPath@s1/e0 path_bounding_rect=[0,120 63x20]
-DrawGlyphRun@s1/e0 rect=[9,123 45x14] translation=[9,133.98438] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[9,123 45x14] translation=[9,134] color=rgb(0, 0, 0)
 FillRect@s1/e0 rect=[0,150 137x20] color=rgb(239, 239, 239)
 FillPath@s1/e0 path_bounding_rect=[0,150 137x20]
 FillPath@s1/e0 path_bounding_rect=[0,150 137x20]
-DrawGlyphRun@s1/e0 rect=[9,153 119x14] translation=[9,163.98438] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[9,153 119x14] translation=[9,164] color=rgb(0, 0, 0)
 FillRectWithRoundedCorners@s1/e0 rect=[0,180 170x20] color=rgb(255, 255, 255)
 FillRoundedRectRing@s1/e0 rect=[0,180 170x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
-DrawGlyphRun@s1/c1/e0 rect=[5,183 32x14] translation=[5,193.98438] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/c1/e0 rect=[5,183 32x14] translation=[5,194] color=rgb(0, 0, 0)
 FillRect@s1/e0 rect=[0,210 172x22] color=rgb(255, 255, 255)
 FillPath@s1/e0 path_bounding_rect=[0,210 172x22]
 FillPath@s1/e0 path_bounding_rect=[0,210 172x22]
-DrawGlyphRun@s1/c3/e0 rect=[6,214 59x14] translation=[6,224.98438] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/c3/e0 rect=[6,214 59x14] translation=[6,225] color=rgb(0, 0, 0)
 

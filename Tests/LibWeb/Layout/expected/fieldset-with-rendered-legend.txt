@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 33.59375 0+0+8] children: not-inline
       FieldSetBox <fieldset> at [24,15.59375] [2+2+12 752 12+2+2] [0+2+5.59375 14 10+2+0] [BFC] children: not-inline
         LegendBox <legend> at [26,8] [0+0+2 36.328125 2+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [26,8 36.328125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 5, rect: [26,8 36.328125x16] baseline: 13
               "login"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> at [24,29.59375] [0+0+0 752 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline

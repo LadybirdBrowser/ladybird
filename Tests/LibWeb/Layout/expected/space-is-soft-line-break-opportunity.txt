@@ -3,13 +3,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 34 0+0+8] children: not-inline
       BlockContainer <div.fixed_width> at [9,9] [0+1+0 50 0+1+732] [0+1+0 32 0+1+0] children: inline
         InlineNode <span.nowrap> at [9,9] [0+0+0 33.921875 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 3, rect: [9,9 33.921875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [9,9 33.921875x16] baseline: 13
               "ABC"
           TextNode <#text> (not painted)
         InlineNode <span> at [9,9] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
           TextNode <#text> (not painted)
         InlineNode <span.nowrap> at [9,25] [0+0+0 33.921875 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 3, rect: [9,25 33.921875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [9,25 33.921875x16] baseline: 13
               "ABC"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)

@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.a> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
         Box <div.b> at [8,8] [0+0+0 196 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
           BlockContainer <span> at [8,8] [0+0+0 196 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline overflow: [8,8 970.5625x16]
-            frag 0 from TextNode start: 0, length: 115, rect: [8,8 970.5625x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 115, rect: [8,8 970.5625x16] baseline: 13
                 "Very very very long sentence lorem ipsum too long to fit what will happen with this sentence? Nobody knows for sure"
             TextNode <#text> (not painted)
 

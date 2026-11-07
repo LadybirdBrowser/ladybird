@@ -2,28 +2,28 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 136 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 120 0+0+8] children: not-inline
       Box <div.row> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
-        BlockContainer <span.icon> at [8,8.796875] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+        BlockContainer <span.icon> at [8,9] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
         BlockContainer <span.text> at [24,8] flex-item [0+0+0 64 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [24,12 64x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 4, rect: [24,12 64x16] baseline: 13
               "Text"
           TextNode <#text> (not painted)
       Box <div.row> at [8,32] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] [FFC] children: not-inline
-        BlockContainer <span.icon> at [8,32.796875] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+        BlockContainer <span.icon> at [8,33] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
         BlockContainer <span.text> at [24,32] flex-item [0+0+0 64 0+0+0] [0+0+0 48 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [24,36 64x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 4, rect: [24,36 64x16] baseline: 13
               "Text"
-          frag 1 from TextNode start: 5, length: 4, rect: [24,60 64x16] baseline: 12.796875
+          frag 1 from TextNode start: 5, length: 4, rect: [24,60 64x16] baseline: 13
               "Text"
           TextNode <#text> (not painted)
       Box <div.row> at [8,80] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] [FFC] children: not-inline
-        BlockContainer <span.icon> at [8,80.796875] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+        BlockContainer <span.icon> at [8,81] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
         BlockContainer <div.text> at [24,80] flex-item [0+0+0 64 0+0+0] [0+0+0 48 0+0+0] [BFC] children: not-inline
           BlockContainer <p> at [24,80] [0+0+0 64 0+0+0] [0+0+0 24 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 4, rect: [24,84 64x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 4, rect: [24,84 64x16] baseline: 13
                 "Text"
             TextNode <#text> (not painted)
           BlockContainer <p> at [24,104] [0+0+0 64 0+0+0] [0+0+0 24 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 4, rect: [24,108 64x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 4, rect: [24,108 64x16] baseline: 13
                 "Text"
             TextNode <#text> (not painted)
 

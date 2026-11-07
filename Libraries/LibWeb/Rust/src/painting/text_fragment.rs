@@ -419,8 +419,9 @@ pub(crate) fn rect_for_selection_offsets(
         let ascent_f = font.facts().ascent;
         let descent_f = font.facts().descent;
         if ascent_f > 0.0 || descent_f > 0.0 {
-            let ascent = CssPixels::nearest_value_for_f32(ascent_f);
-            let descent = CssPixels::nearest_value_for_f32(descent_f);
+            // NB: Layout counts the font's ascent and descent in whole pixels, so its text baselines are too.
+            let ascent = CssPixels::nearest_value_for_f32(ascent_f.round_ties_even());
+            let descent = CssPixels::nearest_value_for_f32(descent_f.round_ties_even());
             let zero = CssPixels::from_raw(0);
             let overflow_top = (ascent - fragment.baseline).max(zero);
             let overflow_bottom = (descent - secondary_size(rect, horizontal) + fragment.baseline).max(zero);

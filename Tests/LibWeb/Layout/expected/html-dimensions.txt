@@ -1,6 +1,6 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x742.609375]
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 742.609375 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 726.609375 0+0+8] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x742]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 742 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 726 0+0+8] children: inline
       frag 0 from VideoBox start: 0, length: 0, rect: [8,8 320x240] baseline: 240
       frag 1 from VideoBox start: 0, length: 0, rect: [8,251 640x480] baseline: 480
       VideoBox <video> at [8,8] inline-block [0+0+0 320 0+0+0] [0+0+0 240 0+0+0] children: not-inline
@@ -9,4 +9,4 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x742.609375] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x742] (z-index: auto)

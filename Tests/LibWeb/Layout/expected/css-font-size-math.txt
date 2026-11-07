@@ -1,24 +1,24 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 88 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 72 0+0+8] children: inline
-      InlineNode <span> at [8,24] [0+0+0 78.9375 0+0+0] [0+0+0 51 0+0+0]
-        frag 0 from TextNode start: 0, length: 1, rect: [8,24 39.09375x51] baseline: 40.828125
+      InlineNode <span> at [8,25] [0+0+0 78.9375 0+0+0] [0+0+0 51 0+0+0]
+        frag 0 from TextNode start: 0, length: 1, rect: [8,25 39.09375x51] baseline: 41
             "H"
         TextNode <#text> (not painted)
-        InlineNode <span> at [47.09375,36] [0+0+0 39.84375 0+0+0] [0+0+0 36 0+0+0]
-          frag 0 from TextNode start: 0, length: 1, rect: [47.09375,36 19.78125x36] baseline: 28.890625
+        InlineNode <span> at [47.09375,37] [0+0+0 39.84375 0+0+0] [0+0+0 36 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [47.09375,37 19.78125x36] baseline: 29
               "e"
           TextNode <#text> (not painted)
-          InlineNode <span> at [66.875,44] [0+0+0 20.0625 0+0+0] [0+0+0 26 0+0+0]
-            frag 0 from TextNode start: 0, length: 1, rect: [66.875,44 6.8125x26] baseline: 20.71875
+          InlineNode <span> at [66.875,45] [0+0+0 20.0625 0+0+0] [0+0+0 26 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [66.875,45 6.8125x26] baseline: 21
                 "l"
             TextNode <#text> (not painted)
-            InlineNode <span> at [73.6875,50] [0+0+0 13.25 0+0+0] [0+0+0 19 0+0+0]
-              frag 0 from TextNode start: 0, length: 1, rect: [73.6875,50 4.84375x19] baseline: 14.984375
+            InlineNode <span> at [73.6875,51] [0+0+0 13.25 0+0+0] [0+0+0 19 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [73.6875,51 4.84375x19] baseline: 15
                   "l"
               TextNode <#text> (not painted)
-              InlineNode <span> at [78.53125,55] [0+0+0 8.40625 0+0+0] [0+0+0 13 0+0+0]
-                frag 0 from TextNode start: 0, length: 1, rect: [78.53125,55 8.40625x13] baseline: 10.390625
+              InlineNode <span> at [78.53125,56] [0+0+0 8.40625 0+0+0] [0+0+0 13 0+0+0]
+                frag 0 from TextNode start: 0, length: 1, rect: [78.53125,56 8.40625x13] baseline: 10
                     "o"
                 TextNode <#text> (not painted)
       TextNode <#text> (not painted)

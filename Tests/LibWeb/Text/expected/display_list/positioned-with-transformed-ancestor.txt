@@ -10,5 +10,5 @@ DisplayList:
 FillRect@s2/e0 rect=[8,8 200x200] color=rgb(211, 211, 211)
 FillRect@s2/e0 rect=[8,8 200x90] color=rgb(173, 216, 230)
 FillRect@s2/e0 rect=[33,33 100x50] color=rgb(255, 127, 80)
-DrawGlyphRun@s2/e0 rect=[33,33 84x16] translation=[33,45.796875] color=rgb(0, 0, 0)
+DrawGlyphRun@s2/e0 rect=[33,33 84x16] translation=[33,46] color=rgb(0, 0, 0)
 

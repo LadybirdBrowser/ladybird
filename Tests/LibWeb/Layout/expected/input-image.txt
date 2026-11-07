@@ -1,12 +1,12 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 275.203125 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 259.203125 0+0+8] children: not-inline
-      BlockContainer <form> at [8,8] [0+0+0 784 0+0+0] [0+0+0 259.203125 0+0+0] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 275 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 259 0+0+8] children: not-inline
+      BlockContainer <form> at [8,8] [0+0+0 784 0+0+0] [0+0+0 259 0+0+0] children: inline
         frag 0 from ImageBox start: 0, length: 0, rect: [8,216 48x48] baseline: 48
-        frag 1 from TextNode start: 0, length: 1, rect: [56,251 8x16] baseline: 12.796875
+        frag 1 from TextNode start: 0, length: 1, rect: [56,251 8x16] baseline: 13
             " "
         frag 2 from ImageBox start: 0, length: 0, rect: [64,200 64x64] baseline: 64
-        frag 3 from TextNode start: 0, length: 1, rect: [128,251 8x16] baseline: 12.796875
+        frag 3 from TextNode start: 0, length: 1, rect: [128,251 8x16] baseline: 13
             " "
         frag 4 from ImageBox start: 0, length: 0, rect: [136,8 128x256] baseline: 256
         ImageBox <input> at [8,216] inline-block [0+0+0 48 0+0+0] [0+0+0 48 0+0+0] children: not-inline
@@ -17,4 +17,4 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x275.203125] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x275] (z-index: auto)

@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <ul> at [40,0] [0+0+40 760 0+0+0] [0+0+0 20 0+0+0] children: not-inline
         ListItemBox <li> at [40,0] [0+0+0 300 0+0+460] [0+0+0 20 0+0+0] [BFC] children: not-inline
           ListItemMarkerBox <(anonymous)> at [26,0] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [26,0 13.84375x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [26,0 13.84375x16] baseline: 13
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
           BlockContainer <div> at [40,0] [0+0+0 100 0+0+0] [0+0+0 20 0+0+0] children: not-inline

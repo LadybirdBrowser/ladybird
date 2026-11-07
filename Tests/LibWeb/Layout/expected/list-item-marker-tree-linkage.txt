@@ -4,21 +4,21 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <ul> at [40,0] [0+0+40 760 0+0+0] [0+0+0 48 0+0+0] children: not-inline
         ListItemBox <li.inside> at [40,0] [0+0+0 760 0+0+0] [0+0+0 32 0+0+0] children: not-inline
           BlockContainer <div> at [40,0] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 13, rect: [40,0 109.578125x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 13, rect: [40,0 109.578125x16] baseline: 13
                 "block content"
             TextNode <#text> (not painted)
           BlockContainer <(anonymous)> at [40,16] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
-            frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [40,16 13.84375x16] baseline: 12.796875
+            frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [40,16 13.84375x16] baseline: 13
             ListItemMarkerBox <(anonymous)> at [40,16] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [40,16 13.84375x16] baseline: 12.796875
+              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [40,16 13.84375x16] baseline: 13
                   "• "
               GeneratedTextNode <(anonymous)> (not painted)
         ListItemBox <li.without-marker> at [40,32] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           ListItemBox <div.nested> at [40,32] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 16, rect: [40,32 124.453125x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 16, rect: [40,32 124.453125x16] baseline: 13
                 "nested list item"
             ListItemMarkerBox <(anonymous)> at [26,32] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [26,32 13.84375x16] baseline: 12.796875
+              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [26,32 13.84375x16] baseline: 13
                   "• "
               GeneratedTextNode <(anonymous)> (not painted)
             TextNode <#text> (not painted)

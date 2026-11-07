@@ -5,13 +5,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div> at [8,8] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       Box <div.grid> at [8,118] [0+0+0 200 0+0+584] [0+0+0 100 0+0+10] [GFC] children: not-inline
         BlockContainer <div> at [8,118] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [8,118 32.140625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 4, rect: [8,118 32.140625x16] baseline: 13
               "text"
           TextNode <#text> (not painted)
       Box <div.grid> at [8,228] [0+0+0 200 0+0+584] [0+0+0 116 0+0+10] [GFC] children: not-inline
         BlockContainer <div> at [8,228] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
         BlockContainer <div> at [8,328] [0+0+0 200 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [8,328 40.1875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 5, rect: [8,328 40.1875x16] baseline: 13
               "after"
           TextNode <#text> (not painted)
       Box <div.grid> at [8,354] [0+0+0 200 0+0+584] [0+0+0 100 0+0+10] [GFC] children: not-inline

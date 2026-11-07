@@ -1,18 +1,18 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 20 0+0+8] children: inline
-      frag 0 from TextInputBox start: 0, length: 0, rect: [13,11 159.6875x14] baseline: 13.984375
-      frag 1 from TextNode start: 0, length: 1, rect: [177.6875,9 8x16] baseline: 12.796875
+      frag 0 from TextInputBox start: 0, length: 0, rect: [13,11 159.6875x14] baseline: 14
+      frag 1 from TextNode start: 0, length: 1, rect: [177.6875,9 8x16] baseline: 13
           " "
-      frag 2 from TextInputBox start: 0, length: 0, rect: [190.6875,11 159.6875x14] baseline: 13.984375
-      frag 3 from TextNode start: 0, length: 1, rect: [355.375,9 8x16] baseline: 12.796875
+      frag 2 from TextInputBox start: 0, length: 0, rect: [190.6875,11 159.6875x14] baseline: 14
+      frag 3 from TextNode start: 0, length: 1, rect: [355.375,9 8x16] baseline: 13
           " "
-      frag 4 from TextInputBox start: 0, length: 0, rect: [368.375,11 159.6875x14] baseline: 13.984375
+      frag 4 from TextInputBox start: 0, length: 0, rect: [368.375,11 159.6875x14] baseline: 14
       TextInputBox <input> at [13,11] inline-block [0+2+3 159.6875 3+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
         Box <div> at [13,11] flex-container(row) [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
           Box <div> at [13,11] flex-container(row) flex-item [0+0+0 146.359375 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [13,11] flex-item [0+0+0 146.359375 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 1, rect: [13,11 5.28125x14] baseline: 10.984375
+              frag 0 from TextNode start: 0, length: 1, rect: [13,11 5.28125x14] baseline: 11
                   "1"
               TextNode <#text> (not painted)
           Box <div> at [159.359375,11] flex-container(column) flex-item [0+0+0 13.328125 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
@@ -27,7 +27,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div> at [190.6875,11] flex-container(row) [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
           Box <div> at [190.6875,11] flex-container(row) flex-item [0+0+0 146.359375 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [190.6875,11] flex-item [0+0+0 146.359375 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 1, rect: [190.6875,11 7.34375x14] baseline: 10.984375
+              frag 0 from TextNode start: 0, length: 1, rect: [190.6875,11 7.34375x14] baseline: 11
                   "2"
               TextNode <#text> (not painted)
           Box <div> at [337.046875,11] flex-container(column) flex-item [0+0+0 13.328125 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
@@ -42,7 +42,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div> at [368.375,11] flex-container(row) [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
           Box <div> at [368.375,11] flex-container(row) flex-item [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [368.375,11] flex-item [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 1, rect: [368.375,11 7.578125x14] baseline: 10.984375
+              frag 0 from TextNode start: 0, length: 1, rect: [368.375,11 7.578125x14] baseline: 11
                   "3"
               TextNode <#text> (not painted)
           Box <div> at [528.0625,11] flex-container(column) flex-item [0+0+0 0 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline

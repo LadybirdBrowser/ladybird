@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <button> at [192.484375,11] [175.484375+2+7 31.015625 7+2+175.484375] [0+2+1 14 1+2+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> at [192.484375,11] flex-container(column) [0+0+0 31.015625 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
             BlockContainer <(anonymous)> at [192.484375,11] flex-item [0+0+0 31.015625 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 4, rect: [192.484375,11 31.015625x14] baseline: 10.984375
+              frag 0 from TextNode start: 0, length: 4, rect: [192.484375,11 31.015625x14] baseline: 11
                   "Test"
               TextNode <#text> (not painted)
 

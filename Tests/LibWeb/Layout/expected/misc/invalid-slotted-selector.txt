@@ -5,12 +5,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <ul> at [48,16] flex-container(row) [0+0+40 744 0+0+0] [16+0+0 16 0+0+16] [FFC] children: not-inline
           ListItemBox <li> at [48,16] flex-item [0+0+0 57.296875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
             InlineNode <a> at [48,16] [0+0+0 57.296875 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from TextNode start: 0, length: 5, rect: [48,16 57.296875x16] baseline: 12.796875
+              frag 0 from TextNode start: 0, length: 5, rect: [48,16 57.296875x16] baseline: 13
                   "HELLO"
               TextNode <#text> (not painted)
           ListItemBox <li> at [105.296875,16] flex-item [0+0+0 16.828125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
             InlineNode <a> at [105.296875,16] [0+0+0 16.828125 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from TextNode start: 0, length: 2, rect: [105.296875,16 16.828125x16] baseline: 12.796875
+              frag 0 from TextNode start: 0, length: 2, rect: [105.296875,16 16.828125x16] baseline: 13
                   "HI"
               TextNode <#text> (not painted)
 

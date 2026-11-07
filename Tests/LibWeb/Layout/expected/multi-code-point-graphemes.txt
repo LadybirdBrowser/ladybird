@@ -1,18 +1,18 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 120.25 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 88.25 0+0+8] children: not-inline
-      BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 18.75 0+0+16] children: inline
-        frag 0 from TextNode start: 0, length: 5, rect: [8,18.046875 20.3125x16] baseline: 12.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 121 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 89 0+0+8] children: not-inline
+      BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 19 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,18 20.3125x16] baseline: 13
             "🧑‍🚒"
         TextNode <#text> (not painted)
-      BlockContainer <p> at [8,50.75] [0+0+0 784 0+0+0] [16+0+0 18.75 0+0+16] children: inline
-        frag 0 from TextNode start: 0, length: 5, rect: [8,52.796875 20.3125x16] baseline: 12.796875
+      BlockContainer <p> at [8,51] [0+0+0 784 0+0+0] [16+0+0 19 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,53 20.3125x16] baseline: 13
             "🏴‍☠️"
         TextNode <#text> (not painted)
-      BlockContainer <p> at [8,85.5] [0+0+0 784 0+0+0] [16+0+0 18.75 0+0+16] children: inline
-        frag 0 from TextNode start: 0, length: 11, rect: [8,87.546875 20.3125x16] baseline: 12.796875
+      BlockContainer <p> at [8,86] [0+0+0 784 0+0+0] [16+0+0 19 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 11, rect: [8,88 20.3125x16] baseline: 13
             "🧑‍🧑‍🧒‍🧒"
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x120.25] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x121] (z-index: auto)

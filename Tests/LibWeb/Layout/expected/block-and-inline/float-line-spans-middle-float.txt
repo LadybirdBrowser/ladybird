@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div.spacer> at [0,0] [0+0+0 300 0+0+0] [0+0+0 50 0+0+0] children: not-inline
         BlockContainer <div.float> at [0,50] floating [0+0+0 120 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
         BlockContainer <p.probe> at [0,40] [0+0+0 300 0+0+0] [-10+0+0 60 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 20, rect: [120,62 160.296875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 20, rect: [120,62 160.296875x16] baseline: 13
               "line spans the float"
           TextNode <#text> (not painted)
 

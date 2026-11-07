@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<pre style="font-size: 1.1em"><code><span style="display: flex"><span>hello,</span></span><span style="display: flex"><span>world!</span></span></code></pre>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const line of document.querySelectorAll("code > span"))
+            println(`${line.textContent}: height ${line.getBoundingClientRect().height}`);
+    });
+</script>
