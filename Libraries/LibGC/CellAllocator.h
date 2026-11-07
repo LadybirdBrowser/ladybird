@@ -39,6 +39,9 @@ public:
     // Where each heap keeps its allocator for this descriptor, see Heap::cell_allocator_for().
     size_t index() const { return m_index; }
 
+    // The blocks of the type of this descriptor, for every heap of the process and for as long as the process lives.
+    BlockAllocator& block_allocator() const;
+
 protected:
     CellAllocatorDescriptorBase(CellTypeInfo const& type_info, StringView class_name, void const* foreign_type = nullptr);
 
@@ -59,8 +62,6 @@ public:
 
     explicit CellAllocator(CellAllocatorDescriptorBase&);
     ~CellAllocator();
-
-    static BlockAllocator& shared_block_allocator();
 
     CellAllocatorDescriptorBase const& descriptor() const { return m_descriptor; }
     Optional<StringView> class_name() const { return m_descriptor.class_name(); }

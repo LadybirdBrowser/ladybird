@@ -70,7 +70,12 @@ public:
     {
     }
 
-    ~CAPICellAllocator() { release_index(); }
+    ~CAPICellAllocator()
+    {
+        // NB: The address of a descriptor without a foreign type names the type of its blocks, so it may never be reused.
+        VERIFY(foreign_type());
+        release_index();
+    }
 };
 
 class RootGatheringVisitor final : public Cell::Visitor {

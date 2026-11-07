@@ -133,7 +133,10 @@ GC_API void gc_heap_did_allocate_external_memory(GCHeap*, size_t);
 GC_API void gc_heap_did_free_external_memory(GCHeap*, size_t);
 
 // The type info and the name must outlive the allocator, and the allocator must outlive every heap it allocated from.
-// The blocks of the allocator hold foreign_type, which LibGC never reads.
+// The blocks of the allocator hold foreign_type, which also names the type of the cells for the whole process:
+// allocators with the same foreign_type and cell size share a pool of blocks, across all heaps, and blocks never leave
+// their pool. Different types must have different ones. An allocator without one has a pool of its own, and must never
+// be destroyed.
 GC_API GCAllocator* gc_allocator_create(GCCellTypeInfo const*, char const* name, size_t name_length, void const* foreign_type);
 GC_API void gc_allocator_destroy(GCAllocator*);
 

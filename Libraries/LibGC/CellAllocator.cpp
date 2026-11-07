@@ -5,6 +5,7 @@
  */
 
 #include <AK/Badge.h>
+#include <AK/HashMap.h>
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Vector.h>
@@ -12,6 +13,22 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
+
+namespace GC {
+
+struct BlockPoolKey {
+    void const* type { nullptr };
+    size_t cell_size { 0 };
+
+    bool operator==(BlockPoolKey const&) const = default;
+};
+
+}
+
+template<>
+struct AK::Traits<GC::BlockPoolKey> : public DefaultTraits<GC::BlockPoolKey> {
+    static unsigned hash(GC::BlockPoolKey const& key) { return pair_int_hash(ptr_hash(key.type), u64_hash(key.cell_size)); }
+};
 
 namespace GC {
 
@@ -46,15 +63,26 @@ void CellAllocatorDescriptorBase::release_index()
     indices.free_indices.append(m_index);
 }
 
-BlockAllocator& CellAllocator::shared_block_allocator()
+// A block that was used for a type stays with that type for as long as the process lives, whichever heap had it. So a
+// stale pointer into the region can only ever find a cell of the type it was made for, at the same offsets. Heaps die
+// while the process lives, so this has to hold across heaps: the pools outlive them, and a new heap reuses the blocks.
+//
+// A foreign type names the type for the whole process, while its descriptors come and go with the heaps. A descriptor
+// without one lives as long as the process, as C++ ones do, so its own address does. The cell size tells the size
+// classes of a foreign type apart, whose blocks do not fit each other.
+BlockAllocator& CellAllocatorDescriptorBase::block_allocator() const
 {
-    static AK::NeverDestroyed<BlockAllocator> allocator;
-    return *allocator;
+    static AK::NeverDestroyed<Mutex> mutex;
+    static AK::NeverDestroyed<HashMap<BlockPoolKey, NonnullOwnPtr<BlockAllocator>>> pools;
+
+    BlockPoolKey key { m_foreign_type ? m_foreign_type : this, cell_size() };
+    MutexLocker locker { *mutex };
+    return *pools->ensure(key, [] { return make<BlockAllocator>(); });
 }
 
 CellAllocator::CellAllocator(CellAllocatorDescriptorBase& descriptor)
     : m_descriptor(descriptor)
-    , m_block_allocator(shared_block_allocator())
+    , m_block_allocator(descriptor.block_allocator())
 {
     m_local.cell_size = cell_size();
 }

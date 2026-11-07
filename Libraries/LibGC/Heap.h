@@ -168,6 +168,15 @@ public:
 
     bool is_live_heap_block(HeapBlock* block) const { return m_live_heap_blocks.contains(block); }
 
+    template<typename Callback>
+    void for_each_block(Callback callback)
+    {
+        for (auto& allocator : m_all_cell_allocators) {
+            if (allocator.for_each_block(callback) == IterationDecision::Break)
+                return;
+        }
+    }
+
     void enqueue_post_gc_task(AK::Function<void()>);
 
     WeakImpl* create_weak_impl(void*);
@@ -310,15 +319,6 @@ private:
 
     void start_idle_gc_timer();
     void idle_gc_on_timer();
-
-    template<typename Callback>
-    void for_each_block(Callback callback)
-    {
-        for (auto& allocator : m_all_cell_allocators) {
-            if (allocator.for_each_block(callback) == IterationDecision::Break)
-                return;
-        }
-    }
 
     struct Stats {
         AK_ALLOC_WITH_KMALLOC;
