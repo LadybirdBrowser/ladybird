@@ -74,6 +74,11 @@ public:
     // The sidebar's own margin plus the given inset keeps the toolbar's contents clear of the sidebar's edges.
     void set_arrangement(ToolbarArrangement, int sidebar_inset = 0);
     QWidget& sidebar_footer() { return *m_sidebar_footer; }
+    // The toolbar's height in either arrangement, whichever it is in now.
+    int height_in_row() const;
+    int height_in_sidebar() const;
+    // While the sidebar opens or closes, the toolbar's contents fade out of one arrangement and into the other.
+    void set_contents_opacity(qreal);
 
     void show_downloads_popover();
     void update_downloads_button();
@@ -107,6 +112,7 @@ private:
     bool field_panel_should_expand() const;
     void update_field_panel();
     void raise_field_panel();
+    void apply_contents_opacity();
 
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
     QPointer<Tab> m_tab;
@@ -124,6 +130,7 @@ private:
     QWidget* m_suggestions_area { nullptr };
     bool m_window_controls_visible { false };
     int m_sidebar_inset { 0 };
+    qreal m_contents_opacity { 1 };
     // NB: The fields of the tabs shown so far share this layout, which leaves room around them for the focus ring.
     QHBoxLayout* m_location_edit_layout { nullptr };
     QPointer<LocationEdit> m_location_edit;
