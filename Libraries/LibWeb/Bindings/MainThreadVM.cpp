@@ -9,6 +9,7 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/FFIHelpers.h>
 #include <AK/NeverDestroyed.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Platform/ThreadQoS.h>
@@ -176,6 +177,7 @@ void initialize_agent(HTML::AgentType type)
         main_thread_vm_ptr() = new_vm;
     } else {
         ++s_worker_agent_count;
+        ladybird_did_start_short_lived_thread();
     }
     vm.set_agent(create_agent(vm.heap(), type));
 
@@ -821,6 +823,11 @@ void shut_down_agent()
 
     // NB: The VM stays reachable while it is destroyed, as the finalizers of the cells in its heap use it.
     vm.unref();
+
+    // NB: What this agent used is of no use to this process unless another worker comes along, which may be never. What
+    //     this thread's allocator still holds goes back when the thread exits.
+    ak_kmalloc_collect();
+    ladybird_did_end_short_lived_thread();
 
     --s_worker_agent_count;
 }

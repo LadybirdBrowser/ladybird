@@ -34,6 +34,11 @@ void ladybird_release_unused_allocator_memory();
 void* ladybird_enter_scratch_heap();
 void ladybird_leave_scratch_heap(void* previous_heap);
 
+// For a thread that frees all of its memory when it ends: while one runs, what the allocator purges goes back to the
+// system right away.
+void ladybird_did_start_short_lived_thread();
+void ladybird_did_end_short_lived_thread();
+
 // Allocations in HeapPartition::JSObjectStorage, where JS objects keep their property values. ak_kfree frees them.
 void* ladybird_js_object_storage_alloc(size_t size);
 void* ladybird_js_object_storage_realloc(void*, size_t new_size);

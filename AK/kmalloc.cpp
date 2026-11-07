@@ -6,6 +6,8 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/Atomic.h>
+#include <AK/FFIHelpers.h>
 #include <AK/Platform.h>
 #include <AK/StdLibExtras.h>
 #include <AK/kmalloc.h>
@@ -93,6 +95,14 @@ void* ak_enter_scratch_heap()
 }
 
 void ak_leave_scratch_heap(void*)
+{
+}
+
+extern "C" void ladybird_did_start_short_lived_thread()
+{
+}
+
+extern "C" void ladybird_did_end_short_lived_thread()
 {
 }
 
@@ -203,6 +213,30 @@ void* ak_enter_scratch_heap()
 void ak_leave_scratch_heap(void* previous_heap)
 {
     mi_heap_set_default(static_cast<mi_heap_t*>(previous_heap));
+}
+
+// MADV_FREE leaves the pages in this process until the system runs short of memory. That pays off when they get reused
+// soon, which is not what happens to the memory of a thread that ended. mimalloc reads this option each time it purges.
+// NB: A thread that starts while another ends can leave the wrong value behind, until the next one of them. All that
+//     costs is the choice between two ways to purge.
+#    ifdef AK_OS_LINUX
+static AK::Atomic<size_t> s_short_lived_thread_count { 0 };
+#    endif
+
+extern "C" void ladybird_did_start_short_lived_thread()
+{
+#    ifdef AK_OS_LINUX
+    if (s_short_lived_thread_count.fetch_add(1) == 0)
+        mi_option_set(mi_option_purge_decommits, 1);
+#    endif
+}
+
+extern "C" void ladybird_did_end_short_lived_thread()
+{
+#    ifdef AK_OS_LINUX
+    if (s_short_lived_thread_count.fetch_sub(1) == 1)
+        mi_option_set(mi_option_purge_decommits, 0);
+#    endif
 }
 
 #endif
