@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/Format.h>
 #include <LibJS/EmbeddingABIConversions.h>
 #include <LibJS/Runtime/Completion.h>
@@ -14,7 +15,7 @@ namespace JS {
 
 using namespace EmbeddingABI;
 
-static bool s_log_all_js_exceptions = false;
+static Atomic<bool, AK::MemoryOrder::memory_order_relaxed> s_log_all_js_exceptions { false };
 
 // Raw native functions, which JS_DEFINE_NATIVE_FUNCTION defines, return a ThrowCompletionOr<Value> straight to the
 // Rust interpreter, which reads it as the embedding ABI's JSCompletion: the value or the thrown value in the first
