@@ -250,21 +250,18 @@ TEST_CASE(helper_processes_are_listed_with_the_site_they_work_for)
         return identity.child_id;
     };
 
-    // A worker of an opaque origin has no site of its own, and its helpers are listed with the page that started it.
+    // A page's helpers are listed with it, also those that work for another of its helpers.
     auto page = add_process(WebView::ProcessType::WebContent, {}, "https://example.com/"sv);
-    auto worker = add_process(WebView::ProcessType::WebWorker, page, {});
-    add_process(WebView::ProcessType::ImageDecoder, worker, {});
-    add_process(WebView::ProcessType::AudioServer, worker, {});
-    add_process(WebView::ProcessType::MediaServer, page, {});
-    // A shared worker outlives the page that started it, and is then listed with the site of its own origin.
-    auto gone_page = add_process(WebView::ProcessType::WebContent, {}, "https://example.org/"sv);
-    auto surviving_worker = add_process(WebView::ProcessType::WebWorker, gone_page, "https://example.org"sv);
-    add_process(WebView::ProcessType::ImageDecoder, surviving_worker, {});
-    (void)manager.remove_process(gone_page);
+    add_process(WebView::ProcessType::ImageDecoder, page, {});
+    auto media_server = add_process(WebView::ProcessType::MediaServer, page, {});
+    add_process(WebView::ProcessType::AudioServer, media_server, {});
+    // A process runs on without pages for a shared worker, and is then listed with the site of the worker's origin.
+    auto worker_host = add_process(WebView::ProcessType::WebContent, {}, "https://example.org"sv);
+    add_process(WebView::ProcessType::ImageDecoder, worker_host, {});
 
-    // With top-level site isolation, a cross-site frame shares its parent's process. Its worker has its own site.
-    auto frame_worker = add_process(WebView::ProcessType::WebWorker, page, "https://example.net"sv);
-    add_process(WebView::ProcessType::ImageDecoder, frame_worker, {});
+    // With top-level site isolation, a cross-site frame's shared worker can have a process to itself.
+    auto frame_worker_host = add_process(WebView::ProcessType::WebContent, {}, "https://example.net"sv);
+    add_process(WebView::ProcessType::ImageDecoder, frame_worker_host, {});
 
     Ladybird::ProcessManagerWindow window(manager);
     window.show();
@@ -279,7 +276,7 @@ TEST_CASE(helper_processes_are_listed_with_the_site_they_work_for)
 
     // The browser, the sites heading, and the three sites.
     EXPECT_EQ(processes->topLevelItemCount(), 5);
-    EXPECT_EQ(child_count_of_site("example.com"), 5);
+    EXPECT_EQ(child_count_of_site("example.com"), 4);
     EXPECT_EQ(child_count_of_site("example.org"), 2);
     EXPECT_EQ(child_count_of_site("example.net"), 2);
 }

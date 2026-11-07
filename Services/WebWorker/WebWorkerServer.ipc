@@ -12,8 +12,6 @@
 #include <LibWebCommon/Permissions/Permissions.h>
 
 endpoint WebWorkerServer {
-    set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation) =|
-
     connect_to_request_server(IPC::TransportHandle handle, int client_id, Optional<Utf16String> top_level_site) =|
     simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle, int client_id, Optional<Utf16String> top_level_site) => ()
     connect_to_compositor(IPC::TransportHandle handle) =|
@@ -22,8 +20,6 @@ endpoint WebWorkerServer {
     set_user_agent(String user_agent) =|
     set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode) =|
     set_preferred_languages(Vector<String> preferred_languages) =|
-
-    set_system_font_family(String family) =|
 
     start_worker(URL::URL url,
                  Web::HTML::WorkerType type,

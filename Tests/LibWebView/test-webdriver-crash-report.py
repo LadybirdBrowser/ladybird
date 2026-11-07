@@ -91,25 +91,7 @@ def run_test(webdriver_binary, process_name):
                 )
                 assert status == 200, body
             else:
-                if process_name == "WebWorker":
-                    status, payload, body = webdriver_helpers.request(
-                        port,
-                        "POST",
-                        f"/session/{session}/execute/async",
-                        {
-                            "script": """
-                            const done = arguments[0];
-                            window.worker = new SharedWorker(URL.createObjectURL(new Blob([
-                                "onconnect = ({ ports }) => ports[0].postMessage('ready');"
-                            ], {type: 'text/javascript'})));
-                            worker.port.onmessage = () => done();
-                            worker.onerror = () => done('worker failed');
-                        """,
-                            "args": [],
-                        },
-                    )
-                    assert status == 200 and payload == {"value": None}, body
-                elif process_name == "ImageDecoder":
+                if process_name == "ImageDecoder":
                     # A process gets its decoder when it first has an image to decode.
                     status, payload, body = webdriver_helpers.request(
                         port,
@@ -183,7 +165,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--process",
         default="WebContent",
-        choices=["WebContent", "WebWorker", "RequestServer", "ImageDecoder", "Compositor"],
+        choices=["WebContent", "RequestServer", "ImageDecoder", "Compositor"],
     )
     args = parser.parse_args()
     run_test(args.webdriver_binary, args.process)

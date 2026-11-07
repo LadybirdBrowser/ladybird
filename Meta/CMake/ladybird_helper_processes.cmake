@@ -7,7 +7,6 @@ set(ladybird_helper_processes
     VideoDecoderServer
     WebContent
     WebRTCClient
-    WebWorker
 )
 
 # Kills the helpers when the Browser is gone, which the kernel cannot do on macOS.

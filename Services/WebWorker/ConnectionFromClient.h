@@ -31,12 +31,6 @@ class ConnectionFromClient final
     C_OBJECT(ConnectionFromClient);
 
 public:
-    // What the worker agent has to itself: a process that ends with it, or a thread in a process that goes on without it.
-    enum class Host {
-        Process,
-        Thread,
-    };
-
     virtual ~ConnectionFromClient() override;
 
     virtual void die() override;
@@ -49,7 +43,6 @@ public:
     // are gone.
     void shut_down_agent();
 
-    virtual void set_font_service(IPC::TransportHandle, IPC::File catalog, u64 catalog_size, u64 generation) override;
     virtual void close_worker() override;
 
     void request_file(Web::FileRequest);
@@ -65,7 +58,7 @@ public:
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_image_decoder_transport();
 
 private:
-    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, bool enable_test_mode, Host = Host::Process);
+    explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
 
     Web::Page& page();
     Web::Page const& page() const;
@@ -78,7 +71,6 @@ private:
     virtual void set_user_agent(String user_agent) override;
     virtual void set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode) override;
     virtual void set_preferred_languages(Vector<String> preferred_languages) override;
-    virtual void set_system_font_family(String family) override;
     virtual void start_worker(URL::URL url, Web::HTML::WorkerType type, Web::HTML::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject, Web::HTML::AgentType, URL::Origin origin, Web::HTML::EnvironmentId environment_id, bool has_process_to_itself) override;
     virtual void connect_shared_worker(Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject) override;
     virtual void handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id) override;
@@ -112,9 +104,7 @@ private:
 
     RefPtr<WorkerHost> m_worker_host;
     Function<void()> m_request_server_died_callback_for_testing;
-    bool m_enable_test_mode { false };
     bool m_shutdown_finished { false };
-    Host m_host { Host::Process };
     NonnullRefPtr<Web::HTML::ScriptAbortHandle> m_script_abort_handle;
 };
 

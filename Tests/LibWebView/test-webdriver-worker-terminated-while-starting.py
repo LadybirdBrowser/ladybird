@@ -7,7 +7,6 @@
 import argparse
 import importlib
 import os
-import shlex
 import subprocess
 import tempfile
 import time
@@ -16,30 +15,11 @@ from pathlib import Path
 
 webdriver_helpers = importlib.import_module("test-webdriver-delete-session")
 
-# Terminate a worker at each of these delays after constructing it, to catch its process at every stage of starting up.
+# Terminate a worker at each of these delays after constructing it, to catch its thread at every stage of starting up.
 TERMINATE_DELAYS_MS = list(range(0, 600, 25))
 
-# How long a crashed worker's report gets to show up, once every worker process is gone.
+# How long a crashed worker's report gets to show up.
 CRASH_REPORT_GRACE_SECONDS = 2
-
-
-def descendants_named(root_pid, process_name):
-    rows = subprocess.check_output(["ps", "-axo", "pid=,ppid=,command="], text=True).splitlines()
-    children = {}
-    for row in rows:
-        fields = row.strip().split(None, 2)
-        pid, parent = fields[:2]
-        command = fields[2] if len(fields) == 3 else ""
-        children.setdefault(int(parent), []).append((int(pid), command))
-    pending = [root_pid]
-    descendants = []
-    while pending:
-        for pid, command in children.get(pending.pop(), []):
-            pending.append(pid)
-            arguments = shlex.split(command)
-            if arguments and Path(arguments[0]).name == process_name:
-                descendants.append(pid)
-    return descendants
 
 
 def run_test(webdriver_binary):
@@ -90,8 +70,6 @@ def run_test(webdriver_binary):
                 },
             )
             assert status == 200 and payload == {"value": None}, body
-
-            assert not descendants_named(webdriver.pid, "WebWorker"), "A dedicated worker got a process"
 
             # A worker that crashes on its way out takes the WebContent process that hosts it along.
             time.sleep(CRASH_REPORT_GRACE_SECONDS)

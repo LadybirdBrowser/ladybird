@@ -115,11 +115,6 @@ Web::Compositor::CompositorConnection* ConnectionFromClient::compositor_process_
     return m_compositor_connection.ptr();
 }
 
-void ConnectionFromClient::set_system_font_family(String family)
-{
-    Web::Platform::FontPlugin::the().set_system_font_family(FlyString { family });
-}
-
 void ConnectionFromClient::set_site_compatibility_data(JsonValue data)
 {
     auto parsed_data = Web::SiteCompatibilityData::from_json(data);
@@ -175,12 +170,9 @@ void ConnectionFromClient::die()
 
 void ConnectionFromClient::did_lose_peer_during_sync_request()
 {
-    // NB: Whatever made the request cannot be unwound from here, and it cannot carry on without a response.
-    if (m_host == Host::Process)
-        Core::Process::terminate_immediately(0);
-
-    // NB: A thread cannot take its process with it, so the script stops instead, and the request fails. That is every
-    //     caller's to handle, as the connection is shut down from the event loop the script returns to.
+    // NB: Whatever made the request cannot be unwound from here, and a thread cannot take its process with it. So, the
+    //     script stops, and the request fails. That is every caller's to handle, as the connection is shut down from the
+    //     event loop the script returns to.
     m_script_abort_handle->abort_script();
     deferred_invoke([this] {
         shutdown();
@@ -251,11 +243,9 @@ void ConnectionFromClient::blob_url_entry_removed(Utf16String url)
         Web::FileAPI::remove_entry_from_blob_url_store(*url_record);
 }
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, bool enable_test_mode, Host host)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport), 1)
     , m_page_host(PageHost::create(*this))
-    , m_enable_test_mode(enable_test_mode)
-    , m_host(host)
     , m_script_abort_handle(Web::HTML::surrounding_agent().script_abort_handle())
 {
     // The UI process started this worker agent, and die() ends it. So, once the UI process has closed the connection —
@@ -286,12 +276,6 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 }
 
 ConnectionFromClient::~ConnectionFromClient() = default;
-
-void ConnectionFromClient::set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation)
-{
-    auto* font_provider = MUST(Compositing::install_font_service(move(handle), move(catalog), catalog_size, generation));
-    Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(m_enable_test_mode, font_provider));
-}
 
 Web::Page& ConnectionFromClient::page()
 {

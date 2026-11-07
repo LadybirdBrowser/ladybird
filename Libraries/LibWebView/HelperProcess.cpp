@@ -565,53 +565,6 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
     return client;
 }
 
-ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::HTML::AgentType type, IsPrivate is_private, Web::HTML::WorkerAgentId agent_id)
-{
-    auto const& browser_options = WebView::Application::browser_options();
-    auto const& web_content_options = WebView::Application::web_content_options();
-
-    Vector<ByteString> arguments;
-
-    if (browser_options.disable_sandbox == DisableSandbox::Yes)
-        arguments.append("--disable-sandbox"sv);
-    if (web_content_options.is_test_mode == WebView::IsTestMode::Yes)
-        arguments.append("--test-mode"sv);
-    if (web_content_options.expose_experimental_interfaces == WebView::ExposeExperimentalInterfaces::Yes)
-        arguments.append("--expose-experimental-interfaces"sv);
-    if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
-        arguments.append("--enable-http-memory-cache"sv);
-    if (web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
-        arguments.append("--tuple-file-origins"sv);
-    if (web_content_options.proxy_autoconfig_url.has_value())
-        arguments.append(ByteString::formatted("--proxy-autoconfig-url={}", *web_content_options.proxy_autoconfig_url));
-
-    arguments.append("--type"sv);
-    switch (type) {
-    case Web::HTML::AgentType::DedicatedWorker:
-        arguments.append("dedicated"sv);
-        break;
-    case Web::HTML::AgentType::SharedWorker:
-        arguments.append("shared"sv);
-        break;
-    case Web::HTML::AgentType::ServiceWorker:
-        arguments.append("service"sv);
-        break;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-
-    if (auto server = mach_server_name(); server.has_value()) {
-        arguments.append("--mach-server-name"sv);
-        arguments.append(server.value());
-    }
-
-    auto client = TRY(launch_server_process<WebWorkerClient>("WebWorker"sv, move(arguments), is_private, agent_id));
-    TRY(connect_to_font_service(*client));
-    if (auto system_font_family = WebView::Application::the().system_font_family(); system_font_family.has_value())
-        client->async_set_system_font_family(system_font_family.release_value());
-    return client;
-}
-
 void apply_dns_settings(Requests::RequestControlClient& client)
 {
     Application::settings().dns_settings().visit(

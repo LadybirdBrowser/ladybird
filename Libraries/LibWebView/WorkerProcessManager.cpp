@@ -9,7 +9,6 @@
 #include <LibCore/Timer.h>
 #include <LibIPC/File.h>
 #include <LibURL/Parser.h>
-#include <LibURL/Site.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
@@ -29,8 +28,6 @@ namespace WebView {
 // Generous enough for a site that starts a worker per CPU core, as compute-heavy sites do. A worker on a thread costs
 // less than a process, but still has a heap, JIT threads and connections to itself, and one page can start them all.
 static constexpr size_t maximum_worker_count_per_top_level_site = 64;
-
-static constexpr auto worker_exit_grace_period = AK::Duration::from_seconds(5);
 
 // https://html.spec.whatwg.org/multipage/workers.html#extended-lifetime-shared-worker-timeout
 static constexpr auto extended_lifetime_shared_worker_timeout = AK::Duration::from_seconds(30);
@@ -167,7 +164,7 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
     }
 
     // NB: A top-level site may run only so many workers at once, wherever its documents and workers start them.
-    //     An opaque top-level origin is a site of its own. A worker counts until its thread or process is gone, and one
+    //     An opaque top-level origin is a site of its own. A worker counts until its thread is gone, and one
     //     whose creator's browsing context has been discarded, leaving it no top-level origin, does not start.
     auto top_level_origin = outside_settings->top_level_origin();
     if (!top_level_origin.has_value()) {
@@ -209,23 +206,23 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
     } else if (auto const* web_content_owner = owner.client.get_pointer<WebContentOwner>(); web_content_owner && owner_process_may_host_shared_worker(*web_content_owner, *outside_settings)) {
         host = web_content_owner->client.strong_ref();
     }
-    bool const host_has_only_this_worker = !host && request.agent_type == Web::HTML::AgentType::SharedWorker;
+    // NB: Nothing would close a process started for a dedicated worker, as only shared workers keep a process alive.
+    if (request.agent_type == Web::HTML::AgentType::DedicatedWorker && !host) {
+        notify_worker_script_load_failure(owner);
+        return {};
+    }
+    bool const host_has_only_this_worker = !host;
     Optional<IPC::TransportHandle> thread_transport;
     auto client_or_error = [&]() -> ErrorOr<NonnullRefPtr<WebWorkerClient>> {
-        auto client = TRY([&]() -> ErrorOr<NonnullRefPtr<WebWorkerClient>> {
-            if (!host && !host_has_only_this_worker)
-                return launch_web_worker_process(request.agent_type, is_private, agent_id);
-            auto transport = TRY(IPC::Transport::create_paired());
-            if (host_has_only_this_worker) {
-                host = TRY(Application::the().launch_web_content_process_without_page(is_private));
-                host->async_start_worker_thread(move(transport.remote_handle), request.agent_type);
-            } else {
-                thread_transport = move(transport.remote_handle);
-            }
-            auto client = TRY(try_make_ref_counted<WebWorkerClient>(move(transport.local), is_private, agent_id));
-            client->set_host(*host);
-            return client;
-        }());
+        auto transport = TRY(IPC::Transport::create_paired());
+        if (host_has_only_this_worker) {
+            host = TRY(Application::the().launch_web_content_process_without_page(is_private));
+            host->async_start_worker_thread(move(transport.remote_handle), request.agent_type);
+        } else {
+            thread_transport = move(transport.remote_handle);
+        }
+        auto client = TRY(try_make_ref_counted<WebWorkerClient>(move(transport.local), is_private, agent_id));
+        client->set_host(*host);
 
         // The worker's RequestServer client uses the cookies of the session the worker itself belongs to.
         auto session = client->session();
@@ -256,7 +253,7 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
             client->async_connect_to_compositor(compositor_handle.release_value());
         return client;
     }();
-    // A worker the system cannot give a thread or a process fails to load, as one whose script cannot be fetched does.
+    // A worker the system cannot give a thread fails to load, as one whose script cannot be fetched does.
     if (client_or_error.is_error()) {
         dbgln("Unable to start a worker: {}", client_or_error.error());
         if (host_has_only_this_worker && host)
@@ -282,7 +279,6 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
     //     settings it is created for, too.
     auto inside_settings = make<CanonicalWorkerEnvironmentSettingsObject>(move(origin), outside_settings->top_level_origin(), has_cross_site_ancestor, Web::HTML::EnvironmentId::generate());
     auto environment_id = inside_settings->id();
-    client->set_site(URL::Site::serialize_for_partitioning(inside_settings->origin()));
 
     // NB: The task manager lists a process with the site of its pages. One that has none left only runs on for its shared
     //     workers, so it goes by the site of their origin.
@@ -291,8 +287,8 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
             process->set_site_url(URL::Parser::basic_parse(worker_origin.serialize()));
     }
 
-    // NB: A worker's process reads local files as its owner's does. A worker of a file origin that local file content
-    //     starts is local file content too.
+    // NB: A worker reads local files as its owner does. A worker of a file origin that local file content starts is
+    //     local file content too.
     auto may_read_local_files = inside_settings->origin().is_file_origin()
         && owner.client.visit(
             [](WebContentOwner const& web_content_owner) {
@@ -801,7 +797,7 @@ void WorkerProcessManager::worker_did_request_file(Web::HTML::WorkerAgentId agen
     if (maybe_agent == m_agents.end())
         return;
 
-    // NB: As a page's, a worker's process reads a local file only through this broker, and only local file content may.
+    // NB: As a page, a worker reads a local file only through this broker, and only local file content may.
     auto& client = maybe_agent->value.client;
     if (!maybe_agent->value.may_read_local_files) {
         client->async_handle_file_return(EACCES, {}, request_id);
@@ -865,21 +861,12 @@ void WorkerProcessManager::remove_agent(Web::HTML::WorkerAgentId agent_id, Agent
         return;
     agent.client->async_close_worker();
 
-    // NB: A worker busy running script handles no request to close, so its process is terminated if it has not exited
-    //     in time. A worker on a thread cannot be: its thread leaves as soon as it gets out of the builtin or the request
-    //     it may be in, and nothing waits for it. Until it is gone, it counts toward the workers of its top-level site.
-    RefPtr<Core::Timer> termination_timer;
-    if (!agent.client->runs_on_thread()) {
-        termination_timer = Core::Timer::create_single_shot(worker_exit_grace_period, [client = agent.client] {
-            if (client->is_open())
-                client->terminate_process();
-        });
-        termination_timer->start();
-    }
-    m_exiting_workers.append({ agent.client, agent.is_private, move(agent.top_level_origin), move(termination_timer) });
+    // NB: A thread leaves as soon as it gets out of the builtin or the request it may be in, and nothing waits for it.
+    //     Until it is gone, it counts toward the workers of its top-level site.
+    m_exiting_workers.append({ agent.client, agent.is_private, move(agent.top_level_origin) });
 }
 
-void WorkerProcessManager::worker_process_did_exit(WebWorkerClient& client)
+void WorkerProcessManager::worker_thread_did_exit(WebWorkerClient& client)
 {
     Vector<ExitingWorker> exited_workers;
     for (size_t i = m_exiting_workers.size(); i > 0; --i) {
@@ -933,44 +920,6 @@ void WorkerProcessManager::remove_owner(Web::HTML::WorkerAgentId agent_id, Owner
         remove_agent(agent_id, AgentRemovalCause::OwnerSetEmptied);
     else if (agent.agent_type == Web::HTML::AgentType::DedicatedWorker)
         remove_agent(agent_id, AgentRemovalCause::AgentTerminated);
-}
-
-Optional<u64> WorkerProcessManager::exclusive_performance_owner(pid_t pid) const
-{
-    HashTable<Web::HTML::WorkerAgentId> visiting;
-    Function<Optional<u64>(WorkerAgent const&)> resolve = [&](WorkerAgent const& agent) -> Optional<u64> {
-        if (agent.closing || visiting.contains(agent.id))
-            return {};
-        visiting.set(agent.id);
-        ScopeGuard remove_visit = [&] { visiting.remove(agent.id); };
-        Optional<u64> result;
-        for (auto const& owner : agent.owners) {
-            auto id = owner.client.visit(
-                [&](WebContentOwner const& content) -> Optional<u64> {
-                if (!content.client)
-                    return {};
-                auto* page = content.client->page(content.page_id);
-                if (!page)
-                    return {};
-                return page->view().view_id(); },
-                [&](WebWorkerOwner const& worker) -> Optional<u64> {
-                for (auto const& candidate : m_agents) {
-                    if (candidate.value.client.ptr() == worker.client.ptr())
-                        return resolve(candidate.value);
-                }
-                return {}; });
-            if (!id.has_value() || (result.has_value() && *result != *id))
-                return {};
-            result = id;
-        }
-        return result;
-    };
-    // NB: A worker on a thread has the process of its owner, which is not this worker's to speak for.
-    for (auto const& agent : m_agents) {
-        if (agent.value.client->pid() == pid && !agent.value.client->runs_on_thread())
-            return resolve(agent.value);
-    }
-    return {};
 }
 
 }

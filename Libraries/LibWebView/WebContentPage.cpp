@@ -3408,7 +3408,7 @@ void WebContentPage::did_simulate_worker_request_server_connection_loss()
 {
     VERIFY(Application::web_content_options().is_test_mode == IsTestMode::Yes);
     if (auto result = WorkerProcessManager::the().simulate_request_server_connection_loss_for_testing(client(), m_id); result.is_error()) {
-        warnln("Unable to reconnect WebWorker processes to RequestServer: {}", result.error());
+        warnln("Unable to reconnect workers to RequestServer: {}", result.error());
         VERIFY_NOT_REACHED();
     }
 }

@@ -14,7 +14,6 @@
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
-#include <LibWebView/WorkerProcessManager.h>
 
 namespace WebView {
 
@@ -45,14 +44,15 @@ void TabPerformanceMonitor::configure(Requests::RequestControlClient& requests)
             WebContentClient::for_each_client([&](WebContentClient& client) {
                 if (client.pid() != entry.process_id)
                     return IterationDecision::Continue;
+                // NB: What a worker on a thread of the process uses comes with no page.
                 if (auto* page = client.page(entry.page_id)) {
                     auto const& view = page->view();
                     owner = view.owner_view_id().value_or(view.view_id());
+                } else {
+                    owner = client.exclusive_performance_owner();
                 }
                 return IterationDecision::Break;
             });
-            if (!owner.has_value())
-                owner = WorkerProcessManager::the().exclusive_performance_owner(entry.process_id);
             if (owner.has_value())
                 s_monitor->m_tabs.ensure(*owner).add_network_bytes(now, interval_microseconds, entry.download_bytes, entry.upload_bytes);
         }
@@ -104,8 +104,6 @@ void TabPerformanceMonitor::sample()
         if (process.type() == ProcessType::WebContent) {
             if (auto client = process.client<WebContentClient>())
                 owner = client->exclusive_performance_owner();
-        } else if (process.type() == ProcessType::WebWorker) {
-            owner = WorkerProcessManager::the().exclusive_performance_owner(process.pid());
         }
         if (!owner.has_value())
             return;

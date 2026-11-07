@@ -56,7 +56,7 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web
         worker_threads().event_loops.append(event_loop_reference);
     }
 
-    auto client = ConnectionFromClient::construct(transport_or_error.release_value(), false, ConnectionFromClient::Host::Thread);
+    auto client = ConnectionFromClient::construct(transport_or_error.release_value());
     client->set_up_agent_services();
 
     auto exit_code = event_loop.exec();

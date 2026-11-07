@@ -19,7 +19,6 @@
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
-#include <LibWebView/ChildIdentity.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 #include <WebWorker/WebWorkerClientEndpoint.h>
@@ -39,26 +38,19 @@ public:
     RefPtr<BrowsingSession> session() const { return m_session.strong_ref(); }
     IsPrivate is_private() const { return m_is_private; }
 
-    // The site of the worker's origin, if it has one.
-    void set_site(Optional<Utf16String> site) { m_site = move(site); }
-
-    // The sites this process asked for the permissions of: at most its worker's top-level site.
+    // The sites this worker asked for the permissions of: at most its top-level site.
     Vector<URL::Origin> const& permission_origins() const { return m_permission_origins; }
     RequestServerSiteBindings& request_server_site_bindings() { return m_request_server_site_bindings; }
     void remove_blob_url_entries();
 
-    // The process of a worker on a thread is its host's. So, what these say and do is about that process.
-    pid_t pid() const { return m_child_identity.pid; }
-    u64 child_id() const { return m_child_identity.child_id; }
-    void terminate_process();
+    // The process the worker's thread runs in.
+    u64 child_id() const { return m_host_child_id; }
 
-    // The WebContent process that runs this worker on a thread. A worker with a process of its own has none.
+    // The WebContent process that runs this worker on a thread.
     WebContentClient* host() const { return m_host.ptr(); }
     void set_host(WebContentClient&);
-    bool runs_on_thread() const { return m_runs_on_thread; }
 
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
-    void set_child_identity(ChildIdentity identity) { m_child_identity = identity; }
 
     virtual void did_close_worker() override;
     virtual void did_finish_loading_worker_script(bool worker_is_secure_context) override;
@@ -86,19 +78,17 @@ private:
     virtual void die() override;
 
     IsPrivate m_is_private { IsPrivate::No };
-    Optional<Utf16String> m_site;
     WeakPtr<BrowsingSession> m_session;
     RequestServerSiteBindings m_request_server_site_bindings;
 
-    ChildIdentity m_child_identity;
+    u64 m_host_child_id { 0 };
     WeakPtr<WebContentClient> m_host;
-    bool m_runs_on_thread { false };
     bool m_holds_image_decoder_client { false };
     Web::HTML::WorkerAgentId m_agent_id { 0 };
     Vector<URL::Origin> m_permission_origins;
 
-    // The controller connections to the MediaServer and AudioServer spawned for this process, from its first media use
-    // until it exits.
+    // The controller connections to the MediaServer and AudioServer spawned for this worker, from its first media use
+    // until it ends.
     RefPtr<MediaClient::Client> m_media_server_client;
     RefPtr<AudioServerControlClient> m_audio_server_client;
     u64 m_audio_tab_id { 0 };
