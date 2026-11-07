@@ -1697,6 +1697,15 @@ impl NodeProcessor for PannerRenderNode {
         callback(&self.params.orientation_x);
         callback(&self.params.orientation_y);
         callback(&self.params.orientation_z);
+        callback(&self.listener_params.position_x);
+        callback(&self.listener_params.position_y);
+        callback(&self.listener_params.position_z);
+        callback(&self.listener_params.forward_x);
+        callback(&self.listener_params.forward_y);
+        callback(&self.listener_params.forward_z);
+        callback(&self.listener_params.up_x);
+        callback(&self.listener_params.up_y);
+        callback(&self.listener_params.up_z);
     }
 
     // https://webaudio.github.io/web-audio-api/#Spatialization
