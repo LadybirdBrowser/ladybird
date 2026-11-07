@@ -2628,6 +2628,35 @@ impl<'pass> TableFormattingContext<'pass> {
                         };
                     }
                 }
+                // AD-HOC: Whatever the percentage columns take of the table, the other columns have the rest for their
+                //         max-content sizes, so the table grows until they fit in it. Once the percentages reach 100%,
+                //         nothing is left for them, so the table fills its container. Other browsers do the same.
+                let percentage_sum = self
+                    .columns
+                    .iter()
+                    .filter(|column| column.has_intrinsic_percentage)
+                    .map(|column| column.intrinsic_percentage)
+                    .sum::<f64>()
+                    .min(100.0);
+                let non_percentage_max = self
+                    .columns
+                    .iter()
+                    .filter(|column| !column.has_intrinsic_percentage)
+                    .fold(CssPixels::default(), |sum, column| sum + column.max_size);
+                if percentage_sum > 0.0 && non_percentage_max > CssPixels::default() {
+                    if percentage_sum < 100.0 {
+                        let needed = spacing
+                            + CssPixels::nearest_value_for(
+                                non_percentage_max.to_double() * 100.0 / (100.0 - percentage_sum),
+                            );
+                        value = match available_inline {
+                            AvailableSize::Definite(available) => value.max(needed).min(available),
+                            _ => value.max(needed),
+                        };
+                    } else if let AvailableSize::Definite(available) = available_inline {
+                        value = value.max(available);
+                    }
+                }
             }
             value
         } else if table_style.width().is_max_content() {
