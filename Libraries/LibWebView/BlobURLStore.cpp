@@ -105,6 +105,19 @@ void BlobURLStore::remove_entries_added_by(BlobURLEntryOwner const& owner)
     });
 }
 
+void BlobURLStore::remove_entries_added_by(Vector<Utf16String> const& urls, BlobURLEntryOwner const& owner)
+{
+    for (auto const& url : urls) {
+        auto entry = m_entries.get(url);
+        if (!entry.has_value() || entry->revoked || owner_pointer(entry->added_by) != owner_pointer(owner))
+            continue;
+
+        entry->revoked = true;
+        if (entry->handles == 0)
+            remove_entry(url);
+    }
+}
+
 void BlobURLStore::acquire(URL::BlobURLEntry::Token token)
 {
     auto url = m_entry_urls_by_token.get(token);

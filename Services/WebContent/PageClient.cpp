@@ -1969,6 +1969,12 @@ void PageClient::crash_remote_frame_processes_for_testing()
         test_connection->async_did_request_crash_of_remote_frame_processes_for_testing(m_id);
 }
 
+void PageClient::close_tab_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        test_connection->async_did_request_close_tab_for_testing(m_id);
+}
+
 void PageClient::page_did_spoof_document_origin_for_testing(Web::HTML::EnvironmentSettingsObject const& environment, URL::Origin const& origin)
 {
     if (auto* test_connection = client().test_connection())

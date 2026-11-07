@@ -268,6 +268,11 @@ interface Internals {
     // Whether the canvas drew content that it has not presented to the compositor yet.
     boolean canvasHasUnpresentedContent(HTMLCanvasElement canvas);
     undefined crashRemoteFrameProcesses();
+    long webContentProcessId();
+    // The documents this process has not collected yet, whether or not they are still displayed.
+    unsigned long documentCountInThisProcess();
+    // Closes this tab as the browser's close button does when it has no beforeunload check to run.
+    undefined closeTabThroughUIProcess();
     // Stops loading and reloads as the browser's Stop and Reload buttons do.
     undefined stopLoadingThroughUIProcess();
     undefined reloadThroughUIProcess();

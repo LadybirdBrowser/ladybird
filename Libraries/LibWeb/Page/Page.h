@@ -176,6 +176,7 @@ public:
     GC::Ptr<HTML::LocalNavigable> fullscreen_element_and_its_containers(GC::Ref<DOM::Element>, Fullscreen::RequestType, ElementIsRequestedElement);
 
     void discard();
+    bool has_been_discarded() const { return m_has_been_discarded; }
 
     HTML::HistoryExecutor& history_executor();
 
@@ -541,6 +542,8 @@ private:
     void set_find_in_page_active_match(GC::Ptr<DOM::Range>);
 
     void on_pending_dialog_closed();
+    void close_pending_dialog_of_discarded_page();
+    void finish_discarding();
 
     GC::Ref<PageClient> m_client;
 
@@ -556,6 +559,8 @@ private:
     GC::Ptr<HTML::Navigable> m_top_level_traversable;
     OwnPtr<Compositor::CompositorContextHandle> m_retired_page_compositor_context;
     Vector<GC::Ref<HTML::Navigable>> m_navigables_being_destroyed;
+    bool m_has_been_discarded { false };
+    size_t m_local_roots_left_to_discard { 0 };
 
     HTML::VisibilityState m_system_visibility_state { HTML::VisibilityState::Hidden };
 
@@ -751,6 +756,7 @@ public:
     virtual void page_did_destroy_child_frame(HTML::CrossProcessId) { }
     virtual String dump_site_isolation_process_tree_for_testing() { return {}; }
     virtual void crash_remote_frame_processes_for_testing() { }
+    virtual void close_tab_for_testing() { }
     virtual void page_did_spoof_document_origin_for_testing(HTML::EnvironmentSettingsObject const&, URL::Origin const&) { }
     virtual void stop_loading_through_ui_process_for_testing() { }
     virtual void reload_through_ui_process_for_testing([[maybe_unused]] bool bypass_cache) { }

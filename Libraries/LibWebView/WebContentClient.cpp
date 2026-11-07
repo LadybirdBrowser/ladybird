@@ -61,6 +61,25 @@ Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentClient::did_add
     return URL::BlobURLEntry::Token { 0 };
 }
 
+void WebContentClient::did_remove_blob_url_entries(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls)
+{
+    if (auto* page = this->page(page_id)) {
+        page->did_remove_blob_url_entries(move(environment_id), move(urls));
+        return;
+    }
+
+    // NB: A closed page's environments went with it, so its process can only revoke the entries it added itself.
+    if (may_act_for_page(page_id))
+        m_session->blob_url_store->remove_entries_added_by(urls, WeakPtr<WebContentClient> { *this });
+}
+
+void WebContentClient::close_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
+{
+    // NB: A page's workers are closed as its documents are destroyed, which happens after the tab's page has closed.
+    if (may_act_for_page(page_id))
+        WorkerProcessManager::the().close_worker_agent(*this, agent_id, owner_token);
+}
+
 bool WebContentClient::hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const& storage_key)
 {
     bool hosts_one = false;
@@ -303,6 +322,8 @@ void WebContentClient::close_page_of_closed_tab(Web::PageId page_id)
         if (page->needs_beforeunload_check())
             page->set_detached_close_pending(false);
         PictureInPictureManager::the().close_window_and_its_page(*page);
+        // NB: Other tabs can keep the process alive, so its page has to go as well.
+        page->async_discard_embedded_page();
         page->close();
     }
     // Forgotten once the page is closed, so nothing registers it again.

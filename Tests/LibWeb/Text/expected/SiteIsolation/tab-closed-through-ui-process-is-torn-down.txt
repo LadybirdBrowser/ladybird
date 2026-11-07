@@ -1,0 +1,10 @@
+closed through the UI process: blob URL resolves while open: true
+closed through the UI process: documents collected: true
+closed through the UI process: tab stopped: true
+closed through the UI process: worker stopped: true
+closed through the UI process: blob URL revoked: true
+closed by script: blob URL resolves while open: true
+closed by script: documents collected: true
+closed by script: tab stopped: true
+closed by script: worker stopped: true
+closed by script: blob URL revoked: true

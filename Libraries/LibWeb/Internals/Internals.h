@@ -255,6 +255,9 @@ public:
     bool has_populated_document(HTML::HTMLIFrameElement&);
     bool canvas_has_unpresented_content(HTML::HTMLCanvasElement&);
     void crash_remote_frame_processes();
+    i32 web_content_process_id();
+    u32 document_count_in_this_process();
+    void close_tab_through_ui_process();
     void stop_loading_through_ui_process();
     void reload_through_ui_process();
     void reload_bypassing_cache_through_ui_process();

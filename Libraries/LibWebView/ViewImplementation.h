@@ -574,7 +574,8 @@ public:
     void did_complete_close_preflight(Badge<WebContentPage>, u64 request_id, bool approved);
     Function<void()> prepare_for_close_without_prompting();
     void force_close();
-    Function<void()> prepare_for_immediate_close();
+    void prepare_for_immediate_close();
+    void close_tab_for_testing();
     bool needs_beforeunload_check() const;
 
     struct NavigationListener {
