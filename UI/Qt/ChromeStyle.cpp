@@ -1246,7 +1246,7 @@ QLabel#LadybirdDownloadsEmpty {{
 }}
 
 QLabel#LadybirdDownloadStatus[failed="true"] {{
-    color: {6};
+    color: {5};
 }}
 
 QFrame#LadybirdDownloadRow {{
@@ -1256,7 +1256,7 @@ QFrame#LadybirdDownloadRow {{
 }}
 
 QFrame#LadybirdDownloadRow:hover {{
-    background: {7};
+    background: {6};
 }}
 
 QProgressBar#LadybirdDownloadProgress {{
@@ -1268,7 +1268,7 @@ QProgressBar#LadybirdDownloadProgress {{
 }}
 
 QProgressBar#LadybirdDownloadProgress::chunk {{
-    background: {8};
+    background: {7};
     border-radius: 2px;
 }}
 
@@ -1278,17 +1278,21 @@ QFrame#LadybirdPopoverSeparator {{
 }}
 
 QPushButton#LadybirdPopoverLink {{
-    color: {5};
+    color: {0};
     background: transparent;
     border: 0;
     border-radius: 5px;
     padding: 4px 6px;
     font-size: 12px;
+    font-weight: 500;
 }}
 
-QPushButton#LadybirdPopoverLink:hover,
+QPushButton#LadybirdPopoverLink:hover {{
+    text-decoration: underline;
+}}
+
 QPushButton#LadybirdPopoverRow:hover {{
-    background: {7};
+    background: {6};
 }}
 
 QPushButton#LadybirdPopoverRow {{
@@ -1308,15 +1312,15 @@ QToolButton#LadybirdDownloadAction {{
 }}
 
 QToolButton#LadybirdDownloadAction:hover {{
-    background: {7};
+    background: {6};
 }}
 
 QToolButton#LadybirdDownloadAction:pressed {{
-    background: {9};
+    background: {8};
 }}
 )",
         style_sheet_color(panel.text), style_sheet_color(panel.surface), style_sheet_color(over(panel.edge, panel.surface)), style_sheet_color(panel.muted),
-        style_sheet_color(panel.separator), style_sheet_color(panel.link), style_sheet_color(panel.warning), style_sheet_color(panel.control), style_sheet_color(Theme::accent()),
+        style_sheet_color(panel.separator), style_sheet_color(panel.warning), style_sheet_color(panel.control), style_sheet_color(Theme::accent()),
         style_sheet_color(panel.pressed));
 }
 
@@ -1660,7 +1664,7 @@ QFrame#LadybirdSiteSettingsPopover QLabel#LadybirdSiteSettingsDetail {{
 }}
 
 QFrame#LadybirdSiteSettingsPopover QLabel#LadybirdSiteSettingsSecurity {{
-    color: {6};
+    color: {5};
     font-size: 12px;
 }}
 
@@ -1671,7 +1675,7 @@ QFrame#LadybirdPopoverSeparator {{
 
 QPushButton#LadybirdPopoverValueButton {{
     color: {0};
-    background: {7};
+    background: {6};
     border: 0;
     border-radius: 6px;
     min-height: 24px;
@@ -1682,20 +1686,21 @@ QPushButton#LadybirdPopoverValueButton {{
 
 QPushButton#LadybirdPopoverValueButton:hover,
 QPushButton#LadybirdPopoverValueButton:pressed {{
-    background: {8};
+    background: {7};
 }}
 
 QPushButton#LadybirdPopoverLink {{
-    color: {5};
+    color: {0};
     background: transparent;
     border: 0;
     border-radius: 5px;
     padding: 6px;
     font-size: 12px;
+    font-weight: 500;
 }}
 
 QPushButton#LadybirdPopoverLink:hover {{
-    background: {7};
+    text-decoration: underline;
 }}
 
 QPushButton#LadybirdPopoverLink:disabled {{
@@ -1710,12 +1715,12 @@ QPushButton#LadybirdPopoverRow {{
 
 QPushButton#LadybirdPopoverRow:hover,
 QToolButton#LadybirdPopoverIconButton:hover {{
-    background: {7};
+    background: {6};
 }}
 
 QPushButton#LadybirdPopoverRow:pressed,
 QToolButton#LadybirdPopoverIconButton:pressed {{
-    background: {8};
+    background: {7};
 }}
 
 QToolButton#LadybirdPopoverIconButton {{
@@ -1725,7 +1730,7 @@ QToolButton#LadybirdPopoverIconButton {{
 }}
 )",
         style_sheet_color(panel.text), style_sheet_color(panel.surface), style_sheet_color(over(panel.edge, panel.surface)), style_sheet_color(panel.muted),
-        style_sheet_color(panel.separator), style_sheet_color(panel.link), style_sheet_color(panel.warning), style_sheet_color(panel.control), style_sheet_color(panel.pressed));
+        style_sheet_color(panel.separator), style_sheet_color(panel.warning), style_sheet_color(panel.control), style_sheet_color(panel.pressed));
 }
 
 QString feedback_popover_style_sheet(QPalette const&)
@@ -1842,20 +1847,21 @@ QPushButton#LadybirdZoomButton:pressed {{
 }}
 
 QPushButton#LadybirdPopoverLink {{
-    color: {5};
+    color: {0};
     background: transparent;
     border: 0;
     border-radius: 5px;
     padding: 4px 6px;
     font-size: 12px;
+    font-weight: 500;
 }}
 
 QPushButton#LadybirdPopoverLink:hover {{
-    background: {3};
+    text-decoration: underline;
 }}
 )",
         style_sheet_color(panel.text), style_sheet_color(panel.surface), style_sheet_color(over(panel.edge, panel.surface)),
-        style_sheet_color(panel.control), style_sheet_color(panel.pressed), style_sheet_color(panel.link));
+        style_sheet_color(panel.control), style_sheet_color(panel.pressed));
 }
 
 // Tooltips appear after half a second of hover. Once one has shown, the ones next to it appear at once for 1.5 s.
