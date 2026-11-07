@@ -25,7 +25,12 @@ public:
     using NavigationListener = WebView::ViewImplementation::NavigationListener;
     using ScreenRects = WebView::ViewImplementation::ScreenRects;
     using ScreenshotType = WebView::ViewImplementation::ScreenshotType;
-    using SessionHistoryTraversalMenuItem = WebView::ViewImplementation::SessionHistoryTraversalMenuItem;
+    struct SessionHistoryTraversalMenuItem {
+        i32 step { 0 };
+        String title;
+        String url;
+        Optional<ByteBuffer> favicon_png;
+    };
 
     // Shows the view that the Hub has made, if any, or else makes a new one.
     RemoteView(Optional<u64> view_id, Hub::View::InitialState);
@@ -73,7 +78,11 @@ public:
     URL::URL url() const { return m_state.url; }
     URL::URL const& displayed_url() const { return m_state.displayed_url; }
     Utf16String const& title() const { return m_state.title; }
-    Optional<String> const& favicon_hash() const { return m_state.favicon_hash; }
+    Optional<String> const& favicon_hash() const { return m_favicon_hash; }
+    void did_change_favicon(Optional<Gfx::Bitmap const&>);
+    void did_visit_page(URL::URL const&, Optional<String> const& title, WebView::HistoryVisitTransition);
+    void did_change_visited_page_title(URL::URL const&, String const& title);
+    void did_finish_loading(URL::URL const&);
     String const& handle() const { return m_state.handle; }
     void set_window_position(Gfx::IntPoint position) { HubConnection::the().async_view_set_window_position(view_id(), position); }
     void set_window_size(Gfx::IntSize size) { HubConnection::the().async_view_set_window_size(view_id(), size); }
@@ -206,6 +215,7 @@ public:
     bool is_translated() const { return m_state.is_translated; }
     WebView::Menu& translation_menu() { return *m_translation_menu; }
 
+    Vector<WebView::ViewImplementation::SessionHistoryTraversalItem> session_history_traversal_items(int direction) const;
     Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
     WebView::SessionHistorySnapshot session_history_snapshot() const;
     ErrorOr<void> restore_session_history_from_snapshot(WebView::SessionHistorySnapshot);
@@ -272,6 +282,7 @@ private:
     double m_device_pixel_ratio { 1.0 };
     Optional<u64> m_display_id;
     Optional<SessionTabId> m_session_tab_id;
+    Optional<String> m_favicon_hash;
     bool m_scales_frames_to_fit { false };
     Hub::ViewState m_state;
     HashMap<u64, NavigationListener> m_navigation_listeners;

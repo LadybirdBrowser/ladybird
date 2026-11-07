@@ -103,10 +103,8 @@ public:
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
 
     SpellChecker* spell_checker() { return m_spell_checker.ptr(); }
-    void remove_unreferenced_favicons(HashTable<String> referenced_hashes);
 
     // Going through history, the application can have a reason to keep what was typed to reach a page.
-    virtual void read_keeps_omnibox_engagements(URL::URL const&, Function<void(bool)> on_read) const { on_read(false); }
 
     void set_spell_checker(OwnPtr<SpellChecker>);
 
@@ -564,7 +562,6 @@ private:
     RefPtr<Core::Timer> m_permission_expiry_timer;
 
     OwnPtr<AutocompleteService> m_autocomplete_service;
-    bool m_should_remove_unreferenced_favicons { false };
 
     Main::Arguments m_arguments;
     OwnPtr<Core::StatsLog> m_stats_log;

@@ -446,10 +446,10 @@ void WebContentPage::maybe_record_history_visit_for_current_load(URL::URL const&
 
     // Title and favicon updates already give us a useful history entry, so
     // do not wait for did_finish_loading() on pages that never reach it.
-    auto transition = HistoryVisitTransition::Link;
-    if (displays_tab())
-        transition = view().m_history_visit_transition_for_current_load;
-    client().session().history_store->record_visit(url, move(title), UnixDateTime::now(), transition);
+    // NB: Only a page that shows a tab has a view to tell the application through.
+    if (!displays_tab())
+        return;
+    view().did_visit_page(url, title, view().m_history_visit_transition_for_current_load);
     m_history_recorded_url_for_current_load = normalized_url.release_value();
 }
 
@@ -2940,9 +2940,7 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
 
         maybe_record_history_visit_for_current_load(committed_url, title, "load finish"sv);
         if (title.has_value())
-            client().session().history_store->update_title(committed_url, *title);
-        if (view().favicon_hash().has_value())
-            client().session().history_store->update_favicon(committed_url, *view().favicon_hash());
+            view().did_change_visited_page_title(committed_url, *title);
 
         view().did_finish_navigation();
 
@@ -2971,7 +2969,7 @@ void WebContentPage::did_change_title(Utf16String title)
                 view().url(),
                 title_utf8);
 
-            client().session().history_store->update_title(view().url(), title_utf8);
+            view().did_change_visited_page_title(view().url(), title_utf8);
         }
 
         if (title.is_empty())

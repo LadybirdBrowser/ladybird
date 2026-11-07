@@ -7,6 +7,7 @@
 #include <LibURL/InternalURLs.h>
 #include <LibURL/URL.h>
 #include <LibWebView/AutocompleteRanker.h>
+#include <LibWebView/FaviconStore.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/Bookmarks.h>
@@ -31,14 +32,13 @@ Bookmarks::Bookmarks(BookmarkStore& store)
     create_menus();
     create_context_menus();
 
-    if (auto* hub = HubConnection::the_if_connected()) {
+    if (auto* hub = HubConnection::the_if_connected())
         hub->async_add_web_ui_page("bookmarks"_string, "Bookmarks"_string);
 
-        Vector<String> favicon_hashes;
-        for (auto const& favicon_hash : m_store.favicon_hashes())
-            favicon_hashes.append(favicon_hash);
-        hub->async_favicons_in_use(move(favicon_hashes));
-    }
+    HashTable<String> favicon_hashes;
+    for (auto const& favicon_hash : m_store.favicon_hashes())
+        favicon_hashes.set(favicon_hash);
+    Application::the().remove_unreferenced_favicons(move(favicon_hashes));
 }
 
 Bookmarks::~Bookmarks() = default;
@@ -425,15 +425,8 @@ void Bookmarks::read_missing_favicons()
     if (missing_hashes.is_empty())
         return;
 
-#ifdef LADYBIRD_HUB_IN_OWN_PROCESS
-    auto favicons = HubConnection::the().favicons(missing_hashes);
-    VERIFY(favicons.size() == missing_hashes.size());
-    for (size_t i = 0; i < missing_hashes.size(); ++i)
-        m_favicons.set(missing_hashes[i], move(favicons[i]));
-#else
     for (auto const& hash : missing_hashes)
-        m_favicons.set(hash, WebView::Application::default_session().favicon_store->favicon_png(hash));
-#endif
+        m_favicons.set(hash, Application::favicon_store(WebView::IsPrivate::No).favicon_png(hash));
 }
 
 Optional<ByteBuffer> Bookmarks::favicon_png(String const& favicon_hash) const

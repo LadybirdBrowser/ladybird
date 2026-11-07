@@ -37,8 +37,6 @@ public:
     OwnPtr<StorageJar> storage_jar;
     OwnPtr<BlobURLStore> blob_url_store;
     OwnPtr<HSTSStore> hsts_store;
-    OwnPtr<FaviconStore> favicon_store;
-    OwnPtr<HistoryStore> history_store;
     OwnPtr<PermissionManager> permission_manager;
 
 private:

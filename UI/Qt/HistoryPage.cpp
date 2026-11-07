@@ -8,19 +8,19 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <LibURL/Parser.h>
-#include <LibWebView/Application.h>
 #include <LibWebView/HistoryStore.h>
-#include <LibWebView/WebContentClient.h>
-#include <LibWebView/WebUI/HistoryUI.h>
+#include <UI/Qt/Application.h>
+#include <UI/Qt/HistoryPage.h>
+#include <UI/Qt/HubConnection.h>
 
 #include <algorithm>
 
-namespace WebView {
+namespace Ladybird {
 
 static constexpr size_t DEFAULT_HISTORY_PAGE_SIZE = 50;
 static constexpr size_t MAX_HISTORY_PAGE_SIZE = 100;
 
-static Optional<String> site_key_for_entry(HistoryEntry const& entry)
+static Optional<String> site_key_for_entry(WebView::HistoryEntry const& entry)
 {
     auto parsed_url = URL::Parser::basic_parse(entry.url);
     if (!parsed_url.has_value())
@@ -35,7 +35,7 @@ static Optional<String> site_key_for_entry(HistoryEntry const& entry)
     return MUST(String::from_utf8(parsed_url->serialized_host()));
 }
 
-static JsonObject serialize_history_entry(HistoryEntry const& entry)
+static JsonObject serialize_history_entry(WebView::HistoryEntry const& entry)
 {
     String favicon_base64_png;
     if (entry.favicon_png.has_value()) {
@@ -53,20 +53,22 @@ static JsonObject serialize_history_entry(HistoryEntry const& entry)
     return serialized;
 }
 
-void HistoryUI::register_interfaces()
+HistoryPage::HistoryPage(u64 web_ui_id)
+    : m_web_ui_id(web_ui_id)
 {
-    register_interface("loadHistoryEntries"sv, [this](auto const& data) {
-        load_history_entries(data);
-    });
-    register_interface("removeHistoryEntry"sv, [this](auto const& data) {
-        remove_history_entry(data);
-    });
-    register_interface("forgetHistorySite"sv, [this](auto const& data) {
-        forget_history_site(data);
-    });
 }
 
-void HistoryUI::load_history_entries(JsonValue const& data)
+void HistoryPage::received_message(String const& name, JsonValue const& data)
+{
+    if (name == "loadHistoryEntries"sv)
+        load_history_entries(data);
+    else if (name == "removeHistoryEntry"sv)
+        remove_history_entry(data);
+    else if (name == "forgetHistorySite"sv)
+        forget_history_site(data);
+}
+
+void HistoryPage::load_history_entries(JsonValue const& data)
 {
     if (!data.is_object())
         return;
@@ -83,7 +85,7 @@ void HistoryUI::load_history_entries(JsonValue const& data)
     else
         limit = DEFAULT_HISTORY_PAGE_SIZE;
 
-    auto entries = client().session().history_store->list_entries(query, offset, *limit + 1);
+    auto entries = Application::history_store().list_entries(query, offset, *limit + 1);
     auto has_more = entries.size() > *limit;
     if (has_more)
         entries.resize(*limit);
@@ -100,10 +102,10 @@ void HistoryUI::load_history_entries(JsonValue const& data)
     result.set("hasMore"sv, has_more);
     result.set("entries"sv, move(serialized_entries));
 
-    async_send_message("loadHistoryEntries"sv, move(result));
+    HubConnection::the().async_send_web_ui_message(m_web_ui_id, "loadHistoryEntries"_string, move(result));
 }
 
-void HistoryUI::remove_history_entry(JsonValue const& data)
+void HistoryPage::remove_history_entry(JsonValue const& data)
 {
     if (!data.is_object())
         return;
@@ -116,15 +118,12 @@ void HistoryUI::remove_history_entry(JsonValue const& data)
     if (!parsed_url.has_value())
         return;
 
-    Application::the().read_keeps_omnibox_engagements(*parsed_url, [self = NonnullRefPtr { *this }, url = *parsed_url](bool keeps_engagements) {
-        if (!self->has_client())
-            return;
-        auto remove_engagements = keeps_engagements ? RemoveHistoryEntryEngagements::No : RemoveHistoryEntryEngagements::Yes;
-        self->client().session().history_store->remove_entry_for_url(url, remove_engagements);
-    });
+    // NB: What was typed to reach a bookmarked page stays, so the omnibox keeps offering it.
+    auto remove_engagements = Application::bookmark_store().is_bookmarked(*parsed_url) ? WebView::RemoveHistoryEntryEngagements::No : WebView::RemoveHistoryEntryEngagements::Yes;
+    Application::history_store().remove_entry_for_url(*parsed_url, remove_engagements);
 }
 
-void HistoryUI::forget_history_site(JsonValue const& data)
+void HistoryPage::forget_history_site(JsonValue const& data)
 {
     if (!data.is_object())
         return;
@@ -137,7 +136,7 @@ void HistoryUI::forget_history_site(JsonValue const& data)
     if (!parsed_url.has_value())
         return;
 
-    client().session().history_store->remove_entries_for_same_site(*parsed_url);
+    Application::history_store().remove_entries_for_same_site(*parsed_url);
 }
 
 }

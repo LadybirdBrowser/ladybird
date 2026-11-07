@@ -806,11 +806,9 @@ SessionStore& BrowserWindow::session() const
 
 Optional<WebView::HistoryEntry> BrowserWindow::history_entry_for_url(URL::URL const& url) const
 {
-#ifdef LADYBIRD_HUB_IN_OWN_PROCESS
-    return HubConnection::the().history_entry_for_url(m_is_private, url);
-#else
-    return WebView::Application::session_for_new_view(m_is_private)->history_store->entry_for_url(url);
-#endif
+    if (m_is_private == WebView::IsPrivate::Yes)
+        return {};
+    return Application::history_store().entry_for_url(url);
 }
 
 Tab& BrowserWindow::create_restored_tab(RestoredSessionTab const& restored, int index, bool defer)

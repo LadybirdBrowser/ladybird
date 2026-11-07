@@ -176,8 +176,10 @@ void HubConnection::view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitm
     auto* view = RemoteView::find(view_id);
     if (!view)
         return;
-    if (view->is_private() == WebView::IsPrivate::No && view->favicon_hash().has_value())
-        Application::bookmark_store().update_favicon(view->url(), *view->favicon_hash());
+    if (favicon.has_value() && favicon->is_valid())
+        view->did_change_favicon(*favicon->bitmap());
+    else
+        view->did_change_favicon({});
     if (!view->on_favicon_change)
         return;
     if (favicon.has_value() && favicon->is_valid())
@@ -595,25 +597,24 @@ void HubConnection::app_open_new_window(Vector<URL::URL> urls)
         application.on_new_window(urls);
 }
 
-void HubConnection::app_read_keeps_omnibox_engagements(u64 request_id, URL::URL url)
-{
-    async_answer_keeps_omnibox_engagements(request_id, Application::bookmark_store().is_bookmarked(url));
-}
-
 void HubConnection::web_ui_opened(u64 web_ui_id, String host)
 {
     if (host == "bookmarks"sv)
         Application::bookmarks().page_opened(web_ui_id);
+    else if (host == "history"sv)
+        Application::the().history_page_opened(web_ui_id);
 }
 
 void HubConnection::web_ui_message(u64 web_ui_id, String name, JsonValue data)
 {
     Application::bookmarks().page_received_message(web_ui_id, name, data);
+    Application::the().history_page_received_message(web_ui_id, name, data);
 }
 
 void HubConnection::web_ui_closed(u64 web_ui_id)
 {
     Application::bookmarks().page_closed(web_ui_id);
+    Application::the().history_page_closed(web_ui_id);
 }
 
 void HubConnection::set_settings_from_hub(JsonValue const& settings)
@@ -656,6 +657,18 @@ void HubConnection::view_request_context_menu(u64 view_id, WebView::ContextMenuR
 {
     if (auto* view = RemoteView::find(view_id))
         view->did_request_context_menu(request);
+}
+
+void HubConnection::view_visited_page(u64 view_id, URL::URL url, Optional<String> title, WebView::HistoryVisitTransition transition)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_visit_page(url, title, transition);
+}
+
+void HubConnection::view_visited_page_title_change(u64 view_id, URL::URL url, String title)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_change_visited_page_title(url, title);
 }
 
 void HubConnection::view_session_history_changed(u64 view_id, WebView::SessionHistorySnapshot history, URL::URL url)
@@ -710,7 +723,11 @@ void HubConnection::view_load_start(u64 view_id)
 
 void HubConnection::view_load_finish(u64 view_id, URL::URL url)
 {
-    if (auto* view = RemoteView::find(view_id); view && view->on_load_finish)
+    auto* view = RemoteView::find(view_id);
+    if (!view)
+        return;
+    view->did_finish_loading(url);
+    if (view->on_load_finish)
         view->on_load_finish(move(url));
 }
 

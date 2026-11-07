@@ -47,6 +47,8 @@ public:
     struct Source {
         Function<Vector<WebView::ProcessSnapshot>()> take_snapshots;
         Function<bool(u64 child_id)> end_process;
+        Function<Optional<String>(WebView::ProcessPageSnapshot const&)> favicon_hash;
+        Function<Optional<ByteBuffer>(String const& favicon_hash)> favicon_png;
     };
 
     explicit ProcessManagerWindow(Source);

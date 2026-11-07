@@ -165,7 +165,7 @@ TEST_CASE(browser_history_traversal)
     view->load(url_d);
     wait_until_at(url_d);
 
-    auto back_menu_items = view->session_history_traversal_menu_items(-1);
+    auto back_menu_items = view->session_history_traversal_items(-1);
     VERIFY(back_menu_items.size() == 3);
     VERIFY(back_menu_items[0].step == 2);
     VERIFY(back_menu_items[1].step == 1);
