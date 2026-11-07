@@ -11,39 +11,6 @@
 
 namespace WebView {
 
-// Wraps the real autocomplete machinery (history store, search engine, remote suggestions).
-class AutocompleteSuggestionProvider final : public OmniboxSuggestionProvider {
-public:
-    AK_ALLOC_WITH_KMALLOC;
-
-    AutocompleteSuggestionProvider(IsPrivate is_private)
-        : m_autocomplete(is_private)
-    {
-        m_autocomplete.on_autocomplete_query_complete = [this](auto query_id, auto suggestions, auto) {
-            if (on_suggestions)
-                on_suggestions(query_id, move(suggestions));
-        };
-    }
-
-    virtual void query(AutocompleteQueryID query_id, String query, size_t max_suggestions) override
-    {
-        m_autocomplete.query_autocomplete_engine(query_id, move(query), max_suggestions);
-    }
-
-    virtual void cancel() override
-    {
-        m_autocomplete.cancel_pending_query();
-    }
-
-    virtual void record_engagement(OmniboxEngagement engagement) override
-    {
-        m_autocomplete.record_engagement(move(engagement));
-    }
-
-private:
-    Autocomplete m_autocomplete;
-};
-
 // "theverge.com/" completes "theverge.com" for all practical purposes, so ignore a trailing slash that
 // merely closes out a root URL.
 static StringView candidate_by_trimming_root_trailing_slash(StringView candidate)
@@ -170,11 +137,6 @@ static Optional<size_t> index_of_exact_search_suggestion(String const& query, Ve
         return suggestion.source == AutocompleteSuggestionSource::Search
             && suggestion_matches_query_exactly(query, suggestion.text);
     });
-}
-
-Omnibox::Omnibox(IsPrivate is_private)
-    : Omnibox(make<AutocompleteSuggestionProvider>(is_private))
-{
 }
 
 Omnibox::Omnibox(NonnullOwnPtr<OmniboxSuggestionProvider> provider)

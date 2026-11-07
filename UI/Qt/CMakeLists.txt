@@ -50,7 +50,6 @@ add_library(ladybird_impl STATIC
     Popover.cpp
     ProcessManagerWindow.cpp
     RemoteDownloads.cpp
-    RemoteSuggestionProvider.cpp
     RemoteView.cpp
     ReportReview.cpp
     RestoreSessionCard.cpp
@@ -61,6 +60,7 @@ add_library(ladybird_impl STATIC
     SelectDropdown.cpp
     SiteSettingsPopover.cpp
     StringUtils.cpp
+    SuggestionProvider.cpp
     SystemAppearance.cpp
     Tab.cpp
     TabBar.cpp

@@ -13,7 +13,6 @@
 #include <UI/Qt/BookmarksPage.h>
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/RemoteDownloads.h>
-#include <UI/Qt/RemoteSuggestionProvider.h>
 #include <UI/Qt/RemoteView.h>
 #include <UI/Qt/Tab.h>
 
@@ -67,23 +66,23 @@ void HubConnection::crash_reports_changed()
 #endif
 }
 
-u64 HubConnection::post_report(URL::URL const& url, Vector<HTTP::Header> headers, ByteString body, Function<void(WebView::ReportSubmission::PostResponse)> on_response)
+u64 HubConnection::start_request(ByteString method, URL::URL const& url, Vector<HTTP::Header> headers, ByteString body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, WebView::IsPrivate is_private, Function<void(RequestResponse)> on_response)
 {
-    auto post_id = m_next_report_post_id++;
-    m_report_posts.set(post_id, move(on_response));
-    async_post_report(post_id, url, move(headers), move(body));
-    return post_id;
+    auto request_id = m_next_request_id++;
+    m_requests.set(request_id, move(on_response));
+    async_start_request(request_id, move(method), url, move(headers), move(body), cache_mode, include_credentials, is_private);
+    return request_id;
 }
 
-void HubConnection::cancel_report_post(u64 post_id)
+void HubConnection::stop_request(u64 request_id)
 {
-    m_report_posts.remove(post_id);
-    async_cancel_report_post(post_id);
+    m_requests.remove(request_id);
+    async_stop_request(request_id);
 }
 
-void HubConnection::report_post_finished(u64 post_id, bool had_network_error, Optional<u32> response_code, Vector<HTTP::Header> response_headers, ByteString body)
+void HubConnection::request_finished(u64 request_id, bool had_network_error, Optional<u32> response_code, Vector<HTTP::Header> response_headers, ByteString body)
 {
-    if (auto on_response = m_report_posts.take(post_id); on_response.has_value())
+    if (auto on_response = m_requests.take(request_id); on_response.has_value())
         (*on_response)({ .had_network_error = had_network_error, .response_code = response_code, .headers = move(response_headers), .body = move(body) });
 }
 
@@ -352,12 +351,6 @@ void HubConnection::download_updated(Hub::DownloadState download)
 void HubConnection::download_removed(u64 id, WebView::IsPrivate is_private)
 {
     RemoteDownloads::the().did_remove(id, is_private);
-}
-
-void HubConnection::omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions)
-{
-    if (auto* provider = RemoteSuggestionProvider::find(client_id); provider && provider->on_suggestions)
-        provider->on_suggestions(query_id, move(suggestions));
 }
 
 void HubConnection::pip_open(u64 view_id, u64 owner_view_id, Gfx::IntSize video_size)

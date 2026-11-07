@@ -11,7 +11,6 @@
 #include <Hub/HubServerEndpoint.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibIPC/ConnectionToServer.h>
-#include <LibWebView/ReportSubmission.h>
 
 namespace Ladybird {
 
@@ -31,8 +30,15 @@ public:
     // The Hub has answered initialize(), so from now on the UI cannot go on without it.
     void did_initialize();
 
-    u64 post_report(URL::URL const&, Vector<HTTP::Header>, ByteString body, Function<void(WebView::ReportSubmission::PostResponse)>);
-    void cancel_report_post(u64 post_id);
+    // The UI has no network of its own, so the Hub makes its requests. Returns an ID for stop_request().
+    struct RequestResponse {
+        bool had_network_error { false };
+        Optional<u32> response_code;
+        Vector<HTTP::Header> headers;
+        ByteString body;
+    };
+    u64 start_request(ByteString method, URL::URL const&, Vector<HTTP::Header>, ByteString body, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, WebView::IsPrivate, Function<void(RequestResponse)>);
+    void stop_request(u64 request_id);
 
     void set_settings_from_hub(JsonValue const&);
     void send_settings_changes(JsonValue const&);
@@ -41,8 +47,8 @@ private:
     Core::GeolocationProvider* ensure_geolocation_provider();
 
     bool m_did_initialize { false };
-    u64 m_next_report_post_id { 1 };
-    HashMap<u64, Function<void(WebView::ReportSubmission::PostResponse)>> m_report_posts;
+    u64 m_next_request_id { 1 };
+    HashMap<u64, Function<void(RequestResponse)>> m_requests;
     OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
     HashMap<u64, Core::GeolocationProvider::RequestId> m_geolocation_requests;
     HashMap<u64, Core::GeolocationProvider::WatchId> m_geolocation_watches;
@@ -61,7 +67,7 @@ private:
 
     // ^HubClientEndpoint
     virtual void crash_reports_changed() override;
-    virtual void report_post_finished(u64 post_id, bool had_network_error, Optional<u32> response_code, Vector<HTTP::Header> response_headers, ByteString body) override;
+    virtual void request_finished(u64 request_id, bool had_network_error, Optional<u32> response_code, Vector<HTTP::Header> response_headers, ByteString body) override;
     virtual void app_open_urls(Vector<URL::URL> urls) override;
     virtual void app_open_new_tab(Vector<URL::URL> urls) override;
     virtual void app_open_new_window(Vector<URL::URL> urls) override;
@@ -90,7 +96,6 @@ private:
     virtual void external_url_resolve_handler(u64 request_id, URL::URL url) override;
     virtual void external_url_launch(u64 handler_id, u64 request_id, URL::URL url) override;
     virtual void external_url_release_handler(u64 handler_id) override;
-    virtual void omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions) override;
     virtual void download_added(Hub::DownloadState download) override;
     virtual void download_updated(Hub::DownloadState download) override;
     virtual void download_removed(u64 id, WebView::IsPrivate is_private) override;

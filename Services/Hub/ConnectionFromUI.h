@@ -11,7 +11,6 @@
 #include <Hub/View.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibRequests/Request.h>
-#include <LibWebView/Autocomplete.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/FileDownloader.h>
 
@@ -44,12 +43,9 @@ private:
 
     static View* find_view(u64 view_id);
 
-    // The reports that the UI has asked us to post, which it has no network to do itself.
-    HashMap<u64, NonnullRefPtr<Requests::Request>> m_report_posts;
+    // The requests that the UI has asked us to make, as it has no network of its own.
+    HashMap<u64, NonnullRefPtr<Requests::Request>> m_requests;
     u64 m_last_applied_settings_change_id { 0 };
-
-    // The location bars of the UI each have one of these, which needs the network and the history.
-    HashMap<u64, NonnullOwnPtr<WebView::Autocomplete>> m_omnibox_clients;
 
     // A close that the UI got ready for, and finishes once the tab is gone from its window.
     HashMap<u64, Function<void()>> m_prepared_closes;
@@ -66,8 +62,8 @@ private:
     virtual void ui_did_start() override;
     virtual void add_web_ui_page(String host, String title) override;
     virtual void send_web_ui_message(u64 web_ui_id, String name, JsonValue data) override;
-    virtual void post_report(u64 post_id, URL::URL url, Vector<HTTP::Header> headers, ByteString body) override;
-    virtual void cancel_report_post(u64 post_id) override;
+    virtual void start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> headers, ByteString body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, WebView::IsPrivate is_private) override;
+    virtual void stop_request(u64 request_id) override;
     virtual void toggle_devtools_enabled() override;
     virtual void set_preferred_contrast(Web::CSS::PreferredContrast) override;
     virtual void set_preferred_motion(Web::CSS::PreferredMotion) override;
@@ -123,11 +119,6 @@ private:
     virtual void translator_translation_finished(u64 request_id, Optional<Vector<Web::TranslationRun>> runs) override;
     virtual void external_url_handler_resolved(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird) override;
     virtual void external_url_launched(u64 request_id, bool launched) override;
-    virtual void omnibox_open(u64 client_id, WebView::IsPrivate is_private) override;
-    virtual void omnibox_close(u64 client_id) override;
-    virtual void omnibox_query(u64 client_id, u64 query_id, String query, u64 max_suggestions, Vector<WebView::AutocompleteSuggestion> additional_suggestions) override;
-    virtual void omnibox_cancel(u64 client_id) override;
-    virtual void omnibox_record_engagement(u64 client_id, WebView::OmniboxEngagement engagement) override;
     virtual void cancel_download(u64 id) override;
     virtual void pause_download(u64 id) override;
     virtual void resume_download(u64 id) override;

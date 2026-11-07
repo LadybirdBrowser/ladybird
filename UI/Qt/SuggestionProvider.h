@@ -6,26 +6,25 @@
 
 #pragma once
 
+#include <LibWebView/Autocomplete.h>
 #include <LibWebView/Omnibox.h>
 
 namespace Ladybird {
 
-// Gets the suggestions of a location bar from the Hub, which has the network and the browsing history they come from.
-class RemoteSuggestionProvider final : public WebView::OmniboxSuggestionProvider {
+// Makes the suggestions of a location bar from the browsing history, the bookmarks and the search engine.
+class SuggestionProvider final : public WebView::OmniboxSuggestionProvider {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    explicit RemoteSuggestionProvider(WebView::IsPrivate);
-    virtual ~RemoteSuggestionProvider() override;
-
-    static RemoteSuggestionProvider* find(u64 client_id);
+    explicit SuggestionProvider(WebView::IsPrivate);
+    virtual ~SuggestionProvider() override = default;
 
     virtual void query(WebView::AutocompleteQueryID, String, size_t max_suggestions) override;
     virtual void cancel() override;
     virtual void record_engagement(WebView::OmniboxEngagement) override;
 
 private:
-    u64 m_client_id { 0 };
+    WebView::Autocomplete m_autocomplete;
 };
 
 }

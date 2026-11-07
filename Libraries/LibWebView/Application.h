@@ -96,7 +96,6 @@ public:
     static Profile const& profile() { return *the().m_profile; }
     BrowserProcess& browser_process() { return *m_browser_process; }
     bool should_exit_after_profile_coordination() const { return m_should_exit_after_profile_coordination; }
-    static AutocompleteService& autocomplete_service() { return *the().m_autocomplete_service; }
 
     static BrowserOptions const& browser_options() { return the().m_browser_options; }
     static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
@@ -560,8 +559,6 @@ private:
     OwnPtr<ApplicationSettingsObserver> m_settings_observer;
     OwnPtr<ApplicationPermissionManagerObserver> m_permission_manager_observer;
     RefPtr<Core::Timer> m_permission_expiry_timer;
-
-    OwnPtr<AutocompleteService> m_autocomplete_service;
 
     Main::Arguments m_arguments;
     OwnPtr<Core::StatsLog> m_stats_log;
