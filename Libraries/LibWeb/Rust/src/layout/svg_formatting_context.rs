@@ -284,7 +284,8 @@ impl FfiSvgNumberPercentage {
 }
 
 pub(crate) const PRESERVE_ASPECT_RATIO_NONE: u8 = 0;
-const PRESERVE_ASPECT_RATIO_X_MIN_Y_MIN: u8 = 1;
+pub(crate) const PRESERVE_ASPECT_RATIO_X_MIN_Y_MIN: u8 = 1;
+pub(crate) const PRESERVE_ASPECT_RATIO_X_MID_Y_MID: u8 = 5;
 pub(crate) const PRESERVE_ASPECT_RATIO_X_MAX_Y_MAX: u8 = 9;
 pub(crate) const MEET_OR_SLICE_MEET: u8 = 0;
 pub(crate) const MEET_OR_SLICE_SLICE: u8 = 1;

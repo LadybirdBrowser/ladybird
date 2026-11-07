@@ -215,9 +215,12 @@ template<typename Queue>
 static void with_replaced_image_paint_facts(Layout::ImageProvider const& image_provider, Queue queue)
 {
     Optional<Gfx::DecodedImageFrame> current_frame;
+    auto preserve_aspect_ratio = image_provider.preserve_aspect_ratio();
     Layout::RustFFI::FfiReplacedImagePaintFacts facts {
         .natural = natural_size_facts(image_provider.intrinsic_width(), image_provider.intrinsic_height(), image_provider.intrinsic_aspect_ratio()),
         .content = image_content_facts(image_provider.decoded_image_data(), current_frame),
+        .preserve_aspect_ratio_align = static_cast<u8>(to_underlying(preserve_aspect_ratio.align)),
+        .preserve_aspect_ratio_meet_or_slice = static_cast<u8>(to_underlying(preserve_aspect_ratio.meet_or_slice)),
     };
     queue(facts);
 }
