@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/Checked.h>
 #include <AK/NeverDestroyed.h>
 #include <LibCore/Timer.h>
@@ -15,13 +16,16 @@ namespace MediaClient {
 
 static constexpr int IDLE_EXIT_DELAY_MS = 30'000;
 
-static NeverDestroyed<Client::TransportFactory> s_transport_factory;
-static NeverDestroyed<RefPtr<Client>> s_client;
-static u64 s_next_generation { 1 };
+// A connection serves the thread that made it, so each agent has one of its own.
+static thread_local NeverDestroyed<Client::TransportFactory> s_transport_factory;
+static thread_local NeverDestroyed<RefPtr<Client>> s_client;
+static Atomic<u64, AK::MemoryOrder::memory_order_relaxed> s_next_generation { 1 };
 
 void Client::set_transport_factory(TransportFactory factory)
 {
     *s_transport_factory = move(factory);
+    if (!*s_transport_factory)
+        *s_client = nullptr;
 }
 
 ErrorOr<NonnullRefPtr<Client>> Client::acquire()
@@ -40,7 +44,7 @@ ErrorOr<NonnullRefPtr<Client>> Client::acquire()
 
 Client::Client(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<MediaClientEndpoint, MediaServerEndpoint>(*this, move(transport))
-    , m_generation(s_next_generation++)
+    , m_generation(s_next_generation.fetch_add(1))
 {
 }
 
