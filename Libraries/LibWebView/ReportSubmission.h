@@ -19,8 +19,11 @@
 #include <AK/Weakable.h>
 #include <LibCore/Forward.h>
 #include <LibCore/ImmutableBytes.h>
+#include <LibHTTP/Forward.h>
+#include <LibHTTP/Header.h>
 #include <LibRequests/Forward.h>
 #include <LibThreading/Forward.h>
+#include <LibURL/Forward.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
@@ -77,6 +80,16 @@ public:
     static ByteString build_manifest(Contents const&, ReadonlySpan<Attachment>);
     static NonnullRefPtr<ReportSubmission> create(Payload);
 
+    struct PostResponse {
+        bool had_network_error { false };
+        Optional<u32> response_code;
+        Vector<HTTP::Header> headers;
+        ByteString body;
+    };
+    using PostFunction = Function<void(URL::URL const&, Vector<HTTP::Header>, ByteString body, Function<void(PostResponse)>)>;
+    // A process with no RequestServer of its own posts its reports through this.
+    static void set_post_function(PostFunction);
+
     virtual ~ReportSubmission();
 
     void start();
@@ -127,8 +140,13 @@ private:
     Optional<Payload> m_payload;
     u32 m_attempt { 1 };
 
+    void arm_request_timeout();
+    void did_receive_response(StringView activity, bool had_network_error, Optional<u32> response_code, HTTP::HeaderList const& response_headers, ReadonlyBytes body, Function<void(ByteString)> const& on_success);
+
     RefPtr<Requests::Request> m_request;
     RefPtr<Core::Timer> m_request_timeout;
+    // Identifies the post made through the post function, so that a response to one given up on goes unnoticed.
+    u64 m_post_serial { 0 };
     RefPtr<Core::Timer> m_retry_timer;
 
     RefPtr<ReportSubmission> m_self_while_in_flight;
