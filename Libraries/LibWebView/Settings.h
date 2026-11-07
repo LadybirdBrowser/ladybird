@@ -54,7 +54,8 @@ enum class ThemePreference : u8 {
     X(Saffron, "saffron")         \
     X(Copper, "copper")           \
     X(Cherry, "cherry")           \
-    X(Blossom, "blossom")
+    X(Blossom, "blossom")         \
+    X(Lavender, "lavender")
 
 enum class ColorTheme : u8 {
 #define __ENUMERATE_COLOR_THEME(name, string) name,

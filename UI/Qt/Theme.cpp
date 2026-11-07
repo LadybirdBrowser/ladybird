@@ -193,14 +193,21 @@ static PanelColors const dark_panel {
     .information = rgba(10, 122, 255, 0.22),
 };
 
+// How saturated the surfaces are in the tint's hue, and the text and icons on them, which take on only a trace of it.
+static constexpr float SURFACE_TINT_SATURATION = 0.22f;
+static constexpr float INK_TINT_SATURATION = 0.12f;
+
 // A color theme is made from one or two base colors. Its chrome and panel colors are derived from those of the neutral
 // theme, by giving each surface the tint's hue while keeping its lightness, so contrast stays as it is.
-// NB: Violet surfaces mark private windows, so no theme should tint with a violet hue.
+// NB: Dark violet surfaces mark private windows, so no theme should tint with a deep violet hue. Lavender is bluer and
+//     lighter than the private windows' violet, and its dark surfaces are less saturated to stay clear of them.
 struct ColorThemeDefinition {
     // The hue the surfaces take on, or none to keep them neutral.
     Optional<QColor> tint;
     // The color of focus rings, selection and selected rows, or none to follow the system's accent color.
     Optional<QColor> accent;
+    // How saturated the surfaces of the dark appearance are in the tint's hue.
+    float dark_surface_saturation { SURFACE_TINT_SATURATION };
 };
 
 // Each tinted theme is made from a single base color, which is both its tint and its accent.
@@ -229,13 +236,14 @@ static ColorThemeDefinition color_theme_definition(WebView::ColorTheme theme)
         return from_base_color(0xd1344b);
     case WebView::ColorTheme::Blossom:
         return from_base_color(0xd2459a);
+    case WebView::ColorTheme::Lavender: {
+        auto definition = from_base_color(0x7563d4);
+        definition.dark_surface_saturation = 0.14f;
+        return definition;
+    }
     }
     VERIFY_NOT_REACHED();
 }
-
-// How saturated the surfaces are in the tint's hue, and the text and icons on them, which take on only a trace of it.
-static constexpr float SURFACE_TINT_SATURATION = 0.22f;
-static constexpr float INK_TINT_SATURATION = 0.12f;
 
 // NB: Translucent fills, such as hovers and the address field, stay neutral, and take on the tint of the surface below.
 static void tint(QColor& color, QColor const& tint, float saturation)
@@ -245,25 +253,25 @@ static void tint(QColor& color, QColor const& tint, float saturation)
     color = QColor::fromHslF(tint.hslHueF(), saturation, color.lightnessF());
 }
 
-static ChromeColors derive_chrome(ChromeColors const& neutral, Optional<QColor> const& tint_color)
+static ChromeColors derive_chrome(ChromeColors const& neutral, Optional<QColor> const& tint_color, float surface_saturation)
 {
     auto colors = neutral;
     if (!tint_color.has_value())
         return colors;
     for (auto* surface : { &colors.strip, &colors.toolbar, &colors.sidebar, &colors.field_focused, &colors.separator, &colors.divider })
-        tint(*surface, *tint_color, SURFACE_TINT_SATURATION);
+        tint(*surface, *tint_color, surface_saturation);
     for (auto* ink : { &colors.text, &colors.muted, &colors.tab_title, &colors.icon, &colors.disabled, &colors.row_title })
         tint(*ink, *tint_color, INK_TINT_SATURATION);
     return colors;
 }
 
-static PanelColors derive_panel(PanelColors const& neutral, Optional<QColor> const& tint_color)
+static PanelColors derive_panel(PanelColors const& neutral, Optional<QColor> const& tint_color, float surface_saturation)
 {
     auto colors = neutral;
     if (!tint_color.has_value())
         return colors;
     for (auto* surface : { &colors.surface, &colors.separator, &colors.separator_soft, &colors.page })
-        tint(*surface, *tint_color, SURFACE_TINT_SATURATION);
+        tint(*surface, *tint_color, surface_saturation);
     for (auto* ink : { &colors.text, &colors.body, &colors.muted, &colors.shortcut })
         tint(*ink, *tint_color, INK_TINT_SATURATION);
     return colors;
@@ -278,10 +286,10 @@ static PanelColors s_dark_panel = dark_panel;
 void set_color_theme(WebView::ColorTheme theme)
 {
     s_color_theme = color_theme_definition(theme);
-    s_light_chrome = derive_chrome(light_chrome, s_color_theme.tint);
-    s_dark_chrome = derive_chrome(dark_chrome, s_color_theme.tint);
-    s_light_panel = derive_panel(light_panel, s_color_theme.tint);
-    s_dark_panel = derive_panel(dark_panel, s_color_theme.tint);
+    s_light_chrome = derive_chrome(light_chrome, s_color_theme.tint, SURFACE_TINT_SATURATION);
+    s_dark_chrome = derive_chrome(dark_chrome, s_color_theme.tint, s_color_theme.dark_surface_saturation);
+    s_light_panel = derive_panel(light_panel, s_color_theme.tint, SURFACE_TINT_SATURATION);
+    s_dark_panel = derive_panel(dark_panel, s_color_theme.tint, s_color_theme.dark_surface_saturation);
 }
 
 // NB: With increased contrast, the chrome stays neutral whatever the color theme.
