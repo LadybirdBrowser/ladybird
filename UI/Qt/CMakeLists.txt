@@ -65,8 +65,10 @@ add_library(ladybird_impl STATIC
     Tab.cpp
     TabBar.cpp
     Theme.cpp
+    VersionPage.cpp
     WebCompatReportReview.cpp
     WebContentView.cpp
+    WebUIPage.cpp
     WindowCloseCoordinator.cpp
     WindowControlButton.cpp
     WindowControlsReveal.cpp

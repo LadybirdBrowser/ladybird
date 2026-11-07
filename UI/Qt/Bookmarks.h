@@ -19,8 +19,6 @@
 
 namespace Ladybird {
 
-class BookmarksPage;
-
 // Everything about bookmarks: they are a feature of this application, of which the Hub knows nothing.
 class Bookmarks final
     : public BookmarkStoreObserver
@@ -44,10 +42,6 @@ public:
     void update_toggle_bookmark_action();
     void set_context_menu_item(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id);
     void open_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab);
-
-    void page_opened(u64 web_ui_id);
-    void page_received_message(u64 web_ui_id, String const& name, JsonValue const& data);
-    void page_closed(u64 web_ui_id);
 
 private:
     virtual void bookmarks_changed() override;
@@ -98,8 +92,6 @@ private:
     // A favicon's hash is of its content, so what was read for a hash stays true.
     HashMap<String, Optional<ByteBuffer>> m_favicons;
     Vector<WebView::AutocompleteBookmark> m_autocomplete_bookmarks;
-
-    HashMap<u64, NonnullOwnPtr<BookmarksPage>> m_pages;
 };
 
 }

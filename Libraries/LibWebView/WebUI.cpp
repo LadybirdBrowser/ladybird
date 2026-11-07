@@ -14,7 +14,6 @@
 #include <LibWebView/WebUI/CrashReportsUI.h>
 #include <LibWebView/WebUI/DownloadsUI.h>
 #include <LibWebView/WebUI/SettingsUI.h>
-#include <LibWebView/WebUI/VersionUI.h>
 
 namespace WebView {
 
@@ -26,7 +25,6 @@ static constexpr auto s_pages = to_array<WebUI::Page>({
     { "newtab"sv, "New Tab"sv, WebUI::PageType::Static },
     { "settings"sv, "Settings"sv, WebUI::PageType::Dynamic },
     { "services"sv, "Services"sv, WebUI::PageType::Static },
-    { "version"sv, "Version"sv, WebUI::PageType::Dynamic },
     { "welcome"sv, "Welcome"sv, WebUI::PageType::Dynamic },
 });
 
@@ -101,8 +99,6 @@ ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, Web::PageId page_
         web_ui = TRY(create_web_ui<DownloadsUI>(client, page_id, move(host)));
     else if (page->host.is_one_of("settings"sv, "welcome"sv))
         web_ui = TRY(create_web_ui<SettingsUI>(client, page_id, move(host)));
-    else if (page->host == "version"sv)
-        web_ui = TRY(create_web_ui<VersionUI>(client, page_id, move(host)));
 
     VERIFY(web_ui);
     web_ui->register_interfaces();

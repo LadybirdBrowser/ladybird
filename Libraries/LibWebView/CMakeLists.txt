@@ -96,7 +96,6 @@ set(SOURCES
     WebUI/CrashReportsUI.cpp
     WebUI/DownloadsUI.cpp
     WebUI/SettingsUI.cpp
-    WebUI/VersionUI.cpp
     WebWorkerClient.cpp
     WorkerAgentManager.cpp
 )

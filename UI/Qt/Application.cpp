@@ -63,7 +63,9 @@
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/Theme.h>
+#include <UI/Qt/VersionPage.h>
 #include <UI/Qt/WebContentView.h>
+#include <UI/Qt/WebUIPage.h>
 
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/ApplicationIcon.h>
@@ -644,6 +646,7 @@ Application* Application::s_the = nullptr;
 ErrorOr<NonnullOwnPtr<Application>> Application::create(Main::Arguments const& arguments)
 {
     auto application = adopt_own(*new Application);
+    application->m_command_line = MUST(String::join(' ', arguments.strings));
 
 #ifdef LADYBIRD_HUB_IN_OWN_PROCESS
     WebView::platform_init();
@@ -1023,9 +1026,14 @@ void Application::create_platform_actions()
         if (auto* hub = HubConnection::the_if_connected())
             hub->send_settings_changes(settings);
     };
+    m_web_ui_pages = make<WebUIPages>();
     m_bookmarks = make<Bookmarks>(*m_bookmark_store);
-    if (auto* hub = HubConnection::the_if_connected())
-        hub->async_add_web_ui_page("history"_string, "History"_string);
+    m_web_ui_pages->register_page("history"_string, "History"_string, [](u64 web_ui_id) -> NonnullOwnPtr<WebUIPage> {
+        return make<HistoryPage>(web_ui_id);
+    });
+    m_web_ui_pages->register_page("version"_string, "Version"_string, [](u64 web_ui_id) -> NonnullOwnPtr<WebUIPage> {
+        return make<VersionPage>(web_ui_id);
+    });
 
     m_open_task_manager_action = WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
         show_process_manager();
@@ -1348,22 +1356,6 @@ void Application::remove_unreferenced_favicons(HashTable<String> referenced_hash
     for (auto& hash : m_history_store->referenced_favicon_hashes())
         referenced_hashes.set(move(hash));
     m_favicon_store->remove_unreferenced_favicons(referenced_hashes);
-}
-
-void Application::history_page_opened(u64 web_ui_id)
-{
-    m_history_pages.set(web_ui_id, make<HistoryPage>(web_ui_id));
-}
-
-void Application::history_page_received_message(u64 web_ui_id, String const& name, JsonValue const& data)
-{
-    if (auto page = m_history_pages.get(web_ui_id); page.has_value())
-        (*page)->received_message(name, data);
-}
-
-void Application::history_page_closed(u64 web_ui_id)
-{
-    m_history_pages.remove(web_ui_id);
 }
 
 SessionStore& Application::session_store(WebView::IsPrivate is_private)

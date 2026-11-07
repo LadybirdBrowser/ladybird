@@ -33,7 +33,7 @@ class QWidget;
 
 namespace Ladybird {
 
-class HistoryPage;
+class WebUIPages;
 
 class Bookmarks;
 class ProcessManagerWindow;
@@ -105,9 +105,8 @@ public:
     virtual WebView::Settings& autocomplete_settings() override { return *m_settings; }
     virtual Function<void()> fetch_remote_suggestions(URL::URL const&, WebView::IsPrivate, Function<void(RemoteResponse)>) override;
 
-    void history_page_opened(u64 web_ui_id);
-    void history_page_received_message(u64 web_ui_id, String const& name, JsonValue const& data);
-    void history_page_closed(u64 web_ui_id);
+    static WebUIPages& web_ui_pages() { return *s_the->m_web_ui_pages; }
+    String const& command_line() const { return m_command_line; }
 
     virtual ~Application() override;
 
@@ -290,6 +289,8 @@ private:
 
     static Application* s_the;
 
+    String m_command_line;
+
 #ifdef LADYBIRD_HUB_IN_OWN_PROCESS
     ErrorOr<void> connect_to_hub(Main::Arguments const&);
     Hub::UIInfo current_ui_info() const;
@@ -321,9 +322,10 @@ private:
     OwnPtr<WebView::HistoryStore> m_history_store;
     OwnPtr<WebView::AutocompleteService> m_autocomplete_service;
     bool m_should_remove_unreferenced_favicons { false };
-    HashMap<u64, NonnullOwnPtr<HistoryPage>> m_history_pages;
     Vector<int> m_session_signal_handlers;
     OwnPtr<Bookmarks> m_bookmarks;
+    // NB: Declared after the stores and the bookmarks, so the pages that show them are gone first.
+    OwnPtr<WebUIPages> m_web_ui_pages;
     OwnPtr<ApplicationActions> m_application_actions;
     RefPtr<HubConnection> m_hub_connection;
     OwnPtr<QApplication> m_application;

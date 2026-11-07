@@ -11,7 +11,6 @@
 #include <UI/Qt/BookmarkStore.h>
 #include <UI/Qt/Bookmarks.h>
 #include <UI/Qt/BookmarksPage.h>
-#include <UI/Qt/HubConnection.h>
 #include <UI/Qt/StringUtils.h>
 
 #include <QFileDialog>
@@ -21,8 +20,8 @@
 namespace Ladybird {
 
 BookmarksPage::BookmarksPage(u64 web_ui_id)
-    : BookmarkStoreObserver(Application::bookmark_store())
-    , m_web_ui_id(web_ui_id)
+    : WebUIPage(web_ui_id)
+    , BookmarkStoreObserver(Application::bookmark_store())
 {
 }
 
@@ -54,7 +53,7 @@ void BookmarksPage::load_bookmarks()
     auto items = Application::bookmark_store().serialize_items([](String const& favicon_hash) {
         return Application::bookmarks().favicon_png(favicon_hash);
     });
-    HubConnection::the().async_send_web_ui_message(m_web_ui_id, "loadBookmarks"_string, move(items));
+    send_message("loadBookmarks"_string, move(items));
 }
 
 void BookmarksPage::move_item(JsonValue const& data)
