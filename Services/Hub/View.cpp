@@ -712,4 +712,10 @@ void View::did_make_link_to_highlight(Optional<URL::URL> url)
         ui->async_view_did_make_link_to_highlight(view_id(), move(url));
 }
 
+void View::did_change_session_history(WebView::SessionHistorySnapshot const& history, URL::URL const& url)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_session_history_changed(view_id(), history, url);
+}
+
 }

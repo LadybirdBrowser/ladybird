@@ -49,13 +49,14 @@ add_library(ladybird_impl STATIC
     Popover.cpp
     ProcessManagerWindow.cpp
     RemoteDownloads.cpp
-    RemoteSession.cpp
     RemoteSuggestionProvider.cpp
     RemoteView.cpp
     ReportReview.cpp
     RestoreSessionCard.cpp
     ScreenshotSelectionOverlay.cpp
     ScreenshotViewer.cpp
+    SessionHistorySnapshotStorage.cpp
+    SessionStore.cpp
     SelectDropdown.cpp
     SiteSettingsPopover.cpp
     StringUtils.cpp
@@ -78,7 +79,7 @@ if (NOT APPLE AND NOT WIN32 AND NOT ANDROID)
 endif()
 
 target_link_libraries(ladybird_impl PUBLIC Qt::Core Qt::Gui Qt::Widgets)
-target_link_libraries(ladybird_impl PRIVATE LibFileSystem LibUnicode)
+target_link_libraries(ladybird_impl PRIVATE LibDatabase LibFileSystem LibUnicode)
 
 if (TARGET Qt6::Positioning)
     target_sources(ladybird_impl PRIVATE GeolocationProviderQt.cpp GeolocationProviderQt.h)

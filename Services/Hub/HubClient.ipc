@@ -23,6 +23,7 @@
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/ContextMenuRequest.h>
 #include <LibWebView/FileDownloader.h>
+#include <LibWebView/SessionHistory.h>
 #include <LibWebView/TabPerformanceStats.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/HTML/PreparedNavigationDescriptor.h>
@@ -141,6 +142,8 @@ struct Hub::UIInfo {
 struct Hub::InitialState {
     ByteString settings_json;
     ByteString config_directory;
+    ByteString data_directory;
+    bool persists_sessions;
     String user_agent;
     Web::NavigatorCompatibilityMode navigator_compatibility_mode;
     bool scripting_enabled;
@@ -173,6 +176,13 @@ struct WebView::ContextMenuRequest {
     Optional<Gfx::ShareableBitmap> image_bitmap;
     Optional<String> image_mime_type;
     Optional<Web::MediaContextMenu> media;
+}
+
+[ExistingCpp]
+struct WebView::SessionHistorySnapshot {
+    Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
+    Vector<i32> used_steps;
+    size_t current_used_step_index;
 }
 
 // What the UI needs to know about a view at any time, without having to ask.
@@ -257,7 +267,8 @@ endpoint HubClient
     app_set_clipboard_text(String text, WebView::Application::ClipboardType type) =|
     app_insert_clipboard_item(Web::Clipboard::SystemClipboardItem item) =|
     app_update_tabs_display() =|
-    app_on_recently_closed_entries_changed() =|
+    app_did_clear_history_since(UnixDateTime since) =|
+    app_quit_for_signal() =|
     app_did_enable_devtools() =|
     app_did_disable_devtools() =|
     app_open_urls_in_new_tabs(Vector<URL::URL> urls) =|
@@ -275,6 +286,7 @@ endpoint HubClient
     web_ui_message(u64 web_ui_id, String name, JsonValue data) =|
     web_ui_closed(u64 web_ui_id) =|
     view_request_context_menu(u64 view_id, WebView::ContextMenuRequest request) =|
+    view_session_history_changed(u64 view_id, WebView::SessionHistorySnapshot history, URL::URL url) =|
     view_did_make_link_to_highlight(u64 view_id, Optional<URL::URL> url) =|
     view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon) =|
     view_request_before_unload(u64 view_id, u64 answer_id, String source) =|

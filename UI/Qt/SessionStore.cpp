@@ -14,9 +14,9 @@
 #include <LibURL/Parser.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebView/HistoryDebug.h>
-#include <LibWebView/SessionStore.h>
+#include <UI/Qt/SessionStore.h>
 
-namespace WebView {
+namespace Ladybird {
 
 static constexpr u32 SESSIONS_SCHEMA_BASELINE_VERSION = 1u;
 static constexpr u32 SESSIONS_SCHEMA_USER_AGENT_INITIATED_VERSION = 2u;
@@ -414,7 +414,7 @@ Optional<size_t> SessionStore::TransientStorage::tab_index(SessionTabId tab_id) 
     return window->tabs.find_first_index(tab_id);
 }
 
-void SessionStore::TransientStorage::set_tab_state(SessionTabId tab_id, Optional<SessionHistorySnapshot> history, URL::URL url, bool dirty)
+void SessionStore::TransientStorage::set_tab_state(SessionTabId tab_id, Optional<WebView::SessionHistorySnapshot> history, URL::URL url, bool dirty)
 {
     auto tab = m_tabs.find(tab_id);
     if (tab == m_tabs.end())
@@ -640,7 +640,7 @@ static String persistable_active_url(URL::URL const& url)
     auto serialized = url.serialize();
     if (serialized.byte_count() <= MAX_ACTIVE_URL_BYTES)
         return serialized;
-    if (history_debug_enabled())
+    if (WebView::history_debug_enabled())
         dbgln("[History] Active URL exceeds the persisted cap; storing about:blank");
     return URL::about_blank().serialize();
 }
@@ -1174,7 +1174,7 @@ ErrorOr<SessionStore::IdAllocators> SessionStore::PersistedStorage::create_id_al
     };
 }
 
-ErrorOr<SessionHistorySnapshot> SessionStore::PersistedStorage::load_tab_snapshot(SessionTabId tab_id, size_t current_used_step_index)
+ErrorOr<WebView::SessionHistorySnapshot> SessionStore::PersistedStorage::load_tab_snapshot(SessionTabId tab_id, size_t current_used_step_index)
 {
     return load_session_history_snapshot(database, statements.snapshot_statements, tab_id, current_used_step_index);
 }
@@ -1347,7 +1347,7 @@ ErrorOr<Vector<ClosedSessionTab>> SessionStore::PersistedStorage::take_closed_un
             auto history = load_session_history_snapshot(database, statements.snapshot_statements, tab_row.tab_id, tab_row.current_used_step_index);
             tabs.append({
                 .active_url = tab_row.active_url,
-                .history = history.is_error() ? Optional<SessionHistorySnapshot> {} : Optional<SessionHistorySnapshot> { history.release_value() },
+                .history = history.is_error() ? Optional<WebView::SessionHistorySnapshot> {} : Optional<WebView::SessionHistorySnapshot> { history.release_value() },
                 .pinned = tab_row.pinned,
             });
         }
@@ -1364,13 +1364,13 @@ static UnixDateTime canonicalized_to_milliseconds(UnixDateTime time)
     return UnixDateTime::from_milliseconds_since_epoch(time.milliseconds_since_epoch());
 }
 
-static bool is_storable(Optional<SessionHistorySnapshot> const& history)
+static bool is_storable(Optional<WebView::SessionHistorySnapshot> const& history)
 {
     if (!history.has_value())
         return false;
 
     auto result = validate_session_history_snapshot_storable(*history);
-    if (result.is_error() && history_debug_enabled())
+    if (result.is_error() && WebView::history_debug_enabled())
         dbgln("[History] Session snapshot degrades to URL-only: {}", result.error());
     return !result.is_error();
 }
@@ -1488,7 +1488,7 @@ static bool session_history_nested_history_descriptors_match(Vector<Web::HTML::S
     return true;
 }
 
-static bool snapshots_match(Optional<SessionHistorySnapshot> const& a, Optional<SessionHistorySnapshot> const& b)
+static bool snapshots_match(Optional<WebView::SessionHistorySnapshot> const& a, Optional<WebView::SessionHistorySnapshot> const& b)
 {
     if (a.has_value() != b.has_value())
         return false;
@@ -1671,7 +1671,7 @@ ErrorOr<SessionWindowId> SessionStore::window_opened()
         TRY(m_persisted_storage->insert_open_window(window_id));
         // A window that opens after the last one closed means the closed one no longer counts as left open. The window
         // is already tracked by now, so a failed clear is logged rather than failing the open.
-        if (auto result = m_persisted_storage->clear_restore_at_launch(); result.is_error() && history_debug_enabled())
+        if (auto result = m_persisted_storage->clear_restore_at_launch(); result.is_error() && WebView::history_debug_enabled())
             dbgln("[History] Failed to clear the restore-at-launch flag: {}", result.error());
     }
     for (auto& pending : m_pending_window_closes)
@@ -1865,7 +1865,7 @@ void SessionStore::append_closed_tab_unit(PendingTabClose const& pending)
         .active_url = pending.tab.url,
         .tab_id = pending.tab_id,
         .current_used_step_index = mirror_step_index,
-        .history = m_persisted_storage.has_value() ? Optional<SessionHistorySnapshot> {} : pending.tab.history,
+        .history = m_persisted_storage.has_value() ? Optional<WebView::SessionHistorySnapshot> {} : pending.tab.history,
         .pinned = pending.tab.pinned,
     });
     m_transient_storage.append_closed_unit(move(unit));
@@ -1893,7 +1893,7 @@ void SessionStore::append_closed_window_unit(PendingWindowClose const& pending)
             .active_url = member.tab.url,
             .tab_id = member.tab_id,
             .current_used_step_index = mirror_step_index,
-            .history = m_persisted_storage.has_value() ? Optional<SessionHistorySnapshot> {} : member.tab.history,
+            .history = m_persisted_storage.has_value() ? Optional<WebView::SessionHistorySnapshot> {} : member.tab.history,
             .pinned = member.tab.pinned,
         });
     }
@@ -2024,7 +2024,7 @@ ErrorOr<void> SessionStore::tab_closed(TabClosed closed)
     auto close_sequence = m_close_sequence_allocator.allocate();
     if (close_sequence.is_error()) {
         auto result = discard_without_undo();
-        if (history_debug_enabled())
+        if (WebView::history_debug_enabled())
             dbgln("[History] Tab closed without undo: {}", close_sequence.error());
         return result;
     }
@@ -2034,7 +2034,7 @@ ErrorOr<void> SessionStore::tab_closed(TabClosed closed)
     auto unit_id = m_session_id_allocator.allocate();
     if (unit_id.is_error()) {
         auto result = discard_without_undo();
-        if (history_debug_enabled())
+        if (WebView::history_debug_enabled())
             dbgln("[History] Tab closed without undo: {}", unit_id.error());
         return result;
     }
@@ -2159,7 +2159,7 @@ ErrorOr<void> SessionStore::window_closing(WindowClosing closing)
             m_pending_window_closes.append(move(close));
         }
         m_transient_storage.remove_window(closing.window_id);
-        if (history_debug_enabled())
+        if (WebView::history_debug_enabled())
             dbgln("[History] Window closed without undo: {}", close_sequence.error());
         return result;
     }
@@ -2236,7 +2236,7 @@ Vector<RestoredSessionWindow> SessionStore::take_launch_plan()
     return move(m_launch_plan);
 }
 
-Optional<SessionHistorySnapshot> SessionStore::load_tab_history(SessionTabId tab_id)
+Optional<WebView::SessionHistorySnapshot> SessionStore::load_tab_history(SessionTabId tab_id)
 {
     auto const* tab = m_transient_storage.find_tab(tab_id);
     if (!tab)
@@ -2246,7 +2246,7 @@ Optional<SessionHistorySnapshot> SessionStore::load_tab_history(SessionTabId tab
 
     auto snapshot = m_persisted_storage->load_tab_snapshot(tab_id, tab->current_used_step_index);
     if (snapshot.is_error()) {
-        if (history_debug_enabled())
+        if (WebView::history_debug_enabled())
             dbgln("[History] Failed to load tab {} history: {}", tab_id, snapshot.error());
         return {};
     }

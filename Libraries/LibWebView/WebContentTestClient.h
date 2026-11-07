@@ -47,8 +47,8 @@ private:
     virtual Messages::WebContentTestClient::DidRequestHasPopulatedDocumentForTestingResponse did_request_has_populated_document_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id) override;
-    virtual Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse did_request_register_session_store_tab_for_testing(Web::PageId page_id) override;
-    virtual Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse did_request_session_store_tab_state_for_testing(Web::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestRecordReportedSessionHistoryForTestingResponse did_request_record_reported_session_history_for_testing(Web::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestReportedSessionHistoryForTestingResponse did_request_reported_session_history_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::SetPermissionForTestingResponse set_permission_for_testing(Web::PageId, Web::HTML::CrossProcessId document_id, String name, String state) override;
     virtual void set_next_permission_prompt_outcome_for_testing(Web::PageId, String name, String outcome, bool held) override;
     virtual void set_system_microphone_authorization_for_testing(Web::PageId, String authorization, String answer, bool held) override;

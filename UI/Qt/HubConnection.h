@@ -101,7 +101,8 @@ private:
     virtual void app_set_clipboard_text(String text, WebView::Application::ClipboardType type) override;
     virtual void app_insert_clipboard_item(Web::Clipboard::SystemClipboardItem item) override;
     virtual void app_update_tabs_display() override;
-    virtual void app_on_recently_closed_entries_changed() override;
+    virtual void app_did_clear_history_since(UnixDateTime since) override;
+    virtual void app_quit_for_signal() override;
     virtual void app_did_enable_devtools() override;
     virtual void app_did_disable_devtools() override;
     virtual void app_open_urls_in_new_tabs(Vector<URL::URL> urls) override;
@@ -120,6 +121,7 @@ private:
     virtual void web_ui_closed(u64 web_ui_id) override;
     virtual void view_request_context_menu(u64 view_id, WebView::ContextMenuRequest request) override;
     virtual void view_did_make_link_to_highlight(u64 view_id, Optional<URL::URL> url) override;
+    virtual void view_session_history_changed(u64 view_id, WebView::SessionHistorySnapshot history, URL::URL url) override;
     virtual void view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon) override;
     virtual void view_request_before_unload(u64 view_id, u64 answer_id, String source) override;
     virtual void view_request_external_url_confirmation(u64 view_id, u64 answer_id, URL::URL url, URL::Origin initiator_origin, String application_name) override;

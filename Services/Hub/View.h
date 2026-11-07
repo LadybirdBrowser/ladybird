@@ -65,6 +65,7 @@ private:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override { return content_position; }
     virtual void did_request_context_menu(WebView::ContextMenuRequest) override;
     virtual void did_make_link_to_highlight(Optional<URL::URL>) override;
+    virtual void did_change_session_history(WebView::SessionHistorySnapshot const&, URL::URL const&) override;
     virtual void read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)>) const override;
     virtual void did_accept_presented_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect) override;
     // NB: The UI hands a backing store back, once it no longer shows what is in it.

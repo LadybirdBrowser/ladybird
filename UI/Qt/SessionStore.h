@@ -16,11 +16,10 @@
 #include <LibCore/Timer.h>
 #include <LibDatabase/Database.h>
 #include <LibURL/URL.h>
-#include <LibWebView/Export.h>
 #include <LibWebView/SessionHistory.h>
-#include <LibWebView/SessionHistorySnapshotStorage.h>
+#include <UI/Qt/SessionHistorySnapshotStorage.h>
 
-namespace WebView {
+namespace Ladybird {
 
 using SessionWindowId = i64;
 using SessionTabId = i64;
@@ -39,7 +38,7 @@ struct SessionWindowGeometry {
 
 struct ClosedSessionTab {
     URL::URL active_url;
-    Optional<SessionHistorySnapshot> history;
+    Optional<WebView::SessionHistorySnapshot> history;
     bool pinned { false };
 };
 
@@ -96,7 +95,7 @@ struct RestoredSessionWindow {
 // Persists live windows and tabs plus a bounded recently-closed stack. State updates coalesce; lifecycle mutations
 // write through. At startup, recovery hands the windows the last run left open to the frontend, or to the closed stack,
 // as its launch policy says.
-class WEBVIEW_API SessionStore {
+class SessionStore {
     AK_MAKE_NONCOPYABLE(SessionStore);
     AK_MAKE_NONMOVABLE(SessionStore);
 
@@ -117,7 +116,7 @@ public:
 
     struct TabStateUpdate {
         SessionTabId tab_id { 0 };
-        Optional<SessionHistorySnapshot> history;
+        Optional<WebView::SessionHistorySnapshot> history;
         URL::URL url;
     };
 
@@ -195,7 +194,7 @@ public:
     Vector<RestoredSessionWindow> take_launch_plan();
 
     // A tab's history: the store's own copy if it holds a newer one than the tab's rows, and otherwise the rows'.
-    Optional<SessionHistorySnapshot> load_tab_history(SessionTabId);
+    Optional<WebView::SessionHistorySnapshot> load_tab_history(SessionTabId);
 
     void flush_dirty_state();
 
@@ -273,7 +272,7 @@ private:
         size_t current_used_step_index { 0 };
         // The pending flush payload in persisted mode, dropped once flushed; the storage itself in
         // transient mode.
-        Optional<SessionHistorySnapshot> history;
+        Optional<WebView::SessionHistorySnapshot> history;
         bool dirty { false };
         bool pinned { false };
     };
@@ -291,7 +290,7 @@ private:
         i64 tab_id { 0 };
         size_t current_used_step_index { 0 };
         // Transient mode captures the snapshot at demotion; persisted mode loads it on reopen.
-        Optional<SessionHistorySnapshot> history;
+        Optional<WebView::SessionHistorySnapshot> history;
         bool pinned { false };
     };
 
@@ -321,7 +320,7 @@ private:
         URL::URL url;
         i64 current_used_step_index { 0 };
         SnapshotDisposition snapshot_disposition { SnapshotDisposition::Preserve };
-        SessionHistorySnapshot const* snapshot { nullptr };
+        WebView::SessionHistorySnapshot const* snapshot { nullptr };
         bool pinned { false };
     };
 
@@ -434,7 +433,7 @@ private:
         ErrorOr<void> write_lifecycle(bool clean_exit, u32 consecutive_unclean_exits);
 
         ErrorOr<IdAllocators> create_id_allocators();
-        ErrorOr<SessionHistorySnapshot> load_tab_snapshot(SessionTabId, size_t current_used_step_index);
+        ErrorOr<WebView::SessionHistorySnapshot> load_tab_snapshot(SessionTabId, size_t current_used_step_index);
         ErrorOr<Vector<ClosedUnit>> load_closed_units();
         ErrorOr<Vector<ClosedSessionTab>> take_closed_unit(SessionWindowId);
 
@@ -489,7 +488,7 @@ private:
         Optional<size_t> tab_index(SessionTabId) const;
         size_t window_count() const { return m_windows.size(); }
 
-        void set_tab_state(SessionTabId, Optional<SessionHistorySnapshot>, URL::URL, bool dirty);
+        void set_tab_state(SessionTabId, Optional<WebView::SessionHistorySnapshot>, URL::URL, bool dirty);
         bool set_tab_pinned(SessionTabId, bool pinned);
         void mark_tab_flushed(SessionTabId, size_t current_used_step_index);
         void set_active_tab(SessionTabId);

@@ -116,7 +116,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (auto* restored_window = app->restore_previous_session(configuration)) {
             // A whole restored session replaces the usual startup tab, so only the URLs the user passed open with it.
             // With only pinned tabs restored, the usual startup tabs open after them.
-            auto restored_everything = app->launch_restore_policy() == WebView::SessionLaunchPolicy::Everything;
+            auto restored_everything = app->launch_restore_policy() == Ladybird::SessionLaunchPolicy::Everything;
             if (!restored_everything || !browser_options.raw_urls.is_empty())
                 app->open_startup_tabs(*restored_window, browser_options.urls);
             app->offer_to_restore_unexpectedly_closed_tabs(*restored_window);

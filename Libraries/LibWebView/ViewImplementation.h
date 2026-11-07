@@ -80,7 +80,6 @@
 #include <LibWebView/PageBackingStores.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/SessionHistory.h>
-#include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/SpellChecker.h>
 #include <LibWebView/TabIndicators.h>
@@ -280,9 +279,8 @@ public:
     [[nodiscard]] SessionHistorySnapshot session_history_snapshot() const;
     [[nodiscard]] ErrorOr<void> restore_session_history_from_snapshot(SessionHistorySnapshot);
 
-    Optional<SessionTabId> session_tab_id() const { return m_session_tab_id; }
-    void set_session_tab_id(SessionTabId session_tab_id) { m_session_tab_id = session_tab_id; }
-    void clear_session_tab_id() { m_session_tab_id = {}; }
+    // A view whose windows and tabs the application keeps tells it of each change to its session history.
+    void set_reports_session_history(bool);
 
     void zoom_in();
     void zoom_out();
@@ -532,8 +530,8 @@ public:
     void did_reset_state_for_testing(Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor);
     bool capture_session_history_snapshot_for_testing(Badge<WebContentPage>);
     bool restore_captured_session_history_snapshot_for_testing(Badge<WebContentPage>);
-    bool register_session_store_tab_for_testing(Badge<WebContentPage>);
-    String session_store_tab_state_for_testing(Badge<WebContentPage>) const;
+    void record_reported_session_history_for_testing(Badge<WebContentPage>);
+    String reported_session_history_for_testing(Badge<WebContentPage>) const;
     void did_start_webdriver_navigation();
     void load_for_webdriver_navigation(URL::URL const&);
     String ui_process_session_history_for_testing(Badge<WebContentPage>) const;
@@ -716,6 +714,8 @@ public:
 
     // Something the UI shows about this view may have changed, like whether it can undo or show its source.
     virtual void did_change_state() { }
+
+    virtual void did_change_session_history(SessionHistorySnapshot const&, URL::URL const&) { }
 
     bool can_navigate_back() const { return m_can_navigate_back; }
     bool can_navigate_forward() const { return m_can_navigate_forward; }
@@ -1102,7 +1102,13 @@ protected:
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
     CanonicalTraversable* m_top_level_traversable { nullptr };
-    Optional<SessionTabId> m_session_tab_id;
+    bool m_reports_session_history { false };
+    struct ReportedSessionHistory {
+        SessionHistorySnapshot history;
+        URL::URL url;
+    };
+    Optional<ReportedSessionHistory> m_reported_session_history_for_testing;
+    bool m_records_reported_session_history_for_testing { false };
     Optional<SessionHistorySnapshot> m_captured_session_history_snapshot_for_testing;
     RefPtr<Core::Promise<Empty>> m_pending_test_state_reset;
     RefPtr<Core::Promise<Empty>> m_pending_test_state_reset_queue_promise;

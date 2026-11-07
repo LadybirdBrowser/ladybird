@@ -9,6 +9,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibDatabase/Database.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibWebView/Application.h>

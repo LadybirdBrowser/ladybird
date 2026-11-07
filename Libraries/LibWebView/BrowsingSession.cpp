@@ -11,7 +11,6 @@
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/PermissionManager.h>
-#include <LibWebView/SessionStore.h>
 #include <LibWebView/StorageJar.h>
 
 namespace WebView {
@@ -34,7 +33,6 @@ NonnullRefPtr<BrowsingSession> BrowsingSession::create(IsPrivate is_private)
         session->hsts_store = HSTSStore::create();
         session->favicon_store = FaviconStore::create();
         session->history_store = HistoryStore::create_disabled();
-        session->session_store = SessionStore::create();
     }
 
     return session;

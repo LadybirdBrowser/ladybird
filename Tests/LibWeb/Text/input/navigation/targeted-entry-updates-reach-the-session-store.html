@@ -2,13 +2,13 @@
 <script src="../include.js"></script>
 <script>
     function currentStoreEntry() {
-        return JSON.parse(internals.dumpSessionStoreTabState()).entries.find(entry => entry.current);
+        return JSON.parse(internals.dumpReportedSessionHistory()).entries.find(entry => entry.current);
     }
 
     asyncTest(done => {
         window.addEventListener("load", () => {
-            if (!internals.registerSessionStoreTab()) {
-                println("FAIL: could not register the tab in the session store");
+            if (!internals.recordReportedSessionHistory()) {
+                println("FAIL: could not record the reported session history");
                 done();
                 return;
             }

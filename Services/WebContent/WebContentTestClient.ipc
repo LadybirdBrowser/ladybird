@@ -47,8 +47,8 @@ endpoint WebContentTestClient routed by Web::PageId page_id
     did_reset_state_for_testing(Web::PageId page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry) =|
     [NotRouted] did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id) => (bool captured)
     [NotRouted] did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id) => (bool restored)
-    [NotRouted] did_request_register_session_store_tab_for_testing(Web::PageId page_id) => (bool registered)
-    [NotRouted] did_request_session_store_tab_state_for_testing(Web::PageId page_id) => (String state)
+    [NotRouted] did_request_record_reported_session_history_for_testing(Web::PageId page_id) => (bool registered)
+    [NotRouted] did_request_reported_session_history_for_testing(Web::PageId page_id) => (String state)
 
     create_virtual_gamepad() => (Optional<Web::Gamepad::VirtualGamepad> virtual_gamepad)
     set_virtual_gamepad_button(Web::Gamepad::GamepadHandle handle, i32 button, bool down) =|

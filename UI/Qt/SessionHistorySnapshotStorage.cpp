@@ -13,9 +13,9 @@
 #include <LibWebCommon/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWebCommon/HTML/DocumentStateClient.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
-#include <LibWebView/SessionHistorySnapshotStorage.h>
+#include <UI/Qt/SessionHistorySnapshotStorage.h>
 
-namespace WebView {
+namespace Ladybird {
 
 // Schema-stable tags for PersistedOrigin::kind. These values are persisted; never reorder or reuse them.
 enum class OriginKind : i64 {
@@ -794,7 +794,7 @@ static ErrorOr<void> store_policy_container(Database::Database& database, Sessio
 
 static ErrorOr<void> validate_entries_storable(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, size_t depth, SnapshotRowTotals& totals)
 {
-    if (depth > MAX_NESTED_HISTORY_DEPTH)
+    if (depth > WebView::MAX_NESTED_HISTORY_DEPTH)
         return Error::from_string_literal("Session history nests deeper than the supported budget");
 
     for (auto const& entry : entries) {
@@ -833,11 +833,11 @@ static ErrorOr<void> validate_entries_storable(Vector<Web::HTML::SessionHistoryE
     return {};
 }
 
-ErrorOr<void> validate_session_history_snapshot_storable(SessionHistorySnapshot const& snapshot)
+ErrorOr<void> validate_session_history_snapshot_storable(WebView::SessionHistorySnapshot const& snapshot)
 {
     SnapshotRowTotals totals;
     TRY(validate_entries_storable(snapshot.entries, 0, totals));
-    return validate_snapshot_is_restorable(snapshot.entries, snapshot.used_steps, snapshot.current_used_step_index);
+    return WebView::validate_snapshot_is_restorable(snapshot.entries, snapshot.used_steps, snapshot.current_used_step_index);
 }
 
 static ErrorOr<void> store_history_entries(Database::Database& database, SessionHistorySnapshotStatements const& statements, i64 tab_id, i64 history_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries)
@@ -925,7 +925,7 @@ static ErrorOr<void> store_history_entries(Database::Database& database, Session
     return {};
 }
 
-ErrorOr<void> store_session_history_snapshot(Database::Database& database, SessionHistorySnapshotStatements const& statements, i64 tab_id, SessionHistorySnapshot const& snapshot)
+ErrorOr<void> store_session_history_snapshot(Database::Database& database, SessionHistorySnapshotStatements const& statements, i64 tab_id, WebView::SessionHistorySnapshot const& snapshot)
 {
     TRY(validate_session_history_snapshot_storable(snapshot));
 
@@ -1338,7 +1338,7 @@ struct HistoryTreeLoadState {
 
 static ErrorOr<Vector<Web::HTML::SessionHistoryEntryDescriptor>> load_history_entry_tree(HistoryTreeLoadState& state, i64 history_id, size_t depth)
 {
-    if (depth > MAX_NESTED_HISTORY_DEPTH)
+    if (depth > WebView::MAX_NESTED_HISTORY_DEPTH)
         return Error::from_string_literal("Session history nests deeper than the supported budget");
     if (!state.unvisited_histories.remove(history_id))
         return Error::from_string_literal("Session history has an unreachable nested history");
@@ -1378,7 +1378,7 @@ static ErrorOr<Vector<Web::HTML::SessionHistoryEntryDescriptor>> load_history_en
     return entries;
 }
 
-ErrorOr<SessionHistorySnapshot> load_session_history_snapshot(Database::Database& database, SessionHistorySnapshotStatements const& statements, i64 tab_id, size_t current_used_step_index)
+ErrorOr<WebView::SessionHistorySnapshot> load_session_history_snapshot(Database::Database& database, SessionHistorySnapshotStatements const& statements, i64 tab_id, size_t current_used_step_index)
 {
     SnapshotRowTotals totals;
     auto used_step_rows = TRY(database.try_collect_bound_statement<UsedStepRow>(
@@ -1499,7 +1499,7 @@ ErrorOr<SessionHistorySnapshot> load_session_history_snapshot(Database::Database
     for (auto history_id : history_ids)
         state.unvisited_histories.set(history_id);
 
-    SessionHistorySnapshot snapshot;
+    WebView::SessionHistorySnapshot snapshot;
     if (!history_ids.is_empty()) {
         Optional<i64> root_history_id;
         for (auto history_id : history_ids) {
@@ -1522,7 +1522,7 @@ ErrorOr<SessionHistorySnapshot> load_session_history_snapshot(Database::Database
     if (current_used_step_index >= snapshot.used_steps.size())
         return Error::from_string_literal("Session history current step index is out of range");
 
-    TRY(validate_snapshot_is_restorable(snapshot.entries, snapshot.used_steps, snapshot.current_used_step_index));
+    TRY(WebView::validate_snapshot_is_restorable(snapshot.entries, snapshot.used_steps, snapshot.current_used_step_index));
 
     return snapshot;
 }

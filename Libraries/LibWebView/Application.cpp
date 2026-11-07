@@ -69,7 +69,6 @@
 #include <LibWebView/PictureInPictureWindow.h>
 #include <LibWebView/ProcessType.h>
 #include <LibWebView/RequestServerManager.h>
-#include <LibWebView/SessionStore.h>
 #include <LibWebView/SiteCompatibility.h>
 #include <LibWebView/SpellChecker.h>
 #include <LibWebView/StorageAreaRegistry.h>
@@ -241,18 +240,12 @@ Application::~Application()
     m_process_manager = nullptr;
     m_browser_process = nullptr;
 
-    // Only a normal exit gets this far, and only after every teardown step above, so a crash never records a clean one.
-    if (m_default_session && m_default_session->session_store) {
-        m_default_session->session_store->flush_dirty_state();
-        m_default_session->session_store->mark_clean_exit();
-    }
-
     s_the = nullptr;
 }
 
-SessionLaunchPolicy Application::launch_restore_policy() const
+void Application::quit_for_signal()
 {
-    return SessionLaunchPolicy::None;
+    m_event_loop->quit(0);
 }
 
 bool Application::claim_cpu_profiler(ProcessType process_type)
@@ -1242,12 +1235,6 @@ RefPtr<BrowsingSession> Application::existing_session(IsPrivate is_private)
     return is_private == IsPrivate::Yes ? the().m_private_session.strong_ref() : the().m_default_session;
 }
 
-SessionStore* Application::session_store(IsPrivate is_private)
-{
-    auto session = existing_session(is_private);
-    return session ? session->session_store.ptr() : nullptr;
-}
-
 WebDriverBrowserConnection* Application::webdriver_browser_connection()
 {
     if (!m_browser_options.webdriver_browser_endpoint.has_value() || m_webdriver_browser_connection_failed)
@@ -1329,13 +1316,6 @@ void Application::reset_private_browsing_session()
 
     // RequestServer answers our own private client with the cookies of the session it was created for, so the next
     // private request made by the UI process needs a client of the new session.
-
-    // Views pending deferred deletion may still push updates, and the replacement store reuses their ids.
-    ViewImplementation::for_each_view([](ViewImplementation& view) {
-        if (view.is_private() == IsPrivate::Yes)
-            view.clear_session_tab_id();
-        return IterationDecision::Continue;
-    });
 
     // NB: Those views own the session until they are deleted, so let go of it here. The private window opened next
     //     starts a new one rather than picking up what this was asked to clear.
@@ -1779,26 +1759,11 @@ ErrorOr<void> Application::launch_services()
             m_default_session->history_store = HistoryStore::create(*m_default_session->favicon_store);
         }
 
-        // Fall back without modifying the existing Sessions database.
-        auto session_store = [&]() -> ErrorOr<NonnullOwnPtr<SessionStore>> {
-            // A headless run, a browser that WebDriver drives, and one that logs process statistics never join a browser
-            // already running on their profile. Yet startup recovery would still rewrite the saved session, reset the
-            // unclean-exit count, and demote the open windows of a browser running on this profile. So each gets a
-            // transient store instead, leaving the Sessions database as the last run left it.
-            if (m_browser_options.headless_mode.has_value() || m_browser_options.webdriver_browser_endpoint.has_value() || m_stats_log)
-                return SessionStore::create();
-
-            auto session_database = TRY(Database::Database::create(database_path, "Sessions"sv, { .foreign_keys = Database::Database::ForeignKeys::Yes }));
-            if (TRY(SessionStore::migrate_schema(session_database)) != Database::MigrationOutcome::Success)
-                return Error::from_string_literal("Sessions database was created by a newer Ladybird version");
-            return SessionStore::create(session_database, launch_restore_policy());
-        }();
-        if (session_store.is_error()) {
-            dbgln("Sessions will not be persisted this session: {}", session_store.error());
-            m_default_session->session_store = SessionStore::create();
-        } else {
-            m_default_session->session_store = session_store.release_value();
-        }
+        // A headless run, a browser that WebDriver drives, and one that logs process statistics never join a browser
+        // already running on their profile. Yet startup recovery would still rewrite the saved session, reset the
+        // unclean-exit count, and demote the open windows of a browser running on this profile. So none of them keeps
+        // its session, leaving the Sessions database as the last run left it.
+        m_persists_sessions = !m_browser_options.headless_mode.has_value() && !m_browser_options.webdriver_browser_endpoint.has_value() && !m_stats_log;
     } else {
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is disabled, disabling browsing history");
 
@@ -1808,25 +1773,19 @@ ErrorOr<void> Application::launch_services()
         m_default_session->hsts_store = HSTSStore::create();
         m_default_session->storage_jar = StorageJar::create();
         m_download_store = DownloadStore::create_disabled();
-        m_default_session->session_store = SessionStore::create();
     }
 
     m_default_session->blob_url_store = make<BlobURLStore>();
 
     m_file_downloader.adopt_download_store({}, *m_download_store);
 
-    m_default_session->session_store->on_closed_units_changed = [this] {
-        on_recently_closed_entries_changed();
-    };
-
 #if !defined(AK_OS_WINDOWS)
     // A run stopped by SIGINT or SIGTERM ends like a quit, rather than like a crash: It saves the session, leaves its
     // windows for the next launch to recover, and records a clean exit.
-    if (m_default_session->session_store->is_persistent()) {
+    if (m_persists_sessions) {
         for (auto signal_number : { SIGINT, SIGTERM }) {
             m_session_signal_handlers.append(Core::EventLoop::register_signal(signal_number, [this](int) {
-                m_default_session->session_store->application_quitting();
-                m_event_loop->quit(0);
+                quit_for_signal();
             }));
         }
     }
@@ -2496,12 +2455,6 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
 
     if (options.delete_history == ClearBrowsingDataOptions::Delete::Yes) {
         m_default_session->history_store->remove_entries_accessed_since(options.since);
-        if (auto result = m_default_session->session_store->remove_entries_accessed_since(options.since); result.is_error())
-            dbgln("Unable to remove closed session entries: {}", result.error());
-        if (auto private_session = m_private_session.strong_ref()) {
-            if (auto result = private_session->session_store->remove_entries_accessed_since(options.since); result.is_error())
-                dbgln("Unable to remove closed private session entries: {}", result.error());
-        }
         if (auto result = CrashReportStore::the().remove_websites_saved_since(options.since); result.is_error())
             dbgln("Unable to remove the websites of crash reports: {}", result.error());
         CrashReportOutbox::the().reports_changed();
@@ -2524,7 +2477,7 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
     }
 
     if (did_change_history)
-        on_recently_closed_entries_changed();
+        did_clear_history_since(options.since);
 
     if (!promise) {
         promise = Core::Promise<Empty>::construct();

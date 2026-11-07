@@ -7,8 +7,9 @@
 #include <LibDatabase/Database.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
-#include <LibWebView/SessionStore.h>
+#include <UI/Qt/SessionStore.h>
 
+using namespace Ladybird;
 using namespace WebView;
 
 static URL::URL parse_url(StringView url)
@@ -101,7 +102,7 @@ static void quit_cleanly(SessionStore& store, Vector<SessionWindowId> const& win
 TEST_CASE(fresh_database_migrates_to_the_latest_schema)
 {
     auto database = TRY_OR_FAIL(Database::Database::create_memory_backed({ .foreign_keys = Database::Database::ForeignKeys::Yes }));
-    EXPECT_EQ(TRY_OR_FAIL(WebView::SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
 
     for (auto table : { "Sessions"sv, "SessionTabs"sv, "SessionUsedSteps"sv, "SessionHistories"sv, "SessionNestedHistories"sv, "SessionEntries"sv, "SessionUpgradeInsecureNavigations"sv })
         EXPECT(TRY_OR_FAIL(database->table_exists(table)));
@@ -141,8 +142,8 @@ TEST_CASE(newer_sessions_schema_reports_database_too_new)
     TRY_OR_FAIL(database->execute_raw("CREATE TABLE SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);"sv));
     TRY_OR_FAIL(database->execute_raw("INSERT INTO SchemaVersions (store, version) VALUES ('Sessions', 99);"sv));
 
-    EXPECT_EQ(TRY_OR_FAIL(WebView::SessionStore::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
-    EXPECT_EQ(TRY_OR_FAIL(WebView::SessionStore::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
 }
 
 TEST_CASE(version_4_database_migrates_to_the_latest_schema)

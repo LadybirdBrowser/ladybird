@@ -3548,11 +3548,12 @@ Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestin
     return { false };
 }
 
-Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse WebContentPage::did_request_register_session_store_tab_for_testing()
+Messages::WebContentTestClient::DidRequestRecordReportedSessionHistoryForTestingResponse WebContentPage::did_request_record_reported_session_history_for_testing()
 {
-    if (displays_tab())
-        return { view().register_session_store_tab_for_testing({}) };
-    return { false };
+    if (!displays_tab())
+        return { false };
+    view().record_reported_session_history_for_testing({});
+    return { true };
 }
 
 // A document populated for a navigable is one the browser process created for it, and has not made active yet.
@@ -3568,10 +3569,10 @@ Messages::WebContentTestClient::DidRequestHasPopulatedDocumentForTestingResponse
     return has_populated_document;
 }
 
-Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse WebContentPage::did_request_session_store_tab_state_for_testing()
+Messages::WebContentTestClient::DidRequestReportedSessionHistoryForTestingResponse WebContentPage::did_request_reported_session_history_for_testing()
 {
     if (displays_tab())
-        return { view().session_store_tab_state_for_testing({}) };
+        return { view().reported_session_history_for_testing({}) };
     return { "{}"_string };
 }
 

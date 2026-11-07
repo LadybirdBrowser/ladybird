@@ -13,7 +13,6 @@
 #include <AK/kmalloc.h>
 #include <LibCore/EventLoop.h>
 #include <LibWebView/HistoryStore.h>
-#include <LibWebView/SessionStore.h>
 #include <UI/Qt/AllTabsPopover.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/ApplicationActions.h>
@@ -22,7 +21,7 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/LadybirdButton.h>
-#include <UI/Qt/RemoteSession.h>
+#include <UI/Qt/SessionStore.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -4656,7 +4655,7 @@ void TabWidget::update_all_tabs_entries()
         auto& session = browser_window->session();
         auto now = UnixDateTime::now();
         for (auto const& unit : session.recently_closed_units(RECENTLY_CLOSED_LIMIT)) {
-            auto entry = session.entry_for_url(unit.active_url);
+            auto entry = browser_window->history_entry_for_url(unit.active_url);
             auto title = entry.has_value() && entry->title.has_value() && !entry->title->is_empty() ? qstring_from_ak_string(*entry->title) : qstring_from_ak_string(unit.active_url.serialize());
             if (unit.was_window)
                 title = unit.tab_count == 1 ? QStringLiteral("Window with 1 tab") : qformatted("Window with {} tabs", unit.tab_count);
