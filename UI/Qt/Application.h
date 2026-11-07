@@ -76,9 +76,6 @@ public:
     Function<void(Vector<URL::URL> const&)> on_new_tab;
     Function<void(Vector<URL::URL> const&)> on_new_window;
     static WebView::Settings& settings() { return *s_the->m_settings; }
-#ifndef LADYBIRD_HUB_IN_OWN_PROCESS
-    static WebView::Profile const& profile() { return WebView::Application::profile(); }
-#endif
     static WebView::BookmarkStore& bookmark_store() { return *s_the->m_bookmark_store; }
 
     virtual ~Application() override;
@@ -174,7 +171,6 @@ private:
     virtual void will_create_event_loop(Main::Arguments&) override;
     virtual void did_create_event_loop(Core::EventLoop&) override;
     virtual void create_platform_actions() override;
-    virtual OwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() override;
 
     virtual Optional<String> ui_font_family() const override;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const override;

@@ -16,6 +16,10 @@
 #include <LibIPC/Decoder.h>
 #include <LibWebView/WebContentPage.h>
 
+#if defined(AK_OS_MACOS)
+#    include <LibWebView/MicrophoneAuthorizerMacOS.h>
+#endif
+
 namespace Hub {
 
 Application::Application(ApplicationHost* host)
@@ -26,6 +30,7 @@ Application::Application(ApplicationHost* host)
 void Application::create_platform_arguments(Core::ArgsParser& args_parser)
 {
     args_parser.add_option(m_encoded_ui_info, "What the UI tells the Hub to start with", "ui-info", 0, "hex");
+    args_parser.add_option(m_ui_mach_server_name, "Mach server to get the connection to the UI from", "ui-mach-server", 0, "name");
 }
 
 Hub::UIInfo const* Application::ui_info() const
@@ -326,10 +331,10 @@ Core::EventLoop& Application::create_platform_event_loop()
 
 NonnullOwnPtr<WebView::MicrophoneAuthorizer> Application::create_microphone_authorizer()
 {
-    if (m_host) {
-        if (auto authorizer = m_host->create_microphone_authorizer())
-            return authorizer.release_nonnull();
-    }
+#if defined(AK_OS_MACOS)
+    if (!browser_options().headless_mode.has_value())
+        return make<WebView::MicrophoneAuthorizerMacOS>();
+#endif
     return WebView::Application::create_microphone_authorizer();
 }
 

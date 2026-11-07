@@ -243,6 +243,9 @@ struct Hub::InitialState {
     ByteString crash_report_directory;
     Optional<u16> devtools_port;
     bool has_translator;
+    ByteString profile_identifier;
+    ByteString profile_identity;
+    bool profile_is_temporary;
 }
 
 // What the UI needs to know about a view at any time, without having to ask.

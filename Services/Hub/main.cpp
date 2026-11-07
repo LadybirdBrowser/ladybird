@@ -9,6 +9,10 @@
 #include <LibIPC/StartupTransport.h>
 #include <LibMain/Main.h>
 
+#if defined(AK_OS_MACOS)
+#    include <Hub/SpellCheckerMac.h>
+#endif
+
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
@@ -19,10 +23,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         return 0;
     }
 
+#if defined(AK_OS_MACOS)
+    application->set_spell_checker(Hub::create_platform_spell_checker());
+#endif
+
     // Headless mode runs on its own, with no UI to serve.
     RefPtr<Hub::ConnectionFromUI> connection;
     if (!Hub::Application::browser_options().headless_mode.has_value()) {
-        auto transport = TRY(IPC::take_over_startup_transport({}));
+        auto transport = TRY(IPC::take_over_startup_transport(application->ui_mach_server_name()));
         connection = Hub::ConnectionFromUI::construct(move(transport));
     }
 

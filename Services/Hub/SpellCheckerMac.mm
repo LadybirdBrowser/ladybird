@@ -7,9 +7,9 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/HashMap.h>
 #include <AK/RefPtr.h>
+#include <Hub/SpellCheckerMac.h>
 #include <LibCore/EventLoop.h>
-#include <UI/Qt/Conversions.h>
-#include <UI/Qt/SpellCheckerMac.h>
+#include <LibWebView/StringConversionsMacOS.h>
 
 #import <AppKit/AppKit.h>
 
@@ -20,7 +20,9 @@
 - (NSTextCheckingResult*)completionCandidateFromCandidates:(NSArray<NSTextCheckingResult*>*)candidates;
 @end
 
-namespace Ladybird {
+namespace Hub {
+
+using namespace WebView;
 
 // The private text checking type that asks for a single completion of the word at the caret.
 static constexpr NSTextCheckingTypes text_checking_type_single_completion = 1ULL << 29;

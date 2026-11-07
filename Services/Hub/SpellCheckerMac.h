@@ -9,7 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibWebView/SpellChecker.h>
 
-namespace Ladybird {
+namespace Hub {
 
 NonnullOwnPtr<WebView::SpellChecker> create_platform_spell_checker();
 

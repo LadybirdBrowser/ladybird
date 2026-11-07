@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWebView/Profile.h>
+#include <AK/ByteString.h>
+#include <AK/StringView.h>
 #include <UI/Qt/BrandColors.h>
 
 #import <Cocoa/Cocoa.h>
@@ -12,14 +13,14 @@
 
 namespace Ladybird {
 
-void set_profile_application_icon(WebView::Profile const& profile)
+void set_profile_application_icon(StringView identifier, ByteString const& identity, bool is_temporary)
 {
-    if (profile.identifier() == "default"sv)
+    if (identifier == "default"sv)
         return;
 
-    auto label = profile.is_temporary()
+    auto label = is_temporary
         ? "tmp"sv
-        : profile.identifier().substring_view(0, min(profile.identifier().length(), 3uz));
+        : identifier.substring_view(0, min(identifier.length(), 3uz));
     auto* profile_label = [[[NSString alloc] initWithBytes:label.characters_without_null_termination()
                                                     length:label.length()
                                                   encoding:NSUTF8StringEncoding]
@@ -42,7 +43,7 @@ void set_profile_application_icon(WebView::Profile const& profile)
         ns_color(BrandColors::SlateBlue900),
         ns_color(BrandColors::Indigo60),
     ];
-    auto* badge_color = badge_colors[profile.paths().identity.hash() % [badge_colors count]];
+    auto* badge_color = badge_colors[identity.hash() % [badge_colors count]];
 
     auto icon_size = [application_icon size];
     auto* profile_icon = [NSImage imageWithSize:icon_size
