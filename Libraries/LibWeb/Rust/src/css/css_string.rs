@@ -184,7 +184,8 @@ impl Drop for CssString {
         if self.raw == 0 || self.header().references.fetch_sub(1, Ordering::Release) != 1 {
             return;
         }
-        std::sync::atomic::fence(Ordering::Acquire);
+        // NB: This load orders us after every earlier decrement, as a fence would. ThreadSanitizer does not model fences.
+        let _ = self.header().references.load(Ordering::Acquire);
         let length = self.header().length as usize;
         // SAFETY: The last handle frees the allocation `allocate_string` made.
         unsafe { std::alloc::dealloc(self.raw as *mut u8, layout(length)) };
