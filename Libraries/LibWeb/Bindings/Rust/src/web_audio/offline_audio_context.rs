@@ -267,11 +267,11 @@ impl OfflineAudioContext {
         Ok(())
     }
 
+    // https://webaudio.github.io/web-audio-api/#begin-offline-rendering
     fn begin_offline_rendering(&self, vm: &Vm, promise: WebIdlPromise) {
-        // To begin offline rendering, the following steps MUST happen on a rendering thread that is created for the occasion.
-        // 1: Given the current connections and scheduled changes, start rendering length sample-frames of audio into [[rendered buffer]]
-        // 2: For every render quantum, check and suspend rendering if necessary.
-        // 3: If a suspended context is resumed, continue to render the buffer.
+        // 1. Given the current connections and scheduled changes, start rendering buffer’s length sample-frames of audio into buffer.
+        // 2. For every render quantum, check and suspend rendering if necessary.
+        // 3. If a suspended context is resumed, continue to render the buffer.
         let renderer = OfflineAudioRenderer::new(
             Arc::clone(self.context.control_message_queue()),
             self.context.destination_value().parent().node_id(),
@@ -317,14 +317,14 @@ impl OfflineAudioContext {
         // NB: Break the reference cycle between the renderer's callbacks and this context.
         self.renderer.borrow().as_ref().unwrap().set_client(None);
 
-        // 4: Once the rendering is complete, queue a media element task to execute the following steps:
+        // 4. Once the rendering is complete, queue a media element task to execute the following steps:
         self.context
             .queue_a_media_element_task(vm, (self.this(), promise), |vm, (context, promise)| {
                 let realm = promise_realm(promise);
                 with_temporary_execution_context_and_callbacks(realm, || {
                     let buffer = context.rendered_buffer.get().unwrap();
 
-                    // 4.1 Resolve the promise created by startRendering() with [[rendered buffer]].
+                    // 4.1. Resolve the promise created by startRendering() with buffer.
                     resolve_promise(
                         vm,
                         promise,
@@ -333,16 +333,20 @@ impl OfflineAudioContext {
                             .expect("an AudioBuffer wraps"),
                     );
 
-                    // AD-HOC: Remove resolved promise from [[pending promises]]
-                    // https://github.com/WebAudio/web-audio-api/issues/2648
+                    // 4.2. Remove the promise from [[pending promises]].
                     context
                         .context
                         .pending_promises
                         .borrow_mut(vm)
                         .retain(|pending| *pending != promise);
 
-                    // 4.2: Queue a media element task to fire an event named complete at the OfflineAudioContext using OfflineAudioCompletionEvent
-                    //      whose renderedBuffer property is set to [[rendered buffer]].
+                    // FIXME: 4.3. Remove buffer from [[rendered buffers]].
+                    // FIXME: 4.4. Set [[rendered frames]] to the sum of [[rendered frames]] and the length of buffer.
+                    // 4.5. If length is not null:
+                    // NB: One-shot rendering always has a length.
+                    // 4.5.1. If [[rendered frames]] is greater than or equal to length, Queue a control message to close the OfflineAudioContext.
+                    // NB: The context was closed when rendering completed.
+                    // 4.5.2. Queue a media element task to fire an event named complete at the OfflineAudioContext using OfflineAudioCompletionEvent whose renderedBuffer property is set to buffer.
                     context.context.queue_a_media_element_task(vm, context, |vm, context| {
                         let event = CppEvent::create_for_owner(
                             context.context.realm(),

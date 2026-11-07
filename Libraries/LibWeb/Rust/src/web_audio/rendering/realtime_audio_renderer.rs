@@ -144,7 +144,7 @@ impl RealtimeAudioRenderer {
     }
 
     /// The callback is set on the control thread before rendering starts and is always invoked on the control thread. It
-    /// is cleared when the context closes to break the reference cycle with the context.
+    /// is cleared when the context is suspended, closes, or its document becomes inactive.
     pub fn set_client(&self, client: Option<Rc<dyn RealtimeAudioRendererClient>>) {
         self.client.replace(client);
     }

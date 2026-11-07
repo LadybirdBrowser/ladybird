@@ -178,7 +178,7 @@ impl AudioBuffer {
 
     // https://webaudio.github.io/web-audio-api/#acquire-the-content
     pub(crate) fn acquire_contents(this: Ref<Self>, vm: &Vm) -> Option<Arc<AudioBufferContents>> {
-        // NB: m_contents is non-null exactly while the channel arrays are detached because step 4 below has not run yet.
+        // NB: contents is populated exactly while the channel arrays are detached because step 4 below has not run yet.
         //     The snapshot then still holds the buffer's content and script has had no way to modify it, so it can be
         //     handed out again as-is. This is what makes a sequence of acquisitions with no intervening getChannelData(),
         //     e.g. one AudioBuffer played by many AudioBufferSourceNodes, free of allocations and copying.

@@ -196,7 +196,7 @@ impl AnalyserNode {
     fn current_time_domain_data(&self) -> Vec<f32> {
         // The input signal must be down-mixed to mono as if channelCount is 1, channelCountMode is "max" and
         // channelInterpretation is "speakers". This is independent of the settings for the AnalyserNode itself.
-        // NB: The down-mix happens on the rendering thread in AnalyserRenderNode.
+        // NB: The rendering thread down-mixes samples before writing them to the history ring.
         self.drain_time_domain_ring();
 
         // The most recent fftSize frames are used for the down-mixing operation.
@@ -419,7 +419,7 @@ impl AnalyserNode {
         // to include past frames that it previously did not. This means that the AnalyserNode
         // effectively MUST keep around the last 32768 sample-frames and the current time-domain
         // data is the most recent fftSize sample-frames out of that.
-        // NB: m_history always spans MAX_FFT_SIZE frames, so this holds by construction.
+        // NB: The history ring holds MAX_FFT_SIZE frames.
     }
 
     #[allow(clippy::manual_range_contains, reason = "preserve the C++ validation")]
