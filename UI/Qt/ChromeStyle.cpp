@@ -285,7 +285,13 @@ QWidget#LadybirdToolbarContainer[verticalTabs="true"] {{
     border-bottom-color: transparent;
 }}
 
-QWidget#LadybirdNavigationToolbar QToolButton {{
+QWidget#LadybirdToolbarContainer[inSidebar="true"] {{
+    background: transparent;
+    border-bottom: 0;
+}}
+
+QWidget#LadybirdNavigationToolbar QToolButton,
+QWidget#LadybirdSidebarFooter QToolButton {{
     color: {4};
     background: transparent;
     border: 0;
@@ -301,24 +307,29 @@ QWidget#LadybirdNavigationToolbar QToolButton#LadybirdAllTabsButton {{
     min-height: 0;
 }}
 
-QWidget#LadybirdNavigationToolbar QToolButton:hover {{
+QWidget#LadybirdNavigationToolbar QToolButton:hover,
+QWidget#LadybirdSidebarFooter QToolButton:hover {{
     background: transparent;
     border-color: transparent;
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton:pressed,
-QWidget#LadybirdNavigationToolbar QToolButton:checked {{
+QWidget#LadybirdNavigationToolbar QToolButton:checked,
+QWidget#LadybirdSidebarFooter QToolButton:pressed,
+QWidget#LadybirdSidebarFooter QToolButton:checked {{
     background: transparent;
     border-color: transparent;
 }}
 
-QWidget#LadybirdNavigationToolbar QToolButton:disabled {{
+QWidget#LadybirdNavigationToolbar QToolButton:disabled,
+QWidget#LadybirdSidebarFooter QToolButton:disabled {{
     color: {5};
     background: transparent;
     border-color: transparent;
 }}
 
-QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator {{
+QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator,
+QWidget#LadybirdSidebarFooter QToolButton::menu-indicator {{
     image: none;
 }}
 

@@ -65,6 +65,8 @@ public:
     void set_url(Optional<URL::URL>);
     bool url_is_hidden() const { return m_url_is_hidden; }
     void set_url_is_hidden(bool);
+    // While idle, a website's address shows only up to its host, as where the field is narrow, in the sidebar.
+    void set_shows_host_only(bool);
     void show_autocomplete();
     void park_editing_session();
     bool has_parked_editing_session() const { return m_parked_editing_session.has_value(); }
@@ -146,6 +148,7 @@ private:
 
     Optional<URL::URL> m_url;
     bool m_url_is_hidden { false };
+    bool m_shows_host_only { false };
     bool m_is_editing_location { false };
 
     struct ParkedEditingSession {

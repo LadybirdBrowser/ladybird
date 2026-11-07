@@ -613,6 +613,12 @@ static constexpr int TOOLBAR_LOCATION_EDIT_MARGIN = 6;
 // The address field's focus ring reaches 3 px past its edge. With the toolbar's spacing, this room also puts the
 // downloads button 6 px after the field.
 static constexpr int TOOLBAR_LOCATION_FOCUS_RING_ROOM = 4;
+// In the open sidebar, the navigation buttons have a row of their own, above the address field, and the toolbar's other
+// buttons sit in a footer at its bottom.
+static constexpr int SIDEBAR_NAVIGATION_ROW_HEIGHT = 32;
+static constexpr int SIDEBAR_FIELD_TOP_MARGIN = 4;
+static constexpr int SIDEBAR_FIELD_BOTTOM_MARGIN = 8;
+static constexpr int SIDEBAR_FOOTER_HEIGHT = 40;
 
 // NB: Window controls run to the window's edge. Without them, the address field ends the toolbar, and the room for its
 //     focus ring takes the place of some of the toolbar's margin.
@@ -1038,10 +1044,6 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     // NB: The container draws the line under the toolbar along its bottom edge, below the toolbar's full height.
     toolbar_container_layout->setContentsMargins(0, 0, 0, 1);
 
-    auto* toolbar_layout = new QHBoxLayout(m_toolbar);
-    toolbar_layout->setSpacing(TOOLBAR_SPACING);
-    toolbar_layout->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, 0, toolbar_right_margin(false), 0);
-
     m_downloads_button = new DownloadsButton(m_toolbar);
     QObject::connect(m_downloads_button, &QToolButton::clicked, this, [this] {
         // NB: The button only stays checked while the list is open, which showing it sees to.
@@ -1103,6 +1105,7 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     }
 
     auto* navigation_button_cluster = new QWidget(m_toolbar);
+    m_navigation_buttons = navigation_button_cluster;
     navigation_button_cluster->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
     auto* navigation_button_layout = new QHBoxLayout(navigation_button_cluster);
     navigation_button_layout->setSpacing(TOOLBAR_SPACING);
@@ -1118,19 +1121,14 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     };
     navigation_button_layout->addWidget(m_reload_button);
 
-    auto* location_edit_container = new QWidget(m_toolbar);
-    location_edit_container->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
-    m_location_edit_layout = new QHBoxLayout(location_edit_container);
+    m_location_edit_container = new QWidget(m_toolbar);
+    m_location_edit_container->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
+    m_location_edit_layout = new QHBoxLayout(m_location_edit_container);
     m_location_edit_layout->setSpacing(0);
-    // NB: The field reaches the end of the toolbar, leaving room for its focus ring.
-    m_location_edit_layout->setContentsMargins(TOOLBAR_LOCATION_EDIT_MARGIN, 0, TOOLBAR_LOCATION_FOCUS_RING_ROOM, 0);
 
     m_performance_monitor = new PerformanceMonitorWidget(m_toolbar);
     (void)WebView::TabPerformanceMonitor::the();
     m_performance_monitor->setVisible(WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowTabPerformanceMonitor));
-
-    if constexpr (use_native_macos_window_controls())
-        toolbar_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
 
     m_sidebar_slot = new QWidget(m_toolbar);
     m_sidebar_slot->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
@@ -1150,20 +1148,18 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     sidebar_slot_layout->addWidget(sidebar_slot_separator, 0, Qt::AlignVCenter);
     sidebar_slot_layout->addSpacing(SIDEBAR_SLOT_SEPARATOR_MARGIN);
     m_sidebar_slot->hide();
-    toolbar_layout->addWidget(m_sidebar_slot, 0, Qt::AlignVCenter);
 
-    toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignVCenter);
-    toolbar_layout->addWidget(location_edit_container, 1);
-    toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
-    if (m_feedback_button)
-        toolbar_layout->addWidget(m_feedback_button, 0, Qt::AlignVCenter);
-    toolbar_layout->addWidget(m_performance_monitor, 0, Qt::AlignVCenter);
+    m_sidebar_footer = new QWidget(this);
+    m_sidebar_footer->setObjectName("LadybirdSidebarFooter");
+    m_sidebar_footer->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
+    auto* sidebar_footer_layout = new QHBoxLayout(m_sidebar_footer);
+    sidebar_footer_layout->setContentsMargins(0, 0, 0, 0);
+    sidebar_footer_layout->setSpacing(TOOLBAR_SPACING);
+    sidebar_footer_layout->addStrut(SIDEBAR_FOOTER_HEIGHT);
+    sidebar_footer_layout->addStretch(1);
+    m_sidebar_footer->hide();
 
-    if constexpr (!use_native_macos_window_controls()) {
-        toolbar_layout->addWidget(m_window_controls_separator, 0, Qt::AlignVCenter);
-        toolbar_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
-    }
-
+    lay_out_as_row();
     toolbar_container_layout->addWidget(m_toolbar);
 
     recreate_icons();
@@ -1174,6 +1170,100 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
 }
 
 WindowToolbar::~WindowToolbar() = default;
+
+void WindowToolbar::lay_out_as_row()
+{
+    auto* toolbar_layout = new QHBoxLayout(m_toolbar);
+    toolbar_layout->setSpacing(TOOLBAR_SPACING);
+    toolbar_layout->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, 0, toolbar_right_margin(false), 0);
+
+    if constexpr (use_native_macos_window_controls())
+        toolbar_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
+    toolbar_layout->addWidget(m_sidebar_slot, 0, Qt::AlignVCenter);
+    toolbar_layout->addWidget(m_navigation_buttons, 0, Qt::AlignVCenter);
+    toolbar_layout->addWidget(m_location_edit_container, 1);
+    toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
+    if (m_feedback_button)
+        toolbar_layout->addWidget(m_feedback_button, 0, Qt::AlignVCenter);
+    toolbar_layout->addWidget(m_performance_monitor, 0, Qt::AlignVCenter);
+    if constexpr (!use_native_macos_window_controls()) {
+        toolbar_layout->addWidget(m_window_controls_separator, 0, Qt::AlignVCenter);
+        toolbar_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
+    }
+
+    // NB: The field reaches the end of the toolbar, leaving room for its focus ring.
+    m_location_edit_layout->setContentsMargins(TOOLBAR_LOCATION_EDIT_MARGIN, 0, TOOLBAR_LOCATION_FOCUS_RING_ROOM, 0);
+    // NB: The container draws the line under the toolbar along its bottom edge, below the toolbar's full height.
+    layout()->setContentsMargins(0, 0, 0, 1);
+}
+
+// In the open sidebar, the navigation buttons get a row of their own, and the address field takes the sidebar's width
+// below them. The other buttons move to the footer at the sidebar's bottom.
+void WindowToolbar::lay_out_in_sidebar()
+{
+    auto* toolbar_layout = new QVBoxLayout(m_toolbar);
+    toolbar_layout->setSpacing(0);
+    toolbar_layout->setContentsMargins(0, 0, 0, 0);
+
+    auto* navigation_row = new QHBoxLayout;
+    navigation_row->setContentsMargins(m_sidebar_inset, 0, m_sidebar_inset, 0);
+    navigation_row->addStrut(SIDEBAR_NAVIGATION_ROW_HEIGHT);
+    navigation_row->addWidget(m_navigation_buttons, 0, Qt::AlignVCenter);
+    navigation_row->addStretch(1);
+    toolbar_layout->addLayout(navigation_row);
+
+    auto* field_row = new QHBoxLayout;
+    // NB: The field's container leaves room for its focus ring all around, which the row's margins make up for.
+    auto ring_room = TOOLBAR_LOCATION_FOCUS_RING_ROOM;
+    field_row->setContentsMargins(m_sidebar_inset - ring_room, SIDEBAR_FIELD_TOP_MARGIN - ring_room, m_sidebar_inset - ring_room, SIDEBAR_FIELD_BOTTOM_MARGIN - ring_room);
+    field_row->addWidget(m_location_edit_container, 1);
+    toolbar_layout->addLayout(field_row);
+    m_location_edit_layout->setContentsMargins(ring_room, ring_room, ring_room, ring_room);
+
+    // NB: What the sidebar has no room for stays hidden, as widgets left out of a layout would show where they last were.
+    m_sidebar_slot->hide();
+    m_window_controls->hide();
+    m_window_controls_separator->hide();
+
+    auto* footer_layout = static_cast<QBoxLayout*>(m_sidebar_footer->layout());
+    footer_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
+    if (m_feedback_button)
+        footer_layout->addWidget(m_feedback_button, 0, Qt::AlignVCenter);
+    footer_layout->addWidget(m_performance_monitor, 0, Qt::AlignVCenter);
+    footer_layout->setContentsMargins(m_sidebar_inset, 0, m_sidebar_inset, 0);
+
+    layout()->setContentsMargins(0, 0, 0, 0);
+}
+
+void WindowToolbar::set_arrangement(ToolbarArrangement arrangement, int sidebar_inset)
+{
+    if (m_arrangement == arrangement && m_sidebar_inset == sidebar_inset)
+        return;
+    m_arrangement = arrangement;
+    m_sidebar_inset = sidebar_inset;
+
+    // NB: Deleting the layout leaves the widgets it held in place, ready for the next one.
+    delete m_toolbar->layout();
+    if (arrangement == ToolbarArrangement::Row) {
+        lay_out_as_row();
+        m_sidebar_footer->hide();
+        set_window_controls_visible(m_window_controls_visible);
+    } else {
+        lay_out_in_sidebar();
+        m_toolbar->setMinimumHeight(0);
+        m_toolbar->setMaximumHeight(QWIDGETSIZE_MAX);
+        m_sidebar_footer->show();
+    }
+
+    if (m_location_edit)
+        m_location_edit->set_shows_host_only(arrangement == ToolbarArrangement::Sidebar);
+
+    setProperty("inSidebar", arrangement == ToolbarArrangement::Sidebar);
+    style()->unpolish(this);
+    style()->polish(this);
+    updateGeometry();
+    update();
+}
 
 int WindowToolbar::toolbar_height(bool)
 {
@@ -1226,8 +1316,10 @@ void WindowToolbar::show_location_edit(LocationEdit* location_edit)
     if (m_location_edit && m_location_edit != location_edit)
         m_location_edit->hide();
     m_location_edit = location_edit;
-    if (location_edit)
+    if (location_edit) {
+        location_edit->set_shows_host_only(m_arrangement == ToolbarArrangement::Sidebar);
         location_edit->show();
+    }
 }
 
 // A tab that leaves the window takes its address field along.
@@ -1289,6 +1381,11 @@ QToolButton* WindowToolbar::create_navigation_history_toolbar_button(QWidget& pa
 
 void WindowToolbar::set_window_controls_visible(bool visible)
 {
+    m_window_controls_visible = visible;
+    // NB: The sidebar has no room for the window controls, and its toolbar is as tall as its two rows.
+    if (m_arrangement == ToolbarArrangement::Sidebar)
+        return;
+
     auto const has_native_window_controls = use_native_macos_window_controls() && visible;
     auto const has_custom_window_controls = !use_native_macos_window_controls() && visible;
 
@@ -1317,6 +1414,8 @@ int WindowToolbar::lead_beside_collapsed_sidebar(QWidget const& ladybird_buttons
 // While the sidebar opens or closes, the toolbar's contents keep clear of where the collapsed sidebar's buttons sit.
 void WindowToolbar::set_leading_room(int room)
 {
+    if (m_arrangement == ToolbarArrangement::Sidebar)
+        return;
     auto margins = m_toolbar->layout()->contentsMargins();
     if (margins.left() == TOOLBAR_HORIZONTAL_MARGIN + room)
         return;
@@ -1397,7 +1496,10 @@ void WindowToolbar::update_chrome_style()
     if (m_is_updating_chrome_style)
         return;
     m_is_updating_chrome_style = true;
-    setStyleSheet(ChromeStyle::toolbar_container_style_sheet(Theme::chrome_palette(*this)));
+    auto style_sheet = ChromeStyle::toolbar_container_style_sheet(Theme::chrome_palette(*this));
+    setStyleSheet(style_sheet);
+    // NB: The sidebar's footer lies outside the toolbar while the sidebar holds it, so it takes the style sheet itself.
+    m_sidebar_footer->setStyleSheet(style_sheet);
     if (m_downloads_popover)
         m_downloads_popover->update_chrome_style(palette());
     if (m_feedback_popover)
@@ -1472,7 +1574,7 @@ void WindowToolbar::fit_feedback_popover()
 {
     m_feedback_popover->card().layout()->activate();
     m_feedback_popover->adjustSize();
-    move_popover_below(*m_feedback_popover, *m_feedback_button, PopoverAlignment::Trailing);
+    move_popover_to_button(*m_feedback_popover, *m_feedback_button);
 }
 
 void WindowToolbar::show_feedback_popover()
@@ -1507,7 +1609,7 @@ void WindowToolbar::show_feedback_popover()
     m_feedback_popover->set_crash_report_count(crash_report_count);
     fit_feedback_popover();
     m_feedback_popover->show();
-    move_popover_below(*m_feedback_popover, *m_feedback_button, PopoverAlignment::Trailing);
+    move_popover_to_button(*m_feedback_popover, *m_feedback_button);
     m_feedback_popover->raise();
 }
 
@@ -1577,7 +1679,17 @@ void WindowToolbar::position_downloads_popover()
     card.setFixedSize(size);
     m_downloads_popover->adjustSize();
 
-    move_popover_below(*m_downloads_popover, *m_downloads_button, PopoverAlignment::Trailing);
+    move_popover_to_button(*m_downloads_popover, *m_downloads_button);
+}
+
+// A button on the toolbar row hangs its popover below it. In the sidebar's footer, at the bottom of the window, the
+// popover stands on the button instead, reaching over the page.
+void WindowToolbar::move_popover_to_button(Popover& popover, QWidget& button)
+{
+    if (m_arrangement == ToolbarArrangement::Sidebar)
+        move_popover_above(popover, button, PopoverAlignment::Leading);
+    else
+        move_popover_below(popover, button, PopoverAlignment::Trailing);
 }
 
 void WindowToolbar::download_added(WebView::FileDownloader::Download const& download)

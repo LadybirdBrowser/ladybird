@@ -500,6 +500,31 @@ void move_popover_below(Popover& popover, QWidget& anchor, PopoverAlignment alig
     popover.set_anchor_point(QPoint(anchor_x, card_position.y()));
 }
 
+void move_popover_above(Popover& popover, QWidget& anchor, PopoverAlignment alignment)
+{
+    auto rect = anchor.rect();
+    auto card_size = popover.size().shrunkBy(POPOVER_SHADOW_MARGINS);
+    auto anchor_top_left = anchor.mapToGlobal(rect.topLeft());
+    auto card_x = alignment == PopoverAlignment::Leading ? anchor_top_left.x() : anchor.mapToGlobal(rect.topRight()).x() - card_size.width();
+    auto card_position = QPoint(card_x, anchor_top_left.y() - POPOVER_ANCHOR_GAP - card_size.height());
+
+    if (auto* screen = QGuiApplication::screenAt(anchor_top_left)) {
+        auto available_geometry = screen->availableGeometry();
+        if (card_position.x() + card_size.width() > available_geometry.right())
+            card_position.setX(available_geometry.right() - card_size.width() + 1);
+        if (card_position.x() < available_geometry.left())
+            card_position.setX(available_geometry.left());
+        if (card_position.y() < available_geometry.top())
+            card_position.setY(available_geometry.top());
+    }
+
+    popover.move(card_position - QPoint(POPOVER_SHADOW_MARGINS.left(), POPOVER_SHADOW_MARGINS.top()));
+
+    // The popover grows out of the corner of its card nearest the anchor.
+    auto anchor_x = alignment == PopoverAlignment::Leading ? card_position.x() : card_position.x() + card_size.width();
+    popover.set_anchor_point(QPoint(anchor_x, card_position.y() + card_size.height()));
+}
+
 // Cards that float over other content cast the same shadow as popovers, whether they are windows of their own or not.
 void cast_popover_shadow(QWidget& card)
 {

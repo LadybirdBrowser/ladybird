@@ -28,8 +28,17 @@ class FeedbackButton;
 class FeedbackPopover;
 class LocationEdit;
 class PerformanceMonitorWidget;
+class Popover;
 class ReloadButton;
 class Tab;
+
+enum class ToolbarArrangement : u8 {
+    // One row above the page.
+    Row,
+    // Two rows in the open sidebar: the navigation buttons, then the address field. The toolbar's other buttons sit in
+    // its sidebar footer, which the sidebar shows at its bottom.
+    Sidebar,
+};
 
 // A window has one toolbar, which shows the tab that is selected. Each tab keeps its own address field, which the
 // toolbar holds while that tab is shown.
@@ -60,6 +69,11 @@ public:
     void set_vertical_tabs_enabled(bool);
     void set_bookmarks_bar_below(bool);
 
+    ToolbarArrangement arrangement() const { return m_arrangement; }
+    // The sidebar's own margin plus the given inset keeps the toolbar's contents clear of the sidebar's edges.
+    void set_arrangement(ToolbarArrangement, int sidebar_inset = 0);
+    QWidget& sidebar_footer() { return *m_sidebar_footer; }
+
     void show_downloads_popover();
     void update_downloads_button();
     void update_feedback_button();
@@ -84,13 +98,22 @@ private:
     void position_downloads_popover();
     void show_feedback_popover();
     void fit_feedback_popover();
+    void move_popover_to_button(Popover&, QWidget& button);
+    void lay_out_as_row();
+    void lay_out_in_sidebar();
 
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
     QPointer<Tab> m_tab;
     // The tab whose history a back or forward button's menu lists, which stays the same while the menu is open.
     QPointer<Tab> m_history_menu_tab;
 
+    ToolbarArrangement m_arrangement { ToolbarArrangement::Row };
     QWidget* m_toolbar { nullptr };
+    QWidget* m_navigation_buttons { nullptr };
+    QWidget* m_location_edit_container { nullptr };
+    QWidget* m_sidebar_footer { nullptr };
+    bool m_window_controls_visible { false };
+    int m_sidebar_inset { 0 };
     // NB: The fields of the tabs shown so far share this layout, which leaves room around them for the focus ring.
     QHBoxLayout* m_location_edit_layout { nullptr };
     QPointer<LocationEdit> m_location_edit;

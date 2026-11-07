@@ -1227,7 +1227,7 @@ void LocationEdit::highlight_location()
                 scheme_and_subdomain = scheme_and_subdomain.substring_view(scheme_prefix_length);
             if (scheme_and_subdomain.starts_with("www."sv, CaseSensitivity::CaseInsensitive))
                 scheme_and_subdomain = scheme_and_subdomain.substring_view(4);
-            if (remainder == "/"sv)
+            if (remainder == "/"sv || m_shows_host_only)
                 remainder = {};
 
             append_attributes(scheme_and_subdomain, url_parts->effective_tld_plus_one, remainder);
@@ -1393,7 +1393,22 @@ QString LocationEdit::serialized_url() const
 QString LocationEdit::display_url() const
 {
     VERIFY(m_url.has_value());
+    if (m_shows_host_only && m_url->scheme().is_one_of("http"sv, "https"sv))
+        return qstring_from_ak_string(WebView::authority_for_display(*m_url));
     return qstring_from_ak_string(WebView::url_for_display(*m_url));
+}
+
+void LocationEdit::set_shows_host_only(bool shows_host_only)
+{
+    if (m_shows_host_only == shows_host_only)
+        return;
+    auto was_showing_display_url = m_url.has_value() && !hasFocus() && text() == display_url();
+    m_shows_host_only = shows_host_only;
+    if (was_showing_display_url) {
+        set_text_and_restart_editing(display_url());
+        setCursorPosition(0);
+        highlight_location();
+    }
 }
 
 QString LocationEdit::current_query() const

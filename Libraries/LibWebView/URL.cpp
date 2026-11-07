@@ -307,11 +307,8 @@ Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls)
     return sanitized_urls;
 }
 
-String url_for_display(URL::URL const& url)
+String authority_for_display(URL::URL const& url)
 {
-    if (!url.scheme().is_one_of("http"sv, "https"sv))
-        return url.serialize();
-
     StringBuilder builder;
 
     if (!url.username().is_empty() || !url.password().is_empty()) {
@@ -330,6 +327,17 @@ String url_for_display(URL::URL const& url)
 
     if (url.port().has_value())
         builder.appendff(":{}", *url.port());
+
+    return MUST(builder.to_string());
+}
+
+String url_for_display(URL::URL const& url)
+{
+    if (!url.scheme().is_one_of("http"sv, "https"sv))
+        return url.serialize();
+
+    StringBuilder builder;
+    builder.append(authority_for_display(url));
 
     auto path = url.serialize_path();
     if (path != "/"sv || url.query().has_value() || url.fragment().has_value())

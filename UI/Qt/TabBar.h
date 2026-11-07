@@ -329,6 +329,7 @@ public:
     void set_window_controls_visible(bool);
     void update_window_button_icons();
     void set_vertical_tabs_enabled(bool);
+    void set_everything_in_sidebar(bool);
     void set_vertical_tabs_expanded(bool);
     void set_vertical_tabs_expand_on_hover(bool);
     // How strongly the vertical tabs' titles show, which they don't for long once the sidebar starts to collapse.
@@ -369,6 +370,7 @@ private:
     int vertical_tabs_layout_width() const;
     bool should_show_window_controls_in_tab_toolbar() const;
     bool vertical_tabs_hold_window_controls() const;
+    bool toolbar_is_in_sidebar() const;
     int vertical_tabs_header_spacing() const;
     int minimum_vertical_tabs_expanded_width() const;
 
@@ -453,6 +455,7 @@ private:
     bool m_tab_bar_visible { true };
     bool m_window_controls_visible { true };
     bool m_vertical_tabs_enabled { false };
+    bool m_everything_in_sidebar { false };
     bool m_vertical_tabs_expanded { true };
     bool m_vertical_tabs_expand_on_hover { false };
     WebView::VerticalTabsPosition m_vertical_tabs_position { WebView::VerticalTabsPosition::Left };

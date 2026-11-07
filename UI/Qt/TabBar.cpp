@@ -142,6 +142,10 @@ static constexpr int TAB_CARD_SHAPE_TOP_INSET = 0;
 static constexpr int TAB_CARD_SHAPE_BOTTOM_INSET = 1;
 // The sidebar's tab bar leaves this much room above its first tab and below its last.
 static constexpr int VERTICAL_TAB_BAR_END_ROOM = 2;
+// With everything in the sidebar, the toolbar's rows and footer keep this far from the sidebar's edges, like its tabs.
+static constexpr int SIDEBAR_CONTENT_INSET = 8;
+// The gap between the address field's row and the sidebar's tabs below it.
+static constexpr int SIDEBAR_TOOLBAR_TABS_GAP = 4;
 // A horizontal tab's card holds its contents. It is inset from the tab on every side.
 static constexpr qreal HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET = 3;
 // NB: The card is as low in the tab as the selected tab's body is, so the contents of both share the strip's line.
@@ -3531,6 +3535,21 @@ void TabWidget::set_vertical_tabs_enabled(bool enabled)
     rebuild_layout();
 }
 
+void TabWidget::set_everything_in_sidebar(bool everything_in_sidebar)
+{
+    if (m_everything_in_sidebar == everything_in_sidebar)
+        return;
+    m_everything_in_sidebar = everything_in_sidebar;
+    rebuild_layout();
+}
+
+// With everything in the sidebar, the open sidebar holds the toolbar. The collapsed sidebar leaves it across the top of
+// the window, as without.
+bool TabWidget::toolbar_is_in_sidebar() const
+{
+    return m_everything_in_sidebar && m_vertical_tabs_enabled && m_vertical_tabs_expanded;
+}
+
 void TabWidget::set_vertical_tabs_expanded(bool expanded)
 {
     if (m_vertical_tabs_collapse_pending && !expanded)
@@ -4030,7 +4049,7 @@ int TabWidget::vertical_tabs_layout_width() const
 
 bool TabWidget::should_show_window_controls_in_tab_toolbar() const
 {
-    return m_window_controls_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal && !vertical_tabs_hold_window_controls();
+    return m_window_controls_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal && !vertical_tabs_hold_window_controls() && !toolbar_is_in_sidebar();
 }
 
 // The native window controls sit in the window's top left corner, so the open sidebar on the left holds them.
@@ -4106,6 +4125,7 @@ void TabWidget::rebuild_layout()
     m_tab_bar->set_pinned_tabs_in_rows(m_vertical_tabs_hover_expanded && !m_vertical_tabs_expanded);
     m_tab_bar->set_tab_layout(current_tab_layout());
     update_toolbar_window_controls_visibility();
+    m_toolbar->set_arrangement(toolbar_is_in_sidebar() ? ToolbarArrangement::Sidebar : ToolbarArrangement::Row, SIDEBAR_CONTENT_INSET - vertical_tabs_side_margin(true));
 
     if (m_tab_bar->tab_layout() != TabLayout::Horizontal) {
         rebuild_layout_for_vertical_tabs();
@@ -4411,6 +4431,9 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
             top_row_layout->addStretch(1);
             top_row_layout->addSpacing(SIDEBAR_TOGGLE_MINIMUM_GAP);
             top_row_layout->addWidget(m_vertical_tabs_toggle_button, 0, Qt::AlignVCenter);
+            // Without a toolbar row, the window controls that aren't the system's own end the sidebar's top row.
+            if (!use_native_macos_window_controls() && toolbar_is_in_sidebar())
+                top_row_layout->addWidget(m_window_controls, 0, Qt::AlignTop);
         }
     } else {
         // The collapsed rail holds only tabs. The Ladybird and all-tabs buttons and the sidebar's toggle move to the
@@ -4423,8 +4446,15 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
         m_ladybird_button->set_tile_vertical_offset(0);
         m_ladybird_buttons->show();
         m_vertical_tab_bar_column_layout->addLayout(top_row_layout);
-        m_vertical_tabs_header_spacer = new QSpacerItem(0, vertical_tabs_header_spacing(), QSizePolicy::Fixed, QSizePolicy::Fixed);
-        m_vertical_tab_bar_column_layout->addItem(m_vertical_tabs_header_spacer);
+        if (toolbar_is_in_sidebar()) {
+            // Below its top row, the sidebar holds the toolbar's navigation buttons and address field.
+            m_vertical_tab_bar_column_layout->addWidget(m_toolbar);
+            m_toolbar->setVisible(m_tab_bar_visible);
+            m_vertical_tab_bar_column_layout->addSpacing(SIDEBAR_TOOLBAR_TABS_GAP - VERTICAL_TAB_BAR_END_ROOM);
+        } else {
+            m_vertical_tabs_header_spacer = new QSpacerItem(0, vertical_tabs_header_spacing(), QSizePolicy::Fixed, QSizePolicy::Fixed);
+            m_vertical_tab_bar_column_layout->addItem(m_vertical_tabs_header_spacer);
+        }
     } else {
         delete top_row_layout;
     }
@@ -4432,6 +4462,9 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
     m_vertical_tab_bar_column_layout->addWidget(m_tab_bar);
     m_vertical_tab_bar_column_layout->addWidget(m_new_tab_button, 0, vertical_tabs_are_on_right() ? Qt::AlignRight : Qt::AlignLeft);
     m_vertical_tab_bar_column_layout->addStretch(1);
+    // The toolbar's other buttons sit at the bottom of the sidebar that holds it.
+    if (m_vertical_tabs_expanded && toolbar_is_in_sidebar())
+        m_vertical_tab_bar_column_layout->addWidget(&m_toolbar->sidebar_footer());
 }
 
 // A divider runs along the sidebar's edge toward the page.
@@ -4481,6 +4514,19 @@ void TabWidget::update_vertical_tabs_column_margins()
 //     field. Instead, it is placed over a stand-in at the top of the page column.
 void TabWidget::rebuild_page_column()
 {
+    // NB: The open sidebar that holds the toolbar is a native view on macOS, which a widget lying over it cannot draw on,
+    //     so the toolbar moves into the sidebar after all. It comes back here when the sidebar no longer holds it.
+    if (toolbar_is_in_sidebar()) {
+        m_toolbar_follows_page_column = false;
+        m_toolbar_placeholder->hide();
+        add_page_to_page_column();
+        return;
+    }
+    if (m_toolbar->parentWidget() != this) {
+        m_toolbar->setParent(this);
+        m_toolbar->setVisible(m_tab_bar_visible);
+    }
+
     m_toolbar_follows_page_column = true;
     m_toolbar_placeholder->setVisible(m_tab_bar_visible);
     m_page_column_layout->addWidget(m_toolbar_placeholder);
@@ -4749,7 +4795,7 @@ void TabWidget::update_tab_chrome_visibility()
 
     auto show_window_controls = m_window_controls_visible
         && m_tab_bar_visible
-        && is_horizontal;
+        && (is_horizontal || (!use_native_macos_window_controls() && toolbar_is_in_sidebar()));
     m_window_controls->setVisible(show_window_controls);
 }
 
