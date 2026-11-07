@@ -94,6 +94,7 @@
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/Platform/RemoteImageCodecPlugin.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
@@ -450,6 +451,11 @@ void ConnectionFromClient::connect_to_web_ui(Web::PageId page_id, IPC::Transport
         if (auto result = page->connect_to_web_ui(move(handle)); result.is_error())
             dbgln("Unable to connect to the WebUI host: {}", result.error());
     }
+}
+
+void ConnectionFromClient::disconnect_from_image_decoder()
+{
+    static_cast<Web::Platform::RemoteImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).disconnect_client();
 }
 
 void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle handle, IPC::TransportHandle render_clock_handle)

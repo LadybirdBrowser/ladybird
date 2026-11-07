@@ -35,8 +35,8 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebWorkerClient>> launch_web_worker_p
 WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, HTTPDiskCacheMode);
 WEBVIEW_API void apply_dns_settings(Requests::RequestControlClient&);
 
-// Launches an ImageDecoder, which the given process is listed with.
-WEBVIEW_API ErrorOr<NonnullRefPtr<ImageDecoderControlClient>> launch_image_decoder_process(u64 owner_child_id);
+// Launches an ImageDecoder, which is listed with the given site, or with the given process if it serves no site.
+WEBVIEW_API ErrorOr<NonnullRefPtr<ImageDecoderControlClient>> launch_image_decoder_process(u64 owner_child_id, Optional<Utf16String> const& site);
 
 // Launches a WebRTCClient that serves the given renderer alone, which talks to it over the returned handle, and ends any
 // helper the renderer had before. The helper exits once that renderer's end of the transport is gone.

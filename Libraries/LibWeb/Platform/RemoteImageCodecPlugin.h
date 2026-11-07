@@ -32,6 +32,9 @@ public:
     virtual void connect_frame_client(IPC::TransportHandle) override;
     virtual u64 client_generation() const override { return m_client_generation; }
 
+    // Gives up the client, as if its decoder had crashed. The next image to decode connects a new one.
+    void disconnect_client();
+
 private:
     ImageDecoderClient::Client* ensure_client();
 

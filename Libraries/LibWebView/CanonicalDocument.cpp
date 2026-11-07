@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Site.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
@@ -74,6 +75,11 @@ void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
         m_relevant_global_object->agent().set_hosting_process_if_unset(m_host->client());
         // The process makes the document's requests through the RequestServer of the document's top-level site.
         m_host->client().request_server_site_bindings().bind_sites_of(*this);
+        // NB: The PDF viewer has an origin of its own, but it only ever replaces a document in the process of the PDF's
+        //     site, so it brings no second site along.
+        auto is_pdf_viewer = !m_origin.is_opaque() && m_origin.scheme() == "resource"sv;
+        if (auto site = URL::Site::serialize_for_partitioning(m_origin); site.has_value() && !is_pdf_viewer)
+            m_host->client().did_host_document_of_site(site.release_value());
     }
 }
 
