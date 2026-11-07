@@ -1,0 +1,4 @@
+localhost in subjectAltName: loaded
+localhost only in Common Name: failed
+wss:// with localhost in subjectAltName: opened
+wss:// with localhost only in Common Name: failed

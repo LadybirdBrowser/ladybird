@@ -100,6 +100,18 @@ stalled_tls_connection_count = 0
 # Per RFC 6455: appended to Sec-WebSocket-Key before hashing to compute the Sec-WebSocket-Accept value.
 WEBSOCKET_ACCEPT_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
+
+def websocket_handshake_response(key):
+    accept = base64.b64encode(hashlib.sha1((key + WEBSOCKET_ACCEPT_GUID).encode("utf-8")).digest()).decode("ascii")
+    return (
+        "HTTP/1.1 101 Switching Protocols\r\n"
+        "Upgrade: websocket\r\n"
+        "Connection: Upgrade\r\n"
+        f"Sec-WebSocket-Accept: {accept}\r\n"
+        "\r\n"
+    ).encode("ascii")
+
+
 # The browser saves a download as <name>.<id>.<uuid>.download until it finishes. That suffix takes at most 67 of the
 # 255 bytes a filename may have, so a name of up to 188 bytes is never cut short.
 MAXIMUM_REPORTED_DOWNLOAD_NAME_LENGTH = 188
@@ -754,17 +766,9 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(400, "Missing Sec-WebSocket-Key")
             return
 
-        accept = base64.b64encode(hashlib.sha1((key + WEBSOCKET_ACCEPT_GUID).encode("utf-8")).digest()).decode("ascii")
-        handshake = (
-            "HTTP/1.1 101 Switching Protocols\r\n"
-            "Upgrade: websocket\r\n"
-            "Connection: Upgrade\r\n"
-            f"Sec-WebSocket-Accept: {accept}\r\n"
-            "\r\n"
-        )
         # We now own the raw socket; stop the HTTP handler from parsing another request on it.
         self.close_connection = True
-        self.connection.sendall(handshake.encode("ascii"))
+        self.connection.sendall(websocket_handshake_response(key))
 
         if self.path == "/reflect-websocket-cookie":
             self._send_websocket_frame(self.headers.get("Cookie", "").encode("utf-8"))
@@ -861,6 +865,12 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 class AIALeafHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.headers.get("Upgrade", "").lower() == "websocket":
+            # Accept the handshake and hang up, so a test can tell whether a wss:// connection got past TLS.
+            self.wfile.write(websocket_handshake_response(self.headers.get("Sec-WebSocket-Key", "")))
+            self.close_connection = True
+            return
+
         self.send_response(200)
         self.send_header("Content-Type", "text/plain")
         self.send_header("Content-Length", "2")
@@ -1031,6 +1041,26 @@ def _setup_tls_test_servers(http_port, ca_cert_output):
         .sign(untrusted_key, hashes.SHA256())
     )
     scenarios["untrusted"] = (untrusted_leaf, untrusted_leaf_key)
+
+    # Leaves issued by the root itself, naming localhost either only in the Common Name or also in a subjectAltName.
+    def add_root_issued_scenario(name, subject_alt_names):
+        leaf_key = new_key()
+        builder = (
+            x509.CertificateBuilder()
+            .subject_name(dn("localhost"))
+            .issuer_name(root.subject)
+            .public_key(leaf_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(not_before)
+            .not_valid_after(not_after)
+            .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+        )
+        if subject_alt_names:
+            builder = builder.add_extension(x509.SubjectAlternativeName(subject_alt_names), critical=False)
+        scenarios[name] = (builder.sign(root_key, hashes.SHA256()), leaf_key)
+
+    add_root_issued_scenario("common_name_only", [])
+    add_root_issued_scenario("subject_alt_name", [x509.DNSName("localhost")])
 
     TestHTTPRequestHandler.aia_artifacts = artifacts
 
