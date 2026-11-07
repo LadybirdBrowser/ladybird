@@ -3265,7 +3265,8 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     m_vertical_tabs_expanded_width = clamp(m_vertical_tabs_expanded_width, minimum_vertical_tabs_expanded_width(), VERTICAL_TABS_MAX_EXPANDED_WIDTH);
 
     if constexpr (use_native_macos_window_controls()) {
-        m_window_controls = create_window_controls_spacer(*this, "LadybirdTabStripWindowControls", { NATIVE_MACOS_WINDOW_CONTROLS_WIDTH, HORIZONTAL_TAB_HEIGHT });
+        // NB: The room for the traffic lights takes in the gap after them, so the gap goes along with them.
+        m_window_controls = create_window_controls_spacer(*this, "LadybirdTabStripWindowControls", { NATIVE_MACOS_WINDOW_CONTROLS_WIDTH + LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP - LADYBIRD_BUTTON_FOCUS_RING_ROOM, HORIZONTAL_TAB_HEIGHT });
     } else {
         auto window_control_buttons = create_window_control_buttons(*this, "LadybirdTabStripWindowControls", { 16, 16 }, { HORIZONTAL_WINDOW_CONTROL_HEIGHT, HORIZONTAL_WINDOW_CONTROL_HEIGHT });
         m_window_controls = window_control_buttons.container;
@@ -3541,14 +3542,21 @@ void TabWidget::set_tab_bar_visible(bool visible)
 
     update_tab_chrome_visibility();
     update_tab_layout();
+    // NB: The collapsed sidebar's buttons sit in the toolbar, which a layout built while the tab bar was hidden left
+    //     without them.
+    place_collapsed_sidebar_buttons();
 }
 
 void TabWidget::set_window_controls_visible(bool visible)
 {
+    auto changed = m_window_controls_visible != visible;
     m_window_controls_visible = visible;
     update_toolbar_window_controls_visibility();
     update_tab_chrome_visibility();
     update_tab_layout();
+    // NB: The sidebar's top row is built around the window controls, so it's built again when they come or go.
+    if (changed && m_tab_bar->tab_layout() != TabLayout::Horizontal)
+        rebuild_layout();
 }
 
 void TabWidget::set_vertical_tabs_enabled(bool enabled)
@@ -4416,7 +4424,6 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
     };
     if constexpr (use_native_macos_window_controls()) {
         m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
-        m_tab_bar_row_layout->addSpacing(LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP - LADYBIRD_BUTTON_FOCUS_RING_ROOM);
         add_ladybird_buttons();
         m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignBottom);
         m_tab_bar_row_layout->addSpacing(new_tab_button_room);
@@ -5046,7 +5053,7 @@ void TabWidget::update_tab_layout()
     // NB: This is the room the window controls need, and not their width, which shrinks along with a strip that is too
     //     narrow for them. The minimum width below would then follow it down.
     if (!m_window_controls->isHidden())
-        controls_width += m_window_controls->sizeHint().expandedTo(m_window_controls->minimumSize()).width() + (use_native_macos_window_controls() ? LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP - LADYBIRD_BUTTON_FOCUS_RING_ROOM : 0);
+        controls_width += m_window_controls->sizeHint().expandedTo(m_window_controls->minimumSize()).width();
 
     auto available_for_tabs = width() - controls_width;
     auto pinned_count = m_tab_bar->pinned_tab_count();
