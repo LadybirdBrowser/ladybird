@@ -11,6 +11,7 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
+#include <LibGC/Forward.h>
 #include <LibJS/Module.h>
 
 namespace JS {
@@ -32,6 +33,8 @@ struct LoadedModuleRequest {
 
 // https://tc39.es/ecma262/#modulerequest-record
 struct JS_API ModuleRequest {
+    GC_HOLDS_NO_CELL_EDGES;
+
     ModuleRequest() = default;
 
     explicit ModuleRequest(Utf16FlyString specifier)

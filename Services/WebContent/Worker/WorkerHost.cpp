@@ -85,7 +85,7 @@ void WorkerHost::notify_script_ran()
 {
     m_script_has_run = true;
     if (auto callback = move(m_on_script_ready))
-        callback();
+        callback->function()();
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#relevant-owner-to-add

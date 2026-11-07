@@ -349,7 +349,7 @@ struct PendingEvaluation : RefCounted<PendingEvaluation> {
 
     String environment_id;
     GC::Root<WebIDL::Promise> promise;
-    OnCommandComplete on_complete;
+    GC::Root<GC::Function<void(Response)>> on_complete;
     SerializationOptions serialization_options;
     ResultOwnership result_ownership { ResultOwnership::None };
 
@@ -382,7 +382,7 @@ void PendingEvaluation::complete(Response response)
     }
     promise = {};
     auto callback = move(on_complete);
-    callback(move(response));
+    callback->function()(move(response));
 }
 
 void fail_pending_evaluations(HTML::EnvironmentSettingsObject& settings)
@@ -445,12 +445,12 @@ static void complete_evaluation(HTML::EnvironmentSettingsObject& settings, JS::C
 
     // If evaluation status.[[Type]] is throw:
     if (evaluation_status.is_abrupt()) {
-        on_complete(JsonValue { evaluation_result_exception(settings, evaluation_status.value(), result_ownership) });
+        on_complete->function()(JsonValue { evaluation_result_exception(settings, evaluation_status.value(), result_ownership) });
         return;
     }
 
     // Assert: evaluation status.[[Type]] is normal.
-    on_complete(JsonValue { evaluation_result_success(settings, evaluation_status.value(), serialization_options, result_ownership) });
+    on_complete->function()(JsonValue { evaluation_result_success(settings, evaluation_status.value(), serialization_options, result_ownership) });
 }
 
 #define TRY_OR_COMPLETE(expression)                                                                  \
@@ -461,7 +461,7 @@ static void complete_evaluation(HTML::EnvironmentSettingsObject& settings, JS::C
         static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>, \
             "Do not return a reference from a fallible expression");                                 \
         if (_temporary_result.is_error()) [[unlikely]] {                                             \
-            on_complete(_temporary_result.release_error());                                          \
+            on_complete->function()(_temporary_result.release_error());                              \
             return;                                                                                  \
         }                                                                                            \
         _temporary_result.release_value();                                                           \
@@ -577,7 +577,7 @@ void call_function(HTML::Navigable& navigable, JsonObject const& params, OnComma
     //    given realm, command arguments and session.
     if (auto command_arguments = params.get("arguments"sv); command_arguments.has_value()) {
         if (!command_arguments->is_array())
-            return on_complete(invalid_argument("Parameter 'arguments' must be a list"sv));
+            return on_complete->function()(invalid_argument("Parameter 'arguments' must be a list"sv));
 
         // https://w3c.github.io/webdriver-bidi/#deserialize-arguments
         for (auto const& serialized_argument : command_arguments->as_array().values())
@@ -621,7 +621,7 @@ void call_function(HTML::Navigable& navigable, JsonObject const& params, OnComma
         //    result ownership and session.
         // 2. Return a new map matching the script.EvaluationResultException production, with the exceptionDetails field
         //    set to exception details.
-        on_complete(JsonValue { evaluation_result_exception(settings, function_body_evaluation_status.value(), result_ownership) });
+        on_complete->function()(JsonValue { evaluation_result_exception(settings, function_body_evaluation_status.value(), result_ownership) });
         return;
     }
 
@@ -631,7 +631,7 @@ void call_function(HTML::Navigable& navigable, JsonObject const& params, OnComma
     // 19. If IsCallable(function object) is false:
     if (!function_object.is_function()) {
         // 1. Return an error with error code invalid argument
-        return on_complete(invalid_argument("Function declaration is not a function"sv));
+        return on_complete->function()(invalid_argument("Function declaration is not a function"sv));
     }
 
     // 20. If command parameters["userActivation"] is true, run activation notification steps.

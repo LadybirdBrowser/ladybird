@@ -736,7 +736,7 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
     // 2. Let navigable be the result of trying to get a navigable with navigable id.
     auto* local_navigable = as_if<HTML::LocalNavigable>(navigable);
     if (!local_navigable || !local_navigable->active_document() || !local_navigable->active_window())
-        return on_complete(Error::from_code(ErrorCode::NoSuchFrame, "Browsing context not found"sv));
+        return on_complete->function()(Error::from_code(ErrorCode::NoSuchFrame, "Browsing context not found"sv));
 
     // NB: The parameters are checked before the screenshot is captured.
     // 6. Let origin be the value of the context field of command parameters if present, or "viewport" otherwise.
@@ -744,7 +744,7 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
     auto origin = "viewport"_string;
     if (auto value = params.get("origin"sv); value.has_value()) {
         if (!value->is_string() || !value->as_string().is_one_of("viewport"sv, "document"sv))
-            return on_complete(invalid_argument("Parameter 'origin' must be \"viewport\" or \"document\""sv));
+            return on_complete->function()(invalid_argument("Parameter 'origin' must be \"viewport\" or \"document\""sv));
         origin = value->as_string();
     }
 
@@ -753,12 +753,12 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
     if (auto value = params.get("format"sv); value.has_value()) {
         // browsingContext.ImageFormat = { type: text, ? quality: 0.0..1.0 }
         if (!value->is_object() || !value->as_object().get_string("type"sv).has_value())
-            return on_complete(invalid_argument("Parameter 'format' must be an image format"sv));
+            return on_complete->function()(invalid_argument("Parameter 'format' must be an image format"sv));
         format_type = *value->as_object().get_string("type"sv);
         if (auto quality = value->as_object().get("quality"sv); quality.has_value()) {
             auto number = quality->get_number_with_precision_loss<double>();
             if (!number.has_value() || *number < 0 || *number > 1)
-                return on_complete(invalid_argument("The quality of the image format must be between 0 and 1"sv));
+                return on_complete->function()(invalid_argument("The quality of the image format must be between 0 and 1"sv));
             format_quality = number;
         }
     }
@@ -766,7 +766,7 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
     Optional<JsonObject> clip;
     if (auto value = params.get("clip"sv); value.has_value()) {
         if (!value->is_object())
-            return on_complete(invalid_argument("Parameter 'clip' must be a clip rectangle"sv));
+            return on_complete->function()(invalid_argument("Parameter 'clip' must be a clip rectangle"sv));
         auto const& clip_object = value->as_object();
         auto type = clip_object.get_string("type"sv);
         if (type == "box"sv) {
@@ -774,17 +774,17 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
             for (auto field : { "x"sv, "y"sv, "width"sv, "height"sv }) {
                 auto field_value = clip_object.get(field);
                 if (!field_value.has_value() || !field_value->is_number())
-                    return on_complete(invalid_argument("A box clip rectangle must have numbers for x, y, width and height"sv));
+                    return on_complete->function()(invalid_argument("A box clip rectangle must have numbers for x, y, width and height"sv));
             }
         } else if (type == "element"sv) {
             // browsingContext.ElementClipRectangle = { type: "element", element: script.SharedReference }
             auto element = clip_object.get("element"sv);
             if (!element.has_value() || !element->is_object() || !element->as_object().get_string("sharedId"sv).has_value())
-                return on_complete(invalid_argument("An element clip rectangle must have a shared reference"sv));
+                return on_complete->function()(invalid_argument("An element clip rectangle must have a shared reference"sv));
             if (auto handle = element->as_object().get("handle"sv); handle.has_value() && !handle->is_string())
-                return on_complete(invalid_argument("The handle of a shared reference must be a string"sv));
+                return on_complete->function()(invalid_argument("The handle of a shared reference must be a string"sv));
         } else {
-            return on_complete(invalid_argument("Parameter 'clip' must be a clip rectangle"sv));
+            return on_complete->function()(invalid_argument("Parameter 'clip' must be a clip rectangle"sv));
         }
         clip = clip_object;
     }
@@ -794,16 +794,16 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
     if (auto value = params.get("imageSize"sv); value.has_value()) {
         // browsingContext.ImageSize = { ? maxWidth: (js-uint .ge 1), ? maxHeight: (js-uint .ge 1) }
         if (!value->is_object())
-            return on_complete(invalid_argument("Parameter 'imageSize' must be an image size"sv));
+            return on_complete->function()(invalid_argument("Parameter 'imageSize' must be an image size"sv));
         if (auto width = value->as_object().get("maxWidth"sv); width.has_value()) {
             max_width = as_js_uint(*width);
             if (!max_width.has_value() || *max_width < 1)
-                return on_complete(invalid_argument("The maxWidth of the image size must be an integer greater than 0"sv));
+                return on_complete->function()(invalid_argument("The maxWidth of the image size must be an integer greater than 0"sv));
         }
         if (auto height = value->as_object().get("maxHeight"sv); height.has_value()) {
             max_height = as_js_uint(*height);
             if (!max_height.has_value() || *max_height < 1)
-                return on_complete(invalid_argument("The maxHeight of the image size must be an integer greater than 0"sv));
+                return on_complete->function()(invalid_argument("The maxHeight of the image size must be an integer greater than 0"sv));
         }
     }
 
@@ -814,7 +814,7 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
     GC::Ref document = *local_navigable->active_document();
     auto window = local_navigable->active_window();
     if (document->hidden() || !document->is_fully_active())
-        return on_complete(Error::from_code(ErrorCode::UnsupportedOperation, "Unable to capture a screenshot of an inactive or hidden navigable"sv));
+        return on_complete->function()(Error::from_code(ErrorCode::UnsupportedOperation, "Unable to capture a screenshot of an inactive or hidden navigable"sv));
 
     // NB: Visibility and activity changes complete a pending capture without waiting for its callback to be collected.
     struct State : RefCounted<State>
@@ -823,7 +823,7 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
 
         AK_ALLOC_WITH_KMALLOC;
 
-        OnCommandComplete on_complete;
+        GC::Root<GC::Function<void(Response)>> on_complete;
         GC::Root<DOM::DocumentObserver> observer;
         Optional<WebIDL::UnsignedLong> callback_id;
 
@@ -844,7 +844,7 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
             auto callback = move(on_complete);
             stop_waiting_for_frame();
             if (callback)
-                callback(move(response));
+                callback->function()(move(response));
         }
 
         void complete(Response response)

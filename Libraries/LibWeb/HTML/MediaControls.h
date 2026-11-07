@@ -38,18 +38,19 @@ private:
         Yes,
     };
 
-    template<typename T, CallableAs<bool, T&> Handler>
+    template<typename T, CallableAs<bool, MediaControls&, T&> Handler>
     GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, Utf16FlyString const& event_name, ListenOnce, Handler);
-    template<CallableAs<bool> Handler>
+    template<CallableAs<bool, MediaControls&> Handler>
     GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, Utf16FlyString const& event_name, Handler);
-    template<CallableAs<bool, UIEvents::MouseEvent const&> Handler>
+    template<CallableAs<bool, MediaControls&, UIEvents::MouseEvent const&> Handler>
     GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, Utf16FlyString const& event_name, Handler);
-    template<CallableAs<bool, UIEvents::MouseEvent const&> Handler>
+    template<CallableAs<bool, MediaControls&, UIEvents::MouseEvent const&> Handler>
     GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, Utf16FlyString const& event_name, ListenOnce, Handler);
-    template<CallableAs<bool, UIEvents::KeyboardEvent const&> Handler>
+    template<CallableAs<bool, MediaControls&, UIEvents::KeyboardEvent const&> Handler>
     GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, Utf16FlyString const& event_name, Handler);
 
     void remove_event_listeners();
+    void remove_scrubbing_mousemove_listener();
     void set_up_event_listeners();
 
     void toggle_playback();
@@ -101,6 +102,7 @@ private:
         GC::Weak<DOM::IDLEventListener> listener;
     };
     Vector<RegisteredEventListener> m_registered_event_listeners;
+    GC::Weak<DOM::IDLEventListener> m_scrubbing_mousemove_listener;
     GC::Weak<Window> m_animation_frame_window;
     u32 m_request_animation_frame_id { 0 };
 

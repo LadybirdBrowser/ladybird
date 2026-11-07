@@ -106,26 +106,19 @@ void MediaControls::create_shadow_tree()
     show_controls();
 }
 
-template<typename T, CallableAs<bool, T&> Handler>
-GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, ListenOnce listen_once, Handler handler)
+template<typename T, CallableAs<bool, MediaControls&, T&> Handler>
+GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, ListenOnce listen_once, Handler)
 {
-    // NB: A handler uses these controls, which remove their listeners when they go away. It holds no strong pointer to
-    //     a cell, as nothing traces it.
-    struct HandlerHolder : RefCounted<HandlerHolder> {
-        GC_HOLDS_NO_CELL_EDGES;
-
-        explicit HandlerHolder(Handler handler)
-            : handler(move(handler))
-        {
-        }
-
-        Handler handler;
-    };
+    // NB: A handler captures nothing and is handed these controls, which it holds weakly so that it does nothing once the
+    //     controls are gone.
+    static_assert(__is_empty(Handler) && IsConstructible<Handler>, "A media controls handler captures nothing");
     auto callback_function = JS::NativeFunction::create(
-        realm, GC::create_function(GC::Heap::the(), GC::captures(make_ref_counted<HandlerHolder>(move(handler))), [](NonnullRefPtr<HandlerHolder>& holder, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        realm, GC::create_function(GC::Heap::the(), GC::captures(make_weak_ptr<MediaControls>()), [](WeakPtr<MediaControls>& controls, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+            if (!controls)
+                return JS::js_undefined();
             if (auto* event = Bindings::event_from_callback_argument(vm)) {
                 if (auto* typed_event = as_if<T>(*event)) {
-                    if (holder->handler(*typed_event))
+                    if (Handler {}(*controls, *typed_event))
                         typed_event->prevent_default();
                 }
             }
@@ -143,27 +136,27 @@ GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& real
     return listener;
 }
 
-template<CallableAs<bool> Handler>
-GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, Handler handler)
+template<CallableAs<bool, MediaControls&> Handler>
+GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, Handler)
 {
-    return add_event_listener<DOM::Event>(realm, target, event_name, ListenOnce::No, [handler = move(handler)](DOM::Event&) {
-        return handler();
+    return add_event_listener<DOM::Event>(realm, target, event_name, ListenOnce::No, [](MediaControls& controls, DOM::Event&) {
+        return Handler {}(controls);
     });
 }
 
-template<CallableAs<bool, UIEvents::MouseEvent const&> Handler>
+template<CallableAs<bool, MediaControls&, UIEvents::MouseEvent const&> Handler>
 GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, Handler handler)
 {
     return add_event_listener<UIEvents::MouseEvent>(realm, target, event_name, ListenOnce::No, handler);
 }
 
-template<CallableAs<bool, UIEvents::MouseEvent const&> Handler>
+template<CallableAs<bool, MediaControls&, UIEvents::MouseEvent const&> Handler>
 GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, ListenOnce listen_once, Handler handler)
 {
     return add_event_listener<UIEvents::MouseEvent>(realm, target, event_name, listen_once, handler);
 }
 
-template<CallableAs<bool, UIEvents::KeyboardEvent const&> Handler>
+template<CallableAs<bool, MediaControls&, UIEvents::KeyboardEvent const&> Handler>
 GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, Handler handler)
 {
     return add_event_listener<UIEvents::KeyboardEvent>(realm, target, event_name, ListenOnce::No, handler);
@@ -187,6 +180,15 @@ void MediaControls::remove_event_listeners()
         m_animation_frame_window->cancel_animation_frame(m_request_animation_frame_id);
 }
 
+// NB: Timeline and volume scrubbing share one mousemove listener slot, so a scrub that starts before the previous one
+//     has seen its mouseup drops the previous listener first, rather than leaving it on the window.
+void MediaControls::remove_scrubbing_mousemove_listener()
+{
+    if (auto mousemove_listener = m_scrubbing_mousemove_listener.ptr())
+        relevant_window(*m_host).remove_event_listener_without_options(UIEvents::EventNames::mousemove, *mousemove_listener);
+    m_scrubbing_mousemove_listener = nullptr;
+}
+
 void MediaControls::set_up_event_listeners()
 {
     auto& host = *m_host;
@@ -197,84 +199,84 @@ void MediaControls::set_up_event_listeners()
     auto& media_realm = HTML::relevant_realm(media_element);
 
     // Media element state events
-    add_event_listener(media_realm, media_element, HTML::EventNames::play, [this]() {
-        update_play_pause_icon();
-        update_placeholder_visibility();
+    add_event_listener(media_realm, media_element, HTML::EventNames::play, [](MediaControls& self) {
+        self.update_play_pause_icon();
+        self.update_placeholder_visibility();
         return true;
     });
-    add_event_listener(media_realm, media_element, HTML::EventNames::pause, [this] {
-        update_play_pause_icon();
-        update_placeholder_visibility();
+    add_event_listener(media_realm, media_element, HTML::EventNames::pause, [](MediaControls& self) {
+        self.update_play_pause_icon();
+        self.update_placeholder_visibility();
         return true;
     });
-    add_event_listener(media_realm, media_element, HTML::EventNames::playing, [this] {
-        update_play_pause_icon();
-        update_placeholder_visibility();
-        request_timeline_update();
+    add_event_listener(media_realm, media_element, HTML::EventNames::playing, [](MediaControls& self) {
+        self.update_play_pause_icon();
+        self.update_placeholder_visibility();
+        self.request_timeline_update();
         return true;
     });
-    add_event_listener(media_realm, media_element, HTML::EventNames::seeked, [this] {
-        update_placeholder_visibility();
-        if (m_scrubbing_timeline != Scrubbing::No)
-            submit_pending_scrub_seek();
+    add_event_listener(media_realm, media_element, HTML::EventNames::seeked, [](MediaControls& self) {
+        self.update_placeholder_visibility();
+        if (self.m_scrubbing_timeline != Scrubbing::No)
+            self.submit_pending_scrub_seek();
         return true;
     });
-    add_event_listener(media_realm, media_element, HTML::EventNames::timeupdate, [this] {
-        update_timeline();
-        update_timestamp();
+    add_event_listener(media_realm, media_element, HTML::EventNames::timeupdate, [](MediaControls& self) {
+        self.update_timeline();
+        self.update_timestamp();
         return true;
     });
-    add_event_listener(media_realm, media_element, HTML::EventNames::progress, [this] {
-        update_timeline();
+    add_event_listener(media_realm, media_element, HTML::EventNames::progress, [](MediaControls& self) {
+        self.update_timeline();
         return true;
     });
-    add_event_listener(media_realm, media_element, HTML::EventNames::durationchange, [this] {
-        update_timeline();
-        update_timestamp();
+    add_event_listener(media_realm, media_element, HTML::EventNames::durationchange, [](MediaControls& self) {
+        self.update_timeline();
+        self.update_timestamp();
         return true;
     });
-    add_event_listener(media_realm, media_element, HTML::EventNames::volumechange, [this] {
-        update_volume_and_mute_indicator();
+    add_event_listener(media_realm, media_element, HTML::EventNames::volumechange, [](MediaControls& self) {
+        self.update_volume_and_mute_indicator();
         return true;
     });
-    add_event_listener(media_realm, media_element, HTML::EventNames::loadedmetadata, [this] {
-        update_timestamp();
-        update_volume_and_mute_indicator();
+    add_event_listener(media_realm, media_element, HTML::EventNames::loadedmetadata, [](MediaControls& self) {
+        self.update_timestamp();
+        self.update_volume_and_mute_indicator();
         return true;
     });
-    add_event_listener(media_realm, *media_element.audio_tracks(), HTML::EventNames::addtrack, [this] {
-        update_volume_and_mute_indicator();
+    add_event_listener(media_realm, *media_element.audio_tracks(), HTML::EventNames::addtrack, [](MediaControls& self) {
+        self.update_volume_and_mute_indicator();
         return true;
     });
-    add_event_listener(media_realm, *media_element.audio_tracks(), HTML::EventNames::removetrack, [this] {
-        update_volume_and_mute_indicator();
+    add_event_listener(media_realm, *media_element.audio_tracks(), HTML::EventNames::removetrack, [](MediaControls& self) {
+        self.update_volume_and_mute_indicator();
         return true;
     });
-    add_event_listener(media_realm, media_element, HTML::EventNames::emptied, [this] {
-        update_placeholder_visibility();
-        update_timeline();
-        update_timestamp();
-        update_volume_and_mute_indicator();
+    add_event_listener(media_realm, media_element, HTML::EventNames::emptied, [](MediaControls& self) {
+        self.update_placeholder_visibility();
+        self.update_timeline();
+        self.update_timestamp();
+        self.update_volume_and_mute_indicator();
         return true;
     });
 
     if (m_dom->fullscreen_button) {
-        add_event_listener(realm, host.document(), HTML::EventNames::fullscreenchange, [this] {
-            update_fullscreen_icon();
+        add_event_listener(realm, host.document(), HTML::EventNames::fullscreenchange, [](MediaControls& self) {
+            self.update_fullscreen_icon();
             return true;
         });
     }
 
     // Play/pause button
-    add_event_listener(realm, *m_dom->play_button, UIEvents::EventNames::click, [this] {
-        toggle_playback();
+    add_event_listener(realm, *m_dom->play_button, UIEvents::EventNames::click, [](MediaControls& self) {
+        self.toggle_playback();
         return true;
     });
 
     // Video overlay click — toggle playback when clicking outside the controls
     if (m_dom->video_overlay) {
-        add_event_listener(realm, *m_dom->video_overlay, UIEvents::EventNames::click, [this] {
-            toggle_playback();
+        add_event_listener(realm, *m_dom->video_overlay, UIEvents::EventNames::click, [](MediaControls& self) {
+            self.toggle_playback();
             return true;
         });
     }
@@ -285,66 +287,65 @@ void MediaControls::set_up_event_listeners()
         return clamp((event.client_x() - rect.left().to_double()) / rect.width().to_double(), 0.0, 1.0);
     };
 
-    add_event_listener(realm, *m_dom->timeline_element, UIEvents::EventNames::mousedown, [this](UIEvents::MouseEvent const& event) {
-        VERIFY(m_media_element);
-        VERIFY(m_dom->timeline_element);
+    add_event_listener(realm, *m_dom->timeline_element, UIEvents::EventNames::mousedown, [](MediaControls& self, UIEvents::MouseEvent const& event) {
+        VERIFY(self.m_media_element);
+        VERIFY(self.m_dom->timeline_element);
 
-        auto range = timeline_range();
+        auto range = self.timeline_range();
         if (!range.has_value())
             return false;
 
-        auto progress = compute_timeline_progress(event, *m_dom->timeline_element);
+        auto progress = compute_timeline_progress(event, *self.m_dom->timeline_element);
 
-        m_scrubbing_timeline = Scrubbing::WhilePaused;
-        if (!m_media_element->paused()) {
-            m_media_element->pause();
-            m_scrubbing_timeline = Scrubbing::WhilePlaying;
+        self.m_scrubbing_timeline = Scrubbing::WhilePaused;
+        if (!self.m_media_element->paused()) {
+            self.m_media_element->pause();
+            self.m_scrubbing_timeline = Scrubbing::WhilePlaying;
         }
 
-        m_pending_scrub_seek_time = range->time_at(progress);
-        submit_pending_scrub_seek();
-        set_timeline_progress(progress);
-        set_timestamp(range->time_at(progress), m_media_element->duration());
+        self.m_pending_scrub_seek_time = range->time_at(progress);
+        self.submit_pending_scrub_seek();
+        self.set_timeline_progress(progress);
+        self.set_timestamp(range->time_at(progress), self.m_media_element->duration());
 
-        auto& realm = HTML::relevant_realm(*m_host);
+        auto& realm = HTML::relevant_realm(*self.m_host);
         auto& window = relevant_window(realm.global_object());
 
-        auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
-            VERIFY(m_media_element);
-            VERIFY(m_dom->timeline_element);
+        self.remove_scrubbing_mousemove_listener();
+        self.m_scrubbing_mousemove_listener = self.add_event_listener(realm, window, UIEvents::EventNames::mousemove, [](MediaControls& self, UIEvents::MouseEvent const& event) {
+            VERIFY(self.m_media_element);
+            VERIFY(self.m_dom->timeline_element);
 
-            auto range = timeline_range();
+            auto range = self.timeline_range();
             if (!range.has_value())
                 return false;
 
-            auto progress = compute_timeline_progress(event, *m_dom->timeline_element);
+            auto progress = compute_timeline_progress(event, *self.m_dom->timeline_element);
 
-            seek_while_scrubbing(range->time_at(progress));
-            set_timeline_progress(progress);
-            set_timestamp(range->time_at(progress), m_media_element->duration());
+            self.seek_while_scrubbing(range->time_at(progress));
+            self.set_timeline_progress(progress);
+            self.set_timestamp(range->time_at(progress), self.m_media_element->duration());
             return true;
         });
 
-        add_event_listener(realm, window, UIEvents::EventNames::mouseup, ListenOnce::Yes, [this, mousemove_listener = GC::Weak<DOM::IDLEventListener> { mousemove_listener }](UIEvents::MouseEvent const& event) {
-            VERIFY(m_media_element);
-            VERIFY(m_dom->timeline_element);
+        self.add_event_listener(realm, window, UIEvents::EventNames::mouseup, ListenOnce::Yes, [](MediaControls& self, UIEvents::MouseEvent const& event) {
+            VERIFY(self.m_media_element);
+            VERIFY(self.m_dom->timeline_element);
 
-            auto was_playing = m_scrubbing_timeline == Scrubbing::WhilePlaying;
-            m_scrubbing_timeline = Scrubbing::No;
-            m_pending_scrub_seek_time.clear();
-            m_scrub_seek_preemption_timer.clear();
+            auto was_playing = self.m_scrubbing_timeline == Scrubbing::WhilePlaying;
+            self.m_scrubbing_timeline = Scrubbing::No;
+            self.m_pending_scrub_seek_time.clear();
+            self.m_scrub_seek_preemption_timer.clear();
 
-            if (auto range = timeline_range(); range.has_value())
-                set_current_time(range->time_at(compute_timeline_progress(event, *m_dom->timeline_element)));
+            if (auto range = self.timeline_range(); range.has_value())
+                self.set_current_time(range->time_at(compute_timeline_progress(event, *self.m_dom->timeline_element)));
 
-            if (was_playing && !m_media_element->ended())
-                m_media_element->play_from_user_interaction();
+            if (was_playing && !self.m_media_element->ended())
+                self.m_media_element->play_from_user_interaction();
 
-            update_play_pause_icon();
+            self.update_play_pause_icon();
 
-            auto& window_inner = relevant_window(*m_host);
-            if (mousemove_listener)
-                window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, *mousemove_listener);
+            self.remove_scrubbing_mousemove_listener();
             return true;
         });
 
@@ -352,9 +353,9 @@ void MediaControls::set_up_event_listeners()
     });
 
     // Speaker button
-    add_event_listener(realm, *m_dom->mute_button, UIEvents::EventNames::click, [this] {
-        VERIFY(m_media_element);
-        m_media_element->set_muted(!m_media_element->muted());
+    add_event_listener(realm, *m_dom->mute_button, UIEvents::EventNames::click, [](MediaControls& self) {
+        VERIFY(self.m_media_element);
+        self.m_media_element->set_muted(!self.m_media_element->muted());
         return true;
     });
 
@@ -366,46 +367,45 @@ void MediaControls::set_up_event_listeners()
         return clamp((event.client_x() - rect.left().to_double()) / rect.width().to_double(), 0.0, 1.0);
     };
 
-    add_event_listener(realm, *m_dom->volume_area, UIEvents::EventNames::mousedown, [this](UIEvents::MouseEvent const& event) {
-        VERIFY(m_media_element);
-        VERIFY(m_dom->volume_element);
+    add_event_listener(realm, *m_dom->volume_area, UIEvents::EventNames::mousedown, [](MediaControls& self, UIEvents::MouseEvent const& event) {
+        VERIFY(self.m_media_element);
+        VERIFY(self.m_dom->volume_element);
 
-        auto volume = compute_volume(event, *m_dom->volume_element);
+        auto volume = compute_volume(event, *self.m_dom->volume_element);
         if (!volume.has_value())
             return false;
 
-        m_scrubbing_volume = true;
+        self.m_scrubbing_volume = true;
 
-        set_volume(*volume);
+        self.set_volume(*volume);
 
-        auto& realm = HTML::relevant_realm(*m_host);
+        auto& realm = HTML::relevant_realm(*self.m_host);
         auto& window = relevant_window(realm.global_object());
 
-        auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
-            VERIFY(m_media_element);
-            VERIFY(m_dom->volume_element);
+        self.remove_scrubbing_mousemove_listener();
+        self.m_scrubbing_mousemove_listener = self.add_event_listener(realm, window, UIEvents::EventNames::mousemove, [](MediaControls& self, UIEvents::MouseEvent const& event) {
+            VERIFY(self.m_media_element);
+            VERIFY(self.m_dom->volume_element);
 
-            auto volume = compute_volume(event, *m_dom->volume_element);
+            auto volume = compute_volume(event, *self.m_dom->volume_element);
             if (!volume.has_value())
                 return false;
 
-            set_volume(*volume);
+            self.set_volume(*volume);
             return true;
         });
 
-        add_event_listener(realm, window, UIEvents::EventNames::mouseup, ListenOnce::Yes, [this, mousemove_listener = GC::Weak<DOM::IDLEventListener> { mousemove_listener }](UIEvents::MouseEvent const& event) {
-            VERIFY(m_media_element);
-            VERIFY(m_dom->volume_element);
+        self.add_event_listener(realm, window, UIEvents::EventNames::mouseup, ListenOnce::Yes, [](MediaControls& self, UIEvents::MouseEvent const& event) {
+            VERIFY(self.m_media_element);
+            VERIFY(self.m_dom->volume_element);
 
-            m_scrubbing_volume = false;
+            self.m_scrubbing_volume = false;
 
-            auto volume = compute_volume(event, *m_dom->volume_element);
+            auto volume = compute_volume(event, *self.m_dom->volume_element);
             if (volume.has_value())
-                set_volume(*volume);
+                self.set_volume(*volume);
 
-            auto& window_inner = relevant_window(*m_host);
-            if (mousemove_listener)
-                window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, *mousemove_listener);
+            self.remove_scrubbing_mousemove_listener();
             return true;
         });
 
@@ -414,9 +414,9 @@ void MediaControls::set_up_event_listeners()
 
     // The placeholder of a video playing in Picture-in-Picture brings it back to the page.
     if (m_dom->exit_picture_in_picture_button) {
-        add_event_listener(realm, *m_dom->exit_picture_in_picture_button, UIEvents::EventNames::click, [this] {
-            auto& document = m_host->document();
-            if (m_host->is_picture_in_picture_element())
+        add_event_listener(realm, *m_dom->exit_picture_in_picture_button, UIEvents::EventNames::click, [](MediaControls& self) {
+            auto& document = self.m_host->document();
+            if (self.m_host->is_picture_in_picture_element())
                 document.page().picture_in_picture_controller().enqueue_exit(document, nullptr);
             return true;
         });
@@ -424,50 +424,50 @@ void MediaControls::set_up_event_listeners()
 
     // Fullscreen button
     if (m_dom->fullscreen_button) {
-        add_event_listener(realm, *m_dom->fullscreen_button, UIEvents::EventNames::click, [this] {
-            toggle_fullscreen();
+        add_event_listener(realm, *m_dom->fullscreen_button, UIEvents::EventNames::click, [](MediaControls& self) {
+            self.toggle_fullscreen();
             return true;
         });
 
         VERIFY(m_dom->video_overlay);
-        add_event_listener(realm, *m_dom->video_overlay, UIEvents::EventNames::dblclick, [this] {
-            toggle_fullscreen();
+        add_event_listener(realm, *m_dom->video_overlay, UIEvents::EventNames::dblclick, [](MediaControls& self) {
+            self.toggle_fullscreen();
             return true;
         });
     }
 
     // Hover detection for video controls visibility
     if (is<HTMLVideoElement>(host)) {
-        add_event_listener(realm, host, UIEvents::EventNames::mouseenter, [this] {
-            show_controls();
+        add_event_listener(realm, host, UIEvents::EventNames::mouseenter, [](MediaControls& self) {
+            self.show_controls();
             return true;
         });
-        add_event_listener(realm, host, UIEvents::EventNames::mousemove, [this] {
-            show_controls();
+        add_event_listener(realm, host, UIEvents::EventNames::mousemove, [](MediaControls& self) {
+            self.show_controls();
             return true;
         });
-        add_event_listener(realm, host, UIEvents::EventNames::mouseleave, [this] {
-            hide_controls();
+        add_event_listener(realm, host, UIEvents::EventNames::mouseleave, [](MediaControls& self) {
+            self.hide_controls();
             return true;
         });
 
-        add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseenter, [this] {
-            m_hovering_controls = true;
-            show_controls();
+        add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseenter, [](MediaControls& self) {
+            self.m_hovering_controls = true;
+            self.show_controls();
             return true;
         });
-        add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseleave, [this] {
-            m_hovering_controls = false;
-            show_controls();
+        add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseleave, [](MediaControls& self) {
+            self.m_hovering_controls = false;
+            self.show_controls();
             return true;
         });
     }
 
     // Keyboard handling
-    add_event_listener(realm, host, UIEvents::EventNames::keydown, [this](UIEvents::KeyboardEvent const& event) {
-        VERIFY(m_media_element);
+    add_event_listener(realm, host, UIEvents::EventNames::keydown, [](MediaControls& self, UIEvents::KeyboardEvent const& event) {
+        VERIFY(self.m_media_element);
 
-        if (!m_host->should_expose_user_interface())
+        if (!self.m_host->should_expose_user_interface())
             return false;
 
         constexpr double arrow_time_step = 5.0;
@@ -475,35 +475,35 @@ void MediaControls::set_up_event_listeners()
 
         switch (event.key_code()) {
         case UIEvents::KeyCode::Key_Space:
-            toggle_playback();
+            self.toggle_playback();
             break;
         case UIEvents::KeyCode::Key_Home:
-            set_current_time(0);
+            self.set_current_time(0);
             break;
         case UIEvents::KeyCode::Key_End: {
-            auto range = timeline_range();
+            auto range = self.timeline_range();
             if (!range.has_value())
                 return false;
-            set_current_time(range->end);
+            self.set_current_time(range->end);
             break;
         }
         case UIEvents::KeyCode::Key_Right:
-            set_current_time(m_media_element->current_time() + arrow_time_step);
+            self.set_current_time(self.m_media_element->current_time() + arrow_time_step);
             break;
         case UIEvents::KeyCode::Key_Left:
-            set_current_time(m_media_element->current_time() - arrow_time_step);
+            self.set_current_time(self.m_media_element->current_time() - arrow_time_step);
             break;
         case UIEvents::KeyCode::Key_Up:
-            set_volume(m_media_element->volume() + arrow_volume_step);
+            self.set_volume(self.m_media_element->volume() + arrow_volume_step);
             break;
         case UIEvents::KeyCode::Key_Down:
-            set_volume(m_media_element->volume() - arrow_volume_step);
+            self.set_volume(self.m_media_element->volume() - arrow_volume_step);
             break;
         case UIEvents::KeyCode::Key_M:
-            toggle_mute();
+            self.toggle_mute();
             break;
         case UIEvents::KeyCode::Key_F:
-            toggle_fullscreen();
+            self.toggle_fullscreen();
             break;
         default:
             return false;

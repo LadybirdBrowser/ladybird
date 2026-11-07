@@ -314,11 +314,13 @@ void ConnectionFromClient::start_worker(URL::URL url, Web::HTML::WorkerType type
 
     // FIXME: Add an assertion that the agent_type passed here is the same that was passed to initialize_agent()
 
-    m_worker_host->set_on_script_ready([this] {
-        auto pending = move(m_pending_transform_inits);
+    m_worker_host->set_on_script_ready(GC::create_function(GC::Heap::the(), GC::captures(make_weak_ptr<ConnectionFromClient>()), [](auto& connection) {
+        if (!connection)
+            return;
+        auto pending = move(connection->m_pending_transform_inits);
         for (auto& entry : pending)
-            run_transform_init(entry.key, move(entry.value));
-    });
+            connection->run_transform_init(entry.key, move(entry.value));
+    }));
 
     m_worker_host->run(page(), move(implicit_port), outside_settings, credentials, is_shared, move(origin), move(environment_id), has_process_to_itself);
 }

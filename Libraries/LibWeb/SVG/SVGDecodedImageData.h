@@ -217,5 +217,5 @@ private:
 
 }
 
-// NB: The promise resolves to a root.
-GC_UNTRACED_CAPTURE(Web::SVG::SVGDecodedImageData::DecodePromise);
+// NB: The promise resolves to a root, and keeps the callbacks of whoever waits for it.
+GC_UNTRACED_CAPTURE_WITH_ROOTED_CALLBACKS(Web::SVG::SVGDecodedImageData::DecodePromise);

@@ -84,22 +84,22 @@ void run_webdriver_bidi_command(PageClient& page_client, u64 command_id, Web::HT
     if (Web::WebDriver::is_input_state_command(method) && !page_client.prepare_webdriver_input_command(command_id, navigable_id, params_value))
         return;
 
-    auto on_complete = [page_client = GC::make_root(page_client), command_id](Web::WebDriver::Response response) {
-        page_client->webdriver_command_complete(command_id, move(response));
-    };
+    auto on_complete = GC::create_function(GC::Heap::the(), GC::captures(page_client, command_id), [](auto& page_client, auto& command_id, Web::WebDriver::Response response) {
+        page_client.webdriver_command_complete(command_id, move(response));
+    });
 
     if (!params_value.is_object()) {
-        on_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Command parameters must be an object"sv));
+        on_complete->function()(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Command parameters must be an object"sv));
         return;
     }
     auto const& params = params_value.as_object();
 
     if (method.starts_with_bytes("network."sv))
-        return on_complete(Web::WebDriver::BiDi::continue_network_request(method, params));
+        return on_complete->function()(Web::WebDriver::BiDi::continue_network_request(method, params));
 
     auto navigable = page_client.page().navigable_with_id(navigable_id);
     if (!navigable) {
-        on_complete(no_such_frame());
+        on_complete->function()(no_such_frame());
         return;
     }
 
@@ -108,21 +108,21 @@ void run_webdriver_bidi_command(PageClient& page_client, u64 command_id, Web::HT
     if (method == "script.callFunction"sv)
         return Web::WebDriver::BiDi::call_function(*navigable, params, move(on_complete));
     if (method == "script.disown"sv)
-        return on_complete(Web::WebDriver::BiDi::disown(*navigable, params));
+        return on_complete->function()(Web::WebDriver::BiDi::disown(*navigable, params));
     if (method == "script.getRealms"sv)
-        return on_complete(Web::WebDriver::BiDi::get_realms(*navigable, params));
+        return on_complete->function()(Web::WebDriver::BiDi::get_realms(*navigable, params));
     if (method == "browsingContext.captureScreenshot"sv)
         return Web::WebDriver::BiDi::capture_screenshot(*navigable, params, move(on_complete));
     if (method == "browsingContext.locateNodes"sv)
-        return on_complete(Web::WebDriver::BiDi::locate_nodes(*navigable, params));
+        return on_complete->function()(Web::WebDriver::BiDi::locate_nodes(*navigable, params));
     if (method == "input.performActions"sv)
         return Web::WebDriver::BiDi::perform_actions(*navigable, params, move(on_complete));
     if (method == "input.releaseActions"sv)
         return Web::WebDriver::BiDi::release_actions(*navigable, move(on_complete));
     if (method == "browsingContext.create"sv)
-        return on_complete(create_a_new_top_level_traversable(*navigable));
+        return on_complete->function()(create_a_new_top_level_traversable(*navigable));
 
-    on_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownCommand, "Command is not supported"sv));
+    on_complete->function()(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownCommand, "Command is not supported"sv));
 }
 
 }
