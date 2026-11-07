@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>CSS Text — atomic inline line not affected by keep-all</title>
+<meta name=assert content="There is a soft wrap opportunity before and after an atomic inline even when word-break is keep-all">
+<link rel=match href="../../../../../expected/wpt-import/css/css-text/line-breaking/reference/line-breaking-atomic-008-ref.html">
+<link rel=help href="https://www.w3.org/TR/css-text-3/#line-break-details">
+<link rel=help href="https://drafts.csswg.org/css-text-3/#valdef-word-break-keep-all">
+<link rel=author title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+div {
+  font: 50px/1 Ahem;
+}
+.red {
+  position: absolute;
+  z-index: -1;
+  color: red;
+}
+.test {
+  width: 0;
+  color: green;
+  word-break: keep-all;
+}
+span {
+  display: inline-block;
+}
+</style>
+
+<p>Test passes if there is a green rectangle and <strong>no red</strong>.
+
+<div class=red>A<br>B<br>C</div>
+<div class=test>A<span>B</span>C</div>

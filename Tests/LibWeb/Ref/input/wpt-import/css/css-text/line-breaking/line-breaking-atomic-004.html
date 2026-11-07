@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>CSS Text — NARROW NO-BREAK SPACE before atomic inline</title>
+<meta name=assert content="There is no soft wrap opportunity between an atomic inline and a following NARROW NO-BREAK SPACE">
+<link rel=help href="https://www.w3.org/TR/css-text-3/#line-break-details">
+<link rel=match href="../../../../../expected/wpt-import/css/css-text/line-breaking/../../reference/ref-filled-green-100px-square.xht">
+<link rel=author title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+div {
+  font: 100px/1 Ahem;
+  color: transparent;
+  width: 100px;
+  background: red;
+}
+span {
+  display: inline-block;
+  color: green;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+
+<div><span>A</span>&#8239;B</div>

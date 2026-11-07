@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    .measure { width: min-content; font: 20px/1 serif; }
+    .box { display: inline-block; width: 20px; height: 10px; }
+</style>
+<div class="measure" id="plain"><span class="box"></span>text</div>
+<div class="measure" id="nowrap"><span style="white-space: nowrap"><span class="box"></span>text</span></div>
+<div class="measure" id="word-joiner"><span class="box"></span>&#x2060;text</div>
+<div class="measure" id="no-break-space"><span class="box"></span>&nbsp;text</div>
+<div class="measure" id="nowrap-text-after-box"><span class="box"></span><span style="white-space: nowrap">text</span></div>
+<div class="measure" id="wrapping-text-after-box-in-nowrap" style="white-space: nowrap"><span class="box"></span><span style="white-space: normal">text</span></div>
+<div class="measure" id="empty-text-in-nowrap-editing-host-after-box"><span contenteditable style="white-space: nowrap"><span class="box"></span><span id="empty-text-parent"></span></span>text</div>
+<div class="measure" id="supplementary-glue"><span class="box"></span>&#x1107F;text</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        document.getElementById("empty-text-parent").replaceWith(document.createTextNode(""));
+        for (const element of document.querySelectorAll(".measure"))
+            println(`${element.id}: ${element.getBoundingClientRect().height > 25 ? "wraps after the box" : "stays on one line"}`);
+    });
+</script>

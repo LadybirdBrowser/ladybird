@@ -686,6 +686,8 @@ struct InlineContentPreparer<'pass> {
     /// The text of the text node before the current one, when nothing but inline box boundaries and out-of-flow
     /// boxes lies between them.
     previous_text: Option<&'pass [u16]>,
+    /// The atomic inline that `previous_text` stands for, if it stands for one.
+    previous_atomic_inline: Option<Node>,
     /// Whether the previous text wraps with `word-break: break-all`.
     previous_text_breaks_all: bool,
     /// The number of regional indicators that end the previous text, including any in the text nodes before it.
@@ -743,6 +745,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             walks_within_item: false,
             previous_chunk_can_break_after: false,
             previous_text: None,
+            previous_atomic_inline: None,
             previous_text_breaks_all: false,
             previous_text_regional_indicators: 0,
             regional_indicators_before_text: 0,
@@ -763,6 +766,22 @@ impl<'pass> InlineContentPreparer<'pass> {
 
     fn style(&self, node: Node) -> StyleValues<'pass> {
         StyleValues::for_node(&self.pass, node)
+    }
+
+    /// The nearest node that's an ancestor of both `a` and `b`.
+    fn nearest_common_ancestor(&self, a: Node, b: Node) -> Node {
+        let mut ancestor = self.pass.parent(b);
+        while !ancestor.is_invalid() {
+            let mut node = a;
+            while !node.is_invalid() && node != ancestor {
+                node = self.pass.parent(node);
+            }
+            if node == ancestor {
+                return ancestor;
+            }
+            ancestor = self.pass.parent(ancestor);
+        }
+        self.pass.parent(b)
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'pass> {
@@ -1020,6 +1039,7 @@ impl<'pass> InlineContentPreparer<'pass> {
                 };
                 self.code_unit_before_previous_text = self.code_unit_before_text;
                 self.previous_text = Some(text_context.text);
+                self.previous_atomic_inline = None;
                 self.previous_text_breaks_all =
                     text_context.should_wrap_lines && text_context.style.word_break() == word_break::BREAK_ALL;
             }
@@ -1122,10 +1142,30 @@ impl<'pass> InlineContentPreparer<'pass> {
             };
             self.code_unit_before_text = self.previous_text.and_then(|text| text.last().copied());
         }
+        // https://drafts.csswg.org/css-text-3/#valdef-white-space-nowrap
+        // "For soft wrap opportunities defined by the boundary between two characters or atomic inlines, the
+        // white-space property on the nearest common ancestor of the two characters controls breaking"
+        // NB: The caret chunk of an empty text node has no characters to break before, so the boundary stays for the
+        //     text after it.
+        let keeps_boundary = text_context.text.is_empty();
+        let previous_atomic_inline = if keeps_boundary {
+            None
+        } else {
+            self.previous_atomic_inline.take()
+        };
+        let wraps_at_boundary = match previous_atomic_inline {
+            Some(atomic_inline) if is_first_chunk => {
+                self.style(self.nearest_common_ancestor(atomic_inline, text_node))
+                    .text_wrap_mode()
+                    == text_wrap_mode::WRAP
+            }
+            _ => text_context.should_wrap_lines,
+        };
         if is_first_chunk
             && !can_break_before
+            && !keeps_boundary
             && let Some(previous_text) = self.previous_text.take()
-            && (text_context.should_wrap_lines || self.previous_text_breaks_all)
+            && (wraps_at_boundary || self.previous_text_breaks_all)
         {
             let style = text_context.style;
             let line_break_language = if style.line_break() == line_break::LOOSE {
@@ -1144,11 +1184,18 @@ impl<'pass> InlineContentPreparer<'pass> {
                     line_break_language,
                 )
             };
-            can_break_before = (text_context.should_wrap_lines && opportunity_with(style.word_break()))
-                || (self.previous_text_breaks_all && opportunity_with(word_break::BREAK_ALL));
+            can_break_before = (wraps_at_boundary && opportunity_with(style.word_break()))
+                || (self.previous_text_breaks_all && opportunity_with(word_break::BREAK_ALL))
+                // NB: UAX #14 keeps U+00A0 NO-BREAK SPACE with U+FFFC, but CSS Text has a soft wrap opportunity
+                //     between an atomic inline and it.
+                || (wraps_at_boundary
+                    && std::ptr::eq(previous_text, OBJECT_REPLACEMENT_CHARACTER.as_slice())
+                    && full_text.get(chunk.start) == Some(&0x00A0));
         }
-        self.previous_text = None;
-        self.previous_chunk_can_break_after = chunk.can_break_after;
+        if !keeps_boundary {
+            self.previous_text = None;
+            self.previous_chunk_can_break_after = chunk.can_break_after;
+        }
         if can_break_before {
             flags |= PreparedItem::CAN_BREAK_BEFORE;
         }
@@ -1200,6 +1247,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             }
             if facts.is_break_node() {
                 self.previous_text = None;
+                self.previous_atomic_inline = None;
                 self.skip_to_next_within_item();
                 return Some(PreparedItem::new(ItemType::ForcedBreak, node, 0));
             }
@@ -1223,10 +1271,24 @@ impl<'pass> InlineContentPreparer<'pass> {
             }
             if facts.is_inline_flow_interrupting_block() {
                 self.previous_text = None;
+                self.previous_atomic_inline = None;
                 self.skip_to_next_within_item();
                 return Some(PreparedItem::new(ItemType::BlockLevelBox, node, 0));
             }
-            self.previous_text = None;
+            // https://drafts.csswg.org/css-text-3/#line-break-details
+            // "For Web-compatibility there is a soft wrap opportunity before and after each replaced element or other
+            // atomic inline, even when adjacent to a character that would normally suppress them, including U+00A0
+            // NO-BREAK SPACE. However, with the exception of U+00A0 NO-BREAK SPACE, there must be no soft wrap
+            // opportunity between atomic inlines and adjacent characters belonging to the Unicode GL, WJ, or ZWJ line
+            // breaking classes."
+            // NB: The line breaker allows the break before the box. For the one after it, the box stands in the text
+            //     before what follows it as U+FFFC OBJECT REPLACEMENT CHARACTER, which UAX #14 lets text break from
+            //     except for those classes, and which the text's own line breaking properties then decide.
+            self.previous_text = Some(&OBJECT_REPLACEMENT_CHARACTER);
+            self.previous_atomic_inline = Some(node);
+            self.previous_text_breaks_all = false;
+            self.previous_text_regional_indicators = 0;
+            self.code_unit_before_previous_text = None;
             self.skip_to_next_within_item();
             return Some(PreparedItem::new(
                 ItemType::Element,
@@ -2103,3 +2165,6 @@ fn inline_extent_without_removed_whitespace<'item>(
     }
     extent.unwrap_or_default()
 }
+
+/// What an atomic inline stands for in the text around it when looking for soft wrap opportunities.
+static OBJECT_REPLACEMENT_CHARACTER: [u16; 1] = [0xFFFC];

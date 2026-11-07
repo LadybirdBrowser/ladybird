@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>CSS Text — atomic inline line breaks before and after</title>
+<meta name=assert content="There's a soft wrap opportunity before and after an atomic inline">
+<link rel=match href="../../../../../expected/wpt-import/css/css-text/line-breaking/reference/line-breaking-atomic-007-ref.html">
+<link rel=help href="https://www.w3.org/TR/css-text-3/#line-break-details">
+<link rel=author title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+div {
+  font: 50px/1 Ahem;
+  width: 40px;
+  height: 140px;
+  background: red;
+  color: green;
+}
+span {
+  display: inline-block;
+}
+</style>
+
+<p>Test passes if there is a green rectangle and <strong>no red</strong>.
+
+<div>A<span>B</span>C</div>

@@ -1,0 +1,8 @@
+plain: wraps after the box
+nowrap: stays on one line
+word-joiner: stays on one line
+no-break-space: wraps after the box
+nowrap-text-after-box: wraps after the box
+wrapping-text-after-box-in-nowrap: stays on one line
+empty-text-in-nowrap-editing-host-after-box: wraps after the box
+supplementary-glue: stays on one line
