@@ -6,14 +6,10 @@
 
 #pragma once
 
-namespace WebView {
-
-class Profile;
-
-}
+#include <AK/Forward.h>
 
 namespace Ladybird {
 
-void set_profile_application_icon(WebView::Profile const&);
+void set_profile_application_icon(StringView identifier, ByteString const& identity, bool is_temporary);
 
 }

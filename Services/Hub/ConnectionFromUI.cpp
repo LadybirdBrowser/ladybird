@@ -507,6 +507,10 @@ Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
     state.crash_report_directory = WebView::CrashReportStore::the().directory();
     state.devtools_port = options.devtools_port;
     state.has_translator = application.translator() != nullptr;
+    auto const& profile = Application::profile();
+    state.profile_identifier = profile.identifier();
+    state.profile_identity = profile.paths().identity;
+    state.profile_is_temporary = profile.is_temporary();
     return state;
 }
 

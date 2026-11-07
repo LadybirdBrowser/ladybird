@@ -44,7 +44,7 @@ This is the application itself, and the only process that talks to the window sy
 
 **UI** and **Hub** talk over the protocols in `Services/Hub/HubServer.ipc` and `Services/Hub/HubClient.ipc`. **UI** may wait for **Hub** to answer, but **Hub** never waits for **UI**, which is why they cannot deadlock. Neither outlives the other: **Hub** ends once the connection closes, and **UI** ends with it if **Hub** is gone.
 
-With `--headless`, **UI** has nothing to do, and **Hub** takes over its process. On macOS and Windows, **Hub** does not have a process of its own yet, and runs inside **UI** over the same protocols.
+With `--headless`, **UI** has nothing to do, and **Hub** takes over its process. On Windows, **Hub** does not have a process of its own yet, and runs inside **UI** over the same protocols.
 
 ### Process: Hub
 

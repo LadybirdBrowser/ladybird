@@ -17,15 +17,21 @@
 #include <LibWebCommon/WebView/Utilities.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CrashReportStore.h>
-#include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NotificationBackend.h>
 #include <LibWebView/PageTranslation.h>
 #include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/ReportSubmission.h>
 #include <UI/Qt/SystemAppearance.h>
 #if defined(AK_OS_MACOS)
-#    include <LibWebView/MicrophoneAuthorizerMacOS.h>
+#    include <AK/AtomicRefCounted.h>
+#    include <LibCore/MachPort.h>
+#    include <LibIPC/MachBootstrapListener.h>
+#    include <LibIPC/TransportBootstrapMach.h>
+#    include <LibIPC/TransportMachPort.h>
+#    include <LibThreading/Thread.h>
 #    include <LibWebView/NotificationBackendMacOS.h>
+#    include <mach/mach.h>
+#    include <sys/wait.h>
 #elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
 #    include <LibWebView/NotificationBackendFreedesktop.h>
 #endif
@@ -53,6 +59,7 @@
 #include <UI/Qt/WebContentView.h>
 
 #if defined(AK_OS_MACOS)
+#    include <UI/Qt/ApplicationIcon.h>
 #    include <UI/Qt/MacWindow.h>
 #    include <UI/Qt/ScrollbarPreferencesMac.h>
 #endif
@@ -646,6 +653,13 @@ ErrorOr<NonnullOwnPtr<Application>> Application::create(Main::Arguments const& a
 }
 
 #ifdef LADYBIRD_HUB_IN_OWN_PROCESS
+#    if defined(AK_OS_MACOS)
+// What the Hub gets its end of the connection from. The thread that watches for the Hub to end can outlive connecting.
+struct HubBootstrap : public AtomicRefCounted<HubBootstrap> {
+    IPC::TransportBootstrapMachServer server;
+};
+#    endif
+
 ErrorOr<ByteString> Application::hub_executable_path()
 {
     for (auto const& path : TRY(WebView::get_paths_for_helper_process("Hub"sv))) {
@@ -689,14 +703,58 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
         hub_arguments.append(argument);
     hub_arguments.append(ByteString::formatted("--ui-info={}", encode_hex(ui_info_buffer.data().span())));
 
-    int socket_fds[2] {};
-    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, socket_fds));
-
     Core::ProcessSpawnOptions spawn_options {
         .name = "Hub"sv,
         .executable = hub_path,
         .arguments = hub_arguments,
     };
+
+#    if defined(AK_OS_MACOS)
+    // NB: This must answer while the main thread waits for the Hub to initialize, so it answers on its own thread.
+    auto hub_bootstrap = adopt_ref(*new HubBootstrap);
+    IPC::MachBootstrapListener bootstrap_listener { WebView::mach_server_name_for_process("Ladybird-UI"sv, Core::System::getpid()) };
+    if (!bootstrap_listener.is_initialized())
+        return Error::from_string_literal("Unable to start the Mach server for the Hub");
+    bootstrap_listener.on_bootstrap_request = [hub_bootstrap](IPC::MachBootstrapListener::BootstrapRequest request) {
+        if (auto result = hub_bootstrap->server.handle_bootstrap_request(request.pid, move(request.reply_port)); result.is_error())
+            dbgln("Unable to bootstrap the Hub: {}", result.error());
+    };
+    hub_arguments.append(ByteString::formatted("--ui-mach-server={}", bootstrap_listener.server_port_name()));
+    spawn_options.arguments = hub_arguments;
+
+    auto port_a_recv = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto port_a_send = TRY(port_a_recv.insert_right(Core::MachPort::MessageRight::MakeSend));
+    auto port_b_recv = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto port_b_send = TRY(port_b_recv.insert_right(Core::MachPort::MessageRight::MakeSend));
+
+    // The Hub may receive startup messages before it has constructed its transport.
+    IPC::TransportMachPort::raise_receive_queue_limit(port_b_recv);
+
+    Optional<Core::Process> spawned_process;
+    {
+        MutexLocker child_registration_locker(hub_bootstrap->server.child_registration_lock());
+        spawned_process = TRY(Core::Process::spawn(spawn_options));
+        hub_bootstrap->server.register_child_transport(spawned_process->pid(), IPC::TransportBootstrapMachPorts { move(port_b_recv), move(port_a_send) });
+    }
+    auto process = spawned_process.release_value();
+
+    // NB: Until the Hub takes its ports, we hold them ourselves, so nothing would tell us of a Hub that ended before
+    //     that. Letting go of them then closes the connection, as a socket does when its peer ends.
+    auto hub_exit_watcher = Threading::Thread::construct("HubExitWatcher"sv, [hub_bootstrap, pid = process.pid()]() -> intptr_t {
+        siginfo_t info {};
+        while (waitid(P_PID, pid, &info, WEXITED | WNOWAIT) < 0 && errno == EINTR)
+            ;
+        hub_bootstrap->server.unregister_child_transport(pid);
+        return 0;
+    });
+    hub_exit_watcher->start();
+    hub_exit_watcher->detach();
+
+    auto transport = make<IPC::Transport>(move(port_a_recv), move(port_b_send));
+#    else
+    int socket_fds[2] {};
+    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, socket_fds));
+
     spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = socket_fds[1], .fd = socket_fds[1] });
     TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, ByteString::formatted("ipc:{}", socket_fds[1]), Core::Environment::Overwrite::Yes));
     auto process = TRY(Core::Process::spawn(spawn_options));
@@ -705,7 +763,9 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
 
     auto ipc_socket = TRY(Core::LocalSocket::adopt_fd(socket_fds[0]));
     TRY(ipc_socket->set_blocking(true));
-    m_hub_connection = adopt_ref(*new HubConnection(make<IPC::Transport>(move(ipc_socket))));
+    auto transport = make<IPC::Transport>(move(ipc_socket));
+#    endif
+    m_hub_connection = adopt_ref(*new HubConnection(move(transport)));
 
     // The Hub can find that there is nothing for us to do, as when another process has this profile and takes our URLs,
     // or when asked for its usage. It ends right away then, and how it ended is how we end.
@@ -719,8 +779,8 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
 
     m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(TRY(JsonValue::from_string(state.settings_json))));
     m_bookmark_store = make<WebView::BookmarkStore>(WebView::BookmarkStore::create_from_json(TRY(JsonValue::from_string(state.bookmarks_json))));
-    // NB: Reports stay in files, which both of us read. This process keeps its own for when it crashes, and the next launch
-    //     recovers that the same as one of the Hub's.
+    // NB: Reports stay in files, which both of us read. This process keeps its own for when it crashes, and the next
+    //     launch recovers that the same as one of the Hub's.
     auto& crash_report_store = WebView::CrashReportStore::the();
     crash_report_store.set_directory(move(state.crash_report_directory));
     if (auto result = crash_report_store.initialize_browser_crash_handler(); result.is_error())
@@ -730,6 +790,9 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     m_browser_options.raw_urls = move(state.raw_urls);
     m_browser_options.devtools_port = state.devtools_port;
     m_has_translator = state.has_translator;
+#    if defined(AK_OS_MACOS)
+    set_profile_application_icon(state.profile_identifier, state.profile_identity, state.profile_is_temporary);
+#    endif
     RemoteActions::the().set_application_actions(state.actions);
     RemoteDownloads::the().set_downloads(state.downloads);
 
@@ -755,8 +818,15 @@ Vector<WebView::ProcessSnapshot> Application::process_snapshots()
     auto snapshots = HubConnection::the().process_snapshots();
 
     // NB: The Hub knows the processes that it launched. Only this one can always tell how it is doing itself.
-    if (m_ui_process_statistics.processes.is_empty())
-        m_ui_process_statistics.processes.append(make<Core::Platform::ProcessInfo>(Core::System::getpid()));
+    if (m_ui_process_statistics.processes.is_empty()) {
+        auto process_info = make<Core::Platform::ProcessInfo>(Core::System::getpid());
+#    if defined(AK_OS_MACH)
+        mach_port_t task_name_port = MACH_PORT_NULL;
+        VERIFY(task_get_special_port(mach_task_self(), TASK_NAME_PORT, &task_name_port) == KERN_SUCCESS);
+        process_info->task_name_port = Core::MachPort::adopt_right(task_name_port, Core::MachPort::PortRight::Send);
+#    endif
+        m_ui_process_statistics.processes.append(move(process_info));
+    }
     if (auto result = Core::Platform::update_process_statistics(m_ui_process_statistics); result.is_error())
         dbgln("Unable to update the UI's process statistics: {}", result.error());
 
@@ -930,19 +1000,11 @@ void Application::did_create_event_loop(Core::EventLoop& event_loop)
 #endif
 #if defined(AK_OS_MACOS)
     Ladybird::on_scrollbar_track_press_behavior_change([] {
-        hub().platform_scrollbar_track_press_behavior_changed();
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_ui_info_changed(Application::the().current_ui_info());
     });
 #endif
     static_cast<EventLoopImplementationQt&>(event_loop.impl()).set_main_loop();
-}
-
-OwnPtr<WebView::MicrophoneAuthorizer> Application::create_microphone_authorizer()
-{
-#if defined(AK_OS_MACOS)
-    return make<WebView::MicrophoneAuthorizerMacOS>();
-#else
-    return {};
-#endif
 }
 
 Optional<String> Application::ui_font_family() const

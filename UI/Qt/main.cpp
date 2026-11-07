@@ -28,12 +28,7 @@
 #if defined(AK_OS_MACOS)
 #    include <QColorSpace>
 #    include <QSurfaceFormat>
-#    include <UI/Qt/ApplicationIcon.h>
 #    include <UI/Qt/MacWindow.h>
-#    include <UI/Qt/SpellCheckerMac.h>
-#endif
-#if defined(LADYBIRD_HAS_TRANSLATOR)
-#    include <UI/Qt/TranslatorMac.h>
 #endif
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -71,17 +66,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         return *exit_status;
 
     Ladybird::ChromeStyle::install_application_style();
-#if defined(AK_OS_MACOS)
-    Ladybird::Application::hub().set_spell_checker(Ladybird::create_platform_spell_checker());
-#endif
-#if defined(LADYBIRD_HAS_TRANSLATOR)
-    Ladybird::Application::hub().set_translator(Ladybird::create_platform_translator());
-#endif
 
     if (auto const& browser_options = Ladybird::Application::browser_options(); !browser_options.headless_mode.has_value()) {
-#if defined(AK_OS_MACOS)
-        Ladybird::set_profile_application_icon(Ladybird::Application::profile());
-#endif
         Ladybird::SystemAppearance::the().apply_interface_theme(Ladybird::Application::settings().appearance().interface_theme);
         Ladybird::SystemAppearance::the().apply_color_theme(Ladybird::Application::settings().appearance().color_theme);
 

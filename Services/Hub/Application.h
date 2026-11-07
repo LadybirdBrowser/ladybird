@@ -24,9 +24,6 @@ public:
     virtual void will_create_event_loop(Main::Arguments&) = 0;
     virtual void did_create_event_loop(Core::EventLoop&) = 0;
 
-    // The platform's own, if it has one.
-    virtual OwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() = 0;
-
     virtual void create_platform_actions() = 0;
     virtual Optional<String> ui_font_family() const = 0;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const = 0;
@@ -63,6 +60,7 @@ public:
     void ui_did_start();
     virtual void notify_webdriver_window_created(String const& handle) override;
     void set_ui_info(Hub::UIInfo);
+    StringView ui_mach_server_name() const { return m_ui_mach_server_name; }
     void did_resolve_external_url_handler(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird);
     void launch_external_url(u64 handler_id, URL::URL const&, Function<void(bool)>) const;
     void did_launch_external_url(u64 request_id, bool launched);
@@ -140,6 +138,7 @@ private:
 
     ApplicationHost* m_host { nullptr };
     StringView m_encoded_ui_info;
+    StringView m_ui_mach_server_name;
     mutable Optional<Hub::UIInfo> m_ui_info;
     HashMap<u64, NonnullOwnPtr<View>> m_views;
     Optional<u64> m_active_view_id;
