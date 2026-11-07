@@ -36,6 +36,7 @@
 #    include <UI/Qt/WaylandWindow.h>
 #endif
 #include <UI/Qt/WindowControlButton.h>
+#include <UI/Qt/WindowControlsReveal.h>
 
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -3271,6 +3272,7 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
         m_minimize_window_button = window_control_buttons.minimize;
         m_maximize_window_button = window_control_buttons.maximize;
         m_close_window_button = window_control_buttons.close;
+        m_window_controls_reveal = new WindowControlsReveal(*this, *m_page_column);
     }
 
     recreate_icons();
@@ -3844,8 +3846,6 @@ void TabWidget::move_toolbar_with_toggling_sidebar()
     auto& navigation_buttons = m_toolbar->navigation_buttons();
     auto navigation_buttons_size = navigation_buttons.sizeHint();
     auto navigation_buttons_right = open_width - side_margin - SIDEBAR_TOGGLE_PAGE_SIDE_MARGIN;
-    if constexpr (!use_native_macos_window_controls())
-        navigation_buttons_right -= m_window_controls->width();
     navigation_buttons.setGeometry(navigation_buttons_right - navigation_buttons_size.width(), (top_row_bottom - navigation_buttons_size.height()) / 2, navigation_buttons_size.width(), navigation_buttons_size.height());
     auto& footer = m_toolbar->sidebar_footer();
     auto footer_height = footer.sizeHint().height();
@@ -4269,8 +4269,7 @@ int TabWidget::minimum_vertical_tabs_expanded_width() const
         + SIDEBAR_TOGGLE_PAGE_SIDE_MARGIN + vertical_tabs_side_margin(true);
     if (use_native_macos_window_controls())
         return top_row_width;
-    // NB: Without the system's own window controls, they end the sidebar's top row.
-    return max(VERTICAL_TABS_MIN_EXPANDED_WIDTH, top_row_width + (m_window_controls_visible ? m_window_controls->sizeHint().width() : 0));
+    return max(VERTICAL_TABS_MIN_EXPANDED_WIDTH, top_row_width);
 }
 
 // How far the opening or closing sidebar is from open, from 0 when open to 1 when collapsed.
@@ -4702,9 +4701,6 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
             } else if (!sidebar_toggle_stays_in_corner()) {
                 top_row_layout->addWidget(m_vertical_tabs_toggle_button, 0, Qt::AlignVCenter);
             }
-            // Without a toolbar row, the window controls that aren't the system's own end the sidebar's top row.
-            if (!use_native_macos_window_controls() && toolbar_is_in_sidebar())
-                top_row_layout->addWidget(m_window_controls, 0, Qt::AlignTop);
         }
     } else {
         // The collapsed rail holds only tabs. The Ladybird and all-tabs buttons and the sidebar's toggle move to the
@@ -5101,6 +5097,14 @@ void TabWidget::update_tab_chrome_visibility()
     auto show_window_controls = m_window_controls_visible
         && m_tab_bar_visible
         && (is_horizontal || (!use_native_macos_window_controls() && toolbar_is_in_sidebar()));
+    if (m_window_controls_reveal) {
+        // NB: Without a toolbar row or a tab strip, nothing holds the window controls, so they stay out of sight.
+        if (show_window_controls && !is_horizontal) {
+            m_window_controls_reveal->hold(*m_window_controls);
+            return;
+        }
+        m_window_controls_reveal->release();
+    }
     m_window_controls->setVisible(show_window_controls);
 }
 
@@ -5134,6 +5138,8 @@ void TabWidget::update_chrome_style()
     m_vertical_tab_bar_column->setStyleSheet(style_sheet);
     m_vertical_tabs_content_separator->setStyleSheet(style_sheet);
     m_vertical_tabs_resize_handle->setStyleSheet(style_sheet);
+    if (m_window_controls_reveal)
+        m_window_controls_reveal->setStyleSheet(style_sheet);
     auto reserved_space_palette = m_vertical_tabs_reserved_space->palette();
     reserved_space_palette.setColor(QPalette::Window, ChromeStyle::chrome_sidebar_background(Theme::chrome_palette(*this)));
     m_vertical_tabs_reserved_space->setPalette(reserved_space_palette);
