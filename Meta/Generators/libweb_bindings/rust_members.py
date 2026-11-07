@@ -49,6 +49,7 @@ SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {
     "SecureContext",
 }
 SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {
+    "CreatesPromise",
     "CEReactions",
     "Default",
     "Exposed",
@@ -550,6 +551,10 @@ def rust_members(interface: Interface) -> RustMembers:
             check_extended_attributes(
                 operation.name, operation.extended_attributes, SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES
             )
+            if "CreatesPromise" in operation.extended_attributes and (
+                not operation.return_type_is_promise() or operation.return_type.nullable
+            ):
+                fail(f"its operation {operation.name} is [CreatesPromise] but does not return a non-nullable promise")
             check_exposure(operation.name, operation.extended_attributes)
             if "Default" in operation.extended_attributes and (
                 static or operation.name != "toJSON" or operation.return_type.name != "object" or operation.parameters

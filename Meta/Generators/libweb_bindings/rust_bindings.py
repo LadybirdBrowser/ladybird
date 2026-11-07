@@ -823,10 +823,15 @@ def implementation_method_signatures(
                 )
             else:
                 parameters = parameter_list(what, overload.operation.parameters)
-            signatures.append(
-                f"fn {overload.method}(&self, cx: &mut CallContext{parameters}) -> "
-                f"WebIdlResult<{rust_type(overload.operation.return_type, context, what, is_result=True)}>"
-            )
+            if "CreatesPromise" in overload.operation.extended_attributes:
+                signatures.append(
+                    f"fn {overload.method}(&self, cx: &mut CallContext, promise: WebIdlPromise{parameters}) -> WebIdlResult<()>"
+                )
+            else:
+                signatures.append(
+                    f"fn {overload.method}(&self, cx: &mut CallContext{parameters}) -> "
+                    f"WebIdlResult<{rust_type(overload.operation.return_type, context, what, is_result=True)}>"
+                )
     if members.stringifier is not None and members.stringifier.defines_method:
         signatures.append(f"fn {members.stringifier.method}(&self, cx: &mut CallContext) -> WebIdlResult<Utf16String>")
     if members.pair_iterator is not None:
@@ -876,10 +881,15 @@ def implementation_method_signatures(
         for overload in operation_set.overloads:
             what = f"{interface.name}.{operation_set.name}()"
             parameters = parameter_list(what, overload.operation.parameters)
-            signatures.append(
-                f"fn {overload.method}(cx: &mut CallContext{parameters}) -> "
-                f"WebIdlResult<{rust_type(overload.operation.return_type, context, what, is_result=True)}>"
-            )
+            if "CreatesPromise" in overload.operation.extended_attributes:
+                signatures.append(
+                    f"fn {overload.method}(cx: &mut CallContext, promise: WebIdlPromise{parameters}) -> WebIdlResult<()>"
+                )
+            else:
+                signatures.append(
+                    f"fn {overload.method}(cx: &mut CallContext{parameters}) -> "
+                    f"WebIdlResult<{rust_type(overload.operation.return_type, context, what, is_result=True)}>"
+                )
     return signatures
 
 
@@ -1999,8 +2009,19 @@ def write_rust_static_operation(
     write_parameter_conversions(steps, what, operation.parameters, context)
     arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in operation.parameters)
     steps.write("        let mut cx = CallContext::new(vm, realm);\n")
-    call = f"Implementation::{overload.method}(&mut cx{arguments})"
-    if operation.return_type.name == "undefined" and not operation.return_type.nullable:
+    creates_promise = "CreatesPromise" in operation.extended_attributes
+    promise_argument = ", promise" if creates_promise else ""
+    call = f"Implementation::{overload.method}(&mut cx{promise_argument}{arguments})"
+    if creates_promise:
+        conversion = rust_to_js_value(operation.return_type, "promise", "&cx", context, what)
+        steps.write(
+            f"""        let promise = crate::bindings::promise::create_promise(cx.vm(), cx.realm());
+        {call}
+            .map_err(|exception| exception.throw(&cx))?;
+        {conversion}
+"""
+        )
+    elif operation.return_type.name == "undefined" and not operation.return_type.nullable:
         steps.write(
             f"""        {call}
             .map_err(|exception| exception.throw(&cx))?;
@@ -2295,12 +2316,23 @@ def write_rust_operation(
             if index == overload.omitted_parameter_index:
                 argument = f"Some({argument})" if parameter in operation.parameters else "None"
             arguments += f", {argument}"
-    call = f"Implementation::{overload.method}(&implementation, &mut cx{arguments})"
+    creates_promise = "CreatesPromise" in operation.extended_attributes
+    promise_argument = ", promise" if creates_promise else ""
+    call = f"Implementation::{overload.method}(&implementation, &mut cx{promise_argument}{arguments})"
     if "CEReactions" in operation.extended_attributes:
         if returns_promise:
             raise UnsupportedByRustBindings(f"{what} returns a promise and is [CEReactions]")
         call = with_ce_reactions(call)
-    if operation.return_type.name == "undefined" and not operation.return_type.nullable:
+    if creates_promise:
+        conversion = rust_to_js_value(operation.return_type, "promise", "&cx", context, what)
+        steps.write(
+            f"""        let promise = crate::bindings::promise::create_promise(cx.vm(), cx.realm());
+        {call}
+            .map_err(|exception| exception.throw(&cx))?;
+        {conversion}
+"""
+        )
+    elif operation.return_type.name == "undefined" and not operation.return_type.nullable:
         # NB: An operation that returns nothing has no result to name, and the conversion of nothing is undefined.
         steps.write(
             f"""        {call}
