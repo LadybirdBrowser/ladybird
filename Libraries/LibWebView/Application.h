@@ -186,9 +186,11 @@ public:
 
     // True unless the user has turned location off, or there's no way to find it.
     bool sites_can_ask_for_location() const;
+    bool sites_can_ask_for_microphone() const;
     bool sites_can_ask_for_notifications() const;
     Core::GeolocationAuthorization geolocation_authorization();
     void location_policy_changed(Badge<ApplicationSettingsObserver>);
+    void microphone_policy_changed(Badge<ApplicationSettingsObserver>);
     void notifications_policy_changed(Badge<ApplicationSettingsObserver>);
     void permissions_changed(Badge<ApplicationPermissionManagerObserver>, PermissionManager const&);
 

@@ -90,6 +90,7 @@ private:
     void remove_site_setting_filter(JsonValue const&);
     void remove_all_site_setting_filters(JsonValue const&);
     void set_location_policy(JsonValue const&);
+    void set_microphone_policy(JsonValue const&);
     void set_notifications_policy(JsonValue const&);
     void set_site_permission(JsonValue const&);
 

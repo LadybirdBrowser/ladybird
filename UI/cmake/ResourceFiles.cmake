@@ -59,6 +59,7 @@ set(ABOUT_SETTINGS_RESOURCES
     geolocation.js
     languages.js
     network.js
+    microphone.js
     notifications.js
     permissions.js
     privacy.js

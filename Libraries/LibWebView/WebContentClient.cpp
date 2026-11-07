@@ -997,8 +997,12 @@ bool WebContentClient::page_may_capture_audio(WebContentPage const& page) const
     // The top-level document's origin, which a popup on about:blank has from its opener; only a file page is left with
     // an opaque one, and reads its own grant by URL.
     auto origin = page.view().permission_origin();
-    if (origin.is_opaque())
+    if (origin.is_opaque()) {
+        // NB: The global default binds a file: page too; its own grant only matters while sites may ask.
+        if (session().permission_manager->global_default(Web::Permissions::PermissionName::Microphone) == Web::Permissions::EffectiveState::Denied)
+            return false;
         return m_audio_capture_grants.contains(audio_capture_permission_key(page.view().url()));
+    }
     return session().permission_manager->effective_state(Web::Permissions::PermissionName::Microphone, origin) == Web::Permissions::EffectiveState::Granted;
 }
 
