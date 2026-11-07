@@ -53,6 +53,7 @@ set(SOURCES
     NotificationAttribution.cpp
     NotificationFreedesktopArguments.cpp
     NotificationManager.cpp
+    PageBackingStores.cpp
     PageTranslation.cpp
     PictureInPictureManager.cpp
     PictureInPictureWindow.cpp

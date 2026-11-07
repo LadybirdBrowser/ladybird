@@ -450,22 +450,12 @@ void ViewImplementation::set_favicon(Optional<Gfx::Bitmap const&> favicon)
 // it there, before a document activates in the new page.
 void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect, double device_pixel_ratio)
 {
-    bool did_swap_bitmap = false;
-    auto previous_front_bitmap_id = m_front_bitmap.id;
-    auto bitmap_index = m_other_bitmaps.find_first_index_if([bitmap_id](auto const& bitmap) { return bitmap_id == bitmap.id; });
-    if (bitmap_index.has_value()) {
-        m_has_usable_bitmap = true;
-        m_other_bitmaps[*bitmap_index].last_painted_size = size.to_type<Web::DevicePixels>();
-        m_other_bitmaps[*bitmap_index].last_painted_device_pixel_ratio = device_pixel_ratio;
-        swap(m_other_bitmaps[*bitmap_index], m_front_bitmap);
-        m_backup_shared_image_buffer = nullptr;
-        did_swap_bitmap = true;
-    }
+    auto [did_swap_bitmap, bitmap_id_to_release] = m_backing_stores.present(bitmap_id, size, device_pixel_ratio);
 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received presented bitmap {} for page {} size={}x{} did_swap={} front={}",
-        bitmap_id, page().id(), size.width(), size.height(), did_swap_bitmap, m_front_bitmap.id);
+        bitmap_id, page().id(), size.width(), size.height(), did_swap_bitmap, m_backing_stores.front_bitmap_id());
 
-    release_backing_store(did_swap_bitmap ? previous_front_bitmap_id : bitmap_id);
+    release_backing_store(bitmap_id_to_release);
 
     if (did_swap_bitmap)
         did_accept_presented_backing_store(bitmap_id, damage_rect);
@@ -2434,22 +2424,13 @@ void ViewImplementation::did_change_picture_in_picture_player_controls_visibilit
         update_ui_overlays();
 }
 
-Optional<ViewImplementation::DisplayedFrame> ViewImplementation::displayed_frame() const
-{
-    if (m_has_usable_bitmap)
-        return DisplayedFrame { m_front_bitmap.last_painted_size.to_type<int>(), m_front_bitmap.last_painted_device_pixel_ratio };
-    if (m_backup_shared_image_buffer)
-        return DisplayedFrame { m_backup_bitmap_size.to_type<int>(), m_backup_bitmap_device_pixel_ratio };
-    return {};
-}
-
 // The compositor draws the browser's overlays over the frame it presents, at the pixel ratio it painted the frame at,
 // and the frame may be scaled to fit the view.
 ViewImplementation::UIOverlayPosition ViewImplementation::ui_overlay_position(Web::DevicePixelPoint position) const
 {
     auto view_size = viewport_size().to_type<int>();
     auto view_position = position.to_type<int>();
-    auto frame = displayed_frame();
+    auto frame = m_backing_stores.displayed_frame();
     if (!frame.has_value() || frame->size.is_empty())
         return { view_position, view_size, m_device_pixel_ratio };
     if (!m_scales_frames_to_fit || frame->size == view_size)
@@ -3094,47 +3075,19 @@ void ViewImplementation::did_allocate_backing_stores(Badge<WebContentPage>, Vect
 
 void ViewImplementation::did_add_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
-    VERIFY(bitmap_ids.size() == backing_stores.size());
-    for (size_t i = 0; i < backing_stores.size(); ++i) {
-        m_other_bitmaps.append({
-            .id = bitmap_ids[i],
-            .last_painted_size = {},
-            .shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i]))),
-        });
-    }
+    m_backing_stores.add(move(bitmap_ids), move(backing_stores));
 }
 
 void ViewImplementation::did_retire_backing_stores(Badge<WebContentPage>, ReadonlySpan<i32> bitmap_ids)
 {
-    m_other_bitmaps.remove_all_matching([&](auto const& bitmap) {
-        return bitmap_ids.contains_slow(bitmap.id);
-    });
+    m_backing_stores.retire(bitmap_ids);
 }
 
 void ViewImplementation::install_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
-    VERIFY(bitmap_ids.size() == backing_stores.size());
-    VERIFY(!bitmap_ids.is_empty());
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI installing {} backing stores for page {} had_usable_bitmap={}",
-        backing_stores.size(), page().id(), m_has_usable_bitmap);
-    if (m_has_usable_bitmap) {
-        // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
-        m_backup_shared_image_buffer = move(m_front_bitmap.shared_image_buffer);
-        m_backup_bitmap_size = m_front_bitmap.last_painted_size;
-        m_backup_bitmap_device_pixel_ratio = m_front_bitmap.last_painted_device_pixel_ratio;
-    }
-    m_has_usable_bitmap = false;
-    m_front_bitmap.id = bitmap_ids[0];
-    m_front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[0])));
-    m_other_bitmaps.clear();
-    m_other_bitmaps.ensure_capacity(backing_stores.size() - 1);
-    for (size_t i = 1; i < backing_stores.size(); ++i) {
-        m_other_bitmaps.append({
-            .id = bitmap_ids[i],
-            .last_painted_size = {},
-            .shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i]))),
-        });
-    }
+        backing_stores.size(), page().id(), m_backing_stores.has_usable_front_bitmap());
+    m_backing_stores.install(move(bitmap_ids), move(backing_stores));
 }
 
 void ViewImplementation::update_zoom()
@@ -3658,11 +3611,7 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         reset_page_media_state();
 
         // Keep showing the outgoing page until the page paints its first frame.
-        if (m_has_usable_bitmap) {
-            m_backup_shared_image_buffer = move(m_front_bitmap.shared_image_buffer);
-            m_backup_bitmap_size = m_front_bitmap.last_painted_size;
-            m_backup_bitmap_device_pixel_ratio = m_front_bitmap.last_painted_device_pixel_ratio;
-        }
+        m_backing_stores.keep_front_as_backup();
         if (previous_page->is_open()) {
             Application::the().update_compositor_context_visibility(previous_page->compositor_context_id(), Web::HTML::VisibilityState::Hidden);
             previous_page->async_set_has_devtools_client(false);
@@ -3685,9 +3634,7 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         complete_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
         complete_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
     }
-    m_front_bitmap = {};
-    m_other_bitmaps.clear();
-    m_has_usable_bitmap = false;
+    m_backing_stores.clear();
     if (auto backing_stores = page.take_presented_backing_stores(); backing_stores.has_value())
         install_backing_stores(move(backing_stores->bitmap_ids), move(backing_stores->backing_stores));
 
@@ -4392,7 +4339,7 @@ void ViewImplementation::respawn_web_content_process_after_crash()
         queue_promise->resolve({});
     cancel_all_native_geolocation_requests();
     // Don't keep a stale backup bitmap around.
-    m_backup_shared_image_buffer = nullptr;
+    m_backing_stores.clear_backup();
 
     // The tab is displayed by a page of a new process, standing in for the document the crashed process destroyed
     // until a document activates in the tab: the traversal recovering the tab populates one in that page.
@@ -4855,12 +4802,8 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
     switch (type) {
     case ScreenshotType::Visible: {
         RefPtr<Gfx::Bitmap> visible_bitmap;
-        if (m_has_usable_bitmap) {
-            VERIFY(m_front_bitmap.shared_image_buffer);
-            visible_bitmap = m_front_bitmap.shared_image_buffer->bitmap_if_present();
-        } else if (m_backup_shared_image_buffer) {
-            visible_bitmap = m_backup_shared_image_buffer->bitmap_if_present();
-        }
+        if (auto frame = m_backing_stores.displayed_frame(); frame.has_value())
+            visible_bitmap = frame->shared_image_buffer.bitmap_if_present();
         if (visible_bitmap)
             return write_screenshot(visible_bitmap.ptr());
 

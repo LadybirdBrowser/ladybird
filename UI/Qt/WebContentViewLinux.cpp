@@ -1375,7 +1375,7 @@ void WebContentView::update_page_surface(PageSurfaceContent content)
     if (m_page_surface->is_showing() && m_page_surface->would_change_placement(frame))
         m_page_surface->set_synchronized(true);
 
-    m_page_surface->forget_buffers_except(backing_stores());
+    m_page_surface->forget_buffers_except(backing_stores().shared_image_buffers());
     auto result = m_page_surface->present(*parent, frame);
     if (result == WaylandPageSurface::PresentResult::Failed) {
         m_page_surface_failed = true;
@@ -1409,20 +1409,6 @@ QRect WebContentView::rect_shown_in_window() const
     for (auto* ancestor = parentWidget(); ancestor && !ancestor->isWindow(); ancestor = ancestor->parentWidget())
         shown &= QRect { mapFrom(ancestor, QPoint { 0, 0 }), ancestor->size() };
     return shown;
-}
-
-Vector<Gfx::SharedImageBuffer const*> WebContentView::backing_stores() const
-{
-    Vector<Gfx::SharedImageBuffer const*> backing_stores;
-    if (m_front_bitmap.shared_image_buffer)
-        backing_stores.append(m_front_bitmap.shared_image_buffer.ptr());
-    for (auto const& bitmap : m_other_bitmaps) {
-        if (bitmap.shared_image_buffer)
-            backing_stores.append(bitmap.shared_image_buffer.ptr());
-    }
-    if (m_backup_shared_image_buffer)
-        backing_stores.append(m_backup_shared_image_buffer.ptr());
-    return backing_stores;
 }
 
 bool WebContentView::show_image_over_page(QImage const& image, QPoint position)

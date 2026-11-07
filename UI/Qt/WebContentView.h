@@ -448,7 +448,6 @@ private:
     void destroy_page_surface();
     void release_retired_backing_stores_no_longer_painted();
     void release_all_retired_backing_stores();
-    Vector<Gfx::SharedImageBuffer const*> backing_stores() const;
     QRect rect_shown_in_window() const;
 
     // Shows the page's frames on Wayland by handing their dma-bufs to the compositor of the desktop. Without it, the
