@@ -11,12 +11,12 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use ak::Utf16String;
-use libjs_rust::api::{GcRefCell, Trace, Value, Vm};
-use libweb_rust::web_audio::control_message::FfiSharedCppObject;
-use libweb_rust::web_audio::rendering::node_message::SharedCppObject;
+use libjs_rust::api::{CellRoot, EmbedderCell, GcRefCell, PromiseCapability, Trace, Value, Vm};
+use libweb_rust::web_audio::rendering::offline_audio_renderer::{OfflineAudioRenderer, OfflineAudioRendererClient};
 
 use super::audio_array::overwrite_float32_array;
 use super::audio_buffer::AudioBuffer;
@@ -29,11 +29,9 @@ use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::{CppEvent, CppEventTarget, GetTheParent};
 use crate::bindings::global_object::window_from_global_object;
 use crate::bindings::interface::{
-    Inherits, Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, with_temporary_execution_context_and_callbacks,
+    Inherits, Ref, Wrappable, Wrapped, allocate, with_temporary_execution_context_and_callbacks,
 };
-use crate::bindings::promise::{
-    WebIdlPromise, promise_from_abi, promise_realm, reject_promise_with_exception, resolve_promise,
-};
+use crate::bindings::promise::{WebIdlPromise, promise_realm, reject_promise_with_exception, resolve_promise};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 pub(crate) struct OfflineAudioContextOptions {
@@ -52,7 +50,9 @@ pub(crate) struct OfflineAudioContext {
     rendering_started: Cell<bool>,
     rendered_buffer: Cell<Option<Ref<AudioBuffer>>>,
     #[gc(untraced)]
-    renderer: RefCell<Option<SharedCppObject>>,
+    renderer: RefCell<Option<Arc<OfflineAudioRenderer>>>,
+
+    // https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-suspend, keyed by suspend frame.
     suspend_promises: GcRefCell<Vec<(u64, WebIdlPromise)>>,
 }
 
@@ -74,22 +74,33 @@ impl GetTheParent for OfflineAudioContext {
     }
 }
 
-unsafe extern "C" {
-    fn web_audio_offline_context_create(
-        queue: *const c_void,
-        destination: u64,
-        channels: u32,
-        length: u32,
-        sample_rate: f32,
-    ) -> FfiSharedCppObject;
-    fn web_audio_offline_context_set_callbacks(renderer: *mut c_void, context: *mut c_void, promise: *mut c_void);
-    fn web_audio_offline_context_start(renderer: *mut c_void);
-    fn web_audio_offline_context_resume(renderer: *mut c_void);
-    fn web_audio_offline_context_stop(renderer: *mut c_void);
-    fn web_audio_offline_context_clear_callbacks(renderer: *mut c_void);
-    fn web_audio_offline_context_request_suspend(renderer: *mut c_void, frame: u64) -> bool;
-    fn web_audio_offline_context_frames_rendered(renderer: *mut c_void) -> u64;
-    fn web_audio_offline_context_channel(renderer: *mut c_void, channel: usize, samples: *mut ak::Span<'_, f32>);
+struct RendererClient {
+    vm: NonNull<Vm>,
+    context: CellRoot<EmbedderCell<Wrapped<OfflineAudioContext>>>,
+    promise: CellRoot<PromiseCapability>,
+}
+
+impl RendererClient {
+    fn vm(&self) -> &Vm {
+        // SAFETY: The VM of the control thread outlives its audio contexts.
+        unsafe { self.vm.as_ref() }
+    }
+}
+
+impl OfflineAudioRendererClient for RendererClient {
+    fn rendering_suspended(&self, suspend_time: f64) {
+        self.context.cell().handle_suspended(self.vm(), suspend_time);
+    }
+
+    fn rendering_completed(&self, rendered_channels: &[Vec<f32>]) {
+        self.context
+            .cell()
+            .finish_rendering(self.vm(), self.promise.cell(), rendered_channels);
+    }
+
+    fn sources_ended(&self, nodes: &[u64]) {
+        self.context.cell().context.handle_ended_sources(self.vm(), nodes);
+    }
 }
 
 impl OfflineAudioContext {
@@ -244,60 +255,48 @@ impl OfflineAudioContext {
         // 1: Given the current connections and scheduled changes, start rendering length sample-frames of audio into [[rendered buffer]]
         // 2: For every render quantum, check and suspend rendering if necessary.
         // 3: If a suspended context is resumed, continue to render the buffer.
-        let renderer = unsafe {
-            web_audio_offline_context_create(
-                Arc::as_ptr(self.context.control_message_queue()).cast(),
-                self.context.destination_value().parent().node_id(),
-                self.number_of_channels,
-                self.length,
-                self.context.sample_rate_value(),
-            )
-        };
-        *self.renderer.borrow_mut() = Some(SharedCppObject {
-            pointer: renderer.pointer,
-            retain: renderer.retain,
-            release: renderer.release,
-        });
-        unsafe {
-            web_audio_offline_context_set_callbacks(
-                renderer.pointer,
-                cell_into_abi(self.this()),
-                promise.as_ptr().cast(),
-            );
-        };
+        let renderer = OfflineAudioRenderer::new(
+            Arc::clone(self.context.control_message_queue()),
+            self.context.destination_value().parent().node_id(),
+            self.number_of_channels as usize,
+            self.length as usize,
+            self.context.sample_rate_value(),
+            BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+        );
+        *self.renderer.borrow_mut() = Some(Arc::clone(&renderer));
+        renderer.set_client(Some(Rc::new(RendererClient {
+            vm: NonNull::from(vm),
+            context: CellRoot::new(self.this()),
+            promise: CellRoot::new(promise),
+        })));
         for (frame, _) in &*self.suspend_promises.borrow() {
-            unsafe { web_audio_offline_context_request_suspend(renderer.pointer, *frame) };
+            renderer.request_suspend(*frame);
         }
 
         // AD-HOC: Other engines transition the context to "running" once rendering starts.
         self.context.set_control_state(AudioContextState::Running);
         self.context.set_rendering_state(AudioContextState::Running);
         self.queue_a_statechange_event(vm);
-        unsafe { web_audio_offline_context_start(renderer.pointer) };
+        renderer.start_rendering();
     }
 
-    fn finish_rendering(&self, vm: &Vm, promise: WebIdlPromise) {
+    fn finish_rendering(&self, vm: &Vm, promise: WebIdlPromise, rendered_channels: &[Vec<f32>]) {
+        // NB: Copy the rendered samples into [[rendered buffer]].
         let buffer = self.rendered_buffer.get().expect("offline rendering has a buffer");
         let mut cx = CallContext::new(vm, self.context.realm());
         for channel_index in 0..self.number_of_channels {
             let channel_data = AudioBuffer::get_channel_data(&buffer, &mut cx, channel_index)
                 .unwrap_or_else(|_| panic!("the rendered channel exists"));
-            let mut samples = ak::Span::default();
-            unsafe {
-                web_audio_offline_context_channel(
-                    self.renderer.borrow().as_ref().unwrap().pointer,
-                    channel_index as usize,
-                    &raw mut samples,
-                );
-            };
-            overwrite_float32_array(&channel_data, samples.as_slice());
+            overwrite_float32_array(&channel_data, &rendered_channels[channel_index as usize]);
         }
 
         // AD-HOC: Other engines transition the context to "closed" once rendering completes.
         self.context.set_control_state(AudioContextState::Closed);
         self.context.set_rendering_state(AudioContextState::Closed);
         self.queue_a_statechange_event(vm);
-        unsafe { web_audio_offline_context_clear_callbacks(self.renderer.borrow().as_ref().unwrap().pointer) };
+
+        // NB: Break the reference cycle between the renderer's callbacks and this context.
+        self.renderer.borrow().as_ref().unwrap().set_client(None);
 
         // 4: Once the rendering is complete, queue a media element task to execute the following steps:
         self.context
@@ -396,7 +395,8 @@ impl OfflineAudioContext {
             );
             return Ok(());
         }
-        unsafe { web_audio_offline_context_resume(self.renderer.borrow().as_ref().unwrap().pointer) };
+        self.renderer.borrow().as_ref().unwrap().resume();
+
         // 4. Set the [[control thread state]] flag on the OfflineAudioContext to running.
         self.context.set_control_state(AudioContextState::Running);
         self.context.set_rendering_state(AudioContextState::Running);
@@ -432,7 +432,7 @@ impl OfflineAudioContext {
         }
         self.suspend_promises.borrow_mut(cx.vm()).push((frame, promise));
         if let Some(renderer) = &*self.renderer.borrow() {
-            if !unsafe { web_audio_offline_context_request_suspend(renderer.pointer, frame) } {
+            if !renderer.request_suspend(frame) {
                 self.suspend_promises
                     .borrow_mut(cx.vm())
                     .retain(|entry| entry.0 != frame);
@@ -450,8 +450,7 @@ impl OfflineAudioContext {
         // This is the time in seconds of the sample frame immediately following the last sample-frame in the block of
         // audio most recently processed by the context's rendering graph.
         if let Some(renderer) = &*self.renderer.borrow() {
-            return unsafe { web_audio_offline_context_frames_rendered(renderer.pointer) } as f64
-                / f64::from(self.context.sample_rate_value());
+            return renderer.frames_rendered() as f64 / f64::from(self.context.sample_rate_value());
         }
         0.
     }
@@ -464,26 +463,8 @@ impl OfflineAudioContext {
 
     pub(crate) fn document_became_inactive(&self) {
         if let Some(renderer) = &*self.renderer.borrow() {
-            unsafe {
-                web_audio_offline_context_stop(renderer.pointer);
-                web_audio_offline_context_clear_callbacks(renderer.pointer);
-            }
+            renderer.stop();
+            renderer.set_client(None);
         }
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_offline_audio_context_complete(
-    vm: &Vm,
-    cell: *mut c_void,
-    promise: *mut c_void,
-) {
-    let context: Ref<OfflineAudioContext> = unsafe { cell_from_abi(cell) };
-    context.finish_rendering(vm, unsafe { promise_from_abi(promise) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_offline_audio_context_suspended(vm: &Vm, cell: *mut c_void, time: f64) {
-    let context: Ref<OfflineAudioContext> = unsafe { cell_from_abi(cell) };
-    context.handle_suspended(vm, time);
 }

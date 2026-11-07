@@ -15,7 +15,6 @@ pub struct PipeCallbacks {
     pub service: FfiSharedCppObject,
     pub post_task: unsafe extern "C" fn(*mut c_void, *mut c_void, unsafe extern "C" fn(*mut c_void)),
     pub on_wakeup: unsafe extern "C" fn(*mut c_void),
-    pub on_process: unsafe extern "C" fn(*mut c_void, usize, u64) -> bool,
 }
 
 pub(crate) struct CallbackService {

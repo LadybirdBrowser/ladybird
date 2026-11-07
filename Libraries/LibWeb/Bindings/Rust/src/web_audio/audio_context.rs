@@ -8,12 +8,14 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use ak::Utf16String;
-use libjs_rust::api::{GcRefCell, Trace, Value, Vm};
+use libjs_rust::api::{CellRoot, EmbedderCell, GcRefCell, Trace, Value, Vm};
 use libweb_rust::web_audio::control_message::FfiSharedCppObject;
 use libweb_rust::web_audio::rendering::node_message::SharedCppObject;
+use libweb_rust::web_audio::rendering::realtime_audio_renderer::{RealtimeAudioRenderer, RealtimeAudioRendererClient};
 
 use super::audio_destination_node::AudioDestinationNode;
 use super::audio_listener::AudioListener;
@@ -27,7 +29,7 @@ use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
 use crate::bindings::global_object::window_from_global_object;
 use crate::bindings::interface::with_temporary_execution_context_and_callbacks;
-use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, cell_into_abi};
+use crate::bindings::interface::{Inherits, Ref, Wrappable, Wrapped, allocate};
 use crate::bindings::promise::{
     WebIdlPromise, promise_realm, reject_promise, reject_promise_with_exception, resolve_promise,
 };
@@ -68,7 +70,7 @@ pub(crate) struct AudioContext {
     pending_resume_promises: GcRefCell<Vec<WebIdlPromise>>,
     suspended_by_user: Cell<bool>,
     #[gc(untraced)]
-    renderer: RefCell<Option<SharedCppObject>>,
+    renderer: RefCell<Option<Arc<RealtimeAudioRenderer>>>,
 }
 
 impl Inherits<BaseAudioContext> for AudioContext {
@@ -87,10 +89,8 @@ impl Wrappable for AudioContext {
     fn finalize(context: Ref<Self>) {
         context.context.shutdown_audio_worklet();
         if let Some(renderer) = &*context.renderer.borrow() {
-            unsafe {
-                web_audio_realtime_context_stop(renderer.pointer);
-                web_audio_realtime_context_clear_callbacks(renderer.pointer);
-            }
+            renderer.stop();
+            renderer.set_client(None);
         }
     }
 }
@@ -102,21 +102,21 @@ impl GetTheParent for AudioContext {
 }
 
 unsafe extern "C" {
-    fn web_audio_realtime_context_create(
-        global: *mut c_void,
-        queue: *const c_void,
-        destination: u64,
-        sample_rate: f32,
-    ) -> FfiSharedCppObject;
-    fn web_audio_realtime_context_set_callbacks(renderer: *mut c_void, context: *mut c_void);
-    fn web_audio_realtime_context_start(renderer: *mut c_void);
-    fn web_audio_realtime_context_resume(renderer: *mut c_void);
-    fn web_audio_realtime_context_suspend(renderer: *mut c_void);
-    fn web_audio_realtime_context_stop(renderer: *mut c_void);
-    fn web_audio_realtime_context_clear_callbacks(renderer: *mut c_void);
-    fn web_audio_realtime_context_frames_rendered(renderer: *mut c_void) -> u64;
-    fn web_audio_realtime_context_output_time(renderer: *mut c_void) -> f64;
+    fn web_audio_output_factory_create(global: *mut c_void) -> FfiSharedCppObject;
     fn web_audio_realtime_context_performance_now(global: *mut c_void) -> f64;
+}
+
+struct RendererClient {
+    vm: NonNull<Vm>,
+    context: CellRoot<EmbedderCell<Wrapped<AudioContext>>>,
+}
+
+impl RealtimeAudioRendererClient for RendererClient {
+    fn sources_ended(&self, nodes: &[u64]) {
+        // SAFETY: The VM of the control thread outlives its audio contexts.
+        let vm = unsafe { self.vm.as_ref() };
+        self.context.cell().context.handle_ended_sources(vm, nodes);
+    }
 }
 
 impl AudioContext {
@@ -214,21 +214,21 @@ impl AudioContext {
             // FIXME: 1. Let document be the current settings object's relevant global object's associated Document.
             // 2. Attempt to acquire system resources to use a following audio output device based on [[sink ID]] for
             //    rendering.
-            let renderer = unsafe {
-                web_audio_realtime_context_create(
-                    context.context.global_event_target().as_ptr(),
-                    Arc::as_ptr(context.context.control_message_queue()).cast(),
-                    context.context.destination_value().parent().node_id(),
-                    context.context.sample_rate_value(),
-                )
-            };
-            *context.renderer.borrow_mut() = Some(SharedCppObject {
-                pointer: renderer.pointer,
-                retain: renderer.retain,
-                release: renderer.release,
-            });
-            context.set_renderer_callbacks();
-            unsafe { web_audio_realtime_context_start(renderer.pointer) };
+            let factory = unsafe { web_audio_output_factory_create(context.context.global_event_target().as_ptr()) };
+            let renderer = RealtimeAudioRenderer::new(
+                Arc::clone(context.context.control_message_queue()),
+                context.context.destination_value().parent().node_id(),
+                context.context.sample_rate_value(),
+                BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+                SharedCppObject {
+                    pointer: factory.pointer,
+                    retain: factory.retain,
+                    release: factory.release,
+                },
+            );
+            *context.renderer.borrow_mut() = Some(Arc::clone(&renderer));
+            context.set_renderer_client(cx.vm());
+            renderer.start_rendering();
 
             // 2. Set this [[rendering thread state]] to running on the AudioContext.
             context.context.set_rendering_state(AudioContextState::Running);
@@ -254,10 +254,8 @@ impl AudioContext {
         // navigated-away document stops playing and can eventually be collected.
         self.context.shutdown_audio_worklet();
         if let Some(renderer) = &*self.renderer.borrow() {
-            unsafe {
-                web_audio_realtime_context_stop(renderer.pointer);
-                web_audio_realtime_context_clear_callbacks(renderer.pointer);
-            }
+            renderer.stop();
+            renderer.set_client(None);
         }
     }
 
@@ -266,8 +264,7 @@ impl AudioContext {
         // This is the time in seconds of the sample frame immediately following the last sample-frame in the block of
         // audio most recently processed by the context's rendering graph.
         if let Some(renderer) = &*self.renderer.borrow() {
-            return unsafe { web_audio_realtime_context_frames_rendered(renderer.pointer) } as f64
-                / f64::from(self.context.sample_rate_value());
+            return renderer.frames_rendered() as f64 / f64::from(self.context.sample_rate_value());
         }
         0.
     }
@@ -283,10 +280,11 @@ impl AudioContext {
     // https://www.w3.org/TR/webaudio/#dom-audiocontext-getoutputtimestamp
     pub(crate) fn get_output_timestamp(&self, _: &mut CallContext) -> WebIdlResult<AudioTimestamp> {
         let renderer = self.renderer.borrow();
-        if renderer
-            .as_ref()
-            .is_none_or(|renderer| unsafe { web_audio_realtime_context_frames_rendered(renderer.pointer) } == 0)
-        {
+
+        // If the context's rendering graph has not yet processed a block of audio, then
+        // getOutputTimestamp call returns an AudioTimestamp instance with both members
+        // containing zero.
+        if renderer.as_ref().is_none_or(|renderer| renderer.frames_rendered() == 0) {
             return Ok(AudioTimestamp {
                 context_time: Some(0.),
                 performance_time: Some(0.),
@@ -297,7 +295,7 @@ impl AudioContext {
         //        We sample performance.now() when getOutputTimestamp() is called instead of caching a timestamp when the
         //        renderer produced that block, so the returned pair does not describe a single output instant.
         Ok(AudioTimestamp {
-            context_time: Some(unsafe { web_audio_realtime_context_output_time(renderer.as_ref().unwrap().pointer) }),
+            context_time: Some(renderer.as_ref().unwrap().output_time_played()),
             performance_time: Some(unsafe {
                 web_audio_realtime_context_performance_now(self.context.global_event_target().as_ptr())
             }),
@@ -348,7 +346,7 @@ impl AudioContext {
         // 7.1: Attempt to acquire system resources.
         // NB: The renderer acquires system resources and starts rendering in a single resume, performed in step 7.3.
         if self.renderer.borrow().is_some() {
-            self.set_renderer_callbacks();
+            self.set_renderer_client(vm);
         }
 
         // 7.2: Set the [[rendering thread state]] on the AudioContext to running.
@@ -450,10 +448,8 @@ impl AudioContext {
     fn run_control_message_to_suspend(&self, vm: &Vm, promise: WebIdlPromise) {
         // 7.1: Attempt to release system resources.
         if let Some(renderer) = &*self.renderer.borrow() {
-            unsafe {
-                web_audio_realtime_context_suspend(renderer.pointer);
-                web_audio_realtime_context_clear_callbacks(renderer.pointer);
-            }
+            renderer.suspend();
+            renderer.set_client(None);
         }
 
         // 7.2: Set the [[rendering thread state]] on the AudioContext to suspended.
@@ -515,10 +511,8 @@ impl AudioContext {
         // 5.1: Attempt to release system resources.
         self.context.shutdown_audio_worklet();
         if let Some(renderer) = &*self.renderer.borrow() {
-            unsafe {
-                web_audio_realtime_context_stop(renderer.pointer);
-                web_audio_realtime_context_clear_callbacks(renderer.pointer);
-            }
+            renderer.stop();
+            renderer.set_client(None);
         }
 
         // 5.2: Set the [[rendering thread state]] to "suspended".
@@ -546,16 +540,23 @@ impl AudioContext {
 
     fn start_rendering_audio_graph(&self) -> bool {
         if let Some(renderer) = &*self.renderer.borrow() {
-            unsafe { web_audio_realtime_context_resume(renderer.pointer) };
+            renderer.resume();
         }
         true
     }
 
-    fn set_renderer_callbacks(&self) {
-        let renderer = self.renderer.borrow();
-        unsafe {
-            web_audio_realtime_context_set_callbacks(renderer.as_ref().unwrap().pointer, cell_into_abi(self.this()));
-        };
+    // The renderer's callback captures a GC root on this context, keeping it alive while it renders. That root is released
+    // by clearing the callbacks when the context is suspended, closed, or its document becomes inactive, so this is called
+    // again to re-establish it whenever rendering resumes.
+    fn set_renderer_client(&self, vm: &Vm) {
+        self.renderer
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .set_client(Some(Rc::new(RendererClient {
+                vm: NonNull::from(vm),
+                context: CellRoot::new(self.this()),
+            })));
     }
 
     // https://webaudio.github.io/web-audio-api/#dom-audiocontext-createmediaelementsource
@@ -583,13 +584,4 @@ impl AudioContext {
     ) -> WebIdlResult<Ref<MediaStreamAudioDestinationNode>> {
         MediaStreamAudioDestinationNode::create(cx, self.this(), &AudioNodeOptions::default())
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_context_sources_ended(
-    vm: &Vm,
-    cell: *mut c_void,
-    ids: ak::Span<'_, u64>,
-) {
-    unsafe { AnyBaseAudioContext::from_abi(cell) }.handle_ended_sources(vm, ids.as_slice());
 }

@@ -39,7 +39,6 @@ AudioWorkletPipe::AudioWorkletPipe(Config config, Core::EventLoop& event_loop)
             if (callbacks.pump_callback)
                 callbacks.pump_callback();
         },
-        [](void*, size_t, u64) { return false; },
     };
     RustFFI::WorkletPipeConfig native_config { m_config.quantum_size, m_config.input_count, m_config.output_count, m_config.input_channel_capacity.span(), m_config.output_channel_capacity.span(), m_config.output_channel_count_matches_input, m_config.param_count, m_config.param_is_a_rate.span(), m_config.ring_capacity, m_config.prime_level };
     m_pipe = RustFFI::web_audio_worklet_pipe_create(native_config, callbacks);

@@ -20,7 +20,6 @@ mod tests;
 
 pub mod offline_audio_renderer;
 pub mod realtime_audio_renderer;
-pub mod renderer_callbacks;
 
 pub mod audio_worklet_pipe;
 pub mod pipe_callbacks;
