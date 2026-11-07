@@ -317,8 +317,10 @@ jobs:
       pull-requests: write
 
     steps:
+      # A bench job that lost its runner reports neither success nor failure, though the run carries on — so these steps
+      # check only that the run itself wasn't canceled, and report a platform without results as one that didn't finish.
       - name: 'Download the results'
-        if: ${{ needs.prepare.outputs.pr != '' && contains(fromJSON('["success", "failure"]'), needs.bench.result) }}
+        if: ${{ !cancelled() && needs.prepare.outputs.pr != '' && needs.bench.result != 'skipped' }}
         uses: actions/download-artifact@v8
         with:
           pattern: bench-pr-*
@@ -327,7 +329,7 @@ jobs:
 
       # The section goes between markers at the end of the description, so a later run replaces it in place.
       - name: "Add the results to the PR's description"
-        if: ${{ needs.prepare.outputs.pr != '' && contains(fromJSON('["success", "failure"]'), needs.bench.result) }}
+        if: ${{ !cancelled() && needs.prepare.outputs.pr != '' && needs.bench.result != 'skipped' }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
