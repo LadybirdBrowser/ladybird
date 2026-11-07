@@ -1099,7 +1099,7 @@ def write_rust_async_iterator(out: TextIO, context: GenerationContext, interface
         // 6. Run the asynchronous iterator initialization steps for definition with jsValue, iterator, and idlArgs, if
         //    any such steps exist.
         let state = Implementation::{async_iterator.method}(&implementation, &mut cx{arguments})
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
 
         // 7. Return iterator.
         Ok(create_default_async_iterator::<Implementation>(&cx, state))
@@ -1300,7 +1300,7 @@ def write_rust_interface(
     pub(super) fn {attribute.getter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let {receiver} = {this_check};
 {caller_realm_context}        let result = {call}
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         {conversion}
     }}
 """
@@ -1573,7 +1573,7 @@ def write_rust_namespace(out: TextIO, context: GenerationContext, interface: Int
     fn {attribute.getter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let mut cx = CallContext::new(vm, vm.current_realm().expect("a native function runs in a realm"));
         let result = Implementation::{attribute.getter_method}(&mut cx)
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         {conversion}
     }}
 """
@@ -1824,11 +1824,9 @@ def write_rust_indexed_property_setter(
         let steps = || -> ThrowCompletionOr<Value> {{
             let implementation = implementation_of::<Implementation>(wrapper);
             let mut cx = CallContext::new(vm, realm);
-            let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());
             let value = {conversion}?;
-            drop(type_error_realm_scope);
             Implementation::{method}(&implementation, &mut cx, index, value)
-                .map_err(|exception| exception.throw(&cx))?;
+                .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
             Ok(Value::UNDEFINED)
         }};
         RawNativeFunctionResult::from_completion(steps())
@@ -1944,11 +1942,9 @@ def write_rust_named_properties(
         let implementation = implementation_of::<Implementation>(wrapper);
         let mut cx = CallContext::new(vm, realm);
         let steps = || -> ThrowCompletionOr<Value> {{
-            let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());
             let idl_value = {value_conversion}?;
-            drop(type_error_realm_scope);
             Implementation::{setter.method}(&implementation, &mut cx, name, idl_value)
-                .map_err(|exception| exception.throw(&cx))?;
+                .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
             Ok(Value::UNDEFINED)
         }};
         RawNativeFunctionResult::from_completion(steps())
@@ -1980,7 +1976,7 @@ def write_rust_named_properties(
         let mut cx = CallContext::new(vm, realm);
         let result = Implementation::{deleter.method}(&implementation, &mut cx, name)
             .map(|()| Value::UNDEFINED)
-            .map_err(|exception| exception.throw(&cx));
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()));
         RawNativeFunctionResult::from_completion(result)
     }}
 """
@@ -1995,7 +1991,7 @@ def write_rust_stringifier(out: TextIO, function: str, method: str) -> None:
     fn {function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let (implementation, mut cx) = this_implementation(vm)?;
         let result = Implementation::{method}(&implementation, &mut cx)
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         result.to_js(&cx)
     }}
 """
@@ -2023,14 +2019,14 @@ def write_rust_static_operation(
         steps.write(
             f"""        let promise = crate::bindings::promise::create_promise(cx.vm(), cx.realm());
         {call}
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         {conversion}
 """
         )
     elif operation.return_type.name == "undefined" and not operation.return_type.nullable:
         steps.write(
             f"""        {call}
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         Ok(Value::UNDEFINED)
 """
         )
@@ -2038,7 +2034,7 @@ def write_rust_static_operation(
         conversion = rust_to_js_value(operation.return_type, "result", "&cx", context, what)
         steps.write(
             f"""        let result = {call}
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         {conversion}
 """
         )
@@ -2208,18 +2204,16 @@ def write_css_property_accessors(out: TextIO) -> None:
     fn property_getter(vm: &Vm, property: &crate::css::css_style_properties::CSSPropertyAccessor) -> ThrowCompletionOr<Value> {
         let (implementation, mut cx) = this_implementation(vm)?;
         let result = Implementation::property_value(&implementation, &mut cx, property)
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         result.to_js(&cx)
     }
 
     fn property_setter(vm: &Vm, property: &crate::css::css_style_properties::CSSPropertyAccessor) -> ThrowCompletionOr<Value> {
         let value = vm.argument(0);
         let (implementation, mut cx) = this_implementation(vm)?;
-        let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());
         let idl_value = to_dom_string_treating_null_as_empty(vm, value)?;
-        drop(type_error_realm_scope);
         with_custom_element_reactions(|| Implementation::set_property_value(&implementation, &mut cx, property, idl_value))
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         Ok(Value::UNDEFINED)
     }
 """
@@ -2264,11 +2258,9 @@ def write_rust_attribute_setter(
     fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let value = vm.argument(0);
         let {receiver} = this_implementation(vm)?;
-{caller_realm_context}        let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());
-        {conversion}
-        drop(type_error_realm_scope);
+{caller_realm_context}        {conversion}
         {call}
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         Ok(Value::UNDEFINED)
     }}
 """
@@ -2312,10 +2304,7 @@ def write_rust_operation(
     else:
         steps.write("        let (implementation, mut cx) = this_implementation(vm)?;\n")
     write_argument_count_check(steps, name, overload.length)
-    if operation.parameters:
-        steps.write("        let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());\n")
-        write_parameter_conversions(steps, what, operation.parameters, context)
-        steps.write("        drop(type_error_realm_scope);\n")
+    write_parameter_conversions(steps, what, operation.parameters, context)
     arguments = "".join(f", {rust_local_name(parameter.name)}" for parameter in operation.parameters)
     returns_promise = is_promise_type(operation.return_type) and not operation.return_type.nullable
     if overload.implementation_parameters is not None:
@@ -2337,7 +2326,7 @@ def write_rust_operation(
         steps.write(
             f"""        let promise = crate::bindings::promise::create_promise(cx.vm(), cx.realm());
         {call}
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         {conversion}
 """
         )
@@ -2345,7 +2334,7 @@ def write_rust_operation(
         # NB: An operation that returns nothing has no result to name, and the conversion of nothing is undefined.
         steps.write(
             f"""        {call}
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         Ok(Value::UNDEFINED)
 """
         )
@@ -2353,7 +2342,7 @@ def write_rust_operation(
         conversion = rust_to_js_value(operation.return_type, "result", "&cx", context, what)
         steps.write(
             f"""        let result = {call}
-            .map_err(|exception| exception.throw(&cx))?;
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         {conversion}
 """
         )
@@ -2398,7 +2387,7 @@ def write_rust_constructor(
     out.write(
         f"""        let mut cx = CallContext::new(vm, realm);
         let implementation =
-            Implementation::{constructor.method}(&mut cx{arguments}).map_err(|exception| exception.throw(&cx))?;
+            Implementation::{constructor.method}(&mut cx{arguments}).map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         Ok(Value::from_object(construct_wrapper::<Implementation>(vm, realm, prototype, implementation)))
     }}
 """

@@ -195,7 +195,7 @@ def write_pair_iterable_declaration_functions(
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "key+value" as its kind, and index set to 0.
-    return TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(this_object_realm, *this_impl, JS::Object::PropertyKind::KeyAndValue); }}));
+    return TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(this_object_realm, *this_impl, JS::Object::PropertyKind::KeyAndValue); }}));
 }}
 
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
@@ -212,7 +212,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "key" as its kind, and index set to 0.
-    return TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(this_object_realm, *this_impl, JS::Object::PropertyKind::Key); }}));
+    return TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(this_object_realm, *this_impl, JS::Object::PropertyKind::Key); }}));
 }}
 
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
@@ -229,7 +229,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "value" as its kind, and index set to 0.
-    return TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(this_object_realm, *this_impl, JS::Object::PropertyKind::Value); }}));
+    return TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(this_object_realm, *this_impl, JS::Object::PropertyKind::Value); }}));
 }}
 
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
@@ -299,10 +299,11 @@ static JS::ThrowCompletionOr<{fully_qualified_name_for_interface(interface)}Iter
 
 JS_DEFINE_NATIVE_FUNCTION({interface.name}IteratorPrototype::next)
 {{
+    auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     auto* impl = TRY({make_name_acceptable_cpp(title_case_to_snake_case(iterator_interface_name))}_impl_from(vm));
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
-    return TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return impl->next(this_object_realm); }}));
+    return TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return impl->next(this_object_realm); }}));
 }}
 
 """)
@@ -338,9 +339,7 @@ def write_async_iterable_declaration_functions(
 
 """
     )
-    write_operation_parameter_conversions(
-        out, interface.async_iterable.parameters, includes, context, "this_object_realm"
-    )
+    write_operation_parameter_conversions(out, interface.async_iterable.parameters, includes, context)
 
     arguments = ", ".join(idl_identifier_cpp_name(parameter) for parameter in interface.async_iterable.parameters)
     if arguments:
@@ -351,7 +350,7 @@ def write_async_iterable_declaration_functions(
         create_iterator = "Web::Bindings::values(this_object_realm, *impl"
 
     out.write(
-        f"""    return TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return {create_iterator}{arguments}); }}));
+        f"""    return TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {create_iterator}{arguments}); }}));
 }}
 
 """
@@ -619,7 +618,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::set)
     {type_check_idl_value(interface.maplike.value_type, "value", includes, context, interface.name)}
 
     // 9. Set map[key] to value.
-    TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return Web::Bindings::set(this_object_realm, *this_impl, key, value); }}));
+    TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return Web::Bindings::set(this_object_realm, *this_impl, key, value); }}));
 
     // 10. Return O.
     return vm.this_value();

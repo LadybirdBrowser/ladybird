@@ -802,21 +802,17 @@ def write_indexed_property_getter(
     [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
-    auto& this_object_realm = this_value.as_object().shape().realm();
+    [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     if (vm.argument_count() < 1)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "{operation.name}");
 
-    JS::VM::TypeErrorRealmScope conversion_type_error_realm {{ vm, {getter_realm_argument} }};
-
 """
     )
-    write_operation_parameter_conversions(out, operation.parameters, includes, context, getter_realm_argument)
+    write_operation_parameter_conversions(out, operation.parameters, includes, context)
     out.write(
         f"""
-    conversion_type_error_realm.restore();
-
-    auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, {getter_realm_argument}, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({parameter_name}); }}));
+    auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({parameter_name}); }}));
     return {to_javascript_value(operation.return_type, "R", includes, context, getter_realm_argument)};
 }}
 
@@ -850,21 +846,17 @@ def write_named_property_getter(
     [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
-    auto& this_object_realm = this_value.as_object().shape().realm();
+    [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     if (vm.argument_count() < 1)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "{operation.name}");
 
-    JS::VM::TypeErrorRealmScope conversion_type_error_realm {{ vm, {getter_realm_argument} }};
-
 """
     )
-    write_operation_parameter_conversions(out, operation.parameters, includes, context, getter_realm_argument)
+    write_operation_parameter_conversions(out, operation.parameters, includes, context)
     out.write(
         f"""
-    conversion_type_error_realm.restore();
-
-    auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, {getter_realm_argument}, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({parameter_name}); }}));
+    auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({parameter_name}); }}));
     return {to_javascript_value(operation.return_type, "R", includes, context, getter_realm_argument)};
 }}
 
@@ -941,24 +933,14 @@ def write_named_property_operation(
 """
         )
 
-    out.write(
-        f"""    JS::VM::TypeErrorRealmScope conversion_type_error_realm {{ vm, {operation_realm_argument} }};
-
-"""
-    )
-    write_operation_parameter_conversions(out, operation.parameters, includes, context, operation_realm_argument)
-    out.write(
-        """    conversion_type_error_realm.restore();
-
-"""
-    )
+    write_operation_parameter_conversions(out, operation.parameters, includes, context)
 
     operation_returns_undefined = operation.return_type.name == "undefined"
     if "CEReactions" in operation.extended_attributes:
         ce_reactions_steps = wrap_with_ce_reactions(includes, "original_steps()", operation_realm_argument)
         out.write(
             f"""    auto original_steps = [&] {{
-        return WebIDL::throw_dom_exception_if_needed(vm, {operation_realm_argument}, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({arguments}); }});
+        return WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({arguments}); }});
     }};
 
     [[maybe_unused]] auto R = TRY({ce_reactions_steps});
@@ -975,7 +957,7 @@ def write_named_property_operation(
             f"return {to_javascript_value(operation.return_type, 'R', includes, context, operation_realm_argument)};"
         )
     out.write(
-        f"""    [[maybe_unused]] auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, {operation_realm_argument}, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({arguments}); }}));
+        f"""    [[maybe_unused]] auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({arguments}); }}));
     {return_statement}
 }}
 

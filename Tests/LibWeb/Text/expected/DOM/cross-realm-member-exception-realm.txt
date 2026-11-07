@@ -1,0 +1,4 @@
+setter DOMException: InvalidStateError in iframe realm
+operation DOMException: NotFoundError in iframe realm
+conversion TypeError: TypeError in iframe realm
+enum conversion TypeError: TypeError in iframe realm
