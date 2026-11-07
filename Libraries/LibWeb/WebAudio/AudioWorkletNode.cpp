@@ -166,8 +166,8 @@ WebIDL::ExceptionOr<GC::Ref<AudioWorkletNode>> AudioWorkletNode::construct_impl(
     // Create the render mirror. Channel configuration rides in the constructor (the graph drops
     // SetChannelConfig messages that precede AddNode).
     Vector<NonnullRefPtr<Rendering::RenderAudioParam>> render_params;
-    for (auto const& entry : parameter_map->entries())
-        render_params.append(entry.value->render_param());
+    for (auto const& param : parameter_map->values())
+        render_params.append(param->render_param());
     node->queue_render_node_creation(make<Rendering::AudioWorkletRenderNode>(node->node_id(),
         options.number_of_inputs, options.number_of_outputs, pipe_config.quantum_size,
         pipe_config.output_channel_capacity,

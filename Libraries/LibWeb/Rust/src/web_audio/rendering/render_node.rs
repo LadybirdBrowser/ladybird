@@ -78,7 +78,7 @@ struct ForeignRenderGraph {
 }
 
 impl RenderAudioParam {
-    pub(crate) fn new(
+    pub fn new(
         timeline: Arc<AudioParamTimeline>,
         min_value: f32,
         max_value: f32,
@@ -96,7 +96,7 @@ impl RenderAudioParam {
         }
     }
 
-    fn set_automation_rate(&self, automation_rate: AutomationRate) {
+    pub fn set_automation_rate(&self, automation_rate: AutomationRate) {
         self.automation_rate.store(automation_rate as u8, Ordering::SeqCst);
     }
 

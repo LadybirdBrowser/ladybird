@@ -31,6 +31,7 @@ class WEB_API RenderAudioParam : public AtomicRefCounted<RenderAudioParam> {
 public:
     RenderAudioParam(NonnullRefPtr<AudioParamTimeline> timeline, float min_value, float max_value, Bindings::AutomationRate);
 
+    explicit RenderAudioParam(void const* param);
     ~RenderAudioParam();
 
     void set_automation_rate(Bindings::AutomationRate);
