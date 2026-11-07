@@ -1319,37 +1319,36 @@ fn compute_azimuth(
     azimuth
 }
 
-// https://webaudio.github.io/web-audio-api/#Spatialization-distance-effects
+// https://webaudio.github.io/web-audio-api/#enumdef-distancemodeltype
 fn compute_distance_gain(distance: f64, config: &SetPannerParameters) -> f64 {
     let ref_distance = config.ref_distance;
     let max_distance = config.max_distance;
     let rolloff_factor = config.rolloff_factor;
 
-    // AD-HOC: The distance is clamped to the interval spanned by refDistance and maxDistance for every distance
-    //         model, matching other engines.
-    let clamped_distance = clamp(
-        distance,
-        cpp_min(ref_distance, max_distance),
-        cpp_max(ref_distance, max_distance),
-    );
     match config.distance_model {
         DistanceModelType::Linear => {
-            if ref_distance == max_distance {
-                return 1. - clamp(rolloff_factor, 0., 1.);
+            let lower_distance = cpp_min(ref_distance, max_distance);
+            let upper_distance = cpp_max(ref_distance, max_distance);
+            let rolloff_factor = clamp(rolloff_factor, 0., 1.);
+            if lower_distance == upper_distance {
+                return 1. - rolloff_factor;
             }
-            1. - clamp(rolloff_factor, 0., 1.) * (clamped_distance - ref_distance) / (max_distance - ref_distance)
+            let distance = clamp(distance, lower_distance, upper_distance);
+            1. - rolloff_factor * (distance - lower_distance) / (upper_distance - lower_distance)
         }
         DistanceModelType::Inverse => {
-            if ref_distance + rolloff_factor * (clamped_distance - ref_distance) == 0. {
-                return 1.;
+            if ref_distance == 0. {
+                return 0.;
             }
-            ref_distance / (ref_distance + rolloff_factor * (clamped_distance - ref_distance))
+            let distance = cpp_max(distance, ref_distance);
+            ref_distance / (ref_distance + rolloff_factor * (distance - ref_distance))
         }
         DistanceModelType::Exponential => {
             if ref_distance == 0. {
-                return 1.;
+                return 0.;
             }
-            math::pow(clamped_distance / ref_distance, -rolloff_factor)
+            let distance = cpp_max(distance, ref_distance);
+            math::pow(distance / ref_distance, -rolloff_factor)
         }
     }
 }

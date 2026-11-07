@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    async function distanceGain(distanceModel, refDistance, maxDistance, positionZ, rolloffFactor = 1) {
+        const context = new OfflineAudioContext(2, 128, 48000);
+        const source = new ConstantSourceNode(context);
+        const panner = new PannerNode(context, {
+            distanceModel, refDistance, maxDistance, positionZ, rolloffFactor
+        });
+        source.connect(panner).connect(context.destination);
+        source.start();
+        const output = await context.startRendering();
+        return (output.getChannelData(0)[0] * Math.SQRT2).toFixed(4);
+    }
+
+    promiseTest(async () => {
+        for (const model of ["inverse", "exponential"]) {
+            println(`${model} beyond maxDistance: ${await distanceGain(model, 1, 2, -4)}`);
+            println(`${model} with zero refDistance: ${await distanceGain(model, 0, 2, -4)}`);
+        }
+        println(`linear with reversed bounds: ${await distanceGain("linear", 4, 2, -2.5)}`);
+    });
+</script>

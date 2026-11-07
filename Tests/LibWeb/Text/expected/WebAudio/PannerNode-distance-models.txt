@@ -1,0 +1,5 @@
+inverse beyond maxDistance: 0.2500
+inverse with zero refDistance: 0.0000
+exponential beyond maxDistance: 0.2500
+exponential with zero refDistance: 0.0000
+linear with reversed bounds: 0.7500
