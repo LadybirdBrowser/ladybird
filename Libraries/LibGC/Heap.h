@@ -27,6 +27,7 @@
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/CrossHeapMember.h>
 #include <LibGC/Forward.h>
+#include <LibGC/FunctionTable.h>
 #include <LibGC/HeapRoot.h>
 #include <LibGC/IdleCollectionPolicy.h>
 #include <LibGC/Root.h>
@@ -162,6 +163,8 @@ public:
     void uproot_cell(ForeignCell* cell) { uproot_cell(as_cell(cell)); }
 
     bool is_gc_deferred() const { return m_gc_deferrals > 0; }
+
+    FunctionTable& function_table() { return m_function_table; }
     bool is_incremental_sweep_active() const { return m_incremental_sweep_active; }
 
     void sweep_block(HeapBlock&);
@@ -367,6 +370,7 @@ private:
     bool m_weak_pointers_to_dead_cells_are_cleared { false };
     CollectionType m_current_collection_type { CollectionType::CollectGarbage };
     StackInfo m_stack_info;
+    FunctionTable m_function_table;
     AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> m_gather_embedder_roots;
 
     Vector<AK::Function<void()>> m_post_gc_tasks;
