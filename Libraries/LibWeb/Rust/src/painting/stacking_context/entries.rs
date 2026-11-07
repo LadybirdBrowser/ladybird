@@ -118,20 +118,22 @@ impl LayoutNodeArena {
         let Some(entries) = self.stacking_context_entries(enclosing) else {
             return;
         };
-        // The places the box takes in the lists ordered by pre-order label, found before the table is written.
+        // Find the box's place in order-modified document order before writing the table.
         let nonzero_z_index_insertion = facts.nonzero_z_index_child_contribution().map(|z_index| {
-            let label = self.node_pre_order_label(slot);
-            let position = entries
-                .child_contexts_with_nonzero_z_index
-                .partition_point(|entry| (entry.z_index, self.node_pre_order_label(entry.slot)) < (z_index, label));
+            let position = entries.child_contexts_with_nonzero_z_index.partition_point(|entry| {
+                entry
+                    .z_index
+                    .cmp(&z_index)
+                    .then_with(|| self.compare_order_modified_document_order(entry.slot, slot))
+                    .is_lt()
+            });
             (position, z_index)
         });
         let stack_level_zero_position =
             (nonzero_z_index_insertion.is_none() && facts.contributes_to_stack_level_zero()).then(|| {
-                let label = self.node_pre_order_label(slot);
                 entries
                     .stack_level_zero_boxes
-                    .partition_point(|entry| self.node_pre_order_label(*entry) < label)
+                    .partition_point(|entry| self.compare_order_modified_document_order(*entry, slot).is_lt())
             });
         let Some(mut table) = table_mut(&mut self.paintable_rows.stacking_context_entries, enclosing) else {
             return;
@@ -221,6 +223,11 @@ impl LayoutNodeArena {
         was_reattached: bool,
     ) {
         if let Some(previous) = previous {
+            if previous.order != next.order {
+                self.note_paint_order_changed(slot);
+                self.flag_stacking_context_entries_for_resort(previous.enclosing_stacking_context);
+                self.flag_stacking_context_entries_for_resort(next.enclosing_stacking_context);
+            }
             if previous.contribution_is_registered && previous.same_contributions_as(next) && !was_reattached {
                 next.contribution_is_registered = true;
                 return;
@@ -260,14 +267,17 @@ impl LayoutNodeArena {
                 continue;
             };
             table.needs_resort = false;
-            // The lists are ordered by pre-order label, which the arena answers while the table is not borrowed.
+            // Comparing tree positions reads the arena while the table is not borrowed.
             let mut child_contexts_with_nonzero_z_index =
                 std::mem::take(&mut table.child_contexts_with_nonzero_z_index);
             let mut stack_level_zero_boxes = std::mem::take(&mut table.stack_level_zero_boxes);
             drop(table);
-            child_contexts_with_nonzero_z_index
-                .sort_by_key(|entry| (entry.z_index, self.node_pre_order_label(entry.slot)));
-            stack_level_zero_boxes.sort_by_key(|entry| self.node_pre_order_label(*entry));
+            child_contexts_with_nonzero_z_index.sort_by(|left, right| {
+                left.z_index
+                    .cmp(&right.z_index)
+                    .then_with(|| self.compare_order_modified_document_order(left.slot, right.slot))
+            });
+            stack_level_zero_boxes.sort_by(|&left, &right| self.compare_order_modified_document_order(left, right));
             let mut table = table_mut(&mut self.paintable_rows.stacking_context_entries, root)
                 .expect("the root's table was there before its lists were sorted");
             table.child_contexts_with_nonzero_z_index = child_contexts_with_nonzero_z_index;
@@ -285,7 +295,6 @@ impl LayoutNodeArena {
         paint_order::for_each_in_paint_subtree(&self.paintable_rows(), viewport, |slot| {
             slots_in_paint_order.push(slot);
         });
-        let mut roots_in_visit_order: Vec<NodeSlotId> = Vec::new();
         for slot in slots_in_paint_order {
             let Some(record) = self.paintable_visual_context_record(slot) else {
                 continue;
@@ -293,7 +302,7 @@ impl LayoutNodeArena {
             let facts = record.stacking_context;
             if facts.establishes_stacking_context {
                 self.ensure_stacking_context_entries_for_root(slot);
-                roots_in_visit_order.push(slot);
+                self.flag_stacking_context_entries_for_resort(slot);
             }
             if self.paintable_row_is_populated(facts.enclosing_stacking_context)
                 && let Some(mut table) = table_mut(
@@ -317,14 +326,7 @@ impl LayoutNodeArena {
             }
             self.set_paintable_record_stacking_context_contribution_registered(slot);
         }
-        let tables = &mut self.paintable_rows.stacking_context_entries;
-        for root in roots_in_visit_order {
-            if let Some(mut table) = table_mut(tables, root) {
-                table
-                    .child_contexts_with_nonzero_z_index
-                    .sort_by_key(|entry| entry.z_index);
-            }
-        }
+        self.resort_stacking_context_entries_flagged_for_resort();
     }
 
     pub(crate) fn withdraw_stacking_context_state_of_reset_row(

@@ -13,7 +13,7 @@
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::paint_read::PaintRead;
 use crate::painting::record::PaintPhase;
-use crate::painting::{node_painting, style_queries};
+use crate::painting::{node_painting, paint_order, style_queries};
 use smallvec::SmallVec;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -547,6 +547,7 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
         phase: StackingContextPaintPhase,
         matches: impl Fn(&Self, NodeSlotId) -> bool,
     ) {
+        let begin = self.items.len();
         let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
         while let Some(child) = next_child {
             next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, child);
@@ -557,6 +558,14 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
                 owner: child,
                 kind: PaintScopeKind::Descendants(phase),
             }));
+        }
+        let display = style_queries::display(self.layout_arena, paintable);
+        if display.is_flex_inside() || display.is_grid_inside() {
+            // A stable sort preserves document order for items in the same ordinal group.
+            self.items[begin..].sort_by_key(|item| match item {
+                PaintOrderItem::Scope(scope) => paint_order::order_for_painting(self.layout_arena, scope.owner),
+                PaintOrderItem::Producer(_) => unreachable!("only descendant scopes were appended"),
+            });
         }
     }
 

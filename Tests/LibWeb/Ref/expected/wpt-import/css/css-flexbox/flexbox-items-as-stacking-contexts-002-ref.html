@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+<head>
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+  <style>
+    body { font: 10px sans-serif }
+    .flexContainer {
+      background: orange;
+      width: 70px;
+      padding: 2px;
+      margin-bottom: 2px;
+    }
+
+    .flexContainer > div:first-child {
+      margin-right: 10px; /* the space between the flex items, in testcase */
+    }
+
+    .item1 {
+      display: inline-block;
+      background: lightblue;
+      width: 30px;
+    }
+    .item2 {
+      display: inline-block;
+      background: yellow;
+      width: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="flexContainer"
+    ><div class="item1">ThisIsALongUnbrokenString</div
+    ><div class="item2">HereIsSomeMoreLongText</div
+  ></div>
+
+  <div class="flexContainer"
+    ><div class="item1" style="position:relative">ThisIsALongUnbrokenString</div
+    ><div class="item2">HereIsSomeMoreLongText</div
+  ></div>
+
+  <div class="flexContainer"
+    ><div class="item1" style="position:relative">ThisIsALongUnbrokenString</div
+    ><div class="item2">HereIsSomeMoreLongText</div
+  ></div>
+
+  <div class="flexContainer"
+    ><div class="item2">HereIsSomeMoreLongText</div
+    ><div class="item1">ThisIsALongUnbrokenString</div
+  ></div>
+
+  <div class="flexContainer"
+    ><div class="item2">HereIsSomeMoreLongText</div
+    ><div class="item1">ThisIsALongUnbrokenString</div
+  ></div>
+
+  <div class="flexContainer"
+    ><div class="item2" style="position:relative">HereIsSomeMoreLongText</div
+    ><div class="item1">ThisIsALongUnbrokenString</div
+  ></div>
+</body>
+</html>
