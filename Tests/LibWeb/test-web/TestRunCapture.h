@@ -35,7 +35,7 @@ public:
     bool write_helper_process_output();
 
     // A worker's process goes away when no test is looking at it any more, so the run as a whole fails if one crashes.
-    size_t crashed_worker_process_count() const { return m_crashed_worker_process_count; }
+    size_t crashed_worker_count() const { return m_crashed_worker_count; }
 
     TestRunCapture(TestRunCapture const&) = delete;
     TestRunCapture& operator=(TestRunCapture const&) = delete;
@@ -83,7 +83,7 @@ private:
     HashMap<TestWebView const*, NonnullOwnPtr<ViewOutputCapture>> m_test_output_captures;
     HashMap<pid_t, NonnullOwnPtr<HelperOutputCapture>> m_helper_output_captures;
     CaptureFile m_helper_output;
-    size_t m_crashed_worker_process_count { 0 };
+    size_t m_crashed_worker_count { 0 };
     Optional<HelperOutputSource> m_last_helper_source;
     UnixDateTime m_run_started_at;
     BrowserStderrCapture m_stderr_capture;

@@ -12,6 +12,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/LexicalPath.h>
 #include <LibCore/System.h>
+#include <LibWebCommon/WebView/Utilities.h>
 
 #if !defined(AK_OS_WINDOWS)
 #    include <signal.h>
@@ -23,6 +24,7 @@ namespace TestWeb {
 static ByteString format_elapsed_time(UnixDateTime run_start_time);
 static ByteString format_exit_status(Optional<int> exit_status);
 static bool exit_status_is_crash(Optional<int> exit_status);
+static bool is_crash_of_worker(WebView::ProcessType, Optional<int> exit_status);
 static void setup_capture_notifier(RefPtr<Core::Notifier>& notifier, Core::File& file, bool drain_available, Function<void(StringView)> on_output);
 static bool drain_capture_output(Core::File& file, bool drain_available, Function<void(StringView)> const& on_output);
 
@@ -53,8 +55,8 @@ TestRunCapture::TestRunCapture()
             { process.type(), process.pid() },
             m_stderr_capture.original_fd.value_or(STDERR_FILENO),
             ByteString::formatted("test-web: process exited: {}\n", format_exit_status(exit_status)));
-        if (process.type() == WebView::ProcessType::WebWorker && exit_status_is_crash(exit_status))
-            ++m_crashed_worker_process_count;
+        if (is_crash_of_worker(process.type(), exit_status))
+            ++m_crashed_worker_count;
         m_previous_on_process_exited(move(process), exit_status);
     };
 
@@ -159,6 +161,20 @@ bool exit_status_is_crash(Optional<int> exit_status)
 
     // NB: The UI process kills a worker that does not exit in time, so being killed is no crash.
     return WIFSIGNALED(*exit_status) && !first_is_one_of(WTERMSIG(*exit_status), SIGKILL, SIGTERM);
+#endif
+}
+
+// NB: A dedicated worker runs on a thread of a WebContent process that can go down between tests, or be the process of
+//     a remote frame, where no test would notice.
+bool is_crash_of_worker(WebView::ProcessType type, Optional<int> exit_status)
+{
+    if (type == WebView::ProcessType::WebWorker)
+        return exit_status_is_crash(exit_status);
+#if defined(AK_OS_WINDOWS)
+    return false;
+#else
+    return type == WebView::ProcessType::WebContent && exit_status.has_value() && WIFEXITED(*exit_status)
+        && WEXITSTATUS(*exit_status) > WebView::worker_thread_crash_exit_status;
 #endif
 }
 
