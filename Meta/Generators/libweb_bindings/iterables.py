@@ -191,7 +191,7 @@ def write_pair_iterable_declaration_functions(
     // 1. Let jsValue be ? ToObject(this value).
     // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "%Symbol.iterator%", and "method".
     // 3. If jsValue does not implement definition, then throw a TypeError.
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"%Symbol.iterator%"sv, HTML::SecurityCheckType::Method));
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "key+value" as its kind, and index set to 0.
@@ -208,7 +208,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
     // 1. Let jsValue be ? ToObject(this value).
     // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "keys", and "method".
     // 3. If jsValue does not implement definition, then throw a TypeError.
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"keys"sv, HTML::SecurityCheckType::Method));
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "key" as its kind, and index set to 0.
@@ -225,7 +225,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
     // 1. Let jsValue be ? ToObject(this value).
     // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "values", and "method".
     // 3. If jsValue does not implement definition, then throw a TypeError.
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"values"sv, HTML::SecurityCheckType::Method));
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "value" as its kind, and index set to 0.
@@ -238,7 +238,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
         this_value = &realm.global_object();
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"forEach"sv, HTML::SecurityCheckType::Method));
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     auto callback = vm.argument(0);
@@ -292,8 +292,11 @@ static JS::ThrowCompletionOr<{fully_qualified_name_for_interface(interface)}Iter
 {{
     auto this_object = TRY(vm.this_value().to_object(vm));
     auto* iterator = JS::host_data_if<{fully_qualified_name_for_interface(interface)}Iterator>(*this_object);
-    if (!iterator)
+    if (!iterator) {{
+        // NB: This runs after the check above, which no Window or Location object passes.
+        TRY(HTML::perform_a_security_check(vm, this_object, u"next"sv, HTML::SecurityCheckType::Method));
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{iterator_interface_name}");
+    }}
     return iterator;
 }}
 
@@ -334,7 +337,7 @@ def write_async_iterable_declaration_functions(
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
         this_value = &realm.global_object();
-    auto* impl = TRY(impl_from(vm, this_value));
+    auto* impl = TRY(impl_from(vm, this_value, u"values"sv, HTML::SecurityCheckType::Method));
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
 """
@@ -436,7 +439,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get_size)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "size" and type "getter".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"size"sv, HTML::SecurityCheckType::Getter));
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
@@ -455,7 +458,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "entries" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"entries"sv, HTML::SecurityCheckType::Method));
     auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
@@ -474,7 +477,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "keys" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"keys"sv, HTML::SecurityCheckType::Method));
     auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
@@ -493,7 +496,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "values" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"values"sv, HTML::SecurityCheckType::Method));
     auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
@@ -512,7 +515,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "forEach" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"forEach"sv, HTML::SecurityCheckType::Method));
     auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
@@ -549,7 +552,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "get" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"get"sv, HTML::SecurityCheckType::Method));
     auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 3. Let keyType be the key type specified in the maplike declaration.
@@ -574,7 +577,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "has" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"has"sv, HTML::SecurityCheckType::Method));
 
     // 3. Let keyType be the key type specified in the maplike declaration.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
@@ -601,7 +604,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::set)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "set" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"set"sv, HTML::SecurityCheckType::Method));
     auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 3. Let keyType be the key type specified in the maplike declaration, and valueType be the value type.
@@ -638,7 +641,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::delete_)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "delete" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"delete"sv, HTML::SecurityCheckType::Method));
 
     // 3. Let keyType be the key type specified in the maplike declaration.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
@@ -669,8 +672,8 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::clear)
     if (this_value.is_nullish())
         this_value = &realm.global_object();
 
-    // 1. Let O be the this value, implementation-checked against A with identifier "delete" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    // 1. Let O be the this value, implementation-checked against A with identifier "clear" and type "method".
+    auto* this_impl = TRY(impl_from(vm, this_value, u"clear"sv, HTML::SecurityCheckType::Method));
 
     // 3. Clear map.
     // NOTE: The map is preserved because there may be existing iterators, currently suspended, iterating over it.
@@ -710,7 +713,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get_size)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "size" and type "getter".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"size"sv, HTML::SecurityCheckType::Getter));
     auto& this_object_realm = this_value.as_object().shape().realm();
     auto& wrapper_world = host_defined_wrapper_world(this_object_realm);
 
@@ -730,7 +733,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "entries" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"entries"sv, HTML::SecurityCheckType::Method));
     auto& this_object_realm = this_value.as_object().shape().realm();
     auto& wrapper_world = host_defined_wrapper_world(this_object_realm);
 
@@ -750,7 +753,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "values" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"values"sv, HTML::SecurityCheckType::Method));
     auto& this_object_realm = this_value.as_object().shape().realm();
     auto& wrapper_world = host_defined_wrapper_world(this_object_realm);
 
@@ -770,7 +773,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
         this_value = &realm.global_object();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "forEach" and type "method".
-    auto* this_impl = TRY(impl_from(vm, this_value));
+    auto* this_impl = TRY(impl_from(vm, this_value, u"forEach"sv, HTML::SecurityCheckType::Method));
     auto& this_object_realm = this_value.as_object().shape().realm();
     auto& wrapper_world = host_defined_wrapper_world(this_object_realm);
 
@@ -804,7 +807,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
 {{
 
     // 1. Let O be the this value, implementation-checked against A with identifier "has" and type "method".
-    auto* this_impl = TRY(impl_from(vm));
+    auto* this_impl = TRY(impl_from(vm, u"has"sv, HTML::SecurityCheckType::Method));
 
     // 3. Let valueType be the value type specified in the setlike declaration.
     // 4. Let valueArg be the first argument passed to this function, or undefined if not supplied.
@@ -827,7 +830,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::add)
 {{
 
     // 1. Let O be the this value, implementation-checked against A with identifier "add" and type "method".
-    auto* this_impl = TRY(impl_from(vm));
+    auto* this_impl = TRY(impl_from(vm, u"add"sv, HTML::SecurityCheckType::Method));
 
     // 3. Let valueType be the value type specified in the setlike declaration.
     // 4. Let valueArg be the first argument passed to this function, or undefined if not supplied.
@@ -853,7 +856,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::delete_)
 {{
 
     // 1. Let O be the this value, implementation-checked against A with identifier "delete" and type "method".
-    auto* this_impl = TRY(impl_from(vm));
+    auto* this_impl = TRY(impl_from(vm, u"delete"sv, HTML::SecurityCheckType::Method));
 
     // 3. Let valueType be the value type specified in the setlike declaration.
     // 4. Let valueArg be the first argument passed to this function, or undefined if not supplied.
@@ -881,7 +884,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::clear)
 {{
 
     // 1. Let O be the this value, implementation-checked against A with identifier "clear" and type "method".
-    auto* this_impl = TRY(impl_from(vm));
+    auto* this_impl = TRY(impl_from(vm, u"clear"sv, HTML::SecurityCheckType::Method));
 
     // 3. Empty set.
     // NOTE: Note: The set is preserved because there may be existing iterators, currently suspended, iterating over it.

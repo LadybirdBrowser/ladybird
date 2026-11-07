@@ -32,8 +32,8 @@ use crate::bindings::CallContext;
 use crate::bindings::realm_data::wrapper_world_of;
 use crate::bindings::services::{
     web_bindings_define_unforgeable_attributes, web_bindings_ensure_web_constructor, web_bindings_ensure_web_prototype,
-    web_bindings_realm_is_secure_context, web_bindings_realm_is_window, web_bindings_rust_wrapper_for,
-    web_bindings_set_rust_wrapper, web_bindings_with_temporary_execution_context,
+    web_bindings_perform_a_security_check, web_bindings_realm_is_secure_context, web_bindings_realm_is_window,
+    web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper, web_bindings_with_temporary_execution_context,
 };
 
 /// What an implementation can tell the bindings about its objects, as a C++ implementation object does by overriding
@@ -198,13 +198,46 @@ impl<T: Interface> ConstructedObject<T> for Ref<T> {
     }
 }
 
+/// HTML::SecurityCheckType.
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub(crate) enum SecurityCheckType {
+    Method,
+    Getter,
+    Setter,
+}
+
+/// https://webidl.spec.whatwg.org/#dfn-perform-a-security-check
+pub(crate) fn perform_a_security_check(
+    vm: &Vm,
+    platform_object: Value,
+    identifier: &str,
+    check_type: SecurityCheckType,
+) -> ThrowCompletionOr<()> {
+    let realm = vm.current_realm().expect("a native function runs in a realm");
+    // SAFETY: The realm is live, the value is live while the native function runs, and the identifier is lent for the
+    //         call.
+    unsafe {
+        web_bindings_perform_a_security_check(
+            realm.as_ptr().cast(),
+            platform_object.to_raw(),
+            ak::Span::new(identifier.as_bytes()),
+            check_type as u8,
+        )
+    }
+    .into_completion()
+    .map(|_| ())
+}
+
 /// The object an attribute or an operation of an interface runs on, if it is a wrapper of the interface or of an
 /// interface that inherits from it, with the object's realm. A nullish this value stands for the global object of
-/// the current realm.
+/// the current realm. https://webidl.spec.whatwg.org/#implementation-check-an-object
 pub(crate) fn this_object(
     vm: &Vm,
     wrapper_class: &'static JSHostClass,
     interface_name: &str,
+    identifier: &str,
+    check_type: SecurityCheckType,
 ) -> ThrowCompletionOr<(Gc<Object>, Gc<Realm>)> {
     let mut this_value = vm.this_value();
     if this_value.is_nullish() {
@@ -217,6 +250,8 @@ pub(crate) fn this_object(
             return Ok((object, object.shape().realm()));
         }
     }
+    // NB: This runs after the check above, which no Window or Location object passes.
+    perform_a_security_check(vm, this_value, identifier, check_type)?;
     vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&interface_name])
 }
 
@@ -258,8 +293,12 @@ pub(crate) fn to_interface<T: Interface>(vm: &Vm, value: Value) -> ThrowCompleti
 }
 
 /// The `this` value of an operation of a setlike or maplike, its implementation, and the context of its realm.
-pub(crate) fn this_implementation<T: Interface>(vm: &Vm) -> ThrowCompletionOr<(Gc<Object>, Ref<T>, CallContext<'_>)> {
-    let (wrapper, realm) = this_object(vm, T::wrapper_class(), T::NAME)?;
+pub(crate) fn this_implementation<'vm, T: Interface>(
+    vm: &'vm Vm,
+    identifier: &str,
+    check_type: SecurityCheckType,
+) -> ThrowCompletionOr<(Gc<Object>, Ref<T>, CallContext<'vm>)> {
+    let (wrapper, realm) = this_object(vm, T::wrapper_class(), T::NAME, identifier, check_type)?;
     Ok((wrapper, implementation_of(wrapper), CallContext::new(vm, realm)))
 }
 

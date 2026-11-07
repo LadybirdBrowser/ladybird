@@ -18,6 +18,7 @@ from Generators.libweb_bindings.extended_attributes import wrap_with_extended_at
 from Generators.libweb_bindings.glue_headers import bindings_glue_header_for_interface
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_realm_expr
+from Generators.libweb_bindings.security_checks import implementation_check
 from Generators.libweb_bindings.security_checks import interface_needs_security_check
 from Generators.libweb_bindings.security_checks import on_the_window
 from Generators.libweb_bindings.security_checks import perform_a_security_check
@@ -613,7 +614,7 @@ def write_attribute_getter(
 """
             )
         out.write(
-            f"""        idl_object = TRY(impl_from(vm, js_value));
+            f"""        idl_object = TRY({implementation_check("js_value", attribute.name, "getter")});
         [[maybe_unused]] auto& this_object_realm = js_value.as_object().shape().realm();
 
         {getter_steps}
@@ -654,7 +655,7 @@ def write_attribute_getter(
 
 """
         )
-    impl_from_js_value = "TRY(impl_from(vm, js_value))"
+    impl_from_js_value = f"TRY({implementation_check('js_value', attribute.name, 'getter')})"
     this_object_realm = "js_value.as_object().shape().realm()"
     if window_member_is_cross_origin_accessible(interface, attribute.name, "getter"):
         out.write(f"    {the_remote_window(includes, 'js_value')}\n")
@@ -723,7 +724,7 @@ def write_attribute_setter(
 """
         )
     out.write(
-        """    auto maybe_idl_object = impl_from(vm, js_value);
+        f"""    auto maybe_idl_object = {implementation_check("js_value", attribute.name, "setter")};
 """
     )
     if window_member_is_cross_origin_accessible(interface, attribute.name, "setter"):

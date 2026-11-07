@@ -15,6 +15,7 @@ from Generators.libweb_bindings.cpp_types import implementation_header_for_inter
 from Generators.libweb_bindings.extended_attributes import wrap_with_ce_reactions
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_realm_expr
+from Generators.libweb_bindings.security_checks import implementation_check
 from Generators.libweb_bindings.to_idl_value import to_idl_value
 from Generators.libweb_bindings.to_js_value import to_javascript_value
 from Generators.libweb_bindings.wrappers import interface_and_inherited_interfaces
@@ -801,7 +802,7 @@ def write_indexed_property_getter(
 {{
     [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
-    [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
+    [[maybe_unused]] auto* idl_object = TRY({implementation_check("this_value", operation.name, "method")});
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     if (vm.argument_count() < 1)
@@ -845,7 +846,7 @@ def write_named_property_getter(
 {{
     [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
-    [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
+    [[maybe_unused]] auto* idl_object = TRY({implementation_check("this_value", operation.name, "method")});
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     if (vm.argument_count() < 1)
@@ -914,7 +915,7 @@ def write_named_property_operation(
 {{
     [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
-    [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
+    [[maybe_unused]] auto* idl_object = TRY({implementation_check("this_value", operation.name, "method")});
     [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 """
     )
