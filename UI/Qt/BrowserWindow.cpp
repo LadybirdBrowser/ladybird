@@ -1640,6 +1640,9 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
     }
 
     if (event->type() == QEvent::ContextMenu) {
+        if (widget->contextMenuPolicy() == Qt::PreventContextMenu)
+            return QMainWindow::eventFilter(object, event);
+
         auto* context_menu_event = static_cast<QContextMenuEvent*>(event);
         auto position = context_menu_event->pos();
         auto is_empty_menu_bar_area = widget == menuBar() && menuBar()->actionAt(position) == nullptr;
