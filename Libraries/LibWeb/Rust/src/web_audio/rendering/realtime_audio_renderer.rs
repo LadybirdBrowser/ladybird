@@ -166,6 +166,10 @@ impl RealtimeAudioRenderer {
             return;
         }
         let state = unsafe { &mut *self.state.get() };
+        if state.device_channel_count != channel_count {
+            state.pending_samples.clear();
+            state.playhead = 0.;
+        }
         state.device_channel_count = channel_count;
         self.device_sample_rate.store(sample_rate, Ordering::Relaxed);
         state.device_bus = Some(Box::new(AudioBus::new(channel_count, self.quantum_size)));
