@@ -10,12 +10,10 @@ namespace WebView {
 
 Optional<PageBackingStores::Frame> PageBackingStores::displayed_frame() const
 {
-    if (m_has_usable_front_bitmap) {
-        VERIFY(m_front_bitmap.shared_image_buffer);
-        return Frame { *m_front_bitmap.shared_image_buffer, m_front_bitmap.last_painted_size.to_type<int>(), m_front_bitmap.last_painted_device_pixel_ratio, m_front_bitmap.id };
-    }
-    if (m_backup.shared_image_buffer)
-        return Frame { *m_backup.shared_image_buffer, m_backup.last_painted_size.to_type<int>(), m_backup.last_painted_device_pixel_ratio, {} };
+    if (m_has_usable_front_bitmap)
+        return Frame { m_front_bitmap.shared_image_buffer.ptr(), m_front_bitmap.last_painted_size.to_type<int>(), m_front_bitmap.last_painted_device_pixel_ratio, m_front_bitmap.id };
+    if (m_has_backup)
+        return Frame { m_backup.shared_image_buffer.ptr(), m_backup.last_painted_size.to_type<int>(), m_backup.last_painted_device_pixel_ratio, {} };
     return {};
 }
 
@@ -33,37 +31,42 @@ Vector<Gfx::SharedImageBuffer const*> PageBackingStores::shared_image_buffers() 
     return shared_image_buffers;
 }
 
-void PageBackingStores::install(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+void PageBackingStores::track_installed_backing_stores(ReadonlySpan<i32> bitmap_ids)
 {
-    VERIFY(bitmap_ids.size() == backing_stores.size());
     VERIFY(!bitmap_ids.is_empty());
 
     // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
-    keep_front_as_backup();
+    PageBackingStores::keep_front_as_backup();
     m_has_usable_front_bitmap = false;
     m_front_bitmap.id = bitmap_ids[0];
-    m_front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[0])));
+    m_front_bitmap.shared_image_buffer = nullptr;
     m_other_bitmaps.clear();
-    m_other_bitmaps.ensure_capacity(backing_stores.size() - 1);
-    for (size_t i = 1; i < backing_stores.size(); ++i) {
-        m_other_bitmaps.append({
-            .id = bitmap_ids[i],
-            .last_painted_size = {},
-            .shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i]))),
-        });
-    }
+    track_added_backing_stores(bitmap_ids.slice(1));
+}
+
+void PageBackingStores::track_added_backing_stores(ReadonlySpan<i32> bitmap_ids)
+{
+    m_other_bitmaps.ensure_capacity(m_other_bitmaps.size() + bitmap_ids.size());
+    for (auto bitmap_id : bitmap_ids)
+        m_other_bitmaps.append({ .id = bitmap_id, .last_painted_size = {}, .shared_image_buffer = nullptr });
+}
+
+void PageBackingStores::install(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+{
+    VERIFY(bitmap_ids.size() == backing_stores.size());
+    track_installed_backing_stores(bitmap_ids);
+    m_front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[0])));
+    for (size_t i = 1; i < backing_stores.size(); ++i)
+        m_other_bitmaps[i - 1].shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i])));
 }
 
 void PageBackingStores::add(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
     VERIFY(bitmap_ids.size() == backing_stores.size());
-    for (size_t i = 0; i < backing_stores.size(); ++i) {
-        m_other_bitmaps.append({
-            .id = bitmap_ids[i],
-            .last_painted_size = {},
-            .shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i]))),
-        });
-    }
+    auto first_new_bitmap = m_other_bitmaps.size();
+    track_added_backing_stores(bitmap_ids);
+    for (size_t i = 0; i < backing_stores.size(); ++i)
+        m_other_bitmaps[first_new_bitmap + i].shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i])));
 }
 
 void PageBackingStores::retire(ReadonlySpan<i32> bitmap_ids)
@@ -84,7 +87,7 @@ PageBackingStores::PresentationResult PageBackingStores::present(i32 bitmap_id, 
     m_other_bitmaps[*bitmap_index].last_painted_size = size.to_type<Web::DevicePixels>();
     m_other_bitmaps[*bitmap_index].last_painted_device_pixel_ratio = device_pixel_ratio;
     swap(m_other_bitmaps[*bitmap_index], m_front_bitmap);
-    clear_backup();
+    PageBackingStores::clear_backup();
     return { .did_swap = true, .bitmap_id_to_release = previous_front_bitmap_id };
 }
 
@@ -95,6 +98,13 @@ void PageBackingStores::keep_front_as_backup()
     m_backup.shared_image_buffer = move(m_front_bitmap.shared_image_buffer);
     m_backup.last_painted_size = m_front_bitmap.last_painted_size;
     m_backup.last_painted_device_pixel_ratio = m_front_bitmap.last_painted_device_pixel_ratio;
+    m_has_backup = true;
+}
+
+void PageBackingStores::clear_backup()
+{
+    m_backup = {};
+    m_has_backup = false;
 }
 
 void PageBackingStores::clear()

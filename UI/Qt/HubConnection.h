@@ -23,11 +23,20 @@ public:
     virtual ~HubConnection() override;
 
     static HubConnection& the();
+    static HubConnection* the_if_connected();
 
 private:
     virtual void die() override;
 
     // ^HubClientEndpoint
+    virtual void view_install_backing_stores(u64 view_id, u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override;
+    virtual void view_add_backing_stores(u64 view_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override;
+    virtual void view_retire_backing_stores(u64 view_id, Vector<i32> bitmap_ids) override;
+    virtual void view_present_backing_store(u64 view_id, u64 page_id, i32 bitmap_id, Gfx::IntSize size, double device_pixel_ratio) override;
+    virtual void view_accept_presented_backing_store(u64 view_id, i32 bitmap_id, Gfx::IntRect damage_rect) override;
+    virtual void view_keep_front_backing_store_as_backup(u64 view_id) override;
+    virtual void view_clear_backup_backing_store(u64 view_id) override;
+    virtual void view_clear_backing_stores(u64 view_id) override;
     virtual void view_finish_handling_key_event(u64 view_id, u64 input_id, Web::KeyEvent event) override;
     virtual void view_finish_handling_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event, Web::EventResult result) override;
     virtual void view_finish_handling_drag_event(u64 view_id, u64 input_id, Web::DragEvent event) override;

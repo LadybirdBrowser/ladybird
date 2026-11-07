@@ -2,6 +2,8 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Point.h>
+#include <LibGfx/Rect.h>
+#include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/FileFilter.h>
@@ -92,6 +94,14 @@ struct Hub::ViewState {
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    view_install_backing_stores(u64 view_id, u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) =|
+    view_add_backing_stores(u64 view_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) =|
+    view_retire_backing_stores(u64 view_id, Vector<i32> bitmap_ids) =|
+    view_present_backing_store(u64 view_id, u64 page_id, i32 bitmap_id, Gfx::IntSize size, double device_pixel_ratio) =|
+    view_accept_presented_backing_store(u64 view_id, i32 bitmap_id, Gfx::IntRect damage_rect) =|
+    view_keep_front_backing_store_as_backup(u64 view_id) =|
+    view_clear_backup_backing_store(u64 view_id) =|
+    view_clear_backing_stores(u64 view_id) =|
     view_finish_handling_key_event(u64 view_id, u64 input_id, Web::KeyEvent event) =|
     view_finish_handling_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event, Web::EventResult result) =|
     view_finish_handling_drag_event(u64 view_id, u64 input_id, Web::DragEvent event) =|

@@ -18,7 +18,6 @@
 #include <LibGfx/VulkanContext.h>
 #include <LibGfx/VulkanImage.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/WebContentClient.h>
 #include <UI/Qt/NativeWindowContainer.h>
 #include <UI/Qt/WebContentView.h>
 #ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
@@ -1250,10 +1249,10 @@ void WebContentView::schedule_vulkan_window_update()
     update();
 }
 
-void WebContentView::release_backing_store(i32 bitmap_id)
+void WebContentView::release_backing_store(u64 page_id, i32 bitmap_id)
 {
 #ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
-    if (auto index = m_retired_backing_stores.find_first_index_if([&](auto const& store) { return store.page_id == page().id().value() && store.bitmap_id == bitmap_id; }); index.has_value()) {
+    if (auto index = m_retired_backing_stores.find_first_index_if([&](auto const& store) { return store.page_id == page_id && store.bitmap_id == bitmap_id; }); index.has_value()) {
         auto& release = *m_retired_backing_stores[*index].release;
         auto handled = release.view_finished_reading();
         if (release.is_released())
@@ -1263,14 +1262,13 @@ void WebContentView::release_backing_store(i32 bitmap_id)
     }
     // NB: The compositor of the desktop may read a frame until it releases its buffer, which it does once another frame
     //     replaced it on screen. The Compositor must not paint into the backing store until then.
-    if (m_page_surface && m_page_surface->holds_backing_store(page().id().value(), bitmap_id)) {
-        auto& page = this->page();
-        if (!m_backing_stores_waiting_for_release.contains([&](auto const& store) { return store.page.ptr() == &page && store.bitmap_id == bitmap_id; }))
-            m_backing_stores_waiting_for_release.append({ page, bitmap_id });
+    if (m_page_surface && m_page_surface->holds_backing_store(page_id, bitmap_id)) {
+        if (!m_backing_stores_waiting_for_release.contains([&](auto const& store) { return store.page_id == page_id && store.bitmap_id == bitmap_id; }))
+            m_backing_stores_waiting_for_release.append({ page_id, bitmap_id });
         return;
     }
 #endif
-    RemoteView::release_backing_store(bitmap_id);
+    RemoteView::release_backing_store(page_id, bitmap_id);
 }
 
 #ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
@@ -1282,12 +1280,12 @@ bool WebContentView::create_page_surface()
 
     m_page_surface->on_backing_store_released = [this](u64 page_id, i32 bitmap_id) {
         auto index = m_backing_stores_waiting_for_release.find_first_index_if([&](auto const& store) {
-            return store.page->id().value() == page_id && store.bitmap_id == bitmap_id;
+            return store.page_id == page_id && store.bitmap_id == bitmap_id;
         });
         if (!index.has_value())
             return;
         auto store = m_backing_stores_waiting_for_release.take(*index);
-        store.page->release_presented_bitmap(store.bitmap_id);
+        release_backing_store_to_page(store.page_id, store.bitmap_id);
     };
     m_page_surface->on_ready_to_present = [this] {
         schedule_vulkan_window_update();
@@ -1432,17 +1430,14 @@ void WebContentView::hide_image_over_page()
 void WebContentView::destroy_page_surface()
 {
     m_page_surface->retire_buffers([this](WaylandPageSurface::HeldBackingStore const& held) -> Function<void()> {
-        RefPtr<WebView::WebContentPage> owner;
         bool view_finished_reading = false;
-        if (auto index = m_backing_stores_waiting_for_release.find_first_index_if([&](auto const& store) { return store.page->id().value() == held.page_id && store.bitmap_id == held.bitmap_id; }); index.has_value()) {
-            owner = m_backing_stores_waiting_for_release.take(*index).page;
+        if (auto index = m_backing_stores_waiting_for_release.find_first_index_if([&](auto const& store) { return store.page_id == held.page_id && store.bitmap_id == held.bitmap_id; }); index.has_value()) {
+            m_backing_stores_waiting_for_release.remove(*index);
             view_finished_reading = true;
-        } else if (auto client = WebView::WebContentClient::client_for_compositor_context_id(Web::compositor_context_id_for_page(Web::PageId { held.page_id })); client.has_value()) {
-            owner = client->page(Web::PageId { held.page_id });
         }
-        if (!owner || held.bitmap_id < 0)
+        if (held.bitmap_id < 0)
             return {};
-        auto release = make_ref_counted<BackingStoreRelease>([owner = owner.release_nonnull(), bitmap_id = held.bitmap_id] { owner->release_presented_bitmap(bitmap_id); });
+        auto release = make_ref_counted<BackingStoreRelease>([page_id = held.page_id, bitmap_id = held.bitmap_id] { release_backing_store_to_page(page_id, bitmap_id); });
         if (view_finished_reading)
             release->view_finished_reading();
         else
@@ -1453,7 +1448,7 @@ void WebContentView::destroy_page_surface()
     m_page_surface_rect = {};
     // NB: Unheld stores do not need to wait for a Wayland release. Held stores moved their acknowledgements above.
     for (auto& store : exchange(m_backing_stores_waiting_for_release, {}))
-        store.page->release_presented_bitmap(store.bitmap_id);
+        release_backing_store_to_page(store.page_id, store.bitmap_id);
     release_retired_backing_stores_no_longer_painted();
 }
 

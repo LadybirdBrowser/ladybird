@@ -88,6 +88,17 @@ void ConnectionFromUI::view_enqueue_pinch_event(u64 view_id, Web::PinchEvent eve
     }
 }
 
+void ConnectionFromUI::release_backing_store(u64 page_id, i32 bitmap_id)
+{
+    // NB: A page can outlive its view, and a view can stop showing a page, so this goes by the page.
+    Web::PageId id { page_id };
+    auto client = WebView::WebContentClient::client_for_compositor_context_id(Web::compositor_context_id_for_page(id));
+    if (!client.has_value())
+        return;
+    if (auto* page = client->page(id))
+        page->release_presented_bitmap(bitmap_id);
+}
+
 View* ConnectionFromUI::find_view(u64 view_id)
 {
     auto view = WebView::ViewImplementation::find_view_by_id(view_id);

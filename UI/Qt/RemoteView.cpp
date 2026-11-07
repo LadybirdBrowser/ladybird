@@ -23,6 +23,33 @@ RemoteView::~RemoteView()
     m_view->detach_from_host();
 }
 
+void RemoteView::did_install_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+{
+    m_backing_stores_page_id = page_id;
+    m_backing_stores.install(move(bitmap_ids), move(backing_stores));
+}
+
+void RemoteView::did_present_backing_store(u64 page_id, i32 bitmap_id, Gfx::IntSize size, double device_pixel_ratio)
+{
+    // NB: The Compositor may paint into the backing store this frame replaced as soon as it gets it back, so that must
+    //     wait until nothing here reads from it anymore.
+    auto result = m_backing_stores.present(bitmap_id, size, device_pixel_ratio);
+    release_backing_store(page_id, result.bitmap_id_to_release);
+}
+
+void RemoteView::did_accept_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect)
+{
+    did_accept_presented_backing_store(bitmap_id, damage_rect);
+    if (on_ready_to_paint)
+        on_ready_to_paint();
+}
+
+void RemoteView::release_backing_store_to_page(u64 page_id, i32 bitmap_id)
+{
+    if (auto* hub = HubConnection::the_if_connected())
+        hub->async_release_backing_store(page_id, bitmap_id);
+}
+
 void RemoteView::enqueue_input_event(Web::InputEvent event)
 {
     auto input_id = m_next_input_id++;

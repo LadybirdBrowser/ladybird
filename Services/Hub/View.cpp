@@ -9,6 +9,74 @@
 
 namespace Hub {
 
+// The backing stores of a view, as far as the view needs to know. The UI holds the images and shows them, and hears of
+// each step so that it comes to the same result.
+class BackingStoresInUI final : public WebView::PageBackingStores {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    explicit BackingStoresInUI(View& view)
+        : m_view(view)
+    {
+    }
+
+private:
+    virtual void install(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override
+    {
+        track_installed_backing_stores(bitmap_ids);
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_install_backing_stores(m_view.view_id(), m_view.page().id().value(), move(bitmap_ids), move(backing_stores));
+    }
+
+    virtual void add(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override
+    {
+        track_added_backing_stores(bitmap_ids);
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_add_backing_stores(m_view.view_id(), move(bitmap_ids), move(backing_stores));
+    }
+
+    virtual void retire(ReadonlySpan<i32> bitmap_ids) override
+    {
+        PageBackingStores::retire(bitmap_ids);
+        if (auto* ui = ConnectionFromUI::the()) {
+            Vector<i32> retired_bitmap_ids;
+            retired_bitmap_ids.append(bitmap_ids.data(), bitmap_ids.size());
+            ui->async_view_retire_backing_stores(m_view.view_id(), move(retired_bitmap_ids));
+        }
+    }
+
+    virtual PresentationResult present(i32 bitmap_id, Gfx::IntSize size, double device_pixel_ratio) override
+    {
+        auto result = PageBackingStores::present(bitmap_id, size, device_pixel_ratio);
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_present_backing_store(m_view.view_id(), m_view.page().id().value(), bitmap_id, size, device_pixel_ratio);
+        return result;
+    }
+
+    virtual void keep_front_as_backup() override
+    {
+        PageBackingStores::keep_front_as_backup();
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_keep_front_backing_store_as_backup(m_view.view_id());
+    }
+
+    virtual void clear_backup() override
+    {
+        PageBackingStores::clear_backup();
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_clear_backup_backing_store(m_view.view_id());
+    }
+
+    virtual void clear() override
+    {
+        PageBackingStores::clear();
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_clear_backing_stores(m_view.view_id());
+    }
+
+    View& m_view;
+};
+
 View::View(ViewHost& host, InitialState initial_state)
     : ViewImplementation(initial_state.is_private)
     , m_host(&host)
@@ -16,6 +84,7 @@ View::View(ViewHost& host, InitialState initial_state)
     m_device_pixel_ratio = initial_state.device_pixel_ratio;
     m_maximum_frames_per_second = initial_state.maximum_frames_per_second;
     m_display_id = initial_state.display_id;
+    m_backing_stores = make<BackingStoresInUI>(*this);
     forward_callbacks_to_ui();
 }
 
@@ -440,6 +509,12 @@ void View::push_state_to_ui()
     ui->async_view_state_changed(view_id(), move(state));
 }
 
+void View::did_accept_presented_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_accept_presented_backing_store(view_id(), bitmap_id, damage_rect);
+}
+
 void View::prepare_page_for_navigable(WebView::WebContentPage& page)
 {
     ViewImplementation::prepare_page_for_navigable(page);
@@ -473,20 +548,6 @@ void View::show_context_menu(WebView::Menu& menu, Gfx::IntPoint widget_position)
 {
     if (m_host)
         m_host->show_context_menu(menu, widget_position);
-}
-
-void View::did_accept_presented_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect)
-{
-    if (m_host)
-        m_host->did_accept_presented_backing_store(bitmap_id, damage_rect);
-}
-
-void View::release_backing_store(i32 bitmap_id)
-{
-    if (m_host)
-        m_host->release_backing_store(bitmap_id);
-    else
-        ViewImplementation::release_backing_store(bitmap_id);
 }
 
 }

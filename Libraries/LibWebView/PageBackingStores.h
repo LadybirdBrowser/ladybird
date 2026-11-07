@@ -22,8 +22,13 @@ namespace WebView {
 // is the front backing store, which holds the frame on display. The Compositor paints into the others.
 class WEBVIEW_API PageBackingStores {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    virtual ~PageBackingStores() = default;
+
     struct Frame {
-        Gfx::SharedImageBuffer const& shared_image_buffer;
+        // None where the frames are shown in another process, which holds the images.
+        Gfx::SharedImageBuffer const* shared_image_buffer { nullptr };
         Gfx::IntSize size;
         double device_pixel_ratio { 1.0 };
         // Empty for a frame kept from backing stores that are gone.
@@ -38,9 +43,9 @@ public:
     Vector<Gfx::SharedImageBuffer const*> shared_image_buffers() const;
 
     // Replaces every backing store. The first of the new ones becomes the front backing store.
-    void install(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>);
-    void add(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>);
-    void retire(ReadonlySpan<i32> bitmap_ids);
+    virtual void install(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>);
+    virtual void add(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>);
+    virtual void retire(ReadonlySpan<i32> bitmap_ids);
 
     struct PresentationResult {
         bool did_swap { false };
@@ -48,14 +53,19 @@ public:
         i32 bitmap_id_to_release { -1 };
     };
     // Makes the backing store with this ID the front backing store, unless it is no longer one of ours.
-    PresentationResult present(i32 bitmap_id, Gfx::IntSize, double device_pixel_ratio);
+    virtual PresentationResult present(i32 bitmap_id, Gfx::IntSize, double device_pixel_ratio);
 
     // Keeps the frame on display, so there is something to show until a new frame arrives.
-    void keep_front_as_backup();
-    void clear_backup() { m_backup = {}; }
+    virtual void keep_front_as_backup();
+    virtual void clear_backup();
 
     // Forgets every backing store, other than the frame kept as a backup.
-    void clear();
+    virtual void clear();
+
+protected:
+    // These keep track of backing stores whose images another process holds.
+    void track_installed_backing_stores(ReadonlySpan<i32> bitmap_ids);
+    void track_added_backing_stores(ReadonlySpan<i32> bitmap_ids);
 
 private:
     struct SharedBitmap {
@@ -69,6 +79,7 @@ private:
     Vector<SharedBitmap> m_other_bitmaps;
     bool m_has_usable_front_bitmap { false };
     SharedBitmap m_backup;
+    bool m_has_backup { false };
 };
 
 }
