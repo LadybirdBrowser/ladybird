@@ -5,12 +5,9 @@
  */
 
 #include <AK/AnyOf.h>
-#include <LibURL/InternalURLs.h>
 #include <LibURL/URL.h>
-#include <LibUnicode/DisplayNames.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalTraversable.h>
-#include <LibWebView/Menu.h>
 #include <LibWebView/PageTranslation.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/URL.h>
@@ -18,15 +15,6 @@
 #include <LibWebView/WebContentPage.h>
 
 namespace WebView {
-
-// The browser's own strings are English, so languages are named in English.
-static String language_display_name(StringView language)
-{
-    auto primary_language = primary_language_subtag(language);
-    if (auto name = Unicode::language_display_name("en"sv, primary_language, Unicode::LanguageDisplay::Standard); name.has_value())
-        return name->to_utf8();
-    return MUST(String::from_utf8(primary_language));
-}
 
 // The languages the user reads, most preferred first, one per language whatever its regions.
 static Vector<String> languages_the_user_reads()
@@ -42,37 +30,6 @@ static Vector<String> languages_the_user_reads()
 PageTranslation::PageTranslation(ViewImplementation& view)
     : m_view(view)
 {
-    m_translate_action = Action::create("Translate"sv, ActionID::TranslatePage, [] { });
-    m_translate_action->set_tooltip("Translate this page"sv);
-    m_translate_action->set_visible(false);
-
-    m_translation_menu = Menu::create("Translation"sv);
-    for (size_t index = 0; index < MAXIMUM_OFFERED_LANGUAGES; ++index) {
-        auto action = Action::create_checkable("Translate"sv, ActionID::TranslateTo, [this, index] {
-            if (auto target_language = ready_target_language(index); target_language.has_value())
-                translate_to(*target_language);
-            // NB: The check mark shows the language the page is in, which activating an action doesn't change by itself.
-            update_actions();
-        });
-        action->set_visible(false);
-        m_translation_menu->add_action(action);
-        m_translate_to_actions.append(move(action));
-    }
-    m_show_original_action = Action::create("Show Original"sv, ActionID::ShowOriginal, [this] { show_original(); });
-    m_translation_menu->add_action(*m_show_original_action);
-    m_translation_menu->add_separator();
-    m_download_languages_action = Action::create("Download Languages…"sv, ActionID::DownloadTranslationLanguages, [] {
-        if (auto* translator = Application::the().translator())
-            translator->open_language_download_settings();
-    });
-    m_translation_menu->add_action(*m_download_languages_action);
-    m_translation_menu->add_action(Action::create("Preferred Languages…"sv, ActionID::EditPreferredLanguages, [] {
-        auto url = URL::about_settings();
-        url.set_fragment("editLanguages"sv);
-        Application::the().activate_or_open_tab_with_url(url);
-    }));
-
-    update_actions();
 }
 
 PageTranslation::~PageTranslation()
@@ -111,7 +68,7 @@ void PageTranslation::translate_to(String const& target_language)
             page.async_start_translation(*m_page_language, target_language);
     });
 
-    update_actions();
+    did_change_state();
 }
 
 void PageTranslation::show_original()
@@ -163,7 +120,7 @@ void PageTranslation::did_change_active_document()
     m_page_language.clear();
     m_target_languages.clear();
     m_target_language.clear();
-    update_actions();
+    did_change_state();
 }
 
 void PageTranslation::did_create_page(WebContentPage& page)
@@ -240,7 +197,7 @@ void PageTranslation::did_detect_page_language(u64 generation, Optional<String> 
 
     m_page_language = move(language);
     m_target_languages.clear();
-    update_actions();
+    did_change_state();
 
     // A page in a language the user reads isn't offered for translation.
     auto languages = languages_the_user_reads();
@@ -256,21 +213,10 @@ void PageTranslation::did_detect_page_language(u64 generation, Optional<String> 
         if (!weak_this || generation != weak_this->m_generation)
             return;
         weak_this->m_target_languages = move(target_languages);
-        weak_this->update_actions();
+        weak_this->did_change_state();
         if (on_complete)
             on_complete();
     });
-}
-
-Optional<String> PageTranslation::ready_target_language(size_t index) const
-{
-    for (auto const& target : m_target_languages) {
-        if (target.needs_download)
-            continue;
-        if (index-- == 0)
-            return target.language;
-    }
-    return {};
 }
 
 // The pages forget the translation, so a document they load next isn't translated unless it's asked for.
@@ -292,26 +238,27 @@ void PageTranslation::close_session()
     m_session_id.clear();
 }
 
-void PageTranslation::update_actions()
+Vector<String> PageTranslation::offered_target_languages() const
 {
-    m_translate_action->set_visible(is_offered());
-    m_translate_action->set_engaged(is_translated());
-    m_translate_action->set_tooltip(is_translated() ? "Showing translation"sv : "Translate this page"sv);
-
-    size_t slot = 0;
+    Vector<String> languages;
     for (auto const& target : m_target_languages) {
-        if (target.needs_download || slot == m_translate_to_actions.size())
+        if (target.needs_download)
             continue;
-        auto& action = m_translate_to_actions[slot++];
-        action->set_text(MUST(String::formatted("Translate to {}", language_display_name(target.language))));
-        action->set_checked(m_target_language.has_value() && is_same_language(*m_target_language, target.language));
-        action->set_visible(true);
+        if (languages.size() == MAXIMUM_OFFERED_LANGUAGES)
+            break;
+        languages.append(target.language);
     }
-    for (; slot < m_translate_to_actions.size(); ++slot)
-        m_translate_to_actions[slot]->set_visible(false);
+    return languages;
+}
 
-    m_show_original_action->set_enabled(is_translated());
-    m_download_languages_action->set_visible(any_of(m_target_languages, [](auto const& target) { return target.needs_download; }));
+bool PageTranslation::needs_language_download() const
+{
+    return any_of(m_target_languages, [](auto const& target) { return target.needs_download; });
+}
+
+void PageTranslation::did_change_state()
+{
+    m_view.did_change_state();
 }
 
 Optional<String> PageTranslation::current_site() const

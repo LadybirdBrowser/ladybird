@@ -36,7 +36,6 @@
 #elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
 #    include <LibWebView/NotificationBackendFreedesktop.h>
 #endif
-#include <Hub/ActionMirror.h>
 #include <LibWebView/NoOpNotificationBackend.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Translator.h>
@@ -53,7 +52,6 @@
 #include <UI/Qt/PictureInPictureWindow.h>
 #include <UI/Qt/PlainText.h>
 #include <UI/Qt/ProcessManagerWindow.h>
-#include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteDownloads.h>
 #include <UI/Qt/RemoteSession.h>
 #include <UI/Qt/StringUtils.h>
@@ -345,7 +343,7 @@ public:
 
     void create_application_actions()
     {
-        auto& application = RemoteActions::the();
+        auto& application = ApplicationActions::the();
 
         auto make_action = [&](QString const& text) {
             auto* action = new QAction(text, m_application_widget);
@@ -813,7 +811,13 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
 #    if defined(AK_OS_MACOS)
     set_profile_application_icon(state.profile_identifier, state.profile_identity, state.profile_is_temporary);
 #    endif
-    RemoteActions::the().set_application_actions(state.actions);
+    m_application_actions = make<ApplicationActions>(ApplicationActions::PageOptions {
+        .user_agent = move(state.user_agent),
+        .navigator_compatibility_mode = state.navigator_compatibility_mode,
+        .scripting_enabled = state.scripting_enabled,
+        .blocks_pop_ups = state.blocks_pop_ups,
+        .devtools_enabled = state.devtools_enabled,
+    });
     RemoteDownloads::the().set_downloads(state.downloads);
 
     create_platform_actions();
@@ -967,7 +971,14 @@ void Application::create_platform_actions()
 #ifndef LADYBIRD_HUB_IN_OWN_PROCESS
     m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(WebView::Application::settings().serialize_json()));
     m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(WebView::Application::profile().paths().config, "Bookmarks.json"sv).string()));
-    RemoteActions::the().set_application_actions(Hub::ActionMirror::the().application_actions());
+    auto& hub = WebView::Application::the();
+    m_application_actions = make<ApplicationActions>(ApplicationActions::PageOptions {
+        .user_agent = hub.user_agent_string(),
+        .navigator_compatibility_mode = hub.navigator_compatibility_mode(),
+        .scripting_enabled = hub.scripting_enabled(),
+        .blocks_pop_ups = hub.blocks_pop_ups(),
+        .devtools_enabled = hub.devtools_enabled(),
+    });
     RemoteDownloads::the().set_downloads(Hub::ConnectionFromUI::downloads());
 #endif
     if (auto* hub = HubConnection::the_if_connected())
@@ -978,9 +989,10 @@ void Application::create_platform_actions()
     };
     m_bookmarks = make<Bookmarks>(*m_bookmark_store);
 
-    RemoteActions::the().inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
+    m_open_task_manager_action = WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
         show_process_manager();
-    }));
+    });
+    m_application_actions->inspect_menu().add_action(*m_open_task_manager_action);
 
     if (m_application) {
         auto& qapplication = static_cast<LadybirdQApplication&>(*m_application);
@@ -2293,6 +2305,8 @@ void Application::report_active_view() const
 {
     if (m_bookmarks)
         m_bookmarks->update_toggle_bookmark_action();
+    if (m_application_actions)
+        m_application_actions->update_for_active_view();
 
     auto* hub = HubConnection::the_if_connected();
     if (!hub)
@@ -2303,12 +2317,14 @@ void Application::report_active_view() const
 
 void Application::did_enable_devtools() const
 {
+    m_application_actions->devtools_enabled_changed(true);
     if (m_active_window)
         m_active_window->on_devtools_enabled();
 }
 
 void Application::did_disable_devtools() const
 {
+    m_application_actions->devtools_enabled_changed(false);
     if (m_active_window)
         m_active_window->on_devtools_disabled();
 }
@@ -2320,7 +2336,7 @@ void Application::on_recently_closed_entries_changed() const
 
 QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_window)
 {
-    auto& application = RemoteActions::the();
+    auto& application = ApplicationActions::the();
     auto* menu_bar = new QMenuBar();
 
     auto* file_menu = menu_bar->addMenu("&File");
@@ -2392,6 +2408,11 @@ QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_
     if (for_browser_window == ForBrowserWindow::Yes) {
         menu_bar->addMenu(inspect_menu());
         menu_bar->addMenu(debug_menu());
+    } else {
+        // NB: The Task Manager needs no browser window, so it can be opened while none is focused, such as right after
+        //     it was closed.
+        auto* inspect_menu = menu_bar->addMenu("&Inspect");
+        inspect_menu->addAction(create_application_action(*inspect_menu, *m_open_task_manager_action, IncludeActionIcon::No));
     }
     menu_bar->addMenu(help_menu());
 

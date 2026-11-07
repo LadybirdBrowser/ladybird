@@ -6,13 +6,17 @@
 
 #include <AK/HashMap.h>
 #ifndef LADYBIRD_HUB_IN_OWN_PROCESS
-#    include <Hub/ActionMirror.h>
 #    include <Hub/Application.h>
 #    include <LibWebView/PageTranslation.h>
 #endif
+#include <LibURL/InternalURLs.h>
+#include <LibUnicode/DisplayNames.h>
+#include <LibWebView/PageTranslation.h>
+#include <LibWebView/Translator.h>
+#include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/Bookmarks.h>
-#include <UI/Qt/RemoteActions.h>
+#include <UI/Qt/ContextMenus.h>
 #include <UI/Qt/RemoteView.h>
 
 namespace Ladybird {
@@ -26,12 +30,9 @@ RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_st
     , m_display_id(initial_state.display_id)
 {
 #ifdef LADYBIRD_HUB_IN_OWN_PROCESS
-    Hub::ViewActions actions;
     if (view_id.has_value()) {
-        auto description = HubConnection::the().view_description(*view_id);
         m_view_id = *view_id;
-        m_state = description.take_state();
-        actions = description.take_actions();
+        m_state = HubConnection::the().view_description(*view_id);
     } else {
         auto view = HubConnection::the().create_view({
             .is_private = initial_state.is_private,
@@ -46,7 +47,6 @@ RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_st
         });
         m_view_id = view.view_id();
         m_state = view.take_state();
-        actions = view.take_actions();
     }
 #else
     if (view_id.has_value()) {
@@ -58,18 +58,28 @@ RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_st
     }
     m_view_id = m_view->view_id();
     m_state = m_view->current_state();
-    auto actions = Hub::ActionMirror::the().view_actions(*m_view);
 #endif
 
-    auto& remote_actions = RemoteActions::the();
-    m_navigate_back_action = remote_actions.action_for(actions.navigate_back_action);
-    m_navigate_forward_action = remote_actions.action_for(actions.navigate_forward_action);
+    m_navigate_back_action = WebView::Action::create("Back"sv, WebView::ActionID::NavigateBack, [this] {
+        traverse_the_history_by_delta(-1);
+    });
+    m_navigate_forward_action = WebView::Action::create("Forward"sv, WebView::ActionID::NavigateForward, [this] {
+        traverse_the_history_by_delta(+1);
+    });
     m_toggle_bookmark_action = WebView::Action::create("Toggle Bookmark"sv, WebView::ActionID::ToggleBookmarkViaToolbar, [] {
         Application::the().show_bookmark_popover();
     });
-    m_reset_zoom_action = remote_actions.action_for(actions.reset_zoom_action);
-    m_translate_action = remote_actions.action_for(actions.translate_action);
+    m_reset_zoom_action = WebView::Action::create("100%"sv, WebView::ActionID::ResetZoomViaToolbar, [this] {
+        reset_zoom();
+    });
+    m_reset_zoom_action->set_tooltip("Reset zoom level"sv);
+    m_copy_link_to_highlight_action = WebView::Action::create("Copy Link to Highlight"sv, WebView::ActionID::CopyLinkToHighlight, [this] {
+        if (m_link_to_highlight.has_value())
+            Application::the().set_clipboard_text(MUST(String::from_byte_string(WebView::url_text_to_copy(*m_link_to_highlight))));
+    });
+    create_translation_actions();
 
+    update_view_actions();
     update_bookmark_action();
 
     s_views.set(m_view_id, this);
@@ -302,12 +312,6 @@ WebView::WebCompatReport::Page RemoteView::describe_page() const
     return { .url = page.take_url(), .user_agent = page.take_user_agent(), .viewport_size = page.viewport_size(), .device_pixel_ratio = page.device_pixel_ratio(), .zoom_level = page.zoom_level() };
 }
 
-WebView::Menu& RemoteView::translation_menu()
-{
-    m_translation_menu = RemoteActions::the().menu_for(HubConnection::the().view_translation_menu(view_id()));
-    return *m_translation_menu;
-}
-
 Vector<WebView::HistoryEntry> RemoteView::recent_history_entries(size_t limit) const
 {
     return HubConnection::the().view_recent_history_entries(view_id(), limit);
@@ -355,12 +359,6 @@ WebView::WebCompatReport::Page RemoteView::describe_page() const
     return WebView::WebCompatReport::describe_page(*m_view);
 }
 
-WebView::Menu& RemoteView::translation_menu()
-{
-    m_translation_menu = RemoteActions::the().menu_for(Hub::ActionMirror::the().entries_of(m_view->page_translation().translation_menu()));
-    return *m_translation_menu;
-}
-
 Vector<WebView::HistoryEntry> RemoteView::recent_history_entries(size_t limit) const
 {
     return m_view->recent_history_entries(limit);
@@ -397,11 +395,98 @@ RemoteView* RemoteView::find(u64 view_id)
     return s_views.get(view_id).value_or(nullptr);
 }
 
-void RemoteView::did_request_context_menu(Vector<Hub::MenuEntry> const& entries, Gfx::IntPoint widget_position)
+// The browser's own strings are English, so languages are named in English.
+static String language_display_name(StringView language)
+{
+    auto primary_language = WebView::primary_language_subtag(language);
+    if (auto name = Unicode::language_display_name("en"sv, primary_language, Unicode::LanguageDisplay::Standard); name.has_value())
+        return name->to_utf8();
+    return MUST(String::from_utf8(primary_language));
+}
+
+void RemoteView::create_translation_actions()
+{
+    m_translate_action = WebView::Action::create("Translate"sv, WebView::ActionID::TranslatePage, [] { });
+
+    m_translation_menu = WebView::Menu::create("Translation"sv);
+    for (size_t index = 0; index < WebView::PageTranslation::MAXIMUM_OFFERED_LANGUAGES; ++index) {
+        auto action = WebView::Action::create_checkable("Translate"sv, WebView::ActionID::TranslateTo, [this, index] {
+            if (index < m_state.translation_languages.size())
+                HubConnection::the().async_view_translate_to(view_id(), m_state.translation_languages[index]);
+            // NB: The check mark shows the language the page is in, which activating an action doesn't change by itself.
+            update_view_actions();
+        });
+        m_translation_menu->add_action(action);
+        m_translate_to_actions.append(move(action));
+    }
+    m_show_original_action = WebView::Action::create("Show Original"sv, WebView::ActionID::ShowOriginal, [this] {
+        HubConnection::the().async_view_show_original(view_id());
+    });
+    m_translation_menu->add_action(*m_show_original_action);
+    m_translation_menu->add_separator();
+    m_download_languages_action = WebView::Action::create("Download Languages…"sv, WebView::ActionID::DownloadTranslationLanguages, [] {
+        if (auto* translator = Application::the().translator())
+            translator->open_language_download_settings();
+    });
+    m_translation_menu->add_action(*m_download_languages_action);
+    m_translation_menu->add_action(WebView::Action::create("Preferred Languages…"sv, WebView::ActionID::EditPreferredLanguages, [] {
+        auto url = URL::about_settings();
+        url.set_fragment("editLanguages"sv);
+        Application::the().activate_or_open_tab_with_url(url);
+    }));
+}
+
+void RemoteView::update_translation_actions()
+{
+    m_translate_action->set_visible(m_state.translation_offered);
+    m_translate_action->set_engaged(m_state.is_translated);
+    m_translate_action->set_tooltip(m_state.is_translated ? "Showing translation"sv : "Translate this page"sv);
+
+    auto const& target_language = m_state.translation_target_language;
+    for (size_t slot = 0; slot < m_translate_to_actions.size(); ++slot) {
+        auto& action = m_translate_to_actions[slot];
+        if (slot >= m_state.translation_languages.size()) {
+            action->set_visible(false);
+            continue;
+        }
+        auto const& language = m_state.translation_languages[slot];
+        action->set_text(MUST(String::formatted("Translate to {}", language_display_name(language))));
+        action->set_checked(target_language.has_value() && WebView::is_same_language(*target_language, language));
+        action->set_visible(true);
+    }
+
+    m_show_original_action->set_enabled(m_state.is_translated);
+    m_download_languages_action->set_visible(m_state.translation_needs_language_download);
+}
+
+void RemoteView::update_view_actions()
+{
+    // NB: The state can come before the view has made its actions.
+    if (!m_navigate_back_action)
+        return;
+
+    m_navigate_back_action->set_enabled(m_state.can_navigate_back);
+    m_navigate_forward_action->set_enabled(m_state.can_navigate_forward);
+    if (m_state.zoom_level != 1.0) {
+        m_reset_zoom_action->set_text(MUST(String::formatted("{}%", round_to<int>(m_state.zoom_level * 100))));
+        m_reset_zoom_action->set_visible(true);
+    } else {
+        m_reset_zoom_action->set_visible(false);
+    }
+    update_translation_actions();
+}
+
+void RemoteView::did_request_context_menu(WebView::ContextMenuRequest const& request)
 {
     // NB: The menu has to outlive this call, since the view may show it later.
-    m_context_menu = RemoteActions::the().menu_for(entries);
-    show_context_menu(*m_context_menu, widget_position);
+    m_context_menu = create_context_menu(*this, request);
+    show_context_menu(*m_context_menu, request.widget_position);
+}
+
+void RemoteView::did_make_link_to_highlight(Optional<URL::URL> url)
+{
+    m_link_to_highlight = move(url);
+    m_copy_link_to_highlight_action->set_enabled(m_link_to_highlight.has_value());
 }
 
 }

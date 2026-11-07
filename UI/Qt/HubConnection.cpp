@@ -8,13 +8,14 @@
 #include <LibCore/Process.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/ApplicationActions.h>
 #include <UI/Qt/Bookmarks.h>
 #include <UI/Qt/BookmarksPage.h>
 #include <UI/Qt/HubConnection.h>
-#include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteDownloads.h>
 #include <UI/Qt/RemoteSuggestionProvider.h>
 #include <UI/Qt/RemoteView.h>
+#include <UI/Qt/Tab.h>
 
 namespace Ladybird {
 
@@ -646,20 +647,16 @@ void HubConnection::settings_changed(ByteString settings_json, u64 last_applied_
     Application::settings().replace_with_json(settings.value(), WebView::Settings::PersistChange::No);
 }
 
-void HubConnection::action_retired(u64 handle)
-{
-    RemoteActions::the().retire(handle);
-}
-
-void HubConnection::action_changed(Hub::ActionState state)
-{
-    RemoteActions::the().update(state);
-}
-
-void HubConnection::view_show_context_menu(u64 view_id, Vector<Hub::MenuEntry> entries, Gfx::IntPoint widget_position)
+void HubConnection::view_request_context_menu(u64 view_id, WebView::ContextMenuRequest request)
 {
     if (auto* view = RemoteView::find(view_id))
-        view->did_request_context_menu(entries, widget_position);
+        view->did_request_context_menu(request);
+}
+
+void HubConnection::view_did_make_link_to_highlight(u64 view_id, Optional<URL::URL> url)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_make_link_to_highlight(move(url));
 }
 
 void HubConnection::view_update_zoom(u64 view_id)
@@ -688,6 +685,9 @@ void HubConnection::view_state_changed(u64 view_id, Hub::ViewState state)
         view->set_state(move(state));
         if (url_changed)
             view->update_bookmark_action();
+        // NB: The application actions follow the active view only, and background tabs change state often.
+        if (auto* tab = Application::the().active_tab(); tab && tab->is_loaded() && &tab->view() == view)
+            ApplicationActions::the().update_for_active_view();
     }
 }
 

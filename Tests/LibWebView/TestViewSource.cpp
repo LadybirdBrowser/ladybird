@@ -13,7 +13,6 @@
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HeadlessWebView.h>
-#include <LibWebView/Menu.h>
 #include <LibWebView/Utilities.h>
 
 namespace {
@@ -53,7 +52,6 @@ public:
     void activate(WebView::ViewImplementation& view)
     {
         m_active_view = &view;
-        update_actions_for_active_web_view();
     }
 
     size_t opened_tab_count() const { return m_opened_tabs.size(); }
@@ -88,16 +86,16 @@ TEST_CASE(view_source_of_source_page)
 
     app->activate(*view);
     VERIFY(view->can_view_source());
-    VERIFY(app->view_source_action().enabled());
+    VERIFY(app->active_web_view()->can_view_source());
 
-    app->view_source_action().activate();
+    view->get_source();
     Core::EventLoop::current().spin_until([&]() {
         return app->opened_tab_count() == 1 && app->opened_tab(0).url() == URL::about_srcdoc();
     });
 
     auto& source_tab = app->opened_tab(0);
     VERIFY(!source_tab.can_view_source());
-    VERIFY(!app->view_source_action().enabled());
+    VERIFY(!app->active_web_view()->can_view_source());
 
     source_tab.get_source();
     VERIFY(app->opened_tab_count() == 1);
@@ -108,28 +106,28 @@ TEST_CASE(view_source_of_source_page)
     VERIFY(!source_tab.can_view_source());
 
     app->activate(*view);
-    VERIFY(app->view_source_action().enabled());
+    VERIFY(app->active_web_view()->can_view_source());
 
     app->activate(source_tab);
-    VERIFY(!app->view_source_action().enabled());
+    VERIFY(!app->active_web_view()->can_view_source());
 
     auto loads_before_navigation = app->opened_tab_loads();
     source_tab.load(URL::Parser::basic_parse("data:text/html,<p>Another page</p>"sv).release_value());
     Core::EventLoop::current().spin_until([&]() { return app->opened_tab_loads() > loads_before_navigation; });
 
     VERIFY(source_tab.can_view_source());
-    VERIFY(app->view_source_action().enabled());
+    VERIFY(app->active_web_view()->can_view_source());
 
     // History traversal brings the source page back, and with it the restriction.
     source_tab.traverse_the_history_by_delta(-1);
     Core::EventLoop::current().spin_until([&]() { return source_tab.url().equals(URL::about_srcdoc(), URL::ExcludeFragment::Yes); });
     VERIFY(!source_tab.can_view_source());
-    VERIFY(!app->view_source_action().enabled());
+    VERIFY(!app->active_web_view()->can_view_source());
 
     source_tab.traverse_the_history_by_delta(1);
     Core::EventLoop::current().spin_until([&]() { return !source_tab.url().equals(URL::about_srcdoc(), URL::ExcludeFragment::Yes); });
     VERIFY(source_tab.can_view_source());
-    VERIFY(app->view_source_action().enabled());
+    VERIFY(app->active_web_view()->can_view_source());
 
     outln("PASS: A tab showing the source of a page offers no source of its own, while it shows that source");
 }

@@ -8,6 +8,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <Hub/View.h>
+#include <LibWebView/ContextMenuRequest.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/WebCompatReport.h>
 #include <UI/Qt/BookmarkStore.h>
@@ -31,10 +32,15 @@ public:
 
     static RemoteView* find(u64 view_id);
 
-    void did_request_context_menu(Vector<Hub::MenuEntry> const&, Gfx::IntPoint widget_position);
+    void did_request_context_menu(WebView::ContextMenuRequest const&);
+    void did_make_link_to_highlight(Optional<URL::URL>);
 
-    void set_state(Hub::ViewState state) { m_state = move(state); }
-    void set_initial_state(Hub::ViewState state) { m_state = move(state); }
+    void set_state(Hub::ViewState state)
+    {
+        m_state = move(state);
+        update_view_actions();
+    }
+    void set_initial_state(Hub::ViewState state) { set_state(move(state)); }
 
     void did_update_zoom() { update_zoom(); }
     void did_get_selected_text(u64 request_id, Optional<ByteString>);
@@ -92,6 +98,14 @@ public:
     Optional<ByteString> crash_report_name() const { return m_state.crash_report_name; }
     Optional<String> crash_report_website() const { return m_state.crash_report_website; }
     void traverse_the_history_to_step(i32 step) { HubConnection::the().async_view_traverse_the_history_to_step(view_id(), step); }
+    void traverse_the_history_by_delta(i32 delta) { HubConnection::the().async_view_traverse_the_history_by_delta(view_id(), delta); }
+    bool can_navigate_back() const { return m_state.can_navigate_back; }
+    bool can_navigate_forward() const { return m_state.can_navigate_forward; }
+    enum class PromptForPath : u8 {
+        No,
+        Yes,
+    };
+    void download_url(URL::URL const& url, PromptForPath prompt_for_path, Optional<String> const& image_mime_type = {}) { HubConnection::the().async_view_download_url(view_id(), url, prompt_for_path == PromptForPath::Yes, image_mime_type); }
     Vector<WebView::HistoryEntry> recent_history_entries(size_t limit) const;
     Optional<WebView::SessionTabId> session_tab_id() const { return m_session_tab_id; }
     void set_session_tab_id(WebView::SessionTabId session_tab_id)
@@ -133,6 +147,9 @@ public:
     void find_in_page_previous_match() { HubConnection::the().async_view_find_in_page_previous_match(view_id()); }
     void find_in_page_end() { HubConnection::the().async_view_find_in_page_end(view_id()); }
     bool can_report_website_issue() const { return m_state.can_report_website_issue; }
+    bool can_undo() const { return m_state.can_undo; }
+    bool can_redo() const { return m_state.can_redo; }
+    bool can_view_source() const { return m_state.can_view_source; }
     void report_website_issue() { HubConnection::the().async_view_report_website_issue(view_id()); }
     void request_accessibility_tree() { HubConnection::the().async_view_request_accessibility_tree(view_id()); }
     void perform_accessibility_action(i64 node_id, String action) { HubConnection::the().async_view_perform_accessibility_action(view_id(), node_id, move(action)); }
@@ -181,9 +198,10 @@ public:
     WebView::Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
     void update_bookmark_action();
     WebView::Action& reset_zoom_action() { return *m_reset_zoom_action; }
+    WebView::Action& copy_link_to_highlight_action() { return *m_copy_link_to_highlight_action; }
     WebView::Action& translate_action() { return *m_translate_action; }
     bool is_translated() const { return m_state.is_translated; }
-    WebView::Menu& translation_menu();
+    WebView::Menu& translation_menu() { return *m_translation_menu; }
 
     Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
     WebView::SessionHistorySnapshot session_history_snapshot() const;
@@ -225,6 +243,10 @@ protected:
 private:
     virtual void bookmarks_changed() override { update_bookmark_action(); }
 
+    void update_view_actions();
+    void create_translation_actions();
+    void update_translation_actions();
+
 #ifndef LADYBIRD_HUB_IN_OWN_PROCESS
     Hub::View* m_view { nullptr };
 #endif
@@ -233,8 +255,13 @@ private:
     RefPtr<WebView::Action> m_navigate_forward_action;
     RefPtr<WebView::Action> m_toggle_bookmark_action;
     RefPtr<WebView::Action> m_reset_zoom_action;
+    RefPtr<WebView::Action> m_copy_link_to_highlight_action;
+    Optional<URL::URL> m_link_to_highlight;
     RefPtr<WebView::Action> m_translate_action;
     RefPtr<WebView::Menu> m_translation_menu;
+    Vector<NonnullRefPtr<WebView::Action>> m_translate_to_actions;
+    RefPtr<WebView::Action> m_show_original_action;
+    RefPtr<WebView::Action> m_download_languages_action;
     RefPtr<WebView::Menu> m_context_menu;
 
     u64 m_view_id { 0 };

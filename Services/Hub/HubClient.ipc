@@ -14,14 +14,15 @@
 #include <LibWebCommon/NotificationsAPI/NotificationData.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
+#include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
 #include <LibWebCommon/Page/Translation.h>
 #include <LibWebCommon/WebView/DictionaryLookup.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/Autocomplete.h>
+#include <LibWebView/ContextMenuRequest.h>
 #include <LibWebView/FileDownloader.h>
-#include <LibWebView/Menu.h>
 #include <LibWebView/TabPerformanceStats.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/HTML/PreparedNavigationDescriptor.h>
@@ -77,77 +78,6 @@ struct WebView::ViewImplementation::InputMethodState {
     Utf16String text_before_cursor;
     Utf16String text_after_cursor;
     Optional<Web::DevicePixelRect> caret_rect;
-}
-
-enum Hub::MenuEntryKind : u8 {
-    Action,
-    Separator,
-    Submenu,
-    EndOfSubmenu,
-}
-
-struct Hub::ActionState {
-    u64 handle;
-    WebView::ActionID id;
-    String text;
-    Optional<String> tooltip;
-    bool enabled;
-    bool visible;
-    bool engaged;
-    Optional<bool> checked;
-    Optional<ByteBuffer> png_icon;
-    Vector<String> property_names;
-    Vector<String> property_values;
-}
-
-// A menu goes as a flat list, in which a submenu's entries follow its own, up to its end.
-struct Hub::MenuEntry {
-    Hub::MenuEntryKind kind;
-    Optional<Hub::ActionState> action;
-    String title;
-    bool visible;
-    bool is_group;
-    bool render_group_icon;
-    Vector<String> property_names;
-    Vector<String> property_values;
-}
-
-// The actions and menus of the application, which the UI shows in its windows.
-struct Hub::ApplicationActions {
-    Hub::ActionState reload_action;
-    Hub::ActionState reload_bypassing_cache_action;
-    Hub::ActionState copy_selection_action;
-    Hub::ActionState undo_action;
-    Hub::ActionState redo_action;
-    Hub::ActionState cut_selection_action;
-    Hub::ActionState paste_action;
-    Hub::ActionState select_all_action;
-    Hub::ActionState open_about_page_action;
-    Hub::ActionState open_downloads_page_action;
-    Hub::ActionState open_settings_page_action;
-    Hub::ActionState zoom_in_action;
-    Hub::ActionState zoom_out_action;
-    Hub::ActionState reset_zoom_action;
-    Hub::ActionState force_dark_action;
-    Hub::ActionState toggle_vertical_tabs_expanded_action;
-    Hub::ActionState toggle_menu_bar_action;
-    Hub::ActionState view_source_action;
-    Hub::ActionState report_website_issue_action;
-    Vector<Hub::MenuEntry> zoom_menu;
-    Vector<Hub::MenuEntry> color_scheme_menu;
-    Vector<Hub::MenuEntry> contrast_menu;
-    Vector<Hub::MenuEntry> motion_menu;
-    Vector<Hub::MenuEntry> history_menu;
-    Vector<Hub::MenuEntry> inspect_menu;
-    Vector<Hub::MenuEntry> debug_menu;
-}
-
-// The actions and menus of a view.
-struct Hub::ViewActions {
-    Hub::ActionState navigate_back_action;
-    Hub::ActionState navigate_forward_action;
-    Hub::ActionState reset_zoom_action;
-    Hub::ActionState translate_action;
 }
 
 struct Hub::DownloadState {
@@ -211,7 +141,11 @@ struct Hub::UIInfo {
 struct Hub::InitialState {
     ByteString settings_json;
     ByteString config_directory;
-    Hub::ApplicationActions actions;
+    String user_agent;
+    Web::NavigatorCompatibilityMode navigator_compatibility_mode;
+    bool scripting_enabled;
+    bool blocks_pop_ups;
+    bool devtools_enabled;
     Vector<Hub::DownloadState> downloads;
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
@@ -220,6 +154,25 @@ struct Hub::InitialState {
     ByteString profile_identifier;
     ByteString profile_identity;
     bool profile_is_temporary;
+}
+
+[ExistingCpp]
+struct WebView::ContextMenuRequest {
+    WebView::ContextMenuKind kind;
+    Gfx::IntPoint widget_position;
+    bool is_editable;
+    Optional<String> selected_text;
+    Optional<WebView::DictionaryLookup> dictionary_lookup;
+    Gfx::IntPoint dictionary_lookup_position;
+    Optional<Utf16String> misspelled_word;
+    Vector<Utf16String> spelling_guesses;
+    bool makes_link_to_highlight;
+    bool can_inspect_element;
+    Optional<Web::HTML::PreparedNavigationDescriptor> link_navigation;
+    Optional<Web::HTML::PreparedNavigationDescriptor> navigation;
+    Optional<Gfx::ShareableBitmap> image_bitmap;
+    Optional<String> image_mime_type;
+    Optional<Web::MediaContextMenu> media;
 }
 
 // What the UI needs to know about a view at any time, without having to ask.
@@ -238,8 +191,17 @@ struct Hub::ViewState {
     String force_dark_host;
     i32 web_content_pid;
     bool can_report_website_issue;
+    bool can_undo;
+    bool can_redo;
+    bool can_view_source;
+    bool can_navigate_back;
+    bool can_navigate_forward;
     bool is_node_picker_active;
     bool is_translated;
+    bool translation_offered;
+    Vector<String> translation_languages;
+    Optional<String> translation_target_language;
+    bool translation_needs_language_download;
     WebView::ContentBlockingSnapshot content_blocking_snapshot;
     WebView::ViewImplementation::InputMethodState input_method_state;
     Web::HTML::MuteState page_mute_state;
@@ -312,9 +274,8 @@ endpoint HubClient
     web_ui_opened(u64 web_ui_id, String host) =|
     web_ui_message(u64 web_ui_id, String name, JsonValue data) =|
     web_ui_closed(u64 web_ui_id) =|
-    action_changed(Hub::ActionState state) =|
-    action_retired(u64 handle) =|
-    view_show_context_menu(u64 view_id, Vector<Hub::MenuEntry> entries, Gfx::IntPoint widget_position) =|
+    view_request_context_menu(u64 view_id, WebView::ContextMenuRequest request) =|
+    view_did_make_link_to_highlight(u64 view_id, Optional<URL::URL> url) =|
     view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon) =|
     view_request_before_unload(u64 view_id, u64 answer_id, String source) =|
     view_request_external_url_confirmation(u64 view_id, u64 answer_id, URL::URL url, URL::Origin initiator_origin, String application_name) =|

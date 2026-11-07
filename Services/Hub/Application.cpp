@@ -7,7 +7,6 @@
 #include <AK/Hex.h>
 #include <AK/MemoryStream.h>
 #include <AK/Queue.h>
-#include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/Proxies.h>
@@ -101,7 +100,6 @@ void Application::ui_did_start()
 void Application::set_active_view(Optional<u64> view_id)
 {
     m_active_view_id = view_id;
-    update_actions_for_active_web_view();
 }
 
 Optional<WebView::ViewImplementation&> Application::active_web_view() const

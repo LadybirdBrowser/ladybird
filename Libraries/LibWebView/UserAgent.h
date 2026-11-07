@@ -20,6 +20,5 @@ WEBVIEW_API Optional<StringView> normalize_user_agent_name(StringView);
 
 // The names WebContent's navigator-compatibility-mode debug request takes.
 WEBVIEW_API StringView navigator_compatibility_mode_to_string(Web::NavigatorCompatibilityMode);
-WEBVIEW_API Optional<Web::NavigatorCompatibilityMode> navigator_compatibility_mode_from_string(StringView);
 
 }

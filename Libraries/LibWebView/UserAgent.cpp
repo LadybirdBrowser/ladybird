@@ -42,15 +42,4 @@ StringView navigator_compatibility_mode_to_string(Web::NavigatorCompatibilityMod
     VERIFY_NOT_REACHED();
 }
 
-Optional<Web::NavigatorCompatibilityMode> navigator_compatibility_mode_from_string(StringView mode)
-{
-    if (mode == "chrome"sv)
-        return Web::NavigatorCompatibilityMode::Chrome;
-    if (mode == "gecko"sv)
-        return Web::NavigatorCompatibilityMode::Gecko;
-    if (mode == "webkit"sv)
-        return Web::NavigatorCompatibilityMode::WebKit;
-    return {};
-}
-
 }

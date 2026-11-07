@@ -43,6 +43,7 @@
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/BlobURLStore.h>
@@ -115,7 +116,7 @@ public:
     static FontService& font_service() { return *the().m_font_service; }
     static FontServiceHost& font_service_host() { return *the().m_font_service_host; }
     JsonValue const& site_compatibility_data() const { return m_site_compatibility_data; }
-    bool blocks_pop_ups() const;
+    bool blocks_pop_ups() const { return m_blocks_pop_ups; }
     ErrorOr<void> reload_site_compatibility_data();
 
     bool claim_cpu_profiler(ProcessType);
@@ -179,8 +180,6 @@ public:
     // The spoofing choices in effect: what every page and worker reports from its navigator.
     String user_agent_string() const;
     Web::NavigatorCompatibilityMode navigator_compatibility_mode() const;
-
-    void update_actions_for_active_web_view();
 
     void background_networking_settings_changed(Badge<ApplicationSettingsObserver>);
 
@@ -357,50 +356,20 @@ public:
     };
     NonnullRefPtr<Core::Promise<Empty>> clear_browsing_data(ClearBrowsingDataOptions const&);
 
-    Action& reload_action() { return *m_reload_action; }
-    Action& reload_bypassing_cache_action() { return *m_reload_bypassing_cache_action; }
-    Action& copy_selection_action() { return *m_copy_selection_action; }
-    Action& undo_action() { return *m_undo_action; }
-    Action& redo_action() { return *m_redo_action; }
+    // Options every page runs with, which the user can change while browsing.
+    void set_preferred_contrast(Web::CSS::PreferredContrast);
+    void set_preferred_motion(Web::CSS::PreferredMotion);
+    void set_user_agent_string(String);
+    void set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode);
+    bool scripting_enabled() const { return m_scripting_enabled; }
+    void set_scripting_enabled(bool);
+    void set_blocks_pop_ups(bool);
+    void set_shows_line_box_borders(bool);
+    void set_shows_caret_hit_test_debug_overlay(bool);
 
-    // Reflects the active view's undo/redo availability in the shared actions; call when the
-    // active view changes.
-    void update_editing_history_actions();
-    Action& cut_selection_action() { return *m_cut_selection_action; }
-    Action& paste_action() { return *m_paste_action; }
-    Action& select_all_action() { return *m_select_all_action; }
-
-    Action& open_about_page_action() { return *m_open_about_page_action; }
-    Action& open_downloads_page_action() { return *m_open_downloads_page_action; }
-    Action& open_settings_page_action() { return *m_open_settings_page_action; }
-
-    Menu& zoom_menu() { return *m_zoom_menu; }
-    Action& zoom_in_action() { return *m_zoom_in_action; }
-    Action& zoom_out_action() { return *m_zoom_out_action; }
-    Action& reset_zoom_action() { return *m_reset_zoom_action; }
-
-    Action& force_dark_action() { return *m_force_dark_action; }
-    void update_force_dark_action();
-
-    Menu& color_scheme_menu() { return *m_color_scheme_menu; }
-    Menu& contrast_menu() { return *m_contrast_menu; }
-    Menu& motion_menu() { return *m_motion_menu; }
-
-    Action& toggle_vertical_tabs_expanded_action() { return *m_toggle_vertical_tabs_expanded_action; }
-
-    Action& toggle_menu_bar_action() { return *m_toggle_menu_bar_action; }
-
-    Menu& history_menu() { return *m_history_menu; }
-
-    Menu& inspect_menu() { return *m_inspect_menu; }
-    Action& view_source_action() { return *m_view_source_action; }
-    void update_view_source_action();
-
-    Action& report_website_issue_action() { return *m_report_website_issue_action; }
-    void update_report_website_issue_action();
-
-    Menu& debug_menu() { return *m_debug_menu; }
-    Action& show_tab_performance_monitor_action() { return *m_show_tab_performance_monitor_action; }
+    bool devtools_enabled() const { return m_devtools; }
+    void dump_cookies() const;
+    void crash_compositor_process();
 
     FileDownloader& file_downloader() { return m_file_downloader; }
 
@@ -446,8 +415,8 @@ protected:
 
     virtual void on_recently_closed_entries_changed() const { }
 
-    virtual void on_devtools_enabled() const;
-    virtual void on_devtools_disabled() const;
+    virtual void on_devtools_enabled() const { }
+    virtual void on_devtools_disabled() const { }
 
     Main::Arguments& arguments() { return m_arguments; }
 
@@ -465,7 +434,6 @@ private:
     void compositor_reported_gpu_device_identity(Optional<Gfx::GpuDeviceIdentity>);
     void handle_compositor_process_death();
     void recover_compositor_process();
-    void crash_compositor_process();
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_devtools_server();
     // Returns whether the combined rules changed.
@@ -488,8 +456,7 @@ private:
     void update_os_location_authorization();
     void schedule_permission_expiry();
 
-    void initialize_actions();
-    void update_vertical_tabs_action();
+    void initialize_page_options();
 
     WebDriverBrowserConnection* webdriver_browser_connection();
 
@@ -681,54 +648,15 @@ private:
 #endif
     OwnPtr<ProcessManager> m_process_manager;
 
-    RefPtr<Action> m_reload_action;
-    RefPtr<Action> m_reload_bypassing_cache_action;
-    RefPtr<Action> m_copy_selection_action;
-    RefPtr<Action> m_undo_action;
-    RefPtr<Action> m_redo_action;
-    RefPtr<Action> m_cut_selection_action;
-    RefPtr<Action> m_paste_action;
-    RefPtr<Action> m_select_all_action;
-
-    RefPtr<Action> m_open_about_page_action;
-    RefPtr<Action> m_open_downloads_page_action;
-    RefPtr<Action> m_open_settings_page_action;
-
-    RefPtr<Menu> m_zoom_menu;
-    RefPtr<Action> m_zoom_in_action;
-    RefPtr<Action> m_zoom_out_action;
-    RefPtr<Action> m_reset_zoom_action;
-
-    RefPtr<Action> m_force_dark_action;
-    RefPtr<Menu> m_color_scheme_menu;
     Web::CSS::PreferredColorScheme m_color_scheme { Web::CSS::PreferredColorScheme::Auto };
-
-    RefPtr<Menu> m_contrast_menu;
     Web::CSS::PreferredContrast m_contrast { Web::CSS::PreferredContrast::Auto };
-
-    RefPtr<Menu> m_motion_menu;
     Web::CSS::PreferredMotion m_motion { Web::CSS::PreferredMotion::Auto };
-
-    RefPtr<Action> m_toggle_vertical_tabs_expanded_action;
-
-    RefPtr<Action> m_toggle_menu_bar_action;
-
-    RefPtr<Menu> m_history_menu;
-
-    RefPtr<Menu> m_inspect_menu;
-    RefPtr<Action> m_view_source_action;
-    RefPtr<Action> m_toggle_devtools_action;
-
-    RefPtr<Action> m_report_website_issue_action;
-
-    RefPtr<Menu> m_debug_menu;
-    RefPtr<Action> m_show_line_box_borders_action;
-    RefPtr<Action> m_show_caret_hit_test_debug_overlay_action;
-    RefPtr<Action> m_show_tab_performance_monitor_action;
-    RefPtr<Action> m_enable_scripting_action;
-    RefPtr<Action> m_block_pop_ups_action;
-    StringView m_user_agent_string;
-    StringView m_navigator_compatibility_mode;
+    String m_user_agent_string;
+    Web::NavigatorCompatibilityMode m_navigator_compatibility_mode { Web::default_navigator_compatibility_mode };
+    bool m_scripting_enabled { true };
+    bool m_blocks_pop_ups { true };
+    bool m_shows_line_box_borders { false };
+    bool m_shows_caret_hit_test_debug_overlay { false };
 
     Web::Clipboard::SystemClipboardItem m_clipboard;
 

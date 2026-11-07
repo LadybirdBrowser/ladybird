@@ -118,9 +118,8 @@ private:
     virtual void web_ui_opened(u64 web_ui_id, String host) override;
     virtual void web_ui_message(u64 web_ui_id, String name, JsonValue data) override;
     virtual void web_ui_closed(u64 web_ui_id) override;
-    virtual void action_changed(Hub::ActionState state) override;
-    virtual void action_retired(u64 handle) override;
-    virtual void view_show_context_menu(u64 view_id, Vector<Hub::MenuEntry> entries, Gfx::IntPoint widget_position) override;
+    virtual void view_request_context_menu(u64 view_id, WebView::ContextMenuRequest request) override;
+    virtual void view_did_make_link_to_highlight(u64 view_id, Optional<URL::URL> url) override;
     virtual void view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon) override;
     virtual void view_request_before_unload(u64 view_id, u64 answer_id, String source) override;
     virtual void view_request_external_url_confirmation(u64 view_id, u64 answer_id, URL::URL url, URL::Origin initiator_origin, String application_name) override;
