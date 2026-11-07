@@ -357,7 +357,6 @@ private:
     ExitFullscreenButton* m_exit_button { nullptr };
     FullscreenMode* m_fullscreen_mode { nullptr };
     // Determine if window should restore to maximized or normal, when exiting fullscreen.
-    bool m_restore_to_maximized { false };
     bool m_resize_cursor_active { false };
     // The widget the last left button press in the window landed on, so a double click can tell whether its first
     // click landed on the same widget as its second.

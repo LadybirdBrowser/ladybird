@@ -1591,8 +1591,8 @@ void BrowserWindow::enter_fullscreen()
 {
     m_tabs_container->set_tab_bar_visible(false);
 
-    m_restore_to_maximized = isMaximized();
-    showFullScreen();
+    // NB: Only the full-screen state changes, so the window comes back maximized if it was.
+    setWindowState(windowState() | Qt::WindowFullScreen);
 
     m_tabs_container->update_bookmarks_bar_visibility();
 }
@@ -1604,10 +1604,7 @@ void BrowserWindow::exit_fullscreen()
 
     m_tabs_container->set_tab_bar_visible(true);
 
-    if (m_restore_to_maximized)
-        showMaximized();
-    else
-        showNormal();
+    setWindowState(windowState() & ~Qt::WindowFullScreen);
 
     m_tabs_container->update_bookmarks_bar_visibility();
 }
