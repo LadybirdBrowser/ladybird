@@ -6,7 +6,7 @@
         to { background-position: calc(100px - var(--offset)) 50%, 0 50%; }
     }
     body { margin: 0; }
-    .target { position: absolute; top: 200vh; width: 100px; height: 100px; }
+    .target { position: absolute; top: 200vh; width: 100px; height: 100px; border-top: 1px solid; }
 </style>
 <script>
     asyncTest(async done => {
@@ -28,8 +28,8 @@
         target.className = "target";
         document.body.append(target);
         const animation = new Animation(new KeyframeEffect(target, [
-            { backgroundColor: "rgb(0, 0, 0)", offset: 0 },
-            { backgroundColor: "rgb(200, 0, 0)", offset: 0.8 },
+            { borderTopColor: "rgb(0, 0, 0)", offset: 0 },
+            { borderTopColor: "rgb(200, 0, 0)", offset: 0.8 },
         ], { duration: 1000, iterations: Infinity }), timeline);
         animation.play();
         animation.startTime = 0;
@@ -39,12 +39,12 @@
         println(`offscreen background stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
 
         timeline.setTimeForObservation(400);
-        println(`computed style samples the current color: ${getComputedStyle(target).backgroundColor === "rgb(100, 0, 0)"}`);
+        println(`computed style samples the current color: ${getComputedStyle(target).borderTopColor === "rgb(100, 0, 0)"}`);
         timeline.setTime(600);
         timeline.setTimeForObservation(600);
         target.scrollIntoView();
         await settle();
-        println(`scrolling into view samples the current color: ${getComputedStyle(target).backgroundColor === "rgb(150, 0, 0)"}`);
+        println(`scrolling into view samples the current color: ${getComputedStyle(target).borderTopColor === "rgb(150, 0, 0)"}`);
         counters = await countersOverFrames();
         println(`visible background resumes the frame pump: ${counters.animationFramePumpRequests > 0}`);
 
@@ -69,7 +69,7 @@
         target.style.cssText = "";
 
         const child = document.createElement("div");
-        child.style.cssText = "position: fixed; top: 0; width: 20px; height: 20px; background-color: inherit";
+        child.style.cssText = "position: fixed; top: 0; width: 20px; height: 20px; border-top: 1px solid; border-top-color: inherit";
         target.append(child);
         await settle();
         counters = await countersOverFrames();

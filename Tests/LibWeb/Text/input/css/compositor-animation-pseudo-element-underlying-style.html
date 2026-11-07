@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes pulse { 50% { opacity: 0.5; } }
+    #target::before { content: ""; display: block; width: 10px; height: 10px; background-color: blue; animation: pulse 100s linear infinite; }
+    #target.faded::before { opacity: 0.2; }
+</style>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        await Promise.all(document.getAnimations().map(animation => animation.ready));
+        internals.updateCompositorAnimations();
+        println(`compositor animations: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+
+        // A change to the style of the pseudo-element resolves its keyframes again, as they take its opacity.
+        const resolutions = internals.getStyleInvalidationCounters().compositorKeyframeValueResolutions;
+        target.classList.add("faded");
+        internals.updateStyle();
+        internals.updateCompositorAnimations();
+        println(`keyframes resolved again: ${internals.getStyleInvalidationCounters().compositorKeyframeValueResolutions > resolutions}`);
+        done();
+    });
+</script>

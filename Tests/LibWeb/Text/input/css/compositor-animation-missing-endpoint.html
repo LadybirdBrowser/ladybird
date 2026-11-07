@@ -26,21 +26,21 @@
     asyncTest(async done => {
         await Promise.all(document.getAnimations().map(animation => animation.ready));
         internals.updateCompositorAnimations();
-        println(`animations stay on the main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
+        println(`missing endpoints take the underlying style on the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 2}`);
         const backgroundAnimation = document.getElementById("target").getAnimations()[0];
         backgroundAnimation.effect.setKeyframes([
             { backgroundColor: "rgb(35, 35, 35)", offset: 0 },
             { backgroundColor: "rgb(65, 65, 65)", offset: 1 },
         ]);
         internals.updateCompositorAnimations();
-        println(`complete keyframes use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+        println(`complete keyframes use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 2}`);
 
         backgroundAnimation.effect.setKeyframes([
             { backgroundColor: "rgb(35, 35, 35)", offset: 0 },
             { backgroundColor: "rgb(65, 65, 65)", offset: 0.7 },
         ]);
         internals.updateCompositorAnimations();
-        println(`removing the endpoint returns to the main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
+        println(`removing the endpoint stays on the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 2}`);
         for (const animation of document.getAnimations())
             animation.cancel();
         done();

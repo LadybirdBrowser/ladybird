@@ -3,8 +3,8 @@
 <script src="frame-in-flight.js"></script>
 <style>
     body { margin: 0; }
-    #box { width: 100px; height: 60px; animation: fade 100s linear infinite; transition: outline-color 100s linear; outline: 4px solid rgb(0, 0, 255); }
-    @keyframes fade { to { opacity: 0.5; } }
+    #box { width: 100px; height: 60px; animation: round 100s linear infinite; transition: outline-color 100s linear; outline: 4px solid rgb(0, 0, 255); }
+    @keyframes round { to { border-top-left-radius: 10px; } }
     #box:hover { height: 80px; outline-color: rgb(0, 128, 0); }
 </style>
 <div id="box"></div>

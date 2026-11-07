@@ -653,10 +653,12 @@ fn lower_keyframe(
             return lower_transform_keyframe(request, host, index, keyframe, identity_shapes);
         }
     };
-    if property.state_in(keyframe) != FfiCompositorKeyframeValueState::Present {
+    let state = property.state_in(keyframe);
+    if state == FfiCompositorKeyframeValueState::Absent {
         return Some(None);
     }
-    let resolved = host.resolved_keyframe_value(index, property, false)?;
+    let uses_underlying_style = state == FfiCompositorKeyframeValueState::UsesUnderlyingStyle;
+    let resolved = host.resolved_keyframe_value(index, property, uses_underlying_style)?;
     let value = match kind {
         FfiVisualAnimationTargetKind::Opacity => {
             VisualAnimationValue::Opacity(opacity_from_style_value(resolved.data())?)
@@ -1242,6 +1244,30 @@ mod tests {
         ffi_request.key_frame_set_identity += 1;
         let request = Request::with_keyframes(&ffi_request, &sparse);
         assert!(!state.build(&request, &Host::new(&ffi_host), |_| vec![3]).built);
+    }
+
+    #[test]
+    fn opacity_keyframes_that_take_the_underlying_style_build_from_it() {
+        let host = TestHost::default()
+            .with_underlying_value(0, AnimatedProperty::Opacity, opacity_value(0.25))
+            .with_value(1, AnimatedProperty::Opacity, opacity_value(0.5))
+            .with_underlying_value(2, AnimatedProperty::Opacity, opacity_value(0.25));
+        let ffi_host = host.ffi();
+        let underlying = FfiCompositorKeyframeValueState::UsesUnderlyingStyle;
+        let keyframes = [
+            keyframe(0.0, AnimatedProperty::Opacity, underlying),
+            present(0.5, AnimatedProperty::Opacity),
+            keyframe(1.0, AnimatedProperty::Opacity, underlying),
+        ];
+        let ffi_request = build_request(FfiVisualAnimationTargetKind::Opacity, &keyframes, 0);
+        let request = Request::with_keyframes(&ffi_request, &keyframes);
+        let mut state = CompositorAnimationEffectState::default();
+
+        assert!(state.build(&request, &Host::new(&ffi_host), |_| vec![1]).built);
+        let animation = pending_animation(&state, FfiVisualAnimationTargetKind::Opacity);
+        assert_eq!(animation.keyframes[0].value, VisualAnimationValue::Opacity(0.25));
+        assert_eq!(animation.keyframes[1].value, VisualAnimationValue::Opacity(0.5));
+        assert_eq!(animation.keyframes[2].value, VisualAnimationValue::Opacity(0.25));
     }
 
     #[test]

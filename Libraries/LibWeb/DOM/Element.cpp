@@ -1951,6 +1951,9 @@ void Element::swap_in_style_record(Layout::BegunRead const& read, Optional<CSS::
 {
     if (pseudo_element.has_value()) {
         VERIFY(is_synthetic_pseudo_element(*pseudo_element));
+        // NB: The compositor animations of a pseudo-element keep the values they took from its style for as long as
+        //     the generation of its element stays the same.
+        ++m_animation_style_generation;
         if (record)
             ensure_synthetic_pseudo_element(*pseudo_element).swap_in_style_record(read, record);
         else if (auto existing_pseudo_element = get_synthetic_pseudo_element(*pseudo_element); existing_pseudo_element.has_value())
@@ -5446,6 +5449,8 @@ void Element::set_computed_style(Layout::BegunRead const& read, Optional<CSS::Ps
     note_subtree_style_moved();
     if (pseudo_element_type.has_value()) {
         VERIFY(is_synthetic_pseudo_element(*pseudo_element_type));
+        // NB: As for a pseudo-element's style record, see swap_in_style_record().
+        ++m_animation_style_generation;
         if (style)
             ensure_synthetic_pseudo_element(*pseudo_element_type).set_computed_style(read, move(style));
         else if (auto existing_pseudo_element = get_synthetic_pseudo_element(*pseudo_element_type); existing_pseudo_element.has_value())

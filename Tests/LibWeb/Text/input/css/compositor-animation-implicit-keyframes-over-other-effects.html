@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes pulse { 50% { opacity: 0.5; } }
+    @keyframes fade { from { opacity: 0.2; } to { opacity: 0.4; } }
+    div { width: 10px; height: 10px; background-color: blue; }
+</style>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        // The 0% and 100% keyframes of the pulse take the output of the fade beneath it, which only the main thread has.
+        target.style.animation = "fade 100s linear infinite, pulse 100s linear infinite";
+        await Promise.all(target.getAnimations().map(animation => animation.ready));
+        internals.updateCompositorAnimations();
+        println(`over another animation: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+
+        target.style.animation = "pulse 100s linear infinite";
+        await Promise.all(target.getAnimations().map(animation => animation.ready));
+        internals.updateCompositorAnimations();
+        println(`alone: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        done();
+    });
+</script>
