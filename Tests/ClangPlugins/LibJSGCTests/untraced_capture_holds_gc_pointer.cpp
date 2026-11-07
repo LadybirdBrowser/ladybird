@@ -6,6 +6,8 @@
 
 // RUN: %clang++ -Xclang -verify %plugin_opts% -c %s -o %t 2>&1
 
+#include <AK/Function.h>
+#include <AK/Vector.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Ptr.h>
@@ -68,3 +70,25 @@ struct DeclaredOutsideWithPlainData {
 };
 
 GC_UNTRACED_CAPTURE(DeclaredOutsideWithPlainData);
+
+struct HoldsCallback {
+    GC_HOLDS_NO_CELL_EDGES;
+
+    // expected-error@+1 {{HoldsCallback is declared to hold no cell edges, but its member callback holds an AK::Function, whose captures can't be checked}}
+    Function<void()> callback;
+};
+
+struct HoldsCallbacks {
+    GC_HOLDS_NO_CELL_EDGES;
+
+    // expected-error@+1 {{HoldsCallbacks is declared to hold no cell edges, but its member callbacks holds an AK::Function, whose captures can't be checked}}
+    Vector<Function<void()>> callbacks;
+};
+
+struct KeepsCallbacksWithRoots {
+    Function<void()> callback;
+    // expected-error@+1 {{KeepsCallbacksWithRoots is declared to hold no cell edges, but its member cell holds a GC pointer}}
+    GC::Ptr<GC::Cell> cell;
+};
+
+GC_UNTRACED_CAPTURE_WITH_ROOTED_CALLBACKS(KeepsCallbacksWithRoots);
