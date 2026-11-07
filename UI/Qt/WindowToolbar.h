@@ -76,6 +76,8 @@ public:
     // The sidebar's own margin plus the given inset keeps the toolbar's contents clear of the sidebar's edges.
     void set_arrangement(ToolbarArrangement, int sidebar_inset = 0);
     QWidget& sidebar_footer() { return *m_sidebar_footer; }
+    // The row of its own that the tab performance monitor shows in, which ends the page column in every layout.
+    QWidget& performance_monitor_row() { return *m_performance_monitor_row; }
     // The toolbar's height in either arrangement, whichever it is in now.
     int height_in_row() const;
     int height_in_sidebar() const;
@@ -121,6 +123,7 @@ private:
     void update_field_panel();
     void raise_field_panel();
     void apply_contents_opacity();
+    void update_performance_monitor_row();
 
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
     QPointer<Tab> m_tab;
@@ -143,6 +146,7 @@ private:
     // NB: The fields of the tabs shown so far share this layout, which leaves room around them for the focus ring.
     QHBoxLayout* m_location_edit_layout { nullptr };
     QPointer<LocationEdit> m_location_edit;
+    QWidget* m_performance_monitor_row { nullptr };
     PerformanceMonitorWidget* m_performance_monitor { nullptr };
     QWidget* m_window_controls_separator { nullptr };
     QWidget* m_sidebar_slot { nullptr };

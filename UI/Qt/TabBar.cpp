@@ -4698,12 +4698,14 @@ void TabWidget::rebuild_page_column()
     add_page_to_page_column();
 }
 
-// The bookmarks bar heads the page, unless it only shows over the page while the pointer is near the toolbar.
+// The bookmarks bar heads the page, unless it only shows over the page while the pointer is near the toolbar. The tab
+// performance monitor's row ends the column.
 void TabWidget::add_page_to_page_column()
 {
     if (!m_bookmarks_bar->shows_over_page())
         m_page_column_layout->addWidget(m_bookmarks_bar);
     m_page_column_layout->addWidget(m_stacked_widget, 1);
+    m_page_column_layout->addWidget(&m_toolbar->performance_monitor_row());
 }
 
 void TabWidget::update_bookmarks_bar_visibility()
