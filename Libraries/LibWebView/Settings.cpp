@@ -125,8 +125,8 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
     {
         .id = ConfigVariableID::ShowAdvancedDebugMenu,
         .name = "debug.ui.show_advanced_debug_menu"sv,
-        .title = "Show Advanced Debug Menu"sv,
-        .description = "Show the advanced Debug menu in the application menu."sv,
+        .title = "Show Debug menu"sv,
+        .description = "Show the Debug menu, with tools for inspecting Ladybird itself."sv,
         .default_value = false,
         .array_element_type = {},
     },

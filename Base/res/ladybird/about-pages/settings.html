@@ -574,6 +574,24 @@
                 background-color: var(--control);
             }
 
+            /* The focus ring appears only for keyboard focus, never after a click. */
+            .tab-button:focus {
+                outline: none;
+            }
+
+            .tab-button:focus-visible {
+                box-shadow:
+                    0 0 0 1px var(--focus-edge),
+                    0 0 0 3px var(--focus-ring);
+            }
+
+            /* A permission's default and its exceptions sit side by side. */
+            .permission-controls {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
             .settings-content {
                 max-width: 712px;
                 padding: 28px 56px;
@@ -825,11 +843,11 @@
                 <input id="settings-search" type="search" placeholder="Search settings" spellcheck="false" />
             </label>
             <div class="tab-bar" role="tablist" aria-label="Settings categories">
-                <button id="tab-button-general" class="tab-button active" data-tab="general" role="tab">General</button>
-                <button id="tab-button-search" class="tab-button" data-tab="search" role="tab">Search</button>
-                <button id="tab-button-appearance" class="tab-button" data-tab="appearance" role="tab">
+                <button id="tab-button-appearance" class="tab-button active" data-tab="appearance" role="tab">
                     Appearance
                 </button>
+                <button id="tab-button-search" class="tab-button" data-tab="search" role="tab">Search</button>
+                <button id="tab-button-tabs" class="tab-button" data-tab="tabs" role="tab">Tabs and startup</button>
                 <button id="tab-button-privacy" class="tab-button" data-tab="privacy" role="tab">
                     Privacy and security
                 </button>
@@ -840,8 +858,6 @@
                     Content blocking
                 </button>
                 <button id="tab-button-languages" class="tab-button" data-tab="languages" role="tab">Languages</button>
-                <button id="tab-button-services" class="tab-button" data-tab="services" role="tab">Services</button>
-                <button id="tab-button-network" class="tab-button" data-tab="network" role="tab">Network</button>
                 <button id="tab-button-feedback" class="tab-button" data-tab="feedback" role="tab">Feedback</button>
                 <button id="tab-button-advanced" class="tab-button" data-tab="advanced" role="tab">Advanced</button>
             </div>
@@ -849,68 +865,7 @@
 
         <main class="settings-content">
             <p id="search-empty" class="search-empty" hidden>No settings match this search.</p>
-            <div class="tab-panel active" id="tab-general" data-title="General">
-                <h3 class="card-title">Startup</h3>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="card-group inline-container">
-                            <label for="restore-previous-session">Restore previous windows and tabs</label>
-                            <input id="restore-previous-session" type="checkbox" switch />
-                        </div>
-                        <div class="card-group inline-container">
-                            <label for="new-tab-page-url">New tab page URL</label>
-                            <div class="input-with-reset">
-                                <input id="new-tab-page-url" type="url" placeholder="about:blank" />
-                                <button id="new-tab-page-url-reset" class="input-reset-button" title="Restore default">
-                                    &times;
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <h3 class="card-title">Content</h3>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="card-group inline-container">
-                            <label for="enable-force-dark">
-                                Force dark mode
-                                <p class="description">
-                                    Darken web pages that don’t provide a dark theme of their own.
-                                </p>
-                            </label>
-                            <input id="enable-force-dark" type="checkbox" switch />
-                        </div>
-                        <div id="force-dark-sites" class="card-group" aria-label="Sites with a force-dark choice"></div>
-                    </div>
-                </div>
-
-                <h3 class="card-title">Browsing behavior</h3>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="card-group inline-container">
-                            <label for="enable-autoscroll">
-                                Enable autoscrolling
-                                <p class="description">
-                                    Scroll pages by pressing the middle mouse button and moving the mouse.
-                                </p>
-                            </label>
-                            <input id="enable-autoscroll" type="checkbox" switch />
-                        </div>
-                        <div class="card-group inline-container" id="enable-primary-paste-group">
-                            <label for="enable-primary-paste">
-                                Enable primary pasting
-                                <p class="description">
-                                    Paste text from the clipboard when the middle mouse button is clicked.
-                                </p>
-                            </label>
-                            <input id="enable-primary-paste" type="checkbox" switch />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-panel" id="tab-appearance" data-title="Appearance">
+            <div class="tab-panel active" id="tab-appearance" data-title="Appearance">
                 <div class="card">
                     <div class="card-body">
                         <div class="card-group inline-container">
@@ -979,6 +934,16 @@
                                 <label><input type="radio" name="website-color-scheme" value="dark" />Dark</label>
                             </div>
                         </div>
+                        <div class="card-group inline-container">
+                            <label for="enable-force-dark">
+                                Force dark mode
+                                <p class="description">
+                                    Darken web pages that don’t provide a dark theme of their own.
+                                </p>
+                            </label>
+                            <input id="enable-force-dark" type="checkbox" switch />
+                        </div>
+                        <div id="force-dark-sites" class="card-group" aria-label="Sites with a force-dark choice"></div>
                         <div id="tab-layout-group" class="card-group">
                             <span id="tab-layout-title">Tabs</span>
                             <div class="tab-options" role="radiogroup" aria-labelledby="tab-layout-title">
@@ -1006,9 +971,22 @@
                                         <span class="preview-sidebar"><b></b><i></i><i class="active"></i><i></i></span>
                                         <span class="preview-main"></span>
                                     </span>
-                                    <span class="tab-option-label">Everything in the sidebar</span>
+                                    <span class="tab-option-label">In the sidebar</span>
                                 </label>
                             </div>
+                        </div>
+                        <div class="card-group inline-container hidden">
+                            <label for="vertical-tabs-expand-on-hover"
+                                >Expand vertical tabs on hover when collapsed</label
+                            >
+                            <input id="vertical-tabs-expand-on-hover" type="checkbox" switch />
+                        </div>
+                        <div class="card-group inline-container hidden">
+                            <label for="vertical-tabs-position">Sidebar on</label>
+                            <select id="vertical-tabs-position">
+                                <option value="left">Left</option>
+                                <option value="right">Right</option>
+                            </select>
                         </div>
                         <div class="card-group inline-container" id="show-menu-bar-group">
                             <label for="show-menu-bar">Show system menu bar</label>
@@ -1020,19 +998,6 @@
                                 <option value="always">Always</option>
                                 <option value="never">Never</option>
                                 <option value="onHover">Only when hovering the navigation toolbar</option>
-                            </select>
-                        </div>
-                        <div class="card-group inline-container hidden">
-                            <label for="vertical-tabs-expand-on-hover"
-                                >Expand vertical tabs on hover when collapsed</label
-                            >
-                            <input id="vertical-tabs-expand-on-hover" type="checkbox" switch />
-                        </div>
-                        <div class="card-group inline-container hidden">
-                            <label for="vertical-tabs-position">Vertical tabs side</label>
-                            <select id="vertical-tabs-position">
-                                <option value="left">Left</option>
-                                <option value="right">Right</option>
                             </select>
                         </div>
                         <div class="card-group inline-container">
@@ -1076,113 +1041,52 @@
                 </div>
             </div>
 
-            <div class="tab-panel" id="tab-permissions" data-title="Permissions">
+            <div class="tab-panel" id="tab-tabs" data-title="Tabs and startup">
+                <h3 class="card-title">Startup</h3>
                 <div class="card">
                     <div class="card-body">
                         <div class="card-group inline-container">
-                            <span>Autoplay</span>
-                            <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
-                                This setting is controlled via the command line
-                            </span>
-                            <button id="autoplay-settings" class="secondary-button">Settings…</button>
+                            <label for="restore-previous-session">Restore previous windows and tabs</label>
+                            <input id="restore-previous-session" type="checkbox" switch />
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="new-tab-page-url">New tab page URL</label>
+                            <div class="input-with-reset">
+                                <input id="new-tab-page-url" type="url" placeholder="about:blank" />
+                                <button id="new-tab-page-url-reset" class="input-reset-button" title="Restore default">
+                                    &times;
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
+                <h3 class="card-title">Browsing</h3>
                 <div class="card">
                     <div class="card-body">
                         <div class="card-group inline-container">
-                            <label for="enable-geolocation">
-                                Sites can ask for your location
-                                <p class="description">When this is off, sites can't see your location.</p>
-                            </label>
-                            <input id="enable-geolocation" type="checkbox" switch />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-body">
-                        <div class="card-group inline-container">
-                            <label for="enable-notifications">
-                                Sites can ask to send you notifications
-                                <p class="description">When this is off, sites can't send you notifications.</p>
-                            </label>
-                            <input id="enable-notifications" type="checkbox" switch />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-body">
-                        <div class="card-group inline-container">
-                            <span>
-                                Location
-                                <p class="description">The sites you allowed or blocked from knowing your location.</p>
-                            </span>
-                            <button id="location-permissions-settings" class="secondary-button">Settings…</button>
-                        </div>
-                        <div class="card-group inline-container">
-                            <span>
-                                Microphone
-                                <p class="description">The sites you allowed or blocked from using your microphone.</p>
-                            </span>
-                            <button id="microphone-permissions-settings" class="secondary-button">Settings…</button>
-                        </div>
-                        <div class="card-group inline-container">
-                            <span>
-                                Notifications
+                            <label for="enable-autoscroll">
+                                Use autoscrolling
                                 <p class="description">
-                                    The sites you allowed or blocked from sending you notifications.
+                                    Scroll pages by pressing the middle mouse button and moving the mouse.
                                 </p>
-                            </span>
-                            <button id="notifications-permissions-settings" class="secondary-button">Settings…</button>
+                            </label>
+                            <input id="enable-autoscroll" type="checkbox" switch />
+                        </div>
+                        <div class="card-group inline-container" id="enable-primary-paste-group">
+                            <label for="enable-primary-paste">
+                                Paste with the middle mouse button
+                                <p class="description">
+                                    Paste text from the clipboard when the middle mouse button is clicked.
+                                </p>
+                            </label>
+                            <input id="enable-primary-paste" type="checkbox" switch />
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="tab-panel" id="tab-privacy" data-title="Privacy and security">
-                <h3 class="card-title">Browsing data</h3>
-                <div class="card">
-                    <div class="card-body">
-                        <p id="browsing-data-total-size" class="card-group"></p>
-
-                        <div class="card-group">
-                            <div class="inline-container">
-                                <div>
-                                    <label for="browsing-data-settings-max-disk-cache-size">
-                                        Maximum disk cache size
-                                        <p class="description">Limit the space used for the HTTP disk cache.</p>
-                                    </label>
-                                </div>
-                                <div class="input-field-container">
-                                    <input
-                                        id="browsing-data-settings-max-disk-cache-size"
-                                        type="number"
-                                        min="1"
-                                        style="width: 150px"
-                                    />
-                                    <select id="browsing-data-settings-max-disk-cache-unit" style="width: 80px">
-                                        <option value="MiB">MiB</option>
-                                        <option value="GiB">GiB</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-body">
-                        <div class="card-group inline-container">
-                            <span>Clear browsing data</span>
-                            <button id="browsing-data-settings" class="secondary-button">Clear…</button>
-                        </div>
-                    </div>
-                </div>
-
-                <h3 class="card-title">Privacy</h3>
                 <div class="card">
                     <div class="card-body">
                         <div class="card-group">
@@ -1196,8 +1100,93 @@
                         </div>
                     </div>
                 </div>
+
+                <h3 class="card-title">Browsing data</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <p id="browsing-data-total-size" class="card-group"></p>
+                        <div class="card-group inline-container">
+                            <span>Clear browsing data</span>
+                            <button id="browsing-data-settings" class="secondary-button">Clear…</button>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="card-title">Automatic connections</h3>
+                <p class="description">
+                    Services are automatic connections Ladybird makes for browser features in the background. These
+                    controls do not affect normal browsing or actions you explicitly request, such as updating filter
+                    lists.
+                </p>
+
+                <div class="card card-body">
+                    <div class="card-group inline-container">
+                        <label for="allow-services-network-access">
+                            Allow automatic service connections
+                            <p class="description">Let individually enabled services connect in the background.</p>
+                        </label>
+                        <input id="allow-services-network-access" type="checkbox" switch />
+                    </div>
+                    <div class="card-group inline-container">
+                        <label for="filter-list-updates">
+                            Filter list updates
+                            <p class="description">
+                                Periodically download updates for enabled filter list subscriptions.
+                            </p>
+                        </label>
+                        <input id="filter-list-updates" type="checkbox" switch />
+                    </div>
+                </div>
+                <p id="services-paused-note" class="description hidden" role="status">
+                    Automatic service connections are paused. Individual service choices are preserved.
+                </p>
             </div>
 
+            <div class="tab-panel" id="tab-permissions" data-title="Permissions">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container">
+                            <span>
+                                Autoplay
+                                <p class="description">Whether sites can play audio and video on their own.</p>
+                            </span>
+                            <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
+                                This setting is controlled via the command line
+                            </span>
+                            <button id="autoplay-settings" class="secondary-button">Exceptions…</button>
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="enable-geolocation">
+                                Location
+                                <p class="description">Sites can ask to know your location.</p>
+                            </label>
+                            <div class="permission-controls">
+                                <input id="enable-geolocation" type="checkbox" switch />
+                                <button id="location-permissions-settings" class="secondary-button">Exceptions…</button>
+                            </div>
+                        </div>
+                        <div class="card-group inline-container">
+                            <span>
+                                Microphone
+                                <p class="description">Sites can ask to use your microphone.</p>
+                            </span>
+                            <button id="microphone-permissions-settings" class="secondary-button">Exceptions…</button>
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="enable-notifications">
+                                Notifications
+                                <p class="description">Sites can ask to send you notifications.</p>
+                            </label>
+                            <div class="permission-controls">
+                                <input id="enable-notifications" type="checkbox" switch />
+                                <button id="notifications-permissions-settings" class="secondary-button">
+                                    Exceptions…
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="tab-panel" id="tab-blocking" data-title="Content blocking">
                 <div class="card card-body">
                     <div class="card-group inline-container">
@@ -1292,78 +1281,6 @@
                 </div>
             </div>
 
-            <div class="tab-panel" id="tab-services" data-title="Services">
-                <p class="description">
-                    Services are automatic connections Ladybird makes for browser features in the background. These
-                    controls do not affect normal browsing or actions you explicitly request, such as updating filter
-                    lists.
-                </p>
-
-                <div class="card card-body">
-                    <div class="card-group inline-container">
-                        <label for="allow-services-network-access">
-                            Allow automatic service connections
-                            <p class="description">Let individually enabled services connect in the background.</p>
-                        </label>
-                        <input id="allow-services-network-access" type="checkbox" switch />
-                    </div>
-                </div>
-
-                <p id="services-paused-note" class="description hidden" role="status">
-                    Automatic service connections are paused. Individual service choices are preserved.
-                </p>
-
-                <h3 class="card-title">Services</h3>
-                <div class="card card-body inline-container">
-                    <label for="filter-list-updates">
-                        Filter list updates
-                        <p class="description">Periodically download updates for enabled filter list subscriptions.</p>
-                    </label>
-                    <input id="filter-list-updates" type="checkbox" switch />
-                </div>
-            </div>
-
-            <div class="tab-panel" id="tab-network" data-title="Network">
-                <h3 class="card-title">DNS settings</h3>
-                <div class="card">
-                    <div class="card-body">
-                        <span id="dns-forcibly-enabled" class="forcibly-enabled hidden">
-                            This setting is controlled via the command line
-                        </span>
-                        <p id="dns-proxy-note" class="description hidden"></p>
-
-                        <div class="card-group inline-container" id="dns-settings-container">
-                            <label for="dns-upstream">DNS upstream</label>
-                            <select id="dns-upstream">
-                                <option value="system">System DNS</option>
-                                <option value="custom">Custom DNS server</option>
-                            </select>
-                        </div>
-                        <div id="custom-dns-settings" class="hidden">
-                            <div class="card-group inline-container">
-                                <label for="dns-type">Type</label>
-                                <select id="dns-type">
-                                    <option value="udp">UDP</option>
-                                    <option value="tls">TLS</option>
-                                </select>
-                            </div>
-                            <div class="card-group inline-container">
-                                <label for="dnssec-toggle">Validate DNSSEC locally</label>
-                                <input id="dnssec-toggle" type="checkbox" switch />
-                            </div>
-                            <div class="card-group inline-container">
-                                <label for="dns-server">DNS server (IP or hostname)</label>
-                                <input id="dns-server" type="text" />
-                            </div>
-                            <div class="card-group inline-container">
-                                <label for="dns-port">Port</label>
-                                <input id="dns-port" type="text" placeholder="53" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <div class="tab-panel" id="tab-feedback" data-title="Feedback">
                 <div class="card">
                     <div class="card-body">
@@ -1408,6 +1325,73 @@
             </div>
 
             <div class="tab-panel" id="tab-advanced" data-title="Advanced">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group">
+                            <div class="inline-container">
+                                <div>
+                                    <label for="browsing-data-settings-max-disk-cache-size">
+                                        Maximum disk cache size
+                                        <p class="description">Limit the space used for the HTTP disk cache.</p>
+                                    </label>
+                                </div>
+                                <div class="input-field-container">
+                                    <input
+                                        id="browsing-data-settings-max-disk-cache-size"
+                                        type="number"
+                                        min="1"
+                                        style="width: 150px"
+                                    />
+                                    <select id="browsing-data-settings-max-disk-cache-unit" style="width: 80px">
+                                        <option value="MiB">MiB</option>
+                                        <option value="GiB">GiB</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="card-title">DNS</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <span id="dns-forcibly-enabled" class="forcibly-enabled hidden">
+                            This setting is controlled via the command line
+                        </span>
+                        <p id="dns-proxy-note" class="description hidden"></p>
+
+                        <div class="card-group inline-container" id="dns-settings-container">
+                            <label for="dns-upstream">DNS upstream</label>
+                            <select id="dns-upstream">
+                                <option value="system">System DNS</option>
+                                <option value="custom">Custom DNS server</option>
+                            </select>
+                        </div>
+                        <div id="custom-dns-settings" class="hidden">
+                            <div class="card-group inline-container">
+                                <label for="dns-type">Type</label>
+                                <select id="dns-type">
+                                    <option value="udp">UDP</option>
+                                    <option value="tls">TLS</option>
+                                </select>
+                            </div>
+                            <div class="card-group inline-container">
+                                <label for="dnssec-toggle">Validate DNSSEC locally</label>
+                                <input id="dnssec-toggle" type="checkbox" switch />
+                            </div>
+                            <div class="card-group inline-container">
+                                <label for="dns-server">DNS server (IP or hostname)</label>
+                                <input id="dns-server" type="text" />
+                            </div>
+                            <div class="card-group inline-container">
+                                <label for="dns-port">Port</label>
+                                <input id="dns-port" type="text" placeholder="53" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="card-title">Developer</h3>
                 <div class="search-container">
                     <svg
                         class="search-icon"
@@ -1741,8 +1725,11 @@
                 });
             });
 
+            // Links to sections that were merged into others still open where their settings went.
+            const MOVED_SECTIONS = { general: "appearance", services: "privacy", network: "advanced" };
             const hash = location.hash.slice(1);
-            switchTab(hash ? tabForDeepLink(hash) : "general");
+            const section = hash ? tabForDeepLink(hash) : "appearance";
+            switchTab(MOVED_SECTIONS[section] ?? section);
 
             // FIXME: Remove this once closedby="any" triggers for Esc key.
             document.querySelectorAll("dialog").forEach(dialog => {
