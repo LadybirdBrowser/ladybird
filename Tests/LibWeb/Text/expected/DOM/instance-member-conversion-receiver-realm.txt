@@ -1,6 +1,6 @@
-operation TypeError is parent realm: true
-operation TypeError is iframe realm: false
-setter TypeError is parent realm: true
-setter TypeError is iframe realm: false
+operation TypeError is parent realm: false
+operation TypeError is iframe realm: true
+setter TypeError is parent realm: false
+setter TypeError is iframe realm: true
 nested script TypeError is parent realm: true
 nested script TypeError is iframe realm: false

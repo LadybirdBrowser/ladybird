@@ -4,9 +4,9 @@ Generated bindings make one explicit realm decision per IDL member.
 
 - Instance operations and attributes default to the validated receiver realm
   (`this_object_realm`). This realm is used for implementation calls,
-  DOMException wrapping, JavaScript return-value wrapping, and promise
-  creation for promise-typed members. A promise-typed member that throws
-  rejects in the caller/current realm, as WebIDL specifies.
+  JavaScript return-value wrapping, and promise creation for promise-typed
+  members. Exceptions, and the promises a promise-typed member rejects with
+  them, are created in the caller/current realm, as WebIDL specifies.
 - Generated pair-iterable, async-iterable, maplike, and setlike helpers use the
   receiver realm for iterator/container creation and wrapped values.
 - Static operations, constructors, and namespace members use the caller/current
@@ -29,17 +29,6 @@ The shared generator entry point is
 `Meta/Generators/libweb_bindings/realms.py::member_realm_expr()`. New generated
 member code should use that helper instead of spelling ad-hoc realm policy in
 individual emitters.
-
-This deliberately deviates from WebIDL's default exception wording for
-instance-member DOMException wrapping: LibWeb wraps DOMExceptions in the
-receiver realm so wrapper allocation, exception identity, and return-value
-allocation follow the same observable realm. Generated operation and setter
-conversion blocks also scope ordinary JavaScript TypeError construction to the
-selected member realm. The VM clears that TypeError override whenever
-conversion re-enters author script, so nested script still throws in its own
-realm. This is intentionally narrower than changing the VM's current realm or
-execution context, so conversion failures get uniform realm identity without
-running user script under a different realm.
 
 Current `[NeedsCallerRealm]` opt-out categories:
 

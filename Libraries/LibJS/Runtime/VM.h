@@ -327,46 +327,6 @@ public:
     // Returns the base of the Reference Record, or null if the reference is unresolvable.
     ThrowCompletionOr<GC::Ptr<Environment>> resolve_binding(Utf16FlyString const&, Strict, GC::Ptr<Environment> = nullptr);
 
-    // Has the TypeErrors that are thrown at the execution context stack depth the scope was created at created in
-    // `realm`, until the scope is restored. Callees that push execution contexts are unaffected.
-    class TypeErrorRealmScope {
-        AK_MAKE_NONCOPYABLE(TypeErrorRealmScope);
-        AK_MAKE_NONMOVABLE(TypeErrorRealmScope);
-
-    public:
-        TypeErrorRealmScope(VM& vm, Realm& realm)
-            : m_vm(vm)
-            , m_previous_realm(vm.engine_head_field<Realm*>(JS_LAYOUT_VM_TYPE_ERROR_REALM_OVERRIDE_OFFSET))
-            , m_previous_depth(vm.engine_head_field<size_t>(JS_LAYOUT_VM_TYPE_ERROR_REALM_OVERRIDE_DEPTH_OFFSET))
-        {
-            vm.set_engine_head_field<Realm*>(JS_LAYOUT_VM_TYPE_ERROR_REALM_OVERRIDE_OFFSET, &realm);
-            vm.set_engine_head_field<size_t>(JS_LAYOUT_VM_TYPE_ERROR_REALM_OVERRIDE_DEPTH_OFFSET, vm.execution_context_stack_length());
-        }
-
-        ~TypeErrorRealmScope()
-        {
-            restore();
-        }
-
-        void restore()
-        {
-            if (!m_active)
-                return;
-            m_vm.set_engine_head_field<Realm*>(JS_LAYOUT_VM_TYPE_ERROR_REALM_OVERRIDE_OFFSET, m_previous_realm.ptr());
-            m_vm.set_engine_head_field<size_t>(JS_LAYOUT_VM_TYPE_ERROR_REALM_OVERRIDE_DEPTH_OFFSET, m_previous_depth);
-            m_active = false;
-        }
-
-    private:
-        static_assert(JS_LAYOUT_VM_TYPE_ERROR_REALM_OVERRIDE_SIZE == sizeof(Realm*));
-        static_assert(JS_LAYOUT_VM_TYPE_ERROR_REALM_OVERRIDE_DEPTH_SIZE == sizeof(size_t));
-
-        VM& m_vm;
-        GC::Ptr<Realm> m_previous_realm;
-        size_t m_previous_depth { 0 };
-        bool m_active { true };
-    };
-
     // 5.2.3.2 Throw an Exception, https://tc39.es/ecma262/#sec-throw-an-exception
     // The runtime creates the errors of its own constructors, in the current realm or the realm of a TypeErrorRealmScope.
     template<typename T, typename... Args>
