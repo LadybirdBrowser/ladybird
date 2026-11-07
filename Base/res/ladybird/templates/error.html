@@ -39,16 +39,15 @@
                 color: var(--text);
                 background: var(--page);
             }
+            /* Centered, like every other page with a single message. */
             main {
                 display: flex;
                 flex-direction: column;
+                align-items: center;
                 gap: 14px;
-                /* The content lines up with the left edge of a centered column. */
-                max-width: 800px;
-                margin: 0 auto;
-            }
-            main > * {
                 max-width: 560px;
+                margin: 0 auto;
+                text-align: center;
             }
             svg {
                 width: 40px;
@@ -68,6 +67,8 @@
             }
             .actions {
                 display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
                 gap: 8px;
                 margin-top: 10px;
             }
@@ -104,6 +105,10 @@
             }
             summary:hover {
                 background: var(--control-hover);
+            }
+            details::details-content {
+                order: 1;
+                flex-basis: 100\%;
             }
             .details {
                 margin-top: 4px;
