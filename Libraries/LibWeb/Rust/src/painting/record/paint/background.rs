@@ -1140,6 +1140,7 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, frag
                 glyphs: run
                     .glyphs
                     .placed()
+                    .filter(|placed| placed.glyph.should_paint())
                     .map(crate::painting::display_list::commands::DisplayListGlyph::from),
             },
             libgfx_rust::Color::from_rgb(0, 0, 0),
