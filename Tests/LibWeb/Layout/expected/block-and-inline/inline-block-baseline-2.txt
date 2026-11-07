@@ -1,21 +1,21 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 74 0+1+0] [BFC] children: not-inline
     BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 56 0+1+8] children: inline
-      frag 0 from TextNode start: 0, length: 13, rect: [10,30 103.140625x16] baseline: 12.796875
+      frag 0 from TextNode start: 0, length: 13, rect: [10,30 103.140625x16] baseline: 13
           "Hello friends"
-      frag 1 from BlockContainer start: 0, length: 0, rect: [114.140625,11 39.234375x54] baseline: 32.796875
+      frag 1 from BlockContainer start: 0, length: 0, rect: [114.140625,11 39.234375x54] baseline: 33
       TextNode <#text> (not painted)
       BlockContainer <div.ib> at [114.140625,11] inline-block [0+1+0 39.234375 0+1+0] [0+1+0 54 0+1+0] [BFC] children: not-inline
         BlockContainer <div> at [115.140625,12] [0+1+0 37.234375 0+1+0] [0+1+0 16 0+1+0] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [115.140625,12 22.546875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [115.140625,12 22.546875x16] baseline: 13
               "1st"
           TextNode <#text> (not painted)
         BlockContainer <div> at [115.140625,30] [0+1+0 37.234375 0+1+0] [0+1+0 16 0+1+0] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [115.140625,30 26.28125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [115.140625,30 26.28125x16] baseline: 13
               "2nd"
           TextNode <#text> (not painted)
         BlockContainer <div.float> at [115.140625,48] floating [0+1+0 37.234375 0+1+0] [0+1+0 16 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [115.140625,48 37.234375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 5, rect: [115.140625,48 37.234375x16] baseline: 13
               "float"
           TextNode <#text> (not painted)
 

@@ -2,45 +2,45 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 54 0+0+8] children: not-inline
       BlockContainer <div#a> at [9,9] [0+1+0 782 0+1+0] [0+1+0 16 0+1+0] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 88.453125x16] baseline: 12.796875
+        frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 88.453125x16] baseline: 13
         BlockContainer <i> at [9,9] inline-block [0+0+0 88.453125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 12, rect: [9,9 88.453125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 12, rect: [9,9 88.453125x16] baseline: 13
               "inline-block"
           TextNode <#text> (not painted)
         InlineNode <b> at [117.453125,9] [0+0+20 41.296875 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 6, rect: [117.453125,9 41.296875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 6, rect: [117.453125,9 41.296875x16] baseline: 13
               "inline"
           TextNode <#text> (not painted)
         InlineNode <u> at [158.75,9] [0+0+0 41.296875 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 6, rect: [158.75,9 41.296875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 6, rect: [158.75,9 41.296875x16] baseline: 13
               "inline"
           TextNode <#text> (not painted)
       BlockContainer <div#b> at [9,27] [0+1+0 782 0+1+0] [0+1+0 16 0+1+0] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [70.296875,27 88.453125x16] baseline: 12.796875
+        frag 0 from BlockContainer start: 0, length: 0, rect: [70.296875,27 88.453125x16] baseline: 13
         InlineNode <i> at [9,27] [0+0+0 41.296875 20+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 6, rect: [9,27 41.296875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 6, rect: [9,27 41.296875x16] baseline: 13
               "inline"
           TextNode <#text> (not painted)
         BlockContainer <b> at [70.296875,27] inline-block [0+0+0 88.453125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 12, rect: [70.296875,27 88.453125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 12, rect: [70.296875,27 88.453125x16] baseline: 13
               "inline-block"
           TextNode <#text> (not painted)
         InlineNode <u> at [158.75,27] [0+0+0 41.296875 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 6, rect: [158.75,27 41.296875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 6, rect: [158.75,27 41.296875x16] baseline: 13
               "inline"
           TextNode <#text> (not painted)
       BlockContainer <div#c> at [9,45] [0+1+0 782 0+1+0] [0+1+0 16 0+1+0] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [131.59375,45 88.453125x16] baseline: 12.796875
+        frag 0 from BlockContainer start: 0, length: 0, rect: [131.59375,45 88.453125x16] baseline: 13
         InlineNode <i> at [9,45] [0+0+0 41.296875 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 6, rect: [9,45 41.296875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 6, rect: [9,45 41.296875x16] baseline: 13
               "inline"
           TextNode <#text> (not painted)
         InlineNode <b> at [70.296875,45] [0+0+20 41.296875 20+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 6, rect: [70.296875,45 41.296875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 6, rect: [70.296875,45 41.296875x16] baseline: 13
               "inline"
           TextNode <#text> (not painted)
         BlockContainer <u> at [131.59375,45] inline-block [0+0+0 88.453125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 12, rect: [131.59375,45 88.453125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 12, rect: [131.59375,45 88.453125x16] baseline: 13
               "inline-block"
           TextNode <#text> (not painted)
 

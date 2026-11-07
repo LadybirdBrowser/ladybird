@@ -8,22 +8,22 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <tbody> at [11,11] table-row-group [0+0+0 59.265625 0+0+0] [0+0+0 152 0+0+0] children: not-inline
             Box <tr> at [11,11] table-row [0+0+0 59.265625 0+0+0] [0+0+0 39 0+0+0] children: not-inline
               BlockContainer <td> at [33,23] table-cell [0+5+20 14.265625 20+5+0] [0+5+10 16 10+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 1, rect: [33,23 14.265625x16] baseline: 12.796875
+                frag 0 from TextNode start: 0, length: 1, rect: [33,23 14.265625x16] baseline: 13
                     "A"
                 TextNode <#text> (not painted)
             Box <tr> at [11,50] table-row [0+0+0 59.265625 0+0+0] [0+0+0 37 0+0+0] children: not-inline
               BlockContainer <td> at [33,60] table-cell [0+5+20 14.265625 20+5+0] [0+1+10 16 10+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 1, rect: [33,60 9.34375x16] baseline: 12.796875
+                frag 0 from TextNode start: 0, length: 1, rect: [33,60 9.34375x16] baseline: 13
                     "B"
                 TextNode <#text> (not painted)
             Box <tr> at [11,87] table-row [0+0+0 59.265625 0+0+0] [0+0+0 37 0+0+0] children: not-inline
               BlockContainer <td> at [33,97] table-cell [0+5+20 14.265625 20+5+0] [0+1+10 16 10+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 1, rect: [33,97 10.3125x16] baseline: 12.796875
+                frag 0 from TextNode start: 0, length: 1, rect: [33,97 10.3125x16] baseline: 13
                     "C"
                 TextNode <#text> (not painted)
             Box <tr> at [11,124] table-row [0+0+0 59.265625 0+0+0] [0+0+0 39 0+0+0] children: not-inline
               BlockContainer <td> at [33,134] table-cell [0+5+20 14.265625 20+5+0] [0+1+10 16 10+5+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 1, rect: [33,134 11.140625x16] baseline: 12.796875
+                frag 0 from TextNode start: 0, length: 1, rect: [33,134 11.140625x16] baseline: 13
                     "D"
                 TextNode <#text> (not painted)
 

@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <main> at [13,13] flex-container(row) [0+5+0 774 0+5+0] [0+5+0 26 0+5+0] [FFC] children: not-inline
         BlockContainer <foobar> at [13,13] flex-item [0+0+0 52.5625 0+0+0] [0+0+0 26 0+0+0] [BFC] children: not-inline
           BlockContainer <div> at [18,18] [0+5+0 42.5625 0+5+0] [0+5+0 16 0+5+0] children: inline
-            frag 0 from TextNode start: 0, length: 5, rect: [18,18 42.5625x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 5, rect: [18,18 42.5625x16] baseline: 13
                 "story"
             TextNode <#text> (not painted)
 

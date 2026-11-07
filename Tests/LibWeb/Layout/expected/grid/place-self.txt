@@ -3,29 +3,29 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 240 0+1+8] children: not-inline
       Box <div.grid> at [31,31] [0+1+20 738 20+1+0] [0+1+20 38 20+1+0] [GFC] children: not-inline
         BlockContainer <div.start> at [32,32] [0+1+0 50.203125 0+1+305.5625] [0+1+0 16 0+1+20] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [32,32 50.203125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 6, rect: [32,32 50.203125x16] baseline: 13
               "Start1"
           TextNode <#text> (not painted)
         BlockContainer <div.item-padding> at [399.765625,42] [0+1+10 358.234375 10+1+0] [0+1+10 16 10+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [399.765625,42 52.671875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 6, rect: [399.765625,42 52.671875x16] baseline: 13
               "Start2"
           TextNode <#text> (not painted)
       Box <div.grid> at [31,111] [0+1+20 738 20+1+0] [0+1+20 38 20+1+0] [GFC] children: not-inline
         BlockContainer <div.center> at [180.1875,122] [148.1875+1+0 59.390625 0+1+148.1875] [10+1+0 16 0+1+10] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 7, rect: [180.1875,122 59.390625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 7, rect: [180.1875,122 59.390625x16] baseline: 13
               "Center1"
           TextNode <#text> (not painted)
         BlockContainer <div.item-padding> at [399.765625,122] [0+1+10 358.234375 10+1+0] [0+1+10 16 10+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 7, rect: [399.765625,122 61.859375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 7, rect: [399.765625,122 61.859375x16] baseline: 13
               "Center2"
           TextNode <#text> (not painted)
       Box <div.grid> at [31,191] [0+1+20 738 20+1+0] [0+1+20 38 20+1+0] [GFC] children: not-inline
         BlockContainer <div.end> at [352.09375,212] [320.09375+1+0 35.671875 0+1+0] [20+1+0 16 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [352.09375,212 35.671875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 4, rect: [352.09375,212 35.671875x16] baseline: 13
               "End1"
           TextNode <#text> (not painted)
         BlockContainer <div.item-padding> at [399.765625,202] [0+1+10 358.234375 10+1+0] [0+1+10 16 10+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [399.765625,202 38.140625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 4, rect: [399.765625,202 38.140625x16] baseline: 13
               "End2"
           TextNode <#text> (not painted)
 

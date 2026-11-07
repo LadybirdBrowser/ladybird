@@ -3,15 +3,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [0,0] [0+0+0 216.09375 0+0+583.90625] [0+0+0 32 0+0+0] children: not-inline
       Box <div#menu> at [0,0] [0+0+0 216.09375 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
         BlockContainer <div> at [0,0] [0+0+0 83.046875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [0,0 83.046875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 9, rect: [0,0 83.046875x16] baseline: 13
               "Community"
           TextNode <#text> (not painted)
         BlockContainer <div> at [133.046875,0] [0+0+0 83.046875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [133.046875,0 83.046875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 9, rect: [133.046875,0 83.046875x16] baseline: 13
               "Community"
           TextNode <#text> (not painted)
       BlockContainer <div#wat> at [0,16] [0+0+0 216.09375 0+0+0] [0+0+0 16 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [0,16 27.421875x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 3, rect: [0,16 27.421875x16] baseline: 13
             "wat"
         TextNode <#text> (not painted)
 

@@ -13,7 +13,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         Box <tbody> at [14,14] table-row-group [0+0+0 188 0+0+0] [0+0+0 18 0+0+0] children: not-inline
                           Box <tr> at [14,14] table-row [0+0+0 188 0+0+0] [0+0+0 18 0+0+0] children: not-inline
                             BlockContainer <td> at [15,15] table-cell [0+0+1 186 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                              frag 0 from TextNode start: 0, length: 3, rect: [15,15 36.53125x16] baseline: 12.796875
+                              frag 0 from TextNode start: 0, length: 3, rect: [15,15 36.53125x16] baseline: 13
                                   "A A"
                               TextNode <#text> (not painted)
 

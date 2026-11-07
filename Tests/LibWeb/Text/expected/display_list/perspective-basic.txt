@@ -9,5 +9,5 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 FillRect@s3/e0 rect=[8,8 100x100] color=rgb(0, 0, 255)
-DrawGlyphRun@s3/e0 rect=[8,8 21x16] translation=[8,20.796875] color=rgb(0, 0, 0)
+DrawGlyphRun@s3/e0 rect=[8,8 21x16] translation=[8,21] color=rgb(0, 0, 0)
 

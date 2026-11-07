@@ -3,11 +3,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
       Box <div#grid> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
         BlockContainer <div#title> at [8,8] [0+0+0 88.171875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [8,8 88.171875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 10, rect: [8,8 88.171875x16] baseline: 13
               "Game Title"
           TextNode <#text> (not painted)
         BlockContainer <div#board> at [96.171875,8] [0+0+0 695.828125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [96.171875,8 45.734375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 5, rect: [96.171875,8 45.734375x16] baseline: 13
               "Board"
           TextNode <#text> (not painted)
 

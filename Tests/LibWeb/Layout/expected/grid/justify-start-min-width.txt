@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
       Box <div#grid> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
         BlockContainer <a#box> at [8,8] [0+0+0 288 0+0+496] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 13, rect: [8,8 102.75x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 13, rect: [8,8 102.75x16] baseline: 13
               "Start Selling"
           TextNode <#text> (not painted)
 

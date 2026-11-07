@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
         Box <div.grid> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
           BlockContainer <div.item> at [243.1875,8] [156.796875+0+78.390625 313.625 78.390625+0+156.796875] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 16, rect: [243.1875,8 121.0625x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 16, rect: [243.1875,8 121.0625x16] baseline: 13
                 "A filthy t-shirt"
             TextNode <#text> (not painted)
 

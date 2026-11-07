@@ -2,18 +2,18 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 92 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 68 0+0+8] children: not-inline
       BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 32 0+0+16] children: inline
-        frag 0 from TextNode start: 1, length: 96, rect: [8,16 771.90625x16] baseline: 12.796875
+        frag 0 from TextNode start: 1, length: 96, rect: [8,16 771.90625x16] baseline: 13
             "The words floated and inline should be legible below, with inline appearing just to the right of"
-        frag 1 from TextNode start: 98, length: 31, rect: [8,32 257.1875x16] baseline: 12.796875
+        frag 1 from TextNode start: 98, length: 31, rect: [8,32 257.1875x16] baseline: 13
             "the border surrounding floated."
         TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,64] [0+0+0 200 0+0+584] [0+0+0 20 0+0+0] [BFC] children: not-inline
         Box <table> at [8,82] table-box [0+0+0 200 0+0+0] [0+0+0 2 0+0+0] [TFC] children: not-inline
           BlockContainer <caption> at [8,64] [0+0+0 200 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 9, length: 6, rect: [63.8125,64 41.296875x16] baseline: 12.796875
+            frag 0 from TextNode start: 9, length: 6, rect: [63.8125,64 41.296875x16] baseline: 13
                 "inline"
             BlockContainer <div> at [9,65] floating [0+1+0 53.8125 0+1+0] [0+1+0 16 0+1+0] [BFC] children: inline
-              frag 0 from TextNode start: 13, length: 7, rect: [9,65 53.8125x16] baseline: 12.796875
+              frag 0 from TextNode start: 13, length: 7, rect: [9,65 53.8125x16] baseline: 13
                   "floated"
               TextNode <#text> (not painted)
             TextNode <#text> (not painted)

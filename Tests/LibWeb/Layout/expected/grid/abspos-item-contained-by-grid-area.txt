@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.gfc> at [8,8] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [GFC] children: not-inline
         BlockContainer <div.grid-item> at [408,8] [0+0+0 400 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
           BlockContainer <div.abspos> at [408,8] positioned [0+0+0 100 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 5, rect: [408,8 39.78125x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 5, rect: [408,8 39.78125x16] baseline: 13
                 "Hello"
             TextNode <#text> (not painted)
 

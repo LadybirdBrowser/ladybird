@@ -8,7 +8,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <div.table-content> at [51,71] [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] children: not-inline
           BlockContainer <figcaption> at [50,18] [0+2+0 102 0+2+0] [0+2+0 48 0+2+0] [BFC] children: not-inline
             BlockContainer <(anonymous)> at [50,18] [0+0+0 102 0+0+0] [0+0+0 16 0+0+0] children: inline
-              frag 0 from TextNode start: 9, length: 12, rect: [50,18 100.609375x16] baseline: 12.796875
+              frag 0 from TextNode start: 9, length: 12, rect: [50,18 100.609375x16] baseline: 13
                   "Caption text"
               TextNode <#text> (not painted)
             BlockContainer <div.caption-content> at [51,35] [0+1+0 100 0+1+0] [0+1+0 30 0+1+0] children: not-inline

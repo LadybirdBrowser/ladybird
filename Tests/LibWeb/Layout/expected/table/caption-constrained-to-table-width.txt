@@ -7,13 +7,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <(anonymous)> at [10,10] table-cell [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
               ImageBox <img> at [10,10] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
           BlockContainer <div.caption> at [9,113] [0+1+0 102 0+1+0] [0+1+0 64 0+1+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 12, rect: [9,113 100.609375x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 12, rect: [9,113 100.609375x16] baseline: 13
                 "Caption text"
-            frag 1 from TextNode start: 13, length: 11, rect: [9,129 93.984375x16] baseline: 12.796875
+            frag 1 from TextNode start: 13, length: 11, rect: [9,129 93.984375x16] baseline: 13
                 "constrained"
-            frag 2 from TextNode start: 25, length: 8, rect: [9,145 63.84375x16] baseline: 12.796875
+            frag 2 from TextNode start: 25, length: 8, rect: [9,145 63.84375x16] baseline: 13
                 "to table"
-            frag 3 from TextNode start: 34, length: 5, rect: [9,161 39.796875x16] baseline: 12.796875
+            frag 3 from TextNode start: 34, length: 5, rect: [9,161 39.796875x16] baseline: 13
                 "width"
             TextNode <#text> (not painted)
 

@@ -3,18 +3,18 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 24 0+0+0] children: not-inline
       Box <ul> at [100,0] flex-container(row) [0+0+100 700 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
         ListItemBox <li> at [100,0] flex-item [0+0+0 28.6875 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [100,4 28.6875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [100,4 28.6875x16] baseline: 13
               "one"
           ListItemMarkerBox <(anonymous)> at [86,0] [0+0+0 13.84375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [86,4 13.84375x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [86,4 13.84375x16] baseline: 13
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <li> at [168.6875,0] flex-item [0+0+0 28.4375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [168.6875,4 28.4375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [168.6875,4 28.4375x16] baseline: 13
               "two"
           ListItemMarkerBox <(anonymous)> at [154.6875,0] [0+0+0 13.84375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [154.6875,4 13.84375x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [154.6875,4 13.84375x16] baseline: 13
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)

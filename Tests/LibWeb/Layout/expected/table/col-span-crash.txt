@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           BlockContainer <colgroup> at [10,10] table-column-group [0+0+0 16 0+0+0] [0+0+0 0 0+0+0] children: not-inline
             BlockContainer <col> at [10,10] [0+0+0 16 0+0+0] [0+0+0 0 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,10] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-        frag 0 from TextNode start: 1, length: 19, rect: [8,10 162.109375x16] baseline: 12.796875
+        frag 0 from TextNode start: 1, length: 19, rect: [8,10 162.109375x16] baseline: 13
             "PASS (didn't crash)"
         TextNode <#text> (not painted)
 

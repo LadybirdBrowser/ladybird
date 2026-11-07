@@ -2,7 +2,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 22 0+0+0] children: not-inline
       BlockContainer <div#tall> at [0,0] [0+0+0 800 0+0+0] [0+0+0 22 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 12, rect: [0,0 97.515625x22] baseline: 17.203125
+        frag 0 from TextNode start: 0, length: 12, rect: [0,0 97.515625x22] baseline: 17
             "Tall metrics"
         TextNode <#text> (not painted)
 

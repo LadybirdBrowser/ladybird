@@ -4,30 +4,30 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.hidden-open> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
       BlockContainer <div.visible-pair> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,8] [0+0+0 58.703125 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from GeneratedTextNode start: 0, length: 7, rect: [8,8 58.703125x16] baseline: 12.796875
+          frag 0 from GeneratedTextNode start: 0, length: 7, rect: [8,8 58.703125x16] baseline: 13
               "[outer]"
           GeneratedTextNode <(anonymous)> (not painted)
         InlineNode <(anonymous)> at [66.703125,8] [0+0+0 66.078125 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from GeneratedTextNode start: 0, length: 8, rect: [66.703125,8 66.078125x16] baseline: 12.796875
+          frag 0 from GeneratedTextNode start: 0, length: 8, rect: [66.703125,8 66.078125x16] baseline: 13
               "[/outer]"
           GeneratedTextNode <(anonymous)> (not painted)
       BlockContainer <div.outer> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,24] [0+0+0 58.703125 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from GeneratedTextNode start: 0, length: 7, rect: [8,24 58.703125x16] baseline: 12.796875
+          frag 0 from GeneratedTextNode start: 0, length: 7, rect: [8,24 58.703125x16] baseline: 13
               "[outer]"
           GeneratedTextNode <(anonymous)> (not painted)
         InlineNode <span.hidden-close> at [8,24] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
         InlineNode <span.visible-inner> at [66.703125,24] [0+0+0 118.375 0+0+0] [0+0+0 16 0+0+0]
           InlineNode <(anonymous)> at [66.703125,24] [0+0+0 55.5 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from GeneratedTextNode start: 0, length: 7, rect: [66.703125,24 55.5x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 7, rect: [66.703125,24 55.5x16] baseline: 13
                 "[inner]"
             GeneratedTextNode <(anonymous)> (not painted)
           InlineNode <(anonymous)> at [122.203125,24] [0+0+0 62.875 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from GeneratedTextNode start: 0, length: 8, rect: [122.203125,24 62.875x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 8, rect: [122.203125,24 62.875x16] baseline: 13
                 "[/inner]"
             GeneratedTextNode <(anonymous)> (not painted)
         InlineNode <(anonymous)> at [185.078125,24] [0+0+0 66.078125 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from GeneratedTextNode start: 0, length: 8, rect: [185.078125,24 66.078125x16] baseline: 12.796875
+          frag 0 from GeneratedTextNode start: 0, length: 8, rect: [185.078125,24 66.078125x16] baseline: 13
               "[/outer]"
           GeneratedTextNode <(anonymous)> (not painted)
   BlockContainer <dialog> at [400,300] positioned [381+3+16 0 16+3+381] [281+3+16 0 16+3+281] [BFC] children: not-inline

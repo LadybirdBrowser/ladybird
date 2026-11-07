@@ -2,15 +2,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 84 0+1+0] [BFC] children: not-inline
     Box <body> at [2,2] flex-container(column) [0+1+0 796 0+1+0] [0+1+0 82 0+1+0] [FFC] children: not-inline
       BlockContainer <main> at [3,3] flex-item [0+1+0 400 0+1+0] [0+1+0 80 0+1+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 41, rect: [3,3 346.984375x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 41, rect: [3,3 346.984375x16] baseline: 13
             "For my day job I'm currently working as a"
-        frag 1 from TextNode start: 42, length: 39, rect: [3,19 337.59375x16] baseline: 12.796875
+        frag 1 from TextNode start: 42, length: 39, rect: [3,19 337.59375x16] baseline: 13
             "Software Engineer at For my day job I'm"
-        frag 2 from TextNode start: 82, length: 43, rect: [3,35 368.203125x16] baseline: 12.796875
+        frag 2 from TextNode start: 82, length: 43, rect: [3,35 368.203125x16] baseline: 13
             "currently working as a Software Engineer at"
-        frag 3 from TextNode start: 126, length: 41, rect: [3,51 346.984375x16] baseline: 12.796875
+        frag 3 from TextNode start: 126, length: 41, rect: [3,51 346.984375x16] baseline: 13
             "For my day job I'm currently working as a"
-        frag 4 from TextNode start: 168, length: 20, rect: [3,67 175.40625x16] baseline: 12.796875
+        frag 4 from TextNode start: 168, length: 20, rect: [3,67 175.40625x16] baseline: 13
             "Software Engineer at"
         TextNode <#text> (not painted)
 

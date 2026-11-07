@@ -1,15 +1,15 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: inline
-      frag 0 from TextNode start: 0, length: 1, rect: [736.65625,8 8x16] baseline: 12.796875
+      frag 0 from TextNode start: 0, length: 1, rect: [736.65625,8 8x16] baseline: 13
           " "
       InlineNode <span> at [689.9375,8] [0+0+0 46.71875 0+0+0] [0+0+0 16 0+0+0]
-        frag 0 from TextNode start: 0, length: 5, rect: [689.9375,8 46.71875x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 5, rect: [689.9375,8 46.71875x16] baseline: 13
             "aaaaa"
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)
       InlineNode <span> at [744.65625,8] [0+0+0 47.34375 0+0+0] [0+0+0 16 0+0+0]
-        frag 0 from TextNode start: 0, length: 5, rect: [744.65625,8 47.34375x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 5, rect: [744.65625,8 47.34375x16] baseline: 13
             "bbbbb"
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)

@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div.item> at [8,8] flex-item [0+0+0 784 0+0+0] [0+0+0 120 0+0+0] [BFC] children: not-inline
           BlockContainer <div.spacer> at [8,8] [0+0+0 120 0+0+664] [0+0+0 120 0+0+0] children: not-inline
         BlockContainer <div> at [8,128] flex-item [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 9, length: 14, rect: [8,128 112.421875x16] baseline: 12.796875
+          frag 0 from TextNode start: 9, length: 14, rect: [8,128 112.421875x16] baseline: 13
               "text text text"
           TextNode <#text> (not painted)
       BlockContainer <div> at [8,144] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline

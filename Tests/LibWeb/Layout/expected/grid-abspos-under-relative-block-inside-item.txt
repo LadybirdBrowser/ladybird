@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           BlockContainer <div.holder> at [18,18] positioned [10+0+0 80 0+0+10] [10+0+0 50 0+0+10] children: not-inline
             BlockContainer <div.abspos> at [25,23] positioned [0+0+0 30 0+0+0] [0+0+0 12 0+0+0] [BFC] children: not-inline
         BlockContainer <div.item> at [108,8] [0+0+0 100 0+0+0] [0+0+0 80 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [108,8 54.78125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 6, rect: [108,8 54.78125x16] baseline: 13
               "second"
           TextNode <#text> (not painted)
 

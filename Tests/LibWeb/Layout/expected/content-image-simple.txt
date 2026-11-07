@@ -4,13 +4,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 1200 0+0+0] children: inline
         frag 0 from ImageBox start: 0, length: 0, rect: [8,808 400x400] baseline: 400
         InlineNode <(anonymous)> at [8,395] [0+0+0 454.796875 0+0+0] [0+0+0 413 0+0+0]
-          frag 0 from GeneratedTextNode start: 0, length: 3, rect: [8,395 27.15625x16] baseline: 12.796875
+          frag 0 from GeneratedTextNode start: 0, length: 3, rect: [8,395 27.15625x16] baseline: 13
               "foo"
           frag 1 from ImageBox start: 0, length: 0, rect: [35.15625,8 400x400] baseline: 400
-          frag 2 from GeneratedTextNode start: 0, length: 3, rect: [435.15625,395 27.640625x16] baseline: 12.796875
+          frag 2 from GeneratedTextNode start: 0, length: 3, rect: [435.15625,395 27.640625x16] baseline: 13
               "bar"
           frag 0 from ImageBox start: 0, length: 0, rect: [8,408 400x400] baseline: 400
-          frag 1 from GeneratedTextNode start: 0, length: 3, rect: [408,795 27.203125x16] baseline: 12.796875
+          frag 1 from GeneratedTextNode start: 0, length: 3, rect: [408,795 27.203125x16] baseline: 13
               "baz"
           GeneratedTextNode <(anonymous)> (not painted)
           ImageBox <(anonymous)> at [35.15625,8] [0+0+0 400 0+0+0] [0+0+0 400 0+0+0] children: not-inline
