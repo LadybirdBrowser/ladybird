@@ -29,6 +29,9 @@ private:
     virtual void die() override;
 
     // ^HubClientEndpoint
+    virtual void view_selected_text(u64 view_id, u64 request_id, Optional<ByteString> text) override;
+    virtual void view_close_preflight_finished(u64 view_id, u64 request_id, bool may_close) override;
+    virtual void view_page_dumps(u64 view_id, u64 request_id, Optional<String> dumps) override;
     virtual void pip_open(u64 view_id, u64 owner_view_id, Gfx::IntSize video_size) override;
     virtual void pip_hide(u64 view_id) override;
     virtual void pip_set_video_size(u64 view_id, Gfx::IntSize video_size) override;

@@ -447,6 +447,24 @@ void HubConnection::external_url_release_handler(u64 handler_id)
     Application::the().release_external_url_handler(handler_id);
 }
 
+void HubConnection::view_selected_text(u64 view_id, u64 request_id, Optional<ByteString> text)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_get_selected_text(request_id, move(text));
+}
+
+void HubConnection::view_close_preflight_finished(u64 view_id, u64 request_id, bool may_close)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_finish_close_preflight(request_id, may_close);
+}
+
+void HubConnection::view_page_dumps(u64 view_id, u64 request_id, Optional<String> dumps)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_get_page_dumps(request_id, move(dumps));
+}
+
 void HubConnection::settings_changed(ByteString settings_json)
 {
     auto settings = JsonValue::from_string(settings_json);

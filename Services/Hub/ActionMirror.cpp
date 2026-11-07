@@ -7,6 +7,7 @@
 #include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
+#include <LibWebView/PageTranslation.h>
 #include <LibWebView/ViewImplementation.h>
 
 namespace Hub {
@@ -175,6 +176,7 @@ ViewActions ActionMirror::view_actions(WebView::ViewImplementation& view)
     actions.navigate_forward_action = state_of(view.navigate_forward_action());
     actions.toggle_bookmark_action = state_of(view.toggle_bookmark_action());
     actions.reset_zoom_action = state_of(view.reset_zoom_action());
+    actions.translate_action = state_of(view.page_translation().translate_action());
     actions.bookmarks_bar_context_menu = entries_of(view.bookmarks_bar_context_menu());
     actions.bookmark_context_menu = entries_of(view.bookmark_context_menu());
     actions.bookmark_folder_context_menu = entries_of(view.bookmark_folder_context_menu());

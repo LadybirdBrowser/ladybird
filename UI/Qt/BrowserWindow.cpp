@@ -781,13 +781,8 @@ void BrowserWindow::duplicate_tab(Tab& source_tab, Web::HTML::ActivateTab activa
 
 void BrowserWindow::open_history_entry_in_new_tab(Tab& source_tab, int delta, Web::HTML::ActivateTab activate_tab)
 {
-    auto const& traversable = source_tab.view().traversable();
-    auto used_steps = traversable.session_history().used_steps();
-    auto step_index = traversable.effective_current_session_history_step_index() + delta;
-    if (step_index >= used_steps.size())
-        return;
-
-    duplicate_tab(source_tab, activate_tab, used_steps[step_index]);
+    if (auto step = source_tab.view().history_step_at_delta(delta); step.has_value())
+        duplicate_tab(source_tab, activate_tab, *step);
 }
 
 void BrowserWindow::restore_tabs(Vector<WebView::RestoredSessionTab> const& tabs, i64 active_tab_index)

@@ -146,6 +146,7 @@ struct Hub::ViewActions {
     Hub::ActionState navigate_forward_action;
     Hub::ActionState toggle_bookmark_action;
     Hub::ActionState reset_zoom_action;
+    Hub::ActionState translate_action;
     Vector<Hub::MenuEntry> bookmarks_bar_context_menu;
     Vector<Hub::MenuEntry> bookmark_context_menu;
     Vector<Hub::MenuEntry> bookmark_folder_context_menu;
@@ -226,6 +227,7 @@ struct Hub::ViewState {
     i32 web_content_pid;
     bool can_report_website_issue;
     bool is_node_picker_active;
+    bool is_translated;
     WebView::ContentBlockingSnapshot content_blocking_snapshot;
     WebView::ViewImplementation::InputMethodState input_method_state;
     Web::HTML::MuteState page_mute_state;
@@ -240,6 +242,9 @@ struct Hub::ViewState {
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    view_selected_text(u64 view_id, u64 request_id, Optional<ByteString> text) =|
+    view_close_preflight_finished(u64 view_id, u64 request_id, bool may_close) =|
+    view_page_dumps(u64 view_id, u64 request_id, Optional<String> dumps) =|
     pip_open(u64 view_id, u64 owner_view_id, Gfx::IntSize video_size) =|
     pip_hide(u64 view_id) =|
     pip_set_video_size(u64 view_id, Gfx::IntSize video_size) =|

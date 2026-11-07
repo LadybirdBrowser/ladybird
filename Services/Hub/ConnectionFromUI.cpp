@@ -8,6 +8,8 @@
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/Proxies.h>
+#include <LibWebView/MicrophoneAuthorizer.h>
+#include <LibWebView/WebCompatReport.h>
 
 namespace Hub {
 
@@ -325,6 +327,144 @@ void ConnectionFromUI::external_url_handler_resolved(u64 request_id, Optional<u6
 void ConnectionFromUI::external_url_launched(u64 request_id, bool launched)
 {
     Application::the().did_launch_external_url(request_id, launched);
+}
+
+void ConnectionFromUI::view_set_site_permission(u64 view_id, URL::Origin origin, Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision)
+{
+    if (auto* view = find_view(view_id)) {
+        view->set_site_permission(origin, name, decision);
+        view->push_state_to_ui();
+    }
+}
+
+void ConnectionFromUI::view_did_show_permission_prompt(u64 view_id, WebView::PermissionPromptRequest request)
+{
+    if (auto* view = find_view(view_id))
+        view->did_show_permission_prompt(request);
+}
+
+void ConnectionFromUI::view_load_navigation(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation)
+{
+    if (auto* view = find_view(view_id))
+        view->load(move(navigation));
+}
+
+void ConnectionFromUI::view_open_navigation_in_new_tab(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab)
+{
+    if (auto* view = find_view(view_id))
+        view->open_navigation_in_new_tab(move(navigation), activate_tab);
+}
+
+void ConnectionFromUI::view_open_navigation_in_new_window(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private)
+{
+    if (auto* view = find_view(view_id))
+        view->open_navigation_in_new_window(move(navigation), is_private);
+}
+
+void ConnectionFromUI::view_traverse_the_history_to_step(u64 view_id, i32 step)
+{
+    if (auto* view = find_view(view_id))
+        view->traverse_the_history_to_step(step);
+}
+
+void ConnectionFromUI::view_set_session_tab_id(u64 view_id, Optional<WebView::SessionTabId> session_tab_id)
+{
+    auto* view = find_view(view_id);
+    if (!view)
+        return;
+    if (session_tab_id.has_value())
+        view->set_session_tab_id(*session_tab_id);
+    else
+        view->clear_session_tab_id();
+}
+
+void ConnectionFromUI::view_file_picker_closed(u64 view_id, Vector<Web::HTML::SelectedFile> selected_files)
+{
+    if (auto* view = find_view(view_id))
+        view->file_picker_closed(move(selected_files));
+}
+
+void ConnectionFromUI::view_save_screenshot(u64 view_id, Gfx::ShareableBitmap bitmap)
+{
+    auto* view = find_view(view_id);
+    if (view && bitmap.is_valid())
+        view->save_screenshot(*bitmap.bitmap());
+}
+
+void ConnectionFromUI::view_request_selected_text(u64 view_id, u64 request_id)
+{
+    auto* view = find_view(view_id);
+    if (!view) {
+        async_view_selected_text(view_id, request_id, {});
+        return;
+    }
+    auto promise = view->selected_text();
+    promise->when_resolved([this, view_id, request_id](ByteString& text) {
+        async_view_selected_text(view_id, request_id, text);
+    });
+    promise->when_rejected([this, view_id, request_id](Error const&) {
+        async_view_selected_text(view_id, request_id, {});
+    });
+}
+
+void ConnectionFromUI::view_request_close_preflight(u64 view_id, u64 request_id)
+{
+    auto* view = find_view(view_id);
+    if (!view) {
+        async_view_close_preflight_finished(view_id, request_id, true);
+        return;
+    }
+    view->request_close_preflight([this, view_id, request_id](bool may_close) {
+        async_view_close_preflight_finished(view_id, request_id, may_close);
+    });
+}
+
+void ConnectionFromUI::view_request_page_dumps(u64 view_id, u64 request_id)
+{
+    auto* view = find_view(view_id);
+    if (!view) {
+        async_view_page_dumps(view_id, request_id, {});
+        return;
+    }
+    auto promise = WebView::WebCompatReport::request_page_dumps(*view);
+    promise->when_resolved([this, view_id, request_id](String& dumps) {
+        async_view_page_dumps(view_id, request_id, dumps);
+    });
+    promise->when_rejected([this, view_id, request_id](Error const&) {
+        async_view_page_dumps(view_id, request_id, {});
+    });
+}
+
+void ConnectionFromUI::view_prepare_for_immediate_close(u64 view_id)
+{
+    auto* view = find_view(view_id);
+    if (!view)
+        return;
+    // NB: The UI looked before it asked, but a page can start to need a beforeunload check at any moment, and the user
+    //     still wants the tab gone. A page must not be able to take the Hub down by racing that, and the UI has
+    //     already closed the tab, so the page closes without prompting.
+    if (view->needs_beforeunload_check()) {
+        view->prepare_for_close_without_prompting()();
+        return;
+    }
+    view->prepare_for_immediate_close();
+}
+
+void ConnectionFromUI::view_prepare_for_close_without_prompting(u64 view_id, u64 close_id)
+{
+    if (auto* view = find_view(view_id))
+        m_prepared_closes.set(close_id, view->prepare_for_close_without_prompting());
+}
+
+void ConnectionFromUI::finish_prepared_close(u64 close_id)
+{
+    if (auto close = m_prepared_closes.take(close_id); close.has_value())
+        (*close)();
+}
+
+void ConnectionFromUI::open_microphone_system_settings()
+{
+    static_cast<WebView::Application&>(Application::the()).microphone_authorizer().open_system_settings();
 }
 
 void ConnectionFromUI::update_settings(ByteString settings_json)

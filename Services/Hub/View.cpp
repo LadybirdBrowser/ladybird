@@ -8,6 +8,7 @@
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/View.h>
+#include <LibWebView/PageTranslation.h>
 
 namespace Hub {
 
@@ -617,6 +618,7 @@ ViewState View::current_state() const
     state.is_loading = is_loading();
     state.zoom_level = zoom_level();
     state.is_node_picker_active = is_node_picker_active();
+    state.is_translated = has_traversable() && const_cast<View&>(*this).page_translation().is_translated();
     state.input_method_state = input_method_state();
     state.page_mute_state = page_mute_state();
     state.plays_audio_indicator_visible = tab_indicator_visible(WebView::TabIndicator::PlayingAudio);
