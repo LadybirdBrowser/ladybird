@@ -38,6 +38,7 @@ use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
     call_function_object, create_unmapped_arguments_object, get_prototype_from_constructor, length_of_array_like,
+    throw_if_too_many_arguments,
 };
 use crate::runtime::array::Array;
 use crate::runtime::bound_function::BoundFunction;
@@ -393,6 +394,9 @@ fn call_other_function_from_jit(
                 Ok(length) => length,
                 Err(throw) => return Some(handle_asm_exception(vm, site.pc, throw.value())),
             };
+            if let Err(throw) = throw_if_too_many_arguments(vm, length) {
+                return Some(handle_asm_exception(vm, site.pc, throw.value()));
+            }
             if unwrap_depth == 0 {
                 record_forwarded_call(
                     vm,
