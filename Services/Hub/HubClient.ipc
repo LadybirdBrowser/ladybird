@@ -1,5 +1,97 @@
+#include <LibCompositing/Types.h>
+#include <LibGfx/Color.h>
+#include <LibGfx/Cursor.h>
+#include <LibGfx/Point.h>
+#include <LibGfx/Size.h>
+#include <LibURL/URL.h>
+#include <LibWebCommon/HTML/FileFilter.h>
+#include <LibWebCommon/HTML/SelectItem.h>
+#include <LibWebView/AccessibilityTreeManager.h>
+#include <LibWebView/TabPerformanceStats.h>
+#include <LibWebView/ViewImplementation.h>
+
+[ExistingCpp]
+struct WebView::BlockedResource {
+    String host;
+    String kind;
+}
+
+[ExistingCpp]
+struct WebView::ContentBlockingSnapshot {
+    Optional<String> site;
+    WebView::ContentBlockingState state;
+    Vector<WebView::BlockedResource> blocked_resources;
+}
+
+[ExistingCpp]
+struct WebView::PermissionPromptRequest {
+    Web::Permissions::PermissionName name;
+    URL::Origin top_level_origin;
+    bool is_file;
+    bool show_os_hint;
+    WebView::PermissionPromptKind kind;
+}
+
+[ExistingCpp]
+struct WebView::TabPerformanceStats {
+    Optional<double> cpu_percent;
+    Optional<u64> memory_bytes;
+    Optional<u64> peak_memory_bytes;
+    u64 download_bytes_per_second;
+    u64 upload_bytes_per_second;
+    Optional<double> frames_per_second;
+    Vector<double> cpu_history;
+}
+
 // What the Hub tells the UI.
 endpoint HubClient
 {
-    hub_is_ready() =|
+    view_load_start(u64 view_id) =|
+    view_load_finish(u64 view_id, URL::URL url) =|
+    view_activate_tab(u64 view_id) =|
+    view_close(u64 view_id) =|
+    view_link_hover(u64 view_id, URL::URL url) =|
+    view_link_unhover(u64 view_id) =|
+    view_title_change(u64 view_id, Utf16String title) =|
+    view_url_change(u64 view_id, URL::URL url) =|
+    view_loading_state_change(u64 view_id, bool is_loading) =|
+    view_top_level_navigation_commit(u64 view_id) =|
+    view_browser_history_traversal_complete(u64 view_id) =|
+    view_cursor_change(u64 view_id, Gfx::Cursor cursor) =|
+    view_input_method_state_change(u64 view_id) =|
+    view_enter_tooltip_area(u64 view_id, ByteString tooltip) =|
+    view_leave_tooltip_area(u64 view_id) =|
+    view_content_blocking_change(u64 view_id, WebView::ContentBlockingSnapshot snapshot) =|
+    view_request_alert(u64 view_id, Utf16String message) =|
+    view_request_confirm(u64 view_id, Utf16String message) =|
+    view_request_prompt(u64 view_id, Utf16String message, Utf16String default_value) =|
+    view_request_set_prompt_text(u64 view_id, Utf16String message) =|
+    view_before_browser_initiated_navigation(u64 view_id) =|
+    view_request_accept_dialog(u64 view_id) =|
+    view_request_dismiss_dialog(u64 view_id) =|
+    view_request_website_issue_report(u64 view_id) =|
+    view_request_screenshot(u64 view_id) =|
+    view_accessibility_tree_received(u64 view_id, u64 sequence, Vector<WebView::AccessibilityNodeData> nodes) =|
+    view_accessibility_tree_changed(u64 view_id, u64 base_sequence, u64 sequence, WebView::AccessibilityTreeDelta delta) =|
+    view_accessibility_focus_changed(u64 view_id, i64 node_id) =|
+    view_restore_window(u64 view_id) =|
+    view_reposition_window(u64 view_id, Gfx::IntPoint position) =|
+    view_resize_window(u64 view_id, Gfx::IntSize size) =|
+    view_maximize_window(u64 view_id) =|
+    view_minimize_window(u64 view_id) =|
+    view_fullscreen_window(u64 view_id) =|
+    view_exit_fullscreen_window(u64 view_id) =|
+    view_request_color_picker(u64 view_id, Color current_color) =|
+    view_cancel_permission_prompt(u64 view_id, WebView::PermissionPromptRequest request) =|
+    view_tab_indicator_change(u64 view_id, WebView::TabIndicator indicator, bool visible) =|
+    view_request_file_picker(u64 view_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) =|
+    view_request_select_dropdown(u64 view_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) =|
+    view_picture_in_picture_control_activated(u64 view_id, Compositing::PictureInPictureControl control) =|
+    view_find_in_page(u64 view_id, size_t current_match_index, Optional<size_t> total_match_count) =|
+    view_page_background_color_change(u64 view_id, Gfx::Color color) =|
+    view_screen_wake_lock_state_changed(u64 view_id, Web::ScreenWakeLockState state) =|
+    view_web_content_crashed(u64 view_id, WebView::ViewImplementation::WebContentCrashReason reason) =|
+    view_crash_overlay_state_change(u64 view_id, bool active) =|
+    view_crash_report_saved(u64 view_id) =|
+    view_performance_stats(u64 view_id, WebView::TabPerformanceStats stats) =|
 }
