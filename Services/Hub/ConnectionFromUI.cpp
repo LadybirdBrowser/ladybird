@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/Proxies.h>
+#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/RequestClient.h>
@@ -555,7 +555,11 @@ Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
 
     InitialState state;
     state.settings_json = Application::settings().serialize_json().serialized().to_byte_string();
-    state.actions = ActionMirror::the().application_actions();
+    state.user_agent = Application::the().user_agent_string();
+    state.navigator_compatibility_mode = Application::the().navigator_compatibility_mode();
+    state.scripting_enabled = Application::the().scripting_enabled();
+    state.blocks_pop_ups = Application::the().blocks_pop_ups();
+    state.devtools_enabled = Application::the().devtools_enabled();
     state.downloads = downloads();
     state.urls = options.urls;
     state.raw_urls = options.raw_urls;
@@ -582,7 +586,7 @@ Messages::HubServer::CreateViewResponse ConnectionFromUI::create_view(Hub::NewVi
         .websites_prefer_dark = request.websites_prefer_dark,
         .is_tab = request.is_tab,
     });
-    return { view.view_id(), view.current_state(), ActionMirror::the().view_actions(view) };
+    return { view.view_id(), view.current_state() };
 }
 
 Messages::HubServer::ViewDescriptionResponse ConnectionFromUI::view_description(u64 view_id)
@@ -590,8 +594,8 @@ Messages::HubServer::ViewDescriptionResponse ConnectionFromUI::view_description(
     // NB: The UI can ask about a view that the Hub has let go of already, and must not take the Hub down by that.
     auto* view = find_view(view_id);
     if (!view)
-        return { Hub::ViewState {}, Hub::ViewActions {} };
-    return { view->current_state(), ActionMirror::the().view_actions(*view) };
+        return Hub::ViewState {};
+    return { view->current_state() };
 }
 
 void ConnectionFromUI::crash_reports_changed()
@@ -639,7 +643,57 @@ void ConnectionFromUI::cancel_report_post(u64 post_id)
 void ConnectionFromUI::toggle_devtools_enabled()
 {
     if (auto result = Application::the().toggle_devtools_enabled(); result.is_error())
-        dbgln("Unable to toggle DevTools: {}", result.error());
+        static_cast<WebView::Application&>(Application::the()).display_error_dialog(MUST(String::formatted("Unable to start DevTools: {}", result.error())));
+}
+
+void ConnectionFromUI::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
+{
+    Application::the().set_preferred_contrast(contrast);
+}
+
+void ConnectionFromUI::set_preferred_motion(Web::CSS::PreferredMotion motion)
+{
+    Application::the().set_preferred_motion(motion);
+}
+
+void ConnectionFromUI::set_user_agent_string(String user_agent)
+{
+    Application::the().set_user_agent_string(move(user_agent));
+}
+
+void ConnectionFromUI::set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode)
+{
+    Application::the().set_navigator_compatibility_mode(mode);
+}
+
+void ConnectionFromUI::set_scripting_enabled(bool enabled)
+{
+    Application::the().set_scripting_enabled(enabled);
+}
+
+void ConnectionFromUI::set_blocks_pop_ups(bool blocks)
+{
+    Application::the().set_blocks_pop_ups(blocks);
+}
+
+void ConnectionFromUI::set_shows_line_box_borders(bool shows)
+{
+    Application::the().set_shows_line_box_borders(shows);
+}
+
+void ConnectionFromUI::set_shows_caret_hit_test_debug_overlay(bool shows)
+{
+    Application::the().set_shows_caret_hit_test_debug_overlay(shows);
+}
+
+void ConnectionFromUI::dump_cookies()
+{
+    Application::the().dump_cookies();
+}
+
+void ConnectionFromUI::crash_compositor_process()
+{
+    Application::the().crash_compositor_process();
 }
 
 void ConnectionFromUI::launch_devtools_client()
@@ -737,14 +791,6 @@ Messages::HubServer::ViewPageDescriptionResponse ConnectionFromUI::view_page_des
         return { URL::URL {}, String {}, Gfx::IntSize {}, 1.0, 1.0 };
     auto page = WebView::WebCompatReport::describe_page(*view);
     return { move(page.url), move(page.user_agent), page.viewport_size, page.device_pixel_ratio, page.zoom_level };
-}
-
-Messages::HubServer::ViewTranslationMenuResponse ConnectionFromUI::view_translation_menu(u64 view_id)
-{
-    auto* view = find_view(view_id);
-    if (!view)
-        return Vector<MenuEntry> {};
-    return ActionMirror::the().entries_of(view->page_translation().translation_menu());
 }
 
 Messages::HubServer::SessionWindowOpenedResponse ConnectionFromUI::session_window_opened(WebView::IsPrivate is_private)
@@ -876,11 +922,6 @@ void ConnectionFromUI::update_settings(u64 change_id, ByteString changes_json)
     WebView::Settings::apply_changes(settings.as_object(), changes.value().as_object());
     m_last_applied_settings_change_id = change_id;
     Application::settings().replace_with_json(settings, WebView::Settings::PersistChange::Yes);
-}
-
-void ConnectionFromUI::activate_action(u64 handle, Optional<bool> checked)
-{
-    ActionMirror::the().activate(handle, checked);
 }
 
 void ConnectionFromUI::destroy_view(u64 view_id)
@@ -1040,6 +1081,122 @@ void ConnectionFromUI::view_reload(u64 view_id, WebView::BypassCache bypass_cach
         view->reload(bypass_cache);
         view->push_state_to_ui();
     }
+}
+
+void ConnectionFromUI::view_undo(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->undo();
+}
+
+void ConnectionFromUI::view_redo(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->redo();
+}
+
+void ConnectionFromUI::view_cut_selection(u64 view_id)
+{
+    if (auto* view = find_view(view_id)) {
+        view->cut_selected_text()->when_resolved([](auto& text) {
+            if (!text.is_empty())
+                Application::the().insert_clipboard_entry({ "text/plain"_string, text });
+        });
+    }
+}
+
+void ConnectionFromUI::view_paste(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->paste_from_clipboard();
+}
+
+void ConnectionFromUI::view_select_all(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->select_all();
+}
+
+void ConnectionFromUI::view_get_source(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->get_source();
+}
+
+void ConnectionFromUI::view_traverse_the_history_by_delta(u64 view_id, i32 delta)
+{
+    if (auto* view = find_view(view_id))
+        view->traverse_the_history_by_delta(delta);
+}
+
+void ConnectionFromUI::view_translate_to(u64 view_id, String target_language)
+{
+    if (auto* view = find_view(view_id); view && view->has_traversable())
+        view->page_translation().translate_to(target_language);
+}
+
+void ConnectionFromUI::view_show_original(u64 view_id)
+{
+    if (auto* view = find_view(view_id); view && view->has_traversable())
+        view->page_translation().show_original();
+}
+
+void ConnectionFromUI::view_download_url(u64 view_id, URL::URL url, bool prompt_for_path, Optional<String> image_mime_type)
+{
+    if (auto* view = find_view(view_id))
+        view->download_url(url, prompt_for_path ? WebView::ViewImplementation::PromptForPath::Yes : WebView::ViewImplementation::PromptForPath::No, image_mime_type);
+}
+
+void ConnectionFromUI::view_inspect_context_menu_element(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->inspect_context_menu_element();
+}
+
+void ConnectionFromUI::view_replace_context_menu_misspelling(u64 view_id, Utf16String replacement)
+{
+    if (auto* view = find_view(view_id))
+        view->replace_context_menu_misspelling(replacement);
+}
+
+void ConnectionFromUI::view_ignore_misspelling(u64 view_id, Utf16String word)
+{
+    if (auto* view = find_view(view_id))
+        view->ignore_misspelling(word);
+}
+
+void ConnectionFromUI::view_learn_misspelling(u64 view_id, Utf16String word)
+{
+    if (auto* view = find_view(view_id))
+        view->learn_misspelling(word);
+}
+
+void ConnectionFromUI::view_do_context_menu_media_action(u64 view_id, WebView::ContextMenuMediaAction action)
+{
+    if (auto* view = find_view(view_id))
+        view->do_context_menu_media_action(action);
+}
+
+void ConnectionFromUI::view_debug_request(u64 view_id, ByteString request, ByteString argument)
+{
+    if (auto* view = find_view(view_id))
+        view->debug_request(request, argument);
+}
+
+void ConnectionFromUI::view_dump_gc_graph(u64 view_id)
+{
+    auto* view = find_view(view_id);
+    if (!view)
+        return;
+
+    auto gc_graph_path = view->dump_gc_graph();
+    if (gc_graph_path.is_error()) {
+        warnln("\033[31;1mFailed to dump GC graph: {}\033[0m", gc_graph_path.error());
+        return;
+    }
+    warnln("\033[33;1mDumped GC graph into {}\033[0m", gc_graph_path.value());
+    if (auto source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv); source_dir.has_value())
+        warnln("\033[33;1mGC graph explorer: file://{}/Meta/gc-heap-explorer.html?script=file://{}\033[0m", *source_dir, gc_graph_path.value());
 }
 
 void ConnectionFromUI::view_stop_loading(u64 view_id)

@@ -11,7 +11,10 @@
 #include <LibGfx/Size.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWebCommon/CSS/PreferredContrast.h>
+#include <LibWebCommon/CSS/PreferredMotion.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
+#include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebView/OmniboxEngagement.h>
@@ -230,8 +233,8 @@ struct Hub::NewViewRequest {
 endpoint HubServer
 {
     initialize() => (Hub::InitialState state)
-    create_view(Hub::NewViewRequest request) => (u64 view_id, Hub::ViewState state, Hub::ViewActions actions)
-    view_description(u64 view_id) => (Hub::ViewState state, Hub::ViewActions actions)
+    create_view(Hub::NewViewRequest request) => (u64 view_id, Hub::ViewState state)
+    view_description(u64 view_id) => (Hub::ViewState state)
     ui_did_start() =|
     favicons_in_use(Vector<String> favicon_hashes) =|
     answer_keeps_omnibox_engagements(u64 request_id, bool keeps_engagements) =|
@@ -242,6 +245,16 @@ endpoint HubServer
     cancel_report_post(u64 post_id) =|
 
     toggle_devtools_enabled() =|
+    set_preferred_contrast(Web::CSS::PreferredContrast contrast) =|
+    set_preferred_motion(Web::CSS::PreferredMotion motion) =|
+    set_user_agent_string(String user_agent) =|
+    set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode) =|
+    set_scripting_enabled(bool enabled) =|
+    set_blocks_pop_ups(bool blocks) =|
+    set_shows_line_box_borders(bool shows) =|
+    set_shows_caret_hit_test_debug_overlay(bool shows) =|
+    dump_cookies() =|
+    crash_compositor_process() =|
     launch_devtools_client() =|
     reset_private_browsing_session() =|
     notify_compositor_gpu_presentation_unavailable() =|
@@ -258,7 +271,6 @@ endpoint HubServer
     view_history_step_at_delta(u64 view_id, i32 delta) => (Optional<i32> step)
     view_look_up_selected_text_at(u64 view_id, Gfx::IntPoint position) => (bool looked_up)
     view_page_description(u64 view_id) => (URL::URL url, String user_agent, Gfx::IntSize viewport_size, double device_pixel_ratio, double zoom_level)
-    view_translation_menu(u64 view_id) => (Vector<Hub::MenuEntry> entries)
 
     session_window_opened(WebView::IsPrivate is_private) => (Optional<WebView::SessionWindowId> id)
     session_window_closing(WebView::IsPrivate is_private, WebView::SessionStore::WindowClosing closing) => (bool succeeded)
@@ -287,6 +299,15 @@ endpoint HubServer
     view_open_navigation_in_new_tab(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) =|
     view_open_navigation_in_new_window(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) =|
     view_traverse_the_history_to_step(u64 view_id, i32 step) =|
+    view_traverse_the_history_by_delta(u64 view_id, i32 delta) =|
+    view_translate_to(u64 view_id, String target_language) =|
+    view_show_original(u64 view_id) =|
+    view_download_url(u64 view_id, URL::URL url, bool prompt_for_path, Optional<String> image_mime_type) =|
+    view_inspect_context_menu_element(u64 view_id) =|
+    view_replace_context_menu_misspelling(u64 view_id, Utf16String replacement) =|
+    view_ignore_misspelling(u64 view_id, Utf16String word) =|
+    view_learn_misspelling(u64 view_id, Utf16String word) =|
+    view_do_context_menu_media_action(u64 view_id, WebView::ContextMenuMediaAction action) =|
     view_set_session_tab_id(u64 view_id, Optional<WebView::SessionTabId> session_tab_id) =|
     view_file_picker_closed(u64 view_id, Vector<Web::HTML::SelectedFile> selected_files) =|
     view_save_screenshot(u64 view_id, Gfx::ShareableBitmap bitmap) =|
@@ -329,7 +350,6 @@ endpoint HubServer
     answer_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem item) =|
     answer_download_path(u64 request_id, Optional<ByteString> path) =|
     update_settings(u64 change_id, ByteString changes_json) =|
-    activate_action(u64 handle, Optional<bool> checked) =|
     view_answer(u64 view_id, u64 answer_id, bool answer) =|
     view_answer_permission_request(u64 view_id, u64 answer_id, Web::Permissions::PromptOutcome outcome) =|
     destroy_view(u64 view_id) =|
@@ -358,6 +378,14 @@ endpoint HubServer
     view_set_next_history_visit_transition(u64 view_id, WebView::HistoryVisitTransition transition) =|
     view_reload(u64 view_id, WebView::BypassCache bypass_cache) =|
     view_stop_loading(u64 view_id) =|
+    view_undo(u64 view_id) =|
+    view_redo(u64 view_id) =|
+    view_cut_selection(u64 view_id) =|
+    view_paste(u64 view_id) =|
+    view_select_all(u64 view_id) =|
+    view_get_source(u64 view_id) =|
+    view_debug_request(u64 view_id, ByteString request, ByteString argument) =|
+    view_dump_gc_graph(u64 view_id) =|
     view_zoom_in(u64 view_id) =|
     view_zoom_out(u64 view_id) =|
     view_reset_zoom(u64 view_id) =|

@@ -18,6 +18,7 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/ProcessSnapshot.h>
+#include <UI/Qt/ApplicationActions.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/HubConnection.h>
 
@@ -50,6 +51,7 @@ enum class ShowWindow {
 class Application final
     : public Hub::ApplicationHost
     , public WebView::CrashReportOutboxObserver {
+    friend class ApplicationActions;
     friend class Bookmarks;
     friend class BookmarksPage;
     friend class RemoteView;
@@ -163,6 +165,10 @@ public:
     QAction* reset_zoom_action();
     QAction* quit_action();
 
+    void set_clipboard_text(String, ClipboardType = ClipboardType::Text);
+    void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
+    virtual bool supports_private_browsing_windows() const override { return true; }
+
 private:
     void present_window(BrowserWindow&, WindowConfiguration const&, ShowWindow);
     explicit Application();
@@ -223,14 +229,11 @@ private:
 
     virtual bool supports_clipboard_type(ClipboardType) const override;
     Utf16String clipboard_text(ClipboardType) const;
-    void set_clipboard_text(String, ClipboardType = ClipboardType::Text);
 
     Web::Clipboard::SystemClipboardItem clipboard_item() const;
-    void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
 
     virtual bool supports_system_menu_bar() const override;
     virtual bool supports_vertical_tabs() const override { return true; }
-    virtual bool supports_private_browsing_windows() const override { return true; }
     virtual bool supports_client_side_window_decorations() const override
     {
 #if defined(AK_OS_MACOS)
@@ -287,6 +290,7 @@ private:
     OwnPtr<WebView::Settings> m_settings;
     OwnPtr<BookmarkStore> m_bookmark_store;
     OwnPtr<Bookmarks> m_bookmarks;
+    OwnPtr<ApplicationActions> m_application_actions;
     RefPtr<HubConnection> m_hub_connection;
     OwnPtr<QApplication> m_application;
     HashMap<u64, NonnullOwnPtr<WebView::PictureInPictureWindow>> m_picture_in_picture_windows;
@@ -295,6 +299,7 @@ private:
     u64 m_next_external_url_handler_id { 1 };
     BrowserWindow* m_active_window { nullptr };
     OwnPtr<ProcessManagerWindow> m_process_manager_window;
+    RefPtr<WebView::Action> m_open_task_manager_action;
 
     bool m_private_session_restart_in_progress { false };
     bool m_quit_in_progress { false };

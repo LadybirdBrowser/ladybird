@@ -14,6 +14,7 @@
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibWebCommon/Page/Translation.h>
+#include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Translator.h>
 
@@ -30,7 +31,7 @@ class PageTranslation : public Weakable<PageTranslation> {
     AK_ALLOC_WITH_KMALLOC;
 
 public:
-    // How many languages the translation menu offers at most.
+    // How many languages are offered at most.
     static constexpr size_t MAXIMUM_OFFERED_LANGUAGES = 5;
     // A page sends a few units at a time, of a paragraph's text each. One that sends more is answered without them being
     // translated, so a misbehaving WebContent process can't queue up unbounded work for the translator.
@@ -49,14 +50,16 @@ public:
     bool is_translated() const { return m_target_language.has_value(); }
 
     // Whether the page can be translated into a language the user reads, or already is.
-    bool is_offered() const;
+    WEBVIEW_API bool is_offered() const;
 
-    Action& translate_action() { return *m_translate_action; }
-    Menu& translation_menu() { return *m_translation_menu; }
+    // The languages the page can be translated into right away, most preferred first.
+    WEBVIEW_API Vector<String> offered_target_languages() const;
+    // Whether the user reads a language that the translator needs to download first.
+    WEBVIEW_API bool needs_language_download() const;
 
-    void translate_to(String const& target_language);
+    WEBVIEW_API void translate_to(String const& target_language);
     // Shows the page as it was before it was translated, by loading it again.
-    void show_original();
+    WEBVIEW_API void show_original();
 
     void did_finish_loading();
     void did_change_active_document();
@@ -75,13 +78,11 @@ private:
         Optional<String> site;
     };
 
-    // The target the n-th of the translation menu's languages stands for; only targets ready to translate get one.
-    Optional<String> ready_target_language(size_t index) const;
     void stop_translating_pages();
     void detect_page_language(Function<void()> on_complete = {});
     void did_detect_page_language(u64 generation, Optional<String> language, Function<void()> on_complete);
     void close_session();
-    void update_actions();
+    void did_change_state();
     Optional<String> current_site() const;
 
     ViewImplementation& m_view;
@@ -103,12 +104,6 @@ private:
     u64 m_generation { 0 };
     u64 m_next_sample_request_id { 0 };
     HashMap<u64, Function<void(Web::TranslationLanguageSample)>> m_pending_samples;
-
-    RefPtr<Action> m_translate_action;
-    RefPtr<Menu> m_translation_menu;
-    Vector<NonnullRefPtr<Action>> m_translate_to_actions;
-    RefPtr<Action> m_show_original_action;
-    RefPtr<Action> m_download_languages_action;
 };
 
 }

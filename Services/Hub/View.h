@@ -59,10 +59,12 @@ private:
     virtual Core::AnonymousBuffer system_theme() override { return m_system_theme; }
     virtual Optional<ScreenRects> screen_rects() const override { return m_screen_rects; }
     virtual void update_zoom() override;
+    virtual void did_change_state() override { push_state_to_ui(); }
     virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override { return content_position; }
-    virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint widget_position) override;
+    virtual void did_request_context_menu(WebView::ContextMenuRequest) override;
+    virtual void did_make_link_to_highlight(Optional<URL::URL>) override;
     virtual void read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)>) const override;
     virtual void did_accept_presented_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect) override;
     // NB: The UI hands a backing store back, once it no longer shows what is in it.

@@ -6,25 +6,37 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
-#include <AK/WeakPtr.h>
-#include <Hub/HubClientEndpoint.h>
+#include <AK/String.h>
+#include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/Settings.h>
 
 namespace Ladybird {
 
-// The Hub's actions and menus, as the UI shows them. Each stands in for one in the Hub, which it follows, and which it
-// activates when the user picks it.
-class RemoteActions {
+class RemoteView;
+
+// The actions and menus of the application, which act on the active view or on the whole browser.
+class ApplicationActions final : public WebView::SettingsObserver {
+    AK_ALLOC_WITH_KMALLOC;
+
 public:
-    static RemoteActions& the();
+    // What the Hub had in effect for every page when this process started.
+    struct PageOptions {
+        String user_agent;
+        Web::NavigatorCompatibilityMode navigator_compatibility_mode { Web::default_navigator_compatibility_mode };
+        bool scripting_enabled { true };
+        bool blocks_pop_ups { true };
+        bool devtools_enabled { false };
+    };
 
-    void set_application_actions(Hub::ApplicationActions const&);
+    static ApplicationActions& the();
 
-    NonnullRefPtr<WebView::Action> action_for(Hub::ActionState const&);
-    NonnullRefPtr<WebView::Menu> menu_for(ReadonlySpan<Hub::MenuEntry>);
-    void update(Hub::ActionState const&);
-    void retire(u64 handle);
+    explicit ApplicationActions(PageOptions const&);
+    virtual ~ApplicationActions() override;
+
+    void update_for_active_view();
+    void devtools_enabled_changed(bool enabled);
 
     WebView::Action& reload_action() { return *m_reload_action; }
     WebView::Action& reload_bypassing_cache_action() { return *m_reload_bypassing_cache_action; }
@@ -55,9 +67,15 @@ public:
     WebView::Menu& debug_menu() { return *m_debug_menu; }
 
 private:
-    static void apply_state(WebView::Action&, Hub::ActionState const&);
+    virtual void appearance_changed() override;
+    virtual void content_settings_changed() override;
+    virtual void tab_settings_changed() override;
+    virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
-    HashMap<u64, WeakPtr<WebView::Action>> m_actions;
+    void create_debug_menu(PageOptions const&);
+    void update_force_dark_action();
+    void update_website_color_scheme_actions();
+    void update_vertical_tabs_action();
 
     RefPtr<WebView::Action> m_reload_action;
     RefPtr<WebView::Action> m_reload_bypassing_cache_action;
@@ -77,7 +95,13 @@ private:
     RefPtr<WebView::Action> m_toggle_vertical_tabs_expanded_action;
     RefPtr<WebView::Action> m_toggle_menu_bar_action;
     RefPtr<WebView::Action> m_view_source_action;
+    RefPtr<WebView::Action> m_toggle_devtools_action;
     RefPtr<WebView::Action> m_report_website_issue_action;
+    RefPtr<WebView::Action> m_show_tab_performance_monitor_action;
+    RefPtr<WebView::Action> m_show_line_box_borders_action;
+    RefPtr<WebView::Action> m_show_caret_hit_test_debug_overlay_action;
+    RefPtr<WebView::Action> m_enable_scripting_action;
+    RefPtr<WebView::Action> m_block_pop_ups_action;
 
     RefPtr<WebView::Menu> m_zoom_menu;
     RefPtr<WebView::Menu> m_color_scheme_menu;

@@ -16,12 +16,12 @@
 #include <LibWebView/SessionStore.h>
 #include <UI/Qt/AllTabsPopover.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/ApplicationActions.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/LadybirdButton.h>
-#include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteSession.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
@@ -3401,7 +3401,7 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
 
     m_vertical_tabs_toggle_button = new ChromeHeaderButton(m_vertical_tab_bar_column);
     m_vertical_tabs_toggle_button->setObjectName("LadybirdVerticalTabsToggleButton");
-    m_vertical_tabs_toggle_button->setDefaultAction(create_application_action(*this, RemoteActions::the().toggle_vertical_tabs_expanded_action()));
+    m_vertical_tabs_toggle_button->setDefaultAction(create_application_action(*this, ApplicationActions::the().toggle_vertical_tabs_expanded_action()));
     m_vertical_tabs_toggle_button->setAutoRaise(true);
     m_vertical_tabs_toggle_button->setFocusPolicy(Qt::NoFocus);
     m_vertical_tabs_toggle_button->setIconSize({ 16, 16 });

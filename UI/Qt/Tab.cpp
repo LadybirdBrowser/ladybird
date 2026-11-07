@@ -20,6 +20,7 @@
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/ApplicationActions.h>
 #include <UI/Qt/BookmarkPopover.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeStyle.h>
@@ -27,7 +28,6 @@
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/JavaScriptDialog.h>
 #include <UI/Qt/LadybirdButton.h>
-#include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteSession.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
@@ -875,7 +875,7 @@ void Tab::initialize(Optional<u64> hub_view_id)
 
 void Tab::create_tab_context_menu()
 {
-    auto& application = RemoteActions::the();
+    auto& application = ApplicationActions::the();
 
     auto* duplicate_tab_action = new QAction("&Duplicate Tab", this);
     QObject::connect(duplicate_tab_action, &QAction::triggered, this, [this]() {
@@ -1535,7 +1535,7 @@ void Tab::show_site_settings_popover()
             m_window->new_tab_from_url(URL::Parser::basic_parse("about:settings#permissions"sv).release_value(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
         };
         m_site_settings_popover->on_report_broken_site = [] {
-            RemoteActions::the().report_website_issue_action().activate();
+            ApplicationActions::the().report_website_issue_action().activate();
         };
         m_site_settings_popover->on_open_filter_lists = [this] {
             m_window->new_tab_from_url(URL::Parser::basic_parse("about:settings#blocking"sv).release_value(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());

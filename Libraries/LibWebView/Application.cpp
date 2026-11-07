@@ -62,7 +62,6 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/ImageDecoderManager.h>
-#include <LibWebView/Menu.h>
 #include <LibWebView/NoOpMicrophoneAuthorizer.h>
 #include <LibWebView/NoOpNotificationBackend.h>
 #include <LibWebView/PermissionManager.h>
@@ -127,11 +126,6 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
         Application::the().appearance_changed({});
     }
 
-    virtual void content_settings_changed() override
-    {
-        Application::the().update_force_dark_action();
-    }
-
     virtual void tab_settings_changed() override
     {
         Application::the().tab_settings_changed({});
@@ -150,18 +144,6 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
     virtual void dns_settings_changed() override
     {
         Application::request_server_manager().dns_settings_changed();
-    }
-
-    virtual void config_variable_changed(ConfigVariableID variable) override
-    {
-        if (variable == ConfigVariableID::ShowAdvancedDebugMenu) {
-            auto enabled = Application::settings().config_variable_as_bool(ConfigVariableID::ShowAdvancedDebugMenu);
-            Application::the().debug_menu().set_visible(enabled);
-        }
-        if (variable == ConfigVariableID::ShowTabPerformanceMonitor) {
-            auto enabled = Application::settings().config_variable_as_bool(ConfigVariableID::ShowTabPerformanceMonitor);
-            Application::the().show_tab_performance_monitor_action().set_checked(enabled);
-        }
     }
 
     virtual void background_networking_settings_changed() override
@@ -724,7 +706,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         start_content_blocker_list_update(ContentBlockerListUpdateTrigger::Automatic);
     }
 
-    initialize_actions();
+    initialize_page_options();
 
     return {};
 }
@@ -2555,298 +2537,99 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
     return promise.release_nonnull();
 }
 
-void Application::initialize_actions()
+void Application::initialize_page_options()
 {
-    auto debug_request = [this](auto request) {
-        return [this, request]() {
-            if (auto view = active_web_view(); view.has_value())
-                view->debug_request(request);
-        };
-    };
-
-    auto check = [](auto& action, auto request) {
-        return [&action, request]() {
-            ViewImplementation::for_each_view([checked = action->checked(), request](ViewImplementation& view) {
-                view.debug_request(request, checked ? "on"sv : "off"sv);
-                return IterationDecision::Continue;
-            });
-        };
-    };
-
-    auto add_spoofed_value = [](auto& menu, auto name, auto value, auto& cached_value, auto request, auto notify_workers) {
-        auto action = Action::create_checkable(name, ActionID::SpoofUserAgent, [value, &cached_value, request, notify_workers]() {
-            cached_value = value;
-            // Workers take no debug requests; the worker agent manager hands the new value to every live worker.
-            notify_workers();
-
-            ViewImplementation::for_each_view([&](ViewImplementation& view) {
-                view.debug_request(request, cached_value);
-                view.debug_request("clear-cache"sv); // Clear the cache to ensure requests are re-done with the new value.
-                return IterationDecision::Continue;
-            });
-        });
-
-        action->set_checked(value == cached_value);
-        menu->add_action(move(action));
-    };
-
-    m_reload_action = Action::create("Reload"sv, ActionID::Reload, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->reload();
-    });
-    m_reload_bypassing_cache_action = Action::create("Reload Without Cache"sv, ActionID::ReloadBypassingCache, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->reload(BypassCache::Yes);
-    });
-
-    m_undo_action = Action::create("Undo"sv, ActionID::Undo, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->undo();
-    });
-    m_redo_action = Action::create("Redo"sv, ActionID::Redo, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->redo();
-    });
-    update_editing_history_actions();
-    m_copy_selection_action = Action::create("Copy"sv, ActionID::CopySelection, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->selected_text()->when_resolved([this](auto& text) {
-                if (!text.is_empty())
-                    insert_clipboard_entry({ "text/plain"_string, text });
-            });
-    });
-    m_cut_selection_action = Action::create("Cut"sv, ActionID::CutSelection, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->cut_selected_text()->when_resolved([this](auto& text) {
-                if (!text.is_empty())
-                    insert_clipboard_entry({ "text/plain"_string, text });
-            });
-    });
-    m_paste_action = Action::create("Paste"sv, ActionID::Paste, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->paste_from_clipboard();
-    });
-    m_select_all_action = Action::create("Select All"sv, ActionID::SelectAll, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->select_all();
-    });
-
-    m_open_about_page_action = Action::create("About Ladybird"sv, ActionID::OpenAboutPage, [this]() {
-        activate_or_open_tab_with_url(URL::about_version());
-    });
-    m_open_downloads_page_action = Action::create("Downloads"sv, ActionID::ViewDownloads, [this]() {
-        activate_or_open_tab_with_url(URL::about_downloads());
-    });
-    m_open_settings_page_action = Action::create("Settings"sv, ActionID::OpenSettingsPage, [this]() {
-        activate_or_open_tab_with_url(URL::about_settings());
-    });
-
-    m_zoom_in_action = Action::create("Zoom In"sv, ActionID::ZoomIn, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->zoom_in();
-    });
-    m_zoom_out_action = Action::create("Zoom Out"sv, ActionID::ZoomOut, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->zoom_out();
-    });
-    m_reset_zoom_action = Action::create("Reset Zoom"sv, ActionID::ResetZoom, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->reset_zoom();
-    });
-
-    m_zoom_menu = Menu::create_group("Zoom"sv);
-    m_zoom_menu->add_action(zoom_in_action());
-    m_zoom_menu->add_action(zoom_out_action());
-    m_zoom_menu->add_action(reset_zoom_action());
-
-    auto set_website_color_scheme = [this](auto color_scheme) {
-        return [this, color_scheme]() {
-            auto appearance = m_settings->appearance();
-            appearance.website_color_scheme = color_scheme;
-            m_settings->set_appearance(appearance);
-        };
-    };
-
-    m_force_dark_action = Action::create_checkable("Force Dark Mode"sv, ActionID::ForceDark, [this] {
-        if (auto view = active_web_view(); view.has_value())
-            view->set_force_dark_enabled(!view->force_dark_enabled());
-        update_force_dark_action();
-    });
-    update_force_dark_action();
-
-    m_color_scheme_menu = Menu::create_group("Color Scheme"sv);
-    m_color_scheme_menu->add_action(Action::create_checkable("Auto"sv, ActionID::PreferredColorScheme, set_website_color_scheme(ThemePreference::System)));
-    m_color_scheme_menu->add_action(Action::create_checkable("Dark"sv, ActionID::PreferredColorScheme, set_website_color_scheme(ThemePreference::Dark)));
-    m_color_scheme_menu->add_action(Action::create_checkable("Light"sv, ActionID::PreferredColorScheme, set_website_color_scheme(ThemePreference::Light)));
+    m_user_agent_string = MUST(String::from_utf8(m_web_content_options.user_agent_preset.has_value()
+            ? *WebView::user_agents.get(*m_web_content_options.user_agent_preset)
+            : Web::default_user_agent));
+    m_scripting_enabled = m_browser_options.disable_scripting == DisableScripting::No;
+    m_blocks_pop_ups = m_browser_options.allow_popups == AllowPopups::No;
     update_website_color_scheme();
-
-    auto set_contrast = [this](auto contrast) {
-        return [this, contrast]() {
-            m_contrast = contrast;
-
-            ViewImplementation::for_each_view([&](ViewImplementation& view) {
-                view.set_preferred_contrast(m_contrast);
-                return IterationDecision::Continue;
-            });
-        };
-    };
-
-    m_contrast_menu = Menu::create_group("Contrast"sv);
-    m_contrast_menu->add_action(Action::create_checkable("Auto"sv, ActionID::PreferredContrast, set_contrast(Web::CSS::PreferredContrast::Auto)));
-    m_contrast_menu->add_action(Action::create_checkable("Less"sv, ActionID::PreferredContrast, set_contrast(Web::CSS::PreferredContrast::Less)));
-    m_contrast_menu->add_action(Action::create_checkable("More"sv, ActionID::PreferredContrast, set_contrast(Web::CSS::PreferredContrast::More)));
-    m_contrast_menu->add_action(Action::create_checkable("No Preference"sv, ActionID::PreferredContrast, set_contrast(Web::CSS::PreferredContrast::NoPreference)));
-    m_contrast_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
-
-    auto set_motion = [this](auto motion) {
-        return [this, motion]() {
-            m_motion = motion;
-
-            ViewImplementation::for_each_view([&](ViewImplementation& view) {
-                view.set_preferred_motion(m_motion);
-                return IterationDecision::Continue;
-            });
-        };
-    };
-
-    m_motion_menu = Menu::create_group("Motion"sv);
-    m_motion_menu->add_action(Action::create_checkable("Auto"sv, ActionID::PreferredMotion, set_motion(Web::CSS::PreferredMotion::Auto)));
-    m_motion_menu->add_action(Action::create_checkable("Reduce"sv, ActionID::PreferredMotion, set_motion(Web::CSS::PreferredMotion::Reduce)));
-    m_motion_menu->add_action(Action::create_checkable("No Preference"sv, ActionID::PreferredMotion, set_motion(Web::CSS::PreferredMotion::NoPreference)));
-    m_motion_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
-
-    m_toggle_vertical_tabs_expanded_action = Action::create("Toggle Vertical Tabs Expanded"sv, ActionID::ToggleVerticalTabsExpanded, [this]() {
-        auto tab_settings = m_settings->tab_settings();
-        tab_settings.vertical_tabs_expanded = !tab_settings.vertical_tabs_expanded;
-        m_settings->set_tab_settings(tab_settings);
-    });
-    update_vertical_tabs_action();
-
-    m_toggle_menu_bar_action = Action::create_checkable("Show Menu Bar"sv, ActionID::ToggleMenuBar, [this]() {
-        auto appearance = m_settings->appearance();
-        appearance.show_menu_bar = !appearance.show_menu_bar;
-        m_settings->set_appearance(appearance);
-    });
-    m_toggle_menu_bar_action->set_checked(m_settings->appearance().show_menu_bar);
-
-    m_history_menu = Menu::create("History"sv);
-    m_history_menu->add_action(Action::create("View History"sv, ActionID::ViewHistory, [this]() {
-        activate_or_open_tab_with_url(URL::about_history());
-    }));
-    m_history_menu->add_separator();
-    m_history_menu->add_action(Action::create("Clear Browsing Data"sv, ActionID::ClearBrowsingData, [this]() {
-        auto url = URL::about_settings();
-        url.set_fragment("clearBrowsingData"sv);
-        activate_or_open_tab_with_url(url);
-    }));
-
-    m_inspect_menu = Menu::create("Inspect"sv);
-
-    m_view_source_action = Action::create("View Page Source"sv, ActionID::ViewSource, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->get_source();
-    });
-    m_inspect_menu->add_action(*m_view_source_action);
-
-    m_toggle_devtools_action = Action::create("Enable DevTools"sv, ActionID::ToggleDevTools, [this]() {
-        if (auto result = toggle_devtools_enabled(); result.is_error())
-            display_error_dialog(MUST(String::formatted("Unable to start DevTools: {}", result.error())));
-    });
-    m_inspect_menu->add_action(*m_toggle_devtools_action);
-
-    m_report_website_issue_action = Action::create("Report Website Issue…"sv, ActionID::ReportWebsiteIssue, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->report_website_issue();
-    });
-    m_report_website_issue_action->set_enabled(false);
-
-    m_debug_menu = Menu::create("Debug"sv);
-    m_debug_menu->set_visible(m_settings->config_variable_as_bool(ConfigVariableID::ShowAdvancedDebugMenu));
-    m_debug_menu->add_action(Action::create("Dump Session History Tree"sv, ActionID::DumpSessionHistoryTree, debug_request("dump-session-history"sv)));
-    m_debug_menu->add_action(Action::create("Dump DOM Tree"sv, ActionID::DumpDOMTree, debug_request("dump-dom-tree"sv)));
-    m_debug_menu->add_action(Action::create("Dump Layout Tree"sv, ActionID::DumpLayoutTree, debug_request("dump-layout-tree"sv)));
-    m_debug_menu->add_action(Action::create("Dump Stacking Context Tree"sv, ActionID::DumpStackingContextTree, debug_request("dump-stacking-context-tree"sv)));
-    m_debug_menu->add_action(Action::create("Dump Site Isolation Process Tree"sv, ActionID::DumpSiteIsolationProcessTree, debug_request("dump-site-isolation-process-tree"sv)));
-    m_debug_menu->add_action(Action::create("Dump Display List"sv, ActionID::DumpDisplayList, debug_request("dump-display-list"sv)));
-    m_debug_menu->add_action(Action::create("Dump Style Sheets"sv, ActionID::DumpStyleSheets, debug_request("dump-style-sheets"sv)));
-    m_debug_menu->add_action(Action::create("Dump All Resolved Styles"sv, ActionID::DumpStyles, debug_request("dump-all-resolved-styles"sv)));
-    m_debug_menu->add_action(Action::create("Dump CSS Errors"sv, ActionID::DumpCSSErrors, debug_request("dump-all-css-errors"sv)));
-    m_debug_menu->add_action(Action::create("Dump Cookies"sv, ActionID::DumpCookies, [this]() { m_default_session->cookie_jar->dump_cookies(); }));
-    m_debug_menu->add_action(Action::create("Dump Local Storage"sv, ActionID::DumpLocalStorage, debug_request("dump-local-storage"sv)));
-    m_debug_menu->add_action(Action::create("Dump Session Storage"sv, ActionID::DumpSessionStorage, debug_request("dump-session-storage"sv)));
-    m_debug_menu->add_action(Action::create("Dump GC Graph"sv, ActionID::DumpGCGraph, [this]() {
-        if (auto view = active_web_view(); view.has_value()) {
-            auto gc_graph_path = view->dump_gc_graph();
-            if (gc_graph_path.is_error()) {
-                warnln("\033[31;1mFailed to dump GC graph: {}\033[0m", gc_graph_path.error());
-            } else {
-                warnln("\033[33;1mDumped GC graph into {}\033[0m", gc_graph_path.value());
-                if (auto source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv); source_dir.has_value())
-                    warnln("\033[33;1mGC graph explorer: file://{}/Meta/gc-heap-explorer.html?script=file://{}\033[0m", *source_dir, gc_graph_path.value());
-            }
-        }
-    }));
-    m_debug_menu->add_separator();
-
-    m_show_line_box_borders_action = Action::create_checkable("Show Line Box Borders"sv, ActionID::ShowLineBoxBorders, check(m_show_line_box_borders_action, "set-line-box-borders"sv));
-    m_debug_menu->add_action(*m_show_line_box_borders_action);
-
-    m_show_caret_hit_test_debug_overlay_action = Action::create_checkable("Show Caret Hit Test Debug Overlay"sv, ActionID::ShowCaretHitTestDebugOverlay, check(m_show_caret_hit_test_debug_overlay_action, "set-caret-hit-test-debug-overlay"sv));
-    m_debug_menu->add_action(*m_show_caret_hit_test_debug_overlay_action);
-
-    m_show_tab_performance_monitor_action = Action::create_checkable("Show Tab Performance Monitor"sv, ActionID::ShowTabPerformanceMonitor, [this]() {
-        m_settings->set_config_variable(ConfigVariableID::ShowTabPerformanceMonitor, m_show_tab_performance_monitor_action->checked());
-    });
-    m_show_tab_performance_monitor_action->set_checked(m_settings->config_variable_as_bool(ConfigVariableID::ShowTabPerformanceMonitor));
-    m_debug_menu->add_action(*m_show_tab_performance_monitor_action);
-    m_debug_menu->add_separator();
-
-    m_debug_menu->add_action(Action::create("Report Leaked Documents"sv, ActionID::ReportLeakedDocuments, debug_request("report-leaked-documents"sv)));
-    m_debug_menu->add_action(Action::create("Collect Garbage"sv, ActionID::CollectGarbage, debug_request("collect-garbage"sv)));
-    m_debug_menu->add_action(Action::create("Crash Current Page"sv, ActionID::CrashCurrentPage, debug_request("crash-current-page"sv)));
-    m_debug_menu->add_action(Action::create("Crash Compositor Process"sv, ActionID::CrashCompositorProcess, [this]() { crash_compositor_process(); }));
-    m_debug_menu->add_separator();
-
-    auto spoof_user_agent_menu = Menu::create_group("Spoof User Agent"sv);
-    m_user_agent_string = m_web_content_options.user_agent_preset.has_value()
-        ? *WebView::user_agents.get(*m_web_content_options.user_agent_preset)
-        : Web::default_user_agent;
-
-    auto notify_workers_of_user_agent = [this] { WorkerAgentManager::the().update_user_agent(user_agent_string()); };
-    add_spoofed_value(spoof_user_agent_menu, "Disabled"sv, Web::default_user_agent, m_user_agent_string, "spoof-user-agent"sv, notify_workers_of_user_agent);
-    for (auto const& user_agent : WebView::user_agents) {
-        add_spoofed_value(spoof_user_agent_menu, user_agent.key, user_agent.value, m_user_agent_string, "spoof-user-agent"sv, notify_workers_of_user_agent);
-    }
-
-    auto navigator_compatibility_mode_menu = Menu::create_group("Navigator Compatibility Mode"sv);
-    m_navigator_compatibility_mode = navigator_compatibility_mode_to_string(Web::default_navigator_compatibility_mode);
-
-    auto notify_workers_of_navigator_compatibility_mode = [this] { WorkerAgentManager::the().update_navigator_compatibility_mode(navigator_compatibility_mode()); };
-    auto add_navigator_compatibility_mode = [&](StringView name, Web::NavigatorCompatibilityMode mode) {
-        add_spoofed_value(navigator_compatibility_mode_menu, name, navigator_compatibility_mode_to_string(mode), m_navigator_compatibility_mode, "navigator-compatibility-mode"sv, notify_workers_of_navigator_compatibility_mode);
-    };
-    add_navigator_compatibility_mode("Chrome"sv, Web::NavigatorCompatibilityMode::Chrome);
-    add_navigator_compatibility_mode("Gecko"sv, Web::NavigatorCompatibilityMode::Gecko);
-    add_navigator_compatibility_mode("WebKit"sv, Web::NavigatorCompatibilityMode::WebKit);
-
-    m_debug_menu->add_submenu(move(spoof_user_agent_menu));
-    m_debug_menu->add_submenu(move(navigator_compatibility_mode_menu));
-    m_debug_menu->add_separator();
-
-    m_enable_scripting_action = Action::create_checkable("Enable Scripting"sv, ActionID::EnableScripting, check(m_enable_scripting_action, "scripting"sv));
-    m_enable_scripting_action->set_checked(m_browser_options.disable_scripting == WebView::DisableScripting::No);
-    m_debug_menu->add_action(*m_enable_scripting_action);
-
-    m_block_pop_ups_action = Action::create_checkable("Block Pop-ups"sv, ActionID::BlockPopUps, check(m_block_pop_ups_action, "block-pop-ups"sv));
-    m_block_pop_ups_action->set_checked(m_browser_options.allow_popups == AllowPopups::No);
-    m_debug_menu->add_action(*m_block_pop_ups_action);
 
     create_platform_actions();
 }
 
-bool Application::blocks_pop_ups() const
+void Application::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
 {
-    return m_block_pop_ups_action->checked();
+    m_contrast = contrast;
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        view.set_preferred_contrast(m_contrast);
+        return IterationDecision::Continue;
+    });
+}
+
+void Application::set_preferred_motion(Web::CSS::PreferredMotion motion)
+{
+    m_motion = motion;
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        view.set_preferred_motion(m_motion);
+        return IterationDecision::Continue;
+    });
+}
+
+void Application::set_user_agent_string(String user_agent)
+{
+    m_user_agent_string = move(user_agent);
+
+    // Workers take no debug requests; the worker process manager hands the new value to every live worker.
+    WorkerAgentManager::the().update_user_agent(m_user_agent_string);
+
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        view.debug_request("spoof-user-agent"sv, m_user_agent_string.to_byte_string());
+        view.debug_request("clear-cache"sv); // Clear the cache to ensure requests are re-done with the new value.
+        return IterationDecision::Continue;
+    });
+}
+
+void Application::set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode)
+{
+    m_navigator_compatibility_mode = mode;
+
+    // Workers take no debug requests; the worker process manager hands the new value to every live worker.
+    WorkerAgentManager::the().update_navigator_compatibility_mode(m_navigator_compatibility_mode);
+
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        view.debug_request("navigator-compatibility-mode"sv, navigator_compatibility_mode_to_string(m_navigator_compatibility_mode));
+        view.debug_request("clear-cache"sv); // Clear the cache to ensure requests are re-done with the new value.
+        return IterationDecision::Continue;
+    });
+}
+
+static void send_debug_switch_to_every_view(StringView request, bool on)
+{
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        view.debug_request(request, on ? "on"sv : "off"sv);
+        return IterationDecision::Continue;
+    });
+}
+
+void Application::set_scripting_enabled(bool enabled)
+{
+    m_scripting_enabled = enabled;
+    send_debug_switch_to_every_view("scripting"sv, enabled);
+}
+
+void Application::set_blocks_pop_ups(bool blocks)
+{
+    m_blocks_pop_ups = blocks;
+    send_debug_switch_to_every_view("block-pop-ups"sv, blocks);
+}
+
+void Application::set_shows_line_box_borders(bool shows)
+{
+    m_shows_line_box_borders = shows;
+    send_debug_switch_to_every_view("set-line-box-borders"sv, shows);
+}
+
+void Application::set_shows_caret_hit_test_debug_overlay(bool shows)
+{
+    m_shows_caret_hit_test_debug_overlay = shows;
+    send_debug_switch_to_every_view("set-caret-hit-test-debug-overlay"sv, shows);
+}
+
+void Application::dump_cookies() const
+{
+    m_default_session->cookie_jar->dump_cookies();
 }
 
 // The options every page hosting the tab's document runs with.
@@ -2858,12 +2641,12 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
 
     apply_content_blocking_policy(page);
 
-    page.async_debug_request("set-line-box-borders"sv, m_show_line_box_borders_action->checked() ? "on"sv : "off"sv);
-    page.async_debug_request("set-caret-hit-test-debug-overlay"sv, m_show_caret_hit_test_debug_overlay_action->checked() ? "on"sv : "off"sv);
-    page.async_debug_request("scripting"sv, m_enable_scripting_action->checked() ? "on"sv : "off"sv);
-    page.async_debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
+    page.async_debug_request("set-line-box-borders"sv, m_shows_line_box_borders ? "on"sv : "off"sv);
+    page.async_debug_request("set-caret-hit-test-debug-overlay"sv, m_shows_caret_hit_test_debug_overlay ? "on"sv : "off"sv);
+    page.async_debug_request("scripting"sv, m_scripting_enabled ? "on"sv : "off"sv);
+    page.async_debug_request("block-pop-ups"sv, m_blocks_pop_ups ? "on"sv : "off"sv);
     page.async_debug_request("spoof-user-agent"sv, m_user_agent_string);
-    page.async_debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
+    page.async_debug_request("navigator-compatibility-mode"sv, navigator_compatibility_mode_to_string(m_navigator_compatibility_mode));
 }
 
 bool Application::sites_can_ask_for_location() const
@@ -2986,20 +2769,12 @@ void Application::languages_changed(Badge<ApplicationSettingsObserver>)
 
 String Application::user_agent_string() const
 {
-    return MUST(String::from_utf8(m_user_agent_string));
+    return m_user_agent_string;
 }
 
 Web::NavigatorCompatibilityMode Application::navigator_compatibility_mode() const
 {
-    return navigator_compatibility_mode_from_string(m_navigator_compatibility_mode).value_or(Web::default_navigator_compatibility_mode);
-}
-
-void Application::update_vertical_tabs_action()
-{
-    auto const& settings = m_settings->tab_settings();
-    m_toggle_vertical_tabs_expanded_action->set_visible(settings.vertical_tabs_enabled);
-    m_toggle_vertical_tabs_expanded_action->set_engaged(settings.vertical_tabs_expanded);
-    m_toggle_vertical_tabs_expanded_action->set_tooltip(settings.vertical_tabs_expanded ? "Hide Sidebar"sv : "Show Sidebar"sv);
+    return m_navigator_compatibility_mode;
 }
 
 static Web::CSS::PreferredColorScheme preferred_color_scheme_for(ThemePreference preference)
@@ -3022,13 +2797,7 @@ Web::CSS::PreferredColorScheme Application::interface_color_scheme() const
 
 void Application::update_website_color_scheme()
 {
-    auto preference = m_settings->appearance().website_color_scheme;
-    auto actions = m_color_scheme_menu->items();
-    auto action_index = preference == ThemePreference::System ? 0 : preference == ThemePreference::Dark ? 1
-                                                                                                        : 2;
-    actions[action_index].get<NonnullRefPtr<Action>>()->set_checked(true);
-
-    auto color_scheme = preferred_color_scheme_for(preference);
+    auto color_scheme = preferred_color_scheme_for(m_settings->appearance().website_color_scheme);
     if (color_scheme == m_color_scheme)
         return;
     m_color_scheme = color_scheme;
@@ -3041,13 +2810,11 @@ void Application::update_website_color_scheme()
 
 void Application::appearance_changed(Badge<ApplicationSettingsObserver>)
 {
-    m_toggle_menu_bar_action->set_checked(m_settings->appearance().show_menu_bar);
     update_website_color_scheme();
 }
 
 void Application::tab_settings_changed(Badge<ApplicationSettingsObserver>)
 {
-    update_vertical_tabs_action();
     update_tabs_display();
 }
 
@@ -3130,14 +2897,6 @@ void Application::download_content_blocker_list_if_needed(Badge<Application, Set
 }
 
 // The shared actions that depend on the page follow the active view, whichever tab or window made it the active one.
-void Application::update_actions_for_active_web_view()
-{
-    update_editing_history_actions();
-    update_report_website_issue_action();
-    update_force_dark_action();
-    update_view_source_action();
-}
-
 // NB: Only the application knows which favicons it keeps for itself, so without one telling us, nothing is removed.
 void Application::remove_unreferenced_favicons(HashTable<String> referenced_hashes)
 {
@@ -3230,16 +2989,6 @@ ErrorOr<void> Application::toggle_devtools_enabled()
     }
 
     return {};
-}
-
-void Application::on_devtools_enabled() const
-{
-    m_toggle_devtools_action->set_text("Disable DevTools"sv);
-}
-
-void Application::on_devtools_disabled() const
-{
-    m_toggle_devtools_action->set_text("Enable DevTools"sv);
 }
 
 void Application::refresh_tab_list()
@@ -3479,34 +3228,6 @@ void Application::inspect_indexed_database_objects(DevTools::TabDescription cons
     }
 
     view->inspect_indexed_database_objects(host, move(names), move(options), move(on_complete));
-}
-
-void Application::update_force_dark_action()
-{
-    if (!m_force_dark_action)
-        return;
-    auto view = active_web_view();
-    m_force_dark_action->set_enabled(view.has_value() && view->can_set_force_dark());
-    m_force_dark_action->set_checked(view.has_value() ? view->force_dark_enabled() : settings().content_settings().enable_force_dark);
-}
-
-void Application::update_report_website_issue_action()
-{
-    auto view = active_web_view();
-    m_report_website_issue_action->set_enabled(view.has_value() && view->can_report_website_issue());
-}
-
-void Application::update_view_source_action()
-{
-    auto view = active_web_view();
-    m_view_source_action->set_enabled(!view.has_value() || view->can_view_source());
-}
-
-void Application::update_editing_history_actions()
-{
-    auto view = active_web_view();
-    m_undo_action->set_enabled(view.has_value() && view->can_undo());
-    m_redo_action->set_enabled(view.has_value() && view->can_redo());
 }
 
 void Application::delete_indexed_database(DevTools::TabDescription const& description, String const& host, String const& name, OnIndexedDBInspectionComplete on_complete) const

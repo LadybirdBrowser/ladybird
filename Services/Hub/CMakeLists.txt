@@ -13,7 +13,6 @@ target_include_directories(hubipc PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 target_link_libraries(hubipc PRIVATE LibCore LibGfx LibHTTP LibIPC LibURL LibWebView)
 
 set(SOURCES
-    ActionMirror.cpp
     Application.cpp
     ConnectionFromUI.cpp
     Proxies.cpp

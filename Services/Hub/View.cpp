@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/View.h>
@@ -617,8 +616,17 @@ ViewState View::current_state() const
     state.handle = handle();
     state.is_loading = is_loading();
     state.zoom_level = zoom_level();
+    state.can_navigate_back = can_navigate_back();
+    state.can_navigate_forward = can_navigate_forward();
     state.is_node_picker_active = is_node_picker_active();
-    state.is_translated = has_traversable() && const_cast<View&>(*this).page_translation().is_translated();
+    if (has_traversable()) {
+        auto& translation = const_cast<View&>(*this).page_translation();
+        state.is_translated = translation.is_translated();
+        state.translation_offered = translation.is_offered();
+        state.translation_languages = translation.offered_target_languages();
+        state.translation_target_language = translation.target_language();
+        state.translation_needs_language_download = translation.needs_language_download();
+    }
     state.input_method_state = input_method_state();
     state.page_mute_state = page_mute_state();
     state.plays_audio_indicator_visible = tab_indicator_visible(WebView::TabIndicator::PlayingAudio);
@@ -631,10 +639,13 @@ ViewState View::current_state() const
     state.crash_overlay_failed_url = crash_overlay_failed_url();
     state.force_dark_host = force_dark_host();
     state.can_report_website_issue = can_report_website_issue();
+    state.can_undo = can_undo();
+    state.can_redo = can_redo();
     state.permission_origin = permission_origin();
     if (has_traversable()) {
         state.content_blocking_snapshot = content_blocking_snapshot();
         state.site_permission_rows = site_permission_rows();
+        state.can_view_source = can_view_source();
         if (auto page = traversable().display_page(); page && page->is_open())
             state.web_content_pid = web_content_pid();
     }
@@ -677,6 +688,7 @@ void View::prepare_page_for_navigable(WebView::WebContentPage& page)
 void View::update_zoom()
 {
     ViewImplementation::update_zoom();
+    push_state_to_ui();
     if (auto* ui = ConnectionFromUI::the())
         ui->async_view_update_zoom(view_id());
 }
@@ -686,12 +698,18 @@ void View::read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem
     WebView::Application::the().read_clipboard_item(move(on_read));
 }
 
-void View::show_context_menu(WebView::Menu& menu, Gfx::IntPoint widget_position)
+void View::did_request_context_menu(WebView::ContextMenuRequest request)
 {
     if (auto* ui = ConnectionFromUI::the()) {
         push_state_to_ui();
-        ui->async_view_show_context_menu(view_id(), ActionMirror::the().entries_of(menu), widget_position);
+        ui->async_view_request_context_menu(view_id(), move(request));
     }
+}
+
+void View::did_make_link_to_highlight(Optional<URL::URL> url)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_did_make_link_to_highlight(view_id(), move(url));
 }
 
 }
