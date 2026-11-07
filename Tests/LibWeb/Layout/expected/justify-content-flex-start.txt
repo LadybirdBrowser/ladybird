@@ -4,32 +4,32 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.grid-container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 200 0+0+0] [GFC] children: not-inline
         Box <div.grid-item> at [8,8] flex-container(row) [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [54.828125,50] flex-item [0+0+0 6.34375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [54.828125,50 6.34375x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [54.828125,50 6.34375x16] baseline: 13
                 "1"
             TextNode <#text> (not painted)
         Box <div.grid-item> at [108,8] flex-container(row) [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [153.59375,50] flex-item [0+0+0 8.8125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [153.59375,50 8.8125x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [153.59375,50 8.8125x16] baseline: 13
                 "2"
             TextNode <#text> (not painted)
         Box <div.grid-item> at [208,8] flex-container(row) [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [253.453125,50] flex-item [0+0+0 9.09375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [253.453125,50 9.09375x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [253.453125,50 9.09375x16] baseline: 13
                 "3"
             TextNode <#text> (not painted)
         Box <div.grid-item> at [8,108] flex-container(row) [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [54.125,150] flex-item [0+0+0 7.75 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [54.125,150 7.75x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [54.125,150 7.75x16] baseline: 13
                 "4"
             TextNode <#text> (not painted)
         Box <div.grid-item> at [108,108] flex-container(row) [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [153.765625,150] flex-item [0+0+0 8.453125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [153.765625,150 8.453125x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [153.765625,150 8.453125x16] baseline: 13
                 "5"
             TextNode <#text> (not painted)
         Box <div.grid-item> at [208,108] flex-container(row) [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [253.625,150] flex-item [0+0+0 8.734375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [253.625,150 8.734375x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [253.625,150 8.734375x16] baseline: 13
                 "6"
             TextNode <#text> (not painted)
 

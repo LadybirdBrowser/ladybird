@@ -1,20 +1,20 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 42 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 26 0+0+8] children: not-inline
-      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 26 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [8,8 15.765625x26] baseline: 20.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 43 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 27 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 27 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,8 15.765625x26] baseline: 21
             "x"
-        frag 1 from Box start: 0, length: 0, rect: [32.765625,17 7.578125x14] baseline: 13.984375
-        frag 2 from TextNode start: 0, length: 1, rect: [49.34375,8 11.65625x26] baseline: 20.796875
+        frag 1 from Box start: 0, length: 0, rect: [32.765625,18 7.578125x14] baseline: 14
+        frag 2 from TextNode start: 0, length: 1, rect: [49.34375,8 11.65625x26] baseline: 21
             "y"
         TextNode <#text> (not painted)
-        Box <button> at [32.765625,17] flex-container(row) [0+2+7 7.578125 7+2+0] [0+2+1 14 1+2+0] [FFC] children: not-inline
-          Box <span> at [32.765625,17] flex-container(row) flex-item [0+0+0 7.578125 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
-            BlockContainer <(anonymous)> at [32.765625,17] flex-item [0+0+0 7.578125 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 1, rect: [32.765625,17 7.578125x14] baseline: 10.984375
+        Box <button> at [32.765625,18] flex-container(row) [0+2+7 7.578125 7+2+0] [0+2+1 14 1+2+0] [FFC] children: not-inline
+          Box <span> at [32.765625,18] flex-container(row) flex-item [0+0+0 7.578125 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+            BlockContainer <(anonymous)> at [32.765625,18] flex-item [0+0+0 7.578125 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 1, rect: [32.765625,18 7.578125x14] baseline: 11
                   "3"
               TextNode <#text> (not painted)
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x42] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x43] (z-index: auto)

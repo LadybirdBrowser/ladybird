@@ -3,18 +3,18 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 64 0+0+0] children: not-inline
       BlockContainer <ul> at [100,0] [0+0+100 700 0+0+0] [0+0+0 64 0+0+0] children: not-inline
         ListItemBox <li.flow-root> at [100,0] [0+0+0 700 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 19, rect: [100,4 148.484375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 19, rect: [100,4 148.484375x16] baseline: 13
               "flow-root list item"
           ListItemMarkerBox <(anonymous)> at [86,0] [0+0+0 13.84375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [86,4 13.84375x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [86,4 13.84375x16] baseline: 13
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <li.clipped> at [100,24] [0+0+0 700 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 25, rect: [100,28 197.609375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 25, rect: [100,28 197.609375x16] baseline: 13
               "overflow hidden list item"
           ListItemMarkerBox <(anonymous)> at [86,24] [0+0+0 13.84375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [86,28 13.84375x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [86,28 13.84375x16] baseline: 13
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)

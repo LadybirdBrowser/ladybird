@@ -1,11 +1,11 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 67.40625 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 200 0+0+592] [8+0+0 51.40625 0+0+8] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 67 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 200 0+0+592] [8+0+0 51 0+0+8] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 200x32] baseline: 32
-      frag 1 from TextNode start: 0, length: 18, rect: [8,43 156.546875x16] baseline: 12.796875
+      frag 1 from TextNode start: 0, length: 18, rect: [8,43 156.546875x16] baseline: 13
           "I am below the box"
       BlockContainer <div> at [8,8] inline-block [0+0+0 200 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x67.40625] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x67] (z-index: auto)

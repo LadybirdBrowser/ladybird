@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div.a> at [8,24] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       Box <div.c> at [8,124] flex-container(row) [0+0+0 400 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [8,124] flex-item [0+0+0 257.3125 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 31, rect: [8,124 257.3125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 31, rect: [8,124 257.3125x16] baseline: 13
               "This should clear the blue box."
           TextNode <#text> (not painted)
       BlockContainer <hr> at [9,233] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
@@ -14,7 +14,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.b> at [358,242] floating [0+0+0 50 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
       Box <div.c> at [8,442] flex-container(row) [0+0+0 400 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [8,442] flex-item [0+0+0 268.5625 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 32, rect: [8,442 268.5625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 32, rect: [8,442 268.5625x16] baseline: 13
               "This should clear the green box."
           TextNode <#text> (not painted)
       BlockContainer <hr> at [9,551] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
@@ -22,24 +22,24 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.b> at [358,560] floating [0+0+0 50 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
       Box <div.d> at [58,660] flex-container(row) [50+0+0 300 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [58,660] flex-item [0+0+0 300 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 34, rect: [58,660 287.78125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 34, rect: [58,660 287.78125x16] baseline: 13
               "This should clear the blue box and"
-          frag 1 from TextNode start: 35, length: 32, rect: [58,676 258.65625x16] baseline: 12.796875
+          frag 1 from TextNode start: 35, length: 32, rect: [58,676 258.65625x16] baseline: 13
               "sit flush against the green box."
           TextNode <#text> (not painted)
       BlockContainer <hr> at [9,769] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.a> at [8,778] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       Box <div.e> at [148,778] flex-container(row) [50+0+40 150 0+0+110] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [148,778] flex-item [0+0+0 150 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 15, rect: [148,778 123.125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 15, rect: [148,778 123.125x16] baseline: 13
               "This should sit"
-          frag 1 from TextNode start: 16, length: 17, rect: [148,794 136.578125x16] baseline: 12.796875
+          frag 1 from TextNode start: 16, length: 17, rect: [148,794 136.578125x16] baseline: 13
               "flush against the"
-          frag 2 from TextNode start: 34, length: 14, rect: [148,810 114.703125x16] baseline: 12.796875
+          frag 2 from TextNode start: 34, length: 14, rect: [148,810 114.703125x16] baseline: 13
               "blue box, with"
-          frag 3 from TextNode start: 49, length: 15, rect: [148,826 125.484375x16] baseline: 12.796875
+          frag 3 from TextNode start: 49, length: 15, rect: [148,826 125.484375x16] baseline: 13
               "40px of padding"
-          frag 4 from TextNode start: 65, length: 12, rect: [148,842 88.6875x16] baseline: 12.796875
+          frag 4 from TextNode start: 65, length: 12, rect: [148,842 88.6875x16] baseline: 13
               "to the left."
           TextNode <#text> (not painted)
       BlockContainer <hr> at [9,887] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
@@ -47,11 +47,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.b> at [358,896] floating [0+0+0 50 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
       Box <div.f> at [133,896] flex-container(row) [25+0+0 200 0+0+25] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [133,896] flex-item [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 23, rect: [133,896 196.75x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 23, rect: [133,896 196.75x16] baseline: 13
               "This should be centered"
-          frag 1 from TextNode start: 24, length: 20, rect: [133,912 171.1875x16] baseline: 12.796875
+          frag 1 from TextNode start: 24, length: 20, rect: [133,912 171.1875x16] baseline: 13
               "between the blue and"
-          frag 2 from TextNode start: 45, length: 12, rect: [133,928 103.375x16] baseline: 12.796875
+          frag 2 from TextNode start: 45, length: 12, rect: [133,928 103.375x16] baseline: 13
               "green boxes."
           TextNode <#text> (not painted)
 

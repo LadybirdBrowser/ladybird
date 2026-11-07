@@ -1,10 +1,10 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 44 0+0+8] children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 67.1875x44] baseline: 33.796875
+      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 67.1875x44] baseline: 34
       BlockContainer <div.ib> at [8,8] inline-block [0+0+0 67.1875 0+0+0] [0+0+0 44 0+0+0] [BFC] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [9,26 17.828125x20] baseline: 17
-        frag 1 from TextNode start: 0, length: 1, rect: [27.828125,29 8x16] baseline: 12.796875
+        frag 1 from TextNode start: 0, length: 1, rect: [27.828125,29 8x16] baseline: 13
             " "
         frag 2 from BlockContainer start: 0, length: 0, rect: [43.828125,10 23.359375x40] baseline: 34
         BlockContainer <div.label> at [9,26] inline-block [0+1+0 17.828125 0+1+0] [0+1+0 20 0+1+0] [BFC] children: inline

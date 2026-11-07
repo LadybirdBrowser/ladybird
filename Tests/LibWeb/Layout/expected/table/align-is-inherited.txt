@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <thead> at [10,10] table-header-group [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             Box <tr> at [10,10] table-row [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [11,11] table-cell [0+0+1 778 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 9, length: 5, rect: [747.03125,11 41.96875x16] baseline: 12.796875
+                frag 0 from TextNode start: 9, length: 5, rect: [747.03125,11 41.96875x16] baseline: 13
                     "Right"
                 TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,30] [0+0+0 784 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
@@ -14,7 +14,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <tbody> at [10,32] table-row-group [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             Box <tr> at [10,32] table-row [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [11,33] table-cell [0+0+1 778 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 9, length: 6, rect: [373.46875,33 53.046875x16] baseline: 12.796875
+                frag 0 from TextNode start: 9, length: 6, rect: [373.46875,33 53.046875x16] baseline: 13
                     "Center"
                 TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,52] [0+0+0 784 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
@@ -22,7 +22,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <tfoot> at [10,54] table-footer-group [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             Box <tr> at [10,54] table-row [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [11,55] table-cell [0+0+1 778 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 9, length: 4, rect: [11,55 32.875x16] baseline: 12.796875
+                frag 0 from TextNode start: 9, length: 4, rect: [11,55 32.875x16] baseline: 13
                     "Left"
                 TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,74] [0+0+0 784 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
@@ -30,7 +30,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <tbody> at [10,76] table-row-group [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             Box <tr> at [10,76] table-row [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [11,77] table-cell [0+0+1 778 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 9, length: 7, rect: [11,77 53.046875x16] baseline: 12.796875
+                frag 0 from TextNode start: 9, length: 7, rect: [11,77 53.046875x16] baseline: 13
                     "Justify"
                 TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,96] [0+0+0 784 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
@@ -38,7 +38,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <thead> at [10,98] table-header-group [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             Box <tr> at [10,98] table-row [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [11,99] table-cell [0+0+1 778 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 9, length: 5, rect: [747.03125,99 41.96875x16] baseline: 12.796875
+                frag 0 from TextNode start: 9, length: 5, rect: [747.03125,99 41.96875x16] baseline: 13
                     "Right"
                 TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,118] [0+0+0 784 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
@@ -46,7 +46,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <tbody> at [10,120] table-row-group [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             Box <tr> at [10,120] table-row [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [11,121] table-cell [0+0+1 778 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 9, length: 6, rect: [373.46875,121 53.046875x16] baseline: 12.796875
+                frag 0 from TextNode start: 9, length: 6, rect: [373.46875,121 53.046875x16] baseline: 13
                     "Center"
                 TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,140] [0+0+0 784 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
@@ -54,7 +54,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <tfoot> at [10,142] table-footer-group [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             Box <tr> at [10,142] table-row [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [11,143] table-cell [0+0+1 778 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 9, length: 4, rect: [11,143 32.875x16] baseline: 12.796875
+                frag 0 from TextNode start: 9, length: 4, rect: [11,143 32.875x16] baseline: 13
                     "Left"
                 TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,162] [0+0+0 784 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
@@ -62,7 +62,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <tbody> at [10,164] table-row-group [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             Box <tr> at [10,164] table-row [0+0+0 780 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [11,165] table-cell [0+0+1 778 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 9, length: 7, rect: [11,165 53.046875x16] baseline: 12.796875
+                frag 0 from TextNode start: 9, length: 7, rect: [11,165 53.046875x16] baseline: 13
                     "Justify"
                 TextNode <#text> (not painted)
 

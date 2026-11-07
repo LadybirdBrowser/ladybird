@@ -3,13 +3,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,16] [8+0+0 634 0+0+8] [8+0+0 380 0+0+8] children: not-inline
       BlockContainer <div.a> at [342,16] floating [0+0+0 300 0+0+0] [0+0+0 225 0+0+0] [BFC] children: not-inline
       BlockContainer <p> at [8,16] [0+0+0 634 0+0+0] [16+0+0 64 0+0+16] children: inline
-        frag 0 from TextNode start: 0, length: 27, rect: [8,16 232.84375x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 27, rect: [8,16 232.84375x16] baseline: 13
             "Lorem ipsum dolor sit amet,"
-        frag 1 from TextNode start: 28, length: 35, rect: [8,32 278.125x16] baseline: 12.796875
+        frag 1 from TextNode start: 28, length: 35, rect: [8,32 278.125x16] baseline: 13
             "consectetur adipiscing elit, sed do"
-        frag 2 from TextNode start: 64, length: 38, rect: [8,48 316.5x16] baseline: 12.796875
+        frag 2 from TextNode start: 64, length: 38, rect: [8,48 316.5x16] baseline: 13
             "eiusmod tempor incididunt ut labore et"
-        frag 3 from TextNode start: 103, length: 20, rect: [8,64 167.078125x16] baseline: 12.796875
+        frag 3 from TextNode start: 103, length: 20, rect: [8,64 167.078125x16] baseline: 13
             "dolore magna aliqua."
         TextNode <#text> (not painted)
       BlockContainer <div.a> at [342,241] floating [0+0+0 300 0+0+0] [0+0+0 225 0+0+0] [BFC] children: not-inline

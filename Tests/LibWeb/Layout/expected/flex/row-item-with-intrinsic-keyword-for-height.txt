@@ -2,9 +2,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 48 0+0+0] [BFC] children: not-inline
     Box <body> at [8,8] flex-container(row) [8+0+0 80 0+0+712] [8+0+0 32 0+0+8] [FFC] children: not-inline
       BlockContainer <div.item1> at [8,8] flex-item [0+0+0 71.109375 0+0+0] [0+0+0 32 0+0+0] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 7, rect: [8,8 62.796875x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 7, rect: [8,8 62.796875x16] baseline: 13
             "foo bar"
-        frag 1 from TextNode start: 8, length: 3, rect: [8,24 27.203125x16] baseline: 12.796875
+        frag 1 from TextNode start: 8, length: 3, rect: [8,24 27.203125x16] baseline: 13
             "baz"
         TextNode <#text> (not painted)
       BlockContainer <div.item2> at [79.109375,8] flex-item [0+0+0 8.890625 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline

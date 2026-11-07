@@ -1,6 +1,6 @@
 BlockContainer <div#target> at [8,8] [0+0+0 100 0+0+684] [0+0+0 50 0+0+0] children: inline
   InlineNode <span> at [8,8] [0+0+0 39.78125 0+0+0] [0+0+0 16 0+0+0]
-    frag 0 from TextNode start: 0, length: 5, rect: [8,8 39.78125x16] baseline: 12.796875
+    frag 0 from TextNode start: 0, length: 5, rect: [8,8 39.78125x16] baseline: 13
         "Hello"
     TextNode <#text> (not painted)
   TextNode <#text> (not painted)

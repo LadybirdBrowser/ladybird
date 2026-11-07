@@ -3,19 +3,19 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 216 0+1+8] children: not-inline
       Box <div.outer.flex.flex-wrap> at [11,11] flex-container(row) [0+1+0 778 0+1+0] [0+1+0 214 0+1+0] [FFC] children: not-inline
         BlockContainer <div.inner> at [12,62] flex-item [0+1+0 776 0+1+0] [0+1+50 112 50+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 90, rect: [12,62 741.640625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 90, rect: [12,62 741.640625x16] baseline: 13
               "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus interdum libero et urna"
-          frag 1 from TextNode start: 91, length: 95, rect: [12,78 765.03125x16] baseline: 12.796875
+          frag 1 from TextNode start: 91, length: 95, rect: [12,78 765.03125x16] baseline: 13
               "sodales auctor. Nullam sodales bibendum turpis quis blandit. Ut fringilla erat et erat laoreet,"
-          frag 2 from TextNode start: 187, length: 90, rect: [12,94 747.5625x16] baseline: 12.796875
+          frag 2 from TextNode start: 187, length: 90, rect: [12,94 747.5625x16] baseline: 13
               "faucibus rhoncus orci hendrerit. Etiam at sagittis diam. Etiam nec neque non dolor iaculis"
-          frag 3 from TextNode start: 278, length: 90, rect: [12,110 732.109375x16] baseline: 12.796875
+          frag 3 from TextNode start: 278, length: 90, rect: [12,110 732.109375x16] baseline: 13
               "finibus euismod eget erat. Pellentesque vitae purus vitae nisi vehicula vestibulum quis ut"
-          frag 4 from TextNode start: 369, length: 95, rect: [12,126 759.453125x16] baseline: 12.796875
+          frag 4 from TextNode start: 369, length: 95, rect: [12,126 759.453125x16] baseline: 13
               "diam. Integer convallis, justo ullamcorper sollicitudin varius, enim enim pellentesque erat, eu"
-          frag 5 from TextNode start: 465, length: 94, rect: [12,142 767.1875x16] baseline: 12.796875
+          frag 5 from TextNode start: 465, length: 94, rect: [12,142 767.1875x16] baseline: 13
               "pellentesque sem arcu eu purus. Phasellus id erat sed felis luctus mollis eget sit amet dolor."
-          frag 6 from TextNode start: 560, length: 95, rect: [12,158 765.578125x16] baseline: 12.796875
+          frag 6 from TextNode start: 560, length: 95, rect: [12,158 765.578125x16] baseline: 13
               "Pellentesque eget justo nulla. Duis consectetur imperdiet nisi, ac tincidunt urna blandit quis."
           TextNode <#text> (not painted)
 

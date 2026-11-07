@@ -3,112 +3,112 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 336 0+0+8] children: not-inline
       BlockContainer <ol> at [48,16] [0+0+40 744 0+0+0] [16+0+0 336 0+0+16] children: not-inline
         ListItemBox <li> at [48,16] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [48,16 29.8125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [48,16 29.8125x16] baseline: 13
               "One"
           ListItemMarkerBox <(anonymous)> at [29,16] [0+0+0 18.6875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 3, rect: [29,16 18.6875x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 3, rect: [29,16 18.6875x16] baseline: 13
                 "1. "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <li> at [48,32] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [48,32 90.796875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 10, rect: [48,32 90.796875x16] baseline: 13
               "Twenty-two"
           ListItemMarkerBox <(anonymous)> at [18,32] [0+0+0 29.96875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [18,32 29.96875x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [18,32 29.96875x16] baseline: 13
                 "22. "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         BlockContainer <div> at [48,48] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 12, rect: [48,48 100.609375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 12, rect: [48,48 100.609375x16] baseline: 13
               "Ignore these"
           TextNode <#text> (not painted)
         BlockContainer <div> at [48,64] [0+0+0 744 0+0+0] [0+0+0 64 0+0+0] children: not-inline
           BlockContainer <(anonymous)> at [48,64] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 2, rect: [48,64 24.890625x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 2, rect: [48,64 24.890625x16] baseline: 13
                 "+A"
             TextNode <#text> (not painted)
           BlockContainer <div> at [48,80] [0+0+0 744 0+0+0] [0+0+0 48 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [48,80] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-              frag 0 from TextNode start: 0, length: 2, rect: [48,80 19.96875x16] baseline: 12.796875
+              frag 0 from TextNode start: 0, length: 2, rect: [48,80 19.96875x16] baseline: 13
                   "+B"
               TextNode <#text> (not painted)
             BlockContainer <div> at [48,96] [0+0+0 744 0+0+0] [0+0+0 32 0+0+0] children: not-inline
               BlockContainer <(anonymous)> at [48,96] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-                frag 0 from TextNode start: 0, length: 2, rect: [48,96 20.9375x16] baseline: 12.796875
+                frag 0 from TextNode start: 0, length: 2, rect: [48,96 20.9375x16] baseline: 13
                     "+C"
                 TextNode <#text> (not painted)
               ListItemBox <div> at [48,112] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-                frag 0 from TextNode start: 0, length: 12, rect: [48,112 104.78125x16] baseline: 12.796875
+                frag 0 from TextNode start: 0, length: 12, rect: [48,112 104.78125x16] baseline: 13
                     "Twenty-three"
                 ListItemMarkerBox <(anonymous)> at [18,112] [0+0+0 30.25 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-                  frag 0 from GeneratedTextNode start: 0, length: 4, rect: [18,112 30.25x16] baseline: 12.796875
+                  frag 0 from GeneratedTextNode start: 0, length: 4, rect: [18,112 30.25x16] baseline: 13
                       "23. "
                   GeneratedTextNode <(anonymous)> (not painted)
                 TextNode <#text> (not painted)
         BlockContainer <p> at [48,144] [0+0+0 744 0+0+0] [16+0+0 16 0+0+16] children: inline
-          frag 0 from TextNode start: 0, length: 21, rect: [48,144 177.125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 21, rect: [48,144 177.125x16] baseline: 13
               "Ignore this paragraph"
           TextNode <#text> (not painted)
         BlockContainer <p> at [48,176] [0+0+0 744 0+0+0] [16+0+0 16 0+0+16] children: inline
           InlineNode <span> at [48,176] [0+0+0 35.265625 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 1, rect: [48,176 11.5625x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [48,176 11.5625x16] baseline: 13
                 "X"
             TextNode <#text> (not painted)
             InlineNode <span> at [59.5625,176] [0+0+0 23.703125 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from TextNode start: 0, length: 1, rect: [59.5625,176 11.09375x16] baseline: 12.796875
+              frag 0 from TextNode start: 0, length: 1, rect: [59.5625,176 11.09375x16] baseline: 13
                   "Y"
               TextNode <#text> (not painted)
               InlineNode <span> at [70.65625,176] [0+0+0 12.609375 0+0+0] [0+0+0 16 0+0+0]
-                frag 0 from TextNode start: 0, length: 1, rect: [70.65625,176 12.609375x16] baseline: 12.796875
+                frag 0 from TextNode start: 0, length: 1, rect: [70.65625,176 12.609375x16] baseline: 13
                     "Z"
                 TextNode <#text> (not painted)
         ListItemBox <li> at [48,208] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 11, rect: [48,208 97.75x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 11, rect: [48,208 97.75x16] baseline: 13
               "Twenty-four"
           ListItemMarkerBox <(anonymous)> at [19,208] [0+0+0 28.90625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [19,208 28.90625x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [19,208 28.90625x16] baseline: 13
                 "24. "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         BlockContainer <div> at [48,224] [0+0+0 744 0+0+0] [0+0+0 64 0+0+0] children: not-inline
           BlockContainer <(anonymous)> at [48,224] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 38, rect: [48,224 311.09375x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 38, rect: [48,224 311.09375x16] baseline: 13
                 "List item paragraph inside nested divs"
             TextNode <#text> (not painted)
           BlockContainer <div> at [48,240] [0+0+0 744 0+0+0] [0+0+0 48 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [48,240] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-              frag 0 from TextNode start: 0, length: 4, rect: [48,240 35.671875x16] baseline: 12.796875
+              frag 0 from TextNode start: 0, length: 4, rect: [48,240 35.671875x16] baseline: 13
                   "2025"
               TextNode <#text> (not painted)
             ListItemBox <p> at [48,272] [0+0+0 744 0+0+0] [16+0+0 16 0+0+16] children: inline
-              frag 0 from TextNode start: 0, length: 11, rect: [48,272 90.28125x16] baseline: 12.796875
+              frag 0 from TextNode start: 0, length: 11, rect: [48,272 90.28125x16] baseline: 13
                   "Twenty-five"
               ListItemMarkerBox <(anonymous)> at [18,272] [0+0+0 29.609375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-                frag 0 from GeneratedTextNode start: 0, length: 4, rect: [18,272 29.609375x16] baseline: 12.796875
+                frag 0 from GeneratedTextNode start: 0, length: 4, rect: [18,272 29.609375x16] baseline: 13
                     "25. "
                 GeneratedTextNode <(anonymous)> (not painted)
               TextNode <#text> (not painted)
         ListItemBox <li> at [48,304] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [48,304 85.96875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 10, rect: [48,304 85.96875x16] baseline: 13
               "Twenty-six"
           ListItemMarkerBox <(anonymous)> at [18,304] [0+0+0 29.890625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [18,304 29.890625x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [18,304 29.890625x16] baseline: 13
                 "26. "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <span> at [48,320] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 12, rect: [48,320 106.953125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 12, rect: [48,320 106.953125x16] baseline: 13
               "Twenty-seven"
           ListItemMarkerBox <(anonymous)> at [18,320] [0+0+0 29.875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [18,320 29.875x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [18,320 29.875x16] baseline: 13
                 "27. "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <li> at [48,336] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 12, rect: [48,336 99.359375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 12, rect: [48,336 99.359375x16] baseline: 13
               "Twenty-eight"
           ListItemMarkerBox <(anonymous)> at [17,336] [0+0+0 30.640625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [17,336 30.640625x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [17,336 30.640625x16] baseline: 13
                 "28. "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)

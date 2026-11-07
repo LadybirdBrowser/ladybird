@@ -17,24 +17,24 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 14, rect: [235,55 74.296875x10] baseline: 8
                     "the world ends"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> at [235,65] [0+0+0 139.96875 0+0+0] [0+0+0 43 0+0+0] children: inline
+              BlockContainer <(anonymous)> at [235,65] [0+0+0 139.96875 0+0+0] [0+0+0 44 0+0+0] children: inline
                 InlineNode <form> at [235,65] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
-                  frag 0 from BlockContainer start: 0, length: 0, rect: [235,65 139.96875x21.5] baseline: 0
-                  frag 0 from BlockContainer start: 0, length: 0, rect: [235,86.5 139.96875x21.5] baseline: 0
+                  frag 0 from BlockContainer start: 0, length: 0, rect: [235,65 139.96875x22] baseline: 0
+                  frag 0 from BlockContainer start: 0, length: 0, rect: [235,87 139.96875x22] baseline: 0
                   TextNode <#text> (not painted)
-                  BlockContainer <p> at [235,65] [0+0+0 139.96875 0+0+0] [0+0+0 21.5 0+0+0] children: inline
-                    frag 0 from TextNode start: 33, length: 5, rect: [235,71.5 27.5x10] baseline: 8
+                  BlockContainer <p> at [235,65] [0+0+0 139.96875 0+0+0] [0+0+0 22 0+0+0] children: inline
+                    frag 0 from TextNode start: 33, length: 5, rect: [235,72 27.5x10] baseline: 8
                         "bang "
                     frag 1 from RadioButton start: 0, length: 0, rect: [267.5,68 12x12] baseline: 15
                     TextNode <#text> (not painted)
                     RadioButton <input> at [267.5,68] inline-block [5+0+0 12 0+0+3] [3+0+0 12 0+0+0] children: not-inline
                     TextNode <#text> (not painted)
-                  BlockContainer <p> at [235,86.5] [0+0+0 139.96875 0+0+0] [0+0+0 21.5 0+0+0] children: inline
-                    frag 0 from TextNode start: 33, length: 8, rect: [235,93 45.171875x10] baseline: 8
+                  BlockContainer <p> at [235,87] [0+0+0 139.96875 0+0+0] [0+0+0 22 0+0+0] children: inline
+                    frag 0 from TextNode start: 33, length: 8, rect: [235,94 45.171875x10] baseline: 8
                         "whimper "
-                    frag 1 from RadioButton start: 0, length: 0, rect: [285.171875,89.5 12x12] baseline: 15
+                    frag 1 from RadioButton start: 0, length: 0, rect: [285.171875,90 12x12] baseline: 15
                     TextNode <#text> (not painted)
-                    RadioButton <input> at [285.171875,89.5] inline-block [5+0+0 12 0+0+3] [3+0+0 12 0+0+0] children: not-inline
+                    RadioButton <input> at [285.171875,90] inline-block [5+0+0 12 0+0+3] [3+0+0 12 0+0+0] children: not-inline
                     TextNode <#text> (not painted)
                 TextNode <#text> (not painted)
             BlockContainer <li> at [409.96875,60] floating [0+5+10 50 10+5+0] [0+5+10 90 10+5+0] [BFC] children: inline
@@ -61,36 +61,36 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "erbarme dich"
             TextNode <#text> (not painted)
       BlockContainer <p> at [20,335] [0+0+0 480 0+0+0] [0+0+0 65 0+0+0] children: inline
-        frag 0 from TextNode start: 13, length: 86, rect: [20,336.5 448.296875x10] baseline: 8
+        frag 0 from TextNode start: 13, length: 86, rect: [20,336 448.296875x10] baseline: 8
             "This is a nonsensical document, but syntactically valid HTML 4.0. All 100%-conformant "
-        frag 1 from TextNode start: 111, length: 4, rect: [468.296875,336.5 25.390625x10] baseline: 8
+        frag 1 from TextNode start: 111, length: 4, rect: [468.296875,336 25.390625x10] baseline: 8
             "CSS1"
-        frag 2 from TextNode start: 116, length: 74, rect: [20,349.5 396.96875x10] baseline: 8
+        frag 2 from TextNode start: 116, length: 74, rect: [20,349 396.96875x10] baseline: 8
             "agents should be able to render the document elements above this paragraph"
-        frag 3 from TextNode start: 203, length: 43, rect: [20,362.5 207.9375x10] baseline: 8
+        frag 3 from TextNode start: 203, length: 43, rect: [20,362 207.9375x10] baseline: 8
             "indistinguishably (to the pixel) from this "
-        frag 4 from TextNode start: 0, length: 1, rect: [330.96875,362.5 5x10] baseline: 8
+        frag 4 from TextNode start: 0, length: 1, rect: [330.96875,362 5x10] baseline: 8
             " "
-        frag 5 from TextNode start: 13, length: 30, rect: [335.96875,362.5 154.671875x10] baseline: 8
+        frag 5 from TextNode start: 13, length: 30, rect: [335.96875,362 154.671875x10] baseline: 8
             "(except font rasterization and"
-        frag 6 from TextNode start: 44, length: 56, rect: [20,375.5 286.6875x10] baseline: 8
+        frag 6 from TextNode start: 44, length: 56, rect: [20,375 286.6875x10] baseline: 8
             "form widgets). All discrepancies should be traceable to "
-        frag 7 from TextNode start: 112, length: 33, rect: [306.6875,375.5 178.40625x10] baseline: 8
+        frag 7 from TextNode start: 112, length: 33, rect: [306.6875,375 178.40625x10] baseline: 8
             "CSS1 implementation shortcomings."
-        frag 8 from TextNode start: 146, length: 53, rect: [20,388.5 271.421875x10] baseline: 8
+        frag 8 from TextNode start: 146, length: 53, rect: [20,388 271.421875x10] baseline: 8
             "Once you have finished evaluating this test, you can "
-        frag 9 from TextNode start: 211, length: 14, rect: [291.421875,388.5 74.171875x10] baseline: 8
+        frag 9 from TextNode start: 211, length: 14, rect: [291.421875,388 74.171875x10] baseline: 8
             "return to the "
-        frag 10 from TextNode start: 0, length: 1, rect: [425.5,388.5 2.71875x10] baseline: 8
+        frag 10 from TextNode start: 0, length: 1, rect: [425.5,388 2.71875x10] baseline: 8
             "."
         TextNode <#text> (not painted)
-        InlineNode <a> at [227.9375,362.5] [0+0+0 103.03125 0+0+0] [0+0+0 10 0+0+0]
-          frag 0 from TextNode start: 0, length: 20, rect: [227.9375,362.5 103.03125x10] baseline: 8
+        InlineNode <a> at [227.9375,362] [0+0+0 103.03125 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 20, rect: [227.9375,362 103.03125x10] baseline: 8
               "reference rendering,"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-        InlineNode <a> at [365.59375,388.5] [0+0+0 59.90625 0+0+0] [0+0+0 10 0+0+0]
-          frag 0 from TextNode start: 0, length: 11, rect: [365.59375,388.5 59.90625x10] baseline: 8
+        InlineNode <a> at [365.59375,388] [0+0+0 59.90625 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 11, rect: [365.59375,388 59.90625x10] baseline: 8
               "parent page"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)

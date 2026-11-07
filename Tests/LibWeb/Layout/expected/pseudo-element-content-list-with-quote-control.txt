@@ -4,8 +4,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
         Box <(anonymous)> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [395,8] flex-item [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from ImageBox start: 0, length: 0, rect: [395,10 10x10] baseline: 10
-            ImageBox <(anonymous)> at [395,10] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            frag 0 from ImageBox start: 0, length: 0, rect: [395,11 10x10] baseline: 10
+            ImageBox <(anonymous)> at [395,11] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

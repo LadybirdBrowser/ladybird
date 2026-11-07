@@ -1,185 +1,185 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x605.296875]
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 605.296875 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 605.296875 0+0+0] children: not-inline
-      Box <div.grid.stretch> at [0,0] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,0] [0+0+0 100 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table> at [0,0] table-box [0+0+0 100 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,0] table-row [0+0+0 100 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,0] table-cell [0+0+0 100 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 599 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 599 0+0+0] children: not-inline
+      Box <div.grid.stretch> at [0,0] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,0] [0+0+0 100 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table> at [0,0] table-box [0+0+0 100 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,0] table-row [0+0+0 100 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,0] table-cell [0+0+0 100 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
                 frag 0 from BlockContainer start: 0, length: 0, rect: [0,0 20x20] baseline: 20
                 BlockContainer <span.narrow> at [0,0] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.center> at [0,23.203125] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [20,23.203125] [20+0+0 60 0+0+20] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table> at [20,23.203125] table-box [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [20,23.203125] table-row [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [20,23.203125] table-cell [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [20,23.203125 60x20] baseline: 20
-                BlockContainer <span.medium> at [20,23.203125] inline-block [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.end> at [0,46.40625] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [-60,46.40625] [-60+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table> at [-60,46.40625] table-box [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [-60,46.40625] table-row [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [-60,46.40625] table-cell [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [-60,46.40625 160x20] baseline: 20
-                BlockContainer <span.wide> at [-60,46.40625] inline-block [0+0+0 160 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.center> at [0,69.609375] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,69.609375] [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.auto-margins> at [0,69.609375] table-box [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,69.609375] table-row [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,69.609375] table-cell [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [0,69.609375 160x20] baseline: 20
-                BlockContainer <span.wide> at [0,69.609375] inline-block [0+0+0 160 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.end> at [0,92.8125] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [50,92.8125] [50+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.fixed> at [50,92.8125] table-box [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [50,92.8125] table-row [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [50,92.8125] table-cell [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [50,92.8125 20x20] baseline: 20
-                BlockContainer <span.narrow> at [50,92.8125] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.stretch> at [0,116.015625] [0+0+0 100 0+0+700] [0+0+0 33.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,116.015625] [0+0+0 100 0+0+0] [0+0+0 33.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.bordered> at [5,121.015625] table-box [0+5+0 90 0+5+0] [0+5+0 23.203125 0+5+0] [TFC] children: not-inline
-            Box <(anonymous)> at [5,121.015625] table-row [0+0+0 90 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [5,121.015625] table-cell [0+0+0 90 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [5,121.015625 20x20] baseline: 20
-                BlockContainer <span.narrow> at [5,121.015625] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.stretch> at [0,149.21875] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,149.21875] [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.max-width> at [0,149.21875] table-box [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,149.21875] table-row [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,149.21875] table-cell [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [0,149.21875 20x20] baseline: 20
-                BlockContainer <span.narrow> at [0,149.21875] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.stretch> at [0,172.421875] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,172.421875] [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.max-width> at [0,172.421875] table-box [0+0+0 160 0+0+100] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,172.421875] table-row [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,172.421875] table-cell [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [0,172.421875 160x20] baseline: 20
-                BlockContainer <span.wide> at [0,172.421875] inline-block [0+0+0 160 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.stretch> at [0,195.625] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,195.625] [0+0+0 120 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.min-over-max> at [0,195.625] table-box [0+0+0 120 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,195.625] table-row [0+0+0 120 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,195.625] table-cell [0+0+0 120 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [0,195.625 20x20] baseline: 20
-                BlockContainer <span.narrow> at [0,195.625] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.stretch> at [0,218.828125] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,218.828125] [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.border-box.max-width-border-box> at [15,218.828125] table-box [0+10+5 30 5+10+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [15,218.828125] table-row [0+0+0 30 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [15,218.828125] table-cell [0+0+0 30 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [15,218.828125 20x20] baseline: 20
-                BlockContainer <span.narrow> at [15,218.828125] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.stretch> at [0,242.03125] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,242.03125] [0+0+0 190 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.border-box.max-width-border-box> at [15,242.03125] table-box [0+10+5 160 5+10+130] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [15,242.03125] table-row [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [15,242.03125] table-cell [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [15,242.03125 160x20] baseline: 20
-                BlockContainer <span.wide> at [15,242.03125] inline-block [0+0+0 160 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.stretch> at [0,265.234375] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,265.234375] [0+0+0 100 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.border-box.min-width-border-box> at [15,265.234375] table-box [0+10+5 70 5+10+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [15,265.234375] table-row [0+0+0 70 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [15,265.234375] table-cell [0+0+0 70 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [15,265.234375 20x20] baseline: 20
-                BlockContainer <span.narrow> at [15,265.234375] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.stretch> at [0,288.4375] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,288.4375] [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.border-box.fixed-border-box> at [15,288.4375] table-box [0+10+5 30 5+10+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [15,288.4375] table-row [0+0+0 30 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [15,288.4375] table-cell [0+0+0 30 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [15,288.4375 20x20] baseline: 20
-                BlockContainer <span.narrow> at [15,288.4375] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.wide-grid.stretch> at [0,311.640625] [0+0+0 300 0+0+500] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,311.640625] [0+0+0 256 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.max-content-width> at [0,311.640625] table-box [0+0+0 256 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,311.640625] table-row [0+0+0 256 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,311.640625] table-cell [0+0+0 256 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [0,311.640625 80x20] baseline: 20
-                frag 1 from TextNode start: 0, length: 1, rect: [80,318.640625 8x16] baseline: 12.796875
+      Box <div.grid.center> at [0,23] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [20,23] [20+0+0 60 0+0+20] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table> at [20,23] table-box [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [20,23] table-row [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [20,23] table-cell [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [20,23 60x20] baseline: 20
+                BlockContainer <span.medium> at [20,23] inline-block [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.end> at [0,46] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [-60,46] [-60+0+0 160 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table> at [-60,46] table-box [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [-60,46] table-row [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [-60,46] table-cell [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [-60,46 160x20] baseline: 20
+                BlockContainer <span.wide> at [-60,46] inline-block [0+0+0 160 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.center> at [0,69] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,69] [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.auto-margins> at [0,69] table-box [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,69] table-row [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,69] table-cell [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,69 160x20] baseline: 20
+                BlockContainer <span.wide> at [0,69] inline-block [0+0+0 160 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.end> at [0,92] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [50,92] [50+0+0 50 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.fixed> at [50,92] table-box [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [50,92] table-row [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [50,92] table-cell [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [50,92 20x20] baseline: 20
+                BlockContainer <span.narrow> at [50,92] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.stretch> at [0,115] [0+0+0 100 0+0+700] [0+0+0 33 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,115] [0+0+0 100 0+0+0] [0+0+0 33 0+0+0] [BFC] children: not-inline
+          Box <div.table.bordered> at [5,120] table-box [0+5+0 90 0+5+0] [0+5+0 23 0+5+0] [TFC] children: not-inline
+            Box <(anonymous)> at [5,120] table-row [0+0+0 90 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [5,120] table-cell [0+0+0 90 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [5,120 20x20] baseline: 20
+                BlockContainer <span.narrow> at [5,120] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.stretch> at [0,148] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,148] [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.max-width> at [0,148] table-box [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,148] table-row [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,148] table-cell [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,148 20x20] baseline: 20
+                BlockContainer <span.narrow> at [0,148] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.stretch> at [0,171] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,171] [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.max-width> at [0,171] table-box [0+0+0 160 0+0+100] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,171] table-row [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,171] table-cell [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,171 160x20] baseline: 20
+                BlockContainer <span.wide> at [0,171] inline-block [0+0+0 160 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.stretch> at [0,194] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,194] [0+0+0 120 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.min-over-max> at [0,194] table-box [0+0+0 120 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,194] table-row [0+0+0 120 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,194] table-cell [0+0+0 120 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,194 20x20] baseline: 20
+                BlockContainer <span.narrow> at [0,194] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.stretch> at [0,217] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,217] [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.border-box.max-width-border-box> at [15,217] table-box [0+10+5 30 5+10+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [15,217] table-row [0+0+0 30 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [15,217] table-cell [0+0+0 30 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [15,217 20x20] baseline: 20
+                BlockContainer <span.narrow> at [15,217] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.stretch> at [0,240] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,240] [0+0+0 190 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.border-box.max-width-border-box> at [15,240] table-box [0+10+5 160 5+10+130] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [15,240] table-row [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [15,240] table-cell [0+0+0 160 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [15,240 160x20] baseline: 20
+                BlockContainer <span.wide> at [15,240] inline-block [0+0+0 160 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.stretch> at [0,263] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,263] [0+0+0 100 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.border-box.min-width-border-box> at [15,263] table-box [0+10+5 70 5+10+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [15,263] table-row [0+0+0 70 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [15,263] table-cell [0+0+0 70 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [15,263 20x20] baseline: 20
+                BlockContainer <span.narrow> at [15,263] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.stretch> at [0,286] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,286] [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.border-box.fixed-border-box> at [15,286] table-box [0+10+5 30 5+10+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [15,286] table-row [0+0+0 30 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [15,286] table-cell [0+0+0 30 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [15,286 20x20] baseline: 20
+                BlockContainer <span.narrow> at [15,286] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.wide-grid.stretch> at [0,309] [0+0+0 300 0+0+500] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,309] [0+0+0 256 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.max-content-width> at [0,309] table-box [0+0+0 256 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,309] table-row [0+0+0 256 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,309] table-cell [0+0+0 256 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,309 80x20] baseline: 20
+                frag 1 from TextNode start: 0, length: 1, rect: [80,316 8x16] baseline: 13
                     " "
-                frag 2 from BlockContainer start: 0, length: 0, rect: [88,311.640625 80x20] baseline: 20
-                frag 3 from TextNode start: 0, length: 1, rect: [168,318.640625 8x16] baseline: 12.796875
+                frag 2 from BlockContainer start: 0, length: 0, rect: [88,309 80x20] baseline: 20
+                frag 3 from TextNode start: 0, length: 1, rect: [168,316 8x16] baseline: 13
                     " "
-                frag 4 from BlockContainer start: 0, length: 0, rect: [176,311.640625 80x20] baseline: 20
-                BlockContainer <span.segment> at [0,311.640625] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+                frag 4 from BlockContainer start: 0, length: 0, rect: [176,309 80x20] baseline: 20
+                BlockContainer <span.segment> at [0,309] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
                 TextNode <#text> (not painted)
-                BlockContainer <span.segment> at [88,311.640625] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+                BlockContainer <span.segment> at [88,309] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
                 TextNode <#text> (not painted)
-                BlockContainer <span.segment> at [176,311.640625] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.wide-grid.stretch> at [0,334.84375] [0+0+0 300 0+0+500] [0+0+0 70.421875 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,334.84375] [0+0+0 80 0+0+0] [0+0+0 70.421875 0+0+0] [BFC] children: not-inline
-          Box <div.table.min-content-width> at [0,334.84375] table-box [0+0+0 80 0+0+0] [0+0+0 70.421875 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,334.84375] table-row [0+0+0 80 0+0+0] [0+0+0 70.421875 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,334.84375] table-cell [0+0+0 80 0+0+0] [0+0+0 70.421875 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [0,334.84375 80x20] baseline: 20
-                frag 1 from BlockContainer start: 0, length: 0, rect: [0,357.84375 80x20] baseline: 20
-                frag 2 from BlockContainer start: 0, length: 0, rect: [0,380.84375 80x20] baseline: 20
-                BlockContainer <span.segment> at [0,334.84375] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+                BlockContainer <span.segment> at [176,309] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.wide-grid.stretch> at [0,332] [0+0+0 300 0+0+500] [0+0+0 69 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,332] [0+0+0 80 0+0+0] [0+0+0 69 0+0+0] [BFC] children: not-inline
+          Box <div.table.min-content-width> at [0,332] table-box [0+0+0 80 0+0+0] [0+0+0 69 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,332] table-row [0+0+0 80 0+0+0] [0+0+0 69 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,332] table-cell [0+0+0 80 0+0+0] [0+0+0 69 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,332 80x20] baseline: 20
+                frag 1 from BlockContainer start: 0, length: 0, rect: [0,355 80x20] baseline: 20
+                frag 2 from BlockContainer start: 0, length: 0, rect: [0,378 80x20] baseline: 20
+                BlockContainer <span.segment> at [0,332] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
                 TextNode <#text> (not painted)
-                BlockContainer <span.segment> at [0,357.84375] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+                BlockContainer <span.segment> at [0,355] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
                 TextNode <#text> (not painted)
-                BlockContainer <span.segment> at [0,380.84375] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.wide-grid.stretch> at [0,405.265625] [0+0+0 300 0+0+500] [0+0+0 70.421875 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,405.265625] [0+0+0 120 0+0+0] [0+0+0 70.421875 0+0+0] [BFC] children: not-inline
-          Box <div.table.fit-content-width> at [0,405.265625] table-box [0+0+0 120 0+0+0] [0+0+0 70.421875 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,405.265625] table-row [0+0+0 120 0+0+0] [0+0+0 70.421875 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,405.265625] table-cell [0+0+0 120 0+0+0] [0+0+0 70.421875 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [0,405.265625 80x20] baseline: 20
-                frag 1 from BlockContainer start: 0, length: 0, rect: [0,428.265625 80x20] baseline: 20
-                frag 2 from BlockContainer start: 0, length: 0, rect: [0,451.265625 80x20] baseline: 20
-                BlockContainer <span.segment> at [0,405.265625] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+                BlockContainer <span.segment> at [0,378] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.wide-grid.stretch> at [0,401] [0+0+0 300 0+0+500] [0+0+0 69 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,401] [0+0+0 120 0+0+0] [0+0+0 69 0+0+0] [BFC] children: not-inline
+          Box <div.table.fit-content-width> at [0,401] table-box [0+0+0 120 0+0+0] [0+0+0 69 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,401] table-row [0+0+0 120 0+0+0] [0+0+0 69 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,401] table-cell [0+0+0 120 0+0+0] [0+0+0 69 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,401 80x20] baseline: 20
+                frag 1 from BlockContainer start: 0, length: 0, rect: [0,424 80x20] baseline: 20
+                frag 2 from BlockContainer start: 0, length: 0, rect: [0,447 80x20] baseline: 20
+                BlockContainer <span.segment> at [0,401] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
                 TextNode <#text> (not painted)
-                BlockContainer <span.segment> at [0,428.265625] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+                BlockContainer <span.segment> at [0,424] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
                 TextNode <#text> (not painted)
-                BlockContainer <span.segment> at [0,451.265625] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.intrinsic.stretch> at [0,475.6875] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        BlockContainer <div.track-sizer> at [0,475.6875] [0+0+0 260 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,475.6875] [0+0+0 260 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table> at [0,475.6875] table-box [0+0+0 260 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,475.6875] table-row [0+0+0 260 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,475.6875] table-cell [0+0+0 260 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [0,475.6875 80x20] baseline: 20
-                frag 1 from TextNode start: 0, length: 1, rect: [80,482.6875 8x16] baseline: 12.796875
+                BlockContainer <span.segment> at [0,447] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.intrinsic.stretch> at [0,470] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.track-sizer> at [0,470] [0+0+0 260 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,470] [0+0+0 260 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table> at [0,470] table-box [0+0+0 260 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,470] table-row [0+0+0 260 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,470] table-cell [0+0+0 260 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,470 80x20] baseline: 20
+                frag 1 from TextNode start: 0, length: 1, rect: [80,477 8x16] baseline: 13
                     " "
-                frag 2 from BlockContainer start: 0, length: 0, rect: [88,475.6875 80x20] baseline: 20
-                frag 3 from TextNode start: 0, length: 1, rect: [168,482.6875 8x16] baseline: 12.796875
+                frag 2 from BlockContainer start: 0, length: 0, rect: [88,470 80x20] baseline: 20
+                frag 3 from TextNode start: 0, length: 1, rect: [168,477 8x16] baseline: 13
                     " "
-                frag 4 from BlockContainer start: 0, length: 0, rect: [176,475.6875 80x20] baseline: 20
-                BlockContainer <span.segment> at [0,475.6875] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+                frag 4 from BlockContainer start: 0, length: 0, rect: [176,470 80x20] baseline: 20
+                BlockContainer <span.segment> at [0,470] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
                 TextNode <#text> (not painted)
-                BlockContainer <span.segment> at [88,475.6875] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+                BlockContainer <span.segment> at [88,470] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
                 TextNode <#text> (not painted)
-                BlockContainer <span.segment> at [176,475.6875] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.stretch> at [0,498.890625] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [50,498.890625] [50+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.fixed.self-end> at [50,498.890625] table-box [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [50,498.890625] table-row [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [50,498.890625] table-cell [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [50,498.890625 20x20] baseline: 20
-                BlockContainer <span.narrow> at [50,498.890625] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.tall-row.stretch> at [0,522.09375] [0+0+0 100 0+0+700] [0+0+0 60 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,540.484375] [0+0+0 50 0+0+0] [18.390625+0+0 23.203125 0+0+18.390625] [BFC] children: not-inline
-          Box <div.table.fixed.self-center> at [0,540.484375] table-box [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,540.484375] table-row [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,540.484375] table-cell [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [0,540.484375 20x20] baseline: 20
-                BlockContainer <span.narrow> at [0,540.484375] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-      Box <div.grid.two-columns.stretch> at [0,582.09375] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [100,582.09375] [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.fixed.order-late> at [100,582.09375] table-box [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [100,582.09375] table-row [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [100,582.09375] table-cell [0+0+0 50 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [100,582.09375 20x20] baseline: 20
-                BlockContainer <span.narrow> at [100,582.09375] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-        TableWrapper <(anonymous)> at [0,582.09375] [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.fixed.order-early> at [0,582.09375] table-box [0+0+0 60 0+0+10] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [0,582.09375] table-row [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [0,582.09375] table-cell [0+0+0 60 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [0,582.09375 60x20] baseline: 20
-                BlockContainer <span.medium> at [0,582.09375] inline-block [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+                BlockContainer <span.segment> at [176,470] inline-block [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.stretch> at [0,493] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [50,493] [50+0+0 50 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.fixed.self-end> at [50,493] table-box [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [50,493] table-row [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [50,493] table-cell [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [50,493 20x20] baseline: 20
+                BlockContainer <span.narrow> at [50,493] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.tall-row.stretch> at [0,516] [0+0+0 100 0+0+700] [0+0+0 60 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,534.5] [0+0+0 50 0+0+0] [18.5+0+0 23 0+0+18.5] [BFC] children: not-inline
+          Box <div.table.fixed.self-center> at [0,534.5] table-box [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,534.5] table-row [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,534.5] table-cell [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,534.5 20x20] baseline: 20
+                BlockContainer <span.narrow> at [0,534.5] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid.two-columns.stretch> at [0,576] [0+0+0 100 0+0+700] [0+0+0 23 0+0+0] [GFC] children: not-inline
+        TableWrapper <(anonymous)> at [100,576] [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.fixed.order-late> at [100,576] table-box [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [100,576] table-row [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [100,576] table-cell [0+0+0 50 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [100,576 20x20] baseline: 20
+                BlockContainer <span.narrow> at [100,576] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,576] [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] [BFC] children: not-inline
+          Box <div.table.fixed.order-early> at [0,576] table-box [0+0+0 60 0+0+10] [0+0+0 23 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,576] table-row [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,576] table-cell [0+0+0 60 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,576 60x20] baseline: 20
+                BlockContainer <span.medium> at [0,576] inline-block [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x605.296875] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x599] (z-index: auto)

@@ -3,15 +3,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 132 0+0+8] children: not-inline
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <span> at [8,8] [0+0+0 136.609375 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 5, rect: [8,8 36.40625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 5, rect: [8,8 36.40625x16] baseline: 13
               "well "
           TextNode <#text> (not painted)
           InlineNode <b> at [44.40625,33] [0+0+0 100.203125 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 6, rect: [44.40625,33 44.84375x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 6, rect: [44.40625,33 44.84375x16] baseline: 13
                 "hello "
             TextNode <#text> (not painted)
             InlineNode <i> at [89.25,58] [0+0+0 55.359375 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from TextNode start: 0, length: 7, rect: [89.25,58 55.359375x16] baseline: 12.796875
+              frag 0 from TextNode start: 0, length: 7, rect: [89.25,58 55.359375x16] baseline: 13
                   "friends"
               TextNode <#text> (not painted)
         TextNode <#text> (not painted)
@@ -22,11 +22,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           BreakNode <br> (not painted)
           BreakNode <br> (not painted)
         BlockContainer <pre#out> at [8,101] [0+0+0 784 0+0+0] [13+0+0 39 0+0+13] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [8,101 58.640625x13] baseline: 10.390625
+          frag 0 from TextNode start: 0, length: 10, rect: [8,101 58.640625x13] baseline: 10
               "well: 8, 8"
-          frag 1 from TextNode start: 11, length: 13, rect: [8,114 77.46875x13] baseline: 10.390625
+          frag 1 from TextNode start: 11, length: 13, rect: [8,114 77.46875x13] baseline: 10
               "hello: 44, 33"
-          frag 2 from TextNode start: 25, length: 15, rect: [8,127 92.359375x13] baseline: 10.390625
+          frag 2 from TextNode start: 25, length: 15, rect: [8,127 92.359375x13] baseline: 10
               "friends: 45, 25"
           TextNode <#text> (not painted)
 

@@ -2,24 +2,24 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 222 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 206 0+0+8] children: not-inline
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 38, rect: [8,8 312.4375x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 38, rect: [8,8 312.4375x16] baseline: 13
             "This is inserted before the container."
         TextNode <#text> (not painted)
       BlockContainer <div#container> at [39,55] [20+1+10 722 10+1+20] [20+1+10 112 10+1+20] children: not-inline
         BlockContainer <p> at [39,71] [0+0+0 722 0+0+0] [16+0+0 16 0+0+16] children: inline
-          frag 0 from TextNode start: 0, length: 34, rect: [39,71 270.59375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 34, rect: [39,71 270.59375x16] baseline: 13
               "This is inserted at the beginning."
           TextNode <#text> (not painted)
         BlockContainer <p> at [39,103] [0+0+0 722 0+0+0] [16+0+0 16 0+0+16] children: inline
-          frag 0 from TextNode start: 0, length: 29, rect: [39,103 230.59375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 29, rect: [39,103 230.59375x16] baseline: 13
               "This is the original content."
           TextNode <#text> (not painted)
         BlockContainer <p> at [39,135] [0+0+0 722 0+0+0] [16+0+0 16 0+0+16] children: inline
-          frag 0 from TextNode start: 0, length: 28, rect: [39,135 225.515625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 28, rect: [39,135 225.515625x16] baseline: 13
               "This is inserted at the end."
           TextNode <#text> (not painted)
       BlockContainer <div> at [8,198] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 37, rect: [8,198 300.09375x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 37, rect: [8,198 300.09375x16] baseline: 13
             "This is inserted after the container."
         TextNode <#text> (not painted)
 

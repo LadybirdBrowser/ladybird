@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 62.203125 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 46.203125 0+0+8] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 62 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 46 0+0+8] children: inline
       frag 0 from AudioBox start: 0, length: 0, rect: [8,8 300x43] baseline: 43
       AudioBox <audio> at [8,8] inline-block [0+0+0 300 0+0+0] [0+0+0 43 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [8,8] [0+0+0 300 0+0+0] [0+0+0 43 0+0+0] children: not-inline
@@ -14,7 +14,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                   SVGSVGBox <svg.icon.play-pause-icon> at [16,20] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
                     SVGGeometryBox <path.play-path> at [6,5] [0+0+0 13 0+0+0] [0+0+0 14 0+0+0] children: not-inline
                 BlockContainer <span.timestamp> at [48,26] flex-item [0+0+0 80.84375 0+0+0] [0+0+0 12 0+0+0] [BFC] children: inline
-                  frag 0 from TextNode start: 0, length: 13, rect: [48,26 80.84375x12] baseline: 9.59375
+                  frag 0 from TextNode start: 0, length: 13, rect: [48,26 80.84375x12] baseline: 10
                       "00:00 / 00:00"
                   TextNode <#text> (not painted)
                 Box <button.control-button.mute-button.high.muted> at [276,20] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
@@ -32,5 +32,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x62.203125] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x62] (z-index: auto)
   SC for BlockContainer<DIV>.timeline [8,8 300x5] (z-index: 1)

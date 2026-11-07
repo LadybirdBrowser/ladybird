@@ -2,15 +2,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 88 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 64 0+0+8] children: not-inline
       BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
-        frag 0 from TextNode start: 0, length: 36, rect: [18.625,16 300x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 36, rect: [18.625,16 300x16] baseline: 13
             "P should generate a ::before pseudo."
         InlineNode <(anonymous)> at [8,16] [0+0+0 10.625 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,16 10.625x16] baseline: 12.796875
+          frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,16 10.625x16] baseline: 13
               "+"
           GeneratedTextNode <(anonymous)> (not painted)
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,48] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 14, rect: [8,64 120.578125x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 14, rect: [8,64 120.578125x16] baseline: 13
             "BR should not!"
         BreakNode <br> (not painted)
         TextNode <#text> (not painted)

@@ -4,17 +4,17 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.wrapper> at [8,8] [0+0+0 270 0+0+514] [0+0+0 96 0+0+0] children: not-inline
         BlockContainer <div.constrained> at [8,8] [0+0+0 270 0+0+0] [0+0+0 96 0+0+0] children: not-inline
           BlockContainer <(anonymous)> at [8,8] [0+0+0 270 0+0+0] [0+0+0 96 0+0+0] children: inline
-            frag 0 from TextNode start: 1, length: 35, rect: [8,8 261.0625x16] baseline: 12.796875
+            frag 0 from TextNode start: 1, length: 35, rect: [8,8 261.0625x16] baseline: 13
                 "hello hello hello hello hello hello"
-            frag 1 from TextNode start: 37, length: 35, rect: [8,24 261.0625x16] baseline: 12.796875
+            frag 1 from TextNode start: 37, length: 35, rect: [8,24 261.0625x16] baseline: 13
                 "hello hello hello hello hello hello"
-            frag 2 from TextNode start: 73, length: 35, rect: [8,40 261.0625x16] baseline: 12.796875
+            frag 2 from TextNode start: 73, length: 35, rect: [8,40 261.0625x16] baseline: 13
                 "hello hello hello hello hello hello"
-            frag 3 from TextNode start: 109, length: 35, rect: [8,56 261.0625x16] baseline: 12.796875
+            frag 3 from TextNode start: 109, length: 35, rect: [8,56 261.0625x16] baseline: 13
                 "hello hello hello hello hello hello"
-            frag 4 from TextNode start: 145, length: 35, rect: [8,72 261.0625x16] baseline: 12.796875
+            frag 4 from TextNode start: 145, length: 35, rect: [8,72 261.0625x16] baseline: 13
                 "hello hello hello hello hello hello"
-            frag 5 from TextNode start: 181, length: 11, rect: [8,88 81.6875x16] baseline: 12.796875
+            frag 5 from TextNode start: 181, length: 11, rect: [8,88 81.6875x16] baseline: 13
                 "hello hello"
             TextNode <#text> (not painted)
           BlockContainer <div> at [8,104] [0+0+0 270 0+0+0] [0+0+0 0 0+0+0] children: not-inline

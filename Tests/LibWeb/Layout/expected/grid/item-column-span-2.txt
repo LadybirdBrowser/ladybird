@@ -4,9 +4,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] [GFC] children: not-inline
         BlockContainer <div.item-left> at [8,8] [0+0+0 100 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
         BlockContainer <div.item-right> at [108,8] [0+0+0 684 0+0+0] [0+0+0 32 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 77, rect: [108,8 625.953125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 77, rect: [108,8 625.953125x16] baseline: 13
               "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut iaculis venenatis"
-          frag 1 from TextNode start: 78, length: 39, rect: [108,24 304.0625x16] baseline: 12.796875
+          frag 1 from TextNode start: 78, length: 39, rect: [108,24 304.0625x16] baseline: 13
               "purus, eget blandit velit venenatis at."
           TextNode <#text> (not painted)
 

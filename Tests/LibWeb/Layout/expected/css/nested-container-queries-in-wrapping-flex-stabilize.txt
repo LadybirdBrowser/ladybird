@@ -6,14 +6,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <div.link> at [8,8] flex-container(column) [0+0+0 254 0+0+0] [0+0+0 36 0+0+0] [FFC] children: not-inline
             BlockContainer <div.wide> at [8,8] flex-item [0+0+0 600 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
             BlockContainer <div> at [8,28] flex-item [0+0+0 254 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 4, rect: [8,28 35.71875x16] baseline: 12.796875
+              frag 0 from TextNode start: 0, length: 4, rect: [8,28 35.71875x16] baseline: 13
                   "main"
               TextNode <#text> (not painted)
         BlockContainer <div.teaser> at [278,8] flex-item [0+0+0 254 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
           Box <div.link> at [278,8] flex-container(column) [0+0+0 254 0+0+0] [0+0+0 36 0+0+0] [FFC] children: not-inline
             BlockContainer <div.wide> at [278,8] flex-item [0+0+0 600 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
             BlockContainer <div> at [278,28] flex-item [0+0+0 254 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 4, rect: [278,28 35.71875x16] baseline: 12.796875
+              frag 0 from TextNode start: 0, length: 4, rect: [278,28 35.71875x16] baseline: 13
                   "main"
               TextNode <#text> (not painted)
 

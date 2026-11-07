@@ -4,23 +4,23 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.full-width-float> at [8,8] floating [0+0+0 400 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       Box <div.small-negative-margin> at [3,108] flex-container(row) [-5+0+0 405 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [3,108] flex-item [0+0+0 303.78125 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 39, rect: [3,108 303.78125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 39, rect: [3,108 303.78125x16] baseline: 13
               "This should clear the full-width float."
           TextNode <#text> (not painted)
       BlockContainer <hr> at [9,217] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.partial-width-float> at [8,226] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       Box <div.small-negative-margin> at [108,226] flex-container(row) [-5+0+0 300 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [108,226] flex-item [0+0+0 300 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 33, rect: [108,226 267.703125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 33, rect: [108,226 267.703125x16] baseline: 13
               "This should sit flush against the"
-          frag 1 from TextNode start: 34, length: 6, rect: [108,242 41.578125x16] baseline: 12.796875
+          frag 1 from TextNode start: 34, length: 6, rect: [108,242 41.578125x16] baseline: 13
               "float."
           TextNode <#text> (not painted)
       BlockContainer <hr> at [9,335] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.partial-width-float> at [8,344] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       Box <div.large-negative-margin> at [-342,444] flex-container(row) [-350+0+0 750 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [-342,444] flex-item [0+0+0 224.828125 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 28, rect: [-342,444 224.828125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 28, rect: [-342,444 224.828125x16] baseline: 13
               "This should clear the float."
           TextNode <#text> (not painted)
 

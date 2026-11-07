@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 264 0+0+8] children: not-inline
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 222 0+0+0] children: inline
         frag 0 from SVGSVGBox start: 0, length: 0, rect: [9,9 300x150] baseline: 152
-        frag 1 from TextNode start: 0, length: 1, rect: [310,147 8x16] baseline: 12.796875
+        frag 1 from TextNode start: 0, length: 1, rect: [310,147 8x16] baseline: 13
             " "
         frag 2 from BlockContainer start: 0, length: 0, rect: [319,127 102x102] baseline: 34
         SVGSVGBox <svg> at [9,9] [0+1+0 300 0+1+0] [0+1+0 150 0+1+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline

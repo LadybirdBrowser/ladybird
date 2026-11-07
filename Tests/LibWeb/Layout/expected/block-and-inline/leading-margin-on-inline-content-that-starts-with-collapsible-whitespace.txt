@@ -1,13 +1,13 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: inline
-      frag 0 from InlineNode start: 0, length: 0, rect: [189.6875,8 0x16] baseline: 12.796875
+      frag 0 from InlineNode start: 0, length: 0, rect: [189.6875,8 0x16] baseline: 13
       InlineNode <div> at [28,8] [20+0+0 82.125 0+0+20] [0+0+0 16 0+0+0]
-        frag 0 from TextNode start: 1, length: 9, rect: [28,8 82.125x16] baseline: 12.796875
+        frag 0 from TextNode start: 1, length: 9, rect: [28,8 82.125x16] baseline: 13
             "Download "
         TextNode <#text> (not painted)
       InlineNode <div> at [150.125,8] [20+0+0 39.5625 0+0+20] [0+0+0 16 0+0+0]
-        frag 0 from TextNode start: 1, length: 4, rect: [150.125,8 39.5625x16] baseline: 12.796875
+        frag 0 from TextNode start: 1, length: 4, rect: [150.125,8 39.5625x16] baseline: 13
             "News"
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)

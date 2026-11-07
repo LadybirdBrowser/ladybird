@@ -2,9 +2,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 52 0+1+0] [BFC] children: not-inline
     BlockContainer <body> at [110,10] positioned [8+1+0 300 0+1+488] [8+1+0 34 0+1+8] children: not-inline
       BlockContainer <div> at [61,11] [-50+1+0 200 0+1+148] [0+1+0 32 0+1+0] children: inline
-        frag 0 from TextNode start: 0, length: 19, rect: [61,11 159.859375x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 19, rect: [61,11 159.859375x16] baseline: 13
             "there are no floats"
-        frag 1 from TextNode start: 20, length: 21, rect: [61,27 163.875x16] baseline: 12.796875
+        frag 1 from TextNode start: 20, length: 21, rect: [61,27 163.875x16] baseline: 13
             "intruding on this div"
         TextNode <#text> (not painted)
 

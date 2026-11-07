@@ -3,11 +3,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
       BlockContainer <details> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
         ListItemBox <summary> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [8,8 13.84375x16] baseline: 12.796875
-          frag 1 from TextNode start: 0, length: 7, rect: [21.84375,8 54.203125x16] baseline: 12.796875
+          frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [8,8 13.84375x16] baseline: 13
+          frag 1 from TextNode start: 0, length: 7, rect: [21.84375,8 54.203125x16] baseline: 13
               "Details"
           ListItemMarkerBox <(anonymous)> at [8,8] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,8 13.84375x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,8 13.84375x16] baseline: 13
                 "► "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)

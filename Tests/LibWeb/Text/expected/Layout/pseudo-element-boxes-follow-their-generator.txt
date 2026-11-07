@@ -7,14 +7,14 @@ With a shadow root: width 109.953125, full rebuild matches true
 BlockContainer <div#container> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] children: not-inline
   BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] children: inline
     InlineNode <span#generator> at [0,0] [0+0+0 109.953125 0+0+0] [0+0+0 16 0+0+0]
-      frag 0 from TextNode start: 0, length: 6, rect: [52.53125,0 57.421875x16] baseline: 12.796875
+      frag 0 from TextNode start: 0, length: 6, rect: [52.53125,0 57.421875x16] baseline: 13
           "shadow"
       InlineNode <(anonymous)> at [0,0] [0+0+0 52.53125 0+0+0] [0+0+0 16 0+0+0]
-        frag 0 from GeneratedTextNode start: 0, length: 6, rect: [0,0 52.53125x16] baseline: 12.796875
+        frag 0 from GeneratedTextNode start: 0, length: 6, rect: [0,0 52.53125x16] baseline: 13
             "before"
         GeneratedTextNode <(anonymous)> (not painted)
       TextNode <#text> (not painted)
   BlockContainer <(anonymous)> at [0,16] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] children: inline
-    frag 0 from GeneratedTextNode start: 0, length: 5, rect: [0,16 40.1875x16] baseline: 12.796875
+    frag 0 from GeneratedTextNode start: 0, length: 5, rect: [0,16 40.1875x16] baseline: 13
         "after"
     GeneratedTextNode <(anonymous)> (not painted)

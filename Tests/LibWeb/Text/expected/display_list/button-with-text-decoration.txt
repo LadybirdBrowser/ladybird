@@ -8,6 +8,6 @@ AccumulatedVisualContext Tree:
 DisplayList:
 FillRectWithRoundedCorners@s1/e0 rect=[8,8 98x20] color=rgb(239, 239, 239)
 FillRoundedRectRing@s1/e0 rect=[8,8 98x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
-DrawGlyphRun@s1/e0 rect=[17,11 80x14] translation=[17,21.984375] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[17,11 80x14] translation=[17,22] color=rgb(0, 0, 0)
 DrawLine@s1/e0 from=[17,25] to=[97,25] color=rgb(0, 0, 0) thickness=1 style=Solid
 

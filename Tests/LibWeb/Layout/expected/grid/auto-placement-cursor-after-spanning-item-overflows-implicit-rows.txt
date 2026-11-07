@@ -3,19 +3,19 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 100 0+0+8] children: not-inline
       Box <div.grid> at [8,8] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] [GFC] children: not-inline
         BlockContainer <div.item> at [8,8] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [8,8 28.6875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [8,8 28.6875x16] baseline: 13
               "one"
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [108,8] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [108,8 28.4375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [108,8 28.4375x16] baseline: 13
               "two"
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [8,58] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [8,58 42.421875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 5, rect: [8,58 42.421875x16] baseline: 13
               "three"
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [108,58] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [108,58 35.390625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 4, rect: [108,58 35.390625x16] baseline: 13
               "four"
           TextNode <#text> (not painted)
 

@@ -11,7 +11,7 @@ AccumulatedVisualContext Tree:
 DisplayList:
 FillRectWithRoundedCorners@s1/e0 rect=[8,8 110x20] color=rgb(255, 255, 255)
 FillRoundedRectRing@s1/e0 rect=[8,8 110x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
-DrawGlyphRun@s1/c1/e0 rect=[13,11 31x14] translation=[13,21.984375] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/c1/e0 rect=[13,11 31x14] translation=[13,22] color=rgb(0, 0, 0)
 PaintCaret@s1/c1/e0 rect=[13,11 1x14] color=rgb(0, 0, 0) should_blink=false
 FillRoundedRectRing@s1/e0 rect=[6,6 114x24] corner_radii=[6x6,6x6,6x6,6x6] widths=[2,2,2,2] color=rgb(61, 174, 233)
 

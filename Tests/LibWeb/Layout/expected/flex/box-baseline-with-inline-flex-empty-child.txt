@@ -1,9 +1,9 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 45.203125 0+1+0] [BFC] children: not-inline
-    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 27.203125 0+1+8] children: not-inline
-      BlockContainer <div.first> at [11,11] [0+1+0 778 0+1+0] [0+1+0 25.203125 0+1+0] children: inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 45 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 27 0+1+8] children: not-inline
+      BlockContainer <div.first> at [11,11] [0+1+0 778 0+1+0] [0+1+0 25 0+1+0] children: inline
         frag 0 from Box start: 0, length: 0, rect: [22,22 0x0] baseline: 22
         Box <span.second> at [22,22] flex-container(row) [0+1+10 0 10+1+0] [0+1+10 0 10+1+0] [FFC] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [1,1 798x45.203125] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x45] (z-index: auto)

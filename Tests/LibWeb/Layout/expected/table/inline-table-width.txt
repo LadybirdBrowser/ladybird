@@ -8,20 +8,20 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             Box <tbody> at [11,11] table-row-group [0+0+0 131.984375 0+0+0] [0+0+0 38 0+0+0] children: not-inline
               Box <tr> at [11,11] table-row [0+0+0 131.984375 0+0+0] [0+0+0 18 0+0+0] children: not-inline
                 BlockContainer <td> at [12,12] table-cell [0+0+1 87.90625 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                  frag 0 from TextNode start: 0, length: 2, rect: [12,12 15.734375x16] baseline: 12.796875
+                  frag 0 from TextNode start: 0, length: 2, rect: [12,12 15.734375x16] baseline: 13
                       "ID"
                   TextNode <#text> (not painted)
                 BlockContainer <td> at [103.90625,12] table-cell [0+0+1 38.078125 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                  frag 0 from TextNode start: 0, length: 4, rect: [103.90625,12 27.84375x16] baseline: 12.796875
+                  frag 0 from TextNode start: 0, length: 4, rect: [103.90625,12 27.84375x16] baseline: 13
                       "null"
                   TextNode <#text> (not painted)
               Box <tr> at [11,31] table-row [0+0+0 131.984375 0+0+0] [0+0+0 18 0+0+0] children: not-inline
                 BlockContainer <td> at [12,32] table-cell [0+0+1 87.90625 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                  frag 0 from TextNode start: 0, length: 11, rect: [12,32 87.90625x16] baseline: 12.796875
+                  frag 0 from TextNode start: 0, length: 11, rect: [12,32 87.90625x16] baseline: 13
                       "Is Selected"
                   TextNode <#text> (not painted)
                 BlockContainer <td> at [103.90625,32] table-cell [0+0+1 38.078125 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                  frag 0 from TextNode start: 0, length: 5, rect: [103.90625,32 38.078125x16] baseline: 12.796875
+                  frag 0 from TextNode start: 0, length: 5, rect: [103.90625,32 38.078125x16] baseline: 13
                       "false"
                   TextNode <#text> (not painted)
 
