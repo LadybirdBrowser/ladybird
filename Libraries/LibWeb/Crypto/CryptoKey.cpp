@@ -32,7 +32,7 @@ struct CryptoKeyCacheEntry {
 
 static Vector<CryptoKeyCacheEntry>& crypto_key_caches()
 {
-    static NeverDestroyed<Vector<CryptoKeyCacheEntry>> caches;
+    static thread_local NeverDestroyed<Vector<CryptoKeyCacheEntry>> caches;
     return *caches;
 }
 

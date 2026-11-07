@@ -15,7 +15,7 @@ static constexpr size_t compiled_script_cache_size_limit = 128 * MiB;
 
 CompiledScriptCache& CompiledScriptCache::the()
 {
-    static NeverDestroyed<CompiledScriptCache> cache;
+    static thread_local NeverDestroyed<CompiledScriptCache> cache;
     return *cache;
 }
 
