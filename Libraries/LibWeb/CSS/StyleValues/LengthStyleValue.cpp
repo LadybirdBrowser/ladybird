@@ -26,7 +26,7 @@ ValueComparingNonnullRefPtr<LengthStyleValue const> LengthStyleValue::create(Len
                 auto* instances = new (nothrow) Vector<NonnullRefPtr<LengthStyleValue const>>();
                 instances->ensure_capacity(last_interned_px_value + 1);
                 for (i32 px = 0; px <= last_interned_px_value; ++px)
-                    instances->unchecked_append(adopt_ref(*new (nothrow) LengthStyleValue(Length::make_px(px))));
+                    instances->unchecked_append(*make_immortal(new (nothrow) LengthStyleValue(Length::make_px(px))));
                 return instances;
             }();
             return instances[static_cast<i32>(raw_value)];

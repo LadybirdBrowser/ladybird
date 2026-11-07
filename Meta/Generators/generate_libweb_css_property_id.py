@@ -494,16 +494,15 @@ bool property_needs_layout_node_for_resolved_value(PropertyID property_id)
 
 NonnullRefPtr<StyleValue const> property_initial_value(PropertyID property_id)
 {
-    static NeverDestroyed<Array<RefPtr<StyleValue const>, to_underlying(last_property_id) + 1>> initial_values;
-    if (auto initial_value = (*initial_values)[to_underlying(property_id)])
-        return initial_value.release_nonnull();
+    static Array<Atomic<StyleValue const*>, to_underlying(last_property_id) + 1> initial_values;
+    auto& slot = initial_values[to_underlying(property_id)];
+    if (auto const* initial_value = slot.load(AK::MemoryOrder::memory_order_acquire))
+        return *initial_value;
 
     // A longhand's initial value is the one style computation selects, which Rust parses.
     if (property_id >= first_longhand_property_id && property_id <= last_longhand_property_id) {
         auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(ComputedValuesFFI::rust_style_metadata_initial_value(to_underlying(property_id)));
-        auto initial_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data));
-        (*initial_values)[to_underlying(property_id)] = initial_value;
-        return initial_value;
+        return StyleValue::intern(slot, StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data)));
     }
 
     // Lazily parse shorthand initial values as needed.
@@ -525,9 +524,7 @@ NonnullRefPtr<StyleValue const> property_initial_value(PropertyID property_id)
         {{
             auto parsed_value = parse_css_value(parsing_params, "{initial_value_string}"sv, PropertyID::{title});
             VERIFY(!parsed_value.is_null());
-            auto initial_value = parsed_value.release_nonnull();
-            (*initial_values)[to_underlying(PropertyID::{title})] = initial_value;
-            return initial_value;
+            return StyleValue::intern(slot, parsed_value.release_nonnull());
         }}
 """)
 

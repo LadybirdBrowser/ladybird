@@ -279,8 +279,18 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
 
 ValueComparingNonnullRefPtr<StyleValue const> StyleValue::create_guaranteed_invalid()
 {
-    static auto& instance = adopt_ref(*new (nothrow) StyleValue(Type::GuaranteedInvalid, StyleValueFFI::rust_style_value_create_guaranteed_invalid())).leak_ref();
+    static auto& instance = *make_immortal(new (nothrow) StyleValue(Type::GuaranteedInvalid, StyleValueFFI::rust_style_value_create_guaranteed_invalid()));
     return instance;
+}
+
+NonnullRefPtr<StyleValue const> StyleValue::intern(Atomic<StyleValue const*>& slot, NonnullRefPtr<StyleValue const> value)
+{
+    // NB: Two threads can get here for the same slot. The one that loses has built a value that nothing will free.
+    auto const* candidate = make_immortal(value.ptr());
+    StyleValue const* winner = nullptr;
+    if (slot.compare_exchange_strong(winner, candidate, AK::MemoryOrder::memory_order_acq_rel))
+        return *candidate;
+    return *winner;
 }
 
 void StyleValue::set_style_sheet(StyleSheetState* style_sheet)
