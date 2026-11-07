@@ -35,8 +35,6 @@ impl PartialRelayoutBoundaryRoots {
     }
 }
 
-crate::render_state::held_node_entries!();
-
 pub(crate) struct LayoutTreeUpdateClassification {
     pub(crate) marks_partial_relayout_boundary_self_only: bool,
     /// The node a rebuild escalates to past anonymous parents, if it does, named the way a commit
@@ -130,6 +128,8 @@ impl LayoutNodeArena {
         false
     }
 
+    /// A partial relayout boundary is a box whose subtree can be re-laid out in isolation: its own used size and position
+    /// are guaranteed not to change when layout is invalidated somewhere inside its subtree.
     pub(crate) fn node_is_partial_relayout_boundary(&self, node: NodeSlotId) -> bool {
         let data = self.data(node);
 
@@ -843,16 +843,6 @@ impl LayoutNodeArena {
             self.register_partial_relayout_boundary_root(node);
         }
     }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_node_is_partial_relayout_boundary(
-    host: &crate::render_state::DocumentHost,
-    node: NodeSlotId,
-) -> bool {
-    super::shell_reads::read_arena(host, node_read(), node, |arena, node| {
-        arena.node_is_partial_relayout_boundary(node)
-    })
 }
 
 /// The facts the host owns that take an update off the partial relayout path.

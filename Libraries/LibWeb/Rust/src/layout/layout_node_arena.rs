@@ -2830,18 +2830,41 @@ impl LayoutNodeArena {
         }
     }
 
-    /// Marks `slot`, the box of the element `style_node` names, for the relayout a style change asks for, as the host
-    /// does. Only a full layout pass propagates the viewport's overflow, writing mode and direction from their elements
-    /// again, so the relayout of one of them does not finish as a partial relayout. A relayout of an absolutely
-    /// positioned partial relayout boundary stays confined to it, as the box contributes nothing to ancestor layout;
-    /// a rendered ::backdrop keeps it from being confined, as its box is the element box's sibling.
-    fn mark_row_for_relayout_after_style_change(&mut self, style_node: StyleNodeID, slot: NodeSlotId) {
+    /// Marks the box of the element `element` names for the relayout a style change asks for. Only a full layout pass
+    /// propagates the viewport's overflow, writing mode and direction from their elements again, so the relayout of one
+    /// of them does not finish as a partial relayout, even where the element has no box.
+    pub(crate) fn mark_element_for_relayout_after_style_change(
+        &mut self,
+        element: StyleNodeID,
+        rebuilds_layout_tree: bool,
+    ) {
         let viewport_propagation_source =
-            self.data(slot).flags.get() & (NodeFlag::IsDocumentElement as u32 | NodeFlag::IsBody as u32) != 0;
+            super::viewport_propagation::element_is_viewport_propagation_source(self, element);
         if viewport_propagation_source {
             self.record_partial_relayout_escape();
         }
-        let confined = !viewport_propagation_source
+        let slot = self.bound_row(element);
+        if !slot.is_invalid() {
+            self.mark_row_for_relayout(element, slot, !viewport_propagation_source && !rebuilds_layout_tree);
+        }
+    }
+
+    /// Marks `slot`, the box of the element `style_node` names or of one of its pseudo-elements, for the relayout a style
+    /// change that builds no box again asks for.
+    fn mark_row_for_relayout_after_style_change(&mut self, style_node: StyleNodeID, slot: NodeSlotId) {
+        if slot == self.bound_row(style_node) {
+            self.mark_element_for_relayout_after_style_change(style_node, false);
+        } else {
+            self.mark_row_for_relayout(style_node, slot, true);
+        }
+    }
+
+    /// A relayout of an absolutely positioned partial relayout boundary stays confined to it, as the box contributes
+    /// nothing to ancestor layout; a rendered ::backdrop keeps it from being confined, as its box is the element box's
+    /// sibling.
+    fn mark_row_for_relayout(&mut self, style_node: StyleNodeID, slot: NodeSlotId, may_be_confined_to_boundary: bool) {
+        let confined = may_be_confined_to_boundary
+            && super::node_facts::kind_is_box(self.data(slot).kind.get())
             && self
                 .style_view(slot)
                 .is_some_and(|payloads| payloads.is_absolutely_positioned())

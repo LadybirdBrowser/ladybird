@@ -62,9 +62,4 @@ void Box::set_owned_image_provider(NonnullOwnPtr<ImageProvider> image_provider)
     RustFFI::document_host_set_owned_image_provider(document_host(), Node::slot_id(this), image_provider.leak_ptr());
 }
 
-bool Box::is_partial_relayout_boundary() const
-{
-    return RustFFI::render_state_node_is_partial_relayout_boundary(document_host(), Node::slot_id(this));
-}
-
 }

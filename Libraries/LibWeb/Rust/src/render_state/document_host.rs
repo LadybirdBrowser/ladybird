@@ -1769,7 +1769,6 @@ mod tests {
 
         host.queue_change(ArenaChange::Layout(LayoutChange::SetNeedsLayoutUpdate {
             node: viewport,
-            propagate_through_ancestors: false,
         }));
         assert_eq!(host.known_layout_up_to_date_unless_built(), None);
     }

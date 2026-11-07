@@ -255,8 +255,7 @@ enum class UpdateLayoutReason {
 
 #define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASONS(X) \
     X(AnchorNamesUnregisteredByElementRemoval)       \
-    X(AnchorNamesUnregisteredByStyleChange)          \
-    X(ViewportPropagationSourceChangedByStyleChange)
+    X(AnchorNamesUnregisteredByStyleChange)
 
 enum class PartialRelayoutEscapeReason {
 #define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASON(e) e,

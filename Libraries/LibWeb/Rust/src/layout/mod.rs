@@ -103,7 +103,6 @@ pub(crate) use layout_node_arena::HeldNode as ArenaHeldNode;
 pub(crate) use layout_node_arena::{ElementInstall, StyledRows};
 pub(crate) use layout_pass::LayoutPass;
 pub(crate) use node_facts::NodeFacts;
-pub(crate) use partial_relayout::HeldNode as PartialRelayoutHeldNode;
 pub(crate) use rendered_text::{PublishedTextSlot, RenderedText, RenderedTextBoundary, TextFragments};
 pub(crate) use run_state::RunState;
 use std::cell::Cell;
