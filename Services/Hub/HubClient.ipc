@@ -43,9 +43,56 @@ struct WebView::TabPerformanceStats {
     Vector<double> cpu_history;
 }
 
+[ExistingCpp]
+struct WebView::SitePermissionRow {
+    Web::Permissions::PermissionName name;
+    Optional<WebView::PermissionDecision> decision;
+    bool one_time_grant_is_live;
+    bool requested_by_page;
+}
+
+[ExistingCpp]
+struct WebView::ViewImplementation::InputMethodState {
+    bool is_enabled;
+    i32 cursor_position;
+    i32 anchor_position;
+    Utf16String text_before_cursor;
+    Utf16String text_after_cursor;
+    Optional<Web::DevicePixelRect> caret_rect;
+}
+
+// What the UI needs to know about a view at any time, without having to ask.
+struct Hub::ViewState {
+    URL::URL url;
+    URL::URL displayed_url;
+    Utf16String title;
+    Optional<String> favicon_hash;
+    String handle;
+    bool is_loading;
+    bool crash_overlay_active;
+    String crash_overlay_failed_url;
+    Optional<ByteString> crash_report_name;
+    Optional<String> crash_report_website;
+    double zoom_level;
+    String force_dark_host;
+    i32 web_content_pid;
+    bool can_report_website_issue;
+    bool is_node_picker_active;
+    WebView::ContentBlockingSnapshot content_blocking_snapshot;
+    WebView::ViewImplementation::InputMethodState input_method_state;
+    Web::HTML::MuteState page_mute_state;
+    bool plays_audio_indicator_visible;
+    bool uses_location_indicator_visible;
+    bool uses_microphone_indicator_visible;
+    Gfx::Color page_background_color;
+    Optional<URL::Origin> permission_origin;
+    Vector<WebView::SitePermissionRow> site_permission_rows;
+}
+
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    view_state_changed(u64 view_id, Hub::ViewState state) =|
     view_load_start(u64 view_id) =|
     view_load_finish(u64 view_id, URL::URL url) =|
     view_activate_tab(u64 view_id) =|

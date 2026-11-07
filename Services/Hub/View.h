@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <Hub/HubClientEndpoint.h>
 #include <LibWebView/ViewImplementation.h>
 
 namespace Hub {
@@ -43,6 +44,11 @@ public:
     // The host is going away, and takes no more calls.
     void detach_from_host() { m_host = nullptr; }
 
+    ViewState current_state() const;
+
+    // Tells the UI where the view has changed, which it must hear of before anything that makes it look.
+    void push_state_to_ui();
+
     void set_device_pixel_ratio(double device_pixel_ratio) { m_device_pixel_ratio = device_pixel_ratio; }
     bool scales_frames_to_fit() const { return m_scales_frames_to_fit; }
     void release_backing_store_to_page(i32 bitmap_id) { ViewImplementation::release_backing_store(bitmap_id); }
@@ -70,6 +76,7 @@ private:
     void forward_callbacks_to_ui();
 
     ViewHost* m_host { nullptr };
+    ByteBuffer m_last_state_pushed_to_ui;
 };
 
 }
