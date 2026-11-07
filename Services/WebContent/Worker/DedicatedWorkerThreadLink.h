@@ -67,4 +67,4 @@ private:
 }
 
 // NB: The tasks the link keeps cross between threads, so they can't be GC::Functions. They capture no cells.
-GC_UNTRACED_CAPTURE(WebWorker::DedicatedWorkerThreadLink);
+GC_UNTRACED_CAPTURE_WITH_ROOTED_CALLBACKS(WebWorker::DedicatedWorkerThreadLink);

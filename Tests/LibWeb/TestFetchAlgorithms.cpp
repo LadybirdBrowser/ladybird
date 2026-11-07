@@ -79,8 +79,8 @@ struct FetchHarness {
     {
         auto deadline = Core::Timer::create_single_shot(AK::Duration::from_seconds(10), [] { });
         deadline->start();
-        Web::HTML::main_thread_event_loop().spin_until(GC::create_function(realm->heap(), GC::captures(condition, deadline), [](auto& condition, auto& deadline) {
-            return condition->function()() || !deadline->is_active();
+        Web::HTML::main_thread_event_loop().spin_until(GC::create_function(realm->heap(), GC::captures(condition, deadline->make_weak_ptr<Core::Timer>()), [](auto& condition, auto& deadline) {
+            return condition->function()() || !deadline || !deadline->is_active();
         }));
     }
 

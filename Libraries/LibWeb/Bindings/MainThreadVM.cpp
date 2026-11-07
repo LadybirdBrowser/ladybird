@@ -88,9 +88,6 @@
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 
-// NB: A module request holds strings only.
-GC_UNTRACED_CAPTURE(JS::ModuleRequest);
-
 namespace Web::Bindings {
 
 GC_DEFINE_ALLOCATOR(WebEngineCustomJobCallbackData);

@@ -92,7 +92,7 @@ struct ActionsInFlight : RefCounted<ActionsInFlight> {
     AK_ALLOC_WITH_KMALLOC;
 
     Optional<GC::Root<JS::Cell>> executor;
-    OnCommandComplete on_complete;
+    GC::Root<GC::Function<void(Response)>> on_complete;
     bool completed { false };
 };
 
@@ -109,7 +109,7 @@ static void run_the_first_input_command(HTML::CrossProcessId top_level_traversab
 {
     auto& queue = input_command_queues().find(top_level_traversable_id)->value;
     auto command = move(queue.first());
-    command([top_level_traversable_id](Response) {
+    command(GC::create_function(GC::Heap::the(), GC::captures(top_level_traversable_id), [](auto& top_level_traversable_id, Response) {
         auto queue = input_command_queues().find(top_level_traversable_id);
         queue->value.take_first();
         if (queue->value.is_empty())
@@ -120,18 +120,19 @@ static void run_the_first_input_command(HTML::CrossProcessId top_level_traversab
                 run_the_first_input_command(top_level_traversable_id);
             });
         }
-    });
+    }));
 }
 
 static void enqueue_an_input_command(HTML::Navigable& navigable, OnCommandComplete on_complete, Function<void(HTML::Navigable&, OnCommandComplete)> steps)
 {
     auto top_level_traversable_id = navigable.top_level_traversable()->id();
     auto& queue = input_command_queues().ensure(top_level_traversable_id);
-    queue.append([navigable = GC::make_root(navigable), on_complete = move(on_complete), steps = move(steps)](OnCommandComplete on_command_complete) mutable {
-        steps(*navigable, [on_complete = move(on_complete), on_command_complete = move(on_command_complete)](Response response) {
-            on_complete(move(response));
-            on_command_complete(JsonValue {});
-        });
+    // NB: The queue is not traced, so the commands in it hold the navigable and completion steps in roots.
+    queue.append([navigable = GC::make_root(navigable), on_complete = GC::make_root(on_complete), steps = move(steps)](OnCommandComplete on_command_complete) mutable {
+        steps(*navigable, GC::create_function(GC::Heap::the(), GC::captures(on_complete, on_command_complete), [](auto& on_complete, auto& on_command_complete, Response response) {
+            on_complete->function()(move(response));
+            on_command_complete->function()(JsonValue {});
+        }));
     });
     if (queue.size() == 1)
         run_the_first_input_command(top_level_traversable_id);
@@ -144,7 +145,7 @@ static void perform_actions_steps(HTML::Navigable& navigable, JsonObject const& 
     // 2. Let navigable be the result of trying to get a navigable with navigable id.
     auto* local_navigable = as_if<HTML::LocalNavigable>(navigable);
     if (!local_navigable || local_navigable->has_been_destroyed() || !local_navigable->active_browsing_context() || !local_navigable->active_document())
-        return on_complete(Error::from_code(ErrorCode::NoSuchFrame, "Browsing context not found"sv));
+        return on_complete->function()(Error::from_code(ErrorCode::NoSuchFrame, "Browsing context not found"sv));
 
     HTML::TemporaryExecutionContext execution_context { local_navigable->active_document()->relevant_settings_object() };
 
@@ -159,7 +160,7 @@ static void perform_actions_steps(HTML::Navigable& navigable, JsonObject const& 
     //    and actions options.
     auto actions_by_tick = extract_an_action_sequence(input_state, JsonValue { params }, options);
     if (actions_by_tick.is_error())
-        return on_complete(actions_by_tick.release_error());
+        return on_complete->function()(actions_by_tick.release_error());
 
     // 6. Try to dispatch actions with input state, actions by tick, navigable, and actions options.
     // 7. Return success with data null.
@@ -168,7 +169,7 @@ static void perform_actions_steps(HTML::Navigable& navigable, JsonObject const& 
     auto on_actions_complete = GC::create_function(GC::Heap::the(), GC::captures(in_flight), [](auto& in_flight, Response result) {
         in_flight->completed = true;
         in_flight->executor.clear();
-        in_flight->on_complete(move(result));
+        in_flight->on_complete->function()(move(result));
     });
 
     auto executor = dispatch_actions(input_state, actions_by_tick.release_value(), *local_navigable->active_browsing_context(), options, on_actions_complete);
@@ -190,7 +191,7 @@ static void release_actions_steps(HTML::Navigable& navigable, OnCommandComplete 
     // 2. Let navigable be the result of trying to get a navigable with navigable id.
     auto* local_navigable = as_if<HTML::LocalNavigable>(navigable);
     if (!local_navigable || local_navigable->has_been_destroyed() || !local_navigable->active_browsing_context() || !local_navigable->active_document())
-        return on_complete(Error::from_code(ErrorCode::NoSuchFrame, "Browsing context not found"sv));
+        return on_complete->function()(Error::from_code(ErrorCode::NoSuchFrame, "Browsing context not found"sv));
 
     HTML::TemporaryExecutionContext execution_context { local_navigable->active_document()->relevant_settings_object() };
 
@@ -224,7 +225,7 @@ static void release_actions_steps(HTML::Navigable& navigable, OnCommandComplete 
         reset_input_state(top_level_traversable);
 
         // 9. Return success with data null.
-        in_flight->on_complete(move(result));
+        in_flight->on_complete->function()(move(result));
     });
 
     auto executor = dispatch_actions(input_state, { move(undo_actions) }, *local_navigable->active_browsing_context(), options, on_actions_complete);

@@ -41,7 +41,7 @@ public:
     GC::Ptr<Web::HTML::WorkerGlobalScope> global_scope() { return m_worker_global_scope.cell(); }
 
     bool script_has_run() const { return m_script_has_run; }
-    void set_on_script_ready(Function<void()> callback) { m_on_script_ready = move(callback); }
+    void set_on_script_ready(GC::Ref<GC::Function<void()>> callback) { m_on_script_ready = callback; }
 
     // Called from WorkerHost::run's on_complete callback once the initial script has executed.
     void notify_script_ran();
@@ -73,7 +73,7 @@ private:
     Vector<PendingSharedWorkerConnection> m_pending_shared_worker_connections;
 
     bool m_script_has_run { false };
-    Function<void()> m_on_script_ready;
+    GC::Root<GC::Function<void()>> m_on_script_ready;
 };
 
 }

@@ -109,8 +109,8 @@ struct BodyStreamHarness {
         if (!request->settled()) {
             auto deadline = Core::Timer::create_single_shot(AK::Duration::from_seconds(10), [] { });
             deadline->start();
-            Web::HTML::main_thread_event_loop().spin_until(GC::create_function(realm->heap(), GC::captures(request, deadline), [](auto& request, auto& deadline) {
-                return request->settled() || !deadline->is_active();
+            Web::HTML::main_thread_event_loop().spin_until(GC::create_function(realm->heap(), GC::captures(request, deadline->make_weak_ptr<Core::Timer>()), [](auto& request, auto& deadline) {
+                return request->settled() || !deadline || !deadline->is_active();
             }));
         }
         return request;
@@ -171,8 +171,8 @@ void wait_for_wake(GC::Heap& heap, NonnullRefPtr<SniffWaiter> const& waiter)
 {
     auto deadline = Core::Timer::create_single_shot(AK::Duration::from_seconds(10), [] { });
     deadline->start();
-    Web::HTML::main_thread_event_loop().spin_until(GC::create_function(heap, GC::captures(waiter, deadline), [](auto& waiter, auto& deadline) {
-        return waiter->wake_count > 0 || !deadline->is_active();
+    Web::HTML::main_thread_event_loop().spin_until(GC::create_function(heap, GC::captures(waiter, deadline->make_weak_ptr<Core::Timer>()), [](auto& waiter, auto& deadline) {
+        return waiter->wake_count > 0 || !deadline || !deadline->is_active();
     }));
 }
 

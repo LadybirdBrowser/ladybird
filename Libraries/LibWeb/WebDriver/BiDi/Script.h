@@ -10,6 +10,7 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
+#include <LibGC/Function.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -18,7 +19,7 @@
 // https://w3c.github.io/webdriver-bidi/#module-script
 namespace Web::WebDriver::BiDi {
 
-using OnCommandComplete = Function<void(Response)>;
+using OnCommandComplete = GC::Ref<GC::Function<void(Response)>>;
 
 // https://w3c.github.io/webdriver-bidi/#command-script-evaluate
 WEB_API void evaluate(HTML::Navigable&, JsonObject const& params, OnCommandComplete);
