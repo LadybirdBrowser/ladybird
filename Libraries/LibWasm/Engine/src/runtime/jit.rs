@@ -1571,7 +1571,7 @@ mod native {
                 ..NativeCall::default()
             };
             const SMALL_IMAGE: usize = 64;
-            let mut small_image = [0u64; SMALL_IMAGE];
+            let mut small_image = [std::mem::MaybeUninit::<u64>::uninit(); SMALL_IMAGE];
             let large = shape.image_slots > SMALL_IMAGE;
             let image = if large {
                 LARGE_IMAGES.with(|images| {
@@ -1587,7 +1587,10 @@ mod native {
                     images.buffers[index].as_mut_ptr()
                 })
             } else {
-                small_image.as_mut_ptr()
+                // Initialize only the part the trampoline copies, including any alignment padding.
+                let image = small_image.as_mut_ptr().cast::<u64>();
+                std::ptr::write_bytes(image, 0, shape.image_slots);
+                image
             };
             for (index, param) in shape.params.iter().enumerate() {
                 let source = argument(index, param);
