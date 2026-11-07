@@ -41,6 +41,9 @@ public:
     void update_chrome_style();
     void schedule_chrome_style_update();
 
+    // While a host is set, the suggestions are listed at the end of the host's layout instead of in a popup of their own.
+    void set_host(QWidget* host);
+
     void show_with_suggestions(Vector<WebView::AutocompleteSuggestion>, Optional<size_t> selected_suggestion_index);
     void set_selected_suggestion(Optional<size_t> suggestion_index);
     bool close();
@@ -54,6 +57,10 @@ protected:
 
 private:
     void create_popup();
+    QListView* create_list_view(QWidget& parent);
+    QListView* list_view() const;
+    int list_height() const;
+    void show_current_suggestions();
     void set_anchor_popup_open(bool);
     bool is_visible() const;
     void position_popup();
@@ -65,6 +72,8 @@ private:
     // The card's shadow, in a window of its own that lets the mouse through. Not used on macOS.
     QPointer<QWidget> m_shadow;
     QListView* m_list_view { nullptr };
+    QPointer<QWidget> m_host;
+    QPointer<QListView> m_hosted_list_view;
     AutocompleteModel* m_model { nullptr };
     AutocompleteDelegate* m_delegate { nullptr };
     bool m_is_updating_chrome_style { false };

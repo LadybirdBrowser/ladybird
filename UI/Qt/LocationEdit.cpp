@@ -787,7 +787,10 @@ void LocationEdit::update_focus_ring(qreal opacity)
 // The ring fades in when the field gets focus, and disappears at once when it loses it.
 void LocationEdit::show_focus_ring()
 {
-    m_is_editing_location = true;
+    if (!m_is_editing_location) {
+        m_is_editing_location = true;
+        emit editing_location_changed();
+    }
     update_trailing_action_visibility();
 
     if (!m_focus_ring_animation)
@@ -810,7 +813,10 @@ void LocationEdit::show_focus_ring_at_once()
 
 void LocationEdit::hide_focus_ring()
 {
-    m_is_editing_location = false;
+    if (m_is_editing_location) {
+        m_is_editing_location = false;
+        emit editing_location_changed();
+    }
     update_trailing_action_visibility();
     update_completion_title();
 
@@ -1416,6 +1422,11 @@ QString LocationEdit::current_query() const
     if (m_omnibox.is_editing())
         return qstring_from_ak_string(m_omnibox.query());
     return text();
+}
+
+void LocationEdit::set_suggestions_host(QWidget* host)
+{
+    m_autocomplete->set_host(host);
 }
 
 }

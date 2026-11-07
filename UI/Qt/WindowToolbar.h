@@ -30,6 +30,7 @@ class LocationEdit;
 class PerformanceMonitorWidget;
 class Popover;
 class ReloadButton;
+class SidebarFieldPanel;
 class Tab;
 
 enum class ToolbarArrangement : u8 {
@@ -80,6 +81,7 @@ public:
 
 private:
     virtual bool event(QEvent*) override;
+    virtual bool eventFilter(QObject*, QEvent*) override;
 
     virtual void tab_settings_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
@@ -101,6 +103,10 @@ private:
     void move_popover_to_button(Popover&, QWidget& button);
     void lay_out_as_row();
     void lay_out_in_sidebar();
+    void create_field_panel();
+    bool field_panel_should_expand() const;
+    void update_field_panel();
+    void raise_field_panel();
 
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
     QPointer<Tab> m_tab;
@@ -112,6 +118,10 @@ private:
     QWidget* m_navigation_buttons { nullptr };
     QWidget* m_location_edit_container { nullptr };
     QWidget* m_sidebar_footer { nullptr };
+    // In the sidebar, the field's container floats in this panel over the field's slot, and grows while it is edited.
+    QPointer<SidebarFieldPanel> m_field_panel;
+    QWidget* m_field_slot { nullptr };
+    QWidget* m_suggestions_area { nullptr };
     bool m_window_controls_visible { false };
     int m_sidebar_inset { 0 };
     // NB: The fields of the tabs shown so far share this layout, which leaves room around them for the focus ring.

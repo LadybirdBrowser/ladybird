@@ -4093,7 +4093,8 @@ void TabWidget::rebuild_layout()
     // NB: Moving the page stack between layouts drops keyboard focus from the page, which leaves the window's keyboard
     //     shortcuts dead until something is clicked. Give focus back to whatever had it.
     QPointer<QWidget> focus_widget = QApplication::focusWidget();
-    if (focus_widget && !isAncestorOf(focus_widget))
+    // NB: In the sidebar, the address field floats in a panel of the window's own.
+    if (focus_widget && focus_widget->window() != window())
         focus_widget = nullptr;
     ScopeGuard restore_focus = [&] {
         if (!focus_widget)
