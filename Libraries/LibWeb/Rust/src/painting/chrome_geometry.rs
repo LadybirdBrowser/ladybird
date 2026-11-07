@@ -478,7 +478,16 @@ pub(crate) fn scrollbar_colors_for_paint(
     let Some(style) = arena.node_style_if_live(slot) else {
         return (Color::TRANSPARENT, Color::TRANSPARENT);
     };
-    let colors = style.inherited_ui().scrollbar_color;
+    // https://drafts.csswg.org/css-scrollbars/#scrollbar-color
+    // UAs must apply the scrollbar-color value set on the root element to the viewport.
+    let color_style = if arena.node_kind_if_live(slot) == Some(NodeKind::Viewport) {
+        style_queries::document_element_box_under(arena, slot)
+            .and_then(|root| arena.node_style_if_live(root))
+            .unwrap_or(style)
+    } else {
+        style
+    };
+    let colors = color_style.inherited_ui().scrollbar_color;
     if !colors.is_auto {
         return (Color(colors.thumb_color), Color(colors.track_color));
     }
