@@ -1002,7 +1002,7 @@ mod tests {
             state
                 .custom_property_environments
                 .adopt_engine_environment(store.clone(), None, 0, None, registry);
-        let installed = state.computed_group_sets.install_derived_record(&record, || {
+        let installed = state.computed_group_sets.install_derived_record(&record, 0, || {
             computed::record_dependency_flags(&record.facts(), &record.payloads)
         });
         state.computed_group_sets.assign_installed_record(nodes[0], installed);

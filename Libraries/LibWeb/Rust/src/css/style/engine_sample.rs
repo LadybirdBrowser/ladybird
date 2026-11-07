@@ -542,7 +542,7 @@ impl super::StyleEngine {
             return Err(NeedsHost);
         }
         // The sample holds the longhands of the record it composes over, as the host's does.
-        let sampled = self.install_record_derived(&base, groups, None);
+        let sampled = self.install_sample_record(&base, groups, overlay.content_hash());
         release_rebuilt_overlay_payloads(&payloads, rebuilt.groups);
         Ok(super::layout_style::DerivedStyleRecord::pin(self, sampled.raw()))
     }

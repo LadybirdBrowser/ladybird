@@ -177,10 +177,13 @@ impl InstalledRecords {
     }
 
     /// The identity the record `record`, derived for what no element is, is installed under: that of a slot holding
-    /// the same, or a new slot as [`Self::install`] takes.
+    /// the same, or a new slot as [`Self::install`] takes. `key_salt` goes into the key the record is found under, as the
+    /// hash of what a sample animates does: the longhands of a sample are those of the record it composes over, so its
+    /// samples would all share one key, of which a task that sees no sweep can gather many.
     pub(super) fn install_derived(
         &mut self,
         record: &Arc<Record>,
+        key_salt: u64,
         dependency_flags: impl FnOnce() -> u8,
     ) -> InstalledRecordID {
         if let Some(id) = self.named_by(record) {
@@ -188,7 +191,7 @@ impl InstalledRecords {
         }
         // NB: The key reads a few longhands, so records that differ in others share it: each takes the next key free. A
         //     sweep can open a gap in such a run, which costs a record past it no more than a slot of its own.
-        let mut content_key = Self::content_key(record);
+        let mut content_key = Self::content_key(record) ^ key_salt;
         while let Some(&slot) = self.derived_by_content.get(&content_key) {
             if self.slots[slot.index()]
                 .as_ref()
@@ -351,12 +354,29 @@ mod tests {
     #[test]
     fn derived_records_whose_content_shares_a_key_each_keep_a_slot() {
         let mut records = InstalledRecords::default();
-        let first = records.install_derived(&record(1), || 0);
-        let second = records.install_derived(&record(2), || 0);
+        let first = records.install_derived(&record(1), 0, || 0);
+        let second = records.install_derived(&record(2), 0, || 0);
 
         assert_ne!(first, second);
-        assert_eq!(records.install_derived(&record(1), || 0), first);
-        assert_eq!(records.install_derived(&record(2), || 0), second);
+        assert_eq!(records.install_derived(&record(1), 0, || 0), first);
+        assert_eq!(records.install_derived(&record(2), 0, || 0), second);
+    }
+
+    #[test]
+    fn samples_are_found_under_the_hash_of_what_they_animate() {
+        let mut records = InstalledRecords::default();
+        let first = records.install_derived(&record(1), 1, || 0);
+        let second = records.install_derived(&record(2), 2, || 0);
+
+        assert_ne!(first, second);
+        // NB: The two records hash alike by their longhands, so each takes the key its overlay hash mixes in, and
+        //     neither probes past the other.
+        let content_key = InstalledRecords::content_key(&record(1));
+        assert_eq!(InstalledRecords::content_key(&record(2)), content_key);
+        assert_eq!(records.derived_by_content.get(&(content_key ^ 1)), Some(&first.slot));
+        assert_eq!(records.derived_by_content.get(&(content_key ^ 2)), Some(&second.slot));
+        assert_eq!(records.install_derived(&record(1), 1, || 0), first);
+        assert_eq!(records.install_derived(&record(2), 2, || 0), second);
     }
 
     #[test]

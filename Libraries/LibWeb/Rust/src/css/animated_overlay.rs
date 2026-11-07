@@ -142,6 +142,20 @@ impl AnimatedOverlay {
         &self.entries
     }
 
+    /// A hash of what the overlay animates, which overlays holding the same values hash alike, in whatever order they
+    /// hold them.
+    pub(crate) fn content_hash(&self) -> u64 {
+        use std::hash::Hasher;
+        self.entries.iter().fold(0, |hash: u64, entry| {
+            let mut hasher = crate::css::style::fast_hash::fast_hasher();
+            hasher.write_u16(entry.property);
+            hasher.write_u64(crate::css::style_value::style_value_content_hash(
+                entry.value_handle().optional_data(),
+            ));
+            hash.wrapping_add(hasher.finish())
+        })
+    }
+
     pub(crate) fn get(&self, property: u16) -> Option<&FfiAnimatedOverlayEntry> {
         self.entries.iter().find(|entry| entry.property == property)
     }

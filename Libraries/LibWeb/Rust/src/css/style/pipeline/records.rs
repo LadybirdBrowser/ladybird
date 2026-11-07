@@ -1165,7 +1165,7 @@ impl RetainedState {
             .map(|live| live.initial.clone())
             .expect("a style the host made inherits from one a pass styled");
         let record = Record::of_initial(&initial, payloads, counter_style_environment_identity);
-        self.install_new_record(Arc::new(record))
+        self.install_new_record(Arc::new(record), 0)
     }
 
     /// Install the record of a style derived from that of the record `source` is or composes
@@ -1196,11 +1196,23 @@ impl RetainedState {
                 rare.counter_style_environment_identity = identity;
             }
         }));
-        self.install_new_record(record)
+        self.install_new_record(record, 0)
     }
 
-    fn install_new_record(&mut self, record: Arc<Record>) -> computed::FinalStyleRecordID {
-        self.computed_group_sets.install_derived_record(&record, || {
+    /// Install the record of a sample composed over `source`, holding `payloads`, found by `overlay_hash`, the hash of
+    /// what the sample animates, and answer its identity. Nothing holds the record yet: the next sweep frees it unless
+    /// a holder pins it first.
+    pub(in super::super) fn install_sample_record(
+        &mut self,
+        source: &Record,
+        payloads: &crate::css::computed_values::StyleGroups,
+        overlay_hash: u64,
+    ) -> computed::FinalStyleRecordID {
+        self.install_new_record(Arc::new(Record::derived(source, payloads)), overlay_hash)
+    }
+
+    fn install_new_record(&mut self, record: Arc<Record>, key_salt: u64) -> computed::FinalStyleRecordID {
+        self.computed_group_sets.install_derived_record(&record, key_salt, || {
             computed::record_dependency_flags(&record.facts(), &record.payloads)
         })
     }
