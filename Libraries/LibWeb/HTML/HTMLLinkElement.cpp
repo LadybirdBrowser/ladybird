@@ -1419,6 +1419,9 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>> decode_fav
     };
 
     auto on_successful_decode = [document = GC::Root(document), promise](Web::Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
+        // NB: Only the first frame is used, so an animation the decoder opened is stopped right away.
+        if (decoded_image.session_id != 0)
+            Platform::ImageCodecPlugin::the().stop_animation_decode(decoded_image.session_id);
         auto favicon_bitmap = decoded_image.frames[0].bitmap;
         dbgln_if(IMAGE_DECODER_DEBUG, "Decoded favicon, {}", favicon_bitmap->size());
 

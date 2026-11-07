@@ -611,6 +611,9 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                 };
 
                 auto on_successful_decode = [p = GC::Root(*p), sx, sy, sw, sh, options](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
+                    // NB: Only the first frame is used, so an animation the decoder opened is stopped right away.
+                    if (result.session_id != 0)
+                        Web::Platform::ImageCodecPlugin::the().stop_animation_decode(result.session_id);
                     if (Core::StatsLog::the())
                         end_rendering_pending_operation(GC::as_cell(p.ptr()));
                     // 4. Set imageBitmap's bitmap data to imageData, cropped to the source rectangle with formatting.
