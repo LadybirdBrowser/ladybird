@@ -67,6 +67,9 @@ public:
     void set_url_is_hidden(bool);
     // While idle, a website's address shows only up to its host, as where the field is narrow, in the sidebar.
     void set_shows_host_only(bool);
+    // While a host is set, the suggestions are listed in it instead of in a popup below the field.
+    void set_suggestions_host(QWidget*);
+    bool is_editing_location() const { return m_is_editing_location; }
     void show_autocomplete();
     void park_editing_session();
     bool has_parked_editing_session() const { return m_parked_editing_session.has_value(); }
@@ -86,6 +89,7 @@ public:
 
 signals:
     void focus_return_requested();
+    void editing_location_changed();
 
 private:
     virtual void changeEvent(QEvent* event) override;

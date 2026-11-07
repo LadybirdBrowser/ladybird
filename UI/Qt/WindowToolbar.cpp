@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/kmalloc.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReportOutbox.h>
@@ -20,6 +21,10 @@
 #include <UI/Qt/FeedbackPopover.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/LadybirdButton.h>
+#include <UI/Qt/LocationEdit.h>
+#if defined(AK_OS_MACOS)
+#    include <UI/Qt/MacWindow.h>
+#endif
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Motion.h>
 #include <UI/Qt/PerformanceMonitorWidget.h>
@@ -31,6 +36,7 @@
 #include <UI/Qt/WindowToolbar.h>
 
 #include <QApplication>
+#include <QDynamicPropertyChangeEvent>
 #include <QFont>
 #include <QFontMetrics>
 #include <QFrame>
@@ -48,6 +54,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QVariantAnimation>
+#include <QWindow>
 
 namespace Ladybird {
 
@@ -619,6 +626,72 @@ static constexpr int SIDEBAR_NAVIGATION_ROW_HEIGHT = 32;
 static constexpr int SIDEBAR_FIELD_TOP_MARGIN = 4;
 static constexpr int SIDEBAR_FIELD_BOTTOM_MARGIN = 8;
 static constexpr int SIDEBAR_FOOTER_HEIGHT = 40;
+// While it is edited, the sidebar's address field grows into a panel over the page this wide, with the suggestions
+// below the field. It stays this far from the window's edge.
+static constexpr int FIELD_PANEL_WIDTH = 600;
+static constexpr int FIELD_PANEL_WINDOW_MARGIN = 8;
+static constexpr int FIELD_PANEL_CORNER_RADIUS = 12;
+
+// The sidebar's address field floats over its place in the sidebar, in a panel that is a native child of the window on
+// macOS. So the panel stacks above the native views of the sidebar and the page, and can grow over the page, while the
+// field keeps the keyboard focus.
+class SidebarFieldPanel final : public QWidget {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    explicit SidebarFieldPanel(QWidget& window)
+        : QWidget(&window)
+    {
+        setObjectName("LadybirdSidebarFieldPanel");
+#if defined(AK_OS_MACOS)
+        setAttribute(Qt::WA_DontCreateNativeAncestors);
+        setAttribute(Qt::WA_NativeWindow);
+#endif
+    }
+
+    bool is_expanded() const { return m_expanded; }
+    void set_expanded(bool expanded)
+    {
+        if (m_expanded == expanded)
+            return;
+        m_expanded = expanded;
+        // The grown panel casts the shadow of a popover.
+        if (expanded)
+            m_shadow = &cast_floating_shadow(*this, FIELD_PANEL_CORNER_RADIUS);
+        else
+            delete m_shadow.data();
+        round_corners();
+        update();
+    }
+
+    void round_corners()
+    {
+#if defined(AK_OS_MACOS)
+        if (m_expanded)
+            round_appkit_view_corners(*this, FIELD_PANEL_CORNER_RADIUS, Theme::panel().edge);
+        else
+            round_appkit_view_corners(*this, 0, Qt::transparent);
+#endif
+    }
+
+private:
+    virtual void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        // At rest, the panel is the sidebar under the field.
+        if (!m_expanded) {
+            painter.fillRect(rect(), Theme::chrome(*this).sidebar);
+            return;
+        }
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setPen(QPen(Theme::panel().edge, 1));
+        painter.setBrush(Theme::panel().surface);
+        painter.drawRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), FIELD_PANEL_CORNER_RADIUS, FIELD_PANEL_CORNER_RADIUS);
+    }
+
+    bool m_expanded { false };
+    QPointer<QWidget> m_shadow;
+};
 
 // NB: Window controls run to the window's edge. Without them, the address field ends the toolbar, and the room for its
 //     focus ring takes the place of some of the toolbar's margin.
@@ -1169,7 +1242,15 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     config_variable_changed(WebView::ConfigVariableID::ShowFeedbackButton);
 }
 
-WindowToolbar::~WindowToolbar() = default;
+// NB: The tabs' address fields are in the field's container, which goes back to the toolbar, so it is torn down with it
+//     as it is in a row.
+WindowToolbar::~WindowToolbar()
+{
+    qApp->removeEventFilter(this);
+    if (m_location_edit_container->parentWidget() != m_toolbar)
+        m_location_edit_container->setParent(m_toolbar);
+    delete m_field_panel.data();
+}
 
 void WindowToolbar::lay_out_as_row()
 {
@@ -1190,6 +1271,9 @@ void WindowToolbar::lay_out_as_row()
         toolbar_layout->addWidget(m_window_controls_separator, 0, Qt::AlignVCenter);
         toolbar_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
     }
+
+    if (m_field_slot)
+        m_field_slot->hide();
 
     // NB: The field reaches the end of the toolbar, leaving room for its focus ring.
     m_location_edit_layout->setContentsMargins(TOOLBAR_LOCATION_EDIT_MARGIN, 0, TOOLBAR_LOCATION_FOCUS_RING_ROOM, 0);
@@ -1216,9 +1300,18 @@ void WindowToolbar::lay_out_in_sidebar()
     // NB: The field's container leaves room for its focus ring all around, which the row's margins make up for.
     auto ring_room = TOOLBAR_LOCATION_FOCUS_RING_ROOM;
     field_row->setContentsMargins(m_sidebar_inset - ring_room, SIDEBAR_FIELD_TOP_MARGIN - ring_room, m_sidebar_inset - ring_room, SIDEBAR_FIELD_BOTTOM_MARGIN - ring_room);
-    field_row->addWidget(m_location_edit_container, 1);
+    if (!m_field_panel)
+        create_field_panel();
+    field_row->addWidget(m_field_slot, 1);
     toolbar_layout->addLayout(field_row);
     m_location_edit_layout->setContentsMargins(ring_room, ring_room, ring_room, ring_room);
+    static_cast<QBoxLayout*>(m_field_panel->layout())->insertWidget(0, m_location_edit_container);
+    m_location_edit_container->show();
+    m_field_slot->show();
+
+    // NB: The panel follows the slot as the slot or any of its ancestors moves.
+    for (QWidget* widget = m_field_slot; widget; widget = widget->parentWidget())
+        widget->installEventFilter(this);
 
     // NB: What the sidebar has no room for stays hidden, as widgets left out of a layout would show where they last were.
     m_sidebar_slot->hide();
@@ -1233,6 +1326,120 @@ void WindowToolbar::lay_out_in_sidebar()
     footer_layout->setContentsMargins(m_sidebar_inset, 0, m_sidebar_inset, 0);
 
     layout()->setContentsMargins(0, 0, 0, 0);
+}
+
+void WindowToolbar::create_field_panel()
+{
+    m_field_panel = new SidebarFieldPanel(*window());
+    m_field_panel->setStyleSheet(styleSheet());
+    m_field_panel->installEventFilter(this);
+    auto* panel_layout = new QVBoxLayout(m_field_panel);
+    panel_layout->setContentsMargins(0, 0, 0, 0);
+    panel_layout->setSpacing(0);
+
+    // The suggestions line up with the field, a little below it.
+    m_suggestions_area = new QWidget(m_field_panel);
+    auto* suggestions_layout = new QVBoxLayout(m_suggestions_area);
+    suggestions_layout->setContentsMargins(TOOLBAR_LOCATION_FOCUS_RING_ROOM, 0, TOOLBAR_LOCATION_FOCUS_RING_ROOM, TOOLBAR_LOCATION_FOCUS_RING_ROOM);
+    suggestions_layout->setSpacing(0);
+    panel_layout->addWidget(m_suggestions_area);
+    m_suggestions_area->hide();
+
+    m_field_slot = new QWidget(m_toolbar);
+    m_field_slot->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
+    m_field_slot->hide();
+}
+
+// The field grows into the panel while it lists suggestions. Without any, it stays in the sidebar.
+bool WindowToolbar::field_panel_should_expand() const
+{
+    return m_arrangement == ToolbarArrangement::Sidebar && m_location_edit && m_location_edit->is_editing_location() && m_location_edit->isVisible()
+        && m_location_edit->property("autocompleteOpen").toBool();
+}
+
+// NB: The sidebar's native view is raised as the sidebar is laid out. Raising the panel as a widget does nothing while it
+//     is already the window's topmost child, so its native view is raised too.
+void WindowToolbar::raise_field_panel()
+{
+    m_field_panel->raise();
+    if (auto* handle = m_field_panel->windowHandle()) {
+        handle->raise();
+        // NB: This lets the panel's shadow follow it.
+        QEvent z_order_change(QEvent::ZOrderChange);
+        QCoreApplication::sendEvent(m_field_panel, &z_order_change);
+    }
+}
+
+void WindowToolbar::update_field_panel()
+{
+    if (!m_field_panel)
+        return;
+
+    auto expanded = field_panel_should_expand();
+    if (expanded != m_field_panel->is_expanded()) {
+        m_field_panel->set_expanded(expanded);
+        m_suggestions_area->setVisible(expanded);
+        // A click outside the grown panel shrinks it back.
+        if (expanded)
+            qApp->installEventFilter(this);
+        else
+            qApp->removeEventFilter(this);
+    }
+
+    if (m_arrangement != ToolbarArrangement::Sidebar) {
+        m_field_panel->hide();
+        return;
+    }
+
+    // NB: The slot keeps the field's place in the sidebar.
+    m_field_slot->setFixedHeight(m_location_edit_container->sizeHint().height());
+    if (!m_field_slot->isVisible()) {
+        m_field_panel->hide();
+        return;
+    }
+
+    auto& window = *m_field_panel->parentWidget();
+    auto position = m_field_slot->mapTo(&window, QPoint());
+    QSize size = m_field_slot->size();
+    if (expanded) {
+        size.setWidth(max(size.width(), min(FIELD_PANEL_WIDTH, window.width() - position.x() - FIELD_PANEL_WINDOW_MARGIN)));
+        size.setHeight(min(m_field_panel->sizeHint().height(), window.height() - position.y()));
+    }
+    m_field_panel->setGeometry(QRect(position, size));
+    m_field_panel->show();
+    raise_field_panel();
+}
+
+bool WindowToolbar::eventFilter(QObject* watched, QEvent* event)
+{
+    if (!m_field_panel)
+        return false;
+
+    // NB: While the panel is grown, this filters the application's events, to see clicks outside of it.
+    auto type = event->type();
+    if (type == QEvent::MouseButtonPress && m_field_panel->is_expanded() && !QApplication::activePopupWidget()) {
+        auto global_position = static_cast<QMouseEvent*>(event)->globalPosition().toPoint();
+        auto panel_rect = QRect(m_field_panel->mapToGlobal(QPoint()), m_field_panel->size());
+        if (!panel_rect.contains(global_position) && m_location_edit && m_location_edit->hasFocus())
+            m_location_edit->clearFocus();
+        return false;
+    }
+
+    if (watched == m_location_edit && type == QEvent::DynamicPropertyChange) {
+        if (static_cast<QDynamicPropertyChangeEvent*>(event)->propertyName() == "autocompleteOpen")
+            update_field_panel();
+        return false;
+    }
+
+    auto* widget = qobject_cast<QWidget*>(watched);
+    if (!widget || !(widget == m_field_panel || widget == m_field_slot || widget->isAncestorOf(m_field_slot)))
+        return false;
+    if (first_is_one_of(type, QEvent::Move, QEvent::Resize, QEvent::Show, QEvent::Hide, QEvent::LayoutRequest))
+        update_field_panel();
+    // NB: The panel stays above the sidebar as the sidebar is raised. Its own change of order comes from raising it.
+    else if (type == QEvent::ZOrderChange && widget != m_field_panel && m_field_panel->isVisible())
+        raise_field_panel();
+    return false;
 }
 
 void WindowToolbar::set_arrangement(ToolbarArrangement arrangement, int sidebar_inset)
@@ -1255,8 +1462,11 @@ void WindowToolbar::set_arrangement(ToolbarArrangement arrangement, int sidebar_
         m_sidebar_footer->show();
     }
 
-    if (m_location_edit)
+    if (m_location_edit) {
         m_location_edit->set_shows_host_only(arrangement == ToolbarArrangement::Sidebar);
+        m_location_edit->set_suggestions_host(arrangement == ToolbarArrangement::Sidebar ? m_suggestions_area : nullptr);
+    }
+    update_field_panel();
 
     setProperty("inSidebar", arrangement == ToolbarArrangement::Sidebar);
     style()->unpolish(this);
@@ -1313,13 +1523,21 @@ void WindowToolbar::show_tab(Tab& tab)
 
 void WindowToolbar::show_location_edit(LocationEdit* location_edit)
 {
-    if (m_location_edit && m_location_edit != location_edit)
+    if (m_location_edit && m_location_edit != location_edit) {
         m_location_edit->hide();
+        m_location_edit->set_suggestions_host(nullptr);
+        m_location_edit->removeEventFilter(this);
+        QObject::disconnect(m_location_edit, &LocationEdit::editing_location_changed, this, nullptr);
+    }
     m_location_edit = location_edit;
     if (location_edit) {
         location_edit->set_shows_host_only(m_arrangement == ToolbarArrangement::Sidebar);
+        location_edit->set_suggestions_host(m_arrangement == ToolbarArrangement::Sidebar ? m_suggestions_area : nullptr);
+        QObject::connect(location_edit, &LocationEdit::editing_location_changed, this, &WindowToolbar::update_field_panel, Qt::UniqueConnection);
+        location_edit->installEventFilter(this);
         location_edit->show();
     }
+    update_field_panel();
 }
 
 // A tab that leaves the window takes its address field along.
@@ -1331,8 +1549,12 @@ void WindowToolbar::release_location_edit(Tab& tab)
     auto& location_edit = tab.location_edit();
     if (m_location_edit_layout->indexOf(&location_edit) == -1)
         return;
-    if (m_location_edit == &location_edit)
+    if (m_location_edit == &location_edit) {
+        QObject::disconnect(m_location_edit, &LocationEdit::editing_location_changed, this, nullptr);
+        m_location_edit->removeEventFilter(this);
         m_location_edit = nullptr;
+    }
+    location_edit.set_suggestions_host(nullptr);
     m_location_edit_layout->removeWidget(&location_edit);
     location_edit.hide();
     location_edit.setParent(&tab);
@@ -1500,6 +1722,11 @@ void WindowToolbar::update_chrome_style()
     setStyleSheet(style_sheet);
     // NB: The sidebar's footer lies outside the toolbar while the sidebar holds it, so it takes the style sheet itself.
     m_sidebar_footer->setStyleSheet(style_sheet);
+    if (m_field_panel) {
+        m_field_panel->setStyleSheet(style_sheet);
+        m_field_panel->round_corners();
+        m_field_panel->update();
+    }
     if (m_downloads_popover)
         m_downloads_popover->update_chrome_style(palette());
     if (m_feedback_popover)
