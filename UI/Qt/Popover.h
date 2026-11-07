@@ -133,6 +133,8 @@ enum class PopoverAlignment : u8 {
 };
 // The popover hangs from the anchor's rect, or from the given part of it where the anchor draws less than all of it.
 void move_popover_below(Popover&, QWidget& anchor, PopoverAlignment = PopoverAlignment::Trailing, Optional<QRect> anchor_rect = {});
+// The popover stands on the anchor, for an anchor near the bottom of the window.
+void move_popover_above(Popover&, QWidget& anchor, PopoverAlignment = PopoverAlignment::Leading);
 void cast_popover_shadow(QWidget&);
 
 // A surface that is a native view of its own, floating over the page, cannot draw a shadow outside itself. This gives it
