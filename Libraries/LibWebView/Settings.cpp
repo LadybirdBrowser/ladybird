@@ -638,11 +638,18 @@ void Settings::replace_with_json(JsonValue const& json, PersistChange persist_ch
     }
 }
 
+// NB: Changes go down into objects, so that two processes that change different members of one object, like the zoom
+//     and the forced dark mode of different sites, do not undo each other.
 JsonObject Settings::changes_between(JsonObject const& from, JsonObject const& to)
 {
     JsonObject changes;
     to.for_each_member([&](auto const& key, auto const& value) {
-        if (auto previous = from.get(key); !previous.has_value() || !previous->equals(value))
+        auto previous = from.get(key);
+        if (previous.has_value() && previous->equals(value))
+            return;
+        if (previous.has_value() && previous->is_object() && value.is_object())
+            changes.set(key, changes_between(previous->as_object(), value.as_object()));
+        else
             changes.set(key, value);
     });
     from.for_each_member([&](auto const& key, auto const&) {
@@ -655,10 +662,18 @@ JsonObject Settings::changes_between(JsonObject const& from, JsonObject const& t
 void Settings::apply_changes(JsonObject& settings, JsonObject const& changes)
 {
     changes.for_each_member([&](auto const& key, auto const& value) {
-        if (value.is_null())
+        if (value.is_null()) {
             settings.remove(key);
-        else
-            settings.set(key, value);
+            return;
+        }
+        if (value.is_object()) {
+            // NB: A change to an object that is not here yet still carries no removed members into it.
+            if (!settings.get_object(key).has_value())
+                settings.set(key, JsonObject {});
+            apply_changes(*settings.get_object(key), value.as_object());
+            return;
+        }
+        settings.set(key, value);
     });
 }
 
