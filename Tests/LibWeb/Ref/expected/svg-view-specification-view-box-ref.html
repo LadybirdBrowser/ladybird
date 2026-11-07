@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    div { width: 100px; height: 100px; display: inline-block; }
+    #top-left { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>"); }
+    #bottom-right { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='50 50 50 50'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>"); }
+    #repeated-attribute, #unknown-attribute { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>"); }
+    #spaces { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='50 0 50 50'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>"); }
+</style>
+<div id="top-left"></div><div id="bottom-right"></div><div id="repeated-attribute"></div><div id="unknown-attribute"></div><div id="spaces"></div>
+<img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 50 50'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>">
