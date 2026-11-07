@@ -799,10 +799,10 @@ def write_indexed_property_getter(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::{idl_identifier_cpp_name(operation)})
 {{
-    auto& realm = *vm.current_realm();
+    [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
-    auto& this_object_realm = this_value_realm(realm, this_value);
+    auto& this_object_realm = this_value.as_object().shape().realm();
 
     if (vm.argument_count() < 1)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "{operation.name}");
@@ -847,10 +847,10 @@ def write_named_property_getter(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::{idl_identifier_cpp_name(operation)})
 {{
-    auto& realm = *vm.current_realm();
+    [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
-    auto& this_object_realm = this_value_realm(realm, this_value);
+    auto& this_object_realm = this_value.as_object().shape().realm();
 
     if (vm.argument_count() < 1)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "{operation.name}");
@@ -920,10 +920,10 @@ def write_named_property_operation(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::{idl_identifier_cpp_name(operation)})
 {{
-    auto& realm = *vm.current_realm();
+    [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
-    [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
+    [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 """
     )
     if len(operation.parameters) == 1:

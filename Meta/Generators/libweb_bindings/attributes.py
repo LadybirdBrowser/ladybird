@@ -614,7 +614,7 @@ def write_attribute_getter(
             )
         out.write(
             f"""        idl_object = TRY(impl_from(vm, js_value));
-        [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
+        [[maybe_unused]] auto& this_object_realm = js_value.as_object().shape().realm();
 
         {getter_steps}
         return R;
@@ -655,12 +655,14 @@ def write_attribute_getter(
 """
         )
     impl_from_js_value = "TRY(impl_from(vm, js_value))"
+    this_object_realm = "js_value.as_object().shape().realm()"
     if window_member_is_cross_origin_accessible(interface, attribute.name, "getter"):
         out.write(f"    {the_remote_window(includes, 'js_value')}\n")
         impl_from_js_value = f"remote_window ? nullptr : {impl_from_js_value}"
+        this_object_realm = f"remote_window ? realm : {this_object_realm}"
     out.write(
         f"""    idl_object = {impl_from_js_value};
-    [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
+    [[maybe_unused]] auto& this_object_realm = {this_object_realm};
 
 {getter_prelude}
     {getter_steps}
@@ -709,7 +711,6 @@ def write_attribute_setter(
     auto js_value = vm.this_value();
     if (js_value.is_nullish())
         js_value = &realm.global_object();
-    [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
 
 """
     )
@@ -794,6 +795,7 @@ def write_attribute_setter(
         )
         return
 
+    out.write("    [[maybe_unused]] auto& this_object_realm = js_value.as_object().shape().realm();\n\n")
     setter_realm_argument = member_realm_expr(attribute, interface=interface)
     setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, {setter_realm_argument}, [&] {{ return {implementation_attribute_setter_call(context, interface, attribute, setter_realm_argument)}; }}));\n    return {{}};"
     is_reflected = "Reflect" in attribute.extended_attributes
