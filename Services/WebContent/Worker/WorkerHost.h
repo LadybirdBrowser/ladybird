@@ -67,7 +67,7 @@ private:
     Utf16String m_name;
     bool m_is_shared { false };
     bool m_accepting_shared_worker_connections { false };
-    // WorkerHost is only touched on the WebWorker main thread.
+    // WorkerHost is only touched on the worker's thread.
     Vector<PendingSharedWorkerConnection> m_pending_shared_worker_connections;
 
     bool m_script_has_run { false };

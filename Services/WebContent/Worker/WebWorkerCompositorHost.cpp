@@ -5,8 +5,8 @@
  */
 
 #include <LibWeb/Compositor/CompositorHost.h>
-#include <WebWorker/ConnectionFromClient.h>
-#include <WebWorker/WebWorkerCompositorHost.h>
+#include <WebContent/Worker/ConnectionFromClient.h>
+#include <WebContent/Worker/WebWorkerCompositorHost.h>
 
 namespace WebWorker {
 

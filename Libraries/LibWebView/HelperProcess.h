@@ -48,7 +48,7 @@ struct RequestServerClientConnection {
 // A new client of the session's RequestServer with no site. The client uses the cookies of the given session, which
 // must be the session of the process the client is for.
 WEBVIEW_API ErrorOr<RequestServerClientConnection> connect_new_request_server_client(BrowsingSession&, RequestServer::SiteBinding);
-// Names a tab's mix in the AudioServer. Every renderer and worker process gets one of its own, and every process
+// Names a tab's mix in the AudioServer. Every renderer and worker gets one of its own, and every process
 // that plays on its behalf plays into the same mix.
 WEBVIEW_API u64 allocate_audio_tab_id();
 // Launches the AudioServer for a renderer if it has none, keeping its controller connection in the given slot. The

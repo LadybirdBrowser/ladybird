@@ -6,10 +6,10 @@
 
 #include <LibGC/Heap.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
-#include <WebWorker/ConnectionFromClient.h>
-#include <WebWorker/PageHost.h>
-#include <WebWorker/WebWorkerCompositorHost.h>
-#include <WebWorker/WorkerThread.h>
+#include <WebContent/Worker/ConnectionFromClient.h>
+#include <WebContent/Worker/PageHost.h>
+#include <WebContent/Worker/WebWorkerCompositorHost.h>
+#include <WebContent/Worker/WorkerThread.h>
 
 namespace WebWorker {
 
@@ -89,7 +89,7 @@ Web::CSS::PreferredMotion PageHost::preferred_motion() const
     return Web::CSS::PreferredMotion::Auto;
 }
 
-// NB: A worker process hosts one environment, which the UI process knows to be the requesting one.
+// NB: A worker's connection stands for one environment, which the UI process knows to be the requesting one.
 Optional<Web::Permissions::PermissionSnapshot> PageHost::page_did_request_permission_snapshot(URL::Origin const& top_level_origin)
 {
     auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidRequestPermissionSnapshot>(top_level_origin);

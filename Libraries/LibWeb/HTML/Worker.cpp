@@ -56,7 +56,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(WindowOrWorkerGlobalScopeMix
         TrustedTypes::InjectionSink::Worker_constructor,
         TrustedTypes::Script.view()));
 
-    dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Creating worker with compliant_script_url = {}", compliant_script_url);
+    dbgln_if(WEB_WORKER_DEBUG, "Worker: Creating worker with compliant_script_url = {}", compliant_script_url);
 
     // 2. Let outsideSettings be this's relevant settings object.
     auto& outside_settings = HTML::relevant_settings_object(global_scope);
@@ -66,7 +66,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(WindowOrWorkerGlobalScopeMix
 
     // 4. If workerURL is failure, then throw a "SyntaxError" DOMException.
     if (!worker_url.has_value()) {
-        dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Invalid URL loaded '{}'.", compliant_script_url);
+        dbgln_if(WEB_WORKER_DEBUG, "Worker: Invalid URL loaded '{}'.", compliant_script_url);
         return WebIDL::SyntaxError::create("url is not valid"_utf16);
     }
 
@@ -151,7 +151,7 @@ WebIDL::ExceptionOr<void> Worker::terminate()
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker-postmessage
 WebIDL::ExceptionOr<void> Worker::post_message(JS::Realm& realm, JS::Value message, StructuredSerializeOptions const& options)
 {
-    dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Post Message: {}", message);
+    dbgln_if(WEB_WORKER_DEBUG, "Worker: Post Message: {}", message);
 
     // The postMessage(message, transfer) and postMessage(message, options) methods on Worker objects act as if,
     // when invoked, they immediately invoked the respective postMessage(message, transfer) and

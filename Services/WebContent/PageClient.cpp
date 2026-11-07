@@ -79,8 +79,8 @@
 #include <WebContent/TestConnection.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebDriverConnection.h>
-#include <WebWorker/WorkerThread.h>
 #include <WebContent/WebUIConnection.h>
+#include <WebContent/Worker/WorkerThread.h>
 
 namespace WebContent {
 

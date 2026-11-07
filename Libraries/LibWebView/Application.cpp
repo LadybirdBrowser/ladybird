@@ -1501,7 +1501,7 @@ ErrorOr<IPC::TransportHandle> Application::connect_new_compositor_canvas_client(
         return Error::from_string_literal("Compositor process is not available");
 
     // The Compositor treats every renderer-side connection uniformly; canvas-only
-    // clients (worker processes) simply never register navigable contexts, so the
+    // clients (workers) simply never register navigable contexts, so the
     // returned connection id is not needed.
     auto response_or_error = m_compositor_client->try_connect_web_content();
     if (response_or_error.is_error())

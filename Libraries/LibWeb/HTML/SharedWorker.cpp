@@ -77,7 +77,7 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::create(WindowOrWorkerGl
 
     // 11. Enqueue the following steps to the shared worker manager:
     // The actual shared worker manager is owned by the UI process. It will either start a new
-    // WebWorker agent or transfer this port to an existing same-key SharedWorkerGlobalScope.
+    // worker agent or transfer this port to an existing same-key SharedWorkerGlobalScope.
     run_a_worker(worker, worker->m_script_url, outside_settings, outside_port, worker->m_options);
 
     return worker;

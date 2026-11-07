@@ -93,13 +93,13 @@ void WorkerAgentParent::start()
     auto data_holder = MUST(m_message_port->transfer_steps(realm));
 
     // FIXME: Specification says this supposed to happen in step 11 of onComplete handler defined in https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-    //        but that would require introducing a new IPC message type to communicate this from WebWorker to WebContent process,
+    //        but that would require introducing a new IPC message type to communicate this from the worker to its owner,
     //        so let's do it here for now.
     m_outside_port->enable();
 
     auto serialized_outside_settings = m_outside_settings->serialize();
 
-    // The worker process has no display connection of its own, so capture the spawning page's
+    // A worker has no display connection of its own, so capture the spawning page's
     // rendering rate to let the worker pace its rendering updates to match.
     auto maximum_frames_per_second = [&]() -> double {
         auto& global = m_outside_settings->global_object();
@@ -128,7 +128,7 @@ void WorkerAgentParent::start()
         .owner_token = m_owner_token,
     };
 
-    // NOTE: This blocking IPC call may launch another process.
+    // NB: This blocking IPC call may launch another process.
     //    If spinning the event loop for this can cause other javascript to execute, we're in trouble.
     worker_agent_parents().set(m_owner_token, *this);
     m_agent_id = Bindings::principal_host_defined_page(realm).client().start_worker_agent(move(request));
@@ -237,8 +237,8 @@ void WorkerAgentParent::dispatch_worker_exception(Utf16String message, Utf16Stri
     }));
 }
 
-// NB: The worker fetches its script with outside settings as the request's client, from a snapshot of it in the
-//     worker's process. The violations of its policies are reported here, where outside settings' global object is.
+// NB: The worker fetches its script with outside settings as the request's client, from a snapshot of it on the
+//     worker's thread. The violations of its policies are reported here, where outside settings' global object is.
 void WorkerAgentParent::report_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource)
 {
     // NB: A worker's script requests can violate only worker-src, and a module worker's json and text imports

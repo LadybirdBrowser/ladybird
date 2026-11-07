@@ -47,7 +47,7 @@
 #include <WebContent/PageClient.h>
 #include <WebContent/WebContentCompositorHost.h>
 #include <WebContent/WebDriverConnection.h>
-#include <WebWorker/WorkerThread.h>
+#include <WebContent/Worker/WorkerThread.h>
 
 #include <openssl/thread.h>
 
