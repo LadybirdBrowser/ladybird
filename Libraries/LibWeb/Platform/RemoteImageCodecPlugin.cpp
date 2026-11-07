@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibImageDecoderClient/Client.h>
@@ -12,8 +13,14 @@
 
 namespace Web::Platform {
 
-RemoteImageCodecPlugin::RemoteImageCodecPlugin(ConnectToImageDecoder connect_to_image_decoder)
+// NB: A decoder is a process of its own, with the memory it keeps, while connecting to a new one when the next image comes
+//     along takes a few milliseconds. So a client that has had nothing to do for this long is let go of.
+static constexpr AK::Duration idle_time_before_releasing_image_decoder = AK::Duration::from_seconds(30);
+
+RemoteImageCodecPlugin::RemoteImageCodecPlugin(ConnectToImageDecoder connect_to_image_decoder, ReleaseImageDecoder release_image_decoder)
     : m_connect_to_image_decoder(move(connect_to_image_decoder))
+    , m_release_image_decoder(move(release_image_decoder))
+    , m_idle_timer(Core::Timer::create_single_shot(idle_time_before_releasing_image_decoder, [this] { release_idle_client(); }))
 {
 }
 
@@ -34,8 +41,25 @@ ImageDecoderClient::Client* RemoteImageCodecPlugin::ensure_client()
     m_client->on_death = [this] {
         m_client = nullptr;
         ++m_client_generation;
+        m_idle_timer->stop();
     };
     return m_client;
+}
+
+void RemoteImageCodecPlugin::client_may_have_become_idle()
+{
+    if (m_release_image_decoder && m_client && m_client->is_idle())
+        m_idle_timer->restart();
+}
+
+// NB: Only this process asks its client for anything, so a client that is idle here has nothing in flight, and letting
+//     go of it loses nothing. The next image to decode connects a new one.
+void RemoteImageCodecPlugin::release_idle_client()
+{
+    if (!m_client || !m_client->is_idle())
+        return;
+    disconnect_client();
+    m_release_image_decoder();
 }
 
 void RemoteImageCodecPlugin::disconnect_client()
@@ -62,7 +86,7 @@ NonnullRefPtr<Core::Promise<DecodedImage>> RemoteImageCodecPlugin::decode_image(
 
     auto image_decoder_promise = client->decode_image(
         bytes,
-        [promise](ImageDecoderClient::DecodedImage& result) -> ErrorOr<void> {
+        [this, promise](ImageDecoderClient::DecodedImage& result) -> ErrorOr<void> {
             // FIXME: Remove this codec plugin and just use the ImageDecoderClient directly to avoid these copies
             DecodedImage decoded_image;
             decoded_image.is_animated = result.is_animated;
@@ -75,10 +99,12 @@ NonnullRefPtr<Core::Promise<DecodedImage>> RemoteImageCodecPlugin::decode_image(
             }
             decoded_image.color_space = move(result.color_space);
             promise->resolve(move(decoded_image));
+            client_may_have_become_idle();
             return {};
         },
-        [promise](auto& error) {
+        [this, promise](auto& error) {
             promise->reject(Error::copy(error));
+            client_may_have_become_idle();
         });
 
     return promise;
@@ -89,20 +115,28 @@ ErrorOr<DecodedFirstFrame> RemoteImageCodecPlugin::decode_first_frame_synchronou
     auto* client = ensure_client();
     if (!client)
         return Error::from_string_literal("ImageDecoderClient is disconnected");
-    auto result = TRY(client->decode_first_frame_synchronously(bytes));
-    return DecodedFirstFrame { move(result.bitmap), move(result.color_space) };
+    auto result = client->decode_first_frame_synchronously(bytes);
+    client_may_have_become_idle();
+    auto frame = TRY(move(result));
+    return DecodedFirstFrame { move(frame.bitmap), move(frame.color_space) };
 }
 
 void RemoteImageCodecPlugin::stop_animation_decode(i64 session_id)
 {
-    if (m_client)
-        m_client->stop_animation_decode(session_id);
+    if (!m_client)
+        return;
+    m_client->stop_animation_decode(session_id);
+    client_may_have_become_idle();
 }
 
 void RemoteImageCodecPlugin::connect_frame_client(IPC::TransportHandle handle)
 {
-    if (auto* client = ensure_client())
-        client->async_connect_frame_client(handle);
+    auto* client = ensure_client();
+    if (!client)
+        return;
+    client->async_connect_frame_client(handle);
+    // NB: This may have connected a client that has nothing to do, which must be let go of like any other.
+    client_may_have_become_idle();
 }
 
 }

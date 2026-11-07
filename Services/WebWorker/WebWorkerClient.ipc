@@ -25,6 +25,7 @@ endpoint WebWorkerClient {
     did_request_permission_snapshot(URL::Origin top_level_origin) => (Web::Permissions::PermissionSnapshot snapshot)
     request_media_server_connection() => (Optional<IPC::TransportHandle> handle)
     request_image_decoder_connection() => (Optional<IPC::TransportHandle> handle)
+    did_release_image_decoder() =|
     did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message) =|
     start_worker_agent(Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id)
     close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) =|

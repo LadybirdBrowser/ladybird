@@ -198,6 +198,11 @@ Messages::WebWorkerClient::RequestImageDecoderConnectionResponse WebWorkerClient
     return ImageDecoderManager::the().connect_requesting_process(child_id(), session(), m_site);
 }
 
+void WebWorkerClient::did_release_image_decoder()
+{
+    ImageDecoderManager::the().process_did_release_decoder(child_id());
+}
+
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)
 {
     if (auto settings = hosted_environment(message.environment_id); settings.has_value())

@@ -72,6 +72,13 @@ bool ImageDecoderManager::remove_client_from_decoder_of_site(u64 client_child_id
     return was_removed;
 }
 
+void ImageDecoderManager::process_did_release_decoder(u64 client_child_id)
+{
+    m_instances.remove_all_matching([&](auto& instance) {
+        return instance.client_child_ids.remove(client_child_id) && instance.client_child_ids.is_empty();
+    });
+}
+
 void ImageDecoderManager::process_did_exit(u64 child_id)
 {
     // NB: Letting go of a decoder that exited also closes the channels of any clients that were sent to it, which it can no
