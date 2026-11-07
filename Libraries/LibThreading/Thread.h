@@ -65,6 +65,8 @@ public:
 
     // Only callable in the Startable state.
     void start();
+    // For a thread that is not essential: the system may be out of threads. The thread stays Startable then.
+    ErrorOr<void> try_start();
     // Only callable in the Running state.
     void detach();
 

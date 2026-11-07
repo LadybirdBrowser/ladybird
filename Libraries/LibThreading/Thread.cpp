@@ -55,6 +55,11 @@ bool Threading::Thread::has_exited() const
 
 void Thread::start()
 {
+    MUST(try_start());
+}
+
+ErrorOr<void> Thread::try_start()
+{
     VERIFY(!is_started());
 
     // Set this first so that the other thread starts out seeing m_state == Running.
@@ -111,7 +116,13 @@ void Thread::start()
 
     pthread_attr_destroy(&attr);
 
-    VERIFY(rc == 0);
+    if (rc != 0) {
+        // NB: The thread would have adopted this reference.
+        unref();
+        m_state = Threading::ThreadState::Startable;
+        return Error::from_errno(rc);
+    }
+    return {};
 }
 
 void Thread::detach()
