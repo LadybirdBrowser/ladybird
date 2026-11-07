@@ -43,12 +43,6 @@ enum class UserSelect : u8;
 
 }
 
-namespace Web::Layout {
-
-enum class LayoutUpdatePropagation : u8;
-
-}
-
 namespace Web::Layout::RustFFI {
 
 struct FfiBoxMarks;
@@ -490,7 +484,6 @@ public:
     // The facts about this node that a box built for it paints (inertness, editability, and so on) may have changed.
     void publish_dom_paint_facts();
     void set_needs_layout_update(SetNeedsLayoutReason);
-    void set_needs_layout_update(SetNeedsLayoutReason, Layout::LayoutUpdatePropagation);
 
     // Whether the node's layout subtree can leave the parent's box without restructuring the
     // anonymous boxes around it, so the parent's subtree keeps its layout tree.

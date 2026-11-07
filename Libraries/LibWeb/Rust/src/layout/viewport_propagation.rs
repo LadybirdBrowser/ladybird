@@ -71,6 +71,19 @@ fn first_html_body_child(engine: &RetainedState, root_element: StyleNodeID) -> O
         .find(|&child| engine.element_adjustment_facts(child) & element_adjustment_fact::IS_HTML_BODY_ELEMENT != 0)
 }
 
+pub(crate) fn element_is_viewport_propagation_source(arena: &LayoutNodeArena, element: StyleNodeID) -> bool {
+    let Some(root_element) = document_element(arena) else {
+        return false;
+    };
+    root_element == element
+        || arena.with_style_store(|engine| {
+            engine.element_adjustment_facts(element) & element_adjustment_fact::IS_HTML_BODY_ELEMENT != 0
+                && engine.element_construction_facts(root_element) & element_construction_fact::IS_HTML_HTML_ELEMENT
+                    != 0
+                && first_html_body_child(engine, root_element) == Some(element)
+        })
+}
+
 /// The inputs of the propagation: the document element and its first HTML body child element, as
 /// their own published style records have them.
 pub(crate) fn viewport_propagation_facts(arena: &LayoutNodeArena) -> ViewportPropagationFacts {

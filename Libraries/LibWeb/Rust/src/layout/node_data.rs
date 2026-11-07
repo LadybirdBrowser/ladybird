@@ -183,6 +183,8 @@ pub enum NodeFlag {
     HasScrollOffset = 1 << 5,
     IsBody = 1 << 6,
     NeedsLayoutUpdate = 1 << 7,
+    /// A style change altered geometry-determining properties of this node itself, so a partial relayout must re-resolve
+    /// its own size and position instead of reusing them.
     NeedsOwnGeometryUpdate = 1 << 8,
     AbsposDescendantEscapes = 1 << 9,
     CompensatesForHorizontalScroll = 1 << 10,

@@ -847,7 +847,7 @@ CSS::UserSelect Node::user_select_used_value() const
     return CSS::UserSelect::Text;
 }
 
-void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdatePropagation propagation)
+void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)
 {
     if constexpr (UPDATE_LAYOUT_DEBUG) {
         // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
@@ -857,8 +857,7 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdat
                 dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", DOM::to_string(reason));
         }
     }
-    RustFFI::render_state_set_needs_layout_update(document_host(), slot_id(this),
-        propagation == LayoutUpdatePropagation::ThroughAncestors);
+    RustFFI::render_state_set_needs_layout_update(document_host(), slot_id(this));
 }
 
 }

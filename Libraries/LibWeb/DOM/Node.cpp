@@ -4103,15 +4103,9 @@ void Node::publish_dom_paint_facts()
 
 void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
 {
-    set_needs_layout_update(reason, Layout::LayoutUpdatePropagation::ThroughAncestors);
-}
-
-void Node::set_needs_layout_update(SetNeedsLayoutReason reason, Layout::LayoutUpdatePropagation propagation)
-{
     dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", to_string(reason));
     Layout::RustFFI::FfiBoxMarks marks {};
     marks.layout_update = true;
-    marks.layout_update_through_ancestors = propagation == Layout::LayoutUpdatePropagation::ThroughAncestors;
     mark_box(marks);
 }
 

@@ -44,11 +44,6 @@ static_assert(offsetof(Compositing::RustFFI::NodeSlotId, index) == 0);
 static_assert(sizeof(RustFFI::NodeKind) == sizeof(u8));
 static_assert(sizeof(RustFFI::NodeFlag) == sizeof(u32));
 
-enum class LayoutUpdatePropagation : u8 {
-    ThroughAncestors,
-    BoundarySelfOnly,
-};
-
 enum class BindToPreparedArenaSlot {
     Yes,
 };
@@ -172,10 +167,7 @@ public:
     bool needs_compositor_background_color_frame() const { return has_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind::BackgroundColor); }
     void set_needs_compositor_background_color_frame(bool value) { set_needs_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind::BackgroundColor, value); }
 
-    // Set when a style change altered geometry-determining properties of this node itself, so
-    // a partial relayout must re-resolve its own size and position instead of reusing them.
-    void set_needs_own_geometry_update() { set_flag(RustFFI::NodeFlag::NeedsOwnGeometryUpdate, true); }
-    void set_needs_layout_update(DOM::SetNeedsLayoutReason, LayoutUpdatePropagation = LayoutUpdatePropagation::ThroughAncestors);
+    void set_needs_layout_update(DOM::SetNeedsLayoutReason);
 
     bool is_generated_for_pseudo_element() const { return generated_for() != 0; }
     Optional<CSS::PseudoElement> generated_for_pseudo_element() const

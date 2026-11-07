@@ -430,9 +430,8 @@ pub extern "C" fn render_state_apply_layout_tree_update_mark(
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct FfiBoxMarks {
-    /// The box lays out again, and its ancestors with it where `layout_update_through_ancestors`.
+    /// The box lays out again, and its ancestors with it.
     pub layout_update: bool,
-    pub layout_update_through_ancestors: bool,
     /// The box paints again, and is hit-tested again where `repaint_hit_testing`. A text box repaints its containing
     /// block.
     pub repaint: bool,
@@ -498,7 +497,6 @@ impl FfiBoxMarks {
     /// later DOM paint facts replace the earlier ones.
     pub(crate) fn merge(&mut self, later: Self) {
         self.layout_update |= later.layout_update;
-        self.layout_update_through_ancestors |= later.layout_update_through_ancestors;
         self.repaint |= later.repaint;
         self.repaint_hit_testing |= later.repaint_hit_testing;
         self.repaint_subtree |= later.repaint_subtree;
@@ -530,7 +528,6 @@ impl FfiBoxMarks {
     pub(crate) fn is_empty(&self) -> bool {
         let Self {
             layout_update,
-            layout_update_through_ancestors: _,
             repaint,
             repaint_hit_testing,
             repaint_subtree,
@@ -602,7 +599,7 @@ impl FfiBoxMarks {
             }
         }
         if self.layout_update {
-            arena.set_needs_layout_update(row, self.layout_update_through_ancestors);
+            arena.set_needs_layout_update(row, true);
         }
         if self.has_dom_paint_facts {
             arena.set_node_dom_paint_facts(row, self.dom_paint_facts);

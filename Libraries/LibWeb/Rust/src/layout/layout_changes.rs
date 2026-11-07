@@ -25,7 +25,10 @@ use smallvec::SmallVec;
 pub(crate) enum LayoutChange {
     SetNeedsLayoutUpdate {
         node: NodeSlotId,
-        propagate_through_ancestors: bool,
+    },
+    RelayoutElementAfterStyleChange {
+        element: StyleNodeID,
+        rebuilds_layout_tree: bool,
     },
     /// The whole layout tree is built again.
     SetNeedsFullLayoutTreeUpdate,
@@ -174,6 +177,7 @@ impl LayoutChange {
             Self::SetNodeFlag { flag, .. } if *flag as u32 & NodeFlag::IDENTITY != 0 => RowWrite::Identities,
             Self::SetNodeStyle { .. } => RowWrite::NamedStyles,
             Self::SetNeedsLayoutUpdate { .. }
+            | Self::RelayoutElementAfterStyleChange { .. }
             | Self::SetNeedsFullLayoutTreeUpdate
             | Self::RelayoutUsersOfFontLists { .. }
             | Self::MarkBox { .. }
@@ -234,14 +238,15 @@ impl LayoutChange {
     /// left to change.
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {
         match self {
-            Self::SetNeedsLayoutUpdate {
-                node,
-                propagate_through_ancestors,
-            } => {
+            Self::SetNeedsLayoutUpdate { node } => {
                 if arena.slot_is_live(node) {
-                    arena.set_needs_layout_update(node, propagate_through_ancestors);
+                    arena.set_needs_layout_update(node, true);
                 }
             }
+            Self::RelayoutElementAfterStyleChange {
+                element,
+                rebuilds_layout_tree,
+            } => arena.mark_element_for_relayout_after_style_change(element, rebuilds_layout_tree),
             Self::SetNeedsFullLayoutTreeUpdate => arena.set_needs_full_layout_tree_update(true),
             Self::RelayoutUsersOfFontLists { font_lists } => arena.relayout_users_of_font_lists(&font_lists),
             Self::MarkBox { target, marks } => marks.apply(arena, target),
@@ -465,16 +470,24 @@ pub(crate) fn queue(host: &DocumentHost, change: LayoutChange) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_set_needs_layout_update(
+pub extern "C" fn render_state_set_needs_layout_update(host: &DocumentHost, node: NodeSlotId) {
+    queue(host, LayoutChange::SetNeedsLayoutUpdate { node });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_relayout_element_after_style_change(
     host: &DocumentHost,
-    node: NodeSlotId,
-    propagate_through_ancestors: bool,
+    style_node: u32,
+    rebuilds_layout_tree: bool,
 ) {
+    let Some(element) = StyleNodeID::from_raw(style_node) else {
+        return;
+    };
     queue(
         host,
-        LayoutChange::SetNeedsLayoutUpdate {
-            node,
-            propagate_through_ancestors,
+        LayoutChange::RelayoutElementAfterStyleChange {
+            element,
+            rebuilds_layout_tree,
         },
     );
 }
@@ -740,11 +753,7 @@ mod tests {
         arena
             .free_subtree(freed)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
-        LayoutChange::SetNeedsLayoutUpdate {
-            node: freed,
-            propagate_through_ancestors: true,
-        }
-        .apply(&mut arena);
+        LayoutChange::SetNeedsLayoutUpdate { node: freed }.apply(&mut arena);
         assert!(!arena.slot_is_live(freed));
     }
 
@@ -755,11 +764,7 @@ mod tests {
         arena.write_shape(node).set_kind(NodeKind::BlockContainer);
         arena.reset_layout_update_flags_in_subtree(node);
         assert!(!arena.node_needs_layout_update(node));
-        LayoutChange::SetNeedsLayoutUpdate {
-            node,
-            propagate_through_ancestors: false,
-        }
-        .apply(&mut arena);
+        LayoutChange::SetNeedsLayoutUpdate { node }.apply(&mut arena);
         assert!(arena.node_needs_layout_update(node));
         arena
             .free_subtree(node)

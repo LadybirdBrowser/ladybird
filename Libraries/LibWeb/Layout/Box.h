@@ -16,11 +16,6 @@ namespace Web::Layout {
 
 class WEB_API Box : public NodeWithStyle {
 public:
-    // A partial relayout boundary is a box whose subtree can be re-laid out in
-    // isolation: its own used size and position are guaranteed not to change
-    // when layout is invalidated somewhere inside its subtree.
-    bool is_partial_relayout_boundary() const;
-
     ImageProvider const& image_provider() const;
     // The provider of the image the box shows: the one it owns once it is handed it, else its element's, which a box
     // that owns a provider it has yet to be handed may not have.

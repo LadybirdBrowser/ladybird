@@ -5,6 +5,7 @@
  */
 
 #include <AK/AnyOf.h>
+#include <AK/Debug.h>
 #include <AK/Format.h>
 #include <AK/HashTable.h>
 #include <AK/ScopeGuard.h>
@@ -29,7 +30,6 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
-#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Selection/Selection.h>
@@ -121,33 +121,10 @@ static void apply_element_style_invalidation_after_style_change(Layout::BegunRea
     //     layout as it was for what reads it next.
     if (auto parent = element.element_to_inherit_style_from({}); !installed_by_render_state && parent && has_flag(parent->installed_style().dependency_flags(), StyleRecordDependencyFlag::InDisplayNoneSubtree) && !element.unsafe_layout_node(read))
         return;
-    bool const needs_relayout = invalidation.needs_relayout() && !installed_by_render_state;
-
-    // Only a full layout pass applies viewport propagation again, so a relayout of an element the viewport takes its
-    // overflow, writing mode, or direction from must not finish as a partial relayout of that element.
-    bool const element_is_viewport_propagation_source = element.is_viewport_propagation_source();
-    if (needs_relayout && element_is_viewport_propagation_source)
-        element.document().record_partial_relayout_escape(DOM::PartialRelayoutEscapeReason::ViewportPropagationSourceChangedByStyleChange);
-
-    if (needs_relayout) {
-        // A relayout-only style change on an absolutely positioned partial relayout boundary
-        // stays confined to it: the box contributes nothing to ancestor layout, and partial
-        // relayout re-resolves the boundary's own size and position. A rendered ::backdrop
-        // disqualifies the element, because pseudo-element style diffs are merged into the
-        // element's invalidation while the ::backdrop box is a sibling of the element's box,
-        // outside the subtree a boundary-self relayout covers.
-        auto* box = as_if<Layout::Box>(element.unsafe_layout_node(read));
-        if (!invalidation.needs_layout_tree_rebuild()
-            && !element_is_viewport_propagation_source
-            && box
-            && box->is_absolutely_positioned()
-            && box->is_partial_relayout_boundary()
-            && !element.pseudo_element_unsafe_layout_node(read, CSS::PseudoElement::Backdrop)) {
-            box->set_needs_own_geometry_update();
-            element.set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange, Layout::LayoutUpdatePropagation::BoundarySelfOnly);
-        } else {
-            element.set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
-        }
+    if (auto* arena = element.document().layout_node_arena_if_created(); arena && invalidation.needs_relayout() && !installed_by_render_state) {
+        dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", DOM::to_string(DOM::SetNeedsLayoutReason::StyleChange));
+        Layout::RustFFI::render_state_relayout_element_after_style_change(arena->host(), element.style_node_id().value(), invalidation.needs_layout_tree_rebuild());
+        Painting::request_document_repaint(element.document(), InvalidateDisplayList::No);
     }
     if (invalidation.needs_layout_tree_rebuild()) {
         if (installed_by_render_state) {
