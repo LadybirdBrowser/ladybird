@@ -64,7 +64,7 @@ public:
 
     RefPtr<Gfx::Typeface const> typeface() const { return m_parsed_font; }
 
-    // The number this face is known by in the process. A style update that must not mutate the face names it by this
+    // The number this face is known by in the process, which only its agent can look up. A style update that must not mutate the face names it by this
     // number and leaves the mutation for the drain below.
     [[nodiscard]] u64 id() const { return m_id; }
     [[nodiscard]] static RefPtr<FontFaceState> with_id(u64);
