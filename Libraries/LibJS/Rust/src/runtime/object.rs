@@ -2077,6 +2077,12 @@ impl Object {
         (self.methods().function_realm)(self)
     }
 
+    /// See NativeFunctionMethods::ignores_stack_space_limit.
+    pub fn ignores_stack_space_limit(&self) -> bool {
+        self.native_function_methods()
+            .is_some_and(|methods| methods.ignores_stack_space_limit)
+    }
+
     pub fn name_for_call_stack(&self) -> Utf16String {
         (self.methods().name_for_call_stack)(self)
     }

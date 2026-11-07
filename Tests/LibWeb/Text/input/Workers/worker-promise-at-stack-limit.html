@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const SCRIPT = `
+        const blob = new Blob(["x"]);
+        let calls = 0;
+        function recurse() {
+            try {
+                recurse();
+            } catch {}
+            if (calls++ < 200) {
+                try {
+                    blob.text();
+                } catch {}
+            }
+        }
+        recurse();
+        postMessage("finished");
+    `;
+
+    // NB: Resolving a promise is a step that cannot fail, also where the stack has no room for a script function anymore.
+    promiseTest(async () => {
+        const worker = new Worker(URL.createObjectURL(new Blob([SCRIPT], { type: "text/javascript" })));
+        println(await new Promise(resolve => (worker.onmessage = event => resolve(event.data))));
+    });
+</script>
