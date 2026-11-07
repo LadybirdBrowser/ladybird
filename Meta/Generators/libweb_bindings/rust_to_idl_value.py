@@ -238,6 +238,7 @@ class UnionMembers:
     record_type: Optional[IDLParameterizedType] = None
     buffer_source_type: Optional[IDLType] = None
     typed_array_types: List[IDLType] = field(default_factory=list)
+    enumeration_types: List[IDLType] = field(default_factory=list)
     # The interfaces, implemented in either language, in the order of the union.
     interface_types: List[IDLType] = field(default_factory=list)
 
@@ -255,6 +256,8 @@ def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, 
             member_type.name in INTEGER_TYPES or member_type.name in FLOATING_POINT_TYPES
         ) and members.numeric_type is None:
             members.numeric_type = member_type
+        elif context.enumeration(member_type) is not None:
+            members.enumeration_types.append(member_type)
         elif member_type.name in TYPED_ARRAY_NAMES:
             members.typed_array_types.append(member_type)
         elif cpp_interface(member_type, context) is not None or rust_interface(member_type, context) is not None:
@@ -349,6 +352,15 @@ def rust_default_value(
         string_literal = None if string_type is None else rust_string_literal(default_value, string_type.name, what)
         if string_type is not None and string_literal is not None:
             return f"{union_path}::{rust_union_variant(string_type)}({string_literal})"
+        for enumeration_type in union_members.enumeration_types:
+            enumeration = context.enumeration(enumeration_type)
+            assert enumeration is not None
+            if default_value is not None and default_value[1:-1] in enumeration.values:
+                variant = rust_enumeration_variant(default_value[1:-1], enumeration)
+                return (
+                    f"{union_path}::{rust_union_variant(enumeration_type)}"
+                    f"({rust_enumeration_path(enumeration, context)}::{variant})"
+                )
         # NB: A number is a value of the numeric member that the conversion to the union takes, as the C++ bindings
         #     take the default value of such a union to be.
         numeric_type = union_members.numeric_type
@@ -701,6 +713,23 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
             }}
 """
         )
+    if members.enumeration_types:
+        steps.append(
+            "            if value.is_string() {\n                let enumeration_string = to_dom_string(vm, value)?;\n"
+        )
+        for enumeration_type in members.enumeration_types:
+            enumeration = context.enumeration(enumeration_type)
+            assert enumeration is not None
+            path_to_enumeration = rust_enumeration_path(enumeration, context)
+            for enumeration_value in enumeration.values:
+                variant = rust_enumeration_variant(enumeration_value, enumeration)
+                steps.append(
+                    f'''                if enumeration_string == Utf16String::from_ascii(b"{enumeration_value}") {{
+                    return Ok(Self::{rust_union_variant(enumeration_type)}({path_to_enumeration}::{variant}));
+                }}
+'''
+                )
+        steps.append("            }\n")
     if string_type is not None:
         conversion = rust_to_idl_value(string_type, {}, "value", "value", context, what)
         steps.append(
