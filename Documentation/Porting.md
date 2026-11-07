@@ -41,8 +41,9 @@ There is currently one in progress platform port:
 UI ports mostly concern themselves with the UI layer. This means the main Ladybird process, using LibWebView.
 
 To create a new Ladybird UI, you will need to implement a new `WebView::ViewImplementation` subclass.
-ViewImplementation is the main interface between the UI process and WebContent processes. It is expected that each tab
-of the browser will have its own WebContent process. This is all managed by the WebView layer.
+ViewImplementation is the main interface between the UI process and WebContent processes. A tab may have documents in
+several WebContent processes, because documents from different sites are kept apart. This is all managed by the WebView
+layer.
 
 Each UI port must also subclass `WebView::Application` to add any UI-specific command-line flags.
 

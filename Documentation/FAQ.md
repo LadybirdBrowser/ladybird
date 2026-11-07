@@ -109,7 +109,7 @@ Here’s a short timeline:
   - About 1/50th as many lines as C++ code Chromium.
 - Level of standards support: [wpt.fyi/results?product=ladybird](https://wpt.fyi/results/?product=ladybird) has current test results for all WPT tests.
 - [LadybirdBrowser/ladybird#features](https://github.com/LadybirdBrowser/ladybird/#features):
-  - UI process, ImageDecoder process, RequestServer process, WebContent processes.
+  - UI process, WebContent renderer processes, and helper processes for tasks such as networking, image decoding, compositing and media.
   - LibWeb: core web-rendering engine (HTML, CSS, Events, DOM, APIs).
   - LibJS: JavaScript engine written from scratch (currently JIT-less).
   - LibWasm: WebAssembly implementation written from scratch.

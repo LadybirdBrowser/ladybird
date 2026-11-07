@@ -1,8 +1,9 @@
 # Crash reports
 
 On macOS and Linux, Ladybird saves local text reports when the browser or a
-helper process crashes: WebContent, WebWorker, RequestServer, ImageDecoder
-and Compositor. Reports are stored in
+helper process crashes: WebContent, WebWorker, RequestServer, ImageDecoder,
+Compositor, MediaServer, AudioServer and VideoDecoderServer. Reports are stored
+in
 `~/Library/Application Support/Ladybird/CrashReports/` on macOS and
 `~/.local/share/Ladybird/CrashReports/` on Linux, or under
 `$XDG_DATA_HOME/Ladybird/CrashReports/` if that variable is set.
