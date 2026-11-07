@@ -308,27 +308,27 @@ void keep_recent_font(NonnullRefPtr<Font const> font)
 
 }
 
-NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
+NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features, FontSynthesis synthesis) const
 {
     RefPtr<Font> font;
     {
         MutexLocker locker { m_fonts_mutex };
-        FontCacheKey key { point_size, variations.to_sorted_list(), shape_features };
+        FontCacheKey key { point_size, variations.to_sorted_list(), shape_features, synthesis };
 
         // A font that another thread is destroying cannot be referenced any more, and a new font replaces it.
         if (auto it = m_fonts.find(key); it != m_fonts.end() && it->value->try_ref())
             return adopt_ref(*it->value);
 
-        font = adopt_ref(*new Font(*this, point_size, point_size, variations, shape_features));
+        font = adopt_ref(*new Font(*this, point_size, point_size, variations, shape_features, synthesis));
         m_fonts.set(move(key), font.ptr());
     }
     keep_recent_font(*font);
     return font.release_nonnull();
 }
 
-NonnullRefPtr<Font> Typeface::invisible_font(float point_size, FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
+NonnullRefPtr<Font> Typeface::invisible_font(float point_size, FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features, FontSynthesis synthesis) const
 {
-    auto font = adopt_ref(*new Font(*this, point_size, point_size, variations, shape_features));
+    auto font = adopt_ref(*new Font(*this, point_size, point_size, variations, shape_features, synthesis));
     font->m_is_invisible = true;
     return font;
 }
@@ -336,7 +336,7 @@ NonnullRefPtr<Font> Typeface::invisible_font(float point_size, FontVariationSett
 void Typeface::forget_font(Font const& font) const
 {
     MutexLocker locker { m_fonts_mutex };
-    FontCacheKey key { font.point_size(), font.variation_settings().to_sorted_list(), font.features() };
+    FontCacheKey key { font.point_size(), font.variation_settings().to_sorted_list(), font.features(), font.synthesis() };
     // Invisible variants are not in the cache, and a newer font may have replaced this one.
     if (auto it = m_fonts.find(key); it != m_fonts.end() && it->value == &font)
         m_fonts.remove(it);

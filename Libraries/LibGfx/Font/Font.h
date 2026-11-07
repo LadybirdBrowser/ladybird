@@ -54,7 +54,7 @@ constexpr float text_shaping_resolution = 64;
 
 class Font : public AtomicRefCounted<Font> {
 public:
-    Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, FontVariationSettings const variations, ShapeFeatures const& features);
+    Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, FontVariationSettings const variations, ShapeFeatures const& features, FontSynthesis synthesis = {});
     ~Font();
 
     u64 id() const { return m_id; }
@@ -82,6 +82,8 @@ public:
     hb_font_t* harfbuzz_font() const { return m_harfbuzz_font; }
     FontVariationSettings const& variation_settings() const { return m_font_variation_settings; }
     ShapeFeatures const& features() const { return m_shape_features; }
+    // How this font is drawn bolder or slanted than its face; weight() and slope() describe the face itself.
+    FontSynthesis synthesis() const { return m_synthesis; }
 
     bool is_emoji_font() const;
 
@@ -122,6 +124,7 @@ private:
     float m_point_height { 0.0f };
     FontVariationSettings const m_font_variation_settings;
     ShapeFeatures m_shape_features;
+    FontSynthesis m_synthesis;
     FontPixelMetrics m_pixel_metrics;
     FaceStyle m_style;
 

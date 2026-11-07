@@ -24,6 +24,16 @@
 
 namespace Gfx {
 
+// How far synthetic bold can spread the ink of a font's glyphs past their outlines, in device pixels. The rasterizer
+// decides the stroke, so this allows for the widest it's known to use: It bounds what a run may paint, and isn't a
+// measurement of its ink.
+static float synthetic_bold_outset(Font const& font, float scale)
+{
+    if (!font.synthesis().bold)
+        return 0;
+    return max(font.pixel_size() * scale / 24, 1.0f);
+}
+
 // Tight bounds of the ink of the painted glyphs, from their own extents, in the coordinates of glyph_run_bounding_box().
 // Empty if no painted glyph has ink.
 static FloatRect glyph_run_ink_bounding_box(Font const& font, ReadonlySpan<ShapedGlyph> glyphs, float scale)
@@ -94,11 +104,28 @@ FloatRect glyph_run_bounding_box(Font const& font, ReadonlySpan<ShapedGlyph> gly
         auto right = max_x + font_bounding_box.x_max * font_units_to_pixels;
         auto top = min_y - font_bounding_box.y_max * font_units_to_pixels;
         auto bottom = max_y - font_bounding_box.y_min * font_units_to_pixels;
+        // A synthetic oblique shifts each point of a glyph along the line by its height above the baseline.
+        if (auto angle = font.synthesis().oblique_angle; angle != 0) {
+            auto slant = AK::tan(AK::to_radians(angle));
+            auto shift_at_top = font_bounding_box.y_max * font_units_to_pixels * slant;
+            auto shift_at_bottom = font_bounding_box.y_min * font_units_to_pixels * slant;
+            left += min(0.0f, min(shift_at_top, shift_at_bottom));
+            right += max(0.0f, max(shift_at_top, shift_at_bottom));
+        }
+        auto outset = synthetic_bold_outset(font, scale);
+        left -= outset;
+        right += outset;
+        top -= outset;
+        bottom += outset;
         return { left, top, right - left, bottom - top };
     }
 
     // The font doesn't record an overall bounding box (e.g. bitmap-only fonts), so unite the glyphs' own extents.
-    return glyph_run_ink_bounding_box(font, glyphs, scale);
+    // NB: HarfBuzz slants the extents of a synthetic oblique itself.
+    auto bounds = glyph_run_ink_bounding_box(font, glyphs, scale);
+    if (auto outset = synthetic_bold_outset(font, scale); outset > 0 && !bounds.is_empty())
+        bounds.inflate(outset * 2, outset * 2);
+    return bounds;
 }
 
 namespace {

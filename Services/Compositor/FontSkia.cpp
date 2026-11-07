@@ -5,6 +5,7 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/Math.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <AK/TypeCasts.h>
@@ -240,6 +241,13 @@ Optional<SkFont> skia_font(Gfx::Font const& font, float scale)
 
     SkFont sk_font { data.typeface, font.pixel_size() * scale };
     sk_font.setSubpixel(true);
+
+    // NB: Skia's x axis runs as text does but its y axis runs downward, so a slant that tips the glyphs' tops toward
+    //     the end of the line is a negative skew.
+    auto synthesis = font.synthesis();
+    sk_font.setEmbolden(synthesis.bold);
+    if (synthesis.oblique_angle != 0)
+        sk_font.setSkewX(-AK::tan(AK::to_radians(synthesis.oblique_angle)));
 
 #if defined(USE_FONTCONFIG)
     if (s_force_hinting_for_testing) {
