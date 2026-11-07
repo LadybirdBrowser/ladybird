@@ -3566,6 +3566,14 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         }
         let collapsed = self.style(self.run.box_).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let table_box = self.table_box_cells();
+        let inset_percentage_basis = geometry::LogicalSize {
+            inline_size: table_box.content_inline_size(),
+            block_size: table_box.content_block_size(),
+        };
+        let percentage_block_insets_have_definite_basis = self
+            .run
+            .percentage_block_insets_of_root_children_have_definite_basis(&table_box);
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
             let cell_box = self.cell_box_cells[cell_index];
@@ -3580,10 +3588,19 @@ impl<'pass> TableFormattingContext<'pass> {
                 + self.columns[cell.column_index].inline_offset;
             let y = row_content_offset.y + cell_box.border_box_top(collapsed);
             let fragment_arrival = self.cell_fragment_arrivals[cell_index].take();
+            // A relatively positioned cell is offset from where the table places it, as any in-flow box is.
+            let insets = abspos_engine::compute_inset_native(
+                &self.run,
+                cell.box_,
+                &table_box,
+                inset_percentage_basis,
+                percentage_block_insets_have_definite_basis,
+            );
             let placed_cell = self.placed_cells[cell_index]
                 .take()
                 .expect("a cell is laid out before it is placed")
-                .with_fragment_facts(self.cell_fragment_facts[cell_index]);
+                .with_fragment_facts(self.cell_fragment_facts[cell_index])
+                .with_in_flow_box_insets(insets);
             formatting_context::place_child(
                 &self.run,
                 cell.box_,
