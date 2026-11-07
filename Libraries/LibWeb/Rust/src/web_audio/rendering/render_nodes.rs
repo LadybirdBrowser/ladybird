@@ -1824,7 +1824,7 @@ use crate::web_audio::control_message::clone_arc;
 use ak::Span;
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_destination(
+pub extern "C" fn web_audio_node_create_destination(
     node_id: u64,
     quantum_size: usize,
     channel_count: usize,
@@ -1835,8 +1835,10 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_destination(
     node_handle(data, DestinationRenderNode)
 }
 
+/// # Safety
+/// Parameter pointers must name live `Arc` allocations for the duration of the call.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_gain(
+pub unsafe extern "C" fn web_audio_node_create_gain(
     node_id: u64,
     quantum_size: usize,
     gain: *const RenderAudioParam,
@@ -1851,8 +1853,10 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_gain(
     )
 }
 
+/// # Safety
+/// Parameter pointers must name live `Arc` allocations for the duration of the call.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_constant_source(
+pub unsafe extern "C" fn web_audio_node_create_constant_source(
     node_id: u64,
     quantum_size: usize,
     offset: *const RenderAudioParam,
@@ -1868,8 +1872,10 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_constant_source(
     )
 }
 
+/// # Safety
+/// Parameter pointers must name live `Arc` allocations for the duration of the call.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_oscillator(
+pub unsafe extern "C" fn web_audio_node_create_oscillator(
     node_id: u64,
     quantum_size: usize,
     frequency: *const RenderAudioParam,
@@ -1892,8 +1898,10 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_oscillator(
     )
 }
 
+/// # Safety
+/// Parameter pointers must name live `Arc` allocations for the duration of the call.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_audio_buffer_source(
+pub unsafe extern "C" fn web_audio_node_create_audio_buffer_source(
     node_id: u64,
     quantum_size: usize,
     playback_rate: *const RenderAudioParam,
@@ -1921,8 +1929,10 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_audio_buffer_source(
     )
 }
 
+/// # Safety
+/// Parameter pointers must name live `Arc` allocations for the duration of the call.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_delay(
+pub unsafe extern "C" fn web_audio_node_create_delay(
     node_id: u64,
     quantum_size: usize,
     delay_time: *const RenderAudioParam,
@@ -1941,8 +1951,10 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_delay(
     )
 }
 
+/// # Safety
+/// Parameter pointers must name live `Arc` allocations for the duration of the call.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_stereo_panner(
+pub unsafe extern "C" fn web_audio_node_create_stereo_panner(
     node_id: u64,
     quantum_size: usize,
     pan: *const RenderAudioParam,
@@ -1959,7 +1971,7 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_stereo_panner(
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_channel_splitter(
+pub extern "C" fn web_audio_node_create_channel_splitter(
     node_id: u64,
     quantum_size: usize,
     number_of_outputs: usize,
@@ -1972,7 +1984,7 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_channel_splitter(
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_channel_merger(
+pub extern "C" fn web_audio_node_create_channel_merger(
     node_id: u64,
     quantum_size: usize,
     number_of_inputs: usize,
@@ -1983,8 +1995,10 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_channel_merger(
     node_handle(data, ChannelMergerRenderNode)
 }
 
+/// # Safety
+/// Parameter pointers must name live `Arc` allocations for the duration of the call.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_biquad_filter(
+pub unsafe extern "C" fn web_audio_node_create_biquad_filter(
     node_id: u64,
     quantum_size: usize,
     frequency: *const RenderAudioParam,
@@ -2011,7 +2025,7 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_biquad_filter(
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_iir_filter(
+pub extern "C" fn web_audio_node_create_iir_filter(
     node_id: u64,
     quantum_size: usize,
     feedforward: Span<'_, f64>,
@@ -2032,10 +2046,7 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_iir_filter(
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_wave_shaper(
-    node_id: u64,
-    quantum_size: usize,
-) -> *mut NodeHandle {
+pub extern "C" fn web_audio_node_create_wave_shaper(node_id: u64, quantum_size: usize) -> *mut NodeHandle {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
     node_handle(
         data,
@@ -2050,7 +2061,7 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_wave_shaper(
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_convolver(node_id: u64, quantum_size: usize) -> *mut NodeHandle {
+pub extern "C" fn web_audio_node_create_convolver(node_id: u64, quantum_size: usize) -> *mut NodeHandle {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
     data.channel_count_mode.set(ChannelCountMode::ClampedMax);
     node_handle(
@@ -2070,8 +2081,10 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_convolver(node_id: u64, qu
     )
 }
 
+/// # Safety
+/// Parameter pointers must name live `Arc` allocations for the duration of the call.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_panner(
+pub unsafe extern "C" fn web_audio_node_create_panner(
     node_id: u64,
     quantum_size: usize,
     params: Span<'_, *const RenderAudioParam>,
@@ -2109,10 +2122,7 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_panner(
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_passthrough(
-    node_id: u64,
-    quantum_size: usize,
-) -> *mut NodeHandle {
+pub extern "C" fn web_audio_node_create_passthrough(node_id: u64, quantum_size: usize) -> *mut NodeHandle {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
     node_handle(data, PassthroughRenderNode)
 }

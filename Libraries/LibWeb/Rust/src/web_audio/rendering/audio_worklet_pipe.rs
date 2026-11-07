@@ -37,15 +37,15 @@ pub struct Config {
 }
 
 #[repr(C)]
-pub struct WorkletPipeConfig {
+pub struct WorkletPipeConfig<'a> {
     pub quantum_size: usize,
     pub input_count: u32,
     pub output_count: u32,
-    pub input_channel_capacity: ak::Span<'static, u32>,
-    pub output_channel_capacity: ak::Span<'static, u32>,
+    pub input_channel_capacity: ak::Span<'a, u32>,
+    pub output_channel_capacity: ak::Span<'a, u32>,
     pub output_channel_count_matches_input: bool,
     pub param_count: u32,
-    pub param_is_a_rate: ak::Span<'static, bool>,
+    pub param_is_a_rate: ak::Span<'a, bool>,
     pub ring_capacity: usize,
     pub prime_level: usize,
 }
@@ -274,7 +274,12 @@ impl AudioWorkletPipe {
             .store(tail.wrapping_sub(target_occupancy), Ordering::Release);
     }
 
-    pub(crate) unsafe fn prime_outputs_with_silence(&self, count: usize) {
+    /// Pushes `count` silent, processor-active output quanta. Called on the control thread before the pipe is handed
+    /// to the render node, so the audio thread has a burst worth of lookahead before the first processed quantum.
+    ///
+    /// # Safety
+    /// The caller must be the sole producer of the output ring.
+    pub unsafe fn prime_outputs_with_silence(&self, count: usize) {
         for _i in 0..count {
             let pushed = unsafe {
                 self.try_push_output(|slot| {
@@ -406,14 +411,14 @@ impl AudioWorkletPipe {
     }
 }
 
-#[unsafe(no_mangle)]
-pub(crate) extern "C" fn web_audio_worklet_pipe_ring_sizing(
-    device_latency_ms: u32,
-    sample_rate: f32,
-    quantum_size: usize,
-    ring_capacity: *mut usize,
-    prime_level: *mut usize,
-) {
+pub struct RingSizing {
+    pub ring_capacity: usize,
+    pub prime_level: usize,
+}
+
+// The renderer produces a device buffer's worth of quanta in one burst, so lookahead must cover a full burst plus
+// scheduling margin. At the 100 ms, 48 kHz defaults this is 38 quanta, a prime level of 48, and capacity 64.
+pub fn ring_sizing_for_device_latency(device_latency_ms: u32, sample_rate: f32, quantum_size: usize) -> RingSizing {
     assert!(sample_rate > 0.);
     assert!(quantum_size > 0);
     let burst_quanta =
@@ -423,15 +428,32 @@ pub(crate) extern "C" fn web_audio_worklet_pipe_ring_sizing(
     while capacity < prime + (burst_quanta / 4).max(1) {
         capacity *= 2;
     }
+    RingSizing {
+        ring_capacity: capacity,
+        prime_level: prime,
+    }
+}
+
+/// # Safety
+/// Both output pointers must point to writable `usize` slots.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_ring_sizing(
+    device_latency_ms: u32,
+    sample_rate: f32,
+    quantum_size: usize,
+    ring_capacity: *mut usize,
+    prime_level: *mut usize,
+) {
+    let sizing = ring_sizing_for_device_latency(device_latency_ms, sample_rate, quantum_size);
     unsafe {
-        *ring_capacity = capacity;
-        *prime_level = prime;
+        *ring_capacity = sizing.ring_capacity;
+        *prime_level = sizing.prime_level;
     }
 }
 
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_create(
-    config: WorkletPipeConfig,
+    config: WorkletPipeConfig<'_>,
     callbacks: PipeCallbacks,
 ) -> *const AudioWorkletPipe {
     let config = Config {

@@ -6,17 +6,16 @@
  */
 
 use std::cell::Cell;
-use std::ffi::c_void;
-use std::ptr::NonNull;
 use std::sync::Arc;
 
 use ak::Utf16String;
-use libjs_rust::api::{Gc, RawNativeFunctionResult, Realm, Trace, Value, Vm};
+use libjs_rust::api::{Trace, Vm};
 use libweb_rust::web_audio::audio_param_timeline::{AudioParamTimeline, InsertResult};
 use libweb_rust::web_audio::rendering::render_node::RenderAudioParam;
 
-use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, realm_arguments};
+use super::audio_node::AnyAudioNode;
+use super::base_audio_context::AnyBaseAudioContext;
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 pub(crate) use libweb_rust::web_audio::rendering::render_node::AutomationRate;
@@ -32,8 +31,11 @@ pub(crate) enum FixedAutomationRate {
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct AudioParam {
-    context: CppCell,
-    owner: Option<CppCell>,
+    context: AnyBaseAudioContext,
+
+    // An AudioParam is a facet of the AudioNode that exposes it, so holding on to the parameter keeps that node, and
+    // with it the node's render node and automation, alive.
+    owner: Cell<Option<AnyAudioNode>>,
     #[gc(untraced)]
     timeline: Arc<AudioParamTimeline>,
     #[gc(untraced)]
@@ -51,11 +53,6 @@ pub(crate) struct AudioParam {
 }
 
 impl Wrappable for AudioParam {}
-unsafe extern "C" {
-    fn web_audio_context_current_time(context: *mut c_void) -> f64;
-    fn web_audio_context_realm(context: *mut c_void) -> *mut c_void;
-}
-
 fn clamp(value: f32, min: f32, max: f32) -> f32 {
     assert!(max >= min);
     if value > max {
@@ -76,8 +73,8 @@ impl AudioParam {
     #[allow(clippy::too_many_arguments, reason = "preserve the C++ parameter initialization")]
     pub(crate) fn create(
         vm: &Vm,
-        context: CppCell,
-        owner: Option<CppCell>,
+        context: AnyBaseAudioContext,
+        owner: Option<AnyAudioNode>,
         default_value: f32,
         min_value: f32,
         max_value: f32,
@@ -94,7 +91,7 @@ impl AudioParam {
             ));
             Self {
                 context,
-                owner,
+                owner: Cell::new(owner),
                 timeline,
                 render_param,
                 current_value: Cell::new(default_value),
@@ -107,14 +104,24 @@ impl AudioParam {
         })
     }
 
+    pub(crate) fn set_owner(&self, owner: AnyAudioNode) {
+        self.owner.set(Some(owner));
+    }
+
+    pub(crate) fn context_value(&self) -> AnyBaseAudioContext {
+        self.context
+    }
+
+    pub(crate) fn render_param(&self) -> &Arc<RenderAudioParam> {
+        &self.render_param
+    }
+
     fn current_time(&self) -> f64 {
-        unsafe { web_audio_context_current_time(self.context.as_ptr()) }
+        self.context.current_time_value()
     }
 
     fn context_error(&self, vm: &Vm, name: &'static str, message: &[u8]) -> Exception {
-        let realm = unsafe {
-            Gc::from_non_null(NonNull::new(web_audio_context_realm(self.context.as_ptr()).cast::<Realm>()).unwrap())
-        };
+        let realm = self.context.realm();
         Exception::Thrown(Exception::Dom(name, Utf16String::from_ascii(message)).throw(&CallContext::new(vm, realm)))
     }
 
@@ -366,62 +373,4 @@ impl AudioParam {
         this.timeline.cancel_and_hold_at_time(cancel_time);
         Ok(*this)
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_param_create(
-    vm: &Vm,
-    context: *mut c_void,
-    owner: *mut c_void,
-    default_value: f32,
-    min_value: f32,
-    max_value: f32,
-    automation_rate: AutomationRate,
-    fixed: FixedAutomationRate,
-) -> *mut c_void {
-    cell_into_abi(AudioParam::create(
-        vm,
-        unsafe { CppCell::from_raw(context) },
-        (!owner.is_null()).then(|| unsafe { CppCell::from_raw(owner) }),
-        default_value,
-        min_value,
-        max_value,
-        automation_rate,
-        fixed,
-    ))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_param_context(cell: *mut c_void) -> *mut c_void {
-    let param: Ref<AudioParam> = unsafe { cell_from_abi(cell) };
-    param.context.as_ptr()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_param_set_value(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    cell: *mut c_void,
-    value: f32,
-) -> RawNativeFunctionResult {
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    let mut cx = CallContext::new(vm, realm);
-    let param: Ref<AudioParam> = unsafe { cell_from_abi(cell) };
-    RawNativeFunctionResult::from_completion(
-        AudioParam::set_value(&param, &mut cx, value)
-            .map(|()| Value::UNDEFINED)
-            .map_err(|error| error.throw(&cx)),
-    )
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_param_intrinsic_value(cell: *mut c_void, time: f64) -> f32 {
-    let param: Ref<AudioParam> = unsafe { cell_from_abi(cell) };
-    param.intrinsic_value_at_time(time)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_param_render_param(cell: *mut c_void) -> *const RenderAudioParam {
-    let param: Ref<AudioParam> = unsafe { cell_from_abi(cell) };
-    Arc::into_raw(Arc::clone(&param.render_param))
 }

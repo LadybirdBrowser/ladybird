@@ -4,15 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::ffi::c_void;
-
 use ak::Utf16String;
 use libjs_rust::api::{Gc, GcRefCell, Map, Trace, Value, Vm};
 
 use super::audio_param::AudioParam;
 use crate::bindings::CallContext;
 use crate::bindings::conversions::{ToJs, to_dom_string};
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, this_implementation, wrap};
+use crate::bindings::interface::{Ref, Wrappable, allocate, this_implementation, wrap};
 use crate::bindings::maplike::Maplike;
 
 // https://webaudio.github.io/web-audio-api/#AudioParamMap
@@ -24,6 +22,14 @@ pub(crate) struct AudioParamMap {
 
 impl Wrappable for AudioParamMap {}
 impl AudioParamMap {
+    pub(crate) fn values<'vm>(&self, vm: &'vm Vm) -> libjs_rust::api::MarkedVec<'vm, Ref<AudioParam>> {
+        let values = libjs_rust::api::MarkedVec::new(vm);
+        for (_, value) in &*self.entries.borrow() {
+            values.push(*value);
+        }
+        values
+    }
+
     pub(crate) fn create(vm: &Vm) -> Ref<Self> {
         allocate(vm, |_| Self {
             entries: GcRefCell::new(Vec::new()),
@@ -73,36 +79,5 @@ impl Maplike for AudioParamMap {
         let entries = self.entries.borrow();
         let entry = entries.iter().find(|entry| &entry.0 == key)?;
         Some(Value::from_object(wrap(cx, entry.1)))
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_param_map_create(vm: &Vm) -> *mut c_void {
-    cell_into_abi(AudioParamMap::create(vm))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_param_map_set_entry(
-    vm: &Vm,
-    cell: *mut c_void,
-    key: usize,
-    param: *mut c_void,
-) {
-    let map: Ref<AudioParamMap> = unsafe { cell_from_abi(cell) };
-    let param: Ref<AudioParam> = unsafe { cell_from_abi(param) };
-    map.set_entry(vm, unsafe { ak::Utf16FlyString::from_raw_borrowed(key).into() }, param);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_param_map_values(
-    cell: *mut c_void,
-    context: *mut c_void,
-    callback: unsafe extern "C" fn(*mut c_void, *mut c_void),
-) {
-    let map: Ref<AudioParamMap> = unsafe { cell_from_abi(cell) };
-    for (_key, value) in &*map.entries.borrow() {
-        unsafe {
-            callback(context, cell_into_abi(*value));
-        }
     }
 }

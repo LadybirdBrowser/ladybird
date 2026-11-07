@@ -105,8 +105,10 @@ impl NodeProcessor for AudioWorkletRenderNode {
     }
 }
 
+/// # Safety
+/// The pipe and parameter pointers must name live `Arc` allocations for the call.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_audio_worklet(
+pub unsafe extern "C" fn web_audio_node_create_audio_worklet(
     node_id: u64,
     input_count: usize,
     output_count: usize,

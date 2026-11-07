@@ -19,21 +19,21 @@ dictionary AudioNodeOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#AudioNode
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface AudioNode : EventTarget {
-    AudioNode connect(AudioNode destinationNode,
+    [ImplementedAs=connect_to_node] AudioNode connect(AudioNode destinationNode,
                       optional unsigned long output = 0,
                       optional unsigned long input = 0);
-    undefined connect(AudioParam destinationParam, optional unsigned long output = 0);
-    undefined disconnect();
-    undefined disconnect(unsigned long output);
-    undefined disconnect(AudioNode destinationNode);
-    undefined disconnect(AudioNode destinationNode, unsigned long output);
-    undefined disconnect(AudioNode destinationNode,
+    [ImplementedAs=connect_to_param] undefined connect(AudioParam destinationParam, optional unsigned long output = 0);
+    [ImplementedAs=disconnect_all] undefined disconnect();
+    [ImplementedAs=disconnect_output] undefined disconnect(unsigned long output);
+    [ImplementedAs=disconnect_node] undefined disconnect(AudioNode destinationNode);
+    [ImplementedAs=disconnect_node_output] undefined disconnect(AudioNode destinationNode, unsigned long output);
+    [ImplementedAs=disconnect_node_output_input] undefined disconnect(AudioNode destinationNode,
                          unsigned long output,
                          unsigned long input);
-    undefined disconnect(AudioParam destinationParam);
-    undefined disconnect(AudioParam destinationParam, unsigned long output);
+    [ImplementedAs=disconnect_param] undefined disconnect(AudioParam destinationParam);
+    [ImplementedAs=disconnect_param_output] undefined disconnect(AudioParam destinationParam, unsigned long output);
     readonly attribute BaseAudioContext context;
     readonly attribute unsigned long numberOfInputs;
     readonly attribute unsigned long numberOfOutputs;

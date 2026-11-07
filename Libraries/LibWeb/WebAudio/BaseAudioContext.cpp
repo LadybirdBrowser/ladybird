@@ -7,512 +7,118 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NumericLimits.h>
 #include <LibGC/Heap.h>
 #include <LibJS/HostClassBuilder.h>
-#include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibMediaClient/Client.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
-#include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/WebAudio/AnalyserNode.h>
-#include <LibWeb/WebAudio/AudioArray.h>
-#include <LibWeb/WebAudio/AudioBuffer.h>
-#include <LibWeb/WebAudio/AudioBufferSourceNode.h>
-#include <LibWeb/WebAudio/AudioDestinationNode.h>
 #include <LibWeb/WebAudio/AudioWorklet.h>
 #include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
-#include <LibWeb/WebAudio/BiquadFilterNode.h>
-#include <LibWeb/WebAudio/ChannelMergerNode.h>
-#include <LibWeb/WebAudio/ControlMessageQueue.h>
-#include <LibWeb/WebAudio/DynamicsCompressorNode.h>
-#include <LibWeb/WebAudio/GainNode.h>
-#include <LibWeb/WebAudio/MediaStreamAudioSourceNode.h>
-#include <LibWeb/WebAudio/OscillatorNode.h>
-#include <LibWeb/WebAudio/PannerNode.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
-#include <LibWeb/WebIDL/DOMException.h>
-#include <LibWeb/WebIDL/ExceptionOrUtils.h>
-#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebAudio {
 
-extern "C" JSCompletion web_audio_verify_buffer_options(void* realm, u32 channels, u32 length, float sample_rate);
-JSCompletion web_audio_verify_buffer_options(void* realm, u32 channels, u32 length, float sample_rate)
+extern "C" float web_rust_audio_context_sample_rate(void const*);
+extern "C" DOM::EventTarget* web_rust_audio_context_global(void const*);
+extern "C" JS::Object* web_rust_audio_context_global_wrapper(void const*);
+extern "C" void web_rust_audio_context_document_inactive(void*);
+extern "C" void web_rust_audio_context_decoded(JSVM*, void*, MediaClient::Client::DecodedAudioData*);
+float BaseAudioContext::sample_rate() const { return web_rust_audio_context_sample_rate(this); }
+GC::Ref<DOM::EventTarget> BaseAudioContext::relevant_global_event_target() const { return *web_rust_audio_context_global(this); }
+JS::Object& BaseAudioContext::relevant_global_object() const { return *web_rust_audio_context_global_wrapper(this); }
+extern "C" HTML::UniqueTaskSource* web_audio_context_create_task_source();
+extern "C" void web_audio_context_destroy_task_source(HTML::UniqueTaskSource*);
+extern "C" void web_audio_context_queue_task(HTML::UniqueTaskSource*, DOM::EventTarget*, GC::Cell*, void (*)(void*, void*));
+extern "C" DOM::DocumentObserver* web_audio_context_observe_document(DOM::EventTarget*, Bindings::RustInterfaceCell*);
+extern "C" JS::Realm* web_audio_context_global_realm(DOM::EventTarget*);
+extern "C" JS::Object* web_audio_context_global_wrapper(DOM::EventTarget*);
+extern "C" bool web_audio_context_document_is_fully_active(DOM::EventTarget*);
+extern "C" bool web_audio_context_responsible_document_is_fully_active(DOM::EventTarget*);
+extern "C" bool web_audio_context_navigable_is_destroyed(DOM::EventTarget*);
+extern "C" AudioWorklet* web_audio_context_get_worklet(BaseAudioContext*);
+extern "C" void web_audio_context_shutdown_worklet(AudioWorklet*);
+extern "C" JS::Object* web_audio_context_wrap_worklet(JS::Realm*, AudioWorklet*);
+extern "C" void web_audio_context_decode(ReadonlyBytes, u32, GC::Cell*);
+extern "C" void web_audio_context_decoded_destroy(MediaClient::Client::DecodedAudioData*);
+extern "C" void web_audio_context_decoded_metadata(MediaClient::Client::DecodedAudioData*, u32*, u64*, u32*);
+extern "C" void web_audio_context_decoded_channel(MediaClient::Client::DecodedAudioData*, u32, ReadonlySpan<float>*);
+extern "C" void web_audio_context_report_exception(JS::Realm*, JSValue);
+HTML::UniqueTaskSource* web_audio_context_create_task_source() { return new HTML::UniqueTaskSource; }
+void web_audio_context_destroy_task_source(HTML::UniqueTaskSource* source) { delete source; }
+void web_audio_context_queue_task(HTML::UniqueTaskSource* source, DOM::EventTarget* global, GC::Cell* cell, void (*invoke)(void*, void*))
 {
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto result = BaseAudioContext::verify_audio_options_inside_nominal_range(channels, length, sample_rate);
-    if (result.is_exception())
-        return JS::HostABI::throw_completion_to_abi(WebIDL::exception_to_throw_completion(js_realm.vm(), js_realm, result.exception()).value());
-    return JS::HostABI::normal_completion_to_abi(JS::HostABI::value_to_abi(JS::js_undefined()));
-}
-
-extern "C" double web_audio_context_current_time(BaseAudioContext*);
-extern "C" JS::Realm* web_audio_context_realm(BaseAudioContext*);
-double web_audio_context_current_time(BaseAudioContext* context) { return context->current_time(); }
-JS::Realm* web_audio_context_realm(BaseAudioContext* context) { return &context->relevant_settings_object().realm(); }
-
-static JS::Value audio_buffer(JS::Realm& realm, GC::Ptr<AudioBuffer> buffer)
-{
-    if (!buffer)
-        return JS::js_null();
-    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, buffer);
-}
-
-static void invoke_audio_buffer_callback(JS::Realm& realm, WebIDL::CallbackType& callback, AudioBuffer& buffer)
-{
-    auto completion = WebIDL::invoke_callback(callback, {}, { { audio_buffer(realm, buffer) } });
-    if (completion.is_abrupt())
-        HTML::report_exception(completion, realm);
-}
-
-static void invoke_error_callback(JS::Realm& realm, WebIDL::CallbackType& callback, WebIDL::DOMException& error)
-{
-    auto completion = WebIDL::invoke_callback(callback, {}, { { throw_completion(realm, error).value() } });
-    if (completion.is_abrupt())
-        HTML::report_exception(completion, realm);
-}
-
-void resolve_audio_buffer_promise(JS::Realm& realm, WebIDL::Promise const& promise, AudioBuffer& buffer)
-{
-    WebIDL::resolve_promise(promise, audio_buffer(realm, buffer));
-}
-
-BaseAudioContext::BaseAudioContext(GC::Ref<DOM::EventTarget> relevant_global_object, float sample_rate)
-    : DOM::EventTarget()
-    , m_sample_rate(sample_rate)
-    , m_global_object(relevant_global_object)
-    , m_control_message_queue(adopt_ref(*new ControlMessageQueue))
-{
-    if (auto* window = as_if<HTML::Window>(*m_global_object)) {
-        // FIXME: Also handle the document becoming active again, e.g. when restored from the back/forward cache.
-        m_document_observer = DOM::DocumentObserver::create(window->associated_document());
-        m_document_observer->set_document_became_inactive([this]() {
-            document_became_inactive();
-        });
-    }
-}
-
-BaseAudioContext::~BaseAudioContext() = default;
-
-void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_destination);
-    visitor.visit(m_pending_promises);
-    visitor.visit(m_listener);
-    visitor.visit(m_global_object);
-    visitor.visit(m_document_observer);
-    visitor.visit(m_audio_worklet);
-    visitor.visit(m_playing_sources);
-
-    if (state() == AudioContextState::Closed)
-        return;
-
-    // INTEROP: Blink keeps a ScriptProcessorNode with audioprocess listeners alive until its context is cleared
-    //          (ScriptProcessorNode::HasPendingActivity()), whether it is connected or not, so that a node script only
-    //          reaches through its listener keeps producing audio.
-    for (auto& node : m_script_processor_nodes) {
-        if (node.has_event_listener(HTML::EventNames::audioprocess))
-            visitor.visit(node);
-    }
-
-    // Keep a source and the nodes it feeds alive while its track is live, even after script drops the source.
-    // https://webaudio.github.io/web-audio-api/#AudioNode-actively-processing
-    // NB: A muted or disabled track only pauses its source, so it stays alive as well.
-    for (auto& source : m_media_stream_sources) {
-        if (source.has_live_input_track())
-            visitor.visit(source);
-    }
-}
-
-void BaseAudioContext::add_playing_source(GC::Ref<AudioNode> node)
-{
-    m_playing_sources.set(node->node_id(), node);
-}
-
-void BaseAudioContext::add_script_processor_node(ScriptProcessorNode& node)
-{
-    m_script_processor_nodes.set(node);
-}
-
-void BaseAudioContext::add_media_stream_source(MediaStreamAudioSourceNode& source)
-{
-    m_media_stream_sources.set(source);
-}
-
-void BaseAudioContext::handle_ended_sources(ReadonlySpan<NodeID> ended_nodes)
-{
-    for (auto node_id : ended_nodes) {
-        auto node = m_playing_sources.take(node_id);
-        if (!node.has_value())
-            continue;
-        queue_a_media_element_task(GC::create_function(heap(), [node = *node] {
-            node->dispatch_event(DOM::Event::create(node->relevant_global_object(), HTML::EventNames::ended));
-        }));
-    }
-}
-
-HTML::EnvironmentSettingsObject& BaseAudioContext::relevant_settings_object() const
-{
-    return HTML::relevant_settings_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
-}
-
-JS::Object& BaseAudioContext::relevant_global_object() const
-{
-    return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
-}
-
-GC::Ref<DOM::Event> BaseAudioContext::create_associated_event(Utf16FlyString const& event_name) const
-{
-    return DOM::Event::create(event_name,
-        HighResolutionTime::current_high_resolution_time(relevant_global_object()));
-}
-
-HTML::Window& BaseAudioContext::relevant_window() const
-{
-    auto* window = HTML::window_from_global_object(relevant_global_object());
-    VERIFY(window);
-    return *window;
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-audioworklet
-GC::Ref<AudioWorklet> BaseAudioContext::audio_worklet()
-{
-    if (!m_audio_worklet)
-        m_audio_worklet = AudioWorklet::create(*this);
-    return *m_audio_worklet;
-}
-
-void BaseAudioContext::shutdown_audio_worklet()
-{
-    if (!m_audio_worklet)
-        return;
-    if (auto scope = m_audio_worklet->audio_worklet_global_scope())
-        scope->shutdown_all_slots();
-}
-
-void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::statechange, event_handler);
-}
-
-WebIDL::CallbackType* BaseAudioContext::onstatechange()
-{
-    return event_handler_attribute(HTML::EventNames::statechange);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createanalyser
-WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> BaseAudioContext::create_analyser()
-{
-    return AnalyserNode::create(*this);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbiquadfilter
-WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BaseAudioContext::create_biquad_filter()
-{
-    // Factory method for a BiquadFilterNode representing a second order filter which can be configured as one of several common filter types.
-    return BiquadFilterNode::create(*this);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer
-WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> BaseAudioContext::create_buffer(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
-{
-    auto& vm = JS::VM::the();
-
-    // Creates an AudioBuffer of the given size. The audio data in the buffer will be zero-initialized (silent).
-    // A NotSupportedError exception MUST be thrown if any of the arguments is negative, zero, or outside its nominal range.
-    TRY(verify_audio_options_inside_nominal_range(number_of_channels, length, sample_rate));
-
-    if (length > NumericLimits<i32>::max() / sizeof(float))
-        return vm.throw_completion<JS::RangeError>(JS::ErrorType::InvalidLength, "typed array");
-
-    return TRY_OR_THROW_OOM(vm, AudioBuffer::create(number_of_channels, length, sample_rate));
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffersource
-WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> BaseAudioContext::create_buffer_source()
-{
-    // Factory method for a AudioBufferSourceNode.
-    return AudioBufferSourceNode::create(*this);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createchannelmerger
-WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> BaseAudioContext::create_channel_merger(WebIDL::UnsignedLong number_of_inputs)
-{
-    ChannelMergerOptions options { {}, number_of_inputs };
-
-    TRY(ChannelMergerNode::validate_options(options));
-    return ChannelMergerNode::create(*this, options);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createconstantsource
-WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> BaseAudioContext::create_constant_source()
-{
-    return ConstantSourceNode::create(*this);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createconvolver
-WebIDL::ExceptionOr<GC::Ref<ConvolverNode>> BaseAudioContext::create_convolver()
-{
-    return ConvolverNode::create(*this);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createdelay
-WebIDL::ExceptionOr<GC::Ref<DelayNode>> BaseAudioContext::create_delay(double max_delay_time)
-{
-    DelayOptions options { {}, {}, max_delay_time };
-
-    TRY(DelayNode::validate_options(options));
-    return DelayNode::create(*this, options);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createchannelsplitter
-WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> BaseAudioContext::create_channel_splitter(WebIDL::UnsignedLong number_of_outputs)
-{
-    ChannelSplitterOptions options { {}, number_of_outputs };
-
-    TRY(ChannelSplitterNode::validate_options(options));
-    return ChannelSplitterNode::create(*this, options);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createoscillator
-WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> BaseAudioContext::create_oscillator()
-{
-    // Factory method for an OscillatorNode.
-    return OscillatorNode::create(*this);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createdynamicscompressor
-WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> BaseAudioContext::create_dynamics_compressor()
-{
-    // Factory method for a DynamicsCompressorNode.
-    return DynamicsCompressorNode::create(*this);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-creategain
-WebIDL::ExceptionOr<GC::Ref<GainNode>> BaseAudioContext::create_gain()
-{
-    // Factory method for GainNode.
-    return GainNode::create(*this);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createiirfilter
-WebIDL::ExceptionOr<GC::Ref<IIRFilterNode>> BaseAudioContext::create_iir_filter(Vector<double> const& feedforward, Vector<double> const& feedback)
-{
-    // Factory method for an IIRFilterNode representing a general IIR Filter.
-    IIRFilterOptions options;
-    options.feedforward = feedforward;
-    options.feedback = feedback;
-    return IIRFilterNode::create(*this, options);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createpanner
-WebIDL::ExceptionOr<GC::Ref<PannerNode>> BaseAudioContext::create_panner()
-{
-    // Factory method for a PannerNode.
-    return PannerNode::create(*this);
-}
-
-WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> BaseAudioContext::create_periodic_wave(Vector<float> const& real, Vector<float> const& imag, PeriodicWaveConstraints const& constraints)
-{
-    PeriodicWaveOptions options;
-    options.real = real;
-    options.imag = imag;
-    options.disable_normalization = constraints.disable_normalization;
-
-    return PeriodicWave::create_for_constructor(*this, options);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-WebIDL::ExceptionOr<void> BaseAudioContext::decode_audio_data(GC::Ref<WebIDL::Promise> promise, ByteBuffer audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
-{
-    // FIXME: When decodeAudioData is called, the following steps MUST be performed on the control thread:
-
-    // 1. If this's relevant global object's associated Document is not fully active then return a
-    //    promise rejected with "InvalidStateError" DOMException.
-    auto const& associated_document = relevant_window().associated_document();
-    if (!associated_document.is_fully_active())
-        return WebIDL::InvalidStateError::create("The document is not fully active."_utf16);
-
-    // 3. Append promise to [[pending promises]] and queue a decoding operation.
-    m_pending_promises.append(promise);
-    queue_a_decoding_operation(promise, move(audio_data), success_callback, error_callback);
-
-    return {};
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability> promise, ByteBuffer audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
-{
-    // NB: The decoding thread is in the media server, which answers on this thread. Promise settlement and callbacks
-    //     are posted to the media element task source below.
-    if (audio_data.is_empty()) {
-        queue_a_media_element_task(GC::create_function(GC::Heap::the(), [this, promise, error_callback] {
-            auto& realm = WebIDL::promise_realm(promise);
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            auto error = WebIDL::EncodingError::create("Unable to decode."_utf16);
-            WebIDL::reject_promise(promise, error);
-            m_pending_promises.remove_first_matching([&promise](auto& pending_promise) { return pending_promise == promise; });
-            if (error_callback)
-                invoke_error_callback(realm, *error_callback, error);
-        }));
-        return;
-    }
-
-    auto queue_decode_error = [this, promise, error_callback] {
-        queue_a_media_element_task(GC::create_function(GC::Heap::the(), [this, promise, error_callback] {
-            auto& realm = WebIDL::promise_realm(promise);
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            auto error = WebIDL::EncodingError::create("Unable to decode."_utf16);
-            WebIDL::reject_promise(promise, error);
-            m_pending_promises.remove_first_matching([&promise](auto& pending_promise) { return pending_promise == promise; });
-            if (error_callback)
-                invoke_error_callback(realm, *error_callback, error);
-        }));
-    };
-
-    auto media_client = MediaClient::Client::acquire();
-    if (media_client.is_error()) {
-        queue_decode_error();
-        return;
-    }
-
-    // The answer arrives outside any task, so the context and callbacks are rooted until it does.
-    media_client.value()->decode_audio_data(audio_data, static_cast<u32>(sample_rate()), [self = GC::Root(*this), promise = GC::Root(promise), success_callback = GC::Root(success_callback), error_callback = GC::Root(error_callback), queue_decode_error = move(queue_decode_error)](Media::DecoderErrorOr<MediaClient::Client::DecodedAudioData> result) {
-        if (result.is_error()) {
-            queue_decode_error();
-            return;
-        }
-        auto decoded = result.release_value();
-        if (decoded.channel_count > NumericLimits<WebIDL::UnsignedLong>::max() || decoded.frame_count > NumericLimits<WebIDL::UnsignedLong>::max()) {
-            queue_decode_error();
-            return;
-        }
-
-        self->queue_a_media_element_task(GC::create_function(GC::Heap::the(), [self, promise, decoded = move(decoded), success_callback, queue_decode_error = move(queue_decode_error)] {
-            auto buffer = AudioBuffer::create(static_cast<WebIDL::UnsignedLong>(decoded.channel_count), static_cast<WebIDL::UnsignedLong>(decoded.frame_count), decoded.sample_rate);
-            if (buffer.is_error()) {
-                queue_decode_error();
-                return;
-            }
-            auto decoded_buffer = buffer.release_value();
-            for (u32 channel = 0; channel < decoded.channel_count; ++channel) {
-                auto channel_data = MUST(decoded_buffer->channel_data(channel));
-                auto samples = decoded.channel(channel);
-                ReadonlyBytes { reinterpret_cast<u8 const*>(samples.data()), samples.size() * sizeof(float) }.copy_to(channel_data);
-            }
-
-            auto& promise_realm = WebIDL::promise_realm(*promise);
-            HTML::TemporaryExecutionContext context(promise_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            resolve_audio_buffer_promise(promise_realm, *promise, decoded_buffer);
-            self->m_pending_promises.remove_first_matching([&promise](auto& pending_promise) { return pending_promise.ptr() == promise.ptr(); });
-            if (success_callback)
-                invoke_audio_buffer_callback(promise_realm, *success_callback, decoded_buffer);
-        }));
-    });
-}
-
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BaseAudioContext::decode_audio_data(JS::Realm& realm, GC::Ref<JS::ArrayBuffer> audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
-{
-    auto promise = WebIDL::create_promise_for(relevant_global_object());
-    if (audio_data->is_detached()) {
-        auto error = WebIDL::DataCloneError::create("Audio data is detached."_utf16);
-        WebIDL::reject_promise(promise, error);
-        if (error_callback) {
-            queue_a_media_element_task(GC::create_function(GC::Heap::the(), [&realm, error_callback, error] {
-                invoke_error_callback(realm, *error_callback, error);
-            }));
-        }
-        return promise;
-    }
-    auto bytes = TRY_OR_THROW_OOM(realm.vm(), audio_data->copy_to_byte_buffer());
-    TRY(JS::detach_array_buffer(realm.vm(), *audio_data));
-    TRY(decode_audio_data(promise, move(bytes), success_callback, error_callback));
-    return promise;
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createscriptprocessor
-WebIDL::ExceptionOr<GC::Ref<ScriptProcessorNode>> BaseAudioContext::create_script_processor(
-    WebIDL::UnsignedLong buffer_size,
-    WebIDL::UnsignedLong number_of_input_channels,
-    WebIDL::UnsignedLong number_of_output_channels)
-{
-    // The bufferSize parameter determines the buffer size in units of sample-frames. If it’s not passed in, or if the
-    // value is 0, then the implementation will choose the best buffer size for the given environment, which will be
-    // constant power of 2 throughout the lifetime of the node.
-    if (buffer_size == 0)
-        buffer_size = ScriptProcessorNode::DEFAULT_BUFFER_SIZE;
-
-    TRY(ScriptProcessorNode::validate_options(buffer_size, number_of_input_channels, number_of_output_channels));
-    return ScriptProcessorNode::create(*this, buffer_size, number_of_input_channels, number_of_output_channels);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createstereopanner
-WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> BaseAudioContext::create_stereo_panner()
-{
-    // Factory method for a StereoPannerNode.
-    return StereoPannerNode::create(*this);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createwaveshaper
-WebIDL::ExceptionOr<GC::Ref<WaveShaperNode>> BaseAudioContext::create_wave_shaper()
-{
-    // Factory method for a WaveShaperNode representing a non-linear distortion.
-    return WaveShaperNode::create(*this);
-}
-
-WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_range(float sample_rate)
-{
-    if (sample_rate < MIN_SAMPLE_RATE || sample_rate > MAX_SAMPLE_RATE)
-        return WebIDL::NotSupportedError::create("Sample rate is outside of allowed range"_utf16);
-
-    return {};
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer
-WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_range(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
-{
-    // A NotSupportedError exception MUST be thrown if any of the arguments is negative, zero, or outside its nominal range.
-
-    if (number_of_channels == 0)
-        return WebIDL::NotSupportedError::create("Number of channels must not be '0'"_utf16);
-
-    if (number_of_channels > MAX_NUMBER_OF_CHANNELS)
-        return WebIDL::NotSupportedError::create("Number of channels is greater than allowed range"_utf16);
-
-    if (length == 0)
-        return WebIDL::NotSupportedError::create("Length of buffer must be at least 1"_utf16);
-
-    TRY(verify_audio_options_inside_nominal_range(sample_rate));
-
-    return {};
-}
-
-void BaseAudioContext::queue_a_media_element_task(GC::Ref<GC::Function<void()>> steps)
-{
-    // Rendering completion callbacks run from the audio thread, outside any
-    // JavaScript execution context. Resolve the task target from this context's
-    // associated global rather than consulting the thread-local current ESO.
-    auto task = HTML::Task::create(m_media_element_event_task_source.source, relevant_settings_object().responsible_document(), steps);
+    auto& settings = HTML::relevant_settings_object(HTML::relevant_window_or_worker_global_scope(*global));
+    auto task = HTML::Task::create(source->source, settings.responsible_document(), GC::create_function(GC::Heap::the(), [cell = GC::make_root(*cell), invoke] {
+        invoke(JS::HostABI::vm_to_abi(JS::VM::the()), cell.ptr());
+    }));
     (void)HTML::main_thread_event_loop().task_queue().add(task);
 }
-
-void BaseAudioContext::queue_control_message(ControlMessage message)
+DOM::DocumentObserver* web_audio_context_observe_document(DOM::EventTarget* global, Bindings::RustInterfaceCell* context)
 {
-    m_control_message_queue->enqueue(move(message));
-    // FIXME: Should signal the rendering thread when implemented
+    auto* window = as_if<HTML::Window>(*global);
+    if (!window)
+        return nullptr;
+    // FIXME: Also handle the document becoming active again, e.g. when restored from the back/forward cache.
+    auto observer = DOM::DocumentObserver::create(window->associated_document());
+    observer->set_document_became_inactive([context] { web_rust_audio_context_document_inactive(context); });
+    return observer.ptr();
+}
+JS::Realm* web_audio_context_global_realm(DOM::EventTarget* global) { return &HTML::relevant_settings_object(HTML::relevant_window_or_worker_global_scope(*global)).realm(); }
+JS::Object* web_audio_context_global_wrapper(DOM::EventTarget* global) { return &HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*global)); }
+bool web_audio_context_document_is_fully_active(DOM::EventTarget* global) { return as<HTML::Window>(*global).associated_document().is_fully_active(); }
+bool web_audio_context_responsible_document_is_fully_active(DOM::EventTarget* global)
+{
+    auto& settings = HTML::relevant_settings_object(HTML::relevant_window_or_worker_global_scope(*global));
+    return settings.responsible_document() && settings.responsible_document()->is_fully_active();
+}
+bool web_audio_context_navigable_is_destroyed(DOM::EventTarget* global)
+{
+    auto navigable = as<HTML::Window>(*global).navigable();
+    return navigable && navigable->has_been_destroyed();
+}
+AudioWorklet* web_audio_context_get_worklet(BaseAudioContext* context) { return AudioWorklet::create(*context).ptr(); }
+void web_audio_context_shutdown_worklet(AudioWorklet* worklet)
+{
+    if (auto scope = worklet->audio_worklet_global_scope())
+        scope->shutdown_all_slots();
+}
+JS::Object* web_audio_context_wrap_worklet(JS::Realm* realm, AudioWorklet* worklet) { return Bindings::wrap(Bindings::host_defined_wrapper_world(*realm), *realm, GC::Ref { *worklet }).ptr(); }
+void web_audio_context_decode(ReadonlyBytes data, u32 sample_rate, GC::Cell* operation)
+{
+    auto media_client = MediaClient::Client::acquire();
+    if (media_client.is_error()) {
+        web_rust_audio_context_decoded(JS::HostABI::vm_to_abi(JS::VM::the()), operation, nullptr);
+        return;
+    }
+    media_client.value()->decode_audio_data(data, sample_rate, [operation = GC::make_root(*operation)](Media::DecoderErrorOr<MediaClient::Client::DecodedAudioData> result) {
+        auto* decoded = result.is_error() ? nullptr : new MediaClient::Client::DecodedAudioData(result.release_value());
+        web_rust_audio_context_decoded(JS::HostABI::vm_to_abi(JS::VM::the()), operation.ptr(), decoded);
+    });
+}
+void web_audio_context_decoded_destroy(MediaClient::Client::DecodedAudioData* decoded) { delete decoded; }
+void web_audio_context_decoded_metadata(MediaClient::Client::DecodedAudioData* decoded, u32* channels, u64* frames, u32* sample_rate)
+{
+    *channels = decoded->channel_count;
+    *frames = decoded->frame_count;
+    *sample_rate = decoded->sample_rate;
+}
+void web_audio_context_decoded_channel(MediaClient::Client::DecodedAudioData* decoded, u32 channel, ReadonlySpan<float>* samples)
+{
+    *samples = decoded->channel(channel);
+}
+
+void web_audio_context_report_exception(JS::Realm* realm, JSValue error)
+{
+    HTML::report_exception(JS::throw_completion(JS::HostABI::value_from_abi(error)), *realm);
 }
 
 }

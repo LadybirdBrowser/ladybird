@@ -13,7 +13,7 @@ use libjs_rust::api::{Trace, Vm};
 
 use super::audio_buffer::AudioBuffer;
 use crate::bindings::event_target::CppEvent;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi};
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::event::EventInit;
 
@@ -25,7 +25,7 @@ pub(crate) struct OfflineAudioCompletionEventInit {
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct OfflineAudioCompletionEvent {
-    event: CppEvent,
+    pub(crate) event: CppEvent,
     rendered_buffer: Option<Ref<AudioBuffer>>,
 }
 
@@ -65,15 +65,4 @@ impl OfflineAudioCompletionEvent {
             .rendered_buffer
             .expect("the event initializer supplies its required buffer"))
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_offline_audio_completion_event_create(
-    vm: &Vm,
-    event: *mut c_void,
-    buffer: *mut c_void,
-) -> *mut c_void {
-    let event = unsafe { CppEvent::from_raw(event) };
-    let buffer: Ref<AudioBuffer> = unsafe { cell_from_abi(buffer) };
-    OfflineAudioCompletionEvent::create(vm, event, buffer).event.as_ptr()
 }

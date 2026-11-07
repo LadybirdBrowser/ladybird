@@ -38,7 +38,7 @@ struct OfflineAudioRendererCallbacks;
 
 class WEB_API OfflineAudioRenderer final : public AtomicRefCounted<OfflineAudioRenderer> {
 public:
-    static NonnullRefPtr<OfflineAudioRenderer> create(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size);
+    static NonnullRefPtr<OfflineAudioRenderer> create(void const*, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size);
 
     ~OfflineAudioRenderer();
 
@@ -66,7 +66,7 @@ public:
     Vector<ReadonlySpan<float>> const& rendered_channels() const { return m_rendered_channels; }
 
 private:
-    OfflineAudioRenderer(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size);
+    OfflineAudioRenderer(void const*, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size);
 
     NonnullRefPtr<OfflineAudioRendererCallbacks> m_callbacks;
     void const* m_renderer { nullptr };

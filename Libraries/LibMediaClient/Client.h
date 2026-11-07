@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/kmalloc.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
@@ -63,6 +64,8 @@ public:
 
     // Linear PCM decoded by the server, one channel after another in shared memory.
     struct DecodedAudioData {
+        AK_ALLOC_WITH_KMALLOC;
+
         u32 sample_rate { 0 };
         u32 channel_count { 0 };
         u64 frame_count { 0 };

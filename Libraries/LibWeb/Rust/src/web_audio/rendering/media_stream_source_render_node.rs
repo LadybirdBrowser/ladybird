@@ -72,8 +72,10 @@ impl NodeProcessor for MediaStreamSourceRenderNode {
     }
 }
 
+/// # Safety
+/// The callbacks must accept the ring handles supplied in later node messages.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_media_stream_source(
+pub unsafe extern "C" fn web_audio_node_create_media_stream_source(
     node_id: u64,
     quantum_size: usize,
     callbacks: AudioFrameRingCallbacks,

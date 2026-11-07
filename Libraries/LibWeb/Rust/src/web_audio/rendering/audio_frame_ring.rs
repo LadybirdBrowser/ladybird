@@ -18,7 +18,7 @@ pub struct AudioFrameRingCallbacks {
     pub try_push: unsafe extern "C" fn(*mut c_void, ak::Span<'_, f32>) -> usize,
 }
 
-pub(crate) struct AudioFrameRing {
+pub struct AudioFrameRing {
     pub owner: SharedCppObject,
     pub callbacks: AudioFrameRingCallbacks,
 }

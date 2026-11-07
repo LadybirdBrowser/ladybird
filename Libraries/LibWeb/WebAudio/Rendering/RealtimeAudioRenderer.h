@@ -38,7 +38,7 @@ public:
     // renderer's burst size, which this constant determines.
     static constexpr u32 TARGET_LATENCY_MS = 100;
 
-    static NonnullRefPtr<RealtimeAudioRenderer> create(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory>);
+    static NonnullRefPtr<RealtimeAudioRenderer> create(void const*, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory>);
     ~RealtimeAudioRenderer();
 
     // The callback below is set on the control thread before rendering starts and is always invoked on the control
@@ -57,7 +57,7 @@ public:
     double output_time_played() const;
 
 private:
-    RealtimeAudioRenderer(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory>);
+    RealtimeAudioRenderer(void const*, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory>);
 
     void prepare_to_start_rendering();
     void set_playback_stream(NonnullRefPtr<Audio::PlaybackStream>);

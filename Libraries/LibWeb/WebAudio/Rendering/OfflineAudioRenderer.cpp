@@ -18,12 +18,12 @@ struct OfflineAudioRendererCallbacks : AtomicRefCounted<OfflineAudioRendererCall
     Function<void(Vector<NodeID> const&)> on_sources_ended;
 };
 
-NonnullRefPtr<OfflineAudioRenderer> OfflineAudioRenderer::create(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size)
+NonnullRefPtr<OfflineAudioRenderer> OfflineAudioRenderer::create(void const* control_message_queue, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size)
 {
-    return adopt_ref(*new OfflineAudioRenderer(move(control_message_queue), destination_node_id, number_of_channels, length, sample_rate, quantum_size));
+    return adopt_ref(*new OfflineAudioRenderer(control_message_queue, destination_node_id, number_of_channels, length, sample_rate, quantum_size));
 }
 
-OfflineAudioRenderer::OfflineAudioRenderer(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size)
+OfflineAudioRenderer::OfflineAudioRenderer(void const* control_message_queue, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size)
     : m_callbacks(adopt_ref(*new OfflineAudioRendererCallbacks))
 {
     RustFFI::RendererCallbacks callbacks {
@@ -51,7 +51,7 @@ OfflineAudioRenderer::OfflineAudioRenderer(NonnullRefPtr<ControlMessageQueue> co
             callbacks.on_sources_ended(nodes);
         },
     };
-    m_renderer = RustFFI::web_audio_offline_renderer_create(control_message_queue->rust_queue(), destination_node_id.value(), number_of_channels, length, sample_rate, quantum_size, callbacks);
+    m_renderer = RustFFI::web_audio_offline_renderer_create(control_message_queue, destination_node_id.value(), number_of_channels, length, sample_rate, quantum_size, callbacks);
     m_rendered_channels.resize(number_of_channels);
     for (size_t channel = 0; channel < number_of_channels; ++channel)
         RustFFI::web_audio_offline_renderer_channel(m_renderer, channel, &m_rendered_channels[channel]);

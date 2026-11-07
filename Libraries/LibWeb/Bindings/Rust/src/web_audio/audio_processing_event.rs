@@ -13,7 +13,7 @@ use libjs_rust::api::{Trace, Vm};
 
 use super::audio_buffer::AudioBuffer;
 use crate::bindings::event_target::CppEvent;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi};
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::event::EventInit;
 
@@ -28,7 +28,7 @@ pub(crate) struct AudioProcessingEventInit {
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct AudioProcessingEvent {
-    event: CppEvent,
+    pub(crate) event: CppEvent,
     playback_time: f64,
     input_buffer: Ref<AudioBuffer>,
     output_buffer: Ref<AudioBuffer>,
@@ -90,20 +90,4 @@ impl AudioProcessingEvent {
     pub(crate) fn output_buffer(&self, _: &mut CallContext) -> WebIdlResult<Ref<AudioBuffer>> {
         Ok(self.output_buffer)
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_processing_event_create(
-    vm: &Vm,
-    event: *mut c_void,
-    playback_time: f64,
-    input: *mut c_void,
-    output: *mut c_void,
-) -> *mut c_void {
-    let event = unsafe { CppEvent::from_raw(event) };
-    let input: Ref<AudioBuffer> = unsafe { cell_from_abi(input) };
-    let output: Ref<AudioBuffer> = unsafe { cell_from_abi(output) };
-    AudioProcessingEvent::create(vm, event, playback_time, input, output)
-        .event
-        .as_ptr()
 }

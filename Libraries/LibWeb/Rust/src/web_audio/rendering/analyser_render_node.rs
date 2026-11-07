@@ -59,8 +59,10 @@ impl NodeProcessor for AnalyserRenderNode {
     }
 }
 
+/// # Safety
+/// The ring handle and callbacks must refer to the same live LibAudio ring.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_create_analyser(
+pub unsafe extern "C" fn web_audio_node_create_analyser(
     node_id: u64,
     quantum_size: usize,
     ring: FfiSharedCppObject,

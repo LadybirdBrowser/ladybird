@@ -4,23 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/QuickSort.h>
 #include <LibAudio/SpscAudioFrameRing.h>
-#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
 #include <LibMediaCodecs/AudioBlock.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
-#include <LibWeb/WebAudio/AudioContext.h>
-#include <LibWeb/WebAudio/BaseAudioContext.h>
-#include <LibWeb/WebAudio/MediaStreamAudioSourceNode.h>
-#include <LibWeb/WebAudio/Rendering/MediaStreamSourceRenderNode.h>
-#include <LibWeb/WebIDL/DOMException.h>
-
+#include <LibWeb/WebAudio/RustFFI.h>
 namespace Web::WebAudio {
 
-GC_DEFINE_ALLOCATOR(MediaStreamAudioSourceNode);
-
+extern "C" MediaCapture::MediaStream* web_audio_media_source_stream_from_wrapper(JS::Object*);
+extern "C" JS::Object* web_audio_media_source_stream_wrap(JS::Realm*, MediaCapture::MediaStream*);
+MediaCapture::MediaStream* web_audio_media_source_stream_from_wrapper(JS::Object* object) { return Bindings::impl_from<MediaCapture::MediaStream>(object); }
+JS::Object* web_audio_media_source_stream_wrap(JS::Realm* realm, MediaCapture::MediaStream* object) { return Bindings::wrap(Bindings::host_defined_wrapper_world(*realm), *realm, GC::Ref { *object }).ptr(); }
 // Drop whole incoming blocks that cannot fit so the producer never mutates the consumer index.
 static void push_frames_if_enough_room(Audio::SpscAudioFrameRing& ring, ReadonlySpan<float> interleaved_samples)
 {
@@ -32,78 +30,48 @@ static void push_frames_if_enough_room(Audio::SpscAudioFrameRing& ring, Readonly
     VERIFY(frames_pushed == frame_count);
 }
 
-MediaStreamAudioSourceNode::MediaStreamAudioSourceNode(GC::Ref<AudioContext> context, MediaStreamAudioSourceOptions const& options)
-    : AudioNode(context)
-    , m_media_stream(*options.media_stream)
+extern "C" void web_audio_media_source_audio_tracks(MediaCapture::MediaStream*, void*, void (*)(void*, void*));
+extern "C" bool web_audio_media_source_track_id_less(MediaCapture::MediaStreamTrack*, MediaCapture::MediaStreamTrack*);
+extern "C" u32 web_audio_media_source_track_channels(MediaCapture::MediaStreamTrack*);
+extern "C" bool web_audio_media_source_has_live_track(MediaCapture::MediaStreamTrack*);
+extern "C" RustFFI::FfiSharedCppObject web_audio_media_source_ring(u32);
+extern "C" void web_audio_media_source_ring_callbacks(RustFFI::AudioFrameRingCallbacks*);
+extern "C" RustFFI::FfiSharedCppObject web_audio_media_source_attach(MediaCapture::MediaStreamTrack*, Audio::SpscAudioFrameRing*, float);
+extern "C" void web_audio_media_source_detach(MediaCapture::MediaStreamTrack*, MediaCapture::AudioFrameSink*);
+void web_audio_media_source_audio_tracks(MediaCapture::MediaStream* stream, void* context, void (*callback)(void*, void*))
 {
+    for (auto track : stream->get_audio_tracks())
+        callback(context, track.ptr());
 }
-
-MediaStreamAudioSourceNode::~MediaStreamAudioSourceNode() = default;
-
-// https://webaudio.github.io/web-audio-api/#dom-mediastreamaudiosourcenode-mediastreamaudiosourcenode
-WebIDL::ExceptionOr<GC::Ref<MediaStreamAudioSourceNode>> MediaStreamAudioSourceNode::create(GC::Ref<AudioContext> context, MediaStreamAudioSourceOptions const& options)
+bool web_audio_media_source_track_id_less(MediaCapture::MediaStreamTrack* a, MediaCapture::MediaStreamTrack* b) { return a->id() < b->id(); }
+u32 web_audio_media_source_track_channels(MediaCapture::MediaStreamTrack* track) { return track->channel_count(); }
+bool web_audio_media_source_has_live_track(MediaCapture::MediaStreamTrack* track) { return track->track_ready_state() == MediaCapture::MediaStreamTrackState::Live; }
+RustFFI::FfiSharedCppObject web_audio_media_source_ring(u32 channels)
 {
-    // 1. If the mediaStream member of options does not reference a MediaStream that has at least one MediaStreamTrack
-    //    whose kind attribute has the value "audio", throw an InvalidStateError and abort these steps. Else, let this
-    //    stream be inputStream.
-    auto audio_tracks = options.media_stream->get_audio_tracks();
-    if (audio_tracks.is_empty())
-        return WebIDL::InvalidStateError::create("MediaStream has no audio tracks"_utf16);
-
-    // 2. Let tracks be the list of all MediaStreamTracks of inputStream that have a kind of "audio".
-    // 3. Sort the elements in tracks based on their id attribute using an ordering on sequences of code unit values.
-    quick_sort(audio_tracks, [](auto const& a, auto const& b) { return a->id() < b->id(); });
-
-    // 4. Initialize the AudioNode this, with context and options as arguments.
-    auto node = GC::Heap::the().allocate<MediaStreamAudioSourceNode>(context, options);
-
-    // https://webaudio.github.io/web-audio-api/#MediaStreamAudioSourceNode
-    AudioNodeDefaultOptions default_options;
-    default_options.channel_count = 2;
-    default_options.channel_count_mode = ChannelCountMode::Max;
-    default_options.channel_interpretation = ChannelInterpretation::Speakers;
-    TRY(node->initialize_audio_node_options({}, default_options));
-
-    // 5. Set an internal slot [[input track]] on this MediaStreamAudioSourceNode to be the first element of tracks.
-    //    This is the track used as the input audio for this MediaStreamAudioSourceNode.
-    node->m_input_track = audio_tracks.first();
-
-    node->queue_render_node_creation(make<Rendering::MediaStreamSourceRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size()));
-    node->attach_input_track();
-    context->add_media_stream_source(*node);
-
-    return node;
+    return { new Audio::SpscAudioFrameRing(3 * 960, channels), [](void* ring) { static_cast<Audio::SpscAudioFrameRing*>(ring)->ref(); }, [](void* ring) { static_cast<Audio::SpscAudioFrameRing*>(ring)->unref(); } };
 }
-
-WebIDL::ExceptionOr<GC::Ref<MediaStreamAudioSourceNode>> MediaStreamAudioSourceNode::create_for_constructor(GC::Ref<AudioContext> context, MediaStreamAudioSourceOptions const& options)
+void web_audio_media_source_ring_callbacks(RustFFI::AudioFrameRingCallbacks* callbacks)
 {
-    return create(context, options);
+    *callbacks = {
+        [](void* ring) { return static_cast<Audio::SpscAudioFrameRing*>(ring)->channel_count(); },
+        [](void* ring) { return static_cast<Audio::SpscAudioFrameRing*>(ring)->frames_available(); },
+        [](void* ring) { return static_cast<Audio::SpscAudioFrameRing*>(ring)->frames_free(); },
+        [](void* ring, Span<float> samples) { return static_cast<Audio::SpscAudioFrameRing*>(ring)->try_pop(samples); },
+        [](void* ring, ReadonlySpan<float> samples) { return static_cast<Audio::SpscAudioFrameRing*>(ring)->try_push(samples); },
+    };
 }
-
-void MediaStreamAudioSourceNode::attach_input_track()
+RustFFI::FfiSharedCppObject web_audio_media_source_attach(MediaCapture::MediaStreamTrack* track, Audio::SpscAudioFrameRing* ring, float sample_rate)
 {
-    VERIFY(m_input_track);
-
-    // The ring must absorb at least one PulseAudio fragment (960 frames, 20 ms at 48 kHz) per
-    // push; three fragments of headroom (rounded up to 4096 frames by the ring) keep the
-    // producer ahead of render-thread scheduling jitter without accumulating latency, since
-    // the render node drains a quantum at a time and holds the steady-state fill near one
-    // fragment.
-    static constexpr size_t ring_capacity_in_frames = 3 * 960;
-    auto channel_count = m_input_track->channel_count() == 1 ? 1u : 2u;
-    m_ring = adopt_ref(*new Audio::SpscAudioFrameRing(ring_capacity_in_frames, channel_count));
-
-    context()->queue_control_message(NodeMessage { SetMediaStreamSourceRing { node_id(), m_ring, channel_count } });
-
+    auto channel_count = ring->channel_count();
     auto converter = Media::FFmpeg::FFmpegAudioConverter::try_create();
     if (converter.is_error())
-        return;
+        return { nullptr, [](void*) { }, [](void*) { } };
     auto channel_map = channel_count == 1 ? Audio::ChannelMap::mono() : Audio::ChannelMap::stereo();
-    if (converter.value()->set_output_sample_specification(Audio::SampleSpecification(static_cast<u32>(context()->sample_rate()), channel_map)).is_error())
-        return;
+    if (converter.value()->set_output_sample_specification(Audio::SampleSpecification(static_cast<u32>(sample_rate), channel_map)).is_error())
+        return { nullptr, [](void*) { }, [](void*) { } };
 
-    m_sink = adopt_ref(*new MediaCapture::AudioFrameSink);
-    m_sink->on_frames = [ring = m_ring, converter = converter.release_value(), frames_received = u64 { 0 }, scratch = Vector<float>()](float const* samples, size_t frame_count, u8 channels, u32 sample_rate) mutable {
+    auto sink = adopt_ref(*new MediaCapture::AudioFrameSink);
+    sink->on_frames = [ring = NonnullRefPtr { *ring }, converter = converter.release_value(), frames_received = u64 { 0 }, scratch = Vector<float>()](float const* samples, size_t frame_count, u8 channels, u32 sample_rate) mutable {
         // Own the conversion state and reference only the ring, never the GC-managed source node.
         if (frame_count == 0 || channels == 0 || sample_rate == 0)
             return;
@@ -132,29 +100,9 @@ void MediaStreamAudioSourceNode::attach_input_track()
             push_frames_if_enough_room(*ring, scratch);
         }
     };
-    m_input_track->add_audio_sink(*m_sink);
+    track->add_audio_sink(*sink);
+    return { &sink.leak_ref(), [](void* sink) { static_cast<MediaCapture::AudioFrameSink*>(sink)->ref(); }, [](void* sink) { static_cast<MediaCapture::AudioFrameSink*>(sink)->unref(); } };
 }
-
-bool MediaStreamAudioSourceNode::has_live_input_track() const
-{
-    return m_input_track && m_input_track->track_ready_state() == MediaCapture::MediaStreamTrackState::Live;
-}
-
-void MediaStreamAudioSourceNode::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_media_stream);
-    visitor.visit(m_input_track);
-}
-
-void MediaStreamAudioSourceNode::finalize()
-{
-    Base::finalize();
-
-    // NB: Finalizers run before any dead cell is destroyed, so detaching from the input track
-    //     is safe even when the track is collected in the same garbage collection cycle.
-    if (m_input_track && m_sink)
-        m_input_track->remove_audio_sink(*m_sink);
-}
+void web_audio_media_source_detach(MediaCapture::MediaStreamTrack* track, MediaCapture::AudioFrameSink* sink) { track->remove_audio_sink(*sink); }
 
 }

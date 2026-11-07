@@ -8,7 +8,7 @@ dictionary DynamicsCompressorOptions : AudioNodeOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#DynamicsCompressorNode
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface DynamicsCompressorNode : AudioNode {
     constructor(BaseAudioContext context,
                 optional DynamicsCompressorOptions options = {});

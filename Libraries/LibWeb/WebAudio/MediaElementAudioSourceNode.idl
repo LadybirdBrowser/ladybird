@@ -4,8 +4,8 @@ dictionary MediaElementAudioSourceOptions {
 };
 
 // https://webaudio.github.io/web-audio-api/#MediaElementAudioSourceNode
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface MediaElementAudioSourceNode : AudioNode {
     constructor (AudioContext context, MediaElementAudioSourceOptions options);
-    [DirectGetter, SameObject] readonly attribute HTMLMediaElement mediaElement;
+    [SameObject] readonly attribute HTMLMediaElement mediaElement;
 };

@@ -13,22 +13,20 @@
 )]
 
 use std::cell::RefCell;
-use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
 use ak::Utf16String;
 use libjs_rust::api::{
     ArrayBuffer, ArrayBufferOrder, ArrayBufferShared, DataBlock, EmbedderCell, ErrorKind, ErrorType,
-    ExternalPrimitiveStorage, ForeignCellSlot, Gc, GcWeak, RawNativeFunctionResult, Trace, TypedArrayBase,
-    TypedArrayKind, Value, Vm, create_typed_array_on_buffer, detach_array_buffer,
-    make_typed_array_with_buffer_witness_record,
+    ExternalPrimitiveStorage, ForeignCellSlot, Gc, GcWeak, Trace, TypedArrayBase, TypedArrayKind, Vm,
+    create_typed_array_on_buffer, detach_array_buffer, make_typed_array_with_buffer_witness_record,
 };
 use libjs_rust::api::{OutOfMemory, OwnedBackingStore};
 use libjs_rust::api::{is_typed_array_out_of_bounds, typed_array_byte_length};
 use libweb_rust::web_audio::rendering::audio_data::AudioBufferContents;
 
-use crate::bindings::interface::{Ref, Wrappable, Wrapped, allocate, cell_from_abi, cell_into_abi, realm_arguments};
+use crate::bindings::interface::{Ref, Wrappable, Wrapped, allocate, cell_into_abi};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 pub(crate) struct AudioBufferOptions {
@@ -123,29 +121,16 @@ fn prune_live_channel_views(views: &mut Vec<AudioBufferChannelView>) {
     views.retain(|entry| entry.array_buffer.get().is_some());
 }
 
-unsafe extern "C" {
-    fn web_audio_verify_buffer_options(
-        realm: *mut c_void,
-        number_of_channels: u32,
-        length: u32,
-        sample_rate: f32,
-    ) -> RawNativeFunctionResult;
-}
-
 impl AudioBuffer {
     pub(crate) fn construct(cx: &mut CallContext, options: AudioBufferOptions) -> WebIdlResult<Ref<Self>> {
         let vm = cx.vm();
 
         // 1. If any of the values in options lie outside its nominal range, throw a NotSupportedError exception and abort the following steps.
-        unsafe {
-            web_audio_verify_buffer_options(
-                cx.realm().as_ptr().cast(),
-                options.number_of_channels,
-                options.length,
-                options.sample_rate,
-            )
-        }
-        .into_completion()?;
+        super::base_audio_context::BaseAudioContext::verify_audio_options_inside_nominal_range(
+            options.number_of_channels,
+            options.length,
+            options.sample_rate,
+        )?;
         if options.length as usize > i32::MAX as usize / size_of::<f32>() {
             return Err(vm
                 .throw_completion::<()>(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"typed array"])
@@ -512,85 +497,4 @@ impl AudioBuffer {
         }
         Ok(())
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_buffer_create(
-    vm: &Vm,
-    channels: u32,
-    length: u32,
-    sample_rate: f32,
-    output: *mut *mut c_void,
-) -> bool {
-    match AudioBuffer::create(vm, channels, length, sample_rate) {
-        Ok(buffer) => {
-            unsafe {
-                *output = cell_into_abi(buffer);
-            }
-            true
-        }
-        Err(_) => false,
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_buffer_sample_rate(cell: *mut c_void) -> f32 {
-    let buffer: Ref<AudioBuffer> = unsafe { cell_from_abi(cell) };
-    buffer.sample_rate
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_buffer_length(cell: *mut c_void) -> u32 {
-    let buffer: Ref<AudioBuffer> = unsafe { cell_from_abi(cell) };
-    buffer.length
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_buffer_channel_count(cell: *mut c_void) -> u32 {
-    let buffer: Ref<AudioBuffer> = unsafe { cell_from_abi(cell) };
-    buffer.channels.borrow().len() as u32
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_buffer_channel(
-    cell: *mut c_void,
-    channel: u32,
-    output: *mut ak::SpanMut<'static, u8>,
-) -> bool {
-    let buffer: Ref<AudioBuffer> = unsafe { cell_from_abi(cell) };
-    match buffer.channel_data(channel) {
-        Ok((pointer, length)) => {
-            unsafe {
-                *output = ak::SpanMut::new(ak::slice_from_raw_parts_mut(pointer, length));
-            }
-            true
-        }
-        Err(_) => false,
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_buffer_get_channel_data(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    cell: *mut c_void,
-    channel: u32,
-) -> RawNativeFunctionResult {
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    let buffer: Ref<AudioBuffer> = unsafe { cell_from_abi(cell) };
-    let mut cx = CallContext::new(vm, realm);
-    RawNativeFunctionResult::from_completion(
-        AudioBuffer::get_channel_data(&buffer, &mut cx, channel)
-            .map(|view| Value::from_object(view.upcast::<libjs_rust::api::Object>()))
-            .map_err(|error| error.throw(&cx)),
-    )
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_buffer_acquire_contents(
-    vm: &Vm,
-    cell: *mut c_void,
-) -> *const AudioBufferContents {
-    let buffer: Ref<AudioBuffer> = unsafe { cell_from_abi(cell) };
-    AudioBuffer::acquire_contents(buffer, vm).map_or(std::ptr::null(), Arc::into_raw)
 }

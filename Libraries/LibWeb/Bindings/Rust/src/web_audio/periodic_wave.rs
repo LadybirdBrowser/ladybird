@@ -12,15 +12,14 @@
 )]
 
 use std::cell::RefCell;
-use std::ffi::c_void;
 use std::sync::Arc;
 
 use ak::Utf16String;
-use libjs_rust::api::{ErrorKind, ErrorType, RawNativeFunctionResult, Trace, Value, Vm};
+use libjs_rust::api::{ErrorKind, ErrorType, Trace, Vm};
 use libweb_rust::web_audio::rendering::audio_data::PeriodicWaveData;
 
-use crate::bindings::conversions::CppInterface;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, realm_arguments};
+use super::base_audio_context::AnyBaseAudioContext;
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 pub(crate) struct PeriodicWaveConstraints {
@@ -83,7 +82,7 @@ fn zeroed_float_vector(vm: &Vm, size: usize) -> WebIdlResult<Vec<f32>> {
 impl PeriodicWave {
     pub(crate) fn construct(
         cx: &mut CallContext,
-        _context: CppInterface,
+        _context: AnyBaseAudioContext,
         options: PeriodicWaveOptions,
     ) -> WebIdlResult<Ref<Self>> {
         Self::create(cx, options)
@@ -180,44 +179,4 @@ impl PeriodicWave {
             normalize: state.normalize,
         })
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_periodic_wave_create(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    has_real: bool,
-    real: ak::Span<'_, f32>,
-    has_imag: bool,
-    imag: ak::Span<'_, f32>,
-    disable_normalization: bool,
-    output: *mut *mut c_void,
-) -> RawNativeFunctionResult {
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    let mut cx = CallContext::new(vm, realm);
-    let options = PeriodicWaveOptions {
-        parent: PeriodicWaveConstraints { disable_normalization },
-        real: has_real.then(|| real.as_slice().to_vec()),
-        imag: has_imag.then(|| imag.as_slice().to_vec()),
-    };
-    let result = PeriodicWave::create(&mut cx, options).map(|wave| {
-        unsafe {
-            *output = cell_into_abi(wave);
-        }
-        Value::UNDEFINED
-    });
-    RawNativeFunctionResult::from_completion(result.map_err(|exception| exception.throw(&cx)))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_periodic_wave_render_data(
-    cell: *mut c_void,
-    normalize: *mut bool,
-) -> *const PeriodicWaveData {
-    let wave: Ref<PeriodicWave> = unsafe { cell_from_abi(cell) };
-    let data = wave.render_data();
-    unsafe {
-        *normalize = data.normalize;
-    }
-    Arc::into_raw(data)
 }
