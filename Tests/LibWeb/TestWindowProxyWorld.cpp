@@ -131,7 +131,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     EXPECT(extension_proxy == browsing_context->window_proxy_for(*extension_world, extension_realm));
     EXPECT(extension_proxy->window().ptr() == window.ptr());
     EXPECT(extension_proxy->object().shape().prototype() == nullptr);
-    EXPECT(&Web::Bindings::this_value_realm(extension_realm, &extension_proxy->object()) == &extension_realm);
+    EXPECT(&extension_proxy->realm() == &extension_realm);
 
     auto& extension_wrapper = Web::Bindings::platform_object_for_window(*window, extension_realm);
     EXPECT(&extension_wrapper != &main_wrapper);

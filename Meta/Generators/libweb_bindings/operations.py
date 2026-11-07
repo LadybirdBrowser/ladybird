@@ -409,7 +409,7 @@ def write_stringifier(
         )
     out.write(
         f"""    auto* idl_object = TRY(impl_from(vm, this_value));
-    auto& this_object_realm = this_value_realm(realm, this_value);
+    auto& this_object_realm = this_value.as_object().shape().realm();
     auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return {stringifier_call}; }}));
     return {to_javascript_value(stringifier_type, "R", includes, context, "this_object_realm")};
 }}
@@ -486,12 +486,14 @@ def write_operation(
 """
             )
         impl_from_this_value = "TRY(impl_from(vm, this_value))"
+        this_object_realm = "this_value.as_object().shape().realm()"
         if on_remote_window:
             out.write(f"    {the_remote_window(includes, 'this_value')}\n")
             impl_from_this_value = f"remote_window ? nullptr : {impl_from_this_value}"
+            this_object_realm = f"remote_window ? realm : {this_object_realm}"
         out.write(
             f"""    [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = {impl_from_this_value};
-    [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
+    [[maybe_unused]] auto& this_object_realm = {this_object_realm};
 
 """
         )
@@ -792,7 +794,7 @@ def write_default_to_json_operation(
     if (this_value.is_nullish())
         this_value = &realm.global_object();
     [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
-    [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
+    [[maybe_unused]] auto& this_object_realm = this_value.as_object().shape().realm();
 
     // 4. Let result be OrdinaryObjectCreate(%Object.prototype%).
     auto result = JS::Object::create(realm, realm.intrinsics().object_prototype());

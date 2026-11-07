@@ -63,7 +63,6 @@ WEB_API GC::Ref<JS::HostObject> create_wrapper_for_wrappable(JS::Realm& wrapper_
 WEB_API JS::Realm& wrapper_realm_for_wrappable(WrapperWorld const& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
 WEB_API JS::Realm& wrapper_realm_for_node(WrapperWorld const& wrapper_world, JS::Realm& preferred_realm, DOM::Node&);
 WEB_API GC::Ref<JS::HostObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
-WEB_API JS::Realm& this_value_realm(JS::Realm& fallback_realm, JS::Value);
 WEB_API JS::ThrowCompletionOr<void> set_prototype_of_cached_main_world_wrapper(Wrappable&, JS::Object&);
 WEB_API void preserve_wrapper(Wrappable&, JS::HostObject&);
 WEB_API bool wrapper_is_preserved(JS::HostObject const&);

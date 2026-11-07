@@ -162,7 +162,7 @@ DOM::EventTarget* current_target_global(WebIDL::CallbackType& callback, DOM::Eve
     auto wrapper = current_target_wrapper(callback_realm, event);
     if (!wrapper)
         return nullptr;
-    return HTML::window_from_global_object(this_value_realm(callback_realm, wrapper).global_object());
+    return HTML::window_from_global_object(wrapper->shape().realm().global_object());
 }
 
 void report_exception_for_callback(WebIDL::CallbackType& callback, JS::Value exception)
@@ -175,7 +175,7 @@ JS::Completion invoke_event_listener(WebIDL::CallbackType& callback, DOM::Event&
 {
     auto& callback_realm = callback.associated_realm();
     auto this_value = current_target_wrapper(callback_realm, event);
-    auto& event_realm = this_value ? this_value_realm(callback_realm, this_value) : callback_realm;
+    auto& event_realm = this_value ? this_value->shape().realm() : callback_realm;
     auto wrapped_event = Bindings::event(event_realm, GC::Ref { event });
 
     static Utf16FlyString const& handle_event = *new Utf16FlyString("handleEvent"_utf16_fly_string);
@@ -201,7 +201,7 @@ JS::Completion invoke_event_handler(WebIDL::CallbackType& callback, DOM::Event& 
 
     auto& callback_realm = callback.associated_realm();
     auto this_value = current_target_wrapper(callback_realm, event);
-    auto& event_realm = this_value ? this_value_realm(callback_realm, this_value) : callback_realm;
+    auto& event_realm = this_value ? this_value->shape().realm() : callback_realm;
     auto wrapped_event = Bindings::event(event_realm, GC::Ref { event });
 
     return WebIDL::invoke_callback(callback, this_value.ptr(), { { wrapped_event } });
