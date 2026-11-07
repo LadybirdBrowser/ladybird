@@ -17,6 +17,7 @@ pub mod builder;
 pub mod bytecode;
 pub mod code;
 pub mod codegen;
+pub mod compile_pool;
 pub mod coverage;
 pub mod fast_hash;
 pub mod inline_vec;
