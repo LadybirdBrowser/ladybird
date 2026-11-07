@@ -117,7 +117,10 @@ pub fn create_audio_worklet_render_node(
     pipe: Arc<AudioWorkletPipe>,
     params: Vec<Arc<RenderAudioParam>>,
 ) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, input_count, output_count, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, input_count, output_count, quantum_size, 1);
+    for (output, &channel_capacity) in output_channel_capacities.iter().enumerate() {
+        data.reserve_output_channels(output, channel_capacity as usize);
+    }
 
     // Channel configuration must be set here: the SetChannelConfig messages queued during node
     // construction arrive before our AddNode and are dropped by the graph.

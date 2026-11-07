@@ -9,6 +9,7 @@ use super::audio_frame_ring::{AudioFrameRing, AudioFrameRingCallbacks};
 use super::render_graph::RenderGraph;
 use super::render_node::*;
 use super::render_nodes::{BusRef, NodeProcessor, node_handle};
+use crate::web_audio::MAX_NUMBER_OF_CHANNELS;
 use crate::web_audio::control_message::FfiSharedCppObject;
 
 // https://webaudio.github.io/web-audio-api/#AnalyserNode
@@ -61,7 +62,8 @@ pub unsafe fn create_analyser_render_node(
         callbacks,
     };
     assert_eq!(time_domain_ring.channel_count(), 1);
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
 
     // NB: The control thread queues SetChannelConfig before AddNode and messages addressed to
     //     unknown nodes are dropped, so the constructor must establish the node's channel

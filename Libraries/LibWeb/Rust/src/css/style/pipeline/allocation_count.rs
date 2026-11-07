@@ -32,7 +32,7 @@ thread_local! {
 
 /// How many times a thread allocated or reallocated.
 #[derive(Clone, Copy, Debug)]
-pub(super) struct Allocations {
+pub(crate) struct Allocations {
     pub everywhere: u64,
     /// Those inside a `StyleSection`: invalidating, restyling and installing.
     pub in_style: u64,
@@ -111,7 +111,7 @@ unsafe impl GlobalAlloc for CountingAllocator {
 
 /// Runs `body`, answering what it answers and how many times the calling thread allocated or
 /// reallocated meanwhile. What other threads allocate is not counted.
-pub(super) fn count_allocations<T>(body: impl FnOnce() -> T) -> (T, Allocations) {
+pub(crate) fn count_allocations<T>(body: impl FnOnce() -> T) -> (T, Allocations) {
     static PRINTS_BACKTRACES_CACHE: OnceLock<bool> = OnceLock::new();
     let prints_backtraces =
         *PRINTS_BACKTRACES_CACHE.get_or_init(|| std::env::var_os("LIBWEB_TEST_ALLOCATION_BACKTRACES").is_some());
