@@ -225,7 +225,7 @@ impl Agent {
         // NB: An interrupt of the agent's VM has to stop the store's code too.
         // SAFETY: The word is in the boxed store, which does not move, and shut_down() clears it before the store goes.
         unsafe { vm.set_wasm_stack_limit_word(store.stack_limit_word()) };
-        store.wait_interrupt = Some(vm.wait_interrupt().clone());
+        store.agent_waiter = Some(vm.agent_waiter().clone());
 
         // NB: The store is the agent's, whose [[CanBlock]] decides whether memory.atomic.wait may block.
         store.can_block = libjs_rust::api::agent_can_suspend(vm);

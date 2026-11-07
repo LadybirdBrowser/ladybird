@@ -28,7 +28,7 @@ use crate::runtime::typed_array::{
     ContentType, Kind, TypedArrayBase, TypedArrayWithBufferWitness, is_typed_array_out_of_bounds,
     make_typed_array_with_buffer_witness_record, typed_array_from, typed_array_length, validate_typed_array,
 };
-use ak::futex::AtomicWaitResult;
+use ak::waiter_list::AtomicWaitResult;
 
 #[repr(C)]
 #[derive(Trace)]
@@ -229,9 +229,8 @@ fn do_wait(
     }
 
     // 11. Let block be buffer.[[ArrayBufferData]].
-    // 12-24. AD-HOC: Rather than maintaining the spec's WaiterList, we wait on the shared-memory word using an OS
-    //        futex. The word lives in memory mapped into every agent's process — so wait and notify coordinate across
-    //        processes. We don't yet implement Atomics.waitAsync (async mode).
+    // 12-24. AD-HOC: The WaiterLists of the process are in ak::waiter_list. We don't yet implement Atomics.waitAsync
+    //        (async mode).
     if mode == WaitMode::Async {
         return vm.throw_completion(
             ErrorKind::InternalError,
@@ -256,7 +255,7 @@ fn do_wait(
         value as u64,
         typed_array.element_size(),
         wait_timeout,
-        vm.wait_interrupt(),
+        vm.agent_waiter(),
     );
     let result = match result {
         AtomicWaitResult::Interrupted => return vm.throw_interrupt(),
@@ -505,7 +504,7 @@ impl AtomicsObject {
             return Ok(Value::from_i32(0));
         }
 
-        // 7-15. AD-HOC: Wake up to 'count' agents waiting on the shared-memory word via the OS futex (see do_wait).
+        // 7-15. AD-HOC: Wake up to 'count' agents on the WaiterList of the word (see do_wait).
         // count is >= 0 (step 3b). But a huge finite value would overflow size_t (UB on the cast). So, treat anything at or
         // beyond size_t's range (and non-finite counts) as "wake every waiter".
         let max_count = if count.is_finite() && count < usize::MAX as f64 {

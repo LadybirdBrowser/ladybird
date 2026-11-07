@@ -15,7 +15,7 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use ak::futex::WaitInterrupt;
+use ak::waiter_list::AgentWaiter;
 use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
@@ -519,8 +519,8 @@ pub struct Vm {
     pub jit_native_stack_limit: AtomicUsize,
     /// Set once script on this VM has to stop for good (see request_interrupt()). Any thread may set it.
     interrupt_requested: AtomicBool,
-    /// What wakes this VM's thread from Atomics.wait() and memory.atomic.wait for an interrupt.
-    wait_interrupt: Arc<WaitInterrupt>,
+    /// This agent's node in the WaiterLists, which Atomics.wait() and memory.atomic.wait sleep on.
+    agent_waiter: Arc<AgentWaiter>,
     /// The tables `VmHead::dispatch_tables` points to.
     pub(crate) own_dispatch_tables: VmDispatchTables,
     /// The word that stops the WebAssembly code of this VM's agent (see set_wasm_stack_limit_word()), if it has any.
@@ -697,7 +697,7 @@ impl Vm {
             },
             jit_native_stack_limit: AtomicUsize::new(0),
             interrupt_requested: AtomicBool::new(false),
-            wait_interrupt: Arc::new(WaitInterrupt::new()),
+            agent_waiter: AgentWaiter::new(),
             own_dispatch_tables: VmDispatchTables::new(),
             wasm_stack_limit_word: Mutex::new(core::ptr::null()),
             heap: OnceCell::new(),
@@ -895,7 +895,7 @@ impl Vm {
     /// Script costs nothing to run for this: the interpreter stops at its next dispatch, as every dispatch table entry
     /// becomes the fallback handler, and JIT code stops at its next call or loop back edge, which compare the stack
     /// pointer with a limit anyway, so raising the limit past every stack pointer does it. A thread that sleeps on a word
-    /// of shared memory gets woken. This returns once it is awake.
+    /// of shared memory gets woken.
     ///
     /// Script unwinds with interrupt_exception(), past every handler. The flag is never cleared: every later attempt to
     /// run code fails at once, which is what makes the places in native code that catch exceptions harmless. They can
@@ -913,12 +913,12 @@ impl Vm {
         if let Some(word) = unsafe { word.as_ref() } {
             word.store(u64::MAX, Ordering::Relaxed);
         }
-        self.wait_interrupt.interrupt();
+        self.agent_waiter.interrupt();
     }
 
-    /// What ends a wait of this VM's thread on a word of shared memory.
-    pub fn wait_interrupt(&self) -> &Arc<WaitInterrupt> {
-        &self.wait_interrupt
+    /// This agent's node in the WaiterLists.
+    pub fn agent_waiter(&self) -> &Arc<AgentWaiter> {
+        &self.agent_waiter
     }
 
     /// Has an interrupt also store the highest address to `word` (null for none), which is how the embedder's

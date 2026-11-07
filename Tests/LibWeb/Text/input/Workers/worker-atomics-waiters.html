@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const WAITER = `
+        self.onmessage = ({ data: { memory, index, expected, timeout, word } }) => {
+            const words = new Int32Array(memory);
+            const started = performance.now();
+            Atomics.add(words, 1, 1);
+            const result = Atomics.wait(words, word, expected, timeout);
+            const position = Atomics.add(words, 2, 1);
+            self.postMessage({ index, result, position, elapsed: performance.now() - started });
+        };
+    `;
+    const script = URL.createObjectURL(new Blob([WAITER], { type: "text/javascript" }));
+
+    const memory = new SharedArrayBuffer(64);
+    const words = new Int32Array(memory);
+    const WORD = 0;
+
+    function startWaiter(results, index, { timeout = Infinity, expected = 0, word = WORD } = {}) {
+        const worker = new Worker(script);
+        worker.onmessage = ({ data }) => results.push(data);
+        worker.postMessage({ memory, index, expected, timeout, word });
+        return worker;
+    }
+
+    // NB: The counter goes up just before the wait, and nothing tells when a worker is asleep. So the tests below notify
+    //     until the waiters they expect woke, and check what the notifies add up to. The order of the wakes is tested in
+    //     Tests/LibJS/TestVMThreads.cpp, which can tell when a waiter is asleep.
+    async function waitForStarted(count) {
+        await waitForCondition(() => Atomics.load(words, 1) >= count, 5000, 1);
+    }
+
+    // Notifies `count` waiters at a time until `isDone()`, and returns what the notifies woke in all, and at most at once.
+    async function notifyUntil(isDone, count) {
+        let total = 0;
+        let most = 0;
+        while (!isDone()) {
+            const woken = Atomics.notify(words, WORD, count);
+            total += woken;
+            most = Math.max(most, woken);
+            await timeout(1);
+        }
+        return { total, most };
+    }
+
+    function reset() {
+        Atomics.store(words, 1, 0);
+        Atomics.store(words, 2, 0);
+    }
+
+    async function notifyCounts() {
+        reset();
+        const results = [];
+        const workers = [];
+        for (let index = 0; index < 4; ++index) workers.push(startWaiter(results, index));
+        await waitForStarted(4);
+
+        println(`notify of 0: ${Atomics.notify(words, WORD, 0)}`);
+        println(`notify of another word: ${Atomics.notify(words, WORD + 3, 4)}`);
+        const ones = await notifyUntil(() => results.length >= 2, 1);
+        println(`notify of 1 woke at most 1: ${ones.most === 1}`);
+        const rest = await notifyUntil(() => results.length === 4, 5);
+        println(`all woken once: ${ones.total + rest.total === 4 && new Set(results.map(result => result.index)).size === 4}`);
+        println(`notify with nobody left: ${Atomics.notify(words, WORD, 1)}`);
+        println(`all ok: ${results.every(result => result.result === "ok")}`);
+        workers.forEach(worker => worker.terminate());
+    }
+
+    async function timeouts() {
+        reset();
+        const results = [];
+        const workers = [startWaiter(results, 0, { timeout: 20 }), startWaiter(results, 1, { timeout: 0 })];
+        await waitForCondition(() => results.length === 2, 5000, 1);
+        results.sort((a, b) => a.index - b.index);
+        println(`timeout of 20: ${results[0].result}, waited long enough: ${results[0].elapsed >= 19}`);
+        println(`timeout of 0: ${results[1].result}`);
+        println(`notify after the timeouts: ${Atomics.notify(words, WORD, 2)}`);
+        workers.forEach(worker => worker.terminate());
+    }
+
+    async function notEqual() {
+        reset();
+        const results = [];
+        const worker = startWaiter(results, 0, { expected: 1 });
+        await waitForCondition(() => results.length === 1, 5000, 1);
+        println(`other value: ${results[0].result}`);
+        worker.terminate();
+    }
+
+    // NB: A notify may still wake the terminated worker until its interrupt arrives.
+    async function terminatedWaitersLeaveOthersWaiting() {
+        reset();
+        const results = [];
+        const workers = [];
+        for (let index = 0; index < 3; ++index) workers.push(startWaiter(results, index));
+        await waitForStarted(3);
+        workers[0].terminate();
+        const others = () => results.filter(result => result.index !== 0);
+        await notifyUntil(() => others().length === 2, 1);
+        println(`woken after the first waiter was terminated: ${others().map(result => result.index).sort().join(" ")}`);
+        workers.forEach(worker => worker.terminate());
+    }
+
+    // NB: More agents than a word of wake bits could tell apart.
+    async function manyWaiters() {
+        reset();
+        const COUNT = 40;
+        const results = [];
+        const workers = [];
+        for (let index = 0; index < COUNT; ++index) workers.push(startWaiter(results, index));
+        await waitForStarted(COUNT);
+        const all = await notifyUntil(() => results.length === COUNT, Infinity);
+        println(`notify woke all ${COUNT}: ${all.total}`);
+        println(`all ok: ${results.every(result => result.result === "ok")}`);
+        workers.forEach(worker => worker.terminate());
+    }
+
+    promiseTest(async () => {
+        await notifyCounts();
+        await timeouts();
+        await notEqual();
+        await terminatedWaitersLeaveOthersWaiting();
+        await manyWaiters();
+    });
+</script>

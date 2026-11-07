@@ -372,9 +372,8 @@ fn constant_arrays_too_large_for_memory_trap() {
     }
 }
 
-/// memory.atomic.wait waits where Atomics.wait does, on the operating system's waiter list for the address, so that
-/// a wake of the address from outside WebAssembly (here a FUTEX_WAKE, as Atomics.notify does) ends it.
-#[cfg(target_os = "linux")]
+/// memory.atomic.wait waits where Atomics.wait does, on the waiter lists of the process, so that a notify of the address
+/// from outside WebAssembly, as Atomics.notify does it, ends it.
 #[test]
 fn waits_end_with_wakes_from_outside_webassembly() {
     let (sender, receiver) = std::sync::mpsc::channel();
@@ -397,17 +396,8 @@ fn waits_end_with_wakes_from_outside_webassembly() {
     let start = std::time::Instant::now();
     loop {
         // Until the wait has started: a wake before it wakes nobody.
-        let woken = unsafe {
-            libc::syscall(
-                libc::SYS_futex,
-                address as *mut u32,
-                libc::FUTEX_WAKE,
-                1,
-                std::ptr::null::<libc::timespec>(),
-                std::ptr::null::<u32>(),
-                0,
-            )
-        };
+        // SAFETY: The word is in the memory of the store, which lives until the wait is over.
+        let woken = ak::waiter_list::atomic_notify(unsafe { &*(address as *const std::sync::atomic::AtomicU32) }, 1);
         if woken == 1 {
             break;
         }
@@ -514,7 +504,7 @@ fn another_thread_interrupts_a_compiled_loop() {
 /// Starts a memory.atomic.wait on a thread of its own, which `interrupt` can end, and returns the address of its word.
 fn start_wait(
     timeout: i64,
-    interrupt: Arc<ak::futex::WaitInterrupt>,
+    interrupt: Arc<ak::waiter_list::AgentWaiter>,
     disable_jit: bool,
 ) -> (usize, std::thread::JoinHandle<Result<Vec<Value>, Trap>>) {
     let (sender, receiver) = std::sync::mpsc::channel();
@@ -523,7 +513,7 @@ fn start_wait(
         if disable_jit {
             store.disable_jit();
         }
-        store.wait_interrupt = Some(interrupt);
+        store.agent_waiter = Some(interrupt);
         let instance = instantiate(&mut store, "shared_memory_export.wasm");
         let Some(ExternValue::Memory(memory)) = store.instance(instance).export("memory") else {
             panic!("no memory export");
@@ -544,7 +534,7 @@ fn another_thread_interrupts_a_wait() {
     for disable_jit in [false, true] {
         // No timeout, and ten minutes.
         for timeout in [-1, 600_000_000_000] {
-            let interrupt = Arc::new(ak::futex::WaitInterrupt::new());
+            let interrupt = ak::waiter_list::AgentWaiter::new();
             let (_, waiter) = start_wait(timeout, interrupt.clone(), disable_jit);
             std::thread::sleep(std::time::Duration::from_millis(50));
             interrupt.interrupt();
@@ -554,10 +544,9 @@ fn another_thread_interrupts_a_wait() {
 }
 
 /// Only a wake ends a wait: it does not look at the word again.
-#[cfg(target_os = "linux")]
 #[test]
 fn a_change_of_the_word_does_not_end_a_wait() {
-    let interrupt = Arc::new(ak::futex::WaitInterrupt::new());
+    let interrupt = ak::waiter_list::AgentWaiter::new();
     let (address, waiter) = start_wait(300_000_000, interrupt, false);
     std::thread::sleep(std::time::Duration::from_millis(100));
     // SAFETY: The word is in the memory of the store, which lives until the wait is over.

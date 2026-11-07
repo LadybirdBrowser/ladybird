@@ -50,7 +50,7 @@ use crate::abi::{
 };
 use crate::module::{DataMode, ElementItems, ElementMode, ExternalKind, ImportDescription, Module};
 use crate::types::{FuncType, GlobalType, HeapType, RefType, TableType, TypeCanonicalizer, ValType};
-use ak::futex::WaitInterrupt;
+use ak::waiter_list::AgentWaiter;
 use memory::MemoryInstance;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -392,7 +392,7 @@ pub struct Store {
     pub can_block: bool,
     /// What lets another thread end a `memory.atomic.wait` of this store's code. The embedder sets this, along with
     /// whatever makes it stop the store.
-    pub wait_interrupt: Option<Arc<WaitInterrupt>>,
+    pub agent_waiter: Option<Arc<AgentWaiter>>,
     /// The store's compiled code, once it has some.
     jit: Option<jit::StoreJit>,
 }
@@ -447,7 +447,7 @@ impl Store {
             rtt_pointers: Vec::new(),
             memory_grow_callback: None,
             can_block: true,
-            wait_interrupt: None,
+            agent_waiter: None,
             jit: None,
         }
     }

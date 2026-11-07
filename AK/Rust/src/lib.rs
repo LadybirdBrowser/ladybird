@@ -6,12 +6,12 @@
 
 //! Rust views of shared AK data structures.
 
-pub mod futex;
 mod generic_lexer;
 pub mod math;
 pub mod perf_map;
 mod scope_guard;
 mod slice;
+pub mod waiter_list;
 
 pub use generic_lexer::GenericLexer;
 pub use scope_guard::ScopeGuard;

@@ -1,0 +1,13 @@
+notify of 0: 0
+notify of another word: 0
+notify of 1 woke at most 1: true
+all woken once: true
+notify with nobody left: 0
+all ok: true
+timeout of 20: timed-out, waited long enough: true
+timeout of 0: timed-out
+notify after the timeouts: 0
+other value: not-equal
+woken after the first waiter was terminated: 1 2
+notify woke all 40: 40
+all ok: true

@@ -166,6 +166,10 @@ public:
     void request_interrupt();
     [[nodiscard]] bool interrupt_requested() const;
 
+    // Whether the thread of this VM sleeps in Atomics.wait() or memory.atomic.wait, on the list that a notify takes it
+    // off. Any thread may call this, as long as the VM stays alive until it returns.
+    [[nodiscard]] bool is_waiting_on_shared_memory() const;
+
 #define __JS_ENUMERATE(SymbolName, snake_name)                 \
     GC::Ref<Symbol> well_known_symbol_##snake_name() const     \
     {                                                          \
