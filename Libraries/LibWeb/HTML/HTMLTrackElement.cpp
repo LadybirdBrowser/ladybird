@@ -142,11 +142,11 @@ void HTMLTrackElement::parent_changed(GC::Ptr<Node> old_parent)
         m_track->set_media_element(nullptr);
         m_track->unset_active_flag_of_cues();
         media_element->text_track_cue_or_text_track_removed();
-        media_element->queue_a_media_element_task([track = GC::Ref { *m_track }](HTMLMediaElement& media_element) {
+        media_element->queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *m_track }), [](auto& track, HTMLMediaElement& media_element) {
             Bindings::TrackEventInit event_init {};
             event_init.track = track;
             media_element.text_tracks()->dispatch_event(TrackEvent::create(HTML::EventNames::removetrack, move(event_init), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(media_element))));
-        });
+        }));
     }
 
     // When a track element's parent element changes and the new parent is a media element, then the user agent must
@@ -157,11 +157,11 @@ void HTMLTrackElement::parent_changed(GC::Ptr<Node> old_parent)
         media_element->text_tracks()->add_track(*m_track);
         m_track->set_media_element(media_element);
         media_element->add_newly_introduced_cues(m_track->text_track_list_of_cues());
-        media_element->queue_a_media_element_task([track = GC::Ref { *m_track }](HTMLMediaElement& media_element) {
+        media_element->queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *m_track }), [](auto& track, HTMLMediaElement& media_element) {
             Bindings::TrackEventInit event_init {};
             event_init.track = track;
             media_element.text_tracks()->dispatch_event(TrackEvent::create(HTML::EventNames::addtrack, move(event_init), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(media_element))));
-        });
+        }));
     }
 }
 
@@ -234,8 +234,8 @@ void HTMLTrackElement::start_the_track_processing_model()
     m_loading = true;
 
     // 4. Run the remainder of these steps in parallel, allowing whatever caused these steps to run to continue.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this]() {
-        start_the_track_processing_model_parallel_steps();
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        self.start_the_track_processing_model_parallel_steps();
     }));
 }
 
@@ -275,14 +275,14 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Track);
 
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-        fetch_algorithms_input.process_response_consume_body = [this, src_generation = m_src_generation](auto response, auto body_bytes) {
-            m_loading = false;
+        fetch_algorithms_input.process_response_consume_body = GC::create_function(GC::Heap::the(), GC::captures(*this, m_src_generation), [](auto& self, auto& src_generation, GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+            self.m_loading = false;
 
             // If fetching fails for any reason (network error, the server returns an error code, CORS fails, etc.),
             // or if URL is the empty string, then queue an element task on the DOM manipulation task source given the media element
             // to first change the text track readiness state to failed to load and then fire an event named error at the track element.
             if (!response->url().has_value() || body_bytes.template has<Empty>() || body_bytes.template has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>() || !Fetch::Infrastructure::is_ok_status(response->status()) || response->is_network_error()) {
-                track_failed_to_load();
+                self.track_failed_to_load();
                 return;
             }
 
@@ -293,26 +293,26 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
             // FIXME: Support text track formats other than WebVTT, and parse the file incrementally as it is received.
             auto cues = WebVTT::parse_webvtt_file(body_bytes.template get<Core::ImmutableBytes>().bytes());
             if (!cues.has_value()) {
-                track_failed_to_load();
+                self.track_failed_to_load();
                 return;
             }
 
             // If fetching does not fail, and the file was successfully processed, then the final task that is queued by the networking task source,
             // after it has finished parsing the data, must change the text track readiness state to loaded, and fire an event named load at the track element.
-            queue_an_element_task(Task::Source::Networking, [this, cues = cues.release_value(), src_generation]() {
-                if (src_generation == m_src_generation) {
+            self.queue_an_element_task(Task::Source::Networking, GC::create_function(GC::Heap::the(), GC::captures(self, cues.release_value(), src_generation), [](auto& self, auto& cues, auto& src_generation) {
+                if (src_generation == self.m_src_generation) {
                     for (auto const& parsed_cue : cues) {
                         auto cue = MUST(WebVTT::VTTCue::create(parsed_cue.start_time, parsed_cue.end_time, parsed_cue.text));
                         cue->set_id(parsed_cue.identifier);
-                        m_track->add_cue(cue);
+                        self.m_track->add_cue(cue);
                     }
                 }
 
-                m_track->set_readiness_state(TextTrack::ReadinessState::Loaded);
-                dispatch_event(DOM::Event::create(HTML::EventNames::load,
-                    HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
-            });
-        };
+                self.m_track->set_readiness_state(TextTrack::ReadinessState::Loaded);
+                self.dispatch_event(DOM::Event::create(HTML::EventNames::load,
+                    HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(self))));
+            }));
+        });
 
         // 4. Fetch request.
         m_fetch_algorithms = Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input));
@@ -324,10 +324,10 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
 
     // 11. Wait until the text track readiness state is no longer set to loading.
     if (m_track->readiness_state() == TextTrack::ReadinessState::Loading) {
-        m_track_observer->set_track_readiness_observer([this, url = move(url)](TextTrack::ReadinessState) mutable {
-            if (m_track->readiness_state() != TextTrack::ReadinessState::Loading)
-                track_became_ready();
-        });
+        m_track_observer->set_track_readiness_observer(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self, TextTrack::ReadinessState) {
+            if (self.m_track->readiness_state() != TextTrack::ReadinessState::Loading)
+                self.track_became_ready();
+        }));
     } else {
         track_became_ready();
     }
@@ -343,11 +343,11 @@ void HTMLTrackElement::track_became_ready()
 
 void HTMLTrackElement::track_failed_to_load()
 {
-    queue_an_element_task(Task::Source::DOMManipulation, [this]() {
-        m_track->set_readiness_state(TextTrack::ReadinessState::FailedToLoad);
-        dispatch_event(DOM::Event::create(HTML::EventNames::error,
-            HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
-    });
+    queue_an_element_task(Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        self.m_track->set_readiness_state(TextTrack::ReadinessState::FailedToLoad);
+        self.dispatch_event(DOM::Event::create(HTML::EventNames::error,
+            HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(self))));
+    }));
 }
 
 }

@@ -116,7 +116,7 @@ public:
     GC::Ref<JS::NativeFunction> ensure_web_unforgeable_function(
         Utf16FlyString const& interface_name,
         Utf16FlyString const& attribute_name,
-        Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behaviour,
+        JS::NativeFunctionPointer behaviour,
         UnforgeableKey::Type);
 
 private:

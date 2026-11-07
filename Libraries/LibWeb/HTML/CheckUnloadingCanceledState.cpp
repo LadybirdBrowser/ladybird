@@ -32,14 +32,14 @@ CheckUnloadingCanceledState::CheckUnloadingCanceledState(
     , m_traversable(traversable)
     , m_user_involvement(user_involvement)
     , m_callback(callback)
-    , m_timeout(Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(TIMEOUT_MS), GC::create_function(heap(), [this] {
-        if (!m_completed) {
-            if (has_pending_before_unload_dialog()) {
-                m_timeout->restart();
+    , m_timeout(Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(TIMEOUT_MS), GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+        if (!self.m_completed) {
+            if (self.has_pending_before_unload_dialog()) {
+                self.m_timeout->restart();
                 return;
             }
             dbgln("FIXME: check_if_unloading_is_canceled timed out");
-            finish(Result::Continue);
+            self.finish(Result::Continue);
         }
     })))
 {
@@ -175,48 +175,48 @@ void CheckUnloadingCanceledState::start_phase1()
 {
     // 4. Queue a global task on the navigation and traversal task source given traversable's active window to perform the following steps:
     VERIFY(m_traversable->active_window());
-    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*m_traversable->active_window()), GC::create_function(GC::Heap::the(), [this] {
+    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*m_traversable->active_window()), GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
         // 1. if needsBeforeunload is true, then:
-        if (m_needs_beforeunload) {
+        if (self.m_needs_beforeunload) {
             // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given traversable's active document and false.
             bool unload_prompt_shown_for_this_document;
             bool unload_prompt_canceled_by_this_document;
-            fire_beforeunload(*m_traversable->active_document(), false, unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document);
-            if (m_adopted_for_close && !m_running_adopted_close) {
-                continue_as_close_after_adoption(unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document);
+            self.fire_beforeunload(*self.m_traversable->active_document(), false, unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document);
+            if (self.m_adopted_for_close && !self.m_running_adopted_close) {
+                self.continue_as_close_after_adoption(unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document);
                 return;
             }
 
             // 2. If unloadPromptShownForThisDocument is true, then set unloadPromptShown to true.
             if (unload_prompt_shown_for_this_document)
-                m_unload_prompt_shown = UnloadPromptShown::Yes;
+                self.m_unload_prompt_shown = UnloadPromptShown::Yes;
 
             // 3. If unloadPromptCanceledByThisDocument is true, then set finalStatus to "canceled-by-beforeunload".
             if (unload_prompt_canceled_by_this_document)
-                m_final_status = Result::CanceledByBeforeUnload;
+                self.m_final_status = Result::CanceledByBeforeUnload;
         }
 
         // 2. If finalStatus is "canceled-by-beforeunload", then abort these steps.
-        if (m_final_status == Result::CanceledByBeforeUnload) {
-            finish(m_final_status);
+        if (self.m_final_status == Result::CanceledByBeforeUnload) {
+            self.finish(self.m_final_status);
             return;
         }
 
         // 3. Let navigation be traversable's active window's navigation API.
-        VERIFY(m_traversable->active_window());
-        auto navigation = m_traversable->active_window()->navigation();
+        VERIFY(self.m_traversable->active_window());
+        auto navigation = self.m_traversable->active_window()->navigation();
 
         // 4. Let navigateEventResult be the result of firing a traverse navigate event at navigation given targetEntry and userInvolvementForNavigateEvent.
-        VERIFY(m_target_entry);
-        auto navigate_event_result = navigation->fire_a_traverse_navigate_event(*m_target_entry, *m_user_involvement);
+        VERIFY(self.m_target_entry);
+        auto navigate_event_result = navigation->fire_a_traverse_navigate_event(*self.m_target_entry, *self.m_user_involvement);
 
         // 5. If navigateEventResult is false, then set finalStatus to "canceled-by-navigate".
         if (!navigate_event_result)
-            m_final_status = Result::CanceledByNavigate;
+            self.m_final_status = Result::CanceledByNavigate;
 
         // 6. Set eventsFired to true.
 
-        phase1_completed();
+        self.phase1_completed();
     }));
 }
 
@@ -251,35 +251,35 @@ void CheckUnloadingCanceledState::start_phase2()
         //         are only runnable when fully active. In the async state machine, documents can become non
         //         fully-active between queue and execution time, causing the task to be permanently stuck.
         //         A null-document task is always runnable; we check validity inside.
-        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [this, document, generation] {
-            if (generation != m_phase2_generation)
+        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), GC::captures(*this, document, generation), [](auto& self, auto& document, auto& generation) {
+            if (generation != self.m_phase2_generation)
                 return;
             if (document->has_been_destroyed() || !document->is_fully_active()) {
-                did_complete_phase2_task();
+                self.did_complete_phase2_task();
                 return;
             }
 
             // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given document and unloadPromptShown.
             bool unload_prompt_shown_for_this_document;
             bool unload_prompt_canceled_by_this_document;
-            fire_beforeunload(*document, m_unload_prompt_shown == UnloadPromptShown::Yes, unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document);
-            if (m_adopted_for_close && !m_running_adopted_close) {
-                continue_as_close_after_adoption(unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document);
+            self.fire_beforeunload(*document, self.m_unload_prompt_shown == UnloadPromptShown::Yes, unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document);
+            if (self.m_adopted_for_close && !self.m_running_adopted_close) {
+                self.continue_as_close_after_adoption(unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document);
                 return;
             }
-            if (generation != m_phase2_generation)
+            if (generation != self.m_phase2_generation)
                 return;
 
             // 2. If unloadPromptShownForThisDocument is true, then set unloadPromptShown to true.
             if (unload_prompt_shown_for_this_document)
-                m_unload_prompt_shown = UnloadPromptShown::Yes;
+                self.m_unload_prompt_shown = UnloadPromptShown::Yes;
 
             // 3. If unloadPromptCanceledByThisDocument is true, then set finalStatus to "canceled-by-beforeunload".
             if (unload_prompt_canceled_by_this_document)
-                m_final_status = Result::CanceledByBeforeUnload;
+                self.m_final_status = Result::CanceledByBeforeUnload;
 
             // 4. Increment completedTasks.
-            did_complete_phase2_task();
+            self.did_complete_phase2_task();
         }));
     }
 }

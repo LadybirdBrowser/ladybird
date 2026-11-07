@@ -74,8 +74,8 @@ WEB_API JS::Value window_named_item_value(WrapperWorld&, JS::Realm&, HTML::Windo
 namespace Web::HTML {
 
 class IdleCallback;
-using AnimationFrameCallbackHandler = Function<void(double)>;
-using IdleCallbackHandler = Function<JS::Completion(GC::Ref<RequestIdleCallback::IdleDeadline>)>;
+using AnimationFrameCallbackHandler = GC::Ref<GC::Function<void(double)>>;
+using IdleCallbackHandler = GC::Ref<GC::Function<JS::Completion(GC::Ref<RequestIdleCallback::IdleDeadline>)>>;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#specifier-resolution-record
 // A specifier resolution record is a struct. It has the following items:

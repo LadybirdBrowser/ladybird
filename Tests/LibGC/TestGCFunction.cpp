@@ -73,20 +73,6 @@ struct Holders {
     GC::Weak<TestCell> cell;
 };
 
-NEVER_INLINE Holders make_lambda_function_capturing_cell(GC::Heap& heap)
-{
-    auto cell = heap.allocate<TestCell>();
-    cell->value = 7;
-    auto function = GC::create_function(heap, [cell] { return static_cast<int>(cell->value); });
-    return { GC::make_root(function), cell.ptr() };
-}
-
-NEVER_INLINE GC::Weak<GC::Function<void()>> make_unrooted_lambda_function_owning(GC::Heap& heap, bool& destroyed)
-{
-    auto function = GC::create_function(heap, [flag = make<DestructionFlag>(destroyed)] { });
-    return function.ptr();
-}
-
 NEVER_INLINE Holders make_function_capturing_cell(GC::Heap& heap)
 {
     auto cell = heap.allocate<TestCell>();
@@ -120,51 +106,6 @@ NEVER_INLINE GC::Weak<GC::Function<void()>> make_unrooted_function_owning(GC::He
     return function.ptr();
 }
 
-}
-
-TEST_CASE(lambda_captures_are_scanned_conservatively)
-{
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
-    heap.set_incremental_sweep_enabled(false);
-
-    auto holders = make_lambda_function_capturing_cell(heap);
-    GC::scrub_stack_for_testing();
-    heap.collect_garbage();
-
-    EXPECT(holders.cell);
-    EXPECT_EQ(holders.function->function()(), 7);
-}
-
-TEST_CASE(lambda_captures_are_destroyed_with_the_function)
-{
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
-    heap.set_incremental_sweep_enabled(false);
-
-    bool destroyed = false;
-    auto function = make_unrooted_lambda_function_owning(heap, destroyed);
-    GC::scrub_stack_for_testing();
-    heap.collect_garbage();
-
-    EXPECT(!function);
-    EXPECT(destroyed);
-}
-
-TEST_CASE(function_stays_alive_while_it_runs)
-{
-    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
-    heap.set_incremental_sweep_enabled(false);
-
-    auto state = adopt_ref(*new RunState);
-    auto holder = GC::make_root(heap.allocate<CellWithFunction>());
-    holder->function = GC::create_function(heap, [holder = GC::Ref { *holder }, state] {
-        holder->function = nullptr;
-        holder->heap().collect_garbage();
-        state->survived_collection = static_cast<bool>(state->function);
-    });
-    state->function = holder->function;
-
-    holder->function->function()();
-    EXPECT(state->survived_collection);
 }
 
 TEST_CASE(captured_cell_is_traced)

@@ -159,7 +159,7 @@ void FontLoader::start_loading_next_source()
         // failure or a byte stream stream:
         m_has_received_font_data = false;
         m_fetch_controller = fetch_a_style_resource(m_sources.take_first().get<URL>(), m_rule_or_declaration, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
-            [loader = this](auto response, auto stream) {
+            GC::create_function(heap(), GC::captures(this), [](FontLoader* loader, GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes stream) {
                 // 1. If stream is null, return.
                 // 2. Load a font from stream according to its type.
 
@@ -226,7 +226,7 @@ void FontLoader::start_loading_next_source()
                 }
 
                 loader->font_did_load_or_fail(maybe_typeface.release_value()); });
-            });
+            }));
 
         if (m_fetch_controller || m_has_completed)
             return;

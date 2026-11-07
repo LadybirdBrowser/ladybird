@@ -92,7 +92,7 @@ public:
     NEVER_INLINE AK::JsonObject dump_graph();
 
     // How a cell on a retaining path reaches the next one: through a field it visits, or through a word a conservative
-    // scan of its contents (a GC::Function's captures, for example) took for a pointer, whole or as either 32-bit half.
+    // scan of its contents (the captures of an AK::Function, for example) took for a pointer, whole or as either 32-bit half.
     enum class RetainingEdgeKind : u8 {
         Precise,
         ConservativeWord,

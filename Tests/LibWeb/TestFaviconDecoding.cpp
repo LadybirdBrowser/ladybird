@@ -65,7 +65,7 @@ TEST_CASE(each_favicon_is_decoded_once)
         link.set_rel("icon"_utf16);
         link.set_href(source);
         MUST(document->head()->append_child(element));
-        Web::HTML::main_thread_event_loop().spin_until(GC::create_function(document->heap(), [link = GC::Ref { link }] {
+        Web::HTML::main_thread_event_loop().spin_until(GC::create_function(document->heap(), GC::captures(GC::Ref { link }), [](auto& link) {
             return link->has_loaded_icon();
         }));
         ++expected_decode_count;

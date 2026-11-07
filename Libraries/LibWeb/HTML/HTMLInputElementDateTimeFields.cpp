@@ -238,11 +238,11 @@ void HTMLInputElement::create_date_time_fields()
 
         auto index = m_date_time_fields.size();
         auto mousedown_function = JS::NativeFunction::create(
-            realm, [this, index](JS::VM&) {
-                if (index < m_date_time_fields.size())
-                    set_active_date_time_field(index);
+            realm, GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(*this, index), [](auto& self, auto& index, JS::VM&) {
+                if (index < self.m_date_time_fields.size())
+                    self.set_active_date_time_field(index);
                 return JS::js_undefined();
-            },
+            }),
             0, Utf16FlyString {}, &realm);
         auto mousedown_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*mousedown_function, realm);
         element->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(mousedown_callback));

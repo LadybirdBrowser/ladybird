@@ -53,12 +53,12 @@ public:
         }
 
         Engine::BodyIntent body_intent;
-        ProcessRequestBodyChunkLengthFunction process_request_body_chunk_length;
-        ProcessRequestEndOfBodyFunction process_request_end_of_body;
-        ProcessEarlyHintsResponseFunction process_early_hints_response;
-        ProcessResponseFunction process_response;
-        ProcessResponseEndOfBodyFunction process_response_end_of_body;
-        ProcessResponseConsumeBodyFunction process_response_consume_body;
+        ProcessRequestBodyChunkLengthHeapFunction process_request_body_chunk_length;
+        ProcessRequestEndOfBodyHeapFunction process_request_end_of_body;
+        ProcessEarlyHintsResponseHeapFunction process_early_hints_response;
+        ProcessResponseHeapFunction process_response;
+        ProcessResponseEndOfBodyHeapFunction process_response_end_of_body;
+        ProcessResponseConsumeBodyHeapFunction process_response_consume_body;
         Optional<RequestBodyReader> request_body_reader;
     };
 

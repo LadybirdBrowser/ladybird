@@ -1167,11 +1167,11 @@ void Page::discard()
 
     m_local_roots_left_to_discard = navigables.size();
     for (auto const& navigable : navigables) {
-        auto detach_navigable = GC::create_function(heap(), [this, navigable] {
+        auto detach_navigable = GC::create_function(heap(), GC::captures(*this, navigable), [](Page& page, GC::Ref<HTML::LocalNavigable> navigable) {
             navigable->set_has_been_destroyed();
             navigable->remove_from_all_local_navigables();
-            if (--m_local_roots_left_to_discard == 0)
-                finish_discarding();
+            if (--page.m_local_roots_left_to_discard == 0)
+                page.finish_discarding();
         });
 
         // NB: The task destroying a document only runs while the document is fully active, so its navigable can only
@@ -1244,14 +1244,16 @@ void Page::did_complete_window_rect_request(u64 completion_id)
         m_window_rect_observer->function()({ window_position(), window_size() }, completion_id);
 }
 
-template<typename ResponseType>
-static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Optional<ResponseType>& response, HTML::EventLoop* event_loop = nullptr, SourceLocation location = SourceLocation::current())
+// NB: The response is named as a member of the page, so that the function waiting for it captures only the page.
+template<auto response>
+static auto spin_event_loop_until_dialog_closed(Page& page, HTML::EventLoop* event_loop = nullptr, SourceLocation location = SourceLocation::current())
 {
+    auto& client = page.client();
     auto& responsible_event_loop = event_loop ? *event_loop : Web::HTML::current_settings_object().responsible_event_loop();
     auto pause_handle = responsible_event_loop.pause();
 
-    Web::Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), [&]() {
-        return response.has_value() || !client.is_connection_open();
+    Web::Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), GC::captures(page), [](Page& page) {
+        return (page.*response).has_value() || !page.client().is_connection_open();
     }));
 
     if (!client.is_connection_open()) {
@@ -1259,7 +1261,7 @@ static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Opti
         exit(0);
     }
 
-    return response.release_value();
+    return (page.*response).release_value();
 }
 
 void Page::did_request_alert(Utf16String const& message)
@@ -1270,7 +1272,7 @@ void Page::did_request_alert(Utf16String const& message)
     if (!message.is_empty())
         m_pending_dialog_text = message;
 
-    spin_event_loop_until_dialog_closed(*m_client, m_pending_alert_response);
+    spin_event_loop_until_dialog_closed<&Page::m_pending_alert_response>(*this);
 }
 
 void Page::alert_closed()
@@ -1286,7 +1288,7 @@ bool Page::did_request_before_unload(String const& source, HTML::EventLoop& even
     m_pending_dialog = PendingDialog::BeforeUnload;
     m_client->page_did_request_before_unload(source);
 
-    return spin_event_loop_until_dialog_closed(*m_client, m_pending_before_unload_response, &event_loop);
+    return spin_event_loop_until_dialog_closed<&Page::m_pending_before_unload_response>(*this, &event_loop);
 }
 
 void Page::before_unload_closed(bool accepted)
@@ -1305,7 +1307,7 @@ bool Page::did_request_confirm(Utf16String const& message)
     if (!message.is_empty())
         m_pending_dialog_text = message;
 
-    return spin_event_loop_until_dialog_closed(*m_client, m_pending_confirm_response);
+    return spin_event_loop_until_dialog_closed<&Page::m_pending_confirm_response>(*this);
 }
 
 void Page::confirm_closed(bool accepted)
@@ -1324,7 +1326,7 @@ Optional<Utf16String> Page::did_request_prompt(Utf16String const& message, Utf16
     if (!message.is_empty())
         m_pending_dialog_text = message;
 
-    return spin_event_loop_until_dialog_closed(*m_client, m_pending_prompt_response);
+    return spin_event_loop_until_dialog_closed<&Page::m_pending_prompt_response>(*this);
 }
 
 void Page::prompt_closed(Optional<Utf16String> response)
@@ -2429,8 +2431,8 @@ void Page::enqueue_fullscreen_enter(GC::Ref<DOM::Element> element, GC::Ref<DOM::
     m_pending_fullscreen_operations.enqueue(PendingFullscreenEnter { element, pending_doc, error, promise, request_type });
     // NOTE: Processing is deferred because the spec says "run the remaining steps in parallel",
     //       meaning the caller's synchronous JS should complete before we process the operation.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this]() {
-        process_pending_fullscreen_operations();
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this), [](Page& self) {
+        self.process_pending_fullscreen_operations();
     }));
 }
 
@@ -2439,8 +2441,8 @@ void Page::enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::
     m_pending_fullscreen_operations.enqueue(PendingFullscreenExit { doc, resize, promise, requesting_navigable_id });
     // NOTE: Processing is deferred because the spec says "run the remaining steps in parallel",
     //       meaning the caller's synchronous JS should complete before we process the operation.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this]() {
-        process_pending_fullscreen_operations();
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this), [](Page& self) {
+        self.process_pending_fullscreen_operations();
     }));
 }
 

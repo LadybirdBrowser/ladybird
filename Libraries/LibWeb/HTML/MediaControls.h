@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
+#include <AK/Weakable.h>
 #include <LibCore/Timer.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Weak.h>
@@ -19,7 +20,7 @@ namespace Web::HTML {
 
 class HTMLMediaElement;
 
-class MediaControls {
+class MediaControls : public Weakable<MediaControls> {
 public:
     MediaControls(HTMLMediaElement& host, HTMLMediaElement& media_element);
     ~MediaControls();

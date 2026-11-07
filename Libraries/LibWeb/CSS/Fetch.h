@@ -46,7 +46,7 @@ struct RuleOrDeclaration {
 Optional<::URL::URL> resolve_a_style_resource_url(StyleResourceURL const&, RuleOrDeclaration);
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
-GC::Ptr<Fetch::Infrastructure::FetchController> fetch_a_style_resource(StyleResourceURL const& url, RuleOrDeclaration, Fetch::Infrastructure::Request::Destination, CorsMode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response);
+GC::Ptr<Fetch::Infrastructure::FetchController> fetch_a_style_resource(StyleResourceURL const& url, RuleOrDeclaration, Fetch::Infrastructure::Request::Destination, CorsMode, GC::Ref<GC::Function<Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction::FunctionType>> process_response);
 
 // https://drafts.csswg.org/css-images-4/#fetch-an-external-image-for-a-stylesheet
 GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(StyleResourceURL const&, RuleOrDeclaration, DOM::Document&);

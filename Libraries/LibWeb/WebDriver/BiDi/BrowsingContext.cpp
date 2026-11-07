@@ -865,17 +865,17 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
     auto state = adopt_ref(*new State);
     state->on_complete = move(on_complete);
     state->observer = DOM::DocumentObserver::create(document);
-    state->observer->set_document_became_inactive([weak_state = state->make_weak_ptr()] {
+    state->observer->set_document_became_inactive(GC::create_function(GC::Heap::the(), GC::captures(state->make_weak_ptr()), [](auto& weak_state) {
         if (weak_state)
             weak_state->fail();
-    });
-    state->observer->set_document_visibility_state_observer([weak_state = state->make_weak_ptr()](HTML::VisibilityState visibility) {
+    }));
+    state->observer->set_document_visibility_state_observer(GC::create_function(GC::Heap::the(), GC::captures(state->make_weak_ptr()), [](auto& weak_state, HTML::VisibilityState visibility) {
         if (visibility == HTML::VisibilityState::Hidden && weak_state)
             weak_state->fail();
-    });
+    }));
 
     // 5. Immediately after the next invocation of the run the animation frame callbacks algorithm for document:
-    state->callback_id = window->animation_frame_callback_driver().add_after_callbacks(GC::create_function(GC::Heap::the(), [state, document, navigable = GC::Ref { *local_navigable }, origin = move(origin), clip = move(clip), max_width, max_height, format_type = move(format_type), format_quality](double) mutable {
+    state->callback_id = window->animation_frame_callback_driver().add_after_callbacks(GC::create_function(GC::Heap::the(), GC::captures(state, document, GC::Ref { *local_navigable }, move(origin), move(clip), max_width, max_height, move(format_type), format_quality), [](auto& state, auto& document, auto& navigable, auto& origin, auto& clip, auto& max_width, auto& max_height, auto& format_type, auto& format_quality, double) {
         if (!state->on_complete)
             return;
         state->stop_waiting_for_frame();
@@ -1041,7 +1041,7 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
         // 14. Complete implementation specific steps equivalent to painting the region of document's framebuffer
         //     specified by source rectangle on the region of canvas context's output bitmap specified by destination
         //     rectangle.
-        auto viewport_device_rect = document->page().enclosing_device_rect(navigable->viewport_rect()).to_type<int>();
+        auto viewport_device_rect = document->page().enclosing_device_rect(navigable->viewport_rect()).template to_type<int>();
         if (viewport_device_rect.is_empty())
             return state->complete(Error::from_code(ErrorCode::UnableToCaptureScreen, "The viewport is empty"sv));
 

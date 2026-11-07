@@ -243,7 +243,7 @@ void StyleSheetImport::fetch()
         .parent_style_sheet_origin_clean = {},
     };
     (void)fetch_a_style_resource(URL { href() }, rule_or_declaration, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
-        [strong_this = NonnullRefPtr { *this }, parent_style_sheet = NonnullRefPtr { parent_style_sheet }, document = m_document, load_event_delayer = DOM::DocumentLoadEventDelayer(*m_document, DOM::DocumentLoadEventDelayerReason::StyleSheetRequest)](auto response, auto maybe_byte_stream) mutable {
+        GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { *this }, NonnullRefPtr { parent_style_sheet }, m_document, DOM::DocumentLoadEventDelayer(*m_document, DOM::DocumentLoadEventDelayerReason::StyleSheetRequest)), [](auto& strong_this, auto& parent_style_sheet, auto& document, auto& load_event_delayer, GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes maybe_byte_stream) {
             // AD-HOC: Stop delaying the load event.
             auto finish_loading = [strong_this, document, load_event_delayer = move(load_event_delayer)] {
                 auto imported_sheet = strong_this->m_style_sheet;
@@ -324,7 +324,7 @@ void StyleSheetImport::fetch()
                     strong_this->set_style_sheet(imported_style_sheet);
                 });
             guard.disarm();
-        });
+        }));
 }
 
 void StyleSheetImport::set_style_sheet(NonnullRefPtr<StyleSheetState> style_sheet)

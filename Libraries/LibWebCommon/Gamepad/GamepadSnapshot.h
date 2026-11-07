@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 
@@ -153,3 +154,6 @@ template<>
 WEBCOMMON_API ErrorOr<Web::Gamepad::VirtualGamepad> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::Gamepad::GamepadDescription);
+GC_UNTRACED_CAPTURE(Web::Gamepad::GamepadState);

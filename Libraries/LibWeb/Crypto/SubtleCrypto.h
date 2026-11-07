@@ -9,6 +9,7 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibGC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -80,3 +81,6 @@ WEB_API GC::Ref<WebIDL::Promise> encapsulate_key(JS::Realm&, Crypto::SubtleCrypt
 WEB_API GC::Ref<WebIDL::Promise> decapsulate_key(JS::Realm&, Crypto::SubtleCrypto&, Crypto::AlgorithmIdentifier, GC::Ref<Crypto::CryptoKey>, WebIDL::BufferSourceVariant const&, Crypto::AlgorithmIdentifier, bool extractable, Vector<KeyUsage>);
 
 }
+
+// NB: The methods and parameters of an algorithm are not cells, and keep any cell they use in a GC::Root.
+GC_UNTRACED_CAPTURE(Web::Crypto::NormalizedAlgorithmAndParameter);

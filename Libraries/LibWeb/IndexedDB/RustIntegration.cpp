@@ -88,8 +88,8 @@ JSObject* web_indexed_db_create_dom_string_list(void* realm, FlatPtr const* stri
 void web_indexed_db_queue_a_database_task(void* cell, void (*steps)(JSVM*, void*))
 {
     GC::Ref<GC::Cell> function = *static_cast<GC::Cell*>(cell);
-    // NB: The task's captures, which the collector scans, keep the function alive until the steps run.
-    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(GC::Heap::the(), [function, steps] {
+    // NB: The task's captures, which the collector traces, keep the function alive until the steps run.
+    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(function, steps), [](auto& function, auto& steps) {
         steps(JS::HostABI::vm_to_abi(JS::VM::the()), function.ptr());
     }));
 }
@@ -97,8 +97,8 @@ void web_indexed_db_queue_a_database_task(void* cell, void (*steps)(JSVM*, void*
 void web_indexed_db_run_in_parallel(void* cell, void (*steps)(JSVM*, void*))
 {
     GC::Ref<GC::Cell> function = *static_cast<GC::Cell*>(cell);
-    // NB: The function's captures, which the collector scans, keep the cell alive until the steps run.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [function, steps] {
+    // NB: The function's captures, which the collector traces, keep the cell alive until the steps run.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(function, steps), [](auto& function, auto& steps) {
         steps(JS::HostABI::vm_to_abi(JS::VM::the()), function.ptr());
     }));
 }

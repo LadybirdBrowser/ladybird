@@ -32,6 +32,15 @@
 
 namespace Web::SVG {
 
+struct DocumentObserverRoot : RefCounted<DocumentObserverRoot> {
+    explicit DocumentObserverRoot(DOM::DocumentObserver& observer)
+        : observer(observer)
+    {
+    }
+
+    GC::Root<DOM::DocumentObserver> observer;
+};
+
 GC_DEFINE_ALLOCATOR(SVGDecodedImageData);
 GC_DEFINE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
 
@@ -157,12 +166,14 @@ NonnullRefPtr<SVGDecodedImageData::DecodePromise> SVGDecodedImageData::decode(GC
     auto promise = DecodePromise::construct();
     auto observer = DOM::DocumentObserver::create(*document);
     // Keep the loading state alive until the document finishes loading its internal resources.
-    observer->set_document_completely_loaded([page_client, document, svg_root = GC::Ref { *svg_root }, observer = GC::Root { observer }, promise] {
-        observer->set_document_completely_loaded(nullptr);
+    // NB: The observer's own function cannot keep the observer alive, as what it captures is traced from the observer.
+    auto observer_root = make_ref_counted<DocumentObserverRoot>(*observer);
+    observer->set_document_completely_loaded(GC::create_function(GC::Heap::the(), GC::captures(page_client, document, GC::Ref { *svg_root }, move(observer_root), promise), [](auto& page_client, auto& document, auto& svg_root, auto& observer_root, auto& promise) {
+        observer_root->observer->set_document_completely_loaded(nullptr);
         auto svg_image_data = create(page_client->page(), page_client, document, svg_root);
         page_client->register_svg_image_data(svg_image_data);
         promise->resolve(svg_image_data);
-    });
+    }));
     return promise;
 }
 
@@ -544,7 +555,7 @@ void SVGDecodedImageData::did_request_frame()
     if (m_has_pending_client_notification)
         return;
     m_has_pending_client_notification = true;
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [self = GC::Ref { *this }] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), GC::captures(GC::Ref { *this }), [](auto& self) {
         self->m_has_pending_client_notification = false;
         self->notify_clients_did_update();
     }));

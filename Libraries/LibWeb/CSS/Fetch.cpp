@@ -146,7 +146,7 @@ static RefPtr<Fetch::Infrastructure::Request> fetch_a_style_resource_impl(StyleR
 }
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
-GC::Ptr<Fetch::Infrastructure::FetchController> fetch_a_style_resource(StyleResourceURL const& url_value, RuleOrDeclaration css_rule_or_declaration, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response)
+GC::Ptr<Fetch::Infrastructure::FetchController> fetch_a_style_resource(StyleResourceURL const& url_value, RuleOrDeclaration css_rule_or_declaration, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode, GC::Ref<GC::Function<Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction::FunctionType>> process_response)
 {
     auto request = fetch_a_style_resource_impl(url_value, css_rule_or_declaration, destination, cors_mode);
     if (!request)
@@ -155,7 +155,7 @@ GC::Ptr<Fetch::Infrastructure::FetchController> fetch_a_style_resource(StyleReso
     auto& environment_settings = *css_rule_or_declaration.environment_settings_object;
 
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-    fetch_algorithms_input.process_response_consume_body = move(process_response);
+    fetch_algorithms_input.process_response_consume_body = process_response;
 
     return Fetch::Fetching::fetch(environment_settings.realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 }

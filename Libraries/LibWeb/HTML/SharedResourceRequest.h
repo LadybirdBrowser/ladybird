@@ -63,7 +63,7 @@ public:
     // Records a user that waits for the fetch without callbacks, so that the fetch delays the load event for it.
     void wait_without_callbacks();
 
-    void add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {});
+    void add_callbacks(GC::Ptr<GC::Function<void()>> on_finish, GC::Ptr<GC::Function<void()>> on_fail, GC::Ptr<GC::Function<void()>> on_stop = {});
 
     enum class DelaysLoadEvent : u8 {
         No,
@@ -71,7 +71,7 @@ public:
     };
 
     // Returns an ID for remove_callbacks(), or nothing if the callbacks already ran.
-    Optional<u64> add_removable_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {}, DelaysLoadEvent = DelaysLoadEvent::Yes);
+    Optional<u64> add_removable_callbacks(GC::Ptr<GC::Function<void()>> on_finish, GC::Ptr<GC::Function<void()>> on_fail, GC::Ptr<GC::Function<void()>> on_stop = {}, DelaysLoadEvent = DelaysLoadEvent::Yes);
     void remove_callbacks(u64 id);
 
     bool is_fetching() const;

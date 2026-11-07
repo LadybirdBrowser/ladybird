@@ -88,6 +88,9 @@
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 
+// NB: A module request holds strings only.
+GC_UNTRACED_CAPTURE(JS::ModuleRequest);
+
 namespace Web::Bindings {
 
 GC_DEFINE_ALLOCATOR(WebEngineCustomJobCallbackData);
@@ -287,7 +290,7 @@ void initialize_agent(HTML::AgentType type)
                 //    with the promise attribute initialized to promise, and the reason attribute initialized to the value of promise's [[PromiseResult]] internal slot.
                 auto& global_object = settings_object.global_object();
                 auto& realm = settings_object.realm();
-                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), [&global, &promise, &realm] {
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), GC::captures(global, promise, realm), [](auto& global, auto& promise, auto& realm) {
                     HTML::PromiseRejectionEventInit event_init {
                         {}, // Initialize the inherited EventInit
                         /* .promise = */ promise,
@@ -349,7 +352,7 @@ void initialize_agent(HTML::AgentType type)
         auto& global = finalization_registry.realm().global_object();
 
         // 2. Queue a global task on the JavaScript engine task source given global to perform the following steps:
-        HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, GC::create_function(GC::Heap::the(), [&finalization_registry] {
+        HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, GC::create_function(GC::Heap::the(), GC::captures(finalization_registry), [](auto& finalization_registry) {
             // 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]]'s environment settings object.
             // AD-HOC: The spec assumes [[Callback]] has a [[Realm]] internal slot, but Proxy and BoundFunction
             //         exotic objects do not. Use GetFunctionRealm to unwrap these exotic objects, falling back to
@@ -395,7 +398,9 @@ void initialize_agent(HTML::AgentType type)
         // Do note that "implied document" from the spec is handwavy and the spec authors are trying to get rid of it: https://github.com/whatwg/html/issues/4980
         auto* script = active_script();
 
-        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, GC::create_function(GC::Heap::the(), [&vm, job_settings, job = move(job), script_or_module = move(script_or_module)] {
+        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, GC::create_function(GC::Heap::the(), GC::captures(job_settings, move(job), move(script_or_module)), [](auto& job_settings, auto& job, auto& script_or_module) {
+            auto& vm = JS::VM::the();
+
             // The dummy execution context has to be kept up here to keep it alive for the duration of the function.
             OwnPtr<JS::ExecutionContext> dummy_execution_context;
 
@@ -496,7 +501,7 @@ void initialize_agent(HTML::AgentType type)
         auto url_string = module_script.base_url()->serialize();
 
         // 4. Let steps be the following steps, given the argument specifier:
-        auto steps = [&realm, module_script = GC::Ref { module_script }](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        auto steps = GC::create_function(GC::Heap::the(), GC::captures(realm, GC::Ref { module_script }), [](auto& realm, auto& module_script, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             auto specifier = vm.argument(0);
 
             // 1. Set specifier to ? ToString(specifier).
@@ -509,10 +514,10 @@ void initialize_agent(HTML::AgentType type)
 
             // 3. Return the serialization of url.
             return JS::PrimitiveString::create(vm, Utf16String::from_utf8(url.serialize()));
-        };
+        });
 
         // 4. Let resolveFunction be ! CreateBuiltinFunction(steps, 1, "resolve", « »).
-        auto resolve_function = JS::NativeFunction::create(realm, move(steps), 1, vm.names.resolve);
+        auto resolve_function = JS::NativeFunction::create(realm, steps, 1, vm.names.resolve);
 
         // 5. Return « Record { [[Key]]: "url", [[Value]]: urlString }, Record { [[Key]]: "resolve", [[Value]]: resolveFunction } ».
         GC::RootHashMap<JS::PropertyKey, JS::Value> meta;
@@ -692,7 +697,7 @@ void initialize_agent(HTML::AgentType type)
             perform_fetch = fetch_context.perform_fetch;
         }
 
-        auto on_single_fetch_complete = HTML::create_on_fetch_script_complete(settings_object->heap(), [referrer, settings_object, load_state, module_request, payload](GC::Ptr<HTML::Script> const& module_script) -> void {
+        auto on_single_fetch_complete = HTML::create_on_fetch_script_complete(settings_object->heap(), GC::captures(referrer, settings_object, load_state, module_request, payload), [](auto& referrer, auto& settings_object, auto& load_state, auto& module_request, auto& payload, GC::Ptr<HTML::Script> const& module_script) -> void {
             auto& realm = settings_object->realm();
             // onSingleFetchComplete given moduleScript is the following algorithm:
             // 1. Let completion be null.

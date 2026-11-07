@@ -334,9 +334,9 @@ void Object::define_native_function(Realm& realm, PropertyKey const& property_ke
     js_object_define_native_function(vm_of(*this), object_to_abi(*this), cell_to_abi<JSRealm>(realm), property_key_to_abi(property_key), native_function_to_abi(native_function), length, attributes.bits());
 }
 
-void Object::define_native_function(Realm& realm, PropertyKey const& property_key, Function<ThrowCompletionOr<Value>(VM&)> native_function, i32 length, PropertyAttributes attributes)
+void Object::define_native_function(Realm& realm, PropertyKey const& property_key, GC::Ref<GC::Function<ThrowCompletionOr<Value>(VM&)>> native_function, i32 length, PropertyAttributes attributes)
 {
-    auto function = NativeFunction::create(realm, move(native_function), length, property_key, &realm);
+    auto function = NativeFunction::create(realm, native_function, length, property_key, &realm);
     define_direct_property(property_key, function, attributes);
 }
 
@@ -345,14 +345,14 @@ void Object::define_native_accessor(Realm& realm, PropertyKey const& property_ke
     js_object_define_native_accessor(vm_of(*this), object_to_abi(*this), cell_to_abi<JSRealm>(realm), property_key_to_abi(property_key), getter ? native_function_to_abi(getter) : nullptr, setter ? native_function_to_abi(setter) : nullptr, attributes.bits());
 }
 
-void Object::define_native_accessor(Realm& realm, PropertyKey const& property_key, Function<ThrowCompletionOr<Value>(VM&)> getter, Function<ThrowCompletionOr<Value>(VM&)> setter, PropertyAttributes attributes)
+void Object::define_native_accessor(Realm& realm, PropertyKey const& property_key, GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>> getter, GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>> setter, PropertyAttributes attributes)
 {
     GC::Ptr<FunctionObject> getter_function;
     if (getter)
-        getter_function = NativeFunction::create(realm, move(getter), 0, property_key, &realm, "get"sv);
+        getter_function = NativeFunction::create(realm, *getter, 0, property_key, &realm, "get"sv);
     GC::Ptr<FunctionObject> setter_function;
     if (setter)
-        setter_function = NativeFunction::create(realm, move(setter), 1, property_key, &realm, "set"sv);
+        setter_function = NativeFunction::create(realm, *setter, 1, property_key, &realm, "set"sv);
     define_direct_accessor(property_key, getter_function, setter_function, attributes);
 }
 

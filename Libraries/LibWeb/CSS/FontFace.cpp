@@ -307,7 +307,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
     if (font_face->m_binary_data.is_empty())
         return cssom_font_face;
 
-    HTML::queue_global_task(HTML::Task::Source::FontLoading, font_face->task_global_object(), GC::create_function(GC::Heap::the(), [font_root = font_face->keep_alive_during_load()] {
+    HTML::queue_global_task(HTML::Task::Source::FontLoading, font_face->task_global_object(), GC::create_function(GC::Heap::the(), GC::captures(font_face->keep_alive_during_load()), [](auto& font_root) {
         auto font_face = font_root->elements().first();
         HTML::TemporaryExecutionContext context(*font_face->m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 1.  Set font face’s status attribute to "loading".
@@ -326,7 +326,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
 
         font_face->m_font_load_promise->when_resolved([font_root = GC::make_root(font_face->keep_alive_during_load())](auto const& vector_font) -> ErrorOr<void> {
             auto font = font_root->elements().first();
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, font->task_global_object(), GC::create_function(GC::Heap::the(), [font_root = GC::Ref { *font_root }, vector_font] {
+            HTML::queue_global_task(HTML::Task::Source::FontLoading, font->task_global_object(), GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *font_root }, vector_font), [](auto& font_root, auto& vector_font) {
                 auto font = font_root->elements().first();
                 HTML::TemporaryExecutionContext context(*font->m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 // 1. If the load was successful, font face now represents the parsed font;
@@ -350,12 +350,12 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
         });
         font_face->m_font_load_promise->when_rejected([font_root = GC::make_root(font_face->keep_alive_during_load())](auto const& error) {
             auto font = font_root->elements().first();
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, font->task_global_object(), GC::create_function(GC::Heap::the(), [font_root = GC::Ref { *font_root }, error = Error::copy(error)] {
+            HTML::queue_global_task(HTML::Task::Source::FontLoading, font->task_global_object(), GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *font_root }, Utf16String::formatted("Failed to load font: {}", error)), [](auto& font_root, auto& message) {
                 auto font = font_root->elements().first();
                 HTML::TemporaryExecutionContext context(*font->m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 // 2. Otherwise, reject font face’s [[FontStatusPromise]] with a DOMException named "SyntaxError"
                 //    and set font face’s status attribute to "error".
-                font->reject_status_promise(WebIDL::SyntaxError::create(Utf16String::formatted("Failed to load font: {}", error)));
+                font->reject_status_promise(WebIDL::SyntaxError::create(message));
 
                 font->did_finish_loading_in_containing_sets(false);
 
@@ -760,7 +760,7 @@ void FontFaceState::update_font_display_period()
     if (!next_deadline.has_value() || m_font_display_time_for_testing.has_value())
         return;
     if (!m_font_download_timer) {
-        m_font_download_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), [font_root = keep_alive_during_load()] {
+        m_font_download_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), GC::captures(keep_alive_during_load()), [](auto& font_root) {
             font_root->elements().first()->update_font_display_period();
         }));
     }
@@ -928,7 +928,7 @@ void FontFaceState::load_for_style()
     //     as if it was the value of a @font-face rule’s src descriptor.
 
     // 5. When the load operation completes, successfully or not, queue a task to run the following steps synchronously:
-    auto on_load = GC::create_function(GC::Heap::the(), [font_root = keep_alive_during_load()](RefPtr<Gfx::Typeface const> maybe_typeface) {
+    auto on_load = GC::create_function(GC::Heap::the(), GC::captures(keep_alive_during_load()), [](auto& font_root, RefPtr<Gfx::Typeface const> maybe_typeface) {
         auto& font = *font_root->elements().first();
         // NB: A resident typeface is available to synchronous layout immediately. Keep the
         //     observable load status, promise settlement, and FontFaceSet notifications in
@@ -944,7 +944,7 @@ void FontFaceState::load_for_style()
             if (auto font_computer = font.font_computer(); font_computer.has_value())
                 font_computer->did_load_font(font.matching_key());
         }
-        HTML::queue_global_task(HTML::Task::Source::FontLoading, font.task_global_object(), GC::create_function(GC::Heap::the(), [font_root, maybe_typeface] {
+        HTML::queue_global_task(HTML::Task::Source::FontLoading, font.task_global_object(), GC::create_function(GC::Heap::the(), GC::captures(font_root, maybe_typeface), [](auto& font_root, auto& maybe_typeface) {
             font_root->elements().first()->did_load(maybe_typeface);
         }));
     });

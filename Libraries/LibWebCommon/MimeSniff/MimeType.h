@@ -12,6 +12,7 @@
 #include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <LibGC/Forward.h>
 #include <LibWebCommon/Export.h>
 
 namespace Web::FFI {
@@ -82,3 +83,5 @@ private:
 WEBCOMMON_API String minimise_a_supported_mime_type(MimeType const&);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::MimeSniff::MimeType);

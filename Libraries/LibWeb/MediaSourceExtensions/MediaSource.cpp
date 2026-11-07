@@ -107,9 +107,9 @@ void MediaSource::set_ready_state_to_open_and_fire_sourceopen_event()
         source_buffer.clear_reached_end_of_stream({});
     }
 
-    queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this] {
-        auto event = create_associated_event(EventNames::sourceopen);
-        dispatch_event(event);
+    queue_a_media_source_task(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        auto event = self.create_associated_event(EventNames::sourceopen);
+        self.dispatch_event(event);
     }));
 }
 
@@ -152,7 +152,7 @@ void MediaSource::detach_from_media_element(Badge<HTML::HTMLMediaElement>)
     m_active_source_buffers->remove_all_buffers({});
 
     // 7. Queue a task to fire an event named removesourcebuffer at activeSourceBuffers.
-    queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_active_source_buffers] {
+    queue_a_media_source_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(*this), m_active_source_buffers), [](auto& media_source, auto& source_buffers) {
         source_buffers->dispatch_event(media_source->create_associated_event(EventNames::removesourcebuffer));
     }));
 
@@ -160,13 +160,13 @@ void MediaSource::detach_from_media_element(Badge<HTML::HTMLMediaElement>)
     m_source_buffers->remove_all_buffers({});
 
     // 9. Queue a task to fire an event named removesourcebuffer at sourceBuffers.
-    queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_source_buffers] {
+    queue_a_media_source_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(*this), m_source_buffers), [](auto& media_source, auto& source_buffers) {
         source_buffers->dispatch_event(media_source->create_associated_event(EventNames::removesourcebuffer));
     }));
 
     // 10. Queue a task to fire an event named sourceclose at the MediaSource.
-    queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this] {
-        dispatch_event(create_associated_event(EventNames::sourceclose));
+    queue_a_media_source_task(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        self.dispatch_event(self.create_associated_event(EventNames::sourceclose));
     }));
 
     // AD-HOC: Sever the media element assignment that was established when this MediaSource was attached.
@@ -204,7 +204,7 @@ void MediaSource::selected_video_track_changed(Badge<HTML::VideoTrack>, GC::Ptr<
         m_active_source_buffers->remove(*previously_selected_track_source_buffer);
 
         // 2. Queue a task to fire an event named removesourcebuffer at activeSourceBuffers
-        queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_active_source_buffers] {
+        queue_a_media_source_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(*this), m_active_source_buffers), [](auto& media_source, auto& source_buffers) {
             source_buffers->dispatch_event(media_source->create_associated_event(EventNames::removesourcebuffer));
         }));
     }
@@ -216,7 +216,7 @@ void MediaSource::selected_video_track_changed(Badge<HTML::VideoTrack>, GC::Ptr<
         m_active_source_buffers->insert_in_order_of(*newly_selected_track_source_buffer, m_source_buffers);
 
         // 2. Queue a task to fire an event named addsourcebuffer at activeSourceBuffers
-        queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_active_source_buffers] {
+        queue_a_media_source_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(*this), m_active_source_buffers), [](auto& media_source, auto& source_buffers) {
             source_buffers->dispatch_event(media_source->create_associated_event(EventNames::addsourcebuffer));
         }));
     }
@@ -232,7 +232,7 @@ void MediaSource::audio_track_enabled_changed(Badge<HTML::AudioTrack>, SourceBuf
         m_active_source_buffers->remove(source_buffer);
 
         // 2. Queue a task to fire an event named removesourcebuffer at activeSourceBuffers
-        queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_active_source_buffers] {
+        queue_a_media_source_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(*this), m_active_source_buffers), [](auto& media_source, auto& source_buffers) {
             source_buffers->dispatch_event(media_source->create_associated_event(EventNames::removesourcebuffer));
         }));
     }
@@ -244,7 +244,7 @@ void MediaSource::audio_track_enabled_changed(Badge<HTML::AudioTrack>, SourceBuf
         m_active_source_buffers->insert_in_order_of(source_buffer, m_source_buffers);
 
         // 2. Queue a task to fire an event named addsourcebuffer at activeSourceBuffers
-        queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_active_source_buffers] {
+        queue_a_media_source_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(*this), m_active_source_buffers), [](auto& media_source, auto& source_buffers) {
             source_buffers->dispatch_event(media_source->create_associated_event(EventNames::addsourcebuffer));
         }));
     }
@@ -330,7 +330,7 @@ WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(Utf16S
     m_source_buffers->append(buffer);
 
     // 9. Queue a task to fire an event named addsourcebuffer at this's sourceBuffers.
-    queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_source_buffers] {
+    queue_a_media_source_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(*this), m_source_buffers), [](auto& media_source, auto& source_buffers) {
         source_buffers->dispatch_event(media_source->create_associated_event(EventNames::addsourcebuffer));
     }));
 
@@ -366,8 +366,8 @@ void MediaSource::run_end_of_stream_algorithm(Optional<EndOfStreamError> const& 
     m_ready_state = ReadyState::Ended;
 
     // 2. Queue a task to fire an event named sourceended at the MediaSource.
-    queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this] {
-        dispatch_event(create_associated_event(EventNames::sourceended));
+    queue_a_media_source_task(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        self.dispatch_event(self.create_associated_event(EventNames::sourceended));
     }));
 
     // AD-HOC: Notify all demuxers that end of stream was reached, so that they can return the requisite error and

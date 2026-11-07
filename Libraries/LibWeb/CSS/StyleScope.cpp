@@ -367,7 +367,7 @@ void StyleScope::prepare_user_agent_rules(DOM::Document& document)
     if (prepared || !Core::EventLoop::is_running())
         return;
     prepared = true;
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document.heap(), [document = GC::Ref { document }] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document.heap(), GC::captures(GC::Ref { document }), [](auto& document) {
         auto& sheet = default_stylesheet();
         publish_user_agent_sheet(sheet, document);
         MediaEnvironmentSnapshot environment { document };

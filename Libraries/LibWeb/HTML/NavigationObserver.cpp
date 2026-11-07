@@ -37,20 +37,14 @@ void NavigationObserver::finalize()
     m_navigable->unregister_navigation_observer({}, *this);
 }
 
-void NavigationObserver::set_navigation_complete(Function<void()> callback)
+void NavigationObserver::set_navigation_complete(GC::Ptr<GC::Function<void()>> callback)
 {
-    if (callback)
-        m_navigation_complete = GC::create_function(GC::Heap::the(), move(callback));
-    else
-        m_navigation_complete = nullptr;
+    m_navigation_complete = callback;
 }
 
-void NavigationObserver::set_ongoing_navigation_changed(Function<void()> callback)
+void NavigationObserver::set_ongoing_navigation_changed(GC::Ptr<GC::Function<void()>> callback)
 {
-    if (callback)
-        m_ongoing_navigation_changed = GC::create_function(GC::Heap::the(), move(callback));
-    else
-        m_ongoing_navigation_changed = nullptr;
+    m_ongoing_navigation_changed = callback;
 }
 
 }

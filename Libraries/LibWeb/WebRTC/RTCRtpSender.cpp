@@ -156,16 +156,16 @@ GC::Ref<WebIDL::Promise> RTCRtpSender::set_parameters(RTCRtpSendParameters const
 
     // 8. In parallel, configure the media stack to use parameters to transmit sender.[[SenderTrack]].
     //    FIXME: actually wire `parameters` into the media stack (bitrate caps, encoding rid, etc).
-    HTML::queue_a_task(HTML::Task::Source::Networking, nullptr, nullptr, GC::create_function(heap(), [this, p, parameters] {
+    HTML::queue_a_task(HTML::Task::Source::Networking, nullptr, nullptr, GC::create_function(heap(), GC::captures(*this, p, parameters), [](auto& self, auto& p, auto& parameters) {
         // Promise resolution calls into JS and needs a running execution context on the VM stack; tasks don't
         // come with one by default.
-        auto& realm = relevant_realm();
+        auto& realm = self.relevant_realm();
         HTML::TemporaryExecutionContext context(realm);
         // 8.1. If the media stack is successfully configured with parameters, queue a task to run the following steps:
         //   8.1.1. Set sender.[[LastReturnedParameters]] to null.
-        m_last_returned_parameters = {};
+        self.m_last_returned_parameters = {};
         //   8.1.2. Set sender.[[SendEncodings]] to parameters.encodings.
-        m_send_encodings = parameters.encodings;
+        self.m_send_encodings = parameters.encodings;
         //   8.1.3. Resolve p with undefined.
         WebIDL::resolve_promise(realm, p, JS::js_undefined());
         // 8.2. If any error occurred while configuring the media stack, queue a task to run the following steps:
@@ -218,8 +218,8 @@ RTCRtpSendParameters RTCRtpSender::get_parameters()
     m_last_returned_parameters = result;
 
     // 5. Queue a task that sets sender.[[LastReturnedParameters]] to null.
-    HTML::queue_a_task(HTML::Task::Source::Networking, nullptr, nullptr, GC::create_function(heap(), [this] {
-        m_last_returned_parameters = {};
+    HTML::queue_a_task(HTML::Task::Source::Networking, nullptr, nullptr, GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+        self.m_last_returned_parameters = {};
     }));
 
     // 6. Return result.

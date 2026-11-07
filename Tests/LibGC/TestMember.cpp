@@ -243,11 +243,45 @@ private:
 GC_DEFINE_ALLOCATOR(FinalizationTrackingCell);
 
 // Keeps nothing on the stack that points at the cell the function captures, other than the root of the function.
-template<typename MakeCallable>
-static NEVER_INLINE GC::Root<GC::Function<size_t()>> make_function_capturing_a_member(bool& finalized, MakeCallable make_callable)
+static NEVER_INLINE GC::Root<GC::Function<size_t()>> make_function_capturing_a_member(bool& finalized)
 {
     GC::Member<FinalizationTrackingCell> member = test_heap().allocate<FinalizationTrackingCell>(finalized);
-    return GC::make_root(GC::create_function(test_heap(), make_callable(member)));
+    return GC::make_root(GC::create_function(test_heap(), GC::captures(member), [](GC::Ptr<FinalizationTrackingCell>& cell) {
+        return reinterpret_cast<size_t>(cell.ptr());
+    }));
+}
+
+// Scans the captures of an AK::Function for cell pointers, as a timer does for its callback.
+class CallbackScanningCell final : public GC::Cell {
+    GC_CELL(CallbackScanningCell, GC::Cell);
+    GC_DECLARE_ALLOCATOR(CallbackScanningCell);
+
+public:
+    explicit CallbackScanningCell(AK::Function<size_t()> callback)
+        : m_callback(move(callback))
+    {
+    }
+
+    size_t call() const { return m_callback(); }
+
+private:
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit_possible_values(m_callback.raw_capture_range());
+    }
+
+    AK::Function<size_t()> m_callback;
+};
+
+GC_DEFINE_ALLOCATOR(CallbackScanningCell);
+
+// Keeps nothing on the stack that points at the cell the callback captures, other than the root of the scanning cell.
+template<typename MakeCallable>
+static NEVER_INLINE GC::Root<CallbackScanningCell> make_callback_capturing_a_member(bool& finalized, MakeCallable make_callable)
+{
+    GC::Member<FinalizationTrackingCell> member = test_heap().allocate<FinalizationTrackingCell>(finalized);
+    return GC::make_root(test_heap().allocate<CallbackScanningCell>(make_callable(member)));
 }
 
 static NEVER_INLINE void clobber_the_stack()
@@ -257,12 +291,26 @@ static NEVER_INLINE void clobber_the_stack()
         byte = 0;
 }
 
-TEST_CASE(function_whose_only_capture_is_a_member_keeps_its_cell_alive)
+TEST_CASE(function_capturing_a_member_keeps_its_cell_alive)
 {
     // NB: Static, since the cell outlives the test once nothing holds it anymore.
     static bool finalized;
     finalized = false;
-    auto function = make_function_capturing_a_member(finalized, [](GC::Member<FinalizationTrackingCell> member) {
+    auto function = make_function_capturing_a_member(finalized);
+    clobber_the_stack();
+
+    test_heap().collect_garbage(GC::Heap::CollectionType::CollectGarbage);
+
+    EXPECT(!finalized);
+    EXPECT_NE(function->function()(), 0u);
+}
+
+TEST_CASE(callback_whose_only_capture_is_a_member_keeps_its_cell_alive)
+{
+    // NB: Static, since the cell outlives the test once nothing holds it anymore.
+    static bool finalized;
+    finalized = false;
+    auto cell = make_callback_capturing_a_member(finalized, [](GC::Member<FinalizationTrackingCell> member) {
         auto callable = [member] { return reinterpret_cast<size_t>(member.ptr()); };
         static_assert(sizeof(callable) == sizeof(u32));
         return callable;
@@ -272,15 +320,15 @@ TEST_CASE(function_whose_only_capture_is_a_member_keeps_its_cell_alive)
     test_heap().collect_garbage(GC::Heap::CollectionType::CollectGarbage);
 
     EXPECT(!finalized);
-    EXPECT_NE(function->function()(), 0u);
+    EXPECT_NE(cell->call(), 0u);
 }
 
-TEST_CASE(function_whose_captures_end_in_a_member_keeps_its_cell_alive)
+TEST_CASE(callback_whose_captures_end_in_a_member_keeps_its_cell_alive)
 {
     // NB: Static, since the cell outlives the test once nothing holds it anymore.
     static bool finalized;
     finalized = false;
-    auto function = make_function_capturing_a_member(finalized, [](GC::Member<FinalizationTrackingCell> member) {
+    auto cell = make_callback_capturing_a_member(finalized, [](GC::Member<FinalizationTrackingCell> member) {
         auto callable = [first = static_cast<u32>(1), second = static_cast<u32>(2), member] {
             return reinterpret_cast<size_t>(member.ptr()) + first + second;
         };
@@ -293,7 +341,7 @@ TEST_CASE(function_whose_captures_end_in_a_member_keeps_its_cell_alive)
     test_heap().collect_garbage(GC::Heap::CollectionType::CollectGarbage);
 
     EXPECT(!finalized);
-    EXPECT_NE(function->function()(), 0u);
+    EXPECT_NE(cell->call(), 0u);
 }
 
 // Walks a list of cells through compressed pointers, decoding them against the base copy or against the base exported

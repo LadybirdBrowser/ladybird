@@ -10,6 +10,7 @@
 #include <AK/Badge.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
+#include <LibGC/Function.h>
 #include <LibGC/Member.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
@@ -22,9 +23,9 @@ namespace JS {
 // runtime calls directly, or a closure, which the function keeps in a GC::Function of the embedder's heap.
 class JS_API NativeFunction : public FunctionObject {
 public:
-    static GC::Ref<NativeFunction> create(Realm&, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name = Utf16FlyString {}, Optional<GC::Ptr<Realm>> = {}, Optional<StringView> const& prefix = {});
+    static GC::Ref<NativeFunction> create(Realm&, GC::Ref<GC::Function<ThrowCompletionOr<Value>(VM&)>> behaviour, i32 length, PropertyKey const& name = Utf16FlyString {}, Optional<GC::Ptr<Realm>> = {}, Optional<StringView> const& prefix = {});
     static GC::Ref<NativeFunction> create(Realm&, NativeFunctionPointer behaviour, i32 length, PropertyKey const& name = Utf16FlyString {}, Optional<GC::Ptr<Realm>> = {}, Optional<StringView> const& prefix = {});
-    static GC::Ref<NativeFunction> create(Realm&, Utf16FlyString const& name, ESCAPING Function<ThrowCompletionOr<Value>(VM&)>);
+    static GC::Ref<NativeFunction> create(Realm&, Utf16FlyString const& name, GC::Ref<GC::Function<ThrowCompletionOr<Value>(VM&)>>);
 
     static bool is_engine_class_of(Object const& object) { return object.is_of_engine_class_or_subclass(JS_LAYOUT_CLASS_ID_NATIVE_FUNCTION); }
 };

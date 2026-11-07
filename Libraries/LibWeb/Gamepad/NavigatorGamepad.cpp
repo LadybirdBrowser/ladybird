@@ -116,7 +116,7 @@ void NavigatorGamepadPartial::handle_gamepad_connected(GamepadDescription const&
     m_available_gamepads.append(description.handle);
 
     // 3. Queue a global task on the gamepad task source with the current global object to perform the following steps:
-    HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [&window, &document, description = description] mutable {
+    HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), GC::captures(window, document, description), [](auto& window, auto& document, auto& description) {
         // 1. Let gamepad be a new Gamepad representing the gamepad.
         auto gamepad = Gamepad::create(window, description);
 
@@ -154,7 +154,7 @@ void NavigatorGamepadPartial::handle_gamepad_updated(Badge<EventHandler>, Gamepa
     // AD-HOC: Step 1 runs in the task. A newly available gamepad is created by an earlier task on the same task
     //         source, so input received before that task has run still reaches the gamepad.
     auto& window = as<HTML::Navigator>(*this).window();
-    HTML::queue_global_task(HTML::Task::Source::Gamepad, window.principal_realm().global_object(), GC::create_function(GC::Heap::the(), [&window, state] {
+    HTML::queue_global_task(HTML::Task::Source::Gamepad, window.principal_realm().global_object(), GC::create_function(GC::Heap::the(), GC::captures(window, state), [](auto& window, auto& state) {
         // 1. Let gamepad be the Gamepad object representing the device that received new button or axis input values.
         auto navigator = window.navigator();
         auto gamepad = navigator->m_gamepads.find_if([&state](GC::Ptr<Gamepad> gamepad) {
@@ -184,7 +184,7 @@ void NavigatorGamepadPartial::handle_gamepad_disconnected(Badge<EventHandler>, G
     // AD-HOC: Step 1 runs in the task. A newly available gamepad is created by an earlier task on the same task
     //         source, so a gamepad that becomes unavailable before that task has run is still removed.
     auto& window = as<HTML::Navigator>(*this).window();
-    HTML::queue_global_task(HTML::Task::Source::Gamepad, window.principal_realm().global_object(), GC::create_function(GC::Heap::the(), [&window, handle] {
+    HTML::queue_global_task(HTML::Task::Source::Gamepad, window.principal_realm().global_object(), GC::create_function(GC::Heap::the(), GC::captures(window, handle), [](auto& window, auto& handle) {
         // 1. Let gamepad be the Gamepad representing the unavailable device.
         auto matching_gamepad = window.navigator()->m_gamepads.first_matching([&handle](GC::Ptr<Gamepad> gamepad) {
             return gamepad && gamepad->handle() == handle;

@@ -85,10 +85,10 @@ MediaDevices::MediaDevices(HTML::Window& window)
 void MediaDevices::initialize_pending_request_state_change_listener()
 {
     auto& realm = m_window->principal_realm();
-    auto pending_request_state_change_callback_function = JS::NativeFunction::create(realm, [media_devices = GC::Ref(*this)](JS::VM&) {
-        media_devices->process_pending_enumerate_devices_requests();
-        media_devices->process_pending_get_user_media_requests();
-        return JS::js_undefined(); }, 0, Utf16FlyString {}, &realm);
+    auto pending_request_state_change_callback_function = JS::NativeFunction::create(realm, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& media_devices, JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+        media_devices.process_pending_enumerate_devices_requests();
+        media_devices.process_pending_get_user_media_requests();
+        return JS::js_undefined(); }), 0, Utf16FlyString {}, &realm);
 
     auto pending_request_state_change_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*pending_request_state_change_callback_function, realm);
     m_pending_request_state_change_listener = DOM::IDLEventListener::create(pending_request_state_change_callback);
@@ -186,7 +186,7 @@ void MediaDevices::system_focus_changed()
     // 11.7 While hasSystemFocus is false, the User Agent MUST wait to proceed to the next step until a task queued to set
     //      hasSystemFocus to the result of the has system focus algorithm, would set hasSystemFocus to true.
     HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(*m_window),
-        GC::create_function(heap(), [media_devices = GC::Ref(*this)] {
+        GC::create_function(heap(), GC::captures(GC::Ref(*this)), [](auto& media_devices) {
             media_devices->process_pending_enumerate_devices_requests();
             media_devices->process_pending_get_user_media_requests();
         }));
@@ -401,7 +401,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
     // FIXME: Add camera/video
     auto audio_input_devices = Audio::AudioDevices::the().input_devices();
 
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise = GC::Root(promise), media_devices, device_id_constraint = move(device_id_constraint), audio_input_devices = move(audio_input_devices)] mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(GC::Root(promise), media_devices, move(device_id_constraint), move(audio_input_devices)), [](auto& promise, auto& media_devices, auto& device_id_constraint, auto& audio_input_devices) {
         auto& realm = WebIDL::promise_realm(*promise);
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -470,7 +470,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         // 11.5 For each media type kind in requestedMediaTypes, run the following sub steps, preferably at the same time.
         // 11.5.1 Request permission to use a PermissionDescriptor with its name member set to the permission name associated with kind.
         auto& settings_object = HTML::relevant_settings_object(*media_devices->m_window);
-        PermissionsAPI::request_permission_with_user_prompt(microphone_permission, settings_object, GC::create_function(GC::Heap::the(), [promise, media_devices, device_id_constraint, stream](PermissionsAPI::PermissionState microphone_permission_result) {
+        PermissionsAPI::request_permission_with_user_prompt(microphone_permission, settings_object, GC::create_function(GC::Heap::the(), GC::captures(promise, media_devices, device_id_constraint, stream), [](auto& promise, auto& media_devices, auto& device_id_constraint, auto& stream, PermissionsAPI::PermissionState microphone_permission_result) {
             auto& realm = WebIDL::promise_realm(*promise);
             HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -489,7 +489,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
 
             // AD-HOC: The input devices' names and ids reach this process only once the Browser has told its AudioServer
             // of the grant, so finalSet is gathered again from a list fetched after it.
-            media_devices->run_with_fresh_audio_device_list(GC::create_function(GC::Heap::the(), [promise, media_devices, device_id_constraint, stream] {
+            media_devices->run_with_fresh_audio_device_list(GC::create_function(GC::Heap::the(), GC::captures(promise, media_devices, device_id_constraint, stream), [](auto& promise, auto& media_devices, auto& device_id_constraint, auto& stream) {
                 auto& realm = WebIDL::promise_realm(*promise);
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -583,7 +583,7 @@ void MediaDevices::queue_enumerate_devices_task(GC::Ref<WebIDL::Promise> promise
 {
     GC::Ref<MediaDevices> media_devices = *this;
 
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise = GC::Root(promise), media_devices] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(GC::Root(promise), media_devices), [](auto& promise, auto& media_devices) {
         auto& realm = WebIDL::promise_realm(*promise);
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -665,11 +665,10 @@ void MediaDevices::run_device_change_notification_steps(Vector<StoredDevice> con
     auto& relevant_global_object = HTML::relevant_global_object(*m_window);
     HTML::queue_global_task(HTML::Task::Source::DOMManipulation,
         relevant_global_object,
-        GC::create_function(GC::Heap::the(),
-            [media_devices = GC::Ref(*this), relevant_global_object = GC::Ref(relevant_global_object)] {
-                media_devices->dispatch_event(DOM::Event::create(HTML::EventNames::devicechange,
-                    HighResolutionTime::current_high_resolution_time(*relevant_global_object)));
-            }));
+        GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(*this), GC::Ref(relevant_global_object)), [](auto& media_devices, auto& relevant_global_object) {
+            media_devices->dispatch_event(DOM::Event::create(HTML::EventNames::devicechange,
+                HighResolutionTime::current_high_resolution_time(*relevant_global_object)));
+        }));
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
@@ -880,7 +879,7 @@ void MediaDevices::end_tracks(GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_t
     // When a MediaStreamTrack track ends for any reason other than the stop() method being invoked, the User Agent
     // MUST queue a task that runs the following steps:
     HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*m_window),
-        GC::create_function(heap(), [tracks = move(tracks_to_end), window = m_window] {
+        GC::create_function(heap(), GC::captures(move(tracks_to_end), m_window), [](auto& tracks, auto& window) {
             HTML::TemporaryExecutionContext execution_context { window->principal_realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             // 1. If the track's [[ReadyState]] slot has the value "ended", abort these steps.
             // 2. Set track's [[ReadyState]] slot to "ended".

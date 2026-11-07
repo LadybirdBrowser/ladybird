@@ -69,44 +69,29 @@ void DocumentObserver::retarget_for_adoption(GC::Ref<Document> new_document)
     }
 }
 
-void DocumentObserver::set_document_became_active(Function<void()> callback)
+void DocumentObserver::set_document_became_active(GC::Ptr<GC::Function<void()>> callback)
 {
-    if (callback)
-        m_document_became_active = GC::create_function(GC::Heap::the(), move(callback));
-    else
-        m_document_became_active = nullptr;
+    m_document_became_active = callback;
 }
 
-void DocumentObserver::set_document_became_inactive(Function<void()> callback)
+void DocumentObserver::set_document_became_inactive(GC::Ptr<GC::Function<void()>> callback)
 {
-    if (callback)
-        m_document_became_inactive = GC::create_function(GC::Heap::the(), move(callback));
-    else
-        m_document_became_inactive = nullptr;
+    m_document_became_inactive = callback;
 }
 
-void DocumentObserver::set_document_completely_loaded(Function<void()> callback)
+void DocumentObserver::set_document_completely_loaded(GC::Ptr<GC::Function<void()>> callback)
 {
-    if (callback)
-        m_document_completely_loaded = GC::create_function(GC::Heap::the(), move(callback));
-    else
-        m_document_completely_loaded = nullptr;
+    m_document_completely_loaded = callback;
 }
 
-void DocumentObserver::set_document_readiness_observer(Function<void(HTML::DocumentReadyState)> callback)
+void DocumentObserver::set_document_readiness_observer(GC::Ptr<GC::Function<void(HTML::DocumentReadyState)>> callback)
 {
-    if (callback)
-        m_document_readiness_observer = GC::create_function(GC::Heap::the(), move(callback));
-    else
-        m_document_readiness_observer = nullptr;
+    m_document_readiness_observer = callback;
 }
 
-void DocumentObserver::set_document_visibility_state_observer(Function<void(HTML::VisibilityState)> callback)
+void DocumentObserver::set_document_visibility_state_observer(GC::Ptr<GC::Function<void(HTML::VisibilityState)>> callback)
 {
-    if (callback)
-        m_document_visibility_state_observer = GC::create_function(GC::Heap::the(), move(callback));
-    else
-        m_document_visibility_state_observer = nullptr;
+    m_document_visibility_state_observer = callback;
 }
 
 }

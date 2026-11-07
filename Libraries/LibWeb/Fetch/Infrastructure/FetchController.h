@@ -47,8 +47,8 @@ public:
     [[nodiscard]] WeakPtr<FetchControllerRegistry> const& registry() const { return m_registry; }
     [[nodiscard]] FetchControlBlock& control_block() const { return *m_control_block; }
 
-    void set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps);
-    void set_next_manual_redirect_steps(Function<void()> next_manual_redirect_steps);
+    void set_report_timing_steps(GC::Ref<GC::Function<void(JS::Object&)>> report_timing_steps);
+    void set_next_manual_redirect_steps(GC::Ref<GC::Function<void()>> next_manual_redirect_steps);
 
     [[nodiscard]] State state() const { return m_control_block->state(); }
     [[nodiscard]] RefPtr<FetchTimingInfo> full_timing_info() const { return m_control_block->full_timing_info(); }

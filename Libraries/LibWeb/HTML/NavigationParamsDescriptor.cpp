@@ -220,11 +220,11 @@ void create_navigation_params_descriptor(JS::Realm& realm, NavigationParamsVaria
 
     body->fully_read(
         realm,
-        GC::create_function(realm.heap(), [descriptor = move(descriptor), completion_steps](ByteBuffer bytes) mutable {
+        GC::create_function(realm.heap(), GC::captures(move(descriptor), completion_steps), [](auto& descriptor, auto& completion_steps, ByteBuffer bytes) {
             descriptor.response.body = move(bytes);
             completion_steps->function()(move(descriptor));
         }),
-        GC::create_function(realm.heap(), [completion_steps](JS::Value) {
+        GC::create_function(realm.heap(), GC::captures(completion_steps), [](auto& completion_steps, JS::Value) {
             completion_steps->function()(NavigationParamsNullOrError { "Unable to transfer response body"_utf16 });
         }),
         GC::Ref { realm.global_object() });
@@ -251,17 +251,17 @@ static RefPtr<Fetch::Infrastructure::Request> create_navigation_request_from_des
 }
 
 // Reports the WebDriver BiDi event that ends an adopted navigation response, unless a download has taken it over.
-static Function<void(Optional<StringView>)> network_navigation_response_observer(LocalNavigable& navigable, Fetch::Infrastructure::Response& response, RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<JsonObject> network_response, RefPtr<NavigationResponseNetworkEventState> network_response_state)
+static GC::Ref<GC::Function<void(Optional<StringView>)>> network_navigation_response_observer(LocalNavigable& navigable, Fetch::Infrastructure::Response& response, RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<JsonObject> network_response, RefPtr<NavigationResponseNetworkEventState> network_response_state)
 {
     auto observed_navigable = network_response.has_value() ? GC::Weak<LocalNavigable> { navigable } : GC::Weak<LocalNavigable> {};
 
     // NB: Observing its navigable must not keep the navigable alive.
-    return [response = NonnullRefPtr { response }, observed_navigable = move(observed_navigable), timing_info = move(timing_info), network_response = move(network_response), network_response_state = move(network_response_state)](Optional<StringView> error) {
+    return GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { response }, move(observed_navigable), move(timing_info), move(network_response), move(network_response_state)), [](auto& response, auto& observed_navigable, auto& timing_info, auto& network_response, auto& network_response_state, Optional<StringView> error) {
         if (!network_response.has_value() || !observed_navigable || network_response_state->owner != NavigationResponseNetworkEventState::Owner::Renderer)
             return;
         network_response_state->owner = NavigationResponseNetworkEventState::Owner::Completed;
         WebDriver::BiDi::network_navigation_response_finished(*observed_navigable, *network_response, *response, timing_info, error);
-    };
+    });
 }
 
 static ErrorOr<GC::Ref<Fetch::Infrastructure::ResponseView>> create_navigation_response_from_descriptor(JS::Realm& realm, LocalNavigable& navigable, NavigationResponseDescriptor descriptor, RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, RefPtr<NavigationResponseNetworkEventState> network_response_state)
@@ -283,7 +283,7 @@ static ErrorOr<GC::Ref<Fetch::Infrastructure::ResponseView>> create_navigation_r
         Requests::RequestTransferLeaseKey transfer_lease { handle.request_server_client_id, handle.request_server_request_id };
         auto network_response = descriptor.webdriver_bidi_network_response.is_object() ? Optional<JsonObject>(descriptor.webdriver_bidi_network_response.as_object()) : Optional<JsonObject> {};
         auto on_network_settled = network_navigation_response_observer(navigable, response, timing_info, move(network_response), move(network_response_state));
-        auto body_view = Fetch::Fetching::adopt_navigation_response_body(realm, response, handle.request_server_top_level_site, transfer_lease, timing_info, move(on_network_settled));
+        auto body_view = Fetch::Fetching::adopt_navigation_response_body(realm, response, handle.request_server_top_level_site, transfer_lease, timing_info, on_network_settled);
         if (!body_view)
             return Error::from_string_literal("Unable to adopt transferred navigation response body");
         return Fetch::Infrastructure::ResponseView::create(response, body_view);

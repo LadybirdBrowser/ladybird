@@ -500,21 +500,21 @@ void LocalNavigable::start_download_for_response(GC::Ref<Fetch::Infrastructure::
     if (fetch_controller)
         page().client().page_did_register_download_controller(*download_id, *fetch_controller);
 
-    auto process_body_chunk = GC::create_function(realm.heap(), [navigable = GC::Ref { *this }, download_id = *download_id](ByteBuffer data) {
+    auto process_body_chunk = GC::create_function(realm.heap(), GC::captures(GC::Ref { *this }, *download_id), [](auto& navigable, auto& download_id, ByteBuffer data) {
         if (navigable->page().client().page_is_download_canceled(download_id))
             return;
 
         navigable->page().client().page_did_receive_download_data(download_id, move(data));
     });
 
-    auto process_end_of_body = GC::create_function(realm.heap(), [navigable = GC::Ref { *this }, download_id = *download_id]() {
+    auto process_end_of_body = GC::create_function(realm.heap(), GC::captures(GC::Ref { *this }, *download_id), [](auto& navigable, auto& download_id) {
         if (navigable->page().client().page_is_download_canceled(download_id))
             return;
 
         navigable->page().client().page_did_finish_download(download_id);
     });
 
-    auto process_body_error = GC::create_function(realm.heap(), [navigable = GC::Ref { *this }, download_id = *download_id](JS::Value) {
+    auto process_body_error = GC::create_function(realm.heap(), GC::captures(GC::Ref { *this }, *download_id), [](auto& navigable, auto& download_id, JS::Value) {
         if (navigable->page().client().page_is_download_canceled(download_id))
             return;
 
@@ -1025,7 +1025,7 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
         request.csp_navigation_type,
         Bindings::NavigationTimingType::Navigate,
         output,
-        GC::create_function(navigable->heap(), [navigable, history_entry, history_handling = request.history_handling, navigation_id = request.navigation_id, user_involvement = request.user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
+        GC::create_function(navigable->heap(), GC::captures(navigable, history_entry, request.history_handling, request.navigation_id, request.user_involvement), [](auto& navigable, auto& history_entry, auto& history_handling, auto& navigation_id, auto& user_involvement, GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
             // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
             if (navigable->ongoing_navigation() != navigation_id) {
                 if (output && output->document)
@@ -1262,7 +1262,7 @@ void LocalNavigable::update_nonchanging_navigable_history_step_state(HistoryObje
 {
     // AD-HOC: Queue with null document instead of using queue_global_task. A document-associated task can become
     //         unrunnable while the UI process waits for completion, so validate the document when the task runs.
-    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [navigable = GC::Ref { *this }, history_object_length_and_index, on_complete] {
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), GC::captures(GC::Ref { *this }, history_object_length_and_index.script_history_index, history_object_length_and_index.script_history_length, on_complete), [](auto& navigable, auto& script_history_index, auto& script_history_length, auto& on_complete) {
         // 1. Let document be navigable's active document.
         auto document = navigable->active_document();
         if (navigable->has_been_destroyed() || !document || !document->is_fully_active()) {
@@ -1271,10 +1271,10 @@ void LocalNavigable::update_nonchanging_navigable_history_step_state(HistoryObje
         }
 
         // 2. Set document's history object's index to scriptHistoryIndex.
-        document->history()->m_index = history_object_length_and_index.script_history_index;
+        document->history()->m_index = script_history_index;
 
         // 3. Set document's history object's length to scriptHistoryLength.
-        document->history()->m_length = history_object_length_and_index.script_history_length;
+        document->history()->m_length = script_history_length;
 
         // 4. Increment completedNonchangingJobs.
         on_complete->function()();
@@ -1289,7 +1289,7 @@ void LocalNavigable::queue_navigation_api_state_clear_task()
     if (!active_window())
         return;
 
-    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*active_window()), GC::create_function(heap(), [navigable = GC::Ref { *this }] {
+    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*active_window()), GC::create_function(heap(), GC::captures(GC::Ref { *this }), [](auto& navigable) {
         if (navigable->has_been_destroyed() || !navigable->active_window())
             return;
 
@@ -1321,7 +1321,7 @@ void LocalNavigable::run_ui_descendant_unload_task(ChildNavigableDestruction chi
 
     // The UI process has already unloaded this document's descendants.
     queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
-        GC::create_function(heap(), [navigable = GC::Ref { *this }, stop_hosting_after_unload, on_complete] {
+        GC::create_function(heap(), GC::captures(GC::Ref { *this }, stop_hosting_after_unload, on_complete), [](auto& navigable, auto& stop_hosting_after_unload, auto& on_complete) {
             if (auto active_document = navigable->active_document()) {
                 // The browsing context's WindowProxy outlives the document, since scripts hold it for the navigable.
                 if (auto browsing_context = active_document->browsing_context())
@@ -2344,15 +2344,15 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         // FIXME: Let processEarlyHintsResponse be the following algorithm given a response earlyResponse:
 
         // Let processResponse be the following algorithm given a response fetchedResponse:
-        auto process_response = [state_holder](GC::Ref<Fetch::Infrastructure::ResponseView> fetch_response) {
+        auto process_response = GC::create_function(realm.heap(), GC::captures(state_holder), [](auto& state_holder, GC::Ref<Fetch::Infrastructure::ResponseView> fetch_response) {
             // 1. Set response to fetchedResponse.
             state_holder->response = fetch_response;
             VERIFY(state_holder->continuation_steps);
             state_holder->continuation_steps->function()(NavigationParamsFetchStateHolder::ContinuationReason::GotResponse);
-        };
+        });
 
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
-        fetch_algorithms_input.process_response = move(process_response);
+        fetch_algorithms_input.process_response = process_response;
         state_holder->fetch_controller = Fetch::Fetching::fetch(
             realm,
             state_holder->request,
@@ -2369,13 +2369,13 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
     GC::Ptr<NavigationObserver> ongoing_navigation_changed_observer;
     if (state_holder->navigation_id.has_value()) {
         ongoing_navigation_changed_observer = NavigationObserver::create(*state_holder->navigable);
-        ongoing_navigation_changed_observer->set_ongoing_navigation_changed([state_holder] {
+        ongoing_navigation_changed_observer->set_ongoing_navigation_changed(GC::create_function(realm.heap(), GC::captures(state_holder), [](auto& state_holder) {
             VERIFY(state_holder->continuation_steps);
             state_holder->continuation_steps->function()(NavigationParamsFetchStateHolder::ContinuationReason::OngoingNavigationChanged);
-        });
+        }));
     }
 
-    state_holder->continuation_steps = GC::create_function(realm.heap(), [&realm, state_holder, ongoing_navigation_changed_observer, top_level_completion_steps, fetch_completion_steps](NavigationParamsFetchStateHolder::ContinuationReason continuation_reason) {
+    state_holder->continuation_steps = GC::create_function(realm.heap(), GC::captures(realm, state_holder, ongoing_navigation_changed_observer, top_level_completion_steps, fetch_completion_steps), [](auto& realm, auto& state_holder, auto& ongoing_navigation_changed_observer, auto& top_level_completion_steps, auto& fetch_completion_steps, NavigationParamsFetchStateHolder::ContinuationReason continuation_reason) {
         // If the latter condition occurs, then abort fetchController, and return. Otherwise, proceed onward.
         if (state_holder->navigation_id.has_value()) {
             VERIFY(ongoing_navigation_changed_observer);
@@ -2384,7 +2384,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             if (continuation_reason == NavigationParamsFetchStateHolder::ContinuationReason::OngoingNavigationChanged) {
                 if (state_holder->navigable->ongoing_navigation() != *state_holder->navigation_id) {
                     state_holder->fetch_controller->abort(realm, {});
-                    auto result = realm.heap().allocate<InternalNavigationResult>();
+                    auto result = GC::Heap::the().allocate<InternalNavigationResult>();
                     result->navigation_params = LocalNavigable::NullOrError {};
                     top_level_completion_steps->function()(*result);
                     return;
@@ -2396,7 +2396,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         //         was opened, with nothing to navigate left.
         if (state_holder->navigable->has_been_destroyed() || !state_holder->navigable->active_document()) {
             state_holder->fetch_controller->abort(realm, {});
-            auto result = realm.heap().allocate<InternalNavigationResult>();
+            auto result = GC::Heap::the().allocate<InternalNavigationResult>();
             result->navigation_params = LocalNavigable::NullOrError {};
             top_level_completion_steps->function()(*result);
             return;
@@ -2411,7 +2411,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         }
 
         // 8. If request's body is null, then set entry's document state's resource to null.
-        if (state_holder->request->body().has<Empty>()) {
+        if (state_holder->request->body().template has<Empty>()) {
             state_holder->resource_cleared = true;
             state_holder->resource = Empty {};
         }
@@ -2796,8 +2796,8 @@ static void create_navigation_params_by_fetching(
     state_holder->target_snapshot_params = target_snapshot_params;
     state_holder->navigation_id = move(navigation_id);
 
-    perform_navigation_params_fetch(realm, state_holder, completion_steps, GC::create_function(realm.heap(), [&realm, state_holder, user_involvement, completion_steps] {
-        auto result = realm.heap().allocate<InternalNavigationResult>();
+    perform_navigation_params_fetch(realm, state_holder, completion_steps, GC::create_function(realm.heap(), GC::captures(state_holder, user_involvement, completion_steps), [](auto& state_holder, auto& user_involvement, auto& completion_steps) {
+        auto result = GC::Heap::the().allocate<InternalNavigationResult>();
         result->redirected_url = move(state_holder->redirected_url);
         result->redirect_replaced_fragment = state_holder->redirect_replaced_fragment;
         result->classic_history_api_state = move(state_holder->redirect_classic_history_api_state);
@@ -2814,7 +2814,7 @@ static void create_navigation_params_by_fetching(
             // - initiator origin: responseOrigin
             // - navigation timing type: navTimingType
             // - user involvement: userInvolvement
-            result->navigation_params = realm.heap().allocate<NonFetchSchemeNavigationParams>(
+            result->navigation_params = GC::Heap::the().allocate<NonFetchSchemeNavigationParams>(
                 state_holder->navigation_id,
                 state_holder->navigable,
                 state_holder->location_url.value().value(),
@@ -2883,7 +2883,7 @@ static void create_navigation_params_by_fetching(
         //     user involvement: userInvolvement
         // FIXME: Value for iframe element referrer policy is missing in the spec. https://github.com/whatwg/html/issues/12567
         //        So, we default to the empty string.
-        result->navigation_params = realm.heap().allocate<NavigationParams>(
+        result->navigation_params = GC::Heap::the().allocate<NavigationParams>(
             state_holder->navigation_id,
             state_holder->navigable,
             state_holder->request,
@@ -2989,7 +2989,7 @@ static void create_navigation_params_for_population(
 static void create_navigation_population_result(Window& window, GC::Ref<InternalNavigationResult> result, GC::Ref<GC::Function<void(NavigationPopulationResult)>> on_complete)
 {
     auto& realm = window.principal_realm();
-    create_navigation_params_descriptor(realm, result->navigation_params, GC::create_function(realm.heap(), [result, on_complete](NavigationParamsVariantDescriptor navigation_params) {
+    create_navigation_params_descriptor(realm, result->navigation_params, GC::create_function(realm.heap(), GC::captures(result, on_complete), [](auto& result, auto& on_complete, NavigationParamsVariantDescriptor navigation_params) {
         Optional<SessionHistoryDocumentStateDescriptor> replacement_document_state;
         if (result->replacement_document_state)
             replacement_document_state = create_session_history_document_state_descriptor(*result->replacement_document_state);
@@ -3010,26 +3010,26 @@ static void create_navigation_population_result(Window& window, GC::Ref<Internal
 void LocalNavigable::populate_session_history_entry_document(NavigationPopulationRequest const& request, GC::Ref<SourceSnapshotParams> source_snapshot_params, bool allow_POST, GC::Ref<GC::Function<void(NavigationPopulationResult)>> response_steps)
 {
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
-    auto respond_without_an_active_window = [response_steps] {
+    auto respond_without_an_active_window = GC::create_function(heap(), GC::captures(response_steps), [](auto& response_steps) {
         response_steps->function()({
             .navigation_params = NavigationParamsNullOrError { "Navigable has no active window"_utf16 },
             .redirected_url = {},
             .classic_history_api_state = {},
             .replacement_document_state = {},
         });
-    };
+    });
     if (!active_window()) {
-        respond_without_an_active_window();
+        respond_without_an_active_window->function()();
         return;
     }
 
-    auto received_navigation_params = GC::create_function(heap(), [this, response_steps, respond_without_an_active_window](GC::Ref<InternalNavigationResult> result) {
-        if (!active_window()) {
+    auto received_navigation_params = GC::create_function(heap(), GC::captures(*this, response_steps, respond_without_an_active_window), [](auto& self, auto& response_steps, auto& respond_without_an_active_window, GC::Ref<InternalNavigationResult> result) {
+        if (!self.active_window()) {
             stop_response_body_delivery(result->navigation_params);
-            respond_without_an_active_window();
+            respond_without_an_active_window->function()();
             return;
         }
-        create_navigation_population_result(*active_window(), result, response_steps);
+        create_navigation_population_result(*self.active_window(), result, response_steps);
     });
 
     auto navigation_timing_type = request.history_entry.document_state.reload_pending ? Bindings::NavigationTimingType::Reload : Bindings::NavigationTimingType::BackForward;
@@ -3074,7 +3074,7 @@ static GC::Ref<DOM::Document> create_navigation_error_document(LocalNavigable& n
         // FIXME: Directly calling parser->the_end results in a deadlock, because it waits for the warning image to load.
         //        However the response is never processed when parser->the_end is called.
         //        Queuing a global task is a workaround for now.
-        queue_a_task(Task::Source::Unspecified, HTML::main_thread_event_loop(), document, GC::create_function(document.heap(), [&document, parser] {
+        queue_a_task(Task::Source::Unspecified, HTML::main_thread_event_loop(), document, GC::create_function(document.heap(), GC::captures(document, parser), [](auto& document, auto& parser) {
             HTMLParser::the_end(document, parser);
         }));
     });
@@ -3138,11 +3138,11 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
         (*params)->document_id = output->document_id;
 
     // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
-    queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, source_allows_downloading, source_interface_origin, user_involvement, navigation_id, navigation_params, csp_navigation_type, navigation_timing_type, output, completion_steps]() mutable {
+    queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function<void()>(heap(), GC::captures(*this, url, source_allows_downloading, source_interface_origin, user_involvement, navigation_id, navigation_params, csp_navigation_type, navigation_timing_type, output, completion_steps), [](LocalNavigable& self, auto& url, auto& source_allows_downloading, auto& source_interface_origin, auto& user_involvement, auto& navigation_id, NavigationParamsVariant& navigation_params, auto& csp_navigation_type, auto& navigation_timing_type, auto& output, auto& completion_steps) {
         // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
         // NB: A reload history job keeps the traversal marker while its document is populated.
-        auto is_reload_traversal = navigation_timing_type == Bindings::NavigationTimingType::Reload && ongoing_navigation().has<Traversal>();
-        if (navigation_id.has_value() && ongoing_navigation() != navigation_id && !is_reload_traversal) {
+        auto is_reload_traversal = navigation_timing_type == Bindings::NavigationTimingType::Reload && self.ongoing_navigation().has<Traversal>();
+        if (navigation_id.has_value() && self.ongoing_navigation() != navigation_id && !is_reload_traversal) {
             stop_response_body_delivery(navigation_params);
             if (completion_steps)
                 completion_steps->function()(nullptr);
@@ -3163,7 +3163,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             // INTEROP: A navigation that loads no document is reported as failed to WebDriver BiDi, which is what other
             //          implementations do, so that the navigation's waiters learn it ended.
             if (!output->document && WebDriver::BiDi::is_active())
-                WebDriver::BiDi::navigation_event(*this, "browsingContext.navigationFailed"sv, navigation_id, url);
+                WebDriver::BiDi::navigation_event(self, "browsingContext.navigationFailed"sv, navigation_id, url);
 
             // 2. Set saveExtraDocumentState to false.
             output->save_extra_document_state = false;
@@ -3179,13 +3179,13 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
         //     document.
         else if (navigation_params.visit(
                      [](NullOrError) { return true; },
-                     [this, csp_navigation_type](GC::Ref<NavigationParams> navigation_params) {
-                         auto csp_result = ContentSecurityPolicy::should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(navigation_params->request, *navigation_params->response, navigation_params->policy_container->csp_list, csp_navigation_type, *this);
+                     [&self, csp_navigation_type](GC::Ref<NavigationParams> navigation_params) {
+                         auto csp_result = ContentSecurityPolicy::should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(navigation_params->request, *navigation_params->response, navigation_params->policy_container->csp_list, csp_navigation_type, self);
                          if (csp_result == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
                              return true;
 
                          // FIXME: Pass in navigationParams's policy container's CSP list
-                         return !check_a_navigation_responses_adherence_to_x_frame_options(navigation_params->response, this, navigation_params->policy_container->csp_list, navigation_params->origin);
+                         return !check_a_navigation_responses_adherence_to_x_frame_options(navigation_params->response, &self, navigation_params->policy_container->csp_list, navigation_params->origin);
                      },
                      [](GC::Ref<NonFetchSchemeNavigationParams>) { return false; })) {
             // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content should indicate to the user the sort of error that occurred.
@@ -3193,7 +3193,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             // AD-HOC: Name the URL that actually failed to load: The last URL the navigation was redirected to, if
             //         any — rather than the URL it started at.
             auto error_url = output->redirected_url.value_or(url);
-            output->document = create_navigation_error_document(*this, navigation_id, navigation_timing_type, user_involvement, output->inline_content_origin.value(), output->document_id, error_url, error_message);
+            output->document = create_navigation_error_document(self, navigation_id, navigation_timing_type, user_involvement, output->inline_content_origin.value(), output->document_id, error_url, error_message);
 
             // 2. Make document unsalvageable given entry's document state's document and "navigation-failure".
             if (output->document)
@@ -3217,13 +3217,13 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
                     auto response_url = navigation_params.visit(
                         [&](GC::Ref<NavigationParams> const& it) { return it->response->url().value_or(url); },
                         [&](auto const&) { return url; });
-                    WebDriver::BiDi::navigation_event(*this, "browsingContext.navigationFailed"sv, navigation_id, response_url);
+                    WebDriver::BiDi::navigation_event(self, "browsingContext.navigationFailed"sv, navigation_id, response_url);
                 }
             }
             // INTEROP: A navigation whose fetch failed is reported as failed to WebDriver BiDi too, which is what other
             //          implementations do.
             else if (WebDriver::BiDi::is_active()) {
-                WebDriver::BiDi::navigation_event(*this, "browsingContext.navigationFailed"sv, navigation_id, error_url);
+                WebDriver::BiDi::navigation_event(self, "browsingContext.navigationFailed"sv, navigation_id, error_url);
             }
         }
 
@@ -3247,28 +3247,27 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             if (!sniff_bytes.has_value()) {
                 // Async path: bytes not yet available, wait for them
                 nav_params->response->resume_body_delivery_up_to(Fetch::Infrastructure::MAX_SNIFF_BYTES);
-                body->wait_for_sniff_bytes(GC::create_function(heap(),
-                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, url, navigation_id, is_reload_traversal](Fetch::Infrastructure::Body::SniffBytes sniff_bytes) {
-                        // AD-HOC: The document may have been destroyed between when the fetch started and when the
-                        //         bytes arrived. A response that failed mid-sniff must not be loaded as a document
-                        //         off its partial bytes either.
-                        // AD-HOC: A navigation that a newer one superseded during the wait makes no document either:
-                        //         the document would take over the Window of an initial about:blank, whose tasks then
-                        //         wait for a document that never becomes active, among them those of the newer
-                        //         navigation.
-                        auto is_superseded = navigation_id.has_value() && nav_params->navigable->ongoing_navigation() != navigation_id && !is_reload_traversal;
-                        if (!is_superseded && nav_params->navigable->active_browsing_context() && sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Complete) {
-                            load_document_or_handle_download(nav_params, sniff_bytes.bytes, url, source_allows_downloading, source_interface_origin, *output);
-                        } else {
-                            stop_response_body_delivery(navigation_params);
-                            if (sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Failed)
-                                output->save_extra_document_state = false;
-                        }
-                        output->navigation_params = navigation_params;
-                        report_a_document_with_an_origin_of_its_own(*nav_params->navigable, output);
-                        if (completion_steps)
-                            completion_steps->function()(output);
-                    }));
+                body->wait_for_sniff_bytes(GC::create_function(self.heap(), GC::captures(output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, url, navigation_id, is_reload_traversal), [](auto& output, auto& nav_params, auto& navigation_params, auto& completion_steps, auto& source_allows_downloading, auto& source_interface_origin, auto& url, auto& navigation_id, auto& is_reload_traversal, Fetch::Infrastructure::Body::SniffBytes sniff_bytes) {
+                    // AD-HOC: The document may have been destroyed between when the fetch started and when the
+                    //         bytes arrived. A response that failed mid-sniff must not be loaded as a document
+                    //         off its partial bytes either.
+                    // AD-HOC: A navigation that a newer one superseded during the wait makes no document either:
+                    //         the document would take over the Window of an initial about:blank, whose tasks then
+                    //         wait for a document that never becomes active, among them those of the newer
+                    //         navigation.
+                    auto is_superseded = navigation_id.has_value() && nav_params->navigable->ongoing_navigation() != navigation_id && !is_reload_traversal;
+                    if (!is_superseded && nav_params->navigable->active_browsing_context() && sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Complete) {
+                        load_document_or_handle_download(nav_params, sniff_bytes.bytes, url, source_allows_downloading, source_interface_origin, *output);
+                    } else {
+                        stop_response_body_delivery(navigation_params);
+                        if (sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Failed)
+                            output->save_extra_document_state = false;
+                    }
+                    output->navigation_params = navigation_params;
+                    report_a_document_with_an_origin_of_its_own(*nav_params->navigable, output);
+                    if (completion_steps)
+                        completion_steps->function()(output);
+                }));
                 return;
             }
 
@@ -3284,13 +3283,13 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
         }
 
         output->navigation_params = navigation_params;
-        report_a_document_with_an_origin_of_its_own(*this, output);
+        report_a_document_with_an_origin_of_its_own(self, output);
         if (completion_steps)
             completion_steps->function()(output);
     }),
         Task::Priority::Normal,
         // A task its document drops unrun stops the body it would have handed on.
-        GC::create_function(heap(), [navigation_params] {
+        GC::create_function(heap(), GC::captures(navigation_params), [](auto& navigation_params) {
             stop_response_body_delivery(navigation_params);
         }));
 }
@@ -3305,22 +3304,22 @@ void LocalNavigable::create_navigation_params_for_navigation(NavigationPopulatio
     }
 
     // 3. Queue a global task on the navigation and traversal task source given navigable's active window to abort a document and its descendants given navigable's active document.
-    queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this] {
-        active_document()->abort_a_document_and_its_descendants();
+    queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+        self.active_document()->abort_a_document_and_its_descendants();
     }));
 
-    auto received_navigation_params = GC::create_function(heap(), [this, request, navigation_id](GC::Ref<InternalNavigationResult> result) mutable {
-        if (!active_window() || ongoing_navigation() != navigation_id) {
+    auto received_navigation_params = GC::create_function(heap(), GC::captures(*this, request, navigation_id), [](auto& self, auto& request, auto& navigation_id, GC::Ref<InternalNavigationResult> result) {
+        if (!self.active_window() || self.ongoing_navigation() != navigation_id) {
             stop_response_body_delivery(result->navigation_params);
             return;
         }
 
-        create_navigation_population_result(*active_window(), result, GC::create_function(heap(), [this, request = move(request), navigation_id, result](NavigationPopulationResult population_result) mutable {
-            if (!active_window() || ongoing_navigation() != navigation_id) {
+        create_navigation_population_result(*self.active_window(), result, GC::create_function(self.heap(), GC::captures(self, move(request), navigation_id, result), [](auto& self, auto& request, auto& navigation_id, auto& result, NavigationPopulationResult population_result) {
+            if (!self.active_window() || self.ongoing_navigation() != navigation_id) {
                 stop_response_body_delivery(result->navigation_params);
                 return;
             }
-            page().client().navigation_params_creation_finished(*this, move(request), move(population_result));
+            self.page().client().navigation_params_creation_finished(self, move(request), move(population_result));
         }));
     });
 
@@ -3544,8 +3543,8 @@ void LocalNavigable::navigate_to_a_javascript_url_from_ui_process(URL::URL const
     // NB: initialInsertion is false for a navigation the UI process runs: it never inserts a container.
     // NB: The task holds request's client until it runs.
     m_queued_javascript_url_navigations.append(navigation_id);
-    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*window), GC::create_function(heap(), [this, request, client = source_snapshot_params->fetch_client, history_handling, initiator_origin, user_involvement, csp_navigation_type, navigation_id = move(navigation_id)] {
-        navigate_to_a_javascript_url(request, history_handling, initiator_origin, user_involvement, csp_navigation_type, InitialInsertion::No, navigation_id);
+    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*window), GC::create_function(heap(), GC::captures(*this, request, source_snapshot_params->fetch_client, history_handling, initiator_origin, user_involvement, csp_navigation_type, move(navigation_id)), [](auto& self, auto& request, auto&, auto& history_handling, auto& initiator_origin, auto& user_involvement, auto& csp_navigation_type, auto& navigation_id) {
+        self.navigate_to_a_javascript_url(request, history_handling, initiator_origin, user_involvement, csp_navigation_type, InitialInsertion::No, navigation_id);
     }));
 }
 
@@ -3724,8 +3723,8 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         // NB: The task holds request's client until it runs.
         VERIFY(active_window());
         m_queued_javascript_url_navigations.append(navigation_id);
-        queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, request, client = source_snapshot_params->fetch_client, history_handling, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id] {
-            navigate_to_a_javascript_url(request, to_history_handling_behavior(history_handling), initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id);
+        queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), GC::captures(*this, request, source_snapshot_params->fetch_client, history_handling, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id), [](auto& self, auto& request, auto&, auto& history_handling, auto& initiator_origin_snapshot, auto& user_involvement, auto& csp_navigation_type, auto& initial_insertion, auto& navigation_id) {
+            self.navigate_to_a_javascript_url(request, to_history_handling_behavior(history_handling), initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id);
         }));
 
         // 3. Return.
@@ -3847,8 +3846,8 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
     // NB: This page checks the documents it hosts, last: the UI process, which requested the check, ran it in the
     //     pages hosting the others first, and whether one of them showed the prompt comes with the request.
     check_if_unloading_is_canceled(page(), hosted_inclusive_descendant_navigables(), as_if<LocalTraversableNavigable>(this), {}, {}, {}, unload_prompt_shown,
-        GC::create_function(heap(), [this, navigation_id, completion_steps](CheckIfUnloadingIsCanceledResult unload_prompt_canceled, UnloadPromptShown) {
-            if (has_been_destroyed() || !active_window()) {
+        GC::create_function(heap(), GC::captures(*this, navigation_id, completion_steps), [](auto& self, auto& navigation_id, auto& completion_steps, CheckIfUnloadingIsCanceledResult unload_prompt_canceled, UnloadPromptShown) {
+            if (self.has_been_destroyed() || !self.active_window()) {
                 completion_steps->function()(false);
                 return;
             }
@@ -3857,7 +3856,7 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
             // NB: The UI process learns of the canceled check from the population-failure report and ends the
             //     recorded load itself.
             if (unload_prompt_canceled != CheckIfUnloadingIsCanceledResult::Continue) {
-                stop_delaying_load_events_for_navigation(navigation_id);
+                self.stop_delaying_load_events_for_navigation(navigation_id);
                 // AD-HOC: Step 2 ends with 'Abort these steps.', which leaves navigable's ongoing navigation as
                 //         navigationId: step 24 of navigate set it ('Set the ongoing navigation for navigable to
                 //         navigationId.'), and the canceled navigation runs nothing further that would reset it. 'Each
@@ -3875,14 +3874,14 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
                 //         continueLoadAfterNavigationPolicy() stops on shouldClose(), and nsDocShell::InternalLoad()
                 //         returns on PermitUnload()), so no state of the canceled attempt outlives it there either, and
                 //         none does here once the ongoing navigation is reset.
-                if (ongoing_navigation() == navigation_id)
-                    set_ongoing_navigation({});
+                if (self.ongoing_navigation() == navigation_id)
+                    self.set_ongoing_navigation({});
                 completion_steps->function()(false);
                 return;
             }
 
-            if (ongoing_navigation() != navigation_id) {
-                stop_delaying_load_events_for_navigation(navigation_id);
+            if (self.ongoing_navigation() != navigation_id) {
+                self.stop_delaying_load_events_for_navigation(navigation_id);
                 completion_steps->function()(false);
                 return;
             }
@@ -4359,7 +4358,7 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
             .user_involvement = user_involvement,
         },
         {
-            .on_apply_history_step_complete = GC::create_function(heap(), [reloading_entry](HistoryStepResult result) {
+            .on_apply_history_step_complete = GC::create_function(heap(), GC::captures(reloading_entry), [](auto& reloading_entry, HistoryStepResult result) {
                 if (result == HistoryStepResult::Applied)
                     return;
 
@@ -4414,7 +4413,7 @@ void LocalTraversableNavigable::request_close_preflight(GC::Ref<GC::Function<voi
         return;
     }
 
-    auto state_callback = GC::create_function(heap(), [callback](CheckIfUnloadingIsCanceledResult result, UnloadPromptShown) {
+    auto state_callback = GC::create_function(heap(), GC::captures(callback), [](auto& callback, CheckIfUnloadingIsCanceledResult result, UnloadPromptShown) {
         callback->function()(result == CheckIfUnloadingIsCanceledResult::Continue);
     });
     auto state = heap().allocate<CheckUnloadingCanceledState>(page(), GC::Ptr<LocalTraversableNavigable> { this }, GC::Ptr<LocalTraversableNavigable> {}, Optional<UserNavigationInvolvement> {}, UnloadPromptShown::No, state_callback);
@@ -4460,7 +4459,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .pending_document = pending_document,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .on_complete = GC::create_function(navigable->heap(), [navigable, navigation_id, has_document = !!pending_document] {
+            .on_complete = GC::create_function(navigable->heap(), GC::captures(navigable, navigation_id, !!pending_document), [](auto& navigable, auto& navigation_id, auto& has_document) {
                 // AD-HOC: Step 2 runs as the navigation's document is activated. When the steps end without activating
                 //         it, the navigation is dropped, and stops delaying load events.
                 if (has_document && !navigable->has_been_destroyed() && navigable->is_delaying_load_events())
@@ -4895,7 +4894,7 @@ static GC::Ptr<DOM::Element> adopt_async_element_scroll_offset(DOM::Document& do
 static void queue_async_scroll_operation_promise_resolution(GC::Ref<WebIDL::Promise> promise)
 {
     auto& realm = promise->promise()->shape().realm();
-    HTML::queue_a_microtask(nullptr, GC::create_function(realm.heap(), [promise] {
+    HTML::queue_a_microtask(nullptr, GC::create_function(realm.heap(), GC::captures(promise), [](auto& promise) {
         auto& realm = promise->promise()->shape().realm();
         HTML::TemporaryExecutionContext execution_context {
             realm,
@@ -8037,8 +8036,8 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     TemporaryExecutionContext execution_context_for_promise_reactions { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
     WebIDL::wait_for_all(
         realm, { { layout_viewport_scroll.promise, visual_viewport_scroll.promise } },
-        [scroll_promise](auto const&) { WebIDL::resolve_promise(scroll_promise); },
-        [scroll_promise](JS::Value) { WebIDL::resolve_promise(scroll_promise); });
+        GC::create_function(realm.heap(), GC::captures(scroll_promise), [](auto& scroll_promise, Vector<JS::Value> const&) { WebIDL::resolve_promise(scroll_promise); }),
+        GC::create_function(realm.heap(), GC::captures(scroll_promise), [](auto& scroll_promise, JS::Value) { WebIDL::resolve_promise(scroll_promise); }));
     return scroll_promise;
 }
 

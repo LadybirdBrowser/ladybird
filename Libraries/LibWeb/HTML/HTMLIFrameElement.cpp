@@ -161,12 +161,12 @@ void HTMLIFrameElement::process_the_iframe_attributes(InitialInsertion initial_i
         // 2. If the will lazy load element steps given element return true, then:
         if (will_lazy_load_element()) {
             // 1. Set element's lazy load resumption steps to the rest of this algorithm starting with the step labeled navigate to the srcdoc resource.
-            set_lazy_load_resumption_steps([this]() {
+            set_lazy_load_resumption_steps(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
                 // 3. Navigate to the srcdoc resource: navigate an iframe or frame given element, about:srcdoc, the empty string, and the value of element's srcdoc attribute.
-                navigate_an_iframe_or_frame(URL::about_srcdoc(), ReferrerPolicy::ReferrerPolicy::EmptyString, get_attribute_ns({}, HTML::AttributeNames::srcdoc));
+                self.navigate_an_iframe_or_frame(URL::about_srcdoc(), ReferrerPolicy::ReferrerPolicy::EmptyString, self.get_attribute_ns({}, HTML::AttributeNames::srcdoc));
 
                 // FIXME: The resulting Document must be considered an iframe srcdoc document.
-            });
+            }));
 
             // 2. Set element's current navigation was lazy loaded boolean to true.
             set_current_navigation_was_lazy_loaded(true);
@@ -212,10 +212,10 @@ void HTMLIFrameElement::process_the_iframe_attributes(InitialInsertion initial_i
     // 6. If the will lazy load element steps given element return true, then:
     if (will_lazy_load_element()) {
         // 1. Set element's lazy load resumption steps to the rest of this algorithm starting with the step labeled navigate.
-        set_lazy_load_resumption_steps([this, url, referrer_policy, initial_insertion]() {
+        set_lazy_load_resumption_steps(GC::create_function(GC::Heap::the(), GC::captures(*this, url, referrer_policy, initial_insertion), [](auto& self, auto& url, auto& referrer_policy, auto& initial_insertion) {
             // 7. Navigate: Navigate an iframe or frame given element, url, referrerPolicy, null, and initialInsertion.
-            navigate_an_iframe_or_frame(*url, referrer_policy, {}, initial_insertion);
-        });
+            self.navigate_an_iframe_or_frame(*url, referrer_policy, {}, initial_insertion);
+        }));
 
         // 2. Set element's current navigation was lazy loaded boolean to true.
         set_current_navigation_was_lazy_loaded(true);
@@ -272,9 +272,9 @@ void run_iframe_load_event_steps(HTMLIFrameElement& element)
     if (auto* local_navigable = as_if<LocalNavigable>(*element.content_navigable())) {
         if (auto active_document = local_navigable->active_document(); active_document && active_document->anything_is_delaying_the_load_event()) {
             auto element_ref = GC::Ref(element);
-            element.queue_an_element_task(HTML::Task::Source::DOMManipulation, [element_ref] {
+            element.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(element_ref), [](auto& element_ref) {
                 run_iframe_load_event_steps(element_ref);
-            });
+            }));
             return;
         }
     }

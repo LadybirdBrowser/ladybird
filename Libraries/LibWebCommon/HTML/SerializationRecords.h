@@ -16,6 +16,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
@@ -194,3 +195,5 @@ template<>
 WEBCOMMON_API ErrorOr<Web::HTML::SerializedTransferRecord> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::HTML::TransferDataEncoder);

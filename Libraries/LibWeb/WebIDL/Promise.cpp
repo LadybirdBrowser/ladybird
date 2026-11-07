@@ -188,7 +188,7 @@ GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps>
     auto& vm = realm.vm();
 
     // 1. Let onFulfilledSteps be the following steps given argument V:
-    auto on_fulfilled_steps = [&realm, on_fulfilled_callback = move(on_fulfilled_callback)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+    auto on_fulfilled_steps = GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(realm.heap(), GC::captures(realm, on_fulfilled_callback), [](auto& realm, GC::Ptr<ReactionSteps>& on_fulfilled_callback, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
         // 1. Let value be the result of converting V to an IDL value of type T.
         auto value = vm.argument(0);
 
@@ -199,13 +199,13 @@ GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps>
 
         // 3. Return result, converted to an ECMAScript value.
         return result;
-    };
+    });
 
     // 2. Let onFulfilled be CreateBuiltinFunction(onFulfilledSteps, 1, "", « »):
-    auto on_fulfilled = JS::NativeFunction::create(realm, move(on_fulfilled_steps), 1);
+    auto on_fulfilled = JS::NativeFunction::create(realm, on_fulfilled_steps, 1);
 
     // 3. Let onRejectedSteps be the following steps given argument R:
-    auto on_rejected_steps = [&realm, on_rejected_callback = move(on_rejected_callback)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+    auto on_rejected_steps = GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(realm.heap(), GC::captures(realm, on_rejected_callback), [](auto& realm, GC::Ptr<ReactionSteps>& on_rejected_callback, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
         // 1. Let reason be the result of converting R to an IDL value of type any.
         auto reason = vm.argument(0);
 
@@ -216,10 +216,10 @@ GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps>
 
         // 3. Return result, converted to an ECMAScript value.
         return result;
-    };
+    });
 
     // 4. Let onRejected be CreateBuiltinFunction(onRejectedSteps, 1, "", « »):
-    auto on_rejected = JS::NativeFunction::create(realm, move(on_rejected_steps), 1);
+    auto on_rejected = JS::NativeFunction::create(realm, on_rejected_steps, 1);
 
     // 5. Let constructor be promise.[[Promise]].[[Realm]].[[Intrinsics]].[[%Promise%]].
     auto constructor = realm.intrinsics().promise_constructor();
@@ -314,7 +314,7 @@ struct WaitForAllResults : JS::Cell {
 GC_DEFINE_ALLOCATOR(WaitForAllResults);
 
 // https://webidl.spec.whatwg.org/#wait-for-all
-void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Function<void(Vector<JS::Value> const&)> success_steps, Function<void(JS::Value)> failure_steps)
+void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, GC::Ref<GC::Function<void(Vector<JS::Value> const&)>> success_steps, GC::Ref<GC::Function<void(JS::Value)>> failure_steps)
 {
     // FIXME: Fix spec typo, fullfilled --> fulfilled
     // 1. Let fullfilledCount be 0.
@@ -324,7 +324,7 @@ void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Fun
     auto rejected = false;
 
     // 3. Let rejectionHandlerSteps be the following steps given arg:
-    auto rejection_handler_steps = [rejected, failure_steps = GC::create_function(GC::Heap::the(), move(failure_steps))](JS::VM& vm) mutable -> JS::ThrowCompletionOr<JS::Value> {
+    auto rejection_handler_steps = GC::create_function(realm.heap(), GC::captures(rejected, failure_steps), [](bool& rejected, GC::Ref<GC::Function<void(JS::Value)>>& failure_steps, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
         // 1. If rejected is true, abort these steps.
         if (rejected)
             return JS::js_undefined();
@@ -336,10 +336,10 @@ void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Fun
         failure_steps->function()(vm.argument(0));
 
         return JS::js_undefined();
-    };
+    });
 
     // 4. Let rejectionHandler be CreateBuiltinFunction(rejectionHandlerSteps, 1, "", « »):
-    auto rejection_handler = JS::NativeFunction::create(realm, move(rejection_handler_steps), 1);
+    auto rejection_handler = JS::NativeFunction::create(realm, rejection_handler_steps, 1);
 
     // 5. Let total be promises’s size.
     auto total = promises.size();
@@ -347,7 +347,7 @@ void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Fun
     // 6. If total is 0, then:
     if (total == 0) {
         // 1. Queue a microtask to perform successSteps given « ».
-        HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [success_steps = GC::create_function(GC::Heap::the(), move(success_steps))] {
+        HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), GC::captures(success_steps), [](auto& success_steps) {
             success_steps->function()({});
         }));
 
@@ -361,7 +361,7 @@ void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Fun
     // 8. Let result be a list containing total null values.
     // Handled in WaitForAllResults
 
-    auto results = GC::Heap::the().allocate<WaitForAllResults>(GC::create_function(GC::Heap::the(), move(success_steps)), total);
+    auto results = GC::Heap::the().allocate<WaitForAllResults>(success_steps, total);
 
     // 9. For each promise of promises:
     for (auto promise : promises) {
@@ -370,7 +370,7 @@ void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Fun
 
         // FIXME: This should be fulfillmentHandlerSteps
         // 2. Let fulfillmentHandler be the following steps given arg:
-        auto fulfillment_handler_steps = [results, promise_index](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        auto fulfillment_handler_steps = GC::create_function(realm.heap(), GC::captures(results, promise_index), [](GC::Ref<WaitForAllResults>& results, int& promise_index, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             auto arg = vm.argument(0);
 
             // 1. Set result[promiseIndex] to arg.
@@ -384,10 +384,10 @@ void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Fun
                 results->success_steps->function()(results->result);
 
             return JS::js_undefined();
-        };
+        });
 
         // 3. Let fulfillmentHandler be CreateBuiltinFunction(fulfillmentHandler, 1, "", « »):
-        auto fulfillment_handler = JS::NativeFunction::create(realm, move(fulfillment_handler_steps), 1);
+        auto fulfillment_handler = JS::NativeFunction::create(realm, fulfillment_handler_steps, 1);
 
         // 4. Perform PerformPromiseThen(promise, fulfillmentHandler, rejectionHandler).
         static_cast<JS::Promise&>(*promise->promise()).perform_then(fulfillment_handler, rejection_handler, nullptr);
@@ -404,24 +404,24 @@ GC::Ref<Promise> get_promise_for_wait_for_all(JS::Realm& realm, ReadonlySpan<GC:
     auto promise = create_promise(realm);
 
     // 2. Let successSteps be the following steps, given results:
-    auto success_steps = [&realm, promise](Vector<JS::Value> const& results) {
+    auto success_steps = GC::create_function(realm.heap(), GC::captures(realm, promise), [](auto& realm, auto& promise, Vector<JS::Value> const& results) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Resolve promise with results.
         auto sequence = JS::Array::create_from(realm, results);
         resolve_promise(realm, promise, sequence);
-    };
+    });
 
     // 3. Let failureSteps be the following steps, given reason:
-    auto failure_steps = [&realm, promise](JS::Value reason) {
+    auto failure_steps = GC::create_function(realm.heap(), GC::captures(realm, promise), [](auto& realm, auto& promise, JS::Value reason) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Reject promise with reason.
         reject_promise(realm, promise, reason);
-    };
+    });
 
     // 4. Wait for all with promises, given successSteps and failureSteps.
-    wait_for_all(realm, promises, move(success_steps), move(failure_steps));
+    wait_for_all(realm, promises, success_steps, failure_steps);
 
     // 5. Return promise.
     return promise;

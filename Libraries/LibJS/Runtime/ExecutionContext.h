@@ -75,6 +75,13 @@ public:
         return visitor(empty);
     }
 
+    void visit_edges(GC::Cell::Visitor& visitor) const
+    {
+        visit(
+            [](Empty) { },
+            [&](auto const& script_or_module) { visitor.visit(script_or_module); });
+    }
+
     bool operator==(ScriptOrModule const&) const = default;
 
 private:

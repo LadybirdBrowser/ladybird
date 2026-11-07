@@ -82,7 +82,8 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
     auto& global_object = relevant_realm_for_universal_global_scope(global).global_object();
 
     // 5. Queue a global task on the DOM manipulation task source given global to run the following substep:
-    queue_global_task(Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), [this, &global, list = move(list)] {
+    queue_global_task(Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), GC::captures(global, move(list)), [](auto& global, auto& list) {
+        auto& self = as<UniversalGlobalScopeMixin>(global);
         auto& realm = relevant_realm_for_universal_global_scope(global);
 
         // 1. For each promise p in list:
@@ -113,7 +114,7 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
 
             // 4. If p's [[PromiseIsHandled]] internal slot is false, add p to settings object's outstanding rejected promises weak set.
             if (!promise->is_handled())
-                m_outstanding_rejected_promises_weak_set.append(*promise);
+                self.m_outstanding_rejected_promises_weak_set.append(*promise);
 
             // This algorithm results in promise rejections being marked as handled or not handled. These concepts parallel handled and not handled script errors.
             // If a rejection is still not handled after this, then the rejection may be reported to a developer console.

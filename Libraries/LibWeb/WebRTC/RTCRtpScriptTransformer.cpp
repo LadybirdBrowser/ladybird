@@ -42,7 +42,7 @@ WebIDL::ExceptionOr<GC::Ref<RTCRtpScriptTransformer>> RTCRtpScriptTransformer::c
     //    on the parent side), so the pull is a no-op.
     // NB: Streams only lets C++ set up a ReadableStream of arbitrary chunks as the readable side of a TransformStream,
     //     so frames are enqueued into one whose writable side nothing writes to.
-    auto readable_transform = GC::create_function(realm.heap(), [transformer](JS::Value) -> GC::Ref<WebIDL::Promise> {
+    auto readable_transform = GC::create_function(realm.heap(), GC::captures(transformer), [](auto& transformer, JS::Value) -> GC::Ref<WebIDL::Promise> {
         return WebIDL::create_resolved_promise(transformer->relevant_realm(), JS::js_undefined());
     });
     transformer->m_readable_source = Streams::TransformStream::create(realm);
@@ -51,7 +51,7 @@ WebIDL::ExceptionOr<GC::Ref<RTCRtpScriptTransformer>> RTCRtpScriptTransformer::c
 
     // 3. Let writeAlgorithm be an action that runs writeEncodedData with this as
     //    parameter and frame as input, given frame.
-    auto write_algorithm = GC::create_function(realm.heap(), [transformer](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+    auto write_algorithm = GC::create_function(realm.heap(), GC::captures(transformer), [](auto& transformer, JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
         // writeEncodedData step: hand the transformed frame to [[frameSource]] for
         // continued pipeline processing (decode, playback, or send-out for senders).
         if (transformer->m_write_encoded_data)

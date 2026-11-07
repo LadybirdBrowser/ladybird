@@ -124,9 +124,9 @@ void HTMLImageElement::initialize_element()
     //         A document_became_active callback is set lazily by update_the_image_data() when
     //         needed to restart image loading after the document becomes active again.
     m_document_observer = DOM::DocumentObserver::create(document());
-    m_document_observer->set_document_became_inactive([this]() {
-        m_load_event_delayer.clear();
-    });
+    m_document_observer->set_document_became_inactive(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        self.m_load_event_delayer.clear();
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#update-the-source-set
@@ -677,56 +677,56 @@ void HTMLImageElement::decode(GC::Ref<WebIDL::Promise> promise) const
     // 1. Let promise be a new promise.
 
     // 2. Queue a microtask to perform the following steps:
-    queue_a_microtask(&document(), GC::create_function(GC::Heap::the(), [this, promise]() mutable {
+    queue_a_microtask(&document(), GC::create_function(GC::Heap::the(), GC::captures(*this, promise), [](auto& self, auto& promise) {
         // 1. Let global be this's relevant global object.
-        auto& global = relevant_global_object(*this);
+        auto& global = relevant_global_object(self);
 
-        auto reject_promise = [this, promise](Utf16String const& message) {
+        auto reject_promise = GC::create_function(GC::Heap::the(), GC::captures(self, promise), [](auto& self, auto& promise, Utf16String const& message) {
             auto exception = WebIDL::EncodingError::create(message);
-            HTML::TemporaryExecutionContext context(document().relevant_settings_object());
+            HTML::TemporaryExecutionContext context(self.document().relevant_settings_object());
             WebIDL::reject_promise(promise, exception);
-        };
+        });
 
-        auto queue_reject_task = [reject_promise, &global](Utf16String const& message) {
-            queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(GC::Heap::the(), [reject_promise, message = message] {
-                reject_promise(message);
+        auto queue_reject_task = GC::create_function(GC::Heap::the(), GC::captures(reject_promise, global), [](auto& reject_promise, auto& global, Utf16String const& message) {
+            queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(GC::Heap::the(), GC::captures(reject_promise, message), [](auto& reject_promise, auto& message) {
+                reject_promise->function()(message);
             }));
-        };
+        });
 
-        auto queue_resolve_task = [this, promise, &global] {
-            queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(GC::Heap::the(), [this, promise] {
-                HTML::TemporaryExecutionContext context(document().relevant_settings_object());
+        auto queue_resolve_task = GC::create_function(GC::Heap::the(), GC::captures(self, promise, global), [](auto& self, auto& promise, auto& global) {
+            queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(GC::Heap::the(), GC::captures(self, promise), [](auto& self, auto& promise) {
+                HTML::TemporaryExecutionContext context(self.document().relevant_settings_object());
                 WebIDL::resolve_promise(promise);
             }));
-        };
+        });
 
         // 2. If any of the following are true:
         //    - this's node document is not fully active;
-        if (!document().is_fully_active()) {
+        if (!self.document().is_fully_active()) {
             // then reject promise with an "EncodingError" DOMException.
-            reject_promise("Node document not fully active"_utf16);
+            reject_promise->function()("Node document not fully active"_utf16);
             return;
         }
 
         //    - or this's current request's state is broken,
-        auto& current_request = *m_current_request;
+        auto& current_request = *self.m_current_request;
         if (current_request.state() == ImageRequest::State::Broken) {
             // then reject promise with an "EncodingError" DOMException.
-            reject_promise("Current request state is broken"_utf16);
+            reject_promise->function()("Current request state is broken"_utf16);
             return;
         }
 
-        auto expected_request = m_current_request;
-        auto weak_this = GC::Weak<HTMLImageElement> { *this };
+        auto expected_request = self.m_current_request;
+        auto weak_this = GC::Weak<HTMLImageElement> { self };
 
         // 3. Otherwise, in parallel wait for one of the following cases to occur, and perform the corresponding actions:
         if (current_request.state() == ImageRequest::State::CompletelyAvailable) {
-            queue_resolve_task();
+            queue_resolve_task->function()();
             return;
         }
 
         if (!current_request.shared_resource_request()) {
-            queue_reject_task("Current request changed or was mutated"_utf16);
+            queue_reject_task->function()("Current request changed or was mutated"_utf16);
             return;
         }
 
@@ -734,47 +734,47 @@ void HTMLImageElement::decode(GC::Ref<WebIDL::Promise> promise) const
             // AD-HOC: Queue a task to preserve ordering relative to update_the_image_data's step 16, which is queued the
             //         same way. Otherwise decode() can resolve before the current request transitions to
             //         CompletelyAvailable, leaving the image dimensions at zero when callers inspect them.
-            [weak_this, expected_request, queue_resolve_task, queue_reject_task] {
-                queue_image_task(weak_this ? &weak_this->document() : nullptr, GC::create_function(GC::Heap::the(), [weak_this, expected_request, queue_resolve_task, queue_reject_task] {
+            GC::create_function(GC::Heap::the(), GC::captures(weak_this, expected_request, queue_resolve_task, queue_reject_task), [](auto& weak_this, auto& expected_request, auto& queue_resolve_task, auto& queue_reject_task) {
+                queue_image_task(weak_this ? &weak_this->document() : nullptr, GC::create_function(GC::Heap::the(), GC::captures(weak_this, expected_request, queue_resolve_task, queue_reject_task), [](auto& weak_this, auto& expected_request, auto& queue_resolve_task, auto& queue_reject_task) {
                     if (!weak_this) {
-                        queue_reject_task("Image element no longer available"_utf16);
+                        queue_reject_task->function()("Image element no longer available"_utf16);
                         return;
                     }
                     auto& image = *weak_this;
 
                     if (!image.document().is_fully_active()) {
-                        queue_reject_task("Node document not fully active"_utf16);
+                        queue_reject_task->function()("Node document not fully active"_utf16);
                         return;
                     }
                     if (image.m_current_request != expected_request) {
-                        queue_reject_task("Current request changed or was mutated"_utf16);
+                        queue_reject_task->function()("Current request changed or was mutated"_utf16);
                         return;
                     }
                     if (image.current_request().state() == ImageRequest::State::Broken) {
-                        queue_reject_task("Current request state is broken"_utf16);
+                        queue_reject_task->function()("Current request state is broken"_utf16);
                         return;
                     }
-                    queue_resolve_task();
+                    queue_resolve_task->function()();
                 }));
-            },
-            [weak_this, expected_request, queue_reject_task] {
+            }),
+            GC::create_function(GC::Heap::the(), GC::captures(weak_this, expected_request, queue_reject_task), [](auto& weak_this, auto& expected_request, auto& queue_reject_task) {
                 if (!weak_this) {
-                    queue_reject_task("Image element no longer available"_utf16);
+                    queue_reject_task->function()("Image element no longer available"_utf16);
                     return;
                 }
                 auto& image = *weak_this;
 
                 if (!image.document().is_fully_active()) {
-                    queue_reject_task("Node document not fully active"_utf16);
+                    queue_reject_task->function()("Node document not fully active"_utf16);
                     return;
                 }
 
                 if (image.m_current_request != expected_request) {
-                    queue_reject_task("Current request changed or was mutated"_utf16);
+                    queue_reject_task->function()("Current request changed or was mutated"_utf16);
                     return;
                 }
-                queue_reject_task("Current request state is broken"_utf16);
-            });
+                queue_reject_task->function()("Current request state is broken"_utf16);
+            }));
     }));
 
     // 3. Return promise.
@@ -882,11 +882,11 @@ void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe
         // 3. If another instance of this algorithm for this img element was started after this instance
         //    (even if it aborted and is no longer running), then return.
         // 4. Queue a microtask to continue this algorithm.
-        m_document_observer->set_document_became_active([this, restart_animations, maybe_omit_events, update_the_image_data_count]() {
-            queue_a_microtask(&document(), GC::create_function(GC::Heap::the(), [this, restart_animations, maybe_omit_events, update_the_image_data_count]() {
-                update_the_image_data_impl(restart_animations, maybe_omit_events, update_the_image_data_count);
+        m_document_observer->set_document_became_active(GC::create_function(GC::Heap::the(), GC::captures(*this, restart_animations, maybe_omit_events, update_the_image_data_count), [](auto& self, auto& restart_animations, auto& maybe_omit_events, auto& update_the_image_data_count) {
+            queue_a_microtask(&self.document(), GC::create_function(GC::Heap::the(), GC::captures(self, restart_animations, maybe_omit_events, update_the_image_data_count), [](auto& self, auto& restart_animations, auto& maybe_omit_events, auto& update_the_image_data_count) {
+                self.update_the_image_data_impl(restart_animations, maybe_omit_events, update_the_image_data_count);
             }));
-        });
+        }));
 
         return;
     }
@@ -986,7 +986,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
             set_needs_layout_update_or_repaint_after_image_data_change();
 
             // 7. Queue an element task on the DOM manipulation task source given the img element and following steps:
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, restart_animations, maybe_omit_events, url_string, previous_url, update_the_image_data_count] {
+            queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(*this, restart_animations, maybe_omit_events, url_string, previous_url, update_the_image_data_count), [](auto& self, auto& restart_animations, auto& maybe_omit_events, auto& url_string, auto& previous_url, auto& update_the_image_data_count) {
                 // AD-HOC: If another instance of this algorithm was started after this one, let that newer instance
                 //         fire the load event instead of firing one per instance. The spec only has this guard in the
                 //         microtask continuation below (step 9: "Only the last instance takes effect, to avoid
@@ -994,29 +994,29 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
                 //         set in succession."), but relevant mutations (e.g. setting src and then inserting into a
                 //         picture) can also invoke this algorithm several times in the same script block, and the
                 //         major engines coalesce those updates into a single load event.
-                if (update_the_image_data_count != m_update_the_image_data_count)
+                if (update_the_image_data_count != self.m_update_the_image_data_count)
                     return;
 
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
                 //         between when this task was queued and when it runs.
-                if (!document().is_fully_active()) {
-                    m_load_event_delayer.clear();
+                if (!self.document().is_fully_active()) {
+                    self.m_load_event_delayer.clear();
                     return;
                 }
 
                 // 1. If restart animation is set, then restart the animation.
                 if (restart_animations)
-                    restart_the_animation();
+                    self.restart_the_animation();
 
                 // 2. Set the current request's current URL to urlString.
-                m_current_request->set_current_url(document(), *url_string, m_cors_setting);
+                self.m_current_request->set_current_url(self.document(), *url_string, self.m_cors_setting);
 
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
                 if (!maybe_omit_events || previous_url != *url_string) {
-                    associated_image_request_became_completely_available(*m_current_request);
-                    dispatch_event(DOM::Event::create(HTML::relevant_global_object(*this), HTML::EventNames::load));
+                    self.associated_image_request_became_completely_available(*self.m_current_request);
+                    self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::load));
                 }
-            });
+            }));
 
             // 8. Abort the update the image data algorithm.
             return;
@@ -1024,16 +1024,16 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
     }
 after_step_7:
     // 8. Queue a microtask to perform the rest of this algorithm, allowing the task that invoked this algorithm to continue.
-    queue_a_microtask(&document(), GC::create_function(GC::Heap::the(), [this, update_the_image_data_count, restart_animations, maybe_omit_events, previous_url]() mutable {
+    queue_a_microtask(&document(), GC::create_function(GC::Heap::the(), GC::captures(*this, update_the_image_data_count, restart_animations, maybe_omit_events, previous_url), [](auto& self, auto& update_the_image_data_count, auto& restart_animations, auto& maybe_omit_events, auto& previous_url) {
         // 9. If another instance of this algorithm for this img element was started after this instance
         //    (even if it aborted and is no longer running), then return.
-        if (update_the_image_data_count != m_update_the_image_data_count)
+        if (update_the_image_data_count != self.m_update_the_image_data_count)
             return;
 
         // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
         //         between when this microtask was queued and when it runs.
-        if (!document().is_fully_active()) {
-            m_load_event_delayer.clear();
+        if (!self.document().is_fully_active()) {
+            self.m_load_event_delayer.clear();
             return;
         }
 
@@ -1041,7 +1041,7 @@ after_step_7:
         //    the URL and pixel density that results from selecting an image source, respectively.
         Optional<ImageSource> selected_source;
         Optional<float> pixel_density;
-        if (auto result = select_an_image_source(); result.has_value()) {
+        if (auto result = self.select_an_image_source(); result.has_value()) {
             selected_source = result.value().source;
             pixel_density = result.value().pixel_density;
         }
@@ -1054,87 +1054,87 @@ after_step_7:
         //         at selection time and deliberately skips same-candidate updates on environment changes to avoid
         //         spurious downloads. Spec issue: https://github.com/whatwg/html/issues/4646
         if (selected_source.has_value())
-            m_last_selected_source = selected_source->url;
+            self.m_last_selected_source = selected_source->url;
 
         // 11. If selected source is null, then:
         if (!selected_source.has_value()) {
             // 1. Set the current request's state to broken,
             //    abort the image request for the current request and the pending request,
             //    and set the pending request to null.
-            m_current_request->set_state(ImageRequest::State::Broken);
-            unregister_with_decoded_image_data_if_needed();
-            abort_the_image_request(m_current_request);
-            abort_the_image_request(m_pending_request);
-            stop_delaying_the_load_event_for_aborted_requests();
-            m_pending_request = nullptr;
+            self.m_current_request->set_state(ImageRequest::State::Broken);
+            self.unregister_with_decoded_image_data_if_needed();
+            abort_the_image_request(self.m_current_request);
+            abort_the_image_request(self.m_pending_request);
+            self.stop_delaying_the_load_event_for_aborted_requests();
+            self.m_pending_request = nullptr;
 
             // AD-HOC: The element may have been rendering as blank space while a load was pending;
             //         now that the current request is broken it renders its alt text instead.
-            set_needs_layout_update_or_repaint_after_image_data_change();
+            self.set_needs_layout_update_or_repaint_after_image_data_change();
 
             // 2. Queue an element task on the DOM manipulation task source given the img element and the following steps:
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, maybe_omit_events, previous_url] {
+            self.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(self, maybe_omit_events), [](auto& self, auto& maybe_omit_events) {
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
                 //         between when this task was queued and when it runs.
-                if (!document().is_fully_active()) {
-                    m_load_event_delayer.clear();
+                if (!self.document().is_fully_active()) {
+                    self.m_load_event_delayer.clear();
                     return;
                 }
 
                 // 1. Change the current request's current URL to the empty string.
-                m_current_request->set_current_url(document(), Utf16String {}, m_cors_setting);
+                self.m_current_request->set_current_url(self.document(), Utf16String {}, self.m_cors_setting);
 
                 // 2. If all of the following conditions are true:
                 //    - the element has a src attribute or it uses srcset or picture; and
                 //    - maybe omit events is not set or previousURL is not the empty string
                 if (
-                    (has_attribute(HTML::AttributeNames::src) || uses_srcset_or_picture())
-                    && (!maybe_omit_events || !m_current_request->current_url().is_empty())) {
-                    dispatch_event(DOM::Event::create(HTML::relevant_global_object(*this), HTML::EventNames::error));
+                    (self.has_attribute(HTML::AttributeNames::src) || self.uses_srcset_or_picture())
+                    && (!maybe_omit_events || !self.m_current_request->current_url().is_empty())) {
+                    self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::error));
                 }
-            });
+            }));
 
             // 3. Return.
             return;
         }
 
         // 12. Let urlString be the result of encoding-parsing-and-serializing a URL given selected source, relative to the element's node document.
-        auto url_string = document().encoding_parse_and_serialize_url(selected_source.value().url);
+        auto url_string = self.document().encoding_parse_and_serialize_url(selected_source.value().url);
 
         // 13. If urlString is failure, then:
         if (!url_string.has_value()) {
             // 1. Abort the image request for the current request and the pending request.
-            unregister_with_decoded_image_data_if_needed();
-            abort_the_image_request(m_current_request);
-            abort_the_image_request(m_pending_request);
-            stop_delaying_the_load_event_for_aborted_requests();
+            self.unregister_with_decoded_image_data_if_needed();
+            abort_the_image_request(self.m_current_request);
+            abort_the_image_request(self.m_pending_request);
+            self.stop_delaying_the_load_event_for_aborted_requests();
 
             // 2. Set the current request's state to broken.
-            m_current_request->set_state(ImageRequest::State::Broken);
+            self.m_current_request->set_state(ImageRequest::State::Broken);
 
             // 3. Set the pending request to null.
-            m_pending_request = nullptr;
+            self.m_pending_request = nullptr;
 
             // AD-HOC: The element may have been rendering as blank space while a load was pending;
             //         now that the current request is broken it renders its alt text instead.
-            set_needs_layout_update_or_repaint_after_image_data_change();
+            self.set_needs_layout_update_or_repaint_after_image_data_change();
 
             // 4. Queue an element task on the DOM manipulation task source given the img element and the following steps:
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, maybe_omit_events, previous_url] {
+            self.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(self, selected_source->url, maybe_omit_events, previous_url), [](auto& self, auto& selected_source_url, auto& maybe_omit_events, auto& previous_url) {
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
                 //         between when this task was queued and when it runs.
-                if (!document().is_fully_active()) {
-                    m_load_event_delayer.clear();
+                if (!self.document().is_fully_active()) {
+                    self.m_load_event_delayer.clear();
                     return;
                 }
 
                 // 1. Change the current request's current URL to selected source.
-                m_current_request->set_current_url(document(), selected_source.value().url, m_cors_setting);
+                self.m_current_request->set_current_url(self.document(), selected_source_url, self.m_cors_setting);
 
                 // 2. If maybe omit events is not set or previousURL is not equal to selected source, then fire an event named error at the img element.
-                if (!maybe_omit_events || previous_url != selected_source.value().url)
-                    dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
-            });
+                if (!maybe_omit_events || previous_url != selected_source_url)
+                    self.dispatch_event(create_event_for_element(self, HTML::EventNames::error));
+            }));
 
             // 5. Return.
             return;
@@ -1145,48 +1145,48 @@ after_step_7:
         //          not make the image disappear while the higher-layer cache processes the same resource again.
         ListOfAvailableImages::Key key;
         key.url = *url_string;
-        key.mode = m_cors_setting;
-        if (m_cors_setting != CORSSettingAttribute::NoCORS)
-            key.origin = document().origin();
-        if (auto* entry = document().list_of_available_images().get(key)) {
+        key.mode = self.m_cors_setting;
+        if (self.m_cors_setting != CORSSettingAttribute::NoCORS)
+            key.origin = self.document().origin();
+        if (auto* entry = self.document().list_of_available_images().get(key)) {
             entry->ignore_higher_layer_caching = true;
 
-            unregister_with_decoded_image_data_if_needed();
-            abort_the_image_request(m_current_request);
-            abort_the_image_request(m_pending_request);
-            m_pending_request = nullptr;
-            m_load_event_delayer.clear();
+            self.unregister_with_decoded_image_data_if_needed();
+            abort_the_image_request(self.m_current_request);
+            abort_the_image_request(self.m_pending_request);
+            self.m_pending_request = nullptr;
+            self.m_load_event_delayer.clear();
 
-            m_current_request = ImageRequest::create();
-            m_current_request->set_image_data(entry->image_data);
-            m_current_request->set_state(ImageRequest::State::CompletelyAvailable);
-            m_current_request->set_current_pixel_density(pixel_density.value_or(1.0f));
-            register_with_decoded_image_data_if_needed();
-            m_current_request->prepare_for_presentation(*this);
+            self.m_current_request = ImageRequest::create();
+            self.m_current_request->set_image_data(entry->image_data);
+            self.m_current_request->set_state(ImageRequest::State::CompletelyAvailable);
+            self.m_current_request->set_current_pixel_density(pixel_density.value_or(1.0f));
+            self.register_with_decoded_image_data_if_needed();
+            self.m_current_request->prepare_for_presentation(self);
 
-            set_needs_layout_update_or_repaint_after_image_data_change();
+            self.set_needs_layout_update_or_repaint_after_image_data_change();
 
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, restart_animations, maybe_omit_events, url_string, previous_url, update_the_image_data_count] {
-                if (update_the_image_data_count != m_update_the_image_data_count)
+            self.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(self, restart_animations, maybe_omit_events, url_string, previous_url, update_the_image_data_count), [](auto& self, auto& restart_animations, auto& maybe_omit_events, auto& url_string, auto& previous_url, auto& update_the_image_data_count) {
+                if (update_the_image_data_count != self.m_update_the_image_data_count)
                     return;
-                if (!document().is_fully_active()) {
-                    m_load_event_delayer.clear();
+                if (!self.document().is_fully_active()) {
+                    self.m_load_event_delayer.clear();
                     return;
                 }
                 if (restart_animations)
-                    restart_the_animation();
-                m_current_request->set_current_url(document(), *url_string, m_cors_setting);
+                    self.restart_the_animation();
+                self.m_current_request->set_current_url(self.document(), *url_string, self.m_cors_setting);
                 if (!maybe_omit_events || previous_url != *url_string) {
-                    associated_image_request_became_completely_available(*m_current_request);
-                    dispatch_event(DOM::Event::create(HTML::relevant_global_object(*this), HTML::EventNames::load));
+                    self.associated_image_request_became_completely_available(*self.m_current_request);
+                    self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::load));
                 }
-            });
+            }));
             return;
         }
 
         // 14. If the pending request is not null and urlString is the same as the pending request's current URL, then return.
-        if (m_pending_request && *url_string == m_pending_request->current_url()) {
-            auto resumption_steps = take_lazy_load_resumption_steps_internal();
+        if (self.m_pending_request && *url_string == self.m_pending_request->current_url()) {
+            auto resumption_steps = self.take_lazy_load_resumption_steps_internal();
             if (!resumption_steps)
                 return;
             // NB: Retire the superseded lazy continuation and recreate it below for this update.
@@ -1195,16 +1195,16 @@ after_step_7:
 
         // 15. If urlString is the same as the current request's current URL and the current request's state is
         //     partially available:
-        if (*url_string == m_current_request->current_url() && m_current_request->state() == ImageRequest::State::PartiallyAvailable) {
+        if (*url_string == self.m_current_request->current_url() && self.m_current_request->state() == ImageRequest::State::PartiallyAvailable) {
             // 1. Abort the image request for the pending request.
-            abort_the_image_request(m_pending_request);
+            abort_the_image_request(self.m_pending_request);
 
             // 2. If restart animation is set, then queue an element task on the DOM manipulation task source given the
             //    img element to restart the animation.
             if (restart_animations) {
-                queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
-                    restart_the_animation();
-                });
+                self.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(self), [](auto& self) {
+                    self.restart_the_animation();
+                }));
             }
 
             // 3. Return.
@@ -1212,43 +1212,43 @@ after_step_7:
         }
 
         // 16. If the pending request is not null, then abort the image request for the pending request.
-        abort_the_image_request(m_pending_request);
+        abort_the_image_request(self.m_pending_request);
 
         // AD-HOC: At this point we start deviating from the spec in order to allow sharing ImageRequest between
         //         multiple image elements (as well as CSS background-images, etc.)
 
         // 17. Set image request to a new image request whose current URL is urlString.
         auto image_request = ImageRequest::create();
-        if (auto resource = exchange(m_resource_from_navigation_response, nullptr))
+        if (auto resource = exchange(self.m_resource_from_navigation_response, nullptr))
             image_request->set_current_url(*url_string, *resource);
         else
-            image_request->set_current_url(document(), *url_string, m_cors_setting);
+            image_request->set_current_url(self.document(), *url_string, self.m_cors_setting);
         image_request->set_current_pixel_density(pixel_density.value_or(1.0f));
 
         // 18. If the current request's state is unavailable or broken, then set the current request to image request.
         //     Otherwise, set the pending request to image request.
-        if (m_current_request->state() == ImageRequest::State::Unavailable || m_current_request->state() == ImageRequest::State::Broken) {
-            unregister_with_decoded_image_data_if_needed();
-            m_current_request = image_request;
-            register_with_decoded_image_data_if_needed();
-            CSS::record_element_replaced_content_input(*this);
+        if (self.m_current_request->state() == ImageRequest::State::Unavailable || self.m_current_request->state() == ImageRequest::State::Broken) {
+            self.unregister_with_decoded_image_data_if_needed();
+            self.m_current_request = image_request;
+            self.register_with_decoded_image_data_if_needed();
+            CSS::record_element_replaced_content_input(self);
         } else {
-            m_pending_request = image_request;
+            self.m_pending_request = image_request;
         }
 
         // A valid selected source is expected to produce image data, so it renders as blank while
         // loading instead of continuing to expose fallback text from a previous broken request.
-        remove_alt_text_shadow_tree();
+        self.remove_alt_text_shadow_tree();
 
         // 24. Let delay load event be true if the img's lazy loading attribute is in the Eager state, or if scripting is disabled for the img, and false otherwise.
-        auto delay_load_event = lazy_loading_attribute() == LazyLoading::Eager;
+        auto delay_load_event = self.lazy_loading_attribute() == LazyLoading::Eager;
 
         // When delay load event is true, fetching the image must delay the load event of the element's node document
         // until the task that is queued by the networking task source once the resource has been fetched (defined below) has been run.
         if (delay_load_event)
-            m_load_event_delayer.emplace(document());
+            self.m_load_event_delayer.emplace(self.document());
 
-        add_callbacks_to_image_request(*image_request, maybe_omit_events, url_string->utf16_view(), previous_url.utf16_view(),
+        self.add_callbacks_to_image_request(*image_request, maybe_omit_events, url_string->utf16_view(), previous_url.utf16_view(),
             delay_load_event ? SharedResourceRequest::DelaysLoadEvent::Yes : SharedResourceRequest::DelaysLoadEvent::No);
 
         // AD-HOC: If the image request is already available or fetching, no need to start another fetch.
@@ -1256,46 +1256,46 @@ after_step_7:
             return;
 
         // AD-HOC: create_potential_CORS_request expects a url, but the following step passes a URL string.
-        auto url_record = document().encoding_parse_url(selected_source.value().url);
+        auto url_record = self.document().encoding_parse_url(selected_source.value().url);
         VERIFY(url_record.has_value());
 
         // 19. Let request be the result of creating a potential-CORS request given urlString, "image",
         //     and the current state of the element's crossorigin content attribute.
-        auto request = create_potential_CORS_request(*url_record, Fetch::Infrastructure::Request::Destination::Image, m_cors_setting);
+        auto request = create_potential_CORS_request(*url_record, Fetch::Infrastructure::Request::Destination::Image, self.m_cors_setting);
 
         // 20. Set request's client to the element's node document's relevant settings object.
-        request->set_client(document().relevant_settings_object().address());
+        request->set_client(self.document().relevant_settings_object().address());
 
         // AD-HOC: The spec doesn't set an initiator type for img requests, so they would never report resource timing.
         //         Spec PR: https://github.com/whatwg/html/pull/13101
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::IMG);
 
         // 21. If the element uses srcset or picture, set request's initiator to "imageset".
-        if (uses_srcset_or_picture())
+        if (self.uses_srcset_or_picture())
             request->set_initiator(Fetch::Infrastructure::Request::Initiator::ImageSet);
 
         // 22. Set request's referrer policy to the current state of the element's referrerpolicy attribute.
-        request->set_referrer_policy(ReferrerPolicy::from_string(attribute(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString));
+        request->set_referrer_policy(ReferrerPolicy::from_string(self.attribute(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString));
 
         // 23. Set request's priority to the current state of the element's fetchpriority attribute.
-        request->set_priority(Fetch::Infrastructure::request_priority_from_string(attribute(HTML::AttributeNames::fetchpriority).value_or({})).value_or(Fetch::Infrastructure::Request::Priority::Auto));
+        request->set_priority(Fetch::Infrastructure::request_priority_from_string(self.attribute(HTML::AttributeNames::fetchpriority).value_or({})).value_or(Fetch::Infrastructure::Request::Priority::Auto));
 
         // 25. If the will lazy load element steps given the img return true, then:
         // INTEROP: Like Blink and WebKit, only defer until the image first resumes lazy loading.
         //          Subsequent source changes must not wait for another intersection observation.
-        if (!m_has_resumed_lazy_loading && will_lazy_load_element()) {
+        if (!self.m_has_resumed_lazy_loading && self.will_lazy_load_element()) {
             // 1. Set the img's lazy load resumption steps to the rest of this algorithm starting with the step labeled fetch the image.
-            set_lazy_load_resumption_steps([this, request, image_request, update_the_image_data_count, observing_document = GC::Ref { document() }]() {
+            self.set_lazy_load_resumption_steps(GC::create_function(GC::Heap::the(), GC::captures(self, request, image_request, update_the_image_data_count, GC::Ref { self.document() }), [](auto& self, auto& request, auto& image_request, auto& update_the_image_data_count, auto& observing_document) {
                 // NB: Unobserve in the document which registered the image, including after adoption.
-                observing_document->stop_intersection_observing_a_lazy_loading_element(*this);
-                if (update_the_image_data_count != m_update_the_image_data_count)
+                observing_document->stop_intersection_observing_a_lazy_loading_element(self);
+                if (update_the_image_data_count != self.m_update_the_image_data_count)
                     return;
-                m_has_resumed_lazy_loading = true;
+                self.m_has_resumed_lazy_loading = true;
                 image_request->fetch_image(request);
-            });
+            }));
 
             // 2. Start intersection-observing a lazy loading element for the img element.
-            document().start_intersection_observing_a_lazy_loading_element(*this);
+            self.document().start_intersection_observing_a_lazy_loading_element(self);
 
             // 3. Return.
             return;
@@ -1318,12 +1318,12 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
         cache_key.origin = originating_document->origin();
 
     image_request->add_callbacks(
-        [this, image_request, maybe_omit_events, url_string = captured_url_string, previous_url = captured_previous_url, originating_document, cache_key]() {
-            queue_image_task(document(), GC::create_function(GC::Heap::the(), [this, image_request, maybe_omit_events, url_string, previous_url, originating_document, cache_key] {
+        GC::create_function(GC::Heap::the(), GC::captures(*this, image_request, maybe_omit_events, captured_url_string, captured_previous_url, originating_document, cache_key), [](auto& self, auto& image_request, auto& maybe_omit_events, auto& url_string, auto& previous_url, auto& originating_document, auto& cache_key) {
+            queue_image_task(self.document(), GC::create_function(GC::Heap::the(), GC::captures(self, image_request, maybe_omit_events, url_string, previous_url, originating_document, cache_key), [](auto& self, auto& image_request, auto& maybe_omit_events, auto& url_string, auto& previous_url, auto& originating_document, auto& cache_key) {
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
                 //         between when the fetch completed and when this task runs.
-                if (!document().is_fully_active()) {
-                    m_load_event_delayer.clear();
+                if (!self.document().is_fully_active()) {
+                    self.m_load_event_delayer.clear();
                     return;
                 }
 
@@ -1332,8 +1332,8 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 //         request. Note that a newer instance of update_the_image_data may have run and left
                 //         this request in place (e.g. when the src attribute is set to the same URL twice in a
                 //         row); the callback is then still responsible for finishing the load.
-                if (image_request->was_aborted() || (image_request != m_current_request && image_request != m_pending_request)) {
-                    m_load_event_delayer.clear();
+                if (image_request->was_aborted() || (image_request != self.m_current_request && image_request != self.m_pending_request)) {
+                    self.m_load_event_delayer.clear();
                     return;
                 }
 
@@ -1344,14 +1344,14 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 // 1. If image request is the pending request, abort the image request for the current request,
                 //    upgrade the pending request to the current request
                 //    and prepare image request for presentation given the img element.
-                if (image_request == m_pending_request) {
-                    unregister_with_decoded_image_data_if_needed();
-                    abort_the_image_request(m_current_request);
-                    upgrade_pending_request_to_current_request();
-                    image_request->prepare_for_presentation(*this);
+                if (image_request == self.m_pending_request) {
+                    self.unregister_with_decoded_image_data_if_needed();
+                    abort_the_image_request(self.m_current_request);
+                    self.upgrade_pending_request_to_current_request();
+                    image_request->prepare_for_presentation(self);
                 }
 
-                register_with_decoded_image_data_if_needed();
+                self.register_with_decoded_image_data_if_needed();
 
                 // 2. Set image request to the completely available state.
                 image_request->set_state(ImageRequest::State::CompletelyAvailable);
@@ -1363,22 +1363,22 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                     originating_document->list_of_available_images().add(cache_key, *image_data, true);
                 originating_document->prune_image_resource_caches();
 
-                set_needs_layout_update_or_repaint_after_image_data_change();
+                self.set_needs_layout_update_or_repaint_after_image_data_change();
 
                 // 4. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
                 if (!maybe_omit_events || previous_url != url_string) {
-                    associated_image_request_became_completely_available(*image_request);
-                    dispatch_event(create_event_for_element(*this, HTML::EventNames::load));
+                    self.associated_image_request_became_completely_available(*image_request);
+                    self.dispatch_event(create_event_for_element(self, HTML::EventNames::load));
                 }
 
-                m_load_event_delayer.clear();
+                self.m_load_event_delayer.clear();
             }));
-        },
-        [this, image_request, maybe_omit_events, url_string = captured_url_string, previous_url = captured_previous_url]() {
+        }),
+        GC::create_function(GC::Heap::the(), GC::captures(*this, image_request, maybe_omit_events, captured_url_string, captured_previous_url), [](auto& self, auto& image_request, auto& maybe_omit_events, auto& url_string, auto& previous_url) {
             // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
             //         between when the fetch completed and when this failure callback runs.
-            if (!document().is_fully_active()) {
-                m_load_event_delayer.clear();
+            if (!self.document().is_fully_active()) {
+                self.m_load_event_delayer.clear();
                 return;
             }
 
@@ -1389,8 +1389,8 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
             //         request. Note that a newer instance of update_the_image_data may have run and left
             //         this request in place (e.g. when the src attribute is set to the same URL twice in a
             //         row); the callback is then still responsible for finishing the load.
-            if (image_request->was_aborted() || (image_request != m_current_request && image_request != m_pending_request)) {
-                m_load_event_delayer.clear();
+            if (image_request->was_aborted() || (image_request != self.m_current_request && image_request != self.m_pending_request)) {
+                self.m_load_event_delayer.clear();
                 return;
             }
 
@@ -1398,29 +1398,29 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
             image_request->set_state(ImageRequest::State::Broken);
 
             // abort the image request for the current request and the pending request,
-            unregister_with_decoded_image_data_if_needed();
-            abort_the_image_request(m_current_request);
-            abort_the_image_request(m_pending_request);
+            self.unregister_with_decoded_image_data_if_needed();
+            abort_the_image_request(self.m_current_request);
+            abort_the_image_request(self.m_pending_request);
 
             // upgrade the pending request to the current request if image request is the pending request,
-            if (image_request == m_pending_request)
-                upgrade_pending_request_to_current_request();
+            if (image_request == self.m_pending_request)
+                self.upgrade_pending_request_to_current_request();
 
             // AD-HOC: The element may have been rendering as blank space while the load was pending;
             //         now that the current request is broken it renders its alt text instead.
-            set_needs_layout_update_or_repaint_after_image_data_change();
+            self.set_needs_layout_update_or_repaint_after_image_data_change();
 
             // and then, if maybe omit events is not set or previousURL is not equal to urlString,
             // queue an element task on the DOM manipulation task source given the img element
             // to fire an event named error at the img element.
             if (!maybe_omit_events || previous_url != url_string)
-                dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
+                self.dispatch_event(create_event_for_element(self, HTML::EventNames::error));
 
-            m_load_event_delayer.clear();
-        },
-        [this] {
-            m_load_event_delayer.clear();
-        },
+            self.m_load_event_delayer.clear();
+        }),
+        GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+            self.m_load_event_delayer.clear();
+        }),
         delays_load_event);
 }
 
@@ -1440,8 +1440,8 @@ void HTMLImageElement::did_set_viewport_rect(CSSPixelRect const& viewport_rect)
         return;
     m_last_seen_viewport_size = viewport_rect.size();
     update_dimension_attribute_source(*this);
-    queue_image_task(document(), GC::create_function(GC::Heap::the(), [this] {
-        react_to_changes_in_the_environment();
+    queue_image_task(document(), GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        self.react_to_changes_in_the_environment();
     }));
 }
 
@@ -1512,44 +1512,44 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
     // FIXME: 14. End the synchronous section, continuing the remaining steps in parallel.
 
-    auto step_16 = [this](Utf16String const& selected_source, GC::Ref<ImageRequest> image_request, ListOfAvailableImages::Key const& key, GC::Ref<DecodedImageData> image_data) {
+    auto step_16 = GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self, Utf16String const& selected_source, GC::Ref<ImageRequest> image_request, ListOfAvailableImages::Key const& key, GC::Ref<DecodedImageData> image_data) {
         // 16. Queue an element task on the DOM manipulation task source given the img element and the following steps:
-        queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, image_request, key, image_data] {
+        self.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(self, selected_source, image_request, key, image_data), [](auto& self, auto& selected_source, auto& image_request, auto& key, auto& image_data) {
             // 1. FIXME: If the img element has experienced relevant mutations since this algorithm started, then set the pending request to null and abort these steps.
             // AD-HOC: Check if we have a pending request still, otherwise we will crash when upgrading the request. This will happen if the image has experienced mutations,
             //        but since the pending request may be set by another task soon after it is cleared, this check is probably not sufficient.
-            if (!m_pending_request)
+            if (!self.m_pending_request)
                 return;
 
             // 2. Set the img element's last selected source to selected source and the img element's current pixel density to selected pixel density.
-            m_last_selected_source = selected_source;
+            self.m_last_selected_source = selected_source;
 
             // 3. Set the image request's state to completely available.
             image_request->set_state(ImageRequest::State::CompletelyAvailable);
 
             // 4. Add the image to the list of available images using the key key, with the ignore higher-layer caching flag set.
-            document().list_of_available_images().add(key, image_data, true);
-            document().prune_image_resource_caches();
+            self.document().list_of_available_images().add(key, image_data, true);
+            self.document().prune_image_resource_caches();
 
             // 5. Upgrade the pending request to the current request.
-            upgrade_pending_request_to_current_request();
+            self.upgrade_pending_request_to_current_request();
 
             // 6. Prepare image request for presentation given the img element.
-            image_request->prepare_for_presentation(*this);
+            image_request->prepare_for_presentation(self);
             // FIXME: This is ad-hoc, updating the layout here should probably be handled by prepare_for_presentation().
-            set_needs_layout_update_or_repaint_after_image_data_change();
+            self.set_needs_layout_update_or_repaint_after_image_data_change();
 
             // 7. Fire an event named load at the img element.
-            associated_image_request_became_completely_available(*image_request);
-            dispatch_event(create_event_for_element(*this, HTML::EventNames::load));
-        });
-    };
+            self.associated_image_request_became_completely_available(*image_request);
+            self.dispatch_event(create_event_for_element(self, HTML::EventNames::load));
+        }));
+    });
 
     // 15. If the list of available images contains an entry for key, then set image request's image data to that of the entry.
     //     Continue to the next step.
     if (auto* entry = document().list_of_available_images().get(key)) {
         image_request->set_image_data(entry->image_data);
-        step_16(selected_source.value(), *image_request, key, entry->image_data);
+        step_16->function()(selected_source.value(), *image_request, key, entry->image_data);
     }
     // Otherwise:
     else {
@@ -1575,7 +1575,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
         // Set the callbacks to handle steps 6 and 7 before starting the fetch request.
         image_request->add_callbacks(
-            [this, step_16, selected_source = selected_source.value(), image_request, key]() mutable {
+            GC::create_function(GC::Heap::the(), GC::captures(*this, step_16, selected_source.value(), image_request, key), [](auto& self, auto& step_16, auto& selected_source, auto& image_request, auto& key) {
                 // 6. If response's unsafe response is a network error
                 // NOTE: This is handled in the second callback below.
 
@@ -1589,23 +1589,23 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
                 // then set the pending request to null and abort these steps.
 
-                queue_image_task(document(), GC::create_function(GC::Heap::the(), [step_16, selected_source = move(selected_source), image_request, key] {
+                queue_image_task(self.document(), GC::create_function(GC::Heap::the(), GC::captures(step_16, move(selected_source), image_request, key), [](auto& step_16, auto& selected_source, auto& image_request, auto& key) {
                     // 7. Otherwise, response's unsafe response is image request's image data. It can be either CORS-same-origin
                     //    or CORS-cross-origin; this affects the image's interaction with other APIs (e.g., when used on a canvas).
                     VERIFY(image_request->shared_resource_request());
                     auto image_data = image_request->shared_resource_request()->image_data();
                     image_request->set_image_data(image_data);
-                    step_16(selected_source, image_request, key, *image_data);
+                    step_16->function()(selected_source, image_request, key, *image_data);
                 }));
-            },
-            [this]() {
+            }),
+            GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
                 // 6. If response's unsafe response is a network error
                 //    or if the image format is unsupported (as determined by applying the image sniffing rules, again as mentioned earlier),
                 //    ...
                 //    or if the user agent is able to determine that image request's image is corrupted in some
                 //    fatal way such that the image dimensions cannot be obtained,
-                m_pending_request = nullptr;
-            });
+                self.m_pending_request = nullptr;
+            }));
 
         // 5. Let response be the result of fetching request.
         image_request->fetch_image(request);

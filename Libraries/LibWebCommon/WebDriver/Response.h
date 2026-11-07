@@ -8,6 +8,7 @@
 
 #include <AK/JsonValue.h>
 #include <AK/Variant.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/WebDriver/Error.h>
@@ -54,3 +55,5 @@ template<>
 WEBCOMMON_API ErrorOr<Web::WebDriver::Response> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::WebDriver::Response);

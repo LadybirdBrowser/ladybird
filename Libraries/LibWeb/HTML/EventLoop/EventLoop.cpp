@@ -72,10 +72,10 @@ EventLoop::EventLoop(Type type)
     }
     m_task_queue = GC::Heap::the().allocate<TaskQueue>(*this);
 
-    m_rendering_task_function = GC::create_function(GC::Heap::the(), [this] {
-        VERIFY(m_rendering_task_queued);
-        m_rendering_task_queued = false;
-        update_the_rendering();
+    m_rendering_task_function = GC::create_function(GC::Heap::the(), GC::captures(*this), [](EventLoop& self) {
+        VERIFY(self.m_rendering_task_queued);
+        self.m_rendering_task_queued = false;
+        self.update_the_rendering();
     });
 }
 
@@ -112,8 +112,8 @@ void EventLoop::schedule()
 void EventLoop::schedule_for_queued_task()
 {
     if (!m_system_event_loop_timer) {
-        m_system_event_loop_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), [this] {
-            process();
+        m_system_event_loop_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), GC::captures(*this), [](EventLoop& self) {
+            self.process();
         }));
     }
 
@@ -181,11 +181,11 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
         if (m_destruction_requested)
             schedule();
     };
-    Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), [this, goal_condition] {
+    Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), GC::captures(*this, goal_condition), [](auto& self, auto& goal_condition) {
         if (goal_condition->function()())
             return true;
-        if (m_task_queue->has_runnable_tasks()) {
-            schedule();
+        if (self.m_task_queue->has_runnable_tasks()) {
+            self.schedule();
             // FIXME: Remove the platform event loop plugin so that this doesn't look out of place
             Core::EventLoop::current().wake();
         }
@@ -380,8 +380,8 @@ bool EventLoop::run_one_turn_of_the_processing_model()
             //     anything but an idle callback starts an idle period right away (see did_request_idle_callback()).
             m_idle_callback_requested_outside_idle_period = false;
             if (!m_idle_period_timer) {
-                m_idle_period_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(50), GC::create_function(GC::Heap::the(), [this] {
-                    schedule();
+                m_idle_period_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(50), GC::create_function(GC::Heap::the(), GC::captures(*this), [](EventLoop& self) {
+                    self.schedule();
                 }));
             }
             m_idle_period_timer->restart();
@@ -966,13 +966,13 @@ void EventLoop::queue_task_to_process_input_events()
     if (m_input_events_task_queued)
         return;
     m_input_events_task_queued = true;
-    queue_a_task(Task::Source::UserInteraction, this, nullptr, GC::create_function(GC::Heap::the(), [this] {
-        m_input_events_task_queued = false;
-        if (m_running_rendering_task || m_rendering_update_in_flight)
+    queue_a_task(Task::Source::UserInteraction, this, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](EventLoop& self) {
+        self.m_input_events_task_queued = false;
+        if (self.m_running_rendering_task || self.m_rendering_update_in_flight)
             return;
         // NB: No rendering update comes with this task, and script may run for long before the next one: the lanes
         //     tick on.
-        take_clock_lanes_and_input_events_in({});
+        self.take_clock_lanes_and_input_events_in({});
     }));
 }
 

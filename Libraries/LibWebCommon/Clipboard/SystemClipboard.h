@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
@@ -51,3 +52,5 @@ template<>
 WEBCOMMON_API ErrorOr<Web::Clipboard::SystemClipboardItem> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::Clipboard::SystemClipboardItem);

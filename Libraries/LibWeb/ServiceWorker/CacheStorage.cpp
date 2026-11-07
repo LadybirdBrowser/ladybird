@@ -36,12 +36,12 @@ void CacheStorage::match(JS::Realm& realm, Fetch::RequestInfo request, MultiCach
     // 1. If options["cacheName"] exists, then:
     if (options.cache_name.has_value()) {
         // 1. Return a new promise promise and run the following substeps in parallel:
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, promise, request = move(request), options = move(options)]() mutable {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, realm, promise, move(request), move(options)), [](auto& self, auto& realm, auto& promise, auto& request, auto& options) {
             HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 1. For each cacheName → cache of the relevant name to cache map:
             //     1. If options["cacheName"] matches cacheName, then:
-            if (auto result = relevant_name_to_cache_map().get(*options.cache_name); result.has_value()) {
+            if (auto result = self.relevant_name_to_cache_map().get(*options.cache_name); result.has_value()) {
                 // 1. Resolve promise with the result of running the algorithm specified in match(request, options)
                 //    method of Cache interface with request and options (providing cache as thisArgument to the
                 //    [[Call]] internal method of match(request, options).)
@@ -67,7 +67,7 @@ void CacheStorage::match(JS::Realm& realm, Fetch::RequestInfo request, MultiCach
         for (auto const& [cache_name, cache_list] : relevant_name_to_cache_map()) {
             // 1. Set promise to the result of reacting to itself with a fulfillment handler that, when called with
             //    argument response, performs the following substeps:
-            internal_promise = WebIDL::upon_fulfillment(internal_promise, GC::create_function(GC::Heap::the(), [&realm, cache_list, request, options](JS::Value response) mutable -> WebIDL::ExceptionOr<JS::Value> {
+            internal_promise = WebIDL::upon_fulfillment(internal_promise, GC::create_function(GC::Heap::the(), GC::captures(realm, cache_list, request, options), [](auto& realm, auto& cache_list, auto& request, auto& options, JS::Value response) -> WebIDL::ExceptionOr<JS::Value> {
                 HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                 // 1. If response is not undefined, return response.
@@ -85,11 +85,11 @@ void CacheStorage::match(JS::Realm& realm, Fetch::RequestInfo request, MultiCach
         }
 
         WebIDL::react_to_promise(internal_promise,
-            GC::create_function(GC::Heap::the(), [promise](JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), GC::captures(promise), [](auto& promise, JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
                 WebIDL::resolve_promise(promise, value);
                 return JS::js_undefined();
             }),
-            GC::create_function(GC::Heap::the(), [promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), GC::captures(promise), [](auto& promise, JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
                 WebIDL::reject_promise(promise, reason);
                 return JS::js_undefined();
             }));
@@ -100,13 +100,13 @@ void CacheStorage::match(JS::Realm& realm, Fetch::RequestInfo request, MultiCach
 void CacheStorage::has(JS::Realm& realm, Utf16String const& cache_name, GC::Ref<WebIDL::Promise> promise)
 {
     // 2. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, this, promise, cache_name] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, realm, promise, cache_name), [](auto& self, auto& realm, auto& promise, auto& cache_name) {
         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. For each key -> value of the relevant name to cache map:
         //     1. If cacheName matches key, resolve promise with true and abort these steps.
         // 2. Resolve promise with false.
-        WebIDL::resolve_promise(promise, JS::Value { contains_cache(cache_name) });
+        WebIDL::resolve_promise(promise, JS::Value { self.contains_cache(cache_name) });
     }));
 }
 
@@ -114,7 +114,7 @@ void CacheStorage::has(JS::Realm& realm, Utf16String const& cache_name, GC::Ref<
 void CacheStorage::open(JS::Realm& realm, Utf16String const& cache_name, GC::Ref<WebIDL::Promise> promise)
 {
     // 2. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, this, promise, cache_name] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, realm, promise, cache_name), [](auto& self, auto& realm, auto& promise, auto& cache_name) {
         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. If cacheName matches an existing cache, resolve promise with a new Cache object that represents it.
@@ -122,7 +122,7 @@ void CacheStorage::open(JS::Realm& realm, Utf16String const& cache_name, GC::Ref
         //    If this cache write operation failed due to exceeding the granted quota limit, reject promise with a
         //    QuotaExceededError and abort these steps.
         // FIXME: Handle cache quotas in CacheStorage::get_or_create_cache().
-        auto cache = get_or_create_cache(cache_name);
+        auto cache = self.get_or_create_cache(cache_name);
 
         // 4. Resolve promise with a new Cache object that represents cache.
         auto cache_object = GC::Heap::the().allocate<Cache>(cache);
@@ -134,12 +134,12 @@ void CacheStorage::open(JS::Realm& realm, Utf16String const& cache_name, GC::Ref
 void CacheStorage::delete_(JS::Realm& realm, Utf16String const& cache_name, GC::Ref<WebIDL::Promise> promise)
 {
     // 2. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, this, promise, cache_name] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, realm, promise, cache_name), [](auto& self, auto& realm, auto& promise, auto& cache_name) {
         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. If cacheName does not match an entry, resolve promise with false and abort these steps.
         // 2. Otherwise, remove the relevant name to cache map[cacheName] and resolve promise with true.
-        auto const removed_cache = delete_cache(cache_name);
+        auto const removed_cache = self.delete_cache(cache_name);
         WebIDL::resolve_promise(promise, JS::Value { removed_cache });
 
         // Note: After this step, the existing DOM objects (i.e. the currently referenced Cache, Request, and Response
@@ -151,11 +151,11 @@ void CacheStorage::delete_(JS::Realm& realm, Utf16String const& cache_name, GC::
 void CacheStorage::keys(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
 {
     // 2. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, this, promise] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, realm, promise), [](auto& self, auto& realm, auto& promise) {
         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let cacheKeys be the result of getting the keys of the relevant name to cache map.
-        auto cache_keys = this->cache_keys();
+        auto cache_keys = self.cache_keys();
 
         // Note: The items in the result ordered set are in the order that their corresponding entry was added to the
         //       name to cache map.

@@ -162,40 +162,40 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
     //         must not fire events or release the load event delayer of the current request. Shared resource requests
     //         are shared per URL and CORS mode, so each fetch gets its own ID instead of comparing requests.
     resource_request->add_callbacks(
-        [this, fetch_id] {
-            if (fetch_id != m_current_fetch_id)
+        GC::create_function<void()>(GC::Heap::the(), GC::captures(*this, fetch_id), [](SVGImageElement& self, auto& fetch_id) {
+            if (fetch_id != self.m_current_fetch_id)
                 return;
 
-            m_load_event_delayer.clear();
-            register_with_decoded_image_data_if_needed();
-            CSS::record_element_replaced_content_input(*this);
-            Painting::push_replaced_image_paint_facts(*this, *this);
-            set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
+            self.m_load_event_delayer.clear();
+            self.register_with_decoded_image_data_if_needed();
+            CSS::record_element_replaced_content_input(self);
+            Painting::push_replaced_image_paint_facts(self, self);
+            self.set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 
             // https://w3c.github.io/paint-timing/#sec-modifications-dom
             // When an Element element's associated image request has become completely available, run the algorithm
             // to process an image that finished loading passing in element and its associated image request as
             // inputs.
-            PaintTiming::process_an_image_that_finished_loading(*this, PaintTiming::image_request_info(Utf16String::from_utf8(m_resource_request->url().serialize()), m_resource_request->image_data()));
+            PaintTiming::process_an_image_that_finished_loading(self, PaintTiming::image_request_info(Utf16String::from_utf8(self.m_resource_request->url().serialize()), self.m_resource_request->image_data()));
 
-            dispatch_event(DOM::Event::create(HTML::EventNames::load,
-                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
-        },
-        [this, fetch_id] {
-            if (fetch_id != m_current_fetch_id)
+            self.dispatch_event(DOM::Event::create(HTML::EventNames::load,
+                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(self))));
+        }),
+        GC::create_function<void()>(GC::Heap::the(), GC::captures(*this, fetch_id), [](SVGImageElement& self, auto& fetch_id) {
+            if (fetch_id != self.m_current_fetch_id)
                 return;
 
-            m_load_event_delayer.clear();
+            self.m_load_event_delayer.clear();
 
-            dispatch_event(DOM::Event::create(HTML::EventNames::error,
-                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
-        },
-        [this, fetch_id] {
-            if (fetch_id != m_current_fetch_id)
+            self.dispatch_event(DOM::Event::create(HTML::EventNames::error,
+                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(self))));
+        }),
+        GC::create_function<void()>(GC::Heap::the(), GC::captures(*this, fetch_id), [](SVGImageElement& self, auto& fetch_id) {
+            if (fetch_id != self.m_current_fetch_id)
                 return;
 
-            m_load_event_delayer.clear();
-        });
+            self.m_load_event_delayer.clear();
+        }));
 
     // NB: A request that has already completed runs its callbacks right away, and an event handler can change href.
     //     Then this fetch is no longer the current one.

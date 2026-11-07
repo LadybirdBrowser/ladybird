@@ -17,6 +17,9 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Page/Page.h>
 
+// NB: A request holds its nodes weakly, so a function can capture it without an edge to trace.
+GC_UNTRACED_CAPTURE(Web::Editing::WritingSuggestionController::Request);
+
 namespace Web::Editing {
 
 WritingSuggestionController::WritingSuggestionController(DOM::Document& document)
@@ -215,7 +218,7 @@ void WritingSuggestionController::schedule_selection_check()
     if (m_selection_check_scheduled)
         return;
     m_selection_check_scheduled = true;
-    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), [document = GC::Weak<DOM::Document> { m_document }] {
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), GC::captures(GC::Weak<DOM::Document> { m_document }), [](auto& document) {
         if (auto strong_document = document.ptr()) {
             strong_document->writing_suggestion_controller().run_selection_check();
             strong_document->page().notify_writing_suggestion_progress();
@@ -248,7 +251,7 @@ void WritingSuggestionController::schedule_request()
     if (m_request_scheduled)
         return;
     m_request_scheduled = true;
-    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), [document = GC::Weak<DOM::Document> { m_document }] {
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), GC::captures(GC::Weak<DOM::Document> { m_document }), [](auto& document) {
         if (auto strong_document = document.ptr()) {
             strong_document->writing_suggestion_controller().run_request();
             strong_document->page().notify_writing_suggestion_progress();
@@ -283,7 +286,7 @@ void WritingSuggestionController::run_request()
     ++m_requests_in_flight;
     auto sent_text = request.sent_text;
     auto caret_offset = request.caret_offset;
-    page.request_writing_suggestion(sent_text, caret_offset, GC::create_function(m_document->heap(), [document = GC::Weak<DOM::Document> { m_document }, request = move(request)](Optional<WritingSuggestion> suggestion) {
+    page.request_writing_suggestion(sent_text, caret_offset, GC::create_function(m_document->heap(), GC::captures(GC::Weak<DOM::Document> { m_document }, move(request)), [](auto& document, auto& request, Optional<WritingSuggestion> suggestion) {
         auto strong_document = document.ptr();
         if (!strong_document)
             return;

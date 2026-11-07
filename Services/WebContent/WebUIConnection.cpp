@@ -54,7 +54,7 @@ WebUIConnection::WebUIConnection(NonnullOwnPtr<IPC::Transport> transport, Web::D
     auto& window = Web::HTML::relevant_window(realm.global_object());
     realm.global_object().define_direct_property(ladybird_property(), Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, Web::Internals::WebUI::create(window)), JS::default_attributes);
 
-    Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, m_document, GC::create_function(GC::Heap::the(), [&document = *m_document]() {
+    Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, m_document, GC::create_function(GC::Heap::the(), GC::captures(*m_document), [](auto& document) {
         document.dispatch_event(Web::DOM::Event::create(Web::HTML::relevant_global_object(document), web_ui_loaded_event()));
     }));
 }

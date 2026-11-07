@@ -393,7 +393,7 @@ void ConnectionFromClient::run_transform_init(u64 transform_id, Web::HTML::Seria
     auto transformer = transformer_or_err.release_value();
     m_transformers.set(transform_id, GC::make_root(transformer));
 
-    auto write_encoded_data = GC::create_function(realm.heap(), [link = NonnullRefPtr { *m_dedicated_worker_thread_link }, transform_id](JS::Value chunk) {
+    auto write_encoded_data = GC::create_function(realm.heap(), GC::captures(NonnullRefPtr { *m_dedicated_worker_thread_link }, transform_id), [](auto& link, auto& transform_id, JS::Value chunk) {
         auto* frame = chunk.is_object() ? Web::Bindings::impl_from<Web::WebRTC::RTCEncodedAudioFrame>(&chunk.as_object()) : nullptr;
         if (!frame) {
             dbgln_if(WEBRTC_DEBUG, "worker: write algorithm got non-frame value (chunk_is_object={}, class={}) for id={}",
@@ -420,7 +420,7 @@ void ConnectionFromClient::run_transform_init(u64 transform_id, Web::HTML::Seria
     // event fires on the worker's own event loop, after any pending script setup
     // (e.g. `self.onrtctransform = ...`) has had a chance to run.
     Web::HTML::queue_global_task(Web::HTML::Task::Source::DOMManipulation, Web::HTML::relevant_global_object(*global_scope),
-        GC::create_function(realm.heap(), [global_scope, transformer, &realm] {
+        GC::create_function(realm.heap(), GC::captures(global_scope, transformer, realm), [](auto& global_scope, auto& transformer, auto& realm) {
             Web::HTML::TemporaryExecutionContext context(realm, Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             auto event = Web::WebRTC::RTCTransformEvent::create(Web::HTML::EventNames::rtctransform, transformer,
                 Web::HighResolutionTime::current_high_resolution_time(Web::HTML::relevant_global_object(*global_scope)));

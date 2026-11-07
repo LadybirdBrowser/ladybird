@@ -34,7 +34,7 @@ static HTML::ParallelQueue& lock_task_queue()
 
 void web_locks_queue_task(JS::Realm* realm, GC::Cell* cell, void (*steps)(JSVM*, void*))
 {
-    lock_task_queue().enqueue(GC::create_function(realm->heap(), [realm = GC::Ref { *realm }, cell = GC::Ref { *cell }, steps] {
+    lock_task_queue().enqueue(GC::create_function(realm->heap(), GC::captures(GC::Ref { *realm }, GC::Ref { *cell }, steps), [](auto& realm, auto& cell, auto& steps) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         steps(JS::HostABI::vm_to_abi(realm->vm()), cell.ptr());
     }));
@@ -43,7 +43,7 @@ void web_locks_queue_task(JS::Realm* realm, GC::Cell* cell, void (*steps)(JSVM*,
 void web_locks_queue_callback_task(WebIDL::CallbackType* callback, GC::Cell* cell, void (*steps)(JSVM*, void*))
 {
     auto& callback_context = callback->callback_context;
-    HTML::queue_global_task(HTML::Task::Source::WebLocks, callback_context->global_object(), GC::create_function(callback_context->realm().heap(), [callback = GC::Ref { *callback }, cell = GC::Ref { *cell }, steps] {
+    HTML::queue_global_task(HTML::Task::Source::WebLocks, callback_context->global_object(), GC::create_function(callback_context->realm().heap(), GC::captures(GC::Ref { *callback }, GC::Ref { *cell }, steps), [](auto& callback, auto& cell, auto& steps) {
         HTML::TemporaryExecutionContext execution_context { callback->callback_context, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         steps(JS::HostABI::vm_to_abi(callback->callback_context->realm().vm()), cell.ptr());
     }));

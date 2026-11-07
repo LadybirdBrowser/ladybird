@@ -686,8 +686,7 @@ public:
     bool child_style_uses_tree_counting_function() const { return m_child_style_uses_tree_counting_function; }
     void set_child_style_uses_tree_counting_function() { m_child_style_uses_tree_counting_function = true; }
 
-    // NOTE: The function is wrapped in a GC::HeapFunction immediately.
-    HTML::TaskID queue_an_element_task(HTML::Task::Source, Function<void()>, GC::Ptr<GC::Function<void()>> discard_steps = {});
+    HTML::TaskID queue_an_element_task(HTML::Task::Source, GC::Ref<GC::Function<void()>>, GC::Ptr<GC::Function<void()>> discard_steps = {});
 
     bool is_void_element() const;
     bool serializes_as_void() const;

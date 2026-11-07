@@ -34,14 +34,14 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
     auto& vm = this->vm();
 
     // 8. Let nextSteps be the following steps:
-    auto next_steps = [this](JS::VM& vm) {
-        auto& realm = this->promise_realm();
+    auto next_steps = GC::create_function(heap(), GC::captures(*this), [](AsyncIterator& self, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        auto& realm = self.promise_realm();
 
         // 1. Let nextPromiseCapability be ! NewPromiseCapability(%Promise%).
         auto next_promise_capability = WebIDL::create_promise(realm);
 
         // 2. If object’s is finished is true, then:
-        if (m_is_finished) {
+        if (self.m_is_finished) {
             // 1. Let result be CreateIteratorResultObject(undefined, true).
             auto result = JS::create_iterator_result_object(realm, JS::js_undefined(), true);
 
@@ -55,20 +55,20 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
         // 3. Let kind be object’s kind.
 
         // 4. Let nextPromise be the result of getting the next iteration result with object’s target and object.
-        auto& next_promise = as<JS::Promise>(*next_iteration_result(realm)->promise());
+        auto& next_promise = as<JS::Promise>(*self.next_iteration_result(realm)->promise());
 
         // 5. Let fulfillSteps be the following steps, given next:
-        auto fulfill_steps = [this](JS::VM& vm) {
-            auto& realm = this->promise_realm();
+        auto fulfill_steps = GC::create_function(self.heap(), GC::captures(self), [](AsyncIterator& self, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+            auto& realm = self.promise_realm();
             auto next = vm.argument(0);
 
             // 1. Set object’s ongoing promise to null.
-            m_ongoing_promise = nullptr;
+            self.m_ongoing_promise = nullptr;
 
             // 2. If next is end of iteration, then:
             if (next.is_special_empty_value()) {
                 // 1. Set object’s is finished to true.
-                m_is_finished = true;
+                self.m_is_finished = true;
 
                 // 2. Return CreateIteratorResultObject(undefined, true).
                 return JS::create_iterator_result_object(realm, JS::js_undefined(), true);
@@ -87,34 +87,34 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
                 // 4. Return CreateIteratorResultObject(value, false).
                 return JS::create_iterator_result_object(realm, next, false);
             }
-        };
+        });
 
         // 6. Let onFulfilled be CreateBuiltinFunction(fulfillSteps, « »).
-        auto on_fulfilled = JS::NativeFunction::create(realm, move(fulfill_steps), 0);
+        auto on_fulfilled = JS::NativeFunction::create(realm, fulfill_steps, 0);
 
         // 7. Let rejectSteps be the following steps, given reason:
-        auto reject_steps = [this](JS::VM& vm) {
+        auto reject_steps = GC::create_function(self.heap(), GC::captures(self), [](AsyncIterator& self, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             auto reason = vm.argument(0);
 
             // 1. Set object’s ongoing promise to null.
-            m_ongoing_promise = nullptr;
+            self.m_ongoing_promise = nullptr;
 
             // 2. Set object’s is finished to true.
-            m_is_finished = true;
+            self.m_is_finished = true;
 
             // 3. Throw reason.
             return JS::throw_completion(reason);
-        };
+        });
 
         // 8. Let onRejected be CreateBuiltinFunction(rejectSteps, « »).
-        auto on_rejected = JS::NativeFunction::create(realm, move(reject_steps), 0);
+        auto on_rejected = JS::NativeFunction::create(realm, reject_steps, 0);
 
         // 9. Perform PerformPromiseThen(nextPromise, onFulfilled, onRejected, nextPromiseCapability).
         next_promise.perform_then(on_fulfilled, on_rejected, next_promise_capability);
 
         // 10. Return nextPromiseCapability.[[Promise]].
         return next_promise_capability->promise();
-    };
+    });
 
     // 9. Let ongoingPromise be object’s ongoing promise.
     // 10. If ongoingPromise is not null, then:
@@ -123,7 +123,7 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
         auto after_ongoing_promise_capability = WebIDL::create_promise(realm);
 
         // 2. Let onSettled be CreateBuiltinFunction(nextSteps, « »).
-        auto on_settled = JS::NativeFunction::create(realm, move(next_steps), 0);
+        auto on_settled = JS::NativeFunction::create(realm, next_steps, 0);
 
         // 3. Perform PerformPromiseThen(ongoingPromise, onSettled, onSettled, afterOngoingPromiseCapability).
         m_ongoing_promise->perform_then(on_settled, on_settled, after_ongoing_promise_capability);
@@ -134,7 +134,7 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
     // 11. Otherwise:
     else {
         // 1. Set object’s ongoing promise to the result of running nextSteps.
-        m_ongoing_promise = as<JS::Promise>(*next_steps(vm));
+        m_ongoing_promise = as<JS::Promise>(MUST(next_steps->function()(vm)).as_object());
     }
 
     // 12. Return object’s ongoing promise.
@@ -148,14 +148,14 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_return_impl(G
     auto& vm = this->vm();
 
     // 8. Let returnSteps be the following steps:
-    auto return_steps = [this, value](JS::VM& vm) {
-        auto& realm = this->promise_realm();
+    auto return_steps = GC::create_function(heap(), GC::captures(*this, value), [](AsyncIterator& self, JS::Value& value, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        auto& realm = self.promise_realm();
 
         // 1. Let returnPromiseCapability be ! NewPromiseCapability(%Promise%).
         auto return_promise_capability = WebIDL::create_promise(realm);
 
         // 2. If object’s is finished is true, then:
-        if (m_is_finished) {
+        if (self.m_is_finished) {
             // 1. Let result be CreateIteratorResultObject(value, true).
             auto result = JS::create_iterator_result_object(realm, value, true);
 
@@ -167,11 +167,11 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_return_impl(G
         }
 
         // 3. Set object’s is finished to true.
-        m_is_finished = true;
+        self.m_is_finished = true;
 
         // 4. Return the result of running the asynchronous iterator return algorithm for interface, given object’s target, object, and value.
-        return iterator_return(realm, value)->promise();
-    };
+        return self.iterator_return(realm, value)->promise();
+    });
 
     // 9. Let ongoingPromise be object’s ongoing promise.
     // 10. If ongoingPromise is not null, then:
@@ -180,7 +180,7 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_return_impl(G
         auto after_ongoing_promise_capability = WebIDL::create_promise(realm);
 
         // 2. Let onSettled be CreateBuiltinFunction(returnSteps, « »).
-        auto on_settled = JS::NativeFunction::create(realm, move(return_steps), 0);
+        auto on_settled = JS::NativeFunction::create(realm, return_steps, 0);
 
         // 3. Perform PerformPromiseThen(ongoingPromise, onSettled, onSettled, afterOngoingPromiseCapability).
         m_ongoing_promise->perform_then(on_settled, on_settled, after_ongoing_promise_capability);
@@ -191,19 +191,19 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_return_impl(G
     // 11. Otherwise:
     else {
         // 1. Set object’s ongoing promise to the result of running returnSteps.
-        m_ongoing_promise = as<JS::Promise>(*return_steps(vm));
+        m_ongoing_promise = as<JS::Promise>(MUST(return_steps->function()(vm)).as_object());
     }
 
     // 12. Let fulfillSteps be the following steps:
-    auto fulfill_steps = [this, value]([[maybe_unused]] JS::VM& vm) {
-        auto& realm = this->promise_realm();
+    auto fulfill_steps = GC::create_function(heap(), GC::captures(*this, value), [](AsyncIterator& self, JS::Value& value, JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+        auto& realm = self.promise_realm();
 
         // 1. Return CreateIteratorResultObject(value, true).
         return JS::create_iterator_result_object(realm, value, true);
-    };
+    });
 
     // 13. Let onFulfilled be CreateBuiltinFunction(fulfillSteps, « »).
-    auto on_fulfilled = JS::NativeFunction::create(realm, move(fulfill_steps), 0);
+    auto on_fulfilled = JS::NativeFunction::create(realm, fulfill_steps, 0);
 
     // 14. Perform PerformPromiseThen(object’s ongoing promise, onFulfilled, undefined, returnPromiseCapability).
     m_ongoing_promise->perform_then(on_fulfilled, JS::js_undefined(), return_promise_capability);

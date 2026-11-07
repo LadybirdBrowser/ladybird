@@ -8,6 +8,7 @@
 
 #include <AK/Format.h>
 #include <AK/String.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 
@@ -46,6 +47,8 @@ struct AK::Formatter<Web::HTML::EnvironmentId> : Formatter<StringView> {
         return Formatter<StringView>::format(builder, id.to_string());
     }
 };
+
+GC_UNTRACED_CAPTURE(Web::HTML::EnvironmentId);
 
 namespace IPC {
 

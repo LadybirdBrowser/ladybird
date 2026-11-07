@@ -311,10 +311,10 @@ void WebGLRenderingContextBase::lose_context_from_compositor_loss()
     if (!web_webgl_context_mark_lost(this))
         return;
 
-    HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
+    HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](WebGLRenderingContextBase& self) {
         // webglcontextlost is cancelable; preventDefault() means the page wants the context
         // restored once a compositor is available again.
-        web_webgl_context_set_restore_requested(this, !fire_webgl_context_event(canvas_host(), EventNames::webglcontextlost));
+        web_webgl_context_set_restore_requested(&self, !fire_webgl_context_event(self.canvas_host(), EventNames::webglcontextlost));
     }));
 }
 
@@ -335,8 +335,8 @@ void WebGLRenderingContextBase::restore_context_after_compositor_reconnect()
     auto supported_extensions = remote->supported_extension_spans();
     web_webgl_context_restore(this, &remote->transport.leak_ref(), supported_extensions.span());
 
-    HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
-        fire_webgl_context_event(canvas_host(), EventNames::webglcontextrestored);
+    HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](WebGLRenderingContextBase& self) {
+        fire_webgl_context_event(self.canvas_host(), EventNames::webglcontextrestored);
     }));
 }
 

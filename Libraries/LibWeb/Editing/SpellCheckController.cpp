@@ -20,6 +20,9 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Selection/Selection.h>
 
+// NB: A request holds its nodes weakly, so a function can capture it without an edge to trace.
+GC_UNTRACED_CAPTURE(Web::Editing::SpellCheckController::Request);
+
 namespace Web::Editing {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#spelling-and-grammar-checking
@@ -179,7 +182,7 @@ void SpellCheckController::schedule_typing_check()
     if (m_typing_check_scheduled)
         return;
     m_typing_check_scheduled = true;
-    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), [document = GC::Weak<DOM::Document> { m_document }] {
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), GC::captures(GC::Weak<DOM::Document> { m_document }), [](auto& document) {
         if (auto strong_document = document.ptr()) {
             strong_document->spell_check_controller().run_typing_check();
             strong_document->page().notify_spell_check_progress();
@@ -217,7 +220,7 @@ void SpellCheckController::schedule_exempt_word_check()
     if (m_exempt_word_check_scheduled)
         return;
     m_exempt_word_check_scheduled = true;
-    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), [document = GC::Weak<DOM::Document> { m_document }] {
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), GC::captures(GC::Weak<DOM::Document> { m_document }), [](auto& document) {
         if (auto strong_document = document.ptr()) {
             strong_document->spell_check_controller().run_exempt_word_check();
             strong_document->page().notify_spell_check_progress();
@@ -362,7 +365,7 @@ void SpellCheckController::send(Request request)
     ++m_requests_in_flight;
     if (request.kind == RequestKind::Typing)
         m_typing_check_in_flight = true;
-    m_document->page().request_spell_check(text, GC::create_function(m_document->heap(), [document = GC::Weak<DOM::Document> { m_document }, request = move(request)](Vector<SpellingError> errors) {
+    m_document->page().request_spell_check(text, GC::create_function(m_document->heap(), GC::captures(GC::Weak<DOM::Document> { m_document }, move(request)), [](auto& document, auto& request, Vector<SpellingError> errors) {
         auto strong_document = document.ptr();
         if (!strong_document)
             return;

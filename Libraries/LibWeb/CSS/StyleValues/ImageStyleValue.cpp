@@ -47,13 +47,13 @@ ImageStyleValueResource::ImageStyleValueResource(ImageStyleValueResourceKey key,
     , m_resource_request(move(request))
 {
     m_resource_request->add_callbacks(
-        [weak_document = GC::Weak(document), key = m_key] {
+        GC::create_function(GC::Heap::the(), GC::captures(GC::Weak(document), m_key), [](auto& weak_document, auto& key) {
             // FIXME: Can we directly access the resource (i.e. this) here instead of looking it up in the document?
             if (auto document = weak_document.ptr()) {
                 if (auto* resource = document->css_image_resource(key))
                     resource->on_decoded_image_data_loaded();
             }
-        },
+        }),
         nullptr);
 }
 

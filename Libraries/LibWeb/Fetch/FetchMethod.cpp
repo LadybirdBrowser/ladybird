@@ -123,7 +123,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
 
     // 12. Set controller to the result of calling fetch given request and processResponse given response being these
     //     steps:
-    auto process_response = [locally_aborted, promise_capability, request_object, response_object_holder, controller_holder, &relevant_realm](GC::Ref<Infrastructure::ResponseView> response) {
+    auto process_response = GC::create_function(GC::Heap::the(), GC::captures(locally_aborted, promise_capability, request_object, response_object_holder, controller_holder, relevant_realm), [](auto& locally_aborted, auto& promise_capability, auto& request_object, auto& response_object_holder, auto& controller_holder, auto& relevant_realm, GC::Ref<Infrastructure::ResponseView> response) {
         // 1. If locallyAborted is true, then abort these steps.
         if (locally_aborted->value())
             return;
@@ -161,9 +161,9 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
             relevant_realm,
             GC::Ref { *response_object_holder->response_object });
         WebIDL::resolve_promise(relevant_realm, promise_capability, response_value);
-    };
+    });
     Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Engine::BodyIntent::DeliverStreamToConsumerAgent };
-    fetch_algorithms_input.process_response = move(process_response);
+    fetch_algorithms_input.process_response = process_response;
     // AD-HOC: Request holds its body's source and length, and requestObject its stream, which fetching reads for a
     //         body without a source. Its reader is acquired here, not when fetching reads the stream, so that script
     //         cannot lock the stream first.
@@ -172,7 +172,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
     controller_holder->set_controller(Fetching::fetch(realm, request, Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input))));
 
     // 11. Add the following abort steps to requestObject’s signal:
-    (void)request_object->signal()->add_abort_algorithm([locally_aborted, controller_holder, promise_capability, request_object, response_object_holder, &relevant_realm] {
+    (void)request_object->signal()->add_abort_algorithm(GC::create_function(GC::Heap::the(), GC::captures(locally_aborted, controller_holder, promise_capability, request_object, response_object_holder, relevant_realm), [](auto& locally_aborted, auto& controller_holder, auto& promise_capability, auto& request_object, auto& response_object_holder, auto& relevant_realm) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Request object signal's abort algorithm called");
 
         // 1. Set locallyAborted to true.
@@ -189,7 +189,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
 
         // 4. Abort the fetch() call with p, request, responseObject, and requestObject’s signal’s abort reason.
         abort_fetch(*promise_capability, request_object, response_object_holder->response_object, request_object->signal()->reason());
-    });
+    }));
 
     // 13. Return p.
     return promise_capability;

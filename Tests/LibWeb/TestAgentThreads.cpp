@@ -431,8 +431,8 @@ public:
         (void)script->run();
 
         auto& global_object = m_settings->realm().global_object();
-        IGNORE_USE_IN_ESCAPING_LAMBDA JS::PropertyKey result_key { "testResult"_utf16_fly_string };
-        Web::HTML::current_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&] {
+        JS::PropertyKey result_key { "testResult"_utf16_fly_string };
+        Web::HTML::current_event_loop().spin_until(GC::create_function(GC::Heap::the(), GC::captures(global_object, result_key), [](JS::Object& global_object, JS::PropertyKey const& result_key) {
             return !global_object.get_without_side_effects(result_key).is_undefined();
         }));
 

@@ -38,14 +38,14 @@ Intrinsics& host_defined_intrinsics(JS::Realm& realm)
 GC::Ref<JS::NativeFunction> Intrinsics::ensure_web_unforgeable_function(
     Utf16FlyString const& interface_name,
     Utf16FlyString const& attribute_name,
-    Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behaviour,
+    JS::NativeFunctionPointer behaviour,
     UnforgeableKey::Type type)
 {
     UnforgeableKey key { interface_name, attribute_name, type };
     if (auto it = m_unforgeable_functions.find(key); it != m_unforgeable_functions.end())
         return *it->value;
 
-    auto function = JS::NativeFunction::create(*m_realm, move(behaviour), type == UnforgeableKey::Type::Setter ? 1 : 0, attribute_name, m_realm, type == UnforgeableKey::Type::Setter ? "set"sv : "get"sv);
+    auto function = JS::NativeFunction::create(*m_realm, behaviour, type == UnforgeableKey::Type::Setter ? 1 : 0, attribute_name, m_realm, type == UnforgeableKey::Type::Setter ? "set"sv : "get"sv);
     m_unforgeable_functions.set(key, *function);
     return *function;
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <LibGC/Forward.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
@@ -42,3 +43,5 @@ struct ScriptFetchOptions {
 ScriptFetchOptions default_script_fetch_options();
 
 }
+
+GC_UNTRACED_CAPTURE(Web::HTML::ScriptFetchOptions);

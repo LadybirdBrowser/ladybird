@@ -5320,7 +5320,7 @@ void Document::schedule_text_fragment_search_after_parser_progress(Badge<HTML::H
         return;
 
     m_text_fragment_parser_progress_search_pending = true;
-    HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), [document = GC::Ref { *this }] {
+    HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), GC::captures(GC::Ref { *this }), [](auto& document) {
         document->m_text_fragment_parser_progress_search_pending = false;
         if (!document->m_pending_text_directives.has_value()
             || document->m_pending_text_directives->is_empty()
@@ -6862,9 +6862,9 @@ struct DocumentLifecycleState : public GC::Cell {
         : remaining_children(remaining)
         , document(document)
         , finish_callback(finish_callback)
-        , timeout(Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(TIMEOUT_MS), GC::create_function(GC::Heap::the(), [this] {
-            if (remaining_children > 0)
-                dbgln("FIXME: Document unload/destruction timed out with {} remaining children", remaining_children);
+        , timeout(Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(TIMEOUT_MS), GC::create_function(GC::Heap::the(), GC::captures(*this), [](DocumentLifecycleState& self) {
+            if (self.remaining_children > 0)
+                dbgln("FIXME: Document unload/destruction timed out with {} remaining children", self.remaining_children);
         })))
     {
         timeout->start();
@@ -6916,9 +6916,9 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
 
     // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to
     //    perform the following steps:
-    auto finish_callback = GC::create_function(GC::Heap::the(), [document = this, after_all_destruction] {
+    auto finish_callback = GC::create_function(GC::Heap::the(), GC::captures(*this, after_all_destruction), [](auto& document, auto& after_all_destruction) {
         // 1. Destroy document.
-        document->destroy();
+        document.destroy();
 
         // 2. If afterAllDestruction was given, then run it.
         if (after_all_destruction)
@@ -6941,14 +6941,14 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
         // the parent starts destruction. In that case there is no global task target; it is already
         // destroyed for the purposes of this algorithm.
         auto active_window = child_navigable->active_window();
-        auto increment_destroyed = GC::create_function(GC::Heap::the(), [destruction_state] { destruction_state->did_process_child(); });
+        auto increment_destroyed = GC::create_function(GC::Heap::the(), GC::captures(destruction_state), [](auto& destruction_state) { destruction_state->did_process_child(); });
         if (!active_window) {
             increment_destroyed->function()();
             continue;
         }
 
         queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window),
-            GC::create_function(GC::Heap::the(), [child_navigable, increment_destroyed] {
+            GC::create_function(GC::Heap::the(), GC::captures(child_navigable, increment_destroyed), [](auto& child_navigable, auto& increment_destroyed) {
                 // 1. Destroy a document and its descendants given childNavigable's active document and incrementDestroyed.
                 if (auto active_document = child_navigable->active_document())
                     active_document->destroy_a_document_and_its_descendants(increment_destroyed);
@@ -7053,7 +7053,7 @@ void Document::abort_a_document_and_its_descendants()
                 page().client().page_did_request_remote_document_abort(remote_navigable->id());
             continue;
         }
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*descendant_navigable->active_window()), GC::create_function(GC::Heap::the(), [this, descendant_navigable] {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*descendant_navigable->active_window()), GC::create_function(GC::Heap::the(), GC::captures(*this, descendant_navigable), [](Document& self, HTML::LocalNavigable* descendant_navigable) {
             // NOTE: This is not in the spec but we need to abort ongoing navigations in all descendant navigables.
             //       See https://github.com/whatwg/html/issues/9711
             descendant_navigable->set_ongoing_navigation({});
@@ -7063,7 +7063,7 @@ void Document::abort_a_document_and_its_descendants()
 
             // 2. If descendantNavigable's active document's salvageable is false, then set document's salvageable to false.
             if (!descendant_navigable->active_document()->m_salvageable)
-                m_salvageable = false;
+                self.m_salvageable = false;
         }));
     }
 
@@ -7799,7 +7799,7 @@ void Document::make_active()
         // NB: A document whose title element was parsed before it became active, such as an error page made from
         //     inline content, hasn't reported its title yet. It's reported in a task, after the page has learned of
         //     the new active document, which resets the title it shows.
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), [document = GC::Ref { *this }] {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), GC::captures(GC::Ref { *this }), [](auto& document) {
             auto navigable = document->navigable();
             if (!navigable || !navigable->is_top_level_traversable() || !document->is_active())
                 return;
@@ -7947,14 +7947,14 @@ void Document::queue_intersection_observer_task()
     m_intersection_observer_task_queued = true;
 
     // 3. Queue a task on the IntersectionObserver task source associated with the document's event loop to notify intersection observers.
-    HTML::queue_global_task(HTML::Task::Source::IntersectionObserver, HTML::relevant_global_object(*window), GC::create_function(GC::Heap::the(), [this]() {
+    HTML::queue_global_task(HTML::Task::Source::IntersectionObserver, HTML::relevant_global_object(*window), GC::create_function(GC::Heap::the(), GC::captures(*this), [](Document& self) {
         // https://www.w3.org/TR/intersection-observer/#notify-intersection-observers
         // 1. Set document’s IntersectionObserverTaskQueued flag to false.
-        m_intersection_observer_task_queued = false;
+        self.m_intersection_observer_task_queued = false;
 
         // 2. Let notify list be a list of all IntersectionObservers whose root is in the DOM tree of document.
         GC::RootVector<GC::Ref<IntersectionObserver::IntersectionObserver>> notify_list;
-        for (auto& observer : m_intersection_observers)
+        for (auto& observer : self.m_intersection_observers)
             notify_list.append(observer);
 
         // 3. For each IntersectionObserver object observer in notify list, run these steps:
@@ -8410,7 +8410,7 @@ void Document::shared_declarative_refresh_steps(Utf16View input, GC::Ptr<HTML::H
         // AD-HOC: Navigate from a task, so that the refresh comes after the tasks that "completely finish loading"
         //         queued, such as the one that fires the load event at the container, as the refresh is due only
         //         after the document has completely loaded.
-        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*this), GC::create_function(heap(), [document = GC::Ref { *this }, has_meta_element, url_record] {
+        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*this), GC::create_function(heap(), GC::captures(GC::Ref { *this }, has_meta_element, url_record), [](auto& document, auto& has_meta_element, auto& url_record) {
             if (has_meta_element && has_flag(document->active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedAutomaticFeatures))
                 return;
 
@@ -8590,7 +8590,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
                     entry->url().serialize(),
                     HighResolutionTime::current_high_resolution_time(relevant_global_object));
                 hashchange_event->set_is_trusted(true);
-                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(GC::Heap::the(), [hashchange_event, &window]() {
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(GC::Heap::the(), GC::captures(hashchange_event, window), [](auto& hashchange_event, auto& window) {
                     window.dispatch_event(hashchange_event);
                 }));
             }
@@ -10250,7 +10250,7 @@ void Document::remove_replaced_animations()
             //   Otherwise, queue a task to dispatch removeEvent at animation. The task source for this task is the DOM
             //   manipulation task source.
             else {
-                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_settings_object().realm().global_object(), GC::create_function(GC::Heap::the(), [animation, remove_event]() {
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_settings_object().realm().global_object(), GC::create_function(GC::Heap::the(), GC::captures(animation, remove_event), [](auto& animation, auto& remove_event) {
                     animation->dispatch_event(remove_event);
                 }));
             }
@@ -12643,19 +12643,19 @@ void Document::view_transition_page_visibility_change_steps()
 
     // 1. Queue a global task on the DOM manipulation task source, given document’s relevant global object, to
     //    perform the following steps:
-    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*this), GC::create_function(GC::Heap::the(), [&] {
-        HTML::TemporaryExecutionContext context(relevant_settings_object());
+    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*this), GC::create_function(GC::Heap::the(), GC::captures(*this), [](Document& self) {
+        HTML::TemporaryExecutionContext context(self.relevant_settings_object());
         // 1. If document’s visibility state is "hidden", then:
-        if (m_visibility_state == HTML::VisibilityState::Hidden) {
+        if (self.m_visibility_state == HTML::VisibilityState::Hidden) {
             // 1. If document’s active view transition is not null, then skip document’s active view transition with an
             //    "InvalidStateError" DOMException.
-            if (m_active_view_transition) {
-                m_active_view_transition->skip_the_view_transition(WebIDL::InvalidStateError::create("The document's visibility state is \"hidden\"."_utf16));
+            if (self.m_active_view_transition) {
+                self.m_active_view_transition->skip_the_view_transition(WebIDL::InvalidStateError::create("The document's visibility state is \"hidden\"."_utf16));
             }
         }
         // 2. Otherwise, assert: active view transition is null.
         else {
-            VERIFY(!m_active_view_transition);
+            VERIFY(!self.m_active_view_transition);
         }
     }));
 }

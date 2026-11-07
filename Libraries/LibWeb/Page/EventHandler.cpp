@@ -2845,7 +2845,7 @@ EventResult EventHandler::perform_paste_action()
 
     // NB: The system clipboard lives in the UI process. So, retrieve its contents first — and run the rest of the paste
     //     action once the contents arrive.
-    document->page().request_clipboard_entries(GC::create_function(document->heap(), [document = GC::Ref { *document }](Vector<Clipboard::SystemClipboardItem> items) {
+    document->page().request_clipboard_entries(GC::create_function(document->heap(), GC::captures(GC::Ref { *document }), [](auto& document, Vector<Clipboard::SystemClipboardItem> items) {
         auto data_store = HTML::DragDataStore::create();
 
         auto add_text_item = [&](Utf16FlyString type, Utf16String data) {

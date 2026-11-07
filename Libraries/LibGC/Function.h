@@ -7,18 +7,14 @@
 
 #pragma once
 
-#include <AK/Array.h>
 #include <AK/Function.h>
-#include <AK/Optional.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
-#include <AK/Variant.h>
 #include <LibGC/CaptureTraits.h>
 #include <LibGC/Cell.h>
 #include <LibGC/FunctionTable.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Member.h>
-#include <LibGC/NanBoxedValue.h>
 #include <LibGC/Ptr.h>
 #include <typeinfo>
 
@@ -287,18 +283,6 @@ class Function<R(Args...)> final : public Cell {
 
 public:
     using Operations = FunctionOperationsFor<R, Args...>;
-    using Lambda = AK::Function<R(Args...)>;
-
-    static Ref<Function> create(Heap& heap, ESCAPING AK::Function<R(Args...)>&& function)
-    {
-        // NB: The function is allocated before its box, so a collection that the allocation runs still finds the
-        //     captures where the caller holds them.
-        auto cell = heap.allocate<Function>();
-        auto allocation = heap.function_table().allocate(lambda_operations, sizeof(Lambda));
-        new (allocation.box) Lambda(move(function));
-        cell->m_handle = allocation.handle;
-        return cell;
-    }
 
     template<typename Callable, typename... Values>
     static Ref<Function> create(Heap& heap, CaptureList<Values...>&& captures, Callable&&)
@@ -357,18 +341,6 @@ private:
         slot.operations->visit_edges(slot.box, visitor);
     }
 
-    // A function made from an AK::Function, whose captures are opaque and visited as possible cell pointers.
-    static constexpr Operations lambda_operations {
-        {
-            .signature = &Detail::function_signature<R(Args...)>,
-            .visit_edges = [](void* box, Visitor& visitor) { visitor.visit_possible_values(static_cast<Lambda*>(box)->raw_capture_range()); },
-            .destroy = [](void* box) { static_cast<Lambda*>(box)->~Lambda(); },
-        },
-        [](void* box, Args... args) -> R {
-            return (*static_cast<Lambda*>(box))(forward<Args>(args)...);
-        },
-    };
-
     template<typename Callback, typename Box>
     struct CaptureOperations {
         static constexpr Operations operations {
@@ -398,7 +370,7 @@ private:
 // NB: No template argument can be given for the leading pack, so a function type given explicitly selects the overload
 //     below instead of being taken as the type of the first capture.
 template<int&... ExplicitArgumentBarrier, typename... Values, typename Callable, typename T = typename Detail::DropParameters<sizeof...(Values), typename Detail::CallableTypeWithCaptures<RemoveCVReference<Callable>, typename Detail::CaptureStorage<Values>::Type...>::Type>::Type>
-static Ref<Function<T>> create_function(Heap& heap, CaptureList<Values...>&& captures, ESCAPING Callable&& callable)
+static Ref<Function<T>> create_function(Heap& heap, CaptureList<Values...>&& captures, Callable&& callable)
 {
     return Function<T>::create(heap, move(captures), forward<Callable>(callable));
 }
@@ -406,19 +378,17 @@ static Ref<Function<T>> create_function(Heap& heap, CaptureList<Values...>&& cap
 // The same, for a callable whose type does not name the function type, such as one that takes its own parameters as auto.
 template<typename T, typename... Values, typename Callable>
 requires(IsFunction<T>)
-static Ref<Function<T>> create_function(Heap& heap, CaptureList<Values...>&& captures, ESCAPING Callable&& callable)
+static Ref<Function<T>> create_function(Heap& heap, CaptureList<Values...>&& captures, Callable&& callable)
 {
     return Function<T>::create(heap, move(captures), forward<Callable>(callable));
 }
 
+// Makes a function of a callable that captures nothing.
 template<typename Callable, typename T = EquivalentFunctionType<RemoveCVReference<Callable>>>
-static Ref<Function<T>> create_function(Heap& heap, ESCAPING Callable&& function)
+static Ref<Function<T>> create_function(Heap& heap, Callable&& function)
 {
-    // NB: A callable that captures nothing needs no AK::Function, and has nothing to visit.
-    if constexpr (Detail::CapturesNothing<RemoveCVReference<Callable>>)
-        return Function<T>::create(heap, CaptureList<> {}, forward<Callable>(function));
-    else
-        return Function<T>::create(heap, AK::Function<T> { forward<Callable>(function) });
+    static_assert(Detail::CapturesNothing<RemoveCVReference<Callable>>, "A GC::Function callable captures nothing; name what it uses with GC::captures() and take it as parameters");
+    return Function<T>::create(heap, CaptureList<> {}, forward<Callable>(function));
 }
 
 template<typename R, typename... Args>

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -92,3 +93,5 @@ template<>
 WEBCOMMON_API ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::HTML::SerializedEnvironmentSettingsObject);

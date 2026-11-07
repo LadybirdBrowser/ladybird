@@ -31,6 +31,9 @@
 #include <LibWeb/Platform/Timer.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 
+// NB: A load request keeps its page in a GC::Root, and holds no other cell.
+GC_UNTRACED_CAPTURE(Web::LoadRequest);
+
 namespace Web {
 
 static RefPtr<ResourceLoader>& resource_loader()
@@ -401,8 +404,8 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
     page->client().request_file(move(file_request));
 }
 
-template<typename ResourceHandler, typename ErrorHandler>
-void ResourceLoader::handle_about_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error)
+template<typename ResourceHandler>
+void ResourceLoader::handle_about_load_request(LoadRequest const& request, ResourceHandler on_resource, GC::Ref<GC::Function<void(ByteString const&)>> on_error)
 {
     auto const& url = request.url().value();
 
@@ -430,9 +433,8 @@ void ResourceLoader::handle_about_load_request(LoadRequest const& request, Resou
     }
 
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(
-        m_heap,
-        [on_error, error_message = ByteString::formatted("No such about page: {}", serialized_path)]() {
-            on_error(error_message);
+        m_heap, GC::captures(on_error, ByteString::formatted("No such about page: {}", serialized_path)), [](auto& on_error, auto& error_message) {
+            on_error->function()(error_message);
         }));
 }
 
@@ -500,11 +502,11 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
                 on_data_received->function()(Requests::ResponseData::from_bytes(data));
                 on_complete->function()(true, timing_info, {});
             },
-            [on_complete, request](ByteString const& message) {
+            GC::create_function(m_heap, GC::captures(on_complete, request), [](auto& on_complete, auto& request, ByteString const& message) {
                 log_failure(request, message);
                 Requests::RequestTimingInfo fixme_implement_timing_info {};
                 on_complete->function()(false, fixme_implement_timing_info, StringView(message));
-            });
+            }));
         return nullptr;
     }
 

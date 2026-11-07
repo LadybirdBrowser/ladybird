@@ -46,9 +46,11 @@ void DevToolsDebugger::attach(PageClient& page)
     auto& vm = Web::Bindings::main_thread_vm();
     vm.enable_debugging();
     if (!m_pause_callback_is_installed) {
-        vm.debugger()->set_pause_callback([this](auto const& pause) {
-            handle_pause(pause);
-        });
+        vm.debugger()->set_pause_callback(GC::create_function(vm.heap(), GC::captures(make_weak_ptr<DevToolsDebugger>()), [](auto& debugger, JS::Debugger::PauseInfo const& pause) {
+            if (!debugger)
+                return;
+            debugger->handle_pause(pause);
+        }));
         m_pause_callback_is_installed = true;
     }
     update_exception_pause_mode();

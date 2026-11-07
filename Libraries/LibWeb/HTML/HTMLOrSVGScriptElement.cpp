@@ -420,9 +420,9 @@ void HTMLOrSVGScriptElement::prepare_script()
         // FIXME: Add "speculationrules" support.
         if (m_script_type == ScriptType::ImportMap) {
             // then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
-            element.queue_an_element_task(HTML::Task::Source::DOMManipulation, [&element] {
+            element.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(element), [](auto& element) {
                 element.dispatch_event(create_event_for_element(element, HTML::EventNames::error));
-            });
+            }));
             return;
         }
 
@@ -432,9 +432,9 @@ void HTMLOrSVGScriptElement::prepare_script()
         // 3. If src is the empty string, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (src.is_empty()) {
             dbgln("HTMLScriptElement: Refusing to run script because the src attribute is empty.");
-            element.queue_an_element_task(HTML::Task::Source::DOMManipulation, [&element] {
+            element.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(element), [](auto& element) {
                 element.dispatch_event(create_event_for_element(element, HTML::EventNames::error));
-            });
+            }));
             return;
         }
 
@@ -447,9 +447,9 @@ void HTMLOrSVGScriptElement::prepare_script()
         // 6. If url is failure, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (!url.has_value()) {
             dbgln("HTMLScriptElement: Refusing to run script because the src URL '{}' is invalid.", url);
-            element.queue_an_element_task(HTML::Task::Source::DOMManipulation, [&element] {
+            element.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(element), [](auto& element) {
                 element.dispatch_event(create_event_for_element(element, HTML::EventNames::error));
-            });
+            }));
             return;
         }
 
@@ -466,12 +466,14 @@ void HTMLOrSVGScriptElement::prepare_script()
             options.render_blocking = true;
 
         // 10. Let onComplete given result be the following steps:
-        OnFetchScriptComplete on_complete = create_on_fetch_script_complete(element.heap(), [this](auto result) {
+        OnFetchScriptComplete on_complete = create_on_fetch_script_complete(element.heap(), GC::captures(element), [](DOM::Element& element, GC::Ptr<Script> result) {
+            auto& self = as<HTMLOrSVGScriptElement>(element);
+
             // 1. Mark as ready el given result.
             if (result)
-                mark_as_ready(Result { *result });
+                self.mark_as_ready(Result { *result });
             else
-                mark_as_ready(ResultState::Null {});
+                self.mark_as_ready(ResultState::Null {});
         });
 
         // 11. Switch on el's type:
@@ -490,13 +492,14 @@ void HTMLOrSVGScriptElement::prepare_script()
             // This resolves an edge case where mark_as_ready() can execute before we set
             // m_steps_to_run_when_the_result_is_ready
             // See https://github.com/whatwg/html/issues/12073
-            auto on_complete = create_on_fetch_script_complete(element.heap(), [this, &element](auto result) {
-                element.queue_an_element_task(Task::Source::Networking, [this, result = move(result)] {
+            auto on_complete = create_on_fetch_script_complete(element.heap(), GC::captures(element), [](DOM::Element& element, GC::Ptr<Script> result) {
+                element.queue_an_element_task(Task::Source::Networking, GC::create_function(GC::Heap::the(), GC::captures(element, result), [](DOM::Element& element, GC::Ptr<Script>& result) {
+                    auto& self = as<HTMLOrSVGScriptElement>(element);
                     if (!result)
-                        mark_as_ready(ResultState::Null {});
+                        self.mark_as_ready(ResultState::Null {});
                     else
-                        mark_as_ready(Result(*result));
-                });
+                        self.mark_as_ready(Result(*result));
+                }));
             });
 
             // Fetch an external module script graph given url, settings object, options, and onComplete.
@@ -532,15 +535,17 @@ void HTMLOrSVGScriptElement::prepare_script()
                 options.render_blocking = true;
             }
 
-            auto steps = create_on_fetch_script_complete(element.heap(), [this, &element](auto result) {
+            auto steps = create_on_fetch_script_complete(element.heap(), GC::captures(element), [](DOM::Element& element, GC::Ptr<Script> result) {
                 // 1. Queue an element task on the networking task source given el to perform the following steps:
-                element.queue_an_element_task(Task::Source::Networking, [this, result = move(result)] {
+                element.queue_an_element_task(Task::Source::Networking, GC::create_function(GC::Heap::the(), GC::captures(element, result), [](DOM::Element& element, GC::Ptr<Script>& result) {
+                    auto& self = as<HTMLOrSVGScriptElement>(element);
+
                     // 1. Mark as ready el given result.
                     if (!result)
-                        mark_as_ready(ResultState::Null {});
+                        self.mark_as_ready(ResultState::Null {});
                     else
-                        mark_as_ready(Result(*result));
-                });
+                        self.mark_as_ready(Result(*result));
+                }));
             });
 
             // 3. Fetch an inline module script graph, given source text, base URL, settings object, options, and with the following steps given result:

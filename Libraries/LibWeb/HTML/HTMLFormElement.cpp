@@ -1083,16 +1083,15 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_re
     }
 
     // 4. Queue an element task on the DOM manipulation task source given the form element and the following steps:
-    // NOTE: `this`, `actual_resource`, `target_navigable` and `submitter` are protected by GC::HeapFunction.
-    queue_an_element_task(Task::Source::DOMManipulation, [this, url, post_resource, entry_list = move(entry_list), target_navigable, history_handling, referrer_policy, user_involvement, submitter]() {
+    queue_an_element_task(Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(*this, url, post_resource, move(static_cast<Vector<XHR::FormDataEntry>&>(entry_list)), target_navigable, history_handling, referrer_policy, user_involvement, submitter), [](auto& self, auto& url, auto& post_resource, auto& entry_list, auto& target_navigable, auto& history_handling, auto& referrer_policy, auto& user_involvement, auto& submitter) {
         // 1. Set the form's planned navigation to null.
-        m_planned_navigation = {};
+        self.m_planned_navigation = {};
 
         // 2. Navigate targetNavigable to url using the form element's node document, with historyHandling set to historyHandling,
         //    userInvolvement set to userInvolvement, sourceElement set to submitter, referrerPolicy set to referrerPolicy,
         //    documentResource set to postResource, and formDataEntryList set to entry list.
-        MUST(target_navigable->navigate({ .url = url, .source_document = this->document(), .document_resource = post_resource, .response = nullptr, .exceptions_enabled = false, .history_handling = history_handling, .form_data_entry_list = move(entry_list), .referrer_policy = referrer_policy, .user_involvement = user_involvement, .source_element = submitter }));
-    });
+        MUST(target_navigable->navigate({ .url = url, .source_document = self.document(), .document_resource = post_resource, .response = nullptr, .exceptions_enabled = false, .history_handling = history_handling, .form_data_entry_list = GC::ConservativeVector<XHR::FormDataEntry> { move(entry_list) }, .referrer_policy = referrer_policy, .user_involvement = user_involvement, .source_element = submitter }));
+    }));
 
     // 5. Set the form's planned navigation to the just-queued task.
     m_planned_navigation = HTML::main_thread_event_loop().task_queue().last_added_task();

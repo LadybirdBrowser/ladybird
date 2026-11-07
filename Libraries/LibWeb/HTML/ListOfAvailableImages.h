@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/Utf16String.h>
+#include <LibGC/Function.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -67,6 +68,8 @@ private:
 };
 
 }
+
+GC_UNTRACED_CAPTURE(Web::HTML::ListOfAvailableImages::Key);
 
 namespace AK {
 

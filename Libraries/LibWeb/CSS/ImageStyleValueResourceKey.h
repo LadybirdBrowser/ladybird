@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Traits.h>
 #include <AK/Utf16FlyString.h>
+#include <LibGC/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/URL.h>
@@ -65,3 +66,5 @@ struct AK::Traits<Web::CSS::ImageStyleValueResourceKey> : public AK::DefaultTrai
         return hash;
     }
 };
+
+GC_UNTRACED_CAPTURE(Web::CSS::ImageStyleValueResourceKey);

@@ -106,14 +106,13 @@ static void call_pause_callback(void* context, JSVM*, JSDebuggerPauseInfo const*
     pause_callback.function()(pause_info_from_abi(*pause_info));
 }
 
-void Debugger::set_pause_callback(Function<void(PauseInfo const&)> callback)
+void Debugger::set_pause_callback(GC::Ptr<PauseCallback> callback)
 {
     if (!callback) {
         js_debugger_set_pause_callback(vm_to_abi(vm()), nullptr, nullptr);
         return;
     }
-    auto pause_callback = PauseCallback::create(vm().heap(), move(callback));
-    js_debugger_set_pause_callback(vm_to_abi(vm()), call_pause_callback, static_cast<GC::Cell*>(pause_callback.ptr()));
+    js_debugger_set_pause_callback(vm_to_abi(vm()), call_pause_callback, static_cast<GC::Cell*>(callback.ptr()));
 }
 
 void Debugger::continue_execution(ResumeMode resume_mode)

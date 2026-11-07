@@ -65,14 +65,14 @@ void ObservableArray::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_on_delete_an_indexed_value);
 }
 
-void ObservableArray::set_on_set_an_indexed_value_callback(SetAnIndexedValueCallbackFunction&& callback)
+void ObservableArray::set_on_set_an_indexed_value_callback(GC::Ref<GC::Function<SetAnIndexedValueCallbackFunction::FunctionType>> callback)
 {
-    m_on_set_an_indexed_value = GC::create_function(GC::Heap::the(), move(callback));
+    m_on_set_an_indexed_value = callback;
 }
 
-void ObservableArray::set_on_delete_an_indexed_value_callback(DeleteAnIndexedValueCallbackFunction&& callback)
+void ObservableArray::set_on_delete_an_indexed_value_callback(GC::Ref<GC::Function<DeleteAnIndexedValueCallbackFunction::FunctionType>> callback)
 {
-    m_on_delete_an_indexed_value = GC::create_function(GC::Heap::the(), move(callback));
+    m_on_delete_an_indexed_value = callback;
 }
 
 u32 ObservableArray::length() const

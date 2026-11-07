@@ -15,6 +15,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibGC/Forward.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Header.h>
 #include <LibIPC/Forward.h>
@@ -224,3 +225,5 @@ template<>
 WEBCOMMON_API ErrorOr<Web::HTML::NavigationParamsDescriptor> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::HTML::NavigationParamsDescriptor);

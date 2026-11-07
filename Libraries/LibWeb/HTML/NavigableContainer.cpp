@@ -134,11 +134,11 @@ void NavigableContainer::create_new_child_navigable()
         {
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .on_complete = GC::create_function(heap(), [this, navigable] {
-                if (navigable->has_been_destroyed() || content_navigable() != navigable)
+            .on_complete = GC::create_function(heap(), GC::captures(*this, navigable), [](auto& self, auto& navigable) {
+                if (navigable->has_been_destroyed() || self.content_navigable() != navigable)
                     return;
                 navigable->set_has_session_history_entry_and_ready_for_navigation();
-                this->document().schedule_html_parser_end_check();
+                self.document().schedule_html_parser_end_check();
             }),
         });
 }
@@ -375,7 +375,7 @@ void NavigableContainer::continue_destroying_the_child_navigable(Navigable& navi
 {
     // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to
     //    perform the following steps:
-    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(navigable.heap(), [navigable = GC::Ref { navigable }] {
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(navigable.heap(), GC::captures(GC::Ref { navigable }), [](auto& navigable) {
         // 1. If firePageSwapSteps is given, then run firePageSwapSteps.
         // 2. Unload document, passing along newDocument if it is not null.
         // NB: The document of a navigable hosted by another process was unloaded there by the UI process.
@@ -470,15 +470,15 @@ void NavigableContainer::content_navigable_completely_finished_loading()
     // NB: container is this element.
     // 4. If container is an iframe element, then queue an element task on the DOM manipulation task source given container to run the iframe load event steps given container.
     if (is<HTMLIFrameElement>(*this)) {
-        queue_an_element_task(Task::Source::DOMManipulation, [this] {
-            run_iframe_load_event_steps(static_cast<HTMLIFrameElement&>(*this));
-        });
+        queue_an_element_task(Task::Source::DOMManipulation, GC::create_function(heap(), GC::captures(*this), [](NavigableContainer& self) {
+            run_iframe_load_event_steps(static_cast<HTMLIFrameElement&>(self));
+        }));
     }
     // 5. Otherwise, if container is non-null, then queue an element task on the DOM manipulation task source given container to fire an event named load at container.
     else {
-        queue_an_element_task(Task::Source::DOMManipulation, [this] {
-            dispatch_event(DOM::Event::create(EventNames::load, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
-        });
+        queue_an_element_task(Task::Source::DOMManipulation, GC::create_function(heap(), GC::captures(*this), [](NavigableContainer& self) {
+            self.dispatch_event(DOM::Event::create(EventNames::load, HighResolutionTime::current_high_resolution_time(relevant_global_object(self))));
+        }));
     }
 
     // AD-HOC: Finishing a child document can unblock its parent's load-event-delay phase, so wake the parent parser end

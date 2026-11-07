@@ -45,7 +45,7 @@ void handle_any_user_prompts(Page& page, GC::Ref<GC::Function<void(Optional<Erro
     // 4. Let handler be get the prompt handler with type.
     auto handler = get_the_prompt_handler(type);
 
-    auto on_dialog_closed = GC::create_function(page.heap(), [notify = handler.notify, pending_dialog_text = page.pending_dialog_text(), on_complete]() {
+    auto on_dialog_closed = GC::create_function(page.heap(), GC::captures(handler.notify, page.pending_dialog_text(), on_complete), [](auto& notify, auto& pending_dialog_text, auto& on_complete) {
         // 5. If handler's notify is true, return annotated unexpected alert open error.
         if (notify == PromptHandlerConfiguration::Notify::Yes) {
             on_complete->function()(create_annotated_unexpected_alert_open_error(pending_dialog_text));

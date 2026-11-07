@@ -194,7 +194,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
                                  : Web::Fetch::Infrastructure::Request::Destination::Worker;
 
     // In both cases, let performFetch be the following perform the fetch hook given request, isTopLevel, and processCustomFetchResponse:
-    auto perform_fetch_function = [inside_settings, outside_settings, worker_global_scope, is_shared, has_process_to_itself](NonnullRefPtr<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
+    Web::HTML::PerformTheFetchHook perform_fetch = GC::create_function(inside_settings->heap(), GC::captures(inside_settings, outside_settings, worker_global_scope, is_shared, has_process_to_itself), [](auto& inside_settings, auto& outside_settings, auto& worker_global_scope, auto& is_shared, auto& has_process_to_itself, NonnullRefPtr<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::HTML::ProcessCustomFetchResponse process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
         auto& realm = inside_settings->realm();
 
         Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Web::Fetch::Engine::BodyIntent::ConsumeForCallback };
@@ -202,7 +202,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         // 1. If isTopLevel is false, fetch request with processResponseConsumeBody set to processCustomFetchResponse,
         //    and abort these steps.
         if (is_top_level == Web::HTML::TopLevelModule::No) {
-            fetch_algorithms_input.process_response_consume_body = move(process_custom_fetch_response);
+            fetch_algorithms_input.process_response_consume_body = process_custom_fetch_response;
             Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
             return {};
         }
@@ -210,13 +210,9 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         // 2. Set request's reserved client to inside settings.
         request->set_reserved_client_snapshot(Web::Fetch::Fetching::snapshot_reserved_client_context(*inside_settings));
 
-        // NB: We need to store the process custom fetch response function on the heap here, because we're storing it
-        //     in another heap function
-        auto process_custom_fetch_response_function = GC::create_function(GC::Heap::the(), move(process_custom_fetch_response));
-
         // 3. Fetch request with processResponseConsumeBody set to the following steps given response response and
         //    null, failure, or a byte sequence bodyBytes:
-        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inside_settings, outside_settings, is_shared, has_process_to_itself](auto response, auto body_bytes) {
+        fetch_algorithms_input.process_response_consume_body = GC::create_function(GC::Heap::the(), GC::captures(worker_global_scope, process_custom_fetch_response, inside_settings, outside_settings, is_shared, has_process_to_itself), [](auto& worker_global_scope, auto& process_custom_fetch_response, auto& inside_settings, auto& outside_settings, auto& is_shared, auto& has_process_to_itself, GC::Ref<Web::Fetch::Infrastructure::ResponseView> response, Web::Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
             // 1. Set worker global scope's url to response's URL.
             worker_global_scope->set_url(response->url().value_or({}));
 
@@ -267,16 +263,15 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             }
 
             // 10. Run processCustomFetchResponse with response and bodyBytes.
-            process_custom_fetch_response_function->function()(response, body_bytes);
-        };
+            process_custom_fetch_response->function()(response, body_bytes);
+        });
         Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
         return {};
-    };
-    auto perform_fetch = Web::HTML::create_perform_the_fetch_hook(inside_settings->heap(), move(perform_fetch_function));
+    });
 
     // In both cases, let onComplete given script be the following steps:
     RefPtr<WorkerHost> protected_this { *this };
-    auto on_complete_function = [protected_this, page, inside_settings, worker_global_scope, message_port_data = move(message_port_data), outside_settings_snapshot, url = m_url, is_shared](GC::Ptr<Web::HTML::Script> script) mutable {
+    auto on_complete = GC::create_function(GC::Heap::the(), GC::captures(protected_this, page, inside_settings, worker_global_scope, move(message_port_data), outside_settings_snapshot, m_url, is_shared), [](auto& protected_this, auto& page, auto& inside_settings, auto& worker_global_scope, auto& message_port_data, auto& outside_settings_snapshot, auto& url, auto& is_shared, GC::Ptr<Web::HTML::Script> script) {
         // NB: A worker that was told to close while it fetched its script never runs it.
         if (worker_global_scope->is_closing())
             return;
@@ -366,8 +361,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         // 15. Event loop: Run the responsible event loop specified by inside settings until it is destroyed.
         // NB: The event loop runs on from here, and the steps after it are in run_closing_steps().
         inside_settings->responsible_event_loop().schedule();
-    };
-    auto on_complete = Web::HTML::create_on_fetch_script_complete(GC::Heap::the(), move(on_complete_function));
+    });
 
     // 12. Obtain script by switching on the value of options's type member:
     if (m_type == Web::HTML::WorkerType::Classic) {
@@ -419,7 +413,7 @@ void WorkerHost::connect_shared_worker_impl(Web::HTML::TransferDataEncoder messa
     //         attribute initialized to the empty string, the ports attribute initialized to a new
     //         frozen array containing only insidePort, and the source attribute initialized to
     //         insidePort.
-    Web::HTML::queue_global_task(Web::HTML::Task::Source::DOMManipulation, Web::HTML::relevant_global_object(*m_worker_global_scope), GC::create_function(GC::Heap::the(), [worker_global_scope = GC::Root { *m_worker_global_scope }, inside_port] {
+    Web::HTML::queue_global_task(Web::HTML::Task::Source::DOMManipulation, Web::HTML::relevant_global_object(*m_worker_global_scope), GC::create_function(GC::Heap::the(), GC::captures(GC::Root { *m_worker_global_scope }, inside_port), [](auto& worker_global_scope, auto& inside_port) {
         auto& realm = worker_global_scope->realm();
         auto& vm = realm.vm();
         Web::HTML::TemporaryExecutionContext const context(realm);

@@ -559,9 +559,9 @@ static void add_possible_value(PossiblePointers& possible_pointers, FlatPtr data
     possible_pointers.pointers.set(possible_pointer, move(origin));
 }
 
-// Adds the possible values in the captures of a GC::Function. Its captures start 8-byte aligned, but may end with a
-// lone compressed cell pointer, as a capture of nothing but one member does. That one is no half of a whole word, so it
-// is added on its own. A member elsewhere in the captures is either half of one of the whole words.
+// Adds the possible values in the captures of an AK::Function that a cell visits. Its captures start 8-byte aligned, but
+// may end with a lone compressed cell pointer, as a capture of nothing but one member does. That one is no half of a
+// whole word, so it is added on its own. A member elsewhere in the captures is either half of one of the whole words.
 static void add_possible_captured_values(PossiblePointers& possible_pointers, ReadonlyBytes bytes, PossiblePointerBounds const& bounds)
 {
     HeapRoot const origin { .type = HeapRoot::Type::HeapFunctionCapturedPointer };

@@ -207,7 +207,7 @@ void HTMLLinkElement::finished_loading_critical_style_subresources(AnyFailed any
     if (!fetch_generation.has_value())
         return;
 
-    queue_an_element_task(Task::Source::Networking, [link = GC::Ref { *this }, fetch_generation = *fetch_generation, any_failed] {
+    queue_an_element_task(Task::Source::Networking, GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *this }, *fetch_generation, any_failed), [](auto& link, auto& fetch_generation, auto& any_failed) {
         if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
             return;
 
@@ -216,7 +216,7 @@ void HTMLLinkElement::finished_loading_critical_style_subresources(AnyFailed any
         auto event_name = any_failed == AnyFailed::Yes ? HTML::EventNames::error : HTML::EventNames::load;
         link->dispatch_event(create_event_for_element(*link, event_name));
         link->finish_processing_stylesheet_resource(fetch_generation);
-    });
+    }));
 }
 
 bool HTMLLinkElement::has_loaded_icon() const
@@ -588,11 +588,11 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_genera
 
     // 7. Fetch request with processResponseConsumeBody set to the following steps given response response and null, failure, or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-    fetch_algorithms_input.process_response_consume_body = [this, fetch_generation](auto response, auto body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = GC::create_function(GC::Heap::the(), GC::captures(*this, fetch_generation), [](auto& self, auto& fetch_generation, GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         // "if, since the resource in question was fetched, it has become appropriate to fetch it again"
-        if (fetch_generation != m_current_fetch_generation)
+        if (fetch_generation != self.m_current_fetch_generation)
             return;
-        m_fetch_controller = nullptr;
+        self.m_fetch_controller = nullptr;
 
         // NB: The unsafe response below is always CORS-same-origin, so determine the origin-clean flag beforehand.
         auto origin_clean = response->is_cors_same_origin() ? CSS::StyleScope::OriginClean::Yes : CSS::StyleScope::OriginClean::No;
@@ -621,14 +621,14 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_genera
         // FIXME: 3. Otherwise, wait for the link resource's critical subresources to finish loading.
 
         // 4. Process the linked resource given el, success, response, and bodyBytes.
-        process_linked_resource(success, response, origin_clean, successful_body_bytes);
-    };
+        self.process_linked_resource(success, response, origin_clean, successful_body_bytes);
+    });
 
     m_fetch_controller = Fetch::Fetching::fetch(HTML::relevant_realm(*this), *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 
     // AD-HOC: A stopped fetch, such as one of a document that was stopped, never processes its response. Stop blocking
     //         scripts, rendering and the load event on it then, as if the user agent had given up on loading it.
-    m_fetch_controller->set_stop_steps(GC::create_function(GC::Heap::the(), [weak_this = GC::Weak { *this }, fetch_generation] {
+    m_fetch_controller->set_stop_steps(GC::create_function(GC::Heap::the(), GC::captures(GC::Weak { *this }, fetch_generation), [](auto& weak_this, auto& fetch_generation) {
         auto link_element = weak_this.ptr();
         if (!link_element || fetch_generation != link_element->m_current_fetch_generation)
             return;
@@ -693,7 +693,7 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
     //     consumer of the preloaded resource.
     GC::Weak weak_this { *this };
     auto fetch_generation = m_current_fetch_generation;
-    preload(options, [weak_this, fetch_generation](Fetch::Infrastructure::Response& response) {
+    preload(options, GC::create_function(GC::Heap::the(), GC::captures(weak_this, fetch_generation), [](auto& weak_this, auto& fetch_generation, Fetch::Infrastructure::Response& response) {
         // 1. If response is a network error, fire an event named error at el. Otherwise, fire an event named load at el.
         if (auto link_element = weak_this.ptr()) {
             if (fetch_generation != link_element->m_current_fetch_generation)
@@ -703,7 +703,7 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
             else
                 link_element->dispatch_event(create_event_for_element(*link_element, HTML::EventNames::load));
         }
-    });
+    }));
 }
 
 static bool media_attribute_matches_environment(DOM::Document const& document, Utf16View media)
@@ -766,12 +766,12 @@ void HTMLLinkElement::fetch_and_process_linked_modulepreload_resource()
     // 3. If destination is not a module preload destination, then queue an element task on the networking task source
     //    given el to fire an event named error at el, and return.
     if (!destination.has_value()) {
-        queue_an_element_task(Task::Source::Networking, [this, fetch_generation = m_current_fetch_generation] {
+        queue_an_element_task(Task::Source::Networking, GC::create_function(GC::Heap::the(), GC::captures(*this, m_current_fetch_generation), [](auto& self, auto& fetch_generation) {
             // NB: The fetch can be superseded before this task runs.
-            if (fetch_generation != m_current_fetch_generation)
+            if (fetch_generation != self.m_current_fetch_generation)
                 return;
-            dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
-        });
+            self.dispatch_event(create_event_for_element(self, HTML::EventNames::error));
+        }));
         return;
     }
 
@@ -820,7 +820,7 @@ void HTMLLinkElement::fetch_and_process_linked_modulepreload_resource()
     // 14. Fetch a modulepreload module script graph given url, destination, settings object, and options.
     GC::Weak weak_this { *this };
     auto fetch_generation = m_current_fetch_generation;
-    auto on_complete = create_on_fetch_script_complete(GC::Heap::the(), [weak_this, fetch_generation](auto result) {
+    auto on_complete = GC::create_function(GC::Heap::the(), GC::captures(weak_this, fetch_generation), [](auto& weak_this, auto& fetch_generation, GC::Ptr<Script> result) {
         auto link_element = weak_this.ptr();
         if (!link_element || fetch_generation != link_element->m_current_fetch_generation)
             return;
@@ -860,20 +860,20 @@ void HTMLLinkElement::fetch_and_process_linked_prefetch_resource()
     // 6. Let processPrefetchResponse be the following steps given a response response and null, failure, or a byte
     //    sequence bytesOrNull:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-    fetch_algorithms_input.process_response_consume_body = [this, fetch_generation = m_current_fetch_generation](auto response, auto) {
-        if (fetch_generation != m_current_fetch_generation)
+    fetch_algorithms_input.process_response_consume_body = GC::create_function(GC::Heap::the(), GC::captures(*this, m_current_fetch_generation), [](auto& self, auto& fetch_generation, GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes) {
+        if (fetch_generation != self.m_current_fetch_generation)
             return;
-        m_fetch_controller = nullptr;
+        self.m_fetch_controller = nullptr;
 
         // 1. If response is a network error, fire an event named error at el.
         if (response->is_network_error()) {
-            dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
+            self.dispatch_event(create_event_for_element(self, HTML::EventNames::error));
         }
         // 2. Otherwise, fire an event named load at el.
         else {
-            dispatch_event(create_event_for_element(*this, HTML::EventNames::load));
+            self.dispatch_event(create_event_for_element(self, HTML::EventNames::load));
         }
-    };
+    });
 
     // 7. The user agent should fetch request, with processResponseConsumeBody set to processPrefetchResponse. User
     //    agents may delay the fetching of request to prioritize other requests that are necessary for the current
@@ -1018,7 +1018,7 @@ static bool type_matches_destination(Utf16View type, Optional<Fetch::Infrastruct
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#preload
-void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetch::Infrastructure::Response&)> process_response)
+void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Function<void(Fetch::Infrastructure::Response&)>> process_response)
 {
     auto& realm = options.environment->realm();
     // 1. If options's type doesn't match options's destination, then return.
@@ -1066,14 +1066,14 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
     auto controller_holder = Fetch::Infrastructure::FetchControllerHolder::create();
 
     // 10. Let reportTiming given a Document document be to report timing for controller given document's relevant global object.
-    auto report_timing = GC::Function<void(DOM::Document const&)>::create(GC::Heap::the(), [controller_holder](DOM::Document const& document) {
+    auto report_timing = GC::create_function(GC::Heap::the(), GC::captures(controller_holder), [](auto& controller_holder, DOM::Document const& document) {
         controller_holder->controller()->report_timing(relevant_global_object(document));
     });
 
     // 11. Set controller to the result of fetching request, with processResponseConsumeBody set to the following steps
     //     given a response response and null, failure, or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-    fetch_algorithms_input.process_response_consume_body = [options = GC::Ref { options }, process_response = move(process_response), entry, report_timing](GC::Ref<Fetch::Infrastructure::ResponseView> response_view, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { options }, process_response, entry, report_timing), [](auto& options, auto& process_response, auto& entry, auto& report_timing, GC::Ref<Fetch::Infrastructure::ResponseView> response_view, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         // NB: Step 1 sets the body of a clone of response, so the response fetch delivered never changes. Nothing can
@@ -1105,15 +1105,15 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
 
         // 6. If processResponse is given, then call processResponse with response.
         if (process_response)
-            process_response(response);
-    };
+            process_response->function()(response);
+    });
 
     auto controller = Fetch::Fetching::fetch(realm, *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     controller_holder->set_controller(controller);
     entry->controller = controller;
 
     // 12. Let commit be the following steps given a Document document:
-    auto commit = GC::Function<void(DOM::Document&)>::create(GC::Heap::the(), [entry, report_timing, key = move(key)](DOM::Document& document) {
+    auto commit = GC::create_function(GC::Heap::the(), GC::captures(entry, report_timing, move(key)), [](auto& entry, auto& report_timing, auto& key, DOM::Document& document) {
         // 1. If entry's response is not null, then call reportTiming given document.
         if (entry->response)
             report_timing->function()(document);
@@ -1154,7 +1154,7 @@ void HTMLLinkElement::modulepreload(LinkProcessingOptions const& options)
         .fetch_priority = options.fetch_priority,
     };
 
-    auto on_complete = create_on_fetch_script_complete(GC::Heap::the(), [](auto) { });
+    auto on_complete = GC::create_function(GC::Heap::the(), [](GC::Ptr<Script>) { });
     fetch_modulepreload_module_script_graph(settings_object.realm(), *url, *options.destination, settings_object, script_fetch_options, on_complete);
 }
 
@@ -1557,7 +1557,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                     //     roots: the roots of a function that died would keep them alive through the collection that
                     //     finds it dead.
                     link->queue_an_element_task(Task::Source::Networking,
-                        [link = GC::Ref { *link }, loaded_document = GC::Ref { *loaded_document }, fetch_generation, location = move(location), base_url = move(base_url), parsed = move(parsed), origin_clean, referrer_policy] {
+                        GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *link }, GC::Ref { *loaded_document }, fetch_generation, move(location), move(base_url), move(parsed), origin_clean, referrer_policy), [](auto& link, auto& loaded_document, auto& fetch_generation, auto& location, auto& base_url, auto& parsed, auto& origin_clean, auto& referrer_policy) {
                             if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
                                 return;
                             if (&link->document() != loaded_document.ptr() || !loaded_document->is_fully_active()
@@ -1586,7 +1586,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                             auto event_name = sheet->loading_state() == CSS::StyleSheetState::LoadingState::Error ? HTML::EventNames::error : HTML::EventNames::load;
                             link->dispatch_event(create_event_for_element(*link, event_name));
                             link->finish_processing_stylesheet_resource(fetch_generation);
-                        });
+                        }));
                 });
             return;
         }
@@ -1725,13 +1725,13 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
 
     // 2. Let response be the result of fetching request.
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
-    fetch_algorithms_input.process_response = [document, request](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
+    fetch_algorithms_input.process_response = GC::create_function(GC::Heap::the(), GC::captures(document, request), [](auto& document, auto& request, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
         auto& realm = document->relevant_settings_object().realm();
         auto global = GC::Ref { realm.global_object() };
 
         auto mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
 
-        auto process_body = GC::create_function(GC::Heap::the(), [document, request, mime_type](ByteBuffer body) {
+        auto process_body = GC::create_function(GC::Heap::the(), GC::captures(document, request, mime_type), [](auto& document, auto& request, auto& mime_type, ByteBuffer body) {
             // FIXME: We should use the response URL to account for redirects when determining if this is an SVG icon.
             decode_favicon(body, request->url(), mime_type, document)
                 ->when_resolved(GC::weak_callback(*document, [](DOM::Document& document, NonnullRefPtr<Gfx::Bitmap const>& favicon) {
@@ -1750,7 +1750,7 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
         // 3. Use response's unsafe response as an icon as if it had been declared using the icon keyword.
         if (auto body = response->unsafe_response()->body())
             body->fully_read(realm, process_body, process_body_error, global);
-    };
+    });
 
     Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 }

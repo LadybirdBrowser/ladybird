@@ -277,7 +277,7 @@ WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::create_with_global_scop
     // AD-HOC: The steps run from a task on the relevant global instead of in parallel: Showing crosses to the UI
     //         process asynchronously anyway, and a task keeps the permission read and the event firing on the main
     //         thread, after the constructor's caller has had its turn to attach event handlers.
-    HTML::queue_global_task(HTML::Task::Source::Unspecified, relevant_global_object, GC::create_function(GC::Heap::the(), [this_notification] {
+    HTML::queue_global_task(HTML::Task::Source::Unspecified, relevant_global_object, GC::create_function(GC::Heap::the(), GC::captures(this_notification), [](auto& this_notification) {
         this_notification->run_steps_in_parallel_after_construction();
     }));
 
@@ -332,18 +332,18 @@ void Notification::show_steps()
     //    be set (if any), as well as the icon resources for the notification's actions (if any).
     // AD-HOC: The wait for the fetch is bounded: An icon that hasn't arrived after a few seconds isn't worth holding
     //         the notification back for, so it then shows without one.
-    m_fetch_timeout = Platform::Timer::create_single_shot(heap(), icon_fetch_timeout, GC::create_function(heap(), [this] {
-        if (m_icon_fetch_controller)
-            m_icon_fetch_controller->stop_fetch();
-        m_icon_fetch_controller = nullptr;
-        display();
+    m_fetch_timeout = Platform::Timer::create_single_shot(heap(), icon_fetch_timeout, GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+        if (self.m_icon_fetch_controller)
+            self.m_icon_fetch_controller->stop_fetch();
+        self.m_icon_fetch_controller = nullptr;
+        self.display();
     }));
     m_fetch_timeout->start();
-    run_the_fetch_steps(GC::create_function(heap(), [this] {
-        if (!m_fetch_timeout)
+    run_the_fetch_steps(GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+        if (!self.m_fetch_timeout)
             return;
-        m_fetch_timeout->stop();
-        display();
+        self.m_fetch_timeout->stop();
+        self.display();
     }));
 }
 
@@ -362,8 +362,8 @@ void Notification::run_the_fetch_steps(GC::Ref<GC::Function<void()>> on_done)
         on_done->function()();
         return;
     }
-    fetch_a_notification_resource(*m_notification.icon_url, GC::create_function(heap(), [this, on_done](RefPtr<Gfx::Bitmap const> resource) {
-        m_icon_resource = move(resource);
+    fetch_a_notification_resource(*m_notification.icon_url, GC::create_function(heap(), GC::captures(*this, on_done), [](auto& self, auto& on_done, RefPtr<Gfx::Bitmap const> resource) {
+        self.m_icon_resource = move(resource);
         on_done->function()();
     }));
 
@@ -399,12 +399,12 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
     // 3. Fetch request with useParallelQueue set to true and processResponseConsumeBody set to the following steps
     //    given a response response and null, failure, or a byte sequence bytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
-    fetch_algorithms_input.process_response_consume_body = [this, process_resource](GC::Ref<Fetch::Infrastructure::ResponseView>, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bytes) {
-        m_icon_fetch_controller = nullptr;
+    fetch_algorithms_input.process_response_consume_body = GC::create_function(heap(), GC::captures(*this, process_resource), [](auto& self, auto& process_resource, GC::Ref<Fetch::Infrastructure::ResponseView>, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bytes) {
+        self.m_icon_fetch_controller = nullptr;
         // The bytes are here, so the wait is no longer on the network: Decoding them finishes on its own, however
         // long a busy machine takes over it.
-        if (m_fetch_timeout)
-            m_fetch_timeout->stop();
+        if (self.m_fetch_timeout)
+            self.m_fetch_timeout->stop();
 
         // 1. If bytes is null or failure, then return.
         // AD-HOC: The show steps wait on this fetch, so an absent resource is reported as such, rather than left
@@ -419,7 +419,7 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
         // NB: The decoder answers from outside the heap's view, so the notification and the step it hands the
         //     resource to are rooted for the wait: Nothing else holds the step once the fetch is over. An answer for a
         //     notification that's gone in the meantime is dropped.
-        auto on_decoded = [self = GC::Root(*this), process_resource = GC::Root(*process_resource)](Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
+        auto on_decoded = [self = GC::Root(self), process_resource = GC::Root(*process_resource)](Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
             // NB: Only the first frame is used, so an animation the decoder opened is stopped right away.
             if (decoded_image.session_id != 0)
                 Platform::ImageCodecPlugin::the().stop_animation_decode(decoded_image.session_id);
@@ -447,13 +447,13 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
             process_resource->function()(move(bitmap));
             return {};
         };
-        auto on_decode_failed = [self = GC::Root(*this), process_resource = GC::Root(*process_resource)](Error&) {
+        auto on_decode_failed = [self = GC::Root(self), process_resource = GC::Root(*process_resource)](Error&) {
             if (self->m_state != State::Pending)
                 return;
             process_resource->function()(nullptr);
         };
         (void)Platform::ImageCodecPlugin::the().decode_image(bytes.get<Core::ImmutableBytes>().bytes(), move(on_decoded), move(on_decode_failed));
-    };
+    });
     m_icon_fetch_controller = Fetch::Fetching::fetch(settings.realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)), Fetch::Fetching::UseParallelQueue::Yes);
 }
 
@@ -549,19 +549,19 @@ void Notification::did_click()
         return;
 
     // Otherwise, queue a task to run these steps:
-    HTML::queue_global_task(HTML::Task::Source::UserInteraction, *m_relevant_global, GC::create_function(GC::Heap::the(), [this] {
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, *m_relevant_global, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
         // 1. Let intoFocus be the result of firing an event named click on the Notification object representing
         //    notification, with its cancelable attribute initialized to true.
         // NB: The user activated the notification, so the window gets transient activation first: That's what lets
         //     focus() work from within the event listener, as the spec encourages.
-        if (auto* window = HTML::window_from_global_object(*m_relevant_global))
-            window->set_last_activation_timestamp(HighResolutionTime::current_high_resolution_time(*m_relevant_global));
-        auto into_focus = dispatch_event(DOM::Event::create(*m_relevant_global, HTML::EventNames::click, { .cancelable = true }));
+        if (auto* window = HTML::window_from_global_object(*self.m_relevant_global))
+            window->set_last_activation_timestamp(HighResolutionTime::current_high_resolution_time(*self.m_relevant_global));
+        auto into_focus = self.dispatch_event(DOM::Event::create(*self.m_relevant_global, HTML::EventNames::click, { .cancelable = true }));
 
         // 2. If intoFocus is true, then the user agent should bring the notification's related browsing context's
         //    viewport into focus.
-        if (m_page)
-            m_page->client().page_did_handle_notification_click(m_id, into_focus);
+        if (self.m_page)
+            self.m_page->client().page_did_handle_notification_click(self.m_id, into_focus);
     }));
 }
 
@@ -606,8 +606,8 @@ void Notification::did_close(bool)
 
 void Notification::queue_task_to_fire_event(Utf16FlyString const& event_name)
 {
-    HTML::queue_global_task(HTML::Task::Source::Unspecified, *m_relevant_global, GC::create_function(GC::Heap::the(), [this, event_name] {
-        dispatch_event(DOM::Event::create(*m_relevant_global, event_name));
+    HTML::queue_global_task(HTML::Task::Source::Unspecified, *m_relevant_global, GC::create_function(GC::Heap::the(), GC::captures(*this, event_name), [](auto& self, auto& event_name) {
+        self.dispatch_event(DOM::Event::create(*self.m_relevant_global, event_name));
     }));
 }
 
@@ -680,12 +680,12 @@ GC::Ref<WebIDL::Promise> Notification::request_permission(GC::Ptr<WebIDL::Callba
     // 3. Run these steps in parallel:
     //    1. Let permissionState be the result of requesting permission to use "notifications".
     //    2. Queue a global task on the DOM manipulation task source given global to run these steps:
-    auto settle = GC::create_function(realm.heap(), [&realm, global, promise, deprecated_callback, settings = GC::Ref(settings)](PermissionsAPI::PermissionState) {
+    auto settle = GC::create_function(realm.heap(), GC::captures(realm, global, promise, deprecated_callback, GC::Ref(settings)), [](auto& realm, auto& global, auto& promise, auto& deprecated_callback, auto& settings, PermissionsAPI::PermissionState) {
         // AD-HOC: "Request permission to use" reports "denied" for a prompt the user dismissed, though it stores nothing
         //         for it, and the page would then take a shrug for a refusal. The state the store holds once the
         //         answer is in is reported instead: "default" after a dismissal, so the page may ask again later.
         auto permission_state = get_the_notifications_permission_state(settings);
-        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise, deprecated_callback, permission_state] {
+        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), GC::captures(realm, promise, deprecated_callback, permission_state), [](auto& realm, auto& promise, auto& deprecated_callback, auto& permission_state) {
             HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             auto permission = JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(notification_permission_from(permission_state)));
 

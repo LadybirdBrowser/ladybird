@@ -47,14 +47,14 @@ AbortSignal::AbortSignal()
 }
 
 // https://dom.spec.whatwg.org/#abortsignal-add
-Optional<AbortSignal::AbortAlgorithmID> AbortSignal::add_abort_algorithm(Function<void()> abort_algorithm)
+Optional<AbortSignal::AbortAlgorithmID> AbortSignal::add_abort_algorithm(GC::Ref<GC::Function<void()>> abort_algorithm)
 {
     // 1. If signal is aborted, then return.
     if (aborted())
         return {};
 
     // 2. Append algorithm to signal’s abort algorithms.
-    m_abort_algorithms.set(++m_next_abort_algorithm_id, GC::create_function(GC::Heap::the(), move(abort_algorithm)));
+    m_abort_algorithms.set(++m_next_abort_algorithm_id, abort_algorithm);
     return m_next_abort_algorithm_id;
 }
 
@@ -182,13 +182,13 @@ WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::timeout(JS::Realm& realm,
     VERIFY(window_or_worker);
 
     // 3. Run steps after a timeout given global, "AbortSignal-timeout", milliseconds, and the following step:
-    window_or_worker->run_steps_after_a_timeout(milliseconds, [&realm, &global, signal]() {
+    window_or_worker->run_steps_after_a_timeout(milliseconds, GC::create_function(GC::Heap::the(), GC::captures(realm, global, signal), [](auto& realm, auto& global, auto& signal) {
         // 1. Queue a global task on the timer task source given global to signal abort given signal and a new "TimeoutError" DOMException.
-        HTML::queue_global_task(HTML::Task::Source::TimerTask, global, GC::create_function(GC::Heap::the(), [&realm, &global, signal]() mutable {
+        HTML::queue_global_task(HTML::Task::Source::TimerTask, global, GC::create_function(GC::Heap::the(), GC::captures(realm, global, signal), [](auto& realm, auto& global, auto& signal) {
             auto reason = throw_completion(realm, WebIDL::TimeoutError::create("Signal timed out"_utf16)).value();
             signal->signal_abort(reason, global);
         }));
-    });
+    }));
 
     // 4. Return signal.
     return signal;
@@ -280,12 +280,12 @@ JSValue web_dom_abort_signal_reason(DOM::AbortSignal* signal)
 bool web_dom_abort_signal_add_algorithm(DOM::AbortSignal* signal, JSObject* function, u64* id)
 {
     GC::Ref<JS::FunctionObject> algorithm = as<JS::FunctionObject>(*JS::HostABI::object_from_abi(function));
-    auto algorithm_id = signal->add_abort_algorithm([algorithm] {
+    auto algorithm_id = signal->add_abort_algorithm(GC::create_function(GC::Heap::the(), GC::captures(algorithm), [](GC::Ref<JS::FunctionObject> algorithm) {
         // NB: The algorithm cannot fail, but it can run into the abort of the script that it calls.
         auto& vm = algorithm->vm();
         auto result = JS::call(vm, *algorithm, JS::js_undefined());
         VERIFY(!result.is_error() || vm.interrupt_requested());
-    });
+    }));
     if (!algorithm_id.has_value())
         return false;
     *id = algorithm_id.value();

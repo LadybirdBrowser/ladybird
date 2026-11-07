@@ -420,7 +420,7 @@ GC::Ref<WebIDL::Promise> convert_to_blob(JS::Realm& realm, HTML::OffscreenCanvas
     auto& global = offscreen_canvas.relevant_global_object();
 
     // 7. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [realm = GC::Ref(realm), &global, result_promise, bitmap, image_encode_options] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(realm), global, result_promise, bitmap, image_encode_options), [](auto& realm, auto& global, auto& result_promise, auto& bitmap, auto& image_encode_options) {
         // 1. Let file be a serialization of bitmap as a file, with options's type and quality if present.
         Optional<HTML::SerializeBitmapResult> file_result {};
 
@@ -430,7 +430,7 @@ GC::Ref<WebIDL::Promise> convert_to_blob(JS::Realm& realm, HTML::OffscreenCanvas
         }
 
         // 2. Queue a global task on the canvas blob serialization task source given global to run these steps:
-        HTML::queue_global_task(HTML::Task::Source::CanvasBlobSerializationTask, global, GC::create_function(GC::Heap::the(), [realm, result_promise, file_result = move(file_result)] -> void {
+        HTML::queue_global_task(HTML::Task::Source::CanvasBlobSerializationTask, global, GC::create_function(GC::Heap::the(), GC::captures(realm, result_promise, move(file_result)), [](auto& realm, auto& result_promise, auto& file_result) -> void {
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
             // 1. If file is null, then reject result with an "EncodingError" DOMException.

@@ -8,6 +8,7 @@
 
 #include <AK/Function.h>
 #include <AK/Vector.h>
+#include <LibGC/Forward.h>
 #include <LibWeb/CSS/DescriptorNameAndID.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
@@ -59,3 +60,5 @@ inline ValueParserFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
 }
 
 }
+
+GC_UNTRACED_CAPTURE(Web::CSS::Parser::RustStyleSheetParse);

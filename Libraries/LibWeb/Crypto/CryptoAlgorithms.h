@@ -12,6 +12,7 @@
 #include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
+#include <LibGC/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Crypto/CryptoBindings.h>
@@ -964,3 +965,5 @@ WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm&, Utf16String 
 WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm&, Utf16String const& base64_url_string);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::Crypto::EncapsulatedBits);

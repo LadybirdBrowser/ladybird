@@ -1452,102 +1452,6 @@ bool LibJSGCVisitor::VisitLambdaExpr(clang::LambdaExpr* lambda)
     return true;
 }
 
-static bool creates_gc_function(clang::FunctionDecl const& function)
-{
-    if (function.getQualifiedNameAsString() == "GC::create_function")
-        return true;
-    auto const* method = llvm::dyn_cast<clang::CXXMethodDecl>(&function);
-    if (!method || !method->getDeclName().isIdentifier() || method->getName() != "create")
-        return false;
-    auto const* specialization = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(method->getParent());
-    return specialization && specialization->getSpecializedTemplate()->getQualifiedNameAsString() == "GC::Function";
-}
-
-static bool is_call_to_move(clang::CallExpr const& call)
-{
-    auto const* callee = call.getDirectCallee();
-    return callee && call.getNumArgs() == 1 && callee->getDeclName().isIdentifier() && callee->getName() == "move";
-}
-
-static clang::LambdaExpr const* lambda_passed_by(clang::Expr const* argument)
-{
-    while (argument) {
-        argument = clang::IgnoreExprNodes(argument, clang::IgnoreImplicitSingleStep, clang::IgnoreParensSingleStep);
-        if (auto const* lambda = llvm::dyn_cast<clang::LambdaExpr>(argument))
-            return lambda;
-        if (auto const* cast = llvm::dyn_cast<clang::CXXFunctionalCastExpr>(argument)) {
-            argument = cast->getSubExpr();
-        } else if (auto const* construct = llvm::dyn_cast<clang::CXXConstructExpr>(argument); construct && construct->getNumArgs() == 1) {
-            argument = construct->getArg(0);
-        } else if (auto const* call = llvm::dyn_cast<clang::CallExpr>(argument); call && is_call_to_move(*call)) {
-            argument = call->getArg(0);
-        } else if (auto const* reference = llvm::dyn_cast<clang::DeclRefExpr>(argument)) {
-            auto const* variable = llvm::dyn_cast<clang::VarDecl>(reference->getDecl());
-            if (!variable || !variable->hasLocalStorage() || llvm::isa<clang::ParmVarDecl>(variable))
-                return nullptr;
-            argument = variable->getInit();
-        } else {
-            return nullptr;
-        }
-    }
-    return nullptr;
-}
-
-bool LibJSGCVisitor::VisitCallExpr(clang::CallExpr* call)
-{
-    auto const* callee = call->getDirectCallee();
-    if (!callee || !creates_gc_function(*callee))
-        return true;
-    for (auto const* argument : call->arguments()) {
-        if (auto const* lambda = lambda_passed_by(argument))
-            m_lambdas_in_gc_functions.push_back(lambda);
-    }
-    return true;
-}
-
-void LibJSGCVisitor::validate_gc_function_captures()
-{
-    auto& diag_engine = m_context.getDiagnostics();
-    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Captured %0 keeps GC pointers in heap memory that GC::Function does not scan; hold them in a GC::Root, a GC::RootVector or a GC::Conservative container instead");
-    auto note_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Note, "Member %0 contains GC pointers");
-
-    for (auto const* lambda : m_lambdas_in_gc_functions) {
-        for (auto const& capture : lambda->captures()) {
-            if (!capture.capturesVariable() || capture.getCaptureKind() != clang::LCK_ByCopy)
-                continue;
-            auto const* variable = capture.getCapturedVar();
-            auto type = variable->getType().getNonReferenceType().getUnqualifiedType();
-            // An init-capture of move(x) has the type typename std::remove_reference<T&>::type.
-            while (!llvm::isa<clang::TemplateSpecializationType>(type.getTypePtr())) {
-                auto desugared_type = type.getSingleStepDesugaredType(m_context);
-                if (desugared_type == type)
-                    break;
-                type = desugared_type;
-            }
-
-            // An init-capture is a variable of its own, whose containers the check of objects on the stack reports.
-            if (auto const* init_capture = llvm::dyn_cast<clang::VarDecl>(variable); init_capture && init_capture->isInitCapture()) {
-                std::set<clang::CXXRecordDecl const*> visited_on_stack;
-                if (find_container_with_unscanned_gc_pointers(type, visited_on_stack))
-                    continue;
-            }
-
-            std::set<clang::CXXRecordDecl const*> visited;
-            auto storage = find_container_with_unscanned_gc_pointers(type, visited, &m_polymorphic_subclasses);
-            if (!storage)
-                continue;
-            diag_engine.Report(capture.getLocation(), diag_id) << *storage;
-
-            auto instance = template_instance_of_type(*storage);
-            if (!instance || !is_owning_pointer(instance->name) || instance->type_arguments.empty())
-                continue;
-            std::set<clang::CXXRecordDecl const*> visited_by_object;
-            if (auto const* member = find_owned_member_with_gc_pointers(instance->type_arguments[0], visited_by_object, m_polymorphic_subclasses))
-                diag_engine.Report(member->getLocation(), note_id) << member->getName();
-        }
-    }
-}
-
 LibJSGCASTConsumer::LibJSGCASTConsumer(clang::CompilerInstance& compiler, bool detect_invalid_function_members)
     : m_compiler(compiler)
     , m_detect_invalid_function_members(detect_invalid_function_members)
@@ -1560,7 +1464,6 @@ void LibJSGCASTConsumer::HandleTranslationUnit(clang::ASTContext& context)
 {
     LibJSGCVisitor visitor { context, m_macro_map, m_detect_invalid_function_members };
     visitor.TraverseDecl(context.getTranslationUnitDecl());
-    visitor.validate_gc_function_captures();
 }
 
 char const* LibJSCellMacro::type_name(Type type)

@@ -28,7 +28,7 @@ public:
     virtual ~AbortSignal() override = default;
 
     using AbortAlgorithmID = u64;
-    Optional<AbortAlgorithmID> add_abort_algorithm(Function<void()>);
+    Optional<AbortAlgorithmID> add_abort_algorithm(GC::Ref<GC::Function<void()>>);
     void remove_abort_algorithm(AbortAlgorithmID);
 
     // https://dom.spec.whatwg.org/#dom-abortsignal-aborted

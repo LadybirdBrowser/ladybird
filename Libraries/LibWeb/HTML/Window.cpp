@@ -223,13 +223,13 @@ WebIDL::UnsignedLong request_animation_frame(HTML::Window& window, WebIDL::Callb
     //     handler belongs to the window, so the callback lives exactly as long as the window's document. A root here
     //     would keep a callback that never runs (a hidden document gets no animation frames) alive for the life of
     //     the process, and with it the window, its document, and everything the document holds.
-    auto handler = [callback = GC::Ref { callback }](double now) {
+    auto handler = GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { callback }), [](GC::Ref<WebIDL::CallbackType>& callback, double now) {
         auto& callback_realm = callback->callback->shape().realm();
         auto result = WebIDL::invoke_callback(*callback, {}, { { JS::Value(now) } });
         if (result.is_error())
             HTML::report_exception(result, callback_realm);
-    };
-    return window.request_animation_frame(move(handler));
+    });
+    return window.request_animation_frame(handler);
 }
 
 WebIDL::ExceptionOr<WebIDL::UnsignedLong> request_animation_frame(HTML::DedicatedWorkerGlobalScope& scope, WebIDL::CallbackType& callback)
@@ -241,11 +241,11 @@ WebIDL::UnsignedLong request_idle_callback(HTML::Window& window, WebIDL::Callbac
 {
     // NB: A plain GC reference rather than a GC::Root, for the same reason as in request_animation_frame() above: the
     //     window's idle callback lists trace the handler, so the callback lives exactly as long as the window's document.
-    auto handler = [callback = GC::Ref { callback }](GC::Ref<RequestIdleCallback::IdleDeadline> deadline) -> JS::Completion {
+    auto handler = GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { callback }), [](GC::Ref<WebIDL::CallbackType>& callback, GC::Ref<RequestIdleCallback::IdleDeadline> deadline) -> JS::Completion {
         auto& callback_realm = callback->callback->shape().realm();
         return WebIDL::invoke_callback(*callback, {}, { { wrap(host_defined_wrapper_world(callback_realm), callback_realm, deadline) } });
-    };
-    return window.request_idle_callback(move(handler), options);
+    });
+    return window.request_idle_callback(handler, options);
 }
 
 void define_internals_property(JS::Realm& realm, HTML::Window& window, JS::Object& global_object)
@@ -1010,8 +1010,8 @@ void Window::start_an_idle_period()
 
     // 5. Queue a task on the queue associated with the idle-task task source,
     //    which performs the steps defined in the invoke idle callbacks algorithm with window and getDeadline as parameters.
-    queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this] {
-        invoke_idle_callbacks();
+    queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), GC::captures(*this), [](Window& self) {
+        self.invoke_idle_callbacks();
     }),
         Task::Priority::Idle);
 }
@@ -1041,8 +1041,8 @@ void Window::invoke_idle_callbacks()
         // 4. If window's list of runnable idle callbacks is not empty, queue a task which performs the steps
         //    in the invoke idle callbacks algorithm with getDeadline and window as a parameters and return from this algorithm
         if (!m_runnable_idle_callbacks.is_empty()) {
-            queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this] {
-                invoke_idle_callbacks();
+            queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), GC::captures(*this), [](Window& self) {
+                self.invoke_idle_callbacks();
             }),
                 Task::Priority::Idle);
         }
@@ -1300,7 +1300,7 @@ void Window::close()
         traversable->set_closing(true);
 
         // 2. Queue a task on the DOM manipulation task source to definitely close thisTraversable.
-        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(incumbent_global_object), GC::create_function(GC::Heap::the(), [traversable] {
+        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(incumbent_global_object), GC::create_function(GC::Heap::the(), GC::captures(traversable), [](auto& traversable) {
             as<LocalTraversableNavigable>(*traversable).definitely_close_top_level_traversable();
         }));
     }
@@ -2162,7 +2162,7 @@ double Window::device_pixel_ratio() const
 WebIDL::UnsignedLong Window::request_animation_frame(AnimationFrameCallbackHandler callback)
 {
     // FIXME: Make this fully spec compliant. Currently implements a mix of 'requestAnimationFrame()' and 'run the animation frame callbacks'.
-    auto handle = animation_frame_callback_driver().add(GC::create_function(GC::Heap::the(), move(callback)));
+    auto handle = animation_frame_callback_driver().add(callback);
     if (Core::StatsLog::the())
         set_rendering_pending(associated_document(), RenderingPendingReason::ScheduledAnimationFrameCallbacks, animation_frame_callback_driver().callback_count());
     page().client().request_frame();
@@ -2210,7 +2210,7 @@ u32 Window::request_idle_callback(IdleCallbackHandler callback, IdleRequestOptio
     auto handle = m_idle_callback_identifier;
 
     // 4. Push callback to the end of window's list of idle request callbacks, associated with handle.
-    auto idle_callback = GC::Heap::the().allocate<IdleCallback>(GC::create_function(GC::Heap::the(), move(callback)), handle);
+    auto idle_callback = GC::Heap::the().allocate<IdleCallback>(callback, handle);
     m_idle_request_callbacks.set(handle, idle_callback);
     main_thread_event_loop().did_request_idle_callback();
 
@@ -2220,17 +2220,17 @@ u32 Window::request_idle_callback(IdleCallbackHandler callback, IdleRequestOptio
     if (options.timeout.has_value() && *options.timeout > 0) {
         // 1. Wait for timeout milliseconds.
         auto timeout = min(*options.timeout, static_cast<u32>(NumericLimits<i32>::max()));
-        auto timeout_timer_id = run_steps_after_a_timeout(static_cast<i32>(timeout), [this, handle] {
+        auto timeout_timer_id = run_steps_after_a_timeout(static_cast<i32>(timeout), GC::create_function(GC::Heap::the(), GC::captures(*this, handle), [](Window& self, u32 handle) {
             // FIXME: 2. Wait until all invocations of this algorithm, whose timeout added to their posted time occurred before this one's, have completed.
             // FIXME: 3. Optionally, wait a further user-agent defined length of time.
 
             // 4. Queue a task on the queue associated with the idle-task task source, which performs the invoke idle callback timeout algorithm, passing handle and window as arguments.
             // NB: A timed-out idle task has normal scheduling priority so that higher-priority work cannot keep it from
             //     running indefinitely. Its task source remains the idle-task task source as required by the specification.
-            queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this, handle] {
-                invoke_idle_callback_timeout(handle);
+            queue_global_task(Task::Source::IdleTask, relevant_global_object(self), GC::create_function(GC::Heap::the(), GC::captures(self, handle), [](Window& self, u32 handle) {
+                self.invoke_idle_callback_timeout(handle);
             }));
-        });
+        }));
         idle_callback->set_timeout_timer_id(timeout_timer_id);
     }
 

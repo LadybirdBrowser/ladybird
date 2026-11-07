@@ -11,6 +11,7 @@
 #include <AK/HashFunctions.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 
@@ -71,3 +72,5 @@ struct AK::Formatter<Web::HTML::CrossProcessId> : Formatter<FormatString> {
         return Formatter<FormatString>::format(builder, "{}:{}"sv, id.namespace_id, id.local_id);
     }
 };
+
+GC_UNTRACED_CAPTURE(Web::HTML::CrossProcessId);

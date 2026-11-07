@@ -64,7 +64,7 @@ void IncrementalDocumentParser::start()
     // FIXME: The spec allows starting the parse after 500 ms or 1024 bytes, whichever comes first.
     // We only honor the byte threshold.
     auto parser = GC::Ref { *this };
-    m_body->wait_for_sniff_bytes(GC::create_function(GC::Heap::the(), [parser](Web::Fetch::Infrastructure::Body::SniffBytes sniff_bytes) {
+    m_body->wait_for_sniff_bytes(GC::create_function(GC::Heap::the(), GC::captures(parser), [](auto& parser, Web::Fetch::Infrastructure::Body::SniffBytes sniff_bytes) {
         // A failed response initializes the parser too.
         parser->initialize_parser(sniff_bytes.bytes);
     }));
@@ -87,19 +87,19 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
     // The parser exists while the prescan runs, so that aborting the document aborts it. Its encoding confidence is
     // set along with its encoding.
     m_parser = HTMLParser::create_with_open_input_stream(m_document, EncodingConfidence::Tentative);
-    m_parser->set_change_encoding_callback(GC::create_function(GC::Heap::the(), [this](StringView encoding) {
-        auto result = change_encoding(encoding);
+    m_parser->set_change_encoding_callback(GC::create_function(GC::Heap::the(), GC::captures(*this), [](IncrementalDocumentParser& self, StringView encoding) {
+        auto result = self.change_encoding(encoding);
         if (result.is_error()) {
-            release_encoding_change_buffers();
+            self.release_encoding_change_buffers();
             return false;
         }
         return result.release_value();
     }));
-    m_parser->set_parsing_complete_callback(GC::create_function(GC::Heap::the(), [this]() {
-        release_encoding_change_buffers();
+    m_parser->set_parsing_complete_callback(GC::create_function(GC::Heap::the(), GC::captures(*this), [](IncrementalDocumentParser& self) {
+        self.release_encoding_change_buffers();
     }));
-    m_parser->set_ready_for_more_input_callback(GC::create_function(GC::Heap::the(), [this]() {
-        feed_parser();
+    m_parser->set_ready_for_more_input_callback(GC::create_function(GC::Heap::the(), GC::captures(*this), [](IncrementalDocumentParser& self) {
+        self.feed_parser();
     }));
     m_parser->set_allow_declarative_shadow_roots(m_allow_declarative_shadow_roots);
 
@@ -157,13 +157,13 @@ void IncrementalDocumentParser::start_incremental_read()
     auto parser = GC::Ref { *this };
     m_body->incrementally_read(
         m_document->relevant_settings_object().realm(),
-        GC::create_function(GC::Heap::the(), [parser](ByteBuffer bytes) mutable {
+        GC::create_function(GC::Heap::the(), GC::captures(parser), [](auto& parser, ByteBuffer bytes) {
             parser->process_body_chunk(move(bytes));
         }),
-        GC::create_function(GC::Heap::the(), [parser] {
+        GC::create_function(GC::Heap::the(), GC::captures(parser), [](auto& parser) {
             parser->process_end_of_body();
         }),
-        GC::create_function(GC::Heap::the(), [parser](JS::Value error) {
+        GC::create_function(GC::Heap::the(), GC::captures(parser), [](auto& parser, JS::Value error) {
             parser->process_body_error(error);
         }),
         GC::Ref { m_document->relevant_settings_object().realm().global_object() });
@@ -258,7 +258,7 @@ void IncrementalDocumentParser::queue_task_to_feed_parser()
         return;
     ++m_times_yielded_to_event_loop;
     m_has_queued_task_to_feed_parser = true;
-    queue_global_task(Task::Source::Networking, m_document->relevant_settings_object().realm().global_object(), GC::create_function(GC::Heap::the(), [parser = GC::Ref { *this }] {
+    queue_global_task(Task::Source::Networking, m_document->relevant_settings_object().realm().global_object(), GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *this }), [](auto& parser) {
         parser->m_has_queued_task_to_feed_parser = false;
         parser->feed_parser();
     }));
@@ -465,7 +465,7 @@ void IncrementalDocumentParser::register_deferred_start()
         return;
 
     auto parser = GC::Ref { *this };
-    m_document->set_deferred_parser_start(GC::create_function(GC::Heap::the(), [parser] {
+    m_document->set_deferred_parser_start(GC::create_function(GC::Heap::the(), GC::captures(parser), [](auto& parser) {
         parser->pump();
 
         // The tokenizer can consume input again, so hand over any bytes withheld while it could not.

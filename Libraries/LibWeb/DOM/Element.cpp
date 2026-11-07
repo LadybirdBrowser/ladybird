@@ -806,11 +806,11 @@ void Element::download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTM
     //    4. Handle as a download response with subject's node navigable and null.
     auto controller_holder = Fetch::Infrastructure::FetchControllerHolder::create();
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
-    fetch_algorithms_input.process_response = [navigable = GC::Ref { *navigable }, url, proposed_filename = move(proposed_filename), interface_origin = document().origin(), controller_holder](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
+    fetch_algorithms_input.process_response = GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *navigable }, url, move(proposed_filename), document().origin(), controller_holder), [](auto& navigable, auto& url, auto& proposed_filename, auto& interface_origin, auto& controller_holder, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
         if (response->is_network_error())
             return;
         navigable->handle_as_a_download(response->unsafe_response(), url, controller_holder->controller(), proposed_filename, interface_origin);
-    };
+    });
     auto& relevant_realm = document().relevant_settings_object().realm();
     controller_holder->set_controller(Fetch::Fetching::fetch(relevant_realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input))));
 }
@@ -2830,13 +2830,13 @@ Utf16FlyString Element::make_html_uppercased_qualified_name() const
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-an-element-task
-HTML::TaskID Element::queue_an_element_task(HTML::Task::Source source, Function<void()> steps, GC::Ptr<GC::Function<void()>> discard_steps)
+HTML::TaskID Element::queue_an_element_task(HTML::Task::Source source, GC::Ref<GC::Function<void()>> steps, GC::Ptr<GC::Function<void()>> discard_steps)
 {
     // 1. Let global be element's relevant global object.
     auto& global = HTML::relevant_global_object(*this);
 
     // 2. Queue a global task given source, global, and steps.
-    return HTML::queue_global_task(source, global, GC::create_function(GC::Heap::the(), move(steps)), HTML::Task::Priority::Normal, discard_steps);
+    return HTML::queue_global_task(source, global, steps, HTML::Task::Priority::Normal, discard_steps);
 }
 
 // https://html.spec.whatwg.org/multipage/syntax.html#void-elements
@@ -4969,8 +4969,8 @@ void Element::enqueue_an_element_on_the_appropriate_element_queue()
 
         // 4. Queue a microtask to perform the following steps:
         // NOTE: `this` is protected by GC::Function
-        HTML::queue_a_microtask(&document(), GC::create_function(GC::Heap::the(), [this]() {
-            auto& reactions_stack = HTML::relevant_similar_origin_window_agent(*this).custom_element_reactions_stack;
+        HTML::queue_a_microtask(&document(), GC::create_function(GC::Heap::the(), GC::captures(*this), [](Element& self) {
+            auto& reactions_stack = HTML::relevant_similar_origin_window_agent(self).custom_element_reactions_stack;
 
             // 1. Invoke custom element reactions in reactionsStack's backup element queue.
             HTML::invoke_custom_element_reactions(reactions_stack.backup_element_queue);

@@ -317,7 +317,7 @@ GC::Ref<WebIDL::Promise> StyleSheetState::replace(Utf16String text)
     auto& realm = HTML::relevant_realm(*constructor_document());
     auto promise = WebIDL::create_promise_for(*constructor_document());
     set_disallow_modification(true);
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [sheet = GC::Ref { cssom_sheet() }, &realm, text = move(text), promise = GC::Root(promise)] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), GC::captures(GC::Ref { cssom_sheet() }, realm, move(text), GC::Root(promise)), [](auto& sheet, auto& realm, auto& text, auto& promise) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         auto& state = sheet->state();
 

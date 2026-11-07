@@ -22,7 +22,7 @@ public:
     [[nodiscard]] static GC::Ref<TextTrackObserver> create(TextTrack&);
 
     [[nodiscard]] GC::Ptr<GC::Function<void(TextTrack::ReadinessState)>> track_readiness_observer() const { return m_track_readiness_observer; }
-    void set_track_readiness_observer(Function<void(TextTrack::ReadinessState)>);
+    void set_track_readiness_observer(GC::Ptr<GC::Function<void(TextTrack::ReadinessState)>>);
 
 private:
     explicit TextTrackObserver(TextTrack&);

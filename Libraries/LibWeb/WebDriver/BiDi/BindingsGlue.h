@@ -54,9 +54,9 @@ inline GC::Ref<JS::Object> create_object(HTML::EnvironmentSettingsObject& settin
     return JS::Object::create(realm, realm.intrinsics().object_prototype());
 }
 
-inline GC::Ref<JS::NativeFunction> create_channel_function(HTML::EnvironmentSettingsObject& settings, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> steps)
+inline GC::Ref<JS::NativeFunction> create_channel_function(HTML::EnvironmentSettingsObject& settings, GC::Ref<GC::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>> steps)
 {
-    return JS::NativeFunction::create(settings.realm(), move(steps), 1);
+    return JS::NativeFunction::create(settings.realm(), steps, 1);
 }
 
 inline GC::Ref<JS::TypeError> create_preload_type_error(HTML::EnvironmentSettingsObject& settings)

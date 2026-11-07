@@ -197,15 +197,15 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
                 m_representations_with_resolvers.set(key, promise);
 
                 // 4. Run the following steps in parallel:
-                Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, promise, mime_type = mime_type.release_value(), is_custom]() {
+                Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function<void()>(GC::Heap::the(), GC::captures(*this, realm, promise, mime_type.release_value(), is_custom), [](ClipboardItem& self, auto& realm, GC::Ref<WebIDL::Promise>& promise, MimeSniff::MimeType& mime_type, bool& is_custom) {
                     // 1. Let clipboardItem be this’s originating system clipboard item.
-                    auto const& clipboard_item = m_originating_system_clipboard_item;
+                    auto const& clipboard_item = self.m_originating_system_clipboard_item;
 
                     // 2. If clipboardItem is null, then queue a global task on the clipboard task source, given realm’s
                     //    global object, to reject p with an "InvalidStateError" DOMException in realm, then abort these
                     //    steps.
                     if (!clipboard_item.has_value()) {
-                        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise]() {
+                        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise) {
                             HTML::TemporaryExecutionContext execution_context { realm };
                             WebIDL::reject_promise(promise, WebIDL::InvalidStateError::create("This clipboard item is missing an originating system clipboard entry"_utf16));
                         }));
@@ -242,7 +242,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
                     });
 
                     if (!clipboard_representation.has_value()) {
-                        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, os_format_name]() {
+                        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(realm, promise, os_format_name), [](auto& realm, auto& promise, auto& os_format_name) {
                             HTML::TemporaryExecutionContext execution_context { realm };
                             WebIDL::reject_promise(promise, WebIDL::NotFoundError::create(realm, Utf16String::formatted("No data found for MIME type: {}", os_format_name)));
                         }));
@@ -253,7 +253,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
                     auto const& raw_data = clipboard_representation->data;
 
                     // 7. Let cleanData be a copy of rawData.
-                    auto clean_data = MUST(ByteBuffer::copy(raw_data.get<ByteString>().bytes()));
+                    auto clean_data = MUST(ByteBuffer::copy(raw_data.template get<ByteString>().bytes()));
 
                     // FIXME: 8. If mimeType’s essence is in this’s unsanitized MIME types and mimeType’s essence is in the
                     //           optional unsanitized data types list, then do nothing.
@@ -263,7 +263,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
                     auto blob = FileAPI::Blob::create(move(clean_data), mime_type.serialized_as_utf16());
 
                     // 11. Queue a global task on the clipboard task source, given realm’s global object, to resolve p with blob.
-                    queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, blob]() {
+                    queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(realm, promise, blob), [](auto& realm, auto& promise, auto& blob) {
                         HTML::TemporaryExecutionContext execution_context { realm };
                         resolve_clipboard_item_blob_promise(realm, promise, blob);
                     }));
@@ -277,7 +277,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
             WebIDL::react_to_promise(
                 *representation_data_promise,
                 // 1. If representationDataPromise was fulfilled with value v, then:
-                GC::create_function(GC::Heap::the(), [&realm, promise, mime_type_serialized](JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
+                GC::create_function(GC::Heap::the(), GC::captures(realm, promise, mime_type_serialized), [](auto& realm, auto& promise, auto& mime_type_serialized, JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
                     // 1. If v is a DOMString, then follow the below steps:
                     if (value.is_string()) {
                         // 1. Let dataAsBytes be the result of UTF-8 encoding v.
@@ -299,7 +299,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
                     return JS::js_undefined();
                 }),
                 // 2. If representationDataPromise was rejected, then:
-                GC::create_function(GC::Heap::the(), [&realm, type, promise](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+                GC::create_function(GC::Heap::the(), GC::captures(realm, type, promise), [](auto& realm, auto& type, auto& promise, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
                     // 1. Reject p with "NotFoundError" DOMException in realm.
                     WebIDL::reject_promise(promise, WebIDL::NotFoundError::create(realm, Utf16String::formatted("No data found for MIME type: {}", type)));
 

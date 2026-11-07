@@ -128,3 +128,5 @@ private:
 };
 
 }
+
+GC_UNTRACED_CAPTURE(Web::MediaCapture::DeviceIdConstraint);
