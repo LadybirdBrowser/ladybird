@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/System.h>
@@ -95,3 +96,30 @@ TEST_CASE(decommitted_block_can_be_reused)
 
     allocator.deallocate_block(reused_block, GC::DeferDecommit::No);
 }
+
+#if defined(AK_OS_LINUX) && !defined(HAS_ADDRESS_SANITIZER)
+TEST_CASE(pages_of_a_block_that_stays_unused_go_back_to_the_system)
+{
+    auto cold_block_age = GC::BlockAllocator::set_cold_block_age_for_testing(AK::Duration::from_milliseconds(10));
+    ScopeGuard restore_cold_block_age = [&] { GC::BlockAllocator::set_cold_block_age_for_testing(cold_block_age); };
+
+    GC::BlockAllocator allocator;
+
+    auto* block = static_cast<u8 volatile*>(allocator.allocate_block("cold"));
+    block[0] = 0xab;
+    allocator.deallocate_block(const_cast<u8*>(block), GC::DeferDecommit::Yes);
+    GC::BlockAllocator::wake_decommit_worker_async();
+
+    // NB: MADV_FREE leaves the contents until the system runs short of memory, so only a real return zeroes the page.
+    //     Nothing has to collect garbage for this to happen.
+    auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(30);
+    while (block[0] != 0 && MonotonicTime::now() < deadline)
+        (void)Core::System::sleep_ms(1);
+    u8 first_byte = block[0];
+    EXPECT_EQ(first_byte, 0);
+
+    auto* reused_block = allocator.allocate_block("cold");
+    EXPECT_EQ(reused_block, const_cast<u8*>(block));
+    allocator.deallocate_block(reused_block, GC::DeferDecommit::No);
+}
+#endif

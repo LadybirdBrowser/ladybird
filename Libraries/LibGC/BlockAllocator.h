@@ -9,6 +9,7 @@
 #include <AK/Atomic.h>
 #include <AK/ConditionVariable.h>
 #include <AK/Mutex.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibGC/Forward.h>
@@ -48,6 +49,10 @@ public:
     // work that's piled up. Call this at the end of a GC sweep.
     static void wake_decommit_worker_async();
 
+    // How long a block can sit unused before its pages go back to the system. Tests make it short to see this happen.
+    // Returns the age it replaces.
+    static AK::Duration set_cold_block_age_for_testing(AK::Duration);
+
 private:
     friend class DecommitWorker;
 
@@ -55,8 +60,9 @@ private:
     // the worker (Darwin) so allocate_block pairs them with MADV_FREE_REUSE.
     Vector<void*> m_blocks;
 
-    // Slots whose pages went back with return_freed_blocks_to_system(). They
-    // are the last ones to reuse, as their pages have to be faulted in again.
+    // Slots whose pages went back for real, as their heap went away or they
+    // stayed unused for long. They are the last ones to reuse, as their pages
+    // have to be faulted in again.
     Vector<void*> m_returned_blocks;
 
     // Slots freed by deallocate_block but not yet madvised. allocate_block
@@ -76,7 +82,8 @@ private:
 
     // True iff this allocator is currently in the worker's pending list.
     // Avoids re-registering on every dealloc; cleared by the worker at the
-    // start of process_one, set by deallocate_block under m_mutex.
+    // start of process_one, set by deallocate_block under m_mutex, and by
+    // process_one for blocks that it has to look at again.
     bool m_in_decommit_registry { false };
 };
 

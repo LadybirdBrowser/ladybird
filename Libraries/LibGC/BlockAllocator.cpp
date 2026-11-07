@@ -10,6 +10,7 @@
 #include <AK/Checked.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
+#include <AK/Time.h>
 #include <AK/Try.h>
 #include <AK/Vector.h>
 #include <LibCore/System.h>
@@ -49,6 +50,17 @@ namespace GC {
 // before the worker sees them skip the madvise pair entirely.
 static constexpr size_t CHUNK_SIZE = 2 * MiB;
 static constexpr size_t BLOCKS_PER_CHUNK = CHUNK_SIZE / HeapBlock::BLOCK_SIZE;
+
+// How long a block with MADV_FREE'd pages can sit unused before its pages go back for real. This is longer than most
+// heaps take between collections, so that blocks they reuse keep skipping the page faults. And as the collections of
+// every heap drive the decommit worker, it keeps a busy heap from making the blocks of a slower one look cold.
+static Atomic<i64, AK::MemoryOrder::memory_order_relaxed> s_cold_block_age_in_milliseconds { 5000 };
+
+static AK::Duration cold_block_age()
+{
+    return AK::Duration::from_milliseconds(s_cold_block_age_in_milliseconds.load());
+}
+
 static_assert((HeapBlock::BLOCK_SIZE & (HeapBlock::BLOCK_SIZE - 1)) == 0);
 static_assert(CHUNK_SIZE % HeapBlock::BLOCK_SIZE == 0);
 static_assert(BLOCKS_PER_CHUNK == 128);
@@ -296,8 +308,13 @@ public:
     DecommitWorker();
 
 private:
+    enum class ReturnColdBlocks {
+        No,
+        Yes,
+    };
+
     void run();
-    void process_one(BlockAllocator&);
+    void process_one(BlockAllocator&, ReturnColdBlocks);
 
     Mutex m_mutex;
     ConditionVariable m_cv { m_mutex };
@@ -305,6 +322,7 @@ private:
     Vector<BlockAllocator*> m_pending;
     bool m_kicked { false };
     bool m_chunk_requested { false };
+    MonotonicTime m_last_return_of_cold_blocks { MonotonicTime::now_coarse() };
 
     static Atomic<DecommitWorker*> s_the;
 };
@@ -376,8 +394,14 @@ void DecommitWorker::run()
         bool chunk_requested = false;
         {
             MutexLocker locker(m_mutex);
-            while (!m_kicked && !m_chunk_requested)
-                m_cv.wait();
+            while (!m_kicked && !m_chunk_requested) {
+                // NB: Collections may never come again, and what is on the list must not wait for one. Each block
+                //     only takes a few rounds of this, after which the list is empty and this thread sleeps for good.
+                if (m_pending.is_empty())
+                    m_cv.wait();
+                else if (!m_cv.wait_for(cold_block_age()))
+                    m_kicked = true;
+            }
             chunk_requested = exchange(m_chunk_requested, false);
             if (m_kicked) {
                 m_kicked = false;
@@ -400,8 +424,14 @@ void DecommitWorker::run()
         // syscall bandwidth.
         sleep_before_decommit();
 
+        auto return_cold_blocks = ReturnColdBlocks::No;
+        if (auto now = MonotonicTime::now_coarse(); now - m_last_return_of_cold_blocks >= cold_block_age()) {
+            return_cold_blocks = ReturnColdBlocks::Yes;
+            m_last_return_of_cold_blocks = now;
+        }
+
         for (auto* a : snapshot) {
-            process_one(*a);
+            process_one(*a, return_cold_blocks);
             int prev_refcount = a->m_worker_refcount.fetch_sub(1);
             if (prev_refcount == 1) {
                 MutexLocker locker(a->m_mutex);
@@ -411,13 +441,20 @@ void DecommitWorker::run()
     }
 }
 
-void DecommitWorker::process_one(BlockAllocator& a)
+void DecommitWorker::process_one(BlockAllocator& a, [[maybe_unused]] ReturnColdBlocks return_cold_blocks)
 {
     Vector<void*> to_process;
+    Vector<void*> cold_blocks;
     {
         MutexLocker locker(a.m_mutex);
         a.m_in_decommit_registry = false;
         to_process = move(a.m_freshly_freed);
+#if defined(AK_OS_LINUX)
+        // Blocks that went through MADV_FREE stay in the process until the system runs short of memory, and only their
+        // own type can reuse them. What that type did not reuse since the last time will likely stay unused.
+        if (return_cold_blocks == ReturnColdBlocks::Yes)
+            cold_blocks = move(a.m_blocks);
+#endif
     }
 
     // Madvise each slot outside the per-allocator lock so the JS thread can
@@ -429,17 +466,37 @@ void DecommitWorker::process_one(BlockAllocator& a)
         if ((i + 1) % BATCH == 0)
             yield_during_decommit();
     }
+    for (size_t i = 0; i < cold_blocks.size(); ++i) {
+        return_block_to_system(cold_blocks[i]);
+        if ((i + 1) % BATCH == 0)
+            yield_during_decommit();
+    }
 
+    bool need_to_register = false;
     {
         MutexLocker locker(a.m_mutex);
-        for (auto* slot : to_process)
-            a.m_blocks.append(slot);
+        a.m_blocks.extend(move(to_process));
+        a.m_returned_blocks.extend(move(cold_blocks));
+#if defined(AK_OS_LINUX)
+        // NB: So an allocator is only on the list while it has blocks to look at, however many allocators there are.
+        if (!a.m_blocks.is_empty() && !a.m_in_decommit_registry) {
+            a.m_in_decommit_registry = true;
+            need_to_register = true;
+        }
+#endif
     }
+    if (need_to_register)
+        register_pending(a);
 }
 
 void BlockAllocator::wake_decommit_worker_async()
 {
     DecommitWorker::the().kick();
+}
+
+AK::Duration BlockAllocator::set_cold_block_age_for_testing(AK::Duration age)
+{
+    return AK::Duration::from_milliseconds(s_cold_block_age_in_milliseconds.exchange(age.to_milliseconds()));
 }
 
 void BlockAllocator::return_freed_blocks_to_system()
@@ -470,12 +527,17 @@ BlockAllocator::~BlockAllocator()
 {
     // Chunks are permanent -- we never tear them down. The destructor only
     // exists to make sure the global decommit worker has finished any
-    // in-flight processing of *this before our storage goes away.
-    DecommitWorker::the().deregister(*this);
+    // in-flight processing of *this before our storage goes away. That
+    // processing can put us back on its list, so look again after it.
+    while (true) {
+        DecommitWorker::the().deregister(*this);
 
-    MutexLocker locker(m_mutex);
-    while (m_worker_refcount.load() != 0)
-        m_worker_cv.wait();
+        MutexLocker locker(m_mutex);
+        while (m_worker_refcount.load() != 0)
+            m_worker_cv.wait();
+        if (!exchange(m_in_decommit_registry, false))
+            break;
+    }
 }
 
 size_t BlockAllocator::block_count()
