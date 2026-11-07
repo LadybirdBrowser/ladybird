@@ -6,11 +6,12 @@
 
 //! The runtime class of each host class table.
 //!
-//! The VM derives a class for a table the first time it sees it. The class extends the class of the table's parent, or
+//! The process derives a class for a table the first time a VM sees it, and all VMs share it. The class extends the class of the table's parent, or
 //! the root class of its kind for a table without a parent of its kind, so that Class::is_subclass_of() follows the
 //! chain of tables. Its name is the table's, and its internal methods come from the table's hooks.
 
 use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 
 use crate::embedding::host::host_array::{HostArray, derive_host_array_class};
 use crate::embedding::host::host_function::{HostFunction, derive_host_function_class};
@@ -32,8 +33,13 @@ pub struct RegisteredHostClass {
     allocator: Option<RuntimeClassAllocator>,
 }
 
-/// The classes derived for host class tables, by the address of their JSHostClass.
+/// The classes of a VM, by the address of their JSHostClass.
 pub type HostClassRegistry = HashMap<usize, RegisteredHostClass, foldhash::fast::RandomState>;
+
+/// The classes derived for host class tables so far, by the address of their JSHostClass. A class lives as long as the
+/// process, and LibGC keeps the blocks of a type apart by its class, so each table must have one class in all VMs.
+static DERIVED_CLASSES: LazyLock<Mutex<HashMap<usize, &'static Class, foldhash::fast::RandomState>>> =
+    LazyLock::new(Mutex::default);
 
 fn root_class_of_kind(kind: u8) -> &'static Class {
     match kind {
@@ -67,7 +73,11 @@ pub fn runtime_class_of_host_class(vm: &Vm, table: &'static JSHostClass) -> &'st
         Some(parent) if parent.kind == table.kind => runtime_class_of_host_class(vm, parent),
         _ => root_class_of_kind(table.kind),
     };
-    let class = derive_class_of_kind(table, parent);
+    let class = *DERIVED_CLASSES
+        .lock()
+        .expect("deriving a class does not panic")
+        .entry(table.identity())
+        .or_insert_with(|| derive_class_of_kind(table, parent));
     vm.host_classes()
         .borrow_mut()
         .insert(table.identity(), RegisteredHostClass { class, allocator: None });
