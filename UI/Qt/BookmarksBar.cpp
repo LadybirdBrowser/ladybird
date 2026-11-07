@@ -636,6 +636,12 @@ void BookmarksBarContainer::bind(Tab* tab)
     update_geometry();
 }
 
+void BookmarksBarContainer::set_sidebar(QWidget& sidebar)
+{
+    m_sidebar = &sidebar;
+    m_sidebar->installEventFilter(this);
+}
+
 bool BookmarksBarContainer::shows_over_page() const
 {
     return WebView::Application::settings().appearance().show_bookmarks_bar == WebView::ShowBookmarksBar::OnHover;
@@ -664,7 +670,7 @@ bool BookmarksBarContainer::cursor_is_over_hover_region() const
     auto contains_cursor = [&](QWidget const& widget) {
         return widget.isVisible() && QRect { widget.mapToGlobal(QPoint {}), widget.size() }.contains(cursor_position);
     };
-    return contains_cursor(m_toolbar) || contains_cursor(*this);
+    return contains_cursor(m_toolbar) || contains_cursor(*this) || (m_sidebar && contains_cursor(*m_sidebar));
 }
 
 void BookmarksBarContainer::update_hover()
@@ -764,7 +770,7 @@ bool BookmarksBarContainer::eventFilter(QObject* watched, QEvent* event)
     if (watched == m_bar && event->type() == QEvent::LayoutRequest)
         update_geometry();
 
-    if (watched == &m_toolbar || watched == this) {
+    if (watched == &m_toolbar || watched == this || watched == m_sidebar) {
         if (event->type() == QEvent::Enter || event->type() == QEvent::Show) {
             update_hover();
         } else if (event->type() == QEvent::Leave) {
