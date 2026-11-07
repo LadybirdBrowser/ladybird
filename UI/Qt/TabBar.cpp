@@ -4960,8 +4960,10 @@ void TabWidget::update_vertical_tabs_content_separator()
         m_collapsed_sidebar_top_edge->raise();
     }
 
+    // NB: With the toolbar in the sidebar, the page runs up to the window's top, so there is no toolbar above it to
+    //     separate it from.
     auto has_page_bookmarks_bar = !m_bookmarks_bar->isHidden();
-    auto show_content_separator = m_tab_bar_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal && !has_page_bookmarks_bar;
+    auto show_content_separator = m_tab_bar_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal && !has_page_bookmarks_bar && !toolbar_is_in_sidebar();
     m_vertical_tabs_content_separator->setVisible(show_content_separator);
     if (!show_content_separator)
         return;
