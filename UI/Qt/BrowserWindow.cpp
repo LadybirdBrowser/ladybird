@@ -552,6 +552,8 @@ QAction* BrowserWindow::create_ladybird_menu_zoom_row()
 
     auto* row = new QWidget(m_ladybird_menu);
     row->setObjectName("LadybirdMenuZoomRow");
+    row->setStyleSheet(ChromeStyle::menu_zoom_row_style_sheet());
+    m_ladybird_menu_zoom_row = row;
     auto* layout = new QHBoxLayout(row);
     layout->setContentsMargins(10, 3, 10, 3);
     layout->setSpacing(2);
@@ -568,17 +570,26 @@ QAction* BrowserWindow::create_ladybird_menu_zoom_row()
         layout->addWidget(button);
         return button;
     };
-    add_button("LadybirdMenuZoomButton", "Zoom Out", application.zoom_out_action())->setIcon(create_chrome_icon(ChromeIcon::ZoomOut, Theme::panel().body));
+    m_ladybird_menu_zoom_out = add_button("LadybirdMenuZoomButton", "Zoom Out", application.zoom_out_action());
     m_ladybird_menu_zoom_level = add_button("LadybirdMenuZoomLevel", "Reset Zoom", application.reset_zoom_action());
     // NB: The level is drawn in figures of one width, so it doesn't shift as it changes.
     auto level_font = m_ladybird_menu_zoom_level->font();
     level_font.setFeature(QFont::Tag("tnum"), 1);
     m_ladybird_menu_zoom_level->setFont(level_font);
-    add_button("LadybirdMenuZoomButton", "Zoom In", application.zoom_in_action())->setIcon(create_chrome_icon(ChromeIcon::NewTab, Theme::panel().body));
+    m_ladybird_menu_zoom_in = add_button("LadybirdMenuZoomButton", "Zoom In", application.zoom_in_action());
+    update_ladybird_menu_zoom_icons();
 
     auto* action = new QWidgetAction(m_ladybird_menu);
     action->setDefaultWidget(row);
     return action;
+}
+
+void BrowserWindow::update_ladybird_menu_zoom_icons()
+{
+    if (!m_ladybird_menu_zoom_out || !m_ladybird_menu_zoom_in)
+        return;
+    m_ladybird_menu_zoom_out->setIcon(create_chrome_icon(ChromeIcon::ZoomOut, Theme::panel().body));
+    m_ladybird_menu_zoom_in->setIcon(create_chrome_icon(ChromeIcon::NewTab, Theme::panel().body));
 }
 
 void BrowserWindow::update_ladybird_menu_zoom_level()
@@ -1282,6 +1293,9 @@ void BrowserWindow::tab_favicon_changed(int index, QIcon const& icon)
 void BrowserWindow::update_chrome_style()
 {
     menuBar()->setStyleSheet(ChromeStyle::menu_bar_style_sheet(Theme::chrome_palette(*this)));
+    if (m_ladybird_menu_zoom_row)
+        m_ladybird_menu_zoom_row->setStyleSheet(ChromeStyle::menu_zoom_row_style_sheet());
+    update_ladybird_menu_zoom_icons();
 }
 
 TabBarButton* BrowserWindow::create_tab_close_button(Tab& tab)

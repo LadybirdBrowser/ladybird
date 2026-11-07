@@ -82,7 +82,7 @@ QColor opaque_panel_edge();
 // antialiasing.
 bool shows_opaque_pixels_only(QWidget const&);
 
-QString application_style_sheet(QPalette const&);
+QString menu_zoom_row_style_sheet();
 QString toolbar_container_style_sheet(QPalette const&);
 QString menu_bar_style_sheet(QPalette const&);
 QString location_edit_style_sheet(QPalette const&);
