@@ -347,6 +347,12 @@ private:
 
 }
 
+// The processes that are the browser itself, which cannot go without taking everything else with them.
+static bool is_browser_process(WebView::ProcessType type)
+{
+    return first_is_one_of(type, WebView::ProcessType::Browser, WebView::ProcessType::UI, WebView::ProcessType::Hub);
+}
+
 ProcessManagerWindow::ProcessManagerWindow(Source source)
     : m_source(AK::move(source))
 {
@@ -576,6 +582,7 @@ QTreeWidget::item {{
     m_document_icon = create_chrome_icon(ChromeIcon::Document, panel.body);
     m_network_icon = create_chrome_icon(ChromeIcon::Network, panel.body);
     m_compositor_icon = create_chrome_icon(ChromeIcon::Compositor, panel.body);
+    m_hub_icon = create_chrome_icon(ChromeIcon::Hub, panel.body);
     m_image_icon = create_chrome_icon(ChromeIcon::Image, panel.body);
     m_service_icon = create_chrome_icon(ChromeIcon::WindowRestore, panel.body);
     auto search_icon = create_chrome_icon(ChromeIcon::Search, panel.muted);
@@ -733,8 +740,10 @@ void ProcessManagerWindow::refresh()
         item->setText(Name, name);
         item->setToolTip(Name, name);
         switch (process.type) {
-        case WebView::ProcessType::Browser: {
-            item->setIcon(Name, m_browser_icon);
+        case WebView::ProcessType::Browser:
+        case WebView::ProcessType::UI:
+        case WebView::ProcessType::Hub: {
+            item->setIcon(Name, process.type == WebView::ProcessType::Hub ? m_hub_icon : m_browser_icon);
             auto font = item->font(Name);
             font.setWeight(QFont::DemiBold);
             item->setFont(Name, font);
@@ -817,17 +826,19 @@ void ProcessManagerWindow::refresh()
         }
     };
 
-    // The browser comes first among its own processes, whatever the order.
+    // The browser comes first among its own processes, whatever the order, with the UI ahead of the Hub.
     Vector<QTreeWidgetItem*> own_items;
-    QTreeWidgetItem* browser_item = nullptr;
+    Vector<QTreeWidgetItem*> browser_items;
     for (auto const* process : own_processes) {
         auto* item = make_process_item(*process, true);
-        if (process->type == WebView::ProcessType::Browser)
-            browser_item = item;
+        if (process->type == WebView::ProcessType::UI)
+            browser_items.prepend(item);
+        else if (is_browser_process(process->type))
+            browser_items.append(item);
         else
             own_items.append(item);
     }
-    if (browser_item) {
+    for (auto* browser_item : browser_items) {
         m_processes->addTopLevelItem(browser_item);
         if (selected_child_id.isValid() && browser_item->data(PID, ChildIDRole) == selected_child_id)
             item_to_select = browser_item;
@@ -973,7 +984,7 @@ void ProcessManagerWindow::update_actions()
     }
     auto process_type = m_process_types.get(item->data(PID, ChildIDRole).toULongLong());
     m_copy_pid_action->setEnabled(process_type.has_value());
-    m_end_action->setEnabled(process_type.has_value() && *process_type != WebView::ProcessType::Browser);
+    m_end_action->setEnabled(process_type.has_value() && !is_browser_process(*process_type));
 }
 
 void ProcessManagerWindow::end_selection()

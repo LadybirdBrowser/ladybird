@@ -11,11 +11,13 @@
 #include <AK/Platform.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
+#include <LibCore/Platform/ProcessStatistics.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReportOutbox.h>
+#include <LibWebView/ProcessSnapshot.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/HubConnection.h>
 
@@ -259,6 +261,7 @@ private:
 #ifdef LADYBIRD_HUB_IN_OWN_PROCESS
     ErrorOr<void> connect_to_hub(Main::Arguments const&);
     Hub::UIInfo current_ui_info() const;
+    Vector<WebView::ProcessSnapshot> process_snapshots();
 
     // NB: QApplication holds on to these by reference, so they must live as long as it does.
     Main::Arguments m_arguments_for_qt;
@@ -267,6 +270,7 @@ private:
     WebView::BrowserOptions m_browser_options;
     bool m_has_translator { false };
     Optional<int> m_exit_status_if_done;
+    Core::Platform::ProcessStatistics m_ui_process_statistics;
 #else
     OwnPtr<Hub::Application> m_hub;
     RefPtr<Hub::ConnectionFromUI> m_connection_from_ui;

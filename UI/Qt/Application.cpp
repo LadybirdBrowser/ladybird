@@ -750,6 +750,27 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     return {};
 }
 
+Vector<WebView::ProcessSnapshot> Application::process_snapshots()
+{
+    auto snapshots = HubConnection::the().process_snapshots();
+
+    // NB: The Hub knows the processes that it launched. Only this one can always tell how it is doing itself.
+    if (m_ui_process_statistics.processes.is_empty())
+        m_ui_process_statistics.processes.append(make<Core::Platform::ProcessInfo>(Core::System::getpid()));
+    if (auto result = Core::Platform::update_process_statistics(m_ui_process_statistics); result.is_error())
+        dbgln("Unable to update the UI's process statistics: {}", result.error());
+
+    auto const& statistics = *m_ui_process_statistics.processes.first();
+    WebView::ProcessSnapshot snapshot;
+    snapshot.child_id = NumericLimits<u64>::max();
+    snapshot.pid = statistics.pid;
+    snapshot.type = WebView::ProcessType::UI;
+    snapshot.cpu_percent = statistics.cpu_percent;
+    snapshot.memory_usage_bytes = statistics.memory_usage_bytes;
+    snapshots.append(move(snapshot));
+    return snapshots;
+}
+
 bool Application::has_translator() const { return m_has_translator; }
 Optional<int> Application::exit_status_if_done() const { return m_exit_status_if_done; }
 
@@ -817,7 +838,7 @@ void Application::show_process_manager()
     if (!m_process_manager_window) {
         m_process_manager_window = make<ProcessManagerWindow>(ProcessManagerWindow::Source {
 #ifdef LADYBIRD_HUB_IN_OWN_PROCESS
-            .take_snapshots = [] { return HubConnection::the().process_snapshots(); },
+            .take_snapshots = [this] { return process_snapshots(); },
             .end_process = [](u64 child_id) { return HubConnection::the().terminate_process(child_id); },
 #else
             .take_snapshots = [] { return WebView::process_snapshots(WebView::Application::process_manager()); },

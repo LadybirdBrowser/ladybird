@@ -611,7 +611,12 @@ void ConnectionFromUI::ui_info_changed(Hub::UIInfo info)
 
 Messages::HubServer::ProcessSnapshotsResponse ConnectionFromUI::process_snapshots()
 {
-    return WebView::process_snapshots(Application::process_manager());
+    auto snapshots = WebView::process_snapshots(Application::process_manager());
+    for (auto& snapshot : snapshots) {
+        if (snapshot.type == WebView::ProcessType::Browser)
+            snapshot.type = WebView::ProcessType::Hub;
+    }
+    return snapshots;
 }
 
 Messages::HubServer::TerminateProcessResponse ConnectionFromUI::terminate_process(u64 child_id)
