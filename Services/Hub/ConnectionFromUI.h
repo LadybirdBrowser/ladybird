@@ -10,17 +10,22 @@
 #include <Hub/HubServerEndpoint.h>
 #include <Hub/View.h>
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibWebView/FileDownloader.h>
 
 namespace Hub {
 
 // The Hub's end of its connection to the UI.
-class ConnectionFromUI final : public IPC::ConnectionFromClient<HubClientEndpoint, HubServerEndpoint> {
+class ConnectionFromUI final
+    : public IPC::ConnectionFromClient<HubClientEndpoint, HubServerEndpoint>
+    , public WebView::FileDownloaderObserver {
     C_OBJECT(ConnectionFromUI);
 
 public:
     virtual ~ConnectionFromUI() override;
 
     static ConnectionFromUI* the();
+
+    static Vector<DownloadState> downloads();
 
     // The ID that the UI gave an input event, from the browser data of the event.
     static u64 input_id_of(Web::BrowserInputData const&);
@@ -32,7 +37,19 @@ private:
 
     static View* find_view(u64 view_id);
 
+    // ^WebView::FileDownloaderObserver
+    virtual void download_added(WebView::FileDownloader::Download const&) override;
+    virtual void download_updated(WebView::FileDownloader::Download const&) override;
+    virtual void download_removed(u64 id, WebView::IsPrivate) override;
+
     // ^HubServerEndpoint
+    virtual void cancel_download(u64 id) override;
+    virtual void pause_download(u64 id) override;
+    virtual void resume_download(u64 id) override;
+    virtual void show_download_in_folder(u64 id) override;
+    virtual void prune_inactive_downloads(WebView::IsPrivate is_private) override;
+    virtual void pause_active_downloads() override;
+    virtual void cancel_unresumable_downloads() override;
     virtual void active_view_changed(Optional<u64> view_id) override;
     virtual void answer_clipboard_text(u64 request_id, Utf16String text) override;
     virtual void answer_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem item) override;

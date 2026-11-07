@@ -29,6 +29,9 @@ private:
     virtual void die() override;
 
     // ^HubClientEndpoint
+    virtual void download_added(Hub::DownloadState download) override;
+    virtual void download_updated(Hub::DownloadState download) override;
+    virtual void download_removed(u64 id, WebView::IsPrivate is_private) override;
     virtual void app_open_url_in_new_tab(URL::URL url, Web::HTML::ActivateTab activate_tab) override;
     virtual void app_open_url_in_new_window(URL::URL url, WebView::IsPrivate is_private) override;
     virtual void app_open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) override;

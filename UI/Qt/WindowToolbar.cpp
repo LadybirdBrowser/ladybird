@@ -30,6 +30,7 @@
 #include <UI/Qt/PerformanceMonitorWidget.h>
 #include <UI/Qt/Popover.h>
 #include <UI/Qt/RemoteActions.h>
+#include <UI/Qt/RemoteDownloads.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/SystemAppearance.h>
 #include <UI/Qt/Theme.h>
@@ -1947,7 +1948,7 @@ void WindowToolbar::recreate_icons()
 
 void WindowToolbar::update_downloads_button()
 {
-    auto downloads = WebView::Application::the().file_downloader().downloads_of_session(m_is_private);
+    auto downloads = RemoteDownloads::the().downloads_of_session(m_is_private);
     auto button_state = WebView::downloads_button_state(downloads);
 
     if (!button_state.has_downloads && m_downloads_popover)
@@ -1977,7 +1978,7 @@ void WindowToolbar::update_downloads_popover()
     if (!m_downloads_popover || !m_downloads_popover->isVisible())
         return;
 
-    if (m_downloads_popover->set_downloads(WebView::Application::the().file_downloader().downloads_of_session(m_is_private)))
+    if (m_downloads_popover->set_downloads(RemoteDownloads::the().downloads_of_session(m_is_private)))
         position_downloads_popover();
 }
 
@@ -2041,7 +2042,7 @@ void WindowToolbar::show_feedback_popover()
 // The downloads hang from the downloads button. Without any, the downloads page opens instead.
 void WindowToolbar::show_downloads_popover()
 {
-    auto downloads = WebView::Application::the().file_downloader().downloads_of_session(m_is_private);
+    auto downloads = RemoteDownloads::the().downloads_of_session(m_is_private);
     if (!WebView::downloads_button_state(downloads).has_downloads) {
         m_open_downloads_page_action->trigger();
         return;
@@ -2054,25 +2055,25 @@ void WindowToolbar::show_downloads_popover()
             m_downloads_button->setChecked(visible);
         };
         m_downloads_popover->on_cancel_download = [this](u64 id) {
-            auto& file_downloader = WebView::Application::the().file_downloader();
+            auto& file_downloader = RemoteDownloads::the();
             if (auto download = file_downloader.download(id); download.has_value() && WebView::FileDownloader::status_is_active(download->status))
                 file_downloader.cancel_download(id);
             update_downloads_popover();
         };
         m_downloads_popover->on_pause_download = [this](u64 id) {
-            WebView::Application::the().file_downloader().pause_download(id);
+            RemoteDownloads::the().pause_download(id);
             update_downloads_popover();
         };
         m_downloads_popover->on_resume_download = [this](u64 id) {
-            WebView::Application::the().file_downloader().resume_download(id);
+            RemoteDownloads::the().resume_download(id);
             update_downloads_popover();
         };
         m_downloads_popover->on_show_in_folder = [](u64 id) {
-            if (auto download = WebView::Application::the().file_downloader().download(id); download.has_value())
-                WebView::Application::the().show_download_in_folder(*download);
+            if (auto download = RemoteDownloads::the().download(id); download.has_value())
+                RemoteDownloads::the().show_in_folder(id);
         };
         m_downloads_popover->on_clear_finished = [this] {
-            (void)WebView::Application::the().file_downloader().prune_inactive_downloads(m_is_private);
+            RemoteDownloads::the().prune_inactive_downloads(m_is_private);
             update_downloads_popover();
         };
         m_downloads_popover->on_open_all_downloads = [this] {
@@ -2083,7 +2084,7 @@ void WindowToolbar::show_downloads_popover()
     }
 
     m_downloads_popover->update_chrome_style(palette());
-    (void)m_downloads_popover->set_downloads(WebView::Application::the().file_downloader().downloads_of_session(m_is_private));
+    (void)m_downloads_popover->set_downloads(RemoteDownloads::the().downloads_of_session(m_is_private));
     position_downloads_popover();
     m_downloads_popover->show();
     position_downloads_popover();
