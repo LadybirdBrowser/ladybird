@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script>
+    // Frame layout:
+    // top=this-file [
+    //   child1=child-one.html,
+    //   child-so=propagation-sameorigin-child.html [
+    //     gchild=child-two.html
+    //   ]
+    // ]
+    let propagation_test = async_test("Propagation test");
+
+    let num_children_to_load = 3;
+    let num_children_to_report = 3;
+
+    function finishLoadPhase() {
+        assert_equals(num_children_to_load, 0);
+
+        test(() => {
+            assert_false(navigator.userActivation.isActive);
+            assert_false(navigator.userActivation.hasBeenActive);
+        }, "Parent frame initial state");
+
+        test_driver.click(document.getElementById("child-so"));
+    }
+
+    function finishReportPhase() {
+        assert_equals(num_children_to_report, 0);
+
+        test(() => {
+            assert_true(navigator.userActivation.isActive);
+            assert_true(navigator.userActivation.hasBeenActive);
+        }, "Parent frame final state");
+
+        propagation_test.done();
+    }
+
+    window.addEventListener("message", event => {
+        // Test driver can send messages too...
+        if (typeof event.data !== "string") return;
+
+        var msg = JSON.parse(event.data);
+
+        if (msg.type == 'child-one-loaded') {
+            test(() => {
+                assert_false(msg.isActive);
+                assert_false(msg.hasBeenActive);
+            }, "Child1 frame initial state");
+        } else if (msg.type == 'child-sameorigin-loaded') {
+            test(() => {
+                assert_false(msg.isActive);
+                assert_false(msg.hasBeenActive);
+            }, "Child2 frame initial state");
+        } else if (msg.type == 'child-two-loaded') {
+            test(() => {
+                assert_false(msg.isActive);
+                assert_false(msg.hasBeenActive);
+            }, "Grandchild frame initial state");
+        } else if (msg.type == 'child-one-report') {
+            // Siblings (same or cross origin) should not be activated per spec
+            // Spec issue discussing: https://github.com/whatwg/html/issues/9831
+            test(() => {
+                assert_false(msg.isActive);
+                assert_false(msg.hasBeenActive);
+            }, "Child1 frame final state");
+        } else if (msg.type == 'child-sameorigin-report') {
+            // This msg was triggered by a user click.
+            test(() => {
+                assert_true(msg.isActive);
+                assert_true(msg.hasBeenActive);
+            }, "Child2 frame final state");
+
+            // Ask remaining frames to report states.
+            let ask_report = JSON.stringify({"type": "report"});
+            frames[0].postMessage(ask_report, "*");
+            frames[1].frames[0].postMessage(ask_report, "*");
+        } else if (msg.type == 'child-two-report') {
+            test(() => {
+                assert_true(msg.isActive);
+                assert_true(msg.hasBeenActive);
+            }, "Grand child frame final state");
+        }
+
+        // Phase switching.
+        if (msg.type.endsWith("-loaded")) {
+            if (--num_children_to_load == 0)
+                finishLoadPhase();
+        } else if (msg.type.endsWith("-report")) {
+            if (--num_children_to_report == 0)
+                finishReportPhase();
+        }
+    });
+    async function createIframes() {
+        const child1 = document.createElement("iframe");
+        child1.src = "resources/child-one.html";
+        child1.id = "child1";
+        await new Promise((resolve) => {
+            child1.onload = resolve;
+            document.body.appendChild(child1);
+        });
+        const childSO = document.createElement("iframe");
+        childSO.id = "child-so";
+        childSO.src = "resources/propagation-sameorigin-child.html";
+        document.body.appendChild(childSO);
+    }
+  </script>
+</head>
+<body onload="createIframes()">
+  <h1>User activation propagation across same-origin frame boundary</h1>
+  <p>Tests that user activation propagates across same-origin frame boundary.</p>
+  <ol id="instructions">
+    <li>Click anywhere on the green area (child frame).
+  </ol>
+</body>
+</html>

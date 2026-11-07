@@ -222,6 +222,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_complete_close_preflight(Web::PageId page_id, u64 request_id, bool approved) =|
     did_change_needs_beforeunload_check(Web::PageId page_id, bool needs_beforeunload_check) =|
     did_consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption consumption) =|
+    did_notify_about_user_activation(Web::PageId page_id, Web::HTML::CrossProcessId document_id) =|
     webdriver_user_prompt_handling_complete(Web::PageId page_id, u64 request_id, Web::WebDriver::Response response) =|
     webdriver_did_set_current_browsing_context(Web::PageId page_id, u64 command_id, Web::HTML::CrossProcessId navigable_id) =|
     webdriver_command_complete(Web::PageId page_id, u64 command_id, Web::WebDriver::Response response) =|

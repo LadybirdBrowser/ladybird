@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Element ready check with enabled flag not set
+1 Pass
+Pass	Element ready check with enabled flag not set

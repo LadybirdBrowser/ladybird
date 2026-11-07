@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Element ready check for child of a fullscreen iframe
+1 Pass
+Pass	Element ready check for child of a fullscreen iframe

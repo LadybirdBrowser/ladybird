@@ -287,6 +287,7 @@ public:
     void set_last_activation_timestamp(HighResolutionTime::DOMHighResTimeStamp timestamp) { m_last_activation_timestamp = timestamp; }
 
     void notify_about_user_activation();
+    static void run_activation_notification_steps(DOM::Document&);
     void consume_user_activation();
 
     HighResolutionTime::DOMHighResTimeStamp last_history_action_activation_timestamp() const { return m_last_history_action_activation_timestamp; }

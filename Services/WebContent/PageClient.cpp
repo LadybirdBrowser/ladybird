@@ -1813,6 +1813,11 @@ void PageClient::page_did_consume_user_activation(Web::HTML::UserActivationConsu
     client().async_did_consume_user_activation(m_id, consumption);
 }
 
+void PageClient::page_did_notify_about_user_activation(Web::HTML::CrossProcessId document_id)
+{
+    client().async_did_notify_about_user_activation(m_id, document_id);
+}
+
 void PageClient::send_current_needs_beforeunload_check()
 {
     client().async_did_change_needs_beforeunload_check(m_id, page().needs_beforeunload_check());
