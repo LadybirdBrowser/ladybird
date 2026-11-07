@@ -1449,7 +1449,6 @@ mod tests {
                 inset_left: None,
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
-                registry_parent_node: viewport_scroll_node,
             }),
             viewport_scroll_node,
         );
@@ -1476,7 +1475,6 @@ mod tests {
                 inset_left: None,
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
-                registry_parent_node: viewport_scroll_node,
             }),
             header_node,
         );
@@ -1526,7 +1524,6 @@ mod tests {
             inset_left: None,
             state_slot: NO_SCROLL_STATE_SLOT,
             owner_paintable: NodeSlotId::INVALID,
-            registry_parent_node: parent_sticky.unwrap_or(scroller),
         })
     }
 
@@ -1629,7 +1626,6 @@ mod tests {
             SpatialData::Sticky(sticky) => SpatialData::Sticky(StickyData {
                 scroller: map(sticky.scroller),
                 parent_sticky: sticky.parent_sticky.map(map),
-                registry_parent_node: map(sticky.registry_parent_node),
                 ..*sticky
             }),
             other => other.clone(),
@@ -1853,7 +1849,6 @@ mod tests {
                 None,
                 NO_SCROLL_STATE_SLOT,
                 NodeSlotId::INVALID,
-                VISUAL_VIEWPORT_NODE_INDEX,
             )),
             VISUAL_VIEWPORT_NODE_INDEX,
         );

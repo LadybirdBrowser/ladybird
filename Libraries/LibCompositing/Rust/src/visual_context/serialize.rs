@@ -396,7 +396,6 @@ fn read_spatial_data(reader: &mut TreeByteReader<'_>) -> Option<SpatialData> {
                 inset_left: reader.optional_f32()?,
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
-                registry_parent_node: parent_sticky.unwrap_or(scroller),
             })
         }
         SPATIAL_KIND_TRANSFORM => SpatialData::Transform(TransformData {
@@ -1015,7 +1014,6 @@ mod tests {
                 inset_left: None,
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
-                registry_parent_node: scroll_node,
             }),
             scroll_node,
         );
@@ -1041,7 +1039,6 @@ mod tests {
                 inset_left: Some(3.0),
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
-                registry_parent_node: scroll_node,
             }),
             outer_sticky,
         );
@@ -1272,7 +1269,6 @@ mod tests {
                 StickyData {
                     state_slot: NO_SCROLL_STATE_SLOT,
                     owner_paintable: b.owner_paintable,
-                    registry_parent_node: b.registry_parent_node,
                     ..*a
                 } == *b
             }
@@ -1528,7 +1524,6 @@ mod tests {
                 None,
                 NO_SCROLL_STATE_SLOT,
                 NodeSlotId::INVALID,
-                target,
             ))
         });
         assert!(VisualContextTree::from_bytes(&encode_tree(&scroller)).is_none());
@@ -1668,7 +1663,6 @@ mod tests {
                 None,
                 NO_SCROLL_STATE_SLOT,
                 NodeSlotId::INVALID,
-                SpatialNodeIndex(1),
             )),
             SpatialNodeIndex(1),
         );
@@ -1766,7 +1760,6 @@ mod tests {
                 Some(SpatialNodeIndex(2)),
                 NO_SCROLL_STATE_SLOT,
                 NodeSlotId::INVALID,
-                VISUAL_VIEWPORT_NODE_INDEX,
             )),
             parent: VISUAL_VIEWPORT_NODE_INDEX,
         };
@@ -1776,7 +1769,6 @@ mod tests {
                 Some(SpatialNodeIndex(1)),
                 NO_SCROLL_STATE_SLOT,
                 NodeSlotId::INVALID,
-                VISUAL_VIEWPORT_NODE_INDEX,
             )),
             parent: VISUAL_VIEWPORT_NODE_INDEX,
         };
@@ -1820,7 +1812,6 @@ mod tests {
             Some(SpatialNodeIndex(1)),
             NO_SCROLL_STATE_SLOT,
             NodeSlotId::INVALID,
-            SpatialNodeIndex(1),
         ));
         assert!(VisualContextTree::from_bytes(&encode_tree(&sticky_parent_is_not_sticky)).is_none());
 

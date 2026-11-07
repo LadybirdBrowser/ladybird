@@ -13,7 +13,7 @@ pub(crate) enum SpatialNodeShape {
     },
     Sticky {
         parent: SpatialNodeIndex,
-        registry_parent_node: SpatialNodeIndex,
+        parent_sticky_or_scroller: SpatialNodeIndex,
     },
     Transform {
         parent: SpatialNodeIndex,
@@ -77,7 +77,7 @@ pub(crate) fn spatial_node_shape(node: &SpatialNode) -> SpatialNodeShape {
         SpatialData::Scroll(_) => SpatialNodeShape::Scroll { parent },
         SpatialData::Sticky(sticky) => SpatialNodeShape::Sticky {
             parent,
-            registry_parent_node: sticky.registry_parent_node,
+            parent_sticky_or_scroller: sticky.parent_sticky_or_scroller(),
         },
         SpatialData::Transform(transform) => SpatialNodeShape::Transform {
             parent,

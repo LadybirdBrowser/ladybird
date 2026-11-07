@@ -254,13 +254,13 @@ pub(crate) fn register_scroll_like_node(
     node_index: SpatialNodeIndex,
 ) -> Option<RegisteredScrollLikeNode> {
     let index = node_index.0 as usize;
-    let (owner_paintable, sticky_registry_parent_node) = match &tree.spatial_nodes[index].data {
+    let (owner_paintable, parent_of_sticky_node) = match &tree.spatial_nodes[index].data {
         SpatialData::Scroll(scroll) => (scroll.owner_paintable, None),
-        SpatialData::Sticky(sticky) => (sticky.owner_paintable, Some(sticky.registry_parent_node)),
+        SpatialData::Sticky(sticky) => (sticky.owner_paintable, Some(sticky.parent_sticky_or_scroller())),
         _ => return None,
     };
-    if let Some(registry_parent_node) = sticky_registry_parent_node {
-        let parent_slot = tree.scroll_state_slot_for_node(registry_parent_node);
+    if let Some(parent_of_sticky_node) = parent_of_sticky_node {
+        let parent_slot = tree.scroll_state_slot_for_node(parent_of_sticky_node);
         let slot = scroll_state.register_sticky_node(node_index, owner_paintable, parent_slot);
         if let SpatialData::Sticky(sticky) = &mut tree.spatial_nodes[index].data {
             sticky.state_slot = slot;

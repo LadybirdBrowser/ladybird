@@ -333,7 +333,6 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
                 parent_sticky,
                 NO_SCROLL_STATE_SLOT,
                 slot,
-                nearest_scroll_like_node,
             )),
         );
         nearest_scroll_like_node_for_descendants = own_state.spatial;
