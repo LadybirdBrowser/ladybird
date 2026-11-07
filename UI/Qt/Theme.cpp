@@ -265,6 +265,39 @@ static ChromeColors derive_chrome(ChromeColors const& neutral, Optional<QColor> 
     return colors;
 }
 
+// https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+static float relative_luminance(QColor const& color)
+{
+    auto linear = [](float channel) { return channel <= 0.04045f ? channel / 12.92f : AK::pow((channel + 0.055f) / 1.055f, 2.4f); };
+    return (0.2126f * linear(color.redF())) + (0.7152f * linear(color.greenF())) + (0.0722f * linear(color.blueF()));
+}
+
+// https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
+static float contrast_ratio(QColor const& a, QColor const& b)
+{
+    auto lighter = max(relative_luminance(a), relative_luminance(b));
+    auto darker = min(relative_luminance(a), relative_luminance(b));
+    return (lighter + 0.05f) / (darker + 0.05f);
+}
+
+enum class Adjustment {
+    Darken,
+    Lighten,
+};
+
+// Steps the color's lightness until it has at least the given contrast with the background.
+static QColor with_contrast(QColor color, QColor const& background, float minimum_ratio, Adjustment adjustment)
+{
+    auto step = adjustment == Adjustment::Darken ? -0.02f : 0.02f;
+    while (contrast_ratio(color, background) < minimum_ratio) {
+        auto lightness = color.lightnessF() + step;
+        if (lightness <= 0 || lightness >= 1)
+            break;
+        color = QColor::fromHslF(color.hslHueF(), color.hslSaturationF(), lightness);
+    }
+    return color;
+}
+
 static PanelColors derive_panel(PanelColors const& neutral, Optional<QColor> const& tint_color, float surface_saturation)
 {
     auto colors = neutral;
@@ -274,6 +307,8 @@ static PanelColors derive_panel(PanelColors const& neutral, Optional<QColor> con
         tint(*surface, *tint_color, surface_saturation);
     for (auto* ink : { &colors.text, &colors.body, &colors.muted, &colors.shortcut })
         tint(*ink, *tint_color, INK_TINT_SATURATION);
+    // NB: The tint can take the shortcuts, which are as small as other text, below what text needs on the panel.
+    colors.shortcut = with_contrast(colors.shortcut, colors.surface, 4.5f, colors.surface.lightnessF() < 0.5f ? Adjustment::Lighten : Adjustment::Darken);
     return colors;
 }
 
@@ -384,39 +419,6 @@ static AccentColor const& system_accent_color()
             closest = &accent;
     }
     return *closest;
-}
-
-// https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
-static float relative_luminance(QColor const& color)
-{
-    auto linear = [](float channel) { return channel <= 0.04045f ? channel / 12.92f : AK::pow((channel + 0.055f) / 1.055f, 2.4f); };
-    return (0.2126f * linear(color.redF())) + (0.7152f * linear(color.greenF())) + (0.0722f * linear(color.blueF()));
-}
-
-// https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
-static float contrast_ratio(QColor const& a, QColor const& b)
-{
-    auto lighter = max(relative_luminance(a), relative_luminance(b));
-    auto darker = min(relative_luminance(a), relative_luminance(b));
-    return (lighter + 0.05f) / (darker + 0.05f);
-}
-
-enum class Adjustment {
-    Darken,
-    Lighten,
-};
-
-// Steps the color's lightness until it has at least the given contrast with the background.
-static QColor with_contrast(QColor color, QColor const& background, float minimum_ratio, Adjustment adjustment)
-{
-    auto step = adjustment == Adjustment::Darken ? -0.02f : 0.02f;
-    while (contrast_ratio(color, background) < minimum_ratio) {
-        auto lightness = color.lightnessF() + step;
-        if (lightness <= 0 || lightness >= 1)
-            break;
-        color = QColor::fromHslF(color.hslHueF(), color.hslSaturationF(), lightness);
-    }
-    return color;
 }
 
 // The theme's accent clears 3:1 on the toolbar, darker on the light appearance and lighter on the dark one.
