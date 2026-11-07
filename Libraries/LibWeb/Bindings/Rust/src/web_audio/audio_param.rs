@@ -42,7 +42,6 @@ pub(crate) struct AudioParam {
     render_param: Arc<RenderAudioParam>,
 
     // https://webaudio.github.io/web-audio-api/#dom-audioparam-current-value-slot
-    current_value: Cell<f32>, //  [[current value]]
     default_value: f32,
     min_value: f32,
     max_value: f32,
@@ -94,7 +93,6 @@ impl AudioParam {
                 owner: Cell::new(owner),
                 timeline,
                 render_param,
-                current_value: Cell::new(default_value),
                 default_value,
                 min_value,
                 max_value,
@@ -130,22 +128,15 @@ impl AudioParam {
     pub(crate) fn value(&self, _: &mut CallContext) -> WebIdlResult<f32> {
         // Each AudioParam includes minValue and maxValue attributes that together form the simple nominal range
         // for the parameter. In effect, value of the parameter is clamped to the range [minValue, maxValue].
-        if self.timeline.has_events() {
-            return Ok(clamp(
-                self.timeline.value_at_time(self.current_time()),
-                self.min_value,
-                self.max_value,
-            ));
-        }
-        Ok(clamp(self.current_value.get(), self.min_value, self.max_value))
+        Ok(clamp(self.timeline.current_value(), self.min_value, self.max_value))
     }
 
     // https://webaudio.github.io/web-audio-api/#dom-audioparam-value
     pub(crate) fn set_value(this: &Ref<Self>, cx: &mut CallContext, value: f32) -> WebIdlResult<()> {
         // Setting this attribute has the effect of assigning the requested value to the [[current value]] slot, and calling
         // the setValueAtTime() method with the current AudioContext's currentTime and [[current value]].
-        this.current_value.set(value);
-        Self::set_value_at_time(this, cx, this.current_value.get(), this.current_time())?;
+        this.timeline.set_current_value(value);
+        Self::set_value_at_time(this, cx, value, this.current_time())?;
         Ok(())
     }
 
@@ -239,7 +230,7 @@ impl AudioParam {
         this.map_insert_result(
             cx.vm(),
             this.timeline
-                .linear_ramp_to_value_at_time(value, end_time, current_time, this.current_value.get()),
+                .linear_ramp_to_value_at_time(value, end_time, current_time, this.timeline.current_value()),
         )?;
         Ok(*this)
     }
@@ -266,8 +257,12 @@ impl AudioParam {
         end_time = max(end_time, current_time);
         this.map_insert_result(
             cx.vm(),
-            this.timeline
-                .exponential_ramp_to_value_at_time(value, end_time, current_time, this.current_value.get()),
+            this.timeline.exponential_ramp_to_value_at_time(
+                value,
+                end_time,
+                current_time,
+                this.timeline.current_value(),
+            ),
         )?;
         Ok(*this)
     }

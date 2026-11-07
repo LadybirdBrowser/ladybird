@@ -55,8 +55,9 @@ impl ParameterizationCache {
     }
 }
 
-#[derive(Default)]
 struct TimelineState {
+    current_value: f32,
+    fallback_value: f32,
     // https://webaudio.github.io/web-audio-api/#dfn-automation-event
     automation_events: Vec<AutomationEvent>,
     next_event_id: usize,
@@ -77,7 +78,13 @@ impl AudioParamTimeline {
     pub fn new(default_value: f32) -> Self {
         Self {
             default_value,
-            mutex: Mutex::new(TimelineState::default()),
+            mutex: Mutex::new(TimelineState {
+                current_value: default_value,
+                fallback_value: default_value,
+                automation_events: Vec::new(),
+                next_event_id: 0,
+                parameterization_cache: None,
+            }),
         }
     }
 
@@ -85,24 +92,29 @@ impl AudioParamTimeline {
         self.default_value
     }
 
-    // https://webaudio.github.io/web-audio-api/#computedvalue
-    pub fn value_at_time(&self, time: f64) -> f32 {
-        let mut state = self.mutex.lock().unwrap();
-        state.value_at_time_locked(self.default_value, time, time)
+    pub fn current_value(&self) -> f32 {
+        self.mutex.lock().unwrap().current_value
     }
 
-    // Evaluates the intrinsic value for each sample frame of a render quantum starting at start_time.
+    pub fn set_current_value(&self, value: f32) {
+        let mut state = self.mutex.lock().unwrap();
+        state.current_value = value;
+        state.fallback_value = value;
+        state.parameterization_cache = None;
+    }
+
+    // https://webaudio.github.io/web-audio-api/#computedvalue
+    pub fn value_at_time(&self, time: f64) -> f32 {
+        self.mutex.lock().unwrap().value_at_time_locked(time, time)
+    }
+
     pub fn sample(&self, start_time: f64, sample_period: f64, output: &mut [f32]) {
         let mut state = self.mutex.lock().unwrap();
         for (frame, value) in output.iter_mut().enumerate() {
             let frame_time = start_time + frame as f64 * sample_period;
-            *value = state.value_at_time_locked(self.default_value, frame_time + sample_period / 2., frame_time);
+            *value = state.value_at_time_locked(frame_time + sample_period / 2., frame_time);
         }
-    }
-
-    pub fn has_events(&self) -> bool {
-        let state = self.mutex.lock().unwrap();
-        !state.automation_events.is_empty()
+        state.current_value = output[0];
     }
 
     // All event times passed into these methods must already be clamped to the context's current time by the caller.
@@ -127,7 +139,7 @@ impl AudioParamTimeline {
         // If there is no event preceding this event, the linear ramp behaves as if setValueAtTime(value, currentTime) were
         // called, where value is the current value of the attribute.
         let event_index = state.first_event_index_after(end_time);
-        let ramp_start = state.ramp_start_for_insertion_index(self.default_value, event_index, current_time);
+        let ramp_start = state.ramp_start_for_insertion_index(state.fallback_value, event_index, current_time);
         if event_index == 0 {
             let result = state.insert_event(AutomationEvent {
                 time: current_time,
@@ -159,7 +171,7 @@ impl AudioParamTimeline {
         // If there is no event preceding this event, the exponential ramp behaves as if setValueAtTime(value, currentTime)
         // were called, where value is the current value of the attribute.
         let event_index = state.first_event_index_after(end_time);
-        let ramp_start = state.ramp_start_for_insertion_index(self.default_value, event_index, current_time);
+        let ramp_start = state.ramp_start_for_insertion_index(state.fallback_value, event_index, current_time);
         if event_index == 0 {
             let result = state.insert_event(AutomationEvent {
                 time: current_time,
@@ -230,6 +242,9 @@ impl AudioParamTimeline {
 
         if first_event_to_remove < state.automation_events.len() {
             state.automation_events.truncate(first_event_to_remove);
+            if state.automation_events.is_empty() {
+                state.fallback_value = state.current_value;
+            }
         }
         state.parameterization_cache = None;
     }
@@ -237,7 +252,7 @@ impl AudioParamTimeline {
     pub fn cancel_and_hold_at_time(&self, cancel_time: f64) {
         let mut state = self.mutex.lock().unwrap();
 
-        let value_to_hold = state.value_at_time_locked(self.default_value, cancel_time, cancel_time);
+        let value_to_hold = state.value_at_time_locked(cancel_time, cancel_time);
         let event_index = state.first_event_index_after(cancel_time);
 
         // If the event immediately after cancelTime is a ramp, rewrite it to end at cancelTime with the value from the
@@ -268,9 +283,9 @@ impl AudioParamTimeline {
                     if active_event.time == cancel_time {
                         drop_active_curve = true;
                         Some(if event_index >= 2 {
-                            state.event_value_at_time(self.default_value, event_index - 2, cancel_time)
+                            state.event_value_at_time(state.fallback_value, event_index - 2, cancel_time)
                         } else {
-                            self.default_value
+                            state.fallback_value
                         })
                     } else if cancel_time <= active_event.time + duration {
                         Some(value_to_hold)
@@ -307,14 +322,12 @@ impl AudioParamTimeline {
 }
 
 impl TimelineState {
-    fn value_at_time_locked(&mut self, default_value: f32, selection_time: f64, time: f64) -> f32 {
-        // paramIntrinsicValue will be calculated at each time, which is either the value set directly to the value
-        // attribute, or, if there are any automation events with times before or at this time, the value as calculated from
-        // these events.
+    fn value_at_time_locked(&mut self, selection_time: f64, time: f64) -> f32 {
         // NB: The governing automation event is selected using selection_time, which render quantum sampling sets half a
         //     frame ahead of the evaluation time so events take effect at the nearest sample frame of their scheduled time
         //     rather than the next frame when floating-point rounding pushes them past the exact frame time.
-        let cache = self.parameterization_cache_for_time(default_value, selection_time);
+        let fallback_value = self.fallback_value;
+        let cache = self.parameterization_cache_for_time(fallback_value, selection_time);
         let Some(event_index) = cache.event_index else {
             return cache.starting_value;
         };
@@ -358,7 +371,7 @@ impl TimelineState {
                     + (cache.starting_value - target)
                         * math::exp(-(time - event.time) / f64::from(*time_constant)) as f32
             }
-            Parameterization::SetValueCurve { .. } => self.event_value_at_time(default_value, event_index, time),
+            Parameterization::SetValueCurve { .. } => self.event_value_at_time(fallback_value, event_index, time),
         }
     }
 

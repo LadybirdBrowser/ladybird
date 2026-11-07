@@ -1,0 +1,3 @@
+Intrinsic gain before rendering: 2
+Intrinsic gain after rendering: 2
+Every sample uses the retained gain: true
