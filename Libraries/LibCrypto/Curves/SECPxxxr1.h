@@ -7,15 +7,32 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/ByteBuffer.h>
+#include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/ASN1/DER.h>
 
 namespace {
 
-// Used by ASN1 macros
-static String s_error_string;
+// Used by ASN1 macros, whose errors are views of it. It keeps the text of the last error of a thread, cut to fit.
+// NB: Not a String, so that it needs no destructor and a thread that ends leaves nothing behind.
+struct ASN1ErrorString {
+    ASN1ErrorString& operator=(String const& text)
+    {
+        m_length = min(text.bytes().size(), m_buffer.size());
+        text.bytes().trim(m_length).copy_to(m_buffer);
+        return *this;
+    }
+
+    StringView bytes_as_string_view() const { return StringView { m_buffer.span().trim(m_length) }; }
+
+    Array<u8, 512> m_buffer {};
+    size_t m_length { 0 };
+};
+
+static thread_local ASN1ErrorString s_error_string;
 
 }
 
