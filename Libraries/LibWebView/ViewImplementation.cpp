@@ -2777,6 +2777,14 @@ void ViewImplementation::exit_fullscreen()
     page().async_exit_fullscreen();
 }
 
+// NB: Only the page whose fullscreen request is waiting acts on the refusal. The tab's other pages ignore it.
+void ViewImplementation::deny_fullscreen_window()
+{
+    traversable().for_each_hosting_page([](WebContentPage& page) {
+        page.async_deny_fullscreen_window();
+    });
+}
+
 void ViewImplementation::set_is_fullscreen(Web::ViewportIsFullscreen is_fullscreen)
 {
     if (m_is_fullscreen == is_fullscreen)
