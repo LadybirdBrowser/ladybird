@@ -84,7 +84,7 @@ private:
 
     u64 m_host_child_id { 0 };
     WeakPtr<WebContentClient> m_host;
-    bool m_holds_image_decoder_client { false };
+    Optional<u64> m_image_decoder_client_generation;
     Web::HTML::WorkerAgentId m_agent_id { 0 };
     Vector<URL::Origin> m_permission_origins;
 

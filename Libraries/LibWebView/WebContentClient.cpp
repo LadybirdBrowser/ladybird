@@ -1205,19 +1205,20 @@ void WebContentClient::did_host_document_of_site(Utf16String site)
     m_site_of_hosted_documents = move(site);
 }
 
-Optional<IPC::TransportHandle> WebContentClient::connect_new_image_decoder_client()
+Optional<IPC::TransportHandle> WebContentClient::connect_new_image_decoder_client(Optional<u64>& client_generation)
 {
-    return ImageDecoderManager::the().connect_requesting_process(child_id(), m_session, m_site_of_hosted_documents);
+    return ImageDecoderManager::the().connect_requesting_process(child_id(), m_session, m_site_of_hosted_documents, client_generation);
 }
 
 Messages::WebContentClient::RequestImageDecoderConnectionResponse WebContentClient::request_image_decoder_connection()
 {
-    return connect_new_image_decoder_client();
+    return connect_new_image_decoder_client(m_image_decoder_client_generation);
 }
 
 void WebContentClient::did_release_image_decoder()
 {
-    ImageDecoderManager::the().process_did_release_decoder(child_id());
+    if (auto generation = exchange(m_image_decoder_client_generation, {}); generation.has_value())
+        ImageDecoderManager::the().process_did_release_decoder(child_id(), *generation);
 }
 
 Optional<u64> WebContentClient::exclusive_performance_owner() const

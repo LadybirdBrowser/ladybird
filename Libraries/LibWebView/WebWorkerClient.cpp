@@ -61,8 +61,8 @@ void WebWorkerClient::die()
     WorkerProcessManager::the().worker_did_die(m_agent_id);
 
     // NB: The process of a worker on a thread goes on, and so may its use of the decoder.
-    if (m_holds_image_decoder_client)
-        ImageDecoderManager::the().process_did_release_decoder(child_id());
+    if (m_image_decoder_client_generation.has_value())
+        ImageDecoderManager::the().process_did_release_decoder(child_id(), *m_image_decoder_client_generation);
 
     WorkerProcessManager::the().worker_thread_did_exit(*this);
 
@@ -206,15 +206,13 @@ Messages::WebWorkerClient::RequestImageDecoderConnectionResponse WebWorkerClient
     auto host = m_host.strong_ref();
     if (!host)
         return Optional<IPC::TransportHandle> {};
-    auto handle = host->connect_new_image_decoder_client();
-    m_holds_image_decoder_client |= handle.has_value();
-    return handle;
+    return host->connect_new_image_decoder_client(m_image_decoder_client_generation);
 }
 
 void WebWorkerClient::did_release_image_decoder()
 {
-    m_holds_image_decoder_client = false;
-    ImageDecoderManager::the().process_did_release_decoder(child_id());
+    if (auto generation = exchange(m_image_decoder_client_generation, {}); generation.has_value())
+        ImageDecoderManager::the().process_did_release_decoder(child_id(), *generation);
 }
 
 Messages::WebWorkerClient::RequestCompositorConnectionResponse WebWorkerClient::request_compositor_connection()
