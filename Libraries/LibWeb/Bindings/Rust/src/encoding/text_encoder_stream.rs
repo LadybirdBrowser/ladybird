@@ -170,7 +170,7 @@ impl TransformSteps for Encoder {
                     let chunk = create_uint8_array(cx, &output)?;
 
                     // 2. Enqueue chunk into encoder's transform.
-                    TransformStream::enqueue(transform, cx.vm(), Value::from_object(chunk));
+                    TransformStream::enqueue(transform, cx.vm(), Value::from_object(chunk))?;
                 }
 
                 // 3. Return.
@@ -199,7 +199,7 @@ impl TransformSteps for Encoder {
             let chunk = create_uint8_array(cx, &REPLACEMENT_CHARACTER_UTF8_BYTES)?;
 
             // 2. Enqueue chunk into encoder's transform.
-            TransformStream::enqueue(transform, cx.vm(), Value::from_object(chunk));
+            TransformStream::enqueue(transform, cx.vm(), Value::from_object(chunk))?;
         }
         Ok(())
     }

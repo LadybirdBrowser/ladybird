@@ -1271,7 +1271,9 @@ pub(crate) fn readable_byte_stream_controller_process_read_requests_using_queue(
 
         // 2. Let readRequest be reader.[[readRequests]][0].
         // 3. Remove readRequest from reader.[[readRequests]].
-        let read_request = reader.take_first_read_request(cx.vm());
+        let read_request = reader
+            .take_first_read_request(cx.vm())
+            .expect("the list of read requests is not empty");
 
         // 4. Perform ! ReadableByteStreamControllerFillReadRequestFromQueue(controller, readRequest).
         readable_byte_stream_controller_fill_read_request_from_queue(cx, controller, read_request);

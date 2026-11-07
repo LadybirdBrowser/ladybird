@@ -477,7 +477,8 @@ pub(crate) fn writable_stream_default_controller_get_chunk_size(
     // 1. If controller.[[strategySizeAlgorithm]] is undefined, then:
     let Some(strategy_size_algorithm) = controller.strategy_size_algorithm() else {
         // 1. Assert: controller.[[stream]].[[state]] is not "writable".
-        assert!(controller.stream().state() != WritableStreamState::Writable);
+        // AD-HOC: This does not hold: closing clears the algorithms, and the stream is "writable" until the sink closed.
+        //         A write in that time gets here on its way to being rejected.
 
         // 2. Return 1.
         return Value::from_f64(1.0);

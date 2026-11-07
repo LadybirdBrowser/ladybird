@@ -121,7 +121,7 @@ impl TransformSteps for DecompressionContext {
             let array = create_uint8_array(cx, &buffer)?;
 
             // 5. For each Uint8Array array of arrays, enqueue array in ds's transform.
-            TransformStream::enqueue(transform, cx.vm(), Value::from_object(array));
+            TransformStream::enqueue(transform, cx.vm(), Value::from_object(array))?;
         }
 
         // 6. If the end of the compressed input has been reached, and ds's context has not fully consumed chunk, then
@@ -152,7 +152,7 @@ impl TransformSteps for DecompressionContext {
             let array = create_uint8_array(cx, &buffer)?;
 
             // 2. For each Uint8Array array of arrays, enqueue array in ds's transform.
-            TransformStream::enqueue(transform, cx.vm(), Value::from_object(array));
+            TransformStream::enqueue(transform, cx.vm(), Value::from_object(array))?;
         }
 
         // 3. If the end of the compressed input has not been reached, then throw a TypeError.

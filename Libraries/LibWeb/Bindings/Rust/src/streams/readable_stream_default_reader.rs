@@ -87,11 +87,8 @@ impl ReadableStreamDefaultReader {
     }
 
     /// Removes the first of the reader's [[readRequests]], which are not empty.
-    pub(crate) fn take_first_read_request(&self, vm: &Vm) -> ReadRequest {
-        self.read_requests
-            .borrow_mut(vm)
-            .pop_front()
-            .expect("the reader has a read request")
+    pub(crate) fn take_first_read_request(&self, vm: &Vm) -> Option<ReadRequest> {
+        self.read_requests.borrow_mut(vm).pop_front()
     }
 
     pub(crate) fn read_requests_len(&self) -> usize {
