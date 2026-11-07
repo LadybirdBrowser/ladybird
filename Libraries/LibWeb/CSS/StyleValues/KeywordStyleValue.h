@@ -20,13 +20,14 @@ public:
     static ValueComparingNonnullRefPtr<KeywordStyleValue const> create(Keyword keyword)
     {
         // Keyword values are immutable and the keyword set is small, so every keyword is
-        // interned: one instance per keyword for the lifetime of the process. Repeated
-        // creations are then allocation-free, and identical keywords are pointer-identical.
+        // interned: one instance per keyword for the lifetime of the process, for all of its
+        // threads. Repeated creations are then allocation-free, and identical keywords are
+        // pointer-identical.
         static auto const& instances = *[] {
             auto* instances = new (nothrow) Vector<NonnullRefPtr<KeywordStyleValue const>>();
             instances->ensure_capacity(number_of_keywords);
             for (size_t i = 0; i < number_of_keywords; ++i)
-                instances->unchecked_append(adopt_ref(*new (nothrow) KeywordStyleValue(static_cast<Keyword>(i))));
+                instances->unchecked_append(*make_immortal(new (nothrow) KeywordStyleValue(static_cast<Keyword>(i))));
             return instances;
         }();
         return instances[to_underlying(keyword)];

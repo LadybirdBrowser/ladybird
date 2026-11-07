@@ -21,11 +21,11 @@ public:
         // Zero and one dominate real-world number values (opacity, alpha, flex factors), so
         // those two are interned.
         if (value == 0 && !signbit(value)) {
-            static auto const& zero_instance = adopt_ref(*new (nothrow) NumberStyleValue(0.0)).leak_ref();
+            static auto const& zero_instance = *make_immortal(new (nothrow) NumberStyleValue(0.0));
             return zero_instance;
         }
         if (value == 1) {
-            static auto const& one_instance = adopt_ref(*new (nothrow) NumberStyleValue(1)).leak_ref();
+            static auto const& one_instance = *make_immortal(new (nothrow) NumberStyleValue(1));
             return one_instance;
         }
         return adopt_ref(*new (nothrow) NumberStyleValue(value));

@@ -24,7 +24,7 @@ public:
                 auto* instances = new (nothrow) Vector<NonnullRefPtr<IntegerStyleValue const>>();
                 instances->ensure_capacity(last_interned_value - first_interned_value + 1);
                 for (i32 interned_value = first_interned_value; interned_value <= last_interned_value; ++interned_value)
-                    instances->unchecked_append(adopt_ref(*new (nothrow) IntegerStyleValue(interned_value)));
+                    instances->unchecked_append(*make_immortal(new (nothrow) IntegerStyleValue(interned_value)));
                 return instances;
             }();
             return instances[value - first_interned_value];
