@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
 #include <AK/ByteString.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
@@ -26,6 +27,8 @@
 
 namespace Web {
 
+// Each agent has a loader of its own, which holds its connections to the RequestServer and its requests, and only its
+// thread can use it. The static settings are the process's.
 class WEB_API ResourceLoader : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(ResourceLoader)
 
@@ -33,7 +36,7 @@ public:
     static void initialize(GC::Heap&);
     static bool is_initialized();
 
-    // Forgets the loader, once its requests are stopped.
+    // Forgets the loader of this agent, once its requests are stopped.
     static void shut_down();
     static ResourceLoader& the();
 
@@ -66,9 +69,6 @@ public:
 
     static bool is_known_hsts_host(Page&, String const& host);
 
-    String const& platform() const { return m_platform; }
-    void set_platform(String platform) { m_platform = move(platform); }
-
     // The engine the navigator claims to be. A process-wide setting, readable before the loader exists: the bindings
     // consult it while they build a realm's global object.
     static NavigatorCompatibilityMode navigator_compatibility_mode() { return s_navigator_compatibility_mode; }
@@ -99,8 +99,7 @@ private:
     HashMap<Utf16String, RefPtr<Requests::RequestClient>> m_site_request_clients;
     HashTable<NonnullRefPtr<Requests::Request>> m_active_requests;
 
-    String m_platform;
-    static NavigatorCompatibilityMode s_navigator_compatibility_mode;
+    static Atomic<NavigatorCompatibilityMode, AK::MemoryOrder::memory_order_relaxed> s_navigator_compatibility_mode;
 };
 
 }
