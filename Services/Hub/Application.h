@@ -26,17 +26,12 @@ public:
 
     // The platform's own, if it has one.
     virtual OwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() = 0;
-    virtual OwnPtr<WebView::NotificationBackend> create_notification_backend() = 0;
 
     virtual void create_platform_actions() = 0;
     virtual Optional<String> ui_font_family() const = 0;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const = 0;
     virtual Optional<String> system_font_family() const = 0;
-    virtual void focus_page_from_notification(WebView::WebContentPage& page) = 0;
-    virtual void open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId originating_page, WebView::CanonicalTraversable* canonical_traversable, WebView::IsPrivate is_private) = 0;
     virtual bool supports_picture_in_picture() const = 0;
-    virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::ViewImplementation& owner_view, u64 view_id, Gfx::IntSize video_size) = 0;
-    virtual void resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const = 0;
     virtual bool supports_clipboard_type(WebView::Application::ClipboardType type) const = 0;
     virtual bool supports_system_menu_bar() const = 0;
     virtual bool supports_vertical_tabs() const = 0;
@@ -64,6 +59,9 @@ public:
     void destroy_all_views() { m_views.clear(); }
 
     void set_active_view(Optional<u64> view_id);
+    void did_resolve_external_url_handler(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird);
+    void launch_external_url(u64 handler_id, URL::URL const&, Function<void(bool)>) const;
+    void did_launch_external_url(u64 request_id, bool launched);
     void did_read_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark>);
     void did_get_bookmark_dialog_result(u64 request_id, Optional<Hub::BookmarkDialogResult>);
     void set_bookmark_context_menu_item(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id);
@@ -143,6 +141,8 @@ private:
     mutable HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_download_paths;
     mutable HashMap<u64, Function<void(Vector<WebView::BookmarkItem::Bookmark>)>> m_pending_bookmarks_for_all_tabs;
     mutable HashMap<u64, NonnullRefPtr<BookmarkPromise>> m_pending_bookmark_dialogs;
+    mutable HashMap<u64, WebView::ExternalURLHandlerCallback> m_pending_external_url_handlers;
+    mutable HashMap<u64, Function<void(bool)>> m_pending_external_url_launches;
     mutable u64 m_next_ui_request_id { 1 };
 
     NonnullRefPtr<BookmarkPromise> display_bookmark_dialog(BookmarkDialogKind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id) const;

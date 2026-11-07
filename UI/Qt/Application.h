@@ -165,12 +165,16 @@ private:
     void show_bookmark_popover();
     virtual Optional<String> system_font_family() const override;
 
-    virtual OwnPtr<WebView::NotificationBackend> create_notification_backend() override;
-    virtual void focus_page_from_notification(WebView::WebContentPage&) override;
-    virtual void open_url_in_new_tab_from_notification(URL::URL const&, Web::PageId originating_page, WebView::CanonicalTraversable*, WebView::IsPrivate) override;
+    OwnPtr<WebView::NotificationBackend> create_notification_backend();
+    WebView::NotificationBackend& notification_backend();
+    void focus_view_from_notification(u64 view_id);
+    void open_url_in_new_tab_from_notification(URL::URL const&, Optional<u64> view_id, WebView::IsPrivate);
 
     virtual bool supports_picture_in_picture() const override { return true; }
-    virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::ViewImplementation& owner_view, u64 view_id, Gfx::IntSize video_size) override;
+    void open_picture_in_picture_window(u64 view_id, u64 owner_view_id, Gfx::IntSize video_size);
+    void hide_picture_in_picture_window(u64 view_id);
+    void set_picture_in_picture_video_size(u64 view_id, Gfx::IntSize);
+    void close_picture_in_picture_window(u64 view_id);
 
     Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const;
     Tab* activate_tab_with_url(URL::URL const&, URL::ExcludeFragment) const;
@@ -183,7 +187,10 @@ private:
     void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab) const;
     void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor, WebView::IsPrivate);
 
-    virtual void resolve_external_url_handler(URL::URL const&, WebView::ExternalURLHandlerCallback) const override;
+    void resolve_external_url_handler(URL::URL const&, WebView::ExternalURLHandlerCallback) const;
+    void resolve_external_url_handler_for_hub(u64 request_id, URL::URL const&);
+    void launch_external_url(u64 handler_id, u64 request_id, URL::URL const&);
+    void release_external_url_handler(u64 handler_id);
 
     void ask_user_for_download_path(u64 request_id, ByteString const& file) const;
     void display_download_confirmation_dialog(StringView download_name, ByteString const& path) const;
@@ -239,6 +246,10 @@ private:
     RefPtr<Hub::ConnectionFromUI> m_connection_from_ui;
     RefPtr<HubConnection> m_hub_connection;
     OwnPtr<QApplication> m_application;
+    HashMap<u64, NonnullOwnPtr<WebView::PictureInPictureWindow>> m_picture_in_picture_windows;
+    OwnPtr<WebView::NotificationBackend> m_notification_backend;
+    HashMap<u64, NonnullRefPtr<WebView::ExternalURLHandler>> m_external_url_handlers;
+    u64 m_next_external_url_handler_id { 1 };
     BrowserWindow* m_active_window { nullptr };
     OwnPtr<ProcessManagerWindow> m_process_manager_window;
 

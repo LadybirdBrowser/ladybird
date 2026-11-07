@@ -118,6 +118,13 @@ View::InitialState View::initial_state_for_related_view() const
     };
 }
 
+Gfx::IntSize View::screen_size() const
+{
+    if (!m_screen_rects.has_value() || m_screen_rects->main_screen_index >= m_screen_rects->available_rects.size())
+        return m_viewport_size.to_type<int>();
+    return m_screen_rects->available_rects[m_screen_rects->main_screen_index].size().to_type<int>();
+}
+
 void View::set_viewport(Web::DevicePixelSize size, double device_pixel_ratio)
 {
     m_viewport_size = size;

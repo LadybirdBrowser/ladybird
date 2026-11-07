@@ -47,6 +47,14 @@ private:
     virtual void download_removed(u64 id, WebView::IsPrivate) override;
 
     // ^HubServerEndpoint
+    virtual void pip_did_resize(u64 view_id, Gfx::IntSize size) override;
+    virtual void pip_did_close(u64 view_id, bool video_keeps_playing) override;
+    virtual void notification_shown(u64 id) override;
+    virtual void notification_failed(u64 id) override;
+    virtual void notification_clicked(u64 id) override;
+    virtual void notification_closed(u64 id, bool by_user) override;
+    virtual void external_url_handler_resolved(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird) override;
+    virtual void external_url_launched(u64 request_id, bool launched) override;
     virtual void omnibox_open(u64 client_id, WebView::IsPrivate is_private) override;
     virtual void omnibox_close(u64 client_id) override;
     virtual void omnibox_query(u64 client_id, u64 query_id, String query, u64 max_suggestions) override;
