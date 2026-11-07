@@ -1,0 +1,3 @@
+sync XHR: survived
+WebSocket: survived
+EventSource: survived

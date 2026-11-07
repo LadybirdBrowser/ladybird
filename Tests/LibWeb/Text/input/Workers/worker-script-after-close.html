@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const SCRIPTS = {
+        "sync XHR": `
+            close();
+            const request = new XMLHttpRequest();
+            request.open("GET", "data:text/plain,hi", false);
+            request.send();
+            postMessage("reached the end");
+        `,
+        WebSocket: `
+            close();
+            new WebSocket("ws://127.0.0.1:1");
+            postMessage("reached the end");
+        `,
+        EventSource: `
+            new EventSource("data:text/plain,hi");
+            close();
+            postMessage("reached the end");
+        `,
+    };
+
+    // NB: The worker closed, so its messages may or may not arrive. A page that gets to its end did not go down with it.
+    promiseTest(async () => {
+        for (const [name, script] of Object.entries(SCRIPTS)) {
+            const worker = new Worker(URL.createObjectURL(new Blob([script], { type: "text/javascript" })));
+            worker.onerror = event => event.preventDefault();
+            await waitForCondition(() => internals.workerAgentCount() === 0, 5000, 1);
+            println(`${name}: survived`);
+        }
+    });
+</script>
