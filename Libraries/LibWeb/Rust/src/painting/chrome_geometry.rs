@@ -477,6 +477,36 @@ pub(crate) struct ScrollbarColors {
     pub track: Color,
 }
 
+/// The color behind what `slot` paints, as far as background colors tell: the canvas's, with the backgrounds of `slot`
+/// and its ancestors composited over it. Background images, and content of other boxes painted underneath, don't count.
+pub(crate) fn estimated_backdrop_color(
+    arena: &impl PaintRead,
+    slot: NodeSlotId,
+    root_background_source: RootBackgroundSource,
+    canvas_background_color: Color,
+) -> Color {
+    let mut ancestors = Vec::new();
+    let mut current = Some(slot);
+    while let Some(ancestor) = current {
+        ancestors.push(ancestor);
+        current = arena.node_parent_if_live(ancestor);
+    }
+    let mut background_color = canvas_background_color;
+    for ancestor in ancestors.into_iter().rev() {
+        if is_canvas_background_source(arena, ancestor, root_background_source) {
+            continue;
+        }
+        let Some(style) = arena.node_style_if_live(ancestor) else {
+            continue;
+        };
+        let color = Color(style.background_color());
+        if color.alpha() != 0 {
+            background_color = background_color.blend(color);
+        }
+    }
+    background_color
+}
+
 pub(crate) fn scrollbar_colors_for_paint(
     arena: &impl PaintRead,
     slot: NodeSlotId,
@@ -509,25 +539,7 @@ pub(crate) fn scrollbar_colors_for_paint(
         };
     }
 
-    let mut ancestors = Vec::new();
-    let mut current = Some(slot);
-    while let Some(ancestor) = current {
-        ancestors.push(ancestor);
-        current = arena.node_parent_if_live(ancestor);
-    }
-    let mut background_color = canvas_background_color;
-    for ancestor in ancestors.into_iter().rev() {
-        if is_canvas_background_source(arena, ancestor, root_background_source) {
-            continue;
-        }
-        let Some(style) = arena.node_style_if_live(ancestor) else {
-            continue;
-        };
-        let color = Color(style.background_color());
-        if color.alpha() != 0 {
-            background_color = background_color.blend(color);
-        }
-    }
+    let background_color = estimated_backdrop_color(arena, slot, root_background_source, canvas_background_color);
     let black_thumb = Color::from_rgb(0, 0, 0).with_alpha(128);
     let white_thumb = Color::from_rgb(255, 255, 255).with_alpha(128);
     let black_contrast = background_color.contrast_ratio(background_color.blend(black_thumb));

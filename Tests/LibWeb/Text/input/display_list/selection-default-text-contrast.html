@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #off-black { color: #1a1a2e; }
+    #light { color: #f4f4f4; }
+    #decorated { color: #1a1a2e; }
+    #decorated::selection { text-decoration: underline; }
+</style>
+<p><span id="off-black">Off-black text</span></p>
+<p><span id="light">Light text</span></p>
+<p><span id="decorated">Off-black text with a decorated selection</span></p>
+<script>
+test(() => {
+    const selection = window.getSelection();
+    const color = line => line.match(/color=(rgba?\([^)]*\))/)[1];
+    for (const id of ["off-black", "light", "decorated"]) {
+        const span = document.getElementById(id);
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const rect = span.getBoundingClientRect();
+        const at = `rect=[${Math.round(rect.left)},${Math.round(rect.top)} `;
+        const lines = internals.dumpDisplayList().split("\n").filter(line => line.includes(at));
+        const background = color(lines.find(line => line.includes("FillRect")));
+        const text = color(lines.find(line => line.includes("DrawGlyphRun")));
+        println(`${id}: selection ${background}, text ${text}`);
+    }
+});
+</script>
