@@ -216,7 +216,7 @@ QString style_sheet_color(QColor const& color)
     return qformatted("rgb({}, {}, {})", color.red(), color.green(), color.blue());
 }
 
-QString application_style_sheet(QPalette const&)
+QString menu_zoom_row_style_sheet()
 {
     auto const& panel = Theme::panel();
     auto button_background = over(panel.control, panel.surface);

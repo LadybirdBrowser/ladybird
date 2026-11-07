@@ -25,7 +25,6 @@
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BookmarkDialog.h>
 #include <UI/Qt/ChromeLayout.h>
-#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/ExternalURLHandler.h>
 #include <UI/Qt/Menu.h>
@@ -242,7 +241,6 @@ public:
         setQuitOnLastWindowClosed(false);
         install_appkit_event_capture();
 #endif
-        update_chrome_style();
         installEventFilter(&m_plain_text_event_filter);
 
         // Suppress some warnings that end up flooding the console when Orca is in use. QSpiAccessibleBridge logs both
@@ -303,8 +301,6 @@ public:
         }
 
         auto handled = QApplication::event(event);
-        if (event_type == QEvent::ApplicationPaletteChange || event_type == QEvent::ThemeChange)
-            update_chrome_style();
 
 #if defined(AK_OS_MACOS)
         if (event_type == QEvent::ApplicationActivate && !has_visible_browser_window())
@@ -540,11 +536,6 @@ private:
         }
     }
 #endif
-
-    void update_chrome_style()
-    {
-        setStyleSheet(ChromeStyle::application_style_sheet(palette()));
-    }
 
     // The application actions require a QWidget owner, which we don't have at the time of creation. We use this dummy
     // widget instead, which we also can't properly parent as it would need a QWidget owner as well.
