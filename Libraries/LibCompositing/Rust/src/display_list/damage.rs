@@ -2350,6 +2350,7 @@ mod tests {
             expanded_gutter_rect: IntRect::default(),
             scroll_size: 0.75,
             thumb_color: RED,
+            thumb_outline_color: Color::TRANSPARENT,
             track_color: Color::TRANSPARENT,
             vertical: false,
         };
@@ -2852,6 +2853,7 @@ mod tests {
                 min_scroll_offset: 0.0,
                 max_scroll_offset: 100.0,
                 thumb_color: RED,
+                thumb_outline_color: Color::TRANSPARENT,
                 track_color: Color::TRANSPARENT,
                 vertical: true,
                 is_painted_by_compositor,

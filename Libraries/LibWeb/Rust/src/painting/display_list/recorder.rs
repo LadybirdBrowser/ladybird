@@ -1295,11 +1295,13 @@ impl DisplayListRecorder {
         expanded_gutter_rect: IntRect,
         scroll_size: f64,
         thumb_color: Color,
+        thumb_outline_color: Color,
         track_color: Color,
         vertical: bool,
         force_dark_role: ForceDarkRole,
     ) {
         let thumb_color = self.resolve_color(thumb_color, force_dark_role);
+        let thumb_outline_color = self.resolve_color(thumb_outline_color, force_dark_role);
         let track_color = self.resolve_color(track_color, force_dark_role);
         self.append_command(
             &PaintScrollBar {
@@ -1310,6 +1312,7 @@ impl DisplayListRecorder {
                 expanded_gutter_rect,
                 scroll_size,
                 thumb_color,
+                thumb_outline_color,
                 track_color,
                 vertical,
             },

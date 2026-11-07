@@ -190,12 +190,11 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, Scrollba
     thumb_fill_paint.setAntiAlias(!rect_is_pixel_aligned(thumb_rect));
     canvas.drawRRect(thumb_rrect, thumb_fill_paint);
 
-    auto stroke_color = scrollbar.thumb_color.lightened();
     SkPaint stroke_paint;
     stroke_paint.setStroke(true);
     stroke_paint.setStrokeWidth(1);
     stroke_paint.setAntiAlias(true);
-    stroke_paint.setColor(to_skia_color(stroke_color));
+    stroke_paint.setColor(to_skia_color(scrollbar.thumb_outline_color));
     stroke_paint.setAlphaf(stroke_paint.getAlphaf() * opacity);
     canvas.drawRRect(thumb_rrect, stroke_paint);
 }
@@ -1465,7 +1464,7 @@ void DisplayListPlayerSkia::play_command(CompositorNestedContextWheelRegion cons
 void DisplayListPlayerSkia::play_command(PaintScrollBar const& command)
 {
     if (m_scrollbar_controller) {
-        if (auto scrollbar = m_scrollbar_controller->presented_scrollbar_painted_by_display_list(command.scroll_node_index, command.vertical, command.thumb_color, command.track_color, active_scroll_state()); scrollbar.has_value()) {
+        if (auto scrollbar = m_scrollbar_controller->presented_scrollbar_painted_by_display_list(command.scroll_node_index, command.vertical, command.thumb_color, command.thumb_outline_color, command.track_color, active_scroll_state()); scrollbar.has_value()) {
             paint_scrollbar_into_surface(surface(), *scrollbar);
             return;
         }
@@ -1474,6 +1473,7 @@ void DisplayListPlayerSkia::play_command(PaintScrollBar const& command)
         .gutter_rect = command.gutter_rect.to_type<float>(),
         .thumb_rect = ScrollbarController::thumb_rect_kept_inside_track(command.thumb_rect, command.track_rect, command.vertical).to_type<float>(),
         .thumb_color = command.thumb_color,
+        .thumb_outline_color = command.thumb_outline_color,
         .track_color = command.track_color,
     };
     paint_scrollbar_into_surface(surface(), scrollbar);

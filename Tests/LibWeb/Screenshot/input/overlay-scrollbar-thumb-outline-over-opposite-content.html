@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-600">
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 20px;
+        background: white;
+    }
+
+    .row {
+        display: flex;
+        gap: 24px;
+    }
+
+    .scroller {
+        width: 96px;
+        height: 140px;
+        overflow: scroll;
+    }
+
+    .content {
+        width: 180px;
+        height: 300px;
+    }
+
+    .dark {
+        background: rgb(20, 6, 9);
+    }
+
+    .dark .content {
+        background: white;
+    }
+
+    .light {
+        background: white;
+    }
+
+    .light .content {
+        background: rgb(20, 6, 9);
+    }
+</style>
+<div class="row">
+    <div class="scroller dark"><div class="content"></div></div>
+    <div class="scroller light"><div class="content"></div></div>
+</div>

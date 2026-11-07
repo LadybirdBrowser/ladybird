@@ -1677,6 +1677,7 @@ pub struct CompositorScrollbar {
     pub min_scroll_offset: f32,
     pub max_scroll_offset: f32,
     pub thumb_color: Color,
+    pub thumb_outline_color: Color,
     pub track_color: Color,
     pub vertical: bool,
     pub is_painted_by_compositor: bool,
@@ -1693,6 +1694,7 @@ ffi_bytes_fields!(CompositorScrollbar {
     min_scroll_offset,
     max_scroll_offset,
     thumb_color,
+    thumb_outline_color,
     track_color,
     vertical,
     is_painted_by_compositor
@@ -1713,6 +1715,7 @@ pub struct PaintScrollBar {
     pub expanded_gutter_rect: IntRect,
     pub scroll_size: f64,
     pub thumb_color: Color,
+    pub thumb_outline_color: Color,
     pub track_color: Color,
     pub vertical: bool,
 }
@@ -1724,6 +1727,7 @@ ffi_bytes_fields!(PaintScrollBar {
     expanded_gutter_rect,
     scroll_size,
     thumb_color,
+    thumb_outline_color,
     track_color,
     vertical
 });

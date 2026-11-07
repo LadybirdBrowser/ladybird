@@ -10,7 +10,7 @@ use crate::painting::record::trace::Observer;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry::{
-    ChromeGeometry, maximum_scroll_offset, minimum_scroll_offset, scrollbar_colors_for_paint,
+    ChromeGeometry, ScrollbarColors, maximum_scroll_offset, minimum_scroll_offset, scrollbar_colors_for_paint,
 };
 use crate::painting::display_list::commands::*;
 use crate::painting::ffi::ScrollDirection;
@@ -19,7 +19,7 @@ use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use crate::painting::scroll_snap;
 use crate::painting::style_queries;
-use libgfx_rust::{Color, FloatPoint, FloatRect, FloatSize, IntRect};
+use libgfx_rust::{FloatPoint, FloatRect, FloatSize, IntRect};
 
 fn css_point_to_device_point(point: CssPixelPoint, device_pixels_per_css_pixel: f64) -> FloatPoint {
     let scale = device_pixels_per_css_pixel as f32;
@@ -305,7 +305,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &self,
         paintable: NodeSlotId,
         direction: ScrollDirection,
-        (thumb_color, track_color): (Color, Color),
+        colors: ScrollbarColors,
         is_painted_by_compositor: bool,
     ) -> Option<CompositorScrollbar> {
         let chrome_geometry = ChromeGeometry::for_recording(self.source, self.inputs);
@@ -336,8 +336,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
             } else {
                 max_scroll_offset.x
             },
-            thumb_color,
-            track_color,
+            thumb_color: colors.thumb,
+            thumb_outline_color: colors.thumb_outline,
+            track_color: colors.track,
             vertical,
             is_painted_by_compositor,
         })
@@ -375,7 +376,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &mut self,
         paintable: NodeSlotId,
         direction: ScrollDirection,
-        colors: (Color, Color),
+        colors: ScrollbarColors,
     ) {
         if self.source.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
             || self.kind_of_compositor_scroll_node_recorded_for(paintable).is_none()
