@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Propagation test
+Pass	Child1 frame initial state
+Pass	Child2 frame initial state
+Pass	Grandchild frame initial state
+Pass	Parent frame initial state
+Pass	Child2 frame final state
+Pass	Child1 frame final state
+Pass	Grand child frame final state
+Pass	Parent frame final state

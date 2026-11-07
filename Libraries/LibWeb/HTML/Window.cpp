@@ -919,6 +919,55 @@ void Window::notify_about_user_activation()
     close_watcher_manager()->notify_about_user_activation();
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#activation-notification
+void Window::run_activation_notification_steps(DOM::Document& document)
+{
+    // 1. Assert: document is fully active.
+    // AD-HOC: The spec asserts this, but we return instead — so input reaching a document as it's being torn down
+    //         can't crash.
+    if (!document.is_fully_active())
+        return;
+
+    // 2. Let windows be « document's relevant global object ».
+    // NB: That's the window of a fully active document.
+    GC::RootVector<GC::Ref<Window>> windows;
+    windows.append(*document.window());
+
+    // NB: Only the windows of the navigables this page hosts are notified here, and the UI process notifies those that
+    //     other pages host.
+    auto reaches_navigables_other_pages_host = false;
+    auto active_window_of_hosted_navigable = [&](HTML::Navigable& navigable) -> GC::Ptr<Window> {
+        if (auto* local_navigable = as_if<LocalNavigable>(navigable))
+            return local_navigable->active_window();
+        reaches_navigables_other_pages_host = true;
+        return nullptr;
+    };
+
+    // 3. Extend windows with the active window of each of document's ancestor navigables.
+    for (auto& ancestor : document.ancestor_navigables()) {
+        if (auto window = active_window_of_hosted_navigable(ancestor))
+            windows.append(*window);
+    }
+
+    // 4. Extend windows with the active window of each of document's descendant navigables, filtered to include only
+    //    those navigables whose active document's origin is same origin with document's origin.
+    for (auto& descendant : document.descendant_navigables()) {
+        auto window = active_window_of_hosted_navigable(*descendant);
+        if (window && window->associated_document().origin().is_same_origin(document.origin()))
+            windows.append(*window);
+    }
+
+    // 5. For each window in windows:
+    for (auto& window : windows) {
+        // 1. Set window's last activation timestamp to the current high resolution time.
+        // 2. Notify the close watcher manager about user activation given window.
+        window->notify_about_user_activation();
+    }
+
+    if (reaches_navigables_other_pages_host)
+        document.page().client().page_did_notify_about_user_activation(document.id());
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#consume-user-activation
 void Window::consume_user_activation()
 {

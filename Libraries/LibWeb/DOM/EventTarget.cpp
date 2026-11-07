@@ -1149,33 +1149,17 @@ bool EventTarget::dispatch_event(Event& event)
     // https://html.spec.whatwg.org/multipage/interaction.html#user-activation-processing-model
     // When a user interaction causes firing of an activation triggering input event in a Document document,
     // the user agent must perform the following activation notification steps before dispatching the event:
-
-    // FIXME: 1. Assert: document is fully active.
-    // FIXME: 2. Let windows be « document's relevant global object ».
-    // FIXME: 3. Extend windows with the active window of each of document's ancestor navigables.
-    // FIXME: 4. Extend windows with the active window of each of document's descendant navigables,
-    //           filtered to include only those navigables whose active document's origin is same origin with document's origin.
-    // FIXME: 5. For each window in windows:
-    // FIXME: 5.1 Set window's last activation timestamp to the current high resolution time.
-    // FIXME: 5.2 Notify the close watcher manager about user activation given window.
-
-    // FIXME: This is ad-hoc, but works for now.
     if (is_activation_triggering_input_event()) {
-        GC::Ptr<HTML::Window> window = [&]() {
-            if (is<HTML::Window>(this))
-                return GC::Ptr { static_cast<HTML::Window*>(this) };
-
-            if (is<DOM::Element>(this))
-                return static_cast<DOM::Element const*>(this)->document().window();
-
-            if (is<DOM::Document>(this))
-                return static_cast<DOM::Document const*>(this)->window();
-
-            return GC::Ptr<HTML::Window> { nullptr };
+        GC::Ptr<Document> document = [&]() -> GC::Ptr<Document> {
+            if (auto* window = as_if<HTML::Window>(*this))
+                return window->associated_document();
+            if (auto* node = as_if<Node>(*this))
+                return node->document();
+            return nullptr;
         }();
 
-        if (window)
-            window->notify_about_user_activation();
+        if (document)
+            HTML::Window::run_activation_notification_steps(*document);
     }
 
     return EventDispatcher::dispatch(*this, event);

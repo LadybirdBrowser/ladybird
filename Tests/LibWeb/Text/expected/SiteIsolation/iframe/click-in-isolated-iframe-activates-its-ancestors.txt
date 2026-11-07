@@ -1,0 +1,7 @@
+Top-level document has been active before the click: false
+Clicking iframe has transient activation after its click: true
+Top-level document has transient activation after the iframe's click: true
+Cross-site sibling iframe has been active after the iframe's click: false
+WebContent#0
+  iframe#0: remote WebContent#1
+  iframe#1: remote WebContent#2

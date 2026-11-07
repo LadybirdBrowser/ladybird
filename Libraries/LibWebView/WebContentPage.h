@@ -259,6 +259,7 @@ private:
     Messages::WebContentClient::ConnectToStorageAreaResponse connect_to_storage_area(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id);
     virtual void did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
     virtual void did_consume_user_activation(Web::HTML::UserActivationConsumption consumption) override;
+    virtual void did_notify_about_user_activation(Web::HTML::CrossProcessId document_id) override;
     virtual void webdriver_user_prompt_handling_complete(u64 request_id, Web::WebDriver::Response response) override;
     virtual void webdriver_did_set_current_browsing_context(u64 command_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void webdriver_command_complete(u64 command_id, Web::WebDriver::Response response) override;

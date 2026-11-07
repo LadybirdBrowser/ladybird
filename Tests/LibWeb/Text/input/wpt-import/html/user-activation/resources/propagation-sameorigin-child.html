@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script>
+    window.top.postMessage(JSON.stringify({
+        "type": "child-sameorigin-loaded",
+        "isActive": navigator.userActivation.isActive,
+        "hasBeenActive": navigator.userActivation.hasBeenActive
+    }), "*");
+
+    window.addEventListener("click", event => {
+        window.top.postMessage(JSON.stringify({
+            "type": "child-sameorigin-report",
+            "isActive": navigator.userActivation.isActive,
+            "hasBeenActive": navigator.userActivation.hasBeenActive
+        }), "*");
+    });
+  </script>
+</head>
+<body style="background: lightgreen;">
+  <!-- The midpoint of this frame should be outside the grandchild frame. -->
+  <div style="height: 75px;">Same-origin child frame</div>
+  <iframe id="child2" width="270px" height="30px"
+          src="child-two.html">
+  </iframe>
+</body>
+</html>

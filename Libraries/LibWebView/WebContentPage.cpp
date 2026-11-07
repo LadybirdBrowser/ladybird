@@ -1439,6 +1439,33 @@ void WebContentPage::did_consume_user_activation(Web::HTML::UserActivationConsum
     });
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#activation-notification
+// NB: The renderer ran the steps for input in the document with the given ID, and notified the windows this page hosts.
+//     The windows of the steps that other pages host are notified here.
+void WebContentPage::did_notify_about_user_activation(Web::HTML::CrossProcessId document_id)
+{
+    // NB: The renderer runs the steps for input the view is delivering to it, and it sends this before it reports that
+    //     it finished handling that input. So any other claim is a renderer handing out activation for input it never
+    //     got, unless automation lets it synthesize input.
+    if (!WebContentClient::renderers_may_synthesize_input()) {
+        auto view = traversable().view();
+        if (!view.has_value() || !view->is_delivering_user_activation_to(*this))
+            return;
+    }
+
+    HashTable<Web::HTML::CrossProcessId> notified_document_ids;
+    CanonicalNavigable const* navigable = nullptr;
+    for_each_navigable_with_a_hosted_active_document([&](CanonicalNavigable const& hosted_navigable) {
+        auto hosted_document_id = hosted_navigable.active_document().id();
+        notified_document_ids.set(hosted_document_id);
+        if (hosted_document_id == document_id)
+            navigable = &hosted_navigable;
+        return IterationDecision::Continue;
+    });
+    if (navigable)
+        navigable->run_activation_notification_steps_for_active_document(notified_document_ids);
+}
+
 void WebContentPage::webdriver_user_prompt_handling_complete(u64 request_id, Web::WebDriver::Response response)
 {
     if (displays_tab())
