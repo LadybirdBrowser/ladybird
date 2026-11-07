@@ -13,6 +13,7 @@
 #include <AK/StdLibExtras.h>
 #include <AK/TypeCasts.h>
 #include <LibCore/BrowserVersion.h>
+#include <LibCore/EventLoop.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/SessionStore.h>
@@ -336,7 +337,7 @@ static QIcon const& app_icon(WebView::IsPrivate is_private)
     return cached_icon;
 }
 
-BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, Optional<WebView::SessionWindowId> restored_session_window_id)
+BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<u64> hub_view_id, Optional<WebView::SessionWindowId> restored_session_window_id)
     : m_is_private(is_private)
     , m_session(WebView::Application::session_for_new_view(is_private))
     , m_tabs_container(new TabWidget(is_private, this))
@@ -415,7 +416,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     });
 
     if (parent_tab) {
-        create_new_tab(Web::HTML::ActivateTab::Yes, traversable);
+        create_new_tab(Web::HTML::ActivateTab::Yes, hub_view_id);
     } else {
         for (size_t i = 0; i < initial_urls.size(); ++i)
             create_new_tab((i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, TabLocation::end());
@@ -455,6 +456,13 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 BrowserWindow::~BrowserWindow()
 {
     qApp->removeEventFilter(this);
+
+    // NB: A window that goes away while a caller waits on its close check stands in the way of no close.
+    if (auto on_complete = AK::move(m_window_close_preflight_on_complete)) {
+        Core::deferred_invoke([on_complete = AK::move(on_complete)] {
+            on_complete(true);
+        });
+    }
 }
 
 void BrowserWindow::initialize_application_actions()
@@ -830,13 +838,13 @@ Tab& BrowserWindow::create_restored_tab(WebView::RestoredSessionTab const& resto
     return *tab;
 }
 
-Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Optional<WebView::CanonicalTraversable&> traversable)
+Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Optional<u64> hub_view_id)
 {
     cancel_window_close_preflight();
-    if (!traversable.has_value())
+    if (!hub_view_id.has_value())
         return create_new_tab(activate_tab, TabLocation::end());
 
-    auto* tab = new Tab(this, traversable);
+    auto* tab = new Tab(this, hub_view_id);
 
     // FIXME: Merge with other overload
     if (m_current_tab == nullptr) {
@@ -954,7 +962,7 @@ void BrowserWindow::initialize_tab_view(Tab* tab)
         }
     });
 
-    tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, WebView::CanonicalTraversable& traversable) {
+    tab->view().on_open_new_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, u64 hub_view_id) {
         if (hints.popup) {
             auto cascaded_configuration = Application::the().configuration_for_new_window();
             WindowConfiguration configuration {
@@ -963,11 +971,10 @@ void BrowserWindow::initialize_tab_view(Tab* tab)
                 .width = hints.width,
                 .height = hints.height,
             };
-            auto& window = Application::the().new_window({}, configuration, IsPopupWindow::Yes, m_is_private, tab, traversable);
-            return window.current_tab()->view().handle();
+            Application::the().new_window({}, configuration, IsPopupWindow::Yes, m_is_private, tab, hub_view_id);
+            return;
         }
-        auto& new_tab = create_new_tab(activate_tab, traversable);
-        return new_tab.view().handle();
+        create_new_tab(activate_tab, hub_view_id);
     };
 }
 
@@ -2176,10 +2183,9 @@ void BrowserWindow::begin_window_close_preflight(Function<void(bool approved)> o
             m_window_close_current_preflight_tab = tab;
             auto weak_this = QPointer<BrowserWindow>(this);
             tab->request_window_close_preflight([weak_this, tab, on_complete = AK::move(on_complete)](bool approved) mutable {
-                if (!weak_this) {
-                    on_complete(approved);
+                // NB: The coordinator that would take this answer went away with the window.
+                if (!weak_this)
                     return;
-                }
                 if (weak_this->m_window_close_current_preflight_tab == tab)
                     weak_this->m_window_close_current_preflight_tab = nullptr;
                 if (approved && tab && !weak_this->m_window_close_approved_tabs.contains([&](auto const& approved_tab) { return approved_tab == tab; }))

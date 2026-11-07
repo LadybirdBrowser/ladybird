@@ -2,10 +2,13 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Point.h>
+#include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWebCommon/WebView/DictionaryLookup.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebView/AccessibilityTreeManager.h>
@@ -94,6 +97,16 @@ struct Hub::ViewState {
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon) =|
+    view_request_before_unload(u64 view_id, u64 answer_id, String source) =|
+    view_request_external_url_confirmation(u64 view_id, u64 answer_id, URL::URL url, URL::Origin initiator_origin, String application_name) =|
+    view_request_permission(u64 view_id, u64 answer_id, WebView::PermissionPromptRequest request) =|
+    view_request_date_picker(u64 view_id, Utf16String input_type, Utf16String value, Utf16String minimum, Utf16String maximum) =|
+    view_request_dictionary_lookup(u64 view_id, WebView::DictionaryLookup lookup, Gfx::IntPoint position) =|
+    view_open_new_view(u64 view_id, u64 new_view_id, Hub::ViewState new_view_state, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints) =|
+    view_update_zoom(u64 view_id) =|
+    view_navigation_load_start(u64 view_id, URL::URL url) =|
+    view_navigation_load_finish(u64 view_id, URL::URL url) =|
     view_install_backing_stores(u64 view_id, u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) =|
     view_add_backing_stores(u64 view_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) =|
     view_retire_backing_stores(u64 view_id, Vector<i32> bitmap_ids) =|

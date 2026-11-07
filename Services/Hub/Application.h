@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <Hub/View.h>
 #include <LibCore/Promise.h>
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
@@ -41,7 +42,7 @@ public:
     virtual void focus_page_from_notification(WebView::WebContentPage& page) = 0;
     virtual void open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId originating_page, WebView::CanonicalTraversable* canonical_traversable, WebView::IsPrivate is_private) = 0;
     virtual bool supports_picture_in_picture() const = 0;
-    virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable& canonical_traversable, Gfx::IntSize video_size) = 0;
+    virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::ViewImplementation& owner_view, u64 view_id, Gfx::IntSize video_size) = 0;
     virtual Optional<WebView::ViewImplementation&> active_web_view() const = 0;
     virtual Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const = 0;
     virtual Optional<WebView::ViewImplementation&> activate_tab_with_url(URL::URL const& url, URL::ExcludeFragment exclude_fragment) const = 0;
@@ -90,6 +91,10 @@ class Application final : public WebView::Application {
 public:
     // The host is going away, and takes no more calls.
     void detach_from_host() { m_host = nullptr; }
+
+    View& create_view(View::InitialState, Optional<WebView::CanonicalTraversable&> = {});
+    void destroy_view(u64 view_id);
+    void destroy_all_views() { m_views.clear(); }
 
     void toggle_bookmark_without_asking(WebView::ViewImplementation& view) { WebView::Application::toggle_bookmark_for_view(view); }
 
@@ -154,6 +159,7 @@ private:
     virtual void on_recently_closed_entries_changed() const override;
 
     ApplicationHost* m_host { nullptr };
+    HashMap<u64, NonnullOwnPtr<View>> m_views;
 };
 
 }

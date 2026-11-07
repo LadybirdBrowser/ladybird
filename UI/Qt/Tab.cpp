@@ -171,12 +171,12 @@ private:
     QLabel* m_level { nullptr };
 };
 
-Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> traversable)
+Tab::Tab(BrowserWindow* window, Optional<u64> hub_view_id)
     : QWidget(window)
     , m_window(window)
 {
     create_tab_shell();
-    initialize(traversable);
+    initialize(hub_view_id);
 }
 
 Tab::Tab(BrowserWindow* window, DeferredTab deferred_tab)
@@ -199,7 +199,7 @@ void Tab::create_tab_shell()
     create_tab_context_menu();
 }
 
-void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
+void Tab::initialize(Optional<u64> hub_view_id)
 {
     auto* tab_layout = static_cast<QBoxLayout*>(layout());
 
@@ -207,10 +207,11 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         .is_private = m_window->is_private(),
         .maximum_frames_per_second = m_window->refresh_rate(),
         .display_id = m_window->display_id(),
-        .owner_view = nullptr,
+        .owner_view_id = {},
+        .is_tab = true,
     };
 
-    m_view = new WebContentView(this, traversable, AK::move(view_initial_state));
+    m_view = new WebContentView(this, hub_view_id, AK::move(view_initial_state));
     // The window reports its geometry to its tabs as it is moved and resized, so a tab opened later has to be told
     // where the window stands now.
     m_view->set_window_position({ m_window->x(), m_window->y() });
@@ -519,7 +520,7 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         m_permission_prompts.ignore_all();
     };
 
-    view().on_request_external_url_confirmation = [this](auto const& url, auto const& initiator_origin, auto const& handler, auto on_complete) {
+    view().on_request_external_url_confirmation = [this](auto const& url, auto const& initiator_origin, String const& handler_name, auto on_complete) {
         if (m_javascript_dialog->is_open() || m_color_picker_dialog || m_external_url_confirmation_dialog) {
             on_complete(false);
             return;
@@ -528,11 +529,11 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         hide_hover_label();
 
         auto initiator = initiator_origin.is_opaque() ? "This page"_string : initiator_origin.serialize();
-        auto application_name = handler.application_name().is_empty() ? "another application"sv : handler.application_name().bytes_as_string_view();
-        auto title = handler.application_name().is_empty() ? "Open external application?"_string : MUST(String::formatted("Open {}?", application_name));
+        auto application_name = handler_name.is_empty() ? "another application"sv : handler_name.bytes_as_string_view();
+        auto title = handler_name.is_empty() ? "Open external application?"_string : MUST(String::formatted("Open {}?", application_name));
         auto message = MUST(String::formatted("{} wants to open a {} link with {}.", initiator, url.scheme(), application_name));
         auto details = MUST(String::formatted("URL: '{}'", url));
-        auto open_button_text = handler.application_name().is_empty() ? "Open"_string : MUST(String::formatted("Open {}", application_name));
+        auto open_button_text = handler_name.is_empty() ? "Open"_string : MUST(String::formatted("Open {}", application_name));
 
         auto* dialog = new QMessageBox(&view());
         m_external_url_confirmation_dialog = dialog;

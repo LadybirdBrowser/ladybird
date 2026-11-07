@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 
 namespace Hub {
@@ -97,6 +98,53 @@ void ConnectionFromUI::release_backing_store(u64 page_id, i32 bitmap_id)
         return;
     if (auto* page = client->page(id))
         page->release_presented_bitmap(bitmap_id);
+}
+
+void ConnectionFromUI::view_answer(u64 view_id, u64 answer_id, bool answer)
+{
+    if (auto* view = find_view(view_id)) {
+        view->did_get_answer(answer_id, answer);
+        view->push_state_to_ui();
+    }
+}
+
+void ConnectionFromUI::view_answer_permission_request(u64 view_id, u64 answer_id, Web::Permissions::PromptOutcome outcome)
+{
+    if (auto* view = find_view(view_id)) {
+        view->did_get_permission_answer(answer_id, outcome);
+        view->push_state_to_ui();
+    }
+}
+
+void ConnectionFromUI::destroy_view(u64 view_id)
+{
+    Application::the().destroy_view(view_id);
+}
+
+void ConnectionFromUI::view_set_viewport(u64 view_id, Web::DevicePixelSize size, double device_pixel_ratio)
+{
+    if (auto* view = find_view(view_id))
+        view->set_viewport(size, device_pixel_ratio);
+}
+
+void ConnectionFromUI::view_set_system_theme(u64 view_id, Core::AnonymousBuffer theme)
+{
+    if (auto* view = find_view(view_id))
+        view->set_system_theme(move(theme));
+}
+
+void ConnectionFromUI::view_set_screen_rects(u64 view_id, WebView::ViewImplementation::ScreenRects screen_rects)
+{
+    if (auto* view = find_view(view_id))
+        view->set_screen_rects(move(screen_rects));
+}
+
+void ConnectionFromUI::view_set_page_background_color_to_system_canvas(u64 view_id, bool dark)
+{
+    if (auto* view = find_view(view_id)) {
+        view->set_page_background_color_to_system_canvas(dark);
+        view->push_state_to_ui();
+    }
 }
 
 View* ConnectionFromUI::find_view(u64 view_id)
@@ -263,14 +311,6 @@ void ConnectionFromUI::view_set_display_metadata(u64 view_id, Optional<u64> disp
 {
     if (auto* view = find_view(view_id)) {
         view->set_display_metadata(display_id, maximum_frames_per_second);
-        view->push_state_to_ui();
-    }
-}
-
-void ConnectionFromUI::view_update_screen_rects(u64 view_id)
-{
-    if (auto* view = find_view(view_id)) {
-        view->update_screen_rects();
         view->push_state_to_ui();
     }
 }
