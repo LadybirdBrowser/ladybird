@@ -20,8 +20,6 @@
 #include <LibCore/Forward.h>
 #include <LibMedia/Forward.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/WebAudio/ControlMessageQueue.h>
-#include <LibWeb/WebAudio/Rendering/RenderGraph.h>
 #include <LibWeb/WebAudio/Types.h>
 
 namespace Web::WebAudio::Rendering {

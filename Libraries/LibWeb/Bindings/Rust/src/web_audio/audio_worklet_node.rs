@@ -20,7 +20,7 @@ use libjs_rust::api::{
 use libjs_rust::api::{Gc, Realm, Trace};
 use libweb_rust::web_audio::control_message::FfiSharedCppObject;
 use libweb_rust::web_audio::rendering::audio_worklet_pipe::{AudioWorkletPipe, WorkletPipeConfig, WorkletPipeState};
-use libweb_rust::web_audio::rendering::audio_worklet_render_node::web_audio_node_create_audio_worklet;
+use libweb_rust::web_audio::rendering::audio_worklet_render_node::create_audio_worklet_render_node;
 use libweb_rust::web_audio::rendering::node_message::SharedCppObject;
 use libweb_rust::web_audio::rendering::render_node::RenderAudioParam;
 
@@ -446,26 +446,24 @@ impl AudioWorkletNode {
             release: service.release,
         });
         unsafe { web_audio_worklet_set_pump(service.pointer, scope.as_ptr(), node.node.node_id()) };
-        let render_params: Vec<*const RenderAudioParam> = parameter_map
+        let render_params: Vec<Arc<RenderAudioParam>> = parameter_map
             .values(vm)
             .values()
             .iter()
-            .map(|param| Arc::as_ptr(param.render_param()))
+            .map(|param| Arc::clone(param.render_param()))
             .collect();
-        node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_audio_worklet(
-                node.node.node_id(),
-                options.number_of_inputs as usize,
-                options.number_of_outputs as usize,
-                BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-                ak::Span::new(&output_channel_capacity),
-                node.node.channel_count_value() as usize,
-                node.node.channel_count_mode(cx)?,
-                node.node.channel_interpretation(cx)?,
-                Arc::as_ptr(&pipe),
-                ak::Span::new(&render_params),
-            ))
-        });
+        node.node.queue_render_node_creation(create_audio_worklet_render_node(
+            node.node.node_id(),
+            options.number_of_inputs as usize,
+            options.number_of_outputs as usize,
+            BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+            &output_channel_capacity,
+            node.node.channel_count_value() as usize,
+            node.node.channel_count_mode(cx)?,
+            node.node.channel_interpretation(cx)?,
+            Arc::clone(&pipe),
+            render_params,
+        ));
 
         // FIXME: Implement the spec's actively-processing keep-alive (drop this when the processor's
         //        process() return value has been false and inputs are silent). For now a live worklet

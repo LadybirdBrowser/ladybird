@@ -17,7 +17,7 @@ use libjs_rust::api::Vm;
 use libweb_rust::web_audio::control_message::FfiSharedCppObject;
 use libweb_rust::web_audio::rendering::node_message::SharedCppObject;
 use libweb_rust::web_audio::rendering::script_processor_pipe::{ScriptProcessorPipe, ScriptProcessorPipeConfig};
-use libweb_rust::web_audio::rendering::script_processor_render_node::web_audio_node_create_script_processor;
+use libweb_rust::web_audio::rendering::script_processor_render_node::create_script_processor_render_node;
 
 use super::audio_buffer::AudioBuffer;
 use super::audio_node::{AnyAudioNode, AudioNode, ChannelCountMode};
@@ -156,13 +156,13 @@ impl ScriptProcessorNode {
         });
         *script_processor_node.pipe.borrow_mut() = Some(Arc::clone(&pipe));
         context.add_script_processor_node(cx.vm(), script_processor_node);
-        script_processor_node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_script_processor(
+        script_processor_node
+            .node
+            .queue_render_node_creation(create_script_processor_render_node(
                 script_processor_node.node.node_id(),
                 BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-                Arc::as_ptr(&pipe),
-            ))
-        });
+                Arc::clone(&pipe),
+            ));
         Ok(script_processor_node)
     }
 

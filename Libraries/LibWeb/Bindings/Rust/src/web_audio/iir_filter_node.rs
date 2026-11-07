@@ -10,7 +10,7 @@ use std::ptr::NonNull;
 use ak::Utf16String;
 use libjs_rust::api::TypedArrayBase;
 use libjs_rust::api::{Gc, Trace};
-use libweb_rust::web_audio::rendering::render_nodes::web_audio_node_create_iir_filter;
+use libweb_rust::web_audio::rendering::render_nodes::create_iir_filter_render_node;
 
 use super::audio_array::{copy_float32_array, float32_array_length, overwrite_float32_array};
 use super::audio_node::{
@@ -139,14 +139,12 @@ impl IIRFilterNode {
         // FIXME: Set tail-time to yes
         node.node
             .initialize_audio_node_options(cx, &options.parent, &default_options)?;
-        node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_iir_filter(
-                node.node.node_id(),
-                BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-                ak::Span::new(&normalized_feedforward),
-                ak::Span::new(&normalized_feedback),
-            ))
-        });
+        node.node.queue_render_node_creation(create_iir_filter_render_node(
+            node.node.node_id(),
+            BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+            &normalized_feedforward,
+            &normalized_feedback,
+        ));
         Ok(node)
     }
 

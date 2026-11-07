@@ -15,7 +15,7 @@ use ak::Utf16String;
 use libjs_rust::api::Trace;
 use libweb_rust::web_audio::control_message::ControlMessage;
 use libweb_rust::web_audio::rendering::node_message::{NodeMessage, SetOscillatorWaveform};
-use libweb_rust::web_audio::rendering::render_nodes::web_audio_node_create_oscillator;
+use libweb_rust::web_audio::rendering::render_nodes::create_oscillator_render_node;
 
 use super::audio_node::{
     AnyAudioNode, AudioNodeDefaultOptions, AudioNodeOptions, ChannelCountMode, ChannelInterpretation,
@@ -145,14 +145,14 @@ impl OscillatorNode {
         node.node
             .parent()
             .initialize_audio_node_options(cx, &options.parent, &default_options)?;
-        node.node.parent().queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_oscillator(
+        node.node
+            .parent()
+            .queue_render_node_creation(create_oscillator_render_node(
                 node.node.parent().node_id(),
                 BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-                Arc::as_ptr(node.frequency.render_param()),
-                Arc::as_ptr(node.detune.render_param()),
-            ))
-        });
+                Arc::clone(node.frequency.render_param()),
+                Arc::clone(node.detune.render_param()),
+            ));
         node.queue_waveform_update();
         Ok(node)
     }

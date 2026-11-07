@@ -128,13 +128,13 @@ impl<T: NodeProcessor> RenderNode for NativeRenderNode<T> {
     }
 }
 
-pub(super) fn node_handle<T: NodeProcessor + 'static>(data: RenderNodeData, processor: T) -> *mut NodeHandle {
-    Box::into_raw(Box::new(NodeHandle {
+pub(super) fn node_handle<T: NodeProcessor + 'static>(data: RenderNodeData, processor: T) -> Box<NodeHandle> {
+    Box::new(NodeHandle {
         node: Box::new(NativeRenderNode {
             data,
             processor: UnsafeCell::new(processor),
         }),
-    }))
+    })
 }
 
 struct PanGains {
@@ -1820,74 +1820,53 @@ impl NodeProcessor for PassthroughRenderNode {
     }
 }
 
-use crate::web_audio::control_message::clone_arc;
-use ak::Span;
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_audio_node_create_destination(
-    node_id: u64,
-    quantum_size: usize,
-    channel_count: usize,
-) -> *mut NodeHandle {
+pub fn create_destination_render_node(node_id: u64, quantum_size: usize, channel_count: usize) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, channel_count);
     data.channel_count.set(channel_count);
     data.channel_count_mode.set(ChannelCountMode::Explicit);
     node_handle(data, DestinationRenderNode)
 }
 
-/// # Safety
-/// Parameter pointers must name live `Arc` allocations for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_gain(
-    node_id: u64,
-    quantum_size: usize,
-    gain: *const RenderAudioParam,
-) -> *mut NodeHandle {
+pub fn create_gain_render_node(node_id: u64, quantum_size: usize, gain: Arc<RenderAudioParam>) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
     node_handle(
         data,
         GainRenderNode {
-            gain: unsafe { clone_arc(gain) },
+            gain,
             gain_values: vec![0.; quantum_size],
         },
     )
 }
 
-/// # Safety
-/// Parameter pointers must name live `Arc` allocations for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_constant_source(
+pub fn create_constant_source_render_node(
     node_id: u64,
     quantum_size: usize,
-    offset: *const RenderAudioParam,
-) -> *mut NodeHandle {
+    offset: Arc<RenderAudioParam>,
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 0, 1, quantum_size, 1);
     node_handle(
         data,
         ConstantSourceRenderNode {
             source: ScheduledSourceRenderNode::default(),
-            offset: unsafe { clone_arc(offset) },
+            offset,
             offset_values: vec![0.; quantum_size],
         },
     )
 }
 
-/// # Safety
-/// Parameter pointers must name live `Arc` allocations for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_oscillator(
+pub fn create_oscillator_render_node(
     node_id: u64,
     quantum_size: usize,
-    frequency: *const RenderAudioParam,
-    detune: *const RenderAudioParam,
-) -> *mut NodeHandle {
+    frequency: Arc<RenderAudioParam>,
+    detune: Arc<RenderAudioParam>,
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 0, 1, quantum_size, 1);
     node_handle(
         data,
         OscillatorRenderNode {
             source: ScheduledSourceRenderNode::default(),
-            frequency: unsafe { clone_arc(frequency) },
-            detune: unsafe { clone_arc(detune) },
+            frequency,
+            detune,
             frequency_values: vec![0.; quantum_size],
             detune_values: vec![0.; quantum_size],
             r#type: OscillatorType::Sine,
@@ -1898,22 +1877,19 @@ pub unsafe extern "C" fn web_audio_node_create_oscillator(
     )
 }
 
-/// # Safety
-/// Parameter pointers must name live `Arc` allocations for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_audio_buffer_source(
+pub fn create_audio_buffer_source_render_node(
     node_id: u64,
     quantum_size: usize,
-    playback_rate: *const RenderAudioParam,
-    detune: *const RenderAudioParam,
-) -> *mut NodeHandle {
+    playback_rate: Arc<RenderAudioParam>,
+    detune: Arc<RenderAudioParam>,
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 0, 1, quantum_size, 1);
     node_handle(
         data,
         AudioBufferSourceRenderNode {
             source: ScheduledSourceRenderNode::default(),
-            playback_rate: unsafe { clone_arc(playback_rate) },
-            detune: unsafe { clone_arc(detune) },
+            playback_rate,
+            detune,
             playback_rate_values: vec![0.; quantum_size],
             detune_values: vec![0.; quantum_size],
             buffer: None,
@@ -1929,20 +1905,17 @@ pub unsafe extern "C" fn web_audio_node_create_audio_buffer_source(
     )
 }
 
-/// # Safety
-/// Parameter pointers must name live `Arc` allocations for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_delay(
+pub fn create_delay_render_node(
     node_id: u64,
     quantum_size: usize,
-    delay_time: *const RenderAudioParam,
+    delay_time: Arc<RenderAudioParam>,
     max_delay_time: f64,
-) -> *mut NodeHandle {
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
     node_handle(
         data,
         DelayRenderNode {
-            delay_time: unsafe { clone_arc(delay_time) },
+            delay_time,
             delay_values: vec![0.; quantum_size],
             max_delay_time,
             history: Vec::new(),
@@ -1951,31 +1924,27 @@ pub unsafe extern "C" fn web_audio_node_create_delay(
     )
 }
 
-/// # Safety
-/// Parameter pointers must name live `Arc` allocations for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_stereo_panner(
+pub fn create_stereo_panner_render_node(
     node_id: u64,
     quantum_size: usize,
-    pan: *const RenderAudioParam,
-) -> *mut NodeHandle {
+    pan: Arc<RenderAudioParam>,
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 2);
     data.channel_count_mode.set(ChannelCountMode::ClampedMax);
     node_handle(
         data,
         StereoPannerRenderNode {
-            pan: unsafe { clone_arc(pan) },
+            pan,
             pan_values: vec![0.; quantum_size],
         },
     )
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn web_audio_node_create_channel_splitter(
+pub fn create_channel_splitter_render_node(
     node_id: u64,
     quantum_size: usize,
     number_of_outputs: usize,
-) -> *mut NodeHandle {
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, number_of_outputs, quantum_size, 1);
     data.channel_count.set(number_of_outputs);
     data.channel_count_mode.set(ChannelCountMode::Explicit);
@@ -1983,37 +1952,33 @@ pub extern "C" fn web_audio_node_create_channel_splitter(
     node_handle(data, ChannelSplitterRenderNode)
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn web_audio_node_create_channel_merger(
+pub fn create_channel_merger_render_node(
     node_id: u64,
     quantum_size: usize,
     number_of_inputs: usize,
-) -> *mut NodeHandle {
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, number_of_inputs, 1, quantum_size, number_of_inputs);
     data.channel_count.set(1);
     data.channel_count_mode.set(ChannelCountMode::Explicit);
     node_handle(data, ChannelMergerRenderNode)
 }
 
-/// # Safety
-/// Parameter pointers must name live `Arc` allocations for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_biquad_filter(
+pub fn create_biquad_filter_render_node(
     node_id: u64,
     quantum_size: usize,
-    frequency: *const RenderAudioParam,
-    detune: *const RenderAudioParam,
-    q: *const RenderAudioParam,
-    gain: *const RenderAudioParam,
-) -> *mut NodeHandle {
+    frequency: Arc<RenderAudioParam>,
+    detune: Arc<RenderAudioParam>,
+    q: Arc<RenderAudioParam>,
+    gain: Arc<RenderAudioParam>,
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
     node_handle(
         data,
         BiquadFilterRenderNode {
-            frequency: unsafe { clone_arc(frequency) },
-            detune: unsafe { clone_arc(detune) },
-            q: unsafe { clone_arc(q) },
-            gain: unsafe { clone_arc(gain) },
+            frequency,
+            detune,
+            q,
+            gain,
             frequency_values: vec![0.; quantum_size],
             detune_values: vec![0.; quantum_size],
             q_values: vec![0.; quantum_size],
@@ -2024,29 +1989,27 @@ pub unsafe extern "C" fn web_audio_node_create_biquad_filter(
     )
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn web_audio_node_create_iir_filter(
+pub fn create_iir_filter_render_node(
     node_id: u64,
     quantum_size: usize,
-    feedforward: Span<'_, f64>,
-    feedback: Span<'_, f64>,
-) -> *mut NodeHandle {
+    feedforward: &[f64],
+    feedback: &[f64],
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
-    assert!(feedforward.as_slice().len() < 32);
-    assert!(feedback.as_slice().len() < 32);
+    assert!(feedforward.len() < 32);
+    assert!(feedback.len() < 32);
     node_handle(
         data,
         IIRFilterRenderNode {
-            feedforward: feedforward.as_slice().to_vec(),
-            feedback: feedback.as_slice().to_vec(),
+            feedforward: feedforward.to_vec(),
+            feedback: feedback.to_vec(),
             filter_states: Vec::new(),
             position: 0,
         },
     )
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn web_audio_node_create_wave_shaper(node_id: u64, quantum_size: usize) -> *mut NodeHandle {
+pub fn create_wave_shaper_render_node(node_id: u64, quantum_size: usize) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
     node_handle(
         data,
@@ -2060,8 +2023,7 @@ pub extern "C" fn web_audio_node_create_wave_shaper(node_id: u64, quantum_size: 
     )
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn web_audio_node_create_convolver(node_id: u64, quantum_size: usize) -> *mut NodeHandle {
+pub fn create_convolver_render_node(node_id: u64, quantum_size: usize) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
     data.channel_count_mode.set(ChannelCountMode::ClampedMax);
     node_handle(
@@ -2081,39 +2043,34 @@ pub extern "C" fn web_audio_node_create_convolver(node_id: u64, quantum_size: us
     )
 }
 
-/// # Safety
-/// Parameter pointers must name live `Arc` allocations for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_panner(
+pub fn create_panner_render_node(
     node_id: u64,
     quantum_size: usize,
-    params: Span<'_, *const RenderAudioParam>,
-) -> *mut NodeHandle {
+    params: &[&Arc<RenderAudioParam>; 15],
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 2);
     data.channel_count_mode.set(ChannelCountMode::ClampedMax);
-    let params = params.as_slice();
-    assert_eq!(params.len(), 15);
     node_handle(
         data,
         PannerRenderNode {
             params: PannerParams {
-                position_x: unsafe { clone_arc(params[0]) },
-                position_y: unsafe { clone_arc(params[1]) },
-                position_z: unsafe { clone_arc(params[2]) },
-                orientation_x: unsafe { clone_arc(params[3]) },
-                orientation_y: unsafe { clone_arc(params[4]) },
-                orientation_z: unsafe { clone_arc(params[5]) },
+                position_x: Arc::clone(params[0]),
+                position_y: Arc::clone(params[1]),
+                position_z: Arc::clone(params[2]),
+                orientation_x: Arc::clone(params[3]),
+                orientation_y: Arc::clone(params[4]),
+                orientation_z: Arc::clone(params[5]),
             },
             listener_params: ListenerParams {
-                position_x: unsafe { clone_arc(params[6]) },
-                position_y: unsafe { clone_arc(params[7]) },
-                position_z: unsafe { clone_arc(params[8]) },
-                forward_x: unsafe { clone_arc(params[9]) },
-                forward_y: unsafe { clone_arc(params[10]) },
-                forward_z: unsafe { clone_arc(params[11]) },
-                up_x: unsafe { clone_arc(params[12]) },
-                up_y: unsafe { clone_arc(params[13]) },
-                up_z: unsafe { clone_arc(params[14]) },
+                position_x: Arc::clone(params[6]),
+                position_y: Arc::clone(params[7]),
+                position_z: Arc::clone(params[8]),
+                forward_x: Arc::clone(params[9]),
+                forward_y: Arc::clone(params[10]),
+                forward_z: Arc::clone(params[11]),
+                up_x: Arc::clone(params[12]),
+                up_y: Arc::clone(params[13]),
+                up_z: Arc::clone(params[14]),
             },
             config: SetPannerParameters::default(),
             param_values: (0..15).map(|_| vec![0.; quantum_size]).collect(),
@@ -2121,8 +2078,7 @@ pub unsafe extern "C" fn web_audio_node_create_panner(
     )
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn web_audio_node_create_passthrough(node_id: u64, quantum_size: usize) -> *mut NodeHandle {
+pub fn create_passthrough_render_node(node_id: u64, quantum_size: usize) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
     node_handle(data, PassthroughRenderNode)
 }

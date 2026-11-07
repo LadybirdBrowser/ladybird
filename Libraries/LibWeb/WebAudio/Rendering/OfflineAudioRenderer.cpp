@@ -71,7 +71,6 @@ void OfflineAudioRenderer::start_rendering() { RustFFI::web_audio_offline_render
 void OfflineAudioRenderer::stop() { RustFFI::web_audio_offline_renderer_stop(m_renderer); }
 bool OfflineAudioRenderer::request_suspend(u64 frame) { return RustFFI::web_audio_offline_renderer_request_suspend(m_renderer, frame); }
 void OfflineAudioRenderer::resume() { RustFFI::web_audio_offline_renderer_resume(m_renderer); }
-bool OfflineAudioRenderer::is_rendering_started() const { return RustFFI::web_audio_offline_renderer_started(m_renderer); }
 u64 OfflineAudioRenderer::frames_rendered() const { return RustFFI::web_audio_offline_renderer_frames_rendered(m_renderer); }
 
 }

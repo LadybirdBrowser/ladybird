@@ -4,18 +4,69 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AtomicRefCounted.h>
+#include <LibAudio/SpscAudioFrameRing.h>
 #include <LibCore/EventLoop.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
-#include <LibWeb/WebAudio/Rendering/MediaStreamDestinationRenderNode.h>
 #include <LibWeb/WebAudio/RustFFI.h>
+
 namespace Web::WebAudio {
+
+struct MediaStreamDestinationSharedState final : public AtomicRefCounted<MediaStreamDestinationSharedState> {
+    explicit MediaStreamDestinationSharedState(NonnullRefPtr<Audio::SpscAudioFrameRing> ring)
+        : ring(move(ring))
+    {
+    }
+
+    NonnullRefPtr<Audio::SpscAudioFrameRing> ring;
+
+    // Only the control thread invokes or clears this callback.
+    Function<void()> drain;
+};
+
+struct DestinationCallbackService : AtomicRefCounted<DestinationCallbackService> {
+    DestinationCallbackService(NonnullRefPtr<MediaStreamDestinationSharedState> state, Core::EventLoop& loop)
+        : shared_state(move(state))
+        , event_loop(loop)
+    {
+    }
+    NonnullRefPtr<MediaStreamDestinationSharedState> shared_state;
+    Core::EventLoop& event_loop;
+};
+
+static void* create_render_node(u64 node_id, size_t quantum_size, size_t channel_count, NonnullRefPtr<MediaStreamDestinationSharedState> shared_state, Core::EventLoop& event_loop)
+{
+    auto service = adopt_ref(*new DestinationCallbackService(shared_state, event_loop));
+    RustFFI::PipeCallbacks callbacks {
+        { service.ptr(), [](void* service) { static_cast<DestinationCallbackService*>(service)->ref(); }, [](void* service) { static_cast<DestinationCallbackService*>(service)->unref(); } },
+        [](void* service, void* task, void (*invoke)(void*)) {
+            static_cast<DestinationCallbackService*>(service)->event_loop.deferred_invoke([task, invoke] { invoke(task); });
+        },
+        [](void* service) {
+            auto& shared_state = *static_cast<DestinationCallbackService*>(service)->shared_state;
+            if (shared_state.drain)
+                shared_state.drain();
+        },
+        [](void*, size_t, u64) { return false; },
+    };
+    return RustFFI::web_audio_node_create_media_stream_destination(node_id, quantum_size, channel_count,
+        { shared_state->ring.ptr(), [](void* ring) { static_cast<Audio::SpscAudioFrameRing*>(ring)->ref(); }, [](void* ring) { static_cast<Audio::SpscAudioFrameRing*>(ring)->unref(); } },
+        {
+            [](void* ring) { return static_cast<Audio::SpscAudioFrameRing*>(ring)->channel_count(); },
+            [](void* ring) { return static_cast<Audio::SpscAudioFrameRing*>(ring)->frames_available(); },
+            [](void* ring) { return static_cast<Audio::SpscAudioFrameRing*>(ring)->frames_free(); },
+            [](void* ring, Span<float> samples) { return static_cast<Audio::SpscAudioFrameRing*>(ring)->try_pop(samples); },
+            [](void* ring, ReadonlySpan<float> samples) { return static_cast<Audio::SpscAudioFrameRing*>(ring)->try_push(samples); },
+        },
+        callbacks);
+}
 
 extern "C" void web_audio_media_destination_create_stream(MediaCapture::MediaStream**, MediaCapture::MediaStreamTrack**);
 extern "C" RustFFI::FfiSharedCppObject web_audio_media_destination_create_state(MediaCapture::MediaStreamTrack*, u64, u32, u32, void**);
-extern "C" void web_audio_media_destination_clear_drain(Rendering::MediaStreamDestinationSharedState*);
+extern "C" void web_audio_media_destination_clear_drain(MediaStreamDestinationSharedState*);
 extern "C" JS::Object* web_audio_media_destination_wrap_stream(JS::Realm*, MediaCapture::MediaStream*);
 void web_audio_media_destination_create_stream(MediaCapture::MediaStream** out_stream, MediaCapture::MediaStreamTrack** out_track)
 {
@@ -41,7 +92,7 @@ RustFFI::FfiSharedCppObject web_audio_media_destination_create_state(MediaCaptur
     // (~170 ms at 48 kHz) absorb a full burst plus scheduling jitter.
     static constexpr size_t ring_capacity_in_frames = 8192;
     auto ring = adopt_ref(*new Audio::SpscAudioFrameRing(ring_capacity_in_frames, channel_count));
-    auto shared_state = adopt_ref(*new Rendering::MediaStreamDestinationSharedState(move(ring)));
+    auto shared_state = adopt_ref(*new MediaStreamDestinationSharedState(move(ring)));
 
     // The drain callback runs (and is later cleared) exclusively on the control thread; it is
     // the only place a GC root crosses into the shared state, so the render thread never
@@ -59,11 +110,10 @@ RustFFI::FfiSharedCppObject web_audio_media_destination_create_state(MediaCaptur
         }
     };
 
-    Rendering::MediaStreamDestinationRenderNode node(NodeID(node_id), 128, channel_count, shared_state, Core::EventLoop::current());
-    *render_node = node.release_rust_node();
-    return { &shared_state.leak_ref(), [](void* state) { static_cast<Rendering::MediaStreamDestinationSharedState*>(state)->ref(); }, [](void* state) { static_cast<Rendering::MediaStreamDestinationSharedState*>(state)->unref(); } };
+    *render_node = create_render_node(node_id, 128, channel_count, shared_state, Core::EventLoop::current());
+    return { &shared_state.leak_ref(), [](void* state) { static_cast<MediaStreamDestinationSharedState*>(state)->ref(); }, [](void* state) { static_cast<MediaStreamDestinationSharedState*>(state)->unref(); } };
 }
-void web_audio_media_destination_clear_drain(Rendering::MediaStreamDestinationSharedState* state) { state->drain = nullptr; }
+void web_audio_media_destination_clear_drain(MediaStreamDestinationSharedState* state) { state->drain = nullptr; }
 JS::Object* web_audio_media_destination_wrap_stream(JS::Realm* realm, MediaCapture::MediaStream* stream) { return Bindings::wrap(Bindings::host_defined_wrapper_world(*realm), *realm, GC::Ref { *stream }).ptr(); }
 
 }

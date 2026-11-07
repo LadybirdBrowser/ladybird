@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use ak::{Span, SpanMut};
-
+// https://webaudio.github.io/web-audio-api/#ChannelLayouts
+// Speakers channel layouts exist for mono, stereo, quad and 5.1; all other channel counts use discrete mixing.
 const LEFT: usize = 0;
 const RIGHT: usize = 1;
 const CENTER: usize = 2;
@@ -222,92 +222,5 @@ impl AudioBus {
                 destination_span[frame] += source_span[frame];
             }
         }
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) extern "C" fn web_audio_bus_create(channel_count: usize, frame_count: usize) -> *mut AudioBus {
-    Box::into_raw(Box::new(AudioBus::new(channel_count, frame_count)))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_destroy(bus: *mut AudioBus) {
-    if !bus.is_null() {
-        drop(unsafe { Box::from_raw(bus) });
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_clone(bus: *const AudioBus) -> *mut AudioBus {
-    let source = unsafe { &*bus };
-    let mut copy = AudioBus::new(0, source.frame_count());
-    copy.copy_from(source);
-    Box::into_raw(Box::new(copy))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_channel_count(bus: *const AudioBus) -> usize {
-    unsafe { &*bus }.channel_count()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_frame_count(bus: *const AudioBus) -> usize {
-    unsafe { &*bus }.frame_count()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_channel(
-    bus: *const AudioBus,
-    index: usize,
-    output: *mut Span<'static, f32>,
-) {
-    unsafe {
-        *output = Span::new((&*bus).channel(index));
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_channel_mut(
-    bus: *mut AudioBus,
-    index: usize,
-    output: *mut SpanMut<'static, f32>,
-) {
-    unsafe {
-        *output = SpanMut::new((&mut *bus).channel_mut(index));
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_zero(bus: *mut AudioBus) {
-    unsafe { &mut *bus }.zero();
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_is_silent(bus: *const AudioBus) -> bool {
-    unsafe { &*bus }.is_silent()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_set_channel_count(bus: *mut AudioBus, channel_count: usize) {
-    unsafe { &mut *bus }.set_channel_count(channel_count);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_copy_from(bus: *mut AudioBus, source: *const AudioBus) {
-    if !std::ptr::eq(bus, source) {
-        unsafe { &mut *bus }.copy_from(unsafe { &*source });
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_bus_sum_from(bus: *mut AudioBus, source: *const AudioBus, speakers: bool) {
-    if std::ptr::eq(bus, source) {
-        for channel in &mut unsafe { &mut *bus }.channels {
-            for sample in channel {
-                *sample += *sample;
-            }
-        }
-    } else {
-        unsafe { &mut *bus }.sum_from(unsafe { &*source }, speakers);
     }
 }

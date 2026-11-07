@@ -6,9 +6,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
-use ak::{Span, SpanMut, math};
+use ak::math;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -560,109 +560,4 @@ impl TimelineState {
         self.parameterization_cache = None;
         InsertResult::Success
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) extern "C" fn web_audio_param_timeline_create(default_value: f32) -> *const AudioParamTimeline {
-    Arc::into_raw(Arc::new(AudioParamTimeline::new(default_value)))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_destroy(timeline: *const AudioParamTimeline) {
-    drop(unsafe { Arc::from_raw(timeline) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_set_value_at_time(
-    timeline: *const AudioParamTimeline,
-    value: f32,
-    start_time: f64,
-) -> InsertResult {
-    unsafe { &*timeline }.set_value_at_time(value, start_time)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_linear_ramp_to_value_at_time(
-    timeline: *const AudioParamTimeline,
-    value: f32,
-    end_time: f64,
-    current_time: f64,
-    current_value: f32,
-) -> InsertResult {
-    unsafe { &*timeline }.linear_ramp_to_value_at_time(value, end_time, current_time, current_value)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_exponential_ramp_to_value_at_time(
-    timeline: *const AudioParamTimeline,
-    value: f32,
-    end_time: f64,
-    current_time: f64,
-    current_value: f32,
-) -> InsertResult {
-    unsafe { &*timeline }.exponential_ramp_to_value_at_time(value, end_time, current_time, current_value)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_set_target_at_time(
-    timeline: *const AudioParamTimeline,
-    target: f32,
-    start_time: f64,
-    time_constant: f32,
-) -> InsertResult {
-    unsafe { &*timeline }.set_target_at_time(target, start_time, time_constant)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_set_value_curve_at_time(
-    timeline: *const AudioParamTimeline,
-    values: Span<'_, f32>,
-    start_time: f64,
-    duration: f64,
-) -> InsertResult {
-    unsafe { &*timeline }.set_value_curve_at_time(values.as_slice().to_vec(), start_time, duration)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_cancel_scheduled_values(
-    timeline: *const AudioParamTimeline,
-    cancel_time: f64,
-) {
-    unsafe { &*timeline }.cancel_scheduled_values(cancel_time);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_cancel_and_hold_at_time(
-    timeline: *const AudioParamTimeline,
-    cancel_time: f64,
-) {
-    unsafe { &*timeline }.cancel_and_hold_at_time(cancel_time);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_value_at_time(
-    timeline: *const AudioParamTimeline,
-    time: f64,
-) -> f32 {
-    unsafe { &*timeline }.value_at_time(time)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_sample(
-    timeline: *const AudioParamTimeline,
-    start_time: f64,
-    sample_period: f64,
-    output: SpanMut<'_, f32>,
-) {
-    unsafe { &*timeline }.sample(start_time, sample_period, output.into_slice());
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_has_events(timeline: *const AudioParamTimeline) -> bool {
-    unsafe { &*timeline }.has_events()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_param_timeline_default_value(timeline: *const AudioParamTimeline) -> f32 {
-    unsafe { &*timeline }.default_value()
 }

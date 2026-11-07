@@ -11,7 +11,6 @@ use super::audio_worklet_pipe::{AudioWorkletPipe, WorkletPipeState};
 use super::render_graph::RenderGraph;
 use super::render_node::*;
 use super::render_nodes::{BusRef, NodeProcessor, node_handle};
-use crate::web_audio::control_message::clone_arc;
 
 // Script runs on the main-thread pump, `prime_level` quanta behind this render node; this side
 // only exchanges preallocated pipe slots and renders silence on underrun.
@@ -105,21 +104,19 @@ impl NodeProcessor for AudioWorkletRenderNode {
     }
 }
 
-/// # Safety
-/// The pipe and parameter pointers must name live `Arc` allocations for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_audio_worklet(
+#[allow(clippy::too_many_arguments, reason = "mirror the C++ render node constructor")]
+pub fn create_audio_worklet_render_node(
     node_id: u64,
     input_count: usize,
     output_count: usize,
     quantum_size: usize,
-    output_channel_capacities: ak::Span<'_, u32>,
+    output_channel_capacities: &[u32],
     channel_count: usize,
     channel_count_mode: ChannelCountMode,
     channel_interpretation: ChannelInterpretation,
-    pipe: *const AudioWorkletPipe,
-    params: ak::Span<'_, *const RenderAudioParam>,
-) -> *mut NodeHandle {
+    pipe: Arc<AudioWorkletPipe>,
+    params: Vec<Arc<RenderAudioParam>>,
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, input_count, output_count, quantum_size, 1);
 
     // Channel configuration must be set here: the SetChannelConfig messages queued during node
@@ -130,14 +127,10 @@ pub unsafe extern "C" fn web_audio_node_create_audio_worklet(
     node_handle(
         data,
         AudioWorkletRenderNode {
-            pipe: unsafe { clone_arc(pipe) },
-            params: params
-                .as_slice()
-                .iter()
-                .map(|param| unsafe { clone_arc(*param) })
-                .collect(),
+            pipe,
+            params,
             param_scratch: vec![0.; quantum_size],
-            output_channel_capacities: output_channel_capacities.as_slice().to_vec(),
+            output_channel_capacities: output_channel_capacities.to_vec(),
         },
     )
 }
