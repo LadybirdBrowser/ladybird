@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
+#include <AK/Diagnostics.h>
 #include <LibWeb/HTML/SharedWorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
 
@@ -14,8 +14,13 @@ GC_DEFINE_ALLOCATOR(SharedWorkerGlobalScope);
 
 HashTable<GC::RawRef<SharedWorkerGlobalScope>>& all_shared_worker_global_scopes()
 {
-    static NeverDestroyed<HashTable<GC::RawRef<SharedWorkerGlobalScope>>> set;
-    return *set;
+    // NB: Free what this thread kept when it exits.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local HashTable<GC::RawRef<SharedWorkerGlobalScope>> set)
+#else
+    static thread_local HashTable<GC::RawRef<SharedWorkerGlobalScope>> set;
+#endif
+    return set;
 }
 
 SharedWorkerGlobalScope::SharedWorkerGlobalScope(GC::Ref<Web::Page> page)

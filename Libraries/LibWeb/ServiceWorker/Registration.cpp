@@ -17,8 +17,13 @@ namespace Web::ServiceWorker {
 //        Does this need to be serialized to disk as well?
 static OrderedHashMap<RegistrationKey, NonnullOwnPtr<Registration>>& registration_map()
 {
-    static NeverDestroyed<OrderedHashMap<RegistrationKey, NonnullOwnPtr<Registration>>> registrations;
+    static thread_local NeverDestroyed<OrderedHashMap<RegistrationKey, NonnullOwnPtr<Registration>>> registrations;
     return *registrations;
+}
+
+void Registration::forget_registrations_of_this_agent()
+{
+    registration_map().clear();
 }
 
 Registration::Registration(StorageAPI::StorageKey storage_key, URL::URL scope, ServiceWorkerUpdateViaCache update_via_cache)

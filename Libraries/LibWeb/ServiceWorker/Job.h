@@ -77,4 +77,7 @@ private:
 // https://w3c.github.io/ServiceWorker/#schedule-job-algorithm
 void schedule_job(JS::VM&, GC::Ref<Job>);
 
+// The queues of an agent hold roots, which have to go before its heap does.
+void forget_job_queues_of_this_agent();
+
 }
