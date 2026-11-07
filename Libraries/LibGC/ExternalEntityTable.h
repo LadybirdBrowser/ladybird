@@ -58,9 +58,43 @@ class GC_API ExternalEntityTable {
 protected:
     ExternalEntityTable() = default;
 
-    ExternalEntityTableHandle allocate_entry(ExternalEntityTableTag);
-    bool is_valid(ExternalEntityTableHandle, ExternalEntityTableTag) const;
-    void free_entry(ExternalEntityTableHandle, ExternalEntityTableTag);
+    ALWAYS_INLINE ExternalEntityTableHandle allocate_entry(ExternalEntityTableTag tag)
+    {
+        VERIFY(tag.is_balanced());
+
+        u32 index;
+        if (m_free_entry_indices.is_empty()) {
+            VERIFY(m_entries.size() < ExternalEntityTableHandle::invalid_index);
+            index = static_cast<u32>(m_entries.size());
+            m_entries.append({});
+        } else {
+            index = m_free_entry_indices.take_last();
+        }
+
+        auto& entry = m_entries[index];
+        VERIFY(!entry.allocated);
+        entry.allocated = true;
+        entry.tag = tag;
+        return { index, entry.generation };
+    }
+
+    ALWAYS_INLINE bool is_valid(ExternalEntityTableHandle handle, ExternalEntityTableTag expected_tag) const
+    {
+        return entry_for(handle, expected_tag) != nullptr;
+    }
+
+    ALWAYS_INLINE void free_entry(ExternalEntityTableHandle handle, ExternalEntityTableTag expected_tag)
+    {
+        auto* entry = const_cast<Entry*>(entry_for(handle, expected_tag));
+        if (!entry)
+            return;
+
+        entry->allocated = false;
+        ++entry->generation;
+        if (entry->generation == 0)
+            ++entry->generation;
+        m_free_entry_indices.append(handle.index);
+    }
 
 private:
     struct Entry {
@@ -69,8 +103,15 @@ private:
         bool allocated { false };
     };
 
-    Entry* entry_for(ExternalEntityTableHandle, ExternalEntityTableTag);
-    Entry const* entry_for(ExternalEntityTableHandle, ExternalEntityTableTag) const;
+    ALWAYS_INLINE Entry const* entry_for(ExternalEntityTableHandle handle, ExternalEntityTableTag expected_tag) const
+    {
+        if (!handle.is_valid() || handle.index >= m_entries.size())
+            return nullptr;
+        auto& entry = m_entries.data()[handle.index];
+        if (!entry.allocated || entry.generation != handle.generation || entry.tag != expected_tag)
+            return nullptr;
+        return &entry;
+    }
 
     Vector<Entry> m_entries;
     Vector<u32> m_free_entry_indices;
