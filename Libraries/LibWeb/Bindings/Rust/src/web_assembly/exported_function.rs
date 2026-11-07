@@ -22,7 +22,7 @@ use libwasm_engine::runtime::heap::Visitor as StoreVisitor;
 use libwasm_engine::runtime::{
     FunctionAddress, FunctionInstance, FunctionKind, HostCallback, HostFunction, Store, Trap, Value as WasmValue,
 };
-use libwasm_engine::types::FuncType;
+use libwasm_engine::types::{FuncType, ValType};
 
 use crate::web_assembly::exception::Exception;
 use crate::web_assembly::values::{
@@ -36,7 +36,10 @@ use crate::web_assembly::{
 struct ExportedFunction {
     function: EntityRef<FunctionInstance>,
     ty: FuncType,
+    use_stack_slots: bool,
 }
+
+const STACK_SLOT_CAPACITY: usize = 8;
 
 // SAFETY: The type holds no cells, so the function is the one cell the slots reach.
 unsafe impl Trace for ExportedFunction {
@@ -83,6 +86,14 @@ pub(crate) fn create_exported_function(vm: &Vm, realm: Gc<Realm>, function: Func
     let ty = store.function(function).ty.clone();
     let arity = ty.params.len() as i32;
     let name = name_of_webassembly_function(store, function);
+    let use_stack_slots = matches!(store.function(function).kind, FunctionKind::Wasm { .. })
+        && ty.params.len() <= STACK_SLOT_CAPACITY
+        && ty.results.len() <= STACK_SLOT_CAPACITY
+        && ty
+            .params
+            .iter()
+            .chain(&ty.results)
+            .all(|ty| matches!(ty, ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64));
 
     // NB: The function has its name on call stacks too, as a HostFunction of the C++ API would.
     let object = NativeFunction::create_with_name(
@@ -92,6 +103,7 @@ pub(crate) fn create_exported_function(vm: &Vm, realm: Gc<Realm>, function: Func
         ExportedFunction {
             function: EntityRef(function),
             ty,
+            use_stack_slots,
         },
         |vm: &Vm, function: &ExportedFunction| call_an_exported_function(vm, function),
     );
@@ -116,6 +128,31 @@ fn call_an_exported_function(vm: &Vm, function: &ExportedFunction) -> ThrowCompl
         params: parameters,
         results,
     } = &function.ty;
+
+    // Numeric values need no GC roots. Keep small signatures on the stack and pass their slots directly to the
+    // engine, avoiding the traced containers and temporary vectors of the general path. Convert arguments in
+    // JavaScript order even though the engine's operand stack stores them in reverse order: conversion can run JS.
+    if function.use_stack_slots {
+        let mut argument_slots = [0; STACK_SLOT_CAPACITY];
+        for (i, &ty) in parameters.iter().enumerate() {
+            let value = to_webassembly_value(vm, vm.argument(i), ty)?;
+            argument_slots[parameters.len() - i - 1] = value.to_slots().0[0];
+        }
+        let mut result_slots = [0; STACK_SLOT_CAPACITY];
+        Agent::the(vm)
+            .store()
+            .invoke_slots(
+                function.function.0,
+                &argument_slots[..parameters.len()],
+                &mut result_slots[..results.len()],
+            )
+            .map_err(|trap| throw_of_trap(vm, trap))?;
+        let mut values = [WasmValue::I32(0); STACK_SLOT_CAPACITY];
+        for (i, &ty) in results.iter().enumerate() {
+            values[i] = WasmValue::from_slots(ty, &result_slots[results.len() - i - 1..]);
+        }
+        return results_to_js_value(vm, &values[..results.len()], results);
+    }
 
     // 4. If any type in parameters or results matches v128 or exnref, throw a TypeError.
     // Note: the above error is thrown each time the [[Call]] method is invoked.

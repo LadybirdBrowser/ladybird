@@ -1,0 +1,11 @@
+conversion order: 0, 1, 2, 3, 4, 5, 6, 7
+mixed results: true
+conversion exception: true
+import exception: true
+empty result: undefined
+missing integer: 0
+missing float: true
+invalid BigInt: TypeError
+extra argument: 42
+wide results: 1, 2, 3, 4, 5, 6, 7, 8, 9
+reference result: true
