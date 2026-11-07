@@ -119,9 +119,9 @@ public final class TranslationSessionWrapper: NSObject {
             return session
         }
 
-        // The Apple Intelligence models translate more fluently, so they're used wherever they're installed.
-        let high_fidelity_ready = await LanguageAvailability(preferredStrategy: .highFidelity).status(from: source, to: target) == .installed
-        let session = TranslationSession(installedSource: source, target: target, preferredStrategy: high_fidelity_ready ? .highFidelity : .lowLatency)
+        // The classic models are several times faster than the Apple Intelligence ones, so they're used if installed.
+        let low_latency_ready = await LanguageAvailability(preferredStrategy: .lowLatency).status(from: source, to: target) == .installed
+        let session = TranslationSession(installedSource: source, target: target, preferredStrategy: low_latency_ready ? .lowLatency : .highFidelity)
         lock.withLock { self.session = session }
         return session
     }
