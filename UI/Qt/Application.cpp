@@ -34,6 +34,7 @@
 #include <UI/Qt/ProcessManagerWindow.h>
 #include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteDownloads.h>
+#include <UI/Qt/RemoteSession.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/Theme.h>
@@ -477,8 +478,8 @@ public:
 
         m_reopen_recently_closed_tab_action->setText("&Reopen Closed Tab");
         auto* active_window = Application::the().active_window_if_any();
-        auto& session = active_window ? active_window->session() : WebView::Application::default_session();
-        m_reopen_recently_closed_tab_action->setEnabled(session.session_store->has_closed_units());
+        auto& session = active_window ? active_window->session() : RemoteSession::of(WebView::IsPrivate::No);
+        m_reopen_recently_closed_tab_action->setEnabled(session.has_closed_units());
     }
 
     void rebuild_bookmarks_menu()
@@ -932,7 +933,7 @@ static WindowConfiguration window_configuration_for(WebView::SessionWindowGeomet
 
 BrowserWindow* Application::restore_previous_session(WindowConfiguration const& frontmost_window_configuration)
 {
-    auto plan = WebView::Application::default_session().session_store->take_launch_plan();
+    auto plan = RemoteSession::of(WebView::IsPrivate::No).take_launch_plan();
 
     BrowserWindow* frontmost_window = nullptr;
     for (size_t i = 0; i < plan.size(); ++i) {
@@ -952,7 +953,7 @@ BrowserWindow* Application::restore_previous_session(WindowConfiguration const& 
 
 void Application::offer_to_restore_unexpectedly_closed_tabs(BrowserWindow& window)
 {
-    auto& session_store = *WebView::Application::default_session().session_store;
+    auto& session_store = RemoteSession::of(WebView::IsPrivate::No);
     if (session_store.consecutive_unclean_exits() == 0)
         return;
 
@@ -1151,8 +1152,8 @@ void Application::focus_location_editor()
 void Application::reopen_recently_closed_tab(BrowserWindow* target_window, Optional<WebView::SessionWindowId> unit_id, ReopenClosedWindow reopen_closed_window)
 {
     auto is_private = target_window ? target_window->is_private() : WebView::IsPrivate::No;
-    auto& session = target_window ? target_window->session() : WebView::Application::default_session();
-    auto closed_unit = unit_id.has_value() ? session.session_store->take_closed_unit(*unit_id) : session.session_store->take_most_recently_closed();
+    auto& session = target_window ? target_window->session() : RemoteSession::of(WebView::IsPrivate::No);
+    auto closed_unit = unit_id.has_value() ? session.take_closed_unit(*unit_id) : session.take_most_recently_closed();
     if (closed_unit.is_error()) {
         dbgln("Unable to reopen the most recently closed session unit: {}", closed_unit.error());
         return;
@@ -1327,7 +1328,7 @@ void Application::finish_quit()
     // The session store hears of the quit only once every window has agreed, so a canceled quit never reaches it. In
     // quitting mode, it keeps each window that closes as an open one, for the next launch to recover.
     m_quit_is_finishing = true;
-    WebView::Application::default_session().session_store->application_quitting();
+    RemoteSession::of(WebView::IsPrivate::No).application_quitting();
 
     // Each window's pages agreed, so it closes at once; the active window goes last, so no close activates another.
     auto windows = visible_browser_windows_active_first(m_active_window);
