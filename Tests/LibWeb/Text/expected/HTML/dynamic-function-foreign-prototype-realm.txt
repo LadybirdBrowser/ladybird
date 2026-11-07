@@ -1,0 +1,9 @@
+same-process cross-origin frame: true
+same-origin Function: prototype from NewTarget: true, this is caller's global: true
+same-origin GeneratorFunction: prototype from NewTarget: true, this is caller's global: true
+same-origin AsyncFunction: prototype from NewTarget: true, this is caller's global: true
+same-origin AsyncGeneratorFunction: prototype from NewTarget: true, this is caller's global: true
+cross-origin Function: prototype from NewTarget: true, this is caller's global: true
+cross-origin GeneratorFunction: prototype from NewTarget: true, this is caller's global: true
+cross-origin AsyncFunction: prototype from NewTarget: true, this is caller's global: true
+cross-origin AsyncGeneratorFunction: prototype from NewTarget: true, this is caller's global: true
