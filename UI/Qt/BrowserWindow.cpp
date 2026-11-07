@@ -119,20 +119,29 @@ FullscreenMode::FullscreenMode(BrowserWindow* window, ExitFullscreenButton* exit
     });
 }
 
-void FullscreenMode::exit(ExitInitiatedBy initiated_by)
+void FullscreenMode::exit(ExitInitiatedBy initiated_by, Tab const* requesting_tab)
 {
-    if (is_api_fullscreen()) {
-        qApp->removeEventFilter(this);
-        if (initiated_by == ExitInitiatedBy::UI && m_window->tab_index(m_fullscreen_tab) != -1) {
-            m_fullscreen_tab->view().exit_fullscreen();
-        }
-        emit on_exit_fullscreen();
+    if (!is_api_fullscreen() || (requesting_tab && requesting_tab != m_fullscreen_tab))
+        return;
+
+    qApp->removeEventFilter(this);
+    // NB: The tab is let go of first, so the window leaving full screen below doesn't end it a second time.
+    auto* tab = exchange(m_fullscreen_tab, nullptr);
+    // NB: The tab that went full screen is told it left, even when another tab is current by now.
+    if (m_window->tab_index(tab) != -1) {
+        if (initiated_by == ExitInitiatedBy::UI)
+            tab->view().exit_fullscreen();
+        tab->view().set_is_fullscreen(Web::ViewportIsFullscreen::No);
     }
-    m_fullscreen_tab = nullptr;
+    emit on_exit_fullscreen();
 }
 
 void FullscreenMode::enter(Tab* tab)
 {
+    // NB: One tab holds fullscreen at a time, and the window's state is restored for it before the next one takes it.
+    if (m_fullscreen_tab && m_fullscreen_tab != tab)
+        exit(ExitInitiatedBy::UI);
+
     qApp->installEventFilter(this);
     m_fullscreen_tab = tab;
     m_window->enter_fullscreen();
@@ -144,6 +153,7 @@ void FullscreenMode::entered_fullscreen()
     //     neither leaves a window the user made full screen.
     if (!m_fullscreen_tab || m_window->tab_index(m_fullscreen_tab) == -1)
         return;
+    m_fullscreen_tab->view().set_is_fullscreen(Web::ViewportIsFullscreen::Yes);
     m_exit_button->set_host(m_fullscreen_tab->url().host().has_value() ? qstring_from_ak_string(m_fullscreen_tab->url().serialized_host()) : QString {});
     // Let button float in place for 3 times the time it takes to animate it in place.
     m_debounce.start(*this, button_animation_time() * 3);
@@ -1901,10 +1911,10 @@ void BrowserWindow::changeEvent(QEvent* event)
 
         if (is_fullscreen && !was_fullscreen) {
             m_fullscreen_mode->entered_fullscreen();
-            if (m_fullscreen_mode->is_api_fullscreen())
-                view().set_is_fullscreen(Web::ViewportIsFullscreen::Yes);
         } else if (!is_fullscreen && was_fullscreen) {
-            view().set_is_fullscreen(Web::ViewportIsFullscreen::No);
+            // NB: A window that leaves full screen without the page asking, such as from the window's own controls,
+            //     takes the page out of full screen too.
+            m_fullscreen_mode->exit(FullscreenMode::ExitInitiatedBy::UI);
         }
     }
     QWidget::changeEvent(event);
