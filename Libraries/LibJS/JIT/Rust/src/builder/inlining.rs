@@ -463,7 +463,7 @@ impl GraphBuilder<'_> {
     }
 
     /// Builds a `Call` whose feedback saw a single callee that JIT code can
-    /// call directly as a `CallDirect` node (or a `CallNative` node for raw
+    /// call directly as a `CallDirect` node (or a `CallNative` node for
     /// native functions), or returns `None` if it did not.
     pub(super) fn try_direct_call(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
         let Instruction::Call {

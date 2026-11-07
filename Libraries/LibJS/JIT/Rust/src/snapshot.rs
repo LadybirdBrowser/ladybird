@@ -590,8 +590,9 @@ impl FunctionFrameFields {
     }
 }
 
-/// A raw native function that JIT code calls directly, in the lightweight
+/// A native function that JIT code calls directly, in the lightweight
 /// frame the interpreter's call fast path builds for raw native functions.
+/// Capturing native functions use an entry that reads the function from that frame.
 /// The compiled code must list `function` and `realm` in
 /// `CompiledCode::embedded_cells`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

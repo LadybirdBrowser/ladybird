@@ -20,7 +20,7 @@
 //! (`RuntimeInfo::dynamic_calls`). Calls the fast path cannot make take the
 //! generic path through `RuntimeInfo::jit_call`.
 //!
-//! Native calls (`Op::CallNative`): JIT code calls the single raw native
+//! Native calls (`Op::CallNative`): JIT code calls the single native
 //! function a `Call` instruction saw in the lightweight frame the
 //! interpreter's `Call` fast path builds for raw native functions, and lets
 //! the runtime unwind the frame if the function throws.
@@ -1061,7 +1061,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.branch_if_stack_pointer_below(&limit, slow);
     }
 
-    /// `CallNative`: calls the raw native function a `Call` instruction saw
+    /// `CallNative`: calls the native function a `Call` instruction saw
     /// the way the interpreter's `Call` fast path does: in a lightweight frame
     /// without an executable, linked to the calling frame, whose slots are
     /// the arguments. Other callees take the generic path.

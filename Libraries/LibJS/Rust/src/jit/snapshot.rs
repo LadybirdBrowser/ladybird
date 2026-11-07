@@ -37,7 +37,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
 use crate::layout::function_object::{
-    DirectGetterFunction, EcmascriptFunctionObject, FunctionObject, RawNativeFunction,
+    DirectGetterFunction, EcmascriptFunctionObject, FunctionObject, NativeFunction, RawNativeFunction,
 };
 use crate::layout::object::{Object, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID, TypedArrayBase};
 use crate::layout::property_lookup_cache::{GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntryType};
@@ -341,16 +341,23 @@ fn direct_call_target(feedback: &CallFeedback) -> Option<(Gc<EcmascriptFunctionO
     function.can_inline_call().then_some((function, closures))
 }
 
-/// The target of a call site if it is a raw native function that JIT code can call directly, in the frame the
+/// The target and entry of a call site if it is a native function that JIT code can call directly, in the frame the
 /// interpreter's call fast path builds for it. Function.prototype.call and apply forward their calls, which the runtime
 /// does for JIT code.
-fn native_call_target(vm: &Vm, feedback: &CallFeedback) -> Option<Gc<RawNativeFunction>> {
+fn native_call_target(vm: &Vm, feedback: &CallFeedback) -> Option<(Gc<NativeFunction>, u64)> {
     if !RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS || feedback.flags.get() & call_feedback_flags::POLYMORPHIC != 0 {
         return None;
     }
-    let function = feedback.target()?.downcast::<RawNativeFunction>()?;
-    (!FunctionPrototype::is_call_function(vm, &function) && !FunctionPrototype::is_apply_function(vm, &function))
-        .then_some(function)
+    let function = feedback.target()?.downcast::<NativeFunction>()?;
+    let entry = if let Some(raw) = function.downcast::<RawNativeFunction>() {
+        if FunctionPrototype::is_call_function(vm, &raw) || FunctionPrototype::is_apply_function(vm, &raw) {
+            return None;
+        }
+        raw.native_function(vm)?
+    } else {
+        function.capturing_call_entry()?
+    };
+    Some((function, entry as usize as u64))
 }
 
 /// The words of an ECMAScript function its frames start with, which stay the same for its lifetime.
@@ -910,10 +917,7 @@ impl SnapshotBuilder<'_> {
             && !(closures && environment.is_some())
         {
             snapshot.direct_call = Some(self.direct_call_target_snapshot(function, environment, closures));
-        } else if let Some(function) = native_call_target(self.vm, call) {
-            let entry = function
-                .native_function(self.vm)
-                .map_or(0, |pointer| pointer as usize as u64);
+        } else if let Some((function, entry)) = native_call_target(self.vm, call) {
             snapshot.native_call = Some(NativeCallTarget {
                 function: self.cell(function),
                 realm: self.cell(function.realm()),
