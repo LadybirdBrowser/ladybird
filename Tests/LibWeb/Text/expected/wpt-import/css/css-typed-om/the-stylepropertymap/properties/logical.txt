@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1468 tests
 
-1318 Pass
-150 Fail
+1390 Pass
+78 Fail
 Pass	Can set 'margin-block-start' to CSS-wide keywords: initial
 Pass	Can set 'margin-block-start' to CSS-wide keywords: inherit
 Pass	Can set 'margin-block-start' to CSS-wide keywords: unset
@@ -128,10 +128,10 @@ Pass	Setting 'margin-inline-end' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'margin-inline-end' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'margin-inline-end' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'margin-inline-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'margin-block' to CSS-wide keywords: initial
-Fail	Can set 'margin-block' to CSS-wide keywords: inherit
-Fail	Can set 'margin-block' to CSS-wide keywords: unset
-Fail	Can set 'margin-block' to CSS-wide keywords: revert
+Pass	Can set 'margin-block' to CSS-wide keywords: initial
+Pass	Can set 'margin-block' to CSS-wide keywords: inherit
+Pass	Can set 'margin-block' to CSS-wide keywords: unset
+Pass	Can set 'margin-block' to CSS-wide keywords: revert
 Pass	Can set 'margin-block' to var() references:  var(--A)
 Fail	Can set 'margin-block' to a percent: 0%
 Fail	Can set 'margin-block' to a percent: -3.14%
@@ -159,10 +159,10 @@ Pass	Setting 'margin-block' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'margin-block' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'margin-block' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'margin-block' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'margin-inline' to CSS-wide keywords: initial
-Fail	Can set 'margin-inline' to CSS-wide keywords: inherit
-Fail	Can set 'margin-inline' to CSS-wide keywords: unset
-Fail	Can set 'margin-inline' to CSS-wide keywords: revert
+Pass	Can set 'margin-inline' to CSS-wide keywords: initial
+Pass	Can set 'margin-inline' to CSS-wide keywords: inherit
+Pass	Can set 'margin-inline' to CSS-wide keywords: unset
+Pass	Can set 'margin-inline' to CSS-wide keywords: revert
 Pass	Can set 'margin-inline' to var() references:  var(--A)
 Fail	Can set 'margin-inline' to a percent: 0%
 Fail	Can set 'margin-inline' to a percent: -3.14%
@@ -314,10 +314,10 @@ Pass	Setting 'padding-inline-end' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'padding-inline-end' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'padding-inline-end' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'padding-inline-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'padding-block' to CSS-wide keywords: initial
-Fail	Can set 'padding-block' to CSS-wide keywords: inherit
-Fail	Can set 'padding-block' to CSS-wide keywords: unset
-Fail	Can set 'padding-block' to CSS-wide keywords: revert
+Pass	Can set 'padding-block' to CSS-wide keywords: initial
+Pass	Can set 'padding-block' to CSS-wide keywords: inherit
+Pass	Can set 'padding-block' to CSS-wide keywords: unset
+Pass	Can set 'padding-block' to CSS-wide keywords: revert
 Pass	Can set 'padding-block' to var() references:  var(--A)
 Fail	Can set 'padding-block' to a percent: 0%
 Fail	Can set 'padding-block' to a percent: -3.14%
@@ -345,10 +345,10 @@ Pass	Setting 'padding-block' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'padding-block' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'padding-block' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'padding-block' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'padding-inline' to CSS-wide keywords: initial
-Fail	Can set 'padding-inline' to CSS-wide keywords: inherit
-Fail	Can set 'padding-inline' to CSS-wide keywords: unset
-Fail	Can set 'padding-inline' to CSS-wide keywords: revert
+Pass	Can set 'padding-inline' to CSS-wide keywords: initial
+Pass	Can set 'padding-inline' to CSS-wide keywords: inherit
+Pass	Can set 'padding-inline' to CSS-wide keywords: unset
+Pass	Can set 'padding-inline' to CSS-wide keywords: revert
 Pass	Can set 'padding-inline' to var() references:  var(--A)
 Fail	Can set 'padding-inline' to a percent: 0%
 Fail	Can set 'padding-inline' to a percent: -3.14%
@@ -500,10 +500,10 @@ Pass	Setting 'inset-inline-end' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'inset-inline-end' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'inset-inline-end' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'inset-inline-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'inset-block' to CSS-wide keywords: initial
-Fail	Can set 'inset-block' to CSS-wide keywords: inherit
-Fail	Can set 'inset-block' to CSS-wide keywords: unset
-Fail	Can set 'inset-block' to CSS-wide keywords: revert
+Pass	Can set 'inset-block' to CSS-wide keywords: initial
+Pass	Can set 'inset-block' to CSS-wide keywords: inherit
+Pass	Can set 'inset-block' to CSS-wide keywords: unset
+Pass	Can set 'inset-block' to CSS-wide keywords: revert
 Pass	Can set 'inset-block' to var() references:  var(--A)
 Fail	Can set 'inset-block' to a percent: 0%
 Fail	Can set 'inset-block' to a percent: -3.14%
@@ -531,10 +531,10 @@ Pass	Setting 'inset-block' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'inset-block' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'inset-block' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'inset-block' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'inset-inline' to CSS-wide keywords: initial
-Fail	Can set 'inset-inline' to CSS-wide keywords: inherit
-Fail	Can set 'inset-inline' to CSS-wide keywords: unset
-Fail	Can set 'inset-inline' to CSS-wide keywords: revert
+Pass	Can set 'inset-inline' to CSS-wide keywords: initial
+Pass	Can set 'inset-inline' to CSS-wide keywords: inherit
+Pass	Can set 'inset-inline' to CSS-wide keywords: unset
+Pass	Can set 'inset-inline' to CSS-wide keywords: revert
 Pass	Can set 'inset-inline' to var() references:  var(--A)
 Fail	Can set 'inset-inline' to a percent: 0%
 Fail	Can set 'inset-inline' to a percent: -3.14%
@@ -562,10 +562,10 @@ Pass	Setting 'inset-inline' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'inset-inline' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'inset-inline' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'inset-inline' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-block-start' to CSS-wide keywords: initial
-Fail	Can set 'border-block-start' to CSS-wide keywords: inherit
-Fail	Can set 'border-block-start' to CSS-wide keywords: unset
-Fail	Can set 'border-block-start' to CSS-wide keywords: revert
+Pass	Can set 'border-block-start' to CSS-wide keywords: initial
+Pass	Can set 'border-block-start' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-start' to CSS-wide keywords: unset
+Pass	Can set 'border-block-start' to CSS-wide keywords: revert
 Pass	Can set 'border-block-start' to var() references:  var(--A)
 Fail	Can set 'border-block-start' to the 'none' keyword: none
 Pass	Setting 'border-block-start' to a length: 0px throws TypeError
@@ -693,10 +693,10 @@ Pass	Setting 'border-block-start-style' to a number: calc(2 + 3) throws TypeErro
 Pass	Setting 'border-block-start-style' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-block-start-style' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-block-start-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-block-end' to CSS-wide keywords: initial
-Fail	Can set 'border-block-end' to CSS-wide keywords: inherit
-Fail	Can set 'border-block-end' to CSS-wide keywords: unset
-Fail	Can set 'border-block-end' to CSS-wide keywords: revert
+Pass	Can set 'border-block-end' to CSS-wide keywords: initial
+Pass	Can set 'border-block-end' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-end' to CSS-wide keywords: unset
+Pass	Can set 'border-block-end' to CSS-wide keywords: revert
 Pass	Can set 'border-block-end' to var() references:  var(--A)
 Fail	Can set 'border-block-end' to the 'none' keyword: none
 Pass	Setting 'border-block-end' to a length: 0px throws TypeError
@@ -824,10 +824,10 @@ Pass	Setting 'border-block-end-style' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'border-block-end-style' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-block-end-style' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-block-end-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-inline-start' to CSS-wide keywords: initial
-Fail	Can set 'border-inline-start' to CSS-wide keywords: inherit
-Fail	Can set 'border-inline-start' to CSS-wide keywords: unset
-Fail	Can set 'border-inline-start' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-start' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-start' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-start' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-start' to CSS-wide keywords: revert
 Pass	Can set 'border-inline-start' to var() references:  var(--A)
 Fail	Can set 'border-inline-start' to the 'none' keyword: none
 Pass	Setting 'border-inline-start' to a length: 0px throws TypeError
@@ -955,10 +955,10 @@ Pass	Setting 'border-inline-start-style' to a number: calc(2 + 3) throws TypeErr
 Pass	Setting 'border-inline-start-style' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-inline-start-style' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-inline-start-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-inline-end' to CSS-wide keywords: initial
-Fail	Can set 'border-inline-end' to CSS-wide keywords: inherit
-Fail	Can set 'border-inline-end' to CSS-wide keywords: unset
-Fail	Can set 'border-inline-end' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-end' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-end' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-end' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-end' to CSS-wide keywords: revert
 Pass	Can set 'border-inline-end' to var() references:  var(--A)
 Fail	Can set 'border-inline-end' to the 'none' keyword: none
 Pass	Setting 'border-inline-end' to a length: 0px throws TypeError
@@ -1086,10 +1086,10 @@ Pass	Setting 'border-inline-end-style' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'border-inline-end-style' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-inline-end-style' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-inline-end-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-block' to CSS-wide keywords: initial
-Fail	Can set 'border-block' to CSS-wide keywords: inherit
-Fail	Can set 'border-block' to CSS-wide keywords: unset
-Fail	Can set 'border-block' to CSS-wide keywords: revert
+Pass	Can set 'border-block' to CSS-wide keywords: initial
+Pass	Can set 'border-block' to CSS-wide keywords: inherit
+Pass	Can set 'border-block' to CSS-wide keywords: unset
+Pass	Can set 'border-block' to CSS-wide keywords: revert
 Pass	Can set 'border-block' to var() references:  var(--A)
 Fail	Can set 'border-block' to the 'none' keyword: none
 Pass	Setting 'border-block' to a length: 0px throws TypeError
@@ -1118,10 +1118,10 @@ Pass	Setting 'border-block' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'border-block' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-block' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-block' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-block-width' to CSS-wide keywords: initial
-Fail	Can set 'border-block-width' to CSS-wide keywords: inherit
-Fail	Can set 'border-block-width' to CSS-wide keywords: unset
-Fail	Can set 'border-block-width' to CSS-wide keywords: revert
+Pass	Can set 'border-block-width' to CSS-wide keywords: initial
+Pass	Can set 'border-block-width' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-width' to CSS-wide keywords: unset
+Pass	Can set 'border-block-width' to CSS-wide keywords: revert
 Pass	Can set 'border-block-width' to var() references:  var(--A)
 Fail	Can set 'border-block-width' to the 'thin' keyword: thin
 Fail	Can set 'border-block-width' to the 'medium' keyword: medium
@@ -1152,10 +1152,10 @@ Pass	Setting 'border-block-width' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'border-block-width' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-block-width' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-block-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-block-color' to CSS-wide keywords: initial
-Fail	Can set 'border-block-color' to CSS-wide keywords: inherit
-Fail	Can set 'border-block-color' to CSS-wide keywords: unset
-Fail	Can set 'border-block-color' to CSS-wide keywords: revert
+Pass	Can set 'border-block-color' to CSS-wide keywords: initial
+Pass	Can set 'border-block-color' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-color' to CSS-wide keywords: unset
+Pass	Can set 'border-block-color' to CSS-wide keywords: revert
 Pass	Can set 'border-block-color' to var() references:  var(--A)
 Fail	Can set 'border-block-color' to the 'currentcolor' keyword: currentcolor
 Pass	Setting 'border-block-color' to a length: 0px throws TypeError
@@ -1184,10 +1184,10 @@ Pass	Setting 'border-block-color' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'border-block-color' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-block-color' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-block-color' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-block-style' to CSS-wide keywords: initial
-Fail	Can set 'border-block-style' to CSS-wide keywords: inherit
-Fail	Can set 'border-block-style' to CSS-wide keywords: unset
-Fail	Can set 'border-block-style' to CSS-wide keywords: revert
+Pass	Can set 'border-block-style' to CSS-wide keywords: initial
+Pass	Can set 'border-block-style' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-style' to CSS-wide keywords: unset
+Pass	Can set 'border-block-style' to CSS-wide keywords: revert
 Pass	Can set 'border-block-style' to var() references:  var(--A)
 Fail	Can set 'border-block-style' to the 'none' keyword: none
 Fail	Can set 'border-block-style' to the 'solid' keyword: solid
@@ -1217,10 +1217,10 @@ Pass	Setting 'border-block-style' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'border-block-style' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-block-style' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-block-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-inline' to CSS-wide keywords: initial
-Fail	Can set 'border-inline' to CSS-wide keywords: inherit
-Fail	Can set 'border-inline' to CSS-wide keywords: unset
-Fail	Can set 'border-inline' to CSS-wide keywords: revert
+Pass	Can set 'border-inline' to CSS-wide keywords: initial
+Pass	Can set 'border-inline' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline' to CSS-wide keywords: unset
+Pass	Can set 'border-inline' to CSS-wide keywords: revert
 Pass	Can set 'border-inline' to var() references:  var(--A)
 Fail	Can set 'border-inline' to the 'none' keyword: none
 Pass	Setting 'border-inline' to a length: 0px throws TypeError
@@ -1249,10 +1249,10 @@ Pass	Setting 'border-inline' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'border-inline' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-inline' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-inline' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-inline-width' to CSS-wide keywords: initial
-Fail	Can set 'border-inline-width' to CSS-wide keywords: inherit
-Fail	Can set 'border-inline-width' to CSS-wide keywords: unset
-Fail	Can set 'border-inline-width' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-width' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-width' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-width' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-width' to CSS-wide keywords: revert
 Pass	Can set 'border-inline-width' to var() references:  var(--A)
 Fail	Can set 'border-inline-width' to the 'thin' keyword: thin
 Fail	Can set 'border-inline-width' to the 'medium' keyword: medium
@@ -1283,10 +1283,10 @@ Pass	Setting 'border-inline-width' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'border-inline-width' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-inline-width' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-inline-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-inline-color' to CSS-wide keywords: initial
-Fail	Can set 'border-inline-color' to CSS-wide keywords: inherit
-Fail	Can set 'border-inline-color' to CSS-wide keywords: unset
-Fail	Can set 'border-inline-color' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-color' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-color' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-color' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-color' to CSS-wide keywords: revert
 Pass	Can set 'border-inline-color' to var() references:  var(--A)
 Fail	Can set 'border-inline-color' to the 'currentcolor' keyword: currentcolor
 Pass	Setting 'border-inline-color' to a length: 0px throws TypeError
@@ -1315,10 +1315,10 @@ Pass	Setting 'border-inline-color' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'border-inline-color' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'border-inline-color' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'border-inline-color' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'border-inline-style' to CSS-wide keywords: initial
-Fail	Can set 'border-inline-style' to CSS-wide keywords: inherit
-Fail	Can set 'border-inline-style' to CSS-wide keywords: unset
-Fail	Can set 'border-inline-style' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-style' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-style' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-style' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-style' to CSS-wide keywords: revert
 Pass	Can set 'border-inline-style' to var() references:  var(--A)
 Fail	Can set 'border-inline-style' to the 'none' keyword: none
 Fail	Can set 'border-inline-style' to the 'solid' keyword: solid

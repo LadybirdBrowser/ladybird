@@ -560,6 +560,12 @@ pub fn reification_of(value: &RetainedStyleValue) -> Reification {
             // 1. Return a new CSSKeywordValue with its value internal slot set to the serialization of ident.
             return Reification::Keyword(value.serialize(0));
         }
+        StyleValueData::Shorthand(_) => {
+            let serialized_value = value.serialize(0);
+            if keyword_from_ascii_case_insensitive(&serialized_value.to_utf16()).is_some_and(is_css_wide_keyword) {
+                return Reification::Keyword(serialized_value);
+            }
+        }
         StyleValueData::Number { value } => {
             return Reification::Number {
                 value: *value,
