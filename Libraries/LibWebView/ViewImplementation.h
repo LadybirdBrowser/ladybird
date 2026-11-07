@@ -235,9 +235,6 @@ public:
     void set_has_system_focus(bool);
 
     void load(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
-    void load_from_user_input(URL::URL const&);
-    void load_from_user_input(StringView);
-    void load_from_user_input(StringView, Optional<URL::URL> fallback_url);
     void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab);
     void open_url_in_new_window(URL::URL const&, IsPrivate);
     void load(Web::HTML::PreparedNavigationDescriptor);
@@ -245,7 +242,6 @@ public:
     void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor, IsPrivate);
     void set_next_history_visit_transition(HistoryVisitTransition transition) { m_history_visit_transition_for_next_load = transition; }
     void load_html(StringView);
-    void load_navigation_error_page(StringView);
 
     void reload(BypassCache = BypassCache::No);
     void reload_for_webdriver_bidi(BypassCache, Utf16String navigation_id);
@@ -869,8 +865,8 @@ protected:
     virtual void global_privacy_control_changed() override;
 
     void send_context_menu_request(ContextMenuRequest, Gfx::IntPoint content_position);
-    void handle_external_url(URL::URL, URL::Origin, bool has_transient_activation, Function<void()> on_handler_unavailable = {});
-    void handle_external_url_from_user_input(URL::URL const&, Function<void()> on_handler_unavailable = {});
+    void handle_external_url(URL::URL, URL::Origin, bool has_transient_activation);
+    void handle_external_url_from_user_input(URL::URL const&);
     void complete_external_url_request();
     void process_next_external_url_request();
     void request_text_fragment_url(Optional<u64> generation_id);
@@ -994,7 +990,6 @@ protected:
     struct PendingExternalURLRequest {
         URL::URL url;
         URL::Origin initiator_origin;
-        Function<void()> on_handler_unavailable;
     };
     Queue<PendingExternalURLRequest> m_pending_external_url_requests;
     ExternalURLRequestPolicy m_external_url_request_policy;

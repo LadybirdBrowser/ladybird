@@ -9,9 +9,12 @@
 #    include <Hub/Application.h>
 #    include <LibWebView/PageTranslation.h>
 #endif
+#include <LibCore/EventLoop.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibURL/InternalURLs.h>
 #include <LibUnicode/DisplayNames.h>
+#include <LibWebView/ErrorHTML.h>
+#include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/PageTranslation.h>
@@ -555,6 +558,152 @@ void RemoteView::did_make_link_to_highlight(Optional<URL::URL> url)
 {
     m_link_to_highlight = move(url);
     m_copy_link_to_highlight_action->set_enabled(m_link_to_highlight.has_value());
+}
+
+void RemoteView::load_from_user_input(URL::URL const& url)
+{
+    if (!WebView::is_url_handled_internally(url)) {
+        open_external_url_from_user_input(url);
+        return;
+    }
+    load(url);
+}
+
+void RemoteView::load_from_user_input(StringView input)
+{
+    load_from_user_input(input, WebView::sanitize_url(input, Application::settings().search_engine_settings().engine));
+}
+
+void RemoteView::load_from_user_input(StringView input, Optional<URL::URL> fallback_url)
+{
+    auto classified_input = WebView::classify_user_input(input);
+
+    if (classified_input.classification != WebView::UserInputClassification::ExternalURL) {
+        if (fallback_url.has_value())
+            load(*fallback_url);
+        else
+            load_navigation_error_page(input);
+        return;
+    }
+
+    VERIFY(classified_input.url.has_value());
+    auto external_url = classified_input.url.release_value();
+
+    if (fallback_url.has_value() && *fallback_url == external_url) {
+        open_external_url_from_user_input(external_url);
+        return;
+    }
+
+    open_external_url_from_user_input(external_url, [view_id = view_id(), input = MUST(String::from_utf8(input)), fallback_url = move(fallback_url)] {
+        auto* view = RemoteView::find(view_id);
+        if (!view)
+            return;
+        if (fallback_url.has_value())
+            view->load(*fallback_url);
+        else
+            view->load_navigation_error_page(input);
+    });
+}
+
+void RemoteView::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab)
+{
+    if (!WebView::is_url_handled_internally(url)) {
+        open_external_url_from_user_input(url);
+        return;
+    }
+    HubConnection::the().async_view_open_url_in_new_tab(view_id(), url, activate_tab);
+}
+
+void RemoteView::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private)
+{
+    if (!WebView::is_url_handled_internally(url)) {
+        open_external_url_from_user_input(url);
+        return;
+    }
+    HubConnection::the().async_view_open_url_in_new_window(view_id(), url, is_private);
+}
+
+void RemoteView::load_navigation_error_page(StringView input)
+{
+    auto message = MUST(String::formatted("Failed to load \"{}\"", input));
+
+    StringBuilder builder;
+    builder.appendff(WebView::ERROR_HTML_HEADER, ""sv, WebView::ERROR_SVG, message);
+    builder.append("<p>If you were trying to enter a search query, please enable search in <a href=\"about:settings#search\">settings</a>.</p>"sv);
+    builder.append(WebView::ERROR_HTML_FOOTER);
+    load_html(builder.string_view());
+}
+
+void RemoteView::open_external_url_from_user_input(URL::URL const& url, Function<void()> on_handler_unavailable)
+{
+    m_pending_external_urls.enqueue({ url, this->url().origin(), move(on_handler_unavailable) });
+    open_next_external_url();
+}
+
+void RemoteView::open_next_external_url()
+{
+    while (!m_external_url_pending && !m_pending_external_urls.is_empty()) {
+        auto request = m_pending_external_urls.dequeue();
+        if (WebView::ExternalURLRequestPolicy::is_denied_scheme(request.url.scheme()))
+            continue;
+
+        m_external_url_pending = true;
+        auto url = request.url;
+        Application::the().resolve_external_url_handler(url, [view_id = view_id(), request = move(request)](RefPtr<WebView::ExternalURLHandler> handler) mutable {
+            if (auto* view = RemoteView::find(view_id))
+                view->open_external_url_with_handler(move(request), move(handler));
+        });
+    }
+}
+
+void RemoteView::open_external_url_with_handler(PendingExternalURL request, RefPtr<WebView::ExternalURLHandler> handler)
+{
+    auto launch = [view_id = view_id()](WebView::ExternalURLHandler const& handler, URL::URL const& url) {
+        handler.launch(url, [view_id](bool success) {
+            if (!success && RemoteView::find(view_id))
+                Application::the().display_error_dialog("Unable to open external URL"sv);
+        });
+    };
+
+    if (!handler || handler->is_ladybird()) {
+        finish_external_url();
+        if (request.on_handler_unavailable)
+            request.on_handler_unavailable();
+        else if (!handler)
+            Application::the().display_error_dialog(MUST(String::formatted("No application is registered to open {}", request.url)));
+        return;
+    }
+
+    // Don't prompt when the user asked for a mailto: URL. This matches other browsers.
+    if (request.url.scheme() == "mailto"sv) {
+        launch(*handler, request.url);
+        finish_external_url();
+        return;
+    }
+
+    if (!on_request_external_url_confirmation) {
+        finish_external_url();
+        return;
+    }
+
+    on_request_external_url_confirmation(request.url, request.initiator_origin, handler->application_name(), [view_id = view_id(), url = request.url, handler, launch](bool accepted) {
+        if (accepted)
+            launch(*handler, url);
+        if (auto* view = RemoteView::find(view_id))
+            view->finish_external_url();
+    });
+}
+
+void RemoteView::finish_external_url()
+{
+    VERIFY(m_external_url_pending);
+    m_external_url_pending = false;
+    if (m_pending_external_urls.is_empty())
+        return;
+    Core::deferred_invoke([view_id = view_id()] {
+        if (auto* view = RemoteView::find(view_id))
+            view->open_next_external_url();
+    });
 }
 
 }

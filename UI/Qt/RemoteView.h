@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Queue.h>
 #include <Hub/View.h>
 #include <LibWebView/ContextMenuRequest.h>
 #include <LibWebView/HistoryStore.h>
@@ -90,17 +91,17 @@ public:
     void set_presents_from_cpu_memory(bool presents_from_cpu_memory) { HubConnection::the().async_view_set_presents_from_cpu_memory(view_id(), presents_from_cpu_memory); }
     void set_has_system_focus(bool has_system_focus) { HubConnection::the().async_view_set_has_system_focus(view_id(), has_system_focus); }
     void load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior navigation_history_behavior = Web::Bindings::NavigationHistoryBehavior::Auto) { HubConnection::the().async_view_load(view_id(), url, navigation_history_behavior); }
-    void load_from_user_input(URL::URL const& url) { HubConnection::the().async_view_load_url_from_user_input(view_id(), url); }
-    void load_from_user_input(StringView input) { HubConnection::the().async_view_load_from_user_input(view_id(), input, {}); }
-    void load_from_user_input(StringView input, Optional<URL::URL> fallback_url) { HubConnection::the().async_view_load_from_user_input(view_id(), input, move(fallback_url)); }
-    void open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) { HubConnection::the().async_view_open_url_in_new_tab(view_id(), url, move(activate_tab)); }
-    void open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private) { HubConnection::the().async_view_open_url_in_new_window(view_id(), url, move(is_private)); }
+    void load_from_user_input(URL::URL const&);
+    void load_from_user_input(StringView input);
+    void load_from_user_input(StringView input, Optional<URL::URL> fallback_url);
+    void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab);
+    void open_url_in_new_window(URL::URL const&, WebView::IsPrivate);
     void load(Web::HTML::PreparedNavigationDescriptor navigation) { HubConnection::the().async_view_load_navigation(view_id(), move(navigation)); }
     void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) { HubConnection::the().async_view_open_navigation_in_new_tab(view_id(), move(navigation), activate_tab); }
     void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) { HubConnection::the().async_view_open_navigation_in_new_window(view_id(), move(navigation), is_private); }
     void set_next_history_visit_transition(WebView::HistoryVisitTransition transition) { HubConnection::the().async_view_set_next_history_visit_transition(view_id(), move(transition)); }
     void load_html(StringView html) { HubConnection::the().async_view_load_html(view_id(), html); }
-    void load_navigation_error_page(StringView html) { HubConnection::the().async_view_load_navigation_error_page(view_id(), html); }
+    void load_navigation_error_page(StringView input);
     void reload(WebView::BypassCache bypass_cache = WebView::BypassCache::No) { HubConnection::the().async_view_reload(view_id(), move(bypass_cache)); }
     void stop_loading() { HubConnection::the().async_view_stop_loading(view_id()); }
     bool is_loading() const { return m_state.is_loading; }
@@ -283,6 +284,20 @@ private:
     Optional<u64> m_display_id;
     Optional<SessionTabId> m_session_tab_id;
     Optional<String> m_favicon_hash;
+
+    // The external URLs that the user asked for, one at a time, so that their prompts do not overlap.
+    struct PendingExternalURL {
+        URL::URL url;
+        // NB: The page the user asked from, which the prompt names even if the view goes on to another page meanwhile.
+        URL::Origin initiator_origin;
+        Function<void()> on_handler_unavailable;
+    };
+    void open_external_url_from_user_input(URL::URL const&, Function<void()> on_handler_unavailable = {});
+    void open_next_external_url();
+    void open_external_url_with_handler(PendingExternalURL, RefPtr<WebView::ExternalURLHandler>);
+    void finish_external_url();
+    Queue<PendingExternalURL> m_pending_external_urls;
+    bool m_external_url_pending { false };
     bool m_scales_frames_to_fit { false };
     Hub::ViewState m_state;
     HashMap<u64, NavigationListener> m_navigation_listeners;

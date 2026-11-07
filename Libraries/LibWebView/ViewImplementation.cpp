@@ -31,7 +31,6 @@
 #include <LibWebView/CanonicalSessionHistoryEntry.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/CrashReportReview.h>
-#include <LibWebView/ErrorHTML.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryDebug.h>
@@ -531,62 +530,8 @@ void ViewImplementation::load(Web::HTML::PreparedNavigationDescriptor navigation
     dump_session_history("load"sv);
 }
 
-void ViewImplementation::load_from_user_input(URL::URL const& url)
-{
-    if (!is_url_handled_internally(url)) {
-        handle_external_url_from_user_input(url);
-        return;
-    }
-
-    load(url);
-}
-
-void ViewImplementation::load_from_user_input(StringView input)
-{
-    load_from_user_input(input, sanitize_url(input, Application::settings().search_engine_settings().engine));
-}
-
-void ViewImplementation::load_from_user_input(StringView input, Optional<URL::URL> fallback_url)
-{
-    auto classified_input = classify_user_input(input);
-
-    if (classified_input.classification != UserInputClassification::ExternalURL) {
-        if (fallback_url.has_value())
-            load(*fallback_url);
-        else
-            load_navigation_error_page(input);
-        return;
-    }
-
-    VERIFY(classified_input.url.has_value());
-    auto external_url = classified_input.url.release_value();
-
-    if (fallback_url.has_value() && *fallback_url == external_url) {
-        handle_external_url_from_user_input(external_url);
-        return;
-    }
-
-    auto input_string = MUST(String::from_utf8(input));
-    auto view_id = m_view_id;
-    handle_external_url_from_user_input(external_url, [view_id, input = move(input_string), fallback_url = move(fallback_url)] {
-        auto view = ViewImplementation::find_view_by_id(view_id);
-        if (!view.has_value())
-            return;
-
-        if (fallback_url.has_value())
-            view->load(*fallback_url);
-        else
-            view->load_navigation_error_page(input);
-    });
-}
-
 void ViewImplementation::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab)
 {
-    if (!is_url_handled_internally(url)) {
-        handle_external_url_from_user_input(url);
-        return;
-    }
-
     if (auto* view = create_view_for_new_tab_or_window(is_private())) {
         view->load(url);
         return;
@@ -627,11 +572,6 @@ void ViewImplementation::open_navigation_in_new_window(Web::HTML::PreparedNaviga
 
 void ViewImplementation::open_url_in_new_window(URL::URL const& url, IsPrivate is_private)
 {
-    if (!is_url_handled_internally(url)) {
-        handle_external_url_from_user_input(url);
-        return;
-    }
-
     if (auto* view = create_view_for_new_tab_or_window(is_private)) {
         view->load(url);
         return;
@@ -650,17 +590,6 @@ void ViewImplementation::load_html(StringView html)
     traversable().navigate(URL::about_srcdoc(), Utf16String::from_utf8(html));
     if (traversable().has_uncommitted_navigation())
         set_loading_state(true);
-}
-
-void ViewImplementation::load_navigation_error_page(StringView text)
-{
-    auto message = MUST(String::formatted("Failed to load \"{}\"", text));
-
-    StringBuilder builder;
-    builder.appendff(ERROR_HTML_HEADER, ""sv, ERROR_SVG, message);
-    builder.append("<p>If you were trying to enter a search query, please enable search in <a href=\"about:settings#search\">settings</a>.</p>"sv);
-    builder.append(ERROR_HTML_FOOTER);
-    load_html(builder.string_view());
 }
 
 void ViewImplementation::reload(BypassCache bypass_cache)
@@ -1118,11 +1047,11 @@ void ViewImplementation::handle_external_url(Badge<WebContentPage>, URL::URL url
     handle_external_url(move(url), move(initiator_origin), has_transient_activation);
 }
 
-void ViewImplementation::handle_external_url_from_user_input(URL::URL const& url, Function<void()> on_handler_unavailable)
+void ViewImplementation::handle_external_url_from_user_input(URL::URL const& url)
 {
     // Browser UI actions can submit several URLs at once, for example when opening a bookmark folder. Keep those
     // requests ordered while a handler lookup or confirmation is in progress.
-    m_pending_external_url_requests.enqueue({ url, this->url().origin(), move(on_handler_unavailable) });
+    m_pending_external_url_requests.enqueue({ url, this->url().origin() });
     process_next_external_url_request();
 }
 
@@ -1131,7 +1060,7 @@ void ViewImplementation::process_next_external_url_request()
     while (!m_external_url_confirmation_pending && !m_pending_external_url_requests.is_empty()) {
         auto request = m_pending_external_url_requests.dequeue();
         m_external_url_request_policy.allow_request_from_browser_ui(request.url);
-        handle_external_url(move(request.url), move(request.initiator_origin), false, move(request.on_handler_unavailable));
+        handle_external_url(move(request.url), move(request.initiator_origin), false);
     }
 }
 
@@ -1150,7 +1079,7 @@ void ViewImplementation::complete_external_url_request()
     });
 }
 
-void ViewImplementation::handle_external_url(URL::URL url, URL::Origin initiator_origin, bool has_transient_activation, Function<void()> on_handler_unavailable)
+void ViewImplementation::handle_external_url(URL::URL url, URL::Origin initiator_origin, bool has_transient_activation)
 {
     if (m_external_url_confirmation_pending)
         return;
@@ -1170,11 +1099,6 @@ void ViewImplementation::handle_external_url(URL::URL url, URL::Origin initiator
         return;
 
     if (headless_mode) {
-        if (on_handler_unavailable) {
-            on_handler_unavailable();
-            return;
-        }
-
         Application::the().display_error_dialog(MUST(String::formatted("External URL handling is unavailable in headless mode: {}", url)));
         return;
     }
@@ -1182,7 +1106,7 @@ void ViewImplementation::handle_external_url(URL::URL url, URL::Origin initiator
     m_external_url_confirmation_pending = true;
     auto view_id = m_view_id;
     auto url_for_callback = url;
-    Application::the().resolve_external_url_handler(url, [view_id, url = move(url_for_callback), initiator_origin = move(initiator_origin), action, request_source = *request_source, on_handler_unavailable = move(on_handler_unavailable)](RefPtr<ExternalURLHandler> handler) mutable {
+    Application::the().resolve_external_url_handler(url, [view_id, url = move(url_for_callback), initiator_origin = move(initiator_origin), action, request_source = *request_source](RefPtr<ExternalURLHandler> handler) mutable {
         auto view = ViewImplementation::find_view_by_id(view_id);
         if (!view.has_value())
             return;
@@ -1199,12 +1123,6 @@ void ViewImplementation::handle_external_url(URL::URL url, URL::Origin initiator
             //    navigable, navigationParams's id, navigationParams's navigation timing type, and navigationParams's
             //    user involvement.
             // AD-HOC: We can't implement this directly, so show a warning dialog instead.
-            if (on_handler_unavailable) {
-                view->complete_external_url_request();
-                on_handler_unavailable();
-                return;
-            }
-
             auto error_message = MUST(String::formatted("No application is registered to open {}", url));
             Application::the().display_error_dialog(error_message);
             if (auto current_view = ViewImplementation::find_view_by_id(view_id); current_view.has_value())
@@ -1214,11 +1132,6 @@ void ViewImplementation::handle_external_url(URL::URL url, URL::Origin initiator
 
         if (handler->is_ladybird()) {
             view->complete_external_url_request();
-            if (on_handler_unavailable) {
-                on_handler_unavailable();
-                return;
-            }
-
             if (request_source == ExternalURLRequestSource::Page)
                 view->m_external_url_request_policy.allow_next_request();
             return;
