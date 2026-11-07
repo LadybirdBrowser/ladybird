@@ -14,8 +14,8 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <WebWorker/ConnectionFromClient.h>
-#include <WebWorker/WorkerThread.h>
+#include <WebContent/Worker/ConnectionFromClient.h>
+#include <WebContent/Worker/WorkerThread.h>
 
 namespace WebWorker {
 

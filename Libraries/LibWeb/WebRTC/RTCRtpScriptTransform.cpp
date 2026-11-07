@@ -65,7 +65,7 @@ WebIDL::ExceptionOr<GC::Ref<RTCRtpScriptTransform>> RTCRtpScriptTransform::const
     //    8.3. Fire an event named rtctransform using RTCTransformEvent on the transformer's
     //         relevant global object.
     // IPC delivers serializedOptions verbatim to ConnectionFromClient::rtc_transform_init,
-    // which runs steps 8.1–8.3 in the worker process's realm.
+    // which runs steps 8.1–8.3 in the worker's realm.
     static u64 next_transform_id = 1;
     transform->m_transform_id = next_transform_id++;
     auto agent = transform->m_worker ? transform->m_worker->agent() : nullptr;

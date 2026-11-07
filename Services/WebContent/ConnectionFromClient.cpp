@@ -113,7 +113,7 @@
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentCompositorHost.h>
 #include <WebContent/WebDriverBiDi.h>
-#include <WebWorker/WorkerThread.h>
+#include <WebContent/Worker/WorkerThread.h>
 
 namespace WebContent {
 

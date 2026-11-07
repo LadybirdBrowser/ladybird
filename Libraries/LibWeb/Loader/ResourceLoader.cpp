@@ -630,7 +630,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         ? Requests::RequestClient::CacheMissNotification::Yes
         : Requests::RequestClient::CacheMissNotification::No;
     // NB: Workers have a Page shim without a navigable or a browser page ID. Their
-    //     requests are attributed through the worker process's browser-level owners.
+    //     requests are attributed through the worker's browser-level owners.
     auto originating_page_id = request.page() && request.page()->has_top_level_traversable() ? request.page()->client().id().value() : 0;
     auto headers = headers_with_normalized_values(request.headers());
     auto protocol_request = request_client->start_request(request.method(), request.url().value(), *headers, request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification, originating_page_id, request.network_isolation_key());

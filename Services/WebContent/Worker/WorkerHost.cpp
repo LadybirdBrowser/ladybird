@@ -32,8 +32,8 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <WebWorker/PageHost.h>
-#include <WebWorker/WorkerHost.h>
+#include <WebContent/Worker/PageHost.h>
+#include <WebContent/Worker/WorkerHost.h>
 
 namespace WebWorker {
 

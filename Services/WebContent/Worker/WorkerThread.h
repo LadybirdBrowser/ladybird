@@ -12,9 +12,9 @@
 
 namespace WebWorker {
 
-// Starts a thread that hosts a worker agent, which talks to the UI process over the given transport as a worker process
-// does. Nothing ever waits for the thread: it ends once its worker has closed, and otherwise with the process. A process
-// that exits takes running workers with it, so it has to leave by Core::Process::terminate_immediately().
+// Starts a thread that hosts a worker agent, which talks to the UI process over the given transport. Nothing ever waits
+// for the thread: it ends once its worker has closed, and otherwise with the process. A process that exits takes running
+// workers with it, so it has to leave by Core::Process::terminate_immediately().
 ErrorOr<void> start_worker_thread(IPC::TransportHandle, Web::HTML::AgentType);
 
 // Whether the calling thread is one start_worker_thread() started. This can be asked from a signal handler.

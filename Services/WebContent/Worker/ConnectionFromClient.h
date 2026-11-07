@@ -19,10 +19,10 @@
 #include <LibWebCommon/Forward.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
-#include <WebWorker/Forward.h>
-#include <WebWorker/PageHost.h>
-#include <WebWorker/WebWorkerClientEndpoint.h>
-#include <WebWorker/WebWorkerServerEndpoint.h>
+#include <WebContent/WebWorkerClientEndpoint.h>
+#include <WebContent/WebWorkerServerEndpoint.h>
+#include <WebContent/Worker/Forward.h>
+#include <WebContent/Worker/PageHost.h>
 
 namespace WebWorker {
 

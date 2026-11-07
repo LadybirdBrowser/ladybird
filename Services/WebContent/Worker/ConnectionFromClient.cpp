@@ -7,7 +7,6 @@
 #include <AK/Debug.h>
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/Process.h>
 #include <LibGC/Function.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -39,10 +38,10 @@
 #include <LibWeb/WebRTC/RTCEncodedAudioFrame.h>
 #include <LibWeb/WebRTC/RTCRtpScriptTransformer.h>
 #include <LibWeb/WebRTC/RTCTransformEvent.h>
-#include <WebWorker/ConnectionFromClient.h>
-#include <WebWorker/PageHost.h>
-#include <WebWorker/WorkerHost.h>
-#include <WebWorker/WorkerThread.h>
+#include <WebContent/Worker/ConnectionFromClient.h>
+#include <WebContent/Worker/PageHost.h>
+#include <WebContent/Worker/WorkerHost.h>
+#include <WebContent/Worker/WorkerThread.h>
 
 namespace WebWorker {
 

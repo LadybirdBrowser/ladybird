@@ -16,7 +16,7 @@ namespace Web::ServiceWorker {
 // https://w3c.github.io/ServiceWorker/#dfn-service-worker
 // This class corresponds to "service worker", not "ServiceWorker"
 // FIXME: This should be owned and managed at the user agent level
-// FIXME: A lot of the fields for this struct actually need to live in the Agent for the service worker in the WebWorker process
+// FIXME: A lot of the fields for this struct actually need to live in the Agent for the service worker
 struct ServiceWorkerRecord {
     // https://w3c.github.io/ServiceWorker/#dfn-state
     // A service worker has an associated state, which is one of "parsed", "installing", "installed", "activating", "activated", and "redundant". It is initially "parsed".

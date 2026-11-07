@@ -21,8 +21,8 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/RequestServerSiteBindings.h>
-#include <WebWorker/WebWorkerClientEndpoint.h>
-#include <WebWorker/WebWorkerServerEndpoint.h>
+#include <WebContent/WebWorkerClientEndpoint.h>
+#include <WebContent/WebWorkerServerEndpoint.h>
 
 namespace WebView {
 

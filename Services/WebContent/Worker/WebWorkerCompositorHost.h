@@ -8,7 +8,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <LibWeb/Compositor/CompositorHost.h>
-#include <WebWorker/Forward.h>
+#include <WebContent/Worker/Forward.h>
 
 namespace WebWorker {
 

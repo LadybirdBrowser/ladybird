@@ -10,7 +10,6 @@ add_subdirectory(VideoDecoderServer)
 add_subdirectory(WebContent)
 add_subdirectory(WebDriver)
 add_subdirectory(WebRTCClient)
-add_subdirectory(WebWorker)
 
 if (LINUX)
     foreach (helper IN LISTS ladybird_helper_processes)

@@ -12,7 +12,7 @@
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/PixelUnits.h>
-#include <WebWorker/Forward.h>
+#include <WebContent/Worker/Forward.h>
 
 namespace WebWorker {
 
