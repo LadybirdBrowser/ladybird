@@ -36,16 +36,22 @@ impl Deref for NumberObject {
 
 impl NumberObject {
     /// A NumberObject with `prototype`, for `class`, which is NumberObject or a class that extends it.
-    pub fn new(vm: &Vm, class: &'static Class, value: f64, prototype: Gc<Object>) -> NumberObject {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, class: &'static Class, value: f64, prototype: Gc<Object>) -> NumberObject {
         NumberObject {
-            base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                class,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             value: Cell::new(value),
         }
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>, value: f64) -> Gc<NumberObject> {
         realm.create_object(vm, |_| {
-            NumberObject::new(vm, Self::CLASS, value, realm.intrinsics().number_prototype(vm))
+            NumberObject::new(vm, realm, Self::CLASS, value, realm.intrinsics().number_prototype(vm))
         })
     }
 

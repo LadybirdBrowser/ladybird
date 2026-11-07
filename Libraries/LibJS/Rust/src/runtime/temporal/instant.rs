@@ -24,6 +24,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::realm::Realm;
 use crate::runtime::temporal::abstract_operations::{
     ArithmeticOperation, DurationOperation, SecondsPrecision, ShowCalendar, Unit, UnitCategory, UnitGroup, ascii_view,
     check_iso_days_range, get_difference_settings, parse_iso_date_time, round_number_to_increment_as_if_positive,
@@ -66,9 +67,15 @@ impl core::ops::Deref for Instant {
 }
 
 impl Instant {
-    fn new(vm: &Vm, epoch_nanoseconds: Gc<BigInt>, prototype: Gc<Object>) -> Instant {
+    fn new(vm: &Vm, realm: Gc<Realm>, epoch_nanoseconds: Gc<BigInt>, prototype: Gc<Object>) -> Instant {
         Instant {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             epoch_nanoseconds,
         }
     }
@@ -144,7 +151,7 @@ pub fn create_temporal_instant(
         realm,
         new_target,
         Intrinsics::temporal_instant_prototype,
-        |_, prototype| Instant::new(vm, epoch_nanoseconds, prototype),
+        |_, prototype| Instant::new(vm, realm, epoch_nanoseconds, prototype),
     )?;
 
     // 5. Return object.

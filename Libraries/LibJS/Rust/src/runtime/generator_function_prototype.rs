@@ -36,7 +36,8 @@ impl GeneratorFunctionPrototype {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.function_prototype(),
+                realm,
+                Some(realm.function_prototype()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
         })

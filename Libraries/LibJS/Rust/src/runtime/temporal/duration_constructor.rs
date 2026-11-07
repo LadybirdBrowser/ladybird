@@ -49,11 +49,12 @@ define_native_function_class!(
 impl DurationConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DurationConstructor> {
         realm.create_object(vm, |_| DurationConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.Duration.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.Duration.as_string().clone()),
             ),
         })
     }

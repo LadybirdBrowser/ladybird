@@ -89,7 +89,13 @@ impl Array {
                 shape.create_prototype_transition(vm, Some(prototype)),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
-            None => Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            None => Object::new_with_prototype(
+                vm,
+                class,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
         };
         let array = Self { base };
         array.base.set_has_magical_length_property();

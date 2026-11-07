@@ -68,7 +68,8 @@ impl Segments {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.intrinsics().intl_segments_prototype(),
+                realm,
+                Some(realm.intrinsics().intl_segments_prototype()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
             segments_segmenter: RefCell::new(Some(segmenter)),

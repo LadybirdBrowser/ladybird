@@ -61,9 +61,21 @@ fn as_string_object(object: &Object) -> &StringObject {
 
 impl StringObject {
     /// A StringObject with `prototype`, for `class`, which is StringObject or a class that extends it.
-    pub fn new(vm: &Vm, class: &'static Class, string: Gc<PrimitiveString>, prototype: Gc<Object>) -> StringObject {
+    pub fn new(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        class: &'static Class,
+        string: Gc<PrimitiveString>,
+        prototype: Gc<Object>,
+    ) -> StringObject {
         StringObject {
-            base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::Yes),
+            base: Object::new_with_prototype(
+                vm,
+                class,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::Yes,
+            ),
             string,
         }
     }
@@ -84,7 +96,9 @@ impl StringObject {
         // 7. Let length be the length of value.
         // 8. Perform ! DefinePropertyOrThrow(S, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
         // 9. Return S.
-        realm.create_object(vm, |_| StringObject::new(vm, Self::CLASS, primitive_string, prototype))
+        realm.create_object(vm, |_| {
+            StringObject::new(vm, realm, Self::CLASS, primitive_string, prototype)
+        })
     }
 
     pub fn primitive_string(&self) -> Gc<PrimitiveString> {

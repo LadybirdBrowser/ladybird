@@ -40,7 +40,8 @@ impl SymbolObject {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.intrinsics().symbol_prototype(vm),
+                realm,
+                Some(realm.intrinsics().symbol_prototype(vm)),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
             symbol: primitive_symbol,

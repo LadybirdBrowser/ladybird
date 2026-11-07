@@ -59,9 +59,15 @@ impl Deref for Locale {
 }
 
 impl Locale {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> Locale {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> Locale {
         Locale {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             locale: RefCell::default(),
             calendar: RefCell::default(),
             case_first: RefCell::default(),
@@ -75,7 +81,9 @@ impl Locale {
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>, source_locale: Gc<Locale>, locale_tag: Utf16String) -> Gc<Locale> {
-        let locale = realm.create_object(vm, |_| Locale::new(vm, realm.intrinsics().intl_locale_prototype(vm)));
+        let locale = realm.create_object(vm, |_| {
+            Locale::new(vm, realm, realm.intrinsics().intl_locale_prototype(vm))
+        });
 
         locale.set_locale(locale_tag);
         locale.calendar.replace(source_locale.calendar());

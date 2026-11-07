@@ -81,16 +81,22 @@ impl Finalize for WeakMap {
 }
 
 impl WeakMap {
-    pub fn new(_: &DeferGc<'_>, vm: &Vm, prototype: Gc<Object>) -> WeakMap {
+    pub fn new(_: &DeferGc<'_>, vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> WeakMap {
         WeakMap {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             values: GcRefCell::new(WeakMapValues::default()),
         }
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakMap> {
         realm.create_object(vm, |defer_gc| {
-            WeakMap::new(defer_gc, vm, realm.intrinsics().weak_map_prototype(vm))
+            WeakMap::new(defer_gc, vm, realm, realm.intrinsics().weak_map_prototype(vm))
         })
     }
 

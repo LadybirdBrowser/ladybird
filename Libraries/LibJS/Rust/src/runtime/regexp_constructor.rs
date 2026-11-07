@@ -94,11 +94,12 @@ define_native_function_class!(
 impl RegExpConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<RegExpConstructor> {
         realm.create_object(vm, |_| RegExpConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.RegExp.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.RegExp.as_string().clone()),
             ),
             legacy_static_properties: RegExpLegacyStaticProperties::default(),
         })
@@ -215,6 +216,7 @@ impl RegExpConstructor {
 
     // 22.2.4.1 RegExp ( pattern, flags ), https://tc39.es/ecma262/#sec-regexp-pattern-flags
     fn call(function: &NativeFunction, vm: &Vm) -> ThrowCompletionOr<Value> {
+        let realm = vm.current_realm().expect("a native function runs in a realm");
         let pattern = vm.argument(0);
         let flags = vm.argument(1);
 
@@ -239,6 +241,7 @@ impl RegExpConstructor {
         // Reuse the already-computed patternIsRegExp to avoid re-reading @@match.
         Ok(Value::from_object(Self::construct_impl(
             vm,
+            realm,
             new_target,
             pattern_is_regexp,
         )?))
@@ -246,15 +249,17 @@ impl RegExpConstructor {
 
     // 22.2.4.1 RegExp ( pattern, flags ), https://tc39.es/ecma262/#sec-regexp-pattern-flags
     fn construct(_: &NativeFunction, vm: &Vm, new_target: Gc<FunctionObject>) -> ThrowCompletionOr<Gc<Object>> {
+        let realm = vm.current_realm().expect("a native function runs in a realm");
         // 1. Let patternIsRegExp be ? IsRegExp(pattern).
         let pattern_is_regexp = vm.argument(0).is_regexp(vm)?;
 
         // 3. Else, let newTarget be NewTarget.
-        Self::construct_impl(vm, new_target, pattern_is_regexp)
+        Self::construct_impl(vm, realm, new_target, pattern_is_regexp)
     }
 
     pub fn construct_impl(
         vm: &Vm,
+        realm: Gc<Realm>,
         new_target: Gc<FunctionObject>,
         pattern_is_regexp: bool,
     ) -> ThrowCompletionOr<Gc<Object>> {
@@ -307,7 +312,7 @@ impl RegExpConstructor {
         }
 
         // 7. Let O be ? RegExpAlloc(newTarget).
-        let regexp_object = regexp_alloc(vm, new_target)?;
+        let regexp_object = regexp_alloc(vm, realm, new_target)?;
 
         // 8. Return ? RegExpInitialize(O, P, F).
         Ok(regexp_object

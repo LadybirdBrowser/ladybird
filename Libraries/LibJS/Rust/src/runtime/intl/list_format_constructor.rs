@@ -44,11 +44,12 @@ impl ListFormatConstructor {
     // 14.1 The Intl.ListFormat Constructor, https://tc39.es/ecma402/#sec-intl-listformat-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ListFormatConstructor> {
         realm.create_object(vm, |_| ListFormatConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.ListFormat.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.ListFormat.as_string().clone()),
             ),
         })
     }
@@ -104,7 +105,7 @@ impl ListFormatConstructor {
             realm,
             new_target,
             Intrinsics::intl_list_format_prototype,
-            |_, prototype| ListFormat::new(vm, prototype),
+            |_, prototype| ListFormat::new(vm, realm, prototype),
         )?;
 
         // 3. Let optionsResolution be ? ResolveOptions(%Intl.ListFormat%, %Intl.ListFormat%.[[LocaleData]], locales, options).

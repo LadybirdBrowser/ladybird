@@ -183,6 +183,7 @@ impl RegExpObject {
         realm.create_object(vm, |_| {
             Self::new(
                 vm,
+                realm,
                 Utf16String::default(),
                 Utf16String::default(),
                 realm.intrinsics().regexp_prototype(vm),
@@ -223,13 +224,14 @@ impl RegExpObject {
         base
     }
 
-    fn new(vm: &Vm, pattern: Utf16String, flags: Utf16String, prototype: Gc<Object>) -> RegExpObject {
+    fn new(vm: &Vm, realm: Gc<Realm>, pattern: Utf16String, flags: Utf16String, prototype: Gc<Object>) -> RegExpObject {
         let flag_bits = to_flag_bits(Utf16View::of_string(&flags));
         RegExpObject {
             base: Self::with_inline_named_storage(Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                prototype,
+                realm,
+                Some(prototype),
                 MayInterfereWithIndexedPropertyAccess::No,
             )),
             inline_named_storage: [const { Cell::new(Value::UNDEFINED) }; 1],
@@ -467,7 +469,7 @@ pub fn regexp_create(vm: &Vm, pattern: Value, flags: Value) -> ThrowCompletionOr
     let realm = vm.current_realm().expect("RegExpCreate runs in a realm");
 
     // 1. Let obj be ! RegExpAlloc(%RegExp%).
-    let regexp_object = regexp_alloc(vm, realm.intrinsics().regexp_constructor(vm).upcast()).must();
+    let regexp_object = regexp_alloc(vm, realm, realm.intrinsics().regexp_constructor(vm).upcast()).must();
 
     // 2. Return ? RegExpInitialize(obj, P, F).
     regexp_object.regexp_initialize(vm, pattern, flags)
@@ -475,7 +477,7 @@ pub fn regexp_create(vm: &Vm, pattern: Value, flags: Value) -> ThrowCompletionOr
 
 // 22.2.3.2 RegExpAlloc ( newTarget ), https://tc39.es/ecma262/#sec-regexpalloc
 // 22.2.3.2 RegExpAlloc ( newTarget ), https://github.com/tc39/proposal-regexp-legacy-features#regexpalloc--newtarget-
-pub fn regexp_alloc(vm: &Vm, new_target: Gc<FunctionObject>) -> ThrowCompletionOr<Gc<RegExpObject>> {
+pub fn regexp_alloc(vm: &Vm, realm: Gc<Realm>, new_target: Gc<FunctionObject>) -> ThrowCompletionOr<Gc<RegExpObject>> {
     let current_realm = vm.current_realm().expect("RegExpAlloc runs in a realm");
 
     // 1. Let obj be ? OrdinaryCreateFromConstructor(newTarget, "%RegExp.prototype%", « [[OriginalSource]], [[OriginalFlags]], [[RegExpRecord]], [[RegExpMatcher]] »).
@@ -484,7 +486,7 @@ pub fn regexp_alloc(vm: &Vm, new_target: Gc<FunctionObject>) -> ThrowCompletionO
         current_realm,
         new_target,
         Intrinsics::regexp_prototype,
-        |_, prototype| RegExpObject::new(vm, Utf16String::default(), Utf16String::default(), prototype),
+        |_, prototype| RegExpObject::new(vm, realm, Utf16String::default(), Utf16String::default(), prototype),
     )?;
 
     // 2. Let thisRealm be the current Realm Record.

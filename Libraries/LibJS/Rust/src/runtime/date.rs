@@ -58,15 +58,23 @@ impl Deref for Date {
 }
 
 impl Date {
-    pub fn new(vm: &Vm, date_value: f64, prototype: Gc<Object>) -> Date {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, date_value: f64, prototype: Gc<Object>) -> Date {
         Date {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             date_value: Cell::new(date_value),
         }
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>, date_value: f64) -> Gc<Date> {
-        realm.create_object(vm, |_| Date::new(vm, date_value, realm.intrinsics().date_prototype(vm)))
+        realm.create_object(vm, |_| {
+            Date::new(vm, realm, date_value, realm.intrinsics().date_prototype(vm))
+        })
     }
 
     pub fn date_value(&self) -> f64 {

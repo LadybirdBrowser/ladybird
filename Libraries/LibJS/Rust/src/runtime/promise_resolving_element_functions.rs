@@ -156,6 +156,7 @@ impl PromiseResolvingElementFunction {
     #[allow(clippy::too_many_arguments)]
     fn new(
         vm: &Vm,
+        realm: Gc<Realm>,
         class: &'static Class,
         index: usize,
         values: Gc<PromiseValueList>,
@@ -165,7 +166,7 @@ impl PromiseResolvingElementFunction {
         resolve_element: ResolveElement,
     ) -> PromiseResolvingElementFunction {
         PromiseResolvingElementFunction {
-            base: NativeFunction::new_with_prototype(vm, class, prototype),
+            base: NativeFunction::new_with_prototype(vm, class, realm, prototype, None),
             index: Cell::new(index),
             values: Cell::new(values),
             capability: Cell::new(capability),
@@ -251,7 +252,7 @@ macro_rules! define_promise_resolving_element_function {
                     vm,
                     |_| $type {
                         base: PromiseResolvingElementFunction::new(
-                            vm,
+                            vm, realm,
                             Self::CLASS,
                             index,
                             values,

@@ -36,11 +36,12 @@ define_native_function_class!(
 impl AsyncFunctionConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AsyncFunctionConstructor> {
         realm.create_object(vm, |_| AsyncFunctionConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.AsyncFunction.as_string().clone(),
+                realm,
                 realm.intrinsics().function_constructor(vm).upcast(),
+                Some(vm.names.AsyncFunction.as_string().clone()),
             ),
         })
     }

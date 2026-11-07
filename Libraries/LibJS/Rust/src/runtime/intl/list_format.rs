@@ -24,6 +24,7 @@ use crate::runtime::iterator::{IteratorHint, get_iterator, iterator_close, itera
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::realm::Realm;
 use crate::unicode::intl::{self as unicode, ListFormatPartition, ListFormatType, Style};
 use crate::utf16::Utf16View;
 
@@ -61,9 +62,15 @@ impl Finalize for ListFormat {
 }
 
 impl ListFormat {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> ListFormat {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> ListFormat {
         ListFormat {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             locale: RefCell::default(),
             type_: Cell::new(ListFormatType::Conjunction),
             style: Cell::new(Style::Long),

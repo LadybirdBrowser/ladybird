@@ -60,11 +60,12 @@ impl DateTimeFormatConstructor {
     // 11.1 The Intl.DateTimeFormat Constructor, https://tc39.es/ecma402/#sec-intl-datetimeformat-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DateTimeFormatConstructor> {
         realm.create_object(vm, |_| DateTimeFormatConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.DateTimeFormat.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.DateTimeFormat.as_string().clone()),
             ),
         })
     }
@@ -239,7 +240,7 @@ pub fn create_date_time_format(
         realm,
         new_target,
         Intrinsics::intl_date_time_format_prototype,
-        |_, prototype| DateTimeFormat::new(vm, prototype),
+        |_, prototype| DateTimeFormat::new(vm, realm, prototype),
     )?;
 
     // 2. Let hour12 be undefined.

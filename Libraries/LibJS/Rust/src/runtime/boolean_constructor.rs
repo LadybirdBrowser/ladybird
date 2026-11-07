@@ -36,11 +36,12 @@ define_native_function_class!(
 impl BooleanConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<BooleanConstructor> {
         realm.create_object(vm, |_| BooleanConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.Boolean.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.Boolean.as_string().clone()),
             ),
         })
     }
@@ -87,7 +88,9 @@ impl BooleanConstructor {
         // 5. Return O.
         let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::boolean_prototype)?;
         Ok(realm
-            .create_object(vm, |_| BooleanObject::new(vm, BooleanObject::CLASS, b, prototype))
+            .create_object(vm, |_| {
+                BooleanObject::new(vm, realm, BooleanObject::CLASS, b, prototype)
+            })
             .upcast())
     }
 }

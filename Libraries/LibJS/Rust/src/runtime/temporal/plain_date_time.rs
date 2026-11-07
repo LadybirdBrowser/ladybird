@@ -29,6 +29,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::realm::Realm;
 use crate::runtime::temporal::abstract_operations::{
     ArithmeticOperation, DurationOperation, Overflow, SecondsPrecision, ShowCalendar, Unit, UnitGroup, ascii_view,
     format_time_string, get_difference_settings, get_temporal_overflow_option, iso_date_to_epoch_days,
@@ -78,9 +79,21 @@ impl core::ops::Deref for PlainDateTime {
 }
 
 impl PlainDateTime {
-    fn new(vm: &Vm, iso_date_time: ISODateTime, calendar: Utf16String, prototype: Gc<Object>) -> PlainDateTime {
+    fn new(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        iso_date_time: ISODateTime,
+        calendar: Utf16String,
+        prototype: Gc<Object>,
+    ) -> PlainDateTime {
         PlainDateTime {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             iso_date_time,
             calendar,
         }
@@ -387,7 +400,7 @@ pub fn create_temporal_date_time(
         realm,
         new_target,
         Intrinsics::temporal_plain_date_time_prototype,
-        |_, prototype| PlainDateTime::new(vm, iso_date_time, calendar, prototype),
+        |_, prototype| PlainDateTime::new(vm, realm, iso_date_time, calendar, prototype),
     )?;
 
     // 6. Return object.

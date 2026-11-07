@@ -106,7 +106,7 @@ impl BoundFunction {
                 realm.intrinsics().bound_function_shape(vm),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
-            LengthAndNameSlots::Absent => FunctionObject::new_with_realm_and_prototype(
+            LengthAndNameSlots::Absent => FunctionObject::new_with_prototype(
                 vm,
                 Self::CLASS,
                 realm,

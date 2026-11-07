@@ -26,6 +26,7 @@ use crate::runtime::intl::number_format_function::NumberFormatFunction;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::realm::Realm;
 use crate::runtime::value::PreferredType;
 use crate::runtime::value_conversions::{
     parse_string_numeric_literal, string_to_number, unsigned_big_integer_from_base,
@@ -100,9 +101,15 @@ impl Finalize for NumberFormatBase {
 }
 
 impl NumberFormatBase {
-    pub fn new(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> NumberFormatBase {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, class: &'static Class, prototype: Gc<Object>) -> NumberFormatBase {
         NumberFormatBase {
-            base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                class,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             locale: RefCell::default(),
             min_integer_digits: Cell::new(0),
             min_fraction_digits: Cell::new(None),
@@ -358,9 +365,9 @@ impl Deref for NumberFormat {
 }
 
 impl NumberFormat {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> NumberFormat {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> NumberFormat {
         NumberFormat {
-            base: NumberFormatBase::new(vm, Self::CLASS, prototype),
+            base: NumberFormatBase::new(vm, realm, Self::CLASS, prototype),
             numbering_system: RefCell::default(),
             style: Cell::new(NumberFormatStyle::Decimal),
             currency: RefCell::new(None),

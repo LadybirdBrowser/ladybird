@@ -35,15 +35,21 @@ define_object_class!(Set, extends: [Object], methods: {
 });
 
 impl Set {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> Set {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> Set {
         Set {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             values: Cell::new(None),
         }
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Set> {
-        realm.create_object(vm, |_| Set::new(vm, realm.intrinsics().set_prototype(vm)))
+        realm.create_object(vm, |_| Set::new(vm, realm, realm.intrinsics().set_prototype(vm)))
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {

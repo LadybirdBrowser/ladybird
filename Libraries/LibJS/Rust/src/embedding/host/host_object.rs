@@ -444,7 +444,7 @@ impl HostObject {
             }
             Object::new_with_shape(class, shape, MayInterfereWithIndexedPropertyAccess::No)
         } else {
-            Object::new_with_realm_and_prototype(vm, class, realm, prototype, MayInterfereWithIndexedPropertyAccess::No)
+            Object::new_with_prototype(vm, class, realm, prototype, MayInterfereWithIndexedPropertyAccess::No)
         };
         copy_host_class_flags_into_object(vm, table, &base);
         let host_object = HostObject {

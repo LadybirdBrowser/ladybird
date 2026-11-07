@@ -75,16 +75,22 @@ impl Finalize for WeakSet {
 }
 
 impl WeakSet {
-    pub fn new(_: &DeferGc<'_>, vm: &Vm, prototype: Gc<Object>) -> WeakSet {
+    pub fn new(_: &DeferGc<'_>, vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> WeakSet {
         WeakSet {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             values: GcRefCell::new(WeakSetValues::default()),
         }
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<WeakSet> {
         realm.create_object(vm, |defer_gc| {
-            WeakSet::new(defer_gc, vm, realm.intrinsics().weak_set_prototype(vm))
+            WeakSet::new(defer_gc, vm, realm, realm.intrinsics().weak_set_prototype(vm))
         })
     }
 

@@ -44,11 +44,12 @@ impl CollatorConstructor {
     // 10.1 The Intl.Collator Constructor, https://tc39.es/ecma402/#sec-the-intl-collator-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<CollatorConstructor> {
         realm.create_object(vm, |_| CollatorConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.Collator.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.Collator.as_string().clone()),
             ),
         })
     }
@@ -101,7 +102,7 @@ impl CollatorConstructor {
             realm,
             new_target,
             Intrinsics::intl_collator_prototype,
-            |_, prototype| Collator::new(vm, prototype),
+            |_, prototype| Collator::new(vm, realm, prototype),
         )?;
 
         // 4. NOTE: The source of locale data for ResolveOptions depends upon the "usage" property of options, but the following

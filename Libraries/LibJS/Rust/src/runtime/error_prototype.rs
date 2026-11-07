@@ -41,7 +41,8 @@ impl ErrorPrototype {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.object_prototype(),
+                realm,
+                Some(realm.object_prototype()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
         })
@@ -244,12 +245,7 @@ macro_rules! define_native_error_prototypes {
                     realm.create_object(
                         vm,
                         |_| $prototype {
-                            base: Object::new_with_prototype(
-                                vm,
-                                Self::CLASS,
-                                realm.intrinsics().error_prototype(vm),
-                                MayInterfereWithIndexedPropertyAccess::No,
-                            ),
+                            base: Object::new_with_prototype(vm, Self::CLASS, realm, Some(realm.intrinsics().error_prototype(vm)), MayInterfereWithIndexedPropertyAccess::No),
                         },
                     )
                 }

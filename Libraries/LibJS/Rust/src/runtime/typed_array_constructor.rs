@@ -43,11 +43,12 @@ define_native_function_class!(
 impl TypedArrayConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<TypedArrayConstructor> {
         realm.create_object(vm, |_| TypedArrayConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.TypedArray.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.TypedArray.as_string().clone()),
             ),
         })
     }

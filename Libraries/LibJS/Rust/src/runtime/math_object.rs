@@ -112,7 +112,8 @@ impl MathObject {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.object_prototype(),
+                realm,
+                Some(realm.object_prototype()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
         })

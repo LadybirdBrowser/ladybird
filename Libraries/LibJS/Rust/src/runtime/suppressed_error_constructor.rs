@@ -41,7 +41,9 @@ impl SuppressedErrorConstructor {
             base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
+                realm,
                 realm.intrinsics().error_constructor(vm).upcast(),
+                None,
             ),
         })
     }
@@ -88,7 +90,7 @@ impl SuppressedErrorConstructor {
             realm,
             new_target,
             Intrinsics::suppressed_error_prototype,
-            |_, prototype| SuppressedError::new_in_constructor(vm, prototype),
+            |_, prototype| SuppressedError::new_in_constructor(vm, realm, prototype),
         )?;
 
         // 3. If message is not undefined, then

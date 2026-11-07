@@ -21,6 +21,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::realm::Realm;
 use crate::runtime::temporal::abstract_operations::{
     DateType, Overflow, ShowCalendar, ascii_view, get_temporal_overflow_option, iso_date_to_fields, parse_iso_date_time,
 };
@@ -54,9 +55,21 @@ impl core::ops::Deref for PlainMonthDay {
 }
 
 impl PlainMonthDay {
-    fn new(vm: &Vm, iso_date: ISODate, calendar: Utf16String, prototype: Gc<Object>) -> PlainMonthDay {
+    fn new(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        iso_date: ISODate,
+        calendar: Utf16String,
+        prototype: Gc<Object>,
+    ) -> PlainMonthDay {
         PlainMonthDay {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             iso_date,
             calendar,
         }
@@ -220,7 +233,7 @@ pub fn create_temporal_month_day(
         realm,
         new_target,
         Intrinsics::temporal_plain_month_day_prototype,
-        |_, prototype| PlainMonthDay::new(vm, iso_date, calendar, prototype),
+        |_, prototype| PlainMonthDay::new(vm, realm, iso_date, calendar, prototype),
     )?;
 
     // 6. Return object.

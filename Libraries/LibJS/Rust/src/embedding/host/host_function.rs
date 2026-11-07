@@ -168,7 +168,7 @@ impl HostFunction {
     }
 
     /// HostFunction::create_without_own_properties(): for a caller that defines the function's own properties
-    /// itself, in an order of its own. The function's realm is that of the shape of its prototype, which defaults to
+    /// itself, in an order of its own. The function's realm is `realm`, and its prototype defaults to the realm's
     /// %Function.prototype%.
     ///
     /// # Safety
@@ -184,7 +184,7 @@ impl HostFunction {
     ) -> Gc<HostFunction> {
         let (class, allocator) = runtime_class_and_allocator_of_host_class(vm, table, JS_HOST_CLASS_FUNCTION);
         let prototype = prototype.unwrap_or_else(|| realm.function_prototype());
-        let base = NativeFunction::new_with_name(vm, class, name, prototype);
+        let base = NativeFunction::new_with_prototype(vm, class, realm, prototype, Some(name));
         copy_host_class_flags_into_object(vm, table, &base);
         let function = HostFunction {
             base,
@@ -203,7 +203,7 @@ impl HostFunction {
 
 /// HostFunction::create(): a function of `host_class`, a table of kind JS_HOST_CLASS_FUNCTION, whose name is a copy of
 /// the code units `name` views. It defines "length" and then "name", as CreateBuiltinFunction does. Its [[Prototype]]
-/// is `prototype_or_null`, or %Function.prototype% of the realm for null, and its realm that of the prototype's shape.
+/// is `prototype_or_null`, or %Function.prototype% of the realm for null, and its realm `realm`.
 /// The function keeps `host_data_or_null` alive. Returns an unrooted function. Main thread only.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_host_function_create(

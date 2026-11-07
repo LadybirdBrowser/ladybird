@@ -19,6 +19,7 @@ use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::intl::intl_object::{IntlObject, ResolutionOptionDescriptor};
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::primitive_string::PrimitiveString;
+use crate::runtime::realm::Realm;
 use crate::unicode::intl::{self as unicode, Inclusive, SegmenterGranularity};
 use crate::utf16::Utf16View;
 
@@ -54,9 +55,15 @@ impl Finalize for Segmenter {
 }
 
 impl Segmenter {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> Segmenter {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> Segmenter {
         Segmenter {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             locale: RefCell::default(),
             segmenter_granularity: Cell::new(SegmenterGranularity::Grapheme),
             segmenter: RefCell::new(None),

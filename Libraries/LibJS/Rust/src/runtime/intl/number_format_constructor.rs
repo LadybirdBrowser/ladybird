@@ -63,11 +63,12 @@ impl NumberFormatConstructor {
     // 16.1 The Intl.NumberFormat Constructor, https://tc39.es/ecma402/#sec-intl-numberformat-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<NumberFormatConstructor> {
         realm.create_object(vm, |_| NumberFormatConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.NumberFormat.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.NumberFormat.as_string().clone()),
             ),
         })
     }
@@ -133,7 +134,7 @@ impl NumberFormatConstructor {
             realm,
             new_target,
             Intrinsics::intl_number_format_prototype,
-            |_, prototype| NumberFormat::new(vm, prototype),
+            |_, prototype| NumberFormat::new(vm, realm, prototype),
         )?;
 
         // 3. Let optionsResolution be ? ResolveOptions(%Intl.NumberFormat%, %Intl.NumberFormat%.[[LocaleData]], locales, options, « COERCE-OPTIONS »).

@@ -39,7 +39,9 @@ impl GeneratorFunctionConstructor {
             base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
+                realm,
                 realm.intrinsics().function_constructor(vm).upcast(),
+                None,
             ),
         })
     }

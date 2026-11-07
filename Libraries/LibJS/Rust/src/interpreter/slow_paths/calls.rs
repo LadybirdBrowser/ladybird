@@ -642,7 +642,12 @@ pub fn call_construct(
             get_prototype_from_constructor(vm, function.as_function_object_gc(), Intrinsics::object_prototype)
         );
         // NB: OrdinaryObjectCreate(prototype), with room for the properties the constructor is known to add.
-        let this_object = Object::create_for_construct(vm, prototype, function.shared_data());
+        let this_object = Object::create_for_construct(
+            vm,
+            vm.current_realm().expect("a construction runs in a realm"),
+            prototype,
+            function.shared_data(),
+        );
         let Some(context) = vm.push_inline_frame(
             function,
             function.inline_call_executable(),

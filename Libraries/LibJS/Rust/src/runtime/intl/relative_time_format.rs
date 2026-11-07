@@ -23,6 +23,7 @@ use crate::runtime::intl::intl_object::{IntlObject, ResolutionOptionDescriptor};
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::realm::Realm;
 use crate::unicode::intl::{self as unicode, Style};
 use crate::unicode::relative_time_format::{
     self as unicode_relative_time_format, NumericDisplay, RelativeTimeFormatPartition, TimeUnit,
@@ -65,9 +66,15 @@ impl Finalize for RelativeTimeFormat {
 }
 
 impl RelativeTimeFormat {
-    pub fn new(vm: &Vm, prototype: Gc<Object>) -> RelativeTimeFormat {
+    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> RelativeTimeFormat {
         RelativeTimeFormat {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             locale: RefCell::default(),
             numbering_system: RefCell::default(),
             style: Cell::new(Style::Long),

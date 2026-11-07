@@ -43,11 +43,12 @@ define_native_function_class!(
 impl FunctionConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<FunctionConstructor> {
         realm.create_object(vm, |_| FunctionConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.Function.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.Function.as_string().clone()),
             ),
         })
     }

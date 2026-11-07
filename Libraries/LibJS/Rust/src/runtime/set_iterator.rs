@@ -74,7 +74,8 @@ impl SetIterator {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.intrinsics().set_iterator_prototype(),
+                realm,
+                Some(realm.intrinsics().set_iterator_prototype()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
             set,

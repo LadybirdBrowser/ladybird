@@ -34,7 +34,8 @@ impl SuppressedErrorPrototype {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.intrinsics().error_prototype(vm),
+                realm,
+                Some(realm.intrinsics().error_prototype(vm)),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
         })

@@ -615,7 +615,7 @@ impl Object {
         )
     }
 
-    pub fn new_with_realm_and_prototype(
+    pub fn new_with_prototype(
         vm: &Vm,
         class: &'static Class,
         realm: Gc<Realm>,
@@ -625,20 +625,6 @@ impl Object {
         let mut shape = realm.empty_object_shape();
         if prototype.is_some() && shape.prototype() != prototype {
             shape = shape.create_prototype_transition(vm, prototype);
-        }
-        Self::new_with_shape(class, shape, may_interfere_with_indexed_property_access)
-    }
-
-    #[inline]
-    pub fn new_with_prototype(
-        vm: &Vm,
-        class: &'static Class,
-        prototype: Gc<Object>,
-        may_interfere_with_indexed_property_access: MayInterfereWithIndexedPropertyAccess,
-    ) -> Object {
-        let mut shape = prototype.shape().realm().empty_object_shape();
-        if shape.prototype() != Some(prototype) {
-            shape = shape.create_prototype_transition(vm, Some(prototype));
         }
         Self::new_with_shape(class, shape, may_interfere_with_indexed_property_access)
     }
@@ -661,7 +647,13 @@ impl Object {
             );
             return Self::allocate_plain_object(vm, object, 0);
         }
-        let object = Self::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No);
+        let object = Self::new_with_prototype(
+            vm,
+            Self::CLASS,
+            realm,
+            Some(prototype),
+            MayInterfereWithIndexedPropertyAccess::No,
+        );
         Self::allocate_plain_object(vm, object, 0)
     }
 
@@ -688,10 +680,11 @@ impl Object {
     /// SharedFunctionInstanceData::construct_reserve()).
     pub fn create_for_construct(
         vm: &Vm,
+        realm: Gc<Realm>,
         prototype: Gc<Object>,
         shared_data: Gc<SharedFunctionInstanceData>,
     ) -> Gc<Object> {
-        let mut shape = prototype.shape().realm().empty_object_shape();
+        let mut shape = realm.empty_object_shape();
         if shape.prototype() != Some(prototype) {
             shape = shape.create_prototype_transition(vm, Some(prototype));
         }

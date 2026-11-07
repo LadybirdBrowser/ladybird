@@ -50,7 +50,8 @@ impl PromisePrototype {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                realm.intrinsics().object_prototype(vm),
+                realm,
+                Some(realm.intrinsics().object_prototype(vm)),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
         })

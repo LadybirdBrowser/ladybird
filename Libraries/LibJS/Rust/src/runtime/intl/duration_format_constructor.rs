@@ -47,11 +47,12 @@ impl DurationFormatConstructor {
     // 13.1 The Intl.DurationFormat Constructor, https://tc39.es/ecma402/#sec-intl-durationformat-constructor
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<DurationFormatConstructor> {
         realm.create_object(vm, |_| DurationFormatConstructor {
-            base: NativeFunction::new_with_name(
+            base: NativeFunction::new_with_prototype(
                 vm,
                 Self::CLASS,
-                vm.names.DurationFormat.as_string().clone(),
+                realm,
                 realm.function_prototype(),
+                Some(vm.names.DurationFormat.as_string().clone()),
             ),
         })
     }
@@ -106,7 +107,7 @@ impl DurationFormatConstructor {
             realm,
             new_target,
             Intrinsics::intl_duration_format_prototype,
-            |_, prototype| DurationFormat::new(vm, prototype),
+            |_, prototype| DurationFormat::new(vm, realm, prototype),
         )?;
 
         // 3. Let optionsResolution be ? ResolveOptions(%Intl.DurationFormat%, %Intl.DurationFormat%.[[LocaleData]], locales, options).

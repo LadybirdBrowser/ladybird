@@ -53,7 +53,8 @@ impl ConsoleObject {
             base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
-                prototype.upcast(),
+                realm,
+                Some(prototype.upcast()),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
             console: Cell::new(None),

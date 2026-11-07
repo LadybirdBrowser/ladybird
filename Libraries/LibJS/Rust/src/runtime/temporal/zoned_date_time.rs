@@ -25,6 +25,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::realm::Realm;
 use crate::runtime::temporal::abstract_operations::{
     ArithmeticOperation, Disambiguation, DurationOperation, OffsetOption, Overflow, SecondsPrecision, ShowCalendar,
     ShowOffset, ShowTimeZoneName, Unit, UnitCategory, UnitGroup, ascii_view, check_iso_days_range,
@@ -84,13 +85,20 @@ impl core::ops::Deref for ZonedDateTime {
 impl ZonedDateTime {
     fn new(
         vm: &Vm,
+        realm: Gc<Realm>,
         epoch_nanoseconds: Gc<BigInt>,
         time_zone: Utf16String,
         calendar: Utf16String,
         prototype: Gc<Object>,
     ) -> ZonedDateTime {
         ZonedDateTime {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             epoch_nanoseconds,
             time_zone,
             calendar,
@@ -514,7 +522,7 @@ pub fn create_temporal_zoned_date_time(
         realm,
         new_target,
         Intrinsics::temporal_zoned_date_time_prototype,
-        |_, prototype| ZonedDateTime::new(vm, epoch_nanoseconds, time_zone, calendar, prototype),
+        |_, prototype| ZonedDateTime::new(vm, realm, epoch_nanoseconds, time_zone, calendar, prototype),
     )?;
 
     // 7. Return object.

@@ -94,7 +94,7 @@ impl AsyncGenerator {
 
         let yield_continuation = execution_context.yield_continuation.get();
         realm.create_object(vm, |_| AsyncGenerator {
-            base: Object::new_with_realm_and_prototype(
+            base: Object::new_with_prototype(
                 vm,
                 Self::CLASS,
                 realm,

@@ -23,6 +23,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::realm::Realm;
 use crate::runtime::temporal::abstract_operations::{
     ArithmeticOperation, DateType, DurationOperation, Overflow, ShowCalendar, Unit, UnitGroup, ascii_view,
     get_difference_settings, get_temporal_overflow_option, iso_date_to_fields, parse_iso_date_time,
@@ -65,9 +66,21 @@ impl core::ops::Deref for PlainYearMonth {
 }
 
 impl PlainYearMonth {
-    fn new(vm: &Vm, iso_date: ISODate, calendar: Utf16String, prototype: Gc<Object>) -> PlainYearMonth {
+    fn new(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        iso_date: ISODate,
+        calendar: Utf16String,
+        prototype: Gc<Object>,
+    ) -> PlainYearMonth {
         PlainYearMonth {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                Some(prototype),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
             iso_date,
             calendar,
         }
@@ -242,7 +255,7 @@ pub fn create_temporal_year_month(
         realm,
         new_target,
         Intrinsics::temporal_plain_year_month_prototype,
-        |_, prototype| PlainYearMonth::new(vm, iso_date, calendar, prototype),
+        |_, prototype| PlainYearMonth::new(vm, realm, iso_date, calendar, prototype),
     )?;
 
     // 6. Return object.
