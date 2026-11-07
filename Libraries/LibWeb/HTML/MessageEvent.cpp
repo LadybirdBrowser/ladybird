@@ -23,7 +23,7 @@ GC_DEFINE_ALLOCATOR(MessageEvent);
 
 static Bindings::WrapperWorldWeakValueCacheMap<MessageEvent, JS::Array>& message_event_ports_caches()
 {
-    static NeverDestroyed<Bindings::WrapperWorldWeakValueCacheMap<MessageEvent, JS::Array>> caches;
+    static thread_local NeverDestroyed<Bindings::WrapperWorldWeakValueCacheMap<MessageEvent, JS::Array>> caches;
     return *caches;
 }
 

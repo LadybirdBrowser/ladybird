@@ -92,7 +92,7 @@
 
 namespace Web::Fetch::Fetching {
 
-static bool g_http_memory_cache_enabled = false;
+static Atomic<bool, AK::MemoryOrder::memory_order_relaxed> g_http_memory_cache_enabled { false };
 
 // In test mode, RequestServer's disk cache stores only the responses to requests that ask for it with a header, which a
 // page cannot add to a navigation request. Tests can have every navigation request ask for it.
@@ -199,10 +199,11 @@ public:
         return it->value.ptr();
     }
 
+    // NB: Each agent has one, as a cache entry can only be used on one thread.
     static HTTPCache& the()
     {
-        static HTTPCache& cache = *new HTTPCache;
-        return cache;
+        static thread_local NeverDestroyed<HTTPCache> cache;
+        return *cache;
     }
 
     void clear_cache()
