@@ -10,6 +10,8 @@
 
 namespace WebView {
 
+static constexpr auto expiry_interval = AK::Duration::from_seconds(60 * 60);
+
 CrashReportOutbox& CrashReportOutbox::the()
 {
     static NeverDestroyed<CrashReportOutbox> outbox;
@@ -165,6 +167,23 @@ size_t CrashReportOutbox::waiting_report_count() const
             ++count;
     }
     return count;
+}
+
+void CrashReportOutbox::start_removing_expired_reports()
+{
+    VERIFY(!m_expiry_timer);
+    m_expiry_timer = Core::Timer::create_repeating(expiry_interval, [this] { remove_expired_reports(); });
+    m_expiry_timer->start();
+}
+
+// The browser can stay open for longer than a report may wait. Whatever is on its way now can wait for the next run.
+void CrashReportOutbox::remove_expired_reports()
+{
+    if (m_report_being_sent.has_value() || !m_queue.is_empty() || !m_submissions_from_reviews.is_empty())
+        return;
+    if (auto result = m_store.remove_expired_reports(); result.is_error())
+        warnln("Could not remove expired crash reports: {}", result.error());
+    reports_changed();
 }
 
 void CrashReportOutbox::reports_changed()

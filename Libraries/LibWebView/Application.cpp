@@ -739,6 +739,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     if (!m_event_loop)
         m_event_loop = &create_platform_event_loop();
+    if (captures_browser_crashes())
+        CrashReportOutbox::the().start_removing_expired_reports();
 
     // NB: The host's thread makes an event loop, which would install the default event loop manager if the platform
     //     one were not installed yet.
