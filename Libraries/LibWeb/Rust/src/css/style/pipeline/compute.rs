@@ -2691,6 +2691,8 @@ fn font_resolution_selects_by(property: u16) -> bool {
             | prop::FONT_WIDTH
             | prop::FONT_OPTICAL_SIZING
             | prop::FONT_SIZE_ADJUST
+            | prop::FONT_SYNTHESIS_WEIGHT
+            | prop::FONT_SYNTHESIS_STYLE
     )
 }
 

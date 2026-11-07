@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSS Test: 'font-synthesis:none' with a font that doesn't support small-caps</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-synthesis">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-synthesis-07-ref.html">
+<meta name="assert" content="font-synthesis:none inhibits synthesising small-caps">
+<style>
+  @font-face {
+    font-family: Lato;
+    src: url(../../fonts/Lato-Medium.ttf);
+  }
+  .test {
+     font: 2em/1 Lato;
+     font-variant: small-caps;
+     font-synthesis: none;
+  }
+</style>
+
+<p>Test passes if "A" is upper-case and "bcd e" is lower-case.</p>
+<p class="test">Abcd e</p>

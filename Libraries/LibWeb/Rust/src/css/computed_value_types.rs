@@ -670,6 +670,8 @@ pub struct FontValues {
     pub font_family: ComputedStyleValueHandle,
     pub font_style: ComputedStyleValueHandle,
     pub font_optical_sizing: ComputedStyleValueHandle,
+    pub font_synthesis_weight: ComputedStyleValueHandle,
+    pub font_synthesis_style: ComputedStyleValueHandle,
     pub font_feature_settings: ComputedStyleValueHandle,
     pub font_kerning: ComputedStyleValueHandle,
     pub font_language_override: ComputedStyleValueHandle,

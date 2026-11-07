@@ -245,6 +245,8 @@ impl RetainedState {
                 font_weight: 400.0,
                 font_width: 100.0,
                 font_optical_sizing: 0,
+                font_oblique_angle: 14.0,
+                font_synthesis: 0,
                 font_size_adjust: bridge::FontSizeAdjustKind::None,
                 font_size_adjust_metric: 0,
                 font_size_adjust_value: 0.0,

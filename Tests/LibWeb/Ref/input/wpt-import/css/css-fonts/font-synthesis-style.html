@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8"/>
+<title>CSS Test: font-synthesis-style: none disables fake italic/oblique</title>
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-synthesis-style-ref.html">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-synthesis-style">
+<meta name="assert" content=" If ‘style’ is not specified, user agents must not synthesize italic faces">
+<style>
+    @font-face {
+        font-family: "lato";
+        src: url(../../fonts/Lato-Medium.ttf);
+    }
+    @supports not (font-synthesis-style: none) {
+        .test {color: red;}
+    }
+    .test {
+        font-family: "lato";
+        font-size: 3em;
+    }
+    .nosynth {
+        font-style: italic;
+        font-synthesis-style: none;
+    }
+</style>
+
+<p>Test passes if the two lines below are identical (the second line is <em>not obliqued</em>), and there is no red.</p>
+<section class="test">
+    <p>Filler text</p>
+    <p class="nosynth">Filler text</p>
+</section>

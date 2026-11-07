@@ -40,6 +40,7 @@ struct AK::Traits<Web::CSS::ComputedFontCacheKey> : public AK::DefaultTraits<Web
         for (auto const& value : key.feature_values)
             hash = pair_int_hash(hash, value ? 1 : 0);
         hash = pair_int_hash(hash, key.font_feature_values_scope.value());
+        hash = pair_int_hash(hash, pair_int_hash(Traits<double>::hash(key.font_oblique_angle), key.font_synthesis));
 
         return hash;
     }

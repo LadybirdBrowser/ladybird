@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang = "en">
+    <meta charset="utf-8">
+    <title>CSS Test: font synthesis weight: bold web font should not be "double emboldened"</title>
+    <link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-synthesis-weight-webfont-bold-ref.html">
+    <link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-synthesis-weight">
+    <meta name="assert" content=" If font face is already bold, user agents must not synthesize bold face again">
+    <style>
+        @font-face {
+            font-family: "lato";
+            src: url(../../fonts/Lato-Bold.ttf)
+        }
+        .test {
+            font-family: "lato";
+            font-size: 3em;
+        }
+        .synth {
+            font-weight: bold;
+        }
+    </style>
+
+    <p class="test synth">Filler text</p>
+</html>

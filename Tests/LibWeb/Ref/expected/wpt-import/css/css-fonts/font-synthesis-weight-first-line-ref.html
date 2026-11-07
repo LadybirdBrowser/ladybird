@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8"/>
+<title>CSS Test: font-synthesis-weight apply to ::first-line</title>
+<style>
+    @font-face {
+        font-family: "Lato-Medium";
+        src: url(../../fonts/Lato-Medium.ttf);
+    }
+    .test {
+        font-family: "Lato-Medium";
+        font-size: 3em;
+    }
+</style>
+
+<p>Test passes if the two lines below are identical (the first line is <em>not bold</em>), and there is no red.</p>
+<section class="test">
+    <p>Filler text<br>Filler text</p>
+</section>

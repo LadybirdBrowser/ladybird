@@ -67,6 +67,19 @@ struct FontSynthesis {
     bool operator==(FontSynthesis const&) const = default;
 };
 
+// https://drafts.csswg.org/css-fonts-4/#font-synthesis-weight
+// https://drafts.csswg.org/css-fonts-4/#font-synthesis-style
+// What a request for text at this weight and slope (0 normal, 1 italic, 2 oblique) asks to be synthesized of a font
+// made of the typeface with these variations, where the request allows synthesis of weight and of style.
+struct FontSynthesisRequest {
+    int weight { 400 };
+    int slope { 0 };
+    // The angle of the oblique style the request asks for, in degrees.
+    float oblique_angle { 14 };
+    bool allows_weight { true };
+    bool allows_style { true };
+};
+
 struct FontCacheKey {
     float point_size;
     Vector<FontVariationAxis> axes;
@@ -145,6 +158,10 @@ public:
 
     hb_face_t* harfbuzz_typeface() const;
     FaceDescription const& description() const;
+
+    // How a font of this typeface, with these variations, has to be synthesized to show the weight and the slope that
+    // the request asks for.
+    FontSynthesis synthesis_for(FontSynthesisRequest const&, FontVariationSettings const&) const;
 
     // The style of a font of this typeface with these variations.
     FaceStyle style_for_variations(ReadonlySpan<FontVariationAxis>) const;

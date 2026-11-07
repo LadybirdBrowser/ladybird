@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>CSS Test:  font-synthesis: none disables fake bold</title>
+<link rel="author" title="Chris Lilley" href="chris@w3.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-synthesis-01-ref.html">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-synthesis-prop">
+<meta name="assert" content=" If ‘weight’ is not specified, user agents must not synthesize bold faces">
+<style>
+    @font-face {
+				font-family: "test";
+				src: url(../../fonts/Lato-Medium.ttf);
+			}
+    @supports not (font-synthesis: none) {
+        .test {color: red;}
+    }
+    .test {
+				font-family: "test";
+				font-size: 3em;
+			}
+    .nosynth {
+        font-weight: bold;
+        font-synthesis: none;
+    }
+</style>
+
+<p>Test passes if the two lines below are identical (the second line is <em>not bold</em>), and there is no red.</p>
+<section class="test">
+    <p>Filler text</p>
+    <p class="nosynth">Filler text</p>
+</section>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<title>Tests that font-style with angle outside of the 'slnt' range support by the font does not synthesize oblique faces.</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-prop-desc">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7999">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/synthetic-oblique-out-of-capabilities-range-ref.html">
+<link rel="assert" title="Tests that of out of the range font-style values for variable fonts does not cause synthetic obliqueing.">
+<style>
+    @font-face {
+        font-family: "Inter";
+        src: url('support/fonts/Inter-VF.subset.ttf');
+    }
+    .style60 {
+        font-family: "Inter";
+        font-size: 3em;
+        font-style: oblique 60deg;
+    }
+</style>
+
+<p class="style60">text</p>

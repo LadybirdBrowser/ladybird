@@ -5799,6 +5799,8 @@ pub(crate) fn font_value_computes_natively(property_id: u16, data: &StyleValueDa
         | prop::FONT_KERNING
         | prop::FONT_LANGUAGE_OVERRIDE
         | prop::FONT_OPTICAL_SIZING
+        | prop::FONT_SYNTHESIS_STYLE
+        | prop::FONT_SYNTHESIS_WEIGHT
         | prop::FONT_VARIANT_ALTERNATES
         | prop::FONT_VARIANT_CAPS
         | prop::FONT_VARIANT_EAST_ASIAN

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Synthetic bold does not widen a run of inked glyphs
+Pass	Synthetic bold does not widen a run of U+0020 spaces
+Pass	Synthetic bold does not widen a run of U+00A0 no-break spaces

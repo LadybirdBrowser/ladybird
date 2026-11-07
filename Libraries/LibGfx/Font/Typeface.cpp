@@ -475,6 +475,24 @@ FaceDescription const& Typeface::description() const
     return *m_description;
 }
 
+// NB: A slant of 90 degrees has an infinite skew, so a synthetic oblique stops just short of it.
+static constexpr float max_synthetic_oblique_angle = 89;
+
+FontSynthesis Typeface::synthesis_for(FontSynthesisRequest const& request, FontVariationSettings const& variations) const
+{
+    auto style = style_for_variations(variations.to_sorted_list());
+    FontSynthesis synthesis;
+    // A face that is lighter than bold is drawn bolder for a bold request. A variable face whose weight axis stops
+    // short of the weight asked for is drawn at the end of its axis instead, as its designer made it.
+    if (request.allows_weight && request.weight >= 600 && style.weight < 600 && !description().has_axis(FourCC("wght").to_u32()))
+        synthesis.bold = true;
+    // An upright face is slanted for an italic or oblique request, unless its axes give it a slant of its own.
+    if (request.allows_style && request.slope != 0 && style.slope == 0
+        && !description().has_axis(FourCC("ital").to_u32()) && !description().has_axis(FourCC("slnt").to_u32()))
+        synthesis.oblique_angle = clamp(request.oblique_angle, -max_synthetic_oblique_angle, max_synthetic_oblique_angle);
+    return synthesis;
+}
+
 FaceStyle Typeface::style_for_variations(ReadonlySpan<FontVariationAxis> variations) const
 {
     if (auto style = fixed_style(); style.has_value())

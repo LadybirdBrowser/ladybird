@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8"/>
+<title>CSS Test: font-synthesis-weight apply to ::first-line</title>
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-synthesis-weight-first-line-ref.html">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-synthesis-weight">
+<meta name="assert" content="If ‘weight’ is not specified, user agents must not synthesize bold faces">
+<style>
+    @font-face {
+        font-family: "Lato-Medium";
+        src: url(../../fonts/Lato-Medium.ttf);
+    }
+    @supports not (font-synthesis-weight: none) {
+        .test {color: red;}
+    }
+    .test {
+        font-family: "Lato-Medium";
+        font-size: 3em;
+    }
+    p.nosynth::first-line {
+        font-weight: bold;
+        font-synthesis-weight: none;
+    }
+</style>
+
+<p>Test passes if the two lines below are identical (the first line is <em>not bold</em>), and there is no red.</p>
+<section class="test">
+    <p class="nosynth">Filler text<br>Filler text</p>
+</section>
