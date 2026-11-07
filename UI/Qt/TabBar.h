@@ -380,6 +380,11 @@ private:
     void float_sidebar_buttons_while_toggling();
     bool slides_page_with_toggling_sidebar() const;
     void slide_page_with_toggling_sidebar();
+    bool toggle_moves_toolbar() const;
+    int sidebar_opening_time() const;
+    int toolbar_row_height_while_toggling() const;
+    void move_toolbar_with_toggling_sidebar();
+    QWidget* m_floating_buttons_strip { nullptr };
     QLabel* m_floating_ladybird_buttons { nullptr };
     QLabel* m_floating_sidebar_toggle { nullptr };
     // Where the toolbar's slot for the buttons ends when the sidebar starts to open, in the window. The slot keeps
@@ -470,6 +475,10 @@ private:
     int m_vertical_tabs_toggle_layout_width { 0 };
     bool m_vertical_tabs_toggling { false };
     bool m_vertical_tabs_collapse_pending { false };
+    // With everything in the sidebar, the toolbar is in its row or in the sidebar while the sidebar toggles, and an
+    // empty stand-in for the row shrinks once the toolbar has left it.
+    bool m_toggling_toolbar_in_sidebar { false };
+    QWidget* m_toolbar_row_backdrop { nullptr };
     bool m_is_resizing_vertical_tabs { false };
     bool m_is_updating_chrome_style { false };
     int m_vertical_tabs_expanded_width { 0 };

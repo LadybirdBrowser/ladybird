@@ -40,6 +40,7 @@
 #include <QFont>
 #include <QFontMetrics>
 #include <QFrame>
+#include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
 #include <QMenu>
 #include <QMouseEvent>
@@ -626,6 +627,8 @@ static constexpr int SIDEBAR_NAVIGATION_ROW_HEIGHT = 32;
 static constexpr int SIDEBAR_FIELD_TOP_MARGIN = 4;
 static constexpr int SIDEBAR_FIELD_BOTTOM_MARGIN = 8;
 static constexpr int SIDEBAR_FOOTER_HEIGHT = 40;
+// NB: The container draws the line under the toolbar along its bottom edge, below the toolbar's full height.
+static constexpr int TOOLBAR_BOTTOM_LINE_HEIGHT = 1;
 // While it is edited, the sidebar's address field grows into a panel over the page this wide, with the suggestions
 // below the field. It stays this far from the window's edge.
 static constexpr int FIELD_PANEL_WIDTH = 600;
@@ -1114,8 +1117,7 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
 
     auto* toolbar_container_layout = new QVBoxLayout(this);
     toolbar_container_layout->setSpacing(0);
-    // NB: The container draws the line under the toolbar along its bottom edge, below the toolbar's full height.
-    toolbar_container_layout->setContentsMargins(0, 0, 0, 1);
+    toolbar_container_layout->setContentsMargins(0, 0, 0, TOOLBAR_BOTTOM_LINE_HEIGHT);
 
     m_downloads_button = new DownloadsButton(m_toolbar);
     QObject::connect(m_downloads_button, &QToolButton::clicked, this, [this] {
@@ -1277,8 +1279,7 @@ void WindowToolbar::lay_out_as_row()
 
     // NB: The field reaches the end of the toolbar, leaving room for its focus ring.
     m_location_edit_layout->setContentsMargins(TOOLBAR_LOCATION_EDIT_MARGIN, 0, TOOLBAR_LOCATION_FOCUS_RING_ROOM, 0);
-    // NB: The container draws the line under the toolbar along its bottom edge, below the toolbar's full height.
-    layout()->setContentsMargins(0, 0, 0, 1);
+    layout()->setContentsMargins(0, 0, 0, TOOLBAR_BOTTOM_LINE_HEIGHT);
 }
 
 // In the open sidebar, the navigation buttons get a row of their own, and the address field takes the sidebar's width
@@ -1401,6 +1402,12 @@ void WindowToolbar::update_field_panel()
     auto& window = *m_field_panel->parentWidget();
     auto position = m_field_slot->mapTo(&window, QPoint());
     QSize size = m_field_slot->size();
+    // NB: While the sidebar opens or closes, the slot reaches past its edge. The panel ends there, as the sidebar does
+    //     not clip a native view that lies over it.
+    QRect visible_rect(QPoint(), size);
+    for (QWidget* widget = m_field_slot; widget->parentWidget() && widget->parentWidget() != &window; widget = widget->parentWidget())
+        visible_rect = visible_rect.translated(widget->pos()) & QRect(QPoint(), widget->parentWidget()->size());
+    size.setWidth(max(0, min(size.width(), visible_rect.width())));
     if (expanded) {
         size.setWidth(max(size.width(), min(FIELD_PANEL_WIDTH, window.width() - position.x() - FIELD_PANEL_WINDOW_MARGIN)));
         size.setHeight(min(m_field_panel->sizeHint().height(), window.height() - position.y()));
@@ -1434,7 +1441,12 @@ bool WindowToolbar::eventFilter(QObject* watched, QEvent* event)
     auto* widget = qobject_cast<QWidget*>(watched);
     if (!widget || !(widget == m_field_panel || widget == m_field_slot || widget->isAncestorOf(m_field_slot)))
         return false;
-    if (first_is_one_of(type, QEvent::Move, QEvent::Resize, QEvent::Show, QEvent::Hide, QEvent::LayoutRequest))
+    // NB: The slot's new ancestors are followed too, as the sidebar takes the toolbar in.
+    if (type == QEvent::ParentChange && widget != m_field_panel) {
+        for (QWidget* ancestor = m_field_slot; ancestor; ancestor = ancestor->parentWidget())
+            ancestor->installEventFilter(this);
+    }
+    if (first_is_one_of(type, QEvent::Move, QEvent::Resize, QEvent::Show, QEvent::Hide, QEvent::LayoutRequest, QEvent::ParentChange))
         update_field_panel();
     // NB: The panel stays above the sidebar as the sidebar is raised. Its own change of order comes from raising it.
     else if (type == QEvent::ZOrderChange && widget != m_field_panel && m_field_panel->isVisible())
@@ -1467,12 +1479,58 @@ void WindowToolbar::set_arrangement(ToolbarArrangement arrangement, int sidebar_
         m_location_edit->set_suggestions_host(arrangement == ToolbarArrangement::Sidebar ? m_suggestions_area : nullptr);
     }
     update_field_panel();
+    apply_contents_opacity();
 
     setProperty("inSidebar", arrangement == ToolbarArrangement::Sidebar);
     style()->unpolish(this);
     style()->polish(this);
     updateGeometry();
     update();
+}
+
+int WindowToolbar::height_in_row() const
+{
+    return toolbar_height(m_window_controls_visible) + TOOLBAR_BOTTOM_LINE_HEIGHT;
+}
+
+// NB: This is known before the toolbar is laid out in the sidebar, so the sidebar can make room for it as it opens.
+int WindowToolbar::height_in_sidebar() const
+{
+    auto field_margins = m_location_edit_layout->contentsMargins();
+    auto field_height = m_location_edit_container->sizeHint().height() - field_margins.top() - field_margins.bottom();
+    auto navigation_row_height = max(SIDEBAR_NAVIGATION_ROW_HEIGHT, m_navigation_buttons->sizeHint().height());
+    return navigation_row_height + SIDEBAR_FIELD_TOP_MARGIN + field_height + SIDEBAR_FIELD_BOTTOM_MARGIN;
+}
+
+void WindowToolbar::set_contents_opacity(qreal opacity)
+{
+    if (m_contents_opacity == opacity)
+        return;
+    m_contents_opacity = opacity;
+    apply_contents_opacity();
+}
+
+void WindowToolbar::apply_contents_opacity()
+{
+    // NB: The effect draws the widget off screen, so it is only there while the contents fade.
+    auto fade = [](QWidget& widget, qreal opacity) {
+        auto* effect = qobject_cast<QGraphicsOpacityEffect*>(widget.graphicsEffect());
+        if (opacity >= 1) {
+            if (effect)
+                widget.setGraphicsEffect(nullptr);
+            return;
+        }
+        if (!effect) {
+            effect = new QGraphicsOpacityEffect(&widget);
+            widget.setGraphicsEffect(effect);
+        }
+        effect->setOpacity(opacity);
+    };
+    fade(*m_toolbar, m_contents_opacity);
+    fade(*m_sidebar_footer, m_contents_opacity);
+    // NB: In the sidebar, the field is in its panel rather than in the toolbar. The panel at rest looks like the sidebar
+    //     under it, so only the field fades.
+    fade(*m_location_edit_container, m_arrangement == ToolbarArrangement::Sidebar ? m_contents_opacity : 1);
 }
 
 int WindowToolbar::toolbar_height(bool)
