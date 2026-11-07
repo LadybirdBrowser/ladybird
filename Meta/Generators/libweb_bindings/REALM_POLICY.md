@@ -55,6 +55,6 @@ Current `[NeedsCallerRealm]` opt-out categories:
 - Explicit WPT/spec carve-outs kept as caller-realm behavior, including
   `SourceBuffer.buffered` and `AbortSignal.abort()`/`timeout()`.
 
-For `WindowProxy` receivers, `this_object_realm` is provided by
-`Bindings::this_value_realm()`: main-world proxies resolve to the active
-`[[Window]]` realm, while non-main-world proxies stay in their own realm.
+For `WindowProxy` receivers, `this_object_realm` is the proxy's own realm:
+main-world proxies follow their `[[Window]]` realm, while non-main-world
+proxies stay in their own realm.

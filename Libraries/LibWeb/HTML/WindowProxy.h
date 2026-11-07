@@ -39,7 +39,7 @@ public:
     static WindowProxy* from_object(JS::Object const& object)
     {
         // Every platform object is a JS::HostObject, so its host class is read here without a virtual call. Every
-        // generated binding reaches this through Bindings::this_value_realm().
+        // generated EventTarget and Window binding reaches this through impl_from().
         if (!object.is_platform_object())
             return nullptr;
         auto const& host_object = static_cast<JS::HostObject const&>(object);
