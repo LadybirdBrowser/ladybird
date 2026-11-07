@@ -31,6 +31,30 @@ void HubConnection::die()
 {
 }
 
+void HubConnection::view_finish_handling_key_event(u64 view_id, u64 input_id, Web::KeyEvent event)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_finish_handling_key_event(input_id, move(event));
+}
+
+void HubConnection::view_finish_handling_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event, Web::EventResult result)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_finish_handling_mouse_event(input_id, move(event), result);
+}
+
+void HubConnection::view_finish_handling_drag_event(u64 view_id, u64 input_id, Web::DragEvent event)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_finish_handling_drag_event(input_id, move(event));
+}
+
+void HubConnection::view_release_input(u64 view_id, u64 input_id)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->release_input(input_id);
+}
+
 void HubConnection::view_state_changed(u64 view_id, Hub::ViewState state)
 {
     if (auto* view = RemoteView::find(view_id))

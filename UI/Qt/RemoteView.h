@@ -32,6 +32,11 @@ public:
 
     void set_state(Hub::ViewState state) { m_state = move(state); }
 
+    void did_finish_handling_key_event(u64 input_id, Web::KeyEvent);
+    void did_finish_handling_mouse_event(u64 input_id, Web::MouseEvent, Web::EventResult);
+    void did_finish_handling_drag_event(u64 input_id, Web::DragEvent);
+    void release_input(u64 input_id) { m_input_in_hub.remove(input_id); }
+
     Hub::View& hub_view() { return *m_view; }
     Hub::View const& hub_view() const { return *m_view; }
 
@@ -89,7 +94,7 @@ public:
     void update_screen_rects() { HubConnection::the().async_view_update_screen_rects(view_id()); }
     void set_scales_frames_to_fit(bool scales_frames_to_fit) { HubConnection::the().async_view_set_scales_frames_to_fit(view_id(), scales_frames_to_fit); }
     void enable_picture_in_picture_controls() { HubConnection::the().async_view_enable_picture_in_picture_controls(view_id()); }
-    void enqueue_input_event(Web::InputEvent input_event) { m_view->enqueue_input_event(move(input_event)); }
+    void enqueue_input_event(Web::InputEvent);
     String force_dark_host() const { return m_state.force_dark_host; }
     void update_interface_color_scheme() { HubConnection::the().async_view_update_interface_color_scheme(view_id()); }
     void update_system_theme(Core::AnonymousBuffer const& anonymous_buffer) { m_view->update_system_theme(anonymous_buffer); }
@@ -183,6 +188,10 @@ private:
     NonnullOwnPtr<Hub::View> m_view;
     Hub::ViewState m_state;
 
+    // What only the UI can hold of the input events that the Hub has yet to finish with.
+    HashMap<u64, OwnPtr<Web::BrowserInputData>> m_input_in_hub;
+    u64 m_next_input_id { 1 };
+
 public:
     decltype(Hub::View::on_load_start) on_load_start;
     decltype(Hub::View::on_load_finish) on_load_finish;
@@ -233,10 +242,10 @@ public:
     decltype(Hub::View::on_tab_indicator_change) on_tab_indicator_change;
     decltype(Hub::View::on_request_file_picker) on_request_file_picker;
     decltype(Hub::View::on_request_select_dropdown) on_request_select_dropdown;
-    decltype(Hub::View::on_finish_handling_key_event)& on_finish_handling_key_event { m_view->on_finish_handling_key_event };
-    decltype(Hub::View::on_finish_handling_mouse_event)& on_finish_handling_mouse_event { m_view->on_finish_handling_mouse_event };
+    decltype(Hub::View::on_finish_handling_key_event) on_finish_handling_key_event;
+    decltype(Hub::View::on_finish_handling_mouse_event) on_finish_handling_mouse_event;
     decltype(Hub::View::on_picture_in_picture_control_activated) on_picture_in_picture_control_activated;
-    decltype(Hub::View::on_finish_handling_drag_event)& on_finish_handling_drag_event { m_view->on_finish_handling_drag_event };
+    decltype(Hub::View::on_finish_handling_drag_event) on_finish_handling_drag_event;
     decltype(Hub::View::on_find_in_page) on_find_in_page;
     decltype(Hub::View::on_page_background_color_change) on_page_background_color_change;
     decltype(Hub::View::on_screen_wake_lock_state_changed) on_screen_wake_lock_state_changed;

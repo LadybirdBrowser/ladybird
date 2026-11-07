@@ -92,6 +92,10 @@ struct Hub::ViewState {
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    view_finish_handling_key_event(u64 view_id, u64 input_id, Web::KeyEvent event) =|
+    view_finish_handling_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event, Web::EventResult result) =|
+    view_finish_handling_drag_event(u64 view_id, u64 input_id, Web::DragEvent event) =|
+    view_release_input(u64 view_id, u64 input_id) =|
     view_state_changed(u64 view_id, Hub::ViewState state) =|
     view_load_start(u64 view_id) =|
     view_load_finish(u64 view_id, URL::URL url) =|
