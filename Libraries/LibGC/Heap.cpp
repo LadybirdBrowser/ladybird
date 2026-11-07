@@ -2027,11 +2027,17 @@ void Heap::undefer_gc()
     VERIFY(m_gc_deferrals > 0);
     --m_gc_deferrals;
 
-    if (!m_gc_deferrals) {
-        if (m_should_gc_when_deferral_ends)
-            collect_garbage();
-        m_should_gc_when_deferral_ends = false;
-    }
+    if (m_gc_deferrals || !m_should_gc_when_deferral_ends)
+        return;
+
+    // NB: A destructor that a block sweep runs can end a deferral of its own, e.g. the one around constructing a cell
+    //     it allocates. For the reason will_allocate() gives, no collection may start there, so the request waits for
+    //     a deferral that ends outside the sweep.
+    if (m_block_sweeps_in_progress > 0)
+        return;
+
+    collect_garbage();
+    m_should_gc_when_deferral_ends = false;
 }
 
 void Heap::uproot_cell(Cell* cell)
