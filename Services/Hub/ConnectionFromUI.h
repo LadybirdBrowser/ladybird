@@ -33,6 +33,7 @@ private:
     static View* find_view(u64 view_id);
 
     // ^HubServerEndpoint
+    virtual void update_settings(ByteString settings_json) override;
     virtual void activate_action(u64 handle, Optional<bool> checked) override;
     virtual void view_answer(u64 view_id, u64 answer_id, bool answer) override;
     virtual void view_answer_permission_request(u64 view_id, u64 answer_id, Web::Permissions::PromptOutcome outcome) override;

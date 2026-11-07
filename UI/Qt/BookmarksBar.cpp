@@ -8,6 +8,7 @@
 #include <AK/HashTable.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
+#include <UI/Qt/Application.h>
 #include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
@@ -644,7 +645,7 @@ void BookmarksBarContainer::set_sidebar(QWidget& sidebar)
 
 bool BookmarksBarContainer::shows_over_page() const
 {
-    return WebView::Application::settings().appearance().show_bookmarks_bar == WebView::ShowBookmarksBar::OnHover;
+    return Application::settings().appearance().show_bookmarks_bar == WebView::ShowBookmarksBar::OnHover;
 }
 
 bool BookmarksBarContainer::can_expand_on_hover() const
@@ -683,7 +684,7 @@ void BookmarksBarContainer::update_hover()
     }
 
     if (!m_hover_expanded && !m_hover_expand_timer->isActive()) {
-        auto delay = WebView::Application::settings().config_variable_as_integer<int>(WebView::ConfigVariableID::VerticalTabsHoverExpandDelay);
+        auto delay = Application::settings().config_variable_as_integer<int>(WebView::ConfigVariableID::VerticalTabsHoverExpandDelay);
         m_hover_expand_timer->start(delay);
     }
 }
@@ -699,7 +700,7 @@ void BookmarksBarContainer::set_hover_expanded(bool expanded)
     m_hover_expand_animation->stop();
 
     auto duration = expanded && !SystemAppearance::prefers_reduced_motion()
-        ? WebView::Application::settings().config_variable_as_integer<int>(WebView::ConfigVariableID::VerticalTabsHoverExpandAnimationDuration)
+        ? Application::settings().config_variable_as_integer<int>(WebView::ConfigVariableID::VerticalTabsHoverExpandAnimationDuration)
         : 0;
     m_hover_expand_progress = expanded && duration == 0 ? 1.0 : 0.0;
 
@@ -718,7 +719,7 @@ void BookmarksBarContainer::set_hover_expanded(bool expanded)
 
 void BookmarksBarContainer::update_geometry()
 {
-    auto show_bookmarks_bar = WebView::Application::settings().appearance().show_bookmarks_bar;
+    auto show_bookmarks_bar = Application::settings().appearance().show_bookmarks_bar;
     auto on_hover = show_bookmarks_bar == WebView::ShowBookmarksBar::OnHover;
     auto visible = !window()->isFullScreen()
         && (show_bookmarks_bar == WebView::ShowBookmarksBar::Always

@@ -174,6 +174,7 @@ private:
 
 Tab::Tab(BrowserWindow* window, Optional<u64> hub_view_id)
     : QWidget(window)
+    , WebView::SettingsObserver(Application::settings())
     , m_window(window)
 {
     create_tab_shell();
@@ -182,6 +183,7 @@ Tab::Tab(BrowserWindow* window, Optional<u64> hub_view_id)
 
 Tab::Tab(BrowserWindow* window, DeferredTab deferred_tab)
     : QWidget(window)
+    , WebView::SettingsObserver(Application::settings())
     , m_window(window)
     , m_title(deferred_tab.title)
     , m_favicon(favicon_with_rounded_corners(deferred_tab.favicon, TAB_FAVICON_SIZE))
@@ -888,7 +890,7 @@ void Tab::create_tab_context_menu()
 
     auto* new_tab_to_the_right_action = new QAction("New Tab to the &Right", this);
     QObject::connect(new_tab_to_the_right_action, &QAction::triggered, this, [this]() {
-        m_window->new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_tab(*this));
+        m_window->new_tab_from_url(Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_tab(*this));
     });
 
     auto* mute_tab_action = new QAction("&Mute Tab", this);
@@ -1118,7 +1120,7 @@ QString Tab::title() const
     // A blank page is what a new tab shows, so it is called a new tab.
     if (!m_fixed_title.has_value() && is_loaded() && view().url() == URL::about_blank() && (title.isEmpty() || title == QStringLiteral("about:blank")))
         title = "New Tab";
-    if (!is_loaded() || !WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle))
+    if (!is_loaded() || !Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle))
         return title;
 
     return QString("%1 [%2]").arg(title).arg(view().web_content_pid());
@@ -1517,13 +1519,13 @@ void Tab::show_site_settings_popover()
         return;
 
     if (!m_site_settings_popover) {
-        m_site_settings_popover = new SiteSettingsPopover(this, WebView::Application::settings());
+        m_site_settings_popover = new SiteSettingsPopover(this, Application::settings());
         m_location_edit->follow_site_settings_popover(*m_site_settings_popover);
         m_site_settings_popover->on_content_blocking_toggle = [this](bool enabled) {
             auto snapshot = view().content_blocking_snapshot();
             if (!snapshot.site.has_value() || !snapshot.can_toggle())
                 return;
-            if (WebView::Application::settings().set_content_blocker_enabled_for_site(*snapshot.site, enabled).is_error())
+            if (Application::settings().set_content_blocker_enabled_for_site(*snapshot.site, enabled).is_error())
                 return;
             view().reload();
         };

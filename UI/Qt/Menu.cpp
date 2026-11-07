@@ -80,7 +80,7 @@ public:
         switch (action.id()) {
         case WebView::ActionID::ToggleVerticalTabsExpanded:
             if (auto* parent = as_if<QWidget>(m_action->parent())) {
-                auto const& tab_settings = WebView::Application::settings().tab_settings();
+                auto const& tab_settings = Application::settings().tab_settings();
                 auto icon = tab_settings.vertical_tabs_position == WebView::VerticalTabsPosition::Right ? ChromeIcon::SidebarRight : ChromeIcon::Sidebar;
                 m_action->setIcon(create_chrome_icon(icon, parent->palette()));
             }

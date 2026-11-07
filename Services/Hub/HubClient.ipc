@@ -175,6 +175,7 @@ struct Hub::ViewState {
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    settings_changed(ByteString settings_json) =|
     action_changed(Hub::ActionState state) =|
     action_retired(u64 handle) =|
     bookmarks_menu_changed(Vector<Hub::MenuEntry> entries) =|

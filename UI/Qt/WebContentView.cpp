@@ -100,7 +100,7 @@ namespace Ladybird {
 // theme, so pages can stay light in a dark window.
 static bool websites_prefer_dark()
 {
-    switch (WebView::Application::settings().appearance().website_color_scheme) {
+    switch (Application::settings().appearance().website_color_scheme) {
     case WebView::ThemePreference::System:
         return SystemAppearance::the().prefers_dark();
     case WebView::ThemePreference::Light:

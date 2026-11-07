@@ -1154,6 +1154,7 @@ private:
 
 WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     : QWidget(parent)
+    , WebView::SettingsObserver(Application::settings())
     , m_is_private(is_private)
 {
     auto& application = RemoteActions::the();
@@ -1888,7 +1889,7 @@ void WindowToolbar::tab_settings_changed()
 void WindowToolbar::config_variable_changed(WebView::ConfigVariableID variable)
 {
     if (variable == WebView::ConfigVariableID::ShowFeedbackButton && m_feedback_button) {
-        auto show_button = WebView::Application::settings().config_variable_as_bool(variable);
+        auto show_button = Application::settings().config_variable_as_bool(variable);
         if (!show_button && m_feedback_popover)
             m_feedback_popover->close();
         m_feedback_button->setVisible(show_button);
@@ -1899,7 +1900,7 @@ void WindowToolbar::config_variable_changed(WebView::ConfigVariableID variable)
 
 void WindowToolbar::update_performance_monitor_row()
 {
-    auto enabled = WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowTabPerformanceMonitor);
+    auto enabled = Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowTabPerformanceMonitor);
     m_performance_monitor_row->setVisible(enabled && isVisible());
 }
 

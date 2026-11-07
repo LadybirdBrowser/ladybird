@@ -59,7 +59,7 @@ public:
     static Hub::Application& hub() { return Hub::Application::the(); }
 
     static WebView::BrowserOptions const& browser_options() { return WebView::Application::browser_options(); }
-    static WebView::Settings& settings() { return WebView::Application::settings(); }
+    static WebView::Settings& settings() { return *s_the->m_settings; }
     static WebView::Profile const& profile() { return WebView::Application::profile(); }
 
     virtual ~Application() override;
@@ -75,7 +75,7 @@ public:
     // After the last run ended unexpectedly, offers to restore the tabs it left open that didn't come back by themselves.
     void offer_to_restore_unexpectedly_closed_tabs(BrowserWindow&);
     void open_startup_tabs(BrowserWindow&, Vector<URL::URL> const&);
-    virtual WebView::SessionLaunchPolicy launch_restore_policy() const override;
+    WebView::SessionLaunchPolicy launch_restore_policy() const;
 
     void open_new_tab();
     void open_new_window(WebView::IsPrivate);
@@ -232,6 +232,7 @@ private:
     static Application* s_the;
 
     OwnPtr<Hub::Application> m_hub;
+    OwnPtr<WebView::Settings> m_settings;
     RefPtr<Hub::ConnectionFromUI> m_connection_from_ui;
     RefPtr<HubConnection> m_hub_connection;
     OwnPtr<QApplication> m_application;

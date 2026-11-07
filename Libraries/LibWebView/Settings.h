@@ -214,12 +214,64 @@ private:
     WeakPtr<Settings> m_settings;
 };
 
-class WEBVIEW_API Settings : public Weakable<Settings> {
+// What the settings hold, which a Settings can start over from.
+struct WEBVIEW_API SettingsData {
+    bool m_first_run_complete { false };
+
+    WindowSettings m_window_settings;
+
+    URL::URL m_new_tab_page_url;
+    bool m_restore_previous_session { false };
+    Vector<String> m_languages;
+
+    Appearance m_appearance;
+    ContentSettings m_content_settings;
+    TabSettings m_tab_settings;
+    BrowsingBehavior m_browsing_behavior;
+
+    SearchEngineSettings m_search_engine_settings;
+    Vector<SearchEngine> m_custom_search_engines;
+
+    AutoplaySiteSetting m_autoplay;
+    LocationPolicy m_location_policy { LocationPolicy::Ask };
+    MicrophonePolicy m_microphone_policy { MicrophonePolicy::Ask };
+    NotificationsPolicy m_notifications_policy { NotificationsPolicy::Ask };
+
+    BrowsingDataSettings m_browsing_data_settings;
+    GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
+    CrashReportSending m_crash_report_sending { CrashReportSending::AskMe };
+
+    bool m_background_networking_enabled { true };
+    bool m_filter_list_updates_enabled { false };
+    bool m_content_blocker_enabled { false };
+    HashTable<String> m_content_blocker_disabled_sites;
+    Vector<ContentBlockerList> m_content_blocker_lists;
+    String m_custom_content_blocker_filters;
+
+    DNSSettings m_dns_settings { SystemDNS() };
+
+    Array<JsonValue, static_cast<size_t>(ConfigVariableID::Count)> m_config_variables {};
+};
+
+class WEBVIEW_API Settings
+    : public Weakable<Settings>
+    , private SettingsData {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
     // The platform's languages stand in for the user's list until the settings file carries one.
     static Settings create(ByteString settings_path, Vector<String> platform_languages = {});
+
+    // Settings that live in another process, and are never read from or written to a file here.
+    static Settings create_from_json(JsonValue const&);
+    enum class PersistChange {
+        No,
+        Yes,
+    };
+    void replace_with_json(JsonValue const&, PersistChange);
+
+    // Called with the settings as they are, whenever they have changed.
+    Function<void(JsonValue const&)> on_persist;
 
     JsonValue serialize_json() const;
 
@@ -343,45 +395,13 @@ public:
 private:
     explicit Settings(ByteString settings_path);
 
+    void reset_to_defaults();
+    void load_from_json(JsonValue const&);
+
     void persist_settings();
 
     ByteString m_settings_path;
-    bool m_first_run_complete { false };
-
-    WindowSettings m_window_settings;
-
-    URL::URL m_new_tab_page_url;
-    bool m_restore_previous_session { false };
-    Vector<String> m_languages;
-
-    Appearance m_appearance;
-    ContentSettings m_content_settings;
-    TabSettings m_tab_settings;
-    BrowsingBehavior m_browsing_behavior;
-
-    SearchEngineSettings m_search_engine_settings;
-    Vector<SearchEngine> m_custom_search_engines;
-
-    AutoplaySiteSetting m_autoplay;
-    LocationPolicy m_location_policy { LocationPolicy::Ask };
-    MicrophonePolicy m_microphone_policy { MicrophonePolicy::Ask };
-    NotificationsPolicy m_notifications_policy { NotificationsPolicy::Ask };
-
-    BrowsingDataSettings m_browsing_data_settings;
-    GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
-    CrashReportSending m_crash_report_sending { CrashReportSending::AskMe };
-
-    bool m_background_networking_enabled { true };
-    bool m_filter_list_updates_enabled { false };
-    bool m_content_blocker_enabled { false };
-    HashTable<String> m_content_blocker_disabled_sites;
-    Vector<ContentBlockerList> m_content_blocker_lists;
-    String m_custom_content_blocker_filters;
-
-    DNSSettings m_dns_settings { SystemDNS() };
     bool m_dns_override_by_command_line { false };
-
-    Array<JsonValue, static_cast<size_t>(ConfigVariableID::Count)> m_config_variables {};
 
     Vector<SettingsObserver&> m_observers;
 };

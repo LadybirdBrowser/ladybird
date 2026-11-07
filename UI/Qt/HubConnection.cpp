@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonValue.h>
+#include <UI/Qt/Application.h>
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteView.h>
@@ -181,6 +183,14 @@ void HubConnection::view_request_dictionary_lookup(u64 view_id, WebView::Diction
 {
     if (auto* view = RemoteView::find(view_id); view && view->on_request_dictionary_lookup)
         view->on_request_dictionary_lookup(lookup, position);
+}
+
+void HubConnection::settings_changed(ByteString settings_json)
+{
+    auto settings = JsonValue::from_string(settings_json);
+    if (settings.is_error() || !settings.value().is_object())
+        return;
+    Application::settings().replace_with_json(settings.value(), WebView::Settings::PersistChange::No);
 }
 
 void HubConnection::action_changed(Hub::ActionState state)

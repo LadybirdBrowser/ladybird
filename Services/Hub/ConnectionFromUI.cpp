@@ -16,10 +16,15 @@ ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<HubClientEndpoint, HubServerEndpoint>(*this, move(transport), 1)
 {
     s_the = this;
+
+    Application::settings().on_persist = [this](JsonValue const& settings) {
+        async_settings_changed(settings.serialized().to_byte_string());
+    };
 }
 
 ConnectionFromUI::~ConnectionFromUI()
 {
+    Application::settings().on_persist = nullptr;
     s_the = nullptr;
 }
 
@@ -115,6 +120,14 @@ void ConnectionFromUI::view_answer_permission_request(u64 view_id, u64 answer_id
         view->did_get_permission_answer(answer_id, outcome);
         view->push_state_to_ui();
     }
+}
+
+void ConnectionFromUI::update_settings(ByteString settings_json)
+{
+    auto settings = JsonValue::from_string(settings_json);
+    if (settings.is_error() || !settings.value().is_object())
+        return;
+    Application::settings().replace_with_json(settings.value(), WebView::Settings::PersistChange::Yes);
 }
 
 void ConnectionFromUI::activate_action(u64 handle, Optional<bool> checked)
