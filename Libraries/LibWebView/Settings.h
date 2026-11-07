@@ -116,6 +116,12 @@ enum class LocationPolicy : u8 {
     Block,
 };
 
+// Whether sites may ask to use the user's microphone at all.
+enum class MicrophonePolicy : u8 {
+    Ask,
+    Block,
+};
+
 // Whether sites may ask to send the user notifications at all.
 enum class NotificationsPolicy : u8 {
     Ask,
@@ -198,6 +204,7 @@ public:
     virtual void dns_settings_changed() { }
     virtual void config_variable_changed(ConfigVariableID) { }
     virtual void geolocation_settings_changed() { }
+    virtual void microphone_settings_changed() { }
     virtual void notifications_settings_changed() { }
     virtual void background_networking_settings_changed() { }
     virtual void content_blocker_settings_changed() { }
@@ -272,6 +279,9 @@ public:
 
     LocationPolicy location_policy() const { return m_location_policy; }
     void set_location_policy(LocationPolicy);
+
+    MicrophonePolicy microphone_policy() const { return m_microphone_policy; }
+    void set_microphone_policy(MicrophonePolicy);
 
     NotificationsPolicy notifications_policy() const { return m_notifications_policy; }
     void set_notifications_policy(NotificationsPolicy);
@@ -353,6 +363,7 @@ private:
 
     AutoplaySiteSetting m_autoplay;
     LocationPolicy m_location_policy { LocationPolicy::Ask };
+    MicrophonePolicy m_microphone_policy { MicrophonePolicy::Ask };
     NotificationsPolicy m_notifications_policy { NotificationsPolicy::Ask };
 
     BrowsingDataSettings m_browsing_data_settings;

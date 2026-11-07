@@ -182,6 +182,9 @@ void SettingsUI::register_interfaces()
     register_interface("setLocationPolicy"sv, [this](auto const& data) {
         set_location_policy(data);
     });
+    register_interface("setMicrophonePolicy"sv, [this](auto const& data) {
+        set_microphone_policy(data);
+    });
     register_interface("setNotificationsPolicy"sv, [this](auto const& data) {
         set_notifications_policy(data);
     });
@@ -630,6 +633,17 @@ void SettingsUI::set_location_policy(JsonValue const& policy)
         Application::settings().set_location_policy(LocationPolicy::Ask);
     else if (policy.as_string() == "block"sv)
         Application::settings().set_location_policy(LocationPolicy::Block);
+}
+
+void SettingsUI::set_microphone_policy(JsonValue const& policy)
+{
+    if (!policy.is_string())
+        return;
+
+    if (policy.as_string() == "ask"sv)
+        Application::settings().set_microphone_policy(MicrophonePolicy::Ask);
+    else if (policy.as_string() == "block"sv)
+        Application::settings().set_microphone_policy(MicrophonePolicy::Block);
 }
 
 void SettingsUI::set_notifications_policy(JsonValue const& policy)

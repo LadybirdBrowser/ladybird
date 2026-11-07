@@ -1186,11 +1186,16 @@
                             </div>
                         </div>
                         <div class="card-group inline-container">
-                            <span>
+                            <label for="enable-microphone">
                                 Microphone
                                 <p class="description">Sites can ask to use your microphone.</p>
-                            </span>
-                            <button id="microphone-permissions-settings" class="secondary-button">Exceptions…</button>
+                            </label>
+                            <div class="permission-controls">
+                                <input id="enable-microphone" type="checkbox" switch />
+                                <button id="microphone-permissions-settings" class="secondary-button">
+                                    Exceptions…
+                                </button>
+                            </div>
                         </div>
                         <div class="card-group inline-container">
                             <label for="enable-notifications">
@@ -1615,6 +1620,7 @@
         <script src="resource://ladybird/about-pages/settings/geolocation.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/languages.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/network.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/microphone.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/notifications.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/permissions.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/site-permissions.js" type="module"></script>

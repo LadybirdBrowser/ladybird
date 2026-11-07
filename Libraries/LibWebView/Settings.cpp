@@ -78,6 +78,7 @@ static constexpr auto SITE_SETTING_SITE_FILTERS_KEY = "siteFilters"sv;
 
 static constexpr auto AUTOPLAY_KEY = "autoplay"sv;
 static constexpr auto LOCATION_POLICY_KEY = "locationPolicy"sv;
+static constexpr auto MICROPHONE_POLICY_KEY = "microphonePolicy"sv;
 static constexpr auto NOTIFICATIONS_POLICY_KEY = "notificationsPolicy"sv;
 
 static constexpr auto BROWSING_DATA_KEY = "browsingData"sv;
@@ -480,6 +481,8 @@ Settings Settings::create(ByteString settings_path, Vector<String> platform_lang
     //     choice; it's ignored, and every profile starts out letting sites ask.
     if (auto location_policy = settings_json.value().get_string(LOCATION_POLICY_KEY); location_policy.has_value() && *location_policy == "block"sv)
         settings.m_location_policy = LocationPolicy::Block;
+    if (auto microphone_policy = settings_json.value().get_string(MICROPHONE_POLICY_KEY); microphone_policy.has_value() && *microphone_policy == "block"sv)
+        settings.m_microphone_policy = MicrophonePolicy::Block;
     if (auto notifications_policy = settings_json.value().get_string(NOTIFICATIONS_POLICY_KEY); notifications_policy.has_value() && *notifications_policy == "block"sv)
         settings.m_notifications_policy = NotificationsPolicy::Block;
 
@@ -710,6 +713,7 @@ JsonValue Settings::serialize_json() const
     save_site_setting(m_autoplay, AUTOPLAY_KEY);
 
     settings.set(LOCATION_POLICY_KEY, m_location_policy == LocationPolicy::Block ? "block"_string : "ask"_string);
+    settings.set(MICROPHONE_POLICY_KEY, m_microphone_policy == MicrophonePolicy::Block ? "block"_string : "ask"_string);
     settings.set(NOTIFICATIONS_POLICY_KEY, m_notifications_policy == NotificationsPolicy::Block ? "block"_string : "ask"_string);
 
     JsonObject disk_cache_settings;
@@ -1225,6 +1229,15 @@ void Settings::set_location_policy(LocationPolicy policy)
 
     for (auto& observer : m_observers)
         observer.geolocation_settings_changed();
+}
+
+void Settings::set_microphone_policy(MicrophonePolicy policy)
+{
+    m_microphone_policy = policy;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.microphone_settings_changed();
 }
 
 void Settings::set_notifications_policy(NotificationsPolicy policy)
