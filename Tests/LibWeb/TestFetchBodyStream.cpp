@@ -5,6 +5,7 @@
  */
 
 #include "FetchTestDocument.h"
+#include <AK/RefCounted.h>
 #include <AK/Time.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
@@ -108,7 +109,7 @@ struct BodyStreamHarness {
         if (!request->settled()) {
             auto deadline = Core::Timer::create_single_shot(AK::Duration::from_seconds(10), [] { });
             deadline->start();
-            Web::HTML::main_thread_event_loop().spin_until(GC::create_function(realm->heap(), [request, deadline] {
+            Web::HTML::main_thread_event_loop().spin_until(GC::create_function(realm->heap(), GC::captures(request, deadline), [](auto& request, auto& deadline) {
                 return request->settled() || !deadline->is_active();
             }));
         }
@@ -132,19 +133,25 @@ struct BodyStreamHarness {
     GC::Ptr<Web::Streams::ReadableStreamDefaultReader> reader;
 };
 
-struct SniffWaiter {
+struct SniffWaiter : RefCounted<SniffWaiter> {
     size_t wake_count { 0 };
     ByteBuffer bytes;
     Optional<Body::SniffOutcome> outcome;
 
     Body::SniffBytesCallback callback(GC::Heap& heap)
     {
-        return GC::create_function(heap, [this](Body::SniffBytes sniff_bytes) {
-            ++wake_count;
-            bytes = MUST(ByteBuffer::copy(sniff_bytes.bytes));
-            outcome = sniff_bytes.outcome;
+        return GC::create_function(heap, GC::captures(NonnullRefPtr { *this }), [](auto& waiter, Body::SniffBytes sniff_bytes) {
+            ++waiter->wake_count;
+            waiter->bytes = MUST(ByteBuffer::copy(sniff_bytes.bytes));
+            waiter->outcome = sniff_bytes.outcome;
         });
     }
+};
+
+// A value that the callbacks of a test change, and the test reads afterwards.
+template<typename T>
+struct SharedValue : RefCounted<SharedValue<T>> {
+    T value {};
 };
 
 Core::ImmutableBytes make_bytes(size_t size, u8 first_value)
@@ -156,12 +163,12 @@ Core::ImmutableBytes make_bytes(size_t size, u8 first_value)
 }
 
 // Runs channel wakes and networking tasks until the waiter has woken, or for ten seconds.
-void wait_for_wake(GC::Heap& heap, SniffWaiter const& waiter)
+void wait_for_wake(GC::Heap& heap, NonnullRefPtr<SniffWaiter> const& waiter)
 {
     auto deadline = Core::Timer::create_single_shot(AK::Duration::from_seconds(10), [] { });
     deadline->start();
-    Web::HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&waiter, deadline] {
-        return waiter.wake_count > 0 || !deadline->is_active();
+    Web::HTML::main_thread_event_loop().spin_until(GC::create_function(heap, GC::captures(waiter, deadline), [](auto& waiter, auto& deadline) {
+        return waiter->wake_count > 0 || !deadline->is_active();
     }));
 }
 
@@ -169,11 +176,11 @@ void wait_for_wake(GC::Heap& heap, SniffWaiter const& waiter)
 void run_wakes_and_tasks(GC::Heap& heap)
 {
     BodyStreamHarness::run_wakes();
-    IGNORE_USE_IN_ESCAPING_LAMBDA bool reached = false;
-    Web::HTML::queue_a_task(Web::HTML::Task::Source::Networking, Web::HTML::main_thread_event_loop(), nullptr, GC::create_function(heap, [&reached] {
-        reached = true;
+    auto reached = make_ref_counted<SharedValue<bool>>();
+    Web::HTML::queue_a_task(Web::HTML::Task::Source::Networking, Web::HTML::main_thread_event_loop(), nullptr, GC::create_function(heap, GC::captures(reached), [](auto& reached) {
+        reached->value = true;
     }));
-    Web::HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&reached] { return reached; }));
+    Web::HTML::main_thread_event_loop().spin_until(GC::create_function(heap, GC::captures(reached), [](auto& reached) { return reached->value; }));
 }
 
 }
@@ -257,20 +264,20 @@ TEST_CASE(sniffing_waits_for_the_resource_header_and_leaves_it_in_the_channel)
     harness.create_stream({ .low = 2 * KiB, .high = 4 * KiB });
     auto& heap = harness.realm->heap();
 
-    SniffWaiter waiter;
-    harness.body->wait_for_sniff_bytes(waiter.callback(heap));
+    auto waiter = make_ref_counted<SniffWaiter>();
+    harness.body->wait_for_sniff_bytes(waiter->callback(heap));
 
     auto whole_body = make_bytes(2000, 0);
     EXPECT_EQ(harness.channel->write(whole_body.slice(0, 500)), FetchByteChannel::WriteResult::Accepted);
     run_wakes_and_tasks(heap);
-    EXPECT_EQ(waiter.wake_count, 0u);
+    EXPECT_EQ(waiter->wake_count, 0u);
 
     EXPECT_EQ(harness.channel->write(whole_body.slice(500, 1500)), FetchByteChannel::WriteResult::Accepted);
-    EXPECT_EQ(waiter.wake_count, 0u);
+    EXPECT_EQ(waiter->wake_count, 0u);
     wait_for_wake(heap, waiter);
-    EXPECT_EQ(waiter.wake_count, 1u);
-    EXPECT(waiter.outcome == Body::SniffOutcome::Complete);
-    EXPECT_EQ(waiter.bytes.bytes(), whole_body.bytes().trim(MAX_SNIFF_BYTES));
+    EXPECT_EQ(waiter->wake_count, 1u);
+    EXPECT(waiter->outcome == Body::SniffOutcome::Complete);
+    EXPECT_EQ(waiter->bytes.bytes(), whole_body.bytes().trim(MAX_SNIFF_BYTES));
 
     // A transfer of the body after sniffing still carries it from its first byte.
     ByteBuffer transferred;
@@ -294,16 +301,16 @@ TEST_CASE(sniffing_a_body_set_up_during_a_pause_waits_for_the_resource_header)
     }
 
     EXPECT_EQ(harness.channel->write(whole_body.slice(100, 400)), FetchByteChannel::WriteResult::Accepted);
-    SniffWaiter waiter;
-    harness.body->wait_for_sniff_bytes(waiter.callback(heap));
+    auto waiter = make_ref_counted<SniffWaiter>();
+    harness.body->wait_for_sniff_bytes(waiter->callback(heap));
     run_wakes_and_tasks(heap);
-    EXPECT_EQ(waiter.wake_count, 0u);
+    EXPECT_EQ(waiter->wake_count, 0u);
 
     EXPECT_EQ(harness.channel->write(whole_body.slice(500, 1500)), FetchByteChannel::WriteResult::Accepted);
     wait_for_wake(heap, waiter);
-    EXPECT_EQ(waiter.wake_count, 1u);
-    EXPECT(waiter.outcome == Body::SniffOutcome::Complete);
-    EXPECT_EQ(waiter.bytes.bytes(), whole_body.bytes().trim(MAX_SNIFF_BYTES));
+    EXPECT_EQ(waiter->wake_count, 1u);
+    EXPECT(waiter->outcome == Body::SniffOutcome::Complete);
+    EXPECT_EQ(waiter->bytes.bytes(), whole_body.bytes().trim(MAX_SNIFF_BYTES));
 
     ByteBuffer transferred;
     for (auto const& taken : harness.channel->transfer_out())
@@ -319,16 +326,16 @@ TEST_CASE(sniffing_a_body_that_ends_short_gives_all_of_it)
     harness.create_stream({ .low = 2 * KiB, .high = 4 * KiB });
     auto& heap = harness.realm->heap();
 
-    SniffWaiter waiter;
-    harness.body->wait_for_sniff_bytes(waiter.callback(heap));
+    auto waiter = make_ref_counted<SniffWaiter>();
+    harness.body->wait_for_sniff_bytes(waiter->callback(heap));
 
     EXPECT_EQ(harness.channel->write(MUST(Core::ImmutableBytes::copy("short"sv.bytes()))), FetchByteChannel::WriteResult::Accepted);
     (void)harness.channel->close();
-    EXPECT_EQ(waiter.wake_count, 0u);
+    EXPECT_EQ(waiter->wake_count, 0u);
     wait_for_wake(heap, waiter);
-    EXPECT_EQ(waiter.wake_count, 1u);
-    EXPECT(waiter.outcome == Body::SniffOutcome::Complete);
-    EXPECT_EQ(waiter.bytes, MUST(ByteBuffer::copy("short"sv.bytes())));
+    EXPECT_EQ(waiter->wake_count, 1u);
+    EXPECT(waiter->outcome == Body::SniffOutcome::Complete);
+    EXPECT_EQ(waiter->bytes, MUST(ByteBuffer::copy("short"sv.bytes())));
 }
 
 TEST_CASE(sniffing_a_body_that_errors_fails)
@@ -339,15 +346,15 @@ TEST_CASE(sniffing_a_body_that_errors_fails)
     harness.create_stream({ .low = 2 * KiB, .high = 4 * KiB });
     auto& heap = harness.realm->heap();
 
-    SniffWaiter waiter;
-    harness.body->wait_for_sniff_bytes(waiter.callback(heap));
+    auto waiter = make_ref_counted<SniffWaiter>();
+    harness.body->wait_for_sniff_bytes(waiter->callback(heap));
 
     EXPECT_EQ(harness.channel->write(MUST(Core::ImmutableBytes::copy("partial"sv.bytes()))), FetchByteChannel::WriteResult::Accepted);
     (void)harness.channel->error({ .message = MUST(ByteBuffer::copy("failed"sv.bytes())) });
-    EXPECT_EQ(waiter.wake_count, 0u);
+    EXPECT_EQ(waiter->wake_count, 0u);
     wait_for_wake(heap, waiter);
-    EXPECT_EQ(waiter.wake_count, 1u);
-    EXPECT(waiter.outcome == Body::SniffOutcome::Failed);
+    EXPECT_EQ(waiter->wake_count, 1u);
+    EXPECT(waiter->outcome == Body::SniffOutcome::Failed);
 }
 
 TEST_CASE(sniffing_keeps_a_complete_header_through_a_later_error)
@@ -358,18 +365,18 @@ TEST_CASE(sniffing_keeps_a_complete_header_through_a_later_error)
     harness.create_stream({ .low = 2 * KiB, .high = 4 * KiB });
     auto& heap = harness.realm->heap();
 
-    SniffWaiter waiter;
-    harness.body->wait_for_sniff_bytes(waiter.callback(heap));
+    auto waiter = make_ref_counted<SniffWaiter>();
+    harness.body->wait_for_sniff_bytes(waiter->callback(heap));
 
     // The body fails once its resource header is complete, before the sniff waiter's wake has run.
     auto header = make_bytes(MAX_SNIFF_BYTES, 0);
     EXPECT_EQ(harness.channel->write(header), FetchByteChannel::WriteResult::Accepted);
     (void)harness.channel->error({ .message = MUST(ByteBuffer::copy("failed"sv.bytes())) });
-    EXPECT_EQ(waiter.wake_count, 0u);
+    EXPECT_EQ(waiter->wake_count, 0u);
     wait_for_wake(heap, waiter);
-    EXPECT_EQ(waiter.wake_count, 1u);
-    EXPECT(waiter.outcome == Body::SniffOutcome::Complete);
-    EXPECT_EQ(waiter.bytes.bytes(), header.bytes());
+    EXPECT_EQ(waiter->wake_count, 1u);
+    EXPECT(waiter->outcome == Body::SniffOutcome::Complete);
+    EXPECT_EQ(waiter->bytes.bytes(), header.bytes());
 
     BodyStreamHarness::run_wakes();
     EXPECT(harness.stream->is_errored());
@@ -385,8 +392,8 @@ static void check_a_channel_ending_fails_the_sniff_once(size_t written_byte_coun
     harness.create_stream({ .low = 2 * KiB, .high = 4 * KiB });
     auto& heap = harness.realm->heap();
 
-    SniffWaiter waiter;
-    harness.body->wait_for_sniff_bytes(waiter.callback(heap));
+    auto waiter = make_ref_counted<SniffWaiter>();
+    harness.body->wait_for_sniff_bytes(waiter->callback(heap));
     EXPECT_EQ(harness.channel->write(make_bytes(written_byte_count, 0)), FetchByteChannel::WriteResult::Accepted);
     if (transfer)
         (void)harness.channel->transfer_out();
@@ -395,8 +402,8 @@ static void check_a_channel_ending_fails_the_sniff_once(size_t written_byte_coun
 
     wait_for_wake(heap, waiter);
     run_wakes_and_tasks(heap);
-    EXPECT_EQ(waiter.wake_count, 1u);
-    EXPECT(waiter.outcome == Body::SniffOutcome::Failed);
+    EXPECT_EQ(waiter->wake_count, 1u);
+    EXPECT(waiter->outcome == Body::SniffOutcome::Failed);
 }
 
 TEST_CASE(a_cancelled_channel_fails_a_sniff_short_of_its_header)
@@ -432,9 +439,9 @@ TEST_CASE(a_body_over_bytes_sniffs_at_once)
     EXPECT(sniff_bytes.has_value());
     EXPECT_EQ(sniff_bytes->bytes, bytes.bytes().trim(MAX_SNIFF_BYTES));
 
-    SniffWaiter waiter;
-    body->wait_for_sniff_bytes(waiter.callback(heap));
-    EXPECT_EQ(waiter.wake_count, 1u);
+    auto waiter = make_ref_counted<SniffWaiter>();
+    body->wait_for_sniff_bytes(waiter->callback(heap));
+    EXPECT_EQ(waiter->wake_count, 1u);
 }
 
 namespace {
@@ -485,20 +492,20 @@ TEST_CASE(network_completion_runs_only_the_steps_awaited_for_its_body)
     auto later = FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink));
 
     // A later body's steps replace an earlier body's, and run once.
-    IGNORE_USE_IN_ESCAPING_LAMBDA size_t earlier_runs = 0;
-    IGNORE_USE_IN_ESCAPING_LAMBDA size_t later_runs = 0;
-    controller->when_network_completes_body(*earlier, GC::create_function(heap, [&] { ++earlier_runs; }));
-    controller->when_network_completes_body(*later, GC::create_function(heap, [&] { ++later_runs; }));
+    auto earlier_runs = make_ref_counted<SharedValue<size_t>>();
+    auto later_runs = make_ref_counted<SharedValue<size_t>>();
+    controller->when_network_completes_body(*earlier, GC::create_function(heap, GC::captures(earlier_runs), [](auto& earlier_runs) { ++earlier_runs->value; }));
+    controller->when_network_completes_body(*later, GC::create_function(heap, GC::captures(later_runs), [](auto& later_runs) { ++later_runs->value; }));
     controller->did_complete_network_body(*earlier);
-    EXPECT_EQ(earlier_runs, 0u);
-    EXPECT_EQ(later_runs, 0u);
+    EXPECT_EQ(earlier_runs->value, 0u);
+    EXPECT_EQ(later_runs->value, 0u);
     controller->did_complete_network_body(*later);
     controller->did_complete_network_body(*later);
-    EXPECT_EQ(later_runs, 1u);
+    EXPECT_EQ(later_runs->value, 1u);
 
     // A stopped fetch runs no awaited steps.
-    controller->when_network_completes_body(*earlier, GC::create_function(heap, [&] { ++earlier_runs; }));
+    controller->when_network_completes_body(*earlier, GC::create_function(heap, GC::captures(earlier_runs), [](auto& earlier_runs) { ++earlier_runs->value; }));
     controller->stop_fetch();
     controller->did_complete_network_body(*earlier);
-    EXPECT_EQ(earlier_runs, 0u);
+    EXPECT_EQ(earlier_runs->value, 0u);
 }

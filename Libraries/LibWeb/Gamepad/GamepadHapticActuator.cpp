@@ -37,8 +37,8 @@ static void resolve_haptics_promise(WebIDL::Promise const& promise, GamepadHapti
 
 static GC::Ref<GamepadHapticsCompletionSteps> create_queued_haptics_completion_steps(JS::Object& global, GC::Ref<WebIDL::Promise> promise)
 {
-    return GC::Function<void(GamepadHapticsResult)>::create(GC::Heap::the(), [global = GC::Ref { global }, promise](GamepadHapticsResult result) {
-        HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [promise, result] {
+    return GC::create_function(GC::Heap::the(), GC::captures(global, promise), [](auto& global, auto& promise, GamepadHapticsResult result) {
+        HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), GC::captures(promise, result), [](auto& promise, auto& result) {
             resolve_haptics_promise(promise, result);
         }));
     });
@@ -46,7 +46,7 @@ static GC::Ref<GamepadHapticsCompletionSteps> create_queued_haptics_completion_s
 
 static GC::Ref<GamepadHapticsCompletionSteps> create_haptics_completion_steps(GC::Ref<WebIDL::Promise> promise)
 {
-    return GC::Function<void(GamepadHapticsResult)>::create(GC::Heap::the(), [promise](GamepadHapticsResult result) {
+    return GC::create_function(GC::Heap::the(), GC::captures(promise), [](auto& promise, GamepadHapticsResult result) {
         resolve_haptics_promise(promise, result);
     });
 }
@@ -92,10 +92,10 @@ GamepadHapticActuator::GamepadHapticActuator(HTML::Window& window, GC::Ref<Gamep
     , m_window(window)
     , m_document_became_hidden_observer(document_became_hidden_observer)
 {
-    m_document_became_hidden_observer->set_document_visibility_state_observer([this](HTML::VisibilityState visibility_state) {
+    m_document_became_hidden_observer->set_document_visibility_state_observer(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self, HTML::VisibilityState visibility_state) {
         if (visibility_state == HTML::VisibilityState::Hidden)
-            document_became_hidden();
-    });
+            self.document_became_hidden();
+    }));
 }
 
 GamepadHapticActuator::~GamepadHapticActuator() = default;
@@ -255,20 +255,20 @@ void GamepadHapticActuator::play_effect(GamepadHapticEffectType type, GamepadEff
     // NOTE: Unused.
 
     // 8. Do the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, type, params] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, type, params), [](auto& self, auto& type, auto& params) {
         // 1. Issue a haptic effect to the actuator with type, params, and the playEffectTimestamp.
-        issue_haptic_effect(type, params, GC::create_function(GC::Heap::the(), [this] {
+        self.issue_haptic_effect(type, params, GC::create_function(GC::Heap::the(), GC::captures(self), [](auto& self) {
             // 2. When the effect completes, if this.[[playingEffectPromise]] is not null, queue a global task on the
             //    gamepad task source with the relevant global object of this to run the following steps:
-            if (m_playing_effect_completion_steps) {
-                auto completion_steps = GC::Ref { *m_playing_effect_completion_steps };
+            if (self.m_playing_effect_completion_steps) {
+                auto completion_steps = GC::Ref { *self.m_playing_effect_completion_steps };
 
                 // 2. Resolve this.[[playingEffectPromise]] with "complete".
                 completion_steps->function()(GamepadHapticsResult::Complete);
 
                 // 3. Set this.[[playingEffectPromise]] to null.
-                m_playing_effect_completion_steps = nullptr;
-                clear_playing_effect_timers();
+                self.m_playing_effect_completion_steps = nullptr;
+                self.clear_playing_effect_timers();
             }
         }));
     }));
@@ -280,20 +280,20 @@ void GamepadHapticActuator::reset(GC::Ref<GamepadHapticsCompletionSteps> reset_c
 {
     // 4. If this.[[playingEffectPromise]] is not null, do the following steps in parallel:
     if (m_playing_effect_completion_steps) {
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, reset_completion_steps] {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, reset_completion_steps), [](auto& self, auto& reset_completion_steps) {
             // 1. Let effectPromise be this.[[playingEffectPromise]].
-            auto effect_completion_steps = m_playing_effect_completion_steps;
+            auto effect_completion_steps = self.m_playing_effect_completion_steps;
 
             // 2. Stop haptic effects on this's gamepad's actuator.
-            stop_haptic_effects();
+            self.stop_haptic_effects();
 
             // 3. If the effect has been successfully stopped, do:
             // AD-HOC: The stop command is sent to the UI process without waiting for a reply, so it is taken to have
             //         succeeded, matching other engines.
             //    1. If effectPromise and this.[[playingEffectPromise]] are still the same,
             //       set this.[[playingEffectPromise]] to null.
-            if (effect_completion_steps == m_playing_effect_completion_steps)
-                m_playing_effect_completion_steps = nullptr;
+            if (effect_completion_steps == self.m_playing_effect_completion_steps)
+                self.m_playing_effect_completion_steps = nullptr;
 
             //    2. Queue a global task on the gamepad task source with the relevant global object of this to resolve
             //       effectPromise with "preempted".
@@ -339,26 +339,27 @@ void GamepadHapticActuator::issue_haptic_effect(GamepadHapticEffectType type, Ga
     // for more precise playback timing when params.startDelay is not 0.0. The user agent MAY modify the effect to
     // increase compatibility. For example, an effect intended for a rumble motor may be transformed into a
     // waveform-based effect for a device that supports waveform haptics but lacks rumble motors.
-    m_playing_effect_timer = Platform::Timer::create_single_shot(heap, AK::Duration::from_milliseconds(static_cast<int>(params.start_delay)), GC::create_function(heap, [this, type, params, on_complete, &heap] {
-        auto& page = m_window->page();
+    m_playing_effect_timer = Platform::Timer::create_single_shot(heap, AK::Duration::from_milliseconds(static_cast<int>(params.start_delay)), GC::create_function(heap, GC::captures(*this, type, params, on_complete), [](auto& self, auto& type, auto& params, auto& on_complete) {
+        auto& heap = GC::Heap::the();
+        auto& page = self.m_window->page();
 
         auto first_magnitude = type == GamepadHapticEffectType::DualRumble ? params.strong_magnitude : params.left_trigger;
         auto second_magnitude = type == GamepadHapticEffectType::DualRumble ? params.weak_magnitude : params.right_trigger;
-        page.client().page_did_play_gamepad_effect(m_gamepad->handle(),
+        page.client().page_did_play_gamepad_effect(self.m_gamepad->handle(),
             gamepad_effect_for_type(type,
                 static_cast<u16>(first_magnitude * NumericLimits<u16>::max()),
                 static_cast<u16>(second_magnitude * NumericLimits<u16>::max()),
                 static_cast<u32>(params.duration)));
 
-        m_playing_effect_timer = Platform::Timer::create_single_shot(heap, AK::Duration::from_milliseconds(params.duration), GC::create_function(heap, [this, type, on_complete] {
+        self.m_playing_effect_timer = Platform::Timer::create_single_shot(heap, AK::Duration::from_milliseconds(params.duration), GC::create_function(heap, GC::captures(self, type, on_complete), [](auto& self, auto& type, auto& on_complete) {
             // Explicitly stop the rumble before completing, ensuring the stop signal is sent synchronously.
-            auto& page = m_window->page();
+            auto& page = self.m_window->page();
 
-            page.client().page_did_play_gamepad_effect(m_gamepad->handle(), gamepad_effect_for_type(type, 0, 0, 0));
+            page.client().page_did_play_gamepad_effect(self.m_gamepad->handle(), gamepad_effect_for_type(type, 0, 0, 0));
             on_complete->function()();
         }));
 
-        m_playing_effect_timer->start();
+        self.m_playing_effect_timer->start();
     }));
 
     m_playing_effect_timer->start();

@@ -5,8 +5,10 @@
  */
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/RefCounted.h>
 #include <LibCore/EventLoop.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/Function.h>
 #include <LibGC/Weak.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -851,7 +853,7 @@ TEST_CASE(cross_origin_descriptor_cache_does_not_root_realm_after_wrapper_dies)
         auto& wrapper_world = Web::Bindings::host_defined_wrapper_world(realm.realm());
         auto window = Web::HTML::Window::create();
         auto wrapper = Web::Bindings::wrap(wrapper_world, realm.realm(), window);
-        auto accessor = JS::NativeFunction::create(realm.realm(), [](JS::VM&) { return JS::js_undefined(); }, 0);
+        auto accessor = JS::NativeFunction::create(realm.realm(), [](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> { return JS::js_undefined(); }, 0);
         auto key = Web::HTML::CrossOriginKey {
             .current_settings_object = 1,
             .relevant_settings_object = 2,
@@ -872,17 +874,21 @@ TEST_CASE(cross_origin_descriptor_cache_does_not_root_realm_after_wrapper_dies)
     EXPECT(!weak_realm);
 }
 
+struct TimerFired : RefCounted<TimerFired> {
+    bool value { false };
+};
+
 // An active timer lives only as long as its owner reaches it. One that nothing reaches is collected, and must be
 // stopped then rather than fire into a callback that was collected with it.
 TEST_CASE(unreachable_active_timer_is_stopped_when_collected)
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA Core::EventLoop event_loop;
     auto vm = JS::VM::create();
-    IGNORE_USE_IN_ESCAPING_LAMBDA bool fired = false;
+    auto fired = make_ref_counted<TimerFired>();
     GC::Weak<Web::Platform::Timer> weak_timer;
     [&] {
-        auto timer = Web::Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), [&] {
-            fired = true;
+        auto timer = Web::Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), GC::captures(fired), [](auto& fired) {
+            fired->value = true;
         }));
         timer->start();
         weak_timer = *timer;
@@ -897,7 +903,7 @@ TEST_CASE(unreachable_active_timer_is_stopped_when_collected)
     quit_timer->start();
     event_loop.exec();
 
-    EXPECT(!fired);
+    EXPECT(!fired->value);
 }
 
 TEST_CASE(extension_world_hash_cache_scales)

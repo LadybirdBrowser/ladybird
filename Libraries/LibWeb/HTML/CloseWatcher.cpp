@@ -77,10 +77,10 @@ WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::create(Window& window, 
         }
 
         // 3.2 Add the following steps to options["signal"]:
-        (void)signal->add_abort_algorithm([close_watcher] {
+        (void)signal->add_abort_algorithm(GC::create_function(GC::Heap::the(), GC::captures(close_watcher), [](auto& close_watcher) {
             // 3.2.1 Destroy closeWatcher.
             close_watcher->destroy();
-        });
+        }));
     }
 
     return close_watcher;

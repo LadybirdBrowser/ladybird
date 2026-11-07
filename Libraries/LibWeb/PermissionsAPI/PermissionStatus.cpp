@@ -81,13 +81,13 @@ void PermissionStatus::update_from_store()
         return;
 
     // NB: The state is read again when the task runs, so a status that heard of several changes ends with the last.
-    HTML::queue_global_task(HTML::Task::Source::Permissions, global, GC::create_function(heap(), [this] {
-        auto& global = relevant_global_object();
-        auto state = permission_state(m_query, HTML::relevant_settings_object(global));
-        if (state == m_state)
+    HTML::queue_global_task(HTML::Task::Source::Permissions, global, GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+        auto& global = self.relevant_global_object();
+        auto state = permission_state(self.m_query, HTML::relevant_settings_object(global));
+        if (state == self.m_state)
             return;
-        m_state = state;
-        dispatch_event(DOM::Event::create(global, HTML::EventNames::change));
+        self.m_state = state;
+        self.dispatch_event(DOM::Event::create(global, HTML::EventNames::change));
     }));
 }
 

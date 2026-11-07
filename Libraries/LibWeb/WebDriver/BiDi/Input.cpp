@@ -90,6 +90,7 @@ struct ActionsInFlight : RefCounted<ActionsInFlight> {
     AK_ALLOC_WITH_KMALLOC;
 
     Optional<GC::Root<JS::Cell>> executor;
+    OnCommandComplete on_complete;
     bool completed { false };
 };
 
@@ -161,10 +162,11 @@ static void perform_actions_steps(HTML::Navigable& navigable, JsonObject const& 
     // 6. Try to dispatch actions with input state, actions by tick, navigable, and actions options.
     // 7. Return success with data null.
     auto in_flight = adopt_ref(*new ActionsInFlight);
-    auto on_actions_complete = GC::create_function(GC::Heap::the(), [in_flight, on_complete = move(on_complete)](Response result) {
+    in_flight->on_complete = move(on_complete);
+    auto on_actions_complete = GC::create_function(GC::Heap::the(), GC::captures(in_flight), [](auto& in_flight, Response result) {
         in_flight->completed = true;
         in_flight->executor.clear();
-        on_complete(move(result));
+        in_flight->on_complete(move(result));
     });
 
     auto executor = dispatch_actions(input_state, actions_by_tick.release_value(), *local_navigable->active_browsing_context(), options, on_actions_complete);
@@ -211,7 +213,8 @@ static void release_actions_steps(HTML::Navigable& navigable, OnCommandComplete 
     input_state.actions_queue.take_first();
 
     auto in_flight = adopt_ref(*new ActionsInFlight);
-    auto on_actions_complete = GC::create_function(GC::Heap::the(), [in_flight, top_level_traversable, on_complete = move(on_complete)](Response result) {
+    in_flight->on_complete = move(on_complete);
+    auto on_actions_complete = GC::create_function(GC::Heap::the(), GC::captures(in_flight, top_level_traversable), [](auto& in_flight, auto& top_level_traversable, Response result) {
         in_flight->completed = true;
         in_flight->executor.clear();
 
@@ -219,7 +222,7 @@ static void release_actions_steps(HTML::Navigable& navigable, OnCommandComplete 
         reset_input_state(top_level_traversable);
 
         // 9. Return success with data null.
-        on_complete(move(result));
+        in_flight->on_complete(move(result));
     });
 
     auto executor = dispatch_actions(input_state, { move(undo_actions) }, *local_navigable->active_browsing_context(), options, on_actions_complete);

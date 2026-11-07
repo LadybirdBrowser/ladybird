@@ -1148,7 +1148,7 @@ void DocumentTranslator::schedule_rescan()
     if (m_rescan_scheduled)
         return;
     m_rescan_scheduled = true;
-    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), [document = GC::Weak<DOM::Document> { m_document }] {
+    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), GC::captures(GC::Weak<DOM::Document> { m_document }), [](auto& document) {
         auto strong_document = document.ptr();
         if (!strong_document)
             return;

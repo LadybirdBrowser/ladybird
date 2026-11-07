@@ -239,7 +239,7 @@ void WorkerAgentParent::dispatch_error_event()
     auto outside_global_object = GC::Ref { m_outside_settings->global_object() };
     auto event_target = GC::Ref { *m_worker_event_target };
     queue_global_task(Task::Source::DOMManipulation, *outside_global_object,
-        GC::create_function(GC::Heap::the(), [event_target, outside_global_object] {
+        GC::create_function(GC::Heap::the(), GC::captures(event_target, outside_global_object), [](auto& event_target, auto& outside_global_object) {
             event_target->dispatch_event(DOM::Event::create(
                 EventNames::error,
                 HighResolutionTime::current_high_resolution_time(*outside_global_object)));
@@ -250,8 +250,8 @@ void WorkerAgentParent::dispatch_worker_exception(Utf16String message, Utf16Stri
 {
     // https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
     // 7.2: If global implements DedicatedWorkerGlobalScope, queue a global task on the DOM manipulation task source with the global's associated Worker's relevant global object to run these steps:
-    queue_global_task(Task::Source::DOMManipulation, m_outside_settings->global_object(), GC::create_function(GC::Heap::the(), [this, message = move(message), filename = move(filename), lineno, colno]() {
-        auto& realm = m_outside_settings->realm();
+    queue_global_task(Task::Source::DOMManipulation, m_outside_settings->global_object(), GC::create_function(GC::Heap::the(), GC::captures(*this, move(message), move(filename), lineno, colno), [](WorkerAgentParent& self, Utf16String& message, Utf16String& filename, u32 lineno, u32 colno) {
+        auto& realm = self.m_outside_settings->realm();
 
         // 2. Set notHandled to the result of firing an event named error at workerObject, using ErrorEvent, with the
         //    cancelable attribute initialized to true, and additional attributes initialized according to errorInfo.
@@ -263,11 +263,11 @@ void WorkerAgentParent::dispatch_worker_exception(Utf16String message, Utf16Stri
         event_init.colno = colno;
         event_init.error = JS::js_null();
         auto error = ErrorEvent::create(EventNames::error, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
-        bool not_handled = m_worker_event_target->dispatch_event(error);
+        bool not_handled = self.m_worker_event_target->dispatch_event(error);
 
         // 3. If notHandled is true, then report exception for workerObject's relevant global object with omitError set to true.
         if (not_handled) {
-            auto* window_or_worker = window_or_worker_global_scope_from_global_object(m_outside_settings->global_object());
+            auto* window_or_worker = window_or_worker_global_scope_from_global_object(self.m_outside_settings->global_object());
             VERIFY(window_or_worker);
             report_worker_exception(*window_or_worker, error);
         }

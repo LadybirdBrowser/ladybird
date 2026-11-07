@@ -734,9 +734,9 @@ HTMLParserEndState::HTMLParserEndState(GC::Ref<DOM::Document> document, GC::Ptr<
     : m_document(document)
     , m_parser(parser)
     , m_parser_generation(parser_generation)
-    , m_timeout(Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(THE_END_TIMEOUT_MS), GC::create_function(GC::Heap::the(), [this] {
-        if (m_phase != Phase::Completed && m_phase != Phase::Cancelled)
-            dbgln("HTMLParserEndState: timed out in phase {}", to_underlying(m_phase));
+    , m_timeout(Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(THE_END_TIMEOUT_MS), GC::create_function(GC::Heap::the(), GC::captures(*this), [](HTMLParserEndState& self) {
+        if (self.m_phase != Phase::Completed && self.m_phase != Phase::Cancelled)
+            dbgln("HTMLParserEndState: timed out in phase {}", to_underlying(self.m_phase));
     })))
 {
     m_timeout->start();
@@ -763,11 +763,11 @@ void HTMLParserEndState::schedule_progress_check()
     if (m_check_pending)
         return;
     m_check_pending = true;
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this] {
-        auto scope_guard = SVG::ScopedSVGImageDocument::create_if_needed(m_document, SVG::ScopedSVGImageDocument::FrameRequests::Suppress);
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this), [](HTMLParserEndState& self) {
+        auto scope_guard = SVG::ScopedSVGImageDocument::create_if_needed(self.m_document, SVG::ScopedSVGImageDocument::FrameRequests::Suppress);
         perform_pre_progress_microtask_checkpoint();
-        check_progress();
-        m_check_pending = false;
+        self.check_progress();
+        self.m_check_pending = false;
     }));
 }
 
@@ -888,7 +888,7 @@ void HTMLParserEndState::advance_to_dom_content_loaded_phase()
     m_phase = Phase::WaitingForDOMContentLoaded;
 
     // 6. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*m_document), GC::create_function(GC::Heap::the(), [state = GC::Ref(*this), document = m_document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*m_document), GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(*this), m_document), [](auto& state, auto& document) {
         if (state->m_phase != Phase::WaitingForDOMContentLoaded)
             return;
         // 1. Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
@@ -945,7 +945,7 @@ void HTMLParserEndState::complete()
     m_phase = Phase::Completed;
 
     // 9. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*m_document), GC::create_function(GC::Heap::the(), [state = GC::Ref(*this), document = m_document, parser = m_parser, parser_generation = m_parser_generation] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*m_document), GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(*this), m_document, m_parser, m_parser_generation), [](auto& state, auto& document, auto& parser, auto& parser_generation) {
         if (state->m_phase != Phase::Completed)
             return;
         // document.open() can replace the parser after this completion task
@@ -1267,10 +1267,10 @@ void HTMLParser::schedule_resume_check()
     if (!m_parser_pause_flag)
         return;
     m_resume_check_pending = true;
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this] {
-        m_resume_check_pending = false;
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this), [](HTMLParser& self) {
+        self.m_resume_check_pending = false;
         perform_pre_progress_microtask_checkpoint();
-        resume_after_parser_blocking_script();
+        self.resume_after_parser_blocking_script();
     }));
 }
 

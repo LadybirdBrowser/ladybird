@@ -22,7 +22,7 @@ class PendingResponse : public JS::Cell {
     GC_DECLARE_ALLOCATOR(PendingResponse);
 
 public:
-    using Callback = Function<void(NonnullRefPtr<Infrastructure::Response>)>;
+    using Callback = GC::Ref<GC::Function<void(NonnullRefPtr<Infrastructure::Response>)>>;
 
     [[nodiscard]] static GC::Ref<PendingResponse> create(GC::Ref<Infrastructure::FetchController>);
     [[nodiscard]] static GC::Ref<PendingResponse> create(GC::Ref<Infrastructure::FetchController>, NonnullRefPtr<Infrastructure::Response>);

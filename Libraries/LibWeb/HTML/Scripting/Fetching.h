@@ -26,10 +26,20 @@ enum class TopLevelModule {
 };
 
 using OnFetchScriptComplete = GC::Ref<GC::Function<void(GC::Ptr<Script>)>>;
-using PerformTheFetchHook = GC::Ptr<GC::Function<WebIDL::ExceptionOr<void>(NonnullRefPtr<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)>>;
+using ProcessCustomFetchResponse = GC::Ref<GC::Function<Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction::FunctionType>>;
+using PerformTheFetchHook = GC::Ptr<GC::Function<WebIDL::ExceptionOr<void>(NonnullRefPtr<Fetch::Infrastructure::Request>, TopLevelModule, ProcessCustomFetchResponse)>>;
 
-WEB_API OnFetchScriptComplete create_on_fetch_script_complete(GC::Heap& heap, Function<void(GC::Ptr<Script>)> function);
-WEB_API PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Function<WebIDL::ExceptionOr<void>(NonnullRefPtr<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function);
+template<typename... Values, typename Callable>
+OnFetchScriptComplete create_on_fetch_script_complete(GC::Heap& heap, GC::CaptureList<Values...>&& captures, Callable&& callable)
+{
+    return GC::create_function<void(GC::Ptr<Script>)>(heap, move(captures), forward<Callable>(callable));
+}
+
+template<typename Callable>
+OnFetchScriptComplete create_on_fetch_script_complete(GC::Heap& heap, Callable&& callable)
+{
+    return GC::create_function<void(GC::Ptr<Script>)>(heap, GC::CaptureList<> {}, forward<Callable>(callable));
+}
 
 class FetchContext : public JS::Cell {
     GC_CELL(FetchContext, JS::Cell);

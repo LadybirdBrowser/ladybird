@@ -11,6 +11,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
+#include <AK/RefCounted.h>
 #include <AK/ScopeGuard.h>
 #include <AK/UFixedBigInt.h>
 #include <AK/Utf16String.h>
@@ -21,6 +22,7 @@
 #include <LibCore/MappedFile.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibGC/Function.h>
 #include <LibGC/Root.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/BigInt.h>
@@ -40,6 +42,18 @@ using Wasm::Runtime::HostError;
 using Wasm::Runtime::ValueKind;
 using Wasm::Runtime::ValueType;
 using WasmValue = Wasm::Runtime::Value;
+
+// What a host function's "invoke" calls back into. NB: Both live in main() for as long as the utility runs.
+struct ReentryTarget : RefCounted<ReentryTarget> {
+    ReentryTarget(Wasm::Runtime::Store& store, Entity& main_instance)
+        : store(store)
+        , main_instance(main_instance)
+    {
+    }
+
+    Wasm::Runtime::Store& store;
+    Entity& main_instance;
+};
 
 struct BenchmarkTimings {
     JsonArray parse;
@@ -415,8 +429,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
                 // The function's `this` can call back into the main instance's exports.
                 auto reentry_this = JS::Object::create(realm, realm.intrinsics().object_prototype());
+                auto reentry = make_ref_counted<ReentryTarget>(store, main_instance);
                 auto invoke = JS::NativeFunction::create(
-                    realm, [&store, &main_instance](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+                    realm, GC::create_function(vm->heap(), GC::captures(reentry), [](NonnullRefPtr<ReentryTarget>& reentry, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+                        auto& store = reentry->store;
+                        auto& main_instance = reentry->main_instance;
                         if (!main_instance)
                             return vm.throw_completion<JS::TypeError>("wasm reentry: instance not ready yet"_utf16);
                         auto export_name = TRY(vm.argument(0).to_utf16_string(vm)).to_byte_string();
@@ -464,7 +481,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         default:
                             return JS::js_undefined();
                         }
-                    },
+                    }),
                     1, "invoke"_utf16);
                 reentry_this->define_direct_property("invoke"_utf16, invoke, JS::default_attributes);
 

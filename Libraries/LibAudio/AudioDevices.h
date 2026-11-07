@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibAudio/Export.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Forward.h>
 
 namespace Audio {
@@ -78,3 +79,5 @@ template<>
 AUDIO_API ErrorOr<Audio::AudioDeviceInfo> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Audio::AudioDeviceInfo);

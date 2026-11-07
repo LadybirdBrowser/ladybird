@@ -52,7 +52,7 @@ void PendingResponse::visit_edges(JS::Cell::Visitor& visitor)
 void PendingResponse::when_loaded(Callback callback)
 {
     VERIFY(!m_callback);
-    m_callback = GC::create_function(GC::Heap::the(), move(callback));
+    m_callback = callback;
     if (m_response)
         run_callback();
 }

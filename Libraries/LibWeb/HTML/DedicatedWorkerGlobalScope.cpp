@@ -77,11 +77,11 @@ WebIDL::ExceptionOr<WebIDL::UnsignedLong> DedicatedWorkerGlobalScope::request_an
     // 3. Increment target's animation frame callback identifier by one, and let handle be the result.
     // 4. Let callbacks be target's map of animation frame callbacks.
     // 5. Set callbacks[handle] to callback.
-    auto handle = animation_frame_callback_driver().add(GC::create_function(heap(), [this, callback](double now) {
+    auto handle = animation_frame_callback_driver().add(GC::create_function(heap(), GC::captures(*this, callback), [](auto& self, auto& callback, double now) {
         // Invoke callback with « now » and "report".
         auto result = WebIDL::invoke_callback(*callback, {}, { { JS::Value(now) } });
         if (result.is_error())
-            report_exception(result, realm());
+            report_exception(result, self.realm());
     }));
     schedule_rendering_update();
 
@@ -127,12 +127,12 @@ bool DedicatedWorkerGlobalScope::has_animation_frame_callbacks() const
 void DedicatedWorkerGlobalScope::schedule_rendering_update()
 {
     if (!m_rendering_update_timer) {
-        m_rendering_update_timer = Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(0), GC::create_function(heap(), [this] {
-            if (relevant_settings_object(*this).responsible_event_loop().execution_paused()) {
-                schedule_rendering_update();
+        m_rendering_update_timer = Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(0), GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+            if (relevant_settings_object(self).responsible_event_loop().execution_paused()) {
+                self.schedule_rendering_update();
                 return;
             }
-            run_rendering_update();
+            self.run_rendering_update();
         }));
     }
     if (m_rendering_update_timer->is_active())

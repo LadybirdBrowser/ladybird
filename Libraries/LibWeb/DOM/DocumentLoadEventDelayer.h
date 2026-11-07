@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Noncopyable.h>
+#include <LibGC/Forward.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
 
@@ -34,3 +35,6 @@ private:
 };
 
 }
+
+// NB: A delayer holds its document weakly, so a function can capture it without an edge to trace.
+GC_UNTRACED_CAPTURE(Web::DOM::DocumentLoadEventDelayer);

@@ -225,7 +225,7 @@ void Navigator::request_media_key_system_access(Utf16String key_system, Vector<E
 
     // 7. Run the following steps in parallel:
     auto& realm = WebIDL::promise_realm(promise);
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, key_system, supported_configurations = move(supported_configurations), origin, promise]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, key_system, move(supported_configurations), origin, promise), [](auto& realm, auto& key_system, auto& supported_configurations, auto& origin, auto& promise) {
         TemporaryExecutionContext context(realm, TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 1. If keySystem is not one of the Key Systems supported by the user agent, reject promise with a NotSupportedError. String comparison is case-sensitive.

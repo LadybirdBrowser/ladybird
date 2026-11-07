@@ -502,10 +502,10 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
     // 6. If listener’s signal is not null, then add the following abort steps to it:
     if (listener.signal) {
         // NOTE: `this` and `listener` are protected by AbortSignal using GC::HeapFunction.
-        (void)listener.signal->add_abort_algorithm([this, &listener] {
+        (void)listener.signal->add_abort_algorithm(GC::create_function(GC::Heap::the(), GC::captures(*this, listener), [](EventTarget& self, DOMEventListener& listener) {
             // 1. Remove an event listener with eventTarget and listener.
-            remove_an_event_listener(listener);
-        });
+            self.remove_an_event_listener(listener);
+        }));
     }
 }
 
@@ -885,8 +885,8 @@ void EventTarget::activate_event_handler(Utf16FlyString const& name, HTML::Event
     // 4. Let callback be the result of creating a Web IDL EventListener instance representing a reference to a function of one argument that executes the steps of the event handler processing algorithm, given eventTarget, name, and its argument.
     //    The EventListener's callback context can be arbitrary; it does not impact the steps of the event handler processing algorithm. [DOM]
 
-    // NB: The listener below is eventTarget's and has type name, so the event it is called with gives both. This leaves
-    //     the function no captures for the garbage collector to scan conservatively.
+    // NB: The listener below is eventTarget's and has type name, so the event it is called with gives both, and the
+    //     function needs no captures.
     auto callback_function = JS::NativeFunction::create(
         realm, +[](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             // The event dispatcher should only call this with one argument.

@@ -69,13 +69,13 @@ GC::Ref<SharedResourceRequest> SharedResourceRequest::create_from_navigation_res
     request->m_load_event_delayer.emplace(document);
 
     GC::Weak weak_request { *request };
-    auto process_body = GC::create_function(GC::Heap::the(), [weak_request, on_body_read](ByteBuffer data) {
+    auto process_body = GC::create_function(GC::Heap::the(), GC::captures(weak_request, on_body_read), [](auto& weak_request, auto& on_body_read, ByteBuffer data) {
         // NB: A document for an SVG image is an XML document, so this is never an SVG image.
         if (auto request = weak_request.ptr())
             request->handle_successful_fetch(request->url(), IsSVGImage::No, move(data), false);
         on_body_read->function()();
     });
-    auto process_body_error = GC::create_function(GC::Heap::the(), [weak_request, on_body_read](JS::Value) {
+    auto process_body_error = GC::create_function(GC::Heap::the(), GC::captures(weak_request, on_body_read), [](auto& weak_request, auto& on_body_read, JS::Value) {
         if (auto request = weak_request.ptr())
             request->handle_failed_fetch();
         on_body_read->function()();
@@ -168,7 +168,7 @@ void SharedResourceRequest::fetch_resource(NonnullRefPtr<Fetch::Infrastructure::
 
     GC::Weak weak_this { *this };
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
-    fetch_algorithms_input.process_response = [weak_this, &realm, request](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
+    fetch_algorithms_input.process_response = GC::create_function<void(GC::Ref<Fetch::Infrastructure::ResponseView>)>(GC::Heap::the(), GC::captures(weak_this, realm, request), [](auto& weak_this, auto& realm, auto& request, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
         auto self = weak_this.ptr();
         if (!self)
             return;
@@ -179,7 +179,7 @@ void SharedResourceRequest::fetch_resource(NonnullRefPtr<Fetch::Infrastructure::
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
 
-        auto process_body = GC::create_function(GC::Heap::the(), [weak_this, request, response, image_data_is_cors_cross_origin](ByteBuffer data) {
+        auto process_body = GC::create_function(GC::Heap::the(), GC::captures(weak_this, request, response, image_data_is_cors_cross_origin), [](auto& weak_this, auto& request, auto& response, auto& image_data_is_cors_cross_origin, ByteBuffer data) {
             auto self = weak_this.ptr();
             if (!self)
                 return;
@@ -192,7 +192,7 @@ void SharedResourceRequest::fetch_resource(NonnullRefPtr<Fetch::Infrastructure::
                 self->m_image_mime_type = extracted_mime_type->essence();
             self->handle_successful_fetch(response->url().value_or(request->url()), is_svg_image ? IsSVGImage::Yes : IsSVGImage::No, move(data), image_data_is_cors_cross_origin);
         });
-        auto process_body_error = GC::create_function(GC::Heap::the(), [weak_this](JS::Value) {
+        auto process_body_error = GC::create_function(GC::Heap::the(), GC::captures(weak_this), [](auto& weak_this, JS::Value) {
             auto self = weak_this.ptr();
             if (!self)
                 return;
@@ -218,7 +218,7 @@ void SharedResourceRequest::fetch_resource(NonnullRefPtr<Fetch::Infrastructure::
         }
 
         response->body()->fully_read(realm, process_body, process_body_error, GC::Ref { realm.global_object() });
-    };
+    });
 
     m_state = State::Fetching;
     // NB: A user that waits for the fetch decides if the fetch delays the load event; a lazy image's callbacks don't.
@@ -233,7 +233,7 @@ void SharedResourceRequest::fetch_resource(NonnullRefPtr<Fetch::Infrastructure::
         request,
         Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 
-    fetch_controller->set_stop_steps(GC::create_function(GC::Heap::the(), [weak_this] {
+    fetch_controller->set_stop_steps(GC::create_function(GC::Heap::the(), GC::captures(weak_this), [](auto& weak_this) {
         if (auto self = weak_this.ptr())
             self->handle_stopped_fetch();
     }));
@@ -247,40 +247,37 @@ void SharedResourceRequest::wait_without_callbacks()
         m_load_event_delayer.emplace(*m_document);
 }
 
-void SharedResourceRequest::add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop)
+void SharedResourceRequest::add_callbacks(GC::Ptr<GC::Function<void()>> on_finish, GC::Ptr<GC::Function<void()>> on_fail, GC::Ptr<GC::Function<void()>> on_stop)
 {
-    (void)add_removable_callbacks(move(on_finish), move(on_fail), move(on_stop));
+    (void)add_removable_callbacks(on_finish, on_fail, on_stop);
 }
 
-Optional<u64> SharedResourceRequest::add_removable_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop, DelaysLoadEvent delays_load_event)
+Optional<u64> SharedResourceRequest::add_removable_callbacks(GC::Ptr<GC::Function<void()>> on_finish, GC::Ptr<GC::Function<void()>> on_fail, GC::Ptr<GC::Function<void()>> on_stop, DelaysLoadEvent delays_load_event)
 {
     if (m_state == State::Finished) {
         if (on_finish)
-            on_finish();
+            on_finish->function()();
         return {};
     }
 
     if (m_state == State::Failed) {
         if (on_fail)
-            on_fail();
+            on_fail->function()();
         return {};
     }
 
     if (m_state == State::Stopped) {
         if (on_stop)
-            on_stop();
+            on_stop->function()();
         return {};
     }
 
     Callbacks callbacks;
     callbacks.id = m_next_callbacks_id++;
     callbacks.delays_load_event = delays_load_event;
-    if (on_finish)
-        callbacks.on_finish = GC::create_function(GC::Heap::the(), move(on_finish));
-    if (on_fail)
-        callbacks.on_fail = GC::create_function(GC::Heap::the(), move(on_fail));
-    if (on_stop)
-        callbacks.on_stop = GC::create_function(GC::Heap::the(), move(on_stop));
+    callbacks.on_finish = on_finish;
+    callbacks.on_fail = on_fail;
+    callbacks.on_stop = on_stop;
 
     auto id = callbacks.id;
     m_callbacks.append(move(callbacks));

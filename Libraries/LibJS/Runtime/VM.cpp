@@ -145,6 +145,18 @@ static void append_utf16_string_to_sink(JSStringSink const& sink, Utf16View stri
     sink.append(sink.context, code_units.data(), code_units.size());
 }
 
+// The goal of a spin of the event loop, which the runtime keeps on its own stack, and which holds no cell edges.
+struct SpinGoalCondition {
+    JSGoalCondition condition;
+    void* context;
+};
+
+}
+
+GC_UNTRACED_CAPTURE(JS::SpinGoalCondition);
+
+namespace JS {
+
 // The runtime calls the VM's host hooks and its agent through these, each with the facade's VM or agent as its data.
 struct HostHookThunks {
     static VM& vm_of(void* data)
@@ -262,8 +274,8 @@ struct HostHookThunks {
     static void spin_event_loop_until(void* data, JSVM*, JSGoalCondition goal_condition, void* goal_context)
     {
         auto& agent = *static_cast<Agent*>(data);
-        agent.spin_event_loop_until(GC::create_function(VM::the().heap(), [goal_condition, goal_context] {
-            return goal_condition(goal_context);
+        agent.spin_event_loop_until(GC::create_function(VM::the().heap(), GC::captures(SpinGoalCondition { goal_condition, goal_context }), [](SpinGoalCondition& goal) {
+            return goal.condition(goal.context);
         }));
     }
 };

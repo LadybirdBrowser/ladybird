@@ -242,8 +242,8 @@ void RTCPeerConnection::close_the_connection_algorithm(bool disappear)
 // https://www.w3.org/TR/webrtc/#dom-rtcpeerconnection-createoffer
 GC::Ref<WebIDL::Promise> RTCPeerConnection::create_offer(RTCOfferOptions const& options)
 {
-    return chain_operation(GC::create_function(heap(), [this, options](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        return create_offer_impl(options)->promise();
+    return chain_operation(GC::create_function(heap(), GC::captures(*this, options), [](auto& self, auto& options, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        return self.create_offer_impl(options)->promise();
     }));
 }
 
@@ -289,8 +289,8 @@ GC::Ref<WebIDL::Promise> RTCPeerConnection::create_an_offer()
 // https://www.w3.org/TR/webrtc/#dom-rtcpeerconnection-createanswer
 GC::Ref<WebIDL::Promise> RTCPeerConnection::create_answer(RTCAnswerOptions const& options)
 {
-    return chain_operation(GC::create_function(heap(), [this, options](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        return create_answer_impl(options)->promise();
+    return chain_operation(GC::create_function(heap(), GC::captures(*this, options), [](auto& self, auto& options, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        return self.create_answer_impl(options)->promise();
     }));
 }
 
@@ -335,8 +335,8 @@ GC::Ref<WebIDL::Promise> RTCPeerConnection::create_an_answer()
 // https://www.w3.org/TR/webrtc/#dom-rtcpeerconnection-setlocaldescription
 GC::Ref<WebIDL::Promise> RTCPeerConnection::set_local_description(RTCLocalSessionDescriptionInit const& description)
 {
-    return chain_operation(GC::create_function(heap(), [this, description](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        return set_local_description_impl(description)->promise();
+    return chain_operation(GC::create_function(heap(), GC::captures(*this, description), [](auto& self, auto& description, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        return self.set_local_description_impl(description)->promise();
     }));
 }
 
@@ -375,12 +375,12 @@ GC::Ref<WebIDL::Promise> RTCPeerConnection::set_local_description_impl(RTCLocalS
     }
     if (sdp.is_empty() && type != Bindings::RTCSdpType::Rollback) {
         auto generated = type == Bindings::RTCSdpType::Offer ? create_an_offer() : create_an_answer();
-        return WebIDL::react_to_promise(generated, GC::create_function(heap(), [this, type](JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
-            if (m_is_closed)
+        return WebIDL::react_to_promise(generated, GC::create_function(heap(), GC::captures(*this, type), [](auto& self, auto& type, JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
+            if (self.m_is_closed)
                 return WebIDL::InvalidStateError::create("RTCPeerConnection is closed"_utf16);
             auto sdp_value = TRY(value.as_object().get("sdp"_utf16_fly_string));
-            auto generated_sdp = TRY(sdp_value.to_utf16_string(relevant_realm().vm()));
-            return set_a_local_description(type, generated_sdp)->promise();
+            auto generated_sdp = TRY(sdp_value.to_utf16_string(self.relevant_realm().vm()));
+            return self.set_a_local_description(type, generated_sdp)->promise();
         }),
             nullptr);
     }
@@ -405,8 +405,8 @@ GC::Ref<WebIDL::Promise> RTCPeerConnection::set_a_local_description(Bindings::RT
 // https://www.w3.org/TR/webrtc/#dom-rtcpeerconnection-setremotedescription
 GC::Ref<WebIDL::Promise> RTCPeerConnection::set_remote_description(RTCSessionDescriptionInit const& description)
 {
-    return chain_operation(GC::create_function(heap(), [this, description](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        return set_remote_description_impl(description)->promise();
+    return chain_operation(GC::create_function(heap(), GC::captures(*this, description), [](auto& self, auto& description, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        return self.set_remote_description_impl(description)->promise();
     }));
 }
 
@@ -476,8 +476,8 @@ GC::RootVector<GC::Ref<RTCRtpReceiver>> RTCPeerConnection::get_receivers() const
 // https://www.w3.org/TR/webrtc/#dom-rtcpeerconnection-addicecandidate
 GC::Ref<WebIDL::Promise> RTCPeerConnection::add_ice_candidate(RTCIceCandidateInit const& candidate)
 {
-    return chain_operation(GC::create_function(heap(), [this, candidate](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        return add_ice_candidate_impl(candidate)->promise();
+    return chain_operation(GC::create_function(heap(), GC::captures(*this, candidate), [](auto& self, auto& candidate, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        return self.add_ice_candidate_impl(candidate)->promise();
     }));
 }
 
@@ -800,9 +800,9 @@ void RTCPeerConnection::restart_ice()
 
 void RTCPeerConnection::update_negotiation_needed_flag()
 {
-    HTML::queue_a_task(HTML::Task::Source::Networking, nullptr, nullptr, GC::create_function(heap(), [this] {
-        if (!m_is_closed && m_signaling_state == Bindings::RTCSignalingState::Stable)
-            on_negotiation_needed_received();
+    HTML::queue_a_task(HTML::Task::Source::Networking, nullptr, nullptr, GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+        if (!self.m_is_closed && self.m_signaling_state == Bindings::RTCSignalingState::Stable)
+            self.on_negotiation_needed_received();
     }));
 }
 

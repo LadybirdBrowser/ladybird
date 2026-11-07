@@ -247,7 +247,12 @@ void queue_mutation_observer_microtask(HTML::SimilarOriginWindowAgent& surroundi
     surrounding_agent.mutation_observer_microtask_queued = true;
 
     // 3. Queue a microtask to notify mutation observers.
-    HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [&surrounding_agent]() {
+    // NB: The surrounding agent is the agent of the main thread, the only one that has a DOM, so the microtask finds it
+    //     there.
+    VERIFY(&surrounding_agent == &Bindings::main_thread_similar_origin_window_agent());
+    HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [] {
+        auto& surrounding_agent = Bindings::main_thread_similar_origin_window_agent();
+
         // https://dom.spec.whatwg.org/#notify-mutation-observers
         // 1. Set the surrounding agent’s mutation observer microtask queued to false.
         surrounding_agent.mutation_observer_microtask_queued = false;

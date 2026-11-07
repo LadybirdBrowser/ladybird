@@ -114,17 +114,17 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create(WindowOrWorkerGlob
 
     // 14. Let processEventSourceEndOfBody given response res be the following step: if res is not a network error, then
     //     reestablish the connection.
-    auto process_event_source_end_of_body = [event_source](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
+    auto process_event_source_end_of_body = GC::create_function(event_source->heap(), GC::captures(event_source), [](auto& event_source, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
         if (!response->is_network_error())
             event_source->reestablish_the_connection();
-    };
+    });
 
     // 15. Fetch request, with processResponseEndOfBody set to processEventSourceEndOfBody and processResponse set to the
     //     following steps given response res:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
     fetch_algorithms_input.process_response_end_of_body = move(process_event_source_end_of_body);
 
-    fetch_algorithms_input.process_response = [event_source](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
+    fetch_algorithms_input.process_response = GC::create_function(event_source->heap(), GC::captures(event_source), [](auto& event_source, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
         auto& realm = HTML::relevant_realm(event_source->relevant_global_object());
 
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
@@ -157,7 +157,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create(WindowOrWorkerGlob
         else {
             event_source->announce_the_connection();
 
-            auto process_body_chunk = GC::create_function(GC::Heap::the(), [event_source, pending_data = ByteBuffer(), is_start_of_stream = true](ByteBuffer body) mutable {
+            auto process_body_chunk = GC::create_function(GC::Heap::the(), GC::captures(event_source, ByteBuffer(), true), [](auto& event_source, auto& pending_data, auto& is_start_of_stream, ByteBuffer body) {
                 if (pending_data.is_empty())
                     pending_data = move(body);
                 else
@@ -183,7 +183,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create(WindowOrWorkerGlob
 
             response->body()->incrementally_read(realm, process_body_chunk, process_end_of_body, process_body_error, { realm.global_object() });
         }
-    };
+    });
 
     event_source->m_fetch_algorithms = Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input));
     event_source->m_fetch_controller = Fetch::Fetching::fetch(HTML::relevant_realm(global_scope), request, *event_source->m_fetch_algorithms);
@@ -302,10 +302,10 @@ void EventSource::announce_the_connection()
     // When a user agent is to announce the connection, the user agent must queue a task which, if the readyState attribute
     // is set to a value other than CLOSED, sets the readyState attribute to OPEN and fires an event named open at the
     // EventSource object.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
-        if (m_ready_state != ReadyState::Closed) {
-            m_ready_state = ReadyState::Open;
-            dispatch_event(create_associated_event(HTML::EventNames::open));
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        if (self.m_ready_state != ReadyState::Closed) {
+            self.m_ready_state = ReadyState::Open;
+            self.dispatch_event(self.create_associated_event(HTML::EventNames::open));
         }
     }));
 }
@@ -320,27 +320,27 @@ void EventSource::reestablish_the_connection()
     auto end_of_delay = MonotonicTime::now() + m_reconnection_time;
 
     // 1. Queue a task to run the following steps:
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, end_of_delay]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this, end_of_delay), [](auto& self, auto& end_of_delay) {
         // NB: Step 4 waits for this task to finish, and an error event handler can spin a nested event loop. So the
         //     timer for the rest of the delay of step 2 starts only once this task has finished.
-        ScopeGuard start_the_reconnection_timer { [this, end_of_delay] {
-            if (m_ready_state != ReadyState::Closed)
-                m_reconnection_timer->start(max(end_of_delay - MonotonicTime::now(), AK::Duration::zero()));
+        ScopeGuard start_the_reconnection_timer { [&self, end_of_delay] {
+            if (self.m_ready_state != ReadyState::Closed)
+                self.m_reconnection_timer->start(max(end_of_delay - MonotonicTime::now(), AK::Duration::zero()));
         } };
 
         // 1. If the readyState attribute is set to CLOSED, abort the task.
-        if (m_ready_state == ReadyState::Closed)
+        if (self.m_ready_state == ReadyState::Closed)
             return;
 
         // 2. Set the readyState attribute to CONNECTING.
-        m_ready_state = ReadyState::Connecting;
+        self.m_ready_state = ReadyState::Connecting;
 
         // 3. Fire an event named error at the EventSource object.
-        dispatch_event(create_associated_event(HTML::EventNames::error));
+        self.dispatch_event(self.create_associated_event(HTML::EventNames::error));
     }));
 
     // 2. Wait a delay equal to the reconnection time of the event source.
-    m_reconnection_timer = Platform::Timer::create_single_shot(GC::Heap::the(), m_reconnection_time, GC::create_function(GC::Heap::the(), [this]() {
+    m_reconnection_timer = Platform::Timer::create_single_shot(GC::Heap::the(), m_reconnection_time, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
         // 3. Optionally, wait some more. In particular, if the previous attempt failed, then user agents might introduce
         //    an exponential backoff delay to avoid overloading a potentially already overloaded server. Alternatively, if
         //    the operating system has reported that there is no network connectivity, user agents might wait for the
@@ -350,26 +350,26 @@ void EventSource::reestablish_the_connection()
         // NB: The timer starts only once that task has run. See step 1.
 
         // 5. Queue a task to run the following steps:
-        HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
+        HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(self), [](auto& self) {
             // 1. If the EventSource object's readyState attribute is not set to CONNECTING, then return.
-            if (m_ready_state != ReadyState::Connecting)
+            if (self.m_ready_state != ReadyState::Connecting)
                 return;
 
             // 2. Let request be the EventSource object's request.
-            NonnullRefPtr request { *m_request };
+            NonnullRefPtr request { *self.m_request };
 
             // 3. If the EventSource object's last event ID string is not the empty string, then:
-            if (!m_last_event_id.is_empty()) {
+            if (!self.m_last_event_id.is_empty()) {
                 // 1. Let lastEventIDValue be the EventSource object's last event ID string, encoded as UTF-8.
-                auto last_event_id_value = m_last_event_id.to_utf8();
+                auto last_event_id_value = self.m_last_event_id.to_utf8();
                 // 2. Set (`Last-Event-ID`, lastEventIDValue) in request's header list.
                 request->header_list()->set({ "Last-Event-ID"sv, last_event_id_value.to_byte_string() });
             }
 
             // 4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this
             //    section.
-            auto& realm = HTML::relevant_realm(relevant_global_object());
-            m_fetch_controller = Fetch::Fetching::fetch(realm, request, *m_fetch_algorithms);
+            auto& realm = HTML::relevant_realm(self.relevant_global_object());
+            self.m_fetch_controller = Fetch::Fetching::fetch(realm, request, *self.m_fetch_algorithms);
         }));
     }));
 }
@@ -380,10 +380,10 @@ void EventSource::fail_the_connection()
     // When a user agent is to fail the connection, the user agent must queue a task which, if the readyState attribute
     // is set to a value other than CLOSED, sets the readyState attribute to CLOSED and fires an event named error at the
     // EventSource object. Once the user agent has failed the connection, it does not attempt to reconnect.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
-        if (m_ready_state != ReadyState::Closed) {
-            m_ready_state = ReadyState::Closed;
-            dispatch_event(create_associated_event(HTML::EventNames::error));
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        if (self.m_ready_state != ReadyState::Closed) {
+            self.m_ready_state = ReadyState::Closed;
+            self.dispatch_event(self.create_associated_event(HTML::EventNames::error));
         }
     }));
 }
@@ -503,9 +503,9 @@ void EventSource::dispatch_the_event()
 
     // 8. Queue a task which, if the readyState attribute is set to a value other than CLOSED, dispatches the newly created
     //    event at the EventSource object.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, event]() {
-        if (m_ready_state != ReadyState::Closed)
-            dispatch_event(event);
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this, event), [](auto& self, auto& event) {
+        if (self.m_ready_state != ReadyState::Closed)
+            self.dispatch_event(event);
     }));
 }
 

@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibGC/Forward.h>
 
 namespace Web::WebVTT {
 
@@ -23,3 +24,5 @@ struct ParsedCue {
 Optional<Vector<ParsedCue>> parse_webvtt_file(ReadonlyBytes);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::WebVTT::ParsedCue);

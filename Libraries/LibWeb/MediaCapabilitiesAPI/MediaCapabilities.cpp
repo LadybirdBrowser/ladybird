@@ -19,14 +19,16 @@
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
+GC_UNTRACED_CAPTURE(Media::DecoderCapabilities);
+
 namespace Web::MediaCapabilitiesAPI {
 
 // https://w3c.github.io/media-capabilities/#queue-a-media-capabilities-task
-static void queue_a_media_capabilities_task(JS::Object& global_object, Function<void()> steps)
+static void queue_a_media_capabilities_task(JS::Object& global_object, GC::Ref<GC::Function<void()>> steps)
 {
     // When an algorithm queues a Media Capabilities task T, the user agent MUST queue a global task T on the
     // media capabilities task source using the global object of the the current realm record.
-    HTML::queue_global_task(HTML::Task::Source::MediaCapabilities, global_object, GC::create_function(GC::Heap::the(), move(steps)));
+    HTML::queue_global_task(HTML::Task::Source::MediaCapabilities, global_object, steps);
 }
 
 // https://w3c.github.io/media-capabilities/#valid-mediaconfiguration
@@ -220,12 +222,12 @@ void MediaCapabilities::decoding_info(MediaDecodingConfiguration const& configur
 
         // 1. Run the Create a MediaCapabilitiesDecodingInfo algorithm with configuration.
         // 2. Queue a Media Capabilities task to resolve p with its result.
-        queue_a_media_capabilities_task(WebIDL::promise_realm(*pending_promise).global_object(), [promise = GC::Root { *pending_promise }, configuration, capabilities] {
+        queue_a_media_capabilities_task(WebIDL::promise_realm(*pending_promise).global_object(), GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *pending_promise }, configuration, capabilities), [](auto& promise, auto& configuration, auto& capabilities) {
             auto& realm = WebIDL::promise_realm(*promise);
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             auto result = Bindings::media_capabilities_decoding_info_to_value(realm, create_a_media_capabilities_decoding_info(configuration, capabilities));
             WebIDL::resolve_promise(*promise, result);
-        });
+        }));
     };
     request_media_decoding_capabilities(configuration)
         ->when_resolved([resolve_with_capabilities](Optional<Media::DecoderCapabilities>& capabilities) {

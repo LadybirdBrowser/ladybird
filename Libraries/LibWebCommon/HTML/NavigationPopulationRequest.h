@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Bindings/Navigation.h>
 #include <LibWebCommon/ContentSecurityPolicy/Directives/NavigationType.h>
@@ -110,3 +111,5 @@ template<>
 WEBCOMMON_API ErrorOr<Web::HTML::HistoryNavigationPopulation> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::HTML::NavigationPopulationRequest);

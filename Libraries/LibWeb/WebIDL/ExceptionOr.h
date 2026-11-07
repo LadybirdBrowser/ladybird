@@ -11,6 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
+#include <LibGC/CaptureTraits.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -130,6 +131,15 @@ public:
     // These are for compatibility with the TRY() macro in AK.
     [[nodiscard]] bool is_error() const { return is_exception(); }
     Exception release_error() { return exception(); }
+
+    // NB: This lets a GC::Function capture an ExceptionOr, tracing the value or exception it holds.
+    void visit_edges(GC::Cell::Visitor& visitor) const
+    {
+        m_result_or_exception.visit(
+            [](SimpleException const&) { },
+            [&](JS::Completion const& completion) { visitor.visit(completion.value()); },
+            [&](auto const& value) { GC::visit_capture_member(visitor, value); });
+    }
 
 private:
     // https://webidl.spec.whatwg.org/#idl-exceptions

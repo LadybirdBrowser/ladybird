@@ -113,14 +113,14 @@ void FetchController::set_body_transport(Engine::FetchBodyDeliveryGate::Transpor
     m_body_transport = body_transport;
 }
 
-void FetchController::set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps)
+void FetchController::set_report_timing_steps(GC::Ref<GC::Function<void(JS::Object&)>> report_timing_steps)
 {
-    m_report_timing_steps = GC::create_function(GC::Heap::the(), move(report_timing_steps));
+    m_report_timing_steps = report_timing_steps;
 }
 
-void FetchController::set_next_manual_redirect_steps(Function<void()> next_manual_redirect_steps)
+void FetchController::set_next_manual_redirect_steps(GC::Ref<GC::Function<void()>> next_manual_redirect_steps)
 {
-    m_next_manual_redirect_steps = GC::create_function(GC::Heap::the(), move(next_manual_redirect_steps));
+    m_next_manual_redirect_steps = next_manual_redirect_steps;
 }
 
 // https://fetch.spec.whatwg.org/#finalize-and-report-timing

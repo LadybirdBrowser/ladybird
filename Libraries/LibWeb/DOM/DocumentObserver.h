@@ -25,19 +25,19 @@ public:
     static GC::Ref<DocumentObserver> create(Document&);
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> document_became_active() const { return m_document_became_active; }
-    void set_document_became_active(Function<void()>);
+    void set_document_became_active(GC::Ptr<GC::Function<void()>>);
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> document_became_inactive() const { return m_document_became_inactive; }
-    void set_document_became_inactive(Function<void()>);
+    void set_document_became_inactive(GC::Ptr<GC::Function<void()>>);
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> document_completely_loaded() const { return m_document_completely_loaded; }
-    void set_document_completely_loaded(Function<void()>);
+    void set_document_completely_loaded(GC::Ptr<GC::Function<void()>>);
 
     [[nodiscard]] GC::Ptr<GC::Function<void(HTML::DocumentReadyState)>> document_readiness_observer() const { return m_document_readiness_observer; }
-    void set_document_readiness_observer(Function<void(HTML::DocumentReadyState)>);
+    void set_document_readiness_observer(GC::Ptr<GC::Function<void(HTML::DocumentReadyState)>>);
 
     [[nodiscard]] GC::Ptr<GC::Function<void(HTML::VisibilityState)>> document_visibility_state_observer() const { return m_document_visibility_state_observer; }
-    void set_document_visibility_state_observer(Function<void(HTML::VisibilityState)>);
+    void set_document_visibility_state_observer(GC::Ptr<GC::Function<void(HTML::VisibilityState)>>);
 
     [[nodiscard]] GC::Ptr<GC::Function<void(bool)>> document_page_showing_observer() const { return m_document_page_showing_observer; }
 

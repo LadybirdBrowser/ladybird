@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibGC/Function.h>
 #include <LibWeb/Bindings/CacheStorage.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Fetch/Request.h>

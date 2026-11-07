@@ -35,12 +35,9 @@ void TextTrackObserver::finalize()
     m_text_track->unregister_observer({}, *this);
 }
 
-void TextTrackObserver::set_track_readiness_observer(Function<void(TextTrack::ReadinessState)> callback)
+void TextTrackObserver::set_track_readiness_observer(GC::Ptr<GC::Function<void(TextTrack::ReadinessState)>> callback)
 {
-    if (callback)
-        m_track_readiness_observer = GC::create_function(GC::Heap::the(), move(callback));
-    else
-        m_track_readiness_observer = nullptr;
+    m_track_readiness_observer = callback;
 }
 
 }

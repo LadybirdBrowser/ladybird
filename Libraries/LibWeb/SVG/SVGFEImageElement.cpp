@@ -86,11 +86,11 @@ void SVGFEImageElement::process_href(Optional<Utf16String> const& href)
 
     m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *m_href, HTML::CORSSettingAttribute::NoCORS);
     m_resource_request->add_callbacks(
-        [this, resource_request = GC::Root { m_resource_request }] {
-            document().note_svg_paint_resources_changed();
-            document().schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::EveryBox);
-            document().set_needs_repaint(Badge<SVGFEImageElement> {}, InvalidateDisplayList::PaintCommands);
-        },
+        GC::create_function(GC::Heap::the(), GC::captures(*this), [](SVGFEImageElement& self) {
+            self.document().note_svg_paint_resources_changed();
+            self.document().schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::EveryBox);
+            self.document().set_needs_repaint(Badge<SVGFEImageElement> {}, InvalidateDisplayList::PaintCommands);
+        }),
         nullptr);
 
     if (m_resource_request->needs_fetching()) {

@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Traits.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibWebCommon/Export.h>
@@ -65,3 +66,5 @@ template<>
 WEBCOMMON_API ErrorOr<Web::StorageAPI::StorageKey> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::StorageAPI::StorageKey);

@@ -65,9 +65,9 @@ public:
 
     [[nodiscard]] bool has_lazy_load_resumption_steps() const { return !!m_lazy_load_resumption_steps; }
 
-    void set_lazy_load_resumption_steps(Function<void()> steps)
+    void set_lazy_load_resumption_steps(GC::Ref<GC::Function<void()>> steps)
     {
-        m_lazy_load_resumption_steps = GC::create_function(GC::Heap::the(), move(steps));
+        m_lazy_load_resumption_steps = steps;
     }
 
     void visit_lazy_loading_element(JS::Cell::Visitor& visitor)

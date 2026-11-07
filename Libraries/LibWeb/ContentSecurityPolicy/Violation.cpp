@@ -298,7 +298,7 @@ void Violation::report_a_violation(JS::Realm& realm)
     // 3. Queue a task to run the following steps:
     // Spec Note: We "queue a task" here to ensure that the event targeting and dispatch happens after JavaScript
     //            completes execution of the task responsible for a given violation (which might manipulate the DOM).
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, global_scope, target, &realm] {
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function<void()>(GC::Heap::the(), GC::captures(*this, global_scope, target, realm), [](Violation& self, GC::Ptr<DOM::EventTarget>& global_scope, GC::Ptr<DOM::Element>& target, auto& realm) {
         GC::Ptr<DOM::EventTarget> event_target = target;
 
         // 1. If target is not null, and global is a Window, and target’s shadow-including root is not global’s
@@ -345,56 +345,56 @@ void Violation::report_a_violation(JS::Realm& realm)
 
             // documentURI
             //    The result of executing § 5.4 Strip URL for use in reports on violation's url.
-            event_init.document_uri = Utf16String::from_utf8(strip_url_for_use_in_reports(url()));
+            event_init.document_uri = Utf16String::from_utf8(strip_url_for_use_in_reports(self.url()));
 
             // referrer
             //    The result of executing § 5.4 Strip URL for use in reports on violation's referrer.
             // FIXME: File spec issue for referrer being potentially null.
-            event_init.referrer = m_referrer.has_value() ? Utf16String::from_utf8(strip_url_for_use_in_reports(m_referrer.value())) : Utf16String {};
+            event_init.referrer = self.m_referrer.has_value() ? Utf16String::from_utf8(strip_url_for_use_in_reports(self.m_referrer.value())) : Utf16String {};
 
             // blockedURI
             //    The result of executing § 5.2 Obtain the blockedURI of a violation's resource on violation’s
             //    resource.
-            event_init.blocked_uri = Utf16String::from_utf8(obtain_the_blocked_uri_of_resource());
+            event_init.blocked_uri = Utf16String::from_utf8(self.obtain_the_blocked_uri_of_resource());
 
             // effectiveDirective
             //    violation's effective directive
-            event_init.effective_directive = m_effective_directive;
+            event_init.effective_directive = self.m_effective_directive;
 
             // violatedDirective
             //    violation's effective directive
             // Spec Note: Both effectiveDirective and violatedDirective are the same value. This is intentional
             //            to maintain backwards compatibility.
-            event_init.violated_directive = m_effective_directive;
+            event_init.violated_directive = self.m_effective_directive;
 
             // originalPolicy
             //    The serialization of violation's policy
-            event_init.original_policy = Utf16String::from_utf8(m_policy->pre_parsed_policy_string());
+            event_init.original_policy = Utf16String::from_utf8(self.m_policy->pre_parsed_policy_string());
 
             // disposition
             //    violation's disposition
-            event_init.disposition = disposition();
+            event_init.disposition = self.disposition();
 
             // sourceFile
             //    The result of executing § 5.4 Strip URL for use in reports on violation’s source file, if
             //    violation's source file is not null, or null otherwise.
-            event_init.source_file = m_source_file.has_value() ? Utf16String::from_utf8(strip_url_for_use_in_reports(m_source_file.value())) : Utf16String {};
+            event_init.source_file = self.m_source_file.has_value() ? Utf16String::from_utf8(strip_url_for_use_in_reports(self.m_source_file.value())) : Utf16String {};
 
             // statusCode
             //    violation's status
-            event_init.status_code = m_status;
+            event_init.status_code = self.m_status;
 
             // lineNumber
             //    violation’s line number
-            event_init.line_number = m_line_number;
+            event_init.line_number = self.m_line_number;
 
             // columnNumber
             //    violation’s column number
-            event_init.column_number = m_column_number;
+            event_init.column_number = self.m_column_number;
 
             // sample
             //    violation's sample
-            event_init.sample = m_sample;
+            event_init.sample = self.m_sample;
 
             auto event = SecurityPolicyViolationEvent::create(HTML::EventNames::securitypolicyviolation, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
             event->set_is_trusted(true);
@@ -402,15 +402,15 @@ void Violation::report_a_violation(JS::Realm& realm)
         }
 
         // 4. If violation’s policy’s directive set contains a directive named "report-uri" directive:
-        if (auto report_uri_directive = m_policy->get_directive_by_name(Directives::Names::ReportUri)) {
+        if (auto report_uri_directive = self.m_policy->get_directive_by_name(Directives::Names::ReportUri)) {
             // 1. If violation’s policy’s directive set contains a directive named "report-to", skip the remaining
             //    substeps.
-            if (!m_policy->contains_directive_with_name(Directives::Names::ReportTo)) {
+            if (!self.m_policy->contains_directive_with_name(Directives::Names::ReportTo)) {
                 // 1. For each token of directive’s value:
                 for (auto const& token : report_uri_directive->value()) {
                     // 1. Let endpoint be the result of executing the URL parser with token as the input, and
                     //    violation’s url as the base URL.
-                    auto endpoint = DOMURL::parse(token, url());
+                    auto endpoint = DOMURL::parse(token, self.url());
 
                     // 2. If endpoint is not a valid URL, skip the remaining substeps.
                     if (endpoint.has_value()) {
@@ -466,7 +466,7 @@ void Violation::report_a_violation(JS::Realm& realm)
                         // body
                         //    The result of executing § 5.3 Obtain the deprecated serialization of violation on
                         //    violation
-                        request->set_body(obtain_the_deprecated_serialization(realm));
+                        request->set_body(self.obtain_the_deprecated_serialization(realm));
 
                         // redirect mode
                         //    "error"
@@ -479,7 +479,7 @@ void Violation::report_a_violation(JS::Realm& realm)
             }
 
             // 5. If violation's policy's directive set contains a directive named "report-to" directive:
-            if (auto report_to_directive = m_policy->get_directive_by_name(Directives::Names::ReportTo)) {
+            if (auto report_to_directive = self.m_policy->get_directive_by_name(Directives::Names::ReportTo)) {
                 (void)report_to_directive;
                 dbgln("FIXME: Implement report-to directive in violation reporting");
             }

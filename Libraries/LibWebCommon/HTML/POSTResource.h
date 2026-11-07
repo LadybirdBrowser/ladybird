@@ -11,6 +11,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibGC/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 
@@ -63,3 +64,5 @@ template<>
 WEBCOMMON_API ErrorOr<Web::HTML::POSTResource> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::HTML::POSTResource);

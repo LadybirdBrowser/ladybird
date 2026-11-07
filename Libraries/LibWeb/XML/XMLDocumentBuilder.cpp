@@ -218,8 +218,8 @@ void XMLDocumentBuilder::element_end(Utf16FlyString const& name)
 
             // 2. Spin the event loop until the parser's Document has no style sheet that is blocking scripts and the pending parsing-blocking script's "ready to be parser-executed" flag is set.
             if (m_document->has_a_style_sheet_that_is_blocking_scripts() || !pending_parsing_blocking_script->is_ready_to_be_parser_executed()) {
-                HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&] {
-                    return !m_document->has_a_style_sheet_that_is_blocking_scripts() && pending_parsing_blocking_script->is_ready_to_be_parser_executed();
+                HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *m_document }, pending_parsing_blocking_script->as_element()), [](GC::Ref<DOM::Document>& document, DOM::Element& script) {
+                    return !document->has_a_style_sheet_that_is_blocking_scripts() && as<HTML::HTMLOrSVGScriptElement>(script).is_ready_to_be_parser_executed();
                 }));
             }
 

@@ -70,9 +70,6 @@ public:
     bool VisitCXXForRangeStmt(clang::CXXForRangeStmt*);
     bool VisitFunctionDecl(clang::FunctionDecl*);
     bool VisitLambdaExpr(clang::LambdaExpr*);
-    bool VisitCallExpr(clang::CallExpr*);
-
-    void validate_gc_function_captures();
 
 private:
     struct CellMacroExpectation {
@@ -92,7 +89,6 @@ private:
     LibJSCellMacroMap const& m_macro_map;
     bool m_detect_invalid_function_members;
     PolymorphicSubclasses m_polymorphic_subclasses;
-    std::vector<clang::LambdaExpr const*> m_lambdas_in_gc_functions;
 };
 
 class LibJSGCASTConsumer : public clang::ASTConsumer {

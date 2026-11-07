@@ -105,7 +105,7 @@ public:
     bool has_pending_activity(DOM::EventTarget const&) const;
     void clear_objects_with_pending_activity() { m_objects_with_pending_activity.clear(); }
 
-    i32 run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step);
+    i32 run_steps_after_a_timeout(i32 timeout, GC::Ref<GC::Function<void()>> completion_step);
 
     void document_visibility_state_changed(Badge<DOM::Document>);
     void document_audio_play_state_changed(Badge<DOM::Document>);
@@ -163,7 +163,7 @@ private:
     };
     WebIDL::ExceptionOr<i32> run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
     bool has_expired_timer_yet_to_fire(double now);
-    void run_steps_after_a_timeout_impl(i32 timeout, TimerThrottlingClass, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat = Repeat::No);
+    void run_steps_after_a_timeout_impl(i32 timeout, TimerThrottlingClass, GC::Ref<GC::Function<void()>> completion_step, Optional<i32> timer_key, Repeat repeat = Repeat::No);
     bool document_is_hidden() const;
     bool timers_are_throttled() const;
     Optional<i32> throttled_timer_delay(TimerThrottlingClass, double deadline) const;

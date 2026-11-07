@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/RefCounted.h>
 #include <AK/String.h>
+#include <AK/Weakable.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
@@ -28,7 +29,9 @@ namespace WebContent {
 
 class ElementLocator;
 
-class WebDriverConnection final : public RefCounted<WebDriverConnection> {
+class WebDriverConnection final
+    : public RefCounted<WebDriverConnection>
+    , public Weakable<WebDriverConnection> {
 public:
     static NonnullRefPtr<WebDriverConnection> create(PageClient&);
     ~WebDriverConnection() = default;
@@ -109,7 +112,7 @@ private:
     Web::WebDriver::Response element_send_keys_impl(StringView element_id, String const& text);
     Web::WebDriver::Response add_cookie_impl(JsonObject const&);
 
-    void handle_any_user_prompts(Function<void()> on_dialog_closed);
+    void handle_any_user_prompts(GC::Ref<GC::Function<void()>> on_dialog_closed);
 
     void maximize_the_window();
     void iconify_the_window(GC::Ref<GC::Function<void()>>);

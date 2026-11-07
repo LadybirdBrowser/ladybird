@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/RefCounted.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/Function.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/Bindings/HostDefined.h>
@@ -27,6 +29,10 @@ static void install_test_host_defined(JS::Realm& realm, Web::Bindings::WrapperWo
     realm.set_host_defined(realm.heap().allocate<Web::Bindings::HostDefined>(intrinsics, *wrapper_world, principal_realm));
 }
 
+struct ListenerCall : RefCounted<ListenerCall> {
+    bool value { false };
+};
+
 TEST_CASE(extension_world_callback_uses_principal_settings_object)
 {
     auto principal_realm = Web::Bindings::create_a_principal_javascript_realm();
@@ -36,7 +42,7 @@ TEST_CASE(extension_world_callback_uses_principal_settings_object)
     install_test_host_defined(extension_realm, Web::Bindings::WrapperWorld::Type::Extension, *principal_realm);
     vm.push_execution_context(*extension_execution_context);
 
-    auto callback_function = JS::NativeFunction::create(extension_realm, [](JS::VM&) { return JS::js_undefined(); }, 0);
+    auto callback_function = JS::NativeFunction::create(extension_realm, [](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> { return JS::js_undefined(); }, 0);
     auto& principal_settings = Web::Bindings::principal_host_defined_environment_settings_object(*principal_realm);
     auto callback = GC::Heap::the().allocate<Web::WebIDL::CallbackType>(*callback_function, extension_realm);
     EXPECT(callback->callback_context.ptr() == &principal_settings);
@@ -59,10 +65,10 @@ TEST_CASE(extension_world_event_listener_wraps_arguments_in_listener_realm)
     install_test_host_defined(extension_realm, Web::Bindings::WrapperWorld::Type::Extension, *principal_realm);
     vm.push_execution_context(*extension_execution_context);
 
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto event_target = Web::DOM::EventTarget::create();
-    IGNORE_USE_IN_ESCAPING_LAMBDA bool listener_was_called = false;
-    auto callback_function = JS::NativeFunction::create(extension_realm, [&](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
-        listener_was_called = true;
+    auto event_target = Web::DOM::EventTarget::create();
+    auto listener_was_called = make_ref_counted<ListenerCall>();
+    auto callback_function = JS::NativeFunction::create(extension_realm, GC::create_function(GC::Heap::the(), GC::captures(event_target, extension_realm, listener_was_called), [](auto& event_target, auto& extension_realm, auto& listener_was_called, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        listener_was_called->value = true;
 
         auto this_value = vm.this_value();
         EXPECT(this_value.is_object());
@@ -79,7 +85,7 @@ TEST_CASE(extension_world_event_listener_wraps_arguments_in_listener_realm)
         EXPECT(&current_target.as_object().shape().realm() == &extension_realm);
         EXPECT(Web::Bindings::impl_from<Web::DOM::EventTarget>(&current_target.as_object()) == event_target.ptr());
 
-        return JS::js_undefined(); }, 1);
+        return JS::js_undefined(); }), 1);
     auto& principal_settings = Web::Bindings::principal_host_defined_environment_settings_object(*principal_realm);
     auto callback = GC::Heap::the().allocate<Web::WebIDL::CallbackType>(*callback_function, extension_realm);
     EXPECT(callback->callback_context.ptr() == &principal_settings);
@@ -88,7 +94,7 @@ TEST_CASE(extension_world_event_listener_wraps_arguments_in_listener_realm)
 
     auto event = Web::DOM::Event::create("world-callback-test"_fly_string, 0);
     EXPECT(event_target->dispatch_event(*event));
-    EXPECT(listener_was_called);
+    EXPECT(listener_was_called->value);
 
     auto* popped_extension_execution_context = vm.pop_execution_context();
     EXPECT(popped_extension_execution_context == extension_execution_context.ptr());

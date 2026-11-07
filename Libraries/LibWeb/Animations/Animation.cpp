@@ -885,8 +885,8 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
                 scheduled_event_time = m_timeline->convert_a_timeline_time_to_an_origin_relative_time(m_timeline->current_time());
             document->append_pending_animation_event({ cancel_event, *this, *this, scheduled_event_time });
         } else {
-            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), GC::create_function(GC::Heap::the(), [this, cancel_event]() {
-                dispatch_event(cancel_event);
+            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(*this, cancel_event), [](auto& self, auto& cancel_event) {
+                self.dispatch_event(cancel_event);
             }));
         }
     }
@@ -1596,14 +1596,14 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
     //    steps:
     if (current_finished_state && !m_is_finished) {
         // 1. Let finish notification steps refer to the following procedure:
-        auto finish_notification_steps = GC::create_function(GC::Heap::the(), [this, &realm]() {
+        auto finish_notification_steps = GC::create_function<void()>(GC::Heap::the(), GC::captures(*this, realm), [](Animation& self, auto& realm) {
             // 1. If animation’s play state is not equal to finished, abort these steps.
-            if (play_state() != AnimationPlayState::Finished)
+            if (self.play_state() != AnimationPlayState::Finished)
                 return;
 
             // 2. Resolve animation’s current finished promise object with animation.
-            Bindings::resolve_animation_promise(current_finished_promise(), *this);
-            m_is_finished = true;
+            Bindings::resolve_animation_promise(self.current_finished_promise(), self);
+            self.m_is_finished = true;
 
             // 3. Create an AnimationPlaybackEvent, finishEvent.
             // 4. Set finishEvent’s type attribute to finish.
@@ -1612,21 +1612,21 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             //    associated. If animation is not associated with a timeline, or the timeline is inactive, let
             //    timelineTime be null.
             AnimationPlaybackEventInit init;
-            init.current_time = current_time()->as_css_numberish();
-            if (m_timeline && !m_timeline->is_inactive())
-                init.timeline_time = m_timeline->current_time()->as_css_numberish();
+            init.current_time = self.current_time()->as_css_numberish();
+            if (self.m_timeline && !self.m_timeline->is_inactive())
+                init.timeline_time = self.m_timeline->current_time()->as_css_numberish();
 
             auto finish_event = AnimationPlaybackEvent::create(HTML::EventNames::finish, init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
 
             // 7. If animation has a document for timing, then append finishEvent to its document for timing's pending
             //    animation event queue along with its target, animation. For the scheduled event time, use the result
             //    of converting animation’s associated effect end to an origin-relative time.
-            if (auto document_for_timing = this->document_for_timing()) {
+            if (auto document_for_timing = self.document_for_timing()) {
                 document_for_timing->append_pending_animation_event({
                     .event = finish_event,
-                    .animation = *this,
-                    .target = *this,
-                    .scheduled_event_time = convert_a_timeline_time_to_an_origin_relative_time(associated_effect_end()),
+                    .animation = self,
+                    .target = self,
+                    .scheduled_event_time = self.convert_a_timeline_time_to_an_origin_relative_time(self.associated_effect_end()),
                 });
             }
             //    Otherwise, queue a task to dispatch finishEvent at animation. The task source for this task is the DOM
@@ -1635,10 +1635,10 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
                 // Manually create a task so its ID can be saved
                 auto& document = HTML::relevant_window(realm.global_object()).associated_document();
                 auto task = HTML::Task::create(HTML::Task::Source::DOMManipulation, &document,
-                    GC::create_function(GC::Heap::the(), [this, finish_event]() {
-                        dispatch_event(finish_event);
+                    GC::create_function(GC::Heap::the(), GC::captures(self, finish_event), [](auto& self, auto& finish_event) {
+                        self.dispatch_event(finish_event);
                     }));
-                m_pending_finish_microtask_id = task->id();
+                self.m_pending_finish_microtask_id = task->id();
                 (void)HTML::main_thread_event_loop().task_queue().add(task);
             }
         });
@@ -1658,7 +1658,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
         else if (!m_pending_finish_microtask_id.has_value()) {
             auto& document = HTML::relevant_window(realm.global_object()).associated_document();
 
-            auto task = HTML::Task::create(HTML::Task::Source::DOMManipulation, &document, GC::create_function(GC::Heap::the(), [finish_notification_steps, &realm]() {
+            auto task = HTML::Task::create(HTML::Task::Source::DOMManipulation, &document, GC::create_function(GC::Heap::the(), GC::captures(finish_notification_steps, realm), [](auto& finish_notification_steps, auto& realm) {
                 HTML::TemporaryExecutionContext context { realm };
                 finish_notification_steps->function()();
             }));

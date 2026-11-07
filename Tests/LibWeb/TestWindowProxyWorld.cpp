@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/RefCounted.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/Function.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Script.h>
@@ -67,6 +69,10 @@ GC_DEFINE_ALLOCATOR(TestPageClient);
 
 }
 
+struct ListenerCall : RefCounted<ListenerCall> {
+    bool value { false };
+};
+
 TEST_CASE(per_world_windowproxy_and_window_wrapper)
 {
     Web::Platform::FontPlugin font_plugin(false);
@@ -125,7 +131,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     EXPECT(entries_after_extension_init.is_number());
     EXPECT_EQ(entries_after_extension_init.as_double(), 1);
 
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto extension_proxy = browsing_context->window_proxy_for(*extension_world, extension_realm);
+    auto extension_proxy = browsing_context->window_proxy_for(*extension_world, extension_realm);
     EXPECT(extension_proxy);
     EXPECT(extension_proxy != main_proxy);
     EXPECT(extension_proxy == browsing_context->window_proxy_for(*extension_world, extension_realm));
@@ -154,11 +160,11 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
         EXPECT(&value.as_object().shape().realm() == &extension_realm);
     }
 
-    IGNORE_USE_IN_ESCAPING_LAMBDA bool listener_was_called = false;
+    auto listener_was_called = make_ref_counted<ListenerCall>();
     auto callback_function = JS::NativeFunction::create(
         extension_realm,
-        [&](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
-            listener_was_called = true;
+        GC::create_function(GC::Heap::the(), GC::captures(extension_proxy, extension_realm, listener_was_called), [](auto& extension_proxy, auto& extension_realm, auto& listener_was_called, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+            listener_was_called->value = true;
 
             auto this_value = vm.this_value();
             EXPECT(this_value.is_object());
@@ -179,7 +185,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
             EXPECT(&current_target.as_object().shape().realm() == &extension_realm);
 
             return JS::js_undefined();
-        },
+        }),
         1);
     auto& principal_settings = Web::Bindings::principal_host_defined_environment_settings_object(window->principal_realm());
     auto callback = GC::Heap::the().allocate<Web::WebIDL::CallbackType>(*callback_function, principal_settings);
@@ -187,7 +193,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
 
     auto event = Web::DOM::Event::create(extension_realm.global_object(), "windowproxy-test"_fly_string);
     EXPECT(window->dispatch_event(*event));
-    EXPECT(listener_was_called);
+    EXPECT(listener_was_called->value);
 
     auto* popped_extension_execution_context = vm.pop_execution_context();
     EXPECT(popped_extension_execution_context == extension_execution_context.ptr());

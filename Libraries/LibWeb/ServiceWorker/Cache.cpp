@@ -65,16 +65,16 @@ void Cache::visit_edges(GC::Cell::Visitor& visitor)
 void Cache::match(JS::Realm& realm, Fetch::RequestInfo request, CacheQueryOptions options, GC::Ref<WebIDL::Promise> promise)
 {
     // 2. Run these substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, promise, request = move(request), options]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, realm, promise, move(request), options), [](auto& self, auto& realm, auto& promise, auto& request, auto& options) {
         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let p be the result of running the algorithm specified in matchAll(request, options) method with request and options.
         // 2. Wait until p settles.
         auto match_all_promise = WebIDL::create_promise(realm);
-        match_all(realm, move(request), options, match_all_promise);
+        self.match_all(realm, move(request), options, match_all_promise);
         WebIDL::react_to_promise(match_all_promise,
             // 4. Else if p resolves with an array, responses, then:
-            GC::create_function(GC::Heap::the(), [&realm, promise](JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise, JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
                 HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                 // 1. If responses is an empty array, then:
@@ -93,7 +93,7 @@ void Cache::match(JS::Realm& realm, Fetch::RequestInfo request, CacheQueryOption
             }),
 
             // 3. If p rejects with an exception, then:
-            GC::create_function(GC::Heap::the(), [&realm, promise](JS::Value exception) -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise, JS::Value exception) -> WebIDL::ExceptionOr<JS::Value> {
                 HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                 // 1. Reject promise with that exception.
@@ -154,14 +154,14 @@ void Cache::match_all(JS::Realm& realm, Optional<Fetch::RequestInfo> request, Ca
     }
 
     // 5. Run these substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, inner_request, promise, request = move(request), options]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, realm, inner_request, promise, move(request), options), [](auto& self, auto& realm, auto& inner_request, auto& promise, auto& request, auto& options) {
         // 1. Let responses be an empty list.
         auto responses = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<Fetch::Infrastructure::ResponseView>>>();
 
         // 2. If the optional argument request is omitted, then:
         if (!request.has_value()) {
             // 1. For each requestResponse of the relevant request response list:
-            for (auto& request_response : m_request_response_list->elements()) {
+            for (auto& request_response : self.m_request_response_list->elements()) {
                 // 1. Add a copy of requestResponse’s response to responses.
                 responses->elements().append(request_response->response->clone(realm));
             }
@@ -169,7 +169,7 @@ void Cache::match_all(JS::Realm& realm, Optional<Fetch::RequestInfo> request, Ca
         // 3. Else:
         else {
             // 1. Let requestResponses be the result of running Query Cache with r and options.
-            auto request_responses = query_cache(realm, *inner_request, options);
+            auto request_responses = self.query_cache(realm, *inner_request, options);
 
             // 2. For each requestResponse of requestResponses:
             for (auto request_response : request_responses->elements()) {
@@ -195,7 +195,7 @@ void Cache::match_all(JS::Realm& realm, Optional<Fetch::RequestInfo> request, Ca
             HTML::Task::Source::DOMManipulation,
             HTML::relevant_settings_object(promise->promise()).responsible_event_loop(),
             {},
-            GC::create_function(GC::Heap::the(), [&realm, promise, responses]() {
+            GC::create_function(GC::Heap::the(), GC::captures(realm, promise, responses), [](auto& realm, auto& promise, auto& responses) {
                 HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                 resolve_cache_response_list(realm, promise, responses);
@@ -214,11 +214,11 @@ void Cache::add(JS::Realm& realm, Fetch::RequestInfo request, GC::Ref<WebIDL::Pr
 
     // 3. Return the result of reacting to responseArrayPromise with a fulfillment handler that returns undefined.
     WebIDL::react_to_promise(add_all_promise,
-        GC::create_function(GC::Heap::the(), [promise](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), GC::captures(promise), [](auto& promise, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             WebIDL::resolve_promise(promise);
             return JS::js_undefined();
         }),
-        GC::create_function(GC::Heap::the(), [promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), GC::captures(promise), [](auto& promise, JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             WebIDL::reject_promise(promise, reason);
             return JS::js_undefined();
         }));
@@ -286,12 +286,12 @@ void Cache::add_all(JS::Realm& realm, ReadonlySpan<Fetch::RequestInfo> requests,
         auto response_promise = WebIDL::create_promise(realm);
 
         // 6. Run the following substeps in parallel:
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, fetch_controllers, inner_request, response_promise]() {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, fetch_controllers, inner_request, response_promise), [](auto& realm, auto& fetch_controllers, auto& inner_request, auto& response_promise) {
             // * Append the result of fetching r.
             Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
 
             // * To processResponse for response, run these substeps:
-            fetch_algorithms_input.process_response = [&realm, fetch_controllers, response_promise](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
+            fetch_algorithms_input.process_response = GC::create_function(GC::Heap::the(), GC::captures(realm, fetch_controllers, response_promise), [](auto& realm, auto& fetch_controllers, auto& response_promise, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
                 HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 bool did_reject_promise = false;
 
@@ -343,7 +343,7 @@ void Cache::add_all(JS::Realm& realm, ReadonlySpan<Fetch::RequestInfo> requests,
 
                 // 2. Resolve responsePromise with response.
                 WebIDL::resolve_promise(response_promise, response);
-            };
+            });
 
             auto fetch_controller = Fetch::Fetching::fetch(realm, inner_request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
             fetch_controllers->elements().append(fetch_controller);
@@ -360,7 +360,7 @@ void Cache::add_all(JS::Realm& realm, ReadonlySpan<Fetch::RequestInfo> requests,
 
     // 7. Return the result of reacting to p with a fulfillment handler that, when called with argument responses, performs the following substeps:
     WebIDL::react_to_promise(wait_for_responses_promise,
-        GC::create_function(GC::Heap::the(), [this, &realm, request_list = move(request_list), promise](JS::Value result) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), GC::captures(*this, realm, move(request_list), promise), [](auto& self, auto& realm, auto& request_list, auto& promise, JS::Value result) -> WebIDL::ExceptionOr<JS::Value> {
             HTML::TemporaryExecutionContext context { realm };
             auto& responses = result.as<JS::Array>();
 
@@ -390,11 +390,11 @@ void Cache::add_all(JS::Realm& realm, ReadonlySpan<Fetch::RequestInfo> requests,
 
             // 5. Let cacheJobPromise be a new promise.
             // 6. Run the following substeps in parallel:
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, operations, promise]() {
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(self, realm, operations, promise), [](auto& self, auto& realm, auto& operations, auto& promise) {
                 // 1. Let errorData be null.
                 // 2. Invoke Batch Cache Operations with operations. If this throws an exception, set errorData to the
                 //    exception.
-                auto error_data = batch_cache_operations(realm, operations);
+                auto error_data = self.batch_cache_operations(realm, operations);
 
                 // 3. Queue a task, on cacheJobPromise’s relevant settings object’s responsible event loop using the DOM
                 //    manipulation task source, to perform the following substeps:
@@ -402,7 +402,7 @@ void Cache::add_all(JS::Realm& realm, ReadonlySpan<Fetch::RequestInfo> requests,
                     HTML::Task::Source::DOMManipulation,
                     HTML::relevant_settings_object(promise->promise()).responsible_event_loop(),
                     {},
-                    GC::create_function(GC::Heap::the(), [&realm, promise, error_data = move(error_data)]() mutable {
+                    GC::create_function(GC::Heap::the(), GC::captures(realm, promise, move(error_data)), [](auto& realm, auto& promise, auto& error_data) {
                         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                         // 1. If errorData is null, resolve cacheJobPromise with undefined.
@@ -416,7 +416,7 @@ void Cache::add_all(JS::Realm& realm, ReadonlySpan<Fetch::RequestInfo> requests,
 
             return JS::js_undefined();
         }),
-        GC::create_function(GC::Heap::the(), [promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), GC::captures(promise), [](auto& promise, JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             WebIDL::reject_promise(promise, reason);
             return JS::js_undefined();
         }));
@@ -533,14 +533,14 @@ void Cache::put(JS::Realm& realm, Fetch::RequestInfo request, GC::Ref<Fetch::Res
     operations->elements().append(operation);
     // 19. Return the result of the fulfillment of bodyReadPromise:
     WebIDL::react_to_promise(body_read_promise,
-        GC::create_function(GC::Heap::the(), [this, &realm, operations, promise](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), GC::captures(*this, realm, operations, promise), [](auto& self, auto& realm, auto& operations, auto& promise, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             HTML::TemporaryExecutionContext context { realm };
 
             // 2. Return cacheJobPromise and run these steps in parallel:
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, operations, promise]() {
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(self, realm, operations, promise), [](auto& self, auto& realm, auto& operations, auto& promise) {
                 // 1. Let errorData be null.
                 // 2. Invoke Batch Cache Operations with operations. If this throws an exception, set errorData to the exception.
-                auto error_data = batch_cache_operations(realm, operations);
+                auto error_data = self.batch_cache_operations(realm, operations);
 
                 // 3. Queue a task, on cacheJobPromise’s relevant settings object’s responsible event loop using the DOM
                 //    manipulation task source, to perform the following substeps:
@@ -548,7 +548,7 @@ void Cache::put(JS::Realm& realm, Fetch::RequestInfo request, GC::Ref<Fetch::Res
                     HTML::Task::Source::DOMManipulation,
                     HTML::relevant_settings_object(promise->promise()).responsible_event_loop(),
                     {},
-                    GC::create_function(GC::Heap::the(), [&realm, promise, error_data = move(error_data)]() mutable {
+                    GC::create_function(GC::Heap::the(), GC::captures(realm, promise, move(error_data)), [](auto& realm, auto& promise, auto& error_data) {
                         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                         // 1. If errorData is null, resolve cacheJobPromise with undefined.
@@ -562,7 +562,7 @@ void Cache::put(JS::Realm& realm, Fetch::RequestInfo request, GC::Ref<Fetch::Res
 
             return JS::js_undefined();
         }),
-        GC::create_function(GC::Heap::the(), [promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), GC::captures(promise), [](auto& promise, JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             WebIDL::reject_promise(promise, reason);
             return JS::js_undefined();
         }));
@@ -629,11 +629,11 @@ void Cache::delete_(JS::Realm& realm, Fetch::RequestInfo request, CacheQueryOpti
     // 9. Append operation to operations.
     operations->elements().append(operation);
     // 12. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, operations, promise]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, realm, operations, promise), [](auto& self, auto& realm, auto& operations, auto& promise) {
         // 1. Let errorData be null.
         // 2. Let requestResponses be the result of running Batch Cache Operations with operations. If this throws an
         //    exception, set errorData to the exception.
-        auto error_data = batch_cache_operations(realm, operations);
+        auto error_data = self.batch_cache_operations(realm, operations);
 
         // 3. Queue a task, on cacheJobPromise’s relevant settings object’s responsible event loop using the DOM
         //    manipulation task source, to perform the following substeps:
@@ -641,7 +641,7 @@ void Cache::delete_(JS::Realm& realm, Fetch::RequestInfo request, CacheQueryOpti
             HTML::Task::Source::DOMManipulation,
             HTML::relevant_settings_object(promise->promise()).responsible_event_loop(),
             {},
-            GC::create_function(GC::Heap::the(), [&realm, promise, error_data = move(error_data)]() mutable {
+            GC::create_function(GC::Heap::the(), GC::captures(realm, promise, move(error_data)), [](auto& realm, auto& promise, auto& error_data) {
                 HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                 // 1. If errorData is null, then:
@@ -708,14 +708,14 @@ void Cache::keys(JS::Realm& realm, Optional<Fetch::RequestInfo> request, CacheQu
     }
 
     // 5. Run these substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, inner_request, promise, request = move(request), options]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, realm, inner_request, promise, move(request), options), [](auto& self, auto& realm, auto& inner_request, auto& promise, auto& request, auto& options) {
         // 1. Let requests be an empty list.
         Vector<NonnullRefPtr<Fetch::Infrastructure::Request>> requests;
 
         // 2. If the optional argument request is omitted, then:
         if (!request.has_value()) {
             // 1. For each requestResponse of the relevant request response list:
-            for (auto& request_response : m_request_response_list->elements()) {
+            for (auto& request_response : self.m_request_response_list->elements()) {
                 // 1. Add requestResponse’s request to requests.
                 requests.append(request_response->request);
             }
@@ -724,7 +724,7 @@ void Cache::keys(JS::Realm& realm, Optional<Fetch::RequestInfo> request, CacheQu
         else {
             // 1. Let requestResponses be the result of running Query Cache with r and options.
             // NB: Only the requests are used, so we copy them below. Copying the responses would tee their bodies.
-            auto request_responses = query_cache(realm, *inner_request, options, {}, CloneCache::No);
+            auto request_responses = self.query_cache(realm, *inner_request, options, {}, CloneCache::No);
 
             // 2. For each requestResponse of requestResponses:
             for (auto request_response : request_responses->elements()) {
@@ -739,7 +739,7 @@ void Cache::keys(JS::Realm& realm, Optional<Fetch::RequestInfo> request, CacheQu
             HTML::Task::Source::DOMManipulation,
             HTML::relevant_settings_object(promise->promise()).responsible_event_loop(),
             {},
-            GC::create_function(GC::Heap::the(), [&realm, promise, requests = move(requests)]() {
+            GC::create_function(GC::Heap::the(), GC::captures(realm, promise, move(requests)), [](auto& realm, auto& promise, auto& requests) {
                 HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                 resolve_cache_request_list(realm, promise, requests);

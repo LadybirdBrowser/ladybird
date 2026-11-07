@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
+#include <LibGC/Forward.h>
 #include <LibGfx/Forward.h>
 
 namespace Web::HTML {
@@ -36,3 +37,5 @@ bool serialization_of_the_bitmap_supports_color_profiles(Utf16View type);
 ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::DecodedImageFrame const&, Utf16View type, Optional<double> quality);
 
 }
+
+GC_UNTRACED_CAPTURE(Web::HTML::SerializeBitmapResult);

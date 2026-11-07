@@ -75,10 +75,10 @@ void web_audio_worklet_queue_processor_error(AudioWorkletNode* node, DOM::EventT
     HTML::ErrorEventInit event_init;
     event_init.message = JS::HostABI::value_from_abi(error).to_utf16_string_without_side_effects();
     HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object,
-        GC::create_function(GC::Heap::the(), [node = GC::make_root(*node), target, global, event_init = move(event_init)] {
-            auto& global_object = HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*global));
+        GC::create_function(GC::Heap::the(), GC::captures(*node, *target, *global, move(event_init)), [](AudioWorkletNode&, DOM::EventTarget& target, DOM::EventTarget& global, HTML::ErrorEventInit const& event_init) {
+            auto& global_object = HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(global));
             auto event = HTML::ErrorEvent::create(HTML::EventNames::processorerror, event_init, HighResolutionTime::current_high_resolution_time(global_object));
-            target->dispatch_event(event);
+            target.dispatch_event(event);
         }));
 }
 

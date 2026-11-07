@@ -149,14 +149,14 @@ void ViewTransition::setup_view_transition()
 
     // 5. Queue a global task on the DOM manipulation task source, given transition’s relevant global object, to
     //    perform the following steps:
-    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), GC::create_function(GC::Heap::the(), [&] {
+    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), GC::create_function<void()>(GC::Heap::the(), GC::captures(*this, realm, document), [](ViewTransition& self, auto& realm, auto& document) {
         HTML::TemporaryExecutionContext context(realm);
         // 1. If transition’s phase is "done", then abort these steps.
-        if (m_phase == Phase::Done)
+        if (self.m_phase == Phase::Done)
             return;
 
         // 2. schedule the update callback for transition.
-        schedule_the_update_callback();
+        self.schedule_the_update_callback();
 
         // 3. Flush the update callback queue.
         // AD-HOC: Spec doesn't say what document to flush it for.
@@ -663,35 +663,35 @@ void ViewTransition::call_the_update_callback()
     }
 
     // 6. Let fulfillSteps be to following steps:
-    auto fulfill_steps = GC::create_function(GC::Heap::the(), [this, &realm](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto fulfill_steps = GC::create_function<WebIDL::ExceptionOr<JS::Value>(JS::Value)>(GC::Heap::the(), GC::captures(*this, realm), [](ViewTransition& self, auto& realm, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         HTML::TemporaryExecutionContext context(realm);
         // 1. Resolve transition’s update callback done promise with undefined.
-        WebIDL::resolve_promise(m_update_callback_done_promise);
+        WebIDL::resolve_promise(self.m_update_callback_done_promise);
 
         // 2. Activate transition.
-        activate_view_transition();
+        self.activate_view_transition();
 
         return JS::js_undefined();
     });
 
     // 7. Let rejectSteps be the following steps given reason:
-    auto reject_steps = GC::create_function(GC::Heap::the(), [this, &realm](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+    auto reject_steps = GC::create_function<WebIDL::ExceptionOr<JS::Value>(JS::Value)>(GC::Heap::the(), GC::captures(*this, realm), [](ViewTransition& self, auto& realm, JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
         HTML::TemporaryExecutionContext context(realm);
         // 1. Reject transition’s update callback done promise with reason.
-        WebIDL::reject_promise(m_update_callback_done_promise, reason);
+        WebIDL::reject_promise(self.m_update_callback_done_promise, reason);
 
         // 2. If transition’s phase is "done", then return.
         // NOTE: This happens if transition was skipped before this point.
-        if (m_phase == Phase::Done)
+        if (self.m_phase == Phase::Done)
             return JS::js_undefined();
 
         // 3. Mark as handled transition’s ready promise.
         // NOTE: transition’s update callback done promise will provide the unhandledrejection. This
         // step avoids a duplicate.
-        WebIDL::mark_promise_as_handled(m_update_callback_done_promise);
+        WebIDL::mark_promise_as_handled(self.m_update_callback_done_promise);
 
         // 4. Skip the view transition transition with reason.
-        skip_the_view_transition(reason);
+        self.skip_the_view_transition(reason);
 
         return JS::js_undefined();
     });
@@ -716,11 +716,11 @@ void ViewTransition::schedule_the_update_callback()
 
     // 2. Queue a global task on the DOM manipulation task source, given transition’s relevant global object, to flush
     //    the update callback queue.
-    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, document().relevant_settings_object().realm().global_object(), GC::create_function(GC::Heap::the(), [&] {
+    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, document().relevant_settings_object().realm().global_object(), GC::create_function(GC::Heap::the(), GC::captures(*this), [](ViewTransition& self) {
         // AD-HOC: Spec doesn't say what document to flush it for.
         //         Lets just use the one we use elsewhere.
         //         (see https://github.com/w3c/csswg-drafts/issues/11986 )
-        document().flush_the_update_callback_queue();
+        self.document().flush_the_update_callback_queue();
     }));
 }
 

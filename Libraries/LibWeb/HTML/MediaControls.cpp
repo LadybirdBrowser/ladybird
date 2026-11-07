@@ -6,6 +6,8 @@
 
 #include <AK/NumberFormat.h>
 #include <AK/Utf16StringBuilder.h>
+#include <AK/WeakPtr.h>
+#include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -107,16 +109,26 @@ void MediaControls::create_shadow_tree()
 template<typename T, CallableAs<bool, T&> Handler>
 GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& realm, DOM::EventTarget& target, Utf16FlyString const& event_name, ListenOnce listen_once, Handler handler)
 {
+    // NB: A handler uses these controls, which remove their listeners when they go away. It holds no strong pointer to
+    //     a cell, as nothing traces it.
+    struct HandlerHolder : RefCounted<HandlerHolder> {
+        explicit HandlerHolder(Handler handler)
+            : handler(move(handler))
+        {
+        }
+
+        Handler handler;
+    };
     auto callback_function = JS::NativeFunction::create(
-        realm, [handler = move(handler)](JS::VM& vm) {
+        realm, GC::create_function(GC::Heap::the(), GC::captures(make_ref_counted<HandlerHolder>(move(handler))), [](NonnullRefPtr<HandlerHolder>& holder, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             if (auto* event = Bindings::event_from_callback_argument(vm)) {
                 if (auto* typed_event = as_if<T>(*event)) {
-                    if (handler(*typed_event))
+                    if (holder->handler(*typed_event))
                         typed_event->prevent_default();
                 }
             }
             return JS::js_undefined();
-        },
+        }),
         0, Utf16FlyString {}, &realm);
     auto callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*callback_function, realm);
     auto listener = DOM::IDLEventListener::create(callback);
@@ -311,7 +323,7 @@ void MediaControls::set_up_event_listeners()
             return true;
         });
 
-        add_event_listener(realm, window, UIEvents::EventNames::mouseup, ListenOnce::Yes, [this, mousemove_listener](UIEvents::MouseEvent const& event) {
+        add_event_listener(realm, window, UIEvents::EventNames::mouseup, ListenOnce::Yes, [this, mousemove_listener = GC::Weak<DOM::IDLEventListener> { mousemove_listener }](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
             VERIFY(m_dom->timeline_element);
 
@@ -329,7 +341,8 @@ void MediaControls::set_up_event_listeners()
             update_play_pause_icon();
 
             auto& window_inner = relevant_window(*m_host);
-            window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
+            if (mousemove_listener)
+                window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, *mousemove_listener);
             return true;
         });
 
@@ -378,7 +391,7 @@ void MediaControls::set_up_event_listeners()
             return true;
         });
 
-        add_event_listener(realm, window, UIEvents::EventNames::mouseup, ListenOnce::Yes, [this, mousemove_listener](UIEvents::MouseEvent const& event) {
+        add_event_listener(realm, window, UIEvents::EventNames::mouseup, ListenOnce::Yes, [this, mousemove_listener = GC::Weak<DOM::IDLEventListener> { mousemove_listener }](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
             VERIFY(m_dom->volume_element);
 
@@ -389,7 +402,8 @@ void MediaControls::set_up_event_listeners()
                 set_volume(*volume);
 
             auto& window_inner = relevant_window(*m_host);
-            window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
+            if (mousemove_listener)
+                window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, *mousemove_listener);
             return true;
         });
 
@@ -686,11 +700,14 @@ void MediaControls::request_timeline_update()
     auto& realm = HTML::relevant_realm(*m_host);
     auto& window = relevant_window(realm.global_object());
     m_animation_frame_window = window;
-    m_request_animation_frame_id = window.request_animation_frame([this](double) {
-        m_request_animation_frame_id = 0;
-        update_timeline();
-        request_timeline_update();
-    });
+    m_request_animation_frame_id = window.request_animation_frame(GC::create_function(GC::Heap::the(), GC::captures(make_weak_ptr()), [](WeakPtr<MediaControls>& weak_self, double) {
+        auto* self = weak_self.ptr();
+        if (!self)
+            return;
+        self->m_request_animation_frame_id = 0;
+        self->update_timeline();
+        self->request_timeline_update();
+    }));
 }
 
 // A time as minutes and seconds, such as 4:10, with the hours before them when there are any.

@@ -612,8 +612,10 @@ void ConnectionFromClient::run_beforeunload_check(Web::PageId page_id, Web::HTML
         return;
     }
 
-    page->page().history_executor().run_ui_beforeunload_check(move(navigable_ids), move(target_entry), user_involvement_for_navigate_event, unload_prompt_shown, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, check_id](Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
-        async_beforeunload_check_result(page_id, check_id, result, unload_prompt_shown);
+    page->page().history_executor().run_ui_beforeunload_check(move(navigable_ids), move(target_entry), user_involvement_for_navigate_event, unload_prompt_shown, GC::create_function(Web::HTML::main_thread_event_loop().heap(), GC::captures(make_weak_ptr<ConnectionFromClient>(), page_id, check_id), [](auto& connection, auto& page_id, auto& check_id, Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
+        if (!connection)
+            return;
+        connection->async_beforeunload_check_result(page_id, check_id, result, unload_prompt_shown);
     }));
 }
 
@@ -675,8 +677,10 @@ void ConnectionFromClient::populate_history_entry_document(Web::PageId page_id, 
         return;
     }
     page->page().history_executor().populate_ui_history_entry_document(operation_id, move(target_entry), navigation_type, ongoing_navigation_is_traversal, move(population),
-        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only) {
-            async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition, update_only);
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), GC::captures(make_weak_ptr<ConnectionFromClient>(), page_id, operation_id, navigable_id), [](auto& connection, auto& page_id, auto& operation_id, auto& navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only) {
+            if (!connection)
+                return;
+            connection->async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition, update_only);
         }));
 }
 
@@ -688,8 +692,10 @@ void ConnectionFromClient::run_changing_navigable_history_job(Web::PageId page_i
         return;
     }
 
-    page->page().history_executor().run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, move(finalized_navigation_id), ongoing_navigation_is_traversal, needs_population, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only) {
-        async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition, update_only);
+    page->page().history_executor().run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, move(finalized_navigation_id), ongoing_navigation_is_traversal, needs_population, GC::create_function(Web::HTML::main_thread_event_loop().heap(), GC::captures(make_weak_ptr<ConnectionFromClient>(), page_id, operation_id, navigable_id), [](auto& connection, auto& page_id, auto& operation_id, auto& navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, bool update_only) {
+        if (!connection)
+            return;
+        connection->async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition, update_only);
     }));
 }
 
@@ -715,8 +721,10 @@ void ConnectionFromClient::apply_changing_navigable_continuation(Web::PageId pag
         return;
     }
 
-    page->page().history_executor().apply_ui_changing_navigable_continuation(operation_id, navigable_id, target_entry, { script_history_length, script_history_index }, move(entries_for_navigation_api), clear_classic_history_api_state, clear_navigable_target_name, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
-        async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
+    page->page().history_executor().apply_ui_changing_navigable_continuation(operation_id, navigable_id, target_entry, { script_history_length, script_history_index }, move(entries_for_navigation_api), clear_classic_history_api_state, clear_navigable_target_name, GC::create_function(Web::HTML::main_thread_event_loop().heap(), GC::captures(make_weak_ptr<ConnectionFromClient>(), page_id, operation_id, navigable_id), [](auto& connection, auto& page_id, auto& operation_id, auto& navigable_id, Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
+        if (!connection)
+            return;
+        connection->async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
     }));
 }
 
@@ -728,8 +736,10 @@ void ConnectionFromClient::unload_displayed_document_and_apply_changing_navigabl
         return;
     }
 
-    page->page().history_executor().unload_displayed_document_and_apply_ui_changing_navigable_continuation(operation_id, navigable_id, target_entry, { script_history_length, script_history_index }, move(entries_for_navigation_api), clear_classic_history_api_state, clear_navigable_target_name, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
-        async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
+    page->page().history_executor().unload_displayed_document_and_apply_ui_changing_navigable_continuation(operation_id, navigable_id, target_entry, { script_history_length, script_history_index }, move(entries_for_navigation_api), clear_classic_history_api_state, clear_navigable_target_name, GC::create_function(Web::HTML::main_thread_event_loop().heap(), GC::captures(make_weak_ptr<ConnectionFromClient>(), page_id, operation_id, navigable_id), [](auto& connection, auto& page_id, auto& operation_id, auto& navigable_id, Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
+        if (!connection)
+            return;
+        connection->async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
     }));
 }
 
@@ -743,8 +753,10 @@ void ConnectionFromClient::run_descendant_unload_task(Web::PageId page_id, Web::
     }
     VERIFY(&navigable->page() == &page->page());
 
-    navigable->run_ui_descendant_unload_task(child_navigable_destruction, stop_hosting_after_unload, GC::create_function(navigable->heap(), [this, page_id, unload_id, navigable_id] {
-        async_descendant_unload_task_complete(page_id, unload_id, navigable_id);
+    navigable->run_ui_descendant_unload_task(child_navigable_destruction, stop_hosting_after_unload, GC::create_function(navigable->heap(), GC::captures(make_weak_ptr<ConnectionFromClient>(), page_id, unload_id, navigable_id), [](auto& connection, auto& page_id, auto& unload_id, auto& navigable_id) {
+        if (!connection)
+            return;
+        connection->async_descendant_unload_task_complete(page_id, unload_id, navigable_id);
     }));
 }
 
@@ -774,7 +786,7 @@ void ConnectionFromClient::abort_navigable_document(Web::PageId page_id, Web::HT
         return;
 
     // 3. For each descendantNavigable of descendantNavigables, queue a global task on the navigation and traversal task source given descendantNavigable's active window to perform the following steps:
-    Web::HTML::queue_global_task(Web::HTML::Task::Source::NavigationAndTraversal, Web::HTML::relevant_global_object(*navigable->active_window()), GC::create_function(GC::Heap::the(), [navigable = GC::Ref { *navigable }] {
+    Web::HTML::queue_global_task(Web::HTML::Task::Source::NavigationAndTraversal, Web::HTML::relevant_global_object(*navigable->active_window()), GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *navigable }), [](auto& navigable) {
         auto document = navigable->active_document();
         if (!document)
             return;
@@ -881,8 +893,10 @@ void ConnectionFromClient::update_nonchanging_navigable_history_state(Web::PageI
         return;
     }
 
-    navigable->update_nonchanging_navigable_history_step_state({ script_history_length, script_history_index }, GC::create_function(navigable->heap(), [this, page_id, operation_id, navigable_id] {
-        async_nonchanging_navigable_history_state_updated(page_id, operation_id, navigable_id);
+    navigable->update_nonchanging_navigable_history_step_state({ script_history_length, script_history_index }, GC::create_function(navigable->heap(), GC::captures(make_weak_ptr<ConnectionFromClient>(), page_id, operation_id, navigable_id), [](auto& connection, auto& page_id, auto& operation_id, auto& navigable_id) {
+        if (!connection)
+            return;
+        connection->async_nonchanging_navigable_history_state_updated(page_id, operation_id, navigable_id);
     }));
 }
 
@@ -3527,7 +3541,7 @@ void ConnectionFromClient::update_visibility_state(Web::PageId page_id, Web::HTM
 
     // 2. Queue a global task on the user interaction task source given document's relevant global object
     //    to update the visibility state of document with newState.
-    Web::HTML::queue_global_task(Web::HTML::Task::Source::UserInteraction, Web::HTML::relevant_global_object(*document), GC::create_function(GC::Heap::the(), [visibility_state, document] {
+    Web::HTML::queue_global_task(Web::HTML::Task::Source::UserInteraction, Web::HTML::relevant_global_object(*document), GC::create_function(GC::Heap::the(), GC::captures(visibility_state, document), [](auto& visibility_state, auto& document) {
         document->update_the_visibility_state(visibility_state);
     }));
 }
@@ -3892,8 +3906,10 @@ void ConnectionFromClient::request_close_preflight(Web::PageId page_id, u64 requ
         return;
     }
 
-    traversable->request_close_preflight(GC::create_function(Web::Bindings::main_thread_vm().heap(), [this, page_id, request_id](bool approved) {
-        async_did_complete_close_preflight(page_id, request_id, approved);
+    traversable->request_close_preflight(GC::create_function(Web::Bindings::main_thread_vm().heap(), GC::captures(make_weak_ptr<ConnectionFromClient>(), page_id, request_id), [](auto& connection, auto& page_id, auto& request_id, bool approved) {
+        if (!connection)
+            return;
+        connection->async_did_complete_close_preflight(page_id, request_id, approved);
     }));
 }
 

@@ -115,7 +115,7 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::create(HTML::WindowOrWorkerGl
 
     // 11. Let client be this’s relevant settings object.
     // 12. Run this step in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [web_socket, url_record, protocols_sequence = move(protocols_sequence), client = GC::Ref { relevant_settings_object }]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(web_socket, url_record, move(protocols_sequence), GC::Ref { relevant_settings_object }), [](auto& web_socket, auto& url_record, auto& protocols_sequence, auto& client) {
         // 1. Establish a WebSocket connection given urlRecord, protocols, and client. [FETCH]
         // AD-HOC: We don't yet implement this method to spec, so it's possible for the connection to fail before we
         //         make a Requests::WebSocket. If so, we need to manually error and close it.
@@ -424,7 +424,7 @@ WebIDL::ExceptionOr<void> WebSocket::send(WebSocketSendData const& data)
     // NB: A sent message is handed to the network process right away, so it counts as transmitted to the network once
     //     the event loop has moved on from the current task.
     if (is_open && message_size > 0) {
-        HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [self = GC::Ref { *this }, message_size] {
+        HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *this }, message_size), [](auto& self, auto& message_size) {
             self->m_buffered_amount -= message_size;
         }));
     }
@@ -436,18 +436,18 @@ WebIDL::ExceptionOr<void> WebSocket::send(WebSocketSendData const& data)
 void WebSocket::on_open()
 {
     // When the WebSocket connection is established, the user agent must queue a task to run these steps:
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
         // AD-HOC: Matching other engines, do not fire an open event if close() was called before this task ran.
-        if (m_ready_state != Requests::WebSocket::ReadyState::Connecting)
+        if (self.m_ready_state != Requests::WebSocket::ReadyState::Connecting)
             return;
 
         // 1. Change the ready state to OPEN (1).
-        set_ready_state(Requests::WebSocket::ReadyState::Open);
+        self.set_ready_state(Requests::WebSocket::ReadyState::Open);
 
         // 2. Change the extensions attribute's value to the extensions in use, if it is not the null value. [WSP]
         // 3. Change the protocol attribute's value to the subprotocol in use, if it is not the null value. [WSP]
         // 4. Fire an event named open at the WebSocket object.
-        dispatch_event(DOM::Event::create(HTML::EventNames::open, HighResolutionTime::current_high_resolution_time(relevant_global_object())));
+        self.dispatch_event(DOM::Event::create(HTML::EventNames::open, HighResolutionTime::current_high_resolution_time(self.relevant_global_object())));
     }));
 }
 
@@ -455,12 +455,12 @@ void WebSocket::on_open()
 void WebSocket::on_message(ByteBuffer message, bool is_text)
 {
     // When a WebSocket message has been received with type type and data data, the user agent must queue a task to follow these steps:
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, message = move(message), is_text] mutable {
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this, move(message), is_text), [](auto& self, auto& message, auto& is_text) {
         // 1. If ready state is not OPEN (1), then return.
-        if (m_ready_state != Requests::WebSocket::ReadyState::Open)
+        if (self.m_ready_state != Requests::WebSocket::ReadyState::Open)
             return;
 
-        auto& realm = HTML::relevant_realm(relevant_global_object());
+        auto& realm = HTML::relevant_realm(self.relevant_global_object());
 
         // 2. Let dataForEvent be determined by switching on type and binary type:
         auto data_for_event = [&]() -> JS::Value {
@@ -470,12 +470,12 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
                 return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(message));
             }
             // -> type indicates that the data is Binary and binary type is "blob"
-            if (m_binary_type == Bindings::BinaryType::Blob) {
+            if (self.m_binary_type == Bindings::BinaryType::Blob) {
                 // a new Blob object, created in the relevant Realm of the WebSocket object, that represents data as its raw data [FILEAPI]
                 return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FileAPI::Blob::create(move(message), Utf16String {}));
             }
             // -> type indicates that the data is Binary and binary type is "arraybuffer"
-            if (m_binary_type == Bindings::BinaryType::Arraybuffer) {
+            if (self.m_binary_type == Bindings::BinaryType::Arraybuffer) {
                 // a new ArrayBuffer object, created in the relevant Realm of the WebSocket object, whose contents are data
                 return JS::ArrayBuffer::create(realm, move(message));
             }
@@ -489,7 +489,7 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
         HTML::MessageEventInit event_init;
         event_init.data = data_for_event;
 
-        dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
+        self.dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, self.m_url.origin()));
     }));
 }
 
@@ -499,11 +499,11 @@ void WebSocket::on_closing_handshake_started()
     // When the WebSocket closing handshake is started, the user agent must queue a task to change the ready state to
     // CLOSING (2). (If the close() method was called, the ready state will already be set to CLOSING (2) when this task
     // runs.) [WSP]
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
         // AD-HOC: Matching other engines, a WebSocket that an error event has already closed stays CLOSED.
-        if (m_ready_state == Requests::WebSocket::ReadyState::Closed)
+        if (self.m_ready_state == Requests::WebSocket::ReadyState::Closed)
             return;
-        set_ready_state(Requests::WebSocket::ReadyState::Closing);
+        self.set_ready_state(Requests::WebSocket::ReadyState::Closing);
     }));
 }
 
@@ -511,13 +511,13 @@ void WebSocket::on_closing_handshake_started()
 void WebSocket::on_error()
 {
     // When the WebSocket connection is closed, possibly cleanly, the user agent must queue a task to run the following substeps:
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
         // 1. Change the ready state to CLOSED (3).
-        set_ready_state(Requests::WebSocket::ReadyState::Closed);
+        self.set_ready_state(Requests::WebSocket::ReadyState::Closed);
 
         // 2. If the user agent was required to fail the WebSocket connection, or if the WebSocket connection was
         //    closed after being flagged as full, fire an event named error at the WebSocket object. [WSP]
-        dispatch_event(DOM::Event::create(HTML::EventNames::error, HighResolutionTime::current_high_resolution_time(relevant_global_object())));
+        self.dispatch_event(DOM::Event::create(HTML::EventNames::error, HighResolutionTime::current_high_resolution_time(self.relevant_global_object())));
     }));
 }
 
@@ -525,16 +525,16 @@ void WebSocket::on_error()
 void WebSocket::on_close(u16 code, Utf16String reason, bool was_clean)
 {
     // When the WebSocket connection is closed, possibly cleanly, the user agent must queue a task to run the following substeps:
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, code, reason = move(reason), was_clean] {
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this, code, move(reason), was_clean), [](auto& self, auto& code, auto& reason, auto& was_clean) {
         // 1. Change the ready state to CLOSED (3).
-        set_ready_state(Requests::WebSocket::ReadyState::Closed);
+        self.set_ready_state(Requests::WebSocket::ReadyState::Closed);
 
         // 2. If [needed], fire an event named error at the WebSocket object. This is handled by the Protocol's WebSocket
         HTML::CloseEventInit event_init {};
         event_init.was_clean = was_clean;
         event_init.code = code;
         event_init.reason = reason;
-        dispatch_event(HTML::CloseEvent::create(HTML::EventNames::close, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object())));
+        self.dispatch_event(HTML::CloseEvent::create(HTML::EventNames::close, event_init, HighResolutionTime::current_high_resolution_time(self.relevant_global_object())));
     }));
 }
 

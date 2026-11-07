@@ -60,10 +60,10 @@ public:
     void prepare_for_presentation(HTMLImageElement&);
 
     void fetch_image(NonnullRefPtr<Fetch::Infrastructure::Request>);
-    void add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {}, SharedResourceRequest::DelaysLoadEvent = SharedResourceRequest::DelaysLoadEvent::Yes);
+    void add_callbacks(GC::Ptr<GC::Function<void()>> on_finish, GC::Ptr<GC::Function<void()>> on_fail, GC::Ptr<GC::Function<void()>> on_stop = {}, SharedResourceRequest::DelaysLoadEvent = SharedResourceRequest::DelaysLoadEvent::Yes);
 
     // Adds callbacks that do not make the fetch delay the load event, and that stop_waiting_for_fetch() keeps.
-    void add_callbacks_without_delaying_the_load_event(Function<void()> on_finish, Function<void()> on_fail);
+    void add_callbacks_without_delaying_the_load_event(GC::Ptr<GC::Function<void()>> on_finish, GC::Ptr<GC::Function<void()>> on_fail);
 
     // Stops waiting for the fetch of the shared resource request, which then no longer delays the load event for
     // this image request.

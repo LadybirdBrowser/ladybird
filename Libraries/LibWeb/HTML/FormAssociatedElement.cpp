@@ -1290,13 +1290,13 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
         //         moves because the value changed (an edit, or the value setter). This is not in the spec but matches
         //         how other browsers behave.
         if (source == SelectionSource::DOM || (source == SelectionSource::UI && m_selection_start != m_selection_end)) {
-            html_element.queue_an_element_task(Task::Source::UserInteraction, [&html_element] {
+            html_element.queue_an_element_task(Task::Source::UserInteraction, GC::create_function(GC::Heap::the(), GC::captures(html_element), [](auto& html_element) {
                 auto select_event = DOM::Event::create(
                     EventNames::select,
                     { .bubbles = true },
                     HighResolutionTime::current_high_resolution_time(relevant_global_object(html_element)));
                 static_cast<DOM::EventTarget*>(&html_element)->dispatch_event(select_event);
-            });
+            }));
         }
 
         // NB: A selection change ends typing coalescence in the editing history, unless it was

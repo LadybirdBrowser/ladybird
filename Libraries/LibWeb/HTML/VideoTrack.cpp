@@ -83,9 +83,9 @@ void VideoTrack::set_selected(bool selected)
         // task given the media element to fire an event named change at the VideoTrackList object. This task must be queued before
         // the task that fires the resize event, if any.
         if (previously_unselected_track_is_selected || selected_track_was_unselected_without_another_selection) {
-            media_element().queue_a_media_element_task([this, video_track_list](HTMLMediaElement&) {
-                video_track_list->dispatch_event(create_event_for_element(media_element(), HTML::EventNames::change));
-            });
+            media_element().queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(*this, video_track_list), [](auto& self, auto& video_track_list, HTMLMediaElement&) {
+                video_track_list->dispatch_event(create_event_for_element(self.media_element(), HTML::EventNames::change));
+            }));
         }
     }
 

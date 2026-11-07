@@ -23,10 +23,10 @@ public:
     [[nodiscard]] static GC::Ref<NavigationObserver> create(LocalNavigable&);
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> navigation_complete() const { return m_navigation_complete; }
-    void set_navigation_complete(Function<void()>);
+    void set_navigation_complete(GC::Ptr<GC::Function<void()>>);
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> ongoing_navigation_changed() const { return m_ongoing_navigation_changed; }
-    void set_ongoing_navigation_changed(Function<void()>);
+    void set_ongoing_navigation_changed(GC::Ptr<GC::Function<void()>>);
 
 private:
     explicit NavigationObserver(LocalNavigable&);

@@ -6,6 +6,7 @@
 
 #include <AK/Array.h>
 #include <AK/Atomic.h>
+#include <AK/AtomicRefCounted.h>
 #include <AK/ByteString.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
@@ -313,13 +314,18 @@ static constexpr StringView NEVER_ENDING_PROMISE_JOBS[] = {
     "function again() { Promise.resolve().then(() => { throw 1; }).catch(() => { jobRan(); again(); }); } again();"sv,
 };
 
+// NB: The native function the script calls sets this, so it is shared with the function's captures.
+struct JobRanFlag : AtomicRefCounted<JobRanFlag> {
+    Atomic<bool> value { false };
+};
+
 struct InterruptedScript {
     AK_ALLOC_WITH_KMALLOC;
 
     StringView source;
     bool is_promise_job { false };
     Atomic<JS::VM*> vm { nullptr };
-    Atomic<bool> job_ran { false };
+    NonnullRefPtr<JobRanFlag> job_ran { make_ref_counted<JobRanFlag>() };
     bool did_throw { false };
     bool reached { false };
     MonotonicTime interrupted_at { MonotonicTime::now() };
@@ -333,9 +339,9 @@ static void run_script_until_it_is_interrupted(InterruptedScript& interrupted)
 
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
     auto& realm = *root_execution_context->realm;
-    auto job_ran = JS::NativeFunction::create(realm, [&interrupted](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-        interrupted.job_ran = true;
-        return JS::js_undefined(); }, 0, JS::PropertyKey { "jobRan"_utf16_fly_string });
+    auto job_ran = JS::NativeFunction::create(realm, GC::create_function(vm->heap(), GC::captures(interrupted.job_ran), [](NonnullRefPtr<JobRanFlag>& job_ran, JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+        job_ran->value = true;
+        return JS::js_undefined(); }), 0, JS::PropertyKey { "jobRan"_utf16_fly_string });
     realm.global_object().define_direct_property(JS::PropertyKey { "jobRan"_utf16_fly_string }, job_ran, JS::default_attributes);
     auto source_text = Utf16String::from_utf8_without_validation(interrupted.source.bytes());
     auto script = JS::Script::parse(source_text.utf16_view(), realm);
@@ -389,7 +395,7 @@ static void interrupt_every_never_ending_script(StringView jit_options)
     MUST(Core::System::sleep_ms(50));
 
     for (auto& script : scripts) {
-        while (!script->vm || (script->is_promise_job && !script->job_ran))
+        while (!script->vm || (script->is_promise_job && !script->job_ran->value))
             MUST(Core::System::sleep_ms(1));
         script->interrupted_at = MonotonicTime::now();
         script->vm.load()->request_interrupt();

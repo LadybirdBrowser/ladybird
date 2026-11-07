@@ -33,8 +33,8 @@ public:
     using SetAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(u32 index, JS::Value&)>;
     using DeleteAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(JS::Value)>;
 
-    void set_on_set_an_indexed_value_callback(SetAnIndexedValueCallbackFunction&& callback);
-    void set_on_delete_an_indexed_value_callback(DeleteAnIndexedValueCallbackFunction&& callback);
+    void set_on_set_an_indexed_value_callback(GC::Ref<GC::Function<SetAnIndexedValueCallbackFunction::FunctionType>> callback);
+    void set_on_delete_an_indexed_value_callback(GC::Ref<GC::Function<DeleteAnIndexedValueCallbackFunction::FunctionType>> callback);
 
     GC::Ref<JS::Object> array_object() const { return m_array_object; }
 

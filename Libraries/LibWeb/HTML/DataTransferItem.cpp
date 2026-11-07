@@ -113,7 +113,7 @@ void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) con
     // 4. Otherwise, queue a task to invoke callback, passing the actual data of the item represented by the
     //    DataTransferItem object as the argument.
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr,
-        GC::Function<void()>::create(GC::Heap::the(), [callback, data = data.release_value()]() mutable {
+        GC::create_function(GC::Heap::the(), GC::captures(callback, data.release_value()), [](auto& callback, auto& data) {
             auto& vm = callback->callback->vm();
             auto wrapped_data = JS::PrimitiveString::create(vm, move(data));
             (void)WebIDL::invoke_callback(*callback, {}, { { wrapped_data } });

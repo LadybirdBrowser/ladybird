@@ -112,7 +112,7 @@ void PictureInPictureController::process_pending_operations()
                     // AD-HOC: There is no media element to take the task source from, so this uses the DOM
                     //         manipulation task source. The promise is rejected, as the overhaul's reviewers asked.
                     if (exit.promise) {
-                        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*exit.document), GC::create_function(GC::Heap::the(), [promise = GC::Ref { *exit.promise }] {
+                        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*exit.document), GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *exit.promise }), [](auto& promise) {
                             reject_promise_with_invalid_state_error(promise, "There is no Picture-in-Picture element to exit"_utf16);
                         }));
                     }
@@ -167,7 +167,7 @@ void PictureInPictureController::run_request_steps(Request const& request)
     if (video.is_picture_in_picture_element()) {
         // 1. Queue a global task on the media element event task source given global to resolve p with the
         //    Picture-in-Picture window associated with this.
-        HTML::queue_global_task(video.media_element_event_task_source(), HTML::relevant_global_object(video), GC::create_function(GC::Heap::the(), [video = request.video, promise = request.promise] {
+        HTML::queue_global_task(video.media_element_event_task_source(), HTML::relevant_global_object(video), GC::create_function(GC::Heap::the(), GC::captures(request.video, request.promise), [](auto& video, auto& promise) {
             if (video->take_pending_picture_in_picture_promise(promise))
                 resolve_promise(promise, video->picture_in_picture_window());
         }));
@@ -193,7 +193,7 @@ void PictureInPictureController::run_request_steps(Request const& request)
     if (!new_web_view.page) {
         // 1. Queue a global task on the media element event task source given global to reject p with
         //    InvalidStateError DOMException.
-        HTML::queue_global_task(video.media_element_event_task_source(), HTML::relevant_global_object(video), GC::create_function(GC::Heap::the(), [video = request.video, promise = request.promise] {
+        HTML::queue_global_task(video.media_element_event_task_source(), HTML::relevant_global_object(video), GC::create_function(GC::Heap::the(), GC::captures(request.video, request.promise), [](auto& video, auto& promise) {
             if (video->take_pending_picture_in_picture_promise(promise))
                 reject_promise_with_invalid_state_error(promise, "Unable to open a Picture-in-Picture window"_utf16);
         }));
@@ -255,13 +255,13 @@ void PictureInPictureController::did_open_window(Gfx::IntSize window_size)
     }
 
     // 6. Queue a global task on the media element event task source given global, to perform the following steps:
-    HTML::queue_global_task(video.media_element_event_task_source(), global, GC::create_function(GC::Heap::the(), [this, video = request.video, promise = request.promise, picture_in_picture_window] {
+    HTML::queue_global_task(video.media_element_event_task_source(), global, GC::create_function(GC::Heap::the(), GC::captures(*this, request.video, request.promise, picture_in_picture_window), [](auto& self, auto& video, auto& promise, auto& picture_in_picture_window) {
         auto& document = video->document();
 
         // NB: When the disable Picture-in-Picture steps rejected p while the window opened, it is closed again
         //     rather than entered.
         if (!video->take_pending_picture_in_picture_promise(promise)) {
-            close_window(picture_in_picture_window, WindowIsOpenInUserInterface::Yes);
+            self.close_window(picture_in_picture_window, WindowIsOpenInUserInterface::Yes);
             return;
         }
 
@@ -305,7 +305,7 @@ void PictureInPictureController::run_exit_steps(DOM::Document& document, GC::Ptr
     close_window(*video.picture_in_picture_window(), window_is_open_in_user_interface);
 
     // 4. Queue a global task on the media element event task source given global, to perform the following steps:
-    HTML::queue_global_task(video.media_element_event_task_source(), global, GC::create_function(GC::Heap::the(), [document = GC::Ref { document }, promise] {
+    HTML::queue_global_task(video.media_element_event_task_source(), global, GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { document }, promise), [](auto& document, auto& promise) {
         // 1. If doc is not fully active or doc's Picture-in-Picture element is null:
         if (!document->is_fully_active() || !document->picture_in_picture_element()) {
             // 1. If p is not null, resolve p with undefined.
@@ -364,7 +364,7 @@ void PictureInPictureController::window_did_resize(Gfx::IntSize window_size)
     // When the size of a Picture-in-Picture window pipWindow changes, the user agent MUST queue a task to fire an
     // event named resize at pipWindow.
     auto& video = m_open_window->video();
-    HTML::queue_global_task(video.media_element_event_task_source(), HTML::relevant_global_object(video), GC::create_function(GC::Heap::the(), [window = GC::Ref { *m_open_window }] {
+    HTML::queue_global_task(video.media_element_event_task_source(), HTML::relevant_global_object(video), GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *m_open_window }), [](auto& window) {
         window->dispatch_event(DOM::Event::create(HTML::relevant_global_object(window->video()), HTML::EventNames::resize));
     }));
 }

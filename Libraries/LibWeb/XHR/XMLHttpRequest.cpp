@@ -153,16 +153,16 @@ void XMLHttpRequest::restart_timeout_timer()
     auto remaining = max(AK::Duration::zero(), AK::Duration::from_milliseconds(m_timeout) - elapsed);
     m_timeout_timer = Platform::Timer::create_single_shot(heap(), remaining, nullptr);
     auto request = NonnullRefPtr { *m_async_request };
-    m_timeout_timer->on_timeout = GC::create_function(heap(), [this, request, fetch_controller = m_fetch_controller] {
-        if (m_async_request.ptr() != request.ptr() || m_fetch_controller != fetch_controller)
+    m_timeout_timer->on_timeout = GC::create_function(heap(), GC::captures(*this, request, m_fetch_controller), [](XMLHttpRequest& self, NonnullRefPtr<Fetch::Infrastructure::Request>& request, GC::Ref<Fetch::Infrastructure::FetchController>& fetch_controller) {
+        if (self.m_async_request.ptr() != request.ptr() || self.m_fetch_controller != fetch_controller)
             return;
 
-        stop_timeout_timer();
-        m_async_request = nullptr;
+        self.stop_timeout_timer();
+        self.m_async_request = nullptr;
         if (!request->done()) {
-            m_timed_out = true;
+            self.m_timed_out = true;
             fetch_controller->terminate();
-            MUST(handle_errors());
+            MUST(self.handle_errors());
         }
     });
     m_timeout_timer->start();
@@ -880,94 +880,94 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         // 7. Let processRequestBodyChunkLength, given a bytesLength, be these steps:
         // NOTE: request_body_length is captured by copy as to not UAF it when we leave `send()` and the callback gets called.
         // NOTE: `this` is kept alive by FetchAlgorithms using GC::HeapFunction.
-        auto process_request_body_chunk_length = [this, request_body_length](u64 bytes_length) {
+        auto process_request_body_chunk_length = GC::create_function<void(u64)>(GC::Heap::the(), GC::captures(*this, request_body_length), [](XMLHttpRequest& self, auto& request_body_length, u64 bytes_length) {
             // AD-HOC: Fetch transmits the body again for each redirect, and runs process request end-of-body for a
             //         null body, so ignore everything after the upload completed.
             //         Spec issue: https://github.com/whatwg/xhr/issues/242
-            if (m_upload_complete)
+            if (self.m_upload_complete)
                 return;
 
             // 1. Increase requestBodyTransmitted by bytesLength.
-            m_request_body_transmitted += bytes_length;
+            self.m_request_body_transmitted += bytes_length;
 
             // 2. If not roughly 50ms have passed since these steps were last invoked, then return.
             auto now = MonotonicTime::now();
-            bool enough_time_passed = !m_last_upload_progress_timestamp.has_value() || (now - m_last_upload_progress_timestamp.value()) >= AK::Duration::from_milliseconds(50);
+            bool enough_time_passed = !self.m_last_upload_progress_timestamp.has_value() || (now - self.m_last_upload_progress_timestamp.value()) >= AK::Duration::from_milliseconds(50);
             if (!enough_time_passed)
                 return;
-            m_last_upload_progress_timestamp = now;
+            self.m_last_upload_progress_timestamp = now;
 
             // 3. If this’s upload listener flag is set, then fire a progress event named progress at this’s upload object with requestBodyTransmitted and requestBodyLength.
-            if (m_upload_listener)
-                fire_progress_event(relevant_global_object(), m_upload_object, EventNames::progress,
-                    m_request_body_transmitted, request_body_length);
-        };
+            if (self.m_upload_listener)
+                fire_progress_event(self.relevant_global_object(), self.m_upload_object, EventNames::progress,
+                    self.m_request_body_transmitted, request_body_length);
+        });
 
         // 8. Let processRequestEndOfBody be these steps:
         // NOTE: request_body_length is captured by copy as to not UAF it when we leave `send()` and the callback gets called.
         // NOTE: `this` is kept alive by FetchAlgorithms using GC::HeapFunction.
-        auto process_request_end_of_body = [this, request_body_length]() {
+        auto process_request_end_of_body = GC::create_function<void()>(GC::Heap::the(), GC::captures(*this, request_body_length), [](XMLHttpRequest& self, auto& request_body_length) {
             // AD-HOC: Fetch transmits the body again for each redirect, and runs process request end-of-body for a
             //         null body, so ignore everything after the upload completed.
             //         Spec issue: https://github.com/whatwg/xhr/issues/242
-            if (m_upload_complete)
+            if (self.m_upload_complete)
                 return;
 
             // 1. Set this’s upload complete flag.
-            m_upload_complete = true;
+            self.m_upload_complete = true;
 
             // 2. If this’s upload listener flag is unset, then return.
-            if (!m_upload_listener)
+            if (!self.m_upload_listener)
                 return;
 
             // 3. Fire a progress event named progress at this’s upload object with requestBodyTransmitted and requestBodyLength.
-            auto& associated_realm = HTML::relevant_realm(relevant_global_object());
-            fire_progress_event(associated_realm.global_object(), m_upload_object, EventNames::progress,
-                m_request_body_transmitted, request_body_length);
+            auto& associated_realm = HTML::relevant_realm(self.relevant_global_object());
+            fire_progress_event(associated_realm.global_object(), self.m_upload_object, EventNames::progress,
+                self.m_request_body_transmitted, request_body_length);
 
             // 4. Fire a progress event named load at this’s upload object with requestBodyTransmitted and requestBodyLength.
-            fire_progress_event(associated_realm.global_object(), m_upload_object, EventNames::load,
-                m_request_body_transmitted, request_body_length);
+            fire_progress_event(associated_realm.global_object(), self.m_upload_object, EventNames::load,
+                self.m_request_body_transmitted, request_body_length);
 
             // 5. Fire a progress event named loadend at this’s upload object with requestBodyTransmitted and requestBodyLength.
-            fire_progress_event(associated_realm.global_object(), m_upload_object, EventNames::loadend,
-                m_request_body_transmitted, request_body_length);
-        };
+            fire_progress_event(associated_realm.global_object(), self.m_upload_object, EventNames::loadend,
+                self.m_request_body_transmitted, request_body_length);
+        });
 
         // 9. Let processResponse, given a response, be these steps:
         // NOTE: `this` is kept alive by FetchAlgorithms using GC::HeapFunction.
-        auto process_response = [this](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
+        auto process_response = GC::create_function(GC::Heap::the(), GC::captures(*this), [](XMLHttpRequest& self, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
             // 1. Set this’s response to response.
-            m_response = response;
+            self.m_response = response;
 
             // 2. Handle errors for this.
             // NOTE: This cannot throw, as `handle_errors` only throws in a synchronous context.
-            MUST(handle_errors());
+            MUST(self.handle_errors());
 
             // 3. If this’s response is a network error, then return.
-            if (m_response->is_network_error())
+            if (self.m_response->is_network_error())
                 return;
 
             // 4. Set this’s state to headers received.
-            m_state = State::HeadersReceived;
-            update_pending_activity();
+            self.m_state = State::HeadersReceived;
+            self.update_pending_activity();
 
             // 5. Fire an event named readystatechange at this.
-            dispatch_event(create_associated_event(EventNames::readystatechange));
+            self.dispatch_event(self.create_associated_event(EventNames::readystatechange));
 
             // 6. If this’s state is not headers received, then return.
-            if (m_state != State::HeadersReceived)
+            if (self.m_state != State::HeadersReceived)
                 return;
 
             // 7. If this’s response’s body is null, then run handle response end-of-body for this and return.
-            if (!m_response->body()) {
+            if (!self.m_response->body()) {
                 // NOTE: This cannot throw, as `handle_response_end_of_body` only throws in a synchronous context.
-                MUST(handle_response_end_of_body());
+                MUST(self.handle_response_end_of_body());
                 return;
             }
 
             // 8. Let length be the result of extracting a length from this’s response’s header list.
-            auto length = m_response->header_list()->extract_length();
+            auto length = self.m_response->header_list()->extract_length();
 
             // 9. If length is not an integer, then set it to 0.
             if (!length.has<u64>())
@@ -975,70 +975,70 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
 
             // Pre-allocate received bytes buffer if Content-Length is known.
             if (length.get<u64>() > 0)
-                m_received_bytes.ensure_capacity(length.get<u64>());
+                self.m_received_bytes.ensure_capacity(length.get<u64>());
 
             // 10. Let processBodyChunk given bytes be these steps:
-            auto process_body_chunks = GC::create_function(GC::Heap::the(), [this, length](ByteBuffer byte_buffer) {
+            auto process_body_chunks = GC::create_function(GC::Heap::the(), GC::captures(self, length.get<u64>()), [](XMLHttpRequest& self, u64& length, ByteBuffer byte_buffer) {
                 // 1. Append bytes to this’s received bytes.
-                m_received_bytes.append(byte_buffer);
+                self.m_received_bytes.append(byte_buffer);
 
                 // 2. If not roughly 50ms have passed since these steps were last invoked, then return.
                 auto now = MonotonicTime::now();
-                bool enough_time_passed = !m_last_download_progress_timestamp.has_value() || (now - m_last_download_progress_timestamp.value()) >= AK::Duration::from_milliseconds(50);
+                bool enough_time_passed = !self.m_last_download_progress_timestamp.has_value() || (now - self.m_last_download_progress_timestamp.value()) >= AK::Duration::from_milliseconds(50);
                 if (!enough_time_passed)
                     return;
-                m_last_download_progress_timestamp = now;
+                self.m_last_download_progress_timestamp = now;
 
                 // 3. If this’s state is headers received, then set this’s state to loading.
-                if (m_state == State::HeadersReceived)
-                    m_state = State::Loading;
-                update_pending_activity();
+                if (self.m_state == State::HeadersReceived)
+                    self.m_state = State::Loading;
+                self.update_pending_activity();
 
                 // 4. Fire an event named readystatechange at this.
                 // Spec Note: Web compatibility is the reason readystatechange fires more often than this’s state changes.
-                auto& associated_realm = HTML::relevant_realm(relevant_global_object());
-                dispatch_event(create_associated_event(EventNames::readystatechange));
+                auto& associated_realm = HTML::relevant_realm(self.relevant_global_object());
+                self.dispatch_event(self.create_associated_event(EventNames::readystatechange));
 
                 // 5. Fire a progress event named progress at this with this’s received bytes’s length and length.
-                fire_progress_event(associated_realm.global_object(), *this, EventNames::progress,
-                    m_received_bytes.size(), length.get<u64>());
+                fire_progress_event(associated_realm.global_object(), self, EventNames::progress,
+                    self.m_received_bytes.size(), length);
             });
 
             // 11. Let processEndOfBody be this step: run handle response end-of-body for this.
-            auto process_end_of_body = GC::create_function(GC::Heap::the(), [this]() {
+            auto process_end_of_body = GC::create_function(GC::Heap::the(), GC::captures(self), [](XMLHttpRequest& self) {
                 // NOTE: This cannot throw, as `handle_response_end_of_body` only throws in a synchronous context.
-                MUST(handle_response_end_of_body());
+                MUST(self.handle_response_end_of_body());
             });
 
             // 12. Let processBodyError be these steps:
-            auto process_body_error = GC::create_function(GC::Heap::the(), [this](JS::Value) {
+            auto process_body_error = GC::create_function(GC::Heap::the(), GC::captures(self), [](XMLHttpRequest& self, JS::Value) {
                 // 1. Set this’s response to a network error.
-                m_response = Fetch::Infrastructure::ResponseView::network_error("A network error occurred processing body."_string);
+                self.m_response = Fetch::Infrastructure::ResponseView::network_error("A network error occurred processing body."_string);
                 // 2. Run handle errors for this.
                 // NOTE: This cannot throw, as `handle_errors` only throws in a synchronous context.
-                MUST(handle_errors());
+                MUST(self.handle_errors());
             });
 
             // 13. Incrementally read this’s response’s body, given processBodyChunk, processEndOfBody, processBodyError, and this’s relevant global object.
-            auto global_object = GC::Ref<JS::Object> { relevant_global_object() };
-            response->body()->incrementally_read(HTML::relevant_realm(relevant_global_object()), process_body_chunks, process_end_of_body, process_body_error, global_object);
-        };
+            auto global_object = GC::Ref<JS::Object> { self.relevant_global_object() };
+            response->body()->incrementally_read(HTML::relevant_realm(self.relevant_global_object()), process_body_chunks, process_end_of_body, process_body_error, global_object);
+        });
 
         // 10. Set this’s fetch controller to the result of fetching req with processRequestBodyChunkLength set to processRequestBodyChunkLength, processRequestEndOfBody set to processRequestEndOfBody, and processResponse set to processResponse.
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
-        fetch_algorithms_input.process_request_body_chunk_length = move(process_request_body_chunk_length);
-        fetch_algorithms_input.process_request_end_of_body = move(process_request_end_of_body);
-        fetch_algorithms_input.process_response = move(process_response);
+        fetch_algorithms_input.process_request_body_chunk_length = process_request_body_chunk_length;
+        fetch_algorithms_input.process_request_end_of_body = process_request_end_of_body;
+        fetch_algorithms_input.process_response = process_response;
         m_fetch_controller = Fetch::Fetching::fetch(associated_realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 
         // AD-HOC: Stopping the fetch, as aborting the document does, discards it without a response. Hand this an
         //         aborted network error instead, so that it fires abort as for a canceled fetch.
-        m_fetch_controller->set_stop_steps(GC::create_function(heap(), [this, fetch_controller = m_fetch_controller] {
-            HTML::queue_global_task(HTML::Task::Source::Networking, relevant_global_object(), GC::create_function(heap(), [this, fetch_controller] {
-                if (m_fetch_controller != fetch_controller)
+        m_fetch_controller->set_stop_steps(GC::create_function(heap(), GC::captures(*this, m_fetch_controller), [](XMLHttpRequest& self, GC::Ref<Fetch::Infrastructure::FetchController>& fetch_controller) {
+            HTML::queue_global_task(HTML::Task::Source::Networking, self.relevant_global_object(), GC::create_function(self.heap(), GC::captures(self, fetch_controller), [](XMLHttpRequest& self, GC::Ref<Fetch::Infrastructure::FetchController>& fetch_controller) {
+                if (self.m_fetch_controller != fetch_controller)
                     return;
-                m_response = Fetch::Infrastructure::ResponseView::aborted_network_error();
-                MUST(handle_errors());
+                self.m_response = Fetch::Infrastructure::ResponseView::aborted_network_error();
+                MUST(self.handle_errors());
             }));
         }));
 
@@ -1060,28 +1060,28 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         auto did_time_out = Fetch::Fetching::RefCountedFlag::create(false);
 
         // 2. Let processResponseConsumeBody, given a response and nullOrFailureOrBytes, be these steps:
-        auto process_response_consume_body = [this, processed_response, did_time_out](GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes null_or_failure_or_bytes) {
+        auto process_response_consume_body = GC::create_function(GC::Heap::the(), GC::captures(*this, processed_response, did_time_out), [](XMLHttpRequest& self, NonnullRefPtr<Fetch::Fetching::RefCountedFlag>& processed_response, NonnullRefPtr<Fetch::Fetching::RefCountedFlag>& did_time_out, GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes null_or_failure_or_bytes) {
             // AD-HOC: Leave this's response and received bytes alone once send() returned for a timeout.
             if (did_time_out->value())
                 return;
 
             // 1. If nullOrFailureOrBytes is not failure, then set this’s response to response.
             if (!null_or_failure_or_bytes.has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>())
-                m_response = response;
+                self.m_response = response;
 
             // 2. If nullOrFailureOrBytes is a byte sequence, then append nullOrFailureOrBytes to this’s received bytes.
             if (null_or_failure_or_bytes.has<Core::ImmutableBytes>()) {
                 // NOTE: We are not in a context where we can throw if this fails due to OOM.
-                m_received_bytes.append(null_or_failure_or_bytes.get<Core::ImmutableBytes>().bytes());
+                self.m_received_bytes.append(null_or_failure_or_bytes.get<Core::ImmutableBytes>().bytes());
             }
 
             // 3. Set processedResponse to true.
             processed_response->set_value(true);
-        };
+        });
 
         // 3. Set this’s fetch controller to the result of fetching req with processResponseConsumeBody set to processResponseConsumeBody and useParallelQueue set to true.
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::SyncAccumulate };
-        fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
+        fetch_algorithms_input.process_response_consume_body = process_response_consume_body;
         m_fetch_controller = Fetch::Fetching::fetch(associated_realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)), Fetch::Fetching::UseParallelQueue::Yes);
 
         // 4. Let now be the present time.
@@ -1089,9 +1089,9 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         if (m_timeout != 0) {
             stop_timeout_timer();
             m_timeout_timer = Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(m_timeout), nullptr);
-            m_timeout_timer->on_timeout = GC::create_function(GC::Heap::the(), [this, did_time_out]() {
+            m_timeout_timer->on_timeout = GC::create_function(GC::Heap::the(), GC::captures(*this, did_time_out), [](XMLHttpRequest& self, NonnullRefPtr<Fetch::Fetching::RefCountedFlag>& did_time_out) {
                 did_time_out->set_value(true);
-                stop_timeout_timer();
+                self.stop_timeout_timer();
             });
             m_timeout_timer->start();
         }
@@ -1110,7 +1110,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
             // AD-HOC: We don't update the rendering when pausing: That runs author callbacks (e.g., rAF callbacks),
             //         which must not run inside a blocked send() — itself possibly invoked from within a microtask.
             auto pause_handle = HTML::current_event_loop().pause(HTML::EventLoop::UpdateTheRendering::No);
-            Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), [processed_response, did_time_out]() {
+            Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), GC::captures(processed_response, did_time_out), [](auto& processed_response, auto& did_time_out) {
                 return processed_response->value() || did_time_out->value();
             }));
         }

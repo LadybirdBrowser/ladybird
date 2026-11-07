@@ -147,9 +147,9 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top
     // AD-HOC: Mark the about:blank document as finished parsing. This matches the behavior of the window open steps.
     auto document = GC::Ref(*traversable->active_document());
     auto completion_token = HTML::HTMLParser::parserless_completion_token(document);
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), [document, completion_token] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), GC::captures(document, completion_token.parser_generation), [](auto& document, auto& parser_generation) {
         // FIXME: We do this other places too when creating a new about:blank document. Perhaps it's worth a spec issue?
-        HTML::HTMLParser::the_end(document, completion_token);
+        HTML::HTMLParser::the_end(document, { parser_generation });
     }));
 
     // 2. Navigate traversable to initialNavigationURL using traversable's active document, with documentResource set to initialNavigationPostResource.
@@ -176,8 +176,8 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_stand_in(Ba
     // The stand-in displays the tab until the document it populates does: its document completes as a fresh
     // traversable's.
     auto completion_token = HTML::HTMLParser::parserless_completion_token(document);
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), [document = GC::Ref { document }, completion_token] {
-        HTML::HTMLParser::the_end(document, completion_token);
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), GC::captures(GC::Ref { document }, completion_token.parser_generation), [](auto& document, auto& parser_generation) {
+        HTML::HTMLParser::the_end(document, { parser_generation });
     }));
     return traversable;
 }
@@ -247,8 +247,8 @@ void LocalTraversableNavigable::close_top_level_traversable_from_script()
     this_traversable.set_closing(true);
 
     // 2. Queue a task on the DOM manipulation task source to definitely close thisTraversable.
-    queue_a_task(Task::Source::DOMManipulation, nullptr, nullptr, GC::create_function(heap(), [this] {
-        definitely_close_top_level_traversable();
+    queue_a_task(Task::Source::DOMManipulation, nullptr, nullptr, GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+        self.definitely_close_top_level_traversable();
     }));
 }
 
@@ -271,19 +271,19 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
 {
     VERIFY(is_top_level_traversable());
 
-    auto append_close_steps = [this] {
-        if (m_close_steps_have_been_appended)
+    auto append_close_steps = GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+        if (self.m_close_steps_have_been_appended)
             return;
-        m_close_steps_have_been_appended = true;
+        self.m_close_steps_have_been_appended = true;
 
         // 3. Append the following session history traversal steps to traversable:
         // NB: The UI process runs the traversal steps' unload recursion and delivers the final unload-and-destroy task
         //     through run_ui_traversable_close_unload_task.
-        page().history_executor().request_history_operation(CloseTopLevelTraversableHistoryOperationParameters {});
-    };
+        self.page().history_executor().request_history_operation(CloseTopLevelTraversableHistoryOperationParameters {});
+    });
 
     if (prompt_to_unload == PromptToUnload::No) {
-        append_close_steps();
+        append_close_steps->function()();
         return;
     }
 
@@ -291,16 +291,16 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
     // 2. If the result of checking if unloading is canceled for toUnload is not "continue", then return.
     // NB: The documents of toUnload are hosted by this page and by others. The UI process runs the check in each
     //     page hosting one, this one included, with the prompt shown at most once, and reports the result.
-    page().client().page_did_request_unload_check(id(), GC::create_function(heap(), [this, append_close_steps = move(append_close_steps)](CheckIfUnloadingIsCanceledResult result) {
+    page().client().page_did_request_unload_check(id(), GC::create_function(heap(), GC::captures(*this, append_close_steps), [](auto& self, auto& append_close_steps, CheckIfUnloadingIsCanceledResult result) {
         if (result != CheckIfUnloadingIsCanceledResult::Continue) {
             // AD-HOC: Allow a later close attempt if this one was canceled.
-            if (!m_close_steps_have_been_appended)
-                set_closing(false);
+            if (!self.m_close_steps_have_been_appended)
+                self.set_closing(false);
             return;
         }
 
         // 3. Append the following session history traversal steps to traversable:
-        append_close_steps();
+        append_close_steps->function()();
     }));
 }
 
@@ -309,19 +309,19 @@ void LocalTraversableNavigable::run_ui_traversable_close_unload_task()
 {
     // The UI process has already unloaded every descendant subtree.
     queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
-        GC::create_function(heap(), [this] {
+        GC::create_function(heap(), GC::captures(*this), [](auto& self) {
             // NB: The UI process discards the page of a tab it let go of without waiting for this task, and the page
             //     goes without the unload then. A tab can also go while this task is queued.
-            if (page().has_been_discarded() || has_been_destroyed())
+            if (self.page().has_been_discarded() || self.has_been_destroyed())
                 return;
 
             // 2. Unload document, passing along newDocument if it is not null.
-            if (auto document = active_document())
+            if (auto document = self.active_document())
                 document->unload();
 
             // 3. If afterAllUnloads was given, then run it.
             // NB: afterAllUnloads is the close traversal steps' algorithm step which destroys traversable.
-            destroy_top_level_traversable();
+            self.destroy_top_level_traversable();
         }));
 }
 

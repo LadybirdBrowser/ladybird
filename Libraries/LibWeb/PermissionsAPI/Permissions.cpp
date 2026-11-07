@@ -79,7 +79,7 @@ static void store_permission_decision(PermissionDescriptor const& descriptor, HT
     PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
 
     // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
-    HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(GC::Heap::the(), [descriptor, key, current_state] {
+    HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(GC::Heap::the(), GC::captures(descriptor, key, current_state), [](auto& descriptor, auto& key, auto& current_state) {
         PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
     }));
 }
@@ -104,7 +104,7 @@ void request_permission_with_user_prompt(PermissionDescriptor const& descriptor,
         return;
     }
 
-    auto settle = GC::create_function(GC::Heap::the(), [descriptor, settings = GC::Ref(settings), on_decided](Web::Permissions::EffectiveState answer) {
+    auto settle = GC::create_function(GC::Heap::the(), GC::captures(descriptor, GC::Ref(settings), on_decided), [](auto& descriptor, auto& settings, auto& on_decided, Web::Permissions::EffectiveState answer) {
         // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
         //    The user's interaction may provide new information about the user's intent for the origin.
         // AD-HOC: A prompt the user dismisses or ignores leaves the permission at "prompt", rather than storing "denied";
@@ -234,7 +234,7 @@ void Permissions::query(GC::Ref<JS::Object> permission_desc, GC::Ref<WebIDL::Pro
         permission_query_algorithm(query, status, HTML::relevant_settings_object(relevant_global_object));
 
         // 4. Queue a global task on the permissions task source with this's relevant global object to resolve promise with status.
-        HTML::queue_global_task(HTML::Task::Source::Permissions, relevant_global_object, GC::create_function(GC::Heap::the(), [relevant_global_object = GC::Ref(relevant_global_object), promise, status]() mutable {
+        HTML::queue_global_task(HTML::Task::Source::Permissions, relevant_global_object, GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(relevant_global_object), promise, status), [](auto& relevant_global_object, auto& promise, auto& status) {
             auto& realm = HTML::relevant_realm(relevant_global_object);
             HTML::TemporaryExecutionContext execution_context { realm };
             WebIDL::resolve_promise(promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, status));

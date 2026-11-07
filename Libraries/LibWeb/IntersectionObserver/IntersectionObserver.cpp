@@ -34,7 +34,7 @@ GC_DEFINE_ALLOCATOR(IntersectionObserver);
 GC::Ref<WebIDL::CallbackType> create_lazy_load_intersection_observer_callback(DOM::Document& document)
 {
     auto& realm = document.relevant_settings_object().realm();
-    auto callback = JS::NativeFunction::create(realm, Utf16FlyString {}, [&document](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+    auto callback = JS::NativeFunction::create(realm, Utf16FlyString {}, GC::create_function(GC::Heap::the(), GC::captures(document), [](DOM::Document& document, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
         auto& entries = as<JS::Array>(vm.argument(0).as_object());
         auto entries_length = MUST(MUST(entries.get(vm.names.length)).to_length(vm));
 
@@ -49,7 +49,7 @@ GC::Ref<WebIDL::CallbackType> create_lazy_load_intersection_observer_callback(DO
 
         document.process_lazy_load_intersection_observer_entries(intersection_observer_entries);
         return JS::js_undefined();
-    });
+    }));
 
     return GC::Heap::the().allocate<WebIDL::CallbackType>(callback, realm);
 }

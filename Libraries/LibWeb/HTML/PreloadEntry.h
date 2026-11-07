@@ -9,6 +9,7 @@
 #include <AK/HashMap.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <LibGC/Forward.h>
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
@@ -116,3 +117,5 @@ struct Traits<Web::HTML::PreloadKey> : public DefaultTraits<Web::HTML::PreloadKe
 };
 
 }
+
+GC_UNTRACED_CAPTURE(Web::HTML::PreloadKey);

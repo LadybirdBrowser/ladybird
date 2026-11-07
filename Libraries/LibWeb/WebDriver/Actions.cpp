@@ -1490,9 +1490,9 @@ public:
         m_tick_duration_has_passed = false;
         DispatchMouseEvent dispatch_mouse_event = [this](Web::MouseEvent event) {
             ++m_pending_mouse_event_count;
-            m_browsing_context->page().client().page_did_request_webdriver_mouse_event(local_root(m_browsing_context)->id(), move(event), GC::create_function(heap(), [this]() {
-                --m_pending_mouse_event_count;
-                process_next_tick_once_the_tick_is_over();
+            m_browsing_context->page().client().page_did_request_webdriver_mouse_event(local_root(m_browsing_context)->id(), move(event), GC::create_function(heap(), GC::captures(*this), [](auto& self) {
+                --self.m_pending_mouse_event_count;
+                self.process_next_tick_once_the_tick_is_over();
             }));
         };
 
@@ -1525,17 +1525,17 @@ public:
             return;
         m_tick_duration_has_passed = false;
 
-        auto queue_next_tick = [this] {
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
-                process_next_tick();
+        auto queue_next_tick = GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(self), [](auto& self) {
+                self.process_next_tick();
             }));
-        };
+        });
 
         // NB: Wheel input scrolls smoothly, so the scrolls that the tick's scroll actions started are pending asynchronous
         //     waits too.
         auto document = m_browsing_context->active_document();
         if (!m_tick_dispatches_scroll_actions || !document) {
-            queue_next_tick();
+            queue_next_tick->function()();
             return;
         }
         auto& realm = HTML::relevant_realm(*document);
@@ -1546,10 +1546,13 @@ public:
                 navigable->wait_for_wheel_scrolls(scroll_promises);
         }
         if (scroll_promises.is_empty()) {
-            queue_next_tick();
+            queue_next_tick->function()();
             return;
         }
-        WebIDL::wait_for_all(realm, scroll_promises, [queue_next_tick](auto const&) { queue_next_tick(); }, [queue_next_tick](auto) { queue_next_tick(); });
+        WebIDL::wait_for_all(
+            realm, scroll_promises,
+            GC::create_function(GC::Heap::the(), GC::captures(queue_next_tick), [](auto& queue_next_tick, Vector<JS::Value> const&) { queue_next_tick->function()(); }),
+            GC::create_function(GC::Heap::the(), GC::captures(queue_next_tick), [](auto& queue_next_tick, JS::Value) { queue_next_tick->function()(); }));
     }
 
 private:
@@ -1848,7 +1851,7 @@ GC::Ref<JS::Cell> dispatch_actions_for_a_string(Web::WebDriver::InputState& inpu
 
     // 5. Dispatch the events for a typeable string with input state, input id and source, current typeable text, and
     //    browsing context.
-    return dispatch_the_events_for_a_typeable_string(input_state, input_id, source, text, browsing_context, GC::create_function(GC::Heap::the(), [on_complete](Web::WebDriver::Response result) {
+    return dispatch_the_events_for_a_typeable_string(input_state, input_id, source, text, browsing_context, GC::create_function(GC::Heap::the(), GC::captures(on_complete), [](auto& on_complete, Web::WebDriver::Response result) {
         // FIXME: 6. Try to clear the modifier key state with input state, input id, source, undo actions, and browsing context.
 
         on_complete->function()(move(result));

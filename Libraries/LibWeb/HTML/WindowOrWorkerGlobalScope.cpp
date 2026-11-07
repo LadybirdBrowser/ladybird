@@ -237,7 +237,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callb
         document = &static_cast<Window&>(this_impl()).associated_document();
 
     // The queueMicrotask(callback) method must queue a microtask to invoke callback with « » and "report".
-    HTML::queue_a_microtask(document, GC::create_function(GC::Heap::the(), [&callback] {
+    HTML::queue_a_microtask(document, GC::create_function(GC::Heap::the(), GC::captures(callback), [](auto& callback) {
         (void)WebIDL::invoke_callback(callback, {}, WebIDL::ExceptionBehavior::Report, {});
     }));
 }
@@ -584,7 +584,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     begin_rendering_pending_operation(GC::as_cell(p.ptr()), window->associated_document(), RenderingPendingReason::ImageDecodes);
             }
             // Run these step in parallel:
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [=]() {
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(blob, p, sx, sy, sw, sh, options), [](auto& blob, auto& p, auto& sx, auto& sy, auto& sw, auto& sh, auto& options) {
                 // 1. Let imageData be the result of reading image's data. If an error occurs during reading of the
                 //    object, then queue a global task, using the bitmap task source, to reject promise with an
                 //    "InvalidStateError" DOMException and abort these steps.
@@ -603,7 +603,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     //    (e.g., a vector graphic with no natural size), then queue a global task, using the bitmap
                     //    task source, to reject promise with an "InvalidStateError" DOMException and abort these steps.
                     auto& realm = WebIDL::promise_realm(*p);
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p] {
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(p), [](auto& p) {
                         auto& realm = WebIDL::promise_realm(*p);
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
                         WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image does not contain a supported image format"_utf16));
@@ -625,7 +625,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
                         auto& realm = WebIDL::promise_realm(*p);
-                        queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p] {
+                        queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(p), [](auto& p) {
                             auto& realm = WebIDL::promise_realm(*p);
                             TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
                             WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image size is invalid"_utf16));
@@ -637,7 +637,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     auto& realm = WebIDL::promise_realm(*p);
 
                     // 5. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(p, image_bitmap), [](auto& p, auto& image_bitmap) {
                         auto& realm = WebIDL::promise_realm(*p);
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
                         Bindings::resolve_image_bitmap_promise(realm, *p, GC::Ref { *image_bitmap });
@@ -680,7 +680,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
             auto image_bitmap = ImageBitmap::create(cropped_bitmap_or_error.release_value());
 
             // 4. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-            queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+            queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(p, image_bitmap), [](auto& p, auto& image_bitmap) {
                 auto& realm = WebIDL::promise_realm(*p);
                 TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
                 Bindings::resolve_image_bitmap_promise(realm, *p, image_bitmap);
@@ -712,7 +712,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     image_bitmap->set_origin_clean(canvas->is_origin_clean());
 
                     // 3. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(p, image_bitmap), [](auto& p, auto& image_bitmap) {
                         auto& realm = WebIDL::promise_realm(*p);
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
                         Bindings::resolve_image_bitmap_promise(realm, *p, image_bitmap);
@@ -741,7 +741,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     image_bitmap->set_origin_clean(source_image_bitmap->is_origin_clean());
 
                     // 3. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(p, image_bitmap), [](auto& p, auto& image_bitmap) {
                         auto& realm = WebIDL::promise_realm(*p);
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
                         Bindings::resolve_image_bitmap_promise(realm, *p, image_bitmap);
@@ -780,7 +780,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                         image_bitmap->set_origin_clean(false);
 
                     // 4. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(p, image_bitmap), [](auto& p, auto& image_bitmap) {
                         auto& realm = WebIDL::promise_realm(*p);
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
                         Bindings::resolve_image_bitmap_promise(realm, *p, image_bitmap);
@@ -841,7 +841,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                         image_bitmap->set_origin_clean(false);
 
                     // 5. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(p, image_bitmap), [](auto& p, auto& image_bitmap) {
                         auto& realm = WebIDL::promise_realm(*p);
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
                         Bindings::resolve_image_bitmap_promise(realm, *p, image_bitmap);
@@ -954,11 +954,13 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
     // FIXME: 8. Let uniqueHandle be null.
 
     // 9. Let task be a task that runs the following substeps:
-    auto task = GC::create_function(GC::Heap::the(), Function<void()>([this, handler = move(function_or_string), timeout, arguments = move(arguments), repeat, id, initiating_script]() {
+    auto task = GC::create_function(GC::Heap::the(), GC::captures(this_impl(), move(function_or_string), timeout, move(arguments), repeat, id, initiating_script), [](auto& this_object, auto& handler, auto& timeout, auto& arguments, auto& repeat, auto& id, auto& initiating_script) {
+        auto& self = as<WindowOrWorkerGlobalScopeMixin>(this_object);
+
         // FIXME: 1. Assert: uniqueHandle is a unique internal value, not null.
 
         // 2. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
-        if (!m_timers.contains(id))
+        if (!self.m_timers.contains(id))
             return;
 
         // FIXME: 3. If global's map of setTimeout and setInterval IDs[id] does not equal uniqueHandle, then abort these steps.
@@ -968,10 +970,10 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
             // 5. If handler is a Function, then invoke handler given arguments and "report", and with callback this value set to thisArg.
             [&](GC::Root<WebIDL::CallbackType> const& callback) {
                 auto this_value = [&]() -> JS::Value {
-                    if (auto* window = as_if<Window>(this_impl()))
+                    if (auto* window = as_if<Window>(self.this_impl()))
                         return &window->window()->object();
-                    auto& realm = relevant_realm(*this);
-                    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { this_impl() });
+                    auto& realm = relevant_realm(self);
+                    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { self.this_impl() });
                 }();
                 (void)WebIDL::invoke_callback(*callback, this_value, WebIDL::ExceptionBehavior::Report, arguments);
             },
@@ -980,7 +982,7 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
                 // 1. Assert: handler is a string.
 
                 // 2. Let settings object be global's relevant settings object.
-                auto& settings_object = relevant_settings_object(*this);
+                auto& settings_object = relevant_settings_object(self);
 
                 // 3. Let fetch options be the default classic script fetch options.
                 auto options = default_script_fetch_options();
@@ -1020,7 +1022,7 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
             });
 
         // 7. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
-        if (!m_timers.contains(id))
+        if (!self.m_timers.contains(id))
             return;
 
         // FIXME: 8. If global's map of setTimeout and setInterval IDs[id] does not equal uniqueHandle, then abort these steps.
@@ -1028,15 +1030,17 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
         switch (repeat) {
         // 9. If repeat is true, then perform the timer initialization steps again, given global, handler, timeout, arguments, true, and id.
         case Repeat::Yes:
-            MUST(run_timer_initialization_steps(handler, timeout, move(arguments), repeat, id));
+            // NB: The arguments are copied rather than moved, as this task may run again while its callback is on the
+            //     stack, e.g. from a nested event loop the callback spins.
+            MUST(self.run_timer_initialization_steps(handler, timeout, GC::RootVector<JS::Value> { arguments.span() }, repeat, id));
             break;
 
         // 10. Otherwise, remove global's map of active timers[id].
         case Repeat::No:
-            m_timers.remove(id);
+            self.m_timers.remove(id);
             break;
         }
-    }));
+    });
 
     // 11. Increment nesting level by one.
     nesting_level++;
@@ -1046,31 +1050,34 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
     // NB: The task the event loop runs is the one completionStep queues — so that's what carries step 12's nesting
     //     level. queue_global_task() creates its task internally; so, this queues one by hand to get at it — and a
     //     fresh one per firing.
-    Function<void()> completion_step = [this, task = move(task), nesting_level, id]() mutable {
+    auto completion_step = GC::create_function(GC::Heap::the(), GC::captures(this_impl(), task, nesting_level, id), [](auto& this_object, auto& task, auto& nesting_level, auto& id) {
+        auto& self = as<WindowOrWorkerGlobalScopeMixin>(this_object);
+
         // NB: The spec arms a timer's next firing only once its task has run — so only a firing that timer claims
         //     queues one. Queueing the rest would run a burst of callbacks back to back, at a stale nesting level
         //     that keeps them from being clamped, and the burst grows the busier the event loop is.
-        auto timer = m_timers.get(id);
+        auto timer = self.m_timers.get(id);
         if (!timer.has_value() || !(*timer)->claim_firing())
             return;
 
-        auto& global = relevant_global_object(*this);
+        auto& global = relevant_global_object(self);
         GC::Ptr<DOM::Document const> document;
         if (auto* window = window_from_global_object(global))
             document = &window->associated_document();
-        auto queued_task = Task::create(Task::Source::TimerTask, document, GC::create_function(GC::Heap::the(), [this, task, timer = *timer] {
+        auto queued_task = Task::create(Task::Source::TimerTask, document, GC::create_function(GC::Heap::the(), GC::captures(this_object, task, *timer), [](auto& this_object, auto& task, auto& timer) {
+            auto& self = as<WindowOrWorkerGlobalScopeMixin>(this_object);
             timer->release_firing();
-            HTML::TemporaryExecutionContext execution_context { relevant_settings_object(*this), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            HTML::TemporaryExecutionContext execution_context { relevant_settings_object(self), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             task->function()();
         }));
         queued_task->set_timer_nesting_level(nesting_level);
         relevant_agent(global).event_loop->task_queue().add(queued_task);
-    };
+    });
 
     // 14. Set uniqueHandle to the result of running steps after a timeout given global, "setTimeout/setInterval",
     //     timeout, and completionStep.
     //     FIXME: run_steps_after_a_timeout() needs to be updated to return a unique internal value that can be used here.
-    run_steps_after_a_timeout_impl(timeout, throttling_class, move(completion_step), id, repeat);
+    run_steps_after_a_timeout_impl(timeout, throttling_class, completion_step, id, repeat);
 
     // FIXME: 15. Set global's map of setTimeout and setInterval IDs[id] to uniqueHandle.
 
@@ -1257,15 +1264,16 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
 
     // 3. Queue a task that consists of running the following substeps. The task source for the queued task is the performance
     //    timeline task source.
-    queue_global_task(Task::Source::PerformanceTimeline, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this]() {
-        auto& realm = relevant_realm(*this);
+    queue_global_task(Task::Source::PerformanceTimeline, relevant_global_object(*this), GC::create_function(GC::Heap::the(), GC::captures(this_impl()), [](auto& this_object) {
+        auto& self = as<WindowOrWorkerGlobalScopeMixin>(this_object);
+        auto& realm = relevant_realm(self);
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Unset performance observer task queued flag of relevantGlobal.
-        m_performance_observer_task_queued = false;
+        self.m_performance_observer_task_queued = false;
 
         // 2. Let notifyList be a copy of relevantGlobal's list of registered performance observer objects.
-        GC::RootVector notify_list { m_registered_performance_observer_objects.values() };
+        GC::RootVector notify_list { self.m_registered_performance_observer_objects.values() };
 
         // 3. For each registered performance observer object registeredObserver in notifyList, run these steps:
         for (auto& registered_observer : notify_list) {
@@ -1297,9 +1305,9 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
                 // 2. For each PerformanceObserverInit item in registeredObserver's options list:
                 for (auto const& item : registered_observer->options_list()) {
                     // 1. For each DOMString entryType that appears either as item's type or in item's entryTypes:
-                    auto increment_dropped_entries_count = [this, &dropped_entries_count](Utf16FlyString const& type) {
+                    auto increment_dropped_entries_count = [&self, &dropped_entries_count](Utf16FlyString const& type) {
                         // 1. Let map be relevantGlobal's performance entry buffer map.
-                        auto const& map = m_performance_entry_buffer_map;
+                        auto const& map = self.m_performance_entry_buffer_map;
 
                         // 2. Let tuple be the result of getting the value of entry on map given entryType as key.
                         auto const& tuple = map.get(type);
@@ -1354,8 +1362,8 @@ void WindowOrWorkerGlobalScopeMixin::add_resource_timing_entry(Badge<ResourceTim
         m_resource_timing_buffer_full_event_pending = true;
 
         // b. Queue a task on the performance timeline task source to run fire a buffer full event.
-        HTML::queue_a_task(HTML::Task::Source::PerformanceTimeline, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
-            fire_resource_timing_buffer_full_event();
+        HTML::queue_a_task(HTML::Task::Source::PerformanceTimeline, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(this_impl()), [](auto& this_object) {
+            as<WindowOrWorkerGlobalScopeMixin>(this_object).fire_resource_timing_buffer_full_event();
         }));
     }
 
@@ -1498,20 +1506,20 @@ WindowOrWorkerGlobalScopeMixin::AffectedAnyWebSockets WindowOrWorkerGlobalScopeM
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#run-steps-after-a-timeout
-i32 WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step)
+i32 WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout(i32 timeout, GC::Ref<GC::Function<void()>> completion_step)
 {
     auto timer_key = m_timer_id_allocator.allocate();
-    auto remove_timer_and_complete = [this, timer_key, completion_step = move(completion_step)] mutable {
-        m_timers.remove(timer_key);
-        completion_step();
-    };
+    auto remove_timer_and_complete = GC::create_function(GC::Heap::the(), GC::captures(this_impl(), timer_key, completion_step), [](auto& this_object, auto& timer_key, auto& completion_step) {
+        as<WindowOrWorkerGlobalScopeMixin>(this_object).m_timers.remove(timer_key);
+        completion_step->function()();
+    });
     // NB: A timeout another specification waits on — an idle callback's, an AbortSignal's — isn't one of the page's
     //     own yield points, so a hidden document holds it back like a chained timer, however short it is.
-    run_steps_after_a_timeout_impl(timeout, TimerThrottlingClass::Chained, move(remove_timer_and_complete), timer_key);
+    run_steps_after_a_timeout_impl(timeout, TimerThrottlingClass::Chained, remove_timer_and_complete, timer_key);
     return timer_key;
 }
 
-void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, TimerThrottlingClass throttling_class, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat)
+void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, TimerThrottlingClass throttling_class, GC::Ref<GC::Function<void()>> completion_step, Optional<i32> timer_key, Repeat repeat)
 {
     // 1. Assert: if timerKey is given, then the caller of this algorithm is the timer initialization steps. (Other specifications must not pass timerKey.)
     // Note: This is enforced by the caller.
@@ -1531,18 +1539,16 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
         m_earliest_timer_deadline = min(m_earliest_timer_deadline, deadline);
 
     // NB: The intensive tier paces chained timers by their wake-ups (see throttled_timer_delay()), so note when one
-    //     runs while the document is hidden. The step itself goes into a GC::Function rather than into the wrapper's
-    //     captures: Timer::visit_edges() scans only the bytes of the callable the timer holds, and an AK::Function
-    //     nested in there keeps its own captures out of line once they outgrow its inline storage, where that scan
-    //     can't see them. An AbortSignal.timeout() signal lives nowhere else until it aborts, so a collection would
-    //     sweep it. A GC::Function scans its own callable's captures, whatever their size.
+    //     runs while the document is hidden.
+    Function<void()> timer_callback;
     if (throttling_class == TimerThrottlingClass::Chained) {
-        auto step = GC::create_function(GC::Heap::the(), move(completion_step));
-        completion_step = [this, step] {
+        timer_callback = [this, completion_step] {
             if (timers_are_throttled())
                 m_last_chained_timer_wake_up = HighResolutionTime::unsafe_shared_current_time();
-            step->function()();
+            completion_step->function()();
         };
+    } else {
+        timer_callback = [completion_step] { completion_step->function()(); };
     }
 
     // NB: We deviate from the spec here slightly by reusing existing timers if a timer_key is provided.
@@ -1551,7 +1557,7 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
         auto result = m_timers.get(timer_key.value());
         if (result.has_value()) {
             existing_timer = result.value().ptr();
-            existing_timer->set_callback(move(completion_step));
+            existing_timer->set_callback(move(timer_callback));
             existing_timer->set_throttling_class(throttling_class);
             existing_timer->set_deadline(deadline);
             // A throttled delay runs from now to the wake-up, so the timer restarts on it; unthrottled, a repeating
@@ -1573,7 +1579,7 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     // completed. The task callback still calls run_timer_initialization_steps to update nesting
     // levels and potentially clamp the interval.
     auto repeating = repeat == Repeat::Yes ? Timer::Repeating::Yes : Timer::Repeating::No;
-    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(throttled_delay.value_or(timeout), move(completion_step), timer_key.value(), repeating, throttling_class, deadline);
+    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(throttled_delay.value_or(timeout), move(timer_callback), timer_key.value(), repeating, throttling_class, deadline);
 
     // FIXME: 4. Set global's map of active timers[timerKey] to startTime plus milliseconds.
     m_timers.set(timer_key.value(), timer);
@@ -1772,8 +1778,9 @@ void WindowOrWorkerGlobalScopeMixin::notify_about_rejected_promises(Badge<EventL
     auto& global_object = relevant_global_object(*this);
 
     // 5. Queue a global task on the DOM manipulation task source given global to run the following substep:
-    queue_global_task(Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), [this, &global, list = move(list)] {
-        auto& realm = relevant_realm(*this);
+    queue_global_task(Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), GC::captures(global, move(list)), [](auto& global, auto& list) {
+        auto& self = as<WindowOrWorkerGlobalScopeMixin>(global);
+        auto& realm = relevant_realm(self);
 
         // 1. For each promise p in list:
         for (auto const& promise : list->elements()) {
@@ -1803,7 +1810,7 @@ void WindowOrWorkerGlobalScopeMixin::notify_about_rejected_promises(Badge<EventL
 
             // 4. If p's [[PromiseIsHandled]] internal slot is false, add p to settings object's outstanding rejected promises weak set.
             if (!promise->is_handled())
-                m_outstanding_rejected_promises_weak_set.append(*promise);
+                self.m_outstanding_rejected_promises_weak_set.append(*promise);
 
             // This algorithm results in promise rejections being marked as handled or not handled. These concepts parallel handled and not handled script errors.
             // If a rejection is still not handled after this, then the rejection may be reported to a developer console.

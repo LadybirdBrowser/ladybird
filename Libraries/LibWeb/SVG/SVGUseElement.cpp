@@ -47,16 +47,16 @@ void SVGUseElement::initialize_element()
     set_shadow_root(shadow_root);
 
     m_document_observer = DOM::DocumentObserver::create(document());
-    m_document_observer->set_document_readiness_observer([this](HTML::DocumentReadyState readiness) {
+    m_document_observer->set_document_readiness_observer(GC::create_function(GC::Heap::the(), GC::captures(*this), [](SVGUseElement& self, HTML::DocumentReadyState readiness) {
         if (readiness != HTML::DocumentReadyState::Interactive)
             return;
         // The href processing path already populated the shadow tree for resolved references,
         // unless the referenced subtree changed while the document was still being parsed.
-        if (instance_root() && !m_needs_parsing_complete_reclone)
+        if (self.instance_root() && !self.m_needs_parsing_complete_reclone)
             return;
-        m_needs_parsing_complete_reclone = false;
-        clone_element_tree_as_our_shadow_tree(referenced_element());
-    });
+        self.m_needs_parsing_complete_reclone = false;
+        self.clone_element_tree_as_our_shadow_tree(self.referenced_element());
+    }));
 }
 
 void SVGUseElement::visit_edges(Cell::Visitor& visitor)
@@ -371,18 +371,18 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
     m_load_event_delayer.emplace(document());
     m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *request);
     m_resource_request_callbacks_id = m_resource_request->add_removable_callbacks(
-        [this] {
+        GC::create_function(GC::Heap::the(), GC::captures(*this), [](SVGUseElement& self) {
             // Only a connected use element builds its shadow tree; inserted() builds it otherwise.
-            if (is_connected())
-                clone_element_tree_as_our_shadow_tree(referenced_element());
-            m_load_event_delayer.clear();
-        },
-        [this] {
-            m_load_event_delayer.clear();
-        },
-        [this] {
-            m_load_event_delayer.clear();
-        });
+            if (self.is_connected())
+                self.clone_element_tree_as_our_shadow_tree(self.referenced_element());
+            self.m_load_event_delayer.clear();
+        }),
+        GC::create_function(GC::Heap::the(), GC::captures(*this), [](SVGUseElement& self) {
+            self.m_load_event_delayer.clear();
+        }),
+        GC::create_function(GC::Heap::the(), GC::captures(*this), [](SVGUseElement& self) {
+            self.m_load_event_delayer.clear();
+        }));
 
     if (m_resource_request->needs_fetching())
         m_resource_request->fetch_resource(request);

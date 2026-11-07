@@ -135,7 +135,7 @@ JS::Value create_a_channel(HTML::EnvironmentSettingsObject& settings, JsonObject
     auto channel_properties = protocol_value.get_object("value"sv).value_or({});
 
     // 2. Let steps be the following steps given the argument message:
-    auto steps = [channel_properties = move(channel_properties)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+    auto steps = GC::create_function(GC::Heap::the(), GC::captures(move(channel_properties)), [](JsonObject& channel_properties, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
         auto message = vm.argument(0);
 
         // 1. Let current realm be the current Realm Record.
@@ -194,10 +194,10 @@ JS::Value create_a_channel(HTML::EnvironmentSettingsObject& settings, JsonObject
         // 7. Emit an event with session and body.
         emit_event(*navigable, "script.message"_string, move(params));
         return JS::js_undefined();
-    };
+    });
 
     // 3. Return CreateBuiltinFunction(steps, 1, "", « », realm).
-    return BindingsGlue::create_channel_function(settings, move(steps));
+    return BindingsGlue::create_channel_function(settings, steps);
 }
 
 // https://w3c.github.io/webdriver-bidi/#get-a-realm-from-a-target
@@ -422,14 +422,14 @@ static void complete_evaluation(HTML::EnvironmentSettingsObject& settings, JS::C
         pending_evaluations().ensure(state->environment_id).append(state);
 
         WebIDL::react_to_promise(promise,
-            GC::create_function(GC::Heap::the(), [settings = GC::Ref { settings }, state](JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { settings }, state), [](auto& settings, auto& state, JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
                 if (!state->on_complete)
                     return JS::js_undefined();
                 HTML::TemporaryExecutionContext execution_context { *settings, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 state->complete(JsonValue { evaluation_result_success(*settings, value, state->serialization_options, state->result_ownership) });
                 return JS::js_undefined();
             }),
-            GC::create_function(GC::Heap::the(), [settings = GC::Ref { settings }, state](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { settings }, state), [](auto& settings, auto& state, JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
                 if (!state->on_complete)
                     return JS::js_undefined();
                 HTML::TemporaryExecutionContext execution_context { *settings, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };

@@ -169,9 +169,9 @@ void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> d
     //         dimensions are not available. This matches other browsers.
     if (dimensions.has_value()) {
         // the user agent must queue a media element task given the media element to fire an event named resize at the media element.
-        queue_a_media_element_task([](HTMLMediaElement& self) {
+        queue_a_media_element_task(GC::create_function(GC::Heap::the(), [](HTMLMediaElement& self) {
             self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::resize));
-        });
+        }));
 
         document().page().picture_in_picture_controller().video_size_did_change(*this, dimensions->to_type<int>());
     }
@@ -311,7 +311,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     m_load_event_delayer.emplace(document());
 
     // 7. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.
-    fetch_algorithms_input.process_response = [weak_self = GC::Weak(*this), poster_url = request->url()](auto response) {
+    fetch_algorithms_input.process_response = GC::create_function(GC::Heap::the(), GC::captures(GC::Weak(*this), request->url()), [](auto& weak_self, auto& poster_url, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
         if (!weak_self)
             return;
         auto& self = *weak_self;
@@ -331,7 +331,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
             return;
         }
 
-        auto on_image_data_read = GC::create_function(GC::Heap::the(), [weak_self, poster_url](ByteBuffer image_data) {
+        auto on_image_data_read = GC::create_function(GC::Heap::the(), GC::captures(weak_self, poster_url), [](auto& weak_self, auto& poster_url, ByteBuffer image_data) {
             if (!weak_self)
                 return;
             // 6. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.
@@ -366,14 +366,14 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
                 });
         });
 
-        auto on_body_read_error = GC::create_function(GC::Heap::the(), [weak_self](JS::Value) {
+        auto on_body_read_error = GC::create_function(GC::Heap::the(), GC::captures(weak_self), [](auto& weak_self, JS::Value) {
             if (!weak_self)
                 return;
             finalize(*weak_self, nullptr);
         });
 
         response->body()->fully_read(realm, on_image_data_read, on_body_read_error, GC::Ref { global });
-    };
+    });
 
     m_fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 

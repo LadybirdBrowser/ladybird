@@ -248,7 +248,7 @@ void StyleElementBase::finished_loading_critical_subresources(AnyFailed any_fail
         success = false;
 
     // 4. Queue an element task on the networking task source given element and the following steps:
-    element.queue_an_element_task(HTML::Task::Source::Networking, [&element, success, style_sheet_update_generation] {
+    element.queue_an_element_task(HTML::Task::Source::Networking, GC::create_function<void()>(GC::Heap::the(), GC::captures(element, success, style_sheet_update_generation), [](Element& element, auto& success, auto& style_sheet_update_generation) {
         // AD-HOC: If the associated stylesheet has been replaced or removed since this task was queued, ignore it.
         auto* style_element_base = as_if<StyleElementBase>(element);
         if (!style_element_base || style_element_base->m_style_sheet_update_generation != style_sheet_update_generation)
@@ -281,7 +281,7 @@ void StyleElementBase::finished_loading_critical_subresources(AnyFailed any_fail
         // 4. Unblock rendering on element.
         element.unblock_rendering();
         style_element_base->m_associated_css_style_sheet_load_is_pending_for_script_blocking = false;
-    });
+    }));
     m_document_load_event_delayer.clear();
 }
 

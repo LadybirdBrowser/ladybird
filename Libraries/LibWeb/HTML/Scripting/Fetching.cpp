@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/RefCounted.h>
 #include <AK/Utf16String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ImmutableBytes.h>
@@ -23,7 +24,6 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
-#include <LibWeb/Fetch/Fetching/RefCountedFlag.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -52,6 +52,13 @@ struct OffThreadCompiledProgram {
     JS::ParsedProgram parsed {};
     JS::CompiledProgram compiled {};
 };
+
+}
+
+// NB: A parsed or compiled program is held outside of the GC heap.
+GC_UNTRACED_CAPTURE(Web::HTML::OffThreadCompiledProgram);
+
+namespace Web::HTML {
 
 static ReadonlyBytes body_bytes_view(Fetch::Infrastructure::FetchAlgorithms::BodyBytes const& body_bytes)
 {
@@ -93,7 +100,7 @@ static Optional<CompiledScriptCacheKey> compiled_script_cache_key(Fetch::Infrast
 //     code, which is thread-safe to share.
 // With a cache key, a program that the cache of compiled scripts has for the source code skips all of this, and
 // otherwise the program goes there before anything runs it.
-static void compile_off_thread(EnvironmentSettingsObject& settings_object, NonnullRefPtr<JS::SourceCode const> source_code, JS::ProgramType type, size_t line_number_offset, Optional<CompiledScriptCacheKey> cache_key, Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)> on_compiled)
+static void compile_off_thread(EnvironmentSettingsObject& settings_object, NonnullRefPtr<JS::SourceCode const> source_code, JS::ProgramType type, size_t line_number_offset, Optional<CompiledScriptCacheKey> cache_key, GC::Ref<GC::Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)>> on_compiled)
 {
     // Take the code the parser needs while still on the main thread.
     auto source_text = source_code->code();
@@ -104,12 +111,9 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Nonnu
     // The script runs in a task of the settings object's global, so never beside a rendering update in flight that holds
     // back the tasks of its document, and the microtasks it queues (e.g. promise reactions from react_to_promise during
     // module linking) are drained after it.
-    auto run_callback = [settings_object = GC::make_root(settings_object), on_compiled = move(on_compiled), source_code = move(source_code)](OffThreadCompiledProgram result) mutable {
-        queue_global_task(Task::Source::Networking, settings_object->global_object(), GC::create_function(GC::Heap::the(), [on_compiled = move(on_compiled), source_code = move(source_code), result = move(result)]() mutable {
-            // NB: The callback holds GC roots. Release them as the task runs: the roots of a function that died
-            //     would keep what they root alive through the collection that finds it dead.
-            auto steps = move(on_compiled);
-            steps(move(result), move(source_code));
+    auto run_callback = [settings_object = GC::make_root(settings_object), on_compiled = GC::make_root(on_compiled), source_code = move(source_code)](OffThreadCompiledProgram result) mutable {
+        queue_global_task(Task::Source::Networking, settings_object->global_object(), GC::create_function(GC::Heap::the(), GC::captures(on_compiled, move(source_code), move(result)), [](auto& on_compiled, auto& source_code, auto& result) {
+            on_compiled->function()(move(result), move(source_code));
         }));
     };
 
@@ -145,16 +149,6 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Nonnu
 }
 
 GC_DEFINE_ALLOCATOR(FetchContext);
-
-OnFetchScriptComplete create_on_fetch_script_complete(GC::Heap& heap, Function<void(GC::Ptr<Script>)> function)
-{
-    return GC::create_function(heap, move(function));
-}
-
-PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Function<WebIDL::ExceptionOr<void>(NonnullRefPtr<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function)
-{
-    return GC::create_function(heap, move(function));
-}
 
 ScriptFetchOptions default_script_fetch_options()
 {
@@ -454,7 +448,7 @@ void fetch_classic_script(JS::Realm& realm, URL::URL const& url, EnvironmentSett
 
     // NB: The script is created in several places below. They all hand it to onComplete, which is where we set its
     //     fetch options to options.
-    on_complete = create_on_fetch_script_complete(GC::Heap::the(), [options, on_complete](GC::Ptr<Script> script) {
+    on_complete = create_on_fetch_script_complete(GC::Heap::the(), GC::captures(options, on_complete), [](auto& options, auto& on_complete, GC::Ptr<Script> script) {
         if (script)
             script->set_fetch_options(options);
         on_complete->function()(script);
@@ -463,7 +457,7 @@ void fetch_classic_script(JS::Realm& realm, URL::URL const& url, EnvironmentSett
     // 5. Fetch request with the following processResponseConsumeBody steps given response response and null, failure,
     //    or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-    fetch_algorithms_input.process_response_consume_body = [request, &settings_object, options = move(options), character_encoding = move(character_encoding), on_complete = move(on_complete)](auto response, auto body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = GC::create_function(GC::Heap::the(), GC::captures(request, settings_object, move(character_encoding), on_complete), [](NonnullRefPtr<Fetch::Infrastructure::Request>& request, EnvironmentSettingsObject& settings_object, Utf16String& character_encoding, OnFetchScriptComplete& on_complete, GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         // NB: Whether response was CORS-cross-origin must be determined before unwrapping it, since the internal
         //     response of an opaque filtered response is never CORS-cross-origin itself.
         auto response_was_cors_cross_origin = response->is_cors_cross_origin();
@@ -502,8 +496,6 @@ void fetch_classic_script(JS::Realm& realm, URL::URL const& url, EnvironmentSett
         //    options, and muted errors.
         auto response_url = response->url().value_or({});
 
-        auto on_complete_root = GC::make_root(on_complete);
-        auto settings_root = GC::make_root(settings_object);
         // NB: The filename is the request's URL. The response's URL could reveal where a cross-origin request was
         //     redirected.
         auto filename = request->url().to_byte_string();
@@ -512,15 +504,13 @@ void fetch_classic_script(JS::Realm& realm, URL::URL const& url, EnvironmentSett
         auto cache_key = compiled_script_cache_key(request, request->url(), response->status(), response->header_list(), JS::ProgramType::Script, 1);
 
         compile_off_thread(settings_object, move(source_code), JS::ProgramType::Script, 1, move(cache_key),
-            [response_url = move(response_url), filename = move(filename),
-                muted_errors, on_complete_root = move(on_complete_root),
-                settings_root = move(settings_root)](auto result, auto source_code) mutable {
+            GC::create_function(GC::Heap::the(), GC::captures(move(response_url), move(filename), muted_errors, on_complete, settings_object), [](URL::URL& response_url, ByteString& filename, ClassicScript::MutedErrors muted_errors, OnFetchScriptComplete& on_complete, EnvironmentSettingsObject& settings_object, OffThreadCompiledProgram result, NonnullRefPtr<JS::SourceCode const> source_code) {
                 auto script = result.compiled
-                    ? ClassicScript::create_from_pre_compiled(move(filename), source_code, *settings_root, move(response_url), move(result.compiled), muted_errors)
-                    : ClassicScript::create_from_pre_parsed(move(filename), source_code, *settings_root, move(response_url), move(result.parsed), muted_errors);
-                on_complete_root->function()(script);
-            });
-    };
+                    ? ClassicScript::create_from_pre_compiled(move(filename), source_code, settings_object, move(response_url), move(result.compiled), muted_errors)
+                    : ClassicScript::create_from_pre_parsed(move(filename), source_code, settings_object, move(response_url), move(result.parsed), muted_errors);
+                on_complete->function()(script);
+            }));
+    });
 
     Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 }
@@ -542,7 +532,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Fetch
     request->set_parser_metadata(Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted);
     request->set_use_url_credentials(true);
 
-    auto process_response_consume_body = [&settings_object, on_complete = move(on_complete)](auto response, auto body_bytes) {
+    auto process_response_consume_body = GC::create_function(GC::Heap::the(), GC::captures(settings_object, on_complete), [](EnvironmentSettingsObject& settings_object, OnFetchScriptComplete& on_complete, GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         // 1. Set response to response's unsafe response.
         response = response->unsafe_response();
 
@@ -582,21 +572,30 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Fetch
 
         // 6. Run onComplete given script.
         on_complete->function()(script);
-    };
+    });
 
     // 2. If performFetch was given, run performFetch with request, true, and with processResponseConsumeBody as defined below.
     if (perform_fetch != nullptr) {
-        TRY(perform_fetch->function()(request, TopLevelModule::Yes, move(process_response_consume_body)));
+        TRY(perform_fetch->function()(request, TopLevelModule::Yes, process_response_consume_body));
     }
 
     // Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     else {
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-        fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
+        fetch_algorithms_input.process_response_consume_body = process_response_consume_body;
         Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     }
     return {};
 }
+
+// NB: The response and body bytes of a classic worker imported script's fetch, which its processResponseConsumeBody
+//     sets while the fetching algorithm pauses.
+struct ImportedScriptResponseHolder : RefCounted<ImportedScriptResponseHolder> {
+    void visit_edges(GC::Cell::Visitor& visitor) const { visitor.visit(response); }
+
+    GC::Ptr<Fetch::Infrastructure::ResponseView> response;
+    Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes;
+};
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-classic-worker-imported-script
 WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_script(URL::URL const& url, HTML::EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch)
@@ -604,10 +603,8 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     auto& realm = settings_object.realm();
 
     // 1. Let response be null.
-    IGNORE_USE_IN_ESCAPING_LAMBDA GC::Ptr<Fetch::Infrastructure::ResponseView> response = nullptr;
-
     // 2. Let bodyBytes be null.
-    Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes;
+    auto holder = make_ref_counted<ImportedScriptResponseHolder>();
 
     // 3. Let request be a new request whose URL is url, client is settingsObject, destination is "script", initiator type is "other",
     //    parser metadata is "not parser-inserted", and whose use-URL-credentials flag is set.
@@ -619,35 +616,30 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     request->set_parser_metadata(Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted);
     request->set_use_url_credentials(true);
 
-    auto is_abandoned = Fetch::Fetching::RefCountedFlag::create(false);
-    auto process_response_consume_body = [&response, &body_bytes, is_abandoned](GC::Ref<Fetch::Infrastructure::ResponseView> res, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bb) {
-        if (is_abandoned->value())
-            return;
-
+    auto process_response_consume_body = GC::create_function(GC::Heap::the(), GC::captures(holder), [](NonnullRefPtr<ImportedScriptResponseHolder>& holder, GC::Ref<Fetch::Infrastructure::ResponseView> res, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bb) {
         // 1. Set bodyBytes to bb.
-        body_bytes = move(bb);
+        holder->body_bytes = move(bb);
 
         // 2. Set response to res.
-        response = res;
-    };
+        holder->response = res;
+    });
 
     // 4. If performFetch was given, run performFetch with request, isTopLevel, and with processResponseConsumeBody as defined below.
     if (perform_fetch) {
-        TRY(perform_fetch->function()(request, TopLevelModule::Yes, move(process_response_consume_body)));
+        TRY(perform_fetch->function()(request, TopLevelModule::Yes, process_response_consume_body));
     }
     // Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     // AD-HOC: The fetch runs on a parallel queue, since the event loop it would otherwise queue tasks on is paused below.
     else {
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::SyncAccumulate };
-        fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
+        fetch_algorithms_input.process_response_consume_body = process_response_consume_body;
         Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)), Fetch::Fetching::UseParallelQueue::Yes);
     }
 
     // 5. Pause until response is not null.
-    // FIXME: Consider using a "response holder" to avoid needing to annotate response as IGNORE_USE_IN_ESCAPING_LAMBDA.
     auto& event_loop = settings_object.responsible_event_loop();
-    auto response_is_not_null = GC::create_function(GC::Heap::the(), [&]() -> bool {
-        return !!response;
+    auto response_is_not_null = GC::create_function(GC::Heap::the(), GC::captures(holder), [](NonnullRefPtr<ImportedScriptResponseHolder>& holder) -> bool {
+        return !!holder->response;
     });
     if (perform_fetch) {
         // AD-HOC: The event loop is spun rather than paused, since a perform the fetch hook may queue tasks on it.
@@ -656,12 +648,12 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
         auto pause_handle = event_loop.pause(EventLoop::UpdateTheRendering::No);
         Platform::EventLoopPlugin::the().spin_until(response_is_not_null);
     }
+    auto response = holder->response;
+    auto body_bytes = move(holder->body_bytes);
 
-    // NB: The fetch outlives an aborted script, whose stack the steps above must not write to anymore.
-    if (!response) {
-        is_abandoned->set_value(true);
+    // NB: The event loop gives up on an aborted script before the response comes.
+    if (!response)
         return WebIDL::NetworkError::create("Network error"_utf16);
-    }
 
     // NB: Whether response was CORS-cross-origin must be determined before unwrapping it, since the internal
     //     response of an opaque filtered response is never CORS-cross-origin itself.
@@ -719,7 +711,7 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
     };
 
     // onSingleFetchComplete given result is the following algorithm:
-    auto on_single_fetch_complete = create_on_fetch_script_complete(GC::Heap::the(), [&realm, fetch_client, destination, perform_fetch = perform_fetch, on_complete = move(on_complete)](auto result) mutable {
+    auto on_single_fetch_complete = create_on_fetch_script_complete(GC::Heap::the(), GC::captures(realm, fetch_client, destination, perform_fetch, on_complete), [](auto& realm, auto& fetch_client, auto& destination, auto& perform_fetch, auto& on_complete, GC::Ptr<Script> result) {
         // 1. If result is null, run onComplete with null, and abort these steps.
         if (!result) {
             dbgln("on single fetch complete with nool");
@@ -728,7 +720,7 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
         }
 
         // 2. Fetch the descendants of and link result given fetchClient, destination, and onComplete. If performFetch was given, pass it along as well.
-        fetch_descendants_of_and_link_a_module_script(realm, as<ModuleScript>(*result), fetch_client, destination, move(perform_fetch), on_complete);
+        fetch_descendants_of_and_link_a_module_script(realm, as<ModuleScript>(*result), fetch_client, destination, perform_fetch, on_complete);
     });
 
     // 2. Fetch a single module script given url, fetchClient, destination, options, settingsObject, "client", true,
@@ -795,7 +787,7 @@ void fetch_single_module_script(JS::Realm& realm,
 
     // 6. If moduleMap[(url, moduleType)] is a list, append onComplete to moduleMap[(url, moduleType)], and return.
     if (entry.has_value() && entry->has<ModuleMap::CallbackList>()) {
-        module_map.append(url, module_type, GC::create_function(GC::Heap::the(), [on_complete](GC::Ptr<ModuleScript> module_script) {
+        module_map.append(url, module_type, GC::create_function(GC::Heap::the(), GC::captures(on_complete), [](auto& on_complete, GC::Ptr<ModuleScript> module_script) {
             on_complete->function()(module_script);
         }));
         return;
@@ -803,7 +795,7 @@ void fetch_single_module_script(JS::Realm& realm,
 
     // 7. Set moduleMap[(url, moduleType)] to « onComplete ».
     GC::RootVector<ModuleMap::CallbackFunction> callbacks;
-    callbacks.append(GC::create_function(GC::Heap::the(), [on_complete](GC::Ptr<ModuleScript> module_script) { on_complete->function()(module_script); }));
+    callbacks.append(GC::create_function(GC::Heap::the(), GC::captures(on_complete), [](auto& on_complete, GC::Ptr<ModuleScript> module_script) { on_complete->function()(module_script); }));
     module_map.set(url, module_type, move(callbacks));
 
     // 8. Let request be a new request whose URL is url, mode is "cors", referrer is referrer, and client is fetchClient.
@@ -829,7 +821,7 @@ void fetch_single_module_script(JS::Realm& realm,
     // 13. If performFetch was given, run performFetch with request, isTopLevel, and with processResponseConsumeBody as defined below.
     //     Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     //     In both cases, let processResponseConsumeBody given response response and null, failure, or a byte sequence bodyBytes be the following algorithm:
-    auto process_response_consume_body = [request, &module_map, url, module_type, &settings_object, options = options](GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) mutable {
+    auto process_response_consume_body = GC::create_function(GC::Heap::the(), GC::captures(request, module_map, url, module_type, settings_object, options), [](NonnullRefPtr<Fetch::Infrastructure::Request>& request, ModuleMap& module_map, URL::URL& url, Utf16String& module_type, EnvironmentSettingsObject& settings_object, ScriptFetchOptions& options, GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         auto internal_response = response->unsafe_response();
 
         // 1. If any of the following are true:
@@ -885,7 +877,6 @@ void fetch_single_module_script(JS::Realm& realm,
             //    the result of creating a JavaScript module script given sourceText, settingsObject, response's URL,
             //    and options.
             if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript-or-wasm"sv) {
-                auto settings_root = GC::make_root(settings_object);
                 auto url_string = url.to_byte_string();
                 auto response_url = response->url().value_or({});
                 auto module_type_string = module_type;
@@ -894,16 +885,14 @@ void fetch_single_module_script(JS::Realm& realm,
                 auto cache_key = compiled_script_cache_key(request, url, internal_response->status(), internal_response->header_list(), JS::ProgramType::Module, 0);
 
                 compile_off_thread(settings_object, move(source_code), JS::ProgramType::Module, 0, move(cache_key),
-                    [url = move(url), url_string = move(url_string), response_url = move(response_url),
-                        module_type_string = move(module_type_string),
-                        options, settings_root = move(settings_root)](auto result, auto source_code) mutable {
+                    GC::create_function(GC::Heap::the(), GC::captures(url, move(url_string), move(response_url), move(module_type_string), options, settings_object), [](URL::URL& url, ByteString& url_string, URL::URL& response_url, Utf16String& module_type_string, ScriptFetchOptions& options, EnvironmentSettingsObject& settings_object, OffThreadCompiledProgram result, NonnullRefPtr<JS::SourceCode const> source_code) {
                         auto module_script = result.compiled
-                            ? ModuleScript::create_from_pre_compiled(url_string, source_code, *settings_root, move(response_url), move(result.compiled)).release_value_but_fixme_should_propagate_errors()
-                            : ModuleScript::create_from_pre_parsed(url_string, source_code, *settings_root, move(response_url), move(result.parsed)).release_value_but_fixme_should_propagate_errors();
+                            ? ModuleScript::create_from_pre_compiled(url_string, source_code, settings_object, move(response_url), move(result.compiled)).release_value_but_fixme_should_propagate_errors()
+                            : ModuleScript::create_from_pre_parsed(url_string, source_code, settings_object, move(response_url), move(result.parsed)).release_value_but_fixme_should_propagate_errors();
                         if (module_script)
                             module_script->set_fetch_options(options);
-                        settings_root->module_map().complete_fetch(url, module_type_string, module_script);
-                    });
+                        settings_object.module_map().complete_fetch(url, module_type_string, module_script);
+                    }));
                 return;
             }
 
@@ -925,16 +914,16 @@ void fetch_single_module_script(JS::Realm& realm,
         //    moduleMap[(url, moduleType)] to moduleScript.
         // 10. For each callback of callbacks: run callback given moduleScript.
         module_map.complete_fetch(url, module_type, module_script);
-    };
+    });
 
     if (perform_fetch != nullptr) {
-        auto result = perform_fetch->function()(request, is_top_level, move(process_response_consume_body));
+        auto result = perform_fetch->function()(request, is_top_level, process_response_consume_body);
         // NB: The perform fetch hook can abort without running processResponseConsumeBody.
         if (result.is_exception())
             module_map.complete_fetch(url, module_type, nullptr);
     } else {
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-        fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
+        fetch_algorithms_input.process_response_consume_body = process_response_consume_body;
         Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     }
 }
@@ -942,7 +931,7 @@ void fetch_single_module_script(JS::Realm& realm,
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-module-script-tree
 void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const& options, OnFetchScriptComplete on_complete)
 {
-    auto steps = create_on_fetch_script_complete(GC::Heap::the(), [&realm, &settings_object, on_complete, url](auto result) mutable {
+    auto steps = create_on_fetch_script_complete(GC::Heap::the(), GC::captures(realm, settings_object, on_complete), [](auto& realm, auto& settings_object, auto& on_complete, GC::Ptr<Script> result) {
         // 1. If result is null, run onComplete given null, and abort these steps.
         if (!result) {
             on_complete->function()(nullptr);
@@ -961,7 +950,7 @@ void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, E
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-modulepreload-module-script-graph
 void fetch_modulepreload_module_script_graph(JS::Realm& realm, URL::URL const& url, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const& options, OnFetchScriptComplete on_complete)
 {
-    auto steps = create_on_fetch_script_complete(GC::Heap::the(), [&realm, &settings_object, destination, on_complete](auto result) mutable {
+    auto steps = create_on_fetch_script_complete(GC::Heap::the(), GC::captures(realm, settings_object, destination, on_complete), [](auto& realm, auto& settings_object, auto& destination, auto& on_complete, GC::Ptr<Script> result) {
         // 1. Run onComplete given result.
         on_complete->function()(result);
 
@@ -1089,7 +1078,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
 
     WebIDL::react_to_promise(loading_promise,
         // 6. Upon fulfillment of loadingPromise, run the following steps:
-        GC::create_function(GC::Heap::the(), [&realm, record, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), GC::captures(realm, record, module_script, on_complete), [](auto& realm, auto& record, auto& module_script, auto& on_complete, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Perform record.Link().
             auto linking_result = record.visit(
                 [](Empty) -> JS::ThrowCompletionOr<void> { VERIFY_NOT_REACHED(); },
@@ -1106,7 +1095,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
         }),
 
         // 7. Upon rejection of loadingPromise, run the following steps:
-        GC::create_function(GC::Heap::the(), [state, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), GC::captures(state, module_script, on_complete), [](auto& state, auto& module_script, auto& on_complete, JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. If state.[[ErrorToRethrow]] is not null, set moduleScript's error to rethrow to state.[[ErrorToRethrow]] and run
             //    onComplete given moduleScript.
             if (!state->error_to_rethrow.is_null()) {

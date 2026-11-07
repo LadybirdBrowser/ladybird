@@ -191,7 +191,7 @@ private:
     bool stylesheet_linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
 
     static void preconnect(LinkProcessingOptions const&);
-    static void preload(LinkProcessingOptions&, Function<void(Fetch::Infrastructure::Response&)> process_response = {});
+    static void preload(LinkProcessingOptions&, GC::Ptr<GC::Function<void(Fetch::Infrastructure::Response&)>> process_response = {});
     static void modulepreload(LinkProcessingOptions const&);
 
     void process_linked_resource(bool success, Fetch::Infrastructure::ResponseView const&, CSS::StyleScope::OriginClean, Core::ImmutableBytes const*);

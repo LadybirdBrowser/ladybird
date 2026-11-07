@@ -72,7 +72,7 @@ static void resolve_service_worker_registration_promise(JS::Realm& realm, WebIDL
     WebIDL::resolve_promise(promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, registration));
 }
 
-static void resolve_service_worker_registration_list_promise(JS::Realm& realm, WebIDL::Promise& promise, GC::RootVector<GC::Ref<ServiceWorkerRegistration>> const& registrations)
+static void resolve_service_worker_registration_list_promise(JS::Realm& realm, WebIDL::Promise& promise, ReadonlySpan<GC::Ref<ServiceWorkerRegistration>> registrations)
 {
     GC::RootVector<JS::Value> registration_values;
     for (auto registration : registrations)
@@ -193,7 +193,7 @@ void ServiceWorkerContainer::get_registration(JS::Realm& realm, Utf16String cons
     }
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise, storage_key, parsed_client_url = *parsed_client_url]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(promise, storage_key, *parsed_client_url), [](auto& promise, auto& storage_key, auto& parsed_client_url) {
         auto& realm = HTML::relevant_realm(promise->promise());
         HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -227,7 +227,7 @@ void ServiceWorkerContainer::get_registrations(JS::Realm& realm, GC::Ref<WebIDL:
     }
 
     // 4. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise, client_storage_key = client_storage_key.release_value()]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(promise, client_storage_key.release_value()), [](auto& promise, auto& client_storage_key) {
         // 1. Let registrations be a new list.
         // 2. For each (storage key, scope) -> registration of registration map:
         //     1. If storage key equals client storage key, then append registration to registrations.
@@ -238,7 +238,7 @@ void ServiceWorkerContainer::get_registrations(JS::Realm& realm, GC::Ref<WebIDL:
             registration_objects.append(HTML::relevant_settings_object(promise->promise()).get_service_worker_registration_object(*registration));
 
         // 3. Queue a task on promise's relevant settings object's responsible event loop, using the DOM manipulation task source, to run the following steps:
-        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, HTML::relevant_settings_object(promise->promise()).responsible_event_loop(), {}, GC::create_function(GC::Heap::the(), [promise, registration_objects = move(registration_objects)]() {
+        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, HTML::relevant_settings_object(promise->promise()).responsible_event_loop(), {}, GC::create_function(GC::Heap::the(), GC::captures(promise, move(registration_objects)), [](auto& promise, auto& registration_objects) {
             auto& realm = HTML::relevant_realm(promise->promise());
             HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -342,9 +342,9 @@ void ServiceWorkerContainer::start_register(JS::Realm& realm, Optional<URL::URL>
 void ServiceWorkerContainer::start_ready_promise_steps(GC::Ref<WebIDL::Promise> ready_promise)
 {
     // 3. If readyPromise is pending, run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, ready_promise]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, ready_promise), [](auto& self, auto& ready_promise) {
         // 1. Let client be this’s service worker client.
-        auto client = m_service_worker_client;
+        auto client = self.m_service_worker_client;
 
         // 2. Let storage key be the result of running obtain a storage key given client.
         auto storage_key = StorageAPI::obtain_a_storage_key(client);
@@ -362,7 +362,7 @@ void ServiceWorkerContainer::start_ready_promise_steps(GC::Ref<WebIDL::Promise> 
         //    registration in readyPromise’s relevant settings object.
         if (maybe_registration.has_value() && maybe_registration->active_worker() != nullptr) {
             auto registration_object = HTML::relevant_settings_object(ready_promise->promise()).get_service_worker_registration_object(maybe_registration.value());
-            queue_a_task(HTML::Task::Source::DOMManipulation, nullptr, nullptr, GC::create_function(GC::Heap::the(), [ready_promise, registration_object]() {
+            queue_a_task(HTML::Task::Source::DOMManipulation, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(ready_promise, registration_object), [](auto& ready_promise, auto& registration_object) {
                 auto& realm = HTML::relevant_realm(ready_promise->promise());
                 HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 resolve_service_worker_registration_promise(realm, ready_promise, registration_object);

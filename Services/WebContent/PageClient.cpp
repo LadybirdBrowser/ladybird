@@ -409,14 +409,14 @@ void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable
         return;
     }
 
-    navigable->run_navigation_unload_check(navigation_id, unload_prompt_shown, GC::create_function(navigable->heap(), [this, navigable = GC::Ref { *navigable }, navigable_id, navigation_id](bool should_continue) {
+    navigable->run_navigation_unload_check(navigation_id, unload_prompt_shown, GC::create_function(navigable->heap(), GC::captures(*this, GC::Ref { *navigable }, navigable_id, navigation_id), [](auto& self, auto& navigable, auto& navigable_id, auto& navigation_id, bool should_continue) {
         // The UI process retained the pending entry at admission; a passed check only needs the signal.
         if (!should_continue) {
             navigable->resume_navigation_params_creation(navigation_id, {});
-            client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
+            self.client().async_did_fail_navigation_population(self.m_id, navigable_id, navigation_id);
             return;
         }
-        client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id);
+        self.client().async_did_complete_navigation_unload_check(self.m_id, navigable_id, navigation_id);
     }));
 }
 
@@ -803,7 +803,7 @@ void PageClient::frame_timer_fired()
         // Defer the fallback once so an arrived reply is handled first, while a genuinely lost reply still falls back
         // on the next event-loop dispatch.
         auto watchdog_deadline = m_compositor_watchdog_deadline;
-        Web::Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [page_client = GC::Ref { *this }, watchdog_deadline] {
+        Web::Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *this }, watchdog_deadline), [](auto& page_client, auto& watchdog_deadline) {
             if (!page_client->m_compositor_rendering_opportunity_outstanding)
                 return;
             if (page_client->m_compositor_watchdog_deadline != watchdog_deadline)
@@ -1224,8 +1224,8 @@ void PageClient::page_did_set_browser_zoom(double factor)
     m_pending_browser_zoom = WebView::clamp_zoom_level(factor);
     client().async_did_set_browser_zoom(m_id, factor);
     auto& event_loop = Web::HTML::main_thread_event_loop();
-    event_loop.spin_until(GC::create_function(GC::Heap::the(), [this]() {
-        return !m_pending_browser_zoom.has_value() || !is_connection_open();
+    event_loop.spin_until(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        return !self.m_pending_browser_zoom.has_value() || !self.is_connection_open();
     }));
 }
 
@@ -1239,8 +1239,8 @@ void PageClient::page_did_set_device_pixel_ratio_for_testing(double ratio)
         return;
     m_pending_device_pixel_ratio_for_testing = ratio;
     client().async_did_set_device_pixel_ratio_for_testing(m_id, ratio);
-    Web::HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [this]() {
-        return !m_pending_device_pixel_ratio_for_testing.has_value() || !is_connection_open();
+    Web::HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
+        return !self.m_pending_device_pixel_ratio_for_testing.has_value() || !self.is_connection_open();
     }));
 }
 
@@ -2042,11 +2042,11 @@ String PageClient::page_did_request_session_store_tab_state_for_testing()
 void PageClient::run_webdriver_user_prompt_handling(u64 request_id)
 {
     Web::WebDriver::handle_any_user_prompts(page(),
-        GC::create_function(heap(), [this, request_id](Optional<Web::WebDriver::Error> error) {
+        GC::create_function(heap(), GC::captures(*this, request_id), [](auto& self, auto& request_id, Optional<Web::WebDriver::Error> error) {
             auto response = error.has_value()
                 ? Web::WebDriver::Response { error.release_value() }
                 : Web::WebDriver::Response { JsonValue {} };
-            client().async_webdriver_user_prompt_handling_complete(m_id, request_id, move(response));
+            self.client().async_webdriver_user_prompt_handling_complete(self.m_id, request_id, move(response));
         }));
 }
 

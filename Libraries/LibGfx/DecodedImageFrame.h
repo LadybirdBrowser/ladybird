@@ -10,6 +10,7 @@
 #include <AK/Atomic.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/kmalloc.h>
+#include <LibGC/Forward.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
@@ -89,3 +90,5 @@ template<>
 ErrorOr<Gfx::DecodedImageFrame> decode(Decoder&);
 
 }
+
+GC_UNTRACED_CAPTURE(Gfx::DecodedImageFrame);

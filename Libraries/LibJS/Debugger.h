@@ -11,6 +11,7 @@
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibGC/ConservativeVector.h>
+#include <LibGC/Function.h>
 #include <LibGC/Root.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibJS/Breakpoint.h>
@@ -74,7 +75,7 @@ public:
 
     // The callback must call continue_execution() before it returns. It may evaluate JavaScript,
     // in which case any pause triggered by that evaluation is ignored.
-    void set_pause_callback(Function<void(PauseInfo const&)> callback);
+    void set_pause_callback(GC::Ptr<GC::Function<void(PauseInfo const&)>> callback);
 
     void continue_execution(ResumeMode = ResumeMode::Continue);
     // Continue after the host filters out a pause without cancelling an active step operation.

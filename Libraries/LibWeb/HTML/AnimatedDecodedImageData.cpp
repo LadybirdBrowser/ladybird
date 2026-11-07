@@ -25,21 +25,21 @@ AnimatedDecodedImageData::AnimatedDecodedImageData(GC::Ref<DOM::DocumentObserver
     //               hidden. Other browsers disagree on what should happen when the document becomes active again,
     //               Blink continues the animation from where it would be if it had been running the whole time, and
     //               Gecko restarts the animation. For now we restart the animation since that's simpler.
-    m_document_observer->set_document_became_inactive([weak_this] {
+    m_document_observer->set_document_became_inactive(GC::create_function(GC::Heap::the(), GC::captures(weak_this), [](auto& weak_this) {
         if (auto self = weak_this.ptr())
             self->stop_animation();
-    });
+    }));
 
-    m_document_observer->set_document_became_active([weak_this] {
+    m_document_observer->set_document_became_active(GC::create_function(GC::Heap::the(), GC::captures(weak_this), [](auto& weak_this) {
         if (auto self = weak_this.ptr()) {
             if (!self->has_clients())
                 self->m_should_start_animation_on_client_registration = true;
 
             self->restart_animation();
         }
-    });
+    }));
 
-    m_document_observer->set_document_visibility_state_observer([weak_this](HTML::VisibilityState visibility_state) {
+    m_document_observer->set_document_visibility_state_observer(GC::create_function(GC::Heap::the(), GC::captures(weak_this), [](auto& weak_this, HTML::VisibilityState visibility_state) {
         if (auto self = weak_this.ptr()) {
             switch (visibility_state) {
             case HTML::VisibilityState::Hidden:
@@ -52,7 +52,7 @@ AnimatedDecodedImageData::AnimatedDecodedImageData(GC::Ref<DOM::DocumentObserver
                 break;
             }
         }
-    });
+    }));
 }
 
 void AnimatedDecodedImageData::restart_animation()

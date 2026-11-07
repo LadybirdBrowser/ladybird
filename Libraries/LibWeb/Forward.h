@@ -14,11 +14,15 @@
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
+#include <LibURL/Forward.h>
 #include <LibWeb/Bindings/Forward.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/Export.h>
 #include <LibWebCommon/Forward.h>
+
+GC_UNTRACED_CAPTURE(URL::URL);
+GC_UNTRACED_CAPTURE(URL::Origin);
 
 namespace Web {
 

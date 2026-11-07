@@ -153,10 +153,10 @@ static Optional<URL::URL> validate_cookie_store_mutation(WebIDL::Promise& promis
 
 static GC::Ref<CookieListCompletionSteps> create_cookie_list_completion_steps(JS::Object& global, GC::Ref<WebIDL::Promise> promise, FirstItemOnly first_item_only)
 {
-    return GC::Function<void(Vector<CookieListItem>)>::create(GC::Heap::the(), [global = GC::Ref { global }, promise, first_item_only](Vector<CookieListItem> cookie_list) mutable {
+    return GC::create_function(GC::Heap::the(), GC::captures(global, promise, first_item_only), [](auto& global, auto& promise, auto& first_item_only, Vector<CookieListItem> cookie_list) {
         // AD-HOC: Queue a global task to perform the next steps
         // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        HTML::queue_global_task(HTML::Task::Source::Unspecified, global, GC::create_function(GC::Heap::the(), [promise, cookie_list = move(cookie_list), first_item_only]() {
+        HTML::queue_global_task(HTML::Task::Source::Unspecified, global, GC::create_function(GC::Heap::the(), GC::captures(promise, move(cookie_list), first_item_only), [](auto& promise, auto& cookie_list, auto& first_item_only) {
             auto& realm = WebIDL::promise_realm(promise);
             HTML::TemporaryExecutionContext execution_context { realm };
             if (first_item_only == FirstItemOnly::Yes)
@@ -167,15 +167,15 @@ static GC::Ref<CookieListCompletionSteps> create_cookie_list_completion_steps(JS
     });
 }
 
-static GC::Ref<CookieMutationCompletionSteps> create_cookie_mutation_completion_steps(JS::Object& global, GC::Ref<WebIDL::Promise> promise, Utf16View failure_message)
+static GC::Ref<CookieMutationCompletionSteps> create_cookie_mutation_completion_steps(JS::Object& global, GC::Ref<WebIDL::Promise> promise, Utf16String failure_message)
 {
-    return GC::Function<void(bool)>::create(GC::Heap::the(), [global = GC::Ref { global }, promise, failure_message](bool result) {
+    return GC::create_function(GC::Heap::the(), GC::captures(global, promise, move(failure_message)), [](auto& global, auto& promise, auto& failure_message, bool result) {
         // NB: The UI's notification of this mutation's cookie changes is handled from a deferred invocation scheduled while
         //     waiting for its reply. Queue the task below after that, so the change event is fired first.
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [global, promise, result, failure_message] {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(global, promise, result, failure_message), [](auto& global, auto& promise, auto& result, auto& failure_message) {
             // AD-HOC: Queue a global task to perform the next steps
             // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-            HTML::queue_global_task(HTML::Task::Source::Unspecified, global, GC::create_function(GC::Heap::the(), [promise, result, failure_message] {
+            HTML::queue_global_task(HTML::Task::Source::Unspecified, global, GC::create_function(GC::Heap::the(), GC::captures(promise, result, failure_message), [](auto& promise, auto& result, auto& failure_message) {
                 auto& realm = WebIDL::promise_realm(promise);
                 HTML::TemporaryExecutionContext execution_context { realm };
                 if (!result)
@@ -288,9 +288,9 @@ GC::Ref<WebIDL::Promise> CookieStore::get(JS::Realm& realm, Utf16String name)
 void CookieStore::get(HTML::EnvironmentId environment_id, URL::URL url, Optional<Utf16String> name, GC::Ref<CookieListCompletionSteps> completion_steps)
 {
     // 8. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, completion_steps, environment_id, url = move(url), name = move(name)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, completion_steps, environment_id, move(url), move(name)), [](auto& self, auto& completion_steps, auto& environment_id, auto& url, auto& name) {
         // 1. Let list be the results of running query cookies with url and options["name"] with default null.
-        auto list = query_cookies(environment_id, url, name);
+        auto list = self.query_cookies(environment_id, url, name);
         completion_steps->function()(move(list));
     }));
 }
@@ -326,9 +326,9 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(JS::Realm& realm, Utf16String name
 void CookieStore::get_all(HTML::EnvironmentId environment_id, URL::URL url, Optional<Utf16String> name, GC::Ref<CookieListCompletionSteps> completion_steps)
 {
     // 7. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, completion_steps, environment_id, url = move(url), name = move(name)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, completion_steps, environment_id, move(url), move(name)), [](auto& self, auto& completion_steps, auto& environment_id, auto& url, auto& name) {
         // 1. Let list be the results of running query cookies with url and options["name"] with default null.
-        auto list = query_cookies(environment_id, url, name);
+        auto list = self.query_cookies(environment_id, url, name);
         completion_steps->function()(move(list));
     }));
 }
@@ -549,7 +549,7 @@ GC::Ref<WebIDL::Promise> CookieStore::set(JS::Realm& realm, CookieInit const& op
     if (!url.has_value())
         return promise;
 
-    set(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, u"Name, value, domain or path are malformed"sv));
+    set(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name, value, domain or path are malformed"_utf16));
     return promise;
 }
 
@@ -569,17 +569,17 @@ GC::Ref<WebIDL::Promise> CookieStore::set(JS::Realm& realm, Utf16String name, Ut
     if (!url.has_value())
         return promise;
 
-    set(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, u"Name or value are malformed"sv));
+    set(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name or value are malformed"_utf16));
     return promise;
 }
 
 void CookieStore::set(HTML::EnvironmentId environment_id, URL::URL url, CookieInit const& options, GC::Ref<CookieMutationCompletionSteps> completion_steps)
 {
     // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, completion_steps, environment_id, url = move(url), options = options]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, completion_steps, environment_id, move(url), options), [](auto& self, auto& completion_steps, auto& environment_id, auto& url, auto& options) {
         // 1. Let r be the result of running set a cookie with url, options["name"], options["value"], options["expires"],
         //    options["domain"], options["path"], options["sameSite"], and options["partitioned"].
-        auto result = set_a_cookie(environment_id, url, options.name, options.value, options.expires, options.domain, options.path, same_site_from_bindings(options.same_site), options.partitioned);
+        auto result = self.set_a_cookie(environment_id, url, options.name, options.value, options.expires, options.domain, options.path, same_site_from_bindings(options.same_site), options.partitioned);
         completion_steps->function()(result);
     }));
 }
@@ -613,7 +613,7 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(JS::Realm& realm, CookieStoreDelet
     if (!url.has_value())
         return promise;
 
-    delete_(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, u"Name is malformed"sv));
+    delete_(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name is malformed"_utf16));
     return promise;
 }
 
@@ -630,17 +630,17 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(JS::Realm& realm, Utf16String name
     if (!url.has_value())
         return promise;
 
-    delete_(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, u"Name is malformed"sv));
+    delete_(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name is malformed"_utf16));
     return promise;
 }
 
 void CookieStore::delete_(HTML::EnvironmentId environment_id, URL::URL url, CookieStoreDeleteOptions const& options, GC::Ref<CookieMutationCompletionSteps> completion_steps)
 {
     // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, completion_steps, environment_id, url = move(url), options = options]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, completion_steps, environment_id, move(url), options), [](auto& self, auto& completion_steps, auto& environment_id, auto& url, auto& options) {
         // 1. Let r be the result of running delete a cookie with url, options["name"], options["domain"], options["path"],
         //    and options["partitioned"].
-        auto result = delete_a_cookie(environment_id, url, options.name, options.domain, options.path, options.partitioned);
+        auto result = self.delete_a_cookie(environment_id, url, options.name, options.domain, options.path, options.partitioned);
         completion_steps->function()(result);
     }));
 }
@@ -665,6 +665,12 @@ struct CookieChange {
     HTTP::Cookie::Cookie cookie;
     Type type;
 };
+
+}
+
+GC_UNTRACED_CAPTURE(Web::CookieStore::CookieChange);
+
+namespace Web::CookieStore {
 
 // https://cookiestore.spec.whatwg.org/#observable-changes
 static Vector<CookieChange> observable_changes(Vector<HTTP::Cookie::Cookie> changes)
@@ -739,7 +745,7 @@ void CookieStore::process_cookie_changes(JS::Object& relevant_global_object, Vec
 
     // 4. Queue a global task on the DOM manipulation task source given window to fire a change event named "change"
     //    with changes at window’s CookieStore.
-    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(GC::Heap::the(), [this, relevant_global_object = GC::Ref(relevant_global_object), changes = move(changes)]() {
+    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(GC::Heap::the(), GC::captures(*this, relevant_global_object, move(changes)), [](auto& self, auto& relevant_global_object, auto& changes) {
         auto& realm = HTML::relevant_realm(relevant_global_object);
         HTML::TemporaryExecutionContext execution_context { realm };
         // https://cookiestore.spec.whatwg.org/#fire-a-change-event
@@ -762,7 +768,7 @@ void CookieStore::process_cookie_changes(JS::Object& relevant_global_object, Vec
         event->set_cancelable(false);
 
         // 7. Dispatch event at target.
-        this->dispatch_event(event);
+        self.dispatch_event(event);
     }));
 }
 

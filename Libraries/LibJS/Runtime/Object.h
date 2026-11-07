@@ -13,6 +13,7 @@
 #include <AK/StringView.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/CompressedPointer.h>
+#include <LibGC/Forward.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Embedding/Layout.h>
 #include <LibJS/Export.h>
@@ -150,9 +151,9 @@ public:
     void define_intrinsic_accessor(PropertyKey const&, PropertyAttributes attributes, IntrinsicAccessor accessor);
 
     void define_native_function(Realm&, PropertyKey const&, NativeFunctionPointer, i32 length, PropertyAttributes attributes);
-    void define_native_function(Realm&, PropertyKey const&, ESCAPING Function<ThrowCompletionOr<Value>(VM&)>, i32 length, PropertyAttributes attributes);
+    void define_native_function(Realm&, PropertyKey const&, GC::Ref<GC::Function<ThrowCompletionOr<Value>(VM&)>>, i32 length, PropertyAttributes attributes);
     void define_native_accessor(Realm&, PropertyKey const&, NativeFunctionPointer getter, NativeFunctionPointer setter, PropertyAttributes attributes);
-    void define_native_accessor(Realm&, PropertyKey const&, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> getter, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> setter, PropertyAttributes attributes);
+    void define_native_accessor(Realm&, PropertyKey const&, GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>> getter, GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>> setter, PropertyAttributes attributes);
 
     [[nodiscard]] bool is_function() const { return has_engine_object_flag(JS_LAYOUT_OBJECT_FLAG_IS_FUNCTION); }
     bool is_date() const;

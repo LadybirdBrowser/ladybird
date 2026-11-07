@@ -448,7 +448,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     // 4. Run these steps in parallel:
     auto type_string = Utf16String::from_utf16(type);
     Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, callback, bitmap_result, type = move(type_string), quality] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), GC::captures(*this, callback, bitmap_result, move(type_string), quality), [](auto& self, auto& callback, auto& bitmap_result, auto& type, auto& quality) {
         // 1. If result is non-null, then set result to a serialization of result as a file with type and quality if given.
         Optional<SerializeBitmapResult> file_result;
         if (bitmap_result.has_value()) {
@@ -457,9 +457,9 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
         }
 
         // 2. Queue an element task on the canvas blob serialization task source given the canvas element to run these steps:
-        queue_an_element_task(Task::Source::CanvasBlobSerializationTask, [this, callback, file_result = move(file_result)] {
-            auto& realm = HTML::relevant_realm(*this);
-            auto maybe_error = WebIDL::throw_dom_exception_if_needed(vm(), realm, [&]() -> WebIDL::ExceptionOr<void> {
+        self.queue_an_element_task(Task::Source::CanvasBlobSerializationTask, GC::create_function(self.heap(), GC::captures(self, callback, move(file_result)), [](auto& self, auto& callback, auto& file_result) {
+            auto& realm = HTML::relevant_realm(self);
+            auto maybe_error = WebIDL::throw_dom_exception_if_needed(self.vm(), realm, [&]() -> WebIDL::ExceptionOr<void> {
                 // 1. If result is non-null, then set result to a new Blob object, created in the relevant realm of this canvas element, representing result. [FILEAPI]
                 GC::Ptr<FileAPI::Blob> blob_result;
                 if (file_result.has_value())
@@ -471,8 +471,8 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
                 return {};
             });
             if (maybe_error.is_throw_completion())
-                report_exception(maybe_error.throw_completion(), HTML::relevant_realm(*this));
-        });
+                report_exception(maybe_error.throw_completion(), HTML::relevant_realm(self));
+        }));
     }));
     return {};
 }
@@ -602,12 +602,12 @@ void HTMLCanvasElement::did_commit_placeholder_frame(Gfx::IntSize size, bool ori
 {
     m_placeholder_frame_is_origin_clean = origin_clean;
 
-    queue_an_element_task(Task::Source::DOMManipulation, [this, size] {
-        if (width() != static_cast<WebIDL::UnsignedLong>(size.width()))
-            set_attribute_value(HTML::AttributeNames::width, Utf16String::number(size.width()));
-        if (height() != static_cast<WebIDL::UnsignedLong>(size.height()))
-            set_attribute_value(HTML::AttributeNames::height, Utf16String::number(size.height()));
-    });
+    queue_an_element_task(Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(*this, size.width(), size.height()), [](auto& self, auto& width, auto& height) {
+        if (self.width() != static_cast<WebIDL::UnsignedLong>(width))
+            self.set_attribute_value(HTML::AttributeNames::width, Utf16String::number(width));
+        if (self.height() != static_cast<WebIDL::UnsignedLong>(height))
+            self.set_attribute_value(HTML::AttributeNames::height, Utf16String::number(height));
+    }));
 }
 
 RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()

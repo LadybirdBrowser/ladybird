@@ -280,7 +280,7 @@ void Canvas2DContextBase::notify_backing_storage_lost()
     // When the user agent detects that the backing storage associated with a canvas context has been lost, then it
     // must queue a global task on the DOM manipulation task source given canvas's relevant global object to run
     // these steps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, canvas_host().canvas_relevant_global_object(), GC::create_function(GC::Heap::the(), [context = GC::Ref { *this }] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, canvas_host().canvas_relevant_global_object(), GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *this }), [](auto& context) {
         // 1. Let canvas be context's canvas element.
         auto& canvas = context->canvas_host();
 

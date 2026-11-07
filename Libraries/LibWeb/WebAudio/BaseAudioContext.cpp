@@ -62,8 +62,8 @@ void web_audio_context_destroy_task_source(HTML::UniqueTaskSource* source) { del
 void web_audio_context_queue_task(HTML::UniqueTaskSource* source, DOM::EventTarget* global, GC::Cell* cell, void (*invoke)(void*, void*))
 {
     auto& settings = HTML::relevant_settings_object(HTML::relevant_window_or_worker_global_scope(*global));
-    auto task = HTML::Task::create(source->source, settings.responsible_document(), GC::create_function(GC::Heap::the(), [cell = GC::make_root(*cell), invoke] {
-        invoke(JS::HostABI::vm_to_abi(JS::VM::the()), cell.ptr());
+    auto task = HTML::Task::create(source->source, settings.responsible_document(), GC::create_function(GC::Heap::the(), GC::captures(*cell, invoke), [](GC::Cell& cell, void (*invoke)(void*, void*)) {
+        invoke(JS::HostABI::vm_to_abi(JS::VM::the()), &cell);
     }));
     (void)HTML::main_thread_event_loop().task_queue().add(task);
 }
@@ -74,7 +74,7 @@ DOM::DocumentObserver* web_audio_context_observe_document(DOM::EventTarget* glob
         return nullptr;
     // FIXME: Also handle the document becoming active again, e.g. when restored from the back/forward cache.
     auto observer = DOM::DocumentObserver::create(window->associated_document());
-    observer->set_document_became_inactive([context] { web_rust_audio_context_document_inactive(context); });
+    observer->set_document_became_inactive(GC::create_function(GC::Heap::the(), GC::captures(*context), [](Bindings::RustInterfaceCell& context) { web_rust_audio_context_document_inactive(&context); }));
     return observer.ptr();
 }
 JS::Realm* web_audio_context_global_realm(DOM::EventTarget* global) { return &HTML::relevant_settings_object(HTML::relevant_window_or_worker_global_scope(*global)).realm(); }

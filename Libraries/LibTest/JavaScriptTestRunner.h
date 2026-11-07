@@ -19,6 +19,7 @@
 #include <AK/Tuple.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/File.h>
+#include <LibGC/Function.h>
 #include <LibGC/Root.h>
 #include <LibJS/ParserError.h>
 #include <LibJS/Runtime/Array.h>
@@ -179,21 +180,19 @@ inline void define_test_runner_globals(JS::Realm& realm, bool prints_test_timing
     global_object.define_native_function(
         realm,
         "__reportTest__"_utf16,
-        [prints_test_timings](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        GC::create_function(realm.heap(), GC::captures(prints_test_timings), [](bool prints_test_timings, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             if (!prints_test_timings)
                 return JS::js_undefined();
             auto test_name = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
             print_test_timings(test_name, vm.argument(1));
             return JS::js_undefined();
-        },
+        }),
         2, JS::default_attributes);
     for (auto& entry : s_exposed_global_functions) {
         global_object.define_native_function(
             realm,
             entry.key,
-            [fn = entry.value.function](auto& vm) {
-                return fn(vm);
-            },
+            entry.value.function,
             entry.value.length, JS::default_attributes);
     }
 }

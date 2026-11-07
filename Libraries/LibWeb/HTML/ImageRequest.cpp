@@ -138,17 +138,17 @@ void ImageRequest::fetch_image(NonnullRefPtr<Fetch::Infrastructure::Request> req
         m_shared_resource_request->fetch_resource(request);
 }
 
-void ImageRequest::add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop, SharedResourceRequest::DelaysLoadEvent delays_load_event)
+void ImageRequest::add_callbacks(GC::Ptr<GC::Function<void()>> on_finish, GC::Ptr<GC::Function<void()>> on_fail, GC::Ptr<GC::Function<void()>> on_stop, SharedResourceRequest::DelaysLoadEvent delays_load_event)
 {
     VERIFY(m_shared_resource_request);
-    if (auto id = m_shared_resource_request->add_removable_callbacks(move(on_finish), move(on_fail), move(on_stop), delays_load_event); id.has_value())
+    if (auto id = m_shared_resource_request->add_removable_callbacks(on_finish, on_fail, on_stop, delays_load_event); id.has_value())
         m_shared_resource_request_callbacks_ids.append(*id);
 }
 
-void ImageRequest::add_callbacks_without_delaying_the_load_event(Function<void()> on_finish, Function<void()> on_fail)
+void ImageRequest::add_callbacks_without_delaying_the_load_event(GC::Ptr<GC::Function<void()>> on_finish, GC::Ptr<GC::Function<void()>> on_fail)
 {
     VERIFY(m_shared_resource_request);
-    (void)m_shared_resource_request->add_removable_callbacks(move(on_finish), move(on_fail), {}, SharedResourceRequest::DelaysLoadEvent::No);
+    (void)m_shared_resource_request->add_removable_callbacks(on_finish, on_fail, {}, SharedResourceRequest::DelaysLoadEvent::No);
 }
 
 void ImageRequest::stop_waiting_for_fetch()
