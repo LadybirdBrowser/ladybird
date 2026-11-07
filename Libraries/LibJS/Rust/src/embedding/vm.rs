@@ -215,18 +215,13 @@ pub unsafe extern "C" fn js_vm_set_embedder(vm: *mut JSVM, hooks: *const JSVmHos
     install_embedder(vm, hooks.map(|hooks| Embedder { hooks, data }));
 }
 
-/// Chooses how the VM writes the two strings scripts read to tell engines apart: Error.prototype.stack's frames
-/// (0: indented "    at f (url:line:col)", 1: "f@url:line:col") and Function.prototype.toString of a built-in function
-/// (0: on one line, 1: with "[native code]" on a line of its own). Only the VM's thread may call this.
-///
-/// # Safety
-///
-/// `vm` must be a live VM.
+/// Chooses how every VM of the process writes the two strings scripts read to tell engines apart:
+/// Error.prototype.stack's frames (0: indented "    at f (url:line:col)", 1: "f@url:line:col") and
+/// Function.prototype.toString of a built-in function (0: on one line, 1: with "[native code]" on a line of its own).
+/// Any thread may call this.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_vm_set_source_text_syntaxes(vm: *mut JSVM, stack_frames: u8, native_functions: u8) {
-    // SAFETY: The caller passes a live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    vm.set_source_text_syntaxes(
+pub extern "C" fn js_vm_set_source_text_syntaxes(stack_frames: u8, native_functions: u8) {
+    Vm::set_source_text_syntaxes(
         StackFrameSyntax::from_abi(stack_frames),
         NativeFunctionSourceSyntax::from_abi(native_functions),
     );
