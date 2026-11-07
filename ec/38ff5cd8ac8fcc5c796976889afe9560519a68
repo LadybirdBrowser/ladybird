@@ -1,0 +1,8 @@
+The table box of an inline table takes the width its wrapper was
+given, and lays its columns out in that width. Gecko does the same: Its
+nsTableFrame::ComputeAutoSize() fits an auto-width table to the
+available inline size. So does WebKit’s RenderTable::
+updateLogicalWidth(), which clamps an auto width to the containing
+block’s content width, and Blink’s ComputeAssignableTableInlineSize(),
+which works from the constraint space’s available inline size, while
+measuring the table’s min- and max-content sizes separately.
