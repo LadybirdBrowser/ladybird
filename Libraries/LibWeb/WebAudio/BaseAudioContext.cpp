@@ -2,12 +2,14 @@
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/NumericLimits.h>
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibMediaClient/Client.h>
@@ -45,6 +47,16 @@
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebAudio {
+
+extern "C" JSCompletion web_audio_verify_buffer_options(void* realm, u32 channels, u32 length, float sample_rate);
+JSCompletion web_audio_verify_buffer_options(void* realm, u32 channels, u32 length, float sample_rate)
+{
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto result = BaseAudioContext::verify_audio_options_inside_nominal_range(channels, length, sample_rate);
+    if (result.is_exception())
+        return JS::HostABI::throw_completion_to_abi(WebIDL::exception_to_throw_completion(js_realm.vm(), js_realm, result.exception()).value());
+    return JS::HostABI::normal_completion_to_abi(JS::HostABI::value_to_abi(JS::js_undefined()));
+}
 
 static JS::Value audio_buffer(JS::Realm& realm, GC::Ptr<AudioBuffer> buffer)
 {

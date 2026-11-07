@@ -4,4 +4,5 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub(crate) mod audio_buffer;
 pub(crate) mod periodic_wave;
