@@ -966,7 +966,7 @@ def write_rust_collection_properties(out: TextIO, members: RustMembers, defined_
             raw_native!(crate::bindings::maplike::map_iterator_values::<Implementation>),
             raw_native!(crate::bindings::maplike::map_for_each::<Implementation>),
             raw_native!(crate::bindings::maplike::map_get::<Implementation>),
-            raw_native!(crate::bindings::maplike::map_has::<Implementation>),
+            raw_native!(<Implementation as crate::bindings::maplike::Maplike>::has),
         );
 """
         )
