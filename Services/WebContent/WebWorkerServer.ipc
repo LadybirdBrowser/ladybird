@@ -14,7 +14,6 @@
 endpoint WebWorkerServer {
     connect_to_request_server(IPC::TransportHandle handle, int client_id, Optional<Utf16String> top_level_site) =|
     simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle, int client_id, Optional<Utf16String> top_level_site) => ()
-    connect_to_compositor(IPC::TransportHandle handle) =|
     set_site_compatibility_data(JsonValue data) =|
     set_permission_snapshot(Web::Permissions::PermissionSnapshot snapshot) =|
     set_user_agent(String user_agent) =|

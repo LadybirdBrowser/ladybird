@@ -67,6 +67,7 @@ public:
     virtual Messages::WebWorkerClient::RequestMediaServerConnectionResponse request_media_server_connection() override;
     virtual Messages::WebWorkerClient::RequestImageDecoderConnectionResponse request_image_decoder_connection() override;
     virtual void did_release_image_decoder() override;
+    virtual Messages::WebWorkerClient::RequestCompositorConnectionResponse request_compositor_connection() override;
     virtual void did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage) override;
     virtual Messages::WebWorkerClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;

@@ -50,7 +50,7 @@ public:
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }
 
-    Web::Compositor::CompositorConnection* compositor_process_connection() const;
+    Web::Compositor::CompositorConnection* compositor_process_connection();
 
     // Asks the Browser to spawn this worker's MediaServer if it has none, and to connect a client to it.
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_media_server_transport();
@@ -65,7 +65,6 @@ private:
 
     virtual void connect_to_request_server(IPC::TransportHandle handle, int client_id, Optional<Utf16String> top_level_site) override;
     virtual void simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle, int client_id, Optional<Utf16String> top_level_site) override;
-    virtual void connect_to_compositor(IPC::TransportHandle handle) override;
     virtual void set_site_compatibility_data(JsonValue data) override;
     virtual void set_permission_snapshot(Web::Permissions::PermissionSnapshot snapshot) override;
     virtual void set_user_agent(String user_agent) override;
@@ -87,7 +86,10 @@ private:
 
     GC::Root<PageHost> m_page_host;
 
+    void connect_to_compositor();
+
     RefPtr<Web::Compositor::CompositorConnection> m_compositor_connection;
+    bool m_did_ask_for_compositor_connection { false };
 
     // FIXME: Route console messages to the Browser UI using a ConsoleClient
 
