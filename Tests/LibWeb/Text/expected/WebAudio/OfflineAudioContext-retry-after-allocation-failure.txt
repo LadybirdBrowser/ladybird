@@ -1,0 +1,2 @@
+First attempt failed: true
+Second attempt failed the same way: true

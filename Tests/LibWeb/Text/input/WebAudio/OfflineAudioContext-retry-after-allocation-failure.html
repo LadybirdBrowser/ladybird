@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const context = new OfflineAudioContext(1, 0xffffffff, 8000);
+        const attempts = [];
+        for (let attempt = 0; attempt < 2; ++attempt) {
+            try {
+                await context.startRendering();
+                attempts.push("succeeded");
+            } catch (error) {
+                attempts.push(error.name);
+            }
+        }
+        println(`First attempt failed: ${attempts[0] !== "succeeded"}`);
+        println(`Second attempt failed the same way: ${attempts[1] === attempts[0]}`);
+    });
+</script>
