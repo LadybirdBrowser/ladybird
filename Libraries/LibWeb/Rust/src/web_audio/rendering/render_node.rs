@@ -119,7 +119,7 @@ impl RenderAudioParam {
         }
 
         // 2. Set [[current value]] to the value of paramIntrinsicValue at the beginning of this render quantum.
-        // NB: Sampling updates the slot while holding the timeline lock.
+        // NB: Sampling updates the slot for the snapshot it rendered.
 
         // 3. paramComputedValue is the sum of the paramIntrinsicValue value and the value of the input AudioParam
         //    buffer. If the sum is NaN, replace the sum with the defaultValue.
