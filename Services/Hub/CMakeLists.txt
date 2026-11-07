@@ -6,6 +6,7 @@ set(SOURCES
     ActionMirror.cpp
     Application.cpp
     ConnectionFromUI.cpp
+    Proxies.cpp
     View.cpp
 )
 

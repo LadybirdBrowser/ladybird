@@ -7,6 +7,7 @@
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
 #include <LibURL/Origin.h>
+#include <LibWebCommon/NotificationsAPI/NotificationData.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/WebView/DictionaryLookup.h>
 #include <LibWebCommon/HTML/FileFilter.h>
@@ -239,6 +240,17 @@ struct Hub::ViewState {
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    pip_open(u64 view_id, u64 owner_view_id, Gfx::IntSize video_size) =|
+    pip_hide(u64 view_id) =|
+    pip_set_video_size(u64 view_id, Gfx::IntSize video_size) =|
+    pip_close(u64 view_id) =|
+    notification_show(u64 id, u64 page_id, Optional<u64> replaces, Web::NotificationsAPI::NotificationData data, String attribution, Optional<Gfx::ShareableBitmap> icon) =|
+    notification_close(u64 id) =|
+    app_focus_view_from_notification(u64 view_id) =|
+    app_open_url_in_new_tab_from_notification(URL::URL url, Optional<u64> view_id, WebView::IsPrivate is_private) =|
+    external_url_resolve_handler(u64 request_id, URL::URL url) =|
+    external_url_launch(u64 handler_id, u64 request_id, URL::URL url) =|
+    external_url_release_handler(u64 handler_id) =|
     omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions) =|
     bookmarks_changed(ByteString bookmarks_json) =|
     app_read_bookmarks_for_all_tabs(u64 request_id) =|

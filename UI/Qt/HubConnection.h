@@ -29,6 +29,17 @@ private:
     virtual void die() override;
 
     // ^HubClientEndpoint
+    virtual void pip_open(u64 view_id, u64 owner_view_id, Gfx::IntSize video_size) override;
+    virtual void pip_hide(u64 view_id) override;
+    virtual void pip_set_video_size(u64 view_id, Gfx::IntSize video_size) override;
+    virtual void pip_close(u64 view_id) override;
+    virtual void notification_show(u64 id, u64 page_id, Optional<u64> replaces, Web::NotificationsAPI::NotificationData data, String attribution, Optional<Gfx::ShareableBitmap> icon) override;
+    virtual void notification_close(u64 id) override;
+    virtual void app_focus_view_from_notification(u64 view_id) override;
+    virtual void app_open_url_in_new_tab_from_notification(URL::URL url, Optional<u64> view_id, WebView::IsPrivate is_private) override;
+    virtual void external_url_resolve_handler(u64 request_id, URL::URL url) override;
+    virtual void external_url_launch(u64 handler_id, u64 request_id, URL::URL url) override;
+    virtual void external_url_release_handler(u64 handler_id) override;
     virtual void omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions) override;
     virtual void bookmarks_changed(ByteString bookmarks_json) override;
     virtual void app_read_bookmarks_for_all_tabs(u64 request_id) override;

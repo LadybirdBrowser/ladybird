@@ -42,6 +42,8 @@ public:
     void did_get_answer(u64 answer_id, bool answer);
     void did_get_permission_answer(u64 answer_id, Web::Permissions::PromptOutcome);
 
+    Gfx::IntSize screen_size() const;
+
     void set_viewport(Web::DevicePixelSize, double device_pixel_ratio);
     void set_system_theme(Core::AnonymousBuffer);
     void set_screen_rects(ScreenRects);

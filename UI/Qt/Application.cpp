@@ -19,6 +19,7 @@
 #    include <LibWebView/NotificationBackendFreedesktop.h>
 #endif
 #include <Hub/ActionMirror.h>
+#include <LibWebView/NoOpNotificationBackend.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
@@ -659,7 +660,7 @@ Application::~Application()
         delete window.data();
 
     // A Picture-in-Picture window is a widget too, so it must also go before the QApplication does.
-    WebView::PictureInPictureManager::the().destroy_all_windows();
+    m_picture_in_picture_windows.clear();
 }
 
 void Application::show_process_manager()
@@ -1380,9 +1381,47 @@ bool Application::confirm_stop_active_downloads(QWidget* parent)
     return true;
 }
 
-OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_window(WebView::ViewImplementation& owner_view, u64 view_id, Gfx::IntSize video_size)
+void Application::open_picture_in_picture_window(u64 view_id, u64 owner_view_id, Gfx::IntSize video_size)
 {
-    return Ladybird::create_picture_in_picture_window(owner_view, view_id, video_size);
+    auto* owner_view = RemoteView::find(owner_view_id);
+    if (!owner_view) {
+        // NB: The owner went away before this arrived. The Hub must still hear that the window closed, or it would keep
+        //     the window and its view.
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_pip_did_close(view_id, false);
+        return;
+    }
+    auto window = Ladybird::create_picture_in_picture_window(*owner_view, view_id, video_size);
+    window->on_resize = [view_id](Gfx::IntSize size) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_pip_did_resize(view_id, size);
+    };
+    window->on_close = [view_id](auto video_keeps_playing) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_pip_did_close(view_id, video_keeps_playing == WebView::PictureInPictureWindow::VideoKeepsPlaying::Yes);
+    };
+    m_picture_in_picture_windows.set(view_id, move(window));
+}
+
+void Application::hide_picture_in_picture_window(u64 view_id)
+{
+    if (auto* window = m_picture_in_picture_windows.get(view_id).value_or(nullptr))
+        window->hide();
+}
+
+void Application::set_picture_in_picture_video_size(u64 view_id, Gfx::IntSize video_size)
+{
+    if (auto* window = m_picture_in_picture_windows.get(view_id).value_or(nullptr))
+        window->set_video_size(video_size);
+}
+
+void Application::close_picture_in_picture_window(u64 view_id)
+{
+    // NB: A window holds the view, which lets the Hub's view go as it goes. With no window, nothing here ever held it.
+    if (m_picture_in_picture_windows.remove(view_id))
+        return;
+    if (auto* hub = HubConnection::the_if_connected())
+        hub->async_destroy_view(view_id);
 }
 
 // The window that shows this view in one of its tabs, if any.
@@ -1406,21 +1445,25 @@ OwnPtr<WebView::NotificationBackend> Application::create_notification_backend()
 #endif
 }
 
-void Application::focus_page_from_notification(WebView::WebContentPage& page)
+void Application::focus_view_from_notification(u64 view_id)
 {
-    auto* window = window_for_view(page.view());
+    auto* view = RemoteView::find(view_id);
+    if (!view)
+        return;
+    auto& hub_view = view->hub_view();
+    auto* window = window_for_view(hub_view);
     if (!window)
         return;
-    window->activate_tab(window->tab_index(window->tab_for_view(page.view())));
+    window->activate_tab(window->tab_index(window->tab_for_view(hub_view)));
     window->bring_to_front();
 }
 
-void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId, WebView::CanonicalTraversable* traversable, WebView::IsPrivate is_private)
+void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Optional<u64> view_id, WebView::IsPrivate is_private)
 {
     BrowserWindow* window = nullptr;
-    if (traversable) {
-        if (auto view = traversable->view(); view.has_value())
-            window = window_for_view(*view);
+    if (view_id.has_value()) {
+        if (auto* view = RemoteView::find(*view_id))
+            window = window_for_view(view->hub_view());
     }
     // The site opens in the notification's own session: a private window's notification never lands in a normal
     // window, nor a normal one in a private window.
@@ -1886,6 +1929,69 @@ NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_fo
 NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const
 {
     return display_add_or_edit_bookmark_folder_dialog(active_tab(), BookmarkDialog::Type::EditFolder, current_folder.folder().title, parent_folder_id, current_folder.id);
+}
+
+WebView::NotificationBackend& Application::notification_backend()
+{
+    if (m_notification_backend)
+        return *m_notification_backend;
+
+    m_notification_backend = create_notification_backend();
+    if (!m_notification_backend)
+        m_notification_backend = make<WebView::NoOpNotificationBackend>();
+    m_notification_backend->on_shown = [](u64 id) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_notification_shown(id);
+    };
+    m_notification_backend->on_failed = [](u64 id) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_notification_failed(id);
+    };
+    m_notification_backend->on_clicked = [](u64 id) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_notification_clicked(id);
+    };
+    m_notification_backend->on_closed = [](u64 id, WebView::NotificationBackend::ByUser by_user) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_notification_closed(id, by_user == WebView::NotificationBackend::ByUser::Yes);
+    };
+    return *m_notification_backend;
+}
+
+void Application::resolve_external_url_handler_for_hub(u64 request_id, URL::URL const& url)
+{
+    resolve_external_url_handler(url, [this, request_id](RefPtr<WebView::ExternalURLHandler> handler) {
+        auto* hub = HubConnection::the_if_connected();
+        if (!hub)
+            return;
+        if (!handler) {
+            hub->async_external_url_handler_resolved(request_id, Optional<u64> {}, String {}, false);
+            return;
+        }
+        auto handler_id = m_next_external_url_handler_id++;
+        auto application_name = handler->application_name();
+        auto is_ladybird = handler->is_ladybird();
+        m_external_url_handlers.set(handler_id, handler.release_nonnull());
+        hub->async_external_url_handler_resolved(request_id, handler_id, move(application_name), is_ladybird);
+    });
+}
+
+void Application::launch_external_url(u64 handler_id, u64 request_id, URL::URL const& url)
+{
+    auto handler = m_external_url_handlers.get(handler_id);
+    if (!handler.has_value()) {
+        HubConnection::the().async_external_url_launched(request_id, false);
+        return;
+    }
+    (*handler)->launch(url, [request_id](bool launched) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_external_url_launched(request_id, launched);
+    });
+}
+
+void Application::release_external_url_handler(u64 handler_id)
+{
+    m_external_url_handlers.remove(handler_id);
 }
 
 void Application::report_active_view() const

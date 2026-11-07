@@ -7,6 +7,7 @@
 #include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
+#include <Hub/Proxies.h>
 #include <LibCore/EventLoop.h>
 #include <LibWebView/WebContentPage.h>
 
@@ -260,10 +261,8 @@ NonnullOwnPtr<WebView::MicrophoneAuthorizer> Application::create_microphone_auth
 
 NonnullOwnPtr<WebView::NotificationBackend> Application::create_notification_backend()
 {
-    if (m_host) {
-        if (auto backend = m_host->create_notification_backend())
-            return backend.release_nonnull();
-    }
+    if (ConnectionFromUI::the())
+        return make<NotificationBackendInUI>();
     return WebView::Application::create_notification_backend();
 }
 
@@ -428,22 +427,6 @@ Optional<String> Application::system_font_family() const
     return WebView::Application::system_font_family();
 }
 
-void Application::focus_page_from_notification(WebView::WebContentPage& page)
-{
-    if (m_host)
-        m_host->focus_page_from_notification(page);
-    else
-        WebView::Application::focus_page_from_notification(page);
-}
-
-void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId originating_page, WebView::CanonicalTraversable* canonical_traversable, WebView::IsPrivate is_private)
-{
-    if (m_host)
-        m_host->open_url_in_new_tab_from_notification(url, originating_page, canonical_traversable, is_private);
-    else
-        WebView::Application::open_url_in_new_tab_from_notification(url, originating_page, canonical_traversable, is_private);
-}
-
 bool Application::supports_picture_in_picture() const
 {
     if (m_host)
@@ -453,23 +436,74 @@ bool Application::supports_picture_in_picture() const
 
 OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable& traversable, Gfx::IntSize video_size)
 {
-    if (!m_host)
+    if (!ConnectionFromUI::the())
         return WebView::Application::create_picture_in_picture_window(requesting_page, traversable, video_size);
 
     auto& owner_view = static_cast<View&>(requesting_page.view());
     auto initial_state = owner_view.initial_state_for_related_view();
     initial_state.owner_view_id = owner_view.view_id();
     initial_state.is_tab = false;
+    auto screen_size = owner_view.screen_size();
     auto& view = create_view(move(initial_state), traversable);
-    return m_host->create_picture_in_picture_window(owner_view, view.view_id(), video_size);
+    return make<PictureInPictureWindowInUI>(view, owner_view.view_id(), video_size, WebView::PictureInPictureWindow::initial_size(video_size, screen_size));
+}
+
+void Application::focus_page_from_notification(WebView::WebContentPage& page)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_focus_view_from_notification(page.view().view_id());
+}
+
+void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId, WebView::CanonicalTraversable* canonical_traversable, WebView::IsPrivate is_private)
+{
+    Optional<u64> view_id;
+    if (canonical_traversable) {
+        if (auto view = canonical_traversable->view(); view.has_value())
+            view_id = view->view_id();
+    }
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_open_url_in_new_tab_from_notification(url, view_id, is_private);
 }
 
 void Application::resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const
 {
-    if (m_host)
-        m_host->resolve_external_url_handler(url, move(callback));
-    else
+    auto* ui = ConnectionFromUI::the();
+    if (!ui) {
         WebView::Application::resolve_external_url_handler(url, move(callback));
+        return;
+    }
+    auto request_id = m_next_ui_request_id++;
+    m_pending_external_url_handlers.set(request_id, move(callback));
+    ui->async_external_url_resolve_handler(request_id, url);
+}
+
+void Application::did_resolve_external_url_handler(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird)
+{
+    auto callback = m_pending_external_url_handlers.take(request_id);
+    if (!callback.has_value())
+        return;
+    if (handler_id.has_value())
+        (*callback)(adopt_ref(*new ExternalURLHandlerInUI(*handler_id, move(application_name), is_ladybird)));
+    else
+        (*callback)(nullptr);
+}
+
+void Application::launch_external_url(u64 handler_id, URL::URL const& url, Function<void(bool)> callback) const
+{
+    auto* ui = ConnectionFromUI::the();
+    if (!ui) {
+        callback(false);
+        return;
+    }
+    auto request_id = m_next_ui_request_id++;
+    m_pending_external_url_launches.set(request_id, move(callback));
+    ui->async_external_url_launch(handler_id, request_id, url);
+}
+
+void Application::did_launch_external_url(u64 request_id, bool launched)
+{
+    if (auto callback = m_pending_external_url_launches.take(request_id); callback.has_value())
+        (*callback)(launched);
 }
 
 bool Application::supports_clipboard_type(WebView::Application::ClipboardType type) const

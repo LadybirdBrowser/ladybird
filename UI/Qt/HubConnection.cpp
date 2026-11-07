@@ -382,6 +382,71 @@ void HubConnection::omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebV
         provider->on_suggestions(query_id, move(suggestions));
 }
 
+void HubConnection::pip_open(u64 view_id, u64 owner_view_id, Gfx::IntSize video_size)
+{
+    Application::the().open_picture_in_picture_window(view_id, owner_view_id, video_size);
+}
+
+void HubConnection::pip_hide(u64 view_id)
+{
+    Application::the().hide_picture_in_picture_window(view_id);
+}
+
+void HubConnection::pip_set_video_size(u64 view_id, Gfx::IntSize video_size)
+{
+    Application::the().set_picture_in_picture_video_size(view_id, video_size);
+}
+
+void HubConnection::pip_close(u64 view_id)
+{
+    Application::the().close_picture_in_picture_window(view_id);
+}
+
+void HubConnection::notification_show(u64 id, u64 page_id, Optional<u64> replaces, Web::NotificationsAPI::NotificationData data, String attribution, Optional<Gfx::ShareableBitmap> icon)
+{
+    RefPtr<Gfx::Bitmap const> icon_bitmap;
+    if (icon.has_value() && icon->is_valid())
+        icon_bitmap = icon->bitmap();
+    Application::the().notification_backend().show({
+        .id = id,
+        .page_id = Web::PageId { page_id },
+        .replaces = replaces,
+        .data = move(data),
+        .attribution = move(attribution),
+        .icon = move(icon_bitmap),
+    });
+}
+
+void HubConnection::notification_close(u64 id)
+{
+    Application::the().notification_backend().close(id);
+}
+
+void HubConnection::app_focus_view_from_notification(u64 view_id)
+{
+    Application::the().focus_view_from_notification(view_id);
+}
+
+void HubConnection::app_open_url_in_new_tab_from_notification(URL::URL url, Optional<u64> view_id, WebView::IsPrivate is_private)
+{
+    Application::the().open_url_in_new_tab_from_notification(url, view_id, is_private);
+}
+
+void HubConnection::external_url_resolve_handler(u64 request_id, URL::URL url)
+{
+    Application::the().resolve_external_url_handler_for_hub(request_id, url);
+}
+
+void HubConnection::external_url_launch(u64 handler_id, u64 request_id, URL::URL url)
+{
+    Application::the().launch_external_url(handler_id, request_id, url);
+}
+
+void HubConnection::external_url_release_handler(u64 handler_id)
+{
+    Application::the().release_external_url_handler(handler_id);
+}
+
 void HubConnection::settings_changed(ByteString settings_json)
 {
     auto settings = JsonValue::from_string(settings_json);

@@ -7,6 +7,7 @@
 #include <Hub/ActionMirror.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
+#include <Hub/Proxies.h>
 
 namespace Hub {
 
@@ -278,6 +279,52 @@ void ConnectionFromUI::omnibox_record_engagement(u64 client_id, WebView::Omnibox
 {
     if (auto* autocomplete = m_omnibox_clients.get(client_id).value_or(nullptr))
         autocomplete->record_engagement(move(engagement));
+}
+
+void ConnectionFromUI::pip_did_resize(u64 view_id, Gfx::IntSize size)
+{
+    if (auto* window = PictureInPictureWindowInUI::find(view_id))
+        window->did_resize(size);
+}
+
+void ConnectionFromUI::pip_did_close(u64 view_id, bool video_keeps_playing)
+{
+    if (auto* window = PictureInPictureWindowInUI::find(view_id))
+        window->did_close(video_keeps_playing);
+}
+
+void ConnectionFromUI::notification_shown(u64 id)
+{
+    if (auto* backend = NotificationBackendInUI::the(); backend && backend->on_shown)
+        backend->on_shown(id);
+}
+
+void ConnectionFromUI::notification_failed(u64 id)
+{
+    if (auto* backend = NotificationBackendInUI::the(); backend && backend->on_failed)
+        backend->on_failed(id);
+}
+
+void ConnectionFromUI::notification_clicked(u64 id)
+{
+    if (auto* backend = NotificationBackendInUI::the(); backend && backend->on_clicked)
+        backend->on_clicked(id);
+}
+
+void ConnectionFromUI::notification_closed(u64 id, bool by_user)
+{
+    if (auto* backend = NotificationBackendInUI::the(); backend && backend->on_closed)
+        backend->on_closed(id, by_user ? WebView::NotificationBackend::ByUser::Yes : WebView::NotificationBackend::ByUser::No);
+}
+
+void ConnectionFromUI::external_url_handler_resolved(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird)
+{
+    Application::the().did_resolve_external_url_handler(request_id, handler_id, move(application_name), is_ladybird);
+}
+
+void ConnectionFromUI::external_url_launched(u64 request_id, bool launched)
+{
+    Application::the().did_launch_external_url(request_id, launched);
 }
 
 void ConnectionFromUI::update_settings(ByteString settings_json)
