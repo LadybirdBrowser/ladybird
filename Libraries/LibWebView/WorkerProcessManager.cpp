@@ -152,7 +152,14 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
                     agent.owners.append(owner);
                     agent.extended_lifetime_timer = nullptr;
                     agent.client->async_connect_shared_worker(move(request.outside_port), request.outside_settings);
-                    return { agent.id, {} };
+                    auto const* owner_host = owner.client.visit(
+                        [](WebContentOwner const& web_content_owner) -> WebContentClient const* {
+                            return web_content_owner.client.ptr();
+                        },
+                        [](WebWorkerOwner const& web_worker_owner) -> WebContentClient const* {
+                            return web_worker_owner.client->host();
+                        });
+                    return { agent.id, {}, owner_host && owner_host == agent.client->host() };
                 }
             }
 
@@ -343,7 +350,7 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
     m_agents.set(agent_id, move(agent));
     client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type, move(inside_origin), move(environment_id), host_has_only_this_worker);
 
-    return { agent_id, move(thread_transport) };
+    return { agent_id, move(thread_transport), !host_has_only_this_worker };
 }
 
 // Sites decide what runs together in a process, as for the documents of CanonicalNavigable::process_to_host(). The worker's

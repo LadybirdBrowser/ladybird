@@ -3354,7 +3354,7 @@ Messages::WebContentClient::StartWorkerAgentResponse WebContentPage::start_worke
     // A page hosting an isolated iframe's document belongs to its tab's view as much as the view's own page does.
     auto outside_settings = hosted_environment(request.outside_settings.id);
     auto started_agent = WorkerProcessManager::the().start_worker_agent(client(), m_id, outside_settings, move(request));
-    return { started_agent.agent_id, move(started_agent.thread_transport) };
+    return { started_agent.agent_id, move(started_agent.thread_transport), started_agent.is_hosted_in_owner_process };
 }
 
 Messages::WebContentClient::DidRequestStorageUsageResponse WebContentPage::did_request_storage_usage(Web::HTML::EnvironmentId environment_id)

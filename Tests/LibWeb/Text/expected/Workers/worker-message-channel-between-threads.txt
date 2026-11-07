@@ -1,0 +1,14 @@
+before the transfer: same agent
+after the transfer: channel
+echoes in order: true
+after start: a b c
+kind of the port back on this thread: channel
+after two transfers: 1 2 3 4
+a port in a queued message: channel
+carries a port
+from a closed port: last words
+after the close: none
+after terminate: channel
+remote got sent early, remote got sent late, remote got sent after it left
+peer in another process: socket
+remote got from the worker, early, remote got from the worker, late

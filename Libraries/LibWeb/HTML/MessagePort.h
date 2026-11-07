@@ -49,8 +49,23 @@ public:
     void discard_pending_messages();
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports:transfer-steps
-    WebIDL::ExceptionOr<TransferDataEncoder> transfer_steps(JS::Realm&);
+    // For the port of a new channel, whose data holder goes through the browser process to the thread of a worker. As
+    // long as nobody took up the other end, it waits in this process, under the token.
+    struct TransferredToWorker {
+        TransferDataEncoder data_holder;
+        u64 parked_end_token { 0 };
+    };
+    enum class WorkerMayBeInOtherProcess {
+        No,
+        Yes,
+    };
+    WebIDL::ExceptionOr<TransferredToWorker> transfer_to_worker(JS::Realm&, WorkerMayBeInOtherProcess);
 
+    // Tells that the data holder is not going to arrive in this process, unless it did already: the port goes on over the
+    // socket that the data holder carries, if it may leave the process, and otherwise its peer is gone.
+    static void give_up_on_parked_end(u64 parked_end_token);
+
+    StringView entanglement_kind_for_testing() const;
     size_t pending_outgoing_message_count() const;
     void fail_next_transfer_for_testing();
 };

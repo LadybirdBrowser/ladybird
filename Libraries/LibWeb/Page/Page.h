@@ -1015,7 +1015,11 @@ public:
     virtual void page_did_register_javascript_source([[maybe_unused]] DOM::Document&, [[maybe_unused]] HTML::ScriptRegistry::Description const&) { }
     virtual void page_did_post_broadcast_channel_message([[maybe_unused]] HTML::PostedBroadcastChannelMessage const& message) { }
 
-    virtual HTML::WorkerAgentId start_worker_agent([[maybe_unused]] HTML::WorkerAgentStartRequest&& request) { return {}; }
+    struct StartedWorkerAgent {
+        HTML::WorkerAgentId agent_id { 0 };
+        bool is_hosted_in_this_process { false };
+    };
+    virtual StartedWorkerAgent start_worker_agent([[maybe_unused]] HTML::WorkerAgentStartRequest&& request) { return {}; }
     virtual void close_worker_agent([[maybe_unused]] HTML::WorkerAgentId agent_id, [[maybe_unused]] HTML::WorkerAgentOwnerToken owner_token) { }
     virtual void rtc_transform_init([[maybe_unused]] HTML::WorkerAgentId agent_id, [[maybe_unused]] u64 transform_id, [[maybe_unused]] HTML::SerializedTransferRecord options_record) { }
     virtual void rtc_transform_teardown([[maybe_unused]] HTML::WorkerAgentId agent_id, [[maybe_unused]] u64 transform_id) { }

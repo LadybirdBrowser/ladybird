@@ -8,6 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/BitCast.h>
+#include <AK/ByteBuffer.h>
 #include <AK/Endian.h>
 #include <AK/LEB128.h>
 #include <AK/MemoryStream.h>
@@ -116,6 +117,30 @@ inline JS::Realm& test_realm()
     return *realm;
 }
 
+// A data holder as C++ carries it: the bytes and attachments that its writers added, then its channel ends, of which
+// this one has none.
+inline IPC::MessageBuffer carried_transfer_data_holder(IPC::MessageBuffer data_holder)
+{
+    IPC::MessageBuffer carried;
+    IPC::Encoder encoder { carried };
+    MUST(encoder.encode(data_holder.data().span()));
+    auto attachments = data_holder.take_attachments();
+    MUST(encoder.encode_size(attachments.size()));
+    for (auto& attachment : attachments)
+        MUST(encoder.append_attachment(move(attachment)));
+    MUST(encoder.encode_size(0));
+    return carried;
+}
+
+// The bytes that the writers of a data holder added.
+inline ByteBuffer transfer_data_holder_bytes(IPC::MessageBuffer const& carried)
+{
+    FixedMemoryStream stream { carried.data().span() };
+    Queue<IPC::Attachment> no_attachments;
+    IPC::Decoder decoder { stream, no_attachments };
+    return MUST(decoder.decode<ByteBuffer>());
+}
+
 // StructuredDeserializeWithTransfer of a record whose [[Serialized]] is undefined and whose only data holder is the
 // bytes: the transferred value, or the exception.
 inline Web::WebIDL::ExceptionOr<JS::Value> receive_transfer_data_holder(IPC::MessageBuffer data_holder, Vector<Core::AnonymousBuffer> shared_buffers = {})
@@ -123,7 +148,7 @@ inline Web::WebIDL::ExceptionOr<JS::Value> receive_transfer_data_holder(IPC::Mes
     auto& realm = test_realm();
     Web::HTML::SerializedTransferRecord record;
     record.serialized = MUST(Web::HTML::structured_serialize(realm.vm(), JS::js_undefined()));
-    record.transfer_data_holders.append(Web::HTML::TransferDataEncoder { move(data_holder) });
+    record.transfer_data_holders.append(Web::HTML::TransferDataEncoder { carried_transfer_data_holder(move(data_holder)) });
     record.shared_buffers = move(shared_buffers);
     auto deserialized = TRY(Web::HTML::structured_deserialize_with_transfer(record, realm));
     return JS::Value { deserialized.transferred_values[0].ptr() };
@@ -133,13 +158,15 @@ inline Web::WebIDL::ExceptionOr<JS::Value> receive_transfer_data_holder(IPC::Mes
 struct TransferDataHolderReader {
     explicit TransferDataHolderReader(Web::HTML::TransferDataEncoder const& data_holder)
         : buffer(data_holder.take_buffer())
-        , stream(buffer.data().span())
+        , bytes(transfer_data_holder_bytes(buffer))
+        , stream(bytes.bytes())
     {
         for (auto& attachment : buffer.take_attachments())
             attachments.enqueue(move(attachment));
     }
 
     IPC::MessageBuffer buffer;
+    ByteBuffer bytes;
     FixedMemoryStream stream;
     Queue<IPC::Attachment> attachments;
     IPC::Decoder decoder { stream, attachments };

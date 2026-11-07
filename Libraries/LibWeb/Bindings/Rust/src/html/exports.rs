@@ -34,6 +34,7 @@ use crate::bindings::event_target::CppEventTarget;
 use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi, realm_arguments, wrap};
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::dom::event::EventInit;
+use crate::html::port_channel::give_up_on_parked_end;
 use crate::html::structured_serialize::cpp::SerializedTransferRecord;
 use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::html::structured_serialize::transfer_data_holder::{TransferDataHolder, TransferPayload};
@@ -353,8 +354,9 @@ pub unsafe extern "C" fn web_rust_message_port_fail_next_transfer_for_testing(po
     unsafe { cell_from_abi::<MessagePort>(port) }.fail_next_transfer_for_testing();
 }
 
-/// The transfer steps of the MessagePort, which C++ runs outside StructuredSerializeWithTransfer, into a data holder
-/// that holds no type, whose carrier it hands over.
+/// The transfer steps of the MessagePort of a new channel to a worker, which C++ runs outside
+/// StructuredSerializeWithTransfer, into a data holder that holds no type, whose carrier it hands over. The data holder
+/// goes through the browser process, and the token in `out_parked_end_token` is for settling what became of it.
 ///
 /// # Safety
 ///
@@ -364,7 +366,9 @@ pub unsafe extern "C" fn web_rust_message_port_transfer_steps(
     vm: *mut c_void,
     realm: *mut c_void,
     port: *mut c_void,
+    may_leave_process: bool,
     out_data_holder: &mut *mut c_void,
+    out_parked_end_token: &mut u64,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the live VM, a live realm and a live cell of a MessagePort.
     let ((vm, realm), port) = unsafe { (realm_arguments(vm, realm), cell_from_abi::<MessagePort>(port)) };
@@ -372,13 +376,37 @@ pub unsafe extern "C" fn web_rust_message_port_transfer_steps(
     let data_holder = TransferDataHolder::new();
     let result = MessagePort::transfer_steps(&port, &mut cx, &mut TransferDataWriter::new(&data_holder, realm, None));
     if result.is_ok() {
-        *out_data_holder = data_holder.finish().into_cpp();
+        let mut payload = data_holder.finish();
+        *out_parked_end_token = payload.park_channel_end(may_leave_process);
+        *out_data_holder = payload.into_cpp();
     }
     RawNativeFunctionResult::from_completion(
         result
             .map(|()| Value::UNDEFINED)
             .map_err(|exception| exception.throw(&cx)),
     )
+}
+
+/// Tells that nobody in this process is going to claim the channel end of the token, unless somebody did.
+#[unsafe(no_mangle)]
+pub extern "C" fn web_rust_message_port_give_up_on_parked_end(token: u64) {
+    give_up_on_parked_end(token);
+}
+
+/// How the port reaches the port it is entangled with, as an ASCII string that lives forever, for tests.
+///
+/// # Safety
+///
+/// `port` must be a live cell of a MessagePort, and `out_kind` must be valid for a write.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_message_port_entanglement_kind(
+    port: *mut c_void,
+    out_kind: *mut ak::Span<'static, u8>,
+) {
+    // SAFETY: The caller passes a live cell of a MessagePort.
+    let kind = unsafe { cell_from_abi::<MessagePort>(port) }.entanglement_kind();
+    // SAFETY: The caller passes a pointer that is valid for a write.
+    unsafe { out_kind.write(ak::Span::new(kind.as_bytes())) };
 }
 
 /// The transfer-receiving steps of a MessagePort that C++ runs outside StructuredDeserializeWithTransfer, which return

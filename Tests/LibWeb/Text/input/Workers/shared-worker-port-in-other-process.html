@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const SCRIPT = `
+        onconnect = event => {
+            const port = event.ports[0];
+            port.onmessage = event => port.postMessage("echo: " + event.data);
+            port.onmessageerror = () => port.postMessage("messageerror");
+        };
+    `;
+
+    promiseTest(async () => {
+        const scriptURL = URL.createObjectURL(new Blob([SCRIPT], { type: "text/javascript" }));
+        const worker = new SharedWorker(scriptURL, uniqueID());
+        println(`crossOriginIsolated: ${self.crossOriginIsolated}`);
+        const reply = new Promise(resolve => (worker.port.onmessage = event => resolve(event.data)));
+        worker.port.postMessage("hello");
+        println(await reply);
+        println(`port: ${internals.messagePortEntanglementKind(worker.port)}`);
+
+        // NB: A shared worker is an agent cluster of its own.
+        const error = new Promise(resolve => (worker.port.onmessage = event => resolve(event.data)));
+        worker.port.postMessage(new SharedArrayBuffer(8));
+        println(await error);
+    });
+</script>

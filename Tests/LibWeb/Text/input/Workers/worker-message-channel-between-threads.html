@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const WORKER_SCRIPT = `
+        let kept = null;
+        onmessage = ({ data, ports }) => {
+            switch (data.op) {
+                case "echo":
+                    ports[0].onmessage = event => event.target.postMessage(event.data);
+                    break;
+                case "keep":
+                    kept = ports[0];
+                    postMessage("kept");
+                    break;
+                case "report":
+                    kept.onmessage = event => postMessage(event.data);
+                    break;
+                case "send":
+                    kept.postMessage(data.value);
+                    postMessage("sent");
+                    break;
+                case "give back":
+                    postMessage("given back", [kept]);
+                    kept = null;
+                    break;
+                case "close":
+                    kept.postMessage("last words");
+                    kept.close();
+                    postMessage("closed");
+                    break;
+            }
+        };
+    `;
+
+    const scriptURL = URL.createObjectURL(new Blob([WORKER_SCRIPT], { type: "text/javascript" }));
+
+    function nextMessage(target) {
+        return new Promise(resolve => target.addEventListener("message", resolve, { once: true }));
+    }
+
+    async function ask(worker, data, transfer = []) {
+        const reply = nextMessage(worker);
+        worker.postMessage(data, transfer);
+        return await reply;
+    }
+
+    function collect(target, count) {
+        const received = [];
+        return new Promise(resolve => {
+            target.onmessage = ({ data }) => {
+                received.push(data);
+                if (received.length === count) resolve(received);
+            };
+        });
+    }
+
+    async function waitForNoWorkers() {
+        await waitForCondition(() => internals.workerAgentCount() === 0);
+    }
+
+    function kind(port) {
+        return internals.messagePortEntanglementKind(port);
+    }
+
+    async function testRoundTrips() {
+        const worker = new Worker(scriptURL);
+        const { port1, port2 } = new MessageChannel();
+        println(`before the transfer: ${kind(port1)}`);
+        worker.postMessage({ op: "echo" }, [port2]);
+        println(`after the transfer: ${kind(port1)}`);
+
+        const count = 500;
+        const echoes = collect(port1, count);
+        for (let i = 0; i < count; ++i) port1.postMessage(i);
+        const received = await echoes;
+        println(`echoes in order: ${received.every((value, index) => value === index)}`);
+        worker.terminate();
+        await waitForNoWorkers();
+    }
+
+    async function testDisabledQueue() {
+        const worker = new Worker(scriptURL);
+        const { port1, port2 } = new MessageChannel();
+        await ask(worker, { op: "keep" }, [port2]);
+        port1.postMessage("a");
+        port1.postMessage("b");
+        await timeout(10);
+        port1.postMessage("c");
+
+        const messages = collect(worker, 3);
+        worker.postMessage({ op: "report" });
+        println(`after start: ${(await messages).join(" ")}`);
+        worker.terminate();
+        await waitForNoWorkers();
+    }
+
+    async function testTransferToAnotherThread() {
+        const first = new Worker(scriptURL);
+        const second = new Worker(scriptURL);
+        const { port1, port2 } = new MessageChannel();
+        await ask(first, { op: "keep" }, [port2]);
+        port1.postMessage(1);
+        port1.postMessage(2);
+
+        // NB: These go after the port has left the first worker, and before the second one has it.
+        const givenBack = await ask(first, { op: "give back" });
+        port1.postMessage(3);
+        println(`kind of the port back on this thread: ${kind(givenBack.ports[0])}`);
+        await ask(second, { op: "keep" }, [givenBack.ports[0]]);
+        port1.postMessage(4);
+
+        const messages = collect(second, 4);
+        second.postMessage({ op: "report" });
+        println(`after two transfers: ${(await messages).join(" ")}`);
+        first.terminate();
+        second.terminate();
+        await waitForNoWorkers();
+    }
+
+    async function testPortInQueuedMessage() {
+        const worker = new Worker(scriptURL);
+        const { port1, port2 } = new MessageChannel();
+        await ask(worker, { op: "keep" }, [port2]);
+
+        const inner = new MessageChannel();
+        port1.postMessage("carries a port", [inner.port2]);
+        inner.port1.postMessage("through a port");
+        println(`a port in a queued message: ${kind(inner.port1)}`);
+
+        const messages = collect(worker, 1);
+        worker.postMessage({ op: "report" });
+        println(await messages);
+        worker.terminate();
+        await waitForNoWorkers();
+    }
+
+    async function testClose() {
+        const worker = new Worker(scriptURL);
+        const { port1, port2 } = new MessageChannel();
+        await ask(worker, { op: "keep" }, [port2]);
+
+        const lastWords = nextMessage(port1);
+        port1.start();
+        await ask(worker, { op: "close" });
+        println(`from a closed port: ${(await lastWords).data}`);
+        port1.postMessage("nobody hears this");
+        await timeout(10);
+        println(`after the close: ${kind(port1)}`);
+        worker.terminate();
+        await waitForNoWorkers();
+    }
+
+    async function testTerminateWithQueuedMessages() {
+        const worker = new Worker(scriptURL);
+        const { port1, port2 } = new MessageChannel();
+        await ask(worker, { op: "keep" }, [port2]);
+        for (let i = 0; i < 100; ++i) port1.postMessage(new ArrayBuffer(1024));
+        worker.terminate();
+        for (let i = 0; i < 100; ++i) port1.postMessage(i);
+        await waitForNoWorkers();
+        port1.postMessage("after the end");
+        println(`after terminate: ${kind(port1)}`);
+    }
+
+    async function testPortLeavesProcess() {
+        const reachable = new Promise(resolve => {
+            window.onmessage = event => {
+                if (event.data === "ready") resolve();
+            };
+        });
+        const remoteURL = new URL(
+            await httpTestServer().createEcho("GET", "/worker-message-channel-remote", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("message", ({ ports }) => {
+                        const port = ports[0];
+                        port.onmessage = event => port.postMessage("remote got " + event.data);
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        remoteURL.hostname = uniqueLocalhostHostname("message-channel");
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteURL;
+        document.body.appendChild(iframe);
+        await reachable;
+
+        // The worker's port goes through this page to the other process. Its peer here has messages under way.
+        const worker = new Worker(scriptURL);
+        const { port1, port2 } = new MessageChannel();
+        await ask(worker, { op: "keep" }, [port2]);
+        port1.postMessage("sent early");
+        const givenBack = await ask(worker, { op: "give back" });
+        port1.postMessage("sent late");
+        const replies = collect(port1, 3);
+        iframe.contentWindow.postMessage("here", "*", [givenBack.ports[0]]);
+        port1.postMessage("sent after it left");
+        println((await replies).join(", "));
+        println(`peer in another process: ${kind(port1)}`);
+
+        // This port stays with the worker, and its peer leaves from this page, with messages for it.
+        const { port1: leavingPort, port2: stayingPort } = new MessageChannel();
+        await ask(worker, { op: "keep" }, [stayingPort]);
+        await ask(worker, { op: "send", value: "from the worker, early" });
+        iframe.contentWindow.postMessage("here", "*", [leavingPort]);
+        await ask(worker, { op: "send", value: "from the worker, late" });
+        const answers = collect(worker, 2);
+        worker.postMessage({ op: "report" });
+        println((await answers).join(", "));
+
+        worker.terminate();
+        await waitForNoWorkers();
+        iframe.remove();
+    }
+
+    promiseTest(async () => {
+        await testRoundTrips();
+        await testDisabledQueue();
+        await testTransferToAnotherThread();
+        await testPortInQueuedMessage();
+        await testClose();
+        await testTerminateWithQueuedMessages();
+        await testPortLeavesProcess();
+    });
+</script>

@@ -156,19 +156,19 @@ Optional<Web::FileAPI::SerializedBlobURLEntry> PageHost::page_did_request_blob_u
     return response->take_entry();
 }
 
-Web::HTML::WorkerAgentId PageHost::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)
+Web::PageClient::StartedWorkerAgent PageHost::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)
 {
     auto agent_type = request.agent_type;
     auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::StartWorkerAgent>(move(request));
     if (!response)
-        return 0;
+        return {};
 
     // NB: The UI process notices a transport that nobody takes up, and tells the owner that its worker is gone.
     if (auto transport = response->take_thread_transport(); transport.has_value()) {
         if (auto result = start_worker_thread(transport.release_value(), agent_type); result.is_error())
             dbgln("Unable to start a thread for a worker: {}", result.error());
     }
-    return response->agent_id();
+    return { response->agent_id(), response->is_hosted_in_caller_process() };
 }
 
 void PageHost::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
