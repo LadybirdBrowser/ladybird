@@ -1,3 +1,4 @@
+#include <AK/JsonValue.h>
 #include <LibHTTP/Header.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/GeolocationAuthorization.h>
@@ -19,7 +20,6 @@
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/Autocomplete.h>
-#include <LibWebView/BookmarkStore.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/TabPerformanceStats.h>
@@ -131,15 +131,12 @@ struct Hub::ApplicationActions {
     Hub::ActionState force_dark_action;
     Hub::ActionState toggle_vertical_tabs_expanded_action;
     Hub::ActionState toggle_menu_bar_action;
-    Hub::ActionState toggle_bookmark_bar_action;
     Hub::ActionState view_source_action;
     Hub::ActionState report_website_issue_action;
     Vector<Hub::MenuEntry> zoom_menu;
     Vector<Hub::MenuEntry> color_scheme_menu;
     Vector<Hub::MenuEntry> contrast_menu;
     Vector<Hub::MenuEntry> motion_menu;
-    Vector<Hub::MenuEntry> bookmarks_menu;
-    Vector<Hub::MenuEntry> show_bookmarks_bar_menu;
     Vector<Hub::MenuEntry> history_menu;
     Vector<Hub::MenuEntry> inspect_menu;
     Vector<Hub::MenuEntry> debug_menu;
@@ -149,12 +146,8 @@ struct Hub::ApplicationActions {
 struct Hub::ViewActions {
     Hub::ActionState navigate_back_action;
     Hub::ActionState navigate_forward_action;
-    Hub::ActionState toggle_bookmark_action;
     Hub::ActionState reset_zoom_action;
     Hub::ActionState translate_action;
-    Vector<Hub::MenuEntry> bookmarks_bar_context_menu;
-    Vector<Hub::MenuEntry> bookmark_context_menu;
-    Vector<Hub::MenuEntry> bookmark_folder_context_menu;
 }
 
 struct Hub::DownloadState {
@@ -171,29 +164,6 @@ struct Hub::DownloadState {
     Optional<u64> bytes_per_second;
     bool is_waiting_to_retry;
     UnixDateTime created_time;
-}
-
-[ExistingCpp]
-struct WebView::BookmarkItem::Bookmark {
-    URL::URL url;
-    Optional<String> title;
-    Optional<String> favicon_hash;
-}
-
-enum Hub::BookmarkDialogKind : u8 {
-    AddBookmark,
-    EditBookmark,
-    AddFolder,
-    EditFolder,
-}
-
-// What the user entered in a bookmark dialog.
-struct Hub::BookmarkDialogResult {
-    bool is_folder;
-    Optional<URL::URL> url;
-    Optional<String> title;
-    Optional<String> favicon_hash;
-    Optional<String> target_folder_id;
 }
 
 [ExistingCpp]
@@ -240,7 +210,7 @@ struct Hub::UIInfo {
 // What the UI needs from the Hub before it can show anything.
 struct Hub::InitialState {
     ByteString settings_json;
-    ByteString bookmarks_json;
+    ByteString config_directory;
     Hub::ApplicationActions actions;
     Vector<Hub::DownloadState> downloads;
     Vector<URL::URL> urls;
@@ -315,11 +285,6 @@ endpoint HubClient
     external_url_launch(u64 handler_id, u64 request_id, URL::URL url) =|
     external_url_release_handler(u64 handler_id) =|
     omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions) =|
-    bookmarks_changed(ByteString bookmarks_json) =|
-    app_read_bookmarks_for_all_tabs(u64 request_id, u64 view_id) =|
-    app_show_bookmark_popover() =|
-    app_show_bookmark_context_menu(Gfx::IntPoint position, Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id) =|
-    app_display_bookmark_dialog(u64 request_id, Hub::BookmarkDialogKind kind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id) =|
     download_added(Hub::DownloadState download) =|
     download_updated(Hub::DownloadState download) =|
     download_removed(u64 id, WebView::IsPrivate is_private) =|
@@ -343,9 +308,12 @@ endpoint HubClient
     app_read_clipboard_item(u64 request_id) =|
     app_ask_user_for_download_path(u64 request_id, ByteString file) =|
     settings_changed(ByteString settings_json, u64 last_applied_change_id) =|
+    app_read_keeps_omnibox_engagements(u64 request_id, URL::URL url) =|
+    web_ui_opened(u64 web_ui_id, String host) =|
+    web_ui_message(u64 web_ui_id, String name, JsonValue data) =|
+    web_ui_closed(u64 web_ui_id) =|
     action_changed(Hub::ActionState state) =|
     action_retired(u64 handle) =|
-    bookmarks_menu_changed(Vector<Hub::MenuEntry> entries) =|
     view_show_context_menu(u64 view_id, Vector<Hub::MenuEntry> entries, Gfx::IntPoint widget_position) =|
     view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon) =|
     view_request_before_unload(u64 view_id, u64 answer_id, String source) =|

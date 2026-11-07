@@ -66,14 +66,10 @@ public:
     void did_resolve_external_url_handler(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird);
     void launch_external_url(u64 handler_id, URL::URL const&, Function<void(bool)>) const;
     void did_launch_external_url(u64 request_id, bool launched);
-    void did_read_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark>);
-    void did_get_bookmark_dialog_result(u64 request_id, Optional<Hub::BookmarkDialogResult>);
-    void set_bookmark_context_menu_item(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id);
+    void did_read_keeps_omnibox_engagements(u64 request_id, bool keeps_engagements);
     void did_read_clipboard_text(u64 request_id, Utf16String);
     void did_read_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem);
     void did_get_download_path(u64 request_id, Optional<ByteString>);
-
-    void toggle_bookmark_without_asking(WebView::ViewImplementation& view) { WebView::Application::toggle_bookmark_for_view(view); }
 
 private:
     explicit Application(ApplicationHost*);
@@ -85,6 +81,7 @@ private:
     virtual void create_platform_arguments(Core::ArgsParser&) override;
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab, WebView::ViewImplementation const* related_view = nullptr) const override;
+    virtual void read_keeps_omnibox_engagements(URL::URL const&, Function<void(bool)> on_read) const override;
     virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab, WebView::ViewImplementation const* source_view = nullptr) const override;
     virtual void activate_or_open_tab_with_url(URL::URL const&) const override;
     virtual void open_urls_in_new_tabs(ReadonlySpan<URL::URL>) const override;
@@ -104,14 +101,6 @@ private:
     virtual void on_recently_closed_entries_changed() const override;
     virtual NonnullOwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() override;
     virtual NonnullOwnPtr<WebView::NotificationBackend> create_notification_backend() override;
-    virtual void toggle_bookmark_for_view(WebView::ViewImplementation&) override;
-    virtual void read_bookmarks_for_all_tabs_in_current_window(Function<void(Vector<WebView::BookmarkItem::Bookmark>)>) const override;
-    virtual void show_bookmark_context_menu(Gfx::IntPoint, Optional<WebView::BookmarkItem const&>, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id) override;
-    virtual Optional<BookmarkID> bookmark_item_id_for_context_menu() const override { return m_bookmark_context_menu_item; }
-    virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id) const override;
-    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const override;
-    virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title, Optional<String const&> target_folder_id) const override;
-    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const override;
     virtual bool captures_browser_crashes() const override { return true; }
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;
@@ -136,7 +125,6 @@ private:
     virtual Vector<String> platform_preferred_languages() const override;
     virtual Optional<Gfx::GpuDeviceIdentity> platform_presentation_gpu_device() const override;
     virtual Vector<u64> platform_presentation_drm_format_modifiers() const override;
-    virtual void rebuild_bookmarks_menu() const override;
 
     ApplicationHost* m_host { nullptr };
     StringView m_encoded_ui_info;
@@ -151,8 +139,6 @@ private:
     mutable HashMap<u64, Function<void(Utf16String)>> m_pending_clipboard_text_reads;
     mutable HashMap<u64, Function<void(Web::Clipboard::SystemClipboardItem)>> m_pending_clipboard_item_reads;
     mutable HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_download_paths;
-    mutable HashMap<u64, Function<void(Vector<WebView::BookmarkItem::Bookmark>)>> m_pending_bookmarks_for_all_tabs;
-    mutable HashMap<u64, NonnullRefPtr<BookmarkPromise>> m_pending_bookmark_dialogs;
     mutable HashMap<u64, WebView::ExternalURLHandlerCallback> m_pending_external_url_handlers;
     mutable HashMap<u64, Function<void(bool)>> m_pending_external_url_launches;
     struct NewTabSource {
@@ -162,10 +148,7 @@ private:
     NewTabSource new_tab_source(WebView::ViewImplementation const* source_view) const;
 
     mutable u64 m_next_ui_request_id { 1 };
-
-    NonnullRefPtr<BookmarkPromise> display_bookmark_dialog(BookmarkDialogKind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id) const;
-
-    Optional<BookmarkID> m_bookmark_context_menu_item;
+    mutable HashMap<u64, Function<void(bool)>> m_pending_omnibox_engagement_reads;
 };
 
 }

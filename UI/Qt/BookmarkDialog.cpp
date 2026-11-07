@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWebView/BookmarkStore.h>
 #include <UI/Qt/BookmarkDialog.h>
+#include <UI/Qt/BookmarkStore.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/NativeTextEditingLineEdit.h>
@@ -87,7 +87,7 @@ private:
     QIcon m_arrow;
 };
 
-static void add_bookmark_folder_options(QComboBox& folder_combo, QIcon const& folder_icon, ReadonlySpan<WebView::BookmarkItem> items, QString const& prefix, Optional<String const&> excluded_folder_id)
+static void add_bookmark_folder_options(QComboBox& folder_combo, QIcon const& folder_icon, ReadonlySpan<BookmarkItem> items, QString const& prefix, Optional<String const&> excluded_folder_id)
 {
     for (auto const& item : items) {
         // A folder cannot be moved into itself or any of its descendants.
@@ -102,7 +102,7 @@ static void add_bookmark_folder_options(QComboBox& folder_combo, QIcon const& fo
     }
 }
 
-QComboBox* create_bookmark_folder_picker(QWidget* parent, ReadonlySpan<WebView::BookmarkItem> folders, Optional<String const&> selected_folder_id, Optional<String const&> excluded_folder_id)
+QComboBox* create_bookmark_folder_picker(QWidget* parent, ReadonlySpan<BookmarkItem> folders, Optional<String const&> selected_folder_id, Optional<String const&> excluded_folder_id)
 {
     auto* folder_combo = new BookmarkFolderPicker(parent);
     auto folder_icon = create_chrome_icon(ChromeIcon::Folder, folder_combo->palette());
@@ -122,7 +122,7 @@ QComboBox* create_bookmark_folder_picker(QWidget* parent, ReadonlySpan<WebView::
     return folder_combo;
 }
 
-BookmarkDialog::BookmarkDialog(QWidget* parent, Type type, Optional<URL::URL const&> current_url, Optional<String const&> current_title, Optional<String const&> selected_folder_id, ReadonlySpan<WebView::BookmarkItem> folders, Optional<String const&> excluded_folder_id)
+BookmarkDialog::BookmarkDialog(QWidget* parent, Type type, Optional<URL::URL const&> current_url, Optional<String const&> current_title, Optional<String const&> selected_folder_id, ReadonlySpan<BookmarkItem> folders, Optional<String const&> excluded_folder_id)
     : QDialog(parent)
 {
     setAttribute(Qt::WA_DeleteOnClose);

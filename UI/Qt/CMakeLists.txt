@@ -17,8 +17,11 @@ add_library(ladybird_impl STATIC
     Application.cpp
     Autocomplete.cpp
     BookmarkDialog.cpp
+    BookmarkStore.cpp
     BookmarkPopover.cpp
+    Bookmarks.cpp
     BookmarksBar.cpp
+    BookmarksPage.cpp
     BrowserWindow.cpp
     ChromeStyle.cpp
     CrashReportReviewWidget.cpp
@@ -74,6 +77,7 @@ if (NOT APPLE AND NOT WIN32 AND NOT ANDROID)
 endif()
 
 target_link_libraries(ladybird_impl PUBLIC Qt::Core Qt::Gui Qt::Widgets)
+target_link_libraries(ladybird_impl PRIVATE LibFileSystem)
 
 if (TARGET Qt6::Positioning)
     target_sources(ladybird_impl PRIVATE GeolocationProviderQt.cpp GeolocationProviderQt.h)

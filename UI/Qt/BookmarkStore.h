@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
+#include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
@@ -16,11 +18,12 @@
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
 #include <LibURL/URL.h>
-#include <LibWebView/Forward.h>
 
-namespace WebView {
+namespace Ladybird {
 
-struct WEBVIEW_API BookmarkItem {
+class BookmarkStore;
+
+struct BookmarkItem {
     struct Bookmark {
         URL::URL url;
         Optional<String> title;
@@ -47,9 +50,9 @@ struct WEBVIEW_API BookmarkItem {
     Folder& folder() { return data.get<Folder>(); }
 };
 
-class WEBVIEW_API BookmarkStoreObserver {
+class BookmarkStoreObserver {
 public:
-    explicit BookmarkStoreObserver();
+    explicit BookmarkStoreObserver(BookmarkStore&);
     virtual ~BookmarkStoreObserver();
 
     virtual void bookmarks_changed() { }
@@ -58,23 +61,11 @@ private:
     WeakPtr<BookmarkStore> m_bookmark_store;
 };
 
-class WEBVIEW_API BookmarkStore : public Weakable<BookmarkStore> {
+class BookmarkStore : public Weakable<BookmarkStore> {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
     static BookmarkStore create(ByteString bookmarks_path);
-
-    // Bookmarks that live in another process, and are never read from or written to a file here.
-    static BookmarkStore create_from_json(JsonValue const&);
-    enum class PersistChange {
-        No,
-        Yes,
-    };
-    void replace_with_json(JsonValue const&, PersistChange);
-    JsonValue serialize_store() const;
-
-    // Called with the bookmarks as they are, whenever they have changed.
-    Function<void(JsonValue const&)> on_persist;
 
     Vector<BookmarkItem> const& root_items() const { return m_items; }
 
@@ -96,7 +87,8 @@ public:
 
     void update_favicon(URL::URL const& url, String favicon_hash);
 
-    JsonValue serialize_items(Optional<FaviconStore&> favicon_store = {}) const;
+    using FaviconReader = Function<Optional<ByteBuffer>(String const& favicon_hash)>;
+    JsonValue serialize_items(FaviconReader const& read_favicon = {}) const;
     HashTable<String> favicon_hashes() const;
 
     void add_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);
@@ -108,6 +100,7 @@ private:
     Optional<BookmarkItem&> find_mutable_item_by_id(StringView id);
     Optional<Vector<BookmarkItem>&> find_containing_item_list(StringView id);
 
+    JsonValue serialize_store() const;
     void persist_bookmarks();
     void notify_observers();
 

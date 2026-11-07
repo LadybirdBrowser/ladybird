@@ -31,6 +31,7 @@ class QWidget;
 
 namespace Ladybird {
 
+class Bookmarks;
 class ProcessManagerWindow;
 
 struct WindowConfiguration {
@@ -49,13 +50,19 @@ enum class ShowWindow {
 class Application final
     : public Hub::ApplicationHost
     , public WebView::CrashReportOutboxObserver {
+    friend class Bookmarks;
+    friend class BookmarksPage;
+    friend class RemoteView;
     friend class HubConnection;
 
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    using BookmarkID = WebView::Application::BookmarkID;
-    using BookmarkPromise = WebView::Application::BookmarkPromise;
+    struct BookmarkDialogResult {
+        Variant<BookmarkItem::Bookmark, BookmarkItem::Folder> data;
+        Optional<String> target_folder_id;
+    };
+    using BookmarkPromise = Core::Promise<BookmarkDialogResult>;
     using ClipboardType = WebView::Application::ClipboardType;
 
     static ErrorOr<NonnullOwnPtr<Application>> create(Main::Arguments const&);
@@ -76,7 +83,8 @@ public:
     Function<void(Vector<URL::URL> const&)> on_new_tab;
     Function<void(Vector<URL::URL> const&)> on_new_window;
     static WebView::Settings& settings() { return *s_the->m_settings; }
-    static WebView::BookmarkStore& bookmark_store() { return *s_the->m_bookmark_store; }
+    static Bookmarks& bookmarks() { return *s_the->m_bookmarks; }
+    static BookmarkStore& bookmark_store() { return *s_the->m_bookmark_store; }
 
     virtual ~Application() override;
 
@@ -188,7 +196,7 @@ private:
     void set_picture_in_picture_video_size(u64 view_id, Gfx::IntSize);
     void close_picture_in_picture_window(u64 view_id);
 
-    Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_window_of_view(u64 view_id) const;
+    Vector<BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_active_window() const;
     Tab* activate_tab_with_url(URL::URL const&, URL::ExcludeFragment) const;
     void activate_or_open_tab_with_url(URL::URL const&);
 
@@ -242,11 +250,11 @@ private:
     void update_tabs_display() const;
 
     void rebuild_bookmarks_menu() const;
-    void show_bookmark_context_menu(Gfx::IntPoint, Optional<WebView::BookmarkItem const&>, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id);
+    void show_bookmark_context_menu(Gfx::IntPoint, Optional<BookmarkItem const&>, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id);
     NonnullRefPtr<BookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id = {}) const;
-    NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const;
+    NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog(BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const;
     NonnullRefPtr<BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}, Optional<String const&> target_folder_id = {}) const;
-    NonnullRefPtr<BookmarkPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const;
+    NonnullRefPtr<BookmarkPromise> display_edit_bookmark_folder_dialog(BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const;
 
     void did_enable_devtools() const;
     void did_disable_devtools() const;
@@ -277,7 +285,8 @@ private:
 
     OwnPtr<WebView::Translator> m_translator;
     OwnPtr<WebView::Settings> m_settings;
-    OwnPtr<WebView::BookmarkStore> m_bookmark_store;
+    OwnPtr<BookmarkStore> m_bookmark_store;
+    OwnPtr<Bookmarks> m_bookmarks;
     RefPtr<HubConnection> m_hub_connection;
     OwnPtr<QApplication> m_application;
     HashMap<u64, NonnullOwnPtr<WebView::PictureInPictureWindow>> m_picture_in_picture_windows;

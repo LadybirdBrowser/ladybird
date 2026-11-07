@@ -10,7 +10,6 @@ set(SOURCES
     AutocompleteService.cpp
     BlobURLStore.cpp
     BrowsingSession.cpp
-    BookmarkStore.cpp
     CanonicalBrowsingContext.cpp
     CanonicalBrowsingContextGroup.cpp
     CanonicalDocument.cpp
@@ -95,7 +94,7 @@ set(SOURCES
     WebDriverBiDiNetwork.cpp
     WebDriverBrowserConnection.cpp
     WebUI.cpp
-    WebUI/BookmarksUI.cpp
+    WebUI/ApplicationWebUI.cpp
     WebUI/CrashReportsUI.cpp
     WebUI/DownloadsUI.cpp
     WebUI/HistoryUI.cpp

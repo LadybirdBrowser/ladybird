@@ -199,48 +199,6 @@ struct ApplicationPermissionManagerObserver final : public PermissionManagerObse
     }
 };
 
-struct ApplicationBookmarkStoreObserver final : public BookmarkStoreObserver {
-    AK_ALLOC_WITH_KMALLOC;
-
-    virtual void bookmarks_changed() override
-    {
-        Application::the().bookmarks_changed({});
-    }
-};
-
-static void append_autocomplete_bookmarks(Vector<AutocompleteBookmark>& bookmarks, ReadonlySpan<BookmarkItem> items, Optional<String> const& parent_folder)
-{
-    for (auto const& item : items) {
-        if (item.is_bookmark()) {
-            auto const& bookmark = item.bookmark();
-            bookmarks.append({
-                .url = bookmark.url.serialize(URL::ExcludeFragment::Yes),
-                .title = bookmark.title,
-                .folder = parent_folder,
-                .favicon_png = bookmark.favicon_hash.has_value()
-                    ? Application::default_session().favicon_store->favicon_png(*bookmark.favicon_hash)
-                    : OptionalNone {},
-            });
-            continue;
-        }
-
-        auto folder = parent_folder;
-        if (item.folder().title.has_value() && !item.folder().title->is_empty()) {
-            folder = parent_folder.has_value()
-                ? MUST(String::formatted("{} / {}", *parent_folder, *item.folder().title))
-                : *item.folder().title;
-        }
-        append_autocomplete_bookmarks(bookmarks, item.folder().children, folder);
-    }
-}
-
-static Vector<AutocompleteBookmark> autocomplete_bookmark_snapshot(BookmarkStore const& bookmark_store)
-{
-    Vector<AutocompleteBookmark> bookmarks;
-    append_autocomplete_bookmarks(bookmarks, bookmark_store.root_items(), {});
-    return bookmarks;
-}
-
 Application::Application(Optional<ByteString> ladybird_binary_path)
     : m_site_compatibility_data(JsonArray {})
 {
@@ -706,8 +664,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (m_settings->crash_report_sending() == CrashReportSending::NeverSend)
         CrashReportOutbox::the().discard_all();
 
-    m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(profile().paths().config, "Bookmarks.json"sv).string()));
-
     if (m_web_content_options.is_test_mode == IsTestMode::Yes) {
         TRY(m_settings->complete_first_run());
         m_settings->set_background_networking_enabled(false);
@@ -1153,64 +1109,6 @@ void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
 {
     for (auto const& url : urls)
         open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
-}
-
-void Application::open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab activate_tab) const
-{
-    auto bookmark = m_bookmark_store->find_item_by_id(bookmark_id);
-    if (!bookmark.has_value() || !bookmark->is_bookmark())
-        return;
-
-    if (auto view = active_web_view(); view.has_value())
-        view->open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
-    else
-        open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
-}
-
-static void collect_bookmark_urls(BookmarkItem::Folder const& folder, Vector<URL::URL>& urls)
-{
-    for (auto const& child : folder.children) {
-        child.data.visit(
-            [&](BookmarkItem::Bookmark const& bookmark) {
-                urls.append(bookmark.url);
-            },
-            [&](BookmarkItem::Folder const& child_folder) {
-                collect_bookmark_urls(child_folder, urls);
-            });
-    }
-}
-
-void Application::open_bookmark_folder_in_new_tabs(String const& folder_id) const
-{
-    auto folder = m_bookmark_store->find_item_by_id(folder_id);
-    if (!folder.has_value() || !folder->is_folder())
-        return;
-
-    Vector<URL::URL> urls;
-    collect_bookmark_urls(folder->folder(), urls);
-
-    Vector<URL::URL> internal_urls;
-    auto active_view = active_web_view();
-    for (auto const& url : urls) {
-        if (active_view.has_value() && !is_url_handled_internally(url))
-            active_view->open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
-        else
-            internal_urls.append(url);
-    }
-
-    open_urls_in_new_tabs(internal_urls);
-}
-
-void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPrivate is_private)
-{
-    auto bookmark = m_bookmark_store->find_item_by_id(bookmark_id);
-    if (!bookmark.has_value() || !bookmark->is_bookmark())
-        return;
-
-    if (auto view = active_web_view(); view.has_value())
-        view->open_url_in_new_window(bookmark->bookmark().url, is_private);
-    else
-        open_url_in_new_window(bookmark->bookmark().url, is_private);
 }
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(IsPrivate is_private, Web::PageId initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Optional<Web::HTML::SessionHistoryEntryDescriptor> canonical_initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
@@ -1800,7 +1698,6 @@ ErrorOr<void> Application::launch_services()
     schedule_permission_expiry();
 
     m_settings_observer = make<ApplicationSettingsObserver>();
-    m_bookmark_store_observer = make<ApplicationBookmarkStoreObserver>();
 
 #if defined(AK_OS_WINDOWS)
     m_handle_broker_server = IPC::HandleBrokerServer::create();
@@ -1811,7 +1708,6 @@ ErrorOr<void> Application::launch_services()
     };
 
     Optional<ByteString> history_database_directory;
-    bool should_remove_unreferenced_favicons = false;
 
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
         auto database_path = profile().paths().data;
@@ -1893,7 +1789,7 @@ ErrorOr<void> Application::launch_services()
         if (favicons_outcome == Database::MigrationOutcome::Success && history_outcome == Database::MigrationOutcome::Success) {
             m_default_session->favicon_store = TRY(FaviconStore::create(history_database));
             m_default_session->history_store = TRY(HistoryStore::create(history_database));
-            should_remove_unreferenced_favicons = true;
+            m_should_remove_unreferenced_favicons = true;
         } else {
             dbgln("History database was created by a newer Ladybird version; favicons and history will not be persisted this session");
             history_database_directory = {};
@@ -1935,13 +1831,6 @@ ErrorOr<void> Application::launch_services()
 
     m_default_session->blob_url_store = make<BlobURLStore>();
 
-    if (should_remove_unreferenced_favicons) {
-        auto referenced_hashes = m_bookmark_store->favicon_hashes();
-        for (auto& hash : m_default_session->history_store->referenced_favicon_hashes())
-            referenced_hashes.set(move(hash));
-        m_default_session->favicon_store->remove_unreferenced_favicons(referenced_hashes);
-    }
-
     m_file_downloader.adopt_download_store({}, *m_download_store);
 
     m_default_session->session_store->on_closed_units_changed = [this] {
@@ -1963,7 +1852,6 @@ ErrorOr<void> Application::launch_services()
 
     VERIFY(m_event_loop);
     m_autocomplete_service = make<AutocompleteService>(*m_event_loop, move(history_database_directory));
-    m_autocomplete_service->update_bookmarks(autocomplete_bookmark_snapshot(*m_bookmark_store));
 
     // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
     if (!Core::Environment::has("TZ"sv)) {
@@ -2841,69 +2729,6 @@ void Application::initialize_actions()
     });
     m_toggle_menu_bar_action->set_checked(m_settings->appearance().show_menu_bar);
 
-    m_bookmarks_menu = Menu::create("Bookmarks"sv);
-    m_bookmarks_menu->add_action(Action::create("Manage Bookmarks"sv, ActionID::ManageBookmarks, [this]() {
-        activate_or_open_tab_with_url(URL::about_bookmarks());
-    }));
-
-    auto add_show_bookmarks_bar_option = [&](auto name, auto value) {
-        auto action = Action::create_checkable(name, ActionID::ShowBookmarksBar, [this, value]() {
-            auto appearance = m_settings->appearance();
-            appearance.show_bookmarks_bar = value;
-            m_settings->set_appearance(appearance);
-        });
-
-        action->set_checked(m_settings->appearance().show_bookmarks_bar == value);
-        m_show_bookmarks_bar_menu->add_action(action);
-        return action;
-    };
-
-    m_show_bookmarks_bar_menu = Menu::create_group("Show Bookmarks Bar"sv);
-    m_show_bookmarks_bar_always_action = add_show_bookmarks_bar_option("Always"sv, ShowBookmarksBar::Always);
-    m_show_bookmarks_bar_never_action = add_show_bookmarks_bar_option("Never"sv, ShowBookmarksBar::Never);
-    m_show_bookmarks_bar_on_hover_action = add_show_bookmarks_bar_option("Only When Hovering the Navigation Toolbar"sv, ShowBookmarksBar::OnHover);
-    m_bookmarks_menu->add_submenu(*m_show_bookmarks_bar_menu);
-    m_bookmarks_menu->add_separator();
-
-    m_toggle_bookmark_action = Action::create("Toggle Bookmark"sv, ActionID::ToggleBookmark, [this]() {
-        auto view = active_web_view();
-        if (!view.has_value())
-            return;
-
-        toggle_bookmark_for_view(*view);
-    });
-    m_bookmarks_menu->add_action(*m_toggle_bookmark_action);
-    update_bookmark_action_for_current_web_view();
-
-    m_bookmarks_menu->add_action(Action::create("Bookmark All Tabs…"sv, ActionID::AddBookmarkAllTabs, [this]() {
-        read_bookmarks_for_all_tabs_in_current_window([this](Vector<BookmarkItem::Bookmark> bookmarks) {
-            if (bookmarks.is_empty())
-                return;
-
-            auto default_title = MUST(UnixDateTime::now().to_string("Saved Tabs %Y-%m-%d"sv));
-            display_add_bookmark_folder_dialog(default_title)
-                ->when_resolved([this, bookmarks = move(bookmarks)](BookmarkDialogResult result) mutable {
-                    auto& folder = result.data.get<BookmarkItem::Folder>();
-                    auto folder_id = m_bookmark_store->add_folder(move(folder.title), result.target_folder_id);
-
-                    for (auto& bookmark : bookmarks)
-                        m_bookmark_store->add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_hash), folder_id);
-                });
-        });
-    }));
-
-    m_toggle_bookmark_bar_action = Action::create("Show Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [this]() {
-        auto appearance = m_settings->appearance();
-        appearance.show_bookmarks_bar = appearance.show_bookmarks_bar == WebView::ShowBookmarksBar::Always
-            ? WebView::ShowBookmarksBar::Never
-            : WebView::ShowBookmarksBar::Always;
-        m_settings->set_appearance(appearance);
-    });
-
-    m_bookmarks_menu->add_separator();
-    m_bookmarks_menu_static_size = m_bookmarks_menu->size();
-    create_bookmark_menu_items();
-
     m_history_menu = Menu::create("History"sv);
     m_history_menu->add_action(Action::create("View History"sv, ActionID::ViewHistory, [this]() {
         activate_or_open_tab_with_url(URL::about_history());
@@ -3218,18 +3043,6 @@ void Application::appearance_changed(Badge<ApplicationSettingsObserver>)
 {
     m_toggle_menu_bar_action->set_checked(m_settings->appearance().show_menu_bar);
     update_website_color_scheme();
-
-    switch (m_settings->appearance().show_bookmarks_bar) {
-    case ShowBookmarksBar::Always:
-        m_show_bookmarks_bar_always_action->set_checked(true);
-        break;
-    case ShowBookmarksBar::Never:
-        m_show_bookmarks_bar_never_action->set_checked(true);
-        break;
-    case ShowBookmarksBar::OnHover:
-        m_show_bookmarks_bar_on_hover_action->set_checked(true);
-        break;
-    }
 }
 
 void Application::tab_settings_changed(Badge<ApplicationSettingsObserver>)
@@ -3316,46 +3129,25 @@ void Application::download_content_blocker_list_if_needed(Badge<Application, Set
     start_content_blocker_list_update(ContentBlockerListUpdateTrigger::UserInitiated, identifier);
 }
 
-void Application::update_bookmark_action_for_current_web_view()
-{
-    auto view = active_web_view();
-    auto is_bookmarked = view.has_value() && m_bookmark_store->is_bookmarked(view->url());
-
-    m_toggle_bookmark_action->set_text(is_bookmarked ? "Remove Bookmark"sv : "Add Bookmark"sv);
-    m_toggle_bookmark_action->set_engaged(is_bookmarked);
-}
-
 // The shared actions that depend on the page follow the active view, whichever tab or window made it the active one.
 void Application::update_actions_for_active_web_view()
 {
-    update_bookmark_action_for_current_web_view();
     update_editing_history_actions();
     update_report_website_issue_action();
     update_force_dark_action();
     update_view_source_action();
 }
 
-void Application::bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>)
+// NB: Only the application knows which favicons it keeps for itself, so without one telling us, nothing is removed.
+void Application::remove_unreferenced_favicons(HashTable<String> referenced_hashes)
 {
-    if (m_autocomplete_service)
-        m_autocomplete_service->update_bookmarks(autocomplete_bookmark_snapshot(*m_bookmark_store));
-    m_bookmarks_menu->shrink(m_bookmarks_menu_static_size);
-    create_bookmark_menu_items();
-    rebuild_bookmarks_menu();
-}
-
-void Application::toggle_bookmark_for_view(ViewImplementation& view)
-{
-    if (auto bookmark = m_bookmark_store->find_bookmark_by_url(view.url()); bookmark.has_value()) {
-        m_bookmark_store->remove_item(bookmark->id);
+    if (!m_should_remove_unreferenced_favicons)
         return;
-    }
+    m_should_remove_unreferenced_favicons = false;
 
-    display_add_bookmark_dialog()
-        ->when_resolved([this](BookmarkDialogResult result) {
-            auto& bookmark = result.data.get<BookmarkItem::Bookmark>();
-            m_bookmark_store->add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_hash), result.target_folder_id);
-        });
+    for (auto& hash : m_default_session->history_store->referenced_favicon_hashes())
+        referenced_hashes.set(move(hash));
+    m_default_session->favicon_store->remove_unreferenced_favicons(referenced_hashes);
 }
 
 void Application::set_spell_checker(OwnPtr<SpellChecker> spell_checker)
@@ -3425,122 +3217,6 @@ void Application::stop_watching_geolocation_position(Core::GeolocationProvider::
         return;
 
     m_geolocation_provider->stop_watching_position(watch_id);
-}
-
-void Application::create_bookmark_menu_items(Optional<MenuData> data)
-{
-    auto const& [menu, items, target_folder_id] = data.ensure([&]() -> MenuData {
-        return {
-            .menu = *m_bookmarks_menu,
-            .items = m_bookmark_store->root_items(),
-            .target_folder_id = {},
-        };
-    });
-
-    for (auto const& item : items) {
-        item.data.visit(
-            [&](BookmarkItem::Bookmark const& bookmark) {
-                auto action = Action::create(bookmark.title.value_or({}), ActionID::BookmarkItem, [this, url = bookmark.url]() {
-                    if (auto view = active_web_view(); view.has_value())
-                        view->load_from_user_input(url);
-                    else
-                        open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
-                });
-
-                action->set_png_icon(bookmark.favicon_hash.has_value()
-                        ? default_session().favicon_store->favicon_png(*bookmark.favicon_hash)
-                        : OptionalNone {});
-                action->set_tooltip(bookmark.url.serialize());
-
-                action->add_property("id"sv, item.id);
-                action->add_property("type"sv, "bookmark"_string);
-                if (target_folder_id.has_value()) {
-                    action->add_property("target_folder_id"sv, *target_folder_id);
-                    action->add_property("parent_folder_id"sv, *target_folder_id);
-                }
-
-                menu.add_action(move(action));
-            },
-            [&](BookmarkItem::Folder const& folder) {
-                auto submenu = folder.title.has_value()
-                    ? Menu::create_group(*folder.title)
-                    : Menu::create_group("(no title)"sv);
-
-                create_bookmark_menu_items(MenuData {
-                    .menu = submenu,
-                    .items = folder.children,
-                    .target_folder_id = item.id,
-                });
-
-                // A folder's menu ends with a way to open every bookmark in it at once.
-                size_t bookmark_count = 0;
-                for (auto const& child : folder.children)
-                    bookmark_count += child.is_bookmark() ? 1 : 0;
-                if (bookmark_count > 0) {
-                    submenu->add_separator();
-                    submenu->add_action(Action::create(MUST(String::formatted("Open All in Tabs ({})", bookmark_count)), ActionID::OpenAllBookmarksInTabs, [this, folder_id = item.id]() {
-                        open_bookmark_folder_in_new_tabs(folder_id);
-                    }));
-                }
-
-                submenu->add_property("id"sv, item.id);
-                submenu->add_property("type"sv, "folder"_string);
-                submenu->add_property("target_folder_id"sv, item.id);
-                if (target_folder_id.has_value())
-                    submenu->add_property("parent_folder_id"sv, *target_folder_id);
-
-                submenu->set_render_group_icon(true);
-                menu.add_submenu(move(submenu));
-            });
-    }
-}
-
-void Application::read_bookmarks_for_all_tabs_in_current_window(Function<void(Vector<BookmarkItem::Bookmark>)> on_read) const
-{
-    on_read(bookmarks_for_all_tabs_in_current_window());
-}
-
-Vector<BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_current_window() const
-{
-    Vector<WebView::BookmarkItem::Bookmark> bookmarks;
-
-    for (auto& view : active_window_web_views()) {
-        bookmarks.append(WebView::BookmarkItem::Bookmark {
-            .url = view.url(),
-            .title = view.title().is_empty() ? Optional<String> {} : view.title().to_utf8(),
-            .favicon_hash = view.favicon_hash(),
-        });
-    }
-
-    return bookmarks;
-}
-
-template<typename T>
-static NonnullRefPtr<T> create_unsupported_rejection()
-{
-    auto promise = T::construct();
-    promise->reject(Error::from_errno(ENOTSUP));
-    return promise;
-}
-
-NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_dialog(Optional<String const&>) const
-{
-    return create_unsupported_rejection<BookmarkPromise>();
-}
-
-NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(BookmarkItem const&, Optional<String const&>) const
-{
-    return create_unsupported_rejection<BookmarkPromise>();
-}
-
-NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_folder_dialog(Optional<String const&>, Optional<String const&>) const
-{
-    return create_unsupported_rejection<BookmarkPromise>();
-}
-
-NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_folder_dialog(BookmarkItem const&, Optional<String const&>) const
-{
-    return create_unsupported_rejection<BookmarkPromise>();
 }
 
 ErrorOr<void> Application::toggle_devtools_enabled()

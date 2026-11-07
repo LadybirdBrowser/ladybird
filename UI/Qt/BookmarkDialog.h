@@ -20,8 +20,10 @@ class QLineEdit;
 
 namespace Ladybird {
 
+struct BookmarkItem;
+
 // A drop-down of the bookmark folders to pick from, the Bookmarks Bar first.
-QComboBox* create_bookmark_folder_picker(QWidget* parent, ReadonlySpan<WebView::BookmarkItem> folders, Optional<String const&> selected_folder_id = {}, Optional<String const&> excluded_folder_id = {});
+QComboBox* create_bookmark_folder_picker(QWidget* parent, ReadonlySpan<BookmarkItem> folders, Optional<String const&> selected_folder_id = {}, Optional<String const&> excluded_folder_id = {});
 
 class BookmarkDialog final : public QDialog {
 public:
@@ -34,7 +36,7 @@ public:
         EditFolder,
     };
 
-    BookmarkDialog(QWidget* parent, Type, Optional<URL::URL const&> url = {}, Optional<String const&> title = {}, Optional<String const&> selected_folder_id = {}, ReadonlySpan<WebView::BookmarkItem> folders = {}, Optional<String const&> excluded_folder_id = {});
+    BookmarkDialog(QWidget* parent, Type, Optional<URL::URL const&> url = {}, Optional<String const&> title = {}, Optional<String const&> selected_folder_id = {}, ReadonlySpan<BookmarkItem> folders = {}, Optional<String const&> excluded_folder_id = {});
 
     QString url() const;
     QString title() const;

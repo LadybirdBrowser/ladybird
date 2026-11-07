@@ -25,7 +25,7 @@ WEBVIEW_API ErrorOr<Web::HTML::SelectedFile> create_selected_file(ByteString con
 // never blocks, so a path naming a FIFO or a device cannot stall the UI process.
 WEBVIEW_API ErrorOr<IPC::File> open_local_file_for_renderer(ByteString const& path);
 
-ErrorOr<JsonObject> read_json_file(ByteString const& path);
-ErrorOr<void> write_json_file(ByteString const& path, JsonValue const& value);
+WEBVIEW_API ErrorOr<JsonObject> read_json_file(ByteString const& path);
+WEBVIEW_API ErrorOr<void> write_json_file(ByteString const& path, JsonValue const& value);
 
 }

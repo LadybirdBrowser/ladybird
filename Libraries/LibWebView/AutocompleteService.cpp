@@ -53,14 +53,14 @@ void AutocompleteService::unregister_client(ClientID client_id)
     m_clients.remove(client_id);
 }
 
-void AutocompleteService::query(ClientID client_id, AutocompleteQueryID query_id, String input, size_t max_suggestions)
+void AutocompleteService::query(ClientID client_id, AutocompleteQueryID query_id, String input, size_t max_suggestions, Vector<AutocompleteSuggestion> additional_suggestions)
 {
     auto client = m_clients.find(client_id);
     if (client == m_clients.end())
         return;
     client->value->active_query_id = query_id;
 
-    Query query { client_id, query_id, move(input), max_suggestions };
+    Query query { client_id, query_id, move(input), max_suggestions, move(additional_suggestions) };
     MutexLocker locker(m_worker_mutex);
     m_active_queries.set(client_id, query);
     m_pending_queries.remove_all_matching([&](auto const& query) {
@@ -84,20 +84,6 @@ void AutocompleteService::cancel(ClientID client_id)
     });
     if (m_running_query_client_id == client_id && m_interruptible_database)
         m_interruptible_database->interrupt();
-}
-
-void AutocompleteService::update_bookmarks(Vector<AutocompleteBookmark> bookmarks)
-{
-    MutexLocker locker(m_worker_mutex);
-    m_pending_bookmarks = move(bookmarks);
-
-    for (auto const& active_query : m_active_queries) {
-        m_pending_queries.remove_all_matching([&](auto const& query) {
-            return query.client_id == active_query.key;
-        });
-        m_pending_queries.append(active_query.value);
-    }
-    m_worker_condition.signal();
 }
 
 void AutocompleteService::record_engagement(OmniboxEngagement engagement)
@@ -138,28 +124,21 @@ intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_
     if (!history_store)
         history_store = HistoryStore::create();
 
-    Vector<AutocompleteBookmark> bookmarks;
-
     while (true) {
         Optional<Query> query;
-        Optional<Vector<AutocompleteBookmark>> bookmark_update;
         Vector<OmniboxEngagement> engagements;
         {
             MutexLocker locker(m_worker_mutex);
             m_worker_condition.wait_while([&] {
-                return !m_stopping && m_pending_queries.is_empty() && !m_pending_bookmarks.has_value() && m_pending_engagements.is_empty();
+                return !m_stopping && m_pending_queries.is_empty() && m_pending_engagements.is_empty();
             });
             if (m_stopping && m_pending_engagements.is_empty())
                 return 0;
-            if (!m_stopping && m_pending_bookmarks.has_value())
-                bookmark_update = m_pending_bookmarks.release_value();
             if (!m_stopping && !m_pending_queries.is_empty())
                 query = m_pending_queries.take_first();
             engagements = move(m_pending_engagements);
         }
 
-        if (bookmark_update.has_value())
-            bookmarks = bookmark_update.release_value();
         for (auto const& engagement : engagements)
             history_store->record_omnibox_engagement(engagement, engagement.used_at);
         if (!query.has_value())
@@ -179,16 +158,14 @@ intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_
         if (!query_is_current(*query))
             continue;
 
-        auto preliminary_limit = max(query->max_suggestions * 4, 32uz);
+        auto preliminary_limit = autocomplete_preliminary_limit(query->max_suggestions);
         auto history_entries = history_store->autocomplete_entries(query->input, preliminary_limit);
         if (!query_is_current(*query))
             continue;
         auto suggestions = rank_history_suggestions(query->input, move(history_entries), preliminary_limit);
         if (!query_is_current(*query))
             continue;
-        suggestions.extend(rank_bookmark_suggestions(query->input, bookmarks, preliminary_limit));
-        if (!query_is_current(*query))
-            continue;
+        suggestions.extend(query->additional_suggestions);
         auto engagements_for_query = history_store->omnibox_engagements(query->input, 200);
         if (!query_is_current(*query))
             continue;

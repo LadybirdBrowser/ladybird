@@ -135,23 +135,15 @@ void RemoteActions::set_application_actions(Hub::ApplicationActions const& actio
     m_force_dark_action = action_for(actions.force_dark_action);
     m_toggle_vertical_tabs_expanded_action = action_for(actions.toggle_vertical_tabs_expanded_action);
     m_toggle_menu_bar_action = action_for(actions.toggle_menu_bar_action);
-    m_toggle_bookmark_bar_action = action_for(actions.toggle_bookmark_bar_action);
     m_view_source_action = action_for(actions.view_source_action);
     m_report_website_issue_action = action_for(actions.report_website_issue_action);
     m_zoom_menu = menu_for(actions.zoom_menu);
     m_color_scheme_menu = menu_for(actions.color_scheme_menu);
     m_contrast_menu = menu_for(actions.contrast_menu);
     m_motion_menu = menu_for(actions.motion_menu);
-    m_bookmarks_menu = menu_for(actions.bookmarks_menu);
-    m_show_bookmarks_bar_menu = menu_for(actions.show_bookmarks_bar_menu);
     m_history_menu = menu_for(actions.history_menu);
     m_inspect_menu = menu_for(actions.inspect_menu);
     m_debug_menu = menu_for(actions.debug_menu);
-}
-
-void RemoteActions::set_bookmarks_menu(ReadonlySpan<Hub::MenuEntry> entries)
-{
-    m_bookmarks_menu = menu_for(entries);
 }
 
 }

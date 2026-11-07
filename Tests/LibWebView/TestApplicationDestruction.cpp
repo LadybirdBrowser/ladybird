@@ -136,7 +136,7 @@ TEST_CASE(application_destruction_with_pending_web_ui_callbacks)
     {
         auto app = TRY_OR_FAIL(environment.create_application());
         auto theme = TRY_OR_FAIL(load_test_theme());
-        for (auto host : { "settings"sv, "bookmarks"sv, "downloads"sv }) {
+        for (auto host : { "settings"sv, "history"sv, "downloads"sv }) {
             for (bool retained_by_callback : { false, true }) {
                 auto view = WebView::HeadlessWebView::create(theme, { 1000, 700 });
                 auto& page = view->page();

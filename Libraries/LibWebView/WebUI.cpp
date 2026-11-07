@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
 #include <LibWebView/WebUI.h>
-#include <LibWebView/WebUI/BookmarksUI.h>
+#include <LibWebView/WebUI/ApplicationWebUI.h>
 #include <LibWebView/WebUI/CrashReportsUI.h>
 #include <LibWebView/WebUI/DownloadsUI.h>
 #include <LibWebView/WebUI/HistoryUI.h>
@@ -21,7 +22,6 @@ namespace WebView {
 static constexpr auto s_pages = to_array<WebUI::Page>({
     { "about"sv, "About URLs"sv, WebUI::PageType::Static },
     { "blocking"sv, "Blocking"sv, WebUI::PageType::Static },
-    { "bookmarks"sv, "Bookmarks"sv, WebUI::PageType::Dynamic },
     { "crashes"sv, "Crash Reports"sv, WebUI::PageType::Dynamic },
     { "downloads"sv, "Downloads"sv, WebUI::PageType::Dynamic },
     { "history"sv, "History"sv, WebUI::PageType::Dynamic },
@@ -32,18 +32,45 @@ static constexpr auto s_pages = to_array<WebUI::Page>({
     { "welcome"sv, "Welcome"sv, WebUI::PageType::Dynamic },
 });
 
-ReadonlySpan<WebUI::Page> WebUI::pages()
+struct ApplicationPage {
+    String host;
+    String title;
+};
+
+static Vector<ApplicationPage>& application_pages()
 {
-    return s_pages;
+    static NeverDestroyed<Vector<ApplicationPage>> s_application_pages;
+    return *s_application_pages;
 }
 
-Optional<WebUI::Page const&> WebUI::page_for_host(StringView host)
+Vector<WebUI::Page> WebUI::pages()
+{
+    Vector<Page> pages;
+    pages.ensure_capacity(s_pages.size() + application_pages().size());
+    for (auto const& page : s_pages)
+        pages.unchecked_append(page);
+    for (auto const& page : application_pages())
+        pages.unchecked_append({ page.host, page.title, PageType::Application });
+    return pages;
+}
+
+Optional<WebUI::Page> WebUI::page_for_host(StringView host)
 {
     for (auto const& page : s_pages) {
         if (page.host == host)
             return page;
     }
+    for (auto const& page : application_pages()) {
+        if (page.host == host)
+            return Page { page.host, page.title, PageType::Application };
+    }
     return {};
+}
+
+void WebUI::add_application_page(String host, String title)
+{
+    if (!page_for_host(host).has_value())
+        application_pages().append({ move(host), move(title) });
 }
 
 template<typename WebUIType>
@@ -68,8 +95,8 @@ ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, Web::PageId page_
 
     RefPtr<WebUI> web_ui;
 
-    if (page->host == "bookmarks"sv)
-        web_ui = TRY(create_web_ui<BookmarksUI>(client, page_id, move(host)));
+    if (page->type == PageType::Application)
+        web_ui = TRY(create_web_ui<ApplicationWebUI>(client, page_id, move(host)));
     else if (page->host == "crashes"sv)
         web_ui = TRY(create_web_ui<CrashReportsUI>(client, page_id, move(host)));
     else if (page->host == "downloads"sv)

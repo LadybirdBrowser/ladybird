@@ -131,6 +131,24 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     return view;
 }
 
+void Application::read_keeps_omnibox_engagements(URL::URL const& url, Function<void(bool)> on_read) const
+{
+    auto* ui = ConnectionFromUI::the();
+    if (!ui) {
+        on_read(false);
+        return;
+    }
+    auto request_id = m_next_ui_request_id++;
+    m_pending_omnibox_engagement_reads.set(request_id, move(on_read));
+    ui->async_app_read_keeps_omnibox_engagements(request_id, url);
+}
+
+void Application::did_read_keeps_omnibox_engagements(u64 request_id, bool keeps_engagements)
+{
+    if (auto on_read = m_pending_omnibox_engagement_reads.take(request_id); on_read.has_value())
+        (*on_read)(keeps_engagements);
+}
+
 // NB: Which window a tab goes to must not depend on what is active once the UI reads the message. A tab must stay in
 //     the browsing session of the page that opened it. With no such page, the active view here is the one that was
 //     active when the UI sent what led to this, since the UI's messages arrive in order.
@@ -355,113 +373,6 @@ NonnullOwnPtr<WebView::NotificationBackend> Application::create_notification_bac
     if (ConnectionFromUI::the())
         return make<NotificationBackendInUI>();
     return WebView::Application::create_notification_backend();
-}
-
-void Application::toggle_bookmark_for_view(WebView::ViewImplementation& view)
-{
-    // The bookmark popover of the active tab asks the user about the bookmark.
-    if (auto* ui = ConnectionFromUI::the(); ui && m_active_view_id == view.view_id()) {
-        ui->async_app_show_bookmark_popover();
-        return;
-    }
-    WebView::Application::toggle_bookmark_for_view(view);
-}
-
-void Application::read_bookmarks_for_all_tabs_in_current_window(Function<void(Vector<WebView::BookmarkItem::Bookmark>)> on_read) const
-{
-    auto* ui = ConnectionFromUI::the();
-    if (!ui || !m_active_view_id.has_value()) {
-        on_read({});
-        return;
-    }
-    auto request_id = m_next_ui_request_id++;
-    m_pending_bookmarks_for_all_tabs.set(request_id, move(on_read));
-    ui->async_app_read_bookmarks_for_all_tabs(request_id, *m_active_view_id);
-}
-
-void Application::did_read_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark> bookmarks)
-{
-    if (auto on_read = m_pending_bookmarks_for_all_tabs.take(request_id); on_read.has_value())
-        (*on_read)(move(bookmarks));
-}
-
-void Application::show_bookmark_context_menu(Gfx::IntPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id)
-{
-    if (auto* ui = ConnectionFromUI::the())
-        ui->async_app_show_bookmark_context_menu(position, item.map([](auto const& item) { return item.id; }), target_folder_id.copy(), parent_folder_id.copy());
-}
-
-void Application::set_bookmark_context_menu_item(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id)
-{
-    if (!item_id.has_value() && !target_folder_id.has_value()) {
-        m_bookmark_context_menu_item = {};
-        return;
-    }
-    m_bookmark_context_menu_item = BookmarkID {
-        .id = item_id.value_or({}),
-        .target_folder_id = move(target_folder_id),
-        .parent_folder_id = move(parent_folder_id),
-    };
-}
-
-NonnullRefPtr<Application::BookmarkPromise> Application::display_bookmark_dialog(BookmarkDialogKind kind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id) const
-{
-    auto promise = BookmarkPromise::construct();
-    auto* ui = ConnectionFromUI::the();
-    if (!ui) {
-        promise->reject(Error::from_errno(ECANCELED));
-        return promise;
-    }
-    auto request_id = m_next_ui_request_id++;
-    m_pending_bookmark_dialogs.set(request_id, promise);
-    ui->async_app_display_bookmark_dialog(request_id, kind, move(item_id), move(default_title), move(folder_id));
-    return promise;
-}
-
-void Application::did_get_bookmark_dialog_result(u64 request_id, Optional<Hub::BookmarkDialogResult> result)
-{
-    auto promise = m_pending_bookmark_dialogs.take(request_id);
-    if (!promise.has_value())
-        return;
-    if (!result.has_value()) {
-        (*promise)->reject(Error::from_errno(ECANCELED));
-        return;
-    }
-    if (result->is_folder) {
-        (*promise)->resolve({ .data = WebView::BookmarkItem::Folder { .title = move(result->title), .children = {} }, .target_folder_id = move(result->target_folder_id) });
-        return;
-    }
-    if (!result->url.has_value()) {
-        (*promise)->reject(Error::from_errno(ECANCELED));
-        return;
-    }
-    (*promise)->resolve({ .data = WebView::BookmarkItem::Bookmark { .url = result->url.release_value(), .title = move(result->title), .favicon_hash = move(result->favicon_hash) }, .target_folder_id = move(result->target_folder_id) });
-}
-
-NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_dialog(Optional<String const&> target_folder_id) const
-{
-    return display_bookmark_dialog(BookmarkDialogKind::AddBookmark, {}, {}, target_folder_id.copy());
-}
-
-NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const
-{
-    return display_bookmark_dialog(BookmarkDialogKind::EditBookmark, current_bookmark.id, {}, parent_folder_id.copy());
-}
-
-NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_folder_dialog(Optional<String const&> default_title, Optional<String const&> target_folder_id) const
-{
-    return display_bookmark_dialog(BookmarkDialogKind::AddFolder, {}, default_title.copy(), target_folder_id.copy());
-}
-
-NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const
-{
-    return display_bookmark_dialog(BookmarkDialogKind::EditFolder, current_folder.id, {}, parent_folder_id.copy());
-}
-
-void Application::rebuild_bookmarks_menu() const
-{
-    if (auto* ui = ConnectionFromUI::the())
-        ui->async_bookmarks_menu_changed(ActionMirror::the().entries_of(const_cast<Application&>(*this).bookmarks_menu()));
 }
 
 void Application::on_devtools_enabled() const

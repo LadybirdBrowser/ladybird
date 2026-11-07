@@ -12,12 +12,10 @@
 #include <LibCore/File.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibURL/Parser.h>
-#include <LibWebView/Application.h>
-#include <LibWebView/BookmarkStore.h>
-#include <LibWebView/FaviconStore.h>
 #include <LibWebView/Utilities.h>
+#include <UI/Qt/BookmarkStore.h>
 
-namespace WebView {
+namespace Ladybird {
 
 static constexpr auto VERSION_KEY = "version"sv;
 static constexpr auto ITEMS_KEY = "items"sv;
@@ -98,7 +96,7 @@ static Vector<BookmarkItem> parse_bookmark_items(JsonArray const& array)
     return items;
 }
 
-static JsonObject serialize_bookmark_item(BookmarkItem const& item, Optional<FaviconStore&> favicon_store)
+static JsonObject serialize_bookmark_item(BookmarkItem const& item, BookmarkStore::FaviconReader const& read_favicon)
 {
     JsonObject object;
     object.set(ID_KEY, item.id);
@@ -116,8 +114,8 @@ static JsonObject serialize_bookmark_item(BookmarkItem const& item, Optional<Fav
             if (bookmark.favicon_hash.has_value()) {
                 object.set(FAVICON_HASH_KEY, *bookmark.favicon_hash);
 
-                if (favicon_store.has_value()) {
-                    if (auto favicon_png = favicon_store->favicon_png(*bookmark.favicon_hash); favicon_png.has_value()) {
+                if (read_favicon) {
+                    if (auto favicon_png = read_favicon(*bookmark.favicon_hash); favicon_png.has_value()) {
                         if (auto favicon_base64_png = encode_base64(favicon_png->bytes()); !favicon_base64_png.is_error())
                             object.set(FAVICON_KEY, favicon_base64_png.release_value());
                     }
@@ -134,7 +132,7 @@ static JsonObject serialize_bookmark_item(BookmarkItem const& item, Optional<Fav
             children.ensure_capacity(folder.children.size());
 
             for (auto const& child : folder.children)
-                children.must_append(serialize_bookmark_item(child, favicon_store));
+                children.must_append(serialize_bookmark_item(child, read_favicon));
 
             object.set(CHILDREN_KEY, move(children));
         });
@@ -190,7 +188,7 @@ BookmarkStore BookmarkStore::create(ByteString bookmarks_path)
         return store;
     }
 
-    auto bookmarks_json = read_json_file(store.m_bookmarks_path);
+    auto bookmarks_json = WebView::read_json_file(store.m_bookmarks_path);
     if (bookmarks_json.is_error()) {
         warnln("Unable to read Ladybird bookmarks: {}", bookmarks_json.error());
         return store;
@@ -200,23 +198,6 @@ BookmarkStore BookmarkStore::create(ByteString bookmarks_path)
         store.m_items = parse_bookmark_items(*items);
 
     return store;
-}
-
-BookmarkStore BookmarkStore::create_from_json(JsonValue const& json)
-{
-    BookmarkStore store { {} };
-    if (auto items = json.as_object().get_array(ITEMS_KEY); items.has_value())
-        store.m_items = parse_bookmark_items(*items);
-    return store;
-}
-
-void BookmarkStore::replace_with_json(JsonValue const& json, PersistChange persist_change)
-{
-    if (auto items = json.as_object().get_array(ITEMS_KEY); items.has_value())
-        m_items = parse_bookmark_items(*items);
-    if (persist_change == PersistChange::Yes)
-        persist_bookmarks();
-    notify_observers();
 }
 
 BookmarkStore::BookmarkStore(ByteString bookmarks_path)
@@ -502,13 +483,13 @@ Optional<Vector<BookmarkItem>&> BookmarkStore::find_containing_item_list(StringV
     return find_containing_item_list_impl(m_items, id);
 }
 
-JsonValue BookmarkStore::serialize_items(Optional<FaviconStore&> favicon_store) const
+JsonValue BookmarkStore::serialize_items(FaviconReader const& read_favicon) const
 {
     JsonArray items;
     items.ensure_capacity(m_items.size());
 
     for (auto const& item : m_items)
-        items.must_append(serialize_bookmark_item(item, favicon_store));
+        items.must_append(serialize_bookmark_item(item, read_favicon));
 
     return items;
 }
@@ -545,12 +526,9 @@ void BookmarkStore::persist_bookmarks()
     auto root = serialize_store();
 
     if (!m_bookmarks_path.is_empty()) {
-        if (auto result = write_json_file(m_bookmarks_path, root); result.is_error())
+        if (auto result = WebView::write_json_file(m_bookmarks_path, root); result.is_error())
             warnln("Unable to persist Ladybird bookmarks: {}", result.error());
     }
-
-    if (on_persist)
-        on_persist(root);
 }
 
 void BookmarkStore::notify_observers()
@@ -572,8 +550,8 @@ void BookmarkStore::remove_observer(Badge<BookmarkStoreObserver>, BookmarkStoreO
     VERIFY(was_removed);
 }
 
-BookmarkStoreObserver::BookmarkStoreObserver()
-    : m_bookmark_store(Application::bookmark_store())
+BookmarkStoreObserver::BookmarkStoreObserver(BookmarkStore& bookmark_store)
+    : m_bookmark_store(bookmark_store)
 {
     m_bookmark_store->add_observer({}, *this);
 }

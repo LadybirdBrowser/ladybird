@@ -83,6 +83,11 @@ void Autocomplete::record_engagement(OmniboxEngagement engagement)
     Application::autocomplete_service().record_engagement(move(engagement));
 }
 
+size_t autocomplete_preliminary_limit(size_t max_suggestions)
+{
+    return max(max_suggestions * 4, 32uz);
+}
+
 String autocomplete_suggestion_display_text(AutocompleteSuggestion const& suggestion)
 {
     if (suggestion.source == AutocompleteSuggestionSource::Search)
@@ -277,7 +282,7 @@ void Autocomplete::search_engine_settings_changed()
     cancel_pending_query();
 }
 
-void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, String query, size_t max_suggestions)
+void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, String query, size_t max_suggestions, Vector<AutocompleteSuggestion> additional_suggestions)
 {
     if (m_remote_query_timer) {
         m_remote_query_timer->stop();
@@ -309,7 +314,7 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Autocomplete query='{}' trimmed='{}'", m_query, m_trimmed_query);
 
     // Private windows may read normal-profile history but never write through this worker connection.
-    Application::autocomplete_service().query(m_service_client_id, query_id, m_trimmed_query, m_max_suggestions);
+    Application::autocomplete_service().query(m_service_client_id, query_id, m_trimmed_query, m_max_suggestions, move(additional_suggestions));
 
     if (m_external_url.has_value()) {
         auto weak_this = make_weak_ptr();

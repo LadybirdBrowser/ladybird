@@ -45,6 +45,7 @@
 #include <LibWebView/WebContentPage.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BookmarkDialog.h>
+#include <UI/Qt/Bookmarks.h>
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/ExternalURLHandler.h>
@@ -437,7 +438,7 @@ public:
         m_open_settings_action = create_application_action(*m_application_widget, application.open_settings_page_action(), IncludeActionIcon::No);
         m_open_downloads_action = create_application_action(*m_application_widget, application.open_downloads_page_action(), IncludeActionIcon::No);
 
-        m_toggle_bookmark_bar_action = create_application_action(*m_application_widget, application.toggle_bookmark_bar_action(), IncludeActionIcon::No);
+        m_toggle_bookmark_bar_action = create_application_action(*m_application_widget, Application::bookmarks().toggle_bookmark_bar_action(), IncludeActionIcon::No);
 
         m_find_in_page_action = make_action("&Find in Page…");
         m_find_in_page_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Find));
@@ -462,7 +463,7 @@ public:
         });
 #endif
 
-        m_bookmarks_menu = create_application_menu(*m_application_widget, application.bookmarks_menu());
+        m_bookmarks_menu = create_application_menu(*m_application_widget, Application::bookmarks().menu());
 
         m_history_menu = create_application_menu(*m_application_widget, application.history_menu());
         QObject::connect(m_history_menu, &QMenu::aboutToShow, this, [this]() {
@@ -513,7 +514,7 @@ public:
     void rebuild_bookmarks_menu()
     {
         if (m_bookmarks_menu)
-            repopulate_application_menu(*m_bookmarks_menu, RemoteActions::the().bookmarks_menu());
+            repopulate_application_menu(*m_bookmarks_menu, Application::bookmarks().menu());
     }
 
 private:
@@ -798,7 +799,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     m_hub_connection->did_initialize();
 
     m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(TRY(JsonValue::from_string(state.settings_json))));
-    m_bookmark_store = make<WebView::BookmarkStore>(WebView::BookmarkStore::create_from_json(TRY(JsonValue::from_string(state.bookmarks_json))));
+    m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(state.config_directory, "Bookmarks.json"sv).string()));
     // NB: Reports stay in files, which both of us read. This process keeps its own for when it crashes, and the next
     //     launch recovers that the same as one of the Hub's.
     auto& crash_report_store = WebView::CrashReportStore::the();
@@ -965,7 +966,7 @@ void Application::create_platform_actions()
 {
 #ifndef LADYBIRD_HUB_IN_OWN_PROCESS
     m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(WebView::Application::settings().serialize_json()));
-    m_bookmark_store = make<WebView::BookmarkStore>(WebView::BookmarkStore::create_from_json(WebView::Application::bookmark_store().serialize_store()));
+    m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(WebView::Application::profile().paths().config, "Bookmarks.json"sv).string()));
     RemoteActions::the().set_application_actions(Hub::ActionMirror::the().application_actions());
     RemoteDownloads::the().set_downloads(Hub::ConnectionFromUI::downloads());
 #endif
@@ -975,10 +976,7 @@ void Application::create_platform_actions()
         if (auto* hub = HubConnection::the_if_connected())
             hub->send_settings_changes(settings);
     };
-    m_bookmark_store->on_persist = [](JsonValue const& bookmarks) {
-        if (auto* hub = HubConnection::the_if_connected())
-            hub->async_update_bookmarks(bookmarks.serialized().to_byte_string());
-    };
+    m_bookmarks = make<Bookmarks>(*m_bookmark_store);
 
     RemoteActions::the().inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
         show_process_manager();
@@ -1758,19 +1756,19 @@ void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Opt
     window->bring_to_front();
 }
 
-Vector<WebView::BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_window_of_view(u64 view_id) const
+Vector<BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_active_window() const
 {
-    auto* window = window_of_view(view_id);
+    auto* window = m_active_window;
     if (!window)
         return {};
 
     // Every tab gets a bookmark, so this walks the tabs directly: for_each_tab() skips the ones that haven't loaded.
-    Vector<WebView::BookmarkItem::Bookmark> bookmarks;
+    Vector<BookmarkItem::Bookmark> bookmarks;
     for (int i = 0; i < window->tab_count(); ++i) {
         auto& tab = *window->tab_at(i);
         if (tab.is_loaded()) {
             auto const& view = tab.view();
-            bookmarks.append(WebView::BookmarkItem::Bookmark {
+            bookmarks.append(BookmarkItem::Bookmark {
                 .url = view.url(),
                 .title = view.title().is_empty() ? Optional<String> {} : view.title().to_utf8(),
                 .favicon_hash = view.favicon_hash(),
@@ -1783,7 +1781,7 @@ Vector<WebView::BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_w
         auto url = tab.url();
         auto title = tab.title();
         auto has_title = !title.isEmpty() && title != qstring_from_ak_string(url.serialize());
-        bookmarks.append(WebView::BookmarkItem::Bookmark {
+        bookmarks.append(BookmarkItem::Bookmark {
             .url = url,
             .title = has_title ? ak_string_from_qstring(title) : Optional<String> {},
             .favicon_hash = {},
@@ -2105,7 +2103,7 @@ void Application::update_reopen_recently_closed_actions() const
         static_cast<LadybirdQApplication*>(m_application.ptr())->update_reopen_recently_closed_action();
 }
 
-void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id)
+void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Optional<BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id)
 {
     if (auto* active_tab = this->active_tab(); active_tab && m_active_window) {
         auto position = active_tab->view().mapToGlobal(QPoint { content_position.x(), content_position.y() });
@@ -2113,7 +2111,7 @@ void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Opt
     }
 }
 
-static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_bookmark_dialog(
+static NonnullRefPtr<Application::BookmarkPromise> display_add_or_edit_bookmark_dialog(
     QWidget* parent,
     BookmarkDialog::Type dialog_type,
     Optional<URL::URL const&> current_url,
@@ -2124,7 +2122,7 @@ static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_
     auto const& folders = Application::bookmark_store().root_items();
 
     auto* dialog = new BookmarkDialog(parent, dialog_type, current_url, current_title, selected_folder_id, folders);
-    auto promise = WebView::Application::BookmarkPromise::construct();
+    auto promise = Application::BookmarkPromise::construct();
 
     QObject::connect(dialog, &QDialog::finished, [promise, current_favicon_hash = move(current_favicon_hash), dialog = QPointer { dialog }](auto result) mutable {
         if (result != QDialog::Accepted || !dialog) {
@@ -2146,8 +2144,8 @@ static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_
         if (auto target_folder_id_text = ak_string_from_qstring(dialog->selected_folder_id()); !target_folder_id_text.is_empty())
             target_folder_id = move(target_folder_id_text);
 
-        promise->resolve(WebView::Application::BookmarkDialogResult {
-            .data = WebView::BookmarkItem::Bookmark {
+        promise->resolve(Application::BookmarkDialogResult {
+            .data = BookmarkItem::Bookmark {
                 .url = url.release_value(),
                 .title = move(title),
                 .favicon_hash = move(current_favicon_hash),
@@ -2176,12 +2174,12 @@ NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_di
     return display_add_or_edit_bookmark_dialog(active_tab(), BookmarkDialog::Type::AddBookmark, current_url, current_title, current_favicon_hash, target_folder_id);
 }
 
-NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const
+NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const
 {
     return display_add_or_edit_bookmark_dialog(active_tab(), BookmarkDialog::Type::EditBookmark, current_bookmark.bookmark().url, current_bookmark.bookmark().title, current_bookmark.bookmark().favicon_hash, parent_folder_id);
 }
 
-static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_bookmark_folder_dialog(
+static NonnullRefPtr<Application::BookmarkPromise> display_add_or_edit_bookmark_folder_dialog(
     QWidget* parent,
     BookmarkDialog::Type dialog_type,
     Optional<String const&> current_title,
@@ -2189,7 +2187,7 @@ static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_
     Optional<String const&> excluded_folder_id = {})
 {
     auto* dialog = new BookmarkDialog(parent, dialog_type, {}, current_title, selected_folder_id, Application::bookmark_store().root_items(), excluded_folder_id);
-    auto promise = WebView::Application::BookmarkPromise::construct();
+    auto promise = Application::BookmarkPromise::construct();
 
     QObject::connect(dialog, &QDialog::finished, [promise, dialog = QPointer { dialog }](auto result) {
         if (result != QDialog::Accepted || !dialog) {
@@ -2205,8 +2203,8 @@ static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_
         if (auto target_folder_id_text = ak_string_from_qstring(dialog->selected_folder_id()); !target_folder_id_text.is_empty())
             target_folder_id = move(target_folder_id_text);
 
-        promise->resolve(WebView::Application::BookmarkDialogResult {
-            .data = WebView::BookmarkItem::Folder {
+        promise->resolve(Application::BookmarkDialogResult {
+            .data = BookmarkItem::Folder {
                 .title = move(title),
                 .children = {},
             },
@@ -2223,7 +2221,7 @@ NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_fo
     return display_add_or_edit_bookmark_folder_dialog(active_tab(), BookmarkDialog::Type::AddFolder, default_title, target_folder_id);
 }
 
-NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const
+NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_folder_dialog(BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const
 {
     return display_add_or_edit_bookmark_folder_dialog(active_tab(), BookmarkDialog::Type::EditFolder, current_folder.folder().title, parent_folder_id, current_folder.id);
 }
@@ -2293,6 +2291,9 @@ void Application::release_external_url_handler(u64 handler_id)
 
 void Application::report_active_view() const
 {
+    if (m_bookmarks)
+        m_bookmarks->update_toggle_bookmark_action();
+
     auto* hub = HubConnection::the_if_connected();
     if (!hub)
         return;

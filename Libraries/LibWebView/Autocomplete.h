@@ -92,6 +92,7 @@ WEBVIEW_API String autocomplete_suggestion_display_text(AutocompleteSuggestion c
 WEBVIEW_API Vector<AutocompleteMatchRange> autocomplete_match_ranges(StringView input, StringView text);
 WEBVIEW_API Vector<String> filter_remote_autocomplete_suggestions(StringView input, Vector<String> suggestions);
 WEBVIEW_API Vector<AutocompleteSuggestion> web_ui_autocomplete_suggestions(StringView input);
+WEBVIEW_API size_t autocomplete_preliminary_limit(size_t max_suggestions);
 WEBVIEW_API bool autocomplete_urls_match(StringView left, StringView right);
 WEBVIEW_API bool autocomplete_url_can_complete(StringView query, StringView suggestion);
 
@@ -105,7 +106,8 @@ public:
 
     Function<void(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind)> on_autocomplete_query_complete;
 
-    void query_autocomplete_engine(AutocompleteQueryID, String, size_t max_suggestions = default_autocomplete_suggestion_limit);
+    // What the application adds is ranked with the rest, as it does not come from anything known here.
+    void query_autocomplete_engine(AutocompleteQueryID, String, size_t max_suggestions = default_autocomplete_suggestion_limit, Vector<AutocompleteSuggestion> additional_suggestions = {});
     void cancel_pending_query();
     void record_engagement(OmniboxEngagement);
 

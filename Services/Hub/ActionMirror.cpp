@@ -154,15 +154,12 @@ ApplicationActions ActionMirror::application_actions()
     actions.force_dark_action = state_of(application.force_dark_action());
     actions.toggle_vertical_tabs_expanded_action = state_of(application.toggle_vertical_tabs_expanded_action());
     actions.toggle_menu_bar_action = state_of(application.toggle_menu_bar_action());
-    actions.toggle_bookmark_bar_action = state_of(application.toggle_bookmark_bar_action());
     actions.view_source_action = state_of(application.view_source_action());
     actions.report_website_issue_action = state_of(application.report_website_issue_action());
     actions.zoom_menu = entries_of(application.zoom_menu());
     actions.color_scheme_menu = entries_of(application.color_scheme_menu());
     actions.contrast_menu = entries_of(application.contrast_menu());
     actions.motion_menu = entries_of(application.motion_menu());
-    actions.bookmarks_menu = entries_of(application.bookmarks_menu());
-    actions.show_bookmarks_bar_menu = entries_of(application.show_bookmarks_bar_menu());
     actions.history_menu = entries_of(application.history_menu());
     actions.inspect_menu = entries_of(application.inspect_menu());
     actions.debug_menu = entries_of(application.debug_menu());
@@ -174,12 +171,8 @@ ViewActions ActionMirror::view_actions(WebView::ViewImplementation& view)
     ViewActions actions;
     actions.navigate_back_action = state_of(view.navigate_back_action());
     actions.navigate_forward_action = state_of(view.navigate_forward_action());
-    actions.toggle_bookmark_action = state_of(view.toggle_bookmark_action());
     actions.reset_zoom_action = state_of(view.reset_zoom_action());
     actions.translate_action = state_of(view.page_translation().translate_action());
-    actions.bookmarks_bar_context_menu = entries_of(view.bookmarks_bar_context_menu());
-    actions.bookmark_context_menu = entries_of(view.bookmark_context_menu());
-    actions.bookmark_folder_context_menu = entries_of(view.bookmark_folder_context_menu());
     return actions;
 }
 
