@@ -218,6 +218,20 @@ pub(crate) fn kind_is_svg_element_box(kind: NodeKind) -> bool {
     node_facts::kind_is_svg_box(kind) || matches!(kind, NodeKind::SVGSVGBox | NodeKind::SVGForeignObjectBox)
 }
 
+/// The document element's box among `parent`'s children, looking through anonymous wrappers.
+pub(crate) fn document_element_box_under(arena: &impl PaintRead, parent: NodeSlotId) -> Option<NodeSlotId> {
+    arena.children(parent).find_map(|child| {
+        let flags = arena.node_flags_if_live(child);
+        if flags & NodeFlag::IsDocumentElement as u32 != 0 {
+            return Some(child);
+        }
+        if flags & NodeFlag::Anonymous as u32 != 0 {
+            return document_element_box_under(arena, child);
+        }
+        None
+    })
+}
+
 pub(crate) fn node_is_root_element(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     let flags = arena.node_flags_if_live(node);
     flags & NodeFlag::Anonymous as u32 == 0 && flags & NodeFlag::IsHtmlHtmlElement as u32 != 0

@@ -1529,7 +1529,7 @@ impl TreeBuildJob {
             }
 
             // https://drafts.csswg.org/css-scrollbars/#scrollbar-width
-            // UAs must apply the scrollbar-color value set on the root element to the viewport.
+            // UAs must apply the scrollbar-width value set on the root element to the viewport.
             // The document element is the document's only DOM child the style mirror holds: a doctype, a
             // comment and a processing instruction hold no place in its child sequence, and a document
             // can have no text child.

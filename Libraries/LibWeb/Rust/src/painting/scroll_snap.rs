@@ -15,7 +15,7 @@ use crate::css::css_enums::{
     scroll_snap_align, scroll_snap_axis, scroll_snap_stop, scroll_snap_strictness, writing_mode,
 };
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
-use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
+use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::chrome_geometry::{maximum_scroll_offset, minimum_scroll_offset};
 use crate::painting::host::{FfiSnapAreaGeometry, FfiSnapAxes, FfiSnapContainerGeometry};
@@ -29,7 +29,7 @@ use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect};
 /// specified on the root element apply to the viewport rather than to its own box.
 fn snap_style_source(arena: &impl PaintRead, snap_container: NodeSlotId) -> Option<NodeSlotId> {
     if arena.node_kind_if_live(snap_container) == Some(NodeKind::Viewport) {
-        document_element_box_under(arena, snap_container)
+        style_queries::document_element_box_under(arena, snap_container)
     } else {
         Some(snap_container)
     }
@@ -63,19 +63,6 @@ fn snap_axes_of_style(style: ComputedValuesView<'_>) -> FfiSnapAxes {
         },
         _ => FfiSnapAxes { x: true, y: true },
     }
-}
-
-fn document_element_box_under(arena: &impl PaintRead, parent: NodeSlotId) -> Option<NodeSlotId> {
-    arena.children(parent).find_map(|child| {
-        let flags = arena.node_flags_if_live(child);
-        if flags & NodeFlag::IsDocumentElement as u32 != 0 {
-            return Some(child);
-        }
-        if flags & NodeFlag::Anonymous as u32 != 0 {
-            return document_element_box_under(arena, child);
-        }
-        None
-    })
 }
 
 // https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding
