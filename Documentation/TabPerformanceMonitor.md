@@ -17,7 +17,8 @@ counter differencing and windowing independently of the UI and OS APIs.
 
 * **CPU:** CPU-time deltas divided by actual monotonic elapsed time. 100% is
   one logical CPU; values above 100% are expected. All live and terminated
-  threads in exclusively owned WebContent and WebWorker processes contribute.
+  threads in exclusively owned WebContent and WebWorker processes contribute,
+  so a dedicated worker counts under the WebContent process that hosts it.
   Registered page and embedded-frame ownership identify WebContent owners.
   Worker ownership is resolved transitively, including nested workers and
   shared workers whose owners all resolve to the same tab. Processes shared

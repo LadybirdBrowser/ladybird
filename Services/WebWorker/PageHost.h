@@ -25,7 +25,8 @@ public:
 
     virtual ~PageHost();
 
-    virtual Web::PageId id() const override { VERIFY_NOT_REACHED(); }
+    // NB: A worker has no page in the UI process, so nothing there knows this ID.
+    virtual Web::PageId id() const override { return 0; }
     virtual Web::Page& page() override;
     virtual Web::Page const& page() const override;
     virtual bool is_connection_open() const override;
@@ -55,10 +56,12 @@ public:
     virtual Web::Compositor::CompositorHost* compositor_host() override { return m_compositor_host.ptr(); }
     virtual Web::Compositor::CompositorHost const* compositor_host() const override { return m_compositor_host.ptr(); }
     void compositor_process_lost();
-    virtual bool is_headless() const override { VERIFY_NOT_REACHED(); }
-    virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
-    virtual void report_finished_handling_input_event([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] u64 event_id, [[maybe_unused]] Web::EventResult event_was_handled) override { VERIFY_NOT_REACHED(); }
-    virtual void request_frame() override { VERIFY_NOT_REACHED(); }
+    virtual bool is_headless() const override { return false; }
+    // NB: No input reaches a worker, so its queue stays empty.
+    virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { return m_input_event_queue; }
+    virtual void report_finished_handling_input_event([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] u64 event_id, [[maybe_unused]] Web::EventResult event_was_handled) override { }
+    // NB: A worker's event loop schedules its own rendering, and nothing else here asks for a frame.
+    virtual void request_frame() override { }
     virtual double maximum_frames_per_second() const override { return m_maximum_frames_per_second; }
     void set_maximum_frames_per_second(double maximum_frames_per_second) { m_maximum_frames_per_second = maximum_frames_per_second; }
     void did_finish_loading_worker_script(bool worker_is_secure_context);
@@ -74,6 +77,7 @@ private:
     OwnPtr<Web::Compositor::CompositorHost> m_compositor_host;
     GC::Ref<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
+    Queue<Web::QueuedInputEvent> m_input_event_queue;
     double m_maximum_frames_per_second { 60.0 };
 };
 

@@ -330,6 +330,20 @@ TEST_CASE(image_decoders_end_once_released)
     manager.process_did_release_decoder(2'000'002);
     Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
 
+    // Each worker on a thread of a process has a client of its own, and the process keeps the decoder until all let go.
+    Optional<IPC::TransportHandle> page_client = MUST(manager.connect_new_client(2'000'004, session, site));
+    Optional<IPC::TransportHandle> worker_client = MUST(manager.connect_new_client(2'000'004, session, site));
+    VERIFY(decoder_count() == 1);
+    worker_client.clear();
+    manager.process_did_release_decoder(2'000'004);
+    Optional<IPC::TransportHandle> client_of_same_site = MUST(manager.connect_new_client(2'000'005, session, site));
+    VERIFY(decoder_count() == 1);
+    page_client.clear();
+    client_of_same_site.clear();
+    manager.process_did_release_decoder(2'000'004);
+    manager.process_did_release_decoder(2'000'005);
+    Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
+
     // A process that has let go of its decoder gets a new one when it next asks.
     auto handle = MUST(manager.connect_new_client(2'000'003, session, {}));
     VERIFY(decoder_count() == 1);

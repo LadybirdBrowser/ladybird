@@ -13,6 +13,7 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Scripting/ScriptAbortHandle.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/WebRTC/RTCRtpScriptTransformer.h>
 #include <LibWebCommon/Forward.h>
@@ -30,15 +31,23 @@ class ConnectionFromClient final
     C_OBJECT(ConnectionFromClient);
 
 public:
+    // What the worker agent has to itself: a process that ends with it, or a thread in a process that goes on without it.
+    enum class Host {
+        Process,
+        Thread,
+    };
+
     virtual ~ConnectionFromClient() override;
 
     virtual void die() override;
     virtual void did_lose_peer_during_sync_request() override;
 
-    // The two ends of the shutdown of the worker agent, which go around Web::Bindings::shut_down_agent(). The connection
-    // outlives the heap, as cells in the heap use it until they are gone.
-    void release_agent_state();
-    void finish_shutdown();
+    // Gives the agent of this thread its connections to other processes.
+    void set_up_agent_services();
+
+    // Ends the agent of this thread, in order. The connection outlives the heap, as cells in the heap use it until they
+    // are gone.
+    void shut_down_agent();
 
     virtual void set_font_service(IPC::TransportHandle, IPC::File catalog, u64 catalog_size, u64 generation) override;
     virtual void close_worker() override;
@@ -50,15 +59,13 @@ public:
 
     Web::Compositor::CompositorConnection* compositor_process_connection() const;
 
-    Function<void(IPC::TransportHandle const&, Optional<int> client_id, Optional<Utf16String> const& top_level_site)> on_request_server_connection;
-
-    // Asks the Browser to spawn this process's MediaServer if it has none, and to connect a client to it.
+    // Asks the Browser to spawn this worker's MediaServer if it has none, and to connect a client to it.
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_media_server_transport();
-    // Asks the Browser to connect this process to its ImageDecoder.
+    // Asks the Browser to connect this worker to the ImageDecoder of its process.
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_image_decoder_transport();
 
 private:
-    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, bool enable_test_mode);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, bool enable_test_mode, Host = Host::Process);
 
     Web::Page& page();
     Web::Page const& page() const;
@@ -100,11 +107,15 @@ private:
 
     void run_transform_init(u64 transform_id, Web::HTML::SerializedTransferRecord options_record);
     void begin_closing();
+    void release_agent_state();
+    void finish_shutdown();
 
     RefPtr<WorkerHost> m_worker_host;
     Function<void()> m_request_server_died_callback_for_testing;
     bool m_enable_test_mode { false };
     bool m_shutdown_finished { false };
+    Host m_host { Host::Process };
+    NonnullRefPtr<Web::HTML::ScriptAbortHandle> m_script_abort_handle;
 };
 
 }

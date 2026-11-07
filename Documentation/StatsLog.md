@@ -76,11 +76,14 @@ Unsupported values are omitted, rather than reported as zero.
 | `css.document_style_sheet_entries` | Sum of document style scopes' sheet vector sizes, excluding shadow scopes and adopted sheets |
 | `fonts.face_entries` | Sum of registered documents' `FontFaceSet` sizes, including loading faces |
 | `fonts.system_fallback_cache_entries` | Process-wide system fallback font cache map size, including cached misses, read under its mutex |
+| `workers.agents` | Worker agents alive in this WebContent process, each on a thread of its own |
 | `rendering.updates` | Main event loop's rendering updates run counter |
 | `rendering.paints` | Main event loop's paint counter |
 | `rendering.update_duration_us` | Main event loop's rendering update time counter, in microseconds |
 
-GC values belong to the main VM heap in WebContent and WebWorker. Live sizes and completed durations
+GC values belong to the main VM heap in WebContent and WebWorker. The logger never reads GC state
+from another thread, so the heaps of dedicated workers, which run on threads of their owner's
+WebContent process, are not sampled; their memory and CPU time show in the process values. Live sizes and completed durations
 start at zero until the first sweep finishes. Heap block bytes exclude the reserved address range,
 unused type-isolated chunks, weak blocks, and blocks retained for reuse or awaiting background
 decommit. They are not a measurement of resident memory or committed memory. No heap walk is

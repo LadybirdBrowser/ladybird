@@ -47,9 +47,15 @@ public:
     RequestServerSiteBindings& request_server_site_bindings() { return m_request_server_site_bindings; }
     void remove_blob_url_entries();
 
+    // The process of a worker on a thread is its host's. So, what these say and do is about that process.
     pid_t pid() const { return m_child_identity.pid; }
     u64 child_id() const { return m_child_identity.child_id; }
     void terminate_process();
+
+    // The WebContent process that runs this worker on a thread. A worker with a process of its own has none.
+    RefPtr<WebContentClient> host() const { return m_host.strong_ref(); }
+    void set_host(WebContentClient&);
+    bool runs_on_thread() const { return m_runs_on_thread; }
 
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
     void set_child_identity(ChildIdentity identity) { m_child_identity = identity; }
@@ -85,6 +91,9 @@ private:
     RequestServerSiteBindings m_request_server_site_bindings;
 
     ChildIdentity m_child_identity;
+    WeakPtr<WebContentClient> m_host;
+    bool m_runs_on_thread { false };
+    bool m_holds_image_decoder_client { false };
     Web::HTML::WorkerAgentId m_agent_id { 0 };
     Vector<URL::Origin> m_permission_origins;
 

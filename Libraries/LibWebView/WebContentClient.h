@@ -127,6 +127,9 @@ public:
     // Documents with no site, such as those of an opaque origin, come with whatever made them, so they do not count.
     void did_host_document_of_site(Utf16String site);
 
+    // Connects a client to the ImageDecoder of this process, for its main thread or for a worker on a thread of it.
+    Optional<IPC::TransportHandle> connect_new_image_decoder_client();
+
     // A process that has hosted local file content may read local files. Site isolation gives such content processes
     // of its own, which host nothing else.
     bool has_hosted_local_file_content() const { return m_has_hosted_local_file_content; }

@@ -15,6 +15,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/ImageDecoderManager.h>
 #include <LibWebView/PermissionManager.h>
+#include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
 
@@ -38,10 +39,24 @@ WebWorkerClient::~WebWorkerClient()
     remove_blob_url_entries();
 }
 
+void WebWorkerClient::set_host(WebContentClient& host)
+{
+    m_host = host;
+    m_runs_on_thread = true;
+    set_child_identity({ .child_id = host.child_id(), .pid = host.pid() });
+}
+
 void WebWorkerClient::did_misbehave(StringView message_name, StringView reason)
 {
+    // NB: A worker on a thread is one trust domain with its process, so all of that goes.
+    if (auto host = m_host.strong_ref()) {
+        host->did_misbehave(message_name, reason);
+        shutdown();
+        return;
+    }
     dbgln("WebWorkerClient: terminating helper process {}: {} rejected: {}", pid(), message_name, reason);
-    terminate_process();
+    if (!m_runs_on_thread)
+        terminate_process();
     shutdown();
 }
 
@@ -55,8 +70,14 @@ void WebWorkerClient::die()
     remove_blob_url_entries();
     WorkerProcessManager::the().worker_did_die(m_agent_id);
 
-    // NB: A worker whose connection is gone does no more work, so a process that outlives its connection is ended.
-    terminate_process();
+    // NB: The process of a worker on a thread goes on, and so may its use of the decoder.
+    if (m_holds_image_decoder_client)
+        ImageDecoderManager::the().process_did_release_decoder(child_id());
+
+    // NB: A worker whose connection is gone does no more work, so a process that outlives its connection is ended. A
+    //     thread closes the connection as it ends.
+    if (!m_runs_on_thread)
+        terminate_process();
     WorkerProcessManager::the().worker_process_did_exit(*this);
 
     // Otherwise nested workers we own would outlive us, in violation of the HTML spec.
@@ -195,24 +216,35 @@ Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient:
 
 Messages::WebWorkerClient::RequestImageDecoderConnectionResponse WebWorkerClient::request_image_decoder_connection()
 {
-    return ImageDecoderManager::the().connect_requesting_process(child_id(), session(), m_site);
+    if (!m_runs_on_thread)
+        return ImageDecoderManager::the().connect_requesting_process(child_id(), session(), m_site);
+
+    // NB: A thread is part of its process, and what the decoder of a process may see goes by all that the process hosts.
+    auto host = m_host.strong_ref();
+    if (!host)
+        return Optional<IPC::TransportHandle> {};
+    auto handle = host->connect_new_image_decoder_client();
+    m_holds_image_decoder_client |= handle.has_value();
+    return handle;
 }
 
 void WebWorkerClient::did_release_image_decoder()
 {
+    m_holds_image_decoder_client = false;
     ImageDecoderManager::the().process_did_release_decoder(child_id());
 }
 
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)
 {
     if (auto settings = hosted_environment(message.environment_id); settings.has_value())
-        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *settings, pid(), m_is_private);
+        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *settings, *this, m_is_private);
 }
 
 Messages::WebWorkerClient::StartWorkerAgentResponse WebWorkerClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest request)
 {
     auto outside_settings = hosted_environment(request.outside_settings.id);
-    return WorkerProcessManager::the().start_worker_agent(*this, outside_settings, move(request));
+    auto started_agent = WorkerProcessManager::the().start_worker_agent(*this, outside_settings, move(request));
+    return { started_agent.agent_id, move(started_agent.thread_transport) };
 }
 
 void WebWorkerClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)

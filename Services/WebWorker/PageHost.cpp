@@ -9,6 +9,7 @@
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/PageHost.h>
 #include <WebWorker/WebWorkerCompositorHost.h>
+#include <WebWorker/WorkerThread.h>
 
 namespace WebWorker {
 
@@ -97,14 +98,20 @@ Optional<Web::Permissions::PermissionSnapshot> PageHost::page_did_request_permis
     return response->take_snapshot();
 }
 
+// NB: The sync requests here fail once the worker is terminated or the UI process is gone. The script that made one no
+//     longer runs by then, so what it gets back here does not matter, but it has to get something.
 HTTP::Cookie::VersionedCookie PageHost::page_did_request_cookie(Optional<Web::HTML::EnvironmentId> const&, URL::URL const& url, HTTP::Cookie::Source source)
 {
-    return m_client.did_request_cookie(url, source);
+    auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidRequestCookie>(url, source);
+    if (!response)
+        return {};
+    return response->take_cookie();
 }
 
 bool PageHost::page_did_is_known_hsts_host(String const& domain)
 {
-    return m_client.did_is_known_hsts_host(domain);
+    auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidIsKnownHstsHost>(domain);
+    return response && response->result();
 }
 
 void PageHost::page_did_report_worker_exception(Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno)
@@ -130,22 +137,37 @@ void PageHost::request_file(Web::FileRequest request)
 
 URL::BlobURLEntry::Token PageHost::page_did_add_blob_url_entry(Web::HTML::EnvironmentSettingsObject const& environment, Utf16String const& url, Web::FileAPI::SerializedBlobURLEntry const& entry)
 {
-    return m_client.did_add_blob_url_entry(environment.id, url, entry);
+    auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidAddBlobUrlEntry>(environment.id, url, entry);
+    if (!response)
+        return 0;
+    return response->token();
 }
 
 void PageHost::page_did_remove_blob_url_entries(Web::HTML::EnvironmentSettingsObject const& environment, Vector<Utf16String> const& urls)
 {
-    m_client.did_remove_blob_url_entries(environment.id, urls);
+    (void)m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidRemoveBlobUrlEntries>(environment.id, urls);
 }
 
 Optional<Web::FileAPI::SerializedBlobURLEntry> PageHost::page_did_request_blob_url_entry(Utf16String const& url, Optional<URL::BlobURLEntry::Token> token)
 {
-    return m_client.did_request_blob_url_entry(url, token);
+    auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidRequestBlobUrlEntry>(url, token);
+    if (!response)
+        return {};
+    return response->take_entry();
 }
 
 Web::HTML::WorkerAgentId PageHost::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)
 {
-    return m_client.start_worker_agent(move(request));
+    auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::StartWorkerAgent>(move(request));
+    if (!response)
+        return 0;
+
+    // NB: The UI process notices a transport that nobody takes up, and tells the owner that its worker is gone.
+    if (auto transport = response->take_thread_transport(); transport.has_value()) {
+        if (auto result = start_worker_thread(transport.release_value()); result.is_error())
+            dbgln("Unable to start a thread for a worker: {}", result.error());
+    }
+    return response->agent_id();
 }
 
 void PageHost::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)

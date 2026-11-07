@@ -31,17 +31,17 @@ ErrorOr<IPC::TransportHandle> ImageDecoderManager::connect_new_client(u64 client
     auto instance = m_instances.first_matching([&](auto const& instance) {
         if (site.has_value())
             return instance.site == site && instance.session.ptr() == session.ptr();
-        return !instance.site.has_value() && instance.client_child_ids.contains(client_child_id);
+        return !instance.site.has_value() && instance.client_counts.contains(client_child_id);
     });
     auto channel = TRY(IPC::TransportHandle::create_pair());
     if (!instance.has_value()) {
         auto control_client = TRY(launch_image_decoder_process(client_child_id, site));
-        m_instances.append({ .control_client = move(control_client), .session = session, .site = move(site), .client_child_ids = {} });
+        m_instances.append({ .control_client = move(control_client), .session = session, .site = move(site), .client_counts = {} });
         instance = m_instances.last();
     }
 
     instance->control_client->async_connect_new_client(channel.first);
-    instance->client_child_ids.set(client_child_id);
+    ++instance->client_counts.ensure(client_child_id, [] { return 0uz; });
     return move(channel.second);
 }
 
@@ -64,10 +64,10 @@ bool ImageDecoderManager::remove_client_from_decoder_of_site(u64 client_child_id
 {
     bool was_removed = false;
     m_instances.remove_all_matching([&](auto& instance) {
-        if (!instance.site.has_value() || !instance.client_child_ids.remove(client_child_id))
+        if (!instance.site.has_value() || !instance.client_counts.remove(client_child_id))
             return false;
         was_removed = true;
-        return instance.client_child_ids.is_empty();
+        return instance.client_counts.is_empty();
     });
     return was_removed;
 }
@@ -75,7 +75,13 @@ bool ImageDecoderManager::remove_client_from_decoder_of_site(u64 client_child_id
 void ImageDecoderManager::process_did_release_decoder(u64 client_child_id)
 {
     m_instances.remove_all_matching([&](auto& instance) {
-        return instance.client_child_ids.remove(client_child_id) && instance.client_child_ids.is_empty();
+        auto count = instance.client_counts.find(client_child_id);
+        if (count == instance.client_counts.end())
+            return false;
+        if (--count->value > 0)
+            return false;
+        instance.client_counts.remove(count);
+        return instance.client_counts.is_empty();
     });
 }
 
@@ -86,7 +92,7 @@ void ImageDecoderManager::process_did_exit(u64 child_id)
     m_instances.remove_all_matching([&](auto& instance) {
         if (instance.control_client->child_id() == child_id)
             return true;
-        return instance.client_child_ids.remove(child_id) && instance.client_child_ids.is_empty();
+        return instance.client_counts.remove(child_id) && instance.client_counts.is_empty();
     });
 }
 

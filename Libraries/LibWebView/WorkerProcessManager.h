@@ -18,6 +18,8 @@
 #include <AK/WeakPtr.h>
 #include <AK/kmalloc.h>
 #include <LibCore/Forward.h>
+#include <LibIPC/Forward.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibURL/Origin.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
@@ -50,8 +52,13 @@ public:
         bool operator==(SharedWorkerKey const&) const = default;
     };
 
-    Web::HTML::WorkerAgentId start_worker_agent(WebContentClient&, Web::PageId page_id, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
-    Web::HTML::WorkerAgentId start_worker_agent(WebWorkerClient&, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
+    // A worker that is to run on a thread of its owner's process comes with the transport that thread is to use.
+    struct StartedWorkerAgent {
+        Web::HTML::WorkerAgentId agent_id { 0 };
+        Optional<IPC::TransportHandle> thread_transport;
+    };
+    StartedWorkerAgent start_worker_agent(WebContentClient&, Web::PageId page_id, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
+    StartedWorkerAgent start_worker_agent(WebWorkerClient&, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
     Optional<CanonicalWorkerEnvironmentSettingsObject const&> inside_settings(Web::HTML::WorkerAgentId) const;
     void update_site_compatibility_data(JsonValue const&);
     // A worker's navigator reports what its owner's page reports, so a changed spoofing choice or language list
@@ -69,7 +76,9 @@ public:
     void remove_web_content_owner(WebContentClient&);
     void remove_web_worker_owner(WebWorkerClient&);
 
-    void post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage, CanonicalEnvironmentSettingsObject const& source_settings, pid_t source_process_id, IsPrivate);
+    // The agent behind the source connection has delivered the message to its own channels. Every other agent gets it
+    // over its own connection, wherever it runs.
+    void post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage, CanonicalEnvironmentSettingsObject const& source_settings, IPC::ConnectionBase const& source_connection, IsPrivate);
     void for_each_request_server_site_bindings(Function<IterationDecision(RequestServerSiteBindings&)> const&);
     ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, Web::PageId page_id);
 
@@ -108,7 +117,7 @@ private:
         Web::HTML::WorkerAgentOwnerToken token { 0 };
     };
 
-    Web::HTML::WorkerAgentId start_worker_agent(Owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest, IsPrivate);
+    StartedWorkerAgent start_worker_agent(Owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest, IsPrivate);
 
     void notify_worker_script_load_failure(Owner const&);
     void notify_worker_exception(Owner const&, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno);
@@ -164,8 +173,8 @@ private:
     static bool is_same_owner(Owner const&, Owner const& identity);
     static void forget_removed_outside_settings_owner(WorkerAgent&);
 
-    // A worker whose agent is gone counts toward the workers of its top-level site until its process exits, or until its
-    // connection closes, which ends its process.
+    // A worker whose agent is gone counts toward the workers of its top-level site until its connection closes: a thread
+    // closes it as it ends, and that also ends a process.
     struct ExitingWorker {
         NonnullRefPtr<WebWorkerClient> client;
         IsPrivate is_private { IsPrivate::No };
