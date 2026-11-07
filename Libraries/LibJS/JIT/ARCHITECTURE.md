@@ -545,8 +545,8 @@ JIT.
 
 Builds with the JIT run it unless the `LIBJS_JIT` environment variable says otherwise. LibJS reads
 it whenever it creates a VM, in every process that runs JavaScript: `js`, `test-js`,
-`test262-runner`, and the browser's WebContent and WebWorker processes, to which the browser passes
-on every `LIBJS_` variable.
+`test262-runner`, and the browser's WebContent processes, to which the browser passes on every
+`LIBJS_` variable. Each worker on a thread of a WebContent process has a VM of its own.
 
 `LIBJS_JIT` holds comma-separated options, applied left to right from the defaults. A value with an
 unknown option, or with an option written wrong, stops the process with a message that says why.
