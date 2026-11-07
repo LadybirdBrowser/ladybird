@@ -6,11 +6,8 @@
  */
 
 use std::cell::UnsafeCell;
-use std::ffi::c_void;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
-
-use ak::SpanMut;
 
 use super::audio_bus::AudioBus;
 use crate::web_audio::audio_param_timeline::AudioParamTimeline;
@@ -70,13 +67,6 @@ pub struct RenderAudioParam {
 unsafe impl Send for RenderAudioParam {}
 unsafe impl Sync for RenderAudioParam {}
 
-pub type PullOutput = unsafe extern "C" fn(*mut c_void, u64, usize, *const RenderContext) -> *const AudioBus;
-
-struct ForeignRenderGraph {
-    graph: *mut c_void,
-    pull_output: PullOutput,
-}
-
 impl RenderAudioParam {
     pub fn new(
         timeline: Arc<AudioParamTimeline>,
@@ -100,7 +90,7 @@ impl RenderAudioParam {
         self.automation_rate.store(automation_rate as u8, Ordering::SeqCst);
     }
 
-    fn automation_rate(&self) -> AutomationRate {
+    pub(super) fn automation_rate(&self) -> AutomationRate {
         if self.automation_rate.load(Ordering::SeqCst) == AutomationRate::ARate as u8 {
             AutomationRate::ARate
         } else {
@@ -186,75 +176,6 @@ impl RenderAudioParam {
                 *value
             };
         }
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_render_param_create(
-    timeline: *const AudioParamTimeline,
-    min_value: f32,
-    max_value: f32,
-    automation_rate: AutomationRate,
-) -> *const RenderAudioParam {
-    unsafe {
-        Arc::increment_strong_count(timeline);
-    }
-    let timeline = unsafe { Arc::from_raw(timeline) };
-    Arc::into_raw(Arc::new(RenderAudioParam::new(
-        timeline,
-        min_value,
-        max_value,
-        automation_rate,
-    )))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_render_param_destroy(param: *const RenderAudioParam) {
-    drop(unsafe { Arc::from_raw(param) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_render_param_set_automation_rate(
-    param: *const RenderAudioParam,
-    rate: AutomationRate,
-) {
-    unsafe { &*param }.set_automation_rate(rate);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_render_param_automation_rate(
-    param: *const RenderAudioParam,
-) -> AutomationRate {
-    unsafe { &*param }.automation_rate()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_render_param_clear_inputs(param: *const RenderAudioParam) {
-    unsafe { &mut *(*param).state.get() }.inputs.clear();
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_render_param_add_input(
-    param: *const RenderAudioParam,
-    source: u64,
-    output_index: usize,
-) {
-    unsafe { &mut *(*param).state.get() }
-        .inputs
-        .push(Input { source, output_index });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_render_param_compute(
-    param: *const RenderAudioParam,
-    graph: *mut c_void,
-    pull_output: PullOutput,
-    context: *const RenderContext,
-    output: SpanMut<'_, f32>,
-) {
-    let graph = ForeignRenderGraph { graph, pull_output };
-    unsafe {
-        (&*param).compute(&graph, &*context, output.into_slice());
     }
 }
 
@@ -459,14 +380,8 @@ impl NodeHandle {
     }
 }
 
-pub trait OutputGraph {
+pub(crate) trait OutputGraph {
     fn pull_output(&self, source: u64, output_index: usize, context: &RenderContext) -> *const AudioBus;
-}
-
-impl OutputGraph for ForeignRenderGraph {
-    fn pull_output(&self, source: u64, output_index: usize, context: &RenderContext) -> *const AudioBus {
-        unsafe { (self.pull_output)(self.graph, source, output_index, context) }
-    }
 }
 
 impl OutputGraph for super::render_graph::RenderGraph {
@@ -483,92 +398,4 @@ impl RenderAudioParam {
     pub(crate) unsafe fn add_input(&self, source: u64, output_index: usize) {
         unsafe { &mut (*self.state.get()).inputs }.push(Input { source, output_index });
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_destroy(node: *mut NodeHandle) {
-    drop(unsafe { Box::from_raw(node) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_id(node: *const NodeHandle) -> u64 {
-    unsafe { &*node }.data().node_id
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_input_count(node: *const NodeHandle) -> usize {
-    unsafe { &*node }.data().input_count()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_output_count(node: *const NodeHandle) -> usize {
-    unsafe { &*node }.data().output_count()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_output(node: *const NodeHandle, index: usize) -> *mut AudioBus {
-    unsafe { (&*node).data().output(index) }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_pull_input(
-    node: *const NodeHandle,
-    graph: *const super::render_graph::RenderGraph,
-    context: *const RenderContext,
-    input_index: usize,
-) -> *const AudioBus {
-    unsafe { (&*node).data().pull_input(&*graph, &*context, input_index) }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_channel_count(node: *const NodeHandle) -> usize {
-    unsafe { &*node }.data().channel_count.get()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_channel_count_mode(node: *const NodeHandle) -> ChannelCountMode {
-    unsafe { &*node }.data().channel_count_mode.get()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_channel_interpretation(
-    node: *const NodeHandle,
-) -> ChannelInterpretation {
-    unsafe { &*node }.data().channel_interpretation.get()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_set_channel_count(node: *const NodeHandle, value: usize) {
-    unsafe { &*node }.data().channel_count.set(value);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_set_channel_count_mode(
-    node: *const NodeHandle,
-    value: ChannelCountMode,
-) {
-    unsafe { &*node }.data().channel_count_mode.set(value);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_set_channel_interpretation(
-    node: *const NodeHandle,
-    value: ChannelInterpretation,
-) {
-    unsafe { &*node }.data().channel_interpretation.set(value);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_has_input_connections(node: *const NodeHandle, input: usize) -> bool {
-    !(unsafe { &*(&*node).data().input_connections.get() })[input].is_empty()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_outgoing_node_connection_count(node: *const NodeHandle) -> usize {
-    unsafe { &*(&*node).data().outgoing_node_connections.get() }.len()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_node_outgoing_param_connection_count(node: *const NodeHandle) -> usize {
-    unsafe { &*(&*node).data().outgoing_param_connections.get() }.len()
 }

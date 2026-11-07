@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
-use super::control_message::{ControlMessage, ControlMessages};
+use super::control_message::ControlMessage;
 
 // https://webaudio.github.io/web-audio-api/#control-message-queue
 #[derive(Default)]
@@ -27,31 +27,4 @@ impl ControlMessageQueue {
         let mut messages = self.messages.lock().unwrap();
         std::mem::take(&mut *messages)
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) extern "C" fn web_audio_control_queue_create() -> *const ControlMessageQueue {
-    Arc::into_raw(Arc::new(ControlMessageQueue::default()))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_control_queue_destroy(queue: *const ControlMessageQueue) {
-    drop(unsafe { Arc::from_raw(queue) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_control_queue_enqueue(
-    queue: *const ControlMessageQueue,
-    message: *mut ControlMessage,
-) {
-    unsafe { &*queue }.enqueue(*unsafe { Box::from_raw(message) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_control_queue_drain(
-    queue: *const ControlMessageQueue,
-) -> *mut ControlMessages {
-    Box::into_raw(Box::new(ControlMessages {
-        messages: unsafe { &*queue }.drain(),
-    }))
 }

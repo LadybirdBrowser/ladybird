@@ -17,7 +17,7 @@ use libjs_rust::api::Trace;
 use libweb_rust::web_audio::control_message::ControlMessage;
 use libweb_rust::web_audio::rendering::convolver_kernel::{AudioBufferContents, ConvolverDelayLine, ConvolverKernel};
 use libweb_rust::web_audio::rendering::node_message::{NodeMessage, SetConvolverKernel};
-use libweb_rust::web_audio::rendering::render_nodes::web_audio_node_create_convolver;
+use libweb_rust::web_audio::rendering::render_nodes::create_convolver_render_node;
 
 use super::audio_buffer::AudioBuffer;
 use super::audio_node::{
@@ -86,12 +86,11 @@ impl ConvolverNode {
         });
         node.node.set_this(AnyAudioNode::ConvolverNode(node));
         node.node.event_target().set_owner(node);
-        node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_convolver(
-                node.node.node_id(),
-                BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-            ))
-        });
+        node.node.queue_render_node_creation(create_convolver_render_node(
+            node.node.node_id(),
+            BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+        ));
+
         // 1. Set the attributes normalize to the inverse of the value of disableNormalization.
         // NB: Done by the constructor above, so that step 2 already sees the final value.
         // 2. If buffer exists, set the buffer attribute to its value.

@@ -18,8 +18,6 @@
 #include <AK/Vector.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/WebAudio/ControlMessageQueue.h>
-#include <LibWeb/WebAudio/Rendering/RenderGraph.h>
 #include <LibWeb/WebAudio/Types.h>
 
 namespace Core {
@@ -59,7 +57,6 @@ public:
     bool request_suspend(u64 frame);
     void resume();
 
-    bool is_rendering_started() const;
     u64 frames_rendered() const;
 
     // Only safe to access on the control thread after the completion callback was invoked.

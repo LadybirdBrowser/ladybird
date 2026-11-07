@@ -930,30 +930,15 @@ set(SOURCES
     WebAudio/AudioWorkletNode.cpp
     WebAudio/AudioWorkletProcessor.cpp
     WebAudio/AudioContext.cpp
-    WebAudio/AudioParamTimeline.cpp
     WebAudio/BaseAudioContext.cpp
-    WebAudio/ControlMessageQueue.cpp
     WebAudio/MediaElementAudioSourceNode.cpp
     WebAudio/MediaStreamAudioDestinationNode.cpp
     WebAudio/MediaStreamAudioSourceNode.cpp
     WebAudio/OfflineAudioContext.cpp
-    WebAudio/Rendering/AnalyserRenderNode.cpp
-    WebAudio/Rendering/AudioData.cpp
-    WebAudio/Rendering/AudioBus.cpp
     WebAudio/Rendering/AudioWorkletPipe.cpp
-    WebAudio/Rendering/AudioWorkletRenderNode.cpp
-    WebAudio/Rendering/BiquadCoefficients.cpp
-    WebAudio/Rendering/ConvolverKernel.cpp
-    WebAudio/Rendering/FFT.cpp
-    WebAudio/Rendering/MediaStreamDestinationRenderNode.cpp
-    WebAudio/Rendering/MediaStreamSourceRenderNode.cpp
     WebAudio/Rendering/OfflineAudioRenderer.cpp
     WebAudio/Rendering/RealtimeAudioRenderer.cpp
-    WebAudio/Rendering/RenderGraph.cpp
-    WebAudio/Rendering/RenderNode.cpp
-    WebAudio/Rendering/RenderNodes.cpp
     WebAudio/Rendering/ScriptProcessorPipe.cpp
-    WebAudio/Rendering/ScriptProcessorRenderNode.cpp
     WebAudio/ScriptProcessorNode.cpp
     WebDriver/Actions.cpp
     WebDriver/BiDi/BiDi.cpp

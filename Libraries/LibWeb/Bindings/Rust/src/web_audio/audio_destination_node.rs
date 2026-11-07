@@ -13,7 +13,7 @@ use std::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::Trace;
-use libweb_rust::web_audio::rendering::render_nodes::web_audio_node_create_destination;
+use libweb_rust::web_audio::rendering::render_nodes::create_destination_render_node;
 
 use super::audio_node::{
     AnyAudioNode, AudioNode, AudioNodeDefaultOptions, AudioNodeOptions, ChannelCountMode, ChannelInterpretation,
@@ -97,13 +97,11 @@ impl AudioDestinationNode {
         // FIXME: Set tail-time to no
         node.node
             .initialize_audio_node_options(cx, &AudioNodeOptions::default(), &default_options)?;
-        node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_destination(
-                node.node.node_id(),
-                BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-                channel_count as usize,
-            ))
-        });
+        node.node.queue_render_node_creation(create_destination_render_node(
+            node.node.node_id(),
+            BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+            channel_count as usize,
+        ));
         Ok(node)
     }
 

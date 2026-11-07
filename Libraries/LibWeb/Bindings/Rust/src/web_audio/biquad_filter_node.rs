@@ -16,7 +16,7 @@ use libjs_rust::api::{Gc, Trace};
 use libweb_rust::web_audio::control_message::ControlMessage;
 use libweb_rust::web_audio::rendering::biquad_coefficients::{biquad_frequency_response, compute_biquad_coefficients};
 use libweb_rust::web_audio::rendering::node_message::{NodeMessage, SetBiquadFilterType};
-use libweb_rust::web_audio::rendering::render_nodes::web_audio_node_create_biquad_filter;
+use libweb_rust::web_audio::rendering::render_nodes::create_biquad_filter_render_node;
 
 use super::audio_array::{copy_float32_array, float32_array_length, overwrite_float32_array};
 use super::audio_node::{
@@ -154,16 +154,14 @@ impl BiquadFilterNode {
         // FIXME: Set tail-time to yes
         node.node
             .initialize_audio_node_options(cx, &options.parent, &default_options)?;
-        node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_biquad_filter(
-                node.node.node_id(),
-                BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-                Arc::as_ptr(node.frequency.render_param()),
-                Arc::as_ptr(node.detune.render_param()),
-                Arc::as_ptr(node.q.render_param()),
-                Arc::as_ptr(node.gain.render_param()),
-            ))
-        });
+        node.node.queue_render_node_creation(create_biquad_filter_render_node(
+            node.node.node_id(),
+            BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+            Arc::clone(node.frequency.render_param()),
+            Arc::clone(node.detune.render_param()),
+            Arc::clone(node.q.render_param()),
+            Arc::clone(node.gain.render_param()),
+        ));
         if options.r#type != BiquadFilterType::Lowpass {
             context.queue_control_message(ControlMessage::NodeMessage(NodeMessage::SetBiquadFilterType(
                 SetBiquadFilterType {

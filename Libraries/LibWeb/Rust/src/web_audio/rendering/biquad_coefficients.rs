@@ -167,27 +167,3 @@ pub fn biquad_frequency_response(coefficients: &BiquadCoefficients, normalized_f
     let phase = math::atan2(response_imaginary, response_real) as f32;
     (magnitude, phase)
 }
-
-#[unsafe(no_mangle)]
-pub(crate) extern "C" fn web_audio_compute_biquad_coefficients(
-    filter_type: BiquadFilterType,
-    normalized_frequency: f64,
-    q: f64,
-    gain_db: f64,
-) -> BiquadCoefficients {
-    compute_biquad_coefficients(filter_type, normalized_frequency, q, gain_db)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_biquad_frequency_response(
-    coefficients: *const BiquadCoefficients,
-    normalized_frequency: f64,
-    magnitude: *mut f32,
-    phase: *mut f32,
-) {
-    let response = biquad_frequency_response(unsafe { &*coefficients }, normalized_frequency);
-    unsafe {
-        *magnitude = response.0;
-        *phase = response.1;
-    }
-}

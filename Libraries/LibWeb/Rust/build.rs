@@ -2470,20 +2470,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut web_audio_config = base_config.clone();
     web_audio_config.namespaces = Some(vec!["Web".into(), "WebAudio".into(), "RustFFI".into()]);
     for name in [
-        "FFT",
-        "AudioBus",
-        "ConvolverKernel",
-        "ConvolverDelayLine",
-        "AudioParamTimeline",
-        "RenderAudioParam",
-        "RenderGraph",
         "NodeHandle",
-        "AudioBufferContents",
-        "PeriodicWaveData",
-        "WaveShaperCurve",
-        "ControlMessage",
         "ControlMessageQueue",
-        "ControlMessages",
         "AudioWorkletPipe",
         "ScriptProcessorPipe",
         "OfflineAudioRenderer",
@@ -2492,6 +2480,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         web_audio_config.export.rename.insert(name.into(), "void".into());
         web_audio_config.export.exclude.push(name.into());
     }
+    web_audio_config.export.include.push("AutomationRate".into());
     web_audio_config.export.item_types = vec![
         cbindgen::ItemType::Enums,
         cbindgen::ItemType::Structs,
@@ -2502,21 +2491,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     generate_ffi_header(
         web_audio_config,
         &[
-            manifest_dir.join("src/web_audio/audio_param_timeline.rs"),
-            manifest_dir.join("src/web_audio/rendering/fft.rs"),
-            manifest_dir.join("src/web_audio/rendering/biquad_coefficients.rs"),
-            manifest_dir.join("src/web_audio/rendering/audio_bus.rs"),
-            manifest_dir.join("src/web_audio/rendering/convolver_kernel.rs"),
             manifest_dir.join("src/web_audio/rendering/render_node.rs"),
-            manifest_dir.join("src/web_audio/rendering/render_graph.rs"),
-            manifest_dir.join("src/web_audio/rendering/render_nodes.rs"),
-            manifest_dir.join("src/web_audio/rendering/node_message.rs"),
-            manifest_dir.join("src/web_audio/rendering/audio_data.rs"),
             manifest_dir.join("src/web_audio/rendering/audio_frame_ring.rs"),
-            manifest_dir.join("src/web_audio/rendering/analyser_render_node.rs"),
-            manifest_dir.join("src/web_audio/rendering/audio_worklet_render_node.rs"),
-            manifest_dir.join("src/web_audio/rendering/script_processor_render_node.rs"),
-            manifest_dir.join("src/web_audio/rendering/media_stream_source_render_node.rs"),
             manifest_dir.join("src/web_audio/rendering/media_stream_destination_render_node.rs"),
             manifest_dir.join("src/web_audio/rendering/pipe_callbacks.rs"),
             manifest_dir.join("src/web_audio/rendering/audio_worklet_pipe.rs"),
@@ -2525,7 +2501,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/web_audio/rendering/offline_audio_renderer.rs"),
             manifest_dir.join("src/web_audio/rendering/realtime_audio_renderer.rs"),
             manifest_dir.join("src/web_audio/control_message.rs"),
-            manifest_dir.join("src/web_audio/control_message_queue.rs"),
         ],
         &out_dir,
         Path::new("WebAudio/RustFFI.h"),

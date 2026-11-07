@@ -100,7 +100,7 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_media_stream_destination(
     data.channel_count.set(channel_count);
     data.channel_count_mode.set(ChannelCountMode::Explicit);
     data.channel_interpretation.set(ChannelInterpretation::Speakers);
-    node_handle(
+    Box::into_raw(node_handle(
         data,
         MediaStreamDestinationRenderNode {
             shared_state: Arc::new(SharedState {
@@ -114,5 +114,5 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_media_stream_destination(
             mix_bus: AudioBus::new(channel_count, quantum_size),
             interleaved_scratch: vec![0.; quantum_size * channel_count],
         },
-    )
+    ))
 }

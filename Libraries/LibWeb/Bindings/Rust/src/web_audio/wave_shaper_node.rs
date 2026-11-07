@@ -16,7 +16,7 @@ use libjs_rust::api::{TypedArrayBase, TypedArrayKind, create_typed_array};
 use libweb_rust::web_audio::control_message::ControlMessage;
 use libweb_rust::web_audio::rendering::audio_data::WaveShaperCurve;
 use libweb_rust::web_audio::rendering::node_message::{NodeMessage, SetWaveShaperParameters};
-use libweb_rust::web_audio::rendering::render_nodes::web_audio_node_create_wave_shaper;
+use libweb_rust::web_audio::rendering::render_nodes::create_wave_shaper_render_node;
 
 use super::audio_array::{copy_float32_array, float32_array_length, overwrite_float32_array};
 use super::audio_node::{
@@ -108,12 +108,10 @@ impl WaveShaperNode {
         // FIXME: Set tail-time to yes when the oversample attribute is "2x" or "4x".
         node.node
             .initialize_audio_node_options(cx, &options.parent, &default_options)?;
-        node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_wave_shaper(
-                node.node.node_id(),
-                BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-            ))
-        });
+        node.node.queue_render_node_creation(create_wave_shaper_render_node(
+            node.node.node_id(),
+            BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+        ));
         node.oversample.set(options.oversample);
 
         // Also, let [[curve set]] be an internal slot of this WaveShaperNode. Initialize this slot to false. If options is

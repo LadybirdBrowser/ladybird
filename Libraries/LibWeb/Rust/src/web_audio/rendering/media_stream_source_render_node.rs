@@ -74,12 +74,11 @@ impl NodeProcessor for MediaStreamSourceRenderNode {
 
 /// # Safety
 /// The callbacks must accept the ring handles supplied in later node messages.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_media_stream_source(
+pub unsafe fn create_media_stream_source_render_node(
     node_id: u64,
     quantum_size: usize,
     callbacks: AudioFrameRingCallbacks,
-) -> *mut NodeHandle {
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 0, 1, quantum_size, 2);
 
     // NB: The control thread queues SetChannelConfig before AddNode and messages addressed to

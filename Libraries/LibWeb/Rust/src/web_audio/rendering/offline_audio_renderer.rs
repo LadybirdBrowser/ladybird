@@ -265,11 +265,6 @@ pub(crate) unsafe extern "C" fn web_audio_offline_renderer_request_suspend(
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_offline_renderer_started(renderer: *const OfflineAudioRenderer) -> bool {
-    unsafe { &*(*renderer).thread.get() }.is_some()
-}
-
-#[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn web_audio_offline_renderer_frames_rendered(
     renderer: *const OfflineAudioRenderer,
 ) -> u64 {

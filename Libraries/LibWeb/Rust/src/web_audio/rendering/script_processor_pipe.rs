@@ -11,7 +11,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
 use super::pipe_callbacks::{CallbackService, PipeCallbacks};
-use crate::web_audio::control_message::clone_arc;
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -170,68 +169,4 @@ pub(crate) unsafe extern "C" fn web_audio_script_pipe_create(
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn web_audio_script_pipe_destroy(pipe: *const ScriptProcessorPipe) {
     drop(unsafe { Arc::from_raw(pipe) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_script_pipe_channel(
-    pipe: *const ScriptProcessorPipe,
-    output: bool,
-    block: usize,
-    channel: usize,
-    result: *mut ak::SpanMut<'static, f32>,
-) {
-    let (pointer, length) = if output {
-        unsafe { (&*pipe).output_channel(block, channel) }
-    } else {
-        unsafe { (&*pipe).input_channel(block, channel) }
-    };
-    unsafe {
-        *result = ak::SpanMut::new(ak::slice_from_raw_parts_mut(pointer, length));
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_script_pipe_has_output(
-    pipe: *const ScriptProcessorPipe,
-    block: usize,
-) -> bool {
-    unsafe { (&*pipe).has_output(block) }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_script_pipe_is_rendering_owner(
-    pipe: *const ScriptProcessorPipe,
-    block: usize,
-) -> bool {
-    unsafe { &*pipe }.is_block_owned_by_rendering_thread(block)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_script_pipe_to_control(
-    pipe: *const ScriptProcessorPipe,
-    block: usize,
-    frame: u64,
-) {
-    unsafe { clone_arc(pipe) }.hand_block_to_control_thread(block, frame);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_script_pipe_to_rendering(
-    pipe: *const ScriptProcessorPipe,
-    block: usize,
-    has_output: bool,
-) {
-    unsafe {
-        (&*pipe).hand_block_back_to_rendering_thread(block, has_output);
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_script_pipe_shutdown(pipe: *const ScriptProcessorPipe) {
-    unsafe { &*pipe }.shut_down();
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_script_pipe_is_shutdown(pipe: *const ScriptProcessorPipe) -> bool {
-    unsafe { &*pipe }.is_shut_down()
 }

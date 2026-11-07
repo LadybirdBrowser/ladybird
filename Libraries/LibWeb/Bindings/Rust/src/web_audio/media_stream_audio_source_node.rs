@@ -16,7 +16,7 @@ use libjs_rust::api::Object;
 use libjs_rust::api::{Gc, Trace};
 use libweb_rust::web_audio::control_message::{ControlMessage, FfiSharedCppObject};
 use libweb_rust::web_audio::rendering::audio_frame_ring::AudioFrameRingCallbacks;
-use libweb_rust::web_audio::rendering::media_stream_source_render_node::web_audio_node_create_media_stream_source;
+use libweb_rust::web_audio::rendering::media_stream_source_render_node::create_media_stream_source_render_node;
 use libweb_rust::web_audio::rendering::node_message::{NodeMessage, SetMediaStreamSourceRing, SharedCppObject};
 
 use super::audio_context::AudioContext;
@@ -177,11 +177,11 @@ impl MediaStreamAudioSourceNode {
         let mut callbacks = std::mem::MaybeUninit::uninit();
         unsafe { web_audio_media_source_ring_callbacks(callbacks.as_mut_ptr()) };
         node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_media_stream_source(
+            create_media_stream_source_render_node(
                 node.node.node_id(),
                 BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
                 callbacks.assume_init(),
-            ))
+            )
         });
         node.attach_input_track();
         context.parent().add_media_stream_source(cx.vm(), node);

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use ak::{SpanMut, math};
+use ak::math;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -91,24 +91,4 @@ impl FFT {
             }
         }
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) extern "C" fn web_audio_fft_create(size: usize) -> *mut FFT {
-    Box::into_raw(Box::new(FFT::new(size)))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_fft_destroy(fft: *mut FFT) {
-    drop(unsafe { Box::from_raw(fft) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_fft_transform(
-    fft: *const FFT,
-    re: SpanMut<'_, f32>,
-    im: SpanMut<'_, f32>,
-    direction: FFTDirection,
-) {
-    unsafe { &*fft }.transform(re.into_slice(), im.into_slice(), direction);
 }

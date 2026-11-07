@@ -10,7 +10,7 @@
 use std::cell::UnsafeCell;
 use std::sync::Arc;
 
-use ak::{Span, SpanMut};
+use ak::Span;
 
 use super::fft::{FFT, FFTDirection};
 
@@ -225,113 +225,5 @@ impl ConvolverDelayLine {
 
     pub fn imag(&mut self, channel: usize) -> &mut [f32] {
         self.imag[channel].get_mut()
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) extern "C" fn web_audio_convolver_kernel_create(
-    channels: Span<'_, Span<'_, f32>>,
-    sample_rate: f32,
-    partition_size: usize,
-    normalize: bool,
-) -> *const ConvolverKernel {
-    let contents = AudioBufferContents {
-        channels: channels.as_slice(),
-        sample_rate,
-    };
-    ConvolverKernel::create(&contents, partition_size, normalize).map_or(std::ptr::null(), Arc::into_raw)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_kernel_destroy(kernel: *const ConvolverKernel) {
-    drop(unsafe { Arc::from_raw(kernel) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_kernel_channel_count(kernel: *const ConvolverKernel) -> usize {
-    unsafe { &*kernel }.channel_count()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_kernel_partition_count(kernel: *const ConvolverKernel) -> usize {
-    unsafe { &*kernel }.partition_count()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_kernel_bin_count(kernel: *const ConvolverKernel) -> usize {
-    unsafe { &*kernel }.bin_count()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_kernel_head(
-    kernel: *const ConvolverKernel,
-    channel: usize,
-    output: *mut Span<'static, f32>,
-) {
-    unsafe {
-        *output = Span::new((&*kernel).head(channel));
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_kernel_partition_real(
-    kernel: *const ConvolverKernel,
-    channel: usize,
-    partition: usize,
-    output: *mut Span<'static, f32>,
-) {
-    unsafe {
-        *output = Span::new((&*kernel).partition_real(channel, partition));
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_kernel_partition_imag(
-    kernel: *const ConvolverKernel,
-    channel: usize,
-    partition: usize,
-    output: *mut Span<'static, f32>,
-) {
-    unsafe {
-        *output = Span::new((&*kernel).partition_imag(channel, partition));
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_create(
-    kernel: *const ConvolverKernel,
-) -> *const ConvolverDelayLine {
-    Arc::into_raw(Arc::new(ConvolverDelayLine::create(unsafe { &*kernel })))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_destroy(delay_line: *const ConvolverDelayLine) {
-    drop(unsafe { Arc::from_raw(delay_line) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_length(delay_line: *const ConvolverDelayLine) -> usize {
-    unsafe { &*delay_line }.length()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_real(
-    delay_line: *const ConvolverDelayLine,
-    channel: usize,
-    output: *mut SpanMut<'static, f32>,
-) {
-    unsafe {
-        *output = SpanMut::new((&*delay_line).real_shared(channel));
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_convolver_delay_line_imag(
-    delay_line: *const ConvolverDelayLine,
-    channel: usize,
-    output: *mut SpanMut<'static, f32>,
-) {
-    unsafe {
-        *output = SpanMut::new((&*delay_line).imag_shared(channel));
     }
 }

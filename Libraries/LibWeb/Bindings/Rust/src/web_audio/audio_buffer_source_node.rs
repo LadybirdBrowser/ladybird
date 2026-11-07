@@ -15,7 +15,7 @@ use libjs_rust::api::Trace;
 use libweb_rust::web_audio::control_message::ControlMessage;
 use libweb_rust::web_audio::rendering::audio_data::AudioBufferContents;
 use libweb_rust::web_audio::rendering::node_message::{NodeMessage, SetBufferSourceParameters, StartBufferSource};
-use libweb_rust::web_audio::rendering::render_nodes::web_audio_node_create_audio_buffer_source;
+use libweb_rust::web_audio::rendering::render_nodes::create_audio_buffer_source_render_node;
 
 use super::audio_buffer::AudioBuffer;
 use super::audio_node::{
@@ -293,14 +293,14 @@ impl AudioBufferSourceNode {
         node.node
             .parent()
             .initialize_audio_node_options(cx, &AudioNodeOptions::default(), &default_options)?;
-        node.node.parent().queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_audio_buffer_source(
+        node.node
+            .parent()
+            .queue_render_node_creation(create_audio_buffer_source_render_node(
                 node.node.parent().node_id(),
                 BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-                Arc::as_ptr(node.playback_rate.render_param()),
-                Arc::as_ptr(node.detune.render_param()),
-            ))
-        });
+                Arc::clone(node.playback_rate.render_param()),
+                Arc::clone(node.detune.render_param()),
+            ));
         node.queue_parameters_update(None, false);
         Ok(node)
     }

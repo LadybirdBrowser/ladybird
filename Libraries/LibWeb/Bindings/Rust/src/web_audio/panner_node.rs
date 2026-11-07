@@ -8,13 +8,12 @@
 use std::cell::Cell;
 use std::ffi::c_void;
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 use ak::Utf16String;
 use libjs_rust::api::Trace;
 use libweb_rust::web_audio::control_message::ControlMessage;
 use libweb_rust::web_audio::rendering::node_message::{NodeMessage, SetPannerParameters};
-use libweb_rust::web_audio::rendering::render_nodes::web_audio_node_create_panner;
+use libweb_rust::web_audio::rendering::render_nodes::create_panner_render_node;
 
 use super::audio_node::{
     AnyAudioNode, AudioNode, AudioNodeDefaultOptions, AudioNodeOptions, ChannelCountMode, ChannelInterpretation,
@@ -68,8 +67,10 @@ pub(crate) struct PannerNode {
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-rollofffactor
     rolloff_factor: Cell<f64>,
 
+    // https://webaudio.github.io/web-audio-api/#dom-pannernode-coneinnerangle
     cone_inner_angle: Cell<f64>,
 
+    // https://webaudio.github.io/web-audio-api/#dom-pannernode-coneouterangle
     cone_outer_angle: Cell<f64>,
 
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-coneoutergain
@@ -236,29 +237,27 @@ impl PannerNode {
             .initialize_audio_node_options(cx, &options.parent, &default_options)?;
         let listener = context.listener_value();
         let params = [
-            Arc::as_ptr(node.position_x.render_param()),
-            Arc::as_ptr(node.position_y.render_param()),
-            Arc::as_ptr(node.position_z.render_param()),
-            Arc::as_ptr(node.orientation_x.render_param()),
-            Arc::as_ptr(node.orientation_y.render_param()),
-            Arc::as_ptr(node.orientation_z.render_param()),
-            Arc::as_ptr(listener.position_x.render_param()),
-            Arc::as_ptr(listener.position_y.render_param()),
-            Arc::as_ptr(listener.position_z.render_param()),
-            Arc::as_ptr(listener.forward_x.render_param()),
-            Arc::as_ptr(listener.forward_y.render_param()),
-            Arc::as_ptr(listener.forward_z.render_param()),
-            Arc::as_ptr(listener.up_x.render_param()),
-            Arc::as_ptr(listener.up_y.render_param()),
-            Arc::as_ptr(listener.up_z.render_param()),
+            node.position_x.render_param(),
+            node.position_y.render_param(),
+            node.position_z.render_param(),
+            node.orientation_x.render_param(),
+            node.orientation_y.render_param(),
+            node.orientation_z.render_param(),
+            listener.position_x.render_param(),
+            listener.position_y.render_param(),
+            listener.position_z.render_param(),
+            listener.forward_x.render_param(),
+            listener.forward_y.render_param(),
+            listener.forward_z.render_param(),
+            listener.up_x.render_param(),
+            listener.up_y.render_param(),
+            listener.up_z.render_param(),
         ];
-        node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_panner(
-                node.node.node_id(),
-                BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-                ak::Span::new(&params),
-            ))
-        });
+        node.node.queue_render_node_creation(create_panner_render_node(
+            node.node.node_id(),
+            BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+            &params,
+        ));
         node.queue_panner_parameters_update();
         Ok(node)
     }

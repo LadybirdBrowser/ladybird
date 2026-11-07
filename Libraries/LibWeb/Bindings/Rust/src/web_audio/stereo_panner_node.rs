@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use ak::Utf16String;
 use libjs_rust::api::Trace;
-use libweb_rust::web_audio::rendering::render_nodes::web_audio_node_create_stereo_panner;
+use libweb_rust::web_audio::rendering::render_nodes::create_stereo_panner_render_node;
 
 use super::audio_node::{
     AnyAudioNode, AudioNode, AudioNodeDefaultOptions, AudioNodeOptions, ChannelCountMode, ChannelInterpretation,
@@ -105,13 +105,11 @@ impl StereoPannerNode {
         // FIXME: Set tail-time to no
         node.node
             .initialize_audio_node_options(cx, &options.parent, &default_options)?;
-        node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_stereo_panner(
-                node.node.node_id(),
-                BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-                Arc::as_ptr(node.pan.render_param()),
-            ))
-        });
+        node.node.queue_render_node_creation(create_stereo_panner_render_node(
+            node.node.node_id(),
+            BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+            Arc::clone(node.pan.render_param()),
+        ));
         Ok(node)
     }
 

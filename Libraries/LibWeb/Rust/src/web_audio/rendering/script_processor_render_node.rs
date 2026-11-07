@@ -12,7 +12,6 @@ use super::render_graph::RenderGraph;
 use super::render_node::*;
 use super::render_nodes::{BusRef, NodeProcessor, node_handle};
 use super::script_processor_pipe::ScriptProcessorPipe;
-use crate::web_audio::control_message::clone_arc;
 
 struct ScriptProcessorRenderNode {
     pipe: Arc<ScriptProcessorPipe>,
@@ -83,15 +82,11 @@ impl NodeProcessor for ScriptProcessorRenderNode {
     }
 }
 
-/// # Safety
-/// The pipe pointer must name a live `Arc` allocation for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_script_processor(
+pub fn create_script_processor_render_node(
     node_id: u64,
     quantum_size: usize,
-    pipe: *const ScriptProcessorPipe,
-) -> *mut NodeHandle {
-    let pipe = unsafe { clone_arc(pipe) };
+    pipe: Arc<ScriptProcessorPipe>,
+) -> Box<NodeHandle> {
     let data = RenderNodeData::new(node_id, 1, 1, quantum_size, pipe.config.output_channel_count.max(1));
     assert!(pipe.config.buffer_size.is_multiple_of(quantum_size));
     node_handle(

@@ -61,13 +61,12 @@ impl NodeProcessor for AnalyserRenderNode {
 
 /// # Safety
 /// The ring handle and callbacks must refer to the same live LibAudio ring.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_audio_node_create_analyser(
+pub unsafe fn create_analyser_render_node(
     node_id: u64,
     quantum_size: usize,
     ring: FfiSharedCppObject,
     callbacks: AudioFrameRingCallbacks,
-) -> *mut NodeHandle {
+) -> Box<NodeHandle> {
     let time_domain_ring = AudioFrameRing {
         owner: unsafe { ring.acquire() }.unwrap(),
         callbacks,

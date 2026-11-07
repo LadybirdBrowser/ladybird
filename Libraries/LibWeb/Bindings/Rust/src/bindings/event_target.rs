@@ -221,12 +221,6 @@ impl CppEventTarget {
 pub(crate) struct CppEvent(CppCell);
 
 impl CppEvent {
-    /// # Safety
-    /// `event` must be a live C++ Event that the returned handle keeps alive.
-    pub(crate) unsafe fn from_raw(event: *mut c_void) -> Self {
-        Self(unsafe { CppCell::from_raw(event) })
-    }
-
     pub(crate) fn create(realm: Gc<Realm>, r#type: &str, bubbles: bool, cancelable: bool, composed: bool) -> Self {
         // SAFETY: The realm is live, the type is lent for the call, and LibWeb returns a live event.
         let event = Self(unsafe {

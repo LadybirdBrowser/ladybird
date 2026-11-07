@@ -12,7 +12,7 @@ use std::cell::Cell;
 use super::audio_bus::AudioBus;
 use super::node_message::node_message_target;
 use super::render_node::{NodeHandle, RenderContext};
-use crate::web_audio::control_message::{ControlMessage, ControlMessages};
+use crate::web_audio::control_message::ControlMessage;
 
 // The rendering thread's mirror of the audio graph. Nodes and connections are added and updated exclusively through
 // control messages, which are applied at the start of each render quantum.
@@ -306,66 +306,6 @@ impl NodeMap {
     }
 }
 
-#[unsafe(no_mangle)]
-pub(crate) extern "C" fn web_audio_graph_create() -> *mut RenderGraph {
-    Box::into_raw(Box::new(RenderGraph::default()))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_graph_destroy(graph: *mut RenderGraph) {
-    drop(unsafe { Box::from_raw(graph) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_graph_set_destination(graph: *mut RenderGraph, node_id: u64) {
-    unsafe { &mut *graph }.set_destination(node_id);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_graph_apply_control_messages(
-    graph: *mut RenderGraph,
-    messages: *mut ControlMessages,
-) {
-    unsafe { &mut *graph }.apply_control_messages(unsafe { Box::from_raw(messages) }.messages);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_graph_render_quantum(
-    graph: *const RenderGraph,
-    context: *const RenderContext,
-) {
-    unsafe { &*graph }.render_quantum(unsafe { &*context });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_graph_pull_output(
-    graph: *const RenderGraph,
-    source: u64,
-    output_index: usize,
-    context: *const RenderContext,
-) -> *mut AudioBus {
-    unsafe { &*graph }.pull_output(source, output_index, unsafe { &*context })
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_graph_destination_output(graph: *const RenderGraph) -> *mut AudioBus {
-    unsafe { &*graph }
-        .destination()
-        .map_or(std::ptr::null_mut(), |node| unsafe { node.data().output(0) })
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_graph_take_ended_nodes(
-    graph: *mut RenderGraph,
-    context: *mut std::ffi::c_void,
-    callback: unsafe extern "C" fn(*mut std::ffi::c_void, ak::Span<'_, u64>),
-) {
-    let ended_nodes = unsafe { &mut *graph }.take_ended_nodes();
-    unsafe {
-        callback(context, ak::Span::new(&ended_nodes));
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -377,7 +317,7 @@ mod tests {
         AutomationRate, ChannelCountMode, ChannelInterpretation, OutgoingNodeConnection, RenderAudioParam,
     };
     use crate::web_audio::rendering::render_nodes::{
-        web_audio_node_create_constant_source, web_audio_node_create_destination,
+        create_constant_source_render_node, create_destination_render_node,
     };
     use std::sync::Arc;
 
@@ -393,7 +333,7 @@ mod tests {
             channel_interpretation: ChannelInterpretation::Discrete,
         }));
         for id in [1, 3] {
-            let node = unsafe { Box::from_raw(web_audio_node_create_constant_source(id, 4, Arc::as_ptr(&param))) };
+            let node = create_constant_source_render_node(id, 4, Arc::clone(&param));
             queue.enqueue(ControlMessage::AddNode(AddNode { node }));
             queue.enqueue(ControlMessage::NodeMessage(NodeMessage::StartSource(StartSource {
                 node_id: id,
@@ -404,7 +344,7 @@ mod tests {
                 when: 3. / 48000.,
             })));
         }
-        let destination = unsafe { Box::from_raw(web_audio_node_create_destination(2, 4, 2)) };
+        let destination = create_destination_render_node(2, 4, 2);
         queue.enqueue(ControlMessage::AddNode(AddNode { node: destination }));
         queue.enqueue(ControlMessage::ReplaceConnections(ReplaceConnections {
             source: 1,

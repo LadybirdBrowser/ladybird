@@ -19,7 +19,7 @@ use libjs_rust::api::{
 };
 use libjs_rust::api::{Gc, Trace};
 use libweb_rust::web_audio::control_message::FfiSharedCppObject;
-use libweb_rust::web_audio::rendering::analyser_render_node::web_audio_node_create_analyser;
+use libweb_rust::web_audio::rendering::analyser_render_node::create_analyser_render_node;
 use libweb_rust::web_audio::rendering::audio_frame_ring::{AudioFrameRing, AudioFrameRingCallbacks};
 use libweb_rust::web_audio::rendering::fft::{FFT, FFTDirection};
 use libweb_rust::web_audio::rendering::node_message::SharedCppObject;
@@ -154,12 +154,12 @@ impl AnalyserNode {
             callbacks,
         });
         node.node.queue_render_node_creation(unsafe {
-            Box::from_raw(web_audio_node_create_analyser(
+            create_analyser_render_node(
                 node.node.node_id(),
                 BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
                 ring,
                 callbacks,
-            ))
+            )
         });
         Ok(node)
     }
