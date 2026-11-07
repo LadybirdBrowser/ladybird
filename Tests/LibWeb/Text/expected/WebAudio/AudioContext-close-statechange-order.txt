@@ -1,0 +1,4 @@
+State before close settles: running
+State after close settles: closed
+Resume during close: InvalidStateError
+Closed statechange

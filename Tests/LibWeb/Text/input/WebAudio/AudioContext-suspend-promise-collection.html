@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const context = new AudioContext();
+        const weakPromises = [];
+        await (async () => {
+            const promise = context.suspend();
+            weakPromises.push(new WeakRef(promise));
+            await promise;
+        })();
+        await collectGarbageUntilCleared(weakPromises);
+        println(`Settled suspend promise was collected: ${weakPromises[0].deref() === undefined}`);
+        await context.close();
+    });
+</script>

@@ -100,6 +100,7 @@ pub(crate) struct BaseAudioContext {
     sample_rate: Cell<f32>,
     pub(crate) listener: Cell<Option<Ref<AudioListener>>>,
     global_object: CppCell,
+    state: Cell<AudioContextState>,
     control_thread_state: Cell<AudioContextState>,
     rendering_thread_state: Cell<AudioContextState>,
     media_element_event_task_source: MediaElementTaskSource,
@@ -189,7 +190,7 @@ impl BaseAudioContext {
     // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer-numberofchannels
     // > An implementation MUST support at least 32 channels.
     // Other browsers appear to only allow 32 channels - so let's limit ourselves to that too.
-    pub(crate) const MAX_NUMBER_OF_CHANNELS: u32 = 32;
+    pub(crate) const MAX_NUMBER_OF_CHANNELS: u32 = libweb_rust::web_audio::MAX_NUMBER_OF_CHANNELS as u32;
 
     // https://webaudio.github.io/web-audio-api/#sample-rates
     // Implementations MUST support sample rates between 3000 Hz and 768000 Hz, inclusive. A NotSupportedError MUST
@@ -209,6 +210,7 @@ impl BaseAudioContext {
             sample_rate: Cell::new(sample_rate),
             listener: Cell::new(None),
             global_object,
+            state: Cell::new(AudioContextState::Suspended),
             control_thread_state: Cell::new(AudioContextState::Suspended),
             rendering_thread_state: Cell::new(AudioContextState::Suspended),
             media_element_event_task_source: MediaElementTaskSource(
@@ -281,6 +283,14 @@ impl BaseAudioContext {
     }
 
     pub(crate) fn state_value(&self) -> AudioContextState {
+        self.state.get()
+    }
+
+    pub(crate) fn set_state(&self, state: AudioContextState) {
+        self.state.set(state);
+    }
+
+    pub(crate) fn control_state(&self) -> AudioContextState {
         self.control_thread_state.get()
     }
 
@@ -432,7 +442,11 @@ impl BaseAudioContext {
         Ok(self.listener_value())
     }
 
+    // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-state
     pub(crate) fn state(&self, _: &mut CallContext) -> WebIdlResult<AudioContextState> {
+        // Getting this attribute returns the contents of the [[control thread state]] slot.
+        // AD-HOC: The tasks queued by resume(), suspend() and close() set the state attribute after the
+        //         [[control thread state]] has changed, so the attribute has its own slot.
         Ok(self.state_value())
     }
 

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const context = new OfflineAudioContext(1, 128, 8000);
+        const first = context.createBuffer(1, 128, 8000);
+        const second = context.createBuffer(1, 128, 8000);
+        const source = new AudioBufferSourceNode(context, { buffer: first });
+        println(`Constructor installed the buffer: ${source.buffer === first}`);
+        source.buffer = null;
+        try {
+            source.buffer = second;
+            println("Replaced the buffer");
+        } catch (error) {
+            println(error.name);
+        }
+
+        const empty = new AudioBufferSourceNode(context, { buffer: null });
+        empty.buffer = second;
+        println(`First non-null assignment succeeded: ${empty.buffer === second}`);
+    });
+</script>

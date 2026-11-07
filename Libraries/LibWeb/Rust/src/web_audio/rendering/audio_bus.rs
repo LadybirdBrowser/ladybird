@@ -13,24 +13,24 @@ const CENTER: usize = 2;
 const SURROUND_LEFT: usize = 4;
 const SURROUND_RIGHT: usize = 5;
 
-// A block of audio samples for a single render quantum, holding one buffer of frames per channel.
+// A block of planar audio samples for a single render quantum.
 pub struct AudioBus {
-    channels: Vec<Vec<f32>>,
+    samples: Vec<f32>,
+    channel_count: usize,
     frame_count: usize,
 }
 
 impl AudioBus {
     pub fn new(channel_count: usize, frame_count: usize) -> Self {
-        let mut bus = Self {
-            channels: Vec::new(),
+        Self {
+            samples: vec![0.; channel_count * frame_count],
+            channel_count,
             frame_count,
-        };
-        bus.set_channel_count(channel_count);
-        bus
+        }
     }
 
     pub fn channel_count(&self) -> usize {
-        self.channels.len()
+        self.channel_count
     }
 
     pub fn frame_count(&self) -> usize {
@@ -38,49 +38,47 @@ impl AudioBus {
     }
 
     pub fn channel(&self, index: usize) -> &[f32] {
-        &self.channels[index]
+        assert!(index < self.channel_count);
+        let start = index * self.frame_count;
+        &self.samples[start..start + self.frame_count]
     }
 
     pub fn channel_mut(&mut self, index: usize) -> &mut [f32] {
-        &mut self.channels[index]
+        assert!(index < self.channel_count);
+        let start = index * self.frame_count;
+        &mut self.samples[start..start + self.frame_count]
     }
 
     pub(crate) unsafe fn channel_pointer(bus: *mut Self, index: usize) -> (*mut f32, usize) {
-        let channels = unsafe { &raw mut (*bus).channels };
-        assert!(index < unsafe { (*channels).len() });
-        let channel = unsafe { (*channels).as_mut_ptr().add(index) };
-        unsafe { ((*channel).as_mut_ptr(), (*channel).len()) }
+        assert!(index < unsafe { (*bus).channel_count });
+        let frame_count = unsafe { (*bus).frame_count };
+        let samples = unsafe { &raw mut (*bus).samples };
+        unsafe { ((*samples).as_mut_ptr().add(index * frame_count), frame_count) }
     }
 
     pub fn zero(&mut self) {
-        for channel in &mut self.channels {
-            channel.fill(0.);
-        }
+        self.samples.fill(0.);
     }
 
     pub fn is_silent(&self) -> bool {
-        !self
-            .channels
-            .iter()
-            .any(|channel| channel.iter().any(|&sample| sample != 0.))
+        self.samples.iter().all(|&sample| sample == 0.)
     }
 
+    pub(crate) fn reserve_channels(&mut self, channel_capacity: usize) {
+        let extra_samples = (channel_capacity * self.frame_count).saturating_sub(self.samples.len());
+        self.samples.reserve_exact(extra_samples);
+    }
+
+    // Preserve active channels' samples and zero newly added channels.
     pub fn set_channel_count(&mut self, channel_count: usize) {
-        if self.channels.len() == channel_count {
-            return;
-        }
-        self.channels.resize_with(channel_count, Vec::new);
-        for channel in &mut self.channels {
-            channel.resize(self.frame_count, 0.);
-        }
+        self.samples.resize(channel_count * self.frame_count, 0.);
+        self.channel_count = channel_count;
     }
 
     pub fn copy_from(&mut self, source: &Self) {
         assert_eq!(source.frame_count(), self.frame_count());
         self.set_channel_count(source.channel_count());
-        for channel_index in 0..self.channels.len() {
-            self.channels[channel_index].clone_from(&source.channels[channel_index]);
-        }
+        self.samples.copy_from_slice(&source.samples);
     }
 
     // https://webaudio.github.io/web-audio-api/#channel-up-mixing-and-down-mixing
@@ -99,10 +97,10 @@ impl AudioBus {
         let destination_channels = self.channel_count();
 
         let mut sum_channel = |destination_index: usize, source_index: usize, gain: f32| {
-            let destination_span = &mut self.channels[destination_index];
+            let destination_span = self.channel_mut(destination_index);
             let source_span = source.channel(source_index);
-            for frame in 0..self.frame_count {
-                destination_span[frame] += source_span[frame] * gain;
+            for (destination_sample, source_sample) in destination_span.iter_mut().zip(source_span) {
+                *destination_sample += *source_sample * gain;
             }
         };
 
@@ -216,10 +214,10 @@ impl AudioBus {
         // channels as possible, then dropping remaining channels.
         let channels_to_sum = source.channel_count().min(self.channel_count());
         for channel_index in 0..channels_to_sum {
-            let destination_span = &mut self.channels[channel_index];
+            let destination_span = self.channel_mut(channel_index);
             let source_span = source.channel(channel_index);
-            for frame in 0..self.frame_count {
-                destination_span[frame] += source_span[frame];
+            for (destination_sample, source_sample) in destination_span.iter_mut().zip(source_span) {
+                *destination_sample += *source_sample;
             }
         }
     }

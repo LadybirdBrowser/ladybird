@@ -1297,11 +1297,11 @@ pub(crate) fn frozen_array_to_js(cx: &CallContext, array: ThrowCompletionOr<Valu
 pub(crate) fn rooted_sequence_to_js<T: Trace + Clone + 'static>(
     cx: &CallContext,
     sequence: MarkedVec<'_, T>,
-    mut element_to_js: impl FnMut(T) -> ThrowCompletionOr<Value>,
+    mut element_to_js: impl FnMut(&T) -> ThrowCompletionOr<Value>,
 ) -> ThrowCompletionOr<Value> {
     let array = Array::create(cx.vm(), cx.realm(), sequence.len() as u64, None)?;
-    for index in 0..sequence.len() {
-        let element = element_to_js(sequence.get(index).expect("the index is in the sequence"))?;
+    for (index, element) in sequence.values().iter().enumerate() {
+        let element = element_to_js(element)?;
         let index = u32::try_from(index).expect("an array of the length of the sequence was created");
         array.create_data_property(cx.vm(), &PropertyKey::from(index), element, None, None)?;
     }

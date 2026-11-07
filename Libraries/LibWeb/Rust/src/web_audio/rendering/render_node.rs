@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 use super::audio_bus::AudioBus;
-use crate::web_audio::audio_param_timeline::AudioParamTimeline;
+use crate::web_audio::{MAX_NUMBER_OF_CHANNELS, audio_param_timeline::AudioParamTimeline};
 
 // State for a single render quantum that is passed to every node being processed.
 #[derive(Clone, Copy)]
@@ -49,7 +49,7 @@ struct Input {
 
 struct RenderAudioParamState {
     inputs: Vec<Input>,
-    input_scratch: Option<Box<AudioBus>>,
+    input_scratch: AudioBus,
 }
 
 // The rendering thread's view of an AudioParam. The automation timeline is shared with the AudioParam on the control
@@ -73,6 +73,7 @@ impl RenderAudioParam {
         min_value: f32,
         max_value: f32,
         automation_rate: AutomationRate,
+        quantum_size: usize,
     ) -> Self {
         Self {
             timeline,
@@ -81,7 +82,7 @@ impl RenderAudioParam {
             automation_rate: AtomicU8::new(automation_rate as u8),
             state: UnsafeCell::new(RenderAudioParamState {
                 inputs: Vec::new(),
-                input_scratch: None,
+                input_scratch: AudioBus::new(1, quantum_size),
             }),
         }
     }
@@ -104,12 +105,14 @@ impl RenderAudioParam {
 
         // 1. paramIntrinsicValue will be calculated at each time, which is either the value set directly to the value
         //    attribute, or, if there are any automation events with times before or at this time, the value as calculated
-        //    from these events.
-        // NB: An a-rate parameter takes the exact value of the signal at each sample frame of the render quantum, while a
-        //     k-rate parameter uses the value of the very first sample frame for the entire quantum.
+        //    from these events. If automation events are removed from a given time range, then the paramIntrinsicValue
+        //    value will remain unchanged and stay at its previous value until either the value attribute is directly
+        //    set, or automation events are added for the time range.
+        // NB: A k-rate parameter uses the first sample frame for the entire quantum.
         let rate = self.automation_rate();
         if rate == AutomationRate::KRate {
-            let value = self.timeline.value_at_time(context.quantum_start_time());
+            self.timeline.sample(context.quantum_start_time(), 0., &mut output[..1]);
+            let value = output[0];
             output.fill(value);
         } else {
             self.timeline
@@ -117,8 +120,7 @@ impl RenderAudioParam {
         }
 
         // 2. Set [[current value]] to the value of paramIntrinsicValue at the beginning of this render quantum.
-        // NB: The render param keeps no [[current value]] slot of its own; the AudioParam's value getter reads the shared
-        //     automation timeline directly on the control thread.
+        // NB: Sampling updates the slot for the snapshot it rendered.
 
         // 3. paramComputedValue is the sum of the paramIntrinsicValue value and the value of the input AudioParam
         //    buffer. If the sum is NaN, replace the sum with the defaultValue.
@@ -131,13 +133,6 @@ impl RenderAudioParam {
             // The AudioParam will take the rendered audio data from any AudioNode output connected to it and convert it to
             // mono by down-mixing if it is not already mono.
             let input_scratch = unsafe { &mut (*state).input_scratch };
-            if input_scratch
-                .as_ref()
-                .is_none_or(|scratch| scratch.frame_count() != context.quantum_size)
-            {
-                *input_scratch = Some(Box::new(AudioBus::new(1, context.quantum_size)));
-            }
-            let input_scratch = input_scratch.as_mut().unwrap();
             input_scratch.zero();
             input_scratch.sum_from(bus, true);
 
@@ -221,7 +216,6 @@ pub struct RenderNodeData {
     pub channel_interpretation: std::cell::Cell<ChannelInterpretation>,
     pub input_connections: UnsafeCell<Vec<Vec<Connection>>>,
     input_buses: UnsafeCell<Vec<AudioBus>>,
-    pulled_source_buses: UnsafeCell<smallvec::SmallVec<[*const AudioBus; 4]>>,
     outputs: UnsafeCell<Vec<AudioBus>>,
     pub outgoing_node_connections: UnsafeCell<Vec<OutgoingNodeConnection>>,
     pub outgoing_param_connections: UnsafeCell<Vec<OutgoingParamConnection>>,
@@ -244,7 +238,9 @@ impl RenderNodeData {
         let input_connections = (0..input_count).map(|_| Vec::new()).collect();
         let mut input_buses = Vec::with_capacity(input_count);
         for _input_index in 0..input_count {
-            input_buses.push(AudioBus::new(1, quantum_size));
+            let mut bus = AudioBus::new(1, quantum_size);
+            bus.reserve_channels(MAX_NUMBER_OF_CHANNELS);
+            input_buses.push(bus);
         }
         let mut outputs = Vec::with_capacity(output_count);
         for _output_index in 0..output_count {
@@ -257,13 +253,16 @@ impl RenderNodeData {
             channel_interpretation: std::cell::Cell::new(ChannelInterpretation::Speakers),
             input_connections: UnsafeCell::new(input_connections),
             input_buses: UnsafeCell::new(input_buses),
-            pulled_source_buses: UnsafeCell::new(smallvec::SmallVec::new()),
             outputs: UnsafeCell::new(outputs),
             outgoing_node_connections: UnsafeCell::new(Vec::new()),
             outgoing_param_connections: UnsafeCell::new(Vec::new()),
             processed_quantum: std::cell::Cell::new(u64::MAX),
             is_processing: std::cell::Cell::new(false),
         }
+    }
+
+    pub(crate) fn reserve_output_channels(&mut self, output: usize, channel_capacity: usize) {
+        self.outputs.get_mut()[output].reserve_channels(channel_capacity);
     }
 
     pub fn input_count(&self) -> usize {
@@ -302,15 +301,16 @@ impl RenderNodeData {
     ) -> *const AudioBus {
         let connections = &unsafe { &*self.input_connections.get() }[input_index];
         let input_bus = unsafe { (*self.input_buses.get()).as_mut_ptr().add(input_index) };
-        let source_buses = unsafe { &mut *self.pulled_source_buses.get() };
-        source_buses.clear();
+        let mut maximum_source_channels = 0;
         for connection in connections {
             let bus = graph.pull_output(connection.source, connection.output_index, context);
-            if !bus.is_null() {
-                source_buses.push(bus);
+            if let Some(bus) = unsafe { bus.as_ref() } {
+                maximum_source_channels = maximum_source_channels.max(bus.channel_count());
             }
         }
-        if source_buses.is_empty() {
+
+        // AD-HOC: Treat a zero-channel ScriptProcessorNode buffer as a disconnected input.
+        if maximum_source_channels == 0 {
             unsafe {
                 (&mut *input_bus).set_channel_count(1);
                 (&mut *input_bus).zero();
@@ -318,35 +318,26 @@ impl RenderNodeData {
             return input_bus;
         }
 
-        let mut computed_number_of_channels = 0;
-        match self.channel_count_mode.get() {
-            ChannelCountMode::Max | ChannelCountMode::ClampedMax => {
-                // "max": computedNumberOfChannels is the maximum of the number of channels of all connections to an input.
-                //        In this mode channelCount is ignored.
-                // "clamped-max": computedNumberOfChannels is determined as for "max" and then clamped to a maximum value of
-                //                the given channelCount.
-                for &bus in source_buses.iter() {
-                    computed_number_of_channels = computed_number_of_channels.max(unsafe { &*bus }.channel_count());
-                }
-                if self.channel_count_mode.get() == ChannelCountMode::ClampedMax {
-                    computed_number_of_channels = computed_number_of_channels.min(self.channel_count.get());
-                }
-            }
-            ChannelCountMode::Explicit => {
-                // "explicit": computedNumberOfChannels is the exact value as specified by the channelCount.
-                computed_number_of_channels = self.channel_count.get();
-            }
-        }
-        unsafe {
-            (&mut *input_bus).set_channel_count(computed_number_of_channels);
-            (&mut *input_bus).zero();
-        }
-        for &bus in source_buses.iter() {
-            unsafe {
-                (&mut *input_bus).sum_from(
-                    &*bus,
-                    self.channel_interpretation.get() == ChannelInterpretation::Speakers,
-                );
+        let computed_number_of_channels = match self.channel_count_mode.get() {
+            // "max": computedNumberOfChannels is the maximum of the number of channels of all connections to an input.
+            //        In this mode channelCount is ignored.
+            ChannelCountMode::Max => maximum_source_channels,
+            // "clamped-max": computedNumberOfChannels is determined as for "max" and then clamped to a maximum value of
+            //                the given channelCount.
+            ChannelCountMode::ClampedMax => maximum_source_channels.min(self.channel_count.get()),
+            // "explicit": computedNumberOfChannels is the exact value as specified by the channelCount.
+            ChannelCountMode::Explicit => self.channel_count.get(),
+        };
+        let input_bus_mut = unsafe { &mut *input_bus };
+        input_bus_mut.set_channel_count(computed_number_of_channels);
+        input_bus_mut.zero();
+
+        // The first pass already processed every dependency, including any re-entrant pulls.
+        let speakers = self.channel_interpretation.get() == ChannelInterpretation::Speakers;
+        for connection in connections {
+            let bus = graph.pull_output(connection.source, connection.output_index, context);
+            if let Some(bus) = unsafe { bus.as_ref() } {
+                input_bus_mut.sum_from(bus, speakers);
             }
         }
         input_bus

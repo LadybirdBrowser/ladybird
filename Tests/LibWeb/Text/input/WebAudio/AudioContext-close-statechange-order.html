@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const context = new AudioContext();
+        await context.resume();
+
+        const statechange = new Promise(resolve => {
+            context.addEventListener("statechange", () => {
+                if (context.state === "closed") {
+                    println("Closed statechange");
+                    resolve();
+                }
+            });
+        });
+        const closed = context.close();
+        println(`State before close settles: ${context.state}`);
+        const rejected = context.resume().catch(error => error.name);
+        await closed;
+        println(`State after close settles: ${context.state}`);
+        println(`Resume during close: ${await rejected}`);
+        await statechange;
+    });
+</script>

@@ -6,7 +6,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicPtr, AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 use ak::math;
 
@@ -25,15 +26,17 @@ struct RampStart {
     value: f32,
 }
 
+#[derive(Clone)]
 enum Parameterization {
     SetValue { value: f32 },
     LinearRamp { value: f32, start: Option<RampStart> },
     ExponentialRamp { value: f32, start: Option<RampStart> },
     SetTarget { target: f32, time_constant: f32 },
-    SetValueCurve { values: Vec<f32>, duration: f64 },
+    SetValueCurve { values: Arc<[f32]>, duration: f64 },
     Hold { value: f32 },
 }
 
+#[derive(Clone)]
 struct AutomationEvent {
     time: f64,
     parameterization: Parameterization,
@@ -55,29 +58,88 @@ impl ParameterizationCache {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone)]
 struct TimelineState {
+    generation: u32,
+    fallback_value: f32,
     // https://webaudio.github.io/web-audio-api/#dfn-automation-event
     automation_events: Vec<AutomationEvent>,
     next_event_id: usize,
-    parameterization_cache: Option<ParameterizationCache>,
 }
 
-// Holds the automation events for a single AudioParam and evaluates the parameter's intrinsic value over time.
-// This timeline is shared between the control thread, which inserts events through the AudioParam interface, and
-// the rendering thread, which evaluates the parameter while rendering the audio graph. All public methods lock an
-// internal mutex, so both threads observe a consistent series of automation events.
+struct TimelineWriter {
+    state: TimelineState,
+    retired: Vec<RetiredSnapshot>,
+}
+
+struct RetiredSnapshot(*mut TimelineState);
+
+// SAFETY: A retired snapshot is immutable and only the writer can reclaim it.
+unsafe impl Send for RetiredSnapshot {}
+
+impl Drop for RetiredSnapshot {
+    fn drop(&mut self) {
+        // SAFETY: The writer drops retired snapshots only after all readers of them have finished.
+        drop(unsafe { Box::from_raw(self.0) });
+    }
+}
+
+struct Snapshot<'a> {
+    readers: &'a AtomicUsize,
+    state: *const TimelineState,
+}
+
+impl std::ops::Deref for Snapshot<'_> {
+    type Target = TimelineState;
+
+    fn deref(&self) -> &TimelineState {
+        // SAFETY: The snapshot stays alive for the lifetime of this reader.
+        unsafe { &*self.state }
+    }
+}
+
+impl Drop for Snapshot<'_> {
+    fn drop(&mut self) {
+        self.readers.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
 // https://webaudio.github.io/web-audio-api/#dfn-automation-event
 pub struct AudioParamTimeline {
     default_value: f32,
-    mutex: Mutex<TimelineState>,
+    writer: Mutex<TimelineWriter>,
+    published: AtomicPtr<TimelineState>,
+    readers: AtomicUsize,
+
+    // The high bits identify the snapshot allowed to publish the low bits of [[current value]].
+    current_value: AtomicU64,
+}
+
+impl Drop for AudioParamTimeline {
+    fn drop(&mut self) {
+        // SAFETY: No writer or reader can access the published snapshot once the timeline is dropped.
+        drop(unsafe { Box::from_raw(*self.published.get_mut()) });
+    }
 }
 
 impl AudioParamTimeline {
     pub fn new(default_value: f32) -> Self {
+        let state = TimelineState {
+            generation: 0,
+            fallback_value: default_value,
+            automation_events: Vec::new(),
+            next_event_id: 0,
+        };
+        let published = AtomicPtr::new(Box::into_raw(Box::new(state.clone())));
         Self {
             default_value,
-            mutex: Mutex::new(TimelineState::default()),
+            writer: Mutex::new(TimelineWriter {
+                state,
+                retired: Vec::new(),
+            }),
+            published,
+            readers: AtomicUsize::new(0),
+            current_value: AtomicU64::new(u64::from(default_value.to_bits())),
         }
     }
 
@@ -85,33 +147,75 @@ impl AudioParamTimeline {
         self.default_value
     }
 
-    // https://webaudio.github.io/web-audio-api/#computedvalue
-    pub fn value_at_time(&self, time: f64) -> f32 {
-        let mut state = self.mutex.lock().unwrap();
-        state.value_at_time_locked(self.default_value, time, time)
+    pub fn current_value(&self) -> f32 {
+        f32::from_bits(self.current_value.load(Ordering::Relaxed) as u32)
     }
 
-    // Evaluates the intrinsic value for each sample frame of a render quantum starting at start_time.
-    pub fn sample(&self, start_time: f64, sample_period: f64, output: &mut [f32]) {
-        let mut state = self.mutex.lock().unwrap();
-        for (frame, value) in output.iter_mut().enumerate() {
-            let frame_time = start_time + frame as f64 * sample_period;
-            *value = state.value_at_time_locked(self.default_value, frame_time + sample_period / 2., frame_time);
+    fn edit<R>(&self, current_value: Option<f32>, edit: impl FnOnce(&mut TimelineState, f32) -> R) -> R {
+        let mut writer = self.writer.lock().unwrap();
+        let generation = writer.state.generation.wrapping_add(1);
+        let version = u64::from(generation) << 32;
+        let previous_value = self
+            .current_value
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
+                Some(version | u64::from(current_value.map_or(value as u32, f32::to_bits)))
+            })
+            .unwrap();
+
+        let result = edit(&mut writer.state, f32::from_bits(previous_value as u32));
+        writer.state.generation = generation;
+        let snapshot = Box::into_raw(Box::new(writer.state.clone()));
+        let previous = self.published.swap(snapshot, Ordering::SeqCst);
+        writer.retired.push(RetiredSnapshot(previous));
+        // A reader entering after this check can only load the new publication.
+        if self.readers.load(Ordering::SeqCst) == 0 {
+            writer.retired.clear();
+        }
+        result
+    }
+
+    pub fn set_current_value(&self, value: f32) {
+        self.edit(Some(value), |state, _| state.fallback_value = value);
+    }
+
+    fn snapshot(&self) -> Snapshot<'_> {
+        // Register before loading so the writer cannot free the snapshot between the load and its first use.
+        self.readers.fetch_add(1, Ordering::SeqCst);
+        Snapshot {
+            readers: &self.readers,
+            state: self.published.load(Ordering::SeqCst),
         }
     }
 
-    pub fn has_events(&self) -> bool {
-        let state = self.mutex.lock().unwrap();
-        !state.automation_events.is_empty()
+    // https://webaudio.github.io/web-audio-api/#computedvalue
+    pub fn value_at_time(&self, time: f64) -> f32 {
+        self.snapshot().value_at_time(time, time, &mut None)
+    }
+
+    pub fn sample(&self, start_time: f64, sample_period: f64, output: &mut [f32]) {
+        let state = self.snapshot();
+        let mut cache = None;
+        for (frame, value) in output.iter_mut().enumerate() {
+            let frame_time = start_time + frame as f64 * sample_period;
+            *value = state.value_at_time(frame_time + sample_period / 2., frame_time, &mut cache);
+        }
+        let previous_value = self.current_value.load(Ordering::SeqCst);
+        if (previous_value >> 32) as u32 == state.generation {
+            let next_value = (previous_value & !u64::from(u32::MAX)) | u64::from(output[0].to_bits());
+            let _ = self
+                .current_value
+                .compare_exchange(previous_value, next_value, Ordering::SeqCst, Ordering::SeqCst);
+        }
     }
 
     // All event times passed into these methods must already be clamped to the context's current time by the caller.
     pub fn set_value_at_time(&self, value: f32, start_time: f64) -> InsertResult {
-        let mut state = self.mutex.lock().unwrap();
-        state.insert_event(AutomationEvent {
-            time: start_time,
-            parameterization: Parameterization::SetValue { value },
-            id: 0,
+        self.edit(None, |state, _| {
+            state.insert_event(AutomationEvent {
+                time: start_time,
+                parameterization: Parameterization::SetValue { value },
+                id: 0,
+            })
         })
     }
 
@@ -122,28 +226,28 @@ impl AudioParamTimeline {
         current_time: f64,
         current_value: f32,
     ) -> InsertResult {
-        let mut state = self.mutex.lock().unwrap();
+        self.edit(None, |state, _| {
+            // If there is no event preceding this event, the linear ramp behaves as if setValueAtTime(value, currentTime) were
+            // called, where value is the current value of the attribute.
+            let event_index = state.first_event_index_after(end_time);
+            let ramp_start = state.ramp_start_for_insertion_index(state.fallback_value, event_index, current_time);
+            if event_index == 0 {
+                let result = state.insert_event(AutomationEvent {
+                    time: current_time,
+                    parameterization: Parameterization::SetValue { value: current_value },
+                    id: 0,
+                });
+                assert_eq!(result, InsertResult::Success);
+            }
 
-        // If there is no event preceding this event, the linear ramp behaves as if setValueAtTime(value, currentTime) were
-        // called, where value is the current value of the attribute.
-        let event_index = state.first_event_index_after(end_time);
-        let ramp_start = state.ramp_start_for_insertion_index(self.default_value, event_index, current_time);
-        if event_index == 0 {
-            let result = state.insert_event(AutomationEvent {
-                time: current_time,
-                parameterization: Parameterization::SetValue { value: current_value },
+            state.insert_event(AutomationEvent {
+                time: end_time,
+                parameterization: Parameterization::LinearRamp {
+                    value,
+                    start: ramp_start,
+                },
                 id: 0,
-            });
-            assert_eq!(result, InsertResult::Success);
-        }
-
-        state.insert_event(AutomationEvent {
-            time: end_time,
-            parameterization: Parameterization::LinearRamp {
-                value,
-                start: ramp_start,
-            },
-            id: 0,
+            })
         })
     }
 
@@ -154,167 +258,173 @@ impl AudioParamTimeline {
         current_time: f64,
         current_value: f32,
     ) -> InsertResult {
-        let mut state = self.mutex.lock().unwrap();
+        self.edit(None, |state, _| {
+            // If there is no event preceding this event, the exponential ramp behaves as if setValueAtTime(value, currentTime)
+            // were called, where value is the current value of the attribute.
+            let event_index = state.first_event_index_after(end_time);
+            let ramp_start = state.ramp_start_for_insertion_index(state.fallback_value, event_index, current_time);
+            if event_index == 0 {
+                let result = state.insert_event(AutomationEvent {
+                    time: current_time,
+                    parameterization: Parameterization::SetValue { value: current_value },
+                    id: 0,
+                });
+                assert_eq!(result, InsertResult::Success);
+            }
 
-        // If there is no event preceding this event, the exponential ramp behaves as if setValueAtTime(value, currentTime)
-        // were called, where value is the current value of the attribute.
-        let event_index = state.first_event_index_after(end_time);
-        let ramp_start = state.ramp_start_for_insertion_index(self.default_value, event_index, current_time);
-        if event_index == 0 {
-            let result = state.insert_event(AutomationEvent {
-                time: current_time,
-                parameterization: Parameterization::SetValue { value: current_value },
+            state.insert_event(AutomationEvent {
+                time: end_time,
+                parameterization: Parameterization::ExponentialRamp {
+                    value,
+                    start: ramp_start,
+                },
                 id: 0,
-            });
-            assert_eq!(result, InsertResult::Success);
-        }
-
-        state.insert_event(AutomationEvent {
-            time: end_time,
-            parameterization: Parameterization::ExponentialRamp {
-                value,
-                start: ramp_start,
-            },
-            id: 0,
+            })
         })
     }
 
     pub fn set_target_at_time(&self, target: f32, start_time: f64, time_constant: f32) -> InsertResult {
-        let mut state = self.mutex.lock().unwrap();
-        state.insert_event(AutomationEvent {
-            time: start_time,
-            parameterization: Parameterization::SetTarget { target, time_constant },
-            id: 0,
+        self.edit(None, |state, _| {
+            state.insert_event(AutomationEvent {
+                time: start_time,
+                parameterization: Parameterization::SetTarget { target, time_constant },
+                id: 0,
+            })
         })
     }
 
     pub fn set_value_curve_at_time(&self, values: Vec<f32>, start_time: f64, duration: f64) -> InsertResult {
-        let mut state = self.mutex.lock().unwrap();
-
-        // If there are any events with a time strictly greater than startTime but strictly less than startTime + duration,
-        // a NotSupportedError exception MUST be thrown.
-        for event in &state.automation_events {
-            if event.time > start_time && event.time < start_time + duration {
-                return InsertResult::ValueCurveOverlapsEvent;
+        self.edit(None, |state, _| {
+            // If there are any events with a time strictly greater than startTime but strictly less than startTime + duration,
+            // a NotSupportedError exception MUST be thrown.
+            for event in &state.automation_events {
+                if event.time > start_time && event.time < start_time + duration {
+                    return InsertResult::ValueCurveOverlapsEvent;
+                }
             }
-        }
 
-        state.insert_event(AutomationEvent {
-            time: start_time,
-            parameterization: Parameterization::SetValueCurve { values, duration },
-            id: 0,
+            state.insert_event(AutomationEvent {
+                time: start_time,
+                parameterization: Parameterization::SetValueCurve {
+                    values: values.into(),
+                    duration,
+                },
+                id: 0,
+            })
         })
     }
 
     pub fn cancel_scheduled_values(&self, cancel_time: f64) {
-        let mut state = self.mutex.lock().unwrap();
+        self.edit(None, |state, previous_value| {
+            // Cancel all scheduled parameter changes with times greater than or equal to cancelTime.
+            let mut first_event_to_remove = state
+                .automation_events
+                .partition_point(|event| event.time < cancel_time);
 
-        // Cancel all scheduled parameter changes with times greater than or equal to cancelTime.
-        let mut first_event_to_remove = state
-            .automation_events
-            .partition_point(|event| event.time < cancel_time);
-
-        // Any active automations whose event time is less than cancelTime are also cancelled. A SetTarget remains active
-        // until the next event, while a SetValueCurve is active through the end of its duration.
-        if first_event_to_remove > 0 {
-            let previous_event = &state.automation_events[first_event_to_remove - 1];
-            let is_active_automation = match &previous_event.parameterization {
-                Parameterization::SetTarget { .. } => true,
-                Parameterization::SetValueCurve { duration, .. } => cancel_time <= previous_event.time + duration,
-                _ => false,
-            };
-            if is_active_automation {
-                first_event_to_remove -= 1;
+            // Any active automations whose event time is less than cancelTime are also cancelled. A SetTarget remains active
+            // until the next event, while a SetValueCurve is active through the end of its duration.
+            if first_event_to_remove > 0 {
+                let previous_event = &state.automation_events[first_event_to_remove - 1];
+                let is_active_automation = match &previous_event.parameterization {
+                    Parameterization::SetTarget { .. } => true,
+                    Parameterization::SetValueCurve { duration, .. } => cancel_time <= previous_event.time + duration,
+                    _ => false,
+                };
+                if is_active_automation {
+                    first_event_to_remove -= 1;
+                }
             }
-        }
 
-        if first_event_to_remove < state.automation_events.len() {
-            state.automation_events.truncate(first_event_to_remove);
-        }
-        state.parameterization_cache = None;
+            if first_event_to_remove < state.automation_events.len() {
+                state.automation_events.truncate(first_event_to_remove);
+                if state.automation_events.is_empty() {
+                    state.fallback_value = previous_value;
+                }
+            }
+        });
     }
 
     pub fn cancel_and_hold_at_time(&self, cancel_time: f64) {
-        let mut state = self.mutex.lock().unwrap();
+        self.edit(None, |state, _| {
+            let value_to_hold = state.value_at_time(cancel_time, cancel_time, &mut None);
+            let event_index = state.first_event_index_after(cancel_time);
 
-        let value_to_hold = state.value_at_time_locked(self.default_value, cancel_time, cancel_time);
-        let event_index = state.first_event_index_after(cancel_time);
-
-        // If the event immediately after cancelTime is a ramp, rewrite it to end at cancelTime with the value from the
-        // original timeline. This takes precedence over holding the value of the event active at cancelTime.
-        let mut rewrote_ramp = false;
-        if event_index < state.automation_events.len() {
-            let next_event = &mut state.automation_events[event_index];
-            rewrote_ramp = match &mut next_event.parameterization {
-                Parameterization::LinearRamp { value, .. } | Parameterization::ExponentialRamp { value, .. } => {
-                    next_event.time = cancel_time;
-                    *value = value_to_hold;
-                    true
-                }
-                _ => false,
-            };
-        }
-
-        // Otherwise, decide which value (if any) to hold from cancelTime onward, based on the event active at cancelTime.
-        let mut hold_value = None;
-        let mut drop_active_curve = false;
-        if !rewrote_ramp && event_index > 0 {
-            let active_event = &state.automation_events[event_index - 1];
-            hold_value = match &active_event.parameterization {
-                Parameterization::SetTarget { .. } => Some(value_to_hold),
-                Parameterization::SetValueCurve { duration, .. } => {
-                    // Cancelling exactly at a curve's start truncates it to a zero-duration curve, which produces no
-                    // output, so the value reverts to the value before the curve rather than the curve's first element.
-                    if active_event.time == cancel_time {
-                        drop_active_curve = true;
-                        Some(if event_index >= 2 {
-                            state.event_value_at_time(self.default_value, event_index - 2, cancel_time)
-                        } else {
-                            self.default_value
-                        })
-                    } else if cancel_time <= active_event.time + duration {
-                        Some(value_to_hold)
-                    } else {
-                        None
+            // If the event immediately after cancelTime is a ramp, rewrite it to end at cancelTime with the value from the
+            // original timeline. This takes precedence over holding the value of the event active at cancelTime.
+            let mut rewrote_ramp = false;
+            if event_index < state.automation_events.len() {
+                let next_event = &mut state.automation_events[event_index];
+                rewrote_ramp = match &mut next_event.parameterization {
+                    Parameterization::LinearRamp { value, .. } | Parameterization::ExponentialRamp { value, .. } => {
+                        next_event.time = cancel_time;
+                        *value = value_to_hold;
+                        true
                     }
-                }
-                _ => None,
-            };
-        }
+                    _ => false,
+                };
+            }
 
-        // Curve removal and hold insertion mutate the event list, so they run after the visit rather than inside it.
-        if drop_active_curve {
-            state.automation_events.remove(event_index - 1);
-        }
-        if let Some(hold_value) = hold_value {
-            assert_eq!(
-                state.insert_event(AutomationEvent {
-                    time: cancel_time,
-                    parameterization: Parameterization::Hold { value: hold_value },
-                    id: 0
-                }),
-                InsertResult::Success
-            );
-        }
+            // Otherwise, decide which value (if any) to hold from cancelTime onward, based on the event active at cancelTime.
+            let mut hold_value = None;
+            let mut drop_active_curve = false;
+            if !rewrote_ramp && event_index > 0 {
+                let active_event = &state.automation_events[event_index - 1];
+                hold_value = match &active_event.parameterization {
+                    Parameterization::SetTarget { .. } => Some(value_to_hold),
+                    Parameterization::SetValueCurve { duration, .. } => {
+                        // Cancelling exactly at a curve's start truncates it to a zero-duration curve, which produces no
+                        // output, so the value reverts to the value before the curve rather than the curve's first element.
+                        if active_event.time == cancel_time {
+                            drop_active_curve = true;
+                            Some(if event_index >= 2 {
+                                state.event_value_at_time(state.fallback_value, event_index - 2, cancel_time)
+                            } else {
+                                state.fallback_value
+                            })
+                        } else if cancel_time <= active_event.time + duration {
+                            Some(value_to_hold)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+            }
 
-        // Remove all events with times greater than cancelTime. The rewritten ramp or inserted hold remains at cancelTime.
-        let first_event_to_remove = state.first_event_index_after(cancel_time);
-        if first_event_to_remove < state.automation_events.len() {
-            state.automation_events.truncate(first_event_to_remove);
-        }
-        state.parameterization_cache = None;
+            // Curve removal and hold insertion mutate the event list, so they run after the visit rather than inside it.
+            if drop_active_curve {
+                state.automation_events.remove(event_index - 1);
+            }
+            if let Some(hold_value) = hold_value {
+                assert_eq!(
+                    state.insert_event(AutomationEvent {
+                        time: cancel_time,
+                        parameterization: Parameterization::Hold { value: hold_value },
+                        id: 0
+                    }),
+                    InsertResult::Success
+                );
+            }
+
+            // Remove all events with times greater than cancelTime. The rewritten ramp or inserted hold remains at cancelTime.
+            let first_event_to_remove = state.first_event_index_after(cancel_time);
+            if first_event_to_remove < state.automation_events.len() {
+                state.automation_events.truncate(first_event_to_remove);
+            }
+        });
     }
 }
 
 impl TimelineState {
-    fn value_at_time_locked(&mut self, default_value: f32, selection_time: f64, time: f64) -> f32 {
-        // paramIntrinsicValue will be calculated at each time, which is either the value set directly to the value
-        // attribute, or, if there are any automation events with times before or at this time, the value as calculated from
-        // these events.
+    fn value_at_time(&self, selection_time: f64, time: f64, cache: &mut Option<ParameterizationCache>) -> f32 {
         // NB: The governing automation event is selected using selection_time, which render quantum sampling sets half a
         //     frame ahead of the evaluation time so events take effect at the nearest sample frame of their scheduled time
         //     rather than the next frame when floating-point rounding pushes them past the exact frame time.
-        let cache = self.parameterization_cache_for_time(default_value, selection_time);
+        let fallback_value = self.fallback_value;
+        if cache.is_none_or(|cache| !cache.contains(selection_time)) {
+            *cache = Some(self.parameterization_for_time(fallback_value, selection_time));
+        }
+        let cache = cache.unwrap();
         let Some(event_index) = cache.event_index else {
             return cache.starting_value;
         };
@@ -358,7 +468,7 @@ impl TimelineState {
                     + (cache.starting_value - target)
                         * math::exp(-(time - event.time) / f64::from(*time_constant)) as f32
             }
-            Parameterization::SetValueCurve { .. } => self.event_value_at_time(default_value, event_index, time),
+            Parameterization::SetValueCurve { .. } => self.event_value_at_time(fallback_value, event_index, time),
         }
     }
 
@@ -444,22 +554,14 @@ impl TimelineState {
     }
 
     // https://webaudio.github.io/web-audio-api/#computedvalue
-    fn parameterization_cache_for_time(&mut self, default_value: f32, time: f64) -> ParameterizationCache {
-        if let Some(cache) = self.parameterization_cache
-            && cache.contains(time)
-        {
-            return cache;
-        }
-
+    fn parameterization_for_time(&self, default_value: f32, time: f64) -> ParameterizationCache {
         let event_index = self.first_event_index_after(time);
         if event_index == 0 {
-            let cache = ParameterizationCache {
+            return ParameterizationCache {
                 maximum_time: self.automation_events.first().map(|event| event.time),
                 starting_value: default_value,
                 ..Default::default()
             };
-            self.parameterization_cache = Some(cache);
-            return cache;
         }
 
         // A following ramp parameterization owns the interval before its event time. Other parameterizations fall through
@@ -501,7 +603,6 @@ impl TimelineState {
                 }
             };
             if let Some(cache) = cache {
-                self.parameterization_cache = Some(cache);
                 return cache;
             }
         }
@@ -524,14 +625,12 @@ impl TimelineState {
                 _ => next_event.time,
             });
         }
-        let cache = ParameterizationCache {
+        ParameterizationCache {
             event_index: Some(selected_event_index),
             minimum_time: Some(selected_event.time),
             maximum_time,
             starting_value: self.event_value_at_time(default_value, selected_event_index, selected_event.time),
-        };
-        self.parameterization_cache = Some(cache);
-        cache
+        }
     }
 
     // https://webaudio.github.io/web-audio-api/#dfn-automation-event
@@ -557,7 +656,35 @@ impl TimelineState {
         event.id = self.next_event_id;
         self.next_event_id += 1;
         self.automation_events.insert(insertion_index, event);
-        self.parameterization_cache = None;
         InsertResult::Success
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn render_reads_a_complete_snapshot_while_the_writer_is_busy() {
+        let timeline = AudioParamTimeline::new(1.);
+        assert_eq!(timeline.set_value_at_time(2., 0.), InsertResult::Success);
+        std::thread::scope(|scope| {
+            let (send, receive) = std::sync::mpsc::channel();
+            let writer = timeline.writer.lock().unwrap();
+            let timeline = &timeline;
+            scope.spawn(move || {
+                let mut output = [0.; 128];
+                timeline.sample(0., 1. / 48000., &mut output);
+                send.send(output).unwrap();
+            });
+            let result = receive.recv_timeout(std::time::Duration::from_secs(5));
+            drop(writer);
+            assert_eq!(result.unwrap(), [2.; 128]);
+        });
+
+        let old_snapshot = timeline.snapshot();
+        assert_eq!(timeline.set_value_at_time(3., 0.), InsertResult::Success);
+        assert_eq!(old_snapshot.value_at_time(0., 0., &mut None), 2.);
+        assert_eq!(timeline.value_at_time(0.), 3.);
     }
 }

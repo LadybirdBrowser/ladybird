@@ -91,15 +91,13 @@ impl RenderGraph {
             self.incoming_connections_dirty.set(false);
         }
 
-        // Pull the destination first so the main graph is processed in dependency order; then process any remaining nodes
-        // so unconnected sources still advance their playback state and report ended events.
+        // Process the destination first so the main graph is processed in dependency order.
         if let Some(destination_node) = self.destination() {
-            self.pull_output(destination_node.data().node_id, 0, context);
+            self.process_node(destination_node, context);
         }
-        for (&node_id, graph_node) in self.nodes.iter() {
-            if graph_node.data().output_count() > 0 {
-                self.pull_output(node_id, 0, context);
-            }
+        // Advance unconnected sources and process sinks with no outputs.
+        for graph_node in self.nodes.values() {
+            self.process_node(graph_node, context);
         }
     }
 
@@ -113,22 +111,21 @@ impl RenderGraph {
         if output_index >= data.output_count() {
             return std::ptr::null_mut();
         }
-
-        if data.processed_quantum.get() != self.current_quantum.get() {
-            // A re-entrant pull means this node is part of a cycle; its output bus still holds the previous quantum's
-            // samples, which effectively inserts one render quantum of delay into the cycle.
-            if data.is_processing.get() {
-                return unsafe { data.output(output_index) };
-            }
-
-            data.is_processing.set(true);
-            unsafe {
-                source_node.node.process(self, context);
-            }
-            data.is_processing.set(false);
-            data.processed_quantum.set(self.current_quantum.get());
-        }
+        self.process_node(source_node, context);
         unsafe { data.output(output_index) }
+    }
+
+    fn process_node(&self, node: &NodeHandle, context: &RenderContext) {
+        let data = node.data();
+        if data.processed_quantum.get() == self.current_quantum.get() || data.is_processing.get() {
+            return;
+        }
+        data.is_processing.set(true);
+        unsafe {
+            node.node.process(self, context);
+        }
+        data.is_processing.set(false);
+        data.processed_quantum.set(self.current_quantum.get());
     }
 
     pub fn node(&self, node_id: u64) -> Option<&NodeHandle> {
@@ -309,22 +306,25 @@ impl NodeMap {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::css::style::pipeline::allocation_count::count_allocations;
     use crate::web_audio::audio_param_timeline::AudioParamTimeline;
     use crate::web_audio::control_message::*;
     use crate::web_audio::control_message_queue::ControlMessageQueue;
     use crate::web_audio::rendering::node_message::{NodeMessage, StartSource, StopSource};
     use crate::web_audio::rendering::render_node::{
-        AutomationRate, ChannelCountMode, ChannelInterpretation, OutgoingNodeConnection, RenderAudioParam,
+        AutomationRate, ChannelCountMode, ChannelInterpretation, OutgoingNodeConnection, OutgoingParamConnection,
+        RenderAudioParam,
     };
     use crate::web_audio::rendering::render_nodes::{
-        create_constant_source_render_node, create_destination_render_node,
+        create_channel_merger_render_node, create_constant_source_render_node, create_destination_render_node,
+        create_gain_render_node,
     };
     use std::sync::Arc;
 
     #[test]
     fn control_queue_rendering_and_ended_node_retirement() {
         let timeline = Arc::new(AudioParamTimeline::new(0.75));
-        let param = Arc::new(RenderAudioParam::new(timeline, -1., 1., AutomationRate::ARate));
+        let param = Arc::new(RenderAudioParam::new(timeline, -1., 1., AutomationRate::ARate, 4));
         let queue = ControlMessageQueue::default();
         queue.enqueue(ControlMessage::SetChannelConfig(SetChannelConfig {
             node_id: 1,
@@ -378,5 +378,80 @@ mod tests {
         graph.render_quantum(&context);
         assert!(unsafe { &*graph.destination().unwrap().data().output(0) }.is_silent());
         assert!(graph.take_ended_nodes().is_empty());
+    }
+
+    #[test]
+    fn connected_params_and_bus_layout_changes_do_not_allocate_during_processing() {
+        let context = RenderContext {
+            sample_rate: 48000.,
+            quantum_size: 4,
+            quantum_start_frame: 0,
+        };
+        let source_param = Arc::new(RenderAudioParam::new(
+            Arc::new(AudioParamTimeline::new(0.5)),
+            -1.,
+            1.,
+            AutomationRate::ARate,
+            context.quantum_size,
+        ));
+        let gain_param = Arc::new(RenderAudioParam::new(
+            Arc::new(AudioParamTimeline::new(1.)),
+            f32::MIN,
+            f32::MAX,
+            AutomationRate::ARate,
+            context.quantum_size,
+        ));
+        let mut graph = RenderGraph::default();
+        graph.set_destination(3);
+        graph.apply_control_messages(vec![
+            ControlMessage::AddNode(AddNode {
+                node: create_constant_source_render_node(1, context.quantum_size, source_param),
+            }),
+            ControlMessage::AddNode(AddNode {
+                node: create_channel_merger_render_node(2, context.quantum_size, 6),
+            }),
+            ControlMessage::AddNode(AddNode {
+                node: create_gain_render_node(3, context.quantum_size, Arc::clone(&gain_param)),
+            }),
+            ControlMessage::NodeMessage(NodeMessage::StartSource(StartSource { node_id: 1, when: 0. })),
+        ]);
+        for channel_count in [1, 6, 1, 6] {
+            let input = if channel_count == 1 { 3 } else { 2 };
+            graph.apply_control_messages(vec![
+                ControlMessage::ReplaceConnections(ReplaceConnections {
+                    source: 1,
+                    node_connections: vec![OutgoingNodeConnection {
+                        destination: input,
+                        output_index: 0,
+                        input_index: 0,
+                    }],
+                    param_connections: vec![OutgoingParamConnection {
+                        destination: Arc::clone(&gain_param),
+                        output_index: 0,
+                    }],
+                }),
+                ControlMessage::ReplaceConnections(ReplaceConnections {
+                    source: 2,
+                    node_connections: if channel_count == 1 {
+                        Vec::new()
+                    } else {
+                        vec![OutgoingNodeConnection {
+                            destination: 3,
+                            output_index: 0,
+                            input_index: 0,
+                        }]
+                    },
+                    param_connections: Vec::new(),
+                }),
+            ]);
+            // Apply topology changes before counting DSP allocations.
+            unsafe { graph.rebuild_incoming_connections() };
+            graph.incoming_connections_dirty.set(false);
+            let (_, allocations) = count_allocations(|| graph.render_quantum(&context));
+            assert_eq!(allocations.everywhere, 0);
+            let output = unsafe { &*graph.destination().unwrap().data().output(0) };
+            assert_eq!(output.channel_count(), channel_count);
+            assert_eq!(output.channel(0), &[0.75; 4]);
+        }
     }
 }

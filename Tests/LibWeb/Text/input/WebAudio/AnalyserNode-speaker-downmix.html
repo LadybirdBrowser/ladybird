@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    async function analyseChannels(samples, options = { channelInterpretation: "discrete" }) {
+        const context = new OfflineAudioContext(samples.length, 128, 48000);
+        const buffer = context.createBuffer(samples.length, 128, context.sampleRate);
+        for (const [channel, sample] of samples.entries())
+            buffer.getChannelData(channel).fill(sample);
+        const source = new AudioBufferSourceNode(context, { buffer });
+        const analyser = new AnalyserNode(context, { fftSize: 128, ...options });
+        source.connect(analyser).connect(context.destination);
+        source.start();
+        const output = await context.startRendering();
+        const mono = new Float32Array(analyser.fftSize);
+        analyser.getFloatTimeDomainData(mono);
+        println(`Downmix: ${mono[127].toFixed(4)}`);
+        return output;
+    }
+
+    promiseTest(async () => {
+        for (const samples of [[1, 0, 0.5, 0.5], [1, 0, 0.5, 1, 0.5, 0]]) {
+            const output = await analyseChannels(samples);
+            println(`Output preserves channels: ${samples.every((sample, channel) => output.getChannelData(channel)[127] === sample)}`);
+        }
+
+        const output = await analyseChannels([1, 0], {
+            channelCount: 1, channelCountMode: "explicit", channelInterpretation: "discrete"
+        });
+        println(`Output uses the node's settings: ${output.getChannelData(0)[127] === 1 && output.getChannelData(1)[127] === 1}`);
+    });
+</script>

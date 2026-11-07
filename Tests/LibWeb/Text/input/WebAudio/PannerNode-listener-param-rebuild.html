@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const sampleRate = 32768;
+        const context = new OfflineAudioContext(2, 384, sampleRate);
+        const source = new ConstantSourceNode(context);
+        const listenerOffset = new ConstantSourceNode(context, { offset: 2 });
+        const panner = new PannerNode(context, { positionZ: -2 });
+        source.connect(panner).connect(context.destination);
+        listenerOffset.connect(context.listener.positionZ);
+        source.start();
+        listenerOffset.start();
+
+        const firstPause = context.suspend(128 / sampleRate);
+        const secondPause = context.suspend(256 / sampleRate);
+        const rendering = context.startRendering();
+        for (const pause of [firstPause, secondPause]) {
+            await pause;
+            new GainNode(context).connect(context.destination);
+            await context.resume();
+        }
+
+        const output = (await rendering).getChannelData(0);
+        for (const frame of [0, 128, 256])
+            println(`Gain at frame ${frame}: ${(output[frame] * Math.SQRT2).toFixed(4)}`);
+    });
+</script>

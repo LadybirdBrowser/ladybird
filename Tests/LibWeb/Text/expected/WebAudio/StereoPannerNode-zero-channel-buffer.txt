@@ -1,0 +1,2 @@
+Script processor output channels: 0
+Stereo output is silent: true

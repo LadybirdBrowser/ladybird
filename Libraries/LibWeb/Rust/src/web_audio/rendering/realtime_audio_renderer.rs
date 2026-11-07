@@ -144,7 +144,7 @@ impl RealtimeAudioRenderer {
     }
 
     /// The callback is set on the control thread before rendering starts and is always invoked on the control thread. It
-    /// is cleared when the context closes to break the reference cycle with the context.
+    /// is cleared when the context is suspended, closes, or its document becomes inactive.
     pub fn set_client(&self, client: Option<Rc<dyn RealtimeAudioRendererClient>>) {
         self.client.replace(client);
     }
@@ -166,6 +166,10 @@ impl RealtimeAudioRenderer {
             return;
         }
         let state = unsafe { &mut *self.state.get() };
+        if state.device_channel_count != channel_count {
+            state.pending_samples.clear();
+            state.playhead = 0.;
+        }
         state.device_channel_count = channel_count;
         self.device_sample_rate.store(sample_rate, Ordering::Relaxed);
         state.device_bus = Some(Box::new(AudioBus::new(channel_count, self.quantum_size)));

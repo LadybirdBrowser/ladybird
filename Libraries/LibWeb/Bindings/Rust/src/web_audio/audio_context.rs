@@ -238,7 +238,7 @@ impl AudioContext {
                 .context
                 .queue_a_media_element_task(cx.vm(), context, |_, context| {
                     // 1. Set the state attribute of the AudioContext to "running".
-                    context.context.set_control_state(AudioContextState::Running);
+                    context.context.set_state(AudioContextState::Running);
 
                     // 2. Fire an event named statechange at the AudioContext.
                     context.context.dispatch_statechange();
@@ -277,7 +277,7 @@ impl AudioContext {
         Ok(self.output_latency)
     }
 
-    // https://www.w3.org/TR/webaudio/#dom-audiocontext-getoutputtimestamp
+    // https://webaudio.github.io/web-audio-api/#dom-audiocontext-getoutputtimestamp
     pub(crate) fn get_output_timestamp(&self, _: &mut CallContext) -> WebIdlResult<AudioTimestamp> {
         let renderer = self.renderer.borrow();
 
@@ -302,9 +302,9 @@ impl AudioContext {
         })
     }
 
-    // https://www.w3.org/TR/webaudio/#dom-audiocontext-resume
+    // https://webaudio.github.io/web-audio-api/#dom-audiocontext-resume
     pub(crate) fn resume(&self, cx: &mut CallContext, promise: WebIdlPromise) -> WebIdlResult<()> {
-        // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
+        // 1. If this’s relevant global object’s associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
         if !self.context.document_is_fully_active() {
             return Err(Exception::Dom(
                 "InvalidStateError",
@@ -312,8 +312,11 @@ impl AudioContext {
             ));
         }
 
+        // 2. Let promise be a new Promise.
+        // NB: The bindings create the promise.
+
         // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
-        if self.context.state_value() == AudioContextState::Closed {
+        if self.context.control_state() == AudioContextState::Closed {
             reject_promise_with_exception(
                 cx.vm(),
                 promise,
@@ -325,46 +328,58 @@ impl AudioContext {
             return Ok(());
         }
 
-        // 4. Set [[suspended by user]] to true.
-        self.suspended_by_user.set(true);
+        // 4. Set [[suspended by user]] to false.
+        self.suspended_by_user.set(false);
 
-        // 5. If the context is not allowed to start, append promise to [[pending promises]] and [[pending resume promises]] and abort these steps, returning promise.
-        if self.allowed_to_start {
+        // FIXME: 5. If the context’s state attribute is "suspended" and the context’s [[control thread state]] is "interrupted", then:
+        // FIXME: 5.1. Queue a media element task to execute the following steps:
+        // FIXME: 5.1.1. Set the state attribute of the AudioContext to "interrupted".
+        // FIXME: 5.1.2. Set the [[state before interruption]] slot to "running".
+        // FIXME: 5.1.3. Queue a media element task to fire an event named statechange at the AudioContext.
+        // FIXME: 5.2. Reject the promise with InvalidStateError, abort these steps, returning promise.
+
+        // 6. If the context is not allowed to start, append promise to [[pending promises]] and [[pending resume promises]] and abort these steps, returning promise.
+        if !self.allowed_to_start {
             self.context.pending_promises.borrow_mut(cx.vm()).push(promise);
             self.pending_resume_promises.borrow_mut(cx.vm()).push(promise);
+            return Ok(());
         }
 
-        // 6. Set the [[control thread state]] on the AudioContext to running.
+        // 7. Set the [[control thread state]] on the AudioContext to running.
         self.context.set_control_state(AudioContextState::Running);
 
-        // 7. Queue a control message to resume the AudioContext.
+        // 8. Queue a control message to resume the AudioContext with promise.
         self.run_control_message_to_resume(cx.vm(), promise);
+
+        // 9. Return promise.
         Ok(())
     }
 
     fn run_control_message_to_resume(&self, vm: &Vm, promise: WebIdlPromise) {
-        // 7.1: Attempt to acquire system resources.
-        // NB: The renderer acquires system resources and starts rendering in a single resume, performed in step 7.3.
+        // 1. Let promise be the promise passed into this algorithm.
+
+        // 2. Attempt to acquire system resources.
+        // NB: The renderer acquires resources when starting the graph in step 4.
         if self.renderer.borrow().is_some() {
             self.set_renderer_client(vm);
         }
 
-        // 7.2: Set the [[rendering thread state]] on the AudioContext to running.
+        // 3. Set the [[rendering thread state]] on the AudioContext to running.
         self.context.set_rendering_state(AudioContextState::Running);
 
-        // 7.3: Start rendering the audio graph.
+        // 4. Start rendering the audio graph.
         let started = self.start_rendering_audio_graph();
 
-        // 7.4: In case of failure, queue a media element task to execute the following steps:
+        // 5. In case of failure, queue a media element task to execute the following steps:
         if !started {
             self.context.queue_a_media_element_task(vm, self.this(), |vm, context| {
-                // 7.4.1: Reject all promises from [[pending resume promises]] in order, then clear [[pending resume promises]].
+                // 5.1. Reject all promises from [[pending resume promises]] in order, then clear [[pending resume promises]].
                 for promise in &*context.pending_resume_promises.borrow() {
                     with_temporary_execution_context_and_callbacks(promise_realm(*promise), || {
                         reject_promise(vm, *promise, Value::NULL);
                     });
 
-                    // 7.4.2: Additionally, remove those promises from [[pending promises]].
+                    // 5.2. Additionally, remove those promises from [[pending promises]].
                     let mut pending = context.context.pending_promises.borrow_mut(vm);
                     if let Some(index) = pending.iter().position(|pending| pending == promise) {
                         pending.remove(index);
@@ -374,12 +389,14 @@ impl AudioContext {
             });
         }
 
-        // 7.5: queue a media element task to execute the following steps:
+        // 6. queue a media element task to execute the following steps:
         self.context
             .queue_a_media_element_task(vm, (self.this(), promise), |vm, (context, promise)| {
-                // 7.5.1: Resolve all promises from [[pending resume promises]] in order.
-                // 7.5.2: Clear [[pending resume promises]]. Additionally, remove those promises from
-                //        [[pending promises]].
+                // 6.1. If the [[render quantum size]] of the AudioContext is 0, set it to the actual hardware render quantum size chosen during resource acquisition.
+                // NB: This implementation always uses a fixed quantum size.
+
+                // 6.2. Resolve all promises from [[pending resume promises]] in order.
+                // 6.3. Clear [[pending resume promises]]. Additionally, remove those promises from [[pending promises]].
                 for pending_resume_promise in &*context.pending_resume_promises.borrow() {
                     with_temporary_execution_context_and_callbacks(promise_realm(*pending_resume_promise), || {
                         resolve_promise(vm, *pending_resume_promise, Value::UNDEFINED);
@@ -391,15 +408,15 @@ impl AudioContext {
                 }
                 context.pending_resume_promises.borrow_mut(vm).clear();
                 with_temporary_execution_context_and_callbacks(promise_realm(promise), || {
-                    // 7.5.3: Resolve promise.
+                    // 6.4. Resolve promise.
                     resolve_promise(vm, promise, Value::UNDEFINED);
 
-                    // 7.5.4: If the state attribute of the AudioContext is not already "running":
+                    // 6.5. If the state attribute of the AudioContext is not already "running":
                     if context.context.state_value() != AudioContextState::Running {
-                        // 7.5.4.1: Set the state attribute of the AudioContext to "running".
-                        context.context.set_control_state(AudioContextState::Running);
+                        // 6.5.1. Set the state attribute of the AudioContext to "running".
+                        context.context.set_state(AudioContextState::Running);
 
-                        // 7.5.4.2: queue a media element task to fire an event named statechange at the AudioContext.
+                        // 6.5.2. Queue a media element task to fire an event named statechange at the AudioContext.
                         context.context.queue_a_media_element_task(vm, context, |_, context| {
                             context.context.dispatch_statechange();
                         });
@@ -408,9 +425,9 @@ impl AudioContext {
             });
     }
 
-    // https://www.w3.org/TR/webaudio/#dom-audiocontext-suspend
+    // https://webaudio.github.io/web-audio-api/#dom-audiocontext-suspend
     pub(crate) fn suspend(&self, cx: &mut CallContext, promise: WebIdlPromise) -> WebIdlResult<()> {
-        // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
+        // 1. If this’s relevant global object’s associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
         if !self.context.document_is_fully_active() {
             return Err(Exception::Dom(
                 "InvalidStateError",
@@ -418,8 +435,11 @@ impl AudioContext {
             ));
         }
 
+        // 2. Let promise be a new Promise.
+        // NB: The bindings create the promise.
+
         // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
-        if self.context.state_value() == AudioContextState::Closed {
+        if self.context.control_state() == AudioContextState::Closed {
             reject_promise_with_exception(
                 cx.vm(),
                 promise,
@@ -440,34 +460,47 @@ impl AudioContext {
         // 6. Set the [[control thread state]] on the AudioContext to suspended.
         self.context.set_control_state(AudioContextState::Suspended);
 
-        // 7. Queue a control message to suspend the AudioContext.
+        // 7. Queue a control message to suspend the AudioContext with promise.
         self.run_control_message_to_suspend(cx.vm(), promise);
+
+        // 8. Return promise.
         Ok(())
     }
 
     fn run_control_message_to_suspend(&self, vm: &Vm, promise: WebIdlPromise) {
-        // 7.1: Attempt to release system resources.
+        // 1. Let promise be the promise passed into this algorithm.
+
+        // 2. Attempt to release system resources.
         if let Some(renderer) = &*self.renderer.borrow() {
             renderer.suspend();
             renderer.set_client(None);
         }
 
-        // 7.2: Set the [[rendering thread state]] on the AudioContext to suspended.
+        // FIXME: 3. If the [[rendering thread state]] on the AudioContext is "interrupted", queue a media element task to set the [[state before interruption]] slot to "suspended".
+
+        // 4. Set the [[rendering thread state]] on the AudioContext to "suspended".
         self.context.set_rendering_state(AudioContextState::Suspended);
 
-        // 7.3: queue a media element task to execute the following steps:
+        // 5. Queue a media element task to execute the following steps:
         self.context
             .queue_a_media_element_task(vm, (self.this(), promise), |vm, (context, promise)| {
                 with_temporary_execution_context_and_callbacks(promise_realm(promise), || {
-                    // 7.3.1: Resolve promise.
+                    // 5.1. Resolve promise.
                     resolve_promise(vm, promise, Value::UNDEFINED);
 
-                    // 7.3.2: If the state attribute of the AudioContext is not already "suspended":
-                    if context.context.state_value() != AudioContextState::Suspended {
-                        // 7.3.2.1: Set the state attribute of the AudioContext to "suspended".
-                        context.context.set_control_state(AudioContextState::Suspended);
+                    // AD-HOC: The spec omits removing a settled suspension promise from [[pending promises]].
+                    context
+                        .context
+                        .pending_promises
+                        .borrow_mut(vm)
+                        .retain(|pending| *pending != promise);
 
-                        // 7.3.2.2: queue a media element task to fire an event named statechange at the AudioContext.
+                    // 5.2. If the state attribute of the AudioContext is not already "suspended":
+                    if context.context.state_value() != AudioContextState::Suspended {
+                        // 5.2.1. Set the state attribute of the AudioContext to "suspended".
+                        context.context.set_state(AudioContextState::Suspended);
+
+                        // 5.2.2. Queue a media element task to fire an event named statechange at the AudioContext.
                         context.context.queue_a_media_element_task(vm, context, |_, context| {
                             context.context.dispatch_statechange();
                         });
@@ -476,9 +509,9 @@ impl AudioContext {
             });
     }
 
-    // https://www.w3.org/TR/webaudio/#dom-audiocontext-close
+    // https://webaudio.github.io/web-audio-api/#dom-audiocontext-close
     pub(crate) fn close(&self, cx: &mut CallContext, promise: WebIdlPromise) -> WebIdlResult<()> {
-        // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
+        // 1. If this’s relevant global object’s associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
         if !self.context.document_is_fully_active() {
             return Err(Exception::Dom(
                 "InvalidStateError",
@@ -486,8 +519,11 @@ impl AudioContext {
             ));
         }
 
+        // 2. Let promise be a new Promise.
+        // NB: The bindings create the promise.
+
         // 3. If the [[control thread state]] flag on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
-        if self.context.state_value() == AudioContextState::Closed {
+        if self.context.control_state() == AudioContextState::Closed {
             reject_promise_with_exception(
                 cx.vm(),
                 promise,
@@ -504,36 +540,43 @@ impl AudioContext {
 
         // 5. Queue a control message to close the AudioContext.
         self.run_control_message_to_close(cx.vm(), promise);
+
+        // 6. Return promise.
         Ok(())
     }
 
     fn run_control_message_to_close(&self, vm: &Vm, promise: WebIdlPromise) {
-        // 5.1: Attempt to release system resources.
+        // 1. Attempt to release system resources.
         self.context.shutdown_audio_worklet();
         if let Some(renderer) = &*self.renderer.borrow() {
             renderer.stop();
             renderer.set_client(None);
         }
 
-        // 5.2: Set the [[rendering thread state]] to "suspended".
+        // 2. Set the [[rendering thread state]] to suspended.
+        // NOTE: This will stop rendering.
         self.context.set_rendering_state(AudioContextState::Suspended);
 
-        // FIXME: 5.3: If this control message is being run in a reaction to the document being unloaded, abort this algorithm.
-        // 5.4: queue a media element task to execute the following steps:
+        // 3. If this control message is being run in a reaction to the document being unloaded, abort this algorithm.
+        // NOTE: There is no need to notify the control thread in this case.
+        // NB: Document teardown releases the renderer directly.
+        // 4. queue a media element task to execute the following steps:
         self.context
             .queue_a_media_element_task(vm, (self.this(), promise), |vm, (context, promise)| {
                 with_temporary_execution_context_and_callbacks(promise_realm(promise), || {
-                    // 5.4.1: Resolve promise.
+                    // 4.1. Resolve promise.
                     resolve_promise(vm, promise, Value::UNDEFINED);
 
-                    // 5.4.2: If the state attribute of the AudioContext is not already "closed":
+                    // 4.2. If the state attribute of the AudioContext is not already "closed":
                     if context.context.state_value() != AudioContextState::Closed {
-                        // 5.4.2.1: Set the state attribute of the AudioContext to "closed".
-                        context.context.set_control_state(AudioContextState::Closed);
-                    }
+                        // 4.2.1. Set the state attribute of the AudioContext to "closed".
+                        context.context.set_state(AudioContextState::Closed);
 
-                    // 5.4.2.2: queue a media element task to fire an event named statechange at the AudioContext.
-                    context.context.dispatch_statechange();
+                        // 4.2.2. queue a media element task to fire an event named statechange at the AudioContext.
+                        context.context.queue_a_media_element_task(vm, context, |_, context| {
+                            context.context.dispatch_statechange();
+                        });
+                    }
                 });
             });
     }

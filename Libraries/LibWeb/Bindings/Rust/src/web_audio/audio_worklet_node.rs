@@ -32,11 +32,14 @@ use super::audio_node::{
 };
 use super::audio_param::{AudioParam, AutomationRate, FixedAutomationRate};
 use super::audio_param_map::AudioParamMap;
+use super::audio_worklet_processor::AudioWorkletProcessor;
 use super::base_audio_context::{AnyBaseAudioContext, BaseAudioContext};
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
 use crate::bindings::interface::{Inherits, Ref, Wrappable, Wrapped, allocate};
-use crate::bindings::interface::{cell_into_abi, with_temporary_execution_context_and_callbacks};
+use crate::bindings::interface::{
+    cell_into_abi, implementation_if_wrapper, with_temporary_execution_context_and_callbacks, wrap,
+};
 use crate::bindings::promise::{TaskSource, queue_a_global_task};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::message_port::MessagePort;
@@ -55,8 +58,7 @@ pub(crate) struct AudioWorkletNode {
     parameter_names: Vec<Utf16String>, // descriptor order; keys for the `parameters` argument
     port: Ref<MessagePort>,
     scope: CppCell,
-    processor: Cell<Option<Gc<Object>>>,
-    processor_errored: Cell<bool>,
+    processor: Cell<Option<Ref<AudioWorkletProcessor>>>,
     #[gc(untraced)]
     pipe: RefCell<Option<Arc<AudioWorkletPipe>>>,
 }
@@ -137,7 +139,11 @@ unsafe extern "C" {
         options: *mut c_void,
     ) -> RawNativeFunctionResult;
     fn web_audio_worklet_processor_constructor(scope: *mut c_void, name: usize) -> *mut c_void;
-    fn web_audio_worklet_set_pending_port(scope: *mut c_void, port: *mut c_void);
+    fn web_audio_worklet_set_pending_data(
+        scope: *mut c_void,
+        node_reference: *mut c_void,
+        transferred_port: *mut c_void,
+    );
     fn web_audio_worklet_clear_pending_data(scope: *mut c_void);
     fn web_audio_worklet_set_current_frame(scope: *mut c_void, current_frame: u64);
     fn web_audio_worklet_queue_processor_error(node: *mut c_void, target: *mut c_void, global: *mut c_void, error: u64);
@@ -259,7 +265,6 @@ impl AudioWorkletNode {
             port: node_port,
             scope: scope.clone(),
             processor: Cell::new(None),
-            processor_errored: Cell::new(false),
             pipe: RefCell::new(None),
         });
         node.node.set_this(AnyAudioNode::AudioWorkletNode(node));
@@ -490,9 +495,7 @@ impl AudioWorkletNode {
         Ok(node)
     }
 
-    // https://webaudio.github.io/web-audio-api/#instantiation-of-audioworkletprocessor
-    // "invoke processor constructor" — deferred to a queued task so the node constructor returns
-    // before user code runs (and pre-constructor port messages queue up for delivery afterwards).
+    // https://webaudio.github.io/web-audio-api/#invoking-processor-constructor
     fn invoke_processor_constructor(
         &self,
         vm: &Vm,
@@ -500,10 +503,17 @@ impl AudioWorkletNode {
         processor_port: Ref<MessagePort>,
         options_object: Gc<Object>,
     ) {
+        // 1. Let constructionData be the processor construction data transferred from the control thread.
+        // 2. Let processorName, nodeReference and serializedPort be constructionData’s name, node, and port respectively.
+        // 3. Let serializedOptions be constructionData’s options.
+        // 4. Let deserializedPort be the result of StructuredDeserialize(serializedPort, the current Realm).
+        // 5. Let deserializedOptions be the result of StructuredDeserialize(serializedOptions, the current Realm).
+        // NB: The queued task carries the construction data with the port and options already deserialized.
         let worklet_realm: Gc<Realm> =
             unsafe { Gc::from_non_null(NonNull::new(web_audio_worklet_scope_realm(scope.as_ptr()).cast()).unwrap()) };
         with_temporary_execution_context_and_callbacks(worklet_realm, || {
-            let constructor: Gc<FunctionObject> = unsafe {
+            // 6. Let processorCtor be the result of looking up processorName on the AudioWorkletGlobalScope’s node name to processor constructor map.
+            let processor_ctor: Gc<FunctionObject> = unsafe {
                 Gc::from_non_null(
                     NonNull::new(
                         web_audio_worklet_processor_constructor(scope.as_ptr(), self.name.raw_identity()).cast(),
@@ -512,31 +522,47 @@ impl AudioWorkletNode {
                 )
             };
 
-            // 1. Set the pending processor construction data: the processor-side port.
-            unsafe { web_audio_worklet_set_pending_port(scope.as_ptr(), cell_into_abi(processor_port)) };
+            // 7. Store nodeReference and deserializedPort to node reference and transferred port of this AudioWorkletGlobalScope’s pending processor construction data respectively.
+            unsafe {
+                web_audio_worklet_set_pending_data(
+                    scope.as_ptr(),
+                    cell_into_abi(self.this()),
+                    cell_into_abi(processor_port),
+                );
+            };
 
-            // 2. Construct the processor: Construct(processorCtor, « optionsObject »).
-            let processor_or_error = construct(vm, constructor, &[Value::from_object(options_object)], None);
-
-            // 3. Empty the pending processor construction data slot (a constructor that never chained to
-            //    super() leaves it populated).
-            unsafe { web_audio_worklet_clear_pending_data(scope.as_ptr()) };
-            let processor = match processor_or_error {
-                Ok(processor) => processor,
+            // 8. Construct a callback function from processorCtor with the argument of deserializedOptions. If any exceptions are thrown in the callback, queue a task to the control thread to fire an event named processorerror at nodeReference using ErrorEvent.
+            // AD-HOC: A constructor that returns an object other than an AudioWorkletProcessor fails with a TypeError.
+            let constructed =
+                construct(vm, processor_ctor, &[Value::from_object(options_object)], None).and_then(|object| {
+                    implementation_if_wrapper::<AudioWorkletProcessor>(object).ok_or_else(|| {
+                        vm.throw_completion_with_message::<()>(
+                            ErrorKind::TypeError,
+                            "The processor constructor did not return an AudioWorkletProcessor".to_string(),
+                        )
+                        .unwrap_err()
+                    })
+                });
+            let processor = match constructed {
+                Ok(processor) => Some(processor),
                 Err(error) => {
-                    self.processor_errored.set(true);
                     self.pipe.borrow().as_ref().unwrap().set_state(WorkletPipeState::Failed);
                     self.fire_processor_error(error.value());
-                    return;
+                    None
                 }
+            };
+
+            // 9. Empty the pending processor construction data slot.
+            unsafe { web_audio_worklet_clear_pending_data(scope.as_ptr()) };
+            let Some(processor) = processor else {
+                return;
             };
             self.processor.set(Some(processor));
             self.node
                 .context_value()
                 .add_audio_worklet_pipe(Arc::clone(self.pipe.borrow().as_ref().unwrap()));
 
-            // 4. Enable the processor-side port's message queue: pending messages posted since node construction
-            //    are now delivered, after the constructor had its chance to register listeners.
+            // NB: Defer incoming messages until the constructor can register listeners.
             MessagePort::enable(processor_port, vm);
         });
     }
@@ -551,7 +577,7 @@ impl AudioWorkletNode {
         let Some(processor) = self.processor.get() else {
             return;
         };
-        if pipe.state() == WorkletPipeState::ShutDown || self.processor_errored.get() {
+        if pipe.state() == WorkletPipeState::ShutDown || !processor.callable_process.get() {
             return;
         }
 
@@ -561,13 +587,15 @@ impl AudioWorkletNode {
 
         // Keep one execution context for the batch so its microtask checkpoint runs after all available quanta.
         with_temporary_execution_context_and_callbacks(realm, || {
+            // 4.4.4.2. Let O be the ECMAScript object corresponding to processor.
+            let processor_object = wrap(&CallContext::new(vm, realm), processor);
             let config = &pipe.config;
             loop {
                 if pipe.output_occupancy() == config.ring_capacity {
                     break;
                 }
                 let mut processed_one = false;
-                let mut pump_failed = false;
+                let mut pump_error = None;
                 let mut output_full = false;
 
                 let _ = unsafe {
@@ -667,37 +695,42 @@ impl AudioWorkletNode {
                                 .expect("a new parameters object accepts a property");
                         }
 
-                        // Look up process on the instance each call (spec); a non-callable value fails the node.
-                        let process_value = match processor.get(vm, &PropertyKey::from_utf8("process")) {
+                        // 4.4.4.7. Let getResult be Get(O, "process").
+                        let process_value = match processor_object.get(vm, &PropertyKey::from_utf8("process")) {
                             Ok(value) if value.is_function() => value,
                             Ok(_) => {
-                                pump_failed = true;
                                 let error = vm
                                     .throw_completion_with_message::<()>(
                                         ErrorKind::TypeError,
                                         "AudioWorkletProcessor.process must be a function".to_string(),
                                     )
                                     .unwrap_err();
-                                self.fire_processor_error(error.value());
+                                pump_error = Some(error.value());
                                 return;
                             }
                             Err(error) => {
-                                pump_failed = true;
-                                self.fire_processor_error(error.value());
+                                pump_error = Some(error.value());
                                 return;
                             }
                         };
+
+                        // 4.4.4.11. Set [[callable process]] to true.
+                        processor.callable_process.set(true);
 
                         let process_arguments = [
                             Value::from_object(inputs),
                             Value::from_object(outputs),
                             Value::from_object(parameters),
                         ];
-                        let result = match call(vm, process_value, Value::from_object(processor), &process_arguments) {
+                        let result = match call(
+                            vm,
+                            process_value,
+                            Value::from_object(processor_object),
+                            &process_arguments,
+                        ) {
                             Ok(result) => result,
                             Err(error) => {
-                                pump_failed = true;
-                                self.fire_processor_error(error.value());
+                                pump_error = Some(error.value());
                                 return;
                             }
                         };
@@ -749,9 +782,18 @@ impl AudioWorkletNode {
                     })
                 };
 
-                if pump_failed {
-                    self.processor_errored.set(true);
+                // 4.4.4.13.3. If completion is an abrupt completion:
+                if let Some(error) = pump_error {
+                    // 4.4.4.13.3.1. Set [[callable process]] to false.
+                    processor.callable_process.set(false);
+
+                    // 4.4.4.13.3.2. Set processor’s active source flag to false.
+                    // 4.4.4.13.3.3. Make a silent output buffer available for reading.
+                    // NB: A failed pipe renders silence.
                     pipe.set_state(WorkletPipeState::Failed);
+
+                    // 4.4.4.13.3.4. Queue a task to the control thread to fire an event named processorerror at the associated AudioWorkletNode using ErrorEvent.
+                    processor.node_reference.fire_processor_error(error);
                     return;
                 }
                 if pipe.state() == WorkletPipeState::ShutDown {

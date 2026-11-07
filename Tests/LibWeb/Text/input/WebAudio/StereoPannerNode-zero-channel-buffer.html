@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const context = new OfflineAudioContext(2, 768, 48000);
+        const processor = context.createScriptProcessor(256, 1, 0);
+        const input = new ConstantSourceNode(context);
+        input.connect(processor);
+        input.start();
+        const panner = new StereoPannerNode(context);
+        panner.connect(context.destination);
+        processor.addEventListener("audioprocess", event => {
+            println(`Script processor output channels: ${event.outputBuffer.numberOfChannels}`);
+            const source = new AudioBufferSourceNode(context, { buffer: event.outputBuffer });
+            source.connect(panner);
+            source.start();
+        }, { once: true });
+
+        const rendered = await context.startRendering();
+        println(`Stereo output is silent: ${[0, 1].every(channel =>
+            rendered.getChannelData(channel).every(sample => sample === 0))}`);
+    });
+</script>

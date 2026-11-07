@@ -10,3 +10,5 @@ pub mod control_message;
 pub mod control_message_queue;
 pub mod control_thread;
 pub mod rendering;
+
+pub const MAX_NUMBER_OF_CHANNELS: usize = 32;

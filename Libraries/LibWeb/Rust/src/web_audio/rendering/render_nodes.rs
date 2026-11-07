@@ -25,6 +25,7 @@ use super::fft::{FFT, FFTDirection};
 use super::node_message::*;
 use super::render_graph::RenderGraph;
 use super::render_node::*;
+use crate::web_audio::MAX_NUMBER_OF_CHANNELS;
 
 // Additive synthesis of the built-in oscillator waveforms is capped to keep the per-sample cost bounded for very low
 // fundamental frequencies.
@@ -596,8 +597,7 @@ impl AudioBufferSourceRenderNode {
                     self.playhead_valid = true;
                 }
 
-                // NB: Compare using a half-frame tolerance since m_played_time accumulates one frame's worth of content at
-                //     a time and would otherwise overshoot the duration by up to one frame due to floating-point rounding.
+                // NB: A half-frame tolerance prevents rounding error in played_time from extending playback by one frame.
                 let frame_consumption = computed_playback_rate.abs() / context.sample_rate;
                 if self
                     .duration
@@ -1257,8 +1257,7 @@ impl std::ops::Mul<f64> for DoubleVector3 {
     }
 }
 
-// Gfx::DoubleVector3::normalize() divides by the length unconditionally, which would produce NaN components for a zero
-// vector; the spatialization math needs a zero vector to normalize back to a zero vector instead.
+// Spatialization requires normalizing a zero vector to a zero vector.
 fn safe_normalized(vector: DoubleVector3) -> DoubleVector3 {
     if vector.length() == 0. {
         return DoubleVector3::default();
@@ -1319,37 +1318,36 @@ fn compute_azimuth(
     azimuth
 }
 
-// https://webaudio.github.io/web-audio-api/#Spatialization-distance-effects
+// https://webaudio.github.io/web-audio-api/#enumdef-distancemodeltype
 fn compute_distance_gain(distance: f64, config: &SetPannerParameters) -> f64 {
     let ref_distance = config.ref_distance;
     let max_distance = config.max_distance;
     let rolloff_factor = config.rolloff_factor;
 
-    // AD-HOC: The distance is clamped to the interval spanned by refDistance and maxDistance for every distance
-    //         model, matching other engines.
-    let clamped_distance = clamp(
-        distance,
-        cpp_min(ref_distance, max_distance),
-        cpp_max(ref_distance, max_distance),
-    );
     match config.distance_model {
         DistanceModelType::Linear => {
-            if ref_distance == max_distance {
-                return 1. - clamp(rolloff_factor, 0., 1.);
+            let lower_distance = cpp_min(ref_distance, max_distance);
+            let upper_distance = cpp_max(ref_distance, max_distance);
+            let rolloff_factor = clamp(rolloff_factor, 0., 1.);
+            if lower_distance == upper_distance {
+                return 1. - rolloff_factor;
             }
-            1. - clamp(rolloff_factor, 0., 1.) * (clamped_distance - ref_distance) / (max_distance - ref_distance)
+            let distance = clamp(distance, lower_distance, upper_distance);
+            1. - rolloff_factor * (distance - lower_distance) / (upper_distance - lower_distance)
         }
         DistanceModelType::Inverse => {
-            if ref_distance + rolloff_factor * (clamped_distance - ref_distance) == 0. {
-                return 1.;
+            if ref_distance == 0. {
+                return 0.;
             }
-            ref_distance / (ref_distance + rolloff_factor * (clamped_distance - ref_distance))
+            let distance = cpp_max(distance, ref_distance);
+            ref_distance / (ref_distance + rolloff_factor * (distance - ref_distance))
         }
         DistanceModelType::Exponential => {
             if ref_distance == 0. {
-                return 1.;
+                return 0.;
             }
-            math::pow(clamped_distance / ref_distance, -rolloff_factor)
+            let distance = cpp_max(distance, ref_distance);
+            math::pow(distance / ref_distance, -rolloff_factor)
         }
     }
 }
@@ -1698,6 +1696,15 @@ impl NodeProcessor for PannerRenderNode {
         callback(&self.params.orientation_x);
         callback(&self.params.orientation_y);
         callback(&self.params.orientation_z);
+        callback(&self.listener_params.position_x);
+        callback(&self.listener_params.position_y);
+        callback(&self.listener_params.position_z);
+        callback(&self.listener_params.forward_x);
+        callback(&self.listener_params.forward_y);
+        callback(&self.listener_params.forward_z);
+        callback(&self.listener_params.up_x);
+        callback(&self.listener_params.up_y);
+        callback(&self.listener_params.up_z);
     }
 
     // https://webaudio.github.io/web-audio-api/#Spatialization
@@ -1821,14 +1828,16 @@ impl NodeProcessor for PassthroughRenderNode {
 }
 
 pub fn create_destination_render_node(node_id: u64, quantum_size: usize, channel_count: usize) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, channel_count);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, channel_count);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     data.channel_count.set(channel_count);
     data.channel_count_mode.set(ChannelCountMode::Explicit);
     node_handle(data, DestinationRenderNode)
 }
 
 pub fn create_gain_render_node(node_id: u64, quantum_size: usize, gain: Arc<RenderAudioParam>) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(
         data,
         GainRenderNode {
@@ -1883,7 +1892,8 @@ pub fn create_audio_buffer_source_render_node(
     playback_rate: Arc<RenderAudioParam>,
     detune: Arc<RenderAudioParam>,
 ) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 0, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 0, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(
         data,
         AudioBufferSourceRenderNode {
@@ -1911,7 +1921,8 @@ pub fn create_delay_render_node(
     delay_time: Arc<RenderAudioParam>,
     max_delay_time: f64,
 ) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(
         data,
         DelayRenderNode {
@@ -1971,7 +1982,8 @@ pub fn create_biquad_filter_render_node(
     q: Arc<RenderAudioParam>,
     gain: Arc<RenderAudioParam>,
 ) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(
         data,
         BiquadFilterRenderNode {
@@ -1984,7 +1996,7 @@ pub fn create_biquad_filter_render_node(
             q_values: vec![0.; quantum_size],
             gain_values: vec![0.; quantum_size],
             r#type: BiquadFilterType::Lowpass,
-            filter_states: Vec::new(),
+            filter_states: Vec::with_capacity(MAX_NUMBER_OF_CHANNELS),
         },
     )
 }
@@ -1995,7 +2007,8 @@ pub fn create_iir_filter_render_node(
     feedforward: &[f64],
     feedback: &[f64],
 ) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     assert!(feedforward.len() < 32);
     assert!(feedback.len() < 32);
     node_handle(
@@ -2003,20 +2016,21 @@ pub fn create_iir_filter_render_node(
         IIRFilterRenderNode {
             feedforward: feedforward.to_vec(),
             feedback: feedback.to_vec(),
-            filter_states: Vec::new(),
+            filter_states: Vec::with_capacity(MAX_NUMBER_OF_CHANNELS),
             position: 0,
         },
     )
 }
 
 pub fn create_wave_shaper_render_node(node_id: u64, quantum_size: usize) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(
         data,
         WaveShaperRenderNode {
             curve: None,
             oversample: OverSampleType::None,
-            channel_states: Vec::new(),
+            channel_states: Vec::with_capacity(MAX_NUMBER_OF_CHANNELS),
             two_times_samples: vec![0.; quantum_size * 2],
             four_times_samples: vec![0.; quantum_size * 4],
         },
@@ -2024,7 +2038,8 @@ pub fn create_wave_shaper_render_node(node_id: u64, quantum_size: usize) -> Box<
 }
 
 pub fn create_convolver_render_node(node_id: u64, quantum_size: usize) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, 2);
     data.channel_count_mode.set(ChannelCountMode::ClampedMax);
     node_handle(
         data,
@@ -2079,6 +2094,7 @@ pub fn create_panner_render_node(
 }
 
 pub fn create_passthrough_render_node(node_id: u64, quantum_size: usize) -> Box<NodeHandle> {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
     node_handle(data, PassthroughRenderNode)
 }

@@ -4,17 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#![allow(clippy::needless_range_loop)]
+use super::audio_bus::AudioBus;
 use super::audio_frame_ring::{AudioFrameRing, AudioFrameRingCallbacks};
 use super::render_graph::RenderGraph;
 use super::render_node::*;
 use super::render_nodes::{BusRef, NodeProcessor, node_handle};
+use crate::web_audio::MAX_NUMBER_OF_CHANNELS;
 use crate::web_audio::control_message::FfiSharedCppObject;
 
 // https://webaudio.github.io/web-audio-api/#AnalyserNode
 struct AnalyserRenderNode {
     time_domain_ring: AudioFrameRing,
-    mono_scratch: Vec<f32>,
+    mono_scratch: AudioBus,
     discard_scratch: Vec<f32>,
 }
 
@@ -27,23 +28,12 @@ impl NodeProcessor for AnalyserRenderNode {
             BusRef(data.output(0)).copy_from(&input);
 
             // https://webaudio.github.io/web-audio-api/#current-time-domain-data
-            // The input signal must be down-mixed to mono as if channelCount is 1, channelCountMode
-            // is "max" and channelInterpretation is "speakers".
-            // AD-HOC: The down-mix is an unweighted channel average, which matches the speakers rules
-            //         for mono and stereo input; inputs with more channels would need the weighted
-            //         speakers down-mix.
-            let channel_count = input.channel_count();
-            for frame in 0..context.quantum_size {
-                let mut sum = 0.;
-                for channel_index in 0..channel_count {
-                    sum += input.channel(channel_index)[frame];
-                }
-                self.mono_scratch[frame] = if channel_count > 0 {
-                    sum / channel_count as f32
-                } else {
-                    0.
-                };
-            }
+            // When the current time-domain data are computed, the input signal must be down-mixed to mono as if
+            // channelCount is 1, channelCountMode is "max" and channelInterpretation is "speakers". This is independent
+            // of the settings for the AnalyserNode itself.
+            // AD-HOC: Down-mix the input as mixed by the AnalyserNode's own channel settings, like other engines.
+            self.mono_scratch.zero();
+            self.mono_scratch.sum_from(&*input.0, true);
 
             // The ring must always end up holding the most recent samples, so a full ring (the page
             // is not currently polling any of the analyser getters) drops its oldest quantum first.
@@ -54,7 +44,7 @@ impl NodeProcessor for AnalyserRenderNode {
             if self.time_domain_ring.frames_free() < context.quantum_size {
                 self.time_domain_ring.try_pop(&mut self.discard_scratch);
             }
-            self.time_domain_ring.try_push(&self.mono_scratch);
+            self.time_domain_ring.try_push(self.mono_scratch.channel(0));
         }
     }
 }
@@ -72,7 +62,8 @@ pub unsafe fn create_analyser_render_node(
         callbacks,
     };
     assert_eq!(time_domain_ring.channel_count(), 1);
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    let mut data = RenderNodeData::new(node_id, 1, 1, quantum_size, 1);
+    data.reserve_output_channels(0, MAX_NUMBER_OF_CHANNELS);
 
     // NB: The control thread queues SetChannelConfig before AddNode and messages addressed to
     //     unknown nodes are dropped, so the constructor must establish the node's channel
@@ -85,7 +76,7 @@ pub unsafe fn create_analyser_render_node(
         data,
         AnalyserRenderNode {
             time_domain_ring,
-            mono_scratch: vec![0.; quantum_size],
+            mono_scratch: AudioBus::new(1, quantum_size),
             discard_scratch: vec![0.; quantum_size],
         },
     )

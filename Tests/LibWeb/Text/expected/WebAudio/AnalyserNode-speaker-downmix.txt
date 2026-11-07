@@ -1,0 +1,6 @@
+Downmix: 0.5000
+Output preserves channels: true
+Downmix: 1.4571
+Output preserves channels: true
+Downmix: 1.0000
+Output uses the node's settings: true
