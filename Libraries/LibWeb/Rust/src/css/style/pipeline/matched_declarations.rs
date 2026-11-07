@@ -833,10 +833,14 @@ mod tests {
             add_class(&mut engine, node, &format!("class{index}"));
         }
         start_live(&mut engine, nodes[0]);
-        let entries = matched_declarations(&engine).entry_count();
+        let live = engine.retained.live_style.as_ref().expect("the engine runs");
+        assert!(!live.has_pending());
+        let entries = live.matched_declarations().entry_count();
         assert_ne!(entries, 0);
         assert!(entries <= MAX_BUCKETS * WAYS, "{entries} entries");
-        assert_live_matches_cold(&mut engine, nodes[0]);
+        // Compare computed styles without the reference matcher checking every rule against every element.
+        let failures = engine.self_check_failures(nodes[0], None);
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
     #[test]
