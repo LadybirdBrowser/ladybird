@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <defs><rect id="leaf" width="40" height="40"/></defs>
+    <use id="instance" href="../../data/svg-use-nested-fragment.svg#icon"/>
+</svg>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            const { width, height } = document.getElementById("instance").getBBox();
+            println(`${width}x${height}`);
+            done();
+        });
+    });
+</script>

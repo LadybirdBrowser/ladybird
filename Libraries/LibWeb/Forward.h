@@ -1143,6 +1143,7 @@ class SVGSwitchElement;
 class SVGSymbolElement;
 class SVGTitleElement;
 class SVGTransformList;
+class SVGUseElement;
 class SVGViewElement;
 class TimeEvent;
 

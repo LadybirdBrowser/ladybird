@@ -7,6 +7,7 @@
         const doc = document.implementation.createHTMLDocument();
         const use = doc.createElementNS("http://www.w3.org/2000/svg", "use");
         use.setAttribute("href", new URL("../../Assets/120.png#target", document.baseURI).href);
+        doc.body.append(use);
     }
 
     startFetchInUnreachableDocument();

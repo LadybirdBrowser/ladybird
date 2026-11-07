@@ -65,14 +65,17 @@ private:
 
     void process_the_url(Optional<Utf16String> const& href);
     Optional<Utf16String> href_value() const;
+    DOM::Document const& document_containing_reference() const;
 
     GC::Ptr<DOM::Element> referenced_element() const;
 
     void fetch_the_document(URL::URL const& url);
+    void discard_the_url();
     void stop_using_resource_request();
     bool is_referenced_element_same_document() const;
 
     void clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_clone);
+    static void link_to_corresponding_elements(SVGElement& instance, SVGElement const& original);
     bool is_valid_reference_element(Element const& reference_element) const;
     bool would_create_circular_reference(Element const& target) const;
     bool would_create_circular_reference_impl(Element const& target, GC::HeapHashTable<GC::Ref<Element const>>& visited) const;

@@ -1,0 +1,5 @@
+<!DOCTYPE html>
+<!-- Cloning the option element empties the cloned selectedcontent element, so the instance tree has fewer nodes than
+     the element it was cloned from. -->
+<svg><g id="a"><foreignObject><select><button><selectedcontent></selectedcontent></button><option>One</option></select></foreignObject><rect/></g></svg>
+<svg><use href="#a"/></svg>
