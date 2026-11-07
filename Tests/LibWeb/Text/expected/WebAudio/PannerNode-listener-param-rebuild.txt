@@ -1,0 +1,3 @@
+Gain at frame 0: 0.2500
+Gain at frame 128: 0.2500
+Gain at frame 256: 0.2500
