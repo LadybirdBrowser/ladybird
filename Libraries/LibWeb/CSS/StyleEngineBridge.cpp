@@ -103,19 +103,19 @@ void StyleEngine::defer_element_initial_features(DOM::Element& element)
 {
     element.set_initial_style_features_pending(true);
     m_nodes_with_pending_initial_features.append(element.style_node_id());
-    note_element_awaiting_first_style_computation(element);
+    note_element_awaiting_preparation_for_style_computation(element);
 }
 
-void StyleEngine::note_element_awaiting_first_style_computation(DOM::Element& element)
+void StyleEngine::note_element_awaiting_preparation_for_style_computation(DOM::Element& element)
 {
     if (element.needs_preparation_for_style_computation())
-        m_nodes_awaiting_first_style_computation.set(element.style_node_id());
+        m_nodes_awaiting_preparation_for_style_computation.set(element.style_node_id());
 }
 
 void StyleEngine::cancel_deferred_element_initial_features(DOM::Element& element)
 {
     element.set_initial_style_features_pending(false);
-    m_nodes_awaiting_first_style_computation.remove(element.style_node_id());
+    m_nodes_awaiting_preparation_for_style_computation.remove(element.style_node_id());
 }
 
 Vector<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
@@ -123,9 +123,9 @@ Vector<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
     return move(m_nodes_with_pending_initial_features);
 }
 
-HashTable<StyleNodeID> StyleEngine::take_elements_awaiting_first_style_computation()
+HashTable<StyleNodeID> StyleEngine::take_elements_awaiting_preparation_for_style_computation()
 {
-    return move(m_nodes_awaiting_first_style_computation);
+    return move(m_nodes_awaiting_preparation_for_style_computation);
 }
 
 void StyleEngine::set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts)

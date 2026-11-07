@@ -1,0 +1,2 @@
+Use bounding box width before its referenced id exists: 0
+Use bounding box width once its referenced id exists: 40

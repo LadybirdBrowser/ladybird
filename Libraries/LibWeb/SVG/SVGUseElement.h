@@ -63,6 +63,9 @@ private:
 
     virtual CSS::ElementBoxKind box_kind() const override;
 
+    virtual bool needs_preparation_for_style_computation() const override { return m_reclone_pending; }
+    virtual void prepare_for_style_computation() override;
+
     void process_the_url(Optional<Utf16String> const& href);
     Optional<Utf16String> href_value() const;
     DOM::Document const& document_containing_reference() const;
@@ -74,6 +77,7 @@ private:
     void stop_using_resource_request();
     bool is_referenced_element_same_document() const;
 
+    void request_reclone();
     void clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_clone);
     static void link_to_corresponding_elements(SVGElement& instance, SVGElement const& original);
     bool is_valid_reference_element(Element const& reference_element) const;
@@ -83,6 +87,7 @@ private:
     void unregister_for_referenced_element_changes();
 
     bool m_needs_parsing_complete_reclone { false };
+    bool m_reclone_pending { false };
 
     Optional<URL::URL> m_href;
 

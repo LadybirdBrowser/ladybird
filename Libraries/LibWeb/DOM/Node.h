@@ -133,6 +133,7 @@ enum class SetNeedsLayoutReason {
     X(SVGResourceContentChange)                           \
     X(SVGResourceElementRemoved)                          \
     X(SVGResourceReferenceChange)                         \
+    X(SVGUseElementShadowTreeRebuild)                     \
     X(TopLayerMembershipChange)                           \
     X(WhitespaceTextBoxChange)                            \
     X(WritingSuggestionChange)

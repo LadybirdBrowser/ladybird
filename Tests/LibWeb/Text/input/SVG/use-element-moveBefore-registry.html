@@ -8,49 +8,44 @@
             return document.createElementNS(SVG_NS, localName);
         }
 
-        function createReferencedUse(id, fill) {
-            const svg = createSVGElement("svg");
-            svg.style.display = "none";
-
-            const source = createSVGElement("rect");
-            source.id = id;
-            source.setAttribute("width", "10");
-            source.setAttribute("height", "10");
-            source.setAttribute("fill", fill);
-
-            const use = createSVGElement("use");
-            use.setAttribute("href", `#${id}`);
-
-            svg.append(source, use);
-            document.body.appendChild(svg);
-            return { source, svg, use };
+        function createReferencedRect(id) {
+            const rect = createSVGElement("rect");
+            rect.id = id;
+            rect.setAttribute("width", "10");
+            rect.setAttribute("height", "10");
+            return rect;
         }
 
         window.addEventListener("load", () => {
             setTimeout(() => {
+                const svg = createSVGElement("svg");
+                document.body.appendChild(svg);
+                const host = document.createElement("div");
+                document.body.appendChild(host);
+                host.attachShadow({ mode: "open" });
+                const shadowSvg = createSVGElement("svg");
+                host.shadowRoot.appendChild(shadowSvg);
+
                 {
-                    const { source, use } = createReferencedUse("moveOutSource", "red");
-                    const host = document.createElement("div");
-                    document.body.appendChild(host);
-                    host.attachShadow({ mode: "open" });
+                    const use = createSVGElement("use");
+                    use.setAttribute("href", "#moveOutSource");
+                    svg.appendChild(use);
 
-                    host.shadowRoot.moveBefore(use, null);
-                    source.setAttribute("fill", "green");
+                    shadowSvg.moveBefore(use, null);
+                    svg.appendChild(createReferencedRect("moveOutSource"));
 
-                    println(`Use moved into shadow tree kept old fill: ${internals.getShadowRoot(use).firstElementChild.getAttribute("fill")}`);
+                    println(`Use moved into shadow tree, width once its target exists: ${use.getBBox().width}`);
                 }
 
                 {
-                    const { source, svg, use } = createReferencedUse("moveInSource", "red");
-                    const host = document.createElement("div");
-                    document.body.appendChild(host);
-                    host.attachShadow({ mode: "open" });
+                    const use = createSVGElement("use");
+                    use.setAttribute("href", "#moveInSource");
+                    shadowSvg.appendChild(use);
 
-                    host.shadowRoot.appendChild(use);
                     svg.moveBefore(use, null);
-                    source.setAttribute("fill", "green");
+                    svg.appendChild(createReferencedRect("moveInSource"));
 
-                    println(`Use moved into document tree updated fill: ${internals.getShadowRoot(use).firstElementChild.getAttribute("fill")}`);
+                    println(`Use moved into document tree, width once its target exists: ${use.getBBox().width}`);
                 }
 
                 done();

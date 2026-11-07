@@ -8,6 +8,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/HeapHashTable.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -231,15 +232,32 @@ bool SVGUseElement::is_referenced_element_same_document() const
 
 void SVGUseElement::svg_element_changed(SVGElement& svg_element)
 {
+    if (m_reclone_pending)
+        return;
+
     auto to_clone = referenced_element();
     if (!to_clone) {
         return;
     }
 
     // NOTE: We need to check the ancestor because attribute_changed of a child doesn't call children_changed on the parent(s)
-    if (to_clone == GC::Ref { svg_element } || to_clone->is_ancestor_of(svg_element)) {
-        clone_element_tree_as_our_shadow_tree(to_clone);
-    }
+    if (to_clone == GC::Ref { svg_element } || to_clone->is_ancestor_of(svg_element))
+        request_reclone();
+}
+
+void SVGUseElement::request_reclone()
+{
+    m_reclone_pending = true;
+    if (!is_connected())
+        return;
+    document().style_computer().style_engine().note_element_awaiting_preparation_for_style_computation(*this);
+    set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::SVGUseElementShadowTreeRebuild);
+}
+
+void SVGUseElement::prepare_for_style_computation()
+{
+    if (m_reclone_pending)
+        clone_element_tree_as_our_shadow_tree(referenced_element());
 }
 
 void SVGUseElement::svg_element_changed_before_parsing_complete(SVGElement& svg_element)
@@ -357,6 +375,7 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
 // https://svgwg.org/svg2-draft/struct.html#UseShadowTree
 void SVGUseElement::clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_clone)
 {
+    m_reclone_pending = false;
     shadow_root()->remove_all_children();
 
     // https://svgwg.org/svg2-draft/struct.html#UseStyleInheritance
