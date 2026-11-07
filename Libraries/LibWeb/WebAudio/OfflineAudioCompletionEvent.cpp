@@ -1,33 +1,23 @@
 /*
  * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/RustEventTarget.h>
 #include <LibWeb/WebAudio/OfflineAudioCompletionEvent.h>
 
 namespace Web::WebAudio {
 
-GC_DEFINE_ALLOCATOR(OfflineAudioCompletionEvent);
+extern "C" DOM::Event* web_rust_offline_audio_completion_event_create(JSVM*, void* event, void* buffer);
 
-GC::Ref<OfflineAudioCompletionEvent> OfflineAudioCompletionEvent::create(Utf16FlyString const& event_name, OfflineAudioCompletionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<DOM::Event> OfflineAudioCompletionEvent::create(Utf16FlyString const& event_name, OfflineAudioCompletionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return GC::Heap::the().allocate<OfflineAudioCompletionEvent>(event_name, event_init, time_stamp);
-}
-
-OfflineAudioCompletionEvent::OfflineAudioCompletionEvent(Utf16FlyString const& event_name, OfflineAudioCompletionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : DOM::Event(event_name, event_init, time_stamp)
-    , m_rendered_buffer(event_init.rendered_buffer)
-{
-}
-
-OfflineAudioCompletionEvent::~OfflineAudioCompletionEvent() = default;
-
-void OfflineAudioCompletionEvent::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_rendered_buffer);
+    auto event = Bindings::RustEvent::create(event_name, event_init, time_stamp);
+    return *web_rust_offline_audio_completion_event_create(JS::HostABI::vm_to_abi(JS::VM::the()), event.ptr(), event_init.rendered_buffer.ptr());
 }
 
 }

@@ -1,5 +1,5 @@
 // https://webaudio.github.io/web-audio-api/#OfflineAudioCompletionEvent
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface OfflineAudioCompletionEvent : Event {
     constructor(DOMString type, OfflineAudioCompletionEventInit eventInitDict);
     readonly attribute AudioBuffer renderedBuffer;
