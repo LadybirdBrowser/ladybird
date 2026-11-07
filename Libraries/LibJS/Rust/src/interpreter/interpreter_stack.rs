@@ -13,6 +13,10 @@ use crate::layout::execution_context::ExecutionContext;
 use crate::layout::value::Value;
 use crate::layout::vm::InterpreterStack;
 
+/// More arguments than any call can pass: a frame holding them wouldn't fit in the interpreter stack, which each argument
+/// takes a value's room in.
+pub const MAXIMUM_ARGUMENT_COUNT: u64 = (InterpreterStackMemory::SIZE / size_of::<Value>()) as u64;
+
 /// The memory execution contexts are bump-allocated from, by the runtime and by the interpreter itself.
 pub struct InterpreterStackMemory {
     memory: NonNull<u8>,

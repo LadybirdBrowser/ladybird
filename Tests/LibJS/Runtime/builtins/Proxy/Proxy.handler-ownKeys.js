@@ -3,6 +3,24 @@
 describe("[[OwnPropertyKeys]] invariants", () => {
     // TODO: Add tests for other [[OwnPropertyKeys]] trap invariants
 
+    test("result list of a huge length fails on its first element", () => {
+        const proxy = new Proxy(
+            {},
+            {
+                ownKeys() {
+                    return { length: Infinity };
+                },
+            }
+        );
+
+        expect(() => {
+            Reflect.ownKeys(proxy);
+        }).toThrowWithMessage(
+            TypeError,
+            "Proxy handler's ownKeys trap violates invariant: the type of each result list element is either String or Symbol"
+        );
+    });
+
     test("cannot report new property of non-extensible object", () => {
         const target = Object.preventExtensions({});
         const handler = {

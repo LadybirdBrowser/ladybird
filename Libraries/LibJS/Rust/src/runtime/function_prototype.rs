@@ -45,7 +45,7 @@ use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
-use crate::runtime::abstract_operations::{call_function_object, length_of_array_like};
+use crate::runtime::abstract_operations::{call_function_object, length_of_array_like, throw_if_too_many_arguments};
 use crate::runtime::bound_function::{
     BOUND_FUNCTION_LENGTH_OFFSET, BOUND_FUNCTION_NAME_OFFSET, BoundFunction, LengthAndNameSlots,
 };
@@ -247,6 +247,7 @@ impl FunctionPrototype {
 
         // 4. Let argList be ? CreateListFromArrayLike(argArray).
         let length = length_of_array_like(vm, &arg_array_object)?;
+        throw_if_too_many_arguments(vm, length)?;
         record_forwarded_call_from_native(
             vm,
             function_value.as_cell(),

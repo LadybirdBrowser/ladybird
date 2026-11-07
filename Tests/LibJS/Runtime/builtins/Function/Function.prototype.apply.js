@@ -116,6 +116,20 @@ describe("errors", () => {
             Function.prototype.apply.call(null);
         }).toThrowWithMessage(TypeError, "null is not a function");
     });
+
+    test("an array-like longer than any call can take throws before its elements are read", () => {
+        [Infinity, 1e15, 2 ** 53 - 1, 2 ** 28].forEach(length => {
+            const arrayLike = {
+                length,
+                get 0() {
+                    throw new Error("element read");
+                },
+            };
+            expect(() => {
+                (function () {}).apply(null, arrayLike);
+            }).toThrowWithMessage(InternalError, "Call stack size limit exceeded");
+        });
+    });
 });
 
 test("array-likes whose elements are read through internal methods", () => {
