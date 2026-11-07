@@ -3,6 +3,7 @@
 # Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
 # Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
 # Copyright (c) 2025, Nicolas Danelon <nicolasdanelon@gmail.com>
+# Copyright (c) 2026, Ali Mohammad Pur <ali@ladybird.org>
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -23,6 +24,7 @@ from Utils.host_platform import HostArchitecture
 from Utils.host_platform import HostSystem
 from Utils.host_platform import Platform
 from Utils.utils import run_command
+from Utils.vcpkg_deps import build_dependencies
 
 LADYBIRD_SOURCE_DIR = Path(__file__).resolve().parent.parent
 
@@ -107,6 +109,14 @@ def main():
         "vcpkg", help="Ensure that dependencies are available", parents=[preset_parser]
     )
     vcpkg_parser.add_argument("--jobs", "-j", required=False)
+
+    deps_parser = subparsers.add_parser(
+        "deps", help="Builds the third-party dependencies", parents=[preset_parser, compiler_parser]
+    )
+    deps_parser.add_argument("--fetch", action="store_true", help="Only download dependency sources")
+    deps_parser.add_argument(
+        "--rebuild", action="store_true", help="Rebuild all dependencies through the graph, ignoring prior state"
+    )
 
     subparsers.add_parser("clean", help="Cleans the build environment", parents=[preset_parser])
 
@@ -193,6 +203,13 @@ def main():
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs)
         build_main(build_dir, args.jobs, args.target, args.args)
         build_main(build_dir, args.jobs, "install", args.args)
+    elif args.command == "deps":
+        build_preset_dir, vcpkg_preset_dir = configure_build_env(platform, args.preset, args.jobs)
+        build_vcpkg(vcpkg_preset_dir)
+        (cc, cxx) = pick_host_compiler(platform, args.cc, args.cxx)
+        build_dependencies(
+            platform, args.preset, build_preset_dir, cc, cxx, args.jobs, fetch_only=args.fetch, rebuild=args.rebuild
+        )
     elif args.command == "clean":
         clean_main(platform, args.preset)
     elif args.command == "rebuild":
@@ -209,12 +226,21 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str, jobs: Opt
     build_preset_dir, vcpkg_preset_dir = configure_build_env(platform, preset, jobs)
     build_vcpkg(vcpkg_preset_dir)
 
+    # On Windows the dependencies are still built by vcpkg's toolchain file at configure time.
+    staged_deps = platform.host_system != HostSystem.Windows
+    vcpkg_triplet = None
+
+    if staged_deps:
+        (cc, cxx) = pick_host_compiler(platform, cc, cxx)
+        vcpkg_triplet = build_dependencies(platform, preset, build_preset_dir, cc, cxx, jobs)
+
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
         return build_preset_dir
 
     validate_cmake_version()
 
-    (cc, cxx) = pick_host_compiler(platform, cc, cxx)
+    if not staged_deps:
+        (cc, cxx) = pick_host_compiler(platform, cc, cxx)
 
     config_args = [
         "cmake",
@@ -227,6 +253,15 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str, jobs: Opt
         f"-DCMAKE_C_COMPILER={cc}",
         f"-DCMAKE_CXX_COMPILER={cxx}",
     ]
+
+    if staged_deps:
+        config_args.extend(
+            [
+                "-DVCPKG_MANIFEST_INSTALL=OFF",
+                f"-DVCPKG_TARGET_TRIPLET={vcpkg_triplet}",
+                f"-DVCPKG_HOST_TRIPLET={vcpkg_triplet}",
+            ]
+        )
 
     if platform.host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
         config_args.extend(configure_skia_jemalloc())
