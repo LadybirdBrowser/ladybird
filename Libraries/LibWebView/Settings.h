@@ -88,6 +88,9 @@ struct TabSettings {
     bool vertical_tabs_expanded { true };
     bool vertical_tabs_expand_on_hover { false };
     VerticalTabsPosition vertical_tabs_position { VerticalTabsPosition::Left };
+    // With vertical tabs, the open sidebar also holds the navigation buttons, the address field and the toolbar's other
+    // buttons, and there is no toolbar row. The sidebar is then always on the left.
+    bool everything_in_sidebar { false };
     Optional<u16> vertical_tabs_expanded_width;
 };
 

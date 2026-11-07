@@ -393,10 +393,11 @@ input[type="checkbox"][switch]:checked::before {
 }
 
 /* A choice of where tabs go, each option a card with a small picture of the window, outlined in the choice blue and
-   lightly filled when chosen. */
+   lightly filled when chosen. The cards share the row equally, however many there are. */
 .tab-options {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 8px;
 }
 
@@ -504,6 +505,14 @@ input[type="checkbox"][switch]:checked::before {
 
 .preview-sidebar i.active {
     background: var(--preview-tab-current);
+}
+
+/* With everything in the sidebar, the address field heads the sidebar's tabs. */
+.preview-sidebar b {
+    height: 5px;
+    margin-bottom: 3px;
+    border-radius: 2px;
+    background: var(--page);
 }
 
 .preview-main {

@@ -17,7 +17,16 @@ const loadFeatures = features => {
 const updateVerticalTabsDependentSettings = () => {
     const verticalTabsEnabled = !!TAB_SETTINGS.verticalTabsEnabled && !tabLayoutGroup.classList.contains("hidden");
     verticalTabsExpandOnHover.parentElement.classList.toggle("hidden", !verticalTabsEnabled);
-    verticalTabsPosition.parentElement.classList.toggle("hidden", !verticalTabsEnabled);
+    // With everything in the sidebar, the sidebar is always on the left.
+    verticalTabsPosition.parentElement.classList.toggle(
+        "hidden",
+        !verticalTabsEnabled || !!TAB_SETTINGS.everythingInSidebar
+    );
+};
+
+const tabLayout = () => {
+    if (!TAB_SETTINGS.verticalTabsEnabled) return "horizontal";
+    return TAB_SETTINGS.everythingInSidebar ? "sidebar" : "vertical";
 };
 
 const loadSettings = settings => {
@@ -27,7 +36,7 @@ const loadSettings = settings => {
 
     TAB_SETTINGS = settings.tabs || {};
 
-    const layout = TAB_SETTINGS.verticalTabsEnabled ? "vertical" : "horizontal";
+    const layout = tabLayout();
     for (const input of tabLayoutInputs) input.checked = input.value === layout;
     verticalTabsExpandOnHover.checked = !!TAB_SETTINGS.verticalTabsExpandOnHover;
     verticalTabsPosition.value = TAB_SETTINGS.verticalTabsPosition || "left";
@@ -41,7 +50,8 @@ function saveTabSettings() {
 for (const input of tabLayoutInputs) {
     input.addEventListener("change", () => {
         if (!input.checked) return;
-        TAB_SETTINGS.verticalTabsEnabled = input.value === "vertical";
+        TAB_SETTINGS.verticalTabsEnabled = input.value !== "horizontal";
+        TAB_SETTINGS.everythingInSidebar = input.value === "sidebar";
         updateVerticalTabsDependentSettings();
         saveTabSettings();
     });
