@@ -248,6 +248,38 @@ void ConnectionFromUI::bookmark_context_menu_item_changed(Optional<String> item_
     Application::the().set_bookmark_context_menu_item(move(item_id), move(target_folder_id), move(parent_folder_id));
 }
 
+void ConnectionFromUI::omnibox_open(u64 client_id, WebView::IsPrivate is_private)
+{
+    auto autocomplete = make<WebView::Autocomplete>(is_private);
+    autocomplete->on_autocomplete_query_complete = [this, client_id](auto query_id, auto suggestions, auto) {
+        async_omnibox_suggestions(client_id, query_id, move(suggestions));
+    };
+    m_omnibox_clients.set(client_id, move(autocomplete));
+}
+
+void ConnectionFromUI::omnibox_close(u64 client_id)
+{
+    m_omnibox_clients.remove(client_id);
+}
+
+void ConnectionFromUI::omnibox_query(u64 client_id, u64 query_id, String query, u64 max_suggestions)
+{
+    if (auto* autocomplete = m_omnibox_clients.get(client_id).value_or(nullptr))
+        autocomplete->query_autocomplete_engine(query_id, move(query), max_suggestions);
+}
+
+void ConnectionFromUI::omnibox_cancel(u64 client_id)
+{
+    if (auto* autocomplete = m_omnibox_clients.get(client_id).value_or(nullptr))
+        autocomplete->cancel_pending_query();
+}
+
+void ConnectionFromUI::omnibox_record_engagement(u64 client_id, WebView::OmniboxEngagement engagement)
+{
+    if (auto* autocomplete = m_omnibox_clients.get(client_id).value_or(nullptr))
+        autocomplete->record_engagement(move(engagement));
+}
+
 void ConnectionFromUI::update_settings(ByteString settings_json)
 {
     auto settings = JsonValue::from_string(settings_json);

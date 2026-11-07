@@ -10,6 +10,7 @@
 #include <Hub/HubServerEndpoint.h>
 #include <Hub/View.h>
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibWebView/Autocomplete.h>
 #include <LibWebView/FileDownloader.h>
 
 namespace Hub {
@@ -37,12 +38,20 @@ private:
 
     static View* find_view(u64 view_id);
 
+    // The location bars of the UI each have one of these, which needs the network and the history.
+    HashMap<u64, NonnullOwnPtr<WebView::Autocomplete>> m_omnibox_clients;
+
     // ^WebView::FileDownloaderObserver
     virtual void download_added(WebView::FileDownloader::Download const&) override;
     virtual void download_updated(WebView::FileDownloader::Download const&) override;
     virtual void download_removed(u64 id, WebView::IsPrivate) override;
 
     // ^HubServerEndpoint
+    virtual void omnibox_open(u64 client_id, WebView::IsPrivate is_private) override;
+    virtual void omnibox_close(u64 client_id) override;
+    virtual void omnibox_query(u64 client_id, u64 query_id, String query, u64 max_suggestions) override;
+    virtual void omnibox_cancel(u64 client_id) override;
+    virtual void omnibox_record_engagement(u64 client_id, WebView::OmniboxEngagement engagement) override;
     virtual void update_bookmarks(ByteString bookmarks_json) override;
     virtual void answer_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark> bookmarks) override;
     virtual void answer_bookmark_dialog(u64 request_id, Optional<Hub::BookmarkDialogResult> result) override;

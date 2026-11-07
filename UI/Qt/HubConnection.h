@@ -29,6 +29,7 @@ private:
     virtual void die() override;
 
     // ^HubClientEndpoint
+    virtual void omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions) override;
     virtual void bookmarks_changed(ByteString bookmarks_json) override;
     virtual void app_read_bookmarks_for_all_tabs(u64 request_id) override;
     virtual void app_show_bookmark_popover() override;

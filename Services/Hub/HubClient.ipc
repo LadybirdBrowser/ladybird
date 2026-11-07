@@ -12,6 +12,7 @@
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebView/AccessibilityTreeManager.h>
+#include <LibWebView/Autocomplete.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Menu.h>
@@ -188,6 +189,25 @@ struct Hub::BookmarkDialogResult {
     Optional<String> target_folder_id;
 }
 
+[ExistingCpp]
+struct WebView::AutocompleteSuggestion {
+    WebView::AutocompleteSuggestionSource source;
+    String text;
+    Optional<String> title;
+    Optional<String> subtitle;
+    Optional<ByteBuffer> favicon_png;
+    String highlight_input;
+    WebView::AutocompleteMatchClass match_class;
+    i32 relevance;
+    i32 match_relevance;
+    i32 history_relevance;
+    i32 bookmark_relevance;
+    i32 adaptive_relevance;
+    bool is_verbatim;
+    bool can_be_automatically_selected;
+    bool can_be_inline_completed;
+}
+
 // What the UI needs to know about a view at any time, without having to ask.
 struct Hub::ViewState {
     URL::URL url;
@@ -219,6 +239,7 @@ struct Hub::ViewState {
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions) =|
     bookmarks_changed(ByteString bookmarks_json) =|
     app_read_bookmarks_for_all_tabs(u64 request_id) =|
     app_show_bookmark_popover() =|

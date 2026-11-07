@@ -98,6 +98,8 @@ WEBVIEW_API bool autocomplete_url_can_complete(StringView query, StringView sugg
 class WEBVIEW_API Autocomplete : public Weakable<Autocomplete>
     , public SettingsObserver {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit Autocomplete(IsPrivate);
     virtual ~Autocomplete() override;
 
