@@ -3218,7 +3218,13 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     m_all_tabs_button->setIconSize(QSize(16, 16));
     m_all_tabs_button->setFocusPolicy(Qt::NoFocus);
     m_all_tabs_button->setToolTip(qformatted("All Tabs  {}", Application::the().search_tabs_action()->shortcut().toString(QKeySequence::NativeText)));
-    QObject::connect(m_all_tabs_button, &QToolButton::clicked, this, [this] { show_all_tabs(); });
+    // The button stays pressed while the list is open.
+    m_all_tabs_button->setCheckable(true);
+    QObject::connect(m_all_tabs_button, &QToolButton::clicked, this, [this] {
+        // NB: The button only stays checked while the list is open, which showing it sees to.
+        m_all_tabs_button->setChecked(m_all_tabs_popover && m_all_tabs_popover->isVisible());
+        show_all_tabs();
+    });
 
     // NB: The Ladybird button and the all-tabs button move together, between the strip, the open sidebar's top row and
     //     the toolbar beside the collapsed sidebar, so they keep their distance wherever they are.
@@ -4251,6 +4257,9 @@ void TabWidget::show_all_tabs()
     if (!m_all_tabs_popover) {
         m_all_tabs_popover = new AllTabsPopover(this);
         m_all_tabs_popover->update_chrome_style(palette());
+        m_all_tabs_popover->on_visibility_change = [this](bool visible) {
+            m_all_tabs_button->setChecked(visible);
+        };
         m_all_tabs_popover->on_tab_activated = [this](size_t index) {
             if (static_cast<int>(index) < count())
                 set_current_index(static_cast<int>(index));
