@@ -450,6 +450,7 @@ private:
     QWidget* m_vertical_tabs_reserved_space { nullptr };
     QWidget* m_vertical_tab_bar_column { nullptr };
     QWidget* m_vertical_tabs_content_separator { nullptr };
+    QWidget* m_collapsed_sidebar_top_edge { nullptr };
     QWidget* m_vertical_tabs_resize_handle { nullptr };
     QWidget* m_vertical_tabs_content { nullptr };
     QTimer* m_vertical_tabs_hover_expand_timer { nullptr };
