@@ -65,6 +65,7 @@ impl AudioBus {
             .any(|channel| channel.iter().any(|&sample| sample != 0.))
     }
 
+    // Preserve active channels' samples and zero newly added channels.
     pub fn set_channel_count(&mut self, channel_count: usize) {
         if self.channels.len() == channel_count {
             return;

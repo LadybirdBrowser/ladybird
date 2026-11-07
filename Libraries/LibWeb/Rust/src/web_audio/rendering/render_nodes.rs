@@ -596,8 +596,7 @@ impl AudioBufferSourceRenderNode {
                     self.playhead_valid = true;
                 }
 
-                // NB: Compare using a half-frame tolerance since m_played_time accumulates one frame's worth of content at
-                //     a time and would otherwise overshoot the duration by up to one frame due to floating-point rounding.
+                // NB: A half-frame tolerance prevents rounding error in played_time from extending playback by one frame.
                 let frame_consumption = computed_playback_rate.abs() / context.sample_rate;
                 if self
                     .duration
@@ -1257,8 +1256,7 @@ impl std::ops::Mul<f64> for DoubleVector3 {
     }
 }
 
-// Gfx::DoubleVector3::normalize() divides by the length unconditionally, which would produce NaN components for a zero
-// vector; the spatialization math needs a zero vector to normalize back to a zero vector instead.
+// Spatialization requires normalizing a zero vector to a zero vector.
 fn safe_normalized(vector: DoubleVector3) -> DoubleVector3 {
     if vector.length() == 0. {
         return DoubleVector3::default();

@@ -20,7 +20,7 @@ use crate::bindings::event_target::{CppEventTarget, GetTheParent};
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 
-// https://webaudio.github.io/web-audio-api/#ChannelMergerNode
+// https://webaudio.github.io/web-audio-api/#ConstantSourceNode
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct ConstantSourceNode {

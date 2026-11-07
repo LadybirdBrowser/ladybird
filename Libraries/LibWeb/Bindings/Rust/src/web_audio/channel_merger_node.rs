@@ -93,7 +93,7 @@ impl ChannelMergerNode {
         node.node.event_target().set_owner(node);
 
         // Default options for channel count and interpretation
-        // https://webaudio.github.io/web-audio-api/#BiquadFilterNode
+        // https://webaudio.github.io/web-audio-api/#ChannelMergerNode
         let default_options = AudioNodeDefaultOptions {
             channel_count: 1,
             channel_count_mode: ChannelCountMode::Explicit,
