@@ -144,9 +144,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             dbgln("Failed to connect to resource loader: {}", result.error());
     };
     // Many workers never decode an image, so the Browser connects this one to a decoder when it first has one to decode.
-    Web::Platform::ImageCodecPlugin::install(*new Web::Platform::RemoteImageCodecPlugin([client] -> ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> {
-        return try_make_ref_counted<ImageDecoderClient::Client>(TRY(client->request_image_decoder_transport()));
-    }));
+    Web::Platform::ImageCodecPlugin::install(*new Web::Platform::RemoteImageCodecPlugin(
+        [client] -> ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> {
+            return try_make_ref_counted<ImageDecoderClient::Client>(TRY(client->request_image_decoder_transport()));
+        },
+        [client] { client->async_did_release_image_decoder(); }));
 
     MediaClient::Client::set_transport_factory([client] {
         return client->request_media_server_transport();

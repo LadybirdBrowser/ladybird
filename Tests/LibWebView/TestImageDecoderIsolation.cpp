@@ -5,6 +5,7 @@
  */
 
 #include "HeadlessTest.h"
+#include <AK/Base64.h>
 #include <AK/HashTable.h>
 #include <AK/LexicalPath.h>
 #include <AK/Utf16String.h>
@@ -13,6 +14,7 @@
 #include <LibCore/System.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibImageDecoderClient/Client.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
@@ -303,4 +305,47 @@ TEST_CASE(image_decoder_sharing_rules)
     Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
 
     outln("PASS: image decoders are shared within a site and nowhere else, and end with the last process they serve");
+}
+
+// A process lets go of its decoder once it has nothing left to decode, and the decoder ends once no process uses it.
+TEST_CASE(image_decoders_end_once_released)
+{
+    Test::HeadlessTestEnvironment environment { "TestImageDecodersEndOnceReleased"sv };
+
+    auto app = TRY_OR_FAIL(environment.create_application<TestApplication>());
+
+    auto& manager = WebView::ImageDecoderManager::the();
+    RefPtr<WebView::BrowsingSession> session = WebView::Application::session_for_new_view(WebView::IsPrivate::No);
+    auto site = "https://c.example"_utf16;
+    auto decoder_count = [] { return processes_of_type(WebView::ProcessType::ImageDecoder).size(); };
+
+    // The decoder of a site stays for as long as one of its processes uses it.
+    Optional<IPC::TransportHandle> first = MUST(manager.connect_new_client(2'000'001, session, site));
+    Optional<IPC::TransportHandle> second = MUST(manager.connect_new_client(2'000'002, session, site));
+    VERIFY(decoder_count() == 1);
+    first.clear();
+    manager.process_did_release_decoder(2'000'001);
+    VERIFY(decoder_count() == 1);
+    second.clear();
+    manager.process_did_release_decoder(2'000'002);
+    Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
+
+    // A process that has let go of its decoder gets a new one when it next asks.
+    auto handle = MUST(manager.connect_new_client(2'000'003, session, {}));
+    VERIFY(decoder_count() == 1);
+
+    // The frame client of an animation only serves the client that connected it, so it does not keep the decoder.
+    auto client = make_ref_counted<ImageDecoderClient::Client>(MUST(handle.create_transport()));
+    auto frame_channel = MUST(IPC::TransportHandle::create_pair());
+    client->async_connect_frame_client(frame_channel.first);
+    auto frame_client = make_ref_counted<ImageDecoderClient::Client>(MUST(frame_channel.second.create_transport()));
+    // NB: The decoder handles a client's messages in order, so the frame client is connected once this returns.
+    auto image = MUST(decode_base64("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"sv));
+    MUST(client->decode_first_frame_synchronously(image));
+    client->shutdown();
+    manager.process_did_release_decoder(2'000'003);
+    Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
+    frame_client->shutdown();
+
+    outln("PASS: image decoders end once the processes they serve let go of them");
 }

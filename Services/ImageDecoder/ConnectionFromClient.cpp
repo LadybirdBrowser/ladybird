@@ -24,10 +24,11 @@ static IDAllocator s_client_ids;
 
 static i64 s_next_session_id { 1 };
 static auto s_is_held_open_by_browser = ConnectionFromClient::IsHeldOpenByBrowser::No;
+static size_t s_client_count { 0 };
 
 static void exit_if_no_longer_needed()
 {
-    if (s_connections.is_empty() && s_is_held_open_by_browser == ConnectionFromClient::IsHeldOpenByBrowser::No)
+    if (s_client_count == 0 && s_is_held_open_by_browser == ConnectionFromClient::IsHeldOpenByBrowser::No)
         Core::Process::terminate_immediately(0);
 }
 
@@ -39,10 +40,13 @@ void ConnectionFromClient::set_is_held_open_by_browser(IsHeldOpenByBrowser is_he
 
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, RefPtr<ClientGroup> group)
     : IPC::ConnectionFromClient<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(transport), s_client_ids.allocate())
+    , m_is_frame_client(group ? IsFrameClient::Yes : IsFrameClient::No)
     , m_group(group ? group.release_nonnull() : make_ref_counted<ClientGroup>())
 {
     s_connections.set(client_id(), *this);
     m_group->clients.set(this);
+    if (m_is_frame_client == IsFrameClient::No)
+        ++s_client_count;
 }
 
 void ConnectionFromClient::die()
@@ -63,6 +67,8 @@ void ConnectionFromClient::die()
     s_connections.remove(client_id);
     s_client_ids.deallocate(client_id);
 
+    if (m_is_frame_client == IsFrameClient::No)
+        --s_client_count;
     exit_if_no_longer_needed();
 }
 

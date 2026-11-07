@@ -20,8 +20,11 @@ public:
 
     // Called for a client whenever one is needed and there is none, at first and after losing one.
     using ConnectToImageDecoder = Function<ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>>()>;
+    // Called after a client that had nothing left to do was let go of, so that its decoder can end. Without it, a client
+    // is kept for as long as its decoder is around.
+    using ReleaseImageDecoder = Function<void()>;
 
-    explicit RemoteImageCodecPlugin(ConnectToImageDecoder);
+    explicit RemoteImageCodecPlugin(ConnectToImageDecoder, ReleaseImageDecoder = {});
     virtual ~RemoteImageCodecPlugin() override;
 
     virtual NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected) override;
@@ -37,8 +40,12 @@ public:
 
 private:
     ImageDecoderClient::Client* ensure_client();
+    void client_may_have_become_idle();
+    void release_idle_client();
 
     ConnectToImageDecoder m_connect_to_image_decoder;
+    ReleaseImageDecoder m_release_image_decoder;
+    NonnullRefPtr<Core::Timer> m_idle_timer;
     RefPtr<ImageDecoderClient::Client> m_client;
     u64 m_client_generation { 0 };
 };

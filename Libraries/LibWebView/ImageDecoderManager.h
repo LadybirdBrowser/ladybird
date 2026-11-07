@@ -19,7 +19,8 @@
 
 namespace WebView {
 
-// Launches ImageDecoders as processes first ask for them, and ends each once the last process it serves is gone.
+// Launches ImageDecoders as processes first ask for them, and ends each once each process it serves is gone or has let go
+// of it.
 //
 // A decoder sees the images of every process it serves, so a malicious image that takes one over gets at those images. The
 // processes of a site may share a decoder, because under site isolation they hold nothing of any other site's that they
@@ -47,6 +48,9 @@ public:
 
     // Returns whether the process was served by the decoder of a site, and so has to disconnect from it.
     bool remove_client_from_decoder_of_site(u64 client_child_id);
+
+    // Lets go of the decoder of a process that has disconnected from it, which ends once no other process uses it.
+    void process_did_release_decoder(u64 client_child_id);
 
     void process_did_exit(u64 child_id);
 

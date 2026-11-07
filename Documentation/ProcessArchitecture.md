@@ -76,7 +76,7 @@ This process decodes images (PNG, JPEG, BMP, ICO, PBM, etc.) into bitmaps. It is
 
 A decoder sees the images of every process it serves, so a malicious image that takes one over gets at those images. With site isolation, the processes of a site share an **ImageDecoder**, because they hold nothing of any other site's that they could not fetch for themselves. The site is that of the documents a process hosts, not their top-level site, so a frame never shares a decoder with the site embedding it, unless it has an opaque origin, which keeps it in the process of the document that made it. Private browsing is kept apart. Any other process, such as one with no site, gets a decoder of its own, and a process that comes to host a second site leaves the decoder of the first.
 
-**Browser** launches a decoder when a process first has an image to decode, and ends it once the last process it serves is gone. A process that loses its decoder to a crash asks for a new one when it next has an image to decode.
+**Browser** launches a decoder when a process first has an image to decode, and ends it once each process it serves is gone or has let go of it. A process lets go of its decoder once it has gone 30 seconds with nothing to decode and no animation playing. Like a process that loses its decoder to a crash, it asks for a new one when it next has an image to decode.
 
 ### Processes: MediaServer, AudioServer and VideoDecoderServer
 

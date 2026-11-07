@@ -1175,6 +1175,11 @@ Messages::WebContentClient::RequestImageDecoderConnectionResponse WebContentClie
     return ImageDecoderManager::the().connect_requesting_process(child_id(), m_session, m_site_of_hosted_documents);
 }
 
+void WebContentClient::did_release_image_decoder()
+{
+    ImageDecoderManager::the().process_did_release_decoder(child_id());
+}
+
 Optional<u64> WebContentClient::exclusive_performance_owner() const
 {
     Optional<u64> owner;

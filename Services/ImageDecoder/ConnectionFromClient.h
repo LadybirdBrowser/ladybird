@@ -32,7 +32,7 @@ public:
 
     virtual void die() override;
 
-    // The decoder exits once the Browser has let go of it and its last client is gone.
+    // The decoder exits once the Browser has let go of it and the last of the clients the Browser connected is gone.
     enum class IsHeldOpenByBrowser : u8 {
         No,
         Yes,
@@ -89,6 +89,13 @@ private:
 
     NonnullRefPtr<PendingJob> start_decode_image_job(i64 request_id, Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type);
     NonnullRefPtr<PendingJob> start_frame_decode_job(i64 session_id, NonnullRefPtr<AnimationSession>, u32 start_frame_index, u32 end_index);
+
+    // A frame client only plays the animations of the client that connected it, so it does not keep the decoder running.
+    enum class IsFrameClient : u8 {
+        No,
+        Yes,
+    };
+    IsFrameClient m_is_frame_client { IsFrameClient::No };
 
     NonnullRefPtr<ClientGroup> m_group;
     HashMap<i64, NonnullRefPtr<PendingJob>> m_pending_jobs;

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
 #include <ImageDecoder/ImageDecoderServerEndpoint.h>
 #include <LibCore/EventLoop.h>
@@ -52,6 +53,9 @@ public:
     void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count);
     void stop_animation_decode(i64 session_id);
 
+    // Whether nothing depends on this connection: no decode waits on it, and no animation it opened is still playing.
+    bool is_idle() const { return m_token_promises.is_empty() && m_animation_sessions.is_empty(); }
+
     Function<void()> on_death;
     Function<void(i64 session_id, Vector<NonnullRefPtr<Gfx::Bitmap>>)> on_animation_frames_decoded;
     Function<void(i64 session_id, String error_message)> on_animation_decode_failed;
@@ -69,6 +73,7 @@ private:
     Core::EventLoop* m_creation_event_loop { &Core::EventLoop::current() };
     i64 m_next_request_id { 0 };
     HashMap<i64, NonnullRefPtr<Core::Promise<DecodedImage>>> m_token_promises;
+    HashTable<i64> m_animation_sessions;
 };
 
 }
