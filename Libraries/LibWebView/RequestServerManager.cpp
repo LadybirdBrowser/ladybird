@@ -21,7 +21,7 @@
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 #include <LibWebView/WebContentClient.h>
-#include <LibWebView/WorkerProcessManager.h>
+#include <LibWebView/WorkerAgentManager.h>
 
 namespace WebView {
 
@@ -234,7 +234,7 @@ void RequestServerManager::did_lose_process(RequestServerInstance& instance)
         return IterationDecision::Continue;
     };
     WebContentClient::for_each_client([&](WebContentClient& client) { return reconnect(client.request_server_site_bindings()); });
-    WorkerProcessManager::the().for_each_request_server_site_bindings([&](RequestServerSiteBindings& bindings) { return reconnect(bindings); });
+    WorkerAgentManager::the().for_each_request_server_site_bindings([&](RequestServerSiteBindings& bindings) { return reconnect(bindings); });
 }
 
 void RequestServerManager::retire(RequestServerInstance& instance)

@@ -21,7 +21,7 @@
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
 #include <LibWebView/WebWorkerClient.h>
-#include <LibWebView/WorkerProcessManager.h>
+#include <LibWebView/WorkerAgentManager.h>
 
 namespace WebView {
 
@@ -29,13 +29,13 @@ namespace WebView {
 // less than a process, but still has a heap, JIT threads and connections to itself, and one page can start them all.
 static constexpr size_t maximum_worker_count_per_top_level_site = 64;
 
-WorkerProcessManager& WorkerProcessManager::the()
+WorkerAgentManager& WorkerAgentManager::the()
 {
-    static auto& manager = *new WorkerProcessManager;
+    static auto& manager = *new WorkerAgentManager;
     return manager;
 }
 
-WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agent(WebContentClient& owner, Web::PageId page_id, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request)
+WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(WebContentClient& owner, Web::PageId page_id, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request)
 {
     auto abstract_owner = Owner {
         .client = WebContentOwner {
@@ -47,7 +47,7 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
     return start_worker_agent(move(abstract_owner), outside_settings, move(request), owner.is_private());
 }
 
-WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agent(WebWorkerClient& owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request)
+WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(WebWorkerClient& owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request)
 {
     auto abstract_owner = Owner {
         .client = WebWorkerOwner {
@@ -58,7 +58,7 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
     return start_worker_agent(move(abstract_owner), outside_settings, move(request), owner.is_private());
 }
 
-Optional<CanonicalWorkerEnvironmentSettingsObject const&> WorkerProcessManager::inside_settings(Web::HTML::WorkerAgentId agent_id) const
+Optional<CanonicalWorkerEnvironmentSettingsObject const&> WorkerAgentManager::inside_settings(Web::HTML::WorkerAgentId agent_id) const
 {
     auto agent = m_agents.find(agent_id);
     if (agent == m_agents.end())
@@ -67,7 +67,7 @@ Optional<CanonicalWorkerEnvironmentSettingsObject const&> WorkerProcessManager::
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
-WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agent(Owner owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request, IsPrivate is_private)
+WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Owner owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request, IsPrivate is_private)
 {
     // The owner names outside settings, which must be an environment it holds.
     // FIXME: The worker takes the rest of the outside settings, such as their top-level origin, policy container and
@@ -357,7 +357,7 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
 
 // Sites decide what runs together in a process, as for the documents of CanonicalNavigable::process_to_host(). The worker's
 // origin is that of the document starting it, so the process of that document already holds the worker's site.
-bool WorkerProcessManager::owner_process_may_host_shared_worker(WebContentOwner const& owner, CanonicalEnvironmentSettingsObject const& outside_settings)
+bool WorkerAgentManager::owner_process_may_host_shared_worker(WebContentOwner const& owner, CanonicalEnvironmentSettingsObject const& outside_settings)
 {
     if (!owner.client || owner.client->has_requested_close())
         return false;
@@ -378,14 +378,14 @@ bool WorkerProcessManager::owner_process_may_host_shared_worker(WebContentOwner 
     return true;
 }
 
-bool WorkerProcessManager::hosts_shared_worker(WebContentClient const& process) const
+bool WorkerAgentManager::hosts_shared_worker(WebContentClient const& process) const
 {
     return any_of(m_agents, [&](auto const& entry) {
         return entry.value.agent_type == Web::HTML::AgentType::SharedWorker && entry.value.client->host() == &process;
     });
 }
 
-void WorkerProcessManager::update_permission_snapshot(PermissionManager const& manager)
+void WorkerAgentManager::update_permission_snapshot(PermissionManager const& manager)
 {
     for (auto const& agent : m_agents) {
         auto session = agent.value.client->session();
@@ -394,7 +394,7 @@ void WorkerProcessManager::update_permission_snapshot(PermissionManager const& m
     }
 }
 
-Optional<URL::Origin> WorkerProcessManager::top_level_origin(Web::HTML::WorkerAgentId agent_id) const
+Optional<URL::Origin> WorkerAgentManager::top_level_origin(Web::HTML::WorkerAgentId agent_id) const
 {
     auto agent = m_agents.find(agent_id);
     if (agent == m_agents.end())
@@ -402,31 +402,31 @@ Optional<URL::Origin> WorkerProcessManager::top_level_origin(Web::HTML::WorkerAg
     return agent->value.top_level_origin;
 }
 
-void WorkerProcessManager::update_site_compatibility_data(JsonValue const& data)
+void WorkerAgentManager::update_site_compatibility_data(JsonValue const& data)
 {
     for (auto const& agent : m_agents)
         agent.value.client->async_set_site_compatibility_data(data);
 }
 
-void WorkerProcessManager::update_user_agent(String const& user_agent)
+void WorkerAgentManager::update_user_agent(String const& user_agent)
 {
     for (auto const& agent : m_agents)
         agent.value.client->async_set_user_agent(user_agent);
 }
 
-void WorkerProcessManager::update_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode)
+void WorkerAgentManager::update_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode)
 {
     for (auto const& agent : m_agents)
         agent.value.client->async_set_navigator_compatibility_mode(mode);
 }
 
-void WorkerProcessManager::update_preferred_languages(Vector<String> const& preferred_languages)
+void WorkerAgentManager::update_preferred_languages(Vector<String> const& preferred_languages)
 {
     for (auto const& agent : m_agents)
         agent.value.client->async_set_preferred_languages(preferred_languages);
 }
 
-void WorkerProcessManager::close_worker_agent(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
+void WorkerAgentManager::close_worker_agent(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
 {
     Owner identity {
         .client = WebContentOwner { .client = client },
@@ -435,7 +435,7 @@ void WorkerProcessManager::close_worker_agent(WebContentClient& client, Web::HTM
     remove_owner(agent_id, identity);
 }
 
-void WorkerProcessManager::close_worker_agent(WebWorkerClient& client, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
+void WorkerAgentManager::close_worker_agent(WebWorkerClient& client, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
 {
     Owner identity {
         .client = WebWorkerOwner { .client = client },
@@ -444,7 +444,7 @@ void WorkerProcessManager::close_worker_agent(WebWorkerClient& client, Web::HTML
     remove_owner(agent_id, identity);
 }
 
-void WorkerProcessManager::remove_web_content_owner(WebContentClient& client)
+void WorkerAgentManager::remove_web_content_owner(WebContentClient& client)
 {
     Vector<Web::HTML::WorkerAgentId> agents_to_close;
     for (auto& entry : m_agents) {
@@ -462,7 +462,7 @@ void WorkerProcessManager::remove_web_content_owner(WebContentClient& client)
         remove_agent(agent_id, AgentRemovalCause::OwnerSetEmptied);
 }
 
-void WorkerProcessManager::remove_web_content_page_owner(WebContentClient& client, Web::PageId page_id)
+void WorkerAgentManager::remove_web_content_page_owner(WebContentClient& client, Web::PageId page_id)
 {
     Vector<Web::HTML::WorkerAgentId> agents_to_close;
     for (auto& entry : m_agents) {
@@ -482,7 +482,7 @@ void WorkerProcessManager::remove_web_content_page_owner(WebContentClient& clien
         remove_agent(agent_id, AgentRemovalCause::OwnerSetEmptied);
 }
 
-void WorkerProcessManager::remove_private_workers_without_owners()
+void WorkerAgentManager::remove_private_workers_without_owners()
 {
     Vector<Web::HTML::WorkerAgentId> agents_to_close;
     for (auto const& entry : m_agents) {
@@ -494,7 +494,7 @@ void WorkerProcessManager::remove_private_workers_without_owners()
         remove_agent(agent_id, AgentRemovalCause::AgentTerminated);
 }
 
-void WorkerProcessManager::remove_web_worker_owner(WebWorkerClient& client)
+void WorkerAgentManager::remove_web_worker_owner(WebWorkerClient& client)
 {
     Vector<Web::HTML::WorkerAgentId> agents_to_close;
     for (auto& entry : m_agents) {
@@ -515,7 +515,7 @@ void WorkerProcessManager::remove_web_worker_owner(WebWorkerClient& client)
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-postmessage
 // NB: The processes holding the destinations of step 6 are those hosting an environment whose storage key is
 //     sourceStorageKey. Each finds the destinations among its own BroadcastChannel objects.
-void WorkerProcessManager::post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage posted_message, CanonicalEnvironmentSettingsObject const& source_settings, IPC::ConnectionBase const& source_connection, IsPrivate is_private)
+void WorkerAgentManager::post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage posted_message, CanonicalEnvironmentSettingsObject const& source_settings, IPC::ConnectionBase const& source_connection, IsPrivate is_private)
 {
     // 4. Let sourceOrigin be this's relevant settings object's origin.
     // 5. Let sourceStorageKey be the result of running obtain a storage key for non-storage purposes with this's relevant
@@ -547,7 +547,7 @@ void WorkerProcessManager::post_broadcast_channel_message(Web::HTML::PostedBroad
     }
 }
 
-void WorkerProcessManager::for_each_request_server_site_bindings(Function<IterationDecision(RequestServerSiteBindings&)> const& callback)
+void WorkerAgentManager::for_each_request_server_site_bindings(Function<IterationDecision(RequestServerSiteBindings&)> const& callback)
 {
     for (auto& entry : m_agents) {
         if (callback(entry.value.client->request_server_site_bindings()) == IterationDecision::Break)
@@ -555,7 +555,7 @@ void WorkerProcessManager::for_each_request_server_site_bindings(Function<Iterat
     }
 }
 
-ErrorOr<void> WorkerProcessManager::simulate_request_server_connection_loss_for_testing(WebContentClient& owner, Web::PageId page_id)
+ErrorOr<void> WorkerAgentManager::simulate_request_server_connection_loss_for_testing(WebContentClient& owner, Web::PageId page_id)
 {
     auto is_owned_by_page = [&](WorkerAgent const& agent) {
         return any_of(agent.owners, [&](Owner const& candidate) {
@@ -588,7 +588,7 @@ ErrorOr<void> WorkerProcessManager::simulate_request_server_connection_loss_for_
     return {};
 }
 
-void WorkerProcessManager::notify_worker_script_load_failure(Owner const& owner)
+void WorkerAgentManager::notify_worker_script_load_failure(Owner const& owner)
 {
     owner.client.visit(
         [&](WebContentOwner const& web_content_owner) {
@@ -600,7 +600,7 @@ void WorkerProcessManager::notify_worker_script_load_failure(Owner const& owner)
         });
 }
 
-void WorkerProcessManager::notify_worker_exception(Owner const& owner, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno)
+void WorkerAgentManager::notify_worker_exception(Owner const& owner, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno)
 {
     owner.client.visit(
         [&](WebContentOwner const& web_content_owner) {
@@ -612,7 +612,7 @@ void WorkerProcessManager::notify_worker_exception(Owner const& owner, Utf16Stri
         });
 }
 
-void WorkerProcessManager::notify_worker_content_security_policy_violation(Owner const& owner, u64 policy_index, String const& effective_directive, URL::URL const& resource)
+void WorkerAgentManager::notify_worker_content_security_policy_violation(Owner const& owner, u64 policy_index, String const& effective_directive, URL::URL const& resource)
 {
     owner.client.visit(
         [&](WebContentOwner const& web_content_owner) {
@@ -624,7 +624,7 @@ void WorkerProcessManager::notify_worker_content_security_policy_violation(Owner
         });
 }
 
-WorkerProcessManager::WorkerAgent* WorkerProcessManager::agent_owned_by(WebContentClient& client, Web::HTML::WorkerAgentId agent_id)
+WorkerAgentManager::WorkerAgent* WorkerAgentManager::agent_owned_by(WebContentClient& client, Web::HTML::WorkerAgentId agent_id)
 {
     auto agent = m_agents.find(agent_id);
     if (agent == m_agents.end())
@@ -637,25 +637,25 @@ WorkerProcessManager::WorkerAgent* WorkerProcessManager::agent_owned_by(WebConte
     return nullptr;
 }
 
-void WorkerProcessManager::rtc_transform_init(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record)
+void WorkerAgentManager::rtc_transform_init(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record)
 {
     if (auto* agent = agent_owned_by(client, agent_id))
         agent->client->async_rtc_transform_init(transform_id, move(options_record));
 }
 
-void WorkerProcessManager::rtc_transform_teardown(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, u64 transform_id)
+void WorkerAgentManager::rtc_transform_teardown(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, u64 transform_id)
 {
     if (auto* agent = agent_owned_by(client, agent_id))
         agent->client->async_rtc_transform_teardown(transform_id);
 }
 
-void WorkerProcessManager::rtc_transform_encoded_audio_frame(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+void WorkerAgentManager::rtc_transform_encoded_audio_frame(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
 {
     if (auto* agent = agent_owned_by(client, agent_id))
         agent->client->async_rtc_transform_encoded_audio_frame(transform_id, payload.bytes(), ssrc, payload_type, rtp_timestamp, sequence_number);
 }
 
-void WorkerProcessManager::worker_did_write_rtc_transform_encoded_audio_frame(Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+void WorkerAgentManager::worker_did_write_rtc_transform_encoded_audio_frame(Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
 {
     auto agent = m_agents.find(agent_id);
     if (agent == m_agents.end())
@@ -673,7 +673,7 @@ void WorkerProcessManager::worker_did_write_rtc_transform_encoded_audio_frame(We
     }
 }
 
-void WorkerProcessManager::notify_worker_close(Owner const& owner)
+void WorkerAgentManager::notify_worker_close(Owner const& owner)
 {
     owner.client.visit(
         [&](WebContentOwner const& web_content_owner) {
@@ -685,7 +685,7 @@ void WorkerProcessManager::notify_worker_close(Owner const& owner)
         });
 }
 
-void WorkerProcessManager::notify_worker_death(Owner const& owner)
+void WorkerAgentManager::notify_worker_death(Owner const& owner)
 {
     owner.client.visit(
         [&](WebContentOwner const& web_content_owner) {
@@ -697,7 +697,7 @@ void WorkerProcessManager::notify_worker_death(Owner const& owner)
         });
 }
 
-void WorkerProcessManager::worker_did_finish_loading_script(Web::HTML::WorkerAgentId agent_id, bool worker_is_secure_context)
+void WorkerAgentManager::worker_did_finish_loading_script(Web::HTML::WorkerAgentId agent_id, bool worker_is_secure_context)
 {
     auto maybe_agent = m_agents.find(agent_id);
     if (maybe_agent == m_agents.end())
@@ -709,7 +709,7 @@ void WorkerProcessManager::worker_did_finish_loading_script(Web::HTML::WorkerAge
     agent.outside_settings_owner = {};
 }
 
-void WorkerProcessManager::worker_did_fail_loading_script(Web::HTML::WorkerAgentId agent_id)
+void WorkerAgentManager::worker_did_fail_loading_script(Web::HTML::WorkerAgentId agent_id)
 {
     auto maybe_agent = m_agents.find(agent_id);
     if (maybe_agent == m_agents.end())
@@ -730,7 +730,7 @@ void WorkerProcessManager::worker_did_fail_loading_script(Web::HTML::WorkerAgent
     });
 }
 
-void WorkerProcessManager::worker_did_report_exception(Web::HTML::WorkerAgentId agent_id, Utf16String message, Utf16String filename, u32 lineno, u32 colno)
+void WorkerAgentManager::worker_did_report_exception(Web::HTML::WorkerAgentId agent_id, Utf16String message, Utf16String filename, u32 lineno, u32 colno)
 {
     auto maybe_agent = m_agents.find(agent_id);
     if (maybe_agent == m_agents.end())
@@ -740,7 +740,7 @@ void WorkerProcessManager::worker_did_report_exception(Web::HTML::WorkerAgentId 
         notify_worker_exception(owner, message, filename, lineno, colno);
 }
 
-void WorkerProcessManager::worker_did_report_outside_settings_content_security_policy_violation(Web::HTML::WorkerAgentId agent_id, u64 policy_index, String effective_directive, URL::URL resource)
+void WorkerAgentManager::worker_did_report_outside_settings_content_security_policy_violation(Web::HTML::WorkerAgentId agent_id, u64 policy_index, String effective_directive, URL::URL resource)
 {
     auto maybe_agent = m_agents.find(agent_id);
     if (maybe_agent == m_agents.end())
@@ -754,7 +754,7 @@ void WorkerProcessManager::worker_did_report_outside_settings_content_security_p
     notify_worker_content_security_policy_violation(*agent.outside_settings_owner, policy_index, effective_directive, resource);
 }
 
-void WorkerProcessManager::worker_did_close(Web::HTML::WorkerAgentId agent_id)
+void WorkerAgentManager::worker_did_close(Web::HTML::WorkerAgentId agent_id)
 {
     auto maybe_agent = m_agents.find(agent_id);
     if (maybe_agent == m_agents.end())
@@ -774,7 +774,7 @@ void WorkerProcessManager::worker_did_close(Web::HTML::WorkerAgentId agent_id)
     });
 }
 
-void WorkerProcessManager::worker_did_die(Web::HTML::WorkerAgentId agent_id)
+void WorkerAgentManager::worker_did_die(Web::HTML::WorkerAgentId agent_id)
 {
     auto maybe_agent = m_agents.find(agent_id);
     if (maybe_agent == m_agents.end())
@@ -797,7 +797,7 @@ void WorkerProcessManager::worker_did_die(Web::HTML::WorkerAgentId agent_id)
     });
 }
 
-void WorkerProcessManager::worker_did_request_file(Web::HTML::WorkerAgentId agent_id, ByteString path, i32 request_id)
+void WorkerAgentManager::worker_did_request_file(Web::HTML::WorkerAgentId agent_id, ByteString path, i32 request_id)
 {
     auto maybe_agent = m_agents.find(agent_id);
     if (maybe_agent == m_agents.end())
@@ -817,7 +817,7 @@ void WorkerProcessManager::worker_did_request_file(Web::HTML::WorkerAgentId agen
         client->async_handle_file_return(0, file.release_value(), request_id);
 }
 
-void WorkerProcessManager::remove_agent(Web::HTML::WorkerAgentId agent_id, AgentRemovalCause cause)
+void WorkerAgentManager::remove_agent(Web::HTML::WorkerAgentId agent_id, AgentRemovalCause cause)
 {
     auto maybe_agent = m_agents.find(agent_id);
     if (maybe_agent == m_agents.end())
@@ -872,7 +872,7 @@ void WorkerProcessManager::remove_agent(Web::HTML::WorkerAgentId agent_id, Agent
     m_exiting_workers.append({ agent.client, agent.is_private, move(agent.top_level_origin) });
 }
 
-void WorkerProcessManager::worker_thread_did_exit(WebWorkerClient& client)
+void WorkerAgentManager::worker_thread_did_exit(WebWorkerClient& client)
 {
     Vector<ExitingWorker> exited_workers;
     for (size_t i = m_exiting_workers.size(); i > 0; --i) {
@@ -883,7 +883,7 @@ void WorkerProcessManager::worker_thread_did_exit(WebWorkerClient& client)
     Core::deferred_invoke([exited_workers = move(exited_workers)] { });
 }
 
-bool WorkerProcessManager::is_same_owner(Owner const& owner, Owner const& identity)
+bool WorkerAgentManager::is_same_owner(Owner const& owner, Owner const& identity)
 {
     if (owner.token != identity.token)
         return false;
@@ -899,7 +899,7 @@ bool WorkerProcessManager::is_same_owner(Owner const& owner, Owner const& identi
     return false;
 }
 
-void WorkerProcessManager::forget_removed_outside_settings_owner(WorkerAgent& agent)
+void WorkerAgentManager::forget_removed_outside_settings_owner(WorkerAgent& agent)
 {
     if (!agent.outside_settings_owner.has_value())
         return;
@@ -907,7 +907,7 @@ void WorkerProcessManager::forget_removed_outside_settings_owner(WorkerAgent& ag
         agent.outside_settings_owner = {};
 }
 
-void WorkerProcessManager::remove_owner(Web::HTML::WorkerAgentId agent_id, Owner const& identity)
+void WorkerAgentManager::remove_owner(Web::HTML::WorkerAgentId agent_id, Owner const& identity)
 {
     auto maybe_agent = m_agents.find(agent_id);
     if (maybe_agent == m_agents.end())

@@ -33,11 +33,11 @@
 
 namespace WebView {
 
-class WEBVIEW_API WorkerProcessManager {
+class WEBVIEW_API WorkerAgentManager {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static WorkerProcessManager& the();
+    static WorkerAgentManager& the();
 
     struct SharedWorkerKey {
         IsPrivate is_private { IsPrivate::No };
@@ -111,7 +111,7 @@ public:
 private:
     friend class WebWorkerClient;
 
-    WorkerProcessManager() = default;
+    WorkerAgentManager() = default;
 
     struct WebContentOwner {
         WeakPtr<WebContentClient> client;
@@ -206,8 +206,8 @@ private:
 namespace AK {
 
 template<>
-struct Traits<WebView::WorkerProcessManager::SharedWorkerKey> : public DefaultTraits<WebView::WorkerProcessManager::SharedWorkerKey> {
-    static unsigned hash(WebView::WorkerProcessManager::SharedWorkerKey const& key)
+struct Traits<WebView::WorkerAgentManager::SharedWorkerKey> : public DefaultTraits<WebView::WorkerAgentManager::SharedWorkerKey> {
+    static unsigned hash(WebView::WorkerAgentManager::SharedWorkerKey const& key)
     {
         auto hash = pair_int_hash(pair_int_hash(pair_int_hash(Traits<Web::StorageAPI::StorageKey>::hash(key.storage_key), Traits<URL::URL>::hash(key.url)), key.name.hash()), static_cast<unsigned>(key.is_private));
         if (key.top_level_site.has_value())

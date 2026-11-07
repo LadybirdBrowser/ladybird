@@ -101,7 +101,7 @@ set(SOURCES
     WebUI/SettingsUI.cpp
     WebUI/VersionUI.cpp
     WebWorkerClient.cpp
-    WorkerProcessManager.cpp
+    WorkerAgentManager.cpp
 )
 
 if (APPLE)

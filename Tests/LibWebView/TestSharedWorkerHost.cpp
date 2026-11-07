@@ -23,7 +23,7 @@
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
-#include <LibWebView/WorkerProcessManager.h>
+#include <LibWebView/WorkerAgentManager.h>
 
 namespace {
 
@@ -195,7 +195,7 @@ public:
 
     void wait_for_no_workers()
     {
-        Core::EventLoop::current().spin_until([] { return WebView::WorkerProcessManager::the().client_count() == 0; });
+        Core::EventLoop::current().spin_until([] { return WebView::WorkerAgentManager::the().client_count() == 0; });
     }
 
     bool has_exited(pid_t pid) const { return m_exit_statuses.contains(pid); }
@@ -208,12 +208,12 @@ private:
 
 bool hosts_shared_worker(WebView::HeadlessWebView const& tab)
 {
-    return WebView::WorkerProcessManager::the().hosts_shared_worker(tab.page().client());
+    return WebView::WorkerAgentManager::the().hosts_shared_worker(tab.page().client());
 }
 
 size_t worker_count()
 {
-    return WebView::WorkerProcessManager::the().client_count();
+    return WebView::WorkerAgentManager::the().client_count();
 }
 
 }
@@ -314,7 +314,7 @@ static void extended_lifetime_outlives_the_last_tab(Browser& browser)
 
     // NB: The last owner leaves with a short timeout, so the test sees the worker end without waiting for 30 seconds.
     auto timeout = AK::Duration::from_milliseconds(50);
-    WebView::WorkerProcessManager::the().set_extended_lifetime_shared_worker_timeout_for_testing(timeout);
+    WebView::WorkerAgentManager::the().set_extended_lifetime_shared_worker_timeout_for_testing(timeout);
     auto start = MonotonicTime::now();
     browser.close(move(second_tab));
     browser.expect_clean_exit(host_pid);
@@ -391,7 +391,7 @@ static void cross_origin_isolated_owner_gets_a_process_without_a_page_for_its_wo
 
     Optional<pid_t> host_pid;
     WebView::WebContentClient::for_each_client([&](WebView::WebContentClient& client) {
-        if (WebView::WorkerProcessManager::the().hosts_shared_worker(client))
+        if (WebView::WorkerAgentManager::the().hosts_shared_worker(client))
             host_pid = client.pid();
         return IterationDecision::Continue;
     });

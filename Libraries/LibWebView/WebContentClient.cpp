@@ -49,7 +49,7 @@
 #include <LibWebView/WebContentTestClient.h>
 #include <LibWebView/WebDriverBiDi.h>
 #include <LibWebView/WebUI.h>
-#include <LibWebView/WorkerProcessManager.h>
+#include <LibWebView/WorkerAgentManager.h>
 
 namespace WebView {
 
@@ -77,7 +77,7 @@ void WebContentClient::close_worker_agent(Web::PageId page_id, Web::HTML::Worker
 {
     // NB: A page's workers are closed as its documents are destroyed, which happens after the tab's page has closed.
     if (may_act_for_page(page_id))
-        WorkerProcessManager::the().close_worker_agent(*this, agent_id, owner_token);
+        WorkerAgentManager::the().close_worker_agent(*this, agent_id, owner_token);
 }
 
 bool WebContentClient::hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const& storage_key)
@@ -168,7 +168,7 @@ WebContentClient::~WebContentClient()
     cancel_navigation_transactions();
     remove_blob_url_entries();
     StorageAreaRegistry::the().remove_listener(*this);
-    WorkerProcessManager::the().remove_web_content_owner(*this);
+    WorkerAgentManager::the().remove_web_content_owner(*this);
     GamepadManager::the().client_disconnected(*this);
     clients().remove(this);
 }
@@ -323,7 +323,7 @@ void WebContentClient::close_page_of_closed_tab(Web::PageId page_id)
             page->set_detached_close_pending(false);
         // NB: The process can stay alive for other pages or for a shared worker, and the document must not go on in it.
         //     Its close steps run through the traversable that is going away, so it cannot close by itself.
-        if (!page->detached_close_pending() || WorkerProcessManager::the().hosts_shared_worker(*this))
+        if (!page->detached_close_pending() || WorkerAgentManager::the().hosts_shared_worker(*this))
             page->async_discard_embedded_page();
         PictureInPictureManager::the().close_window_and_its_page(*page);
         // NB: Other tabs can keep the process alive, so its page has to go as well.
@@ -464,7 +464,7 @@ void WebContentClient::close_server_if_unused()
         any_detached_close_pending |= page.value->detached_close_pending();
     }
 
-    if (WorkerProcessManager::the().hosts_shared_worker(*this))
+    if (WorkerAgentManager::the().hosts_shared_worker(*this))
         return;
 
     if (!any_detached_close_pending) {
