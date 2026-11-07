@@ -7,6 +7,13 @@ asyncTest(async done => {
     try {
         const oscillator = new OscillatorNode(sourceContext, { frequency: 1000 });
         const destination = new MediaStreamAudioDestinationNode(sourceContext, { channelCount: 1 });
+        println(`MediaStream destination outputs: ${destination.numberOfOutputs}`);
+        try {
+            destination.connect(sourceContext.destination);
+            println("Connected a MediaStream destination output");
+        } catch (error) {
+            println(error.name);
+        }
         oscillator.connect(destination);
         const source = sinkContext.createMediaStreamSource(destination.stream);
         const analyser = new AnalyserNode(sinkContext, { fftSize: 2048, smoothingTimeConstant: 0 });

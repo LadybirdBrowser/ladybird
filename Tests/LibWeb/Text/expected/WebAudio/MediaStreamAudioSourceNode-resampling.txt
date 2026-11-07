@@ -1,1 +1,3 @@
+MediaStream destination outputs: 0
+IndexSizeError
 PASS: mono MediaStream preserves tone frequency from 32000 Hz to 44100 Hz

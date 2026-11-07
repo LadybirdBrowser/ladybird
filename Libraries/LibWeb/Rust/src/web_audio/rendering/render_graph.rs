@@ -91,15 +91,13 @@ impl RenderGraph {
             self.incoming_connections_dirty.set(false);
         }
 
-        // Pull the destination first so the main graph is processed in dependency order; then process any remaining nodes
-        // so unconnected sources still advance their playback state and report ended events.
+        // Process the destination first so the main graph is processed in dependency order.
         if let Some(destination_node) = self.destination() {
-            self.pull_output(destination_node.data().node_id, 0, context);
+            self.process_node(destination_node, context);
         }
-        for (&node_id, graph_node) in self.nodes.iter() {
-            if graph_node.data().output_count() > 0 {
-                self.pull_output(node_id, 0, context);
-            }
+        // Advance unconnected sources and process sinks with no outputs.
+        for graph_node in self.nodes.values() {
+            self.process_node(graph_node, context);
         }
     }
 
@@ -113,22 +111,21 @@ impl RenderGraph {
         if output_index >= data.output_count() {
             return std::ptr::null_mut();
         }
-
-        if data.processed_quantum.get() != self.current_quantum.get() {
-            // A re-entrant pull means this node is part of a cycle; its output bus still holds the previous quantum's
-            // samples, which effectively inserts one render quantum of delay into the cycle.
-            if data.is_processing.get() {
-                return unsafe { data.output(output_index) };
-            }
-
-            data.is_processing.set(true);
-            unsafe {
-                source_node.node.process(self, context);
-            }
-            data.is_processing.set(false);
-            data.processed_quantum.set(self.current_quantum.get());
-        }
+        self.process_node(source_node, context);
         unsafe { data.output(output_index) }
+    }
+
+    fn process_node(&self, node: &NodeHandle, context: &RenderContext) {
+        let data = node.data();
+        if data.processed_quantum.get() == self.current_quantum.get() || data.is_processing.get() {
+            return;
+        }
+        data.is_processing.set(true);
+        unsafe {
+            node.node.process(self, context);
+        }
+        data.is_processing.set(false);
+        data.processed_quantum.set(self.current_quantum.get());
     }
 
     pub fn node(&self, node_id: u64) -> Option<&NodeHandle> {

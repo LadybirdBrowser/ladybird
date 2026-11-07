@@ -14,7 +14,7 @@ use super::audio_frame_ring::{AudioFrameRing, AudioFrameRingCallbacks};
 use super::pipe_callbacks::{CallbackService, PipeCallbacks};
 use super::render_graph::RenderGraph;
 use super::render_node::*;
-use super::render_nodes::{BusRef, NodeProcessor, node_handle};
+use super::render_nodes::{NodeProcessor, node_handle};
 use crate::web_audio::control_message::FfiSharedCppObject;
 
 // The render thread only touches the ring and pending flag; the control thread owns the drain
@@ -39,20 +39,14 @@ struct MediaStreamDestinationRenderNode {
 impl NodeProcessor for MediaStreamDestinationRenderNode {
     unsafe fn process(&mut self, data: &RenderNodeData, graph: &RenderGraph, context: &RenderContext) {
         unsafe {
-            let input = BusRef(data.pull_input(graph, context, 0).cast_mut());
-
-            // AD-HOC: The spec gives this node zero outputs, but RenderGraph only pulls nodes that
-            //         have at least one, so the render node exposes its input as a passthrough
-            //         output. This keeps the node processing every quantum and also makes it audible
-            //         when a page connects it onward.
-            BusRef(data.output(0)).copy_from(&input);
+            let input = &*data.pull_input(graph, context, 0);
 
             // Mix the input to the track's channel count and interleave it into the shared ring. If
             // the control thread has stalled and the ring is full, the newest frames are dropped; the
             // consumer resynchronizes when it drains.
             self.mix_bus.zero();
             self.mix_bus.sum_from(
-                &*input.0,
+                input,
                 data.channel_interpretation.get() == ChannelInterpretation::Speakers,
             );
             let channel_count = self.mix_bus.channel_count();
@@ -91,7 +85,7 @@ pub(crate) unsafe extern "C" fn web_audio_node_create_media_stream_destination(
     ring_callbacks: AudioFrameRingCallbacks,
     callbacks: PipeCallbacks,
 ) -> *mut NodeHandle {
-    let data = RenderNodeData::new(node_id, 1, 1, quantum_size, channel_count);
+    let data = RenderNodeData::new(node_id, 1, 0, quantum_size, channel_count);
 
     // NB: The control thread queues SetChannelConfig before AddNode and messages addressed to
     //     unknown nodes are dropped, so the constructor must establish the node's channel
