@@ -29,8 +29,8 @@ use crate::html::structured_serialize::serializable::serializable_interface_stor
 /// The record of a structured serialization, which the serialization writes its values to.
 pub(crate) struct StructuredSerializeWriter<'vm> {
     encoder: RefCell<RecordEncoder>,
-    /// The SharedArrayBuffers that an IPC record shares with a deserialization in the same process, by their index in
-    /// this same-process side table.
+    /// The SharedArrayBuffers that an IPC record shares with a deserialization in the same agent, by their index in
+    /// this same-agent side table.
     shared_array_buffers: MarkedVec<'vm, Gc<ArrayBuffer>>,
     /// The shared memory that a MessageRecord, which may reach agents in other processes, hands over beside its bytes.
     shared_memory: Option<RefCell<Vec<SharedMemory>>>,
@@ -145,7 +145,7 @@ impl<'vm> StructuredSerializeWriter<'vm> {
             .encode_big_int(big_int.is_negative(), &big_int.magnitude_to_bytes_be());
     }
 
-    /// Puts the SharedArrayBuffer in the record's same-process side table, and returns its index there.
+    /// Puts the SharedArrayBuffer in the record's same-agent side table, and returns its index there.
     pub(crate) fn add_shared_array_buffer(&self, array_buffer: Gc<ArrayBuffer>) -> u32 {
         let index = u32::try_from(self.shared_array_buffers.len()).expect("a record shares fewer than 2^32 buffers");
         self.shared_array_buffers.push(array_buffer);

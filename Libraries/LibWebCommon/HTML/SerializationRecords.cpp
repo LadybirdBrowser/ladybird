@@ -14,7 +14,7 @@
 
 namespace Web::HTML {
 
-SameProcessSerializationSideTable::~SameProcessSerializationSideTable() = default;
+SameAgentSerializationSideTable::~SameAgentSerializationSideTable() = default;
 
 SharedStoreLifeline SharedStoreLifeline::adopting_fd(int fd)
 {
@@ -113,7 +113,7 @@ ErrorOr<Web::HTML::TransferDataEncoder> decode(Decoder& decoder)
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::IPCSerializationRecord const& record)
 {
-    // record.same_process_side_table is deliberately not encoded: it is a same-process aliasing side
+    // record.same_agent_side_table is deliberately not encoded: it is a same-agent aliasing side
     // table, so a record that crosses a process boundary arrives with an empty side table by
     // construction and deserializes SharedArrayBuffers from the self-contained byte copy in
     // record.data instead.

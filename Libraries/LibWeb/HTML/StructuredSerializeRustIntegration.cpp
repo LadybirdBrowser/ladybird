@@ -139,7 +139,7 @@ void web_structured_serialize_ipc_record_data(IPCSerializationRecord const* reco
 
 JSObject* web_structured_serialize_ipc_record_shared_array_buffer(IPCSerializationRecord const* record, u32 side_table_index)
 {
-    auto shared_array_buffers = same_process_shared_array_buffers(*record);
+    auto shared_array_buffers = same_agent_shared_array_buffers(*record);
     if (side_table_index >= shared_array_buffers.size())
         return nullptr;
     return JS::HostABI::object_to_abi(shared_array_buffers[side_table_index].ptr());
@@ -264,7 +264,7 @@ void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord* 
 void web_structured_serialize_transfer_record_take(SerializedTransferRecord* record, void* context, void (*receive)(void*, ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t, int), void (*append_holder)(void*, TransferDataEncoder*))
 {
     Vector<JSObject*> buffers;
-    for (auto const& buffer : same_process_shared_array_buffers(record->serialized))
+    for (auto const& buffer : same_agent_shared_array_buffers(record->serialized))
         buffers.append(JS::HostABI::object_to_abi(buffer.ptr()));
     Vector<int> descriptors;
     Vector<size_t> sizes;

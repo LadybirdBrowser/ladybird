@@ -94,13 +94,13 @@ static Web::HTML::IPCSerializationRecord ipc_round_trip(Web::HTML::IPCSerializat
     return MUST(decoder.decode<Web::HTML::IPCSerializationRecord>());
 }
 
-TEST_CASE(same_process_clone_aliases_the_backing_store)
+TEST_CASE(same_agent_clone_aliases_the_backing_store)
 {
     auto source = make_shared_array_buffer(source_realm(), "shared array buffer"sv.bytes());
 
     auto record = serialize_same_agent(JS::Value { source.ptr() });
-    EXPECT_EQ(Web::HTML::same_process_shared_array_buffers(record).size(), 1uz);
-    EXPECT_EQ(Web::HTML::same_process_shared_array_buffers(record)[0].ptr(), source.ptr());
+    EXPECT_EQ(Web::HTML::same_agent_shared_array_buffers(record).size(), 1uz);
+    EXPECT_EQ(Web::HTML::same_agent_shared_array_buffers(record)[0].ptr(), source.ptr());
 
     auto& clone = as_array_buffer(deserialize(record, target_realm()));
     EXPECT(clone.is_shared_array_buffer());
@@ -184,7 +184,7 @@ TEST_CASE(ipc_round_trip_degrades_to_a_copy)
     auto source = make_shared_array_buffer(source_realm(), "copied across processes"sv.bytes());
 
     auto record = ipc_round_trip(serialize_same_agent(JS::Value { source.ptr() }));
-    EXPECT(Web::HTML::same_process_shared_array_buffers(record).is_empty());
+    EXPECT(Web::HTML::same_agent_shared_array_buffers(record).is_empty());
 
     auto& clone = as_array_buffer(deserialize(record, target_realm()));
     EXPECT(clone.is_shared_array_buffer());
@@ -204,8 +204,8 @@ TEST_CASE(growable_shared_array_buffer_aliases_the_backing_store)
     source->set_max_byte_length(128);
 
     auto record = serialize_same_agent(JS::Value { source.ptr() });
-    EXPECT_EQ(Web::HTML::same_process_shared_array_buffers(record).size(), 1uz);
-    EXPECT_EQ(Web::HTML::same_process_shared_array_buffers(record)[0].ptr(), source.ptr());
+    EXPECT_EQ(Web::HTML::same_agent_shared_array_buffers(record).size(), 1uz);
+    EXPECT_EQ(Web::HTML::same_agent_shared_array_buffers(record)[0].ptr(), source.ptr());
 
     auto& clone = as_array_buffer(deserialize(record, target_realm()));
     EXPECT(clone.is_shared_array_buffer());

@@ -100,7 +100,7 @@ impl IPCSerializationRecord {
         Self(NonNull::new(record).expect("C++ lends a record"))
     }
 
-    /// Sets the record to the bytes, with the SharedArrayBuffers of its same-process side table.
+    /// Sets the record to the bytes, with the SharedArrayBuffers of its same-agent side table.
     pub(crate) fn set(self, data: &[u8], shared_array_buffers: &[Gc<ArrayBuffer>]) {
         let shared_array_buffers = objects_into_abi(shared_array_buffers);
         // SAFETY: The record is lent, the call borrows the bytes, and the buffers are live.
@@ -157,7 +157,7 @@ impl<'a> ReceivedIPCSerializationRecord<'a> {
         data.as_slice()
     }
 
-    /// The SharedArrayBuffer at the index of the record's same-process side table, if there is one.
+    /// The SharedArrayBuffer at the index of the record's same-agent side table, if there is one.
     pub(crate) fn shared_array_buffer(self, side_table_index: u32) -> Option<Gc<ArrayBuffer>> {
         // SAFETY: The record is lent. LibWeb returns a live object or null.
         let object = unsafe {

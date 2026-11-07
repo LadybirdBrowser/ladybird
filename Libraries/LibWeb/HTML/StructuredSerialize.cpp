@@ -17,9 +17,9 @@
 
 namespace Web::HTML {
 
-// The same-process SharedArrayBuffer aliases of an IPCSerializationRecord. Only this file creates side tables, so a
+// The same-agent SharedArrayBuffer aliases of an IPCSerializationRecord. Only this file creates side tables, so a
 // record's side table is one of these.
-class SharedArrayBufferSideTable final : public SameProcessSerializationSideTable {
+class SharedArrayBufferSideTable final : public SameAgentSerializationSideTable {
 public:
     explicit SharedArrayBufferSideTable(Vector<GC::Root<JS::ArrayBuffer>> array_buffers)
         : m_array_buffers(move(array_buffers))
@@ -37,15 +37,15 @@ IPCSerializationRecord create_ipc_serialization_record(ReadonlyBytes data, Vecto
     IPCSerializationRecord record;
     record.data.append(data.data(), data.size());
     if (!shared_array_buffers.is_empty())
-        record.same_process_side_table = adopt_ref(*new SharedArrayBufferSideTable(move(shared_array_buffers)));
+        record.same_agent_side_table = adopt_ref(*new SharedArrayBufferSideTable(move(shared_array_buffers)));
     return record;
 }
 
-ReadonlySpan<GC::Root<JS::ArrayBuffer>> same_process_shared_array_buffers(IPCSerializationRecord const& record)
+ReadonlySpan<GC::Root<JS::ArrayBuffer>> same_agent_shared_array_buffers(IPCSerializationRecord const& record)
 {
-    if (!record.same_process_side_table)
+    if (!record.same_agent_side_table)
         return {};
-    return static_cast<SharedArrayBufferSideTable const&>(*record.same_process_side_table).array_buffers();
+    return static_cast<SharedArrayBufferSideTable const&>(*record.same_agent_side_table).array_buffers();
 }
 
 WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm& realm, AK::Error const& error)

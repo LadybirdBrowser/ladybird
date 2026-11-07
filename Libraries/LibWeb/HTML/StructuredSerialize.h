@@ -64,7 +64,7 @@ enum class AllowSharedArrayBuffers : u8 {
 };
 
 // The SharedArrayBuffers that a record produced in this process aliases instead of copying.
-WEB_API ReadonlySpan<GC::Root<JS::ArrayBuffer>> same_process_shared_array_buffers(IPCSerializationRecord const&);
+WEB_API ReadonlySpan<GC::Root<JS::ArrayBuffer>> same_agent_shared_array_buffers(IPCSerializationRecord const&);
 IPCSerializationRecord create_ipc_serialization_record(ReadonlyBytes data, Vector<GC::Root<JS::ArrayBuffer>> shared_array_buffers);
 
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value);
