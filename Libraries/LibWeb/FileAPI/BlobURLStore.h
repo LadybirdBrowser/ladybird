@@ -40,6 +40,9 @@ Optional<BlobURLEntry const&> local_blob_url_entry(URL::URL const&);
 
 void run_unloading_cleanup_steps(GC::Ref<DOM::Document>);
 
+// The store is tied to the heap of the agent that goes away.
+void forget_blob_url_store_of_this_agent();
+
 // The steps of run_unloading_cleanup_steps() after the first, which a worker that closes runs for its own environment.
 WEB_API void remove_entries_of_environment(HTML::EnvironmentSettingsObject&, Page&);
 

@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibGC/ConservativeHashMap.h>
 #include <LibURL/Origin.h>
@@ -24,12 +23,21 @@
 namespace Web::FileAPI {
 
 // https://w3c.github.io/FileAPI/#BlobURLStore
-// NB: Only the entries this process created. The browser process keeps every process's entries, and is asked for
-//     them by blob_url_entry_in_the_user_agent_store().
+// NB: Only the entries this agent created, in its own heap. The browser process keeps every agent's entries, and is
+//     asked for them by blob_url_entry_in_the_user_agent_store().
+static thread_local GC::ConservativeHashMap<Utf16String, BlobURLEntry>* s_blob_url_store;
+
 static GC::ConservativeHashMap<Utf16String, BlobURLEntry>& blob_url_store()
 {
-    static NeverDestroyed<GC::ConservativeHashMap<Utf16String, BlobURLEntry>> store;
-    return *store;
+    if (!s_blob_url_store)
+        s_blob_url_store = new GC::ConservativeHashMap<Utf16String, BlobURLEntry>;
+    return *s_blob_url_store;
+}
+
+void forget_blob_url_store_of_this_agent()
+{
+    delete s_blob_url_store;
+    s_blob_url_store = nullptr;
 }
 
 // The entry as the user agent's blob URL store has it: a Blob's bytes in shared memory, and the environment's origin.
