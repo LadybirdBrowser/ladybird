@@ -512,6 +512,42 @@ input[type="checkbox"][switch]:checked::before {
     flex-direction: column;
 }
 
+/* A color theme is chosen from a row of dots in its base colors. The chosen dot is ringed in its own color. */
+.color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.color-swatch {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    border-radius: 50%;
+    background: var(--swatch);
+    box-shadow: inset 0 0 0 1px var(--edge);
+    cursor: pointer;
+}
+
+.color-swatch:has(input:checked) {
+    box-shadow:
+        0 0 0 2px var(--page),
+        0 0 0 4px var(--swatch);
+}
+
+.color-swatch:has(input:focus-visible) {
+    box-shadow:
+        0 0 0 2px var(--page),
+        0 0 0 4px var(--swatch),
+        0 0 0 7px var(--focus-ring);
+}
+
+.color-swatch input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
 /* A search engine is pictured by a small tile with its initial. */
 .letter-tile {
     display: flex;

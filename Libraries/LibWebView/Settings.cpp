@@ -35,6 +35,7 @@ static constexpr auto SHOW_MENU_BAR_KEY = "showMenuBar"sv;
 static constexpr auto SHOW_BOOKMARKS_BAR_KEY = "showBookmarksBar"sv;
 static constexpr auto INTERFACE_THEME_KEY = "interfaceTheme"sv;
 static constexpr auto WEBSITE_COLOR_SCHEME_KEY = "websiteColorScheme"sv;
+static constexpr auto COLOR_THEME_KEY = "colorTheme"sv;
 
 static constexpr auto WINDOW_SETTINGS_KEY = "window"sv;
 static constexpr auto WINDOW_POSITION_KEY = "position"sv;
@@ -277,6 +278,28 @@ static constexpr Optional<ThemePreference> theme_preference_from_string(StringVi
         return ThemePreference::Light;
     if (preference == "dark"sv)
         return ThemePreference::Dark;
+    return {};
+}
+
+static constexpr StringView color_theme_to_string(ColorTheme theme)
+{
+    switch (theme) {
+#define __ENUMERATE_COLOR_THEME(name, string) \
+    case ColorTheme::name:                    \
+        return string##sv;
+        ENUMERATE_COLOR_THEMES(__ENUMERATE_COLOR_THEME)
+#undef __ENUMERATE_COLOR_THEME
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static constexpr Optional<ColorTheme> color_theme_from_string(StringView theme)
+{
+#define __ENUMERATE_COLOR_THEME(name, string) \
+    if (theme == string##sv)                  \
+        return ColorTheme::name;
+    ENUMERATE_COLOR_THEMES(__ENUMERATE_COLOR_THEME)
+#undef __ENUMERATE_COLOR_THEME
     return {};
 }
 
@@ -616,6 +639,7 @@ JsonValue Settings::serialize_json() const
     appearance.set(SHOW_BOOKMARKS_BAR_KEY, show_bookmarks_bar_to_string(m_appearance.show_bookmarks_bar));
     appearance.set(INTERFACE_THEME_KEY, theme_preference_to_string(m_appearance.interface_theme));
     appearance.set(WEBSITE_COLOR_SCHEME_KEY, theme_preference_to_string(m_appearance.website_color_scheme));
+    appearance.set(COLOR_THEME_KEY, color_theme_to_string(m_appearance.color_theme));
     settings.set(APPEARANCE_KEY, move(appearance));
 
     JsonObject zoom_per_host;
@@ -898,6 +922,10 @@ Appearance Settings::parse_appearance(JsonValue const& settings)
     if (auto website_color_scheme = settings.as_object().get_string(WEBSITE_COLOR_SCHEME_KEY); website_color_scheme.has_value()) {
         if (auto parsed = theme_preference_from_string(*website_color_scheme); parsed.has_value())
             appearance.website_color_scheme = *parsed;
+    }
+    if (auto color_theme = settings.as_object().get_string(COLOR_THEME_KEY); color_theme.has_value()) {
+        if (auto parsed = color_theme_from_string(*color_theme); parsed.has_value())
+            appearance.color_theme = *parsed;
     }
 
     return appearance;
