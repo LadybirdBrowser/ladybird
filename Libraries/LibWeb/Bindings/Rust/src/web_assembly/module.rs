@@ -317,6 +317,17 @@ impl Serializable for Module {
         // 3. Set serialized.[[AgentCluster]] to the current Realm’s corresponding agent cluster.
         serialized.write_optional_u64(current_agent_cluster());
 
+        // AD-HOC: Recompiling needs the options the module was compiled with, or its builtins and imported strings
+        //         would turn into ordinary imports.
+        serialized.write_u64(self.builtin_sets.len() as u64);
+        for builtin_set in &self.builtin_sets {
+            serialized.write_utf16_string(builtin_set.as_utf16_string());
+        }
+        serialized.write_bool(self.imported_string_module.is_some());
+        if let Some(imported_string_module) = &self.imported_string_module {
+            serialized.write_utf16_string(imported_string_module.as_utf16_string());
+        }
+
         Ok(())
     }
 
@@ -335,8 +346,20 @@ impl Serializable for Module {
             ));
         }
 
+        // AD-HOC: See the serialization steps.
+        let builtin_set_count = serialized.read_u64()?;
+        let mut builtin_sets = Vec::new();
+        for _ in 0..builtin_set_count {
+            builtin_sets.push(UsvString::from_utf16_string(&serialized.read_utf16_string()?));
+        }
+        let imported_string_module = if serialized.read_bool()? {
+            Some(UsvString::from_utf16_string(&serialized.read_utf16_string()?))
+        } else {
+            None
+        };
+
         // 4. Compile a WebAssembly module from bytes and set value.[[Module]] to the result.
         let module = compile_a_webassembly_module(cx.vm(), cx.realm(), &bytes)?;
-        Ok(Self::new(module, bytes, Vec::new(), None))
+        Ok(Self::new(module, bytes, builtin_sets, imported_string_module))
     }
 }

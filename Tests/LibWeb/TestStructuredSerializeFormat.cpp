@@ -327,6 +327,8 @@ TEST_CASE(webassembly_module_encodes_to_frozen_ipc_bytes)
     expected.append(agent_cluster_id.has_value() ? 1 : 0);
     if (agent_cluster_id.has_value())
         append_little_endian_u64(expected, *agent_cluster_id);
+    append_little_endian_u64(expected, 0);
+    expected.append(0);
     EXPECT_EQ(record.data.span(), expected.span());
 }
 

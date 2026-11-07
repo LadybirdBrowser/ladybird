@@ -1,0 +1,51 @@
+<!doctype html>
+<script type="worker">
+    onmessage = ({ data }) => {
+        const { exports } = new WebAssembly.Instance(data, {});
+        postMessage(`${exports.hello.value} ${exports.length("abc")}`);
+    };
+    onmessageerror = () => postMessage("messageerror");
+</script>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const string = text => [text.length, ...new TextEncoder().encode(text)];
+        const section = (id, contents) => [id, contents.length, ...contents];
+
+        // (module
+        //   (import "wasm:js-string" "length" (func $length (param externref) (result i32)))
+        //   (import "strings" "hello" (global $hello externref))
+        //   (export "length" (func $length))
+        //   (export "hello" (global $hello)))
+        const bytes = new Uint8Array([
+            ...[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00],
+            ...section(1, [0x01, 0x60, 0x01, 0x6f, 0x01, 0x7f]),
+            ...section(2, [
+                0x02,
+                ...string("wasm:js-string"),
+                ...string("length"),
+                ...[0x00, 0x00],
+                ...string("strings"),
+                ...string("hello"),
+                ...[0x03, 0x6f, 0x00],
+            ]),
+            ...section(7, [0x02, ...string("length"), ...[0x00, 0x00], ...string("hello"), ...[0x03, 0x00]]),
+        ]);
+        const module = new WebAssembly.Module(bytes, { builtins: ["js-string"], importedStringConstants: "strings" });
+
+        try {
+            const { exports } = new WebAssembly.Instance(structuredClone(module), {});
+            println(`structuredClone: ${exports.hello.value} ${exports.length("abc")}`);
+        } catch (error) {
+            println(`structuredClone: ${error}`);
+        }
+
+        const source = document.querySelector("[type=worker]").innerText;
+        const worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+        worker.onmessage = ({ data }) => {
+            println(`worker: ${data}`);
+            done();
+        };
+        worker.postMessage(module);
+    });
+</script>
