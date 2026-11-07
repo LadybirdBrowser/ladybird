@@ -658,12 +658,8 @@ Request::~Request()
     if (m_disk_cache.has_value())
         m_disk_cache->close_entries_read_by(*this);
 
-    if (m_cache_entry_writer.has_value()) {
-        if (m_state == State::Complete && m_curl_result_code == CURLE_OK)
-            (void)m_cache_entry_writer->flush(m_request_headers);
-        else
-            m_cache_entry_writer->remove_incomplete_entry();
-    }
+    // A finished response has closed its entry by now.
+    close_disk_cache_entry(DiskCacheEntryOutcome::Incomplete);
 
     if constexpr (REQUESTSERVER_WIRE_DEBUG)
         wire_stats().remove(this);
@@ -905,8 +901,14 @@ void Request::handle_fetch_complete(int result_code)
 
     m_curl_result_code = result_code;
 
-    if (m_response_buffer.is_eof())
+    if (m_response_buffer.is_eof()) {
         transition_to_state(State::Complete);
+        return;
+    }
+
+    // The client hasn't taken the whole response yet, and it may never do so. Requests waiting on the cache entry
+    // shouldn't have to wait for it.
+    close_disk_cache_entry(result_code == CURLE_OK ? DiskCacheEntryOutcome::Complete : DiskCacheEntryOutcome::Incomplete);
 }
 
 void Request::reset_for_retry()
@@ -1714,41 +1716,25 @@ void Request::handle_complete_state()
 
         // Finalize the disk cache entry before notifying WebContent that the request is complete, so that a large body
         // can be handed over as a file from the cache.
-        Optional<HTTP::CacheEntryBodyFile> cached_body_file;
-        if (m_cache_entry_writer.has_value()) {
-            if (m_cache_entry_writer->body_size() >= static_cast<u64>(PAGE_SIZE)) {
-                auto body_file = m_cache_entry_writer->flush_and_take_body_file(m_request_headers);
-                if (!body_file.is_error())
-                    cached_body_file = body_file.release_value();
-            } else {
-                (void)m_cache_entry_writer->flush(m_request_headers);
-            }
-            m_cache_entry_writer.clear();
-        }
+        close_disk_cache_entry(DiskCacheEntryOutcome::Complete);
 
         if (m_export.has_value()) {
             write_export_result();
         } else {
-            if (cached_body_file.has_value())
-                m_client->async_request_cached_body_file_available(m_request_id, IPC::File::adopt_fd(cached_body_file->fd), cached_body_file->offset, cached_body_file->size);
-
             m_client->async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
         }
     }
 
-    if (m_cache_entry_writer.has_value()) {
-        if (m_curl_result_code == CURLE_OK)
-            (void)m_cache_entry_writer->flush(m_request_headers);
-        else
-            m_cache_entry_writer->remove_incomplete_entry();
-        m_cache_entry_writer.clear();
-    }
+    close_disk_cache_entry(m_curl_result_code == CURLE_OK ? DiskCacheEntryOutcome::Complete : DiskCacheEntryOutcome::Incomplete);
 
     m_client->request_complete({}, *this);
 }
 
 void Request::handle_error_state()
 {
+    // A transfer lease can keep this request alive long after it has failed.
+    close_disk_cache_entry(DiskCacheEntryOutcome::Incomplete);
+
     if (m_export.has_value()) {
         write_export_result();
     } else if (delivers_response_to_client()) {
@@ -1958,7 +1944,9 @@ void Request::read_imported_body()
         }
 
         mark_activity();
-        if (auto write_result = m_response_buffer.write_some({ buffer, static_cast<size_t>(result.value()) }); write_result.is_error()) {
+        ReadonlyBytes bytes { buffer, static_cast<size_t>(result.value()) };
+        write_to_disk_cache(bytes);
+        if (auto write_result = m_response_buffer.write_some(bytes); write_result.is_error()) {
             m_network_error = Requests::NetworkError::Unknown;
             transition_to_state(State::Error);
             return;
@@ -2011,6 +1999,7 @@ void Request::complete_import_if_finished()
         return;
 
     m_curl_result_code = CURLE_OK;
+    close_disk_cache_entry(m_import->network_error.has_value() ? DiskCacheEntryOutcome::Incomplete : DiskCacheEntryOutcome::Complete);
     if (auto result = write_queued_bytes_without_blocking(); result.is_error()) {
         m_network_error = Requests::NetworkError::Unknown;
         transition_to_state(State::Error);
@@ -2105,6 +2094,11 @@ size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* 
 
     auto total_size = size * nmemb;
     ReadonlyBytes bytes { static_cast<u8 const*>(buffer), total_size };
+
+    request.write_to_disk_cache(bytes);
+
+    if (request.m_type == RequestType::BackgroundRevalidation)
+        return total_size;
 
     auto result = [&] -> ErrorOr<void> {
         TRY(request.m_response_buffer.write_some(bytes));
@@ -2339,35 +2333,35 @@ void Request::send_headers_to_client()
     m_client->async_headers_became_available(m_request_id, m_response_headers->headers(), m_status_code, m_reason_phrase, cache_state, m_http_version);
 }
 
-ErrorOr<void> Request::write_queued_bytes_without_blocking()
+void Request::write_to_disk_cache(ReadonlyBytes bytes)
 {
-    auto write_bytes_to_disk_cache = [&](ReadonlyBytes bytes) {
-        if (!m_cache_entry_writer.has_value())
-            return;
+    if (!m_cache_entry_writer.has_value())
+        return;
 
-        if (m_cache_entry_writer->write_data(bytes).is_error()) {
-            m_cache_entry_writer.clear();
-            return;
-        }
+    if (m_cache_entry_writer->write_data(bytes).is_error())
+        m_cache_entry_writer.clear();
+}
 
-        // The entry is still filling, even once curl has nothing left to deliver: A client that reads its response
-        // slowly keeps these writes coming long after the transfer is over — so they count as progress too.
-        mark_activity();
-    };
+void Request::close_disk_cache_entry(DiskCacheEntryOutcome outcome)
+{
+    if (!m_cache_entry_writer.has_value())
+        return;
 
-    if (m_type == RequestType::BackgroundRevalidation) {
-        while (!m_response_buffer.is_eof()) {
-            auto bytes = m_response_buffer.peek_some_contiguous();
-            write_bytes_to_disk_cache(bytes);
-            MUST(m_response_buffer.discard(bytes.size()));
-        }
-
-        if (m_curl_result_code.has_value())
-            transition_to_state(State::Complete);
-
-        return {};
+    if (outcome == DiskCacheEntryOutcome::Incomplete) {
+        m_cache_entry_writer->remove_incomplete_entry();
+    } else if (delivers_response_to_client() && !m_export.has_value() && m_cache_entry_writer->body_size() >= static_cast<u64>(PAGE_SIZE)) {
+        // The client may still be reading the response through its pipe, which this file doesn't replace.
+        if (auto body_file = m_cache_entry_writer->flush_and_take_body_file(m_request_headers); !body_file.is_error())
+            m_client->async_request_cached_body_file_available(m_request_id, IPC::File::adopt_fd(body_file.value().fd), body_file.value().offset, body_file.value().size);
+    } else {
+        (void)m_cache_entry_writer->flush(m_request_headers);
     }
 
+    m_cache_entry_writer.clear();
+}
+
+ErrorOr<void> Request::write_queued_bytes_without_blocking()
+{
     if (!m_client_writer_notifier) {
         m_client_writer_notifier = Core::Notifier::construct(m_client_request_pipe->writer_fd(), Core::NotificationType::Write);
         m_client_writer_notifier->set_enabled(false);
@@ -2418,7 +2412,6 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
         }
 
         auto written = result.value();
-        write_bytes_to_disk_cache(bytes.slice(0, written));
         MUST(m_response_buffer.discard(written));
 
         m_bytes_transferred_to_client += written;

@@ -277,6 +277,8 @@ public:
         return URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/document", *m_server->local_port())).release_value();
     }
 
+    void end_first_transfer_early_at(size_t offset) { m_first_transfer_end = offset; }
+
     size_t request_count() const { return m_request_count; }
     bool peer_closed(size_t index) const { return m_connections[index]->peer_closed; }
     bool finished(size_t index) const { return m_connections[index]->offset == m_body.size(); }
@@ -311,7 +313,8 @@ private:
         }
         MUST(connection.socket->set_blocking(false));
         connection.offset += piece.size();
-        if (connection.offset == m_body.size()) {
+        auto ends_early = m_first_transfer_end.has_value() && &connection == m_connections.first().ptr() && connection.offset >= *m_first_transfer_end;
+        if (connection.offset == m_body.size() || ends_early) {
             connection.piece_timer->stop();
             connection.socket->close();
         }
@@ -323,6 +326,7 @@ private:
     size_t m_piece_size { 0 };
     AK::Duration m_interval;
     size_t m_request_count { 0 };
+    Optional<size_t> m_first_transfer_end;
 };
 
 ByteBuffer patterned_body(size_t size)
@@ -382,6 +386,65 @@ TEST_CASE(exported_response_is_delivered_and_cached_by_the_importing_request_ser
     EXPECT_EQ(cache_status->value, "read-from-cache"sv);
     (void)target.wait_for<Messages::RequestClient::RequestFinished>(event_loop, 31);
     EXPECT_EQ(http_server.request_count(), 1u);
+}
+
+TEST_CASE(imported_response_whose_transfer_failed_is_not_cached)
+{
+    Core::EventLoop event_loop;
+    TestServer source_server { "failed-export-source"sv };
+    TestServer target_server { "failed-export-target"sv };
+    DrippingServer http_server { patterned_body(300 * KiB), 16 * KiB, AK::Duration::from_milliseconds(2) };
+    http_server.end_first_transfer_early_at(128 * KiB);
+    auto url = http_server.url();
+    auto key = navigation_key_for(url);
+
+    TestConnection navigator { source_server, ReadsBodies::No };
+    TestConnection source_ui { source_server, ReadsBodies::No };
+    navigator.start_request(1, url, key, true);
+    (void)navigator.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 1);
+    source_ui.adopt_request(navigator.client_id(), 1, 10, true);
+    (void)source_ui.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 10);
+
+    auto exported = source_ui.export_request(10);
+    EXPECT(exported.has_value());
+
+    TestConnection target_ui { target_server, ReadsBodies::No };
+    TestConnection target { target_server };
+    target_ui.import_request(20, exported.release_value(), true);
+    target.adopt_request(target_ui.client_id(), 20, 30, false);
+
+    auto finished = target.wait_for<Messages::RequestClient::RequestFinished>(event_loop, 30);
+    EXPECT(finished->network_error().has_value());
+
+    target.start_request(31, url, key, false);
+    auto headers = target.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 31);
+    auto cache_status = headers->response_headers().first_matching([](auto const& header) { return header.name == HTTP::TEST_CACHE_STATUS_HEADER; });
+    EXPECT(cache_status.has_value());
+    EXPECT_NE(cache_status->value, "read-from-cache"sv);
+    (void)target.wait_for<Messages::RequestClient::RequestFinished>(event_loop, 31);
+    EXPECT_EQ(http_server.request_count(), 2u);
+}
+
+TEST_CASE(failed_request_with_a_transfer_lease_releases_its_cache_entry)
+{
+    Core::EventLoop event_loop;
+    TestServer server { "failed-lease"sv };
+    DrippingServer http_server { patterned_body(300 * KiB), 16 * KiB, AK::Duration::from_milliseconds(2) };
+    http_server.end_first_transfer_early_at(128 * KiB);
+    auto url = http_server.url();
+    auto key = navigation_key_for(url);
+
+    TestConnection connection { server };
+    connection.start_request(1, url, key, true);
+    auto finished = connection.wait_for<Messages::RequestClient::RequestFinished>(event_loop, 1);
+    EXPECT(finished->network_error().has_value());
+
+    connection.start_request(2, url, key, false);
+    auto headers = connection.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 2);
+    auto cache_status = headers->response_headers().first_matching([](auto const& header) { return header.name == HTTP::TEST_CACHE_STATUS_HEADER; });
+    EXPECT(cache_status.has_value());
+    EXPECT_EQ(cache_status->value, "written-to-cache"sv);
+    (void)connection.wait_for<Messages::RequestClient::RequestFinished>(event_loop, 2);
 }
 
 TEST_CASE(stopping_an_imported_request_aborts_the_transfer)

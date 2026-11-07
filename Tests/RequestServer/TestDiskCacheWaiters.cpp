@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/HashTable.h>
 #include <AK/Time.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
@@ -263,25 +264,12 @@ public:
     // Pumps the event loop until the request finishes or the budget runs out — reading every response as it comes.
     Optional<FinishedRequest> wait_for_request_to_finish(u64 request_id, AK::Duration budget)
     {
-        return wait_for_request_to_finish_reading_slowly(request_id, budget, 64 * KiB, AK::Duration {});
-    }
-
-    // Pumps the event loop until the request finishes or the budget runs out — reading a bounded amount of every
-    // response, no more often than every interval: A client that's slow to consume what it asked for, but never stops.
-    // Reading less than RequestServer has ready leaves it holding the rest.
-    Optional<FinishedRequest> wait_for_request_to_finish_reading_slowly(u64 request_id, AK::Duration budget, size_t bytes_per_read, AK::Duration interval)
-    {
         auto deadline = MonotonicTime::now() + budget;
-        auto next_read = MonotonicTime::now();
 
         while (MonotonicTime::now() < deadline) {
             m_server.event_loop.pump(Core::EventLoop::WaitMode::PollForEvents);
             drain_client_messages();
-
-            if (MonotonicTime::now() >= next_read) {
-                read_from_response_sockets(bytes_per_read);
-                next_read = MonotonicTime::now() + interval;
-            }
+            read_from_response_sockets();
 
             if (auto finished = m_finished_requests.get(request_id); finished.has_value())
                 return *finished;
@@ -290,14 +278,18 @@ public:
         return {};
     }
 
-private:
-    void read_from_response_sockets(size_t max_bytes_per_socket)
-    {
-        if (m_response_read_buffer.size() < max_bytes_per_socket)
-            m_response_read_buffer = MUST(ByteBuffer::create_uninitialized(max_bytes_per_socket));
+    void never_read_response_of(u64 request_id) { m_unread_requests.set(request_id); }
 
-        for (auto& response_socket : m_response_sockets)
-            (void)response_socket.value->read_some(m_response_read_buffer.span().slice(0, max_bytes_per_socket));
+private:
+    void read_from_response_sockets()
+    {
+        u8 buffer[64 * KiB];
+
+        for (auto& response_socket : m_response_sockets) {
+            if (m_unread_requests.contains(response_socket.key))
+                continue;
+            (void)response_socket.value->read_some({ buffer, sizeof(buffer) });
+        }
     }
 
     void drain_client_messages()
@@ -336,7 +328,7 @@ private:
     RefPtr<RequestServer::ConnectionFromClient> m_connection;
     HashMap<u64, ByteString> m_cache_statuses;
     HashMap<u64, NonnullOwnPtr<Core::LocalSocket>> m_response_sockets;
-    ByteBuffer m_response_read_buffer;
+    HashTable<u64> m_unread_requests;
     HashMap<u64, FinishedRequest> m_finished_requests;
 };
 
@@ -477,12 +469,13 @@ TEST_CASE(request_waiting_on_a_cache_entry_writer_that_stopped_receiving_data_by
     EXPECT_EQ(http_server.connection_count_when_finished(0).value_or(0), 1u);
 }
 
-// A request whose cache entry is held open by a transfer that's over on the wire, but whose bytes are still going out
-// to a slow client, keeps waiting: The entry is still filling — however slowly — so fetching a second copy would waste
-// a request on a response that's already on its way to disk.
-TEST_CASE(request_waiting_on_a_cache_entry_a_slow_client_is_still_filling_keeps_waiting)
+// A request waiting on a cache entry depends only on the transfer filling it. Once that's over on the wire the entry is
+// complete, however far behind the client of that transfer is. A client may never read its response at all: Fetching a
+// resource and dropping the unread response is a common way to warm a cache.
+TEST_CASE(request_waiting_on_a_cache_entry_is_not_held_up_by_a_client_that_never_reads_its_response)
 {
-    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(1));
+    // NB: Long enough that waiting it out can't be what finishes the second request.
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(60));
     RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
 
     TestServer server;
@@ -497,23 +490,42 @@ TEST_CASE(request_waiting_on_a_cache_entry_a_slow_client_is_still_filling_keeps_
     } };
 
     auto url = http_server.url_for_path("/resource"sv);
-    auto started_at = MonotonicTime::now();
+    connection.never_read_response_of(1);
     connection.start_request(1, url);
     connection.start_request(2, url);
 
-    // The client takes 64 KiB every 25ms: three wait limits or so for the whole body, with the entry filling the whole
-    // way through — and the request waiting on it has to sit through all of it. And that pace isn't arbitrary:
-    // RequestServer writes to the entry only as the pipe takes bytes, and Linux reports a stream socket writable again
-    // only once three quarters of its send buffer have drained. So, the client has to take a few hundred KiB well within
-    // one limit — or the entry goes quiet for a whole one, and the waiting request rightly gives up on it.
-    auto finished = connection.wait_for_request_to_finish_reading_slowly(1, AK::Duration::from_seconds(30), 64 * KiB, AK::Duration::from_milliseconds(25));
-    expect_finished_without_error(finished, "written-to-cache"sv);
-
-    // NB: A pipe that could hold the whole body would end the transfer at once — and leave the wait untested.
-    EXPECT(MonotonicTime::now() - started_at >= AK::Duration::from_seconds(2));
-
     expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "read-from-cache"sv);
     EXPECT_EQ(http_server.connection_count(), 1u);
+}
+
+TEST_CASE(request_waiting_on_a_cache_entry_is_not_held_up_by_a_failed_transfer_nobody_read)
+{
+    // NB: Long enough that waiting it out can't be what finishes the second request.
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(60));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    // The first connection closes halfway through a body too large for the client pipe to hold.
+    auto partial_body = ByteString::repeated('x', 8 * MiB);
+    StallingServer http_server { [&](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 0) {
+            auto response = chunked_http_response("max-age=60"sv, partial_body, 32 * KiB, AK::Duration::from_milliseconds(2));
+            response.pieces[0] = http_response_head("max-age=60"sv, 16 * MiB);
+            return response;
+        }
+        return ServerResponse::at_once(http_response("max-age=60"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.never_read_response_of(1);
+    connection.start_request(1, url);
+    connection.start_request(2, url);
+
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 2u);
 }
 
 TEST_CASE(not_modified_response_that_changes_vary_fails_revalidation)
