@@ -3150,7 +3150,7 @@ fn get_by_id_reads_direct_getter_wrappers_inline_from(compressed_field: bool) {
     let target = NativeCallTarget {
         function: CellId(function.as_ptr() as u64),
         realm: CellId(0x7000),
-        entry: fake_native_getter as *const () as u64,
+        entry: core::num::NonZeroU64::new(fake_native_getter as *const () as u64),
         direct_getter: Some(DirectGetterFields {
             wrapper_implementation: 80,
             implementation_value: if compressed_field { 20 } else { 16 },
@@ -3249,7 +3249,7 @@ fn put_by_id_calls_native_setters_of_prototypes() {
     let target = NativeCallTarget {
         function: CellId(function.as_ptr() as u64),
         realm: CellId(0x7000),
-        entry: fake_native_setter as *const () as u64,
+        entry: core::num::NonZeroU64::new(fake_native_setter as *const () as u64),
         direct_getter: None,
     };
     let mut entry = own(

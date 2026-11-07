@@ -1353,6 +1353,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         slow: Option<Label>,
         [check, done]: [Label; 2],
     ) -> Result<(), CompileFailure> {
+        // NB: Without an entry, the function is one JIT code cannot call itself.
+        let entry = target
+            .entry
+            .ok_or(CompileFailure::MissingRuntimeHelper { opcode: None })?;
         let runtime = self.runtime;
         let offsets = runtime.offsets;
         let argument_count = u32::try_from(arguments.len()).map_err(|_| CompileFailure::InvalidBytecode {
@@ -1459,7 +1463,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         // Call the native function: it returns a ThrowCompletionOr<Value>,
         // the value or exception in the first return register and whether it
         // is an exception in the low byte of the second.
-        self.masm.move_imm64(scratch, target.entry);
+        self.masm.move_imm64(scratch, entry.get());
         self.masm.move64(registers[0], vm);
         self.masm.call_register(scratch);
         let [value_register, variant] = [M::RETURN_GPRS[0], M::RETURN_GPRS[1]];

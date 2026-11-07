@@ -421,7 +421,8 @@ pub struct CallFeedbackSnapshot {
     pub inline_executable: Option<u32>,
     /// `target`, if JIT code can call it directly.
     pub direct_call: Option<DirectCallTarget>,
-    /// `target`, if it is a raw native function JIT code can call directly.
+    /// `target`, if it is a raw native function. JIT code can call it directly if it has an `entry`, and can replace
+    /// a call of it with an intrinsic either way.
     pub native_call: Option<NativeCallTarget>,
     /// How `target` forwarded the calls of this site, if it always forwarded
     /// them the same way to the same function.
@@ -600,8 +601,10 @@ pub struct NativeCallTarget {
     pub function: CellId,
     /// The function's realm, the frame's realm.
     pub realm: CellId,
-    /// `ThrowCompletionOr<Value> (*)(VM&)`: the native function.
-    pub entry: u64,
+    /// `ThrowCompletionOr<Value> (*)(VM&)`: the native function, or None
+    /// where native functions do not return their completion in two
+    /// registers, and JIT code leaves calls of them to the runtime.
+    pub entry: Option<core::num::NonZeroU64>,
     /// Where the function, a getter of a platform object attribute backed by
     /// a field, finds the wrapper it would return, if it is one and the
     /// interpreter validated the cache entry for it (see

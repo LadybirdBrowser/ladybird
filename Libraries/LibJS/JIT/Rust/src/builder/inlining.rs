@@ -484,7 +484,7 @@ impl GraphBuilder<'_> {
             unreachable!("calls are generic instructions");
         };
         let slots_offset = u64::from(self.runtime.offsets.execution_context_slots);
-        if let Some(native) = feedback.native_call {
+        if let Some(native) = feedback.native_call.filter(|native| native.entry.is_some()) {
             self.reserve_call_frame(slots_offset + 8 * u64::from(*argument_count));
             self.embed(native.function);
             self.embed(native.realm);
