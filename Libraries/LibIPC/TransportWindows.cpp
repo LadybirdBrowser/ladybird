@@ -118,13 +118,14 @@ TransportWindows::TransportWindows(int handle, Kind kind)
     : m_handle(handle)
     , m_kind(kind)
     , m_handle_broker_channel(get_random<HandleBrokerChannel>())
+    , m_interrupt_event(create_manual_reset_event())
 {
 }
 
 TransportWindows::~TransportWindows()
 {
     close();
-    for (auto* event : { m_incoming_event, m_io_thread_stop_event }) {
+    for (auto* event : { m_interrupt_event, m_incoming_event, m_io_thread_stop_event }) {
         if (event)
             CloseHandle(event);
     }
@@ -321,29 +322,17 @@ bool TransportWindows::wait_until_readable_or_signaled(HANDLE event)
 void TransportWindows::wait_until_readable()
 {
     if (m_io_thread) {
-        WaitForSingleObject(m_incoming_event, INFINITE);
-        return;
+        HANDLE events[] = { m_incoming_event, m_interrupt_event };
+        WaitForMultipleObjects(2, events, FALSE, INFINITE);
+    } else {
+        (void)wait_until_readable_or_signaled(m_interrupt_event);
     }
+    ResetEvent(m_interrupt_event);
+}
 
-    if (m_kind == Kind::Socket) {
-        WSAPOLLFD poll_fd {
-            .fd = static_cast<SOCKET>(m_handle),
-            .events = POLLRDNORM,
-            .revents = 0,
-        };
-        auto result = WSAPoll(&poll_fd, 1, -1);
-        VERIFY(result != SOCKET_ERROR);
-        return;
-    }
-
-    // A zero-byte read completes once there is something to read, or once the pipe is broken.
-    OverlappedOperation operation;
-    static u8 s_zero_byte_buffer;
-    if (ReadFile(to_handle(m_handle), &s_zero_byte_buffer, 0, nullptr, operation.overlapped()))
-        return;
-    if (GetLastError() != ERROR_IO_PENDING)
-        return;
-    WaitForSingleObject(operation.event(), INFINITE);
+void TransportWindows::interrupt_wait_until_readable()
+{
+    SetEvent(m_interrupt_event);
 }
 
 ErrorOr<size_t> TransportWindows::write_some(ReadonlyBytes bytes)

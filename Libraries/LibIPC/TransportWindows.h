@@ -64,6 +64,8 @@ public:
 
     void wait_until_readable();
 
+    void interrupt_wait_until_readable();
+
     // Both are no-ops here: post_message() writes to the pipe before it returns, and the read path below reads the
     // pipe itself, so neither direction has a queue that can lag behind another transport.
     // FIXME: Once an observer has started an IO thread, the pipe can hold messages that it has not queued yet.
@@ -130,6 +132,7 @@ private:
     bool m_disconnects_when_peer_stops_reading { false };
 
     // Manual-reset events, as HANDLEs.
+    void* m_interrupt_event { nullptr };
     void* m_incoming_event { nullptr };
     void* m_io_thread_stop_event { nullptr };
 

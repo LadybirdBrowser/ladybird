@@ -10,6 +10,7 @@
 #include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibCore/Forward.h>
+#include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
 
@@ -24,18 +25,20 @@ public:
 
     ~ScriptAbortHandle();
 
-    // Stops script on the agent's VM for good (see JS::VM::request_interrupt()). Any thread may call this.
+    // Stops script on the agent's VM for good (see JS::VM::request_interrupt()), and fails the sync requests of its
+    // thread, as script that waits for one is not running. Any thread may call this.
     void abort_script();
 
     // The agent's thread calls this before the VM goes away.
     void detach();
 
 private:
-    ScriptAbortHandle(JS::VM&, NonnullRefPtr<Core::WeakEventLoopReference>);
+    ScriptAbortHandle(JS::VM&, NonnullRefPtr<Core::WeakEventLoopReference>, NonnullRefPtr<IPC::SyncRequestCanceller>);
 
     Mutex m_mutex;
     JS::VM* m_vm { nullptr };
     NonnullRefPtr<Core::WeakEventLoopReference> m_event_loop;
+    NonnullRefPtr<IPC::SyncRequestCanceller> m_sync_request_canceller;
 };
 
 }
