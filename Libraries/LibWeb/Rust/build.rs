@@ -2473,8 +2473,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "NodeHandle",
         "ControlMessageQueue",
         "AudioWorkletPipe",
-        "ScriptProcessorPipe",
-        "OfflineAudioRenderer",
         "RealtimeAudioRenderer",
     ] {
         web_audio_config.export.rename.insert(name.into(), "void".into());
@@ -2496,11 +2494,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/web_audio/rendering/media_stream_destination_render_node.rs"),
             manifest_dir.join("src/web_audio/rendering/pipe_callbacks.rs"),
             manifest_dir.join("src/web_audio/rendering/audio_worklet_pipe.rs"),
-            manifest_dir.join("src/web_audio/rendering/script_processor_pipe.rs"),
-            manifest_dir.join("src/web_audio/rendering/renderer_callbacks.rs"),
-            manifest_dir.join("src/web_audio/rendering/offline_audio_renderer.rs"),
             manifest_dir.join("src/web_audio/rendering/realtime_audio_renderer.rs"),
             manifest_dir.join("src/web_audio/control_message.rs"),
+            manifest_dir.join("src/web_audio/control_thread.rs"),
         ],
         &out_dir,
         Path::new("WebAudio/RustFFI.h"),

@@ -9,15 +9,20 @@
 
 use std::cell::UnsafeCell;
 use std::collections::HashSet;
-use std::ffi::c_void;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
 use super::render_graph::RenderGraph;
 use super::render_node::RenderContext;
-use super::renderer_callbacks::{CallbackService, RendererCallbacks};
-use crate::web_audio::control_message::clone_arc;
 use crate::web_audio::control_message_queue::ControlMessageQueue;
+use crate::web_audio::control_thread::{ControlThread, ControlThreadCell};
+
+pub trait OfflineAudioRendererClient {
+    fn rendering_suspended(&self, suspend_time: f64);
+    fn rendering_completed(&self, rendered_channels: &[Vec<f32>]);
+    fn sources_ended(&self, nodes: &[u64]);
+}
 
 #[derive(Default)]
 struct SuspensionState {
@@ -31,6 +36,10 @@ struct SuspensionState {
     shutting_down: bool,
 }
 
+// Renders an OfflineAudioContext's graph on a dedicated rendering thread, which is created when rendering starts and
+// exits once the last render quantum has been processed. Progress is reported back to the control thread by posting
+// events to the main thread's event loop.
+// https://webaudio.github.io/web-audio-api/#OfflineAudioContext
 pub struct OfflineAudioRenderer {
     control_message_queue: Arc<ControlMessageQueue>,
     destination_node_id: u64,
@@ -38,7 +47,8 @@ pub struct OfflineAudioRenderer {
     length: usize,
     sample_rate: f32,
     quantum_size: usize,
-    callbacks: CallbackService,
+    control_thread: ControlThread,
+    client: ControlThreadCell<Option<Rc<dyn OfflineAudioRendererClient>>>,
     thread: UnsafeCell<Option<std::thread::Thread>>,
     graph: UnsafeCell<RenderGraph>,
     rendered_channels: UnsafeCell<Vec<Vec<f32>>>,
@@ -56,44 +66,45 @@ enum Notification {
     SourcesEnded(Vec<u64>),
 }
 
-struct ControlTask {
-    renderer: Arc<OfflineAudioRenderer>,
-    notification: Notification,
-}
-
 impl OfflineAudioRenderer {
-    fn new(
+    pub fn new(
         control_message_queue: Arc<ControlMessageQueue>,
         destination_node_id: u64,
         number_of_channels: usize,
         length: usize,
         sample_rate: f32,
         quantum_size: usize,
-        callbacks: CallbackService,
-    ) -> Self {
+    ) -> Arc<Self> {
         let mut rendered_channels = Vec::new();
         rendered_channels.resize_with(number_of_channels, Vec::new);
         for channel in &mut rendered_channels {
             channel.resize(length, 0.);
         }
-        Self {
+        Arc::new(Self {
             control_message_queue,
             destination_node_id,
             number_of_channels,
             length,
             sample_rate,
             quantum_size,
-            callbacks,
+            control_thread: ControlThread::current(),
+            client: ControlThreadCell::new(None),
             thread: UnsafeCell::new(None),
             graph: UnsafeCell::new(RenderGraph::default()),
             rendered_channels: UnsafeCell::new(rendered_channels),
             frames_rendered: AtomicU64::new(0),
             suspend_mutex: Mutex::new(SuspensionState::default()),
             resume_signal: Condvar::new(),
-        }
+        })
     }
 
-    unsafe fn start_rendering(self: &Arc<Self>) {
+    /// The callbacks below are set on the control thread before rendering starts and are always invoked on the control
+    /// thread. They are cleared once rendering completes to break the reference cycle with the context.
+    pub fn set_client(&self, client: Option<Rc<dyn OfflineAudioRendererClient>>) {
+        self.client.replace(client);
+    }
+
+    pub fn start_rendering(self: &Arc<Self>) {
         assert!(unsafe { &*self.thread.get() }.is_none());
         unsafe { &mut *self.graph.get() }.set_destination(self.destination_node_id);
         let renderer = Arc::clone(self);
@@ -109,13 +120,16 @@ impl OfflineAudioRenderer {
         drop(thread);
     }
 
-    fn stop(&self) {
+    /// Ends rendering without completing it, unblocking the rendering thread if it is waiting in a suspension.
+    pub fn stop(&self) {
         let mut state = self.suspend_mutex.lock().unwrap();
         state.shutting_down = true;
         self.resume_signal.notify_all();
     }
 
-    fn request_suspend(&self, frame: u64) -> bool {
+    /// Registers a suspension at the given render quantum boundary. Returns false if the rendering thread already
+    /// looked for suspensions at that boundary.
+    pub fn request_suspend(&self, frame: u64) -> bool {
         let mut state = self.suspend_mutex.lock().unwrap();
         if frame < state.next_suspend_check_frame {
             return false;
@@ -124,35 +138,31 @@ impl OfflineAudioRenderer {
         true
     }
 
-    fn resume(&self) {
+    pub fn resume(&self) {
         let mut state = self.suspend_mutex.lock().unwrap();
         state.suspended = false;
         self.resume_signal.notify_all();
     }
 
+    pub fn frames_rendered(&self) -> u64 {
+        self.frames_rendered.load(Ordering::SeqCst)
+    }
+
     fn post_to_control_thread(self: &Arc<Self>, notification: Notification) {
-        unsafe extern "C" fn invoke(context: *mut c_void) {
-            let task = unsafe { Box::from_raw(context.cast::<ControlTask>()) };
-            let callbacks = &task.renderer.callbacks;
-            match &task.notification {
-                Notification::Complete => unsafe {
-                    (callbacks.callbacks.on_complete)(callbacks.owner.pointer);
-                },
-                Notification::Suspended(time) => unsafe {
-                    (callbacks.callbacks.on_suspended)(callbacks.owner.pointer, *time);
-                },
-                Notification::SourcesEnded(nodes) => unsafe {
-                    (callbacks.callbacks.on_sources_ended)(callbacks.owner.pointer, ak::Span::new(nodes));
-                },
+        let renderer = Arc::clone(self);
+        self.control_thread.post(move || {
+            let Some(client) = renderer.client.get() else {
+                return;
+            };
+            match notification {
+                Notification::Complete => {
+                    // SAFETY: The rendering thread posts the completion after its last write.
+                    client.rendering_completed(unsafe { &*renderer.rendered_channels.get() });
+                }
+                Notification::Suspended(time) => client.rendering_suspended(time),
+                Notification::SourcesEnded(nodes) => client.sources_ended(&nodes),
             }
-        }
-        let task = Box::into_raw(Box::new(ControlTask {
-            renderer: Arc::clone(self),
-            notification,
-        }));
-        unsafe {
-            self.callbacks.post(task.cast(), invoke);
-        }
+        });
     }
 
     fn render_thread_main(self: &Arc<Self>) {
@@ -209,75 +219,5 @@ impl OfflineAudioRenderer {
             }
         }
         self.post_to_control_thread(Notification::Complete);
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_offline_renderer_create(
-    queue: *const ControlMessageQueue,
-    destination_node_id: u64,
-    number_of_channels: usize,
-    length: usize,
-    sample_rate: f32,
-    quantum_size: usize,
-    callbacks: RendererCallbacks,
-) -> *const OfflineAudioRenderer {
-    Arc::into_raw(Arc::new(OfflineAudioRenderer::new(
-        unsafe { clone_arc(queue) },
-        destination_node_id,
-        number_of_channels,
-        length,
-        sample_rate,
-        quantum_size,
-        unsafe { CallbackService::new(callbacks) },
-    )))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_offline_renderer_destroy(renderer: *const OfflineAudioRenderer) {
-    drop(unsafe { Arc::from_raw(renderer) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_offline_renderer_start(renderer: *const OfflineAudioRenderer) {
-    let renderer = unsafe { clone_arc(renderer) };
-    unsafe {
-        renderer.start_rendering();
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_offline_renderer_stop(renderer: *const OfflineAudioRenderer) {
-    unsafe { &*renderer }.stop();
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_offline_renderer_resume(renderer: *const OfflineAudioRenderer) {
-    unsafe { &*renderer }.resume();
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_offline_renderer_request_suspend(
-    renderer: *const OfflineAudioRenderer,
-    frame: u64,
-) -> bool {
-    unsafe { &*renderer }.request_suspend(frame)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_offline_renderer_frames_rendered(
-    renderer: *const OfflineAudioRenderer,
-) -> u64 {
-    unsafe { &*renderer }.frames_rendered.load(Ordering::SeqCst)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_offline_renderer_channel(
-    renderer: *const OfflineAudioRenderer,
-    channel: usize,
-    output: *mut ak::Span<'static, f32>,
-) {
-    unsafe {
-        *output = ak::Span::new(&(&*(*renderer).rendered_channels.get())[channel]);
     }
 }

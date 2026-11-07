@@ -1,56 +1,77 @@
 /*
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/HostClassBuilder.h>
-#include <LibJS/Runtime/VM.h>
+#include <AK/AtomicRefCounted.h>
+#include <AK/Time.h>
+#include <LibAudio/PlaybackStream.h>
 #include <LibMedia/Sinks/AudioOutputFactory.h>
-#include <LibWeb/Bindings/RustInterface.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/WebAudio/Rendering/RealtimeAudioRenderer.h>
 #include <LibWeb/WebAudio/RustFFI.h>
+
 namespace Web::WebAudio {
 
-extern "C" void web_rust_audio_context_sources_ended(JSVM*, void*, ReadonlySpan<u64>);
-extern "C" RustFFI::FfiSharedCppObject web_audio_realtime_context_create(DOM::EventTarget*, void const*, u64, float);
-extern "C" void web_audio_realtime_context_set_callbacks(Rendering::RealtimeAudioRenderer*, Bindings::RustInterfaceCell*);
+static constexpr u32 TARGET_LATENCY_MS = 100;
+
+extern "C" RustFFI::FfiSharedCppObject web_audio_output_factory_create(DOM::EventTarget*);
 extern "C" double web_audio_realtime_context_performance_now(DOM::EventTarget*);
-RustFFI::FfiSharedCppObject web_audio_realtime_context_create(DOM::EventTarget* global, void const* queue, u64 destination, float sample_rate)
+
+RustFFI::FfiSharedCppObject web_audio_output_factory_create(DOM::EventTarget* global)
 {
     auto factory = as<HTML::Window>(*global).page().client().create_audio_output_factory();
-    auto renderer = Rendering::RealtimeAudioRenderer::create(queue, NodeID(destination), sample_rate, 128, move(factory));
-    return { &renderer.leak_ref(), [](void* renderer) { static_cast<Rendering::RealtimeAudioRenderer*>(renderer)->ref(); }, [](void* renderer) { static_cast<Rendering::RealtimeAudioRenderer*>(renderer)->unref(); } };
+    return { &factory.leak_ref(), [](void* factory) { static_cast<Media::AudioOutputFactory*>(factory)->ref(); }, [](void* factory) { static_cast<Media::AudioOutputFactory*>(factory)->unref(); } };
 }
-void web_audio_realtime_context_set_callbacks(Rendering::RealtimeAudioRenderer* renderer, Bindings::RustInterfaceCell* context)
+
+// Keeps the renderer alive for the callbacks of its stream.
+class RendererReference final : public AtomicRefCounted<RendererReference> {
+public:
+    explicit RendererReference(void const* renderer)
+        : m_renderer(renderer)
+    {
+        RustFFI::web_audio_realtime_renderer_retain(m_renderer);
+    }
+
+    ~RendererReference() { RustFFI::web_audio_realtime_renderer_release(m_renderer); }
+
+    void const* renderer() const { return m_renderer; }
+
+private:
+    void const* m_renderer { nullptr };
+};
+
+void RustFFI::web_audio_output_open(void* factory, void const* renderer)
 {
-    renderer->set_on_sources_ended([context = GC::make_root(*context)](Vector<NodeID> const& nodes) {
-        Vector<u64> ids;
-        ids.ensure_capacity(nodes.size());
-        for (auto node : nodes)
-            ids.unchecked_append(node.value());
-        web_rust_audio_context_sources_ended(JS::HostABI::vm_to_abi(JS::VM::the()), context.ptr(), ids);
+    auto reference = adopt_ref(*new RendererReference(renderer));
+    auto promise = static_cast<Media::AudioOutputFactory*>(factory)->open_output(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [reference](Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
+        return buffer.trim(RustFFI::web_audio_realtime_renderer_fill(reference->renderer(), buffer, buffer_starts_playing_at.nanoseconds()));
+    });
+    promise->when_resolved([reference](NonnullRefPtr<Audio::PlaybackStream>& stream) {
+        stream->on_output_lost = [reference] { RustFFI::web_audio_realtime_renderer_output_lost(reference->renderer()); };
+        auto specification = stream->sample_specification();
+        RustFFI::FfiSharedCppObject shared_stream { stream.ptr(), [](void* stream) { static_cast<Audio::PlaybackStream*>(stream)->ref(); }, [](void* stream) { static_cast<Audio::PlaybackStream*>(stream)->unref(); } };
+        RustFFI::web_audio_realtime_renderer_output_opened(reference->renderer(), shared_stream, specification.channel_count(), specification.sample_rate());
     });
 }
+
+void RustFFI::web_audio_output_resume(void* stream)
+{
+    static_cast<Audio::PlaybackStream*>(stream)->resume()->when_rejected([](auto&&) { });
+}
+void RustFFI::web_audio_output_drain_and_suspend(void* stream)
+{
+    static_cast<Audio::PlaybackStream*>(stream)->drain_buffer_and_suspend()->when_rejected([](auto&&) { });
+}
+void RustFFI::web_audio_output_discard_and_suspend(void* stream)
+{
+    static_cast<Audio::PlaybackStream*>(stream)->discard_buffer_and_suspend()->when_rejected([](auto&&) { });
+}
+i64 RustFFI::web_audio_monotonic_now_nanoseconds() { return MonotonicTime::now().nanoseconds(); }
 double web_audio_realtime_context_performance_now(DOM::EventTarget* global) { return as<HTML::Window>(*global).performance()->now(); }
-extern "C" void web_audio_realtime_context_start(Rendering::RealtimeAudioRenderer*);
-void web_audio_realtime_context_start(Rendering::RealtimeAudioRenderer* renderer) { renderer->start_rendering(); }
-extern "C" void web_audio_realtime_context_resume(Rendering::RealtimeAudioRenderer*);
-void web_audio_realtime_context_resume(Rendering::RealtimeAudioRenderer* renderer) { renderer->resume(); }
-extern "C" void web_audio_realtime_context_suspend(Rendering::RealtimeAudioRenderer*);
-void web_audio_realtime_context_suspend(Rendering::RealtimeAudioRenderer* renderer) { renderer->suspend(); }
-extern "C" void web_audio_realtime_context_stop(Rendering::RealtimeAudioRenderer*);
-void web_audio_realtime_context_stop(Rendering::RealtimeAudioRenderer* renderer) { renderer->stop(); }
-extern "C" void web_audio_realtime_context_clear_callbacks(Rendering::RealtimeAudioRenderer*);
-void web_audio_realtime_context_clear_callbacks(Rendering::RealtimeAudioRenderer* renderer) { renderer->clear_callbacks(); }
-extern "C" u64 web_audio_realtime_context_frames_rendered(Rendering::RealtimeAudioRenderer*);
-u64 web_audio_realtime_context_frames_rendered(Rendering::RealtimeAudioRenderer* renderer) { return renderer->frames_rendered(); }
-extern "C" double web_audio_realtime_context_output_time(Rendering::RealtimeAudioRenderer*);
-double web_audio_realtime_context_output_time(Rendering::RealtimeAudioRenderer* renderer) { return renderer->output_time_played(); }
 
 }

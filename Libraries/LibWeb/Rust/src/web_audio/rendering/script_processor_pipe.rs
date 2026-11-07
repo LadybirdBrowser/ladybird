@@ -6,14 +6,17 @@
  */
 
 use std::cell::UnsafeCell;
-use std::ffi::c_void;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
-use super::pipe_callbacks::{CallbackService, PipeCallbacks};
+use crate::web_audio::control_thread::{ControlThread, ControlThreadCell};
+
+pub trait ScriptProcessorPipeClient {
+    fn process(&self, block: usize, start_frame: u64);
+}
 
 #[derive(Clone, Copy)]
-#[repr(C)]
 pub struct ScriptProcessorPipeConfig {
     pub buffer_size: usize,
     pub input_channel_count: usize,
@@ -33,7 +36,8 @@ pub struct ScriptProcessorPipe {
     input_samples: Box<[UnsafeCell<f32>]>,
     output_samples: Box<[UnsafeCell<f32>]>,
     blocks: Box<[Block]>,
-    callbacks: CallbackService,
+    control_thread: ControlThread,
+    client: ControlThreadCell<Option<Rc<dyn ScriptProcessorPipeClient>>>,
     mutex: Mutex<()>,
     block_returned: Condvar,
     is_shut_down: AtomicBool,
@@ -42,17 +46,15 @@ pub struct ScriptProcessorPipe {
 // SAFETY: A block's acquire/release ownership flag transfers exclusive access to its sample ranges and output flag.
 unsafe impl Send for ScriptProcessorPipe {}
 unsafe impl Sync for ScriptProcessorPipe {}
-struct ProcessTask {
-    pipe: Arc<ScriptProcessorPipe>,
-    block: usize,
-    start_frame: u64,
-}
-
 impl ScriptProcessorPipe {
-    fn new(config: ScriptProcessorPipeConfig, callbacks: CallbackService) -> Self {
+    // Moves a ScriptProcessorNode's blocks of buffer_size frames between the rendering thread and the control thread. The
+    // render node cycles through block_count blocks, so a block's output plays block_count blocks after its input was
+    // captured. A block the control thread has not handed back in time renders silence and drops its input, unless the
+    // rendering thread waits for processing.
+    pub fn new(config: ScriptProcessorPipeConfig) -> Arc<Self> {
         assert!(config.buffer_size > 0);
         assert!(config.block_count >= 2);
-        Self {
+        Arc::new(Self {
             config,
             input_samples: (0..config.block_count * config.input_channel_count * config.buffer_size)
                 .map(|_| UnsafeCell::new(0.))
@@ -61,11 +63,16 @@ impl ScriptProcessorPipe {
                 .map(|_| UnsafeCell::new(0.))
                 .collect(),
             blocks: (0..config.block_count).map(|_| Block::default()).collect(),
-            callbacks,
+            control_thread: ControlThread::current(),
+            client: ControlThreadCell::new(None),
             mutex: Mutex::new(()),
             block_returned: Condvar::new(),
             is_shut_down: AtomicBool::new(false),
-        }
+        })
+    }
+
+    pub fn set_client(&self, client: Option<Rc<dyn ScriptProcessorPipeClient>>) {
+        self.client.replace(client);
     }
 
     /// # Safety
@@ -100,27 +107,14 @@ impl ScriptProcessorPipe {
         self.blocks[block]
             .is_owned_by_control_thread
             .store(true, Ordering::Release);
-        unsafe extern "C" fn invoke(task: *mut c_void) {
-            let task = unsafe { Box::from_raw(task.cast::<ProcessTask>()) };
-            let pipe = &task.pipe;
-            let processed = !pipe.is_shut_down()
-                && unsafe {
-                    (pipe.callbacks.callbacks.on_process)(pipe.callbacks.owner.pointer, task.block, task.start_frame)
-                };
-            if !processed {
-                unsafe {
-                    pipe.hand_block_back_to_rendering_thread(task.block, false);
-                }
+        let pipe = Arc::clone(self);
+        self.control_thread.post(move || {
+            let client = if pipe.is_shut_down() { None } else { pipe.client.get() };
+            match client {
+                Some(client) => client.process(block, start_frame),
+                None => unsafe { pipe.hand_block_back_to_rendering_thread(block, false) },
             }
-        }
-        let task = Box::into_raw(Box::new(ProcessTask {
-            pipe: Arc::clone(self),
-            block,
-            start_frame,
-        }));
-        unsafe {
-            self.callbacks.post(task.cast(), invoke);
-        }
+        });
         if !self.config.waits_for_processing {
             return;
         }
@@ -154,19 +148,4 @@ impl ScriptProcessorPipe {
     pub fn is_shut_down(&self) -> bool {
         self.is_shut_down.load(Ordering::Acquire)
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_script_pipe_create(
-    config: ScriptProcessorPipeConfig,
-    callbacks: PipeCallbacks,
-) -> *const ScriptProcessorPipe {
-    Arc::into_raw(Arc::new(ScriptProcessorPipe::new(config, unsafe {
-        CallbackService::new(callbacks)
-    })))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_script_pipe_destroy(pipe: *const ScriptProcessorPipe) {
-    drop(unsafe { Arc::from_raw(pipe) });
 }

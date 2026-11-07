@@ -50,7 +50,6 @@ static void* create_render_node(u64 node_id, size_t quantum_size, size_t channel
             if (shared_state.drain)
                 shared_state.drain();
         },
-        [](void*, size_t, u64) { return false; },
     };
     return RustFFI::web_audio_node_create_media_stream_destination(node_id, quantum_size, channel_count,
         { shared_state->ring.ptr(), [](void* ring) { static_cast<Audio::SpscAudioFrameRing*>(ring)->ref(); }, [](void* ring) { static_cast<Audio::SpscAudioFrameRing*>(ring)->unref(); } },

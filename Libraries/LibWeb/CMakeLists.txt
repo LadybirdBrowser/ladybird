@@ -934,12 +934,7 @@ set(SOURCES
     WebAudio/MediaElementAudioSourceNode.cpp
     WebAudio/MediaStreamAudioDestinationNode.cpp
     WebAudio/MediaStreamAudioSourceNode.cpp
-    WebAudio/OfflineAudioContext.cpp
     WebAudio/Rendering/AudioWorkletPipe.cpp
-    WebAudio/Rendering/OfflineAudioRenderer.cpp
-    WebAudio/Rendering/RealtimeAudioRenderer.cpp
-    WebAudio/Rendering/ScriptProcessorPipe.cpp
-    WebAudio/ScriptProcessorNode.cpp
     WebDriver/Actions.cpp
     WebDriver/BiDi/BiDi.cpp
     WebDriver/BiDi/BrowsingContext.cpp

@@ -9,14 +9,16 @@ use std::cell::Cell;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use ak::Utf16String;
 use libjs_rust::api::Trace;
 use libjs_rust::api::Vm;
-use libweb_rust::web_audio::control_message::FfiSharedCppObject;
-use libweb_rust::web_audio::rendering::node_message::SharedCppObject;
-use libweb_rust::web_audio::rendering::script_processor_pipe::{ScriptProcessorPipe, ScriptProcessorPipeConfig};
+use libjs_rust::api::{EmbedderCell, GcWeak};
+use libweb_rust::web_audio::rendering::script_processor_pipe::{
+    ScriptProcessorPipe, ScriptProcessorPipeClient, ScriptProcessorPipeConfig,
+};
 use libweb_rust::web_audio::rendering::script_processor_render_node::create_script_processor_render_node;
 
 use super::audio_buffer::AudioBuffer;
@@ -25,8 +27,8 @@ use super::audio_processing_event::AudioProcessingEvent;
 use super::base_audio_context::{AnyBaseAudioContext, BaseAudioContext};
 use crate::bindings::event_target::CppEvent;
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
-use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
-use crate::bindings::interface::{cell_from_abi, cell_into_abi, with_temporary_execution_context_and_callbacks};
+use crate::bindings::interface::with_temporary_execution_context_and_callbacks;
+use crate::bindings::interface::{Inherits, Ref, Wrappable, Wrapped, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#ScriptProcessorNode
@@ -36,8 +38,6 @@ pub(crate) struct ScriptProcessorNode {
     node: AudioNode,
     #[gc(untraced)]
     pipe: RefCell<Option<Arc<ScriptProcessorPipe>>>,
-    #[gc(untraced)]
-    pipe_service: RefCell<Option<SharedCppObject>>,
     buffer_size: Cell<i32>,
     number_of_input_channels: u8,
     number_of_output_channels: u8,
@@ -57,10 +57,8 @@ impl Wrappable for ScriptProcessorNode {
     const FINALIZES: bool = true;
 
     fn finalize(node: Ref<Self>) {
-        if let Some(service) = &*node.pipe_service.borrow() {
-            unsafe { web_audio_script_processor_clear_callback(service.pointer) };
-        }
         if let Some(pipe) = &*node.pipe.borrow() {
+            pipe.set_client(None);
             pipe.shut_down();
         }
         node.node.finalize_node();
@@ -73,13 +71,18 @@ impl GetTheParent for ScriptProcessorNode {
     }
 }
 
-unsafe extern "C" {
-    fn web_audio_script_processor_create_pipe(
-        node: *mut c_void,
-        config: ScriptProcessorPipeConfig,
-        pipe: *mut *const c_void,
-    ) -> FfiSharedCppObject;
-    fn web_audio_script_processor_clear_callback(service: *mut c_void);
+struct PipeClient {
+    vm: NonNull<Vm>,
+    node: GcWeak<EmbedderCell<Wrapped<ScriptProcessorNode>>>,
+}
+
+impl ScriptProcessorPipeClient for PipeClient {
+    fn process(&self, block: usize, start_frame: u64) {
+        if let Some(node) = self.node.get() {
+            // SAFETY: The VM of the control thread outlives its audio nodes.
+            node.process_block(unsafe { self.vm.as_ref() }, block, start_frame);
+        }
+    }
 }
 
 // Other engines have a latency of two buffers. A realtime context needs more when the device pulls a burst of audio
@@ -114,7 +117,6 @@ impl ScriptProcessorNode {
             number_of_output_channels: number_of_output_channels as u8,
             buffer_size: Cell::new(0),
             pipe: RefCell::new(None),
-            pipe_service: RefCell::new(None),
         });
         script_processor_node
             .node
@@ -136,24 +138,11 @@ impl ScriptProcessorNode {
             block_count: block_count_for_context(context, buffer_size as usize),
             waits_for_processing: matches!(context, AnyBaseAudioContext::OfflineAudioContext(_)),
         };
-        let mut native_pipe = std::ptr::null();
-        let service = unsafe {
-            web_audio_script_processor_create_pipe(
-                cell_into_abi(script_processor_node),
-                pipe_config,
-                &raw mut native_pipe,
-            )
-        };
-        let native_pipe = native_pipe.cast::<ScriptProcessorPipe>();
-        unsafe {
-            Arc::increment_strong_count(native_pipe);
-        }
-        let pipe = unsafe { Arc::from_raw(native_pipe) };
-        *script_processor_node.pipe_service.borrow_mut() = Some(SharedCppObject {
-            pointer: service.pointer,
-            retain: service.retain,
-            release: service.release,
-        });
+        let pipe = ScriptProcessorPipe::new(pipe_config);
+        pipe.set_client(Some(Rc::new(PipeClient {
+            vm: NonNull::from(cx.vm()),
+            node: GcWeak::new(cx.vm().heap(), script_processor_node),
+        })));
         *script_processor_node.pipe.borrow_mut() = Some(Arc::clone(&pipe));
         context.add_script_processor_node(cx.vm(), script_processor_node);
         script_processor_node
@@ -320,15 +309,4 @@ impl ScriptProcessorNode {
 
         self.node.set_channel_count_mode_impl(channel_count_mode)
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_script_processor_process(
-    vm: &Vm,
-    cell: *mut c_void,
-    block: usize,
-    start_frame: u64,
-) {
-    let node: Ref<ScriptProcessorNode> = unsafe { cell_from_abi(cell) };
-    node.process_block(vm, block, start_frame);
 }

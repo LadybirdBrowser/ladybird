@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
@@ -24,6 +25,7 @@
 #include <LibWeb/WebAudio/AudioWorklet.h>
 #include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/RustFFI.h>
 
 namespace Web::WebAudio {
 
@@ -52,6 +54,11 @@ extern "C" void web_audio_context_decoded_destroy(MediaClient::Client::DecodedAu
 extern "C" void web_audio_context_decoded_metadata(MediaClient::Client::DecodedAudioData*, u32*, u64*, u32*);
 extern "C" void web_audio_context_decoded_channel(MediaClient::Client::DecodedAudioData*, u32, ReadonlySpan<float>*);
 extern "C" void web_audio_context_report_exception(JS::Realm*, JSValue);
+void* RustFFI::web_audio_current_event_loop() { return &Core::EventLoop::current(); }
+void RustFFI::web_audio_deferred_invoke(void* event_loop, void* task, void (*invoke)(void*))
+{
+    static_cast<Core::EventLoop*>(event_loop)->deferred_invoke([task, invoke] { invoke(task); });
+}
 HTML::UniqueTaskSource* web_audio_context_create_task_source() { return new HTML::UniqueTaskSource; }
 void web_audio_context_destroy_task_source(HTML::UniqueTaskSource* source) { delete source; }
 void web_audio_context_queue_task(HTML::UniqueTaskSource* source, DOM::EventTarget* global, GC::Cell* cell, void (*invoke)(void*, void*))

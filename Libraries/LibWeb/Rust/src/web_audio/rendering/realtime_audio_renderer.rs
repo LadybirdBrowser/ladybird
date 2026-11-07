@@ -8,15 +8,29 @@
 #![allow(clippy::needless_range_loop, clippy::manual_memcpy)]
 use std::cell::UnsafeCell;
 use std::ffi::c_void;
-use std::sync::Arc;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering, fence};
+use std::sync::{Arc, Mutex};
 
 use super::audio_bus::AudioBus;
+use super::node_message::SharedCppObject;
 use super::render_graph::RenderGraph;
 use super::render_node::RenderContext;
-use super::renderer_callbacks::{CallbackService, RendererCallbacks};
-use crate::web_audio::control_message::clone_arc;
+use crate::web_audio::control_message::{FfiSharedCppObject, clone_arc};
 use crate::web_audio::control_message_queue::ControlMessageQueue;
+use crate::web_audio::control_thread::{ControlThread, ControlThreadCell};
+
+unsafe extern "C" {
+    fn web_audio_output_open(factory: *mut c_void, renderer: *const c_void);
+    fn web_audio_output_resume(stream: *mut c_void);
+    fn web_audio_output_drain_and_suspend(stream: *mut c_void);
+    fn web_audio_output_discard_and_suspend(stream: *mut c_void);
+    fn web_audio_monotonic_now_nanoseconds() -> i64;
+}
+
+pub trait RealtimeAudioRendererClient {
+    fn sources_ended(&self, nodes: &[u64]);
+}
 
 // The output buffer most recently handed to the stream, and when its first frame plays.
 #[derive(Default)]
@@ -71,12 +85,19 @@ struct RenderState {
     pending_samples: Vec<f32>,
 }
 
+// Renders an AudioContext's graph in real time, pulled by the audio output device: the playback stream's data request
+// callback runs on the platform's audio thread and renders just enough render quanta to fill the device's buffer.
+// Progress is reported back to the control thread by posting events to the main thread's event loop.
+// https://webaudio.github.io/web-audio-api/#AudioContext
 pub struct RealtimeAudioRenderer {
     control_message_queue: Arc<ControlMessageQueue>,
     destination_node_id: u64,
     sample_rate: f32,
     quantum_size: usize,
-    callbacks: CallbackService,
+    audio_output_factory: SharedCppObject,
+    playback_stream: Mutex<Option<SharedCppObject>>,
+    control_thread: ControlThread,
+    client: ControlThreadCell<Option<Rc<dyn RealtimeAudioRendererClient>>>,
     frames_rendered: AtomicU64,
     suspended: AtomicBool,
     shutting_down: AtomicBool,
@@ -88,25 +109,23 @@ pub struct RealtimeAudioRenderer {
 // SAFETY: Only the audio thread mutates render state after the suspended stream's device configuration is recorded.
 unsafe impl Send for RealtimeAudioRenderer {}
 unsafe impl Sync for RealtimeAudioRenderer {}
-struct ControlTask {
-    renderer: Arc<RealtimeAudioRenderer>,
-    ended_nodes: Vec<u64>,
-}
-
 impl RealtimeAudioRenderer {
-    fn new(
+    pub fn new(
         queue: Arc<ControlMessageQueue>,
         destination_node_id: u64,
         sample_rate: f32,
         quantum_size: usize,
-        callbacks: CallbackService,
-    ) -> Self {
-        Self {
+        audio_output_factory: SharedCppObject,
+    ) -> Arc<Self> {
+        Arc::new(Self {
             control_message_queue: queue,
             destination_node_id,
             sample_rate,
             quantum_size,
-            callbacks,
+            audio_output_factory,
+            playback_stream: Mutex::new(None),
+            control_thread: ControlThread::current(),
+            client: ControlThreadCell::new(None),
             frames_rendered: AtomicU64::new(0),
             suspended: AtomicBool::new(false),
             shutting_down: AtomicBool::new(false),
@@ -121,10 +140,87 @@ impl RealtimeAudioRenderer {
                 playhead: 0.,
                 pending_samples: Vec::new(),
             }),
+        })
+    }
+
+    /// The callback is set on the control thread before rendering starts and is always invoked on the control thread. It
+    /// is cleared when the context closes to break the reference cycle with the context.
+    pub fn set_client(&self, client: Option<Rc<dyn RealtimeAudioRendererClient>>) {
+        self.client.replace(client);
+    }
+
+    pub fn start_rendering(self: &Arc<Self>) {
+        assert!(self.playback_stream.lock().unwrap().is_none());
+        unsafe { &mut *self.state.get() }
+            .graph
+            .set_destination(self.destination_node_id);
+
+        // The stream is created in a suspended state so the device configuration can be recorded before the first data
+        // request callback runs on the audio thread.
+        unsafe { web_audio_output_open(self.audio_output_factory.pointer, Arc::as_ptr(self).cast()) };
+    }
+
+    fn set_playback_stream(self: &Arc<Self>, stream: SharedCppObject, channel_count: usize, sample_rate: u32) {
+        if self.shutting_down.load(Ordering::SeqCst) {
+            unsafe { web_audio_output_discard_and_suspend(stream.pointer) };
+            return;
+        }
+        let state = unsafe { &mut *self.state.get() };
+        state.device_channel_count = channel_count;
+        self.device_sample_rate.store(sample_rate, Ordering::Relaxed);
+        state.device_bus = Some(Box::new(AudioBus::new(channel_count, self.quantum_size)));
+
+        // When the device sample rate differs from the context's, the rendered audio is resampled by advancing
+        // through the rendered frames at this rate.
+        state.playhead_step = f64::from(self.sample_rate) / f64::from(sample_rate);
+        *self.playback_stream.lock().unwrap() = Some(stream.clone());
+        if !self.suspended.load(Ordering::SeqCst) {
+            unsafe { web_audio_output_resume(stream.pointer) };
         }
     }
 
-    fn output_time_played(&self, now_nanoseconds: i64) -> f64 {
+    fn playback_stream(&self) -> Option<SharedCppObject> {
+        self.playback_stream.lock().unwrap().clone()
+    }
+
+    // The device went away with the process behind it: a new stream picks the graph up where it stands.
+    fn output_lost(self: &Arc<Self>) {
+        if self.shutting_down.load(Ordering::SeqCst) {
+            return;
+        }
+        *self.playback_stream.lock().unwrap() = None;
+        self.start_rendering();
+    }
+
+    pub fn resume(&self) {
+        self.suspended.store(false, Ordering::SeqCst);
+        if let Some(stream) = self.playback_stream() {
+            unsafe { web_audio_output_resume(stream.pointer) };
+        }
+    }
+
+    pub fn suspend(&self) {
+        self.suspended.store(true, Ordering::SeqCst);
+        if let Some(stream) = self.playback_stream() {
+            unsafe { web_audio_output_drain_and_suspend(stream.pointer) };
+        }
+    }
+
+    pub fn stop(&self) {
+        self.shutting_down.store(true, Ordering::SeqCst);
+        let stream = self.playback_stream.lock().unwrap().take();
+        if let Some(stream) = stream {
+            unsafe { web_audio_output_discard_and_suspend(stream.pointer) };
+        }
+    }
+
+    pub fn frames_rendered(&self) -> u64 {
+        self.frames_rendered.load(Ordering::SeqCst)
+    }
+
+    /// The amount of audio the output device has played so far, in seconds.
+    pub fn output_time_played(&self) -> f64 {
+        let now_nanoseconds = unsafe { web_audio_monotonic_now_nanoseconds() };
         let maybe_anchor = self.output_anchor.read();
         let device_sample_rate = self.device_sample_rate.load(Ordering::Relaxed);
         if maybe_anchor.is_none() || device_sample_rate == 0 {
@@ -214,66 +310,24 @@ impl RealtimeAudioRenderer {
             .fetch_add(self.quantum_size as u64, Ordering::SeqCst);
         let ended_nodes = state.graph.take_ended_nodes();
         if !ended_nodes.is_empty() {
-            unsafe extern "C" fn invoke(context: *mut c_void) {
-                let task = unsafe { Box::from_raw(context.cast::<ControlTask>()) };
-                let callbacks = &task.renderer.callbacks;
-                unsafe {
-                    (callbacks.callbacks.on_sources_ended)(callbacks.owner.pointer, ak::Span::new(&task.ended_nodes));
+            let renderer = Arc::clone(self);
+            self.control_thread.post(move || {
+                if let Some(client) = renderer.client.get() {
+                    client.sources_ended(&ended_nodes);
                 }
-            }
-            let task = Box::into_raw(Box::new(ControlTask {
-                renderer: Arc::clone(self),
-                ended_nodes,
-            }));
-            unsafe {
-                self.callbacks.post(task.cast(), invoke);
-            }
+            });
         }
     }
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_create(
-    queue: *const ControlMessageQueue,
-    destination_node_id: u64,
-    sample_rate: f32,
-    quantum_size: usize,
-    callbacks: RendererCallbacks,
-) -> *const RealtimeAudioRenderer {
-    Arc::into_raw(Arc::new(RealtimeAudioRenderer::new(
-        unsafe { clone_arc(queue) },
-        destination_node_id,
-        sample_rate,
-        quantum_size,
-        unsafe { CallbackService::new(callbacks) },
-    )))
+pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_retain(renderer: *const RealtimeAudioRenderer) {
+    unsafe { Arc::increment_strong_count(renderer) };
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_destroy(renderer: *const RealtimeAudioRenderer) {
-    drop(unsafe { Arc::from_raw(renderer) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_prepare(renderer: *const RealtimeAudioRenderer) {
-    let renderer = unsafe { &*renderer };
-    unsafe { &mut *renderer.state.get() }
-        .graph
-        .set_destination(renderer.destination_node_id);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_configure(
-    renderer: *const RealtimeAudioRenderer,
-    channel_count: usize,
-    sample_rate: u32,
-) {
-    let renderer = unsafe { &*renderer };
-    let state = unsafe { &mut *renderer.state.get() };
-    state.device_channel_count = channel_count;
-    renderer.device_sample_rate.store(sample_rate, Ordering::Relaxed);
-    state.device_bus = Some(Box::new(AudioBus::new(channel_count, renderer.quantum_size)));
-    state.playhead_step = f64::from(renderer.sample_rate) / f64::from(sample_rate);
+pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_release(renderer: *const RealtimeAudioRenderer) {
+    unsafe { Arc::decrement_strong_count(renderer) };
 }
 
 #[unsafe(no_mangle)]
@@ -287,43 +341,18 @@ pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_fill(
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_frames_rendered(
+pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_output_opened(
     renderer: *const RealtimeAudioRenderer,
-) -> u64 {
-    unsafe { &*renderer }.frames_rendered.load(Ordering::SeqCst)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_output_time(
-    renderer: *const RealtimeAudioRenderer,
-    now_nanoseconds: i64,
-) -> f64 {
-    unsafe { &*renderer }.output_time_played(now_nanoseconds)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_set_suspended(
-    renderer: *const RealtimeAudioRenderer,
-    suspended: bool,
+    stream: FfiSharedCppObject,
+    channel_count: usize,
+    sample_rate: u32,
 ) {
-    unsafe { &*renderer }.suspended.store(suspended, Ordering::SeqCst);
+    let renderer = unsafe { clone_arc(renderer) };
+    let stream = unsafe { stream.acquire() }.expect("an opened output has a stream");
+    renderer.set_playback_stream(stream, channel_count, sample_rate);
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_is_suspended(
-    renderer: *const RealtimeAudioRenderer,
-) -> bool {
-    unsafe { &*renderer }.suspended.load(Ordering::SeqCst)
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_stop(renderer: *const RealtimeAudioRenderer) {
-    unsafe { &*renderer }.shutting_down.store(true, Ordering::SeqCst);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_is_shutting_down(
-    renderer: *const RealtimeAudioRenderer,
-) -> bool {
-    unsafe { &*renderer }.shutting_down.load(Ordering::SeqCst)
+pub(crate) unsafe extern "C" fn web_audio_realtime_renderer_output_lost(renderer: *const RealtimeAudioRenderer) {
+    unsafe { clone_arc(renderer) }.output_lost();
 }
