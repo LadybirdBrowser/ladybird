@@ -24,7 +24,7 @@ WEBCOMMON_API Color canvas_text(PreferredColorScheme);
 WEBCOMMON_API Color field(PreferredColorScheme);
 WEBCOMMON_API Color field_text(PreferredColorScheme);
 WEBCOMMON_API Color gray_text(PreferredColorScheme);
-WEBCOMMON_API Color transform_selection_background_color(Color);
+WEBCOMMON_API Color transform_selection_background_color(Color, PreferredColorScheme);
 WEBCOMMON_API Color highlight(PreferredColorScheme);
 // A muted highlight for selections in windows that do not have focus.
 WEBCOMMON_API Color inactive_highlight(PreferredColorScheme);
