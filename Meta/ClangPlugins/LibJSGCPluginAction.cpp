@@ -379,6 +379,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     validate_engine_subclass_is_in_libjs(*record);
 
     remember_polymorphic_subclass(*record);
+    validate_claim_of_no_cell_edges(*record);
 
     auto& diag_engine = m_context.getDiagnostics();
     std::vector<clang::FieldDecl const*> fields_that_need_visiting;
@@ -1204,6 +1205,63 @@ static bool type_holds_gc_pointer(clang::QualType type, std::set<clang::CXXRecor
             return true;
     }
     return false;
+}
+
+// Whether a type declares with GC_HOLDS_NO_CELL_EDGES, or inherits from one that declares, that it holds no cell edges.
+static bool record_declares_no_cell_edges(clang::CXXRecordDecl const& record)
+{
+    auto declares = [](clang::CXXRecordDecl const* candidate) {
+        for (auto const* declaration : candidate->decls()) {
+            if (auto const* alias = llvm::dyn_cast<clang::TypedefNameDecl>(declaration); alias && alias->getName() == "HoldsNoCellEdges")
+                return true;
+        }
+        return false;
+    };
+    if (declares(&record))
+        return true;
+    return !record.forallBases([&](clang::CXXRecordDecl const* base) { return !declares(base); });
+}
+
+// A GC::Function captures a type that declares that it holds no cell edges without tracing it, so the type must not hold
+// a GC pointer, which nothing would keep alive. Roots and weak pointers are fine, as they need no tracing.
+void LibJSGCVisitor::validate_claim_of_no_cell_edges(clang::CXXRecordDecl const& record)
+{
+    clang::CXXRecordDecl const* claimed_record = nullptr;
+    if (auto const* specialization = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(&record)) {
+        if (specialization->getSpecializationKind() != clang::TSK_ExplicitSpecialization || specialization->getSpecializedTemplate()->getQualifiedNameAsString() != "GC::IsUntracedCapture")
+            return;
+        auto const& arguments = specialization->getTemplateArgs();
+        if (arguments.size() != 1 || arguments[0].getKind() != clang::TemplateArgument::Type)
+            return;
+        claimed_record = arguments[0].getAsType()->getAsCXXRecordDecl();
+    } else if (!record.isDependentContext() && record_declares_no_cell_edges(record)) {
+        claimed_record = &record;
+    }
+    if (!claimed_record)
+        return;
+    claimed_record = claimed_record->getDefinition();
+    if (!claimed_record || claimed_record->isDependentContext())
+        return;
+
+    auto& diag_engine = m_context.getDiagnostics();
+    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 is declared to hold no cell edges, but its member %1 holds a GC pointer");
+    auto record_name = name_for_diagnostic(m_context, *claimed_record);
+    for (auto const* field : claimed_record->fields()) {
+        std::set<clang::CXXRecordDecl const*> visited;
+        if (type_holds_gc_pointer(field->getType(), visited))
+            diag_engine.Report(field->getLocation(), diag_id) << record_name << field->getName();
+    }
+
+    // NB: A base that declares the claim itself is checked on its own.
+    auto base_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 is declared to hold no cell edges, but its base %1 holds a GC pointer");
+    for (auto const& base : claimed_record->bases()) {
+        auto const* base_record = base.getType()->getAsCXXRecordDecl();
+        if (base_record && record_declares_no_cell_edges(*base_record))
+            continue;
+        std::set<clang::CXXRecordDecl const*> visited;
+        if (type_holds_gc_pointer(base.getType(), visited))
+            diag_engine.Report(base.getBeginLoc(), base_diag_id) << record_name << base.getType();
+    }
 }
 
 void LibJSGCVisitor::validate_gc_members_of_polymorphic_record(clang::CXXRecordDecl const& record)
