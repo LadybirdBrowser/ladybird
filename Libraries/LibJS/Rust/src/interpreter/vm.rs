@@ -184,8 +184,6 @@ pub struct VmOptions {
     /// Makes the VM's heap the one GC::Heap::the() returns on this thread, so that the embedder's C++ cells are
     /// allocated from it.
     pub become_thread_default_heap: bool,
-    /// Backs SharedArrayBuffers with shared memory, which other processes can map.
-    pub shared_memory_shared_array_buffers: bool,
 }
 
 /// An execution context stack that VM::save_execution_context_stack() set aside, with the TypeErrorRealmScope that

@@ -475,24 +475,21 @@ fn serialize_array_buffer(
         } else {
             // 3. Otherwise, set serialized to { [[Type]]: "SharedArrayBuffer", [[ArrayBufferData]]: value.[[ArrayBufferData]],
             //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]] }.
-            // To share (rather than copy) [[ArrayBufferData]] with a same-process target, stash the source buffer in the
-            // record's side table and encode its index. A record that crosses a process boundary arrives with an empty
-            // side table — and shares through the file-descriptor side list below instead, or falls back to a byte copy.
+            // To share (rather than copy) [[ArrayBufferData]] with a target in the same agent, stash the source buffer in
+            // the record's side table and encode its index. A record that leaves the agent arrives with an empty side
+            // table, and names the store below instead, or falls back to a byte copy.
             data_holder.encode_u8(ValueTag::SharedArrayBuffer as u8);
             serialize_agent_cluster(data_holder, allow_shared_array_buffers)?;
             data_holder.encode_u32(data_holder.add_shared_array_buffer(array_buffer));
-            // AD-HOC: When backed by cross-process shared memory and a side list is available (the messaging path),
-            //         transfer the buffer by appending it to shared_buffers, and encoding its index. That lets the file
-            //         descriptor survive structured clone, whose main record is bytes-only, so an agent in another
-            //         process references the same [[ArrayBufferData]]. Without a side list (e.g., serialization for
-            //         storage) or a shared backing (e.g., a zero-length buffer), fall back to copying the bytes.
-            let shared_buffer_index = data_holder.append_shared_memory_of(array_buffer);
-            data_holder.encode_bool(shared_buffer_index.is_some());
-            if let Some(index) = shared_buffer_index {
-                data_holder.encode_u32(index);
-                // Carried beside the index — so the receiving agent can tell this object apart from any other, even
-                // when it maps this same one twice, from two separate messages.
-                data_holder.encode_u64(array_buffer.with_data_block(|data_block| data_block.shared_object_id()));
+            // AD-HOC: On the messaging path, a buffer in a shared store goes by the id of the store, so that an agent on
+            //         another thread of this process references the same [[ArrayBufferData]]. The bytes never leave this
+            //         process: a receiver in another one is not in the agent cluster, and only gets the id. Without the
+            //         messaging path (e.g., serialization for storage) or a store (e.g., a zero-length buffer), fall back
+            //         to copying the bytes.
+            let shared_store_id = data_holder.name_store_of(array_buffer);
+            data_holder.encode_bool(shared_store_id.is_some());
+            if let Some(id) = shared_store_id {
+                data_holder.encode_u64(id);
             } else {
                 data_holder.encode_bytes(&array_buffer.copy_all_to_byte_buffer());
             }
@@ -1285,15 +1282,11 @@ impl Deserializer<'_, '_, '_> {
 
                 let side_table_index = self.serialized.decode_u32()?;
 
-                // AD-HOC: When the backing was transferred as cross-process shared memory, map it from the side list by
-                //         index — so both agents reference the same bytes.
-                let is_shared_backed = self.serialized.decode_bool()?;
-                if is_shared_backed {
-                    let index = self.serialized.decode_u32()?;
-                    let shared_object_id = self.serialized.decode_u64()?;
-                    value = self
-                        .serialized
-                        .array_buffer_from_shared_memory(vm, index, shared_object_id)?;
+                // AD-HOC: A record on the messaging path names the store, which this agent shares with the sender.
+                let has_shared_store = self.serialized.decode_bool()?;
+                if has_shared_store {
+                    let id = self.serialized.decode_u64()?;
+                    value = self.serialized.array_buffer_from_shared_store(vm, id)?;
                     break 'shared_array_buffer;
                 }
 
@@ -1307,8 +1300,8 @@ impl Deserializer<'_, '_, '_> {
                     break 'shared_array_buffer;
                 }
 
-                // A buffer with no cross-process shared memory to share (a zero-length one, e.g.) whose record crossed a
-                // process boundary arrives with an empty side table — so it's reconstructed from the byte copy.
+                // A buffer with no store to share (a zero-length one, e.g.) whose record left the agent arrives with an
+                // empty side table, so it's reconstructed from the byte copy.
                 value = Value::from_object(array_buffer_from_bytes(vm, realm, bytes, ArrayBufferShared::Yes)?);
             }
 
@@ -1732,8 +1725,8 @@ pub(crate) fn structured_serialize_with_transfer(
     }
 
     // 3. Let serialized be ? StructuredSerializeInternal(value, false, memory).
-    // NB: The record may cross a process boundary, so it is a message record, with the memory of its SharedArrayBuffers
-    //     shared on the side. The data holders share the pixels of ImageBitmaps through the same list.
+    // NB: The record may leave the process, so it is a message record, which names the stores of its SharedArrayBuffers.
+    //     The data holders share the pixels of ImageBitmaps through its shared memory.
     let serialized = StructuredSerializeWriter::new_for_message(vm);
     structured_serialize_internal(
         vm,
@@ -1744,6 +1737,10 @@ pub(crate) fn structured_serialize_with_transfer(
         &memory,
         AllowSharedArrayBuffers::CrossOriginIsolatedOnly,
     )?;
+
+    serialized
+        .pin_named_stores()
+        .map_err(|_| data_clone_error("Cannot share SharedArrayBuffer"))?;
 
     // AD-HOC: Gather the pixels of the transferred ImageBitmaps in one buffer of shared memory. Without it, as when there
     //         is not enough memory for it, the pixels travel inline.
@@ -1989,8 +1986,8 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserialize
-// AD-HOC: For a message that reaches agents in other processes, whose shared-memory-backed SharedArrayBuffers are handed
-//         over beside it. The caller finishes the writer into a MessageRecord.
+// AD-HOC: For a message that reaches agents in other processes, which names the stores of its SharedArrayBuffers. The
+//         caller finishes the writer into a MessageRecord.
 pub(crate) fn structured_serialize_for_message(
     vm: &Vm,
     realm: Gc<Realm>,
@@ -2009,6 +2006,9 @@ pub(crate) fn structured_serialize_for_message(
         &memory,
         AllowSharedArrayBuffers::CrossOriginIsolatedOnly,
     )?;
+    serialized
+        .pin_named_stores()
+        .map_err(|_| data_clone_error("Cannot share SharedArrayBuffer"))?;
     Ok(serialized)
 }
 

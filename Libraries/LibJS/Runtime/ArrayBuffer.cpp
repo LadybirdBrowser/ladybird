@@ -50,11 +50,14 @@ GC::Ref<ArrayBuffer> ArrayBuffer::create_over_external_storage(Realm& realm, Dat
     return array_buffer_from_abi(js_array_buffer_create_with_external_storage(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), &storage_for_the_runtime, is_shared == DataBlock::Shared::Yes));
 }
 
-GC::Ptr<ArrayBuffer> ArrayBuffer::create_over_shared_memory(Realm& realm, int shared_memory_fd, size_t byte_length, u64 shared_object_id)
+GC::Ptr<ArrayBuffer> ArrayBuffer::create_from_shared_store(Realm& realm, u64 shared_store_id)
 {
-    if (shared_memory_fd < 0)
-        return nullptr;
-    return cell_from_abi<ArrayBuffer>(js_array_buffer_create_from_shared_memory(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), shared_memory_fd, byte_length, shared_object_id));
+    return cell_from_abi<ArrayBuffer>(js_array_buffer_create_from_shared_store(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), shared_store_id));
+}
+
+u64 ArrayBuffer::shared_store_id() const
+{
+    return js_array_buffer_shared_store_id(cell_to_abi<JSObject>(const_cast<ArrayBuffer&>(*this)));
 }
 
 GC::Ref<ArrayBuffer> ArrayBuffer::create_detached(Realm& realm)
@@ -106,13 +109,6 @@ ErrorOr<ByteBuffer> ArrayBuffer::copy_to_byte_buffer() const
     return ByteBuffer::copy(bytes_from(0));
 }
 
-u64 ArrayBuffer::shared_object_id() const
-{
-    JSArrayBufferStorage storage;
-    js_array_buffer_storage(array_buffer_to_abi(*this), &storage);
-    return storage.shared_memory_object_id;
-}
-
 void ArrayBuffer::copy_data_to(ArrayBuffer& destination, size_t source_offset, size_t destination_offset, size_t count) const
 {
     auto source_bytes = bytes_from(source_offset);
@@ -159,9 +155,9 @@ ArrayBuffer::StorageDescription ArrayBuffer::storage_description_from_abi(JSArra
         if (storage.external.has_fixed_byte_length)
             description.external_fixed_byte_length = storage.external.fixed_byte_length;
         break;
-    case JS_ARRAY_BUFFER_STORAGE_SHARED_MEMORY:
-        description.kind = StorageKind::SharedMemory;
-        description.shared_memory_object_id = storage.shared_memory_object_id;
+    case JS_ARRAY_BUFFER_STORAGE_SHARED_STORE:
+        description.kind = StorageKind::SharedStore;
+        description.handle = primitive_storage_handle_from_abi(storage.handle);
         break;
     default:
         VERIFY_NOT_REACHED();
@@ -176,10 +172,6 @@ ArrayBuffer::StorageDescription ArrayBuffer::describe_storage() const
     js_array_buffer_storage(buffer, &storage);
     auto description = storage_description_from_abi(storage);
     description.is_shared = js_array_buffer_is_shared_array_buffer(buffer) ? DataBlock::Shared::Yes : DataBlock::Shared::No;
-    if (description.kind == StorageKind::SharedMemory) {
-        description.shared_memory_fd = js_array_buffer_duplicate_shared_memory(buffer, &description.shared_memory_byte_length);
-        VERIFY(description.shared_memory_fd >= 0);
-    }
     return description;
 }
 

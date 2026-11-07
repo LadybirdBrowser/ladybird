@@ -227,7 +227,6 @@ GC_API bool gc_primitive_storage_reserve(size_t size, size_t capacity, bool zero
 // Maps the first size bytes of the shared memory object behind fd into the cage. The mapping keeps the memory alive by
 // itself, so the caller keeps ownership of fd and may close it at any time. Fails if size is 0. Growing the storage
 // would replace the mapping with private memory, so shared storage keeps its size.
-GC_API bool gc_primitive_storage_adopt_shared_fd(int fd, size_t size, GCPrimitiveStorageHandle* out_handle, GCPrimitiveStorageLayout* out_layout);
 
 // The resizing functions return false and leave the storage as it was if the handle names no storage or memory runs
 // out. Within the capacity, the storage stays where it is; beyond it, the bytes move to new storage, which changes the
@@ -251,22 +250,6 @@ GC_API size_t gc_primitive_storage_capacity(GCPrimitiveStorageHandle);
 // The bytes from the offset on that are backed by memory.
 GC_API size_t gc_primitive_storage_committed_size(GCPrimitiveStorageHandle);
 GC_API uint8_t* gc_primitive_storage_data(GCPrimitiveStorageHandle);
-
-// Creates a zero-filled shared memory object of size bytes, made the way the C++ runtime makes the memory of a
-// fixed-length SharedArrayBuffer: sealed against resizing where the platform supports seals, so that another process
-// holding it cannot shrink it under this one. On success, *out_fd is a new close-on-exec descriptor that the caller owns and must
-// close, and that can be passed to other processes and to gc_primitive_storage_adopt_shared_fd(). On failure, *out_fd
-// is -1.
-GC_API bool gc_shared_memory_create(size_t size, int* out_fd);
-
-// Maps the first size bytes of the shared memory object behind fd outside the cage, for a platform where
-// gc_primitive_storage_adopt_shared_fd() cannot place the mapping inside it, as on Windows. The view keeps a duplicate
-// of fd, so the caller keeps ownership of fd. Returns null if size is 0, the object is smaller than size bytes, or
-// mapping fails.
-typedef struct GCSharedMemoryViewOutsideCage GCSharedMemoryViewOutsideCage;
-GC_API GCSharedMemoryViewOutsideCage* gc_shared_memory_view_outside_cage_create(int fd, size_t size);
-GC_API uint8_t* gc_shared_memory_view_outside_cage_data(GCSharedMemoryViewOutsideCage*);
-GC_API void gc_shared_memory_view_outside_cage_destroy(GCSharedMemoryViewOutsideCage*);
 
 #ifdef __cplusplus
 }

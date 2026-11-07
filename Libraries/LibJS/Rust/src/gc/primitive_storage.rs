@@ -16,7 +16,6 @@ use super::capi::{
     self, GC_PRIMITIVE_STORAGE_INVALID_OFFSET, GC_PRIMITIVE_STORAGE_NULL_HANDLE, GCPrimitiveStorageHandle,
     GCPrimitiveStorageLayout,
 };
-use super::shared_memory::{BorrowedSharedMemory, OwnedSharedMemory, owned_from_raw_descriptor, raw_descriptor};
 
 /// GC::PrimitiveStorage::invalid_offset, the offset of storage that does not exist.
 pub const INVALID_OFFSET: usize = GC_PRIMITIVE_STORAGE_INVALID_OFFSET;
@@ -117,25 +116,6 @@ impl OwnedPrimitiveStorage {
                 capacity,
                 zero_fill_new_bytes.as_bool(),
                 0,
-                &raw mut handle,
-                &raw mut layout,
-            )
-        };
-        Self::from_creation(created, handle, layout)
-    }
-
-    /// PrimitiveStorage::try_adopt_shared_fd(): maps the first `size` bytes of a shared memory object into the cage.
-    /// The mapping keeps the memory alive by itself. Such storage must never be resized, since that would replace the
-    /// shared mapping with private memory.
-    pub fn adopt_shared_memory(shared_memory: BorrowedSharedMemory<'_>, size: usize) -> Result<Self, OutOfMemory> {
-        let mut handle = GC_PRIMITIVE_STORAGE_NULL_HANDLE;
-        let mut layout = LAYOUT_OF_NO_STORAGE;
-        // SAFETY: The descriptor is open for the duration of the call, which maps it without taking ownership, and the
-        //         handle and the layout are valid places for the results.
-        let created = unsafe {
-            capi::gc_primitive_storage_adopt_shared_fd(
-                raw_descriptor(shared_memory),
-                size,
                 &raw mut handle,
                 &raw mut layout,
             )
@@ -279,16 +259,4 @@ impl ForeignPrimitiveStorage {
             offset => address_in_cage(offset),
         }
     }
-}
-
-/// gc_shared_memory_create(): a zero-filled shared memory object of `size` bytes that other processes can map, sealed
-/// against resizing where the platform can seal it. The descriptor closes when the result is dropped.
-pub fn create_shared_memory(size: usize) -> Result<OwnedSharedMemory, OutOfMemory> {
-    let mut descriptor = -1;
-    // SAFETY: The descriptor is a valid place for the result.
-    if !unsafe { capi::gc_shared_memory_create(size, &raw mut descriptor) } {
-        return Err(OutOfMemory);
-    }
-    // SAFETY: On success, the caller owns the new descriptor.
-    Ok(unsafe { owned_from_raw_descriptor(descriptor) })
 }

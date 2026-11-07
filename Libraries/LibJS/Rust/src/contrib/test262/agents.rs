@@ -14,11 +14,11 @@
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::os::fd::OwnedFd;
 use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::thread::JoinHandle;
 
 use crate::interpreter::vm::Vm;
+use crate::runtime::shared_backing_store::SharedBackingStore;
 
 /// JS::VM::MINIMUM_THREAD_STACK_SIZE, which the thread of a VM needs.
 const AGENT_THREAD_STACK_SIZE: usize = 8 * 1024 * 1024;
@@ -32,13 +32,10 @@ pub enum BroadcastNumber {
     BigInt(Vec<u8>),
 }
 
-/// A broadcast as an agent receives it: the SharedArrayBuffer's shared memory object and what names it, and the
-/// number.
-#[derive(Debug)]
+/// A broadcast as an agent receives it: the store of the SharedArrayBuffer, and the number.
+#[derive(Clone)]
 pub struct Broadcast {
-    pub shared_memory: OwnedFd,
-    pub byte_length: usize,
-    pub object_id: u64,
+    pub store: Arc<SharedBackingStore>,
     pub number: BroadcastNumber,
 }
 
@@ -174,15 +171,12 @@ impl RunningAgents {
         Ok(())
     }
 
-    fn broadcast(&mut self, broadcast: impl Fn() -> std::io::Result<Broadcast>) {
+    fn broadcast(&mut self, broadcast: &Broadcast) {
         for agent in &self.agents {
             // An agent that already exited cannot take the message, and the test cannot expect it to.
-            let Ok(broadcast) = broadcast() else {
-                continue;
-            };
             agent.agent.update(|state| {
                 if !state.has_finished {
-                    state.broadcasts.push_back(broadcast);
+                    state.broadcasts.push_back(broadcast.clone());
                 }
             });
         }
@@ -211,8 +205,9 @@ pub fn start_agent(source: &[u8]) -> Result<(), String> {
         .map_err(|error| format!("Could not start an agent: {error}"))
 }
 
-/// $262.agent.broadcast(): hands every running agent what `broadcast` makes for it, and returns once each has it.
-pub fn broadcast(broadcast: impl Fn() -> std::io::Result<Broadcast>) {
+/// $262.agent.broadcast(): hands a SharedArrayBuffer's store and a number to every running agent, and returns once each
+/// has them.
+pub fn broadcast(broadcast: &Broadcast) {
     RUNNING_AGENTS.with_borrow_mut(|running_agents| running_agents.broadcast(broadcast));
 }
 

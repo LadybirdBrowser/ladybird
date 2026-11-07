@@ -14,9 +14,13 @@
 //! C++ record when it finishes, or to a MessageRecord that Rust keeps.
 
 use core::cell::RefCell;
+use std::sync::Arc;
 
 use ak::{Utf16String, Utf16StringUnits};
-use libjs_rust::api::{ArrayBuffer, BigInt, DataBlockStorage, DeferGc, Gc, MarkedVec, Vm};
+use libjs_rust::api::{
+    ArrayBuffer, BigInt, DataBlockStorage, DeferGc, Gc, MarkedVec, SharedBackingStore, SharedStoreLifeline, Vm,
+    pin_stores_for_a_message,
+};
 use libwebcommon_rust::html::serialization_records::{RecordEncoder, SerializationType};
 
 use crate::html::structured_serialize::cpp::{IPCSerializationRecord, StorageSerializationRecord};
@@ -31,6 +35,9 @@ pub(crate) struct StructuredSerializeWriter<'vm> {
     shared_array_buffers: MarkedVec<'vm, Gc<ArrayBuffer>>,
     /// The shared memory that a MessageRecord, which may reach agents in other processes, hands over beside its bytes.
     shared_memory: Option<RefCell<Vec<SharedMemory>>>,
+    /// The stores that a message names, which only a record that may reach an agent on another thread has.
+    stores_of_message: Option<RefCell<Vec<Arc<SharedBackingStore>>>>,
+    shared_store_lifeline: RefCell<Option<SharedStoreLifeline>>,
 }
 
 impl<'vm> StructuredSerializeWriter<'vm> {
@@ -39,13 +46,17 @@ impl<'vm> StructuredSerializeWriter<'vm> {
             encoder: RefCell::new(RecordEncoder::new(serialization_type)),
             shared_array_buffers: MarkedVec::new(vm),
             shared_memory: None,
+            stores_of_message: None,
+            shared_store_lifeline: RefCell::new(None),
         }
     }
 
-    /// The writer of a MessageRecord.
+    /// The writer of a message, which agents on other threads may receive, and which names the stores of its
+    /// SharedArrayBuffers.
     pub(crate) fn new_for_message(vm: &'vm Vm) -> Self {
         Self {
             shared_memory: Some(RefCell::new(Vec::new())),
+            stores_of_message: Some(RefCell::new(Vec::new())),
             ..Self::new(vm, SerializationType::Ipc)
         }
     }
@@ -164,18 +175,26 @@ impl<'vm> StructuredSerializeWriter<'vm> {
         u32::try_from(list.len()).expect("a record shares fewer than 2^32 buffers")
     }
 
-    /// Hands the cross-process shared memory of the SharedArrayBuffer over beside the record, and returns its index
-    /// there, if the buffer is backed by some, and the record reaches agents in other processes.
-    pub(crate) fn append_shared_memory_of(&self, array_buffer: Gc<ArrayBuffer>) -> Option<u32> {
-        self.shared_memory.as_ref()?;
-        let shared_memory = array_buffer.with_data_block(|data_block| match &data_block.byte_buffer {
-            DataBlockStorage::Shared(store) => Some(SharedMemory {
-                descriptor: store.shared_memory().try_clone_to_owned().ok()?,
-                size: store.size(),
-            }),
+    /// Has the message keep the store of the SharedArrayBuffer alive, and returns the id that names the store, if the
+    /// buffer has one, and the record is a message.
+    pub(crate) fn name_store_of(&self, array_buffer: Gc<ArrayBuffer>) -> Option<u64> {
+        let stores = self.stores_of_message.as_ref()?;
+        let store = array_buffer.with_data_block(|data_block| match &data_block.byte_buffer {
+            DataBlockStorage::Shared(store) => Some(Arc::clone(store)),
             _ => None,
         })?;
-        Some(self.append_shared_memory(shared_memory))
+        let id = store.id();
+        stores.borrow_mut().push(store);
+        Some(id)
+    }
+
+    /// Gives the message its lifeline, if it names stores. Fails if the system has no descriptors left.
+    pub(crate) fn pin_named_stores(&self) -> std::io::Result<()> {
+        let stores = self.stores_of_message.as_ref().map(RefCell::take).unwrap_or_default();
+        if !stores.is_empty() {
+            *self.shared_store_lifeline.borrow_mut() = Some(pin_stores_for_a_message(stores)?);
+        }
+        Ok(())
     }
 
     /// Sets the IPC record that C++ lends to what the writer wrote.
@@ -190,6 +209,7 @@ impl<'vm> StructuredSerializeWriter<'vm> {
         assert_eq!(self.serialization_type(), SerializationType::Ipc);
         let shared_memory = self.shared_memory.expect("the writer is a message's");
         MessageRecord {
+            shared_store_lifeline: self.shared_store_lifeline.take(),
             bytes: self.encoder.into_inner().into_bytes(),
             shared_array_buffers: self.shared_array_buffers.values().to_vec(),
             shared_memory: shared_memory.into_inner(),

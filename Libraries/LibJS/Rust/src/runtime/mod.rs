@@ -161,6 +161,7 @@ pub mod set_prototype;
 pub mod shape;
 pub mod shared_array_buffer_constructor;
 pub mod shared_array_buffer_prototype;
+pub mod shared_backing_store;
 pub mod shared_function_instance_data;
 pub mod source_text_module;
 pub mod special_property_cache;

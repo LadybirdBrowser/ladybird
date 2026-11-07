@@ -5,7 +5,6 @@
  */
 
 #include <AK/StdLibExtras.h>
-#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/System.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/CAPI.h>
@@ -448,12 +447,6 @@ bool gc_primitive_storage_reserve(size_t size, size_t capacity, bool zero_fill, 
     return store_created_primitive_storage(storage, storage.try_reserve(size, capacity, as_zero_fill_new_bytes(zero_fill), guard_size), out_handle, out_layout);
 }
 
-bool gc_primitive_storage_adopt_shared_fd(int fd, size_t size, GCPrimitiveStorageHandle* out_handle, GCPrimitiveStorageLayout* out_layout)
-{
-    auto& storage = PrimitiveStorage::the();
-    return store_created_primitive_storage(storage, storage.try_adopt_shared_fd(fd, size), out_handle, out_layout);
-}
-
 bool gc_primitive_storage_resize(GCPrimitiveStorageHandle handle, size_t new_size, bool zero_fill, GCPrimitiveStorageLayout* out_layout)
 {
     auto& storage = PrimitiveStorage::the();
@@ -508,50 +501,5 @@ size_t gc_primitive_storage_committed_size(GCPrimitiveStorageHandle handle)
 uint8_t* gc_primitive_storage_data(GCPrimitiveStorageHandle handle)
 {
     return PrimitiveStorage::the().data(decode_primitive_storage_handle(handle));
-}
-
-bool gc_shared_memory_create(size_t size, int* out_fd)
-{
-    *out_fd = -1;
-    auto buffer = Core::AnonymousBuffer::create_with_size(size);
-    if (buffer.is_error())
-        return false;
-    // NB: The buffer closes its descriptor and unmaps its own view of the memory when it goes away; the caller gets a
-    //     duplicate of the descriptor.
-    auto fd = Core::System::dup(buffer.value().fd());
-    if (fd.is_error())
-        return false;
-    *out_fd = fd.value();
-    return true;
-}
-
-struct GCSharedMemoryViewOutsideCage {
-    AK_ALLOC_WITH_KMALLOC;
-
-    Core::AnonymousBuffer buffer;
-};
-
-GCSharedMemoryViewOutsideCage* gc_shared_memory_view_outside_cage_create(int fd, size_t size)
-{
-    if (size == 0)
-        return nullptr;
-    auto duplicate_fd = Core::System::dup(fd);
-    if (duplicate_fd.is_error())
-        return nullptr;
-    // NB: The buffer owns the duplicate from here on, and closes it if mapping fails.
-    auto buffer = Core::AnonymousBuffer::create_from_anon_fd(duplicate_fd.value(), size);
-    if (buffer.is_error() || buffer.value().validate_backing_size().is_error())
-        return nullptr;
-    return new GCSharedMemoryViewOutsideCage { buffer.release_value() };
-}
-
-uint8_t* gc_shared_memory_view_outside_cage_data(GCSharedMemoryViewOutsideCage* view)
-{
-    return view->buffer.data<uint8_t>();
-}
-
-void gc_shared_memory_view_outside_cage_destroy(GCSharedMemoryViewOutsideCage* view)
-{
-    delete view;
 }
 }

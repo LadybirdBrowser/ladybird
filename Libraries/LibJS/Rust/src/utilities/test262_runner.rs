@@ -597,12 +597,8 @@ fn run_program(vm: &Vm, program: ScriptOrModuleProgram) -> Result<(), TestError>
         .map_err(|throw| describe_thrown_value(vm, throw.value()))
 }
 
-/// A VM whose SharedArrayBuffers agents can map, as broadcasting one hands its shared memory to them.
 fn create_vm() -> Box<Vm> {
-    Vm::create_with(VmOptions {
-        shared_memory_shared_array_buffers: true,
-        ..VmOptions::default()
-    })
+    Vm::create_with(VmOptions::default())
 }
 
 fn run_test(

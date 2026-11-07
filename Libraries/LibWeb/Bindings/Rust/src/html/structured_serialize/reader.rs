@@ -15,11 +15,12 @@
 
 use core::ffi::c_void;
 use core::ptr::NonNull;
+use std::sync::Arc;
 
 use ak::Utf16String;
 use libjs_rust::api::{
-    ArrayBuffer, ArrayBufferShared, AsSharedMemory, BigInt, DataBlock, DataBlockStorage, ExternalPrimitiveStorage,
-    ForeignCellSlot, GC_PRIMITIVE_STORAGE_NULL_HANDLE, Gc, Realm, SharedBackingStore, Value, Vm,
+    ArrayBuffer, ArrayBufferShared, BigInt, DataBlock, DataBlockStorage, ExternalPrimitiveStorage, ForeignCellSlot,
+    GC_PRIMITIVE_STORAGE_NULL_HANDLE, Gc, Realm, SharedBackingStore, Value, Vm,
 };
 use libwebcommon_rust::html::serialization_records::{DecodeError, DecodedString, RecordDecoder, SerializationType};
 
@@ -193,31 +194,15 @@ impl<'a> StructuredSerializeReader<'a> {
         )))
     }
 
-    pub(crate) fn array_buffer_from_shared_memory(
-        &self,
-        vm: &Vm,
-        index: u32,
-        shared_object_id: u64,
-    ) -> WebIdlResult<Value> {
-        let shared_memory = match self.shared_array_buffers {
-            SharedArrayBuffers::None | SharedArrayBuffers::Lent(_) => &[],
-            SharedArrayBuffers::Message(record) => record.shared_memory.as_slice(),
-        };
-        let Some(shared_memory) = shared_memory.get(index as usize) else {
-            return Err(data_clone_error_from_serialization_error(
-                self.realm,
-                "SharedArrayBuffer side-list index out of range",
-            ));
-        };
-        let array_buffer = ArrayBuffer::create_from_shared_memory(
-            vm,
-            self.realm,
-            shared_memory.descriptor.as_shared_memory(),
-            shared_memory.size,
-            shared_object_id,
-        )
-        .map_err(|_| data_clone_error_from_serialization_error(self.realm, "Unable to map SharedArrayBuffer memory"))?;
-        Ok(Value::from_object(array_buffer))
+    /// A new SharedArrayBuffer over the store that `id` names. A store is only found in the process of the agent that
+    /// sent the message, as its bytes do not leave that process.
+    pub(crate) fn array_buffer_from_shared_store(&self, vm: &Vm, id: u64) -> WebIdlResult<Value> {
+        let store = SharedBackingStore::with_id(id).ok_or_else(|| {
+            data_clone_error_from_serialization_error(self.realm, "SharedArrayBuffer is out of reach")
+        })?;
+        Ok(Value::from_object(ArrayBuffer::create_from_shared_store(
+            vm, self.realm, store,
+        )))
     }
 
     /// A new SharedArrayBuffer that shares the storage of the buffer at the index of the record's same-process side
@@ -267,14 +252,9 @@ fn array_buffer_sharing_storage_with(
             ArrayBufferShared::Yes,
         )),
 
-        // AD-HOC: A fixed-length shared block backed by cross-process shared memory is aliased by referencing the same
-        //         shared object — so the clone shares its bytes, and can itself be shared with an agent in another
-        //         process.
-        DataBlockStorage::Shared(store) => {
-            SharedBackingStore::adopt(store.shared_memory(), store.size(), store.object_id())
-                .ok()
-                .map(DataBlock::shared_memory)
-        }
+        // AD-HOC: A fixed-length shared block is aliased by referencing the same store, so that the clone can itself be
+        //         shared with an agent on another thread.
+        DataBlockStorage::Shared(store) => Some(DataBlock::shared(Arc::clone(store))),
 
         DataBlockStorage::Owned(owned) => {
             // Zero-length buffers have no backing storage to share.

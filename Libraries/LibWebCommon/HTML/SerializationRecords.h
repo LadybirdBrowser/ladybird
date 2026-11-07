@@ -11,11 +11,13 @@
 
 #include <AK/Array.h>
 #include <AK/ByteBuffer.h>
+#include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/Encoder.h>
+#include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
 #include <LibWebCommon/Export.h>
@@ -136,20 +138,36 @@ private:
     IPC::Encoder m_encoder;
 };
 
+// AD-HOC: What keeps the SharedArrayBuffer stores that a message names alive while the message is on its way, for as
+//         long as this or a copy of it in any process is open. It gives no access to the stores, whose bytes never leave
+//         their process. See shared_backing_store.rs in LibJS.
+struct WEBCOMMON_API SharedStoreLifeline {
+    static SharedStoreLifeline adopting_fd(int fd);
+
+    int fd() const;
+
+    Optional<IPC::File> file;
+};
+
 struct SerializedTransferRecord {
     AK_ALLOC_WITH_KMALLOC;
 
     IPCSerializationRecord serialized;
     Vector<TransferDataEncoder> transfer_data_holders;
-    // AD-HOC: Cross-process shared memory backing serialized SharedArrayBuffers — referenced by index from the main
-    //         record (whose bytes can't carry file descriptors). Unlike the record's same-process side table, this one
-    //         is IPC-encoded, so it reaches an agent in another process.
+    // AD-HOC: Shared memory that hands the pixels of transferred ImageBitmaps over, by index from the data holders.
     Vector<Core::AnonymousBuffer> shared_buffers;
+    SharedStoreLifeline shared_store_lifeline;
 };
 
 }
 
 namespace IPC {
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::SharedStoreLifeline const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::SharedStoreLifeline> decode(Decoder&);
 
 template<>
 WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::IPCSerializationRecord const&);

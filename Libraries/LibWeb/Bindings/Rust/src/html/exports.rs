@@ -436,8 +436,7 @@ pub unsafe extern "C" fn web_rust_shut_down_agent(vm: *mut c_void) {
 /// # Safety
 ///
 /// `vm` must be the live VM, the origins and the bytes lent, `channel_name` an owned AK::Utf16String, and
-/// `shared_memory` and `shared_memory_sizes` arrays of `shared_memory_count` descriptors that are open for the call and
-/// their sizes.
+/// `shared_store_lifeline` a descriptor that is open for the call, or negative.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_broadcast_channel_deliver_message_locally(
     vm: *mut c_void,
@@ -445,12 +444,10 @@ pub unsafe extern "C" fn web_rust_broadcast_channel_deliver_message_locally(
     channel_name: usize,
     source_origin: *const FfiOrigin,
     serialized_message: ak::Span<'_, u8>,
-    shared_memory: *const c_int,
-    shared_memory_sizes: *const usize,
-    shared_memory_count: usize,
+    shared_store_lifeline: c_int,
 ) {
-    // SAFETY: The caller passes the live VM, lends the origins and the descriptors, and hands over the name.
-    let (vm, storage_key, channel_name, source_origin, shared_memory, shared_memory_sizes) = unsafe {
+    // SAFETY: The caller passes the live VM, lends the origins and the descriptor, and hands over the name.
+    let (vm, storage_key, channel_name, source_origin) = unsafe {
         (
             &*vm.cast::<Vm>(),
             StorageKey {
@@ -458,22 +455,15 @@ pub unsafe extern "C" fn web_rust_broadcast_channel_deliver_message_locally(
             },
             Utf16String::from_raw_owned(channel_name),
             (*source_origin).to_origin(),
-            ak::slice_from_raw_parts(shared_memory, shared_memory_count),
-            ak::slice_from_raw_parts(shared_memory_sizes, shared_memory_count),
         )
     };
     let message = BROADCAST_CHANNEL_MESSAGE_CLASS.allocate(vm, |defer_gc| BroadcastChannelMessage {
         storage_key,
         channel_name,
         source_origin,
-        // SAFETY: The caller keeps the descriptors open for the call.
+        // SAFETY: The caller keeps the descriptor open for the call.
         serialized: unsafe {
-            MessageRecord::received(
-                defer_gc,
-                serialized_message.as_slice(),
-                shared_memory,
-                shared_memory_sizes,
-            )
+            MessageRecord::received(defer_gc, serialized_message.as_slice(), &[], &[], shared_store_lifeline)
         },
     });
     BroadcastChannel::deliver_message_locally(vm, message, None);
