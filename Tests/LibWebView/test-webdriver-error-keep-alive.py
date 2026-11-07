@@ -10,6 +10,8 @@ import importlib
 import json
 import subprocess
 
+from urllib.parse import quote
+
 WEBDRIVER_REQUEST_TIMEOUT_SECONDS = 30
 
 webdriver_helpers = importlib.import_module("test-webdriver-delete-session")
@@ -28,8 +30,36 @@ def request(connection, method, path, body=None):
     return response.status, payload, response_body
 
 
+def check_screenshot_error_preserves_element(connection, session_id, left):
+    session_path = f"/session/{session_id}"
+    document = (
+        '<!doctype html><body style="margin:0">'
+        f'<div style="position:fixed;left:{left};top:0;width:1px;height:1px"></div>'
+    )
+    status, _, body = request(connection, "POST", f"{session_path}/url", {"url": f"data:text/html,{quote(document)}"})
+    assert status == 200, body
+
+    status, payload, body = request(
+        connection, "POST", f"{session_path}/element", {"using": "css selector", "value": "div"}
+    )
+    assert status == 200, body
+    element_id = payload["value"]["element-6066-11e4-a52e-4f735466cecf"]
+    element_path = f"{session_path}/element/{element_id}"
+
+    status, payload, body = request(connection, "GET", f"{element_path}/screenshot")
+    assert status == 500 and payload["value"]["error"] == "unable to capture screen", body
+
+    status, payload, body = request(connection, "GET", f"{element_path}/name")
+    assert status == 200 and payload["value"] == "div", body
+
+    status, _, body = request(connection, "GET", f"{session_path}/screenshot")
+    assert status == 200, body
+
+
 def run_test(webdriver_binary):
-    webdriver, webdriver_port = webdriver_helpers.launch_webdriver(webdriver_binary, "--headless")
+    webdriver, webdriver_port = webdriver_helpers.launch_webdriver(
+        webdriver_binary, "--headless", "--force-cpu-painting"
+    )
     connection = None
     try:
         # Every request in this test is sent over the same keep-alive connection, matching how the
@@ -64,6 +94,10 @@ def run_test(webdriver_binary):
         status, payload, response_body = request(connection, "GET", f"/session/{session_id}/title")
         if status != 200:
             raise AssertionError(f"Get Title after unknown command failed with HTTP {status}: {response_body}")
+
+        check_screenshot_error_preserves_element(connection, session_id, "-100000px")
+        # At the right edge of the viewport, the calculated screenshot width is zero.
+        check_screenshot_error_preserves_element(connection, session_id, "100vw")
 
         status, payload, response_body = request(connection, "DELETE", f"/session/{session_id}")
         if status != 200:
