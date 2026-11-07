@@ -47,7 +47,7 @@
 #include <LibWebView/WebContentTestClient.h>
 #include <LibWebView/WebDriverBiDi.h>
 #include <LibWebView/WebUI.h>
-#include <LibWebView/WorkerProcessManager.h>
+#include <LibWebView/WorkerAgentManager.h>
 
 namespace WebView {
 
@@ -652,7 +652,7 @@ void WebContentPage::close()
     m_is_open = false;
     // NB: The process can outlive the page, for the shared workers it runs, or for other pages.
     if (m_client)
-        WorkerProcessManager::the().remove_web_content_page_owner(*m_client, m_id);
+        WorkerAgentManager::the().remove_web_content_page_owner(*m_client, m_id);
     // NB: Nothing finishes the input this page held, including a page discarded while its process hosts other pages.
     if (m_traversable) {
         if (auto view = m_traversable->view(); view.has_value())
@@ -3353,7 +3353,7 @@ Messages::WebContentClient::StartWorkerAgentResponse WebContentPage::start_worke
 {
     // A page hosting an isolated iframe's document belongs to its tab's view as much as the view's own page does.
     auto outside_settings = hosted_environment(request.outside_settings.id);
-    auto started_agent = WorkerProcessManager::the().start_worker_agent(client(), m_id, outside_settings, move(request));
+    auto started_agent = WorkerAgentManager::the().start_worker_agent(client(), m_id, outside_settings, move(request));
     return { started_agent.agent_id, move(started_agent.thread_transport), started_agent.is_hosted_in_owner_process };
 }
 
@@ -3368,22 +3368,22 @@ Messages::WebContentClient::DidRequestStorageUsageResponse WebContentPage::did_r
 void WebContentPage::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)
 {
     if (auto settings = hosted_environment(message.environment_id); settings.has_value())
-        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *settings, client(), client().is_private());
+        WorkerAgentManager::the().post_broadcast_channel_message(move(message), *settings, client(), client().is_private());
 }
 
 void WebContentPage::rtc_transform_init(Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record)
 {
-    WorkerProcessManager::the().rtc_transform_init(client(), agent_id, transform_id, move(options_record));
+    WorkerAgentManager::the().rtc_transform_init(client(), agent_id, transform_id, move(options_record));
 }
 
 void WebContentPage::rtc_transform_teardown(Web::HTML::WorkerAgentId agent_id, u64 transform_id)
 {
-    WorkerProcessManager::the().rtc_transform_teardown(client(), agent_id, transform_id);
+    WorkerAgentManager::the().rtc_transform_teardown(client(), agent_id, transform_id);
 }
 
 void WebContentPage::rtc_transform_encoded_audio_frame(Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
 {
-    WorkerProcessManager::the().rtc_transform_encoded_audio_frame(client(), agent_id, transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
+    WorkerAgentManager::the().rtc_transform_encoded_audio_frame(client(), agent_id, transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
 }
 
 void WebContentPage::did_finish_test(String text)
@@ -3407,7 +3407,7 @@ void WebContentPage::did_receive_reference_test_metadata(JsonValue metadata)
 void WebContentPage::did_simulate_worker_request_server_connection_loss()
 {
     VERIFY(Application::web_content_options().is_test_mode == IsTestMode::Yes);
-    if (auto result = WorkerProcessManager::the().simulate_request_server_connection_loss_for_testing(client(), m_id); result.is_error()) {
+    if (auto result = WorkerAgentManager::the().simulate_request_server_connection_loss_for_testing(client(), m_id); result.is_error()) {
         warnln("Unable to reconnect workers to RequestServer: {}", result.error());
         VERIFY_NOT_REACHED();
     }
