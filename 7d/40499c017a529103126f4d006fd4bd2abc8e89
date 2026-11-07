@@ -1,0 +1,10 @@
+Ladybird now accepts an escaped ClassSetReservedPunctuator and a
+control escape in a v-mode class and in \q{}, and parses \q{} escapes
+with the same grammar as a class set operand. V8 does the same: In its
+kInClass state, ParseCharacterEscape() accepts every character that
+IsClassSetReservedPunctuator() matches. And its parser reads \q{} with
+ParseClassStringDisjunction(), which takes each character through
+ParseClassSetCharacter(). Gecko imports that parser as is, in
+js/src/irregexp/imported/regexp-parser.cc. And in WebKit, YarrParser’s
+isIdentityEscapeAnError() accepts the same punctuators in both its
+ClassSet and its ClassStringDisjunction escape modes.
