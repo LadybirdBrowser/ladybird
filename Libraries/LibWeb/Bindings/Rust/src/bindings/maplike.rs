@@ -18,6 +18,10 @@ use crate::bindings::interface::{Interface, define_attribute, define_operation, 
 
 /// What the implementation of an interface with a maplike declaration, whose keys are strings, implements.
 pub(crate) trait Maplike: Interface {
+    fn has(vm: &Vm) -> ThrowCompletionOr<Value> {
+        map_has::<Self>(vm)
+    }
+
     // https://webidl.spec.whatwg.org/#dfn-map-entries
     fn map_entries(&self, cx: &CallContext) -> Gc<Map>;
 
