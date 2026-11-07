@@ -46,6 +46,7 @@ add_library(ladybird_impl STATIC
     RemoteActions.cpp
     RemoteDownloads.cpp
     RemoteSession.cpp
+    RemoteSuggestionProvider.cpp
     RemoteView.cpp
     ReportReview.cpp
     RestoreSessionCard.cpp

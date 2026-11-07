@@ -17,6 +17,7 @@
 #include <UI/Qt/LocationEdit.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Motion.h>
+#include <UI/Qt/RemoteSuggestionProvider.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/SystemAppearance.h>
 #include <UI/Qt/Theme.h>
@@ -302,7 +303,7 @@ private:
 LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
     : NativeTextEditingLineEdit(parent)
     , WebView::SettingsObserver(Application::settings())
-    , m_omnibox(is_private)
+    , m_omnibox(make<RemoteSuggestionProvider>(is_private))
     , m_autocomplete(new Autocomplete(this))
 {
     setObjectName("LadybirdLocationEdit");

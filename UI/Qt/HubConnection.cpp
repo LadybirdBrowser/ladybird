@@ -9,6 +9,7 @@
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteDownloads.h>
+#include <UI/Qt/RemoteSuggestionProvider.h>
 #include <UI/Qt/RemoteView.h>
 
 namespace Ladybird {
@@ -373,6 +374,12 @@ void HubConnection::app_display_bookmark_dialog(u64 request_id, Hub::BookmarkDia
     promise->when_rejected([answer](Error const&) {
         answer({});
     });
+}
+
+void HubConnection::omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions)
+{
+    if (auto* provider = RemoteSuggestionProvider::find(client_id); provider && provider->on_suggestions)
+        provider->on_suggestions(query_id, move(suggestions));
 }
 
 void HubConnection::settings_changed(ByteString settings_json)

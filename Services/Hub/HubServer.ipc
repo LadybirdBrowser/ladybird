@@ -9,6 +9,7 @@
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
+#include <LibWebView/OmniboxEngagement.h>
 #include <LibWebView/ViewImplementation.h>
 
 [ExistingCpp]
@@ -18,9 +19,23 @@ struct WebView::ViewImplementation::ScreenRects {
     u32 main_screen_index;
 }
 
+[ExistingCpp]
+struct WebView::OmniboxEngagement {
+    String input;
+    WebView::OmniboxDestinationKind destination_kind;
+    String destination;
+    bool was_explicit;
+    UnixDateTime used_at;
+}
+
 // What the UI asks of the Hub.
 endpoint HubServer
 {
+    omnibox_open(u64 client_id, WebView::IsPrivate is_private) =|
+    omnibox_close(u64 client_id) =|
+    omnibox_query(u64 client_id, u64 query_id, String query, u64 max_suggestions) =|
+    omnibox_cancel(u64 client_id) =|
+    omnibox_record_engagement(u64 client_id, WebView::OmniboxEngagement engagement) =|
     update_bookmarks(ByteString bookmarks_json) =|
     answer_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark> bookmarks) =|
     answer_bookmark_dialog(u64 request_id, Optional<Hub::BookmarkDialogResult> result) =|
