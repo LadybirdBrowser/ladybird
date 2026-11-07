@@ -52,6 +52,7 @@ public:
         Gfx::FloatRect gutter_rect;
         Gfx::FloatRect thumb_rect;
         Color thumb_color;
+        Color thumb_outline_color;
         Color track_color;
         float opacity { 1 };
     };
@@ -83,7 +84,7 @@ public:
     Gfx::IntRect advance_fades(Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, MonotonicTime frame_time);
     // A scrollbar command of the display list with no scrollbar here is painted as the command gives it. The colors are
     // the ones the display list resolved for the page, which it may have darkened.
-    Optional<PresentedScrollbar> presented_scrollbar_painted_by_display_list(Compositing::SpatialNodeIndex scroll_node_index, bool vertical, Color thumb_color, Color track_color, Compositing::ScrollStateSnapshot const&) const;
+    Optional<PresentedScrollbar> presented_scrollbar_painted_by_display_list(Compositing::SpatialNodeIndex scroll_node_index, bool vertical, Color thumb_color, Color thumb_outline_color, Color track_color, Compositing::ScrollStateSnapshot const&) const;
 
     bool is_empty() const { return m_scrollbars.is_empty(); }
     Vector<Compositing::AsyncScrollbar> const& scrollbars() const { return m_scrollbars; }
@@ -126,7 +127,7 @@ private:
     bool is_expanded(size_t scrollbar_index) const;
     float opacity(size_t scrollbar_index) const;
     float expansion(size_t scrollbar_index) const;
-    PresentedScrollbar presented_scrollbar(size_t scrollbar_index, Compositing::ScrollStateSnapshot const&, Color thumb_color, Color track_color) const;
+    PresentedScrollbar presented_scrollbar(size_t scrollbar_index, Compositing::ScrollStateSnapshot const&, Color thumb_color, Color thumb_outline_color, Color track_color) const;
     Optional<Gfx::IntRect> rect_in_viewport(size_t scrollbar_index, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&) const;
     float primary_position_of_captured_drag(Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position);
 

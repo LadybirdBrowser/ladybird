@@ -628,6 +628,7 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             write_field(output, "min_scroll_offset", command.min_scroll_offset);
             write_field(output, "max_scroll_offset", command.max_scroll_offset);
             write_field(output, "thumb_color", command.thumb_color);
+            write_field(output, "thumb_outline_color", command.thumb_outline_color);
             write_field(output, "track_color", command.track_color);
             write!(
                 output,

@@ -446,7 +446,7 @@ static Gfx::FloatRect interpolated_rect(Gfx::IntRect const& from, Gfx::IntRect c
     };
 }
 
-ScrollbarController::PresentedScrollbar ScrollbarController::presented_scrollbar(size_t scrollbar_index, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Color thumb_color, Color track_color) const
+ScrollbarController::PresentedScrollbar ScrollbarController::presented_scrollbar(size_t scrollbar_index, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Color thumb_color, Color thumb_outline_color, Color track_color) const
 {
     auto const& scrollbar = m_scrollbars[scrollbar_index];
     auto progress = expansion(scrollbar_index);
@@ -465,17 +465,18 @@ ScrollbarController::PresentedScrollbar ScrollbarController::presented_scrollbar
         .gutter_rect = interpolated_rect(scrollbar.track_rect, scrollbar.expanded_gutter_rect, progress),
         .thumb_rect = interpolated_rect(thin_thumb_rect, expanded_thumb_rect, progress),
         .thumb_color = thumb_color,
+        .thumb_outline_color = thumb_outline_color,
         .track_color = track_color.with_alpha(static_cast<u8>(track_alpha)),
         .opacity = opacity(scrollbar_index),
     };
 }
 
-Optional<ScrollbarController::PresentedScrollbar> ScrollbarController::presented_scrollbar_painted_by_display_list(Compositing::SpatialNodeIndex scroll_node_index, bool vertical, Color thumb_color, Color track_color, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
+Optional<ScrollbarController::PresentedScrollbar> ScrollbarController::presented_scrollbar_painted_by_display_list(Compositing::SpatialNodeIndex scroll_node_index, bool vertical, Color thumb_color, Color thumb_outline_color, Color track_color, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
     for (size_t i = 0; i < m_scrollbars.size(); ++i) {
         auto const& scrollbar = m_scrollbars[i];
         if (!scrollbar.is_painted_by_compositor && scrollbar.scroll_node_index == scroll_node_index && scrollbar.vertical == vertical)
-            return presented_scrollbar(i, scroll_state_snapshot, thumb_color, track_color);
+            return presented_scrollbar(i, scroll_state_snapshot, thumb_color, thumb_outline_color, track_color);
     }
     return {};
 }
@@ -489,7 +490,7 @@ bool ScrollbarController::paint(Gfx::PaintingSurface& surface, DisplayListPlayer
             continue;
         if (opacity(i) <= 0)
             continue;
-        display_list_player.paint_scrollbar(surface, presented_scrollbar(i, scroll_state_snapshot, scrollbar.thumb_color, scrollbar.track_color));
+        display_list_player.paint_scrollbar(surface, presented_scrollbar(i, scroll_state_snapshot, scrollbar.thumb_color, scrollbar.thumb_outline_color, scrollbar.track_color));
         painted_a_scrollbar = true;
     }
     return painted_a_scrollbar;

@@ -469,14 +469,26 @@ fn is_canvas_background_source(
         || (root_background_source.use_body_background_properties && root_background_source.body_layout_node == slot)
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct ScrollbarColors {
+    pub thumb: Color,
+    // The thumb is stroked with this, so that it stays visible over whatever the scrollbar is drawn on.
+    pub thumb_outline: Color,
+    pub track: Color,
+}
+
 pub(crate) fn scrollbar_colors_for_paint(
     arena: &impl PaintRead,
     slot: NodeSlotId,
     root_background_source: RootBackgroundSource,
     canvas_background_color: Color,
-) -> (Color, Color) {
+) -> ScrollbarColors {
     let Some(style) = arena.node_style_if_live(slot) else {
-        return (Color::TRANSPARENT, Color::TRANSPARENT);
+        return ScrollbarColors {
+            thumb: Color::TRANSPARENT,
+            thumb_outline: Color::TRANSPARENT,
+            track: Color::TRANSPARENT,
+        };
     };
     // https://drafts.csswg.org/css-scrollbars/#scrollbar-color
     // UAs must apply the scrollbar-color value set on the root element to the viewport.
@@ -489,7 +501,12 @@ pub(crate) fn scrollbar_colors_for_paint(
     };
     let colors = color_style.inherited_ui().scrollbar_color;
     if !colors.is_auto {
-        return (Color(colors.thumb_color), Color(colors.track_color));
+        let thumb = Color(colors.thumb_color);
+        return ScrollbarColors {
+            thumb,
+            thumb_outline: thumb.lightened(1.2),
+            track: Color(colors.track_color),
+        };
     }
 
     let mut ancestors = Vec::new();
@@ -515,10 +532,17 @@ pub(crate) fn scrollbar_colors_for_paint(
     let white_thumb = Color::from_rgb(255, 255, 255).with_alpha(128);
     let black_contrast = background_color.contrast_ratio(background_color.blend(black_thumb));
     let white_contrast = background_color.contrast_ratio(background_color.blend(white_thumb));
-    let thumb = if black_contrast >= white_contrast {
-        black_thumb
+    let (thumb, thumb_outline) = if black_contrast >= white_contrast {
+        (black_thumb, white_thumb)
     } else {
-        white_thumb
+        (white_thumb, black_thumb)
     };
-    (thumb, thumb.with_alpha(25))
+    // The background guessed above is what's behind the scroll container, which isn't always what's under the
+    // scrollbar: Content of the opposite lightness can cover it. An outline in the opposite color to the thumb's keeps
+    // the thumb visible over that content too.
+    ScrollbarColors {
+        thumb,
+        thumb_outline: thumb_outline.with_alpha(64),
+        track: thumb.with_alpha(25),
+    }
 }
