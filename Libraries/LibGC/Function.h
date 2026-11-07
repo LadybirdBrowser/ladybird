@@ -49,8 +49,10 @@ struct CapturedValue {
     T& get() { return value; }
     void visit_edges(Cell::Visitor& visitor) const
     {
-        if constexpr (IsVisitable<T>::value)
+        if constexpr (!IsUntracedCapture<T>::value) {
+            static_assert(IsVisitable<T>::value, "A traced GC::Function capture must be visitable");
             visitor.visit(value);
+        }
     }
 };
 
