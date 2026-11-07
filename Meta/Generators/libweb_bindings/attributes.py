@@ -366,7 +366,7 @@ def write_attribute_getter(
     getter_prelude = ""
     getter_cache_check = ""
     getter_realm_argument = member_realm_expr(attribute, interface=interface)
-    getter_steps = f"auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, {getter_realm_argument}, [&] {{ return {implementation_attribute_getter_call(interface, attribute, getter_realm_argument)}; }}));"
+    getter_steps = f"auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {implementation_attribute_getter_call(interface, attribute, getter_realm_argument)}; }}));"
     is_reflected = "Reflect" in attribute.extended_attributes
     is_non_nullable_reflected = is_reflected and not attribute.type.nullable
     is_non_nullable_reflected_string = is_non_nullable_reflected and is_dom_string_type(attribute)
@@ -377,7 +377,7 @@ def write_attribute_getter(
 
     if "ImplementedInBindings" in attribute.extended_attributes:
         includes.add(bindings_glue_header_for_interface(interface))
-        getter_steps = f"auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, {getter_realm_argument}, [&] {{ return {bindings_attribute_getter_call(attribute, getter_realm_argument)}; }}));"
+        getter_steps = f"auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {bindings_attribute_getter_call(attribute, getter_realm_argument)}; }}));"
     elif is_reflected and attribute.type.name == "boolean":
         getter_steps = f"""{content_attribute_declaration}
 
@@ -797,7 +797,7 @@ def write_attribute_setter(
 
     out.write("    [[maybe_unused]] auto& this_object_realm = js_value.as_object().shape().realm();\n\n")
     setter_realm_argument = member_realm_expr(attribute, interface=interface)
-    setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, {setter_realm_argument}, [&] {{ return {implementation_attribute_setter_call(context, interface, attribute, setter_realm_argument)}; }}));\n    return {{}};"
+    setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {implementation_attribute_setter_call(context, interface, attribute, setter_realm_argument)}; }}));\n    return {{}};"
     is_reflected = "Reflect" in attribute.extended_attributes
     is_non_nullable_reflected = is_reflected and not attribute.type.nullable
     is_nullable_reflected_string = is_reflected and attribute.type.nullable and is_dom_string_type(attribute)
@@ -827,7 +827,7 @@ def write_attribute_setter(
     return {{}};"""
     elif "ImplementedInBindings" in attribute.extended_attributes:
         includes.add(bindings_glue_header_for_interface(interface))
-        setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, {setter_realm_argument}, [&] {{ return {bindings_attribute_setter_call(context, attribute, setter_realm_argument)}; }}));\n    return {{}};"
+        setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {bindings_attribute_setter_call(context, attribute, setter_realm_argument)}; }}));\n    return {{}};"
     elif is_non_nullable_reflected and attribute.type.name == "unsigned long":
         setter_steps = f"""{content_attribute_declaration}
 
@@ -899,27 +899,20 @@ def write_attribute_setter(
         """    auto original_steps = [&]() -> JS::ThrowCompletionOr<JS::Value> {
 """
     )
-    out.write(
-        f"""        JS::VM::TypeErrorRealmScope conversion_type_error_realm {{ vm, {setter_realm_argument} }};
-
-"""
-    )
     if context.enumeration(attribute.type) is not None:
         out.write(
-            f"""        auto maybe_idl_value = WebIDL::throw_dom_exception_if_needed(vm, {setter_realm_argument}, [&] {{ return {to_idl_value(attribute, "V", includes, context)}; }});
+            f"""        auto maybe_idl_value = WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {to_idl_value(attribute, "V", includes, context)}; }});
 
         if (maybe_idl_value.is_error())
             return JS::js_undefined();
 
         auto idl_value = maybe_idl_value.release_value();
-        conversion_type_error_realm.restore();
 
 """
         )
     else:
         out.write(
-            f"""        auto idl_value = TRY(WebIDL::throw_dom_exception_if_needed(vm, {setter_realm_argument}, [&] {{ return {to_idl_value(attribute, "V", includes, context)}; }}));
-        conversion_type_error_realm.restore();
+            f"""        auto idl_value = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {to_idl_value(attribute, "V", includes, context)}; }}));
 
 """
         )

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+
+        function thrown(f) {
+            try {
+                f();
+                return "no exception";
+            } catch (e) {
+                const realm = e instanceof other.Object ? "iframe" : e instanceof Object ? "parent" : "neither";
+                return `${e.name} in ${realm} realm`;
+            }
+        }
+
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        const valueAsNumberSetter = Object.getOwnPropertyDescriptor(other.HTMLInputElement.prototype, "valueAsNumber").set;
+        println(`setter DOMException: ${thrown(() => valueAsNumberSetter.call(input, 1))}`);
+
+        const div = document.createElement("div");
+        println(`operation DOMException: ${thrown(() => other.Node.prototype.removeChild.call(div, document.createElement("span")))}`);
+        println(`conversion TypeError: ${thrown(() => other.Node.prototype.appendChild.call(div, {}))}`);
+        println(`enum conversion TypeError: ${thrown(() => other.Element.prototype.attachShadow.call(div, { mode: "bogus" }))}`);
+    });
+</script>
