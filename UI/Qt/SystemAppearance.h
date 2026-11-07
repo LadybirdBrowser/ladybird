@@ -28,6 +28,7 @@ public:
     static bool prefers_reduced_motion();
 
     void apply_interface_theme(WebView::ThemePreference);
+    void apply_color_theme(WebView::ColorTheme);
 
 signals:
     void changed();
@@ -41,6 +42,7 @@ private:
 
     bool m_prefers_dark { false };
     WebView::ThemePreference m_interface_theme { WebView::ThemePreference::System };
+    WebView::ColorTheme m_color_theme { WebView::ColorTheme::Neutral };
 };
 
 }

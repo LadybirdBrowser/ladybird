@@ -5,6 +5,8 @@
  */
 
 #include <AK/Array.h>
+#include <AK/Math.h>
+#include <LibWebView/Settings.h>
 #include <UI/Qt/Theme.h>
 
 #include <QAccessibilityHints>
@@ -191,11 +193,103 @@ static PanelColors const dark_panel {
     .information = rgba(10, 122, 255, 0.22),
 };
 
+// A color theme is made from one or two base colors. Its chrome and panel colors are derived from those of the neutral
+// theme, by giving each surface the tint's hue while keeping its lightness, so contrast stays as it is.
+// NB: Violet surfaces mark private windows, so no theme should tint with a violet hue.
+struct ColorThemeDefinition {
+    // The hue the surfaces take on, or none to keep them neutral.
+    Optional<QColor> tint;
+    // The color of focus rings, selection and selected rows, or none to follow the system's accent color.
+    Optional<QColor> accent;
+};
+
+// Each tinted theme is made from a single base color, which is both its tint and its accent.
+static ColorThemeDefinition color_theme_definition(WebView::ColorTheme theme)
+{
+    auto from_base_color = [](QRgb base_color) {
+        return ColorThemeDefinition { .tint = rgb(base_color), .accent = rgb(base_color) };
+    };
+
+    switch (theme) {
+    case WebView::ColorTheme::Neutral:
+        return {};
+    case WebView::ColorTheme::Harbor:
+        return from_base_color(0x2f6fd6);
+    case WebView::ColorTheme::Glacier:
+        return from_base_color(0x1798b8);
+    case WebView::ColorTheme::Lagoon:
+        return from_base_color(0x12957f);
+    case WebView::ColorTheme::Moss:
+        return from_base_color(0x3b8f3e);
+    case WebView::ColorTheme::Saffron:
+        return from_base_color(0xc99500);
+    case WebView::ColorTheme::Copper:
+        return from_base_color(0xd0631c);
+    case WebView::ColorTheme::Cherry:
+        return from_base_color(0xd1344b);
+    case WebView::ColorTheme::Blossom:
+        return from_base_color(0xd2459a);
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// How saturated the surfaces are in the tint's hue, and the text and icons on them, which take on only a trace of it.
+static constexpr float SURFACE_TINT_SATURATION = 0.22f;
+static constexpr float INK_TINT_SATURATION = 0.12f;
+
+// NB: Translucent fills, such as hovers and the address field, stay neutral, and take on the tint of the surface below.
+static void tint(QColor& color, QColor const& tint, float saturation)
+{
+    if (color.alpha() != 255)
+        return;
+    color = QColor::fromHslF(tint.hslHueF(), saturation, color.lightnessF());
+}
+
+static ChromeColors derive_chrome(ChromeColors const& neutral, Optional<QColor> const& tint_color)
+{
+    auto colors = neutral;
+    if (!tint_color.has_value())
+        return colors;
+    for (auto* surface : { &colors.strip, &colors.toolbar, &colors.sidebar, &colors.field_focused, &colors.separator, &colors.divider })
+        tint(*surface, *tint_color, SURFACE_TINT_SATURATION);
+    for (auto* ink : { &colors.text, &colors.muted, &colors.tab_title, &colors.icon, &colors.disabled, &colors.row_title })
+        tint(*ink, *tint_color, INK_TINT_SATURATION);
+    return colors;
+}
+
+static PanelColors derive_panel(PanelColors const& neutral, Optional<QColor> const& tint_color)
+{
+    auto colors = neutral;
+    if (!tint_color.has_value())
+        return colors;
+    for (auto* surface : { &colors.surface, &colors.separator, &colors.separator_soft, &colors.page })
+        tint(*surface, *tint_color, SURFACE_TINT_SATURATION);
+    for (auto* ink : { &colors.text, &colors.body, &colors.muted, &colors.shortcut })
+        tint(*ink, *tint_color, INK_TINT_SATURATION);
+    return colors;
+}
+
+static ColorThemeDefinition s_color_theme;
+static ChromeColors s_light_chrome = light_chrome;
+static ChromeColors s_dark_chrome = dark_chrome;
+static PanelColors s_light_panel = light_panel;
+static PanelColors s_dark_panel = dark_panel;
+
+void set_color_theme(WebView::ColorTheme theme)
+{
+    s_color_theme = color_theme_definition(theme);
+    s_light_chrome = derive_chrome(light_chrome, s_color_theme.tint);
+    s_dark_chrome = derive_chrome(dark_chrome, s_color_theme.tint);
+    s_light_panel = derive_panel(light_panel, s_color_theme.tint);
+    s_dark_panel = derive_panel(dark_panel, s_color_theme.tint);
+}
+
+// NB: With increased contrast, the chrome stays neutral whatever the color theme.
 ChromeColors const& chrome()
 {
     if (has_increased_contrast())
         return is_dark() ? dark_increased_contrast_chrome : light_increased_contrast_chrome;
-    return is_dark() ? dark_chrome : light_chrome;
+    return is_dark() ? s_dark_chrome : s_light_chrome;
 }
 
 static constexpr auto PRIVATE_WINDOW_PROPERTY = "ladybirdPrivateWindow";
@@ -243,7 +337,7 @@ bool is_dark(QWidget const& widget)
 
 PanelColors const& panel()
 {
-    return is_dark() ? dark_panel : light_panel;
+    return is_dark() ? s_dark_panel : s_light_panel;
 }
 
 struct AccentColor {
@@ -284,8 +378,46 @@ static AccentColor const& system_accent_color()
     return *closest;
 }
 
+// https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+static float relative_luminance(QColor const& color)
+{
+    auto linear = [](float channel) { return channel <= 0.04045f ? channel / 12.92f : AK::pow((channel + 0.055f) / 1.055f, 2.4f); };
+    return (0.2126f * linear(color.redF())) + (0.7152f * linear(color.greenF())) + (0.0722f * linear(color.blueF()));
+}
+
+// https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
+static float contrast_ratio(QColor const& a, QColor const& b)
+{
+    auto lighter = max(relative_luminance(a), relative_luminance(b));
+    auto darker = min(relative_luminance(a), relative_luminance(b));
+    return (lighter + 0.05f) / (darker + 0.05f);
+}
+
+enum class Adjustment {
+    Darken,
+    Lighten,
+};
+
+// Steps the color's lightness until it has at least the given contrast with the background.
+static QColor with_contrast(QColor color, QColor const& background, float minimum_ratio, Adjustment adjustment)
+{
+    auto step = adjustment == Adjustment::Darken ? -0.02f : 0.02f;
+    while (contrast_ratio(color, background) < minimum_ratio) {
+        auto lightness = color.lightnessF() + step;
+        if (lightness <= 0 || lightness >= 1)
+            break;
+        color = QColor::fromHslF(color.hslHueF(), color.hslSaturationF(), lightness);
+    }
+    return color;
+}
+
+// The theme's accent clears 3:1 on the toolbar, darker on the light appearance and lighter on the dark one.
 QColor accent()
 {
+    if (s_color_theme.accent.has_value()) {
+        auto dark = is_dark();
+        return with_contrast(*s_color_theme.accent, chrome().toolbar, 3, dark ? Adjustment::Lighten : Adjustment::Darken);
+    }
     auto const& accent = system_accent_color();
     return is_dark() ? accent.dark : accent.light;
 }
@@ -322,20 +454,36 @@ QColor selection()
     return color;
 }
 
+// The theme's accent fills primary buttons and selected rows deep enough that white text on them clears 4.5:1.
+static QColor accent_fill()
+{
+    return with_contrast(*s_color_theme.accent, Qt::white, 4.5f, Adjustment::Darken);
+}
+
 QColor primary()
 {
+    if (s_color_theme.accent.has_value())
+        return accent_fill();
     return rgb(0x0a66d0);
 }
 
 // A selected row is filled with the primary blue, a little softer on the dark appearance.
 QColor selected_row()
 {
+    if (s_color_theme.accent.has_value())
+        return accent_fill();
     return is_dark() ? rgb(0x2463b8) : primary();
 }
 
-QColor brand()
+// A tinted theme's logomark clears 4.5:1 on both the strip and the toolbar, as the Ladybird button sits on either,
+// depending on where the tabs are.
+QColor logomark()
 {
-    return is_dark() ? rgb(0x7a4ce6) : rgb(0x6a39db);
+    if (!s_color_theme.accent.has_value())
+        return is_dark() ? rgb(0xa684ff) : rgb(0x4b22ad);
+    auto adjustment = is_dark() ? Adjustment::Lighten : Adjustment::Darken;
+    auto color = with_contrast(*s_color_theme.accent, chrome().strip, 4.5f, adjustment);
+    return with_contrast(color, chrome().toolbar, 4.5f, adjustment);
 }
 
 }
