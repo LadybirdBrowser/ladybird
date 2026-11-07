@@ -101,6 +101,13 @@ thread_local! {
 
 static THREAD_SETUP: OnceLock<extern "C" fn()> = OnceLock::new();
 
+/// Runs the setup `stage_thread_set_thread_setup` installed, on a thread that serves the same purpose as a stage thread.
+pub(crate) fn run_thread_setup() {
+    if let Some(setup) = THREAD_SETUP.get() {
+        setup();
+    }
+}
+
 /// Makes each stage thread run `setup` first thing once it starts. Call it before any is handed a job; the first setup
 /// installed stays.
 #[unsafe(no_mangle)]
@@ -137,9 +144,7 @@ impl StageThread {
             .name(name.into())
             .stack_size(STAGE_THREAD_STACK_SIZE)
             .spawn(move || {
-                if let Some(setup) = THREAD_SETUP.get() {
-                    setup();
-                }
+                run_thread_setup();
                 let mut release_memory_at = None;
                 loop {
                     let last = loop {
