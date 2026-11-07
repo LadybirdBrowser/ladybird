@@ -696,8 +696,17 @@ AppKitViewShadow::AppKitViewShadow()
     view.hidden = YES;
     auto* caster = [[CALayer alloc] init];
     [view.layer addSublayer:caster];
+    auto* focus_edge = [[CALayer alloc] init];
+    auto* focus_ring = [[CALayer alloc] init];
+    for (CALayer* layer in @[ focus_edge, focus_ring ]) {
+        layer.cornerCurve = kCACornerCurveContinuous;
+        layer.hidden = YES;
+        [view.layer addSublayer:layer];
+    }
     m_view = view;
     m_caster = caster;
+    m_focus_edge = focus_edge;
+    m_focus_ring = focus_ring;
 }
 
 AppKitViewShadow::~AppKitViewShadow()
@@ -706,9 +715,11 @@ AppKitViewShadow::~AppKitViewShadow()
     [view removeFromSuperview];
     [view release];
     [static_cast<CALayer*>(m_caster) release];
+    [static_cast<CALayer*>(m_focus_edge) release];
+    [static_cast<CALayer*>(m_focus_ring) release];
 }
 
-void AppKitViewShadow::follow(QWidget& widget, QMargins const& room, qreal corner_radius, qreal blur_radius, qreal y_offset, QColor const& shadow_color, QColor const& fill_color)
+void AppKitViewShadow::follow(QWidget& widget, QMargins const& room, qreal corner_radius, qreal blur_radius, qreal y_offset, QColor const& shadow_color, QColor const& fill_color, Optional<AppKitViewFocusRing> const& focus_ring)
 {
     if (QGuiApplication::platformName() != "cocoa")
         return;
@@ -744,6 +755,24 @@ void AppKitViewShadow::follow(QWidget& widget, QMargins const& room, qreal corne
     auto* shadow_path = CGPathCreateWithRoundedRect(CGRectMake(0, 0, caster_frame.size.width, caster_frame.size.height), corner_radius, corner_radius, nullptr);
     caster.shadowPath = shadow_path;
     CGPathRelease(shadow_path);
+
+    // NB: Both parts of the ring are borders, around the surface that covers what is inside them.
+    auto* focus_edge = static_cast<CALayer*>(m_focus_edge);
+    auto* focus_ring_layer = static_cast<CALayer*>(m_focus_ring);
+    focus_edge.hidden = !focus_ring.has_value();
+    focus_ring_layer.hidden = !focus_ring.has_value();
+    if (focus_ring.has_value()) {
+        auto set_ring_part = [&](CALayer* layer, qreal outset, qreal width, QColor const& color) {
+            layer.frame = CGRectInset(caster_frame, -outset, -outset);
+            layer.cornerRadius = corner_radius + outset;
+            layer.borderWidth = width;
+            auto* border_color = CGColorCreateSRGB(color.redF(), color.greenF(), color.blueF(), color.alphaF());
+            layer.borderColor = border_color;
+            CGColorRelease(border_color);
+        };
+        set_ring_part(focus_edge, 1, 1, focus_ring->edge_color);
+        set_ring_part(focus_ring_layer, 1 + focus_ring->ring_width, focus_ring->ring_width, focus_ring->ring_color);
+    }
 
     [CATransaction commit];
 }

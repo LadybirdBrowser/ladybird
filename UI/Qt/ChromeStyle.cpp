@@ -526,6 +526,10 @@ QLineEdit#LadybirdLocationEdit:focus {{
     border-color: {3};
 }}
 
+QLineEdit#LadybirdLocationEdit[autocompleteOpen="true"] {{
+    border-color: {17};
+}}
+
 QLineEdit#LadybirdLocationEdit:disabled {{
     color: {5};
     border-color: {2};

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/kmalloc.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Forward.h>
@@ -13,6 +14,7 @@
 #include <UI/Qt/Menu.h>
 
 #include <QPointer>
+#include <QRect>
 #include <QWidget>
 
 class QAction;
@@ -30,7 +32,7 @@ class LocationEdit;
 class PerformanceMonitorWidget;
 class Popover;
 class ReloadButton;
-class SidebarFieldPanel;
+class FieldPanel;
 class Tab;
 
 enum class ToolbarArrangement : u8 {
@@ -79,6 +81,9 @@ public:
     int height_in_sidebar() const;
     // While the sidebar opens or closes, the toolbar's contents fade out of one arrangement and into the other.
     void set_contents_opacity(qreal);
+    // While the sidebar opens or closes, the field's panel shows only within this part of the window, as the page and the
+    // sidebar slide under it.
+    void set_field_clip(Optional<QRect>);
 
     void show_downloads_popover();
     void update_downloads_button();
@@ -109,6 +114,9 @@ private:
     void lay_out_as_row();
     void lay_out_in_sidebar();
     void create_field_panel();
+    QWidget& field_slot();
+    QMargins field_margins_at_rest() const;
+    void host_field_in_panel();
     bool field_panel_should_expand() const;
     void update_field_panel();
     void raise_field_panel();
@@ -124,13 +132,14 @@ private:
     QWidget* m_navigation_buttons { nullptr };
     QWidget* m_location_edit_container { nullptr };
     QWidget* m_sidebar_footer { nullptr };
-    // In the sidebar, the field's container floats in this panel over the field's slot, and grows while it is edited.
-    QPointer<SidebarFieldPanel> m_field_panel;
+    // The field's container floats in this panel over the field's slot, and grows while it lists suggestions.
+    QPointer<FieldPanel> m_field_panel;
     QWidget* m_field_slot { nullptr };
     QWidget* m_suggestions_area { nullptr };
     bool m_window_controls_visible { false };
     int m_sidebar_inset { 0 };
     qreal m_contents_opacity { 1 };
+    Optional<QRect> m_field_clip;
     // NB: The fields of the tabs shown so far share this layout, which leaves room around them for the focus ring.
     QHBoxLayout* m_location_edit_layout { nullptr };
     QPointer<LocationEdit> m_location_edit;
