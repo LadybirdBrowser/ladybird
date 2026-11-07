@@ -361,6 +361,11 @@ mod fault {
                 *pc = memory_fault_handler();
                 return EXCEPTION_CONTINUE_EXECUTION;
             }
+            if is_in_any_reservation(record.information[1])
+                && crate::runtime::jit::redirect_fault((*pointers).context.cast())
+            {
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
             EXCEPTION_CONTINUE_SEARCH
         }
     }

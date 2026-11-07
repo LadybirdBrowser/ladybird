@@ -62,7 +62,7 @@ pub struct Options {
     pub threads: u32,
 }
 
-#[cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[cfg(wasm_interpreter)]
 impl Options {
     fn compile_options(self) -> libwasm_jit::Options {
         libwasm_jit::Options {
@@ -120,7 +120,10 @@ pub fn options() -> Options {
         }
         // NB: Only where compiled code can trap on memory faults (see `redirect_fault()`) and have executable memory.
         options.enabled &= cfg!(any(
-            all(any(target_os = "linux", target_os = "macos"), target_arch = "x86_64"),
+            all(
+                any(target_os = "linux", target_os = "macos", windows),
+                target_arch = "x86_64"
+            ),
             all(any(target_os = "linux", target_os = "macos"), target_arch = "aarch64")
         ));
         options.enabled &= super::interpreter::cpu_supports_jit();
@@ -389,8 +392,34 @@ pub unsafe fn redirect_fault(context: *mut libc::c_void) -> bool {
     }
 }
 
+/// Redirects a memory fault in compiled code to the trap exit. `context` is the `CONTEXT` of the vectored exception
+/// handler.
+///
+/// # Safety
+///
+/// Only the fault handler calls this, with its context.
+#[cfg(all(windows, target_arch = "x86_64"))]
+pub unsafe fn redirect_fault(context: *mut libc::c_void) -> bool {
+    /// Where the registers are in the x86-64 CONTEXT structure.
+    const CONTEXT_RDI_OFFSET: usize = 0xb0;
+    const CONTEXT_RIP_OFFSET: usize = 0xf8;
+    unsafe {
+        let context = context.cast::<u8>();
+        let pc = context.add(CONTEXT_RIP_OFFSET).cast::<u64>();
+        let Some(stubs) = native::STUBS.get().and_then(Option::as_ref) else {
+            return false;
+        };
+        if !CODE_RANGES.contains(*pc as usize) {
+            return false;
+        }
+        *pc = stubs.trap_exit;
+        *context.add(CONTEXT_RDI_OFFSET).cast::<u64>() = u64::from(crate::abi::TRAP_MEMORY_OUT_OF_BOUNDS);
+        true
+    }
+}
+
 #[cfg(not(any(
-    all(any(target_os = "linux", target_os = "macos"), target_arch = "x86_64"),
+    all(any(target_os = "linux", target_os = "macos", windows), target_arch = "x86_64"),
     all(any(target_os = "linux", target_os = "macos"), target_arch = "aarch64")
 )))]
 pub unsafe fn redirect_fault(_context: *mut libc::c_void) -> bool {
@@ -398,7 +427,7 @@ pub unsafe fn redirect_fault(_context: *mut libc::c_void) -> bool {
 }
 
 /// Appends a line for code at `address` to the process's perf map.
-#[cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[cfg(wasm_interpreter)]
 fn write_perf_map_entry(address: u64, size: usize, name: &str) {
     let _ = ak::perf_map::write_perf_map_entry(address as usize, size, name);
 }
@@ -424,17 +453,11 @@ pub struct CallShape {
     /// The slots of the parameters' home area, after which the result area pointer is, and where the result area
     /// starts.
     parameter_slots: usize,
-    #[cfg_attr(
-        not(all(unix, any(target_arch = "x86_64", target_arch = "aarch64"))),
-        allow(dead_code)
-    )]
+    #[cfg_attr(not(wasm_interpreter), allow(dead_code))]
     result_area_slot: usize,
     /// The slots of the outgoing area: the home slots, and the result area pointer and the result area if there is
     /// one.
-    #[cfg_attr(
-        not(all(unix, any(target_arch = "x86_64", target_arch = "aarch64"))),
-        allow(dead_code)
-    )]
+    #[cfg_attr(not(wasm_interpreter), allow(dead_code))]
     image_slots: usize,
     has_result_area: bool,
 }
@@ -645,7 +668,7 @@ unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
     }
 }
 
-#[cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[cfg(wasm_interpreter)]
 mod native {
     use super::{CODE_RANGES, CallShape, shapes, slot_bits};
     use crate::abi::{ExecutionContext, FUNCTION_KIND_COMPILED, FunctionHeader, OPCODE_TRAP_FROM_NATIVE};
@@ -680,27 +703,64 @@ mod native {
         STUBS.get_or_init(make_stubs).as_ref()
     }
 
+    /// A function of `export_runtime_functions!`, with the calling convention compiled code calls it with.
+    #[cfg(all(target_arch = "x86_64", windows))]
+    type RuntimeFunction = unsafe extern "sysv64" fn(*mut ExecutionContext) -> u64;
+    #[cfg(not(all(target_arch = "x86_64", windows)))]
+    type RuntimeFunction = unsafe extern "C" fn(*mut ExecutionContext) -> u64;
+
+    /// The address compiled code calls `function` at, which the type keeps to functions of the right convention.
+    fn runtime_function_address(function: RuntimeFunction) -> u64 {
+        function as usize as u64
+    }
+
     fn make_stubs() -> Option<Stubs> {
         let handler = crate::runtime::interpreter::dispatch_table_entry(OPCODE_TRAP_FROM_NATIVE) as u64;
         // NB: The trap exit goes first, so that the others can jump to it. The chunk is never freed.
+        #[cfg_attr(not(windows), allow(unused_mut))]
         let mut chunk = CodeChunk::new(64 * 1024)?;
         let trap_exit = chunk.add(&libwasm_jit::stubs::trap_exit(handler))?;
         let runtime = RuntimeInfo {
             trap_exit,
-            memory_grow: helpers::wasm_runtime_memory_grow as *const () as u64,
-            table_grow: helpers::wasm_runtime_table_grow as *const () as u64,
-            call_host: helpers::wasm_runtime_call_host as *const () as u64,
-            allocate: helpers::wasm_runtime_allocate as *const () as u64,
-            wait: helpers::wasm_runtime_wait as *const () as u64,
-            notify: helpers::wasm_runtime_notify as *const () as u64,
-            allocate_exception: super::wasm_runtime_allocate_exception as *const () as u64,
-            throw: super::wasm_runtime_throw_from_native as *const () as u64,
+            memory_grow: runtime_function_address(helpers::wasm_runtime_memory_grow),
+            table_grow: runtime_function_address(helpers::wasm_runtime_table_grow),
+            call_host: runtime_function_address(helpers::wasm_runtime_call_host),
+            allocate: runtime_function_address(helpers::wasm_runtime_allocate),
+            wait: runtime_function_address(helpers::wasm_runtime_wait),
+            notify: runtime_function_address(helpers::wasm_runtime_notify),
+            allocate_exception: runtime_function_address(super::wasm_runtime_allocate_exception),
+            throw: runtime_function_address(super::wasm_runtime_throw_from_native),
         };
         let (trampoline, return_offset) = libwasm_jit::stubs::entry_trampoline();
         let entry = chunk.add(&trampoline)?;
-        let adapter_code =
-            libwasm_jit::stubs::runtime_adapter(super::wasm_runtime_call_from_native as *const () as u64, &runtime);
+        let adapter_code = libwasm_jit::stubs::runtime_adapter(
+            runtime_function_address(super::wasm_runtime_call_from_native),
+            &runtime,
+        );
         let adapter = chunk.add(&adapter_code)?;
+        // NB: The trampoline's range starts at it, so that the unwind info describes its prologue: native code calls it,
+        //     which keeps no frame pointer. The trap exit has no frame of its own, and is in the frame of the code
+        //     that trapped.
+        #[cfg(windows)]
+        {
+            use ak::windows_code_memory::{CodeRange, FrameLayout};
+            let offset = |address: u64| (address - chunk.base as u64) as u32;
+            let ranges = [
+                CodeRange {
+                    start: 0,
+                    end: offset(entry),
+                    frame_layout: FrameLayout::RbpAboveReturnAddress,
+                },
+                CodeRange {
+                    start: offset(entry),
+                    end: chunk.size as u32,
+                    frame_layout: FrameLayout::RbpAboveReturnAddress,
+                },
+            ];
+            if !chunk.add_unwind_info(&ranges) {
+                return None;
+            }
+        }
         if super::options().perf_map {
             super::write_perf_map_entry(entry, trampoline.len(), "wasm-entry-trampoline");
             super::write_perf_map_entry(adapter, adapter_code.len(), "wasm-runtime-adapter");
@@ -721,6 +781,8 @@ mod native {
         base: *mut u8,
         size: usize,
         used: usize,
+        #[cfg(windows)]
+        has_unwind_info: bool,
     }
 
     const CHUNK_SIZE: usize = 16 << 20;
@@ -728,45 +790,107 @@ mod native {
     /// Where the code of a function starts, which the alignment of its loops relies on.
     const CODE_ALIGNMENT: usize = 64;
 
+    /// How much of the start of a chunk holds no code.
+    #[cfg(windows)]
+    const CHUNK_HEADER_SIZE: usize = ak::windows_code_memory::UNWIND_INFO_SIZE;
+    #[cfg(not(windows))]
+    const CHUNK_HEADER_SIZE: usize = 0;
+
     /// How many compiles a store installs between looking for modules that died.
     const SWEEP_INTERVAL: usize = 64;
 
+    #[cfg(not(windows))]
     fn page_size() -> usize {
         static PAGE_SIZE: OnceLock<usize> = OnceLock::new();
         *PAGE_SIZE.get_or_init(|| unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize)
     }
 
+    #[cfg(windows)]
+    fn page_size() -> usize {
+        ak::windows_code_memory::PAGE_SIZE
+    }
+
     /// The longest an eager instantiation waits for its compiles.
     const EAGER_WAIT: std::time::Duration = std::time::Duration::from_secs(60);
 
+    #[cfg(not(windows))]
+    fn map_chunk(size: usize) -> Option<*mut u8> {
+        // NB: macOS on Apple silicon maps code writable and executable at once, with MAP_JIT, and switches each
+        //     thread's view of it between the two with pthread_jit_write_protect_np().
+        #[cfg(target_os = "macos")]
+        let (protection, flags) = (
+            libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
+            libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_JIT,
+        );
+        #[cfg(not(target_os = "macos"))]
+        let (protection, flags) = (
+            libc::PROT_READ | libc::PROT_EXEC,
+            libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
+        );
+        let base = unsafe { libc::mmap(std::ptr::null_mut(), size, protection, flags, -1, 0) };
+        (base != libc::MAP_FAILED).then_some(base.cast())
+    }
+
+    #[cfg(not(windows))]
+    unsafe fn unmap_chunk(base: *mut u8, size: usize) {
+        unsafe { libc::munmap(base.cast(), size) };
+    }
+
+    /// NB: On Windows, chunks are only reserved, and pages get committed when code is first written to them.
+    #[cfg(windows)]
+    fn map_chunk(size: usize) -> Option<*mut u8> {
+        let base = ak::windows_code_memory::reserve(size);
+        (!base.is_null()).then_some(base)
+    }
+
+    #[cfg(windows)]
+    unsafe fn unmap_chunk(base: *mut u8, _size: usize) {
+        unsafe { ak::windows_code_memory::release(base) };
+    }
+
     impl CodeChunk {
         fn new(size: usize) -> Option<Self> {
-            // NB: macOS on Apple silicon maps code writable and executable at once, with MAP_JIT, and switches each
-            //     thread's view of it between the two with pthread_jit_write_protect_np().
-            #[cfg(target_os = "macos")]
-            let (protection, flags) = (
-                libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
-                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_JIT,
-            );
-            #[cfg(not(target_os = "macos"))]
-            let (protection, flags) = (
-                libc::PROT_READ | libc::PROT_EXEC,
-                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
-            );
-            let base = unsafe { libc::mmap(std::ptr::null_mut(), size, protection, flags, -1, 0) };
-            if base == libc::MAP_FAILED {
-                return None;
-            }
+            let base = map_chunk(size)?;
             // NB: The fault handler has to know the code, or faults in it would crash the process.
             if !CODE_RANGES.add(base as usize, size) {
-                unsafe { libc::munmap(base, size) };
+                unsafe { unmap_chunk(base, size) };
                 return None;
             }
             Some(Self {
-                base: base.cast(),
+                base,
                 size,
-                used: 0,
+                used: CHUNK_HEADER_SIZE,
+                #[cfg(windows)]
+                has_unwind_info: false,
             })
+        }
+
+        /// A chunk for the code of functions, whose frames are all set up the same way.
+        fn for_compiled_code(size: usize) -> Option<Self> {
+            #[cfg_attr(not(windows), allow(unused_mut))]
+            let mut chunk = Self::new(size)?;
+            #[cfg(windows)]
+            {
+                let range = ak::windows_code_memory::CodeRange {
+                    start: 0,
+                    end: size as u32,
+                    frame_layout: ak::windows_code_memory::FrameLayout::RbpAboveReturnAddress,
+                };
+                if !chunk.add_unwind_info(&[range]) {
+                    return None;
+                }
+            }
+            Some(chunk)
+        }
+
+        /// Tells the system how to walk through the code of the chunk, which it would otherwise take for leaf functions:
+        /// a fault below compiled code would then not get to the unhandled exception filter.
+        #[cfg(windows)]
+        fn add_unwind_info(&mut self, ranges: &[ak::windows_code_memory::CodeRange]) -> bool {
+            // SAFETY: Chunks are reserved, this goes on the first bytes that `CHUNK_HEADER_SIZE` keeps code off, and no
+            //         code in the chunk runs before it is handed out.
+            self.has_unwind_info = unsafe { ak::windows_code_memory::add_unwind_info(self.base, ranges) };
+            self.has_unwind_info
         }
 
         fn has_room(&self, length: usize) -> bool {
@@ -787,7 +911,27 @@ mod native {
                 libc::pthread_jit_write_protect_np(1);
                 libwasm_jit::runtime::flush_instruction_cache(self.base as usize + start, code.len());
             }
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(windows)]
+            unsafe {
+                let page_size = page_size();
+                let first_page = start / page_size * page_size;
+                let length = (start + code.len()).next_multiple_of(page_size) - first_page;
+                let region = self.base.add(first_page);
+                if !ak::windows_code_memory::make_writable(region, length) {
+                    return None;
+                }
+                std::ptr::copy_nonoverlapping(code.as_ptr(), self.base.add(start), code.len());
+                // NB: The pages may hold code that is installed already, which must not stop being executable. The
+                //     change back can only fail for lack of kernel memory, when the process cannot go on anyway.
+                if !ak::windows_code_memory::make_executable(region, length) {
+                    eprintln!(
+                        "LibWasm JIT: making compiled code executable again failed: {}",
+                        std::io::Error::last_os_error()
+                    );
+                    std::process::abort();
+                }
+            }
+            #[cfg(not(any(target_os = "macos", windows)))]
             unsafe {
                 let page_size = page_size();
                 let first_page = start / page_size * page_size;
@@ -1033,7 +1177,12 @@ mod native {
     impl Drop for CodeChunk {
         fn drop(&mut self) {
             CODE_RANGES.remove(self.base as usize);
-            unsafe { libc::munmap(self.base.cast(), self.size) };
+            #[cfg(windows)]
+            if self.has_unwind_info {
+                // SAFETY: The info was added to this chunk, which is still mapped.
+                unsafe { ak::windows_code_memory::delete_unwind_info(self.base) };
+            }
+            unsafe { unmap_chunk(self.base, self.size) };
         }
     }
 
@@ -1260,8 +1409,9 @@ mod native {
                     .chunks
                     .last()
                     .map_or(FIRST_CHUNK_SIZE, |chunk| (chunk.size * 2).min(CHUNK_SIZE));
-                self.chunks
-                    .push(CodeChunk::new(size.max(code.len().next_multiple_of(page_size())))?);
+                self.chunks.push(CodeChunk::for_compiled_code(
+                    size.max((CHUNK_HEADER_SIZE + code.len()).next_multiple_of(page_size())),
+                )?);
             }
             self.chunks.last_mut().expect("there is a chunk").add(code)
         }
@@ -1622,7 +1772,12 @@ mod native {
             }
             call.image = image as u64;
             call.image_slots = shape.image_slots as u64;
+            #[cfg(not(all(target_arch = "x86_64", windows)))]
             let trampoline: extern "C" fn(*mut NativeCall) = std::mem::transmute(stubs().entry as usize);
+            // NB: Compiled code uses the System V calling convention on Windows too. Calling it with that convention
+            //     keeps the registers that are callee-saved only on Windows.
+            #[cfg(all(target_arch = "x86_64", windows))]
+            let trampoline: extern "sysv64" fn(*mut NativeCall) = std::mem::transmute(stubs().entry as usize);
             trampoline(&raw mut call);
             if large {
                 LARGE_IMAGES.with(|images| images.borrow_mut().in_use -= 1);
@@ -1716,7 +1871,7 @@ mod native {
 
 // NB: The interface of the native module, for targets without a code generator, where the JIT is off and most of it
 //     goes unused.
-#[cfg(not(all(unix, any(target_arch = "x86_64", target_arch = "aarch64"))))]
+#[cfg(not(wasm_interpreter))]
 #[allow(dead_code)]
 mod native {
     use crate::abi::ExecutionContext;
