@@ -39,6 +39,7 @@ class BodyMixin {
 public:
     virtual ~BodyMixin();
 
+    virtual GC::Cell const& this_impl() const = 0;
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const = 0;
     virtual GC::Ptr<Infrastructure::Body> body_impl() = 0;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const = 0;

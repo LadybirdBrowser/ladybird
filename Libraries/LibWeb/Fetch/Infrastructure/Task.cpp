@@ -67,7 +67,7 @@ HTML::TaskID queue_fetch_task(GC::Ref<FetchController> fetch_controller, TaskDes
 {
     auto fetch_task_id = fetch_controller->next_fetch_task_id();
 
-    auto html_task_id = queue_fetch_task(task_destination, GC::create_function(GC::Heap::the(), [fetch_controller, fetch_task_id, algorithm]() {
+    auto html_task_id = queue_fetch_task(task_destination, GC::create_function<void()>(GC::Heap::the(), GC::captures(fetch_controller, fetch_task_id, algorithm), [](auto& fetch_controller, auto fetch_task_id, auto& algorithm) {
         fetch_controller->fetch_task_complete(fetch_task_id);
         algorithm->function()();
     }));
