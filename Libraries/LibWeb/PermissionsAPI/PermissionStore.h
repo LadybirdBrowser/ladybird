@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
@@ -29,6 +30,8 @@ struct PermissionStoreEntry {
 };
 
 // https://w3c.github.io/permissions/#dfn-permission-store
+// NB: The decisions are the process's and any thread may read them. The statuses that show them are cells, so each agent
+//     keeps its own.
 class WEB_API PermissionStore {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -48,6 +51,8 @@ public:
         No,
         Yes,
     };
+    // With Notify::Yes this updates the statuses of the calling agent. Another agent gets the same snapshot from its own
+    // connection to the UI process, and the revision tells it that it has more to do than this store.
     void apply_snapshot(Web::Permissions::PermissionSnapshot, Notify = Notify::Yes);
     Web::Permissions::EffectiveState state_for(Web::Permissions::PermissionName, URL::Origin const& key, Page&);
 
@@ -57,10 +62,14 @@ public:
     Vector<String> cached_origins_for_testing() const;
 
     // For an agent that goes away, whose statuses have to go with its heap.
-    void forget_statuses() { m_statuses.clear(); }
+    static void forget_statuses_of_this_agent();
 
 private:
     PermissionStore() = default;
+
+    bool store_snapshot(Web::Permissions::PermissionSnapshot const&);
+
+    mutable Mutex m_mutex;
 
     Vector<PermissionStoreEntry> m_entries;
 
@@ -73,7 +82,6 @@ private:
     Web::Permissions::EffectiveState m_geolocation_default { Web::Permissions::EffectiveState::Prompt };
     Web::Permissions::EffectiveState m_microphone_default { Web::Permissions::EffectiveState::Prompt };
     Web::Permissions::EffectiveState m_notifications_default { Web::Permissions::EffectiveState::Prompt };
-    Vector<GC::Weak<PermissionStatus>> m_statuses;
 };
 
 bool permission_key_is_equal_to(PermissionDescriptor const& descriptor, URL::Origin const& key1, URL::Origin const& key2);
