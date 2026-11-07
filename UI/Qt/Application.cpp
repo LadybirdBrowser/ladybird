@@ -13,11 +13,13 @@
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibDatabase/Database.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Transport.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/WebView/Utilities.h>
+#include <LibWebView/AutocompleteService.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/FaviconStore.h>
@@ -829,10 +831,13 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     create_platform_actions();
 
     WebView::ReportSubmission::set_post_function([](auto const& url, auto headers, auto body, auto on_response) -> Function<void()> {
-        auto post_id = HubConnection::the().post_report(url, move(headers), move(body), move(on_response));
-        return [post_id] {
+        auto request_id = HubConnection::the().start_request("POST"sv, url, move(headers), move(body), HTTP::CacheMode::NoStore,
+            HTTP::Cookie::IncludeCredentials::No, WebView::IsPrivate::No, [on_response = move(on_response)](auto response) {
+                on_response({ .had_network_error = response.had_network_error, .response_code = response.response_code, .headers = move(response.headers), .body = move(response.body) });
+            });
+        return [request_id] {
             if (auto* hub = HubConnection::the_if_connected())
-                hub->cancel_report_post(post_id);
+                hub->stop_request(request_id);
         };
     });
 
@@ -1262,9 +1267,14 @@ void Application::create_session_store(ByteString const& data_directory, bool pe
 
 void Application::create_history_store(ByteString const& data_directory, bool uses_sql_database)
 {
+    auto create_autocomplete_service = [&](Optional<ByteString> history_database_directory) {
+        m_autocomplete_service = make<WebView::AutocompleteService>(Core::EventLoop::current(), move(history_database_directory));
+    };
+
     if (!uses_sql_database) {
         m_favicon_store = WebView::FaviconStore::create();
         m_history_store = WebView::HistoryStore::create_disabled();
+        create_autocomplete_service({});
         return;
     }
 
@@ -1286,6 +1296,8 @@ void Application::create_history_store(ByteString const& data_directory, bool us
     }();
     if (!created.is_error() && created.value()) {
         m_should_remove_unreferenced_favicons = true;
+        // NB: The omnibox reads the history on a thread of its own, with a connection of its own.
+        create_autocomplete_service(data_directory);
         return;
     }
 
@@ -1295,6 +1307,25 @@ void Application::create_history_store(ByteString const& data_directory, bool us
         dbgln("History database was created by a newer Ladybird version; favicons and history will not be persisted this session");
     m_favicon_store = WebView::FaviconStore::create();
     m_history_store = WebView::HistoryStore::create(*m_favicon_store);
+    create_autocomplete_service({});
+}
+
+Function<void()> Application::fetch_remote_suggestions(URL::URL const& url, WebView::IsPrivate is_private, Function<void(RemoteResponse)> on_response)
+{
+    auto request_id = HubConnection::the().start_request("GET"sv, url, {}, {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, is_private,
+        [on_response = move(on_response)](HubConnection::RequestResponse response) {
+            auto content_type = HTTP::HeaderList::create(move(response.headers))->get("Content-Type"sv);
+            on_response({
+                .had_network_error = response.had_network_error,
+                .response_code = response.response_code,
+                .content_type = move(content_type),
+                .body = MUST(ByteBuffer::copy(response.body.bytes())),
+            });
+        });
+    return [request_id] {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->stop_request(request_id);
+    };
 }
 
 WebView::FaviconStore& Application::favicon_store(WebView::IsPrivate is_private)

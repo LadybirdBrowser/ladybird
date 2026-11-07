@@ -250,38 +250,6 @@ void ConnectionFromUI::cancel_unresumable_downloads()
     Application::the().file_downloader().cancel_unresumable_downloads();
 }
 
-void ConnectionFromUI::omnibox_open(u64 client_id, WebView::IsPrivate is_private)
-{
-    auto autocomplete = make<WebView::Autocomplete>(is_private);
-    autocomplete->on_autocomplete_query_complete = [this, client_id](auto query_id, auto suggestions, auto) {
-        async_omnibox_suggestions(client_id, query_id, move(suggestions));
-    };
-    m_omnibox_clients.set(client_id, move(autocomplete));
-}
-
-void ConnectionFromUI::omnibox_close(u64 client_id)
-{
-    m_omnibox_clients.remove(client_id);
-}
-
-void ConnectionFromUI::omnibox_query(u64 client_id, u64 query_id, String query, u64 max_suggestions, Vector<WebView::AutocompleteSuggestion> additional_suggestions)
-{
-    if (auto* autocomplete = m_omnibox_clients.get(client_id).value_or(nullptr))
-        autocomplete->query_autocomplete_engine(query_id, move(query), max_suggestions, move(additional_suggestions));
-}
-
-void ConnectionFromUI::omnibox_cancel(u64 client_id)
-{
-    if (auto* autocomplete = m_omnibox_clients.get(client_id).value_or(nullptr))
-        autocomplete->cancel_pending_query();
-}
-
-void ConnectionFromUI::omnibox_record_engagement(u64 client_id, WebView::OmniboxEngagement engagement)
-{
-    if (auto* autocomplete = m_omnibox_clients.get(client_id).value_or(nullptr))
-        autocomplete->record_engagement(move(engagement));
-}
-
 void ConnectionFromUI::pip_did_resize(u64 view_id, Gfx::IntSize size)
 {
     if (auto* window = PictureInPictureWindowInUI::find(view_id))
@@ -578,35 +546,33 @@ void ConnectionFromUI::ui_did_start()
     Application::the().ui_did_start();
 }
 
-void ConnectionFromUI::post_report(u64 post_id, URL::URL url, Vector<HTTP::Header> headers, ByteString body)
+void ConnectionFromUI::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> headers, ByteString body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, WebView::IsPrivate is_private)
 {
     RefPtr<Requests::Request> request;
-    if (auto client = WebView::Application::request_server_client(WebView::IsPrivate::No); !client.is_error()) {
-        request = client.value()->start_request("POST"sv, url, HTTP::Cookie::SameSiteContext::same_site(), *HTTP::HeaderList::create(move(headers)), body.bytes(),
-            HTTP::CacheMode::NoStore, HTTP::Cookie::IncludeCredentials::No);
-    }
+    if (auto client = WebView::Application::request_server_client(is_private); !client.is_error())
+        request = client.value()->start_request(method, url, HTTP::Cookie::SameSiteContext::same_site(), *HTTP::HeaderList::create(move(headers)), body.bytes(), cache_mode, include_credentials);
     if (!request) {
-        async_report_post_finished(post_id, true, {}, {}, {});
+        async_request_finished(request_id, true, {}, {}, {});
         return;
     }
 
     request->set_buffered_request_finished_callback(
-        [this, post_id](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error,
+        [this, request_id](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error,
             HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const&,
             Requests::CacheState, Core::ImmutableBytes payload) {
-            async_report_post_finished(post_id, network_error.has_value(), response_code, response_headers.headers(), ByteString::copy(payload.bytes()));
+            async_request_finished(request_id, network_error.has_value(), response_code, response_headers.headers(), ByteString::copy(payload.bytes()));
 
             // A request cannot be destroyed from inside its own callback.
-            Core::deferred_invoke([this, post_id] {
-                m_report_posts.remove(post_id);
+            Core::deferred_invoke([this, request_id] {
+                m_requests.remove(request_id);
             });
         });
-    m_report_posts.set(post_id, request.release_nonnull());
+    m_requests.set(request_id, request.release_nonnull());
 }
 
-void ConnectionFromUI::cancel_report_post(u64 post_id)
+void ConnectionFromUI::stop_request(u64 request_id)
 {
-    if (auto request = m_report_posts.take(post_id); request.has_value())
+    if (auto request = m_requests.take(request_id); request.has_value())
         (*request)->stop();
 }
 

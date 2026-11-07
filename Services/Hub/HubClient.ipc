@@ -20,7 +20,6 @@
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebView/AccessibilityTreeManager.h>
-#include <LibWebView/Autocomplete.h>
 #include <LibWebView/ContextMenuRequest.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/HistoryStore.h>
@@ -96,25 +95,6 @@ struct Hub::DownloadState {
     Optional<u64> bytes_per_second;
     bool is_waiting_to_retry;
     UnixDateTime created_time;
-}
-
-[ExistingCpp]
-struct WebView::AutocompleteSuggestion {
-    WebView::AutocompleteSuggestionSource source;
-    String text;
-    Optional<String> title;
-    Optional<String> subtitle;
-    Optional<ByteBuffer> favicon_png;
-    String highlight_input;
-    WebView::AutocompleteMatchClass match_class;
-    i32 relevance;
-    i32 match_relevance;
-    i32 history_relevance;
-    i32 bookmark_relevance;
-    i32 adaptive_relevance;
-    bool is_verbatim;
-    bool can_be_automatically_selected;
-    bool can_be_inline_completed;
 }
 
 // What only the UI can tell, which the Hub needs from the start.
@@ -228,7 +208,7 @@ struct Hub::ViewState {
 endpoint HubClient
 {
     crash_reports_changed() =|
-    report_post_finished(u64 post_id, bool had_network_error, Optional<u32> response_code, Vector<HTTP::Header> response_headers, ByteString body) =|
+    request_finished(u64 request_id, bool had_network_error, Optional<u32> response_code, Vector<HTTP::Header> response_headers, ByteString body) =|
     app_open_urls(Vector<URL::URL> urls) =|
     app_open_new_tab(Vector<URL::URL> urls) =|
     app_open_new_window(Vector<URL::URL> urls) =|
@@ -257,7 +237,6 @@ endpoint HubClient
     external_url_resolve_handler(u64 request_id, URL::URL url) =|
     external_url_launch(u64 handler_id, u64 request_id, URL::URL url) =|
     external_url_release_handler(u64 handler_id) =|
-    omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions) =|
     download_added(Hub::DownloadState download) =|
     download_updated(Hub::DownloadState download) =|
     download_removed(u64 id, WebView::IsPrivate is_private) =|

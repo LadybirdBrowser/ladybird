@@ -17,9 +17,9 @@
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibCore/Forward.h>
-#include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWebView/BrowsingSession.h>
+#include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/OmniboxEngagement.h>
 #include <LibWebView/Settings.h>
@@ -96,12 +96,32 @@ WEBVIEW_API size_t autocomplete_preliminary_limit(size_t max_suggestions);
 WEBVIEW_API bool autocomplete_urls_match(StringView left, StringView right);
 WEBVIEW_API bool autocomplete_url_can_complete(StringView query, StringView suggestion);
 
+// The application that runs the omnibox supplies the things suggestions are made from.
+class WEBVIEW_API AutocompleteHost {
+public:
+    struct RemoteResponse {
+        bool had_network_error { false };
+        Optional<u32> response_code;
+        Optional<ByteString> content_type;
+        ByteBuffer body;
+    };
+
+    virtual ~AutocompleteHost() = default;
+
+    virtual AutocompleteService& autocomplete_service() = 0;
+    virtual Settings& autocomplete_settings() = 0;
+    virtual void resolve_external_url_handler(URL::URL const&, ExternalURLHandlerCallback) const = 0;
+
+    // Returns a function that cancels the request. on_response is never called after that.
+    virtual Function<void()> fetch_remote_suggestions(URL::URL const&, IsPrivate, Function<void(RemoteResponse)> on_response) = 0;
+};
+
 class WEBVIEW_API Autocomplete : public Weakable<Autocomplete>
     , public SettingsObserver {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    explicit Autocomplete(IsPrivate);
+    Autocomplete(AutocompleteHost&, IsPrivate);
     virtual ~Autocomplete() override;
 
     Function<void(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind)> on_autocomplete_query_complete;
@@ -121,6 +141,7 @@ private:
     void deliver_current_result();
     void invoke_autocomplete_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind) const;
 
+    AutocompleteHost& m_host;
     IsPrivate m_is_private { IsPrivate::No };
     u64 m_service_client_id { 0 };
     Optional<AutocompleteQueryID> m_query_id;
@@ -135,7 +156,7 @@ private:
     Vector<AutocompleteSuggestion> m_local_suggestions;
     Vector<String> m_remote_suggestions;
     RefPtr<Core::Timer> m_remote_query_timer;
-    RefPtr<Requests::Request> m_request;
+    Function<void()> m_cancel_remote_query;
 };
 
 }

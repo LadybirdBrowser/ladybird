@@ -47,20 +47,17 @@
 #include <LibWebCommon/WebDriver/TimeoutsConfiguration.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/AutocompleteService.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/CompositorPresentationClient.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/CrashReportStore.h>
-#include <LibWebView/FaviconStore.h>
 #include <LibWebView/FontService.h>
 #include <LibWebView/FontServiceHost.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
-#include <LibWebView/HistoryStore.h>
 #include <LibWebView/ImageDecoderManager.h>
 #include <LibWebView/NoOpMicrophoneAuthorizer.h>
 #include <LibWebView/NoOpNotificationBackend.h>
@@ -202,8 +199,6 @@ Application::~Application()
     // Stop bootstrap callbacks before destroying the state they use.
     m_mach_port_server.clear();
 #endif
-
-    m_autocomplete_service.clear();
 
     if (m_compositor_client)
         m_compositor_client->on_death = nullptr;
@@ -1669,17 +1664,9 @@ ErrorOr<void> Application::launch_services()
         process_did_exit(move(process), exit_status);
     };
 
-    Optional<ByteString> history_database_directory;
-
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
         auto database_path = profile().paths().data;
-        history_database_directory = database_path;
-
         auto database = TRY(Database::Database::create(database_path, "Ladybird"sv));
-        auto history_database = TRY(Database::Database::create(database_path, "History"sv));
-
-        if (auto history_database_path = history_database->database_path(); history_database_path.has_value())
-            dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is enabled, using {}", history_database_path->string());
 
         // The browsing database is shared by several stores, so the decision to fall back is
         // made for the file as a whole: if any store's schema is too new, none of them may
@@ -1736,31 +1723,12 @@ ErrorOr<void> Application::launch_services()
         else
             m_download_store = DownloadStore::create_disabled();
 
-        // The History database is shared by the favicon and history stores. Preflight both before applying either
-        // migration so a database that is too new remains untouched.
-        auto favicons_outcome = TRY(FaviconStore::migrate_schema(history_database, Database::MigrationMode::CheckOnly));
-        auto history_outcome = TRY(HistoryStore::migrate_schema(history_database, Database::MigrationMode::CheckOnly));
-
-        if (favicons_outcome == Database::MigrationOutcome::Success && history_outcome == Database::MigrationOutcome::Success) {
-            favicons_outcome = TRY(FaviconStore::migrate_schema(history_database));
-            history_outcome = favicons_outcome == Database::MigrationOutcome::Success
-                ? TRY(HistoryStore::migrate_schema(history_database))
-                : Database::MigrationOutcome::DatabaseTooNew;
-        }
-
-        // NB: The application keeps browsing history in this database. The omnibox reads it here too, so we migrate it
-        //     before the omnibox opens it.
-        if (favicons_outcome != Database::MigrationOutcome::Success || history_outcome != Database::MigrationOutcome::Success)
-            history_database_directory = {};
-
         // A headless run, a browser that WebDriver drives, and one that logs process statistics never join a browser
         // already running on their profile. Yet startup recovery would still rewrite the saved session, reset the
         // unclean-exit count, and demote the open windows of a browser running on this profile. So none of them keeps
         // its session, leaving the Sessions database as the last run left it.
         m_persists_sessions = !m_browser_options.headless_mode.has_value() && !m_browser_options.webdriver_browser_endpoint.has_value() && !m_stats_log;
     } else {
-        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is disabled, disabling browsing history");
-
         m_default_session->cookie_jar = CookieJar::create();
         m_default_session->hsts_store = HSTSStore::create();
         m_default_session->storage_jar = StorageJar::create();
@@ -1782,9 +1750,6 @@ ErrorOr<void> Application::launch_services()
         }
     }
 #endif
-
-    VERIFY(m_event_loop);
-    m_autocomplete_service = make<AutocompleteService>(*m_event_loop, move(history_database_directory));
 
     // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
     if (!Core::Environment::has("TZ"sv)) {

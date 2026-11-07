@@ -15,6 +15,7 @@
 #include <LibURL/URL.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/Autocomplete.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/ProcessSnapshot.h>
@@ -52,6 +53,7 @@ enum class ShowWindow {
 
 class Application final
     : public Hub::ApplicationHost
+    , public WebView::AutocompleteHost
     , public WebView::CrashReportOutboxObserver {
     friend class ApplicationActions;
     friend class Bookmarks;
@@ -97,6 +99,11 @@ public:
     static WebView::HistoryStore& history_store() { return *s_the->m_history_store; }
     static WebView::FaviconStore& favicon_store(WebView::IsPrivate);
     void remove_unreferenced_favicons(HashTable<String> referenced_hashes);
+
+    // The location bars make their suggestions from the history, and from the search engine through the Hub.
+    virtual WebView::AutocompleteService& autocomplete_service() override { return *m_autocomplete_service; }
+    virtual WebView::Settings& autocomplete_settings() override { return *m_settings; }
+    virtual Function<void()> fetch_remote_suggestions(URL::URL const&, WebView::IsPrivate, Function<void(RemoteResponse)>) override;
 
     void history_page_opened(u64 web_ui_id);
     void history_page_received_message(u64 web_ui_id, String const& name, JsonValue const& data);
@@ -229,7 +236,7 @@ private:
     void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab, Optional<u64> source_view_id, WebView::IsPrivate) const;
     void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor, WebView::IsPrivate);
 
-    void resolve_external_url_handler(URL::URL const&, WebView::ExternalURLHandlerCallback) const;
+    virtual void resolve_external_url_handler(URL::URL const&, WebView::ExternalURLHandlerCallback) const override;
     void resolve_external_url_handler_for_hub(u64 request_id, URL::URL const&);
     void launch_external_url(u64 handler_id, u64 request_id, URL::URL const&);
     void release_external_url_handler(u64 handler_id);
@@ -312,6 +319,7 @@ private:
     OwnPtr<WebView::FaviconStore> m_favicon_store;
     OwnPtr<WebView::FaviconStore> m_private_favicon_store;
     OwnPtr<WebView::HistoryStore> m_history_store;
+    OwnPtr<WebView::AutocompleteService> m_autocomplete_service;
     bool m_should_remove_unreferenced_favicons { false };
     HashMap<u64, NonnullOwnPtr<HistoryPage>> m_history_pages;
     Vector<int> m_session_signal_handlers;
