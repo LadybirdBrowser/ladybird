@@ -569,7 +569,7 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
             view().did_show_permission_prompt(request);
         };
         popover->on_open_settings = [] {
-            Application::the().microphone_authorizer().open_system_settings();
+            Application::hub().microphone_authorizer().open_system_settings();
         };
         return popover;
     };
